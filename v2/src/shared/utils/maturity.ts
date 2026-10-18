@@ -51,7 +51,8 @@ function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   const r: string[] = []
   if ((t.description || '').trim().length >= 10) s += 15; else r.push('缺说明（做什么没说清）')
   if (t.estimatedMinutes) s += 10; else r.push('未估时')
-  if (t.title.trim().length >= 2 && t.title.trim().length <= 24) s += 10; else r.push('标题过长/过空')
+  const tTitle = String(t.title || '')
+  if (tTitle.trim().length >= 2 && tTitle.trim().length <= 24) s += 10; else r.push('标题过长/过空')
   if (t.dueDate) s += 10; else r.push('无截止日')
   if (t.projectId) s += 8; else r.push('未挂项目')
   if (t.metricId) s += 7; else r.push('未挂指标')
@@ -69,7 +70,7 @@ export function curioMaturity(c: CuriosityCard, now = Date.now()): Maturity {
   let s = 0
   const r: string[] = []
   if (c.sourceUrl) s += 30; else r.push('没有来源链接')
-  if ((c as { description?: string }).description || c.question.trim().length > 20) s += 25; else r.push('问题太短、缺上下文')
+  if (typeof c.description === 'string' && c.description || String(c.question || '').trim().length > 20) s += 25; else r.push('问题太短、缺上下文')
   const days = (now - c.updatedAt) / DAY
   if (days <= 30) s += 20; else r.push(`${Math.floor(days)} 天没动静`)
   return wrap(s, r)

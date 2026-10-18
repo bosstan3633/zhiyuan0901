@@ -1000,16 +1000,18 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 /* R175：page-head 行随「页头并入合流状态条」退役——存储/同步 chip 移入 MetricBar 右槽，页面身份由顶栏活动页签承担 */
 
 /* R50-F2 数据存储状态栏 ｜ R175（原型）：默认态改无框轻量指示（绿点+文本），异常态保留红点闪烁与点击重试；
-   原有两处硬编码色值一并归位 var(--success)/var(--danger)（红线 3：零硬编码色值） */
-.storage-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: 1px solid transparent; padding: 3px 4px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
+   原有两处硬编码色值一并归位 var(--success)/var(--danger)（红线 3：零硬编码色值）
+   M6：min-height 28px 热区下限（同 App.vue 顶栏口径）——chip 实测 23px，规范 M6 要求 ≥28px */
+.storage-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: 1px solid transparent; padding: 3px 4px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
 .storage-chip:hover { background: var(--surface-2); }
 .storage-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); flex-shrink: 0; }
 .storage-chip.err { color: var(--danger); }
 .storage-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
 @keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* R63-9：Airtable 同步状态卡 ｜ R175（原型）：改次级行内 chip 形态（sub-action-btn 同款），三态与 ⚙ 语义不变 */
-.sync-chip { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
+/* R63-9：Airtable 同步状态卡 ｜ R175（原型）：改次级行内 chip 形态（sub-action-btn 同款），三态与 ⚙ 语义不变
+   M6：min-height 28px 热区下限（同 storage-chip 口径） */
+.sync-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
 .sync-chip:hover { border-color: var(--border-strong); background: var(--surface-3); }
 .sync-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--text-4); flex-shrink: 0; }
 .sync-chip.on .sc-dot { background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); }
@@ -1021,7 +1023,8 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 /* R172-T9：今日记录 4 计数迷你条随入口整合退役 —— 记录能力迁入知源仪表盘 */
 /* R120-TB1：条内动作按钮 ｜ R175（原型）：改次级 chip 形态（11px + hairline + xs 圆角）；
    「📈 复盘」保留强调态（全站单一复盘入口的视觉锚点，原型以中性 chip 表达周报、语义不同） */
-.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); padding: 3px 9px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
+/* M6：min-height 28px 热区下限（同 storage/sync chip 口径；实测 23px） */
+.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); min-height: 28px; padding: 3px 9px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
 .mb-act:hover { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
 /* ★M4（V3.8.32）：`.mb-act.cta` 的 accent 软底规则随入口降级一并删除。
    留一条注释备案：这里曾经有一个"页头主行动"，它抢的正是下方三件事的第一眼；
@@ -1104,7 +1107,8 @@ function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: 
 .date-nav .dd { padding: 0 12px; font-size: var(--fs-sub); font-weight: 500; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 128px; text-align: center; }
 /* ===== R169-T3：今日三件事的推荐依据浮层（右上角一枚小图标，不占台面高度） ===== */
 .card.focus { position: relative; }
-.focus-why-ico { position: relative; margin-left: auto; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--accent-2); cursor: pointer; transition: border-color var(--dur), box-shadow var(--dur); }
+/* M6：26px → 28px 热区（图标尺寸不动，只撑点击盒子） */
+.focus-why-ico { position: relative; margin-left: auto; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--accent-2); cursor: pointer; transition: border-color var(--dur), box-shadow var(--dur); }
 .focus-why-ico:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .focus-why-ico.on { background: var(--accent); border-color: var(--accent); color: #fff; --ai-mark-fill: #fff; --ai-mark-eye: var(--accent); }
 .focus-why-ico .fwb { position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 999px; background: var(--accent); border: 1.5px solid var(--surface); }

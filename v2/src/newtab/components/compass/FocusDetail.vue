@@ -182,6 +182,9 @@ function onSplit() {
 .sr-r button {
   font-size: var(--fs-micro); font-family: inherit; cursor: pointer; white-space: nowrap;
   border-radius: 7px; padding: 5px 11px; line-height: 1.4;
+  /* M6（B7-e · V3.8.40）：热区下限 28px。9px 字 + 5px×2 padding 实测只有 24.6px，
+     规范 M6 要求 ≥28px。min-height 不动字号与横向 padding，故行内并排的两钮间距一字未变。 */
+  min-height: 28px;
 }
 .more {
   font-weight: 700; color: var(--accent-ink); background: var(--accent-light);

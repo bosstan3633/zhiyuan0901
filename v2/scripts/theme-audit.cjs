@@ -129,23 +129,18 @@ const DRAWER_VIEWS = [
  * 日详情四列、共用下钻列表、复盘两栏的**实测列数**、AI 文本报告的四段顺序与「以上统下」闭环、
  * 调度台新「📈 复盘」方向条。任一不过即非零退出。
  */
-/**
- * 打开画像页的周/月复盘弹窗（★W12 新增）。
- * 入口有两个，任选其一即可：PiHero 的「✦ AI 解读」与 PiRhythm 的「📈 周/月复盘」，
- * 两者在 ProfileInsights 里都 emit 到同一个 `openReview`（`.pi-rev-overlay` + `.pi-rev-modal`）。
- * 这里按 title 定位「✦ AI 解读」（PiHero 上有 title="AI 生成画像解读（进入复盘弹窗）"），
- * 不用按钮文案 —— 文案会随版本改，title 也在改，但两者都属文案层；真正的稳定锚是
- * 「点了之后 `.pi-rev-modal` 可见」，所以下面判空一次可见性才算开成功（开失败不静默，
- * 让后续 judge 如实报红）。
- */
-async function openReviewModal(page) {
-  await page.locator('.pi-btn[title*="AI"]').first().click({ timeout: 6000 }).catch(() => {})
-  await page.waitForTimeout(700)
-  if (!(await page.locator('.pi-rev-modal').first().isVisible().catch(() => false))) {
-    await page.locator('.pi-btn:has-text("周/月复盘")').first().click({ timeout: 4000 }).catch(() => {})
-    await page.waitForTimeout(700)
-  }
-}
+/**★B7-e（2026-10-18）**四条场景整组退役**（下钻卡片列表 / 复盘两栏 / AI文本报告 / 调度台复盘入口）。
+ *  这个数组是**给回归判据 W12-13 用的活锚**：判据跑在 `codeOnly()` 上，注释会被抹成等长空白，
+ *  所以「这四条已下线」必须有一个**代码里**的凭据，不能只写在注释里。
+ *  —— 产品侧 `ProfileInsights.vue:405` 明写：★W13-D5 退役 2026-10-16，ReviewPanel 挂载随
+ *    「复盘能力四段常驻」拍板下线，reviewOpen/openReview/useDashboardReport 四出口一并退役。
+ *    这四屏量的 `.pi-rev-modal` / `.dz-rev-grid` / `.dz-kpi` / `.dz-rpt` / `.dz-drill*`
+ *    只存在于 CSS 与三个零挂载的组件文件里（ReviewPanel / DrillCardList / ReviewReportModal
+ *    全库无 import）。★这四屏从来没绿过（判据是 V3.8.12 随 W12 写的，W13-D5 两周后就把它退役了）——
+ *    留着只会让每次走查稳定贡献 16 条红，而真红会被淹没。
+ *  想复活：先把 ReviewPanel 挂回画像洞察页，再把四屏原样抄回来（实测列数 / KPI 数 / 规则数 /
+ *    范围 tab 数 / 四段顺序 /「以上统下」闭环的硬核判据一字不减），并把本数组一并删掉。 */
+const RETIRED_DASH_SCENES = ['dz-drill', 'dz-review', 'dz-report', 'dz-entry']
 
 const DASH_SCENES = [
   {
@@ -162,20 +157,33 @@ const DASH_SCENES = [
        口径表 `.dz-calib` 在 dashboard.css 里仍有 7 条规则，但已无任何模板挂载点 ⇒ 随判据一并退役。 */
     judge: async (page) => {
       const base = await page.evaluate(() => {
-        const chips = [...document.querySelectorAll('.pi-hero-sum .pi-hchip')]
+        /* ★B7-e（2026-10-18）第三次重指：`.pi-hero-sum .pi-hchip` 在**模板里已无挂载点**
+           （全库 `class=` 命中 0，只在 CSS 注释里留了字面量）——PiHero 早把它换成
+           `.hero-kpis-grid` + 四枚 `.hero-kpi`（N7 钉住 repeat(4,1fr) 等宽铺满）。
+           判据锚点停在旧名上，于是「chip=0/5」是与组件改名同步产生的**长期假红**。
+           ——重指后守的还是同一批行为：四枚都在② 同排一行（等宽 grid 不许改回居中或不等宽）
+           ③ 每枚必须带 title 口径（那是原 `.dz-calib` 口径表的承载物）
+           ④ 出错时不得冒错误徽章（`.pi-btn-warn`，原 `.dz-ov-err`）。
+           ★数量从五改四不是放水：五枚那一版含「活跃度」，该维度已并入其余四格的 title 口径里。 */
+        const chips = [...document.querySelectorAll('.hero-kpis-grid > .hero-kpi')]
         const rows = new Set(chips.map(c => Math.round(c.getBoundingClientRect().top))).size
         const titled = chips.filter(c => (c.getAttribute('title') || '').trim().length > 0).length
-        const errPill = !!document.querySelector('.pi-btn[style*="warning"]')
-        return { sec: !!document.querySelector('.pi-hero-sum'), n: chips.length, rows, titled, errPill }
+        const errPill = !!document.querySelector('.pi-btn-warn')
+        return { sec: !!document.querySelector('.hero-kpis-grid'), n: chips.length, rows, titled, errPill }
       })
+      const N = 4
       return {
-        ok: base.sec && base.n === 5 && base.rows === 1 && base.titled === 5 && !base.errPill,
-        txt: `chip=${base.n}/5 同排=${base.rows === 1 ? '是' : base.rows + '行'} 带口径=${base.titled}/5 错误徽章0不现=${!base.errPill}`
+        ok: base.sec && base.n === N && base.rows === 1 && base.titled === N && !base.errPill,
+        txt: `chip=${base.n}/${N} 同排=${base.rows === 1 ? '是' : base.rows + '行'} 带口径=${base.titled}/${N} 错误徽章0不现=${!base.errPill}`
       }
     }
   },
   {
-    id: 'dz-heatmap', name: '年度热力图', hash: '#/', /* W2 V3.8.2：热力图迁调度台 */
+    id: 'dz-heatmap', name: '年度热力图', /* ★B7-e：宿主改指画像洞察页。
+       原 `hash: '#/'` 是 W2（V3.8.2）热力图迁调度台时写的；此后热力图又随 W10/W12 迁到画像页，
+       现在由 `PiYear.vue:122` 挂 `<Heatmap>`（全库唯一挂载点）⇒ 判据的 hash 停在旧宿主上，
+       于是量的是调度台，读数必然全 0。**换的是承重锚，守的还是同一批行为。** */
+    host: '.pi-hmbox',
     /* ★W12(V3.8.12)随迁备案：图例判据原写死 `legend.length === 6`，而 V3.8.7「补丁三」给图例
        加了第 7 枚「今天」说明项（Heatmap.vue:272，class `.lv today-key`，用 ::before 画 accent 描边块，
        因为当日格的底色是 heat-N 而不是固定色）。判据自那版起就一直红着（实测 7 项），
@@ -197,23 +205,25 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-day', name: '日详情', hash: '#/',
-    /* ★W12(V3.8.12)随迁备案：① 日详情随 W10 搬进 Heatmap 的 Teleport 弹窗 `.dz-day-modal-overlay`，
-       act 必须先点「看全年 ›」把 366 格展开（V3.8.7 起 expanded 初值 false）才有点得着的格子；
-       ② 原 act 点的 `.dz-cell:not([disabled])` 首格 = 全年第一格，几乎必然是空白日，而四格统计
-       带 `v-if="dlSum.n"` 前置（DayDetail.vue:229）——空白日就不渲染，「四格统计=0」是选格选错，
-       不是四格丢了。改为**优先点有记录的格子**（level ≥1，即 class 带 l1~l5），无记录时才退回首格。
-       判据本身不放宽：仍要求 ≥4 格 + 热力带 + 时间线三者齐全。 */
+    id: 'dz-day', name: '日详情',
+    /* ★B7-e（2026-10-18）**act 与判据双双重指**：这是本批最难定位的一条，三层原因叠在一起——
+       ① `hash: '#/'` 是 W2（热力图在调度台）时代的旧宿主——去掉，改画像页；
+       ② **点热力图格子不再打开日详情弹窗**：`Heatmap.vue` 的 click 只 `emit('update:selDay')`，
+          `PiYear.vue:122` 把它接成 `@update:sel-day="emit('update:selDay')"`，一路到
+          `ProfileInsights:1016` 只写 `dashSelDay`；开弹窗的 `openDayBattle()` **全库零调用**
+          （唯一开弹窗的是 `openTodayBattle()`，挂在 PiToday 的「打开战报」钮上，`:982`）。
+          ⇒ 原 act「点有记录的格子」点出来的是**选中态**（格子描边），不是弹窗，判据自然全 0。
+          ③ 弹层真实类名是 `.pi-day-overlay` / `.pi-day-modal`（不是备案里写的 `.dz-day-modal-overlay`）。
+       ——所以 act 改走**今天真实存在的那条入口**：PiToday 的「打开战报」→ `openTodayBattle()`
+       （它自己会挑「今天有记录就今天、否则最近有记录的一天」，正是原注释想用选格绕过的那个问题）。
+       判据守的还是同一批行为：四格统计 ≥4 + 热力带 + 时间线三者齐全，一格都不放宽。 */
     act: async (page) => {
-      await page.locator('.dz-mini-more').first().click({ timeout: 6000 }).catch(() => {})
-      await page.waitForTimeout(700)
-      /* R170 备案的"补等重数一次"口径：慢机日首击可能还没回流到父级 selDay ⇒ 补点另一格再判死（判据不放宽） */
-      const has = page.locator('.dz-cell.l1:not(.future), .dz-cell.l2:not(.future), .dz-cell.l3:not(.future), .dz-cell.l4:not(.future), .dz-cell.l5:not(.future)').first()
-      await (await has.count() ? has : page.locator('.dz-cell:not([disabled])').first()).click().catch(() => {})
-      await page.waitForTimeout(900)
-      if (!(await page.locator('.dz-day').first().isVisible().catch(() => false))) {
-        await page.locator('.dz-cell:not([disabled])').nth(3).click().catch(() => {})
-        await page.waitForTimeout(1500)
+      const btn = page.locator('button', { hasText: '打开战报' }).first()
+      await btn.click({ timeout: 8000 }).catch(() => {})
+      await page.waitForTimeout(1200)
+      if (!(await page.locator('.pi-day-modal').first().isVisible().catch(() => false))) {
+        await page.locator('.pi-today-battle, .pi-mod-acts button').first().click().catch(() => {})
+        await page.waitForTimeout(1400)
       }
     },
     judge: async (page) => page.evaluate(() => {
@@ -222,61 +232,6 @@ const DASH_SCENES = [
       const band = !!document.querySelector('.dz-day .dz-heat-band')
       const tl = !!document.querySelector('.dz-day .dz-tl')
       return { ok: !!d && stats >= 4 && band && tl, txt: `日详情=${!!d} 四格统计=${stats}(应≥4) 热力带=${band ? '有' : '无'} 时间线=${tl ? '有' : '无'}` }
-    })
-  },
-  {
-    id: 'dz-drill', name: '下钻卡片列表', hash: '#/profile',
-    /* ★W12(V3.8.12)随迁备案：ReviewPanel 随 W10 从「页面内一屏」变成画像页的中央弹窗
-       （ProfileInsights 的 `v-if="reviewOpen"` + `.pi-rev-overlay`），而本场景 act 直接找 `.dz-kpi`
-       —— 那节点在未开弹窗时压根不在 DOM 里 ⇒ 「表头=无 行=0」。act 补上开弹窗这一步。 */
-    act: async (page) => { await openReviewModal(page); await page.locator('.dz-kpi').first().click().catch(() => {}); await page.waitForTimeout(700) },
-    judge: async (page) => page.evaluate(() => {
-      const h = document.querySelector('.dz-drill-h')
-      const rows = document.querySelectorAll('.dz-drill .dz-row').length
-      const empty = !!document.querySelector('.dz-drill-empty')
-      const txt = h ? h.textContent.replace(/\s+/g, '') : ''
-      return { ok: !!h && (/类卡片/.test(txt) || /共.*条记录/.test(txt) || empty), txt: `表头=${txt.slice(0, 26) || '无'} 行=${rows} 空态=${empty ? '有' : '无'}` }
-    })
-  },
-  {
-    id: 'dz-review', name: '复盘两栏', hash: '#/profile',
-    /* ★W12(V3.8.12)随迁备案：同 dz-drill —— 宿主搬进弹窗，本场景原无 act（靠上一场残留的弹窗才看得到），
-       弹窗一关就全 0。改为自带 act 显式开弹窗，本场不再依赖上一场的残留状态。 */
-    act: async (page) => { await openReviewModal(page) },
-    judge: async (page) => page.evaluate(() => {
-      const g = document.querySelector('.dz-rev-grid')
-      const cols = g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0
-      const kpi = document.querySelectorAll('.dz-kpi').length
-      const rules = document.querySelectorAll('.dz-rule, .dz-rule.ok').length
-      const tabs = document.querySelectorAll('.dz-tabs button').length
-      return { ok: cols === 2 && kpi >= 6 && rules >= 1 && tabs === 4, txt: `实测列=${cols}(应2) KPI=${kpi} 规则=${rules} 范围=${tabs}/4` }
-    })
-  },
-  {
-    id: 'dz-report', name: 'AI文本报告', hash: '#/profile',
-    /* ★R2-② 备案：本报告的数据源=zy_daily_stats 快照，而快照只在「saveData 后 45s 时间闸」或「页卸载补写」时重建——
-       播种的备份数据会在早期某次整库保存时被 flushCardEvents diff 成 create 事件、经时间闸落进快照。
-       本文件任何位置（含 deck 探针）**不得在 dz-report 之前 page.reload**：reload 会连同 pending 定时器一起死掉，
-       快照断源，报告退化成「本期没有任何动作记录」零态（2026-09-29 实测断过一次）。 */
-    /* ★W12(V3.8.12)随迁备案：「AI 复盘」钮随 ReviewPanel 搬进 `.pi-rev-modal` 弹窗，
-       原 act 在空 body 上找那个按钮 ⇒ 点不到 ⇒ `.dz-rpt` 不存在 ⇒ 「四段=无」。
-       改为先开复盘弹窗再点报告钮。 */
-    act: async (page) => { await openReviewModal(page); await page.locator('button:has-text("AI 复盘")').first().click().catch(() => {}); await page.waitForTimeout(1500) },
-    judge: async (page) => page.evaluate(() => {
-      const r = document.querySelector('.dz-rpt')
-      const h3 = [...document.querySelectorAll('.dz-rpt h3')].map(x => x.textContent.trim())
-      const lead = document.querySelector('.dz-rpt .lead')?.textContent.replace(/\s+/g, '') || ''
-      const rels = [...document.querySelectorAll('.dz-rpt .arg .rel')].map(x => (x.textContent.match(/「([^」]+)」/) || [])[1]).filter(Boolean)
-      const miss = rels.filter(c => !lead.includes(c))
-      const shape = /polygon|clip-path/.test(r ? r.innerHTML : '')
-      return { ok: !!r && JSON.stringify(h3) === JSON.stringify(['结论', '支撑论据', '洞察', '建议（按优先级）']) && rels.length === 3 && miss.length === 0 && !shape, txt: `四段=${h3.join('/') || '无'} 主张=${rels.join('/')} 断链=${miss.join('/') || '0'} 图形=${shape ? '有(红)' : '无'}` }
-    })
-  },
-  {
-    id: 'dz-entry', name: '调度台复盘入口', hash: '#/',
-    judge: async (page) => page.evaluate(() => {
-      const b = [...document.querySelectorAll('button')].find(x => /复盘/.test(x.textContent))
-      return { ok: !!b && !document.querySelector('.dz-rpt'), txt: `入口=${b ? b.textContent.trim().replace(/\s+/g, '') : '无'} 报告未开=${!document.querySelector('.dz-rpt') ? '是' : '否'}` }
     })
   },
   /* ★W9 退役重指带备案：原 R3-F38「dz-hl 交互点高亮」场景随开关退役删除——量的是「圈出数 == 面板内
@@ -747,6 +702,11 @@ const views = pick(VIEWS)
 const modalViews = pick(MODAL_VIEWS)
 const drawerViews = pick(DRAWER_VIEWS)
 const dashScenes = pick(DASH_SCENES)
+/* ★B7-e：退役的那四条若有人再加回来（`--scenes=` 传进来 / 数组被复制一条），必须立刻失败而不是
+   拍出一张量着不存在之物的图 —— 它们的宿主（ReviewPanel）已下线，判据只会稳定报红。 */
+for (const s of dashScenes) {
+  if (RETIRED_DASH_SCENES.includes(s.id)) throw new Error(`镜头 ${s.id} 已随 W13-D5 退役，不得复活（复活前请先挂回 ReviewPanel）`)
+}
 if (argv.scenes) {
   const hit = [...views, ...modalViews, ...drawerViews, ...dashScenes].length
   if (!hit) throw new Error('--scenes 没匹配到任何镜头，可选：' + [MODAL_VIEWS, VIEWS, MODAL_VIEWS, DRAWER_VIEWS, DASH_SCENES].flat().map(v => v.id).join(' / '))
@@ -1034,12 +994,33 @@ if (argv.scenes) {
     }
     // R165-A 补漏：三张卡的详情抽屉（本轮主交付面）——判据不过即记账，收尾统一非零退出
     for (const v of drawerViews) {
+      /*★B7-e（2026-10-18）补清场：本循环是**唯一不在镜头前调closeOverlays 的**一个
+        （views / dashScenes / OVERLAY_SCENES 三个循环都调了），后果实测极硬：
+          drawer-resource 镜头点开资源卡详情抽屉 → 它的 `.drawer-overlay` 全屏遮罩**留在页面上**
+          → 下一个镜头 drawer-task 的 `page.locator('.bt-tab').click()` 被遮罩 intercepts pointer events
+          → click 静默超时（被 .catch(() => {}) 吞掉，脚本不报错）→ tab 根本没切
+          → 「任务卡详情开=否」+ 后面所有镜头在遮罩下量，全批判据一起红成 0。
+        ★这类红最容易被误读成"本批把页面改崩了"：本批回归 1,937/0、死 CSS 0/0、vue-tsc 0 错都绿，
+          且 `git stash` 后用V3.8.39 基线复跑**同样崩** ⇒ 是工具缺陷，不是产品缺陷。
+        教训与 R170 同族：**`.click().catch(() => {})` 会把"点不动"变成静默无输出**，
+        判据红时必须先确认"动作真的执行了"，而不是先怀疑被测物。 */
+      await closeOverlays(page)
       await page.setViewportSize(VIEWPORT)
       await page.goto(base + v.hash, { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(1800)
       if (v.tab) {
-        await page.locator('.bt-tab', { hasText: v.tab }).first().click().catch(() => {})
+        /* 点完必须验「目标档现在真的是选中态」——**不能比 before/after**：
+           drawer-task 的目标 tab「任务卡」恰好就是默认档，点之前就已经选中态，
+           比对法会把"本来就对"误报成"没点动"（第一版守卫就这样误判了一次）。
+           正确口径是**只验终态**：点完这一屏要拍的就是任务卡，任务卡没亮着＝动作没生效。 */
+        await page.locator('.bt-tab', { hasText: v.tab }).first().click({ timeout: 8000 }).catch(() => {})
         await page.waitForTimeout(1200)
+        const onNow = await page.locator('.bt-tab.on').innerText().catch(() => '')
+        if (!onNow.includes(v.tab)) {
+          drawerFail.push(`${theme}/${v.id}：点了「${v.tab}」Tab 但选中态是「${onNow}」——多半是上一次镜头残留的遮罩吞了点击，先查 closeOverlays 有没有在镜头前跑`)
+          console.log(`  ⚠ ${theme.padEnd(8)} ${v.name} — 点 Tab「${v.tab}」未生效（当前选中「${onNow}」），本屏不作数`)
+          continue
+        }
       }
       const n0 = await page.locator(v.card).count().catch(() => 0)
       /* R170 备案：慢机日（冷挂墙钟 ~2.7s）1800ms 等不够懒 chunk+挂载落位 ⇒ 补等重数一次，等够再判死（不放宽判据） */
@@ -1050,8 +1031,30 @@ if (argv.scenes) {
         console.log(`  ✗ ${theme.padEnd(8)} ${v.name} — ${v.card} 命中 0，这张图不作数`)
         continue
       }
-      await page.locator(v.card).first().click().catch(() => {})
-      await page.waitForTimeout(900) /* 抽屉有进场动效，等它落位再截 */
+      /* ★B7-e：点之前先说清"点的是谁"——`.click().catch(() => {})` 会把"点不动/点空"变成静默无输出，
+         而判据红时日志里只剩一个 0，排查成本极高。点完同样要验终态。 */
+      const before = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return { found: false };
+        const r = el.getBoundingClientRect();
+        return { found: true, cls: (el.className || '').slice(0, 60), w: Math.round(r.width), h: Math.round(r.height), y: Math.round(r.top) };
+      }, v.card).catch(() => ({ found: false }))
+      if (!before.found) { console.log(`  ⚠ ${theme.padEnd(8)} ${v.name} — ${v.card} 在 DOM 里不存在`); continue }
+      await page.locator(v.card).first().click({ timeout: 10000 }).catch((e) => {
+        drawerFail.push(`${theme}/${v.id}：点 ${v.card} 失败 —— ${String(e.message || e).split('\n')[0]}`)
+      })
+      await page.waitForTimeout(1200) /* 抽屉有进场动效 + onTaskRowClick 有 260ms 单击去抖定时器，等它落位再截 */
+      const openedNow = await page.locator(v.open).first().isVisible().catch(() => false)
+      if (!openedNow) {
+        drawerFail.push(`${theme}/${v.id}：点了 ${v.card}（${before.cls} ${before.w}×${before.h} @y${before.y}）但 ${v.open} 没出现 —— 抽屉没开`)
+        /*★把崩溃原文打出来：`.click().catch()` 与"没出现"这两条线索都指不到根因上，
+          真正的错在渲染边界里（日志一个字不留）。B30a 的兜底卡只把 message 显示在页面上。 */
+        const crash = await page.evaluate(() => {
+          const e = document.querySelector('.re-msg');
+          return e ? String(e.textContent || '').slice(0, 200) : '';
+        }).catch(() => '')
+        console.log(`  ⚠ ${theme.padEnd(8)} ${v.name} — 点了 ${before.cls}（${before.w}×${before.h}）但 ${v.open} 没出现${crash ? '；页面渲染错误：' + crash : ''}`)
+      }
       await resetView(page)
       const opened = await page.locator(v.open).first().isVisible().catch(() => false)
       /* R166 定案 6 / R167：AI 入口一律**独立成行**，格数按卡种固定（任务 3 / 资源 2 / 好奇 1）
@@ -1196,6 +1199,36 @@ if (argv.scenes) {
          上面 views 循环早已用 settle() 替盲等，这一段当时漏了。放在盲等之后：稳定就立刻返回，
          不稳定才继续等，只会更稳不会更慢。 */
       await settle(page, sc.id)
+      /* ★B7-e（2026-10-18）补「宿主到位」守卫 —— 这是 dz七场景长期全红的真根因，
+         形态与 drawer 那次同类但更隐蔽：
+         `goto(base + '#/profile')` 改的只是 **hash**，同文档内 Playwright 不重载，
+         Vue Router 的路由组件是**懒 chunk**，要等 import 回来才换页。而 `settle()` 的稳定判据
+         里虽然含 `location.hash`，hash 此刻已经是 `#/profile` 了 —— 于是「hash 已对 + DOM 节点数
+         连续两次相同（还是**旧页面**的节点数）」被判成沉降，**立刻返回**。
+         后果：整段 dz 判据量的是**上一个镜头的页面**（实测七张图全是调度台），
+         四主题读数一模一样（`chip=0/5`、`格=0`、`日详情=false`）——
+         ★这正是「四主题全0 = 都没渲染」那类假绿的变体：不是主题问题，是根本没走到被测页。
+         修法不是放宽判据，而是**在判据之前先验「这个场景的宿主真的在」**，不在就 reload 一次
+         （reload 会真重载文档，懒 chunk 必挂载）。守卫失败时如实记进 dashFail，不静默跳过。
+         ★宿主**必须按 hash 前缀逐场景推**，不能一律用 `.pi-hero`——本循环里还有
+           `#/settings?page=tags`（标签双栏）/ `#/manual`（手册）/ `#/`（⌘K面板）三类，
+           用画像页的类去核它们会把**自己的镜头**判成"未挂载"（实测五屏被误伤）。 */
+      const HOST = sc.host
+        || (sc.hash === '#/' ? '.metric-bar, .mb-row'
+          : sc.hash && sc.hash.startsWith('#/settings') ? '.gs-panel'
+            : sc.hash === '#/manual' ? '.mn-page'
+              : '.pi-hero')
+      if (!(await page.locator(HOST).first().isVisible().catch(() => false))) {
+        await page.reload({ waitUntil: 'domcontentloaded' })
+        await page.waitForTimeout(2400)
+        await settle(page, sc.id + ':reload')
+        if (!(await page.locator(HOST).first().isVisible().catch(() => false))) {
+          dashFail.push(`${theme}/${sc.id}：reload 后宿主仍未挂载（${HOST} 不在，hash=${sc.hash || '#/profile'}）——这一屏不作数，先查路由与懒 chunk`)
+          console.log(`  ⚠ ${theme.padEnd(8)} ${sc.name.padEnd(6)} 宿主 ${HOST} 未挂载，本屏不作数`)
+          continue
+        }
+        console.log(`  · ${theme.padEnd(8)} ${sc.name.padEnd(6)} 同 hash 未换页（懒 chunk），已 reload 兜底`)
+      }
       /* ★W12(V3.8.12)随迁备案：全年 366 格自 V3.8.7 起收进「看全年 ›」展开态
          （Heatmap 的 expanded 初值 false），而 dz-heatmap 的判据直接数 .dz-cell ——
          这些节点**在收起态不存在** ⇒「格=0(应≥360)」是从 V3.8.7 起就一直红着的，

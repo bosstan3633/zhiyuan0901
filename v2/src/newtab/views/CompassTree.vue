@@ -1849,6 +1849,8 @@ onUnmounted(() => {
   font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);
   background: transparent; border: none; cursor: pointer;
   padding: 5px 14px; border-radius: 999px; transition: all var(--dur); white-space: nowrap;
+  /* M6（B7-e · V3.8.40）：热区下限 28px（实测 26.5px）——只撑盒子，胶囊形态与字号不变 */
+  min-height: 28px;
 }
 .vs-b:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .vs-b.on { color: #fff; background: var(--accent); }

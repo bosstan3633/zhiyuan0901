@@ -225,8 +225,10 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em; color: var(--text-4);
   padding-right: 2px;
 }
+/* M6（B7-e · V3.8.40）：热区下限 28px（实测 22.5px）——只撑盒子，chip 形态与字号不变 */
 .dchip {
   display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px;
   padding: 4px 10px; border-radius: 999px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -257,11 +259,12 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .sr-t b { color: var(--warning); font-weight: 700; }
 .spine-risk .sr-t:has(b) b { color: var(--warning); }
 .sr-acts { margin-left: auto; display: flex; gap: 6px; flex: none; }
+/* M6（B7-e · V3.8.40）：热区下限 28px（实测 20.5px，全站最后一处 <28px 的首屏热区） */
 .sr-btn {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
   background: var(--surface-2); border: 1px solid transparent;
-  padding: 3px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+  min-height: 28px; padding: 3px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
 }
 .sr-btn:hover { color: var(--text); background: var(--surface-3); }
 .sr-btn.on { background: var(--danger); color: #fff; border-color: var(--danger); }

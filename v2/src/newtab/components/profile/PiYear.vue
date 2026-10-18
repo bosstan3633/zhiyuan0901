@@ -117,7 +117,7 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
       <div class="pi-hair"></div>
 
       <div>
-        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 / 近半年 26 周 · 点格 › 该日战报</span></div>
+        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 / 近半年 26 周 · 点格选中那天 · 战报见「今日」段</span></div>
         <div class="pi-hmbox">
           <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
             @update:year="emit('update:year', $event)" @update:sel-day="emit('update:selDay', $event)"

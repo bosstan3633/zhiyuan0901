@@ -471,7 +471,7 @@
           </div>
         </div>
         <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">应用内快捷键</span></div>
+          <div class="gs-card-header"><span class="gs-card-title">应用内快捷键</span><span class="gs-card-desc">与「? 快捷键速查面板」和使用手册附录共用一份清单（改键位三处同步，不会脱节）· 切台键随下方修饰键偏好实时变化</span></div>
           <div class="gs-card-body">
             <div class="gs-setting-row">
               <span class="gs-sr-label">应用内切台</span>
@@ -485,8 +485,8 @@
                 </select>
               </div>
             </div>
-            <div class="gs-setting-row" v-for="k in appShortcuts" :key="k.label">
-              <span class="gs-sr-label">{{ k.label }}</span>
+            <div class="gs-setting-row" v-for="k in appShortcuts" :key="k.keys">
+              <span class="gs-sr-label">{{ k.action }}</span>
               <div class="gs-sr-control"><span class="gs-keycap">{{ k.keys }}</span></div>
             </div>
           </div>
@@ -842,6 +842,8 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 
 import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
+// B7-e H3：快捷键与速查面板 / 使用手册共用一份真源
+import { shortcutsOf, modLabelOf } from '@/shared/utils/shortcuts'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys } from '@/shared/storage/repository'
@@ -1692,7 +1694,10 @@ if (typeof chrome !== 'undefined' && chrome.commands?.getAll) {
 }
 
 const wsMod = computed({
-  get: () => store.ui?.wsSwitchMod || 'ctrl',
+  // B7-e H3：回落值原为 'ctrl'，但 repository 启动迁移会把 'ctrl' 一律改写成 'alt'
+  // ⇒ store.ui 未就绪那一瞬，下拉会显示「Ctrl + 数字键」而实际生效的是 Alt——下拉在说一个不存在的状态。
+  //   回落必须与 loadUIPrefs 的默认值（alt）一致。
+  get: () => store.ui?.wsSwitchMod || 'alt',
   set: (v: 'ctrl' | 'alt') => {
     if (store.ui) { store.ui.wsSwitchMod = v; saveUIPrefs({ wsSwitchMod: v }) }
   }
@@ -1700,9 +1705,9 @@ const wsMod = computed({
 function saveWsMod() { /* computed setter 已持久化 */ }
 
 /** 第廿九轮：快捷键跟随位置（顺序即快捷键），自定义绑定已移除——槽位由顶部 Tab 顺序派生 */
+/** B7-e H3：文案走 shortcuts.ts 的 MOD_LABELS，不再在本页另抄一份映射表 */
 function modLabel(): string {
-  const m = store.ui?.wsSwitchMod || 'alt'
-  return m === 'ctrl' ? 'Ctrl' : m === 'ctrl-shift' ? 'Ctrl+Shift' : m === 'alt-shift' ? 'Alt+Shift' : m === 'none' ? '数字键' : 'Alt'
+  return modLabelOf(store.ui?.wsSwitchMod || 'alt')
 }
 
 // ---- Airtable 同步（R63-4） ----
@@ -2462,13 +2467,14 @@ function ttCollectFromCards() {
   if (added) { store.persist(); showToast(`⤓ 已收纳 ${added} 个标签到标签树`) } else showToast('没有需要收纳的新标签')
 }
 
-const appShortcuts = [
-  { label: '保存（所有编辑弹窗）', keys: 'Ctrl+Enter' },
-  { label: '关闭弹窗/浮层', keys: 'Esc' },
-  { label: '搜索浮层内过滤类型', keys: '输入「任务/资源/好奇心」+ Tab' },
-  { label: '资源卡池 / 策展台：双击卡片打开链接', keys: '双击' },
-  { label: '资源卡批量管理', keys: '资源卡池控制行「批量」' }
-]
+// B7-e H3：应用内快捷键不再各写一份清单——与速查面板、手册同源（shared/utils/shortcuts.ts）。
+// ★此前这份是手写的 5 条，且**混进了根本不是快捷键的行**（「资源卡批量管理 · 资源卡池控制行『批量』」
+//   那是个按钮位置，不是按键），同时漏掉了真实存在的「? 呼出速查」与切台三键。
+//   现按分组从真源取「应用内」+「编辑与检索」两组，全局四条归上面的 Chrome 命令表（键位由浏览器管）。
+const appShortcuts = computed(() => [
+  ...shortcutsOf('应用内', store.ui?.wsSwitchMod || 'alt'),
+  ...shortcutsOf('编辑与检索', store.ui?.wsSwitchMod || 'alt'),
+])
 
 // ---- 使用手册（第二十轮：数据外置 manual-data.ts，五篇结构） ----
 const activeManualSec = ref('quick-1')

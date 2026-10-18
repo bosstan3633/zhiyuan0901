@@ -1180,9 +1180,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .k-pin:hover, .k-star:hover { opacity: 1 !important; background: var(--surface-3); }
 .k-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); color: var(--danger, #e74c3c); }
 .k-pin.on, .k-star.on { opacity: 1; }
-.t-pin { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
-.t-star { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
-.t-del { width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
+/* M6（B7-e · V3.8.40）：热区下限 28px（实测 24px）——只撑点击盒子，图标尺寸不变 */
+.t-pin { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
+/* M6（B7-e · V3.8.40）：热区下限 28px（实测 24px）——只撑点击盒子，图标尺寸不变 */
+.t-star { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
+.t-del { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
 .trow:hover .t-pin, .trow:hover .t-star, .trow:hover .t-del { opacity: .6; }
 .t-pin:hover, .t-star:hover { opacity: 1 !important; background: var(--surface-3); }
 .t-pin.on, .t-star.on { opacity: 1; }

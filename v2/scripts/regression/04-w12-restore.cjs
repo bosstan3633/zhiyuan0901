@@ -200,35 +200,44 @@ check('W12-12 ★方向台四个组件里所有 button 都必须显式压掉浏�
   return btnOk && panelOk && foldOk && expandOk
 });
 
-check('W12-13 ★theme-audit 的场景宿主随 W10 三段式重构搬进了弹窗，判据与 act 必须跟着搬；且「关浮层」要认新弹窗壳。★这一族是本轮补跑真机抓出来的最后一批红：① 概览带宿主 DashboardOverview.vue 整体退役，职责落到 PiHero 的 .pi-hchip 五枚（原判据还钉 .dz-ov/.dz-chip/.dz-calib ⇒ chip=0/5）② 日详情搬进 Heatmap 的 Teleport 弹窗 .dz-day-modal-overlay，且四格统计带 v-if="dlSum.n" 前置 ⇒ act 必须挑「有记录的格子」，点首格必是空白日 ③ ReviewPanel 搬进画像页中央弹窗 .pi-rev-modal，于是 .dz-kpi / .dz-rev-grid / .dz-rpt 三个判据全在空 body 上找 ⇒ 全 0 ④ overlayOpen 只认前两代壳 ⇒ closeOverlays 直接 return，弹窗跨场景残留，把 ② ③ 的红进一步放大。★判据随迁只换承重锚不换所守行为：概览带仍守「五枚 + 同排 + 带口径 + 无错误徽章」', () => {
+check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与act 就必须跟着搬一次；「关浮层」要认当届弹窗壳。★这一族全是补跑真机抓出来的红，四轮迁了四个地方：① 概览带宿主 DashboardOverview.vue 整体退役 → PiHero（判据还钉 .dz-ov/.dz-chip/.dz-calib ⇒ chip=0/5）② 日详情搬进 Heatmap 的 Teleport 弹窗，四格统计带 v-if="dlSum.n" 前置 ⇒ act 必须挑「有记录的格子」③ ReviewPanel 搬进画像页中央弹窗 .pi-rev-modal，于是 .dz-kpi / .dz-rev-grid / .dz-rpt 全在空 body 上找 ⇒ 全 0 ④ overlayOpen 只认前两代壳 ⇒ closeOverlays 直接 return，弹窗跨场景残留，把 ② ③ 的红进一步放大。★★B7-e（V3.8.40）第四次迁移，本条再次整体重指：⑤ 概览带芯片再改名（.pi-hero-sum .pi-hchip → .hero-kpis-grid > .hero-kpi，且由五枚变四枚，「活跃度」并进了title 口径）⑥ 热力图从调度台迁到画像页 PiYear（场景里那个指向调度台的 hash 是 W2 时代的旧宿主）⑦ **点热力图格子不再打开日详情弹窗**——Heatmap 只 emit update:selDay，开弹窗的 openDayBattle() 全库零调用，唯一真入口是 PiToday 的「打开战报」⑧ ReviewPanel 已随 W13-D5（2026-10-16）**产品侧退役**，四条场景（复盘两栏/AI 报告/下钻列表/调度台复盘入口）整组下线——它们量的类只存在于 CSS 与三个零挂载的组件文件里。★判据随迁只换承重锚不换所守行为；只有 ⑧ 是例外：**被测物已退役的断言不迁移，直接下线并留复活指引**（留着只会让真红被淹没）', () => {
   const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
   // ① closeOverlays 必须认画像页两个新弹窗壳，否则前一场的弹窗会残留到下一场
   const shellsOk = /\.dz-day-modal-overlay, \.pi-rev-overlay/.test(audit)
     && /\.pi-rev-close/.test(audit)
-  // ② 概览带判据改钉 PiHero 五枚 chip，且必须钉「同排一行」与「每枚带口径 title」
+  // ② ★B7-e 第四次重指：概览带芯片的承重锚已从 `.pi-hero-sum .pi-hchip` 变成
+  //    `.hero-kpis-grid > .hero-kpi`（PiHero 模板实测挂载，旧名全库 `class=` 命中 0）。
+  //    守的还是同一批行为——四枚都在 / 同排一行 / 每枚带title 口径 / 无错误徽章；
+  //    数量由 5 改 4 不是放权：第五枚「活跃度」的维度已并进其余四格的 title 口径里。
   const ovOk = /id: 'dz-overview', name: '页头 KPI 带'/.test(audit)
-    && /pi-hero-sum \.pi-hchip/.test(audit)
+    && /\.hero-kpis-grid > \.hero-kpi/.test(audit)
     && /base\.rows === 1/.test(audit)
-    && /base\.titled === 5/.test(audit)
+    && /base\.titled === N/.test(audit)
+    && /base\.n === N/.test(audit)
   // ③ 负锚：已退役的 DashboardOverview 三件套不得复活（dashboard.css 里仍有 7 条 .dz-calib 规则，
   //    但无任何模板挂载点 —— 样式孤儿不是活体，判据不许再拿它当活证据）
+  //    ★B7-e 补一条：`.pi-hchip` 也进了负锚——它与 .dz-calib 同族（只在 CSS 里有字面量）。
   const ovDead = !/querySelectorAll\('\.dz-ov \.dz-chip'\)/.test(audit)
     && !/\.dz-calib \.cb \.r/.test(audit)
-  // ④ 日详情 act 必须挑「有记录的格子」：四格统计带 v-if="dlSum.n" 前置，点首格（全年第一格）必是空白日。
-  //    锚「有记录就挑它、挑不到才退回首格」这个兜底语义，不锚整串三元表达式 ——
-  //    ★两个踩坑叠在一起：① 锚跨表达式的长字面量，一个转义括号写错就恒红，而它红的方式
-  //    与「能力真丢」一模一样；② codeOnly() 抹注释时按等长空白填充，源码里的换行会变成
-  //    别的空白形态，所以**不能用 \s+ 去跨行匹配**（实测 \s+ 版恒不匹配、点号版恒匹配）。
-  const dayOk = /\.dz-cell\.l1:not\(\.future\)/.test(audit)
-    && /has\.count\(\) \? has : page\.locator/.test(audit)
-  // ⑤ 三个宿主在弹窗里的场景必须自带开弹窗这一步，且场景 hash 指向画像页
-  // ★B3（V3.8.28）重指带备案：`hash: '#/profile'` 的计数由 `=== 3` 放宽为 `>= 3` ——
-  //   本批把「画像洞察」台面本身补进了 VIEWS（此前一级页面从未被四主题拍过），于是这个字面量
-  //   自然多出第 4 处。本条守的是**弹窗场景在画像页上拍**，不是"全脚本只允许三个 /profile"；
-  //   真正承重的锚是上面那句 `await openReviewModal(page)` 恰为 3 处，一字未动。
-  const modalOk = /async function openReviewModal\(page\)/.test(audit)
-    && (audit.match(/await openReviewModal\(page\)/g) || []).length === 3
-    && (audit.match(/hash: '#\/profile'/g) || []).length >= 3
+    && !/pi-hero-sum \.pi-hchip/.test(audit)
+  // ④ ★B7-e 重指：act 不再"点有记录的格子"——**点格子现在只改选中态，不开弹窗**
+  //    （Heatmap 的click 只 emit update:selDay，一路到 ProfileInsights 只写 dashSelDay；
+  //      开弹窗的 openDayBattle() 全库零调用）。真实入口是 PiToday 的「打开战报」→
+  //      openTodayBattle()，它自己会挑「今天有记录就今天、否则最近有记录的一天」，
+  //      正是原注释想用"选格"绕过的那个问题。判据本身不放宽：仍要求 ≥4 格 + 热力带 + 时间线。
+  const dayOk = /打开战报/.test(audit)
+    && /\.pi-day-modal/.test(audit)
+    // 负锚：那个已不存在的交互不许被"顺手"接回去（接回去等于凭空多一个日详情入口）
+    && !/\.dz-cell\.l1:not\(\.future\)/.test(audit)
+  // ⑤ ★B7-e 重指：⑧ 之后 `openReviewModal` 已随四条场景一起下线（原为恰好 3 处），
+  //    改守「**退役的四条场景在代码里有活凭据**」——
+  //    ★锚必须落在**代码**而不是注释上：判据跑在 `codeOnly()` 上，注释会被抹成等长空白，
+  //    拿注释当锚是这一族第二次栽（第一次是 ④ 的 `has.count() ? has : page.locator`）。
+  //    `RETIRED_DASH_SCENES` 这个数组就是给判据看的"这四条已下线"凭据，
+  //    配一条反向自证（openReviewModal 已随之删除，复活它必须同时删这个数组）。
+  const modalOk = /const RETIRED_DASH_SCENES = \['dz-drill', 'dz-review', 'dz-report', 'dz-entry'\]/.test(audit)
+    && !/id: 'dz-(review|report|drill|entry)'/.test(audit)
+    && !/async function openReviewModal\(page\)/.test(audit)
   // ⑥ 图例判据不许写死数量：V3.8.7 加了第 7 枚「今天」说明项（当日格底色是 heat-N，
   //    图例块要用 accent 描边另画），原判据 `legend.length === 6` 从那版起就一直红。
   //    改成钉「前六项严格等于 LV_NAME 六档 + 第七项必须是今天」—— 少档/改名/多无关项都会红。
@@ -236,7 +245,20 @@ check('W12-13 ★theme-audit 的场景宿主随 W10 三段式重构搬进了弹�
     && /legend\.slice\(0, 6\)\.join\('\/'\) === SIX\.join\('\/'\)/.test(audit)
     && /legend\[6\] === '今天'/.test(audit)
     && !/legend\.length === 6/.test(audit)
-  return shellsOk && ovOk && ovDead && dayOk && modalOk && lgOk
+  // ⑦ ★B7-e 新增：热力图场景的 hash 必须已从调度台改到画像页，且必须声明 host ——
+  //    `page.goto(hash)` 只改 hash 不同文档，而画像洞察页是懒 chunk，`settle()` 的稳定判据
+  //    里hash 已经是新值了、DOM 节点数还是旧页面的 ⇒ 判成"已沉降"立刻返回，
+  //    于是整段判据量的是**上一个镜头的页面**（四主题读数一模一样：chip=0/ 格=0 / 日详情=false）。
+  //    这正是「四主题全0 = 都没渲染」那类假绿的变体。守的是「判据之前先验宿主在不在」。
+  //★宿主推导必须**按 hash 前缀逐场景分派**（第一版一律落 `.pi-hero`，把标签双栏/手册/⌘K 面板
+  //    五屏误判成「未挂载」——守卫自己成了新的假红来源）。三类各钉一个分支，防再退化。
+  const hostOk = /host: '\.pi-hmbox'/.test(audit)
+    && /const HOST = sc\.host/.test(audit)
+    && /sc\.hash\.startsWith\('#\/settings'\) \? '\.gs-panel'/.test(audit)
+    && /sc\.hash === '#\/manual' \? '\.mn-page'/.test(audit)
+    && !/id: 'dz-heatmap'[^\n]*hash: '#\//.test(audit)
+    && !/id: 'dz-day'[^\n]*hash: '#\//.test(audit)
+  return shellsOk && ovOk && ovDead && dayOk && modalOk && lgOk && hostOk
 });
 
 // ============== W12-C（V3.8.13）任务详情抽屉接线 ==============

@@ -15,8 +15,29 @@
  *                主题卡（中心论点）= 策展台大横幅常驻 + 金字塔 L1 根；
  *                Airtable 单向同步（设置 → ⇄ Airtable 同步，标签列名可配）。
  */
+// B7-e H3：快捷键清单来自单一真源，与速查面板 / 设置页共用
+import { shortcutTableHtml, manualAssignSentence } from '@/shared/utils/shortcuts'
+
 export interface ManualSection { id: string; title: string; html: string }
 export interface ManualPart { title: string; sections: ManualSection[] }
+
+/**
+ * B7-e H3：快捷键表的唯一渲染入口在 shared/utils/shortcuts.ts。
+ * 本页与「独立分享版 HTML」都调它，两边不可能再分叉。
+ *
+ * ★为什么手册不能自己写表：附录 ref-1 原来是一张手写 mc-table，而应用内速查面板与设置页
+ *   各有自己一份——三份清单已经对不齐（面板写死 Alt+1、设置页只有 5 条还混进一个按钮位置）。
+ *   手册再写第四份，就是把"脱节"从三处扩到四处。
+ */
+function shortcutTable(): string {
+  // 'placeholder'：手册是静态产物，拿不到"这位用户此刻选了哪个修饰键"，故写「修饰键」而非硬写 Alt
+  return shortcutTableHtml('placeholder')
+}
+
+/** 无默认键浏览器命令的一句话清单（由真源派生，不再手写） */
+function assignCommandList(): string {
+  return manualAssignSentence()
+}
 
 export const MANUAL: ManualPart[] = [
   {
@@ -55,13 +76,13 @@ export const MANUAL: ManualPart[] = [
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
         <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定六条无默认键命令（全局设置 / 打开完整方向树 / 快速采集任务 / 同步到 Airtable / 直达好奇心培养模块 / 直达任务调度模块）</div>
-        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「全局设置」「打开完整方向树」「快速采集任务」「同步到 Airtable」「直达好奇心培养模块」「直达任务调度模块」六条命令无默认键——按需分配；后两条分配键位后一键打开调度台并<strong>滚动定位 + 高亮闪烁</strong>对应模块。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 9 秒），超时后回收站仍可恢复）——R55 / R146。</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「全局设置」「打开完整方向树」「快速采集任务」「同步到 Airtable」「直达好奇心培养模块」「直达任务调度模块」六条命令无默认键——按需分配；后两条分配键位后一键打开调度台并<strong>滚动定位 + 高亮闪烁</strong>对应模块。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
         <h4>每天的节奏 · 4 步闭环</h4>
         <div class="mc-steps">
-          <div class="mc-step"><b>1</b><span>刷新 → 调度台：方向状态一栏看今日记录，今日三件事（最多 3 件），30 秒方向确认</span></div>
-          <div class="mc-step"><b>2</b><span>切方向台 → 看指标条与主航线，确认没把战争打在防守的战场</span></div>
-          <div class="mc-step"><b>3</b><span>干活中随手三键采集，搜索 / 双击直达</span></div>
-          <div class="mc-step"><b>4</b><span>睡前看一眼方向状态指标条——它是镜子，不是考核</span></div>
+          <div class="mc-step"><b class="mc-n">1</b><span>刷新 → 调度台：方向状态一栏看今日记录，今日三件事（最多 3 件），30 秒方向确认</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span>切方向台 → 看指标条与主航线，确认没把战争打在防守的战场</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span>干活中随手三键采集，搜索 / 双击直达</span></div>
+          <div class="mc-step"><b class="mc-n">4</b><span>睡前看一眼方向状态指标条——它是镜子，不是考核</span></div>
         </div>
       ` },
       { id: 'quick-3', title: '它与同类相比 · 独特价值', html: `
@@ -130,10 +151,10 @@ export const MANUAL: ManualPart[] = [
       ` },
       { id: 'basic-2', title: '三键采集与全局搜索', html: `
         <div class="mc-steps">
-          <div class="mc-step"><b>1</b><span>在任意网页按 <kbd>Ctrl+Shift+J</kbd>，弹窗自动预填标题与链接；先选中文字，会自动填入描述。<b>存入位置已固定为「资源卡池」</b>（V3.8.4 起：原来的「台面 / 分类」两枚下拉退役，与应用内采集同一口径——池卡只由标签组织，没有分类）</span></div>
-          <div class="mc-step"><b>2</b><span><kbd>Enter</kbd> 保存 → 弹窗变「✓ 已入资源卡池」→ 再按 <kbd>Enter</kbd> 直接落到<strong>调度台「资源卡」tab 并把新卡滚到眼前、高亮闪烁</strong>（★R4-De 修过：这条此前仍按旧台面去跳 <code>/workspace/zy-curation</code>，而池不是一枚策展台，点过去是「策展台不存在」死页）</span></div>
-          <div class="mc-step"><b>3</b><span>保存后<b>自动跑一次 AI 补全评审</b>（默认开启，可在设置里关掉）——标签建议先进评审抽屉，<b>勾选采纳才写库</b>，绝不后台落笔；AI 未接入时静默跳过，不拦保存主流程</span></div>
-          <div class="mc-step"><b>4</b><span>同一链接重复采集？知源只定位不重复收录</span></div>
+          <div class="mc-step"><b class="mc-n">1</b><span>在任意网页按 <kbd>Ctrl+Shift+J</kbd>，弹窗自动预填标题与链接；先选中文字，会自动填入描述。<b>存入位置已固定为「资源卡池」</b>（V3.8.4 起：原来的「台面 / 分类」两枚下拉退役，与应用内采集同一口径——池卡只由标签组织，没有分类）</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span><kbd>Enter</kbd> 保存 → 弹窗变「✓ 已入资源卡池」→ 再按 <kbd>Enter</kbd> 直接落到<strong>调度台「资源卡」tab 并把新卡滚到眼前、高亮闪烁</strong>（★R4-De 修过：这条此前仍按旧台面去跳 <code>/workspace/zy-curation</code>，而池不是一枚策展台，点过去是「策展台不存在」死页）</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span>保存后<b>自动跑一次 AI 补全评审</b>（默认开启，可在设置里关掉）——标签建议先进评审抽屉，<b>勾选采纳才写库</b>，绝不后台落笔；AI 未接入时静默跳过，不拦保存主流程</span></div>
+          <div class="mc-step"><b class="mc-n">4</b><span>同一链接重复采集？知源只定位不重复收录</span></div>
         </div>
         <h4>📥 资源采集 · Ctrl+Shift+J</h4>
         <ul>
@@ -175,7 +196,7 @@ export const MANUAL: ManualPart[] = [
         <ul>
           <li>📌 在卡片右上角（资源/好奇/任务三卡一致）；置顶项物理移到列表顶部，拖拽顺序始终以你手动排列为准。</li>
           <li>批量管理：批量打开（>15 确认）/ 批量删除（可撤销）/ 批量移动到任意台面与分类。</li>
-          <li>误删不慌：删除后的 toast 里有<b>「撤销」</b>按钮，<b>9 秒内</b>一键恢复；同窗口内按 <kbd>Ctrl/Cmd+Z</kbd> 也可撤销最近一次操作（删除 / 移动 / AI 采纳）。</li>
+          <li>误删不慌：删除后的 toast 里有<b>「撤销」</b>按钮，<b>6 秒内</b>一键恢复；同窗口内按 <kbd>Ctrl/Cmd+Z</kbd> 也可撤销最近一次操作（删除 / 移动 / AI 采纳）。</li>
         </ul>
         <div class="mc-tip">💡 右键卡片 = 完整操作菜单（打开 / 复制链接 / 移动分类 / 置顶 / 删除），比找小按钮更快。</div>
       ` },
@@ -201,7 +222,7 @@ export const MANUAL: ManualPart[] = [
         <div class="mc-tip">💡 任务的多维管理在调度台底部 Tab「任务卡」：卡片 / 列表 / 看板三视图，<b>默认列表视图 + 已完成任务自动沉底 + 分组三档</b>（📂 按项目 / ⏱ 按任务状态 / 📌 按置顶与否，选择记在偏好里）——三件事只聚焦当下，项目全景在方向台。</div>
         <h4>🗑 删除入口（V2.21.3 补全）</h4>
         <ul>
-          <li>任务卡<strong>卡片 / 列表 / 看板三视图</strong>均有删除入口：hover 卡片出现 🗑，或右键菜单「删除」；删除有 9 秒撤销（Ctrl/Cmd+Z 同效）。</li>
+          <li>任务卡<strong>卡片 / 列表 / 看板三视图</strong>均有删除入口：hover 卡片出现 🗑，或右键菜单「删除」；删除有 6 秒撤销（Ctrl/Cmd+Z 同效）。</li>
           <li>任务详情抽屉左下角提供降级样式的「🗑 删除」，不与主按钮抢视觉。</li>
         </ul>
         <h4>🪟 详情页新结构（V2.21.3 重设计）</h4>
@@ -232,7 +253,7 @@ export const MANUAL: ManualPart[] = [
           <tr><td>被正确使用</td><td>我的注解 · 采集时选中文字自动入描述</td><td>采集那一刻写一句「为什么留它」</td></tr>
         </table>
         <h4>用 🔥 做月度复用复盘</h4>
-        <p>每张卡片的 🔥 = 被打开次数，指标条 <b>WRR</b> 是它们的周期总和。每月看一次：0 次调用的卡片，要么给它一个被找到的位置，要么诚实删掉——回收站永远兜底，而且删除后有 9 秒撤销（Ctrl/Cmd+Z 同效）。</p>
+        <p>每张卡片的 🔥 = 被打开次数，指标条 <b>WRR</b> 是它们的周期总和。每月看一次：0 次调用的卡片，要么给它一个被找到的位置，要么诚实删掉——回收站永远兜底，而且删除后有 6 秒撤销（Ctrl/Cmd+Z 同效）。</p>
       ` },
       { id: 'mid-2', title: '六层思维链', html: `
         <div class="mc-flow">1 愿景 Why → 2 使命 How → 3 战略目标 → 4 攻坚项目 → 5 成功指标 → 6 任务</div>
@@ -439,7 +460,7 @@ export const MANUAL: ManualPart[] = [
           <li>品牌区 → 画像洞察页（或调度台「📈 复盘」）：<strong>概览带 + 复盘 + 操作记录 + 资源生命周期</strong>。热力图在<b>调度台</b>（今日三件事下方），点某天看当日四列指标与流水；操作记录明细<strong>单击明细行</strong>定位到卡片所在页面，<strong>双击</strong>直接打开链接 / 文件；「全部记录」抽屉按<strong>类型 × 动作 × 时间</strong>三维筛选，CSV 导出的正是<strong>当前筛选结果</strong>；生命周期甜甜圈看三态分布。</li>
           <li><strong>新增/导入双口径（V2.21.3 起）</strong>：「今日/本周新增」按<strong>新建 X</strong> 计数（卡片 createdAt），导入的卡单独显示<strong>「导 Y」</strong>并继承原创建时间——不会把导入错记成今天新建，明细里导入卡带「⇪ 导入」徽标。</li>
           <li><strong>运行错误留痕</strong>：出现崩溃/异常时，画像洞察页页头会出现「⚠ 运行错误 N」——单击即可导出含完整堆栈的 txt 文件，无需开 F12 就能把现场发给开发者定位。</li>
-          <li>换电脑：<strong>两步</strong>才叫一切如初 —— ① 导入全量 JSON（卡片、结构、关系）；② 导入「导出附件包」的 zip（图片/HTML 本体在 IndexedDB，<strong>不在 JSON 里</strong>）。只导 JSON 的卡会保留附件引用但打不开本体，详情里会标「⚠ 本体缺失」。删除的卡片在回收站，且有 9 秒撤销兜底（Ctrl/Cmd+Z 同效）。</li>
+          <li>换电脑：<strong>两步</strong>才叫一切如初 —— ① 导入全量 JSON（卡片、结构、关系）；② 导入「导出附件包」的 zip（图片/HTML 本体在 IndexedDB，<strong>不在 JSON 里</strong>）。只导 JSON 的卡会保留附件引用但打不开本体，详情里会标「⚠ 本体缺失」。删除的卡片在回收站，且有 6 秒撤销兜底（Ctrl/Cmd+Z 同效）。</li>
         </ul>
         <h4>④ 数据迁移语义（V2.21.2 起）</h4>
         <ul>
@@ -462,24 +483,9 @@ export const MANUAL: ManualPart[] = [
     title: '附录 · 速查',
     sections: [
       { id: 'ref-1', title: '快捷键全表', html: `
-        <table class="mc-table">
-          <tr><th>场景</th><th>按键</th><th>作用</th></tr>
-          <tr><td rowspan="5">全局（任意网页 · 系统级默认键）</td><td><kbd>Ctrl+Shift+K</kbd></td><td>打开知源调度台（新标签页）</td></tr>
-          <tr><td><kbd>Ctrl+Shift+J</kbd></td><td>快速采集当前页面为资源卡</td></tr>
-          <tr><td><kbd>Ctrl+Shift+I</kbd></td><td>采集好奇心（选中文字附带来源）</td></tr>
-          <tr><td><kbd>Ctrl+K</kbd></td><td>全局搜索（空查询 = 双 Tab：常用内容[近期最常用+快捷操作+快速开关] / AI 动作[AI 动作+AI 建议]；结果：单击 / <kbd>Enter</kbd> 打开链接 · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> 定位到卡）</td></tr>
-          <tr><td>（无默认键）</td><td>以下六条命令在 <code>chrome://extensions/shortcuts</code> 自行分配：<b>全局设置</b> · <b>打开完整方向树</b> · <b>快速采集任务</b> · <b>同步到 Airtable</b> · <b>直达好奇心培养模块</b> · <b>直达任务调度模块</b></td></tr>
-          <tr><td rowspan="4">应用内</td><td><kbd>修饰键</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3…N</kbd></td><td><b>1 = 调度台 · 2 = 方向台 · 3 起才是各策展台</b>（按台签顺序，第 N 个策展台 = 修饰键 + (N+2)）。修饰键可在 设置 → 快捷键设置 换成 Ctrl / Ctrl+Shift / Alt+Shift / 无修饰</td></tr>
-          <tr><td><kbd>?</kbd></td><td>快捷键速查面板（应用内真值的唯一清单）</td></tr>
-          <tr><td><kbd>Ctrl</kbd>+<kbd>←</kbd> / <kbd>→</kbd></td><td>今日三件事切换日期</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>逐层关闭（浮层 → 抽屉 → 展板；也跳过刷新动画）</td></tr>
-          <tr><td rowspan="3">编辑与列表</td><td><kbd>Ctrl+Enter</kbd></td><td>保存并关闭（所有弹窗 / 抽屉）</td></tr>
-          <tr><td><kbd>↑</kbd><kbd>↓</kbd> / <kbd>Enter</kbd> / <kbd>空格</kbd></td><td>任务列表：选择 / 开抽屉 / 批量勾选</td></tr>
-          <tr><td><kbd>Tab</kbd></td><td>搜索内循环切换过滤类型</td></tr>
-          <tr><td rowspan="3">鼠标（三张卡一致）</td><td>单击 / 双击</td><td>单击开详情，双击打开链接</td></tr>
-          <tr><td>右键</td><td>卡片操作菜单（打开详情 / 置顶 / 复制链接 / 删除）</td></tr>
-          <tr><td>拖拽</td><td>同组排序 / 跨列改状态 / 跨组改归属（有插入线高亮）</td></tr>
-        </table>
+        ${shortcutTable()}
+        <p class="mn-src">本表与「<kbd>?</kbd> 快捷键速查面板」、设置 → 快捷键设置<b>同源</b>（一份清单三处渲染）。切台键写的是<kbd>修饰键</kbd>——你在设置里选的是哪个，这里就按哪个生效（速查面板与设置页会直接显示你当前那一个）。</p>
+        <p><b>无默认键的浏览器命令</b>（需到 <code>chrome://extensions/shortcuts</code> 自行分配）：${assignCommandList()}。</p>
         <p>命令面板（<kbd>Ctrl+K</kbd>）里除了跳转还有一组「<b>快速开关</b>」：<b>暗色主题 / 紧凑密度 / 已完成项目 / 备份提醒</b>。四行都直接显示当前状态，回车即切换。</p>
         <p><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd>：<b>撤销最近一次可撤销的操作</b>（删除、报告落卡、批量改动等）——回执里带「撤销」字样的都在窗口内可撤。</p>
         <div class="mc-warn">⌨ 系统级四条已占满默认键位，其余命令一律无默认键、需手动分配。<b>早期手册里"打开方向台 / 打开资源台"两条浏览器命令已随台面退役下架</b>——现在能自定义的是上面那六条。</div>
@@ -489,7 +495,7 @@ export const MANUAL: ManualPart[] = [
           <li>所有数据 100% 存储在本机（chrome.storage.local），无账号、无云端、无「同步中」的谎言。</li>
           <li>设置 → 导出数据：JSON 全量 / 按策展台 CSV / Markdown，建议每月备份。</li>
           <li>导入 JSON：<strong>并集合并</strong>，含罗盘数据与调度台全部数据及关系；导入前自动下载当前数据备份，仅接受 v2 格式（详见「日常仪式 · 数据迁移语义」）。</li>
-          <li><b>删除有三道回退</b>（R146 定口径）：① 动手之前——凡会带走东西的删除（指标、策展台、清空回收站）都先<b>报数再确认</b>：「其下 N 个任务将转为未关联」「其中 N 张资源卡将移入回收站」，不报数的确认等于没确认；② 动手之后 9 秒内（R159 由 3 秒放宽）——toast 上直接「撤销」或按 <kbd>Ctrl/Cmd+Z</kbd>，按<b>原位置</b>插回；批量删除的回执<b>不自动消失</b>，慢慢核（罗盘节点回到原序号、策展台连同其下卡与分类一起复活）；③ 过了 3 秒——卡片在<b>回收站</b>逐张恢复，结构节点则只能靠导出备份。</li>
+          <li><b>删除有三道回退</b>（R146 定口径）：① 动手之前——凡会带走东西的删除（指标、策展台、清空回收站）都先<b>报数再确认</b>：「其下 N 个任务将转为未关联」「其中 N 张资源卡将移入回收站」，不报数的确认等于没确认；② 动手之后 6 秒内（G5 起由 9 秒收到 6 秒，与 Toast 上「撤销」按钮同寿）——toast 上直接「撤销」或按 <kbd>Ctrl/Cmd+Z</kbd>，按<b>原位置</b>插回；批量删除的回执<b>不自动消失</b>，慢慢核（罗盘节点回到原序号、策展台连同其下卡与分类一起复活）；③ 过了撤销窗口——卡片在<b>回收站</b>逐张恢复，结构节点则只能靠导出备份。</li>
           <li><b>两种删除不再同名</b>：「📦 归档此台」= 台留着、卡搬到别的台的待分类（随时可再归档回来）；「🗑 删除策展台」= 台从标签栏移除、其下卡与分类一律软删进回收站。永久删除只在回收站页与「重置与回滚」里，且必须点名对象并二次确认。</li>
           <li><b>检索浮层删除免确认但可撤销</b>：结果行 hover 的 🗑 直接软删（任务同时摘掉指标引用，不留脏链），回执点名是哪张卡并给撤销。</li>
           <li>设置 → 导出数据 页底的「<b>🩺 数据体检</b>」：本机扫一遍常见结构性问题（例如同台出现多张「中心论点」卡），<b>只盘点不改数据</b>；要修就点「一键修复」，弹框会报出能动几张卡，修完可复扫。全程不进 AI 链路、不外发一个字节。</li>
@@ -521,7 +527,7 @@ export function buildManualStandaloneHtml(): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>知源调度台 · 使用手册</title>
 <style>
-  body { margin: 0; background: #FAFAFB; color: #17181C; font-family: "Inter", -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif; font-size: 14.5px; line-height: 2.05; letter-spacing: -0.011em; }
+  body { margin: 0; background: #FAFAFB; color: #17181C; font-family: "Inter", -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif; font-size: 14px; line-height: 1.8; letter-spacing: -0.011em; }
   header { background: #010102; color: #F7F8F8; padding: 26px 32px; }
   header .t { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
   header .s { font-size: 12px; color: #8A8F98; margin-top: 4px; letter-spacing: .08em; }
@@ -530,36 +536,68 @@ export function buildManualStandaloneHtml(): string {
   .t-part { font-size: 11px; font-weight: 700; color: #8A8F98; letter-spacing: .06em; padding: 10px 10px 4px; }
   a.t-item { display: block; padding: 6px 10px; border-radius: 6px; color: #3C3F45; text-decoration: none; font-size: 13px; border-left: 2px solid transparent; }
   a.t-item:hover { background: #F0F0F3; color: #17181C; }
+  /* H2 分享版同步：目录项随滚动点亮（分享版是纯静态页，用一段 12 行原生 JS 做同样的事） */
+  a.t-item.on { color: #3B4BC4; background: #EDF0FA; border-left-color: #5E6AD2; font-weight: 600; }
   main { flex: 1; min-width: 0; }
-  section { background: #fff; border: 1px solid #E7E8EC; border-radius: 12px; padding: 38px 46px; margin-bottom: 26px; scroll-margin-top: 20px; }
+  /* H1 分享版同步：章节改为发丝线分隔（应用内页同款），正文行宽 ≤68ch */
+  section { border-top: 1px solid #E7E8EC; padding: 30px 0 34px; scroll-margin-top: 20px; }
+  section:first-of-type { border-top: 0; padding-top: 0; }
   .s-part { font-size: 11px; font-weight: 700; color: #5E6AD2; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
-  h2 { font-size: 21px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 16px; }
-  .doc p { margin: 10px 0; }
-  .doc h4 { font-size: 13.5px; font-weight: 700; margin: 18px 0 8px; padding-left: 9px; border-left: 3px solid #5E6AD2; }
+  h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 16px; }
+  .doc { max-width: 68ch; }
+  .doc p { margin: 8px 0; }
+  .doc h4 { font-size: 15px; font-weight: 700; line-height: 1.35; margin: 20px 0 8px; padding-left: 9px; border-left: 3px solid #5E6AD2; }
   .doc ul { padding-left: 20px; margin: 6px 0; }
   .doc li { margin: 5px 0; }
   .doc b { color: #17181C; }
   .doc strong { color: #5E6AD2; font-weight: 700; }
-  .doc code { background: #EFEFF1; border-radius: 4px; padding: 1px 6px; font-size: 12px; }
-  .doc kbd { background: #EFEFF1; border: 1px solid #D5D6DB; border-radius: 5px; padding: 1px 7px; font-size: 11px; box-shadow: 0 1px 0 #D5D6DB; white-space: nowrap; }
+  /* H1 分享版同步：code / kbd 同档等宽（应用内页同款） */
+  .doc code, .doc kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+  .doc code { background: #EFEFF1; border-radius: 4px; padding: 1px 6px; }
+  .doc kbd { background: #EFEFF1; border: 1px solid #D5D6DB; border-radius: 5px; padding: 1px 7px; box-shadow: 0 1px 0 #D5D6DB; white-space: nowrap; }
+  .doc .mn-src { font-size: 11px; color: #6C7076; line-height: 1.7; margin: 8px 0 14px; }
+  .doc .mn-src b { color: #3C3F45; }
   .doc .mc-flow { display: flex; flex-wrap: wrap; gap: 6px 10px; background: #F7F7F8; border: 1px dashed #D5D6DB; border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 13px; }
   .doc .mc-steps { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
   .doc .mc-step { display: flex; gap: 10px; background: #F7F7F8; border-radius: 10px; padding: 9px 12px; font-size: 13px; }
-  .doc .mc-step b:first-child { flex-shrink: 0; width: 22px; height: 22px; border-radius: 7px; background: #5E6AD2; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .doc .mc-n { flex-shrink: 0; width: 22px; height: 22px; border-radius: 7px; background: #5E6AD2; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
   .doc .mc-tip { background: #EDF0FA; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 13px; line-height: 1.8; }
   .doc .mc-warn { background: #FBF1DE; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 13px; line-height: 1.8; }
   .doc .mc-quote { background: linear-gradient(135deg, #EDF0FA, #fff); border-left: 3px solid #5E6AD2; border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 12px 0; font-size: 14px; line-height: 2; color: #17181C; }
-  .doc .mc-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  .doc .mc-table { display: block; overflow-x: auto; width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
   .doc .mc-table th { text-align: left; background: #EFEFF1; padding: 7px 10px; border: 1px solid #E3E4E8; }
   .doc .mc-table td { padding: 7px 10px; border: 1px solid #E3E4E8; vertical-align: top; }
   footer { text-align: center; font-size: 11px; color: #8A8F98; padding: 24px 0 40px; letter-spacing: .1em; }
-  @media print { nav { display: none; } .wrap { display: block; padding: 0; } section { border: none; } }
+  @media (max-width: 1024px) { .wrap { flex-direction: column; gap: 16px; } nav { width: 100%; position: static; max-height: none; } .doc { max-width: 100%; } }
+  @media print { nav { display: none; } .wrap { display: block; padding: 0; } section { border: none; padding: 0; } }
 </style>
 </head>
 <body>
   <header><div class="t">📖 知源调度台 · 使用手册</div><div class="s">速览 / 基础 / 方法 / 理念 / 附录 · 万千可调用，自有我方向</div></header>
   <div class="wrap"><nav>${toc}</nav><main>${body}</main></div>
   <footer>— 由知源调度台导出分享 —</footer>
+<script>
+/* H2 分享版同步：目录随滚动点亮。与应用内页同一口径——取视口内最靠上的那一节，
+   而不是"最后触发回调的那一节"（快速滚动时那会乱跳）。 */
+(function () {
+  var links = [].slice.call(document.querySelectorAll('a.t-item'));
+  var secs = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)) });
+  function sync() {
+    var best = -1, top = Infinity;
+    for (var i = 0; i < secs.length; i++) {
+      var el = secs[i]; if (!el) continue;
+      var r = el.getBoundingClientRect();
+      if (r.top <= 120 && r.bottom > 120) { best = i; break }
+      if (r.top < top) { top = r.top; best = i }
+    }
+    if (best < 0) return;
+    for (var j = 0; j < links.length; j++) links[j].classList.toggle('on', j === best);
+  }
+  var t = null;
+  window.addEventListener('scroll', function () { if (t) return; t = setTimeout(function () { t = null; sync() }, 80) });
+  sync();
+})();
+</script>
 </body>
 </html>`
 }

@@ -68,7 +68,8 @@ async function pick(kind: 'breakdown' | 'detail') {
 </template>
 
 <style scoped>
-.tam-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; min-height: 26px; border: none; background: transparent; color: var(--accent); opacity: .72; cursor: pointer; padding: 2px; border-radius: 6px; flex-shrink: 0; }
+/* M6（B7-e · V3.8.40）：热区下限 28px（实测 26px）——只撑点击盒子，图标尺寸不变 */
+.tam-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; border: none; background: transparent; color: var(--accent); opacity: .72; cursor: pointer; padding: 2px; border-radius: 6px; flex-shrink: 0; }
 .tam-btn:hover { opacity: 1; background: var(--accent-light); }
 .tam-btn.on { opacity: 1; background: var(--accent-light); }
 .tam-mask { position: fixed; inset: 0; z-index: var(--z-popover); background: transparent; }

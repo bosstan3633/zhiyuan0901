@@ -113,7 +113,9 @@ const sortDirTitle = computed(() => {
 .dk-views { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .dk-filters { display: inline-flex; align-items: center; gap: 6px; }
 .dk-filters.select { gap: 0; }
-.dk-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 5px 11px; font-size: var(--fs-sub); font-weight: 600; font-family: inherit; cursor: pointer; user-select: none; transition: all var(--dur); white-space: nowrap; }
+/* M6（B7-e · V3.8.40）：min-height 28px 热区下限。视图/筛选等段控实测 25px，规范 M6 要求 ≥28px。
+   同 App.vue 口径：撑盒子不改字号与横向 padding，视觉密度不变。 */
+.dk-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); min-height: 28px; padding: 5px 11px; font-size: var(--fs-sub); font-weight: 600; font-family: inherit; cursor: pointer; user-select: none; transition: all var(--dur); white-space: nowrap; }
 .dk-btn:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
 .dk-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .dk-btn.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }

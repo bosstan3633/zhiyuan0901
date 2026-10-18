@@ -168,12 +168,31 @@ check('P3 过渡统一 200ms 内', () => !read('/newtab/views/ProjectCuration.vu
 console.log('【第廿七轮 · 身份与排版精修】');
 check('R28/R49 信纸排版精修（衬线+留白，应用内+分享版；R49 调度台重写并加大行距留白）', () => read('/newtab/views/GlobalSettings.vue').includes('padding: 80px 64px') && read('/newtab/letter-data.ts').includes('padding: 96px 76px'));
 check('R28 donge 哥身份（教育科技/AI 探索者）', () => read('/newtab/letter-data.ts').includes('教育科技行业深耕了十余年') && read('/newtab/letter-data.ts').includes('AI 如何真正赋能学习与工作'));
-check('R28 手册排版留白精修（三处同步）· ★R4-Et 随迁备案：第三处原锚 padding: 34px 40px 挂在 .gs-mc-section 上——那是设置页内嵌手册正文时代的容器，手册自第廿一轮起独立成页，设置页现在只剩一个「打开使用手册」按钮（模板里 gs-mc-section 零引用、census 零命中，本轮清掉）。三处同步因此收敛成两处活锚（阅读页 + 手册数据），第三处换成"设置页不许再把手册正文嵌回来"的负锚：.gs-mc-section 与内联手册容器 .gs-manual 回流即红', () => read('/newtab/views/ManualPage.vue').includes('padding: 36px 44px') && read('/newtab/manual-data.ts').includes('padding: 38px 46px')
-  && !read('/newtab/views/GlobalSettings.vue').includes('.gs-mc-section') && !read('/newtab/views/GlobalSettings.vue').includes('.gs-manual {'));
+/* R28 / R26-2 于 B7-e（V3.8.40）重指：原锚是「手册正文 padding: 36px 44px / 38px 46px」，
+   而 H1 把章节从「卡片盒」改成「通栏发丝线 + 上下留白」⇒ 那两个字面量随章节盒一起退役。
+   重指后守的是**同一条意图的当代形态**：① 应用内与分享版的章节分隔形态必须同步（都走发丝线）；
+   ② 两处都必须留上下呼吸（padding 三值 Y 0 Y′），不许压成一行；
+   ③ 负锚：卡片盒（章节自带 border-radius + 四边 border）不许回流。
+   ★为什么不直接删判据：钉字面量会随排版迭代反复假红，但"两处同步"这件事本身永远该有人守。 */
+check('R28 手册排版留白精修（应用内 + 分享版同步 · B7-e 重指到发丝线形态）· ★R4-Et 随迁备案：第三处原锚 padding: 34px 40px 挂在 .gs-mc-section 上——那是设置页内嵌手册正文时代的容器，手册自第廿一轮起独立成页，设置页现在只剩一个「打开使用手册」按钮（模板里 gs-mc-section 零引用、census 零命中，本轮清掉）。三处同步因此收敛成两处活锚（阅读页 + 手册数据），第三处换成"设置页不许再把手册正文嵌回来"的负锚：.gs-mc-section 与内联手册容器 .gs-manual 回流即红', () => {
+  const mp = read('/newtab/views/ManualPage.vue');
+  const md = read('/newtab/manual-data.ts');
+  // ① 两处章节都必须走发丝线分隔
+  if (!/\.mn-section \{[^}]*border-top: 1px solid/.test(mp)) { console.log('阅读页章节未走发丝线'); return false }
+  if (!/^\s*section \{[^}]*border-top: 1px solid/m.test(md)) { console.log('分享版章节未走发丝线（与应用内不同步）'); return false }
+  // ② 两处都必须留上下呼吸：padding 三值「上 左右 下」，左右为 0 才是通栏
+  if (!/\.mn-section \{[^}]*padding: \d+px 0 \d+px/.test(mp)) { console.log('阅读页章节缺上下呼吸'); return false }
+  if (!/^\s*section \{[^}]*padding: \d+px 0 \d+px/m.test(md)) { console.log('分享版章节缺上下呼吸'); return false }
+  // ③ 负锚：章节不许回退成卡片盒
+  const mpSec = mp.slice(mp.indexOf('\n.mn-section {'), mp.indexOf('\n.mn-section:first-of-type'));
+  if (/border-radius:/.test(mpSec)) { console.log('阅读页章节回流卡片盒（border-radius）'); return false }
+  if (/border: 1px solid/.test(mpSec)) { console.log('阅读页章节回流卡片盒（四边 border）'); return false }
+  return !read('/newtab/views/GlobalSettings.vue').includes('.gs-mc-section') && !read('/newtab/views/GlobalSettings.vue').includes('.gs-manual {');
+});
 
 console.log('【第廿六轮 · 信件身份与排版精修】');
 check('R26-1 donge 哥身份融入（教育科技/AI 探索者）', () => read('/newtab/letter-data.ts').includes('教育科技行业深耕了十余年') && read('/newtab/letter-data.ts').includes('AI 如何真正赋能学习与工作'));
-check('R26-2/R49 信纸与手册排版留白精修（信纸参数 R49 更新）', () => read('/newtab/views/GlobalSettings.vue').includes('padding: 80px 64px') && read('/newtab/views/ManualPage.vue').includes('padding: 36px 44px') && read('/newtab/manual-data.ts').includes('padding: 38px 46px'));
+check('R26-2/R49 信纸与手册排版留白精修（信纸参数 R49 更新 · 手册两侧于 B7-e 重指：手册章节留白改走发丝线 + 上下呼吸，具体数值由 R28 守，两条分工不重）', () => read('/newtab/views/GlobalSettings.vue').includes('padding: 80px 64px') && /padding: \d+px 0 \d+px/.test(read('/newtab/views/ManualPage.vue')) && /^\s*section \{[^}]*padding: \d+px 0 \d+px/m.test(read('/newtab/manual-data.ts')));
 
 console.log('【第廿五轮 · 手册分享/信件/深链】');
 check('R25-1（R160-A7 重指）手册入口新标签页打开（深链在全路由保留下自然保留）', () => read('/newtab/main.ts').includes('R160（A7）深链保全') && read('/newtab/views/GlobalSettings.vue').includes('openManualTab'));

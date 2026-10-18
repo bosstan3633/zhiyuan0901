@@ -636,6 +636,12 @@ const backupReminderDot = computed(() => {
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 /* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
 .brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
+/* M6（B7-e · V3.8.40）：热区下限 28px。顶栏三处点击目标实测只有 20.8 / 23px——
+   规范 M6 写「热区保持 ≥28px」。用 min-height 撑**盒子**而不改内部字号与 padding：
+   视觉密度一字未变（内容仍居中、字号仍 11~13px），只是可点区域够手指/触控板落点。
+   ★为什么不用 padding 撑：padding 会把顶栏 48px 顶高、把左右 chip 的间距撑散，
+     那是对"窄窗不破版"这条验收的净损失；min-height 不改变任何相邻元素的排布。 */
+.brand-chip, .nav-shortcut-tip { min-height: 28px; }
 /* V3.8.9（W9）：画像洞察页为当前页时品牌区高亮（accent-light 底 + accent 边）。
    ★修溢出：去掉 margin-left: -6px 负边距——topbar-inner.align-page 的左 padding 仅 36px，
    负边距 + pulsing 光晕会把高亮推到顶栏容器外，窄窗口下视觉上溢出屏幕左缘。 */

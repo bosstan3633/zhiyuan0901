@@ -326,9 +326,14 @@ check('R153-1（R155-③ 备案：摘要 2 行的取舍已由用户拍板）★�
   return foot.includes('min-width: 0; overflow: hidden') && foot.includes('flex-shrink: 1') && foot.includes('text-overflow: ellipsis')
     && c.includes('.res-card { min-height: 120px; max-height: 160px; }') && !c.includes('视觉取舍留给用户定')
 });
-check('R153-2 ★命中区只量真交互元素并抬到 26px：任务 AI 菜单钮 20×17 → min 26×26、排序下拉 15px 高 → min-height 26（体检脚本同时修了假阳性——原来把 pointer 继承来的 span 也算成点击目标，一堆误报）', () => {
+/* R153-2 于 B7-e（V3.8.40）重指下限：R153 时按当时规范钉26px，M6 把热区下限抬到 28px
+   （实测首屏仍有 27 处 <28px 的真交互元素，含 .tam-btn 20×17 这类）⇒ 原锚 26 假红。
+   判据意图（命中区只量真交互元素 + 逐个抬到下限）不变，下限改为 28并写死为常量，
+   将来再调只需改这一个数字、判据自己跟着走。 */
+const HOT_MIN = 28;
+check(`R153-2 ★命中区只量真交互元素并抬到 ${HOT_MIN}px（B7-e 从 26 抬到 28，M6 实测首屏热区下限；任务 AI 菜单钮 20×17 → min ${HOT_MIN}×${HOT_MIN}、排序下拉 15px 高 → min-height ${HOT_MIN}。★体检脚本同时修了假阳性——原来把 pointer 继承来的 span 也算成点击目标，一堆误报）`, () => {
   const m = read('/newtab/components/TaskAiMenu.vue'); const c = read('/newtab/views/workspace.css')
-  return m.includes('min-width: 26px; min-height: 26px') && c.includes('.head-sort {') && c.includes('min-height: 26px')
+  return m.includes(`min-width: ${HOT_MIN}px; min-height: ${HOT_MIN}px`) && c.includes('.head-sort {') && c.includes(`min-height: ${HOT_MIN}px`)
 });
 check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（N 字）」折叠 + 复制，判"模型没答"还是"答了被消毒丢掉"不必再猜；开关随每轮 run 收起（别拿上一轮原文糊弄这一轮）', () => {
   const d = read('/newtab/components/AiSuggestionDrawer.vue')

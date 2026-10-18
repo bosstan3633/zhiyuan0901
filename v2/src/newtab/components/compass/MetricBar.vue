@@ -114,7 +114,17 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
 /* 右端扩展位——今日记录四格 + 周报 + 去方向台（右对齐） */
 .mb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
+/* M6（B7-e · V3.8.40）：窄窗改为**横向滚动**，不再纵向换行。
+   ★为什么必须改而不是"反正没溢出就算了"：实测三档宽度下换行把指标条从 38px 撑到
+     73px（1024）/ 104px（800），而它就压在「今日三件事」正上方——模块顶缘被从 y=120 推到
+     y=186，等于**用一行指标把主角往下挤了 66px**。规范写的就是「指标条横向滚动」，
+     换行虽不破版、却恰恰破了「主角始终首屏可达」这条验收。
+   ★横向滚动要连带处理右槽：`.mb-right` 的 `margin-left: auto` 在 nowrap 容器里会把
+     后面所有内容推到不可达（auto 外边距吃掉剩余空间），窄屏下改成固定 gap。 */
 @media (max-width: 1180px) {
-  .mb-row { flex-wrap: wrap; row-gap: 4px; max-height: none; }
+  .mb-row { flex-wrap: nowrap; overflow-x: auto; max-height: none; scrollbar-width: thin; }
+  .mb-group { flex-shrink: 0; }
+  .mb-right { margin-left: 0; }
 }
+
 </style>

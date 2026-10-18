@@ -395,7 +395,7 @@
         <button class="gp-cap-close" @click="closeAll">×</button>
       </div>
       <div class="gp-sc-body">
-        <div v-for="grp in SHORTCUT_GROUPS" :key="grp.title" class="gp-sc-group">
+        <div v-for="grp in SHORTCUT_GROUPS_VIEW" :key="grp.title" class="gp-sc-group">
           <div class="gp-sc-title">{{ grp.title }}</div>
           <div v-for="it in grp.items" :key="it.keys" class="gp-sc-row">
             <span class="gp-sc-keys"><kbd v-for="k in it.keys.split('+')" :key="k">{{ k }}</kbd></span>
@@ -480,6 +480,10 @@ import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCar
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { saveUIPrefs } from '@/shared/storage/repository'
+// B7-e H3：快捷键速查面板不再各写一份清单——与设置页、手册同源（shared/utils/shortcuts.ts）。
+// ★此前这里把切台键硬编码成 Alt+1/2/3，而修饰键有五种可选（wsSwitchMod）；
+//   用户改成 Ctrl 之后速查面板仍在教他按一个不存在的键位。现按当前偏好派生。
+import { SHORTCUT_GROUPS, resolveKeys } from '@/shared/utils/shortcuts'
 // R158：命令面板 AI 分组数据源——只引注册表**纯声明**（零 import 红线：registry.ts 不拉任何工厂，
 // 入口 chunk 触达的只是静态常量，启动零 AI 不变；真正的 AI 栈仍由各宿主懒加载）
 import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
@@ -1608,29 +1612,15 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
 }
 
 // ===== B3：快捷键速查数据 =====
-const SHORTCUT_GROUPS = [
-  { title: '全局（任意网页）', items: [
-    { keys: 'Ctrl+Shift+J', desc: '快速采集当前网页' },
-    { keys: 'Ctrl+Shift+I', desc: '采集好奇心（选中文字可附带来源）' },
-    { keys: 'Ctrl+K', desc: '全局搜索' },
-    { keys: 'Ctrl+Shift+K', desc: '打开调度台' },
-  ]},
-  { title: '应用内', items: [
-    { keys: 'Alt+1', desc: '调度台（修饰键可自定义）' },
-    { keys: 'Alt+2', desc: '方向台' },
-    { keys: 'Alt+3…9', desc: '各策展台（按台签顺序）' },
-    { keys: '?', desc: '呼出本速查' },
-  ]},
-  { title: '编辑与导航', items: [
-    { keys: 'Ctrl+Enter', desc: '保存并关闭（所有弹窗/抽屉）' },
-    { keys: 'Esc', desc: '逐层关闭（浮层→抽屉→展板）' },
-    { keys: 'Tab', desc: '搜索内循环切换类型' },
-    { keys: '↑↓ / Enter', desc: '搜索结果选择 / 打开链接' },
-    { keys: 'Ctrl+Enter（搜索内）', desc: '定位到卡片所在处' },
-    { keys: '双击', desc: '打开卡片链接（三卡一致）' },
-    { keys: '右键', desc: '卡片上下文菜单' },
-  ]},
-]
+// B7-e H3：清单搬进 shared/utils/shortcuts.ts（与设置页、手册共用一份真源）。
+// 这里只做**派生**：把 {MOD} 占位按用户当前修饰键偏好换成真实键位。
+const SC_MOD = computed(() => store.ui?.wsSwitchMod || 'alt')
+const SHORTCUT_GROUPS_VIEW = computed(() =>
+  SHORTCUT_GROUPS.map(g => ({
+    title: g.title,
+    items: g.items.map(it => ({ keys: resolveKeys(it.keys, SC_MOD.value), desc: it.action })),
+  }))
+)
 
 // ===== 采集资源卡 =====
 const capForm = reactive({

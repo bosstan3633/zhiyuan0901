@@ -30,6 +30,10 @@
   /* R123（原型）：字体栈按原型完全采纳——系统字体优先，Inter 作回退 */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* B7-e H1：等宽栈收敛为令牌。此前只有 --font-sans 一个字体令牌，code / kbd / 版本号
+     各自抄一串 ui-monospace, Menlo, Consolas…（三处字面量、顺序还不一样），
+     等宽是"要逐位比对字符"的场景（快捷键、版本号、路径），字体栈必须全站一致。 */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   /* 字号层级（R155-U4：**按全站真实分布重定阶**，不再是先验的 5 档）
      背景：R155 实测 src 内 `font-size` 字面量共 **28 种取值 / 约 1200 处**，而 `var(--fs-*)`

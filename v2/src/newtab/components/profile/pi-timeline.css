@@ -294,9 +294,10 @@
    ok 用强调色（值得看）、warn 用中性深一档（值得留意），两档只差明度不差色相。 */
 .one-insight.warn { border-left-color: var(--text-3); background: var(--surface-2); }
 .one-insight.ok { border-left-color: var(--accent); }
+/* M6（B7-e · V3.8.40）：热区下限 28px（实测 27px）——只撑盒子，胶囊形态与字号不变 */
 .act-link {
   flex: none; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent-ink);
-  font-size: var(--fs-caption); font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  font-size: var(--fs-caption); font-weight: 700; padding: 5px 12px; min-height: 28px; border-radius: 999px;
   cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap;
 }
 .act-link:hover { filter: brightness(1.05); transform: translateY(-1px); }
@@ -315,28 +316,40 @@
 .f3-row:hover { border-color: var(--border-strong); }
 .f3-row.done .f3-title { color: var(--text-4); text-decoration: line-through; }
 .f3-no { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .08em; width: 18px; }
+/* M6：勾选框 17px → 28px 热区。★为什么这枚特殊：它是**唯一一处视觉尺寸与热区必须解耦**的控件——
+   勾选框的视觉大小就是它的语义（17px 方块是「勾」这一动作的图形本体），放大视觉会毁掉整行对账的密度。
+   做法：保留 17px 的 ::before 伪元素画方块，本体撑到 28px 透明承接点击。 */
 .f3-ck {
-  flex: none; width: 17px; height: 17px; border-radius: 5px; border: 1.6px solid var(--border-strong);
+  flex: none; width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent;
   display: grid; place-items: center; font-size: 10px; color: #fff; cursor: pointer;
-  transition: all var(--dur); background: transparent; padding: 0;
+  transition: all var(--dur); padding: 0; position: relative;
 }
-.f3-ck.done { background: var(--success); border-color: var(--success); }
-.f3-ck.ghost { border-style: dashed; cursor: default; }
+.f3-ck::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 17px; height: 17px; border-radius: 5px; border: 1.6px solid var(--border-strong);
+  background: transparent; transition: all var(--dur);
+}
+.f3-ck.done::before { background: var(--success); border-color: var(--success); }
+.f3-ck.ghost { cursor: default; }
+.f3-ck.ghost::before { border-style: dashed; }
+.f3-ck > * { position: relative; z-index: 1; }
 .f3-title { flex: 1; min-width: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .f3-title.done { color: var(--text-4); text-decoration: line-through; }
 .f3-title.muted { color: var(--text-4); font-weight: 500; }
 .f3-ammo { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); }
 .f3-ammo.zero { color: var(--text-4); }
+/* M6：热区下限 28px（实测 25px）——只撑盒子 */
 .f3-bind {
   flex: none; font-size: var(--fs-caption); font-weight: 700; font-family: inherit;
-  padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  padding: 4px 11px; min-height: 28px; border-radius: 999px; cursor: pointer;
   background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent);
   transition: all var(--dur); white-space: nowrap;
 }
 .f3-bind:hover { filter: brightness(1.06); }
+/* M6：热区下限 28px（与 .f3-bind 同款）——只撑盒子 */
 .f3-fill {
   flex: none; font-size: var(--fs-caption); font-weight: 700; font-family: inherit;
-  padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  padding: 4px 11px; min-height: 28px; border-radius: 999px; cursor: pointer;
   background: var(--success-bg-soft, var(--surface-3)); color: var(--success);
   border: 1px dashed var(--success); transition: all var(--dur); white-space: nowrap;
 }

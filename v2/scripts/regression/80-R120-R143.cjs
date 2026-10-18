@@ -10,7 +10,20 @@ check('R120-1 网页浮层 Ctrl+Enter=仅定位：openSearchLocator 不再透传
 check('R120-2 网页浮层 单击/Enter=开链：openSearchResult 保留（无链接降级定位）+ 行 title 文案统一', () => { const s = read('/content/overlay-impl.ts'); return s.includes('function openSearchResult') && s.includes('单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'); });
 check('R120-3 应用内 单击/Enter=开链优先：openLinkOrLocate（资源卡有可打开链接→openResLink；否则 openItem）+ pickRow 绑定', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function openLinkOrLocate') && g.includes('toOpenableUrl(r.linkType, r.link)') && g.includes('openResLink(item)') && g.includes('@click="pickRow(item, $event)"') /* R152：同上 */; });
 check('R120-4 应用内 Ctrl+Enter=仅定位：locateOnly（hl+hk+cat，无 emitOpenDrawer）+ runFlatLocator 指向', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function locateOnly') && g.includes('locateOnly(it.item)') && !g.includes('emitOpenDrawer'); });
-check('R120-5 手册与键位提示同步：搜索章节三键说明 + 底部键位条 + 快捷键清单（★G1(V3.8.24)随迁带备案：底部键位条 ⏎ 符号随 emoji→Icon 迁移改纯文本 Enter，锚点随迁）', () => { const m = read('/newtab/manual-data.ts'); const g = read('/newtab/components/GlobalPopups.vue'); return m.includes('结果键位（单击 / Enter / Ctrl+Enter 三键）') && m.includes('打开卡片链接') && g.includes('<kbd>Ctrl+Enter / 单击</kbd> 定位卡片') /* R153 备案：鼠标侧补了 Ctrl+单击=定位，脚注键位条同步写明，别再只写键盘一条路 */ && g.includes("desc: '定位到卡片所在处'"); });
+/* R120-5 于 B7-e（V3.8.40）重指两条：原锚钉GlobalPopups 里手写清单的
+   `desc: '定位到卡片所在处'`，而 H3 把手写清单换成 shortcuts.ts 派生 ⇒ 该字面量迁到真源的
+   `action:` 字段。判据意图（手册与界面键位提示不许脱节）不变，重指为**跨真源一致性**：
+   手册那份快捷键表必须派生自 shortcuts.ts，且真源里「定位到卡片所在处」这条仍在、
+   速查面板仍经派生量渲染。★这比钉一个组件里的 desc 强：字面量搬家就假红，
+   而"三处同源"才是这条判据真正要守的东西。 */
+check('R120-5 手册与键位提示同步：搜索章节三键说明 + 底部键位条 + 快捷键清单（★G1(V3.8.24)随迁带备案：底部键位条 ⏎ 符号随 emoji→Icon 迁移改纯文本 Enter，锚点随迁；★B7-e 重指末两条：手写清单已随 H3 退役，改钉真源派生 + 该条动作名仍在真源）', () => {
+  const m = read('/newtab/manual-data.ts'); const g = read('/newtab/components/GlobalPopups.vue'); const sc = read('/shared/utils/shortcuts.ts');
+  return m.includes('结果键位（单击 / Enter / Ctrl+Enter 三键）') && m.includes('打开卡片链接')
+    && g.includes('<kbd>Ctrl+Enter / 单击</kbd> 定位卡片') /* R153 备案：鼠标侧补了 Ctrl+单击=定位，脚注键位条同步写明，别再只写键盘一条路 */
+    && sc.includes("action: '仅定位到卡片所在处，不打开链接'")
+    && /shortcutTableHtml\('placeholder'\)/.test(m)
+    && /SHORTCUT_GROUPS_VIEW/.test(g);
+});
 
 // ============== R120 · V2.88.0 批次B：调度台 UI 对齐原型（只改 UI，功能与交互不动） ==============
 console.log('【R120 · V2.88.0 批次B：调度台 UI 对齐原型】');

@@ -118,8 +118,29 @@ check('R69-3（R74 重写）资源台聚合哨兵不污染数据层：新建卡/
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('function newCardCatId(): string') && w.includes("return (c && c !== 'uncat' && c !== 'all') ? c : ''") && w.includes('editingResource.categoryId = newCardCatId()') && w.includes('const targetKey = catKeyToCatId(groupKey)');
 });
-check('R69-4 设置页快捷键映射表键位（V3.7.0 重指：资源台退役后策展台顺延，第 N 个策展台 = 修饰键 + (N+2)，与 App.vue switchToIndex 的 n-3 落位一致）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}") && s.includes('第 N 个策展台 = 修饰键 + (N+2)') && s.includes('Alt + 数字键（1=调度台、2=方向台、3 起=各策展台）') && !s.includes('3=资源台'); });
-check('R69-5 快捷键速查口径修正（V3.7.0 重指：资源台退役后 Alt+3 起整体让位各策展台）', () => { const s = read('/newtab/components/GlobalPopups.vue'); return s.includes("desc: '打开调度台'") && s.includes("desc: '各策展台（按台签顺序）'") && s.includes("{ keys: 'Alt+1', desc: '调度台（修饰键可自定义）' }") && s.includes("{ keys: 'Alt+2', desc: '方向台' }") && s.includes("{ keys: 'Alt+3…9', desc: '各策展台（按台签顺序）' }"); });
+/* R69-4 / R69-5 于 B7-e（V3.8.40）重指：原锚钉GlobalPopups 里那份**手写** SHORTCUT_GROUPS
+   （含 `{ keys: 'Alt+1', desc: '调度台（修饰键可自定义）' }` 等字面量），而 H3 把它整份删除、
+   换成从 shared/utils/shortcuts.ts 派生（切台键走 {MOD} 占位，按用户偏好解析）。
+   判据意图（速查口径：1=调度台 / 2=方向台 / 3 起各策展台，且必须随偏好走）不变，
+   重指到新形态：**判据改问真源，并要求速查面板真的从真源派生**——
+   钉中文字面量会随文案迭代反复假红，而"面板不许再写第四份清单"是结构性保证。 */
+check('R69-4 设置页快捷键映射表键位（V3.7.0 重指资源台退役后策展台顺延；B7-e 重指到真源：面板/设置页都必须经 shortcutsOf/resolveKeys 按偏好派生，不许写死 Alt）', () => {
+  const s = read('/newtab/views/GlobalSettings.vue'); const sc = read('/shared/utils/shortcuts.ts');
+  return s.includes("{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}")
+    && s.includes('第 N 个策展台 = 修饰键 + (N+2)')
+    && s.includes('Alt + 数字键（1=调度台、2=方向台、3 起=各策展台）')
+    && !s.includes('3=资源台')
+    && /shortcutsOf\('应用内', store\.ui\?\.wsSwitchMod/.test(s)
+    && sc.includes("{ keys: '{MOD}+3…9', action: '按台签顺序切各策展台'");
+});
+check('R69-5 快捷键速查口径修正（V3.7.0 重指资源台退役后 Alt+3 起整体让位各策展台；B7-e 重指到真源：三档落位在 shortcuts.ts，速查面板经 resolveKeys 按偏好渲染，负锚：面板不许再出现写死的 Alt+1/Alt+2）', () => {
+  const s = read('/newtab/components/GlobalPopups.vue'); const sc = read('/shared/utils/shortcuts.ts');
+  const trio = ["{ keys: '{MOD}+1', action: '切到调度台'", "{ keys: '{MOD}+2', action: '切到方向台'", "{ keys: '{MOD}+3…9', action: '按台签顺序切各策展台'"];
+  for (const t of trio) if (!sc.includes(t)) return false;
+  return /resolveKeys\(it\.keys, SC_MOD\.value\)/.test(s)
+    && /v-for="grp in SHORTCUT_GROUPS_VIEW"/.test(s)
+    && !/keys: 'Alt\+1'/.test(s) && !/keys: 'Alt\+2'/.test(s) && !/keys: 'Alt\+3…9'/.test(s);
+});
 check('R69-6 垃圾清理：旧版浮层备份 search-overlay.ts.orig.bak 与 scripts/.r6a 已移除', () => !exists('/content/search-overlay.ts.orig.bak') && !fs.existsSync(path.resolve(SCRIPTS_DIR, '..', 'scripts', '.r6a')));
 check('R69-7 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(ANCHOR_FILE, 'utf8'); const gs = read('/newtab/views/GlobalSettings.vue'); return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"') && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && gs.includes('runtimeVersion'); });
 

@@ -407,13 +407,35 @@ check('R4-Df ★手册命令表必须跟 manifest 真值一致：无默认键的
     && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')
     && !m.includes('打开设置 / 方向台 / 资源台 / 完整方向树 / 任务调度 / 同步到 Airtable');
 });
-check('R4-Df ★应用内切台键位口径写对：1=调度台、2=方向台、3 起才是策展台（手册原写「1…N 各策展台，从 1 起按导航顺序计数」，与 App.vue switchToIndex 的 n-3 差两位——照手册按 Alt+1 会进第一个策展台而不是调度台）', () => {
+/* R4-Df 于 B7-e（V3.8.40）重指：原锚钉手册正文里「1 = 调度台 / 2 = 方向台 / 3 起才是各策展台」
+   三句中文，而 H3 把 ref-1 的手写快捷键表整段换成 shared/utils/shortcuts.ts 派生 ⇒ 措辞变成
+   「切到调度台 / 切到方向台 / 按台签顺序切各策展台」，字面量随手写表退役。
+   重指后守**同一条意图的更强形态**：① 手册那三条必须真从真源派生（不许再写第四份清单）；
+   ② 真源的键位用 {MOD} 占位、动作名点明「调度台/方向台/各策展台」三档落位；
+   ③ App.vue switchToIndex 仍在（1/2 是两张固定台，3 起才是策展台）；
+   ④ 旧错句「从 1 起按导航顺序计数」不许回流。
+   ★这比钉中文字面量强：字面量会随文案迭代反复假红，而"手册只能有一个来源"是结构性保证。 */
+check('R4-Df ★应用内切台键位口径写对：1=调度台、2=方向台、3 起才是策展台（B7-e 重指到结构性保证：手册那三条必须从 shortcuts.ts 派生，不许再写第四份清单；键位走{MOD} 占位不写死 Alt）', () => {
   const m = read('/newtab/manual-data.ts');
   const a = read('/newtab/App.vue');
-  return m.includes('1 = 调度台') && m.includes('2 = 方向台') && m.includes('3 起才是各策展台')
-    && !m.includes('从 1 起按导航顺序计数') && a.includes('switchToIndex');
+  const sc = read('/shared/utils/shortcuts.ts');
+  const mc = codeOnly(m);
+  // ① 手册走真源派生
+  if (!/shortcutTableHtml\('placeholder'\)/.test(mc)) { console.log('手册快捷键表不再走真源派生'); return false }
+  // ② 真源三档落位：键位带占位，动作名分别点明调度台 / 方向台 / 各策展台
+  const trio = [
+    ["{ keys: '{MOD}+1', action: '切到调度台'"],
+    ["{ keys: '{MOD}+2', action: '切到方向台'"],
+    ["{ keys: '{MOD}+3…9', action: '按台签顺序切各策展台'"],
+  ];
+  for (const t of trio) { if (!sc.includes(t[0])) { console.log(`真源缺切台条目：${t[0]}`); return false } }
+  // ③ App.vue 仍在按 n-3 分派（1/2 固定台，3 起策展台）
+  if (!a.includes('switchToIndex')) { console.log('App.vue 失去 switchToIndex'); return false }
+  // ④ 旧错句不许回流
+  if (m.includes('从 1 起按导航顺序计数')) { console.log('旧错句「从 1 起按导航顺序计数」回流'); return false }
+  return true;
 });
-check('R4-Df2 ★手册改对了而界面在打对台＝白改：设置页用户可见文案不许把已退役台面/已下架命令写成现役功能，且那句「N 条无默认键命令」的 N 必须等于 manifest 现算值。★判据不写死"六"——将来增删一条命令，界面这句就得跟着改口；另加一条语境判据：设置页里每一枚「资源台」字样都必须落在"这东西已退役"的句子里，否则等于给用户指一个不存在的去处', () => {
+check('R4-Df2 ★手册改对了而界面在打对台＝白改：设置页用户可见文案不许把已退役台面/已下架命令写成现役功能，且那句「N 条无默认键命令」的 N 必须等于 manifest 现算值。★判据不写死"六"——将来增删一条命令，界面这句就得跟着改口；另加一条语境判据：设置页里每一枚「资源台」字样都必须落在"这东西已退役"的句子里，否则等于给用户指一个不存在的去处。★B7-e（V3.8.40）重指末尾两条正锚：原锚要求设置页快捷键清单里「在」资源卡池控制行『批量』与资源卡池资源卡两行——而 H3 核出那两行**根本不是快捷键**（一个是按钮位置、一个是卡型），把它们留在按键清单里等于教用户去按一个不存在的键。H3 把整份手写清单换成 shortcutsOf 真源后它们自然消失，故重指为：① 那两行不许再出现在按键清单里（负锚）；② 按键清单必须从真源派生（正锚）；③ 「资源卡池资源卡」这类**卡型名词**仍可出现在设置页别处（该正锚保留，只是它已不由快捷键清单提供）。', () => {
   const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
   const nk = noKeyCmds();
   const stray = [...gs.matchAll(/资源台/g)]
@@ -424,13 +446,21 @@ check('R4-Df2 ★手册改对了而界面在打对台＝白改：设置页用户
     && !gs.includes('资源台：双击卡片打开链接') && !gs.includes('资源台工具条')
     && !gs.includes('含方向台/资源台/完整方向树/任务调度') && !gs.includes('资源台资源卡')
     && !gs.includes('方向台/资源台/完整方向树无默认键')
-    && gs.includes('资源卡池控制行「批量」') && gs.includes('资源卡池资源卡');
+    // ↓ B7-e 重指：非快捷键行不许留在按键清单里
+    && !gs.includes('资源卡池控制行「批量」')
+    // ↓ B7-e 重指：按键清单必须从真源派生
+    && /shortcutsOf\('应用内', store\.ui\?\.wsSwitchMod/.test(gs);
 });
-check('R4-Df2 ★手册里五处"照做会走进死路"的事实订正必须在位且旧说法不许回流：撤销窗口 9 秒（不是 3 秒）、生命周期入口只有一个（不是三处 ⏳）、阈值是可配的（不是"本期固定 30/90"）、不再教用户去分配已下架的命令、没有"台面级入口"的旧句式。★这几条各钉一句曾经逐字教错的话——判据只核新说法在场且旧说法回不来，回潮即红', () => {
+check('R4-Df2 ★手册里五处"照做会走进死路"的事实订正必须在位且旧说法不许回流：撤销窗口秒数（不是 3 秒）、生命周期入口只有一个（不是三处 ⏳）、阈值是可配的（不是"本期固定 30/90"）、不再教用户去分配已下架的命令、没有"台面级入口"的旧句式。★这几条各钉一句曾经逐字教错的话——判据只核新说法在场且旧说法回不来，回潮即红。★B7-e（V3.8.40）重指第一处：原锚写死「窗口 9 秒」，而 G5 已把窗口收到 6 秒、X-1 又把手册六处订正成6 秒。**秒数改为从 undo.ts 的 UNDO_WINDOW_MS 现算**——判据不该把某个具体数字当真理，真理在实现里。', () => {
   const m = read('/newtab/manual-data.ts');
+  const undo = read('/shared/utils/undo.ts');
+  const win = /UNDO_WINDOW_MS = (\d+)/.exec(undo);
+  if (!win) { console.log('undo.ts 未找到 UNDO_WINDOW_MS'); return false }
+  const secs = Number(win[1]) / 1000;
   return !m.includes('打开设置/方向台/资源台/完整方向树/任务调度')
     && !m.includes('「打开方向台」「打开资源台」') && !m.includes('直达项目调度模块')
-    && m.includes('窗口 9 秒') && !m.includes('给 3 秒撤销')
+    // 秒数从实现现算，且「给 3 秒撤销」这类旧错句不许回流
+    && new RegExp(`窗口\\s*${secs}\\s*秒`).test(m) && !m.includes('给 3 秒撤销')
     && m.includes('入口只有一个') && m.includes('阈值是可配的') && !m.includes('阈值本期固定');
 });
 check('R4-Df ★章节标题本身不许带退役物：手册目录是用户唯一的导航入口，标题写着「与资源台操作」「与项目调度」就等于在目录层许诺一个不存在的去处（正文改对了、目录还在骗人）', () => {

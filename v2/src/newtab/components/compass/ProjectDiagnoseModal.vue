@@ -210,7 +210,7 @@ ${dims}${advice}
 .pd-t { font-size: var(--fs-title); font-weight: 800; color: var(--text); }
 .pd-s { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; }
 .pd-s code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
-.pd-x { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--text-3); cursor: pointer; font-size: 15px; margin-left: auto; flex: none; background: none; border: 0; }
+.pd-x { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--text-3); cursor: pointer; font-size: 15px; margin-left: auto; flex: none; background: none; border: 0; }
 .pd-x:hover { background: var(--surface-3); color: var(--text); }
 
 .pd-stale { display: flex; align-items: center; gap: 9px; padding: 9px 20px; background: var(--warning-bg-soft); border-bottom: 1px solid rgba(251, 191, 36, .24); font-size: var(--fs-caption); color: var(--warning); }
