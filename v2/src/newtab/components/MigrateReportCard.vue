@@ -119,9 +119,14 @@ async function reRun() {
   </div>
 </template>
 
+<!-- V3.8.42：本卡复用设置页共享基类，必须显式引入（Vue 的 scoped 命中不了子组件内部元素）。 -->
+<style src="../views/settings/base.css"></style>
+
 <style scoped>
-/* 复用设置页的 .gs-card / .gs-btn / .gs-btn-danger 外壳（非 scoped 部分由 GlobalSettings 全局表提供），
-   这里只补这张卡自己的密度与配色，全部走令牌。 */
+/* 复用设置页的 .gs-card / .gs-btn / .gs-btn-danger 外壳（由 settings/base.css 提供），
+   这里只补这张卡自己的密度与配色，全部走令牌。
+   ★V3.8.42 更正：原注释写「非 scoped 部分由 GlobalSettings 全局表提供」是**错的**——
+   宿主那份一直是 scoped 样式，命中不了本组件内部元素，卡片外壳实际一直是掉的。 */
 .mg-card { margin-bottom: 14px; }
 .mg-off { margin-left: 8px; font-size: var(--fs-caption); color: var(--warning); border: 1px solid var(--warning-border); background: var(--warning-bg-soft); border-radius: 99px; padding: 1px 8px; }
 .mg-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: var(--fs-sub); color: var(--text-2); }

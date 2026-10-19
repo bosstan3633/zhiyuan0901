@@ -635,81 +635,14 @@
            设置页聚合读取层接住，214 处读设置页正文的判据因此零改动仍绿）。 -->
       <SettingsLetterPanel v-if="activePage === 'letter'" />
 
-      <!-- ===== 重置与回滚 ===== -->
-      <div v-if="activePage === 'reset'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="refresh" :size="13"/> 重置与回滚</div>
-          <div class="gs-page-desc">危险操作，请谨慎执行，建议操作前先导出备份</div>
-        </div>
-        <div class="gs-card gs-danger-zone">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="warn" :size="12"/> 危险操作区</span></div>
-          <div class="gs-card-body">
-            <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认策展台</div></div>
-              <button class="gs-btn gs-btn-danger" @click="showResetModal = true">回滚</button>
-            </div>
-            <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">回收站</div><div class="gs-da-desc">浏览 / 恢复已删除的卡片，或永久删除</div></div>
-              <button class="gs-btn" @click="router.push('/recycle')">进入</button>
-            </div>
-            <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">清空回收站</div><div class="gs-da-desc">永久删除所有已移入回收站的卡片，不可恢复</div></div>
-              <button class="gs-btn gs-btn-danger" @click="emptyRecycleBin">清空</button>
-            </div>
-            <div class="gs-danger-action">
-              <div class="gs-da-info"><div class="gs-da-name">清除缓存</div><div class="gs-da-desc">清除 AI 抓过的网页正文与会话抽读缓存（内存态）；卡片数据与附件本体不动</div></div>
-              <button class="gs-btn" @click="clearCache">清除</button>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- ===== 扩展设置 ===== -->
-      <div v-if="activePage === 'extension'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="plug" :size="13"/> 浏览器扩展设置</div>
-          <div class="gs-page-desc">配置浏览器扩展的连接和抓取行为</div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">连接状态</span></div>
-          <div class="gs-card-body">
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">扩展状态</span>
-              <div class="gs-sr-control"><span class="gs-status-badge connected"><span class="gs-status-dot"></span>已连接</span></div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">扩展版本</span>
-              <div class="gs-sr-control gs-sr-note">V{{ runtimeVersion }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">抓取设置</span></div>
-          <div class="gs-card-body">
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">快速抓取快捷键</span>
-              <div class="gs-sr-control">
-                <a :href="shortcutsUrl" target="_blank" class="gs-keycap gs-keycap-link">Ctrl+Shift+J</a>
-              </div>
-            </div>
-            <!-- R1.5：「默认存入台面」选择器随资源台退役删除——采集单形态落「🗂 资源卡池」，defaultWsId 零消费方 -->
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">自动取文件夹名</span>
-              <div class="gs-sr-control"><div class="gs-toggle" :class="{ on: capturePref.autoFolderName }" @click="capturePref.autoFolderName = !capturePref.autoFolderName; persistCapturePref()"></div></div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">抓取后确认弹窗</span>
-              <div class="gs-sr-control"><div class="gs-toggle on" @click="showToast('快捷键采集始终显示确认弹窗')"></div></div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">全局快捷键配置</span>
-              <div class="gs-sr-control">
-                <a :href="shortcutsUrl" target="_blank" class="gs-shortcut-link">前往 chrome://extensions/shortcuts ›</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- V3.8.42 P0-3 第三批：「重置与回滚」子域（含回滚确认弹窗）已搬至 settings/SettingsResetPanel.vue -->
+      <SettingsResetPanel v-if="activePage === 'reset'" />
+
+
+      <!-- V3.8.42 P0-3 第三批：「扩展设置」子域已搬至 settings/SettingsExtensionPanel.vue -->
+      <SettingsExtensionPanel v-if="activePage === 'extension'"
+        :runtime-version="runtimeVersion" :shortcuts-url="shortcutsUrl" />
 
       <!-- V3.8.42 P0-3 第二批：子域已搬至 settings/SettingsChangelogPanel.vue -->
       <SettingsChangelogPanel v-if="activePage === 'changelog'" :runtime-version="runtimeVersion" :ordered-changelog="orderedChangelog" />
@@ -727,24 +660,6 @@
     <!-- R134-F：AI 建议评审抽屉（批量补全/沉睡唤醒/深度诊断共用消费面） -->
     <AiSuggestionDrawer v-if="aiJob" :job="aiJob" :job-key="aiJobKey || undefined" @close="aiJobClosed" />
 
-    <!-- 回滚确认弹窗 -->
-    <Teleport to="body">
-      <div class="gs-modal-overlay" :class="{ open: showResetModal }" @click.self="closeResetModal">
-        <div class="gs-modal">
-          <div class="gs-modal-header"><Icon name="warn" :size="13"/> 确认回滚至初始状态</div>
-          <div class="gs-modal-body">
-            <p>此操作将清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，<b class="gs-danger-text">仅保留调度台、方向台（任务中心）和默认策展台</b>。</p>
-            <p>此操作<b class="gs-danger-text">不可恢复</b>，建议先导出数据备份。</p>
-            <p>请输入 <b>"回滚"</b> 以确认：</p>
-            <input v-model="resetConfirmText" type="text" class="gs-confirm-input" placeholder="请输入 回滚" />
-          </div>
-          <div class="gs-modal-footer">
-            <button class="gs-btn" @click="closeResetModal">取消</button>
-            <button class="gs-btn gs-btn-danger" :disabled="resetConfirmText !== '回滚'" :style="{ opacity: resetConfirmText === '回滚' ? 1 : 0.5, cursor: resetConfirmText === '回滚' ? 'pointer' : 'not-allowed' }" @click="doReset">确认回滚</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 
@@ -776,6 +691,8 @@ import SettingsLetterPanel from './settings/SettingsLetterPanel.vue'
 import SettingsManualPanel from './settings/SettingsManualPanel.vue'
 import SettingsChangelogPanel from './settings/SettingsChangelogPanel.vue'
 import SettingsAboutPanel from './settings/SettingsAboutPanel.vue'
+import SettingsResetPanel from './settings/SettingsResetPanel.vue'
+import SettingsExtensionPanel from './settings/SettingsExtensionPanel.vue'
 import RichText from '../components/RichText.vue'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
@@ -1516,74 +1433,7 @@ function csvEscape(v: string): string {
   return v
 }
 
-// ---- 重置 ----
-const showResetModal = ref(false)
-const resetConfirmText = ref('')
-function closeResetModal() {
-  showResetModal.value = false
-  resetConfirmText.value = ''
-}
-function doReset() {
-  if (resetConfirmText.value !== '回滚') return
-  const fresh = createDefaultData()
-  store.data!.compass = fresh.compass
-  store.data!.workspaces = fresh.workspaces
-  store.data!.categories = fresh.categories
-  store.data!.resources = []
-  store.data!.tasks = []
-  store.data!.curiosities = []
-  store.data!.dailyFocus = {}
-  store.data!.fieldConfig = fresh.fieldConfig
-  store.data!.tagTree = fresh.tagTree
-  store.data!.stats = fresh.stats
-  store.data!.activityLogs = []
-  store.persist()
-  clearHot() // R148-P0b：热度拆键后，回滚必须连热度键一起清，否则旧 stats 下次启动会覆盖回来
-  closeResetModal()
-  showToast('已回滚至初始状态')
-  setTimeout(() => router.push('/compass'), 800)
-}
-/** R128-A3：与回收站页共用同一硬删引擎（此前这里只 filter 数组——附件 Blob 全量泄漏成孤儿、
- *  任务卡脱离 metric.taskIds、指向已删卡的镜像投射记录悬空）
- *  R146（回退契约）：加确认闸——同页「一键回滚」要打字确认，而这个更常用的清空却单击即物理删除，
- *  两个相邻按钮给出相反的风险信号。 */
-async function emptyRecycleBin() {
-  const d = store.data!
-  const targets = recycledCardsOf(d)
-  const n = targets.resources.length + targets.tasks.length + targets.curiosities.length + targets.categories.length
-  if (!n) { showToast('回收站已是空的'); return }
-  if (!(await useConfirm({ title: '清空回收站', message: `确定永久删除回收站里全部 ${n} 项？\n不可恢复，且仅被这些卡引用的附件本体会一并清除。`, confirmText: `永久删除 ${n} 项` }))) return
-  const r = await purgeCardsCompletely(d, targets)
-  store.persist()
-  const parts = [`回收站已清空，永久删除 ${r.cards} 项`]
-  if (r.assetsPurged) parts.push(`清理 ${r.assetsPurged} 个附件本体`)
-  if (r.assetsShared) parts.push(`${r.assetsShared} 个共享附件保留`)
-  showToast(parts.join('· ') + (r.assetsFailed ? `  ${r.assetsFailed} 个附件删除失败（可清理孤儿）` : ''))
-}
-/** R146：这行按钮原先是**假回执**（函数体只有一句 showToast('✓ 缓存已清除')，什么都没做）——
- *  它会污染用户对其它 ✓ 的信任。现在真做事：清 AI 抓过的网页正文会话缓存与整体梳理抽读缓存
- *  （都是内存态，关掉页面本来也没了；此处提供"立刻重来一遍"的手动闸）。
- *  孤儿附件本体不在此列——它在「数据管理」里有专属按钮（cleanupOrphanAssetsAction）。 */
-function clearCache() {
-  const links = clearLinkCache()
-  const snips = reviseSnips.size
-  reviseSnips.clear()
-  showToast(links || snips ? `缓存已清：${links} 篇网页正文 · ${snips} 篇梳理抽读正文（卡片数据未动）` : '没有需要清理的缓存（AI 会话正文是空的）')
-}
 
-// ---- 抓取偏好 ----
-const capturePref = reactive({ defaultWsId: '', autoFolderName: true })
-// R1.5：defaultCaptureWs 计算属性随「默认存入台面」控件退役（采集单形态落池，defaultWsId 零消费方）
-function persistCapturePref() {
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    chrome.storage.local.set({ zy_capture_pref: { ...capturePref } })
-  }
-}
-if (typeof chrome !== 'undefined' && chrome.storage) {
-  chrome.storage.local.get(K.CAPTURE_PREF).then(r => {
-    if (r.zy_capture_pref) Object.assign(capturePref, r.zy_capture_pref)
-  })
-}
 
 // ---- 快捷键设置（H） ----
 interface CmdInfo { name: string; description: string; shortcut: string }
@@ -2391,6 +2241,10 @@ const activeManualSec = ref('quick-1')
 
 </script>
 
+<!-- V3.8.42：跨子域共享基类（.gs-card/.gs-btn/.gs-setting-row…）已外提为 settings/base.css。
+     必须非 scoped —— Vue 的 scoped 命中不了子组件内部元素，外提前四个已拆子域的卡片外壳全部失效。 -->
+<style src="./settings/base.css"></style>
+
 <style scoped>
 .gs-page { display: flex; max-width: 1440px; margin: 0 auto; }
 
@@ -2421,86 +2275,11 @@ const activeManualSec = ref('quick-1')
 
 /* 右侧内容 */
 .gs-content { flex: 1; min-width: 0; max-width: 1100px; padding: 24px 32px; overflow-y: auto; } /* R155-①：容器放到 1440 后右栏会到 1230px，表单强行拉满则单行过长 → 内容列限宽 1100 */
-.gs-page-header { margin-bottom: 22px; position: relative; }
-/* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：R3-F38 的 `.gs-dash-hl` 三条
-   （自身 / `:hover` / `.on`）随设置页仪表盘整段退役零挂载 —— 模板里全库 `class=` 零命中，判据亦零命中。
-   此前一直被历史 census 快照救活而"看着绿"（真 census 换源后才第一次浮出来）。
-   ★同域的 `.gs-page-header` / `.gs-page-title` / `.gs-page-des*` 仍活着，未动。 */
-/* ★V3.8.30：18px 是字阶表外的孤立取值（表内最接近的是 headline 17）。归位到令牌，顺带压 1px。 */
-.gs-page-title { font-size: var(--fs-headline); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
-.gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
 
-/* 卡片 */
-/* R178（原型 settings-section-card）：radius-lg + 卡影 + 分隔节奏 */
-.gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow-sm); }
-/* ★V3.8.30（S2 补完）：分区名与左侧导航组标题同档（caption 11 / 700 / 正字距）。
-   为什么敢压到 11：这一层不是「标题」，是卡片的**标签**——它下面紧跟的是 13px 正文，
-   原来 13px/600 与正文同字号，只能靠字重区分，八区在长页里反而糊成一片。
-   压小后层级由「字号差」变成「字号 + 字距 + 字重」三点差，且颜色仍是 --text（不下调，
-   守 R153-4 的 AA 底线：11px 与 13px 的对比度门槛同为 4.5:1）。 */
-.gs-card-header { padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-.gs-card-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text); letter-spacing: var(--tracking-sm); }
-.gs-card-desc { font-size: var(--fs-caption); color: var(--text-3); margin-left: auto; }
-.gs-card-body { padding: 16px 18px; }
 
-/* 设置行 */
-.gs-setting-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-.gs-setting-row:last-child { border-bottom: none; }
-/* ★V3.8.25（B1-a）：两条修饰类，收的是原先写在模板上的内联样式 */
-.gs-setting-row--gap { margin-top: 6px; }
-.gs-setting-row--top { align-items: flex-start; }
-.gs-sr-label { font-size: var(--fs-body); color: var(--text); min-width: 120px; }
-.gs-sr-label--nowrap { white-space: nowrap; }
-.gs-sr-control { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-/* 按钮 + 状态文字并排：只把 gap 从 8 放大到 10，其余沿用 .gs-sr-control */
-.gs-sr-control--inline { gap: 10px; }
-/* R4-Dd：带说明文字的setting行——说明占满余下宽度并允许换行，输入框不被挤扁 */
-.gs-sr-control-wrap { gap: 10px; flex-wrap: wrap; }
-.gs-sr-hint { font-size: var(--fs-caption); color: var(--text-3); flex: 1; min-width: 220px; }
-/* ★V3.8.25（B1-a）：设置行右侧的说明性文字（同步范围 / 增量游标 / 上次同步 / 扩展版本）
-   原先每处各写一份内联 `font-size + color`，现归成一个基类 + 三个修饰。 */
-.gs-sr-note { font-size: var(--fs-sub); color: var(--text-2); }
-.gs-sr-note--muted { color: var(--text-3); }
-.gs-sr-note--danger { color: var(--danger); }
-.gs-sr-note--wrap { max-width: 380px; line-height: 1.7; text-align: left; }
-.gs-sr-note--log { max-width: 420px; text-align: left; }
-/* 连接测试成功态：原先是 `var(--ok, var(--info-green, #3A6B4C))`，两个令牌都不存在 ⇒ 四主题一律吃硬编码 */
-.gs-sr-ok { font-size: var(--fs-sub); color: var(--success); }
-.gs-log-ico { flex-shrink: 0; }
-.gs-log-ico.ok { color: var(--success); }
-.gs-log-ico.err { color: var(--danger); }
-.gs-log-dot { color: var(--text-4); }
 
-/* 开关 */
-.gs-toggle { width: 38px; height: 21px; border-radius: 99px; background: var(--border-strong); cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
-.gs-toggle.on { background: var(--accent); }
-.gs-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
-.gs-toggle.on::after { transform: translateX(17px); }
 
-/* 输入框/下拉 */
-/* R4-Dh：`.gs-input` 此前全站没有一条自有规则（只有三处 `.ai-field .gs-input` 之类的复合选择器改宽度/字号），
-   实测四主题 × 设置页输入框全部吃浏览器默认：底色 rgb(255,255,255)、字色黑、边框 2px 灰——
-   在 linear / raycast 两个深色主题里就是两排白块，其中一枚是 PAT（凭据）框。按同段 .gs-select 的语言补齐。 */
-.gs-input { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
-.gs-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.gs-input::placeholder { color: var(--text-4); }
-.gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
-.gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-/* ★V3.8.25（B1-a）：Airtable 连接区三种输入框宽度（原先写在模板内联 style 上）。
-   `--pat` 是 PAT 凭据框（占位提示最长，320）；`--ident` 是 Base/Table/标签列名（260）。 */
-.gs-input--pat { width: 320px; }
-.gs-input--ident { width: 260px; }
-/* 隐藏的原生 file input（导入 JSON / 附件包 / 书签 HTML 三个触发器） */
-.gs-file-hidden { display: none; }
 
-/* 按钮 */
-.gs-btn { padding: 7px 16px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
-.gs-btn:hover { border-color: var(--accent); color: var(--accent); }
-.gs-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.gs-btn-primary:hover { background: var(--accent-hover); }
-.gs-btn-danger { color: var(--danger); border-color: rgba(196,68,68,.3); }
-.gs-btn-danger:hover { background: var(--tag-danger-bg); border-color: var(--danger); }
-.gs-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
 /* 字段管理 */
 
@@ -2562,51 +2341,10 @@ const activeManualSec = ref('quick-1')
 .gs-switch input:checked + .gs-switch-slider::before { transform: translateX(16px); background: #fff; }
 
 
-/* 危险区 */
-.gs-danger-zone { border-color: rgba(196,68,68,.2); }
-.gs-danger-zone .gs-card-header { border-bottom-color: rgba(196,68,68,.15); }
-.gs-danger-zone .gs-card-title { color: var(--danger); }
-.gs-danger-action { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.gs-danger-action:last-child { border-bottom: none; }
-.gs-da-info { flex: 1; }
-.gs-da-name { font-size: var(--fs-body); font-weight: 500; color: var(--text); }
-.gs-da-desc { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; }
-
-/* 状态徽章 */
-.gs-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: var(--fs-caption); font-weight: 500; }
-.gs-status-badge.connected { background: var(--tag-ok-bg); color: var(--success); }
-/* ★S3（V3.8.29）：三态补齐。未连接走中性 surface-3（不是灰字压白底——那在 notion 下几乎看不见）；
-   「推送异常」才用琥珀，且只在真有 lastError 时出现，不做常驻警示。 */
-.gs-status-badge.idle { background: var(--surface-3); color: var(--text-2); }
-.gs-status-badge.error { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-/* ★S2（V3.8.29）：字段级错误内联。原先只有整行 gs-sr-note--danger（错误出现在"上次错误"行，
-   输入框本身毫无提示，用户要读到卡片底部才知道哪个字段写错了）。 */
-.gs-input.is-invalid { border-color: var(--danger); }
-.gs-input.is-invalid:focus { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
-.gs-field-err { flex-basis: 100%; font-size: var(--fs-caption); color: var(--danger); line-height: 1.5; text-align: left; }
-.gs-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-
-/* 按键 */
-.gs-keycap { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); font-size: var(--fs-sub); font-family: monospace; color: var(--text); min-width: 120px; justify-content: center; }
-.gs-keycap-link { text-decoration: none; cursor: pointer; transition: all var(--dur); }
-.gs-keycap-link:hover { border-color: var(--accent); color: var(--accent); }
-.gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }
-.gs-shortcut-link:hover { text-decoration: underline; }
 
 
-/* 回滚确认弹窗里的高危强调（原先两处写内联 color:var(--danger)） */
-.gs-danger-text { color: var(--danger); }
 
-/* 弹窗 */
-.gs-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: var(--z-modal); display: none; align-items: center; justify-content: center; }
-.gs-modal-overlay.open { display: flex; }
-.gs-modal { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 420px; max-width: 90vw; overflow: hidden; }
-.gs-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: var(--text); }
-.gs-modal-body { padding: 18px 20px; }
-.gs-modal-body p { font-size: var(--fs-body); color: var(--text-2); line-height: 1.6; margin-bottom: 12px; }
-.gs-confirm-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); outline: none; font-family: inherit; margin-top: 8px; background: var(--surface); color: var(--text); }
-.gs-confirm-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196,68,68,.15); }
-.gs-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
 /* 信件页底部"下载这封信"按钮的居中容器（原先写内联 text-align + margin-top） */
 .gs-letter-actions { text-align: center; margin-top: 14px; }
 

@@ -83,6 +83,11 @@ function read(p) {
      ① `GS.includes(…)`（214 处里的大头）② 直接 `read('/newtab/views/GlobalSettings.vue').includes(…)`
      （10-foundations 等片大量使用，如 D2R / N2 / N4 / O20 / O22 / logo 单源化）。
      只改 GS 的话，②这一类在子域搬走后读到的仍是残缺宿主 ⇒ 十几片同时红，且红的都是"与本批无关"的锚点。
+     ★`.css` 也在聚合范围内（V3.8.42 P0-3 第三批补）：设置页的跨子域共享基类已外提为
+       `settings/base.css`（非 scoped —— Vue 的 scoped 命中不了子组件内部元素）。
+       判据侧 S2-1 / S2-4 / S2-6 / S2-7 / R4-Dh 用的是**行首锚**（`^\.gs-card-title \{`），
+       锁的是"规则本身"；规则搬去 CSS 文件后不过滤 .css 就是这五条同时红，
+       且红的都是与本批无关的排版契约。★同一段过滤条件是承重锚，改它要连带复核上面五条。
      ★这个位置不是新发明：`/content/search-overlay.ts` 与 `/newtab/views/Workspace.vue` 的聚合**早就在这里**
      （Workspace 拆分五批正是靠它做到"断言一处不改"）。设置页只是第三个需要它的对象——
      它需要，纯粹是因为它有 214 处判据读正文，是规模差异的必然成本。 */
@@ -91,7 +96,7 @@ function read(p) {
     const dir = path.join(base, 'newtab/views/settings');
     if (!fs.existsSync(dir)) return host;      // 目录不存在 ⇒ 等价于未拆分，读数与拆分前逐字节一致
     const extra = fs.readdirSync(dir)
-      .filter(f => f.endsWith('.vue') || f.endsWith('.ts'))
+      .filter(f => f.endsWith('.vue') || f.endsWith('.ts') || f.endsWith('.css'))
       .sort()                                     // 排序保证读数稳定（目录遍历顺序不可依赖）
       .map(f => `\n/* ---- 聚合成员：newtab/views/settings/${f} ---- */\n` + norm(fs.readFileSync(path.join(dir, f), 'utf8')))
       .join('');

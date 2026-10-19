@@ -1,0 +1,122 @@
+/*
+ * V3.8.42 · 设置页「跨子域共享基类」—— 从 GlobalSettings.vue 的 <style scoped> 原样搬出
+ *
+ * ★★ 为什么必须是**非 scoped** 的独立文件（这是本文件存在的全部理由）：
+ *   Vue 的 `scoped` 是按**组件实例**给元素打 data-v 标记的，父组件的样式**命中不了子组件内部元素**。
+ *   子组件里的 `.gs-card` 只带自己的 `data-v-xxxx`，而宿主那条规则是 `.gs-card[data-v-a193e574]`
+ *   ⇒ 不匹配 ⇒ 卡片外壳（背景/边框/圆角/阴影）在子组件里**整条失效**。
+ *
+ *   实测证据（scripts/probe-gs-baseline.cjs，computed style 直接读）：
+ *     已拆子域 manual/about/letter：.gs-card border=0px radius=0 bg=transparent shadow=none；
+ *                                 .gs-page-title fontSize=13px/400（应为 17px/700）
+ *     未拆宿主 resource        ：.gs-card border=1px radius=14px bg=rgb(20,22,27) 有卡影
+ *   ⇒ 这不是"某几条漏搬"，是**每拆一个子域就会重演一次**的系统性陷阱。
+ *
+ * ★ 为什么上轮像素 A/B 报「0 差」没抓到：那次 A/B 的新旧两张图是同一张（跳过 0 张），
+ *   详见 docs/交付说明_V3.8.42_P0-3第二批_设置页三子域拆分.md 第四节「假信号套着假信号」。
+ *   ⇒ 由 scripts/regression/33-gs-baseline.cjs 接管：判据直接查「子组件用的 class 在此表有定义」。
+ *
+ * ★ 纪律：搬样式一律脚本切原文（`scripts/move-gs-baseline.cjs`），人只核对边界，不重打内容。
+ *   另：注释里禁止出现 `/* … */` 字面量（会提前闭合注释块，build 才拦得住）。
+ */
+.gs-page-header { margin-bottom: 22px; position: relative; }
+/* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：R3-F38 的 `.gs-dash-hl` 三条
+   （自身 / `:hover` / `.on`）随设置页仪表盘整段退役零挂载 —— 模板里全库 `class=` 零命中，判据亦零命中。
+   此前一直被历史 census 快照救活而"看着绿"（真 census 换源后才第一次浮出来）。
+   ★同域的 `.gs-page-header` / `.gs-page-title` / `.gs-page-des*` 仍活着，未动。 */
+/* ★V3.8.30：18px 是字阶表外的孤立取值（表内最接近的是 headline 17）。归位到令牌，顺带压 1px。 */
+.gs-page-title { font-size: var(--fs-headline); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
+/* 卡片 */
+/* R178（原型 settings-section-card）：radius-lg + 卡影 + 分隔节奏 */
+.gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow-sm); }
+/* ★V3.8.30（S2 补完）：分区名与左侧导航组标题同档（caption 11 / 700 / 正字距）。
+   为什么敢压到 11：这一层不是「标题」，是卡片的**标签**——它下面紧跟的是 13px 正文，
+   原来 13px/600 与正文同字号，只能靠字重区分，八区在长页里反而糊成一片。
+   压小后层级由「字号差」变成「字号 + 字距 + 字重」三点差，且颜色仍是 --text（不下调，
+   守 R153-4 的 AA 底线：11px 与 13px 的对比度门槛同为 4.5:1）。 */
+.gs-card-header { padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.gs-card-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text); letter-spacing: var(--tracking-sm); }
+.gs-card-desc { font-size: var(--fs-caption); color: var(--text-3); margin-left: auto; }
+.gs-card-body { padding: 16px 18px; }
+/* 设置行 */
+.gs-setting-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.gs-setting-row:last-child { border-bottom: none; }
+/* ★V3.8.25（B1-a）：两条修饰类，收的是原先写在模板上的内联样式 */
+.gs-setting-row--gap { margin-top: 6px; }
+.gs-setting-row--top { align-items: flex-start; }
+.gs-sr-label { font-size: var(--fs-body); color: var(--text); min-width: 120px; }
+.gs-sr-label--nowrap { white-space: nowrap; }
+.gs-sr-control { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* 按钮 + 状态文字并排：只把 gap 从 8 放大到 10，其余沿用 .gs-sr-control */
+.gs-sr-control--inline { gap: 10px; }
+/* R4-Dd：带说明文字的setting行——说明占满余下宽度并允许换行，输入框不被挤扁 */
+.gs-sr-control-wrap { gap: 10px; flex-wrap: wrap; }
+.gs-sr-hint { font-size: var(--fs-caption); color: var(--text-3); flex: 1; min-width: 220px; }
+/* ★V3.8.25（B1-a）：设置行右侧的说明性文字（同步范围 / 增量游标 / 上次同步 / 扩展版本）
+   原先每处各写一份内联 `font-size + color`，现归成一个基类 + 三个修饰。 */
+.gs-sr-note { font-size: var(--fs-sub); color: var(--text-2); }
+.gs-sr-note--muted { color: var(--text-3); }
+.gs-sr-note--danger { color: var(--danger); }
+.gs-sr-note--wrap { max-width: 380px; line-height: 1.7; text-align: left; }
+.gs-sr-note--log { max-width: 420px; text-align: left; }
+/* 连接测试成功态：原先是 `var(--ok, var(--info-green, #3A6B4C))`，两个令牌都不存在 ⇒ 四主题一律吃硬编码 */
+.gs-sr-ok { font-size: var(--fs-sub); color: var(--success); }
+.gs-log-ico { flex-shrink: 0; }
+.gs-log-ico.ok { color: var(--success); }
+.gs-log-ico.err { color: var(--danger); }
+.gs-log-dot { color: var(--text-4); }
+/* 开关 */
+.gs-toggle { width: 38px; height: 21px; border-radius: 99px; background: var(--border-strong); cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
+.gs-toggle.on { background: var(--accent); }
+.gs-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.gs-toggle.on::after { transform: translateX(17px); }
+/* 输入框/下拉 */
+/* R4-Dh：`.gs-input` 此前全站没有一条自有规则（只有三处 `.ai-field .gs-input` 之类的复合选择器改宽度/字号），
+   实测四主题 × 设置页输入框全部吃浏览器默认：底色 rgb(255,255,255)、字色黑、边框 2px 灰——
+   在 linear / raycast 两个深色主题里就是两排白块，其中一枚是 PAT（凭据）框。按同段 .gs-select 的语言补齐。 */
+.gs-input { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
+.gs-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.gs-input::placeholder { color: var(--text-4); }
+.gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
+.gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+/* ★V3.8.25（B1-a）：Airtable 连接区三种输入框宽度（原先写在模板内联 style 上）。
+   `--pat` 是 PAT 凭据框（占位提示最长，320）；`--ident` 是 Base/Table/标签列名（260）。 */
+.gs-input--pat { width: 320px; }
+.gs-input--ident { width: 260px; }
+/* 隐藏的原生 file input（导入 JSON / 附件包 / 书签 HTML 三个触发器） */
+.gs-file-hidden { display: none; }
+/* 按钮 */
+.gs-btn { padding: 7px 16px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
+.gs-btn:hover { border-color: var(--accent); color: var(--accent); }
+.gs-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gs-btn-primary:hover { background: var(--accent-hover); }
+.gs-btn-danger { color: var(--danger); border-color: rgba(196,68,68,.3); }
+.gs-btn-danger:hover { background: var(--tag-danger-bg); border-color: var(--danger); }
+.gs-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+/* ---------------------------------------------------------------
+   ★V3.8.42（P0-3 第三批）随「扩展设置 / 快捷键 / Airtable」三个子域共享而并入本表：
+   状态徽章三态、字段级错误、按键帽、快捷键链接——它们**不是任何一个子域的私有样式**，
+   留在宿主 scoped 里就等于「谁先拆谁掉样式」（本文件头记录的那个坑）。
+   ★`.gs-status-badge.connected` 是 15-settings.cjs 的 S2-5 行首锚，读的是本表，判据零改动。 */
+/* 状态徽章 */
+.gs-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: var(--fs-caption); font-weight: 500; }
+.gs-status-badge.connected { background: var(--tag-ok-bg); color: var(--success); }
+/* ★S3（V3.8.29）：三态补齐。未连接走中性 surface-3（不是灰字压白底——那在 notion 下几乎看不见）；
+   「推送异常」才用琥珀，且只在真有 lastError 时出现，不做常驻警示。 */
+.gs-status-badge.idle { background: var(--surface-3); color: var(--text-2); }
+.gs-status-badge.error { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+/* ★S2（V3.8.29）：字段级错误内联。原先只有整行 gs-sr-note--danger（错误出现在"上次错误"行，
+   输入框本身毫无提示，用户要读到卡片底部才知道哪个字段写错了）。 */
+.gs-input.is-invalid { border-color: var(--danger); }
+.gs-input.is-invalid:focus { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
+.gs-field-err { flex-basis: 100%; font-size: var(--fs-caption); color: var(--danger); line-height: 1.5; text-align: left; }
+.gs-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* 按键 */
+.gs-keycap { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); font-size: var(--fs-sub); font-family: monospace; color: var(--text); min-width: 120px; justify-content: center; }
+.gs-keycap-link { text-decoration: none; cursor: pointer; transition: all var(--dur); }
+.gs-keycap-link:hover { border-color: var(--accent); color: var(--accent); }
+.gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }
+.gs-shortcut-link:hover { text-decoration: underline; }

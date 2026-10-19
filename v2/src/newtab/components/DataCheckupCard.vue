@@ -49,3 +49,7 @@ async function fixThesisDuplicates() {
     </div>
   </div>
 </template>
+
+<!-- V3.8.42：本卡复用设置页共享基类（.gs-card/.gs-card-header/.gs-btn…）。
+     必须显式引入 —— Vue 的 scoped 命中不了子组件内部元素，不引就是无样式。 -->
+<style src="../views/settings/base.css"></style>

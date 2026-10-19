@@ -32,6 +32,7 @@ const SHARDS = [
   '24-b7e-h123-m6',
   '25-b8-orphan',
   '26-p02-legacy',
+  '33-gs-baseline',
   '10-foundations',
   '20-req39-64',
   '30-v2.35-v2.46',

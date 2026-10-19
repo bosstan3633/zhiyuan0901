@@ -81,6 +81,8 @@ function saveErrorLabel(k: 'quota' | 'serial' | 'unknown'): string {
 }
 </script>
 
+<style src="./base.css"></style>
+
 <style scoped>
 /* ★本段两截共 19 行**逐字程序化搬移**自宿主（不在同一处连续）：
    ① 4 行在 REQ-038 开关段尾（`.gs-storage-detail` 起）；② 15 行在宿主「关于」段首行注释之下。

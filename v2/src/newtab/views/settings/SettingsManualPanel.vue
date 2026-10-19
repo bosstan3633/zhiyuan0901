@@ -51,6 +51,8 @@ function openManualTab() {
 }
 </script>
 
+<style src="./base.css"></style>
+
 <style scoped>
 /* ★以下三条逐字照抄宿主（唯一样式差异是 `.gs-manual-open:hover` 在宿主里被拆到
    `.gs-letter-actions` 之后，属排版位置而非内容 —— 合并到此处后规则顺序不变，仍是最后一条）。

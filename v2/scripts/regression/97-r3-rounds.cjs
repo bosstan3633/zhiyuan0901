@@ -540,13 +540,20 @@ check('R4-Dg ★导出 Markdown 必须按**卡**分组，不许再按 workspace 
 console.log('【R4-Dh · .gs-input 定义与深色主题观感】');
 check('R4-Dh ★`.gs-input` 必须有自有规则且全部取令牌：此前全站只有三处 `.ai-field .gs-input` 这类复合选择器改宽度/字号，**没有一条 .gs-input 本体规则** ⇒ 四主题实测这排输入框吃浏览器默认（底色 rgb(255,255,255)、黑字、2px 灰框），在 linear/raycast 两个深色主题里是白块，其中一枚是 PAT 凭据框。★判据核"取令牌"而不是核"不许白"，因为 apple/notion 的令牌底色本来就是白——只看计算样式会两样都对', () => {
   const gs = read('/newtab/views/GlobalSettings.vue');
-  const i = gs.indexOf('.gs-input {');
+  /* ★V3.8.42（P0-3 第三批）锚点收紧为**行首**匹配。
+     原写法是裸 `indexOf('.gs-input {')`，它会命中 `.ai-field .gs-input { width: 100%; }`
+     ——那是一条复合窄化规则，不是本体规则。本体规则搬进共享基类 `settings/base.css` 后，
+     聚合文本里的先后顺序变了（复合规则在宿主、base.css 排在其后）⇒ 判据读到了那一条 4px 的窄化规则，
+     于是「没有自有规则」这个它本来要守的事实，反而因为搬对了位置而判红。
+     ★这是**隐性顺序依赖**：判据成立的前提从来不是「本体规则存在」，而是「本体规则恰好排在复合规则前面」。
+     承重锚换成行首后与 S2-1 同口径（那边本来就用 `/^\.gs-input \{/m`），两边不会各说各话。 */
+  const i = gs.search(/^\.gs-input \{/m);
   const rule = i < 0 ? '' : gs.slice(i, gs.indexOf('}', i));
-  return i > 0 && rule.includes('var(--surface)') && rule.includes('var(--text)')
+  return i >= 0 && rule.includes('var(--surface)') && rule.includes('var(--text)')
     && rule.includes('var(--border)') && rule.includes('var(--fs-sub)') && rule.includes('font-family: inherit')
     && gs.includes('.gs-input:focus') && gs.includes('var(--accent)')
     && gs.includes('.gs-input::placeholder') && gs.includes('var(--text-4)')
-    && gs.indexOf('.gs-input {') < gs.indexOf('.gs-select {');
+    && i < gs.search(/^\.gs-select \{/m);
 });
 check('R4-Dh ★视觉门禁必须真的在量这件事：theme-audit 的 st-airtable 场景要把输入框底色与所在卡片底色对比（同取 var(--surface)），并把 PAT 框纳入取样——这条场景改动若被悄悄删掉，回归与截图都不会红，只有这一条会', () => {
   const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');

@@ -33,6 +33,8 @@ function downloadLetter() {
 }
 </script>
 
+<style src="./base.css"></style>
+
 <style scoped>
 /* 信纸排版（第廿九轮：明显留白——行距 2.75 / 段距 32px / 640px 窄栏 / 落款前 72px，给读者呼吸感） */
 .gs-letter { max-width: 640px; margin: 0 auto; padding: 80px 64px !important; background: var(--surface); font-family: "Songti SC", "Noto Serif SC", "SimSun", Georgia, serif; }

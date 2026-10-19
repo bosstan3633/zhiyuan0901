@@ -52,6 +52,8 @@ import RichText from '../../components/RichText.vue'
 defineProps<{ runtimeVersion: string; orderedChangelog: typeof import('../../changelog-data').CHANGELOG }>()
 </script>
 
+<style src="./base.css"></style>
+
 <style scoped>
 /* ★本段 33 行**逐字程序化搬移**自宿主（自「产品更新日志」段首行注释起，至 `.gs-cl-group-n` 止），
    一行未改、一条注释未丢。为什么要程序化而不是手抄：这段里夹着 5 段 S5 设计理由注释
