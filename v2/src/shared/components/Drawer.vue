@@ -17,6 +17,10 @@ const props = defineProps<{
   /** R169-老账③：body 附加类——宿主态样式（如镜像只读 .dr-readonly）挂到 .drawer-body 上，
    *  让 Workspace 自绘 .drawer 退役、两代抽屉容器合并为一代（Drawer.vue 唯一壳） */
   bodyClass?: string
+  /** V3.9.1：上层评审弹窗在场时，宿主可暂时关闭 Esc 关闭，避免一次 Esc 连关两层。 */
+  closeOnEscape?: boolean
+  /** 可选的独立宽度记忆键；不传则沿用全站共用的 drawerWs.shared。 */
+  widthStorageKey?: string
 }>()
 const emit = defineEmits<{ close: [] }>()
 
@@ -26,7 +30,10 @@ const emit = defineEmits<{ close: [] }>()
 // （drawerWs.task，先于本机制存在）保持不动。夹住 420 ~ min(0.85vw, 960)，双击把手复位默认宽。
 const store = useAppStore()
 const defaultW = computed(() => parseInt(props.width || '', 10) || 440)
-const w = ref(store.ui?.drawerWs?.shared || defaultW.value)
+const savedWidth = computed(() => props.widthStorageKey
+  ? store.ui?.drawerWs?.[props.widthStorageKey]
+  : store.ui?.drawerWs?.shared)
+const w = ref(savedWidth.value || defaultW.value)
 const dragging = ref(false)
 const W_MIN = 420
 const W_MAX = 960
@@ -44,14 +51,18 @@ function endResize() {
   dragging.value = false
   window.removeEventListener('mousemove', onResizeMove)
   window.removeEventListener('mouseup', endResize)
-  if (store.ui) store.ui.drawerWs = { ...(store.ui.drawerWs || {}), shared: w.value }
+  const key = props.widthStorageKey || 'shared'
+  if (store.ui) store.ui.drawerWs = { ...(store.ui.drawerWs || {}), [key]: w.value }
   saveUIPrefs({ drawerWs: store.ui?.drawerWs || { shared: w.value } })
 }
 function resetWidth() { w.value = defaultW.value; endResize() }
+watch(() => props.widthStorageKey, () => {
+  w.value = savedWidth.value || defaultW.value
+})
 
 // 第卅一轮修复：Esc 关闭抽屉（open 期间 document 级捕获监听，任何焦点下生效——此前抽屉不响应 Esc）
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') { e.stopPropagation(); emit('close') }
+  if (e.key === 'Escape' && props.closeOnEscape !== false) { e.stopPropagation(); emit('close') }
 }
 // R157：补 `immediate: true`。现网 14 个宿主都是常驻挂载（`:open` 响应式），不补也能工作；
 // 但只要未来出现 `v-if` 条件挂载的宿主（组件出生时 open 已为 true），watch 等不到那次变化，

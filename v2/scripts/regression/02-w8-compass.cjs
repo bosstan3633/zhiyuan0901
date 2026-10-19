@@ -51,7 +51,7 @@ check('W8-4 ★主攻项目必须是**次级焦点**（原仅 accent-28% 边框 
     && !/\.tree-project-branch\.is-focused/.test(CT_ALL);
 });
 
-check('W8-5 ★焦点唯一性扩到第二个工作面：全 src 现扫**标题级** fs-display 的使用点，落在工作面（newtab/views + newtab/components，排除工具页与图标位）的必须**恰好两处**——调度台今日三件事 + 方向台愿景。本条把 W7-2 的「恰好 1 处」扩成跨工作面的总量约束，防止焦点契约在后续轮次被稀释成"到处都display"', () => {
+check('W8-5 ★V3.9.1 随迁备案：焦点唯一性继续跨工作面守。调度台主标题为页头 clamp 级排版、不占 display token；二级查看全部页标题使用 display 但属工具页，不与方向台愿景争主焦点。旧调度台标题类不得回流，方向台愿景仍必须是主角', () => {
   const TOOL_PAGES = ['newtab/views/ManualPage.vue', 'newtab/views/RecycleBin.vue'];
   const ICON_SEL = ['.gs-io-icon', '.cdf-icon'];
   const hits = [];
@@ -69,10 +69,14 @@ check('W8-5 ★焦点唯一性扩到第二个工作面：全 src 现扫**标题�
       hits.push(e.rel + ' → ' + chain);
     }
   }
-  /* 恰两处：CompassHome 的今日三件事 + CompassTree 的愿景。
+  /* V3.9.1：恰一处：CompassTree 的愿景。
      ★踩坑账：命中串是「rel → 选择器链」，rel 带 `newtab/views/` 前缀，所以判归属要用
      `indexOf(...) === 0` 永远不成立 ⇒ 判据恒红。必须 startsWith。 */
   const homes = hits.filter(h => h.startsWith('newtab/views/CompassHome.vue')).length;
   const trees = hits.filter(h => h.startsWith('newtab/views/CompassTree.vue')).length;
-  return hits.length === 2 && homes === 1 && trees === 1;
+  /* V3.9.1：查看全部已成独立二级页，页头标题是工具页导航层级，
+     不是「方向台愿景」那种跨工作面的唯一主角。允许方向台愿景 + 二级页标题两类，
+     但仍要求方向台恰好一处、旧调度台标题零命中。 */
+  return homes === 0 && trees === 1
+    && hits.every(h => h.startsWith('newtab/views/CompassTree.vue') || h.startsWith('newtab/views/CompassDeckView.vue'));
 });

@@ -1,42 +1,34 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 defineOptions({ name: 'CompassHomeView' })
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
 // - 底部专区：好奇心培育单区直呈（R55-B2：任务调度迁方向台）
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
-// ★W12-D：全貌模块（今日三件事选中项的详情，只读展示）
-import FocusDetail from '../components/compass/FocusDetail.vue'
 import { uid } from '@/shared/utils'
 import { visibleFields } from '@/shared/utils/fields'
-import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
-import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
-import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
-import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow, saveUIPrefs } from '@/shared/storage/repository'
+import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
 import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
-import type { TaskCard, Project, FocusSlot, Direction, Subtask } from '@/shared/models'
+import type { TaskCard, Project, FocusSlot, CuriosityCard, ResourceCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
-// R117（04-61 C3）：当日新增角标（自然日口径）——今日三件事卡沿用任务卡的同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
-import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
-// R117（04-61 C1）：任务调度整体自方向台迁入调度台底部（与好奇心培育并列 tab）
-import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
-import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
-import MetricBar from '../components/compass/MetricBar.vue'
+import { emitOpenDrawer } from '@/shared/utils/bus'
+import { recordCardOpen } from '@/shared/storage/stats'
+import { weekUsageOf } from '@/shared/storage/stats'
+import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 // ★W12-D（V3.8.16）：年度热力图从调度台退役（用户 2026-10-13 拍板——画像洞察页已全量覆盖，
 // 调度台再放一份是重复），但「今日战报」要保留，故先把日详情从 Heatmap.vue 解耦出来，
 // 由 TodayBattleHost 自包含承载（数据桥 + 事件日志读取 + 日详情 + 全量记录抽屉都在它里面）。
@@ -51,7 +43,7 @@ const route = useRoute()
 const store = useAppStore()
 // R91：解构出主攻相关口径——手册「🚀 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**。
 // R3-B1：方向台的主攻聚焦条随 CompassShell 退役，focusedProjects 的**唯一**消费方就是本页速览。
-const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce } = useCompass()
+const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce, unarchivedTaskCount } = useCompass()
 // R127：挂载即刷新 WCE 事件缓存（事件日志异步读取一次；computed 同步消费）
 onMounted(() => { refreshWce?.() })
 
@@ -59,8 +51,10 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 // ---- 日期工具 ----
 function formatDate(dt: Date): string {
-  const week = ['周日','周一','周二','周三','周四','周五','周六']
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${week[dt.getDay()]}`
+  return `${dt.getMonth() + 1}月${dt.getDate()}日 · ${['周日','周一','周二','周三','周四','周五','周六'][dt.getDay()]}`
+}
+function formatFullDate(dt: Date): string {
+  return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 · ${['周日','周一','周二','周三','周四','周五','周六'][dt.getDay()]}`
 }
 function dateStr(dt: Date): string {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
@@ -139,6 +133,7 @@ const aiWhy = ref<Record<string, string>>({})
 const whyOpen = ref(false)
 const whyBadge = ref(false)
 const focusAiBusy = ref(false)
+const focusMoreOpen = ref(false)
 function whyOf(slot?: FocusSlot): string {
   const id = slot?.sourceId
   if (!id) return ''
@@ -197,7 +192,7 @@ async function refineWithAi(key: string): Promise<void> {
     if (list.some(s => s.auto !== true && !s.done)) return // 用户已定过格 → 只留判词，不动位置
     const { applyFocusOrder } = await import('@/shared/utils/focusSuggest')
     if (applyFocusOrder(d.value, key, r.order, FOCUS_LIMIT).changed) {
-      showToast('AI 复核了今日三件事的顺序（你手工选过的格子未动）')
+      showToast('顺序复核完成（你手工选过的格子未动）')
       store.persist()
     }
   } catch { /* 静默回落：网络/Key 问题不许把台面弄空，也不许弹一层错误 */ }
@@ -205,16 +200,17 @@ async function refineWithAi(key: string): Promise<void> {
 }
 
 function toggleWhy(): void {
+  focusMoreOpen.value = false
   whyOpen.value = !whyOpen.value
   if (whyOpen.value) whyBadge.value = false
 }
 function closeWhy(): void { whyOpen.value = false }
 /** 点浮层外任意处收起（捕获阶段：不拦业务点击，只负责"看走了就关"） */
 function onDocClickCloseWhy(e: MouseEvent): void {
-  if (!whyOpen.value) return
   const t = e.target as HTMLElement | null
-  if (t?.closest?.('.focus-why, .focus-why-ico')) return
-  closeWhy()
+  if (whyOpen.value && !t?.closest?.('.focus-why, .why-trigger')) closeWhy()
+  if (focusMoreOpen.value && !t?.closest?.('.focus-more-wrap')) focusMoreOpen.value = false
+  if (extraFocusOpen.value && !t?.closest?.('.focus-summary')) extraFocusOpen.value = false
 }
 /** 换一批：在本地候选池里换下一组三件（仍带荐标），不碰任务卡 */
 async function reshuffleFocus(): Promise<void> {
@@ -275,7 +271,10 @@ async function openFocusReview(): Promise<void> {
  * 且 `?hl=&hk=task` 那条定位通道仍在（下方的任务卡面板仍 watch 这两个 query）。
  */
 function openCellTask(c: FocusCell) {
-  if (c.task) drawerRef.value?.open(c.task)
+  if (!c.task) return
+  recordCardOpen(d.value, c.task)
+  store.persistHot()
+  drawerRef.value?.open(c.task)
 }
 /**
  * R94（B3）：三件事**全完成** —— 给一个**安静**的收束。
@@ -301,42 +300,13 @@ function toggleSlotSub(t: TaskCard, subId: string) {
   store.persist()
 }
 
-/** 三件事卡 → 选中索引（默认第一件事），联动下方「全貌」模块 */
-const focusSelIdx = ref(0)
-const focusTasks = computed<(TaskCard | null)[]>(() => todayFocusList.value.map(s => todayTaskForSlot(s)))
-/** ★W12-D 去掉静默 fallback：原式是 `focusTasks[selIdx] || focusTasks.find(t => !!t) || null`，
- *  选到空槽时会**悄悄回落到另一条任务**——你点 02 看的是 01 的内容，却以为在看 02。
- *  用户 2026-10-13 拍板：选空槽就显示引导态，不回落。 */
-const selTask = computed<TaskCard | null>(() => focusTasks.value[focusSelIdx.value] ?? null)
-/** 选中的是不是空槽（用于区分「选到空位」与「还没选」） */
-const selSlotEmpty = computed(() => !selTask.value && focusSelIdx.value < focusTasks.value.length)
-/**
- * ★V3.8.18（N1）非任务槽的正确分类。
- * 病根＝`FocusSlot.sourceType` 本来就有四种（task / resource / curiosity / text），
- * 但下游只认 `sourceType === 'task'`，于是装资源卡或写了一句自由文本的格子，
- * 走到渲染层因为"取不到 task 对象"而被当成**失效槽**，显示「⚠ 任务已删除」。
- * 它明明不空、也没坏 —— 是分类逻辑缺了四种来源里另外三种的分支。
- * 这里把四种情况显式分成四类，全貌模块据此说对应的话，不再说错。
- */
-type SlotKind = 'none' | 'stale' | 'nonTask' | 'text'
-const selSlotKind = computed<SlotKind>(() => {
-  const slot = todayFocusList.value[focusSelIdx.value]
-  if (!slot) return 'none'
-  if (slot.sourceType === 'task') {
-    return d.value.tasks.some(t => !t.deletedAt && t.id === slot.sourceId) ? 'none' : 'stale'
-  }
-  if (slot.sourceType === 'text') return 'text'
-  return 'nonTask'
-})
-const selSlotText = computed(() => todayFocusList.value[focusSelIdx.value]?.text || '')
-function onFocusCardClick(idx: number) {
-  focusSelIdx.value = idx
-}
+// V3.9.1：整行即详情入口；选中态与下方全貌模块一并退役。
 
 // 任务选取弹窗（满 3 拦截：按钮与空位两条路径同拦，R49-B4）
 const pickerOpen = ref(false)
 const pickerSlot = ref(0)
 const pickerSearch = ref('')
+const pickerStatus = ref<'all' | 'todo' | 'doing'>('all')
 // R113-N6：按项目筛选（用户反馈：任务库只有关键词搜索，任务一多只能逐条翻）
 // 取值：'' = 全部项目；'__none__' = 未关联项目；其余 = project.id
 const pickerProject = ref('')
@@ -349,6 +319,7 @@ function openPicker(slot: number) {
   pickerSlot.value = Math.min(slot, FOCUS_LIMIT - 1)
   pickerSearch.value = ''
   pickerProject.value = '' // R113-N6：每次打开复位为「全部项目」
+  pickerStatus.value = 'all'
   pickerOpen.value = true
 }
 function selectTaskForSlot(task: TaskCard) {
@@ -367,17 +338,21 @@ function selectTaskForSlot(task: TaskCard) {
   else list.push(slot)
   store.persist()
   pickerOpen.value = false
-  focusSelIdx.value = Math.min(pickerSlot.value, FOCUS_LIMIT - 1)
   showToast('已添加到今日三件事')
+  recordCardOpen(d.value, task)
+  store.persistHot()
+  drawerRef.value?.open(task)
 }
 const pickerCandidates = computed(() => {
   const q = pickerSearch.value.trim().toLowerCase()
   const pj = pickerProject.value
+  const st = pickerStatus.value
   return d.value.tasks
     .filter(t => !t.deletedAt)
     .filter(t => !q || t.title.toLowerCase().includes(q))
     // R113-N6：项目维度过滤（与关键词可叠加）
     .filter(t => !pj || (pj === '__none__' ? !t.projectId : t.projectId === pj))
+    .filter(t => st === 'all' || t.status === st)
     .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) // 置顶优先
     .slice(0, 30)
 })
@@ -421,6 +396,11 @@ function copyYesterday() {
   d.value.dailyFocus[today].forEach(s => { s.done = false; s.doneAt = undefined })
   store.persist()
   showToast('已复制昨日三件事')
+}
+function clearFocusSelection(): void {
+  pickerSearch.value = ''
+  pickerProject.value = ''
+  pickerStatus.value = 'all'
 }
 // 三件事导出弹窗（时间范围 + CSV）
 const exportOpen = ref(false)
@@ -505,6 +485,31 @@ function metricName(metricId?: string): string {
   return '未关联'
 }
 
+function taskStatusLabel(status: TaskCard['status']): string {
+  return status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'
+}
+function taskStatusIcon(status: TaskCard['status']): string {
+  return status === 'done' ? 'check' : status === 'doing' ? 'half' : 'circle'
+}
+function taskStatusClass(status: TaskCard['status']): string {
+  return status === 'done' ? 'done' : status === 'doing' ? 'doing' : 'todo'
+}
+function fmtShortDate(ts?: number): string {
+  if (!ts) return ''
+  const dt = new Date(ts)
+  return `${dt.getMonth() + 1}/${dt.getDate()}`
+}
+function fmtRecentTime(ts?: number): string {
+  if (!ts) return ''
+  const dt = new Date(ts)
+  const now = new Date()
+  const hm = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`
+  if (dt.toDateString() === now.toDateString()) return `今天 ${hm}`
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (dt.toDateString() === yesterday.toDateString()) return `昨天 ${hm}`
+  return `${dt.getMonth() + 1}/${dt.getDate()} ${hm}`
+}
+
 // ---- 附件字段可见性（三件事卡正面徽章显隐） ----
 const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
 const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
@@ -522,50 +527,34 @@ function onDateKey(e: KeyboardEvent) {
   const el = e.target as HTMLElement
   if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
   if (el?.isContentEditable) return
+  if (e.key === 'Escape') {
+    if (pickerOpen.value) { pickerOpen.value = false; e.preventDefault(); return }
+    if (exportOpen.value) { exportOpen.value = false; e.preventDefault(); return }
+    if (whyOpen.value) { whyOpen.value = false; e.preventDefault(); return }
+    if (focusMoreOpen.value) { focusMoreOpen.value = false; e.preventDefault(); return }
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowLeft') { e.preventDefault(); shiftDate(-1) }
   else if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowRight') { e.preventDefault(); shiftDate(1) }
 }
-// R67-F4：浏览器快捷键模块直达（curiosity=好奇心培养 / project=任务调度）——滚动定位 + 高亮闪烁
-/**
- * R117（04-61 C1 拍板）：底部改为 **任务调度 / 好奇心培育** 双 tab，**默认任务调度**。
- * - 取代 R105-B4 的「好奇心默认折叠为一行摘要」——本轮用户明确要求把任务调度整体搬进调度台
- *   并与其并列，故按新拍板执行（旧降权策略退役）；
- * - 好奇心面板**懒挂载**（首次切到该 tab 才挂载）——保住首屏冷启动成本；
- * - `?hl=` 定位到好奇心卡时自动切 tab 并挂载（否则消费者不在 DOM 里，定位会落空）。
- * W1.1（V3.8.1）：三张卡改名改序——**任务卡 / 好奇心卡 / 资源卡**，默认落第一张「任务卡」
- * （用户拍板：任务卡是默认；旧默认 'pool' 与 R117 的「默认任务」本就矛盾，此轮对齐）。
- */
-const bottomTab = ref<'pool' | 'task' | 'curio'>('task')
-const curioMounted = ref(false)
-watch(bottomTab, (t) => { if (t === 'curio') curioMounted.value = true })
-/** 底部 tab 计数徽标：任务调度 = 未删除任务数 · 好奇心培育 = 未删除好奇心数 */
-const poolLiveCount = computed(() => (d.value.resources || []).filter(r => !r.deletedAt && r.workspaceId === 'zy-curation').length)
-const taskLiveCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
-const curioLiveCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
-// R117（04-61 B）：`?hl` 带 `?hk` 时把对应面板切到前台——任务卡与好奇卡消费者同页，靠 hk 分派
+// R67-F4：浏览器模块直达。V3.9.1 起首页不再常驻完整面板，直达改为进入对应二级列表。
 watch(() => route.query.hl, (hl) => {
   if (!hl) return
   const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
-  if (hk === 'curio') { bottomTab.value = 'curio'; curioMounted.value = true }
-  else if (hk === 'task') bottomTab.value = 'task'
-  else if (hk === 'res') bottomTab.value = 'pool'
+  if (hk === 'curio') void router.replace({ path: '/deck/curiosity', query: { hl, hk } })
+  else if (hk === 'task') void router.replace({ path: '/deck/task', query: { hl, hk } })
+  else if (hk === 'res') void router.replace({ path: '/deck/resource', query: { hl, hk } })
 }, { immediate: true })
-// R117（04-61 C1）：`?bottom=task|curio` 直达底部 tab——原 `?zone=task`（方向台任务调度模块）随模块搬迁退役，
-// 新建任务后跳转（GlobalPopups）等场景改由本页底部 tab 承接。
 watch(() => route.query.bottom, (b) => {
-  if (b === 'curio') { bottomTab.value = 'curio'; curioMounted.value = true }
-  else if (b === 'task') bottomTab.value = 'task'
-  else if (b === 'pool') bottomTab.value = 'pool'
+  if (b === 'curio') void router.replace('/deck/curiosity')
+  else if (b === 'task') void router.replace('/deck/task')
+  else if (b === 'pool') void router.replace('/deck/resource')
 }, { immediate: true })
 
 function gotoAnchor(name: string) {
-  // R117（04-61 C1）：底部改为「任务调度 / 好奇心培育」双 tab 同宿一节 ⇒ 'task' 为新增锚点
-  // （goto-tasks 浏览器命令随任务调度一并落到调度台）；节 id 沿用 zy-mod-curiosity，不改名以免破坏既有锚点契约。
-  const id = (name === 'curiosity' || name === 'task') ? 'zy-mod-curiosity' : name === 'project' ? 'zy-mod-tasks' : ''
+  if (name === 'curiosity') { void router.push('/deck/curiosity'); return }
+  if (name === 'task') { void router.push('/deck/task'); return }
+  const id = name === 'project' ? 'zy-mod-tasks' : ''
   if (!id) return
-  // 直达锚点 = 先切到对应 tab 并确保已挂载（好奇心懒挂载，不切则消费者不在 DOM）
-  if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }
-  else if (name === 'task') bottomTab.value = 'task'
   const el = document.getElementById(id)
   if (!el) return
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -692,573 +681,1459 @@ function openFocusProject(p: Project) {
 // 而跳去画像洞察页等于让人离开手边的三件事去看另一个尺度，就地弹窗更贴处境。
 const battleHost = ref<InstanceType<typeof TodayBattleHost> | null>(null)
 function openReview(): void { battleHost.value?.openToday() }
-const curioCount = computed(() => (d.value.curiosities || []).filter(c => !c.deletedAt).length)
 
-/** ★W12-D → ★P4（V3.8.21）全貌出口收敛为两个：
- *  ① 编辑/详情（双击或「双击详情 ›」）→ 进任务抽屉；
- *  ② 拆分（D5「＋ 拆分 / ＋子任务」）→ 同一个抽屉，但光标落进子任务输入框。
- *  原「定位支撑资源」出口随三栏全貌一并退役（P4 D3：支撑信息在抽屉里已有，属迁移不属丢）。 */
-function onFocusDetailEdit(t: TaskCard) { drawerRef.value?.open(t) }
-function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: true }) }
+// ================= V3.9.1：案头概览与三列预览 =================
+const focusDoneCount = computed(() => todayFocusList.value.filter(s => s.done).length)
+const mainFocus = computed<Project | null>(() => focusedProjects.value[0] || null)
+const extraFocus = computed<Project | null>(() => focusedProjects.value[1] || null)
+const extraFocusOpen = ref(false)
+const recentResources = computed<ResourceCard[]>(() =>
+  (d.value.resources || [])
+    .filter(r => !r.deletedAt && r.lastCalledAt)
+    .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0))
+    .slice(0, 3)
+)
+const liveTasks = computed<TaskCard[]>(() =>
+  (d.value.tasks || []).filter(t => !t.deletedAt && !t.lifecycleArchived)
+)
+const previewTasks = computed<TaskCard[]>(() => {
+  const rank = (t: TaskCard) => (t.status === 'doing' ? 0 : t.status === 'todo' ? 1 : 2)
+  return [...liveTasks.value]
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || rank(a) - rank(b) || (b.updatedAt || 0) - (a.updatedAt || 0))
+    .slice(0, 3)
+})
+const liveCuriosities = computed<CuriosityCard[]>(() =>
+  (d.value.curiosities || []).filter(c => !c.deletedAt && !c.lifecycleArchived)
+)
+const previewCuriosities = computed<CuriosityCard[]>(() =>
+  [...liveCuriosities.value]
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+    .slice(0, 3)
+)
+const liveResources = computed<ResourceCard[]>(() =>
+  (d.value.resources || []).filter(r => !r.deletedAt)
+)
+const previewResources = computed<ResourceCard[]>(() =>
+  [...liveResources.value]
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.lastCalledAt || b.updatedAt || 0) - (a.lastCalledAt || a.updatedAt || 0))
+    .slice(0, 3)
+)
+const hasAnyPreview = computed(() => !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length)
+const weeklyReuse = computed(() => weekUsageOf(d.value))
+const archivedCount = computed(() => unarchivedTaskCount())
+
+function openTaskPreview(t: TaskCard): void {
+  recordCardOpen(d.value, t)
+  store.persistHot()
+  drawerRef.value?.open(t)
+}
+function openCurioPreview(c: CuriosityCard): void {
+  void router.push({ path: '/deck/curiosity', query: { hl: c.id, hk: 'curio', open: '1' } })
+}
+function openResourcePreview(r: ResourceCard): void {
+  emitOpenDrawer({ kind: 'res', id: r.id })
+}
+function openResourceLink(r: ResourceCard): void {
+  const url = toOpenableRawLink(r.link)
+  if (!url) { showToast('这张资源还没有可打开的链接'); return }
+  openExternalLink(url)
+}
+function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
+  void router.push(`/deck/${kind}`)
+}
+function openUnarchived(): void {
+  void router.push({ path: '/deck/task', query: { filter: 'unarchived' } })
+}
+function openWeeklyReuse(): void {
+  void router.push({ path: '/deck/resource', query: { called: 'called' } })
+}
+function curioStatusLabel(c: CuriosityCard): string {
+  return c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索'
+}
+function resourceKindLabel(r: ResourceCard): string {
+  return r.linkType === 'file' ? '本地文件' : r.linkType === 'obsidian' ? 'Obsidian' : r.link ? '网页链接' : '文字卡'
+}
+function taskDueLabel(t: TaskCard): string {
+  if (!t.dueDate) return projectName(t.projectId)
+  return `${t.dueDate} · ${projectName(t.projectId)}`
+}
+function focusSlotSourceLabel(slot: FocusSlot): string {
+  if (slot.sourceType === 'text') return '自由文本'
+  if (slot.sourceType === 'resource') return '资源卡'
+  if (slot.sourceType === 'curiosity') return '好奇心卡'
+  return '卡片'
+}
 </script>
 
 <template>
   <div class="page">
-    <!-- R175（原型 1:1）：独立页头行并入合流状态条 —— 原型首行即 ≤38px 通栏条，无 crumb 行。
-         存储指示（R50-F2）与 Airtable 同步（R63-9）两 chip 原位移入 MetricBar 右槽，
-         点击语义（查看用量/重试写入/立即同步/⚙ 进设置）一字未动。 -->
-    <MetricBar>
-      <template #left>
-        <span class="cf-label" title="当前战略重心（最多 2 个）"><Icon name="main-focus" :size="13"/> 主攻</span>
-        <template v-if="focusedProjects.length">
-          <span v-for="p in focusedProjects" :key="p.id" class="cf-item" :class="{ done: focusMeta.get(p.id)?.finished }"
-            :title="p.name + ' · 点击进入项目详情'" @click="openFocusProject(p)">
-            <span class="cf-name">{{ p.name }}</span>
-            <span class="cf-pct">{{ focusMeta.get(p.id)?.pct || 0 }}%</span>
-            <span v-if="focusMeta.get(p.id)?.stall" class="cf-stall" title="近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>
-          </span>
-        </template>
-        <span v-else class="cf-hint" title="去方向台指定主攻项目" @click="router.push('/compass')">尚无主攻 · 去方向台指定</span>
-      </template>
-      <template #right>
-        <!-- R172-T9（04-67 F33/F34）：旧「四格记录条 + 周报按钮」整体下线 ——
-             改为单一入口「📈 复盘」直达知源仪表盘；被删的四类记录能力在仪表盘内完整可用
-             （日详情按日过滤 + 全量记录抽屉三维筛选 + CSV）。
-             R175：存储/同步两 chip 自页头移入本槽（原型：状态指示与动作同排右对齐）。 -->
-        <button class="storage-chip" :class="{ err: !storageOk }" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
-          <span class="sc-dot" />
-          <span>{{ storageText }}</span>
-        </button>
-        <button class="sync-chip" :class="{ on: atConfigured, err: !!atSyncErr }" :title="atChipTitle" @click="onSyncChipClick">
-          <span class="sc-dot" />
-          <span>{{ atChipText }}</span>
-          <span class="sync-gear" title="Airtable 同步设置" @click.stop="router.push('/settings?page=airtable')"><Icon name="settings" :size="13"/></span>
-        </button>
-        <!-- ★M4（V3.8.32）：战报入口降为 **tool 级**（原 `.mb-act.cta` 用 accent 软底，
-             在页头造出第二个"主行动"，与下方三件事抢第一眼）。战报是"看一眼今天"的工具，
-             不是要你现在就做的事 —— 于是与左右两枚 chip 同权，全站入口仍只有这一处
-             （画像洞察页那枚是另一页的入口，A4 判据照旧守"全局唯一"）。
-             中段也不再有任何战报常驻卡：TodayBattleHost 只暴露 openToday()，自己不渲染可见内容。 -->
-        <button class="mb-act" title="今天的全貌 · 打开今日战报弹窗" @click="openReview"><Icon name="trendup" :size="13"/> 今日战报</button>
-      </template>
-    </MetricBar>
-
-    <!-- R2-②：上下联动 split 容器随项目调度卡退役——三件事直挂页容器 -->
-    <section class="module">
-        <div class="card focus" :class="{ 'all-done': focusAllDone }">
-          <div class="card-head">
-            <span class="ic"><Icon name="flame" :size="18" /></span><span class="nm">今日三件事</span><span class="en">TODAY'S FOCUS</span>
-            <button class="mini-btn" @click="copyYesterday"><Icon name="copy" :size="13" />复制昨日</button>
-            <button class="mini-btn" @click="openExportModal"><Icon name="download" :size="13" />导出</button>
-            <div class="date-nav">
-              <div class="dn" @click="shiftDate(-1)">‹</div>
-              <div class="dd">{{ formatDate(todayDate) }}</div>
-              <div class="dn" @click="shiftDate(1)">›</div>
-            </div>
-            <!-- R169-T3：右上角一枚小图标 = "为什么是这三件"（点开浮层逐格讲依据，不占台面高度） -->
-            <button class="focus-why-ico" :class="{ on: whyOpen }" data-testid="focus-why-ico"
-              title="为什么推荐这三件" aria-label="为什么推荐这三件" @click.stop="toggleWhy()">
-              <AiEntryButton variant="icon" :spin="focusAiBusy" /><span v-if="whyBadge && focusHasRec" class="fwb"></span>
+    <header class="desk-head">
+      <div class="desk-heading">
+        <div class="desk-kicker">TODAY · {{ formatFullDate(todayDate) }}</div>
+        <h1>今天，先做这三件。</h1>
+        <p>把注意力放在真正要推进的事上。其余的卡，留在手边，随时可取。</p>
+      </div>
+      <div class="desk-actions">
+        <div v-if="mainFocus" class="focus-summary">
+          <button class="focus-pill" type="button" :title="mainFocus.name + ' · 进入项目详情'" @click="openFocusProject(mainFocus)">
+            <Icon name="main-focus" :size="13" />
+            <span class="fp-name">{{ mainFocus.name }}</span>
+            <span class="fp-pct">{{ focusMeta.get(mainFocus.id)?.pct || 0 }}%</span>
+          </button>
+          <button v-if="extraFocus" class="extra-pill" type="button" :aria-expanded="extraFocusOpen" title="展开第二个主攻" @click="extraFocusOpen = !extraFocusOpen">+1</button>
+          <div v-if="extraFocus && extraFocusOpen" class="extra-focus-pop">
+            <div class="efp-kicker">第二个主攻</div>
+            <button class="efp-row" type="button" @click="openFocusProject(extraFocus)">
+              <span>{{ extraFocus.name }}</span>
+              <b>{{ focusMeta.get(extraFocus.id)?.pct || 0 }}%</b>
             </button>
-            <div v-if="whyOpen" class="focus-why" data-testid="focus-why" @click.stop>
-              <div class="fw-h">为什么是这三件<span class="hint">{{ focusAiBusy ? ' · AI 复核中…' : '' }}</span></div>
-              <div v-for="c in focusCells" :key="'w' + c.idx" class="fw-row">
-                <span class="n">{{ String(c.idx + 1).padStart(2, '0') }}</span>
-                <div class="b">
-                  <template v-if="c.task">
-                    <div class="t">{{ c.slot?.text }}</div>
-                    <div class="w">
-                      <template v-if="c.slot?.auto === true">{{ whyOf(c.slot) || '本地依据：主攻项目下未开始的直接产出项' }}<span v-if="whyIsAi(c.slot)" class="ai-tag"> · AI 判词</span></template>
-                      <template v-else>这一格是你自己选的，系统不评价、也不会覆盖。</template>
-                    </div>
-                  </template>
-                  <template v-else>
-                    <div class="t off">空着</div>
-                    <div class="w">点这一格从任务库选，或点下面「换一批」。</div>
-                  </template>
-                </div>
-              </div>
-              <div class="fw-f">
-                过去 7 天完成 <b>{{ focusWeekTotals.done }}/{{ focusWeekTotals.planned }}</b>（按三件事格子计）<br>
-                推荐只写"今天这一天的计划位"，<b>不改任务卡、不改状态、不改归属</b>；你动过的格子系统不再插手。
-              </div>
-              <div class="fw-acts">
-                <button class="mini-btn" data-testid="focus-reshuffle" @click="reshuffleFocus">换一批</button>
-                <button class="mini-btn" data-testid="focus-review" :disabled="focusAiBusy" @click="openFocusReview">让 AI 复核顺序</button>
-                <button class="mini-btn" data-testid="focus-mute" @click="muteFocusToday">今天别自动推荐</button>
-              </div>
-            </div>
           </div>
-          <div class="today-body">
-            <!-- R53-C1：「从库选取」按钮移除——空槽「＋ 从任务库选取」即入口；复制昨日/导出移至卡片头部 -->
-            <div class="today-cards">
-              <!-- R117（04-61 C3）：恒 3 格渲染（见 focusCells 注释）——失效槽不再静默消失 -->
-              <template v-for="c in focusCells" :key="c.idx">
-                <div v-if="c.task" class="today-card" :class="{done: c.slot?.done, sel: focusSelIdx===c.idx}"
-                  @click="onFocusCardClick(c.idx)" @dblclick="openCellTask(c)">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-row">
-                    <div class="tc-check" :class="{done: c.slot?.done}" @click.stop="c.slot && toggleTodayDone(c.slot)"><Icon v-if="c.slot?.done" name="check" :size="14"/></div>
-                    <div class="tc-title"><NewBadge :at="c.task.createdAt" />{{ c.slot?.text }}</div>
-                  </div>
-                  <div class="tc-meta">
-                    <span class="tag neutral"><Icon name="package" :size="13"/> {{ projectName(c.task.projectId) }}</span>
-                    <span class="tag neutral"><Icon name="target" :size="13"/> {{ metricName(c.task.metricId) }}</span>
-                    <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
-                    <MaturityBadge :m="taskMaturity(c.task)" />
-                    <span v-if="c.slot?.auto === true" class="tag rec" data-testid="focus-rec" title="系统推荐写入的一格 · 点右上角  看依据"><Icon name="sparkle" :size="13"/> 荐</span>
-                  </div>
-                  <!-- ★P5（V3.8.22）：卡内子任务视口（R2-① tc-subs）整块退役——同一批子任务在 P4 全貌单行
-                       已有一份（前 3 条 + +N + 就地勾选），卡内 5 行视口是重复份；两份并存时用户不知看哪份勾哪份，
-                       且卡内清单把三张卡撑高、首屏又被顶走（与 P4 删全貌同一病根）。
-                       子任务勾选能力未丢：FocusDetail 单行 @toggle-sub → toggleSlotSub 同一条落库路径。 -->
-                  <!-- ★V3.8.18（N1）删除入口**常驻可见**（原来是 opacity:0 的 hover 显现）：
-                       病根＝一格被移出「今天要做」是一次不可逆的注意力操作，
-                       而它藏在一个 18px 的小圆里、且只在鼠标正好悬上去时才现形
-                       —— 用户根本不知道「原来可以删」。
-                       现在常驻显示，热区从 18px 放大到 28px
-                       （低于 26px 的可点目标在这套体系里算缺陷），
-                       弱化交给「低对比度 + hover 才变红」，而不是「看不见」。
-                       ★语义是**移出这一格**，任务本体仍在任务库 —— title 必须写清这件事。 -->
-                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事（任务本体仍在任务库，不会被删）">×</div>
-                </div>
-                <!-- 失效槽（源任务是任务、但库里已删/已归档）：显式给格 + 原位重新选取入口。
-                     ★V3.8.18（N1）：只判「本该是任务却取不到」这一种；
-                     装资源卡 / 自由文本的格子不再误入这一支（它们进下面的 nonTask 分支）。 -->
-                <div v-else-if="c.slot && c.slot.sourceType === 'task'" class="today-card stale-card" @click="openPicker(c.idx)" title="源任务已删除或归档 · 点击重新选取">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-title empty-t"><Icon name="warn" :size="13"/> 源任务已失效 · 重新选取</div>
-                  <div class="tc-meta"><span class="tag warn">原任务已删除</span></div>
-                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事">×</div>
-                </div>
-                <!-- ★V3.8.18（N1）非任务槽：资源卡 / 好奇心卡 / 自由文本。
-                     它们**占着一格且没有坏**，只是不是任务 —— 旧实现一律显示「⚠ 任务已删除」，
-                     用户会以为自己刚填进去的东西丢了。现在按来源分别说清它是什么。 -->
-                <div v-else-if="c.slot" class="today-card nonTask-card" @click="onFocusCardClick(c.idx)">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-row">
-                    <div class="tc-check" :class="{done: c.slot.done}" @click.stop="toggleTodayDone(c.slot)"><Icon v-if="c.slot.done" name="check" :size="14"/></div>
-                    <div class="tc-title">{{ c.slot.text }}</div>
-                  </div>
-                  <div class="tc-meta">
-                    <span class="tag neutral"><Icon :name="c.slot.sourceType === 'text' ? 'edit' : 'package'" :size="12"/>{{ c.slot.sourceType === 'text' ? '自由文本' : '卡片' }}</span>
-                    <span class="tag neutral">不参与六层链</span>
-                  </div>
-                  <div class="tc-remove" @click.stop="removeTodaySlot(c.idx)" title="移出今日三件事">×</div>
-                </div>
-                <div v-else class="today-card empty-card" @click="openPicker(c.idx)">
-                  <div class="tc-num">{{ String(c.idx+1).padStart(2,'0') }}</div>
-                  <div class="tc-title empty-t">＋ 从任务库选取</div>
+        </div>
+        <button v-else class="no-focus" type="button" @click="router.push('/compass')">
+          <Icon name="main-focus" :size="13" /> 去方向台指定主攻
+        </button>
+        <button class="why-trigger" :class="{ on: whyOpen }" data-testid="focus-why-ico" type="button" @click.stop="toggleWhy">
+          <Icon name="sparkles" :size="13" />
+          <span>为什么这样排</span>
+          <span v-if="whyBadge && focusHasRec" class="why-dot" />
+        </button>
+        <div v-if="whyOpen" class="focus-why" data-testid="focus-why" role="presentation" @click.stop>
+          <div class="fw-h">为什么是这三件<span class="hint">{{ focusAiBusy ? ' · AI 复核中…' : '' }}</span></div>
+          <div v-for="c in focusCells" :key="'w' + c.idx" class="fw-row">
+            <span class="n">{{ String(c.idx + 1).padStart(2, '0') }}</span>
+            <div class="b">
+              <template v-if="c.task">
+                <div class="t">{{ c.slot?.text }}</div>
+                <div class="w">
+                  <template v-if="c.slot?.auto === true">{{ whyOf(c.slot) || '本地依据：主攻项目下可直接推进的事项' }}<span v-if="whyIsAi(c.slot)" class="ai-tag"> · AI 判词</span></template>
+                  <template v-else>这一格是你自己选的，系统不评价、也不会覆盖。</template>
                 </div>
               </template>
+              <template v-else>
+                <div class="t off">空着</div>
+                <div class="w">点这一格从任务库选，或用“换一批”。</div>
+              </template>
             </div>
-            <!-- R94（B3）：全完成的**安静**收束——一行中性小字（整块去饱和由 .all-done 承担）。
-                 不用庆祝动画、不用红色、不用进度百分比。 -->
-            <div v-if="focusAllDone" class="td-done"><Icon name="check" :size="13"/> 今日三件事已闭环 · 专注带来从容</div>
           </div>
-
-          <!-- ★W15-T4（用户拍板 2026-10-16）：子任务区从**独立 module 并入本卡下半区** ——
-               原先三件事与子任务是两个平级 section、间距同样 14px，视觉上被切开，"这三件事下面挂着什么"
-               的关系读不出来。现在共享同一张卡面与重框，只用一条 hairline 分隔；
-               子任务区标题降级为卡内分区标签（focus-sub-label），焦点仍唯一属于"今日三件事"。
-               写操作链零变化（FocusDetail emit 上抛宿主，toggleSlotSub 落库路径原样）。 -->
-          <div class="focus-sub-zone">
-            <FocusDetail
-              :task="selTask" :empty-slot="selSlotEmpty"
-              :slot-kind="selSlotKind" :slot-text="selSlotText"
-              :data="store.data!"
-              @edit="onFocusDetailEdit"
-              @toggle-sub="(tid, sid) => selTask && toggleSlotSub(selTask, sid)"
-              @split="onFocusDetailSplit" />
+          <div class="fw-f">
+            过去 7 天完成 <b>{{ focusWeekTotals.done }}/{{ focusWeekTotals.planned }}</b>（按三件事格子计）<br>
+            推荐只写今天的计划位，<b>不改任务卡、不改状态、不改归属</b>。
           </div>
-        </div>
-      </section>
-
-<!-- ★W15-T4（用户拍板 2026-10-16）：FocusDetail 原先在这儿是独立 `<section class="module">`，
-         与"今日三件事"平级、间距同为 14px ⇒ 视觉上被切开、关系读不出来。已上提并入 `.card.focus`
-         下半区（见上方 focus-sub-zone）。写操作（勾子任务 / 拆分）仍由 FocusDetail emit 上抛宿主。 -->
-
-    <!-- ★W12-D：今日战报自包含宿主（日详情弹窗 + 全量记录抽屉）。本组件不渲染可见内容，
-         只提供 openToday() 供右上角「📈 今日战报」调用。 -->
-    <TodayBattleHost ref="battleHost" />
-
-    <!-- 底部 · 三张卡（W1.1 V3.8.1 改名改序：任务卡 → 好奇心卡 → 资源卡，默认任务卡；
-         取代 R117 C1 的「任务调度 / 好奇心培育」双 tab 与 R2-③ 的资源卡池默认两版旧序）
-          R67-F4：id 供快捷键直达锚点
-          W6（V3.8.6）#2：标题入框——整块包进 .card 框（与今日三件事 / 年度热力图一体化），
-          decks-title 由框外浮标题改为框内头部，不再是裸标题+裸胶囊。 -->
-    <section id="zy-mod-curiosity" class="module">
-      <div class="card deck-frame">
-        <!-- W5（V3.8.5）#2：三标题统一 —— 图标(accent) + 17px 标题 + 英文副标（胶囊 tab 保留） -->
-        <div class="decks-title">
-          <span class="ic"><Icon name="layers" :size="18" /></span><span class="nm">三张卡</span><span class="en">THREE DECKS</span>
-        </div>
-        <!-- R2-③：DeckTabs 三张卡（W1.1 改名：任务卡 / 好奇心卡 / 资源卡） -->
-        <div class="bottom-tabs">
-          <button class="bt-tab" :class="{ on: bottomTab === 'task' }" @click="bottomTab = 'task'">
-            <Icon name="clipboard" :size="14" />任务卡<span class="bt-cnt">{{ taskLiveCount }}</span>
-          </button>
-          <button class="bt-tab" :class="{ on: bottomTab === 'curio' }" @click="bottomTab = 'curio'">
-            <Icon name="bulb" :size="14" />好奇心卡<span class="bt-cnt">{{ curioLiveCount }}</span>
-          </button>
-          <button class="bt-tab" :class="{ on: bottomTab === 'pool' }" @click="bottomTab = 'pool'">
-            <Icon name="layout" :size="14" />资源卡<span class="bt-cnt">{{ poolLiveCount }}</span>
-          </button>
-        </div>
-        <!-- 任务卡：默认 tab（W1.1 改序后居首），常驻挂载 -->
-        <div v-show="bottomTab === 'task'" class="bottom-pane">
-          <TaskManagerPanel />
-        </div>
-        <!-- 好奇心卡：懒挂载（首次切到该 tab 才挂载）——保住首屏冷启动成本 -->
-        <div v-show="bottomTab === 'curio'" class="bottom-pane">
-          <CuriosityPanel v-if="curioMounted" />
-        </div>
-        <!-- 资源卡：常驻挂载（R179 池语义的管理面补位） -->
-        <div v-show="bottomTab === 'pool'" class="bottom-pane">
-          <PoolCardsPanel />
+          <div class="fw-acts">
+            <button class="quiet-btn" data-testid="focus-reshuffle" type="button" @click="reshuffleFocus">换一批</button>
+            <button class="quiet-btn" data-testid="focus-review" type="button" :disabled="focusAiBusy" @click="openFocusReview">让 AI 复核顺序</button>
+            <button class="quiet-btn" data-testid="focus-mute" type="button" @click="muteFocusToday">今天别自动推荐</button>
+          </div>
         </div>
       </div>
-    </section>
+    </header>
 
-    <!-- ===== 任务选取弹窗 ===== -->
+    <div class="desk-layout">
+      <main class="desk-main">
+        <section id="zy-mod-tasks" class="work-board" :class="{ 'all-done': focusAllDone }" aria-labelledby="focusTitle">
+          <header class="board-head">
+            <div class="board-title">
+              <span class="board-ico"><Icon name="compass" :size="18" /></span>
+              <div>
+                <h2 id="focusTitle">今日三件事</h2>
+                <span class="board-count">{{ focusDoneCount }} / {{ Math.max(todayFocusList.length, 1) }} 完成 · 计划位 {{ todayFocusList.length }}/3</span>
+              </div>
+            </div>
+            <div class="board-tools">
+              <button class="icon-btn" type="button" title="前一天" aria-label="前一天" @click="shiftDate(-1)"><Icon name="arrowleft" :size="14" /></button>
+              <button class="date-btn" type="button" title="回到今天" @click="todayDate = new Date()">{{ formatDate(todayDate) }}</button>
+              <button class="icon-btn" type="button" title="后一天" aria-label="后一天" @click="shiftDate(1)"><Icon name="arrowright" :size="14" /></button>
+              <span class="tool-sep" />
+              <button class="quiet-btn" type="button" title="把昨天的三件事复制到今天" @click="copyYesterday"><Icon name="copy" :size="13" /> 复制昨日</button>
+              <div class="focus-more-wrap">
+                <button class="icon-btn" type="button" title="更多" aria-label="更多" :aria-expanded="focusMoreOpen" @click.stop="focusMoreOpen = !focusMoreOpen"><Icon name="menu" :size="14" /></button>
+                <div v-if="focusMoreOpen" class="focus-more-menu" role="presentation" @click.stop>
+                  <button type="button" @click="reshuffleFocus(); focusMoreOpen = false"><Icon name="shuffle" :size="13" /> 换一批</button>
+                  <button type="button" @click="openFocusReview(); focusMoreOpen = false"><Icon name="sparkles" :size="13" /> AI 复核顺序</button>
+                  <button type="button" @click="openExportModal(); focusMoreOpen = false"><Icon name="download" :size="13" /> 导出 CSV</button>
+                  <button type="button" @click="muteFocusToday(); focusMoreOpen = false"><Icon name="eyeoff" :size="13" /> 今天别自动推荐</button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div v-if="!todayFocusList.length" class="focus-empty-state">
+            <div class="fes-icon"><Icon name="inbox" :size="24" /></div>
+            <div class="fes-copy">
+              <b>今天还没有安排</b>
+              <span>从任务库挑一件真正要推进的事，或者让系统先推荐一轮。</span>
+            </div>
+            <div class="fes-actions">
+              <button class="primary-btn" type="button" @click="openPicker(0)"><Icon name="plus" :size="13" /> 从任务库选取</button>
+              <button class="quiet-btn" type="button" @click="reshuffleFocus">自动推荐</button>
+            </div>
+          </div>
+
+          <div v-else class="focus-list">
+            <template v-for="c in focusCells" :key="c.idx">
+              <div v-if="c.task" class="focus-row" :class="{ done: c.slot?.done }" role="button" tabindex="0"
+                @click="openCellTask(c)" @keydown.enter.prevent="openCellTask(c)" @keydown.space.prevent="openCellTask(c)">
+                <button class="row-check" :class="{ done: c.slot?.done }" type="button" :aria-label="c.slot?.done ? '取消完成' : '标记完成'" @click.stop="c.slot && toggleTodayDone(c.slot)">
+                  <Icon v-if="c.slot?.done" name="check" :size="14" />
+                </button>
+                <div class="row-main">
+                  <div class="row-title">
+                    <NewBadge :at="c.task.createdAt" />
+                    <span class="title-text">{{ c.slot?.text }}</span>
+                    <span v-if="c.slot?.auto === true" class="rec" data-testid="focus-rec"><Icon name="sparkle" :size="11" /> 荐</span>
+                  </div>
+                  <div class="row-meta">
+                    <span><Icon name="package" :size="12" /> {{ projectName(c.task.projectId) }}</span>
+                    <span><Icon name="target" :size="12" /> {{ metricName(c.task.metricId) }}</span>
+                    <span v-if="c.task.subtasks?.length"><Icon name="corner" :size="12" /> 子任务 {{ c.task.subtasks.filter(s => s.done).length }}/{{ c.task.subtasks.length }}</span>
+                    <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
+                    <MaturityBadge :m="taskMaturity(c.task)" />
+                  </div>
+                </div>
+                <div class="row-side">
+                  <span class="status" :class="taskStatusClass(c.task.status)"><Icon :name="taskStatusIcon(c.task.status)" :size="11" /> {{ taskStatusLabel(c.task.status) }}</span>
+                  <Icon name="arrowright" :size="14" class="row-chevron" />
+                </div>
+                <button class="row-remove" type="button" title="移出今日三件事（任务本体仍在任务库）" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
+              </div>
+
+              <div v-else-if="c.slot && c.slot.sourceType === 'task'" class="focus-row stale-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)">
+                <span class="row-index">{{ String(c.idx + 1).padStart(2, '0') }}</span>
+                <div class="row-main">
+                  <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || '原任务已失效' }}</span></div>
+                  <div class="row-meta"><span>源任务已删除或归档 · 点这一行原位重新选取</span></div>
+                </div>
+                <span class="stale-action">重新选取 <Icon name="arrowright" :size="13" /></span>
+                <button class="row-remove" type="button" title="移出今日三件事" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
+              </div>
+
+              <div v-else-if="c.slot" class="focus-row non-task-row">
+                <button class="row-check" :class="{ done: c.slot.done }" type="button" :aria-label="c.slot.done ? '取消完成' : '标记完成'" @click.stop="toggleTodayDone(c.slot)">
+                  <Icon v-if="c.slot.done" name="check" :size="14" />
+                </button>
+                <div class="row-main">
+                  <div class="row-title"><span class="title-text">{{ c.slot.text }}</span></div>
+                  <div class="row-meta"><span><Icon :name="c.slot.sourceType === 'text' ? 'edit' : 'package'" :size="12" /> {{ focusSlotSourceLabel(c.slot) }}</span><span>不参与六层链</span></div>
+                </div>
+                <div class="row-side"><span class="status" :class="c.slot.done ? 'done' : 'todo'">{{ c.slot.done ? '已完成' : '未完成' }}</span></div>
+                <button class="row-remove" type="button" title="移出今日三件事" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
+              </div>
+
+              <div v-else class="focus-row empty-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)" @keydown.space.prevent="openPicker(c.idx)">
+                <span class="empty-plus"><Icon name="plus" :size="14" /></span>
+                <div class="row-main">
+                  <div class="row-title empty-title">从任务库选取</div>
+                  <div class="row-meta"><span>计划位 {{ c.idx + 1 }} · 选中后会立即打开右侧详情</span></div>
+                </div>
+                <Icon name="arrowright" :size="14" class="row-chevron" />
+              </div>
+            </template>
+          </div>
+
+          <div v-if="focusAllDone" class="done-banner"><Icon name="check" :size="13" /> 今日三件事已闭环 · 专注带来从容</div>
+          <footer class="board-foot">
+            <span><Icon name="clock" :size="12" /> 整行点开详情 · 左侧勾选才算完成</span>
+            <span class="board-foot-spacer" />
+            <span>Ctrl + ← / → 切换日期</span>
+          </footer>
+        </section>
+
+        <section class="hand-board" aria-labelledby="handTitle">
+          <header class="hand-head">
+            <div class="hand-heading">
+              <span class="board-ico"><Icon name="layers" :size="18" /></span>
+              <div>
+                <h2 id="handTitle">手边的卡</h2>
+                <span class="hand-kicker">THREE DECKS · 只预览最近在用的</span>
+              </div>
+            </div>
+            <span class="hand-summary">任务 {{ liveTasks.length }} · 好奇 {{ liveCuriosities.length }} · 资源 {{ liveResources.length }}</span>
+          </header>
+
+          <div v-if="!hasAnyPreview" class="deck-empty">
+            <span class="deck-empty-icon"><Icon name="inbox" :size="22" /></span>
+            <div><b>手边暂时没有卡</b><p>用扩展快捷键采集任务、好奇心或资源，采集后会回到这里展开分类。</p></div>
+          </div>
+
+          <div v-else class="hand-grid">
+            <section class="hand-col" aria-labelledby="taskColTitle">
+              <header class="hand-col-head">
+                <Icon name="clipboard" :size="14" />
+                <b id="taskColTitle">任务卡</b>
+                <span class="hand-count">{{ liveTasks.length }}</span>
+                <button class="hand-link" type="button" @click="goDeck('task')">查看全部 <Icon name="arrowright" :size="12" /></button>
+              </header>
+              <div class="mini-list">
+                <button v-for="t in previewTasks" :key="t.id" class="mini-item" type="button" @click="openTaskPreview(t)">
+                  <span class="mini-check" :class="{ done: t.status === 'done' }"><Icon v-if="t.status === 'done'" name="check" :size="9" /></span>
+                  <span class="mini-copy"><span class="mini-title">{{ t.title }}</span><span class="mini-meta">{{ taskDueLabel(t) }}</span></span>
+                  <span class="mini-side" :class="{ 'status-doing': t.status === 'doing' }">{{ taskStatusLabel(t.status) }}</span>
+                </button>
+                <div v-if="!previewTasks.length" class="mini-empty">还没有任务卡</div>
+              </div>
+            </section>
+
+            <section class="hand-col" aria-labelledby="curioColTitle">
+              <header class="hand-col-head">
+                <Icon name="bulb" :size="14" />
+                <b id="curioColTitle">好奇心卡</b>
+                <span class="hand-count">{{ liveCuriosities.length }}</span>
+                <button class="hand-link" type="button" @click="goDeck('curiosity')">查看全部 <Icon name="arrowright" :size="12" /></button>
+              </header>
+              <div class="mini-list">
+                <button v-for="c in previewCuriosities" :key="c.id" class="mini-item" type="button" @click="openCurioPreview(c)">
+                  <Icon name="bulb" :size="13" class="mini-leading" />
+                  <span class="mini-copy"><span class="mini-title">{{ c.question }}</span><span class="mini-meta">{{ curioStatusLabel(c) }} · {{ fmtShortDate(c.updatedAt || c.createdAt) }}</span></span>
+                  <span class="mini-side">{{ c.callCount || 0 }}</span>
+                </button>
+                <div v-if="!previewCuriosities.length" class="mini-empty">还没有好奇心卡</div>
+              </div>
+            </section>
+
+            <section class="hand-col" aria-labelledby="resColTitle">
+              <header class="hand-col-head">
+                <Icon name="filetext" :size="14" />
+                <b id="resColTitle">资源卡</b>
+                <span class="hand-count">{{ liveResources.length }}</span>
+                <button class="hand-link" type="button" @click="goDeck('resource')">查看全部 <Icon name="arrowright" :size="12" /></button>
+              </header>
+              <div class="mini-list">
+                <button v-for="r in previewResources" :key="r.id" class="mini-item" type="button" @click="openResourcePreview(r)" @dblclick="openResourceLink(r)">
+                  <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" class="mini-leading" />
+                  <span class="mini-copy"><span class="mini-title">{{ r.title }}</span><span class="mini-meta">{{ resourceKindLabel(r) }} · {{ fmtShortDate(r.lastCalledAt || r.updatedAt) }}</span></span>
+                  <span class="mini-side">{{ r.callCount || 0 }}</span>
+                </button>
+                <div v-if="!previewResources.length" class="mini-empty">还没有资源卡</div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <footer class="page-foot">
+          <button class="foot-status" :class="{ error: !storageOk }" type="button" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
+            <span class="save-dot" /><span>{{ storageText }}</span>
+          </button>
+          <span class="foot-sync">
+            <button class="foot-status" :class="{ error: !!atSyncErr }" type="button" :title="atChipTitle" @click="onSyncChipClick">
+              <span>{{ atChipText }}</span>
+            </button>
+            <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
+          </span>
+          <span class="foot-spacer" />
+          <button class="foot-link" type="button" @click="openReview"><Icon name="trendup" :size="13" /> 今日战报</button>
+        </footer>
+      </main>
+
+      <aside class="side-rail" aria-label="案头侧栏">
+        <section class="rail-panel">
+          <header class="rail-head">
+            <b>今天的状态</b>
+            <button type="button" @click="openReview">战报</button>
+          </header>
+          <div class="stat-list">
+            <button class="stat-row" type="button" :disabled="!mainFocus" @click="mainFocus && openFocusProject(mainFocus)">
+              <span class="sk">主攻</span>
+              <span class="sv">{{ mainFocus ? mainFocus.name : '尚未指定' }}</span>
+              <span class="se accent">{{ mainFocus ? (focusMeta.get(mainFocus.id)?.pct || 0) + '%' : '去设置' }}</span>
+            </button>
+            <button class="stat-row" type="button" @click="openUnarchived">
+              <span class="sk">未归档</span>
+              <span class="sv">{{ archivedCount }} / {{ liveTasks.length }} 件任务</span>
+              <span class="se">去归位</span>
+            </button>
+            <button class="stat-row" type="button" @click="openWeeklyReuse">
+              <span class="sk">本周复用</span>
+              <span class="sv">{{ weeklyReuse }} 次</span>
+              <span class="se">查看</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="rail-panel">
+          <header class="rail-head">
+            <b>最近调出</b>
+            <button type="button" @click="goDeck('resource')">全部</button>
+          </header>
+          <div v-if="recentResources.length" class="recent-list">
+            <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" @click="openResourcePreview(r)">
+              <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" />
+              <span class="recent-copy"><span class="recent-title">{{ r.title }}</span><span class="recent-meta">{{ fmtRecentTime(r.lastCalledAt) }} · 打开 {{ r.callCount || 0 }} 次</span></span>
+            </button>
+          </div>
+          <div v-else class="rail-empty">还没有调出记录。打开一张资源卡后，会出现在这里。</div>
+        </section>
+
+        <div class="rail-foot"><Icon name="shield" :size="14" /> 只存本机 · 无账号 · 可随时导出</div>
+      </aside>
+    </div>
+
+    <TodayBattleHost ref="battleHost" />
+
     <Transition name="fade">
-      <div v-if="pickerOpen" class="overlay" @click="pickerOpen=false" />
+      <div v-if="pickerOpen" class="overlay" @click="pickerOpen = false" />
     </Transition>
     <Transition name="modal">
-      <div v-if="pickerOpen" class="picker-modal">
-        <div class="pm-head">
-          <span><Icon name="filetext" :size="13"/> 从任务库选取</span>
-          <div class="pm-close" @click="pickerOpen=false">×</div>
-        </div>
+      <div v-if="pickerOpen" class="picker-modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+        <header class="pm-head">
+          <div><span id="pickerTitle"><Icon name="filetext" :size="13" /> 选择今天要做的事</span><small>今日计划位 {{ todayFocusList.length }} / 3</small></div>
+          <button class="pm-close" type="button" aria-label="关闭" @click="pickerOpen = false"><Icon name="x" :size="15" /></button>
+        </header>
         <div class="pm-body">
-          <!-- R113-N6：关键词 + 项目 两维筛选可叠加 -->
           <div class="pm-filters">
-            <div class="search-box pm-search-flat"><span><Icon name="search" :size="13"/></span><input v-model="pickerSearch" placeholder="搜索任务..."></div>
-            <select v-model="pickerProject" class="pm-proj" title="按项目筛选任务">
+            <label class="search-box pm-search-flat"><Icon name="search" :size="13" /><input v-model="pickerSearch" placeholder="搜索任务标题…" autofocus></label>
+            <select v-model="pickerProject" class="pm-select" title="按项目筛选任务">
               <option value="">全部项目</option>
               <option value="__none__">未关联项目（{{ pickerProjectOptions.none }}）</option>
               <option v-for="o in pickerProjectOptions.opts" :key="o.id" :value="o.id">{{ o.name }}（{{ o.n }}）</option>
             </select>
+            <select v-model="pickerStatus" class="pm-select pm-status" title="按任务状态筛选">
+              <option value="all">全部状态</option>
+              <option value="todo">待开始</option>
+              <option value="doing">进行中</option>
+            </select>
           </div>
-          <div v-for="task in pickerCandidates" :key="task.id" class="picker-item"
-            :class="{disabled: pickerDisabled(task)}" @click="selectTaskGuarded(task)">
-            <div class="pi-check">{{ pickerDisabled(task) ? '—' : '＋' }}</div>
-            <div class="pi-info">
-              <div class="pi-title">{{ task.title }}</div>
-              <div class="pi-meta">
-                <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-                <span class="tag" :class="{ok: task.status==='done'}"><Icon :name="task.status==='done'?'check':task.status==='doing'?'half':'circle'" :size="11"/>{{ task.status==='done'?'已完成':task.status==='doing'?'进行中':'待开始' }}</span>
-                <span v-if="pickedIds.has(task.id)" class="tag">已选入</span>
-              </div>
+          <div class="pm-summary"><span>{{ pickerCandidates.length }} 个可选任务</span><span>已完成和已选入的任务会置灰</span></div>
+          <div class="picker-list">
+            <button v-for="task in pickerCandidates" :key="task.id" class="picker-item" :class="{ disabled: pickerDisabled(task) }" type="button" :disabled="pickerDisabled(task)" @click="selectTaskGuarded(task)">
+              <span class="pi-check" :class="{ disabled: pickerDisabled(task) }"><Icon :name="pickerDisabled(task) ? 'check' : 'plus'" :size="12" /></span>
+              <span class="pi-info">
+                <span class="pi-title">{{ task.title }}</span>
+                <span class="pi-meta">
+                  <span class="tag accent">{{ projectName(task.projectId) }}</span>
+                  <span class="tag" :class="taskStatusClass(task.status)"><Icon :name="taskStatusIcon(task.status)" :size="11" /> {{ taskStatusLabel(task.status) }}</span>
+                  <span v-if="pickedIds.has(task.id)" class="tag">已选入</span>
+                  <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+                </span>
+              </span>
+              <Icon name="arrowright" :size="13" class="pi-go" />
+            </button>
+            <div v-if="!pickerCandidates.length" class="picker-empty">
+              <Icon name="search" :size="22" />
+              <b>没有匹配的任务</b>
+              <span>换个关键词，或清空项目与状态筛选。</span>
+              <button class="quiet-btn" type="button" @click="clearFocusSelection">清空筛选</button>
             </div>
           </div>
-          <div v-if="!pickerCandidates.length" class="list-empty">暂无任务</div>
         </div>
+        <footer class="pm-foot"><span>选中后会立即打开右侧任务详情。</span><button class="quiet-btn" type="button" @click="pickerOpen = false">取消</button></footer>
       </div>
     </Transition>
 
-    <!-- ===== 三件事导出弹窗（时间范围） ===== -->
     <Transition name="fade">
-      <div v-if="exportOpen" class="overlay" @click="exportOpen=false" />
+      <div v-if="exportOpen" class="overlay" @click="exportOpen = false" />
     </Transition>
     <Transition name="modal">
-      <div v-if="exportOpen" class="picker-modal pm-modal-export">
-        <div class="pm-head">
-          <span><Icon name="download" :size="13"/> 导出三件事任务（CSV）</span>
-          <div class="pm-close" @click="exportOpen=false">×</div>
-        </div>
+      <div v-if="exportOpen" class="picker-modal pm-modal-export" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+        <header class="pm-head">
+          <div><span id="exportTitle"><Icon name="download" :size="13" /> 导出三件事任务（CSV）</span></div>
+          <button class="pm-close" type="button" aria-label="关闭" @click="exportOpen = false"><Icon name="x" :size="15" /></button>
+        </header>
         <div class="pm-body">
           <div class="ts-label-pm">时间范围（按三件事安排日期）</div>
           <div class="pm-date-row">
-            <input type="date" v-model="exportFrom" class="ts-select-pm pm-date-input">
+            <input v-model="exportFrom" type="date" class="pm-date-input" aria-label="开始日期">
             <span class="pm-date-sep">›</span>
-            <input type="date" v-model="exportTo" class="ts-select-pm pm-date-input">
+            <input v-model="exportTo" type="date" class="pm-date-input" aria-label="结束日期">
           </div>
-          <div class="ce-desc pm-export-desc">导出字段：任务内容 / 所属项目 / 项目›成功指标 / 任务状态 / 安排时间 / 创建时间</div>
+          <div class="pm-export-desc">导出字段：任务内容 / 所属项目 / 项目›成功指标 / 任务状态 / 安排时间 / 创建时间</div>
         </div>
-        <div class="modal-footer-row pm-modal-footer">
-          <button class="mini-btn" @click="exportOpen=false">取消</button>
-          <button class="mini-btn primary" :disabled="exportBusy" @click="doExport"><Icon v-if="!exportBusy" name="download" :size="13"/>{{ exportBusy ? "导出中…" : "导出 CSV" }}</button>
-        </div>
+        <footer class="pm-foot"><span>导出为 UTF-8 CSV，可直接用表格软件打开。</span><button class="quiet-btn" type="button" @click="exportOpen = false">取消</button><button class="primary-btn" type="button" :disabled="exportBusy" @click="doExport"><Icon v-if="!exportBusy" name="download" :size="13" />{{ exportBusy ? '导出中…' : '导出 CSV' }}</button></footer>
       </div>
     </Transition>
 
-    <!-- R172-T9：今日记录抽屉已下线 —— 记录能力迁入知源仪表盘
-         （日详情按日过滤 + `DashboardLogDrawer` 全量三维筛选 + CSV；见本页右上角 `📈 复盘`）。 -->
-
-    <!-- 任务详情抽屉（共享组件） -->
     <TaskDetailDrawer ref="drawerRef" />
-    <!-- R169-T3：AI 复核今日三件事 → 走全站唯一的中央评审弹窗（不建第二套对照壳） -->
     <AiDrawer v-if="focusJob" :job="focusJob" @close="focusJob = null" />
   </div>
 </template>
 
 <style scoped>
-/* R175（原型 1:1）：主视域 1440 + 18px 顶距 + 72px 收尾（原型 padding: 18px 36px 0 + body 72px 的等价落法）；
-   左右 36px 与顶栏 align-page 同一条垂直基准线不变。⚠ 其余三页仍 20px 顶距，R21-3/R123-3/R125-1 已随本值重指带备案。 */
-.page { max-width: 1440px; margin: 0 auto; padding: 18px 36px 72px; }
-/* R175：page-head 行随「页头并入合流状态条」退役——存储/同步 chip 移入 MetricBar 右槽，页面身份由顶栏活动页签承担 */
-
-/* R50-F2 数据存储状态栏 ｜ R175（原型）：默认态改无框轻量指示（绿点+文本），异常态保留红点闪烁与点击重试；
-   原有两处硬编码色值一并归位 var(--success)/var(--danger)（红线 3：零硬编码色值）
-   M6：min-height 28px 热区下限（同 App.vue 顶栏口径）——chip 实测 23px，规范 M6 要求 ≥28px */
-.storage-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: 1px solid transparent; padding: 3px 4px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
-.storage-chip:hover { background: var(--surface-2); }
-.storage-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); flex-shrink: 0; }
-.storage-chip.err { color: var(--danger); }
-.storage-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
-@keyframes scBlink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-
-/* R63-9：Airtable 同步状态卡 ｜ R175（原型）：改次级行内 chip 形态（sub-action-btn 同款），三态与 ⚙ 语义不变
-   M6：min-height 28px 热区下限（同 storage-chip 口径） */
-.sync-chip { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--radius-xs); cursor: pointer; transition: border-color var(--dur), background var(--dur); font-family: inherit; }
-.sync-chip:hover { border-color: var(--border-strong); background: var(--surface-3); }
-.sync-chip .sc-dot { width: 6px; height: 6px; border-radius: 99px; background: var(--text-4); flex-shrink: 0; }
-.sync-chip.on .sc-dot { background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent); }
-.sync-chip.err { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
-.sync-chip.err .sc-dot { background: var(--danger); box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 55%, transparent); animation: scBlink 1.2s ease-in-out infinite; }
-.sync-chip .sync-gear { font-size: var(--fs-caption); opacity: .55; padding: 0 2px; }
-.sync-chip .sync-gear:hover { opacity: 1; }
-
-/* R172-T9：今日记录 4 计数迷你条随入口整合退役 —— 记录能力迁入知源仪表盘 */
-/* R120-TB1：条内动作按钮 ｜ R175（原型）：改次级 chip 形态（11px + hairline + xs 圆角）；
-   「📈 复盘」保留强调态（全站单一复盘入口的视觉锚点，原型以中性 chip 表达周报、语义不同） */
-/* M6：min-height 28px 热区下限（同 storage/sync chip 口径；实测 23px） */
-.mb-act { flex-shrink: 0; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); min-height: 28px; padding: 3px 9px; border-radius: var(--radius-xs); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
-.mb-act:hover { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
-/* ★M4（V3.8.32）：`.mb-act.cta` 的 accent 软底规则随入口降级一并删除。
-   留一条注释备案：这里曾经有一个"页头主行动"，它抢的正是下方三件事的第一眼；
-   删掉之后页头不再有第二处 accent，主行动唯一位于 hero（空槽入口）。 */
-
-/* R120-TB1：合流方向条内元素（主攻 / 去方向台）——单行 ≤40px，全 tokens */
-/* R175（原型）：主攻标签改强调胶囊（accent-light 底 + xs 圆角） */
-.cf-label { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); padding: 2.5px 8px; border-radius: var(--radius-xs); }
-.cf-item { display: flex; align-items: center; gap: 5px; flex-shrink: 0; max-width: 260px; font-size: var(--fs-sub); font-weight: 500; color: var(--text); cursor: pointer; }
-.cf-item:hover .cf-name { text-decoration: underline; }
-.cf-item.done { opacity: .55; }
-.cf-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-pct { flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-2); font-variant-numeric: tabular-nums; }
-/* R91 口径保留：14 天无推进亮 ⚠ 停滞；待办数为 10px 轻量标记 */
-.cf-stall { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--warning); }
-.cf-hint { font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-hint:hover { color: var(--accent); }
-/* R105（B4）：好奇心培育折叠摘要行——呼应 ModuleCard 的视觉语言（surface 底 + 发丝边） */
-/* W5（V3.8.5）#2 三标题统一：三张卡标题行（图标 accent + 17px + 英文副标），与今日三件事 / 年度热力图同规格
-   W6（V3.8.6）#2 标题入框：标题行包进 .deck-frame（.card 同款框），margin 由 frame 内边距接管 */
-.decks-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.deck-frame { padding: 12px 20px 16px; /* ★V3.8.7 焦点契约 #3：去框体阴影，与 hero 的 shadow-lg 拉开层级 */ box-shadow: none; border-radius: var(--radius-lg); /* ★M5（V3.8.32）：三卡同构 —— 面板外框统一 lg（14），与 hero 的 radius 一档、比卡内单元大一档 */ }
-/* W6 #2：内层 ModuleCard 压成无框无底（标题/边框由外层 deck-frame 统一；tab 已标明当前面板） */
-.deck-frame :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
-.deck-frame :deep(.module-title) { display: none; }
-.deck-frame :deep(.module-body) { padding: 0; }
-.decks-title .ic { color: var(--accent); display: flex; align-items: center; }
-/* ★V3.8.7 焦点契约 #3：三张卡标题自 headline(17) **降级** title(15)，并去框体阴影
-   ——原 W5「三标题统一」让主角与工具区同规格，本页因此没有焦点；用户拍板焦点契约后此处反向调整。
-   ★随迁备案：判据 W5-2 原钉「三标题统一 17px」，其守的是"三标题形态一致"这件结构事实，
-   焦点层级由新判据 W7-1 单独守（display 唯一 + hero 重框 + 三张卡 ≤title）。 */
-.decks-title .nm { font-size: var(--fs-title); font-weight: 600; letter-spacing: -.01em; }
-.decks-title .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
-/* R120-TB4：底部胶囊 Tab（对齐原型：pill 形态 + 中性选中态；计数为轻量 pill） */
-.bottom-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.bt-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-body); font-weight: 600; border-radius: 99px; padding: 5px 14px; cursor: pointer; font-family: inherit; transition: all .13s; }
-.bt-tab:hover { border-color: var(--border-strong); color: var(--text); }
-/* R175（原型 seg-pill）：选中态改深色实心胶囊（text 前景反转 bg，六主题自适应；R120-9 判据随迁） */
-.bt-tab.on { border-color: var(--text); background: var(--text); color: var(--bg); }
-.bt-cnt { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); background: var(--surface-2); border-radius: 99px; padding: 0 7px; line-height: 17px; }
-.bt-tab.on .bt-cnt { color: var(--bg); background: transparent; opacity: .75; }
-.bottom-pane { min-height: 120px; }
-.module { margin-top: 0; }
-/* R67-F4：快捷键直达模块的高亮闪烁（滚动定位后 2.2s 渐隐） */
-.module.anchor-flash { animation: zyAnchorFlash 2.2s ease; }
-@keyframes zyAnchorFlash {
-  0%, 55% { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 32%, transparent); }
-  100% { box-shadow: none; }
+/* V3.9.1 · 方案 B：左侧主工作区 + 右侧案头栏。
+   页面只承担“今天先做什么”和“手边有什么”，管理动作进入独立二级页。 */
+.page {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 18px 36px 72px;
 }
-.page > .module { margin-top: 14px; }
-/* ★W15-T4（用户拍板 2026-10-16）主次版式：今日三件事与它的子任务共享一张卡面（同一视觉单元），
-   与下方三张卡之间用 ≥32px 空白拉开 —— 原先三个平级 module 全是 14px，焦点只靠字号撑着。
-   负锚：子任务区不许再做成独立强模块（会把焦点从三件事挪走）；空白不许小于 28px。 */
-.page > #zy-mod-curiosity { margin-top: 32px; }
-.focus-sub-zone {
-  border-top: 1px solid var(--border);       /* 同一卡面内只留一条 hairline，不做第二条框 */
-  margin: 0 20px; padding: 10px 0 4px;
-}
-.focus-sub-zone :deep(.fd-row .lab) { font-size: var(--fs-caption); color: var(--text-3); font-weight: 700; }
-.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border); height: 100%; }
-.card-head { display: flex; align-items: center; gap: 8px; padding: 10px 20px 6px; flex-wrap: wrap; }
-.card-head .ic { font-size: 16px; color: var(--accent); display: flex; align-items: center; }
-.card-head .nm { font-size: var(--fs-title); font-weight: 600; letter-spacing: .3px; }
-.card-head .en { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; }
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
-.mini-btn:hover { border-color: var(--accent); color: var(--accent); }
-.mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.mini-btn.primary:hover { background: var(--accent-hover); }
-.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
-.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
-.tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
-.kc-assets { margin-left: 2px; }
 
-/* 今日三件事 */
-.date-nav { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.date-nav .dn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2); font-size: 14px; }
-.date-nav .dn:hover { background: var(--surface-3); }
-.date-nav .dd { padding: 0 12px; font-size: var(--fs-sub); font-weight: 500; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 128px; text-align: center; }
-/* ===== R169-T3：今日三件事的推荐依据浮层（右上角一枚小图标，不占台面高度） ===== */
-.card.focus { position: relative; }
-/* M6：26px → 28px 热区（图标尺寸不动，只撑点击盒子） */
-.focus-why-ico { position: relative; margin-left: auto; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--accent-2); cursor: pointer; transition: border-color var(--dur), box-shadow var(--dur); }
-.focus-why-ico:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.focus-why-ico.on { background: var(--accent); border-color: var(--accent); color: #fff; --ai-mark-fill: #fff; --ai-mark-eye: var(--accent); }
-.focus-why-ico .fwb { position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 999px; background: var(--accent); border: 1.5px solid var(--surface); }
-.focus-why { position: absolute; top: 42px; right: 12px; z-index: var(--z-dropdown, 40); width: 340px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: 0 12px 32px rgba(0, 0, 0, .14); padding: 10px 12px; }
-.fw-h { font-size: var(--fs-sub); font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.fw-h .hint { font-weight: 400; font-size: var(--fs-caption); color: var(--text-3); }
-.fw-row { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
-.fw-row .n { flex-shrink: 0; font-size: var(--fs-micro); color: var(--text-4); font-variant-numeric: tabular-nums; padding-top: 2px; }
+.desk-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.desk-heading { min-width: 0; }
+.desk-kicker {
+  margin-bottom: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 1.35px;
+  text-transform: uppercase;
+}
+.desk-heading h1 {
+  color: var(--text);
+  font-size: clamp(26px, 2.4vw, 34px);
+  font-weight: 700;
+  line-height: 1.14;
+  letter-spacing: -.035em;
+}
+.desk-heading p {
+  max-width: 640px;
+  margin-top: 7px;
+  color: var(--text-3);
+  font-size: var(--fs-sub);
+  line-height: 1.7;
+}
+
+.desk-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.focus-summary { position: relative; display: flex; align-items: center; gap: 6px; }
+.focus-pill,
+.extra-pill,
+.no-focus,
+.why-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  transition: border-color var(--dur), background var(--dur), color var(--dur);
+}
+.focus-pill:hover,
+.extra-pill:hover,
+.no-focus:hover,
+.why-trigger:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.focus-pill { max-width: 300px; }
+.focus-pill > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-name { color: var(--text); font-weight: 600; }
+.fp-pct { color: var(--accent-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.extra-pill { min-width: 32px; justify-content: center; padding: 0 8px; color: var(--text-3); font-weight: 700; }
+.extra-focus-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-popover);
+  width: 260px;
+  padding: 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.efp-kicker {
+  padding: 2px 4px 7px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.efp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-sub);
+  text-align: left;
+  cursor: pointer;
+}
+.efp-row:hover { background: var(--accent-light); color: var(--accent-ink); }
+.efp-row b { flex-shrink: 0; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.no-focus { color: var(--text-3); border-style: dashed; }
+.why-trigger { color: var(--text-3); }
+.why-trigger.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
+.why-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.desk-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  align-items: start;
+  gap: 22px;
+}
+.desk-main { min-width: 0; }
+
+/* ── 今日三件事：一张工作单里的三行 ── */
+.work-board,
+.hand-board {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+.work-board.all-done { background: color-mix(in srgb, var(--surface-2), var(--surface)); }
+.board-head,
+.hand-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.board-head {
+  min-height: 64px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+.board-title,
+.hand-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.board-ico {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  color: var(--accent-ink);
+}
+.board-title h2,
+.hand-heading h2 {
+  color: var(--text);
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -.015em;
+}
+.board-count,
+.hand-kicker {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+}
+.hand-kicker { letter-spacing: .07em; text-transform: uppercase; }
+.board-tools { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.icon-btn,
+.date-btn,
+.quiet-btn,
+.primary-btn,
+.hand-link,
+.foot-link,
+.foot-status,
+.rail-head button,
+.row-remove {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur), background var(--dur), color var(--dur);
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+}
+.icon-btn:hover,
+.quiet-btn:hover,
+.hand-link:hover,
+.foot-link:hover,
+.rail-head button:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.date-btn,
+.quiet-btn {
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.date-btn { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tool-sep { width: 1px; height: 16px; margin: 0 4px; background: var(--border); }
+.quiet-btn { display: inline-flex; align-items: center; gap: 5px; }
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-color: var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.primary-btn:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+.primary-btn:disabled,
+.quiet-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.focus-more-wrap { position: relative; }
+.focus-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-popover);
+  width: 180px;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.focus-more-menu button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 31px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  text-align: left;
+  cursor: pointer;
+}
+.focus-more-menu button:hover { background: var(--surface-2); color: var(--text); }
+
+.focus-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.fes-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: var(--radius-md);
+  color: var(--accent-ink);
+}
+.fes-copy { min-width: 0; flex: 1; }
+.fes-copy b { display: block; color: var(--text); font-size: var(--fs-body); }
+.fes-copy span { display: block; margin-top: 3px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.6; }
+.fes-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.focus-list { display: flex; flex-direction: column; }
+.focus-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto 28px;
+  align-items: center;
+  gap: 12px;
+  min-height: 74px;
+  padding: 13px 18px 13px 20px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur), box-shadow var(--dur);
+}
+.focus-row:hover { background: var(--surface-2); }
+.focus-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.focus-row.done { opacity: .65; }
+.focus-row.done .title-text { text-decoration: line-through; color: var(--text-3); }
+.row-check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color var(--dur), background var(--dur);
+}
+.row-check:hover { border-color: var(--accent); }
+.row-check.done { border-color: var(--accent); background: var(--accent); }
+.row-main { min-width: 0; }
+.row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.title-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 650;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 65%, var(--border));
+  border-radius: 99px;
+  background: var(--accent-light);
+  color: var(--accent-ink);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.row-meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.row-meta > span { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
+.row-side { display: flex; align-items: center; gap: 8px; }
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status.doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.status.done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.row-chevron { color: var(--text-4); }
+.row-remove {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  opacity: .48;
+}
+.row-remove:hover { border-color: var(--danger-border); background: var(--danger-bg-soft); color: var(--danger); opacity: 1; }
+.row-index {
+  color: var(--text-4);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.stale-row { border-style: dashed; background: transparent; }
+.stale-action { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); font-size: var(--fs-caption); white-space: nowrap; }
+.non-task-row { cursor: default; }
+.empty-row {
+  min-height: 58px;
+  border-bottom: 0;
+  color: var(--text-3);
+}
+.empty-row:hover { background: color-mix(in srgb, var(--accent-light) 55%, transparent); color: var(--accent-ink); }
+.empty-plus {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--accent-ink);
+}
+.empty-title { color: var(--text-2); font-weight: 600; }
+.done-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-top: 1px dashed var(--border);
+  background: color-mix(in srgb, var(--surface-2), transparent);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  letter-spacing: .02em;
+}
+.board-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 36%, var(--surface));
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.board-foot > span { display: inline-flex; align-items: center; gap: 4px; }
+.board-foot-spacer { flex: 1; }
+
+/* ── 手边的卡：宽屏三列 ── */
+.hand-board { margin-top: 18px; }
+.hand-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.hand-summary { flex-shrink: 0; color: var(--text-3); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
+.deck-empty {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 22px 20px;
+  color: var(--text-3);
+}
+.deck-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.deck-empty b { color: var(--text-2); font-size: var(--fs-body); }
+.deck-empty p { margin-top: 3px; font-size: var(--fs-caption); line-height: 1.6; }
+.hand-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+.hand-col { min-width: 0; padding: 13px 15px 15px; }
+.hand-col + .hand-col { border-left: 1px solid var(--border); }
+.hand-col-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  margin-bottom: 7px;
+  color: var(--text-2);
+}
+.hand-col-head > b { font-size: var(--fs-caption); font-weight: 700; }
+.hand-count {
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+}
+.hand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 3px 5px;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+.mini-list { display: flex; flex-direction: column; gap: 2px; }
+.mini-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 7px 7px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur);
+}
+.mini-item:hover { background: var(--surface-2); }
+.mini-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mini-check {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: #fff;
+}
+.mini-check.done { border-color: var(--accent); background: var(--accent); }
+.mini-leading { flex-shrink: 0; color: var(--text-3); }
+.mini-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.mini-title {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-meta {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-side {
+  flex-shrink: 0;
+  color: var(--text-4);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+}
+.mini-side.status-doing { color: var(--warning); }
+.mini-empty {
+  padding: 18px 7px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+  text-align: center;
+}
+
+/* ── 页脚 ── */
+.page-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 4px 2px;
+}
+.foot-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-micro);
+}
+.foot-status:hover { background: var(--surface-2); color: var(--text-2); }
+.foot-status.error { color: var(--danger); }
+.foot-sync { display: inline-flex; align-items: center; gap: 2px; }
+.save-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 99px;
+  background: var(--success);
+}
+.foot-status.error .save-dot { background: var(--danger); animation: savePulse 1.2s ease-in-out infinite; }
+@keyframes savePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.foot-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 3px;
+}
+.foot-gear:hover { background: var(--surface-3); color: var(--text); }
+.foot-spacer { flex: 1; }
+.foot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+/* ── 右侧案头栏 ── */
+.side-rail {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.rail-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+}
+.rail-head b { color: var(--text-2); font-size: var(--fs-caption); font-weight: 700; }
+.rail-head button {
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-micro);
+}
+.stat-list { display: flex; flex-direction: column; }
+.stat-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stat-row:last-child { border-bottom: 0; }
+.stat-row:hover { background: var(--surface-2); }
+.stat-row:disabled { cursor: default; opacity: .72; }
+.sk { color: var(--text-3); font-size: var(--fs-micro); }
+.sv {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.se { color: var(--text-3); font-size: var(--fs-micro); white-space: nowrap; }
+.se.accent { color: var(--accent-ink); font-weight: 700; }
+.recent-list { display: flex; flex-direction: column; padding: 5px; }
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.recent-item:hover { background: var(--surface-2); color: var(--text); }
+.recent-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recent-title {
+  overflow: hidden;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-meta { color: var(--text-3); font-size: var(--fs-micro); }
+.rail-empty { padding: 16px 13px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
+.rail-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+
+/* ── 推荐依据浮层 ── */
+.focus-why {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-popover);
+  width: 350px;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.fw-h { margin-bottom: 5px; color: var(--text); font-size: var(--fs-sub); font-weight: 700; }
+.fw-h .hint { color: var(--text-3); font-size: var(--fs-caption); font-weight: 400; }
+.fw-row { display: flex; gap: 8px; padding: 7px 0; border-top: 1px solid var(--border); }
+.fw-row .n { flex-shrink: 0; padding-top: 2px; color: var(--text-4); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
 .fw-row .b { min-width: 0; flex: 1; }
-.fw-row .t { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); }
-.fw-row .t.off { font-weight: 400; color: var(--text-4); }
-.fw-row .w { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.6; margin-top: 2px; }
-.fw-row .ai-tag { color: var(--accent-2); }
-.fw-f { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.7; border-top: 1px dashed var(--border); margin-top: 6px; padding-top: 7px; }
-.fw-acts { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.tag.rec { color: var(--accent-2); background: var(--accent-light); border: 1px dashed var(--accent); }
-.today-body { padding: 0 20px 10px; }
-/* R120-TB2：今日三件事——对齐原型（模块边框强调 + 方形勾选 + 编号右上 + 完成态安静收束），
-   ⚠ 功能不动：勾选/移除/复制昨日/导出/日期导航/双击开详情 全部保留 */
-.card.focus { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-lg); }
-/* R175（原型 all-completed 浅底）：原型的近白完成态底色以令牌化等价落地——surface-2 向 surface 调 60%，六主题自适应 */
-.card.focus.all-done { background: color-mix(in srgb, var(--surface-2) 60%, var(--surface)); }
-.card.focus:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent), var(--shadow-lg); }
-/* ★V3.8.7 焦点契约 #1：今日三件事是本页**唯一** display 级主体（原 W5「三标题统一 17px」把主角与工具区
-   抹成同规格，首屏无焦点）。判据 W7-1 钉：全页 display 唯一 + hero 重框。 */
-.card.focus .card-head .nm { font-size: var(--fs-display); font-weight: 700; color: var(--text); letter-spacing: -.02em; line-height: 1.2; }
-.card.focus .card-head .ic { color: var(--accent); }
-.card.focus .tc-title { font-size: var(--fs-body); font-weight: 600; }
-.card.focus .tc-num { color: var(--text-3); font-size: var(--fs-sub); font-weight: 500; opacity: 1; }
-.card.focus .today-card { padding: 12px 14px; min-height: 84px; border-radius: var(--radius-md); }
-.card.focus .today-card:not(.empty-card):hover { transform: translateY(-1px); }
-.card.focus .today-card:not(.empty-card) { border-color: var(--border); }
-/* R176（原型 selected）：accent 描边 + 白底 + 细环（1px ring + 柔和投影，替代旧 3px 光晕+淡底） */
-.card.focus .today-card.sel { border-color: var(--accent); background: var(--surface); animation: none; box-shadow: 0 0 0 1px var(--accent), 0 4px 12px color-mix(in srgb, var(--accent) 8%, transparent); }
-/* R94（B3）三件事全完成：**安静**完成态——整块轻微去饱和（R175：.5→.65 对齐原型，仍低饱和）+ 一行中性小字。
-   ⚠ 卡头（复制昨日 / 导出 / 日期导航）**不去饱和**——那是操作区，褪色会影响可用性。
-   不用庆祝动画、不用红色、不用进度百分比。 */
-.card.focus.all-done .today-cards { filter: saturate(.65); }
-.card.focus.all-done .tc-num { color: var(--text-3); }
-/* R175（原型 quiet-done-banner）：沉静收束行带上分隔虚线，居中 12px 中性字 */
-.td-done { margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: var(--fs-sub); color: var(--text-3); text-align: center; letter-spacing: .3px; }
-/* R52-F1：三件事横向并列——3 槽一行，压缩纵向空间（R175：槽距 8→12px 对齐原型 hero-grid） */
-.today-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.today-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 84px; }
-.today-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
-.today-card.sel { border-color: var(--accent); background: var(--surface); animation: none; box-shadow: 0 0 0 1px var(--accent), 0 4px 12px color-mix(in srgb, var(--accent) 8%, transparent); }
-.today-card.done { opacity: .6; animation: none; }
-.today-card.done .tc-title { text-decoration: line-through; color: var(--text-3); }
-/* ★M3（V3.8.32）：空槽是本页**唯一的主行动**，不是"缺一块"。
-   原实现给整格 55% 半透明 + 虚边 —— 那套视觉在别处一直是「禁用」的意思，
-   于是"今天还差一件事没排"读起来像"这个位置坏了"。现在改成：不透明度回 1、
-   虚边取 accent、文字取 accent，hover 才给淡底 —— 空位仍是空位（虚边），
-   但它是**可点的主行动**，而不是灰着的占位。 */
-.today-card.empty-card { border-style: dashed; border-color: var(--accent); background: transparent; align-items: center; justify-content: center; }
-.today-card.empty-card .tc-title { color: var(--accent); font-weight: 500; }
-.today-card.empty-card:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
-/* R117（04-61 C3）：失效槽卡——虚线 + 警示色，与中性的「空位」区分开；
-   ⚠ 末行与上方 `.card.focus .today-card:not(.empty-card)` 同权重，靠**源码顺序在后**生效（不要前移本组）。
-   ★M1（V3.8.28）：边框去琥珀，改 border-strong 中性虚线 —— 虚线本身已经说「这一格坏了」，
-   再叠一层琥珀就是第二次催促；卡内「源任务已失效 · 重新选取」才是用户要读的那句话。
-   与「空位卡」（opacity .55 + 内容居中 + 占位文案）仍可区分：失效卡留着原任务标题与标签。 */
-.today-card.stale-card { border-style: dashed; background: transparent; border-color: var(--border-strong); }
-.today-card.stale-card:hover { border-color: var(--text-3); background: var(--surface); }
-.card.focus .today-card.stale-card { border-color: var(--border-strong); }
-.tc-num { position: absolute; top: 12px; right: 14px; font-size: var(--fs-sub); color: var(--text-4); font-weight: 700; font-variant-numeric: tabular-nums; }
-.tc-row { display: flex; align-items: flex-start; gap: 8px; }
-/* R120-TB2：方形勾选框（对齐原型：16px / 4px 圆角 / 1.5px 边框 / 选中随主题强调色） */
-/* ★V3.8.7 焦点契约 #2：格内任务名与勾选框随主角字阶抬升（原 14px 字面量 / 16px 方块）
-   ——焦点不只靠标题，内容也参与；勾选框 16→18px 与 17px 字阶视觉对齐。判据 W7-1 钉。 */
-.tc-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: var(--fs-tiny); color: #fff; background: var(--surface); margin-top: 1px; transition: all var(--dur); }
-.tc-check.done { background: var(--accent); border-color: var(--accent); }
-.tc-title { font-size: var(--fs-headline); font-weight: 600; line-height: 1.35; flex: 1; }
-.tc-title.empty-t { color: var(--text-3); font-weight: 400; }
-.tc-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
-.tc-meta .tag { font-size: var(--fs-caption); padding: 1px 7px; }
-/* R176（原型 slot-tag）：三件事槽位标签统一中性灰（项目/指标不分色，tag 语义色别处不受影响） */
-.card.focus .tc-meta .tag.accent, .card.focus .tc-meta .tag.warn { background: var(--surface-3); color: var(--text-2); }
-/* ★V3.8.18（N1）删除入口常驻可见 + 热区 18px → 28px。
-   为什么不再 hover 才现形：这是一次不可逆的注意力操作（把一格移出「今天要做」），
-   藏起来等于"没人知道原来可以删"；18px 也低于 26px 的可点目标下限。
-   弱化改用「低对比度 + hover 才变红实底」——看得见但不抢戏，和"看不见"是两件事。
-   ★位置（top 7 / right 32）与 R46-8 一字未动：那里守的是"× 在编号牌左侧、不与复选框同角"，
-   本轮只改尺寸与可见性，不动它守的那条事实。 */
-.tc-remove { position: absolute; top: 7px; right: 32px; width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center; border-radius: 8px;
-  font-size: var(--fs-body); color: var(--text-3); cursor: pointer;
-  background: var(--surface-2); border: 1px solid var(--border);
-  opacity: .72; transition: all var(--dur);
+.fw-row .t { color: var(--text-2); font-size: var(--fs-caption); font-weight: 600; }
+.fw-row .t.off { color: var(--text-3); font-weight: 400; }
+.fw-row .w { margin-top: 2px; color: var(--text-3); font-size: var(--fs-micro); line-height: 1.6; }
+.fw-row .ai-tag { color: var(--accent-ink); }
+.fw-f { margin-top: 5px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--text-3); font-size: var(--fs-micro); line-height: 1.7; }
+.fw-acts { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+
+/* ── 选择任务弹窗 ── */
+.overlay { position: fixed; inset: 0; z-index: var(--z-overlay); background: var(--overlay-bg); }
+.picker-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: calc(var(--z-overlay) + 1);
+  display: flex;
+  flex-direction: column;
+  width: 620px;
+  max-width: min(92vw, 620px);
+  max-height: min(76vh, 760px);
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
-.tc-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); opacity: 1; }
-.tc-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; opacity: 1; }
-/* × 与右上编号牌现在都常驻，标题行必须让出这一条，否则任务名会被压在它们底下 */
-.today-card .tc-row { padding-right: 44px; }
-
-/* ★P5（V3.8.22）：R2-① 槽内子任务视口 CSS 全段随块退役（.tc-subs / .tc-sub / .tsub- 子类 / .tc-sub-more）。
-   留守会成孤儿规则——dead-css-scan 红；回流需求请先读 docs/需求梳理_三项界面调整_2026-10-16.md。 */
-
-/* R2-②：项目调度卡 CSS 全段随卡退役（ce-desc 由导出弹窗沿用保留） */
-.ce-desc { font-size: var(--fs-sub); color: var(--text-3); margin-bottom: 12px; line-height: 1.7; }
-
-/* 底部专区 Tab */
-
-/* 弹窗 */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); }
-.picker-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92vw; max-height: 70vh; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: calc(var(--z-overlay) + 1); display: flex; flex-direction: column; overflow: hidden; }
-/* R172-T9：记录抽屉（`.rec-fill` / `.rec-list-scroll`）随入口整合退役 */
-.pm-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
-.pm-head span:first-child { flex: 1; }
-.pm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); }
-.pm-close:hover { background: var(--surface-3); color: var(--text); }
-.pm-body { flex: 1; overflow-y: auto; padding: 14px 20px; }
-.picker-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all .1s; }
-.picker-item:hover { background: var(--accent-light); }
-.picker-item.disabled { opacity: .55; cursor: default; }
-.picker-item.disabled:hover { background: var(--surface-2); }
-.pi-check { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.pi-info { flex: 1; min-width: 0; }
-.pi-title { font-size: var(--fs-body); font-weight: 500; margin-bottom: 3px; }
-.pi-meta { display: flex; gap: 5px; flex-wrap: wrap; }
-.search-box { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.pm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.pm-head > div:first-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pm-head span { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: var(--fs-body); font-weight: 700; }
+.pm-head small { color: var(--text-3); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
+.pm-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.pm-close:hover { border-color: var(--border); background: var(--surface-2); color: var(--text); }
+.pm-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px; }
+.pm-filters { display: flex; align-items: center; gap: 7px; }
+.pm-select {
+  min-width: 128px;
+  max-width: 190px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+}
+.pm-select:hover,
+.pm-select:focus { border-color: var(--accent); color: var(--text); }
+.pm-status { min-width: 96px; }
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-3);
+}
 .search-box:focus-within { border-color: var(--accent); }
-.search-box input { border: none; outline: none; font-size: var(--fs-sub); width: 150px; background: transparent; color: var(--text); font-family: inherit; }
-/* R113-N6：任务选取弹窗筛选行（关键词 + 项目下拉，两维可叠加） */
-.pm-filters { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
-.pm-filters .search-box { flex: 1; min-width: 0; }
-.pm-filters .search-box input { width: 100%; }
-.pm-proj { flex-shrink: 0; max-width: 190px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-family: inherit; outline: none; cursor: pointer; }
-.pm-proj:hover { border-color: var(--accent); }
-.pm-proj:focus { border-color: var(--accent); color: var(--text); }
-/* B1-c（V3.8.26）：任务选择器 / 导出弹窗 8 处模板内联样式收口，值逐字等价。
-   组合选择器用于压过 .search-box / .picker-modal / .modal-footer-row 的既有规则。 */
-.search-box.pm-search-flat { margin: 0; }
-.picker-modal.pm-modal-export { width: 400px; }
-.pm-date-row { display: flex; gap: 8px; align-items: center; }
-.pm-date-input { flex: 1; }
+.search-box input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+}
+.search-box.pm-search-flat { margin: 0; flex: 1; }
+.pm-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 1px 7px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.picker-list { display: flex; flex-direction: column; gap: 3px; }
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 38%, var(--border)); background: var(--accent-light); }
+.picker-item:disabled { cursor: default; opacity: .5; }
+.pi-check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #fff;
+}
+.pi-check.disabled { background: var(--surface-3); color: var(--text-3); }
+.pi-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.pi-title { overflow: hidden; color: var(--text); font-size: var(--fs-caption); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pi-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--tag-neutral-bg);
+  color: var(--tag-neutral-text);
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
+.tag.doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.tag.done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.pi-go { flex-shrink: 0; color: var(--text-3); }
+.picker-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 16px;
+  color: var(--text-3);
+  text-align: center;
+}
+.picker-empty b { color: var(--text-2); font-size: var(--fs-body); }
+.picker-empty span { font-size: var(--fs-caption); }
+.picker-empty .quiet-btn { margin-top: 4px; }
+.pm-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 50px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.pm-foot > span { flex: 1; }
+.pm-modal-export { width: 430px; max-width: min(92vw, 430px); }
+.ts-label-pm { margin-bottom: 7px; color: var(--text-3); font-size: var(--fs-caption); font-weight: 600; }
+.pm-date-row { display: flex; align-items: center; gap: 8px; }
+.pm-date-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+}
+.pm-date-input:focus { border-color: var(--accent); }
 .pm-date-sep { color: var(--text-3); }
-.pm-export-desc { margin-top: 10px; }
-.modal-footer-row.pm-modal-footer { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); justify-content: flex-end; }
-.list-empty { text-align: center; padding: 30px; font-size: var(--fs-body); color: var(--text-3); }
-.ts-label-pm { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
-.ts-select-pm { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
-.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.modal-enter-active, .modal-leave-active { transition: all var(--dur) ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
-/* R52-BUG-1 的「系统事件灰显」（.picker-item.sys）已随选择器不再列系统事件而退役（R4-Ev 孤儿 CSS 第二批） */
-@media (max-width: 1080px) {
-  /* R52-F1/F2：窄窗口降级回纵向 */
-  .today-cards { grid-template-columns: 1fr; }
-/* R125：卡面微阴影（三件事 + 项目聚焦看板） */
-.today-card { box-shadow: var(--shadow-sm); }
+.pm-export-desc { margin-top: 10px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
+
+.fade-enter-active,
+.fade-leave-active { transition: opacity var(--dur-slow); }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+.modal-enter-active,
+.modal-leave-active { transition: opacity var(--dur), transform var(--dur) var(--ease-emphasis); }
+.modal-enter-from,
+.modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.97); }
+
+@media (max-width: 1120px) {
+  .desk-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
+  .hand-summary { display: none; }
+}
+@media (max-width: 960px) {
+  .desk-layout { grid-template-columns: minmax(0, 1fr); }
+  .side-rail { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rail-foot { grid-column: 1 / -1; }
+  .hand-grid { grid-template-columns: minmax(0, 1fr); }
+  .hand-col + .hand-col { border-top: 1px solid var(--border); border-left: 0; }
+}
+@media (max-width: 720px) {
+  .page { padding: 14px 16px 48px; }
+  .desk-head { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .desk-actions { justify-content: flex-start; width: 100%; }
+  .focus-pill { max-width: min(240px, calc(100vw - 112px)); }
+  .board-head { align-items: flex-start; flex-direction: column; gap: 9px; padding: 13px 15px; }
+  .board-tools { width: 100%; flex-wrap: wrap; }
+  .focus-row { grid-template-columns: 24px minmax(0, 1fr) 28px; gap: 9px; padding: 12px 12px 12px 15px; }
+  .focus-row .row-side { display: none; }
+  .focus-row .row-remove { grid-column: 3; }
+  .stale-action { grid-column: 2; justify-self: start; }
+  .fes-actions { width: 100%; padding-left: 58px; }
+  .focus-empty-state { flex-wrap: wrap; }
+  .board-foot { align-items: flex-start; flex-direction: column; }
+  .board-foot-spacer { display: none; }
+  .side-rail { grid-template-columns: minmax(0, 1fr); }
+  .pm-filters { align-items: stretch; flex-direction: column; }
+  .pm-select { width: 100%; max-width: none; }
+  .pm-summary span:last-child { display: none; }
+  .picker-modal { max-height: 84vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-row,
+  .mini-item,
+  .primary-btn,
+  .focus-pill,
+  .why-trigger,
+  .modal-enter-active,
+  .modal-leave-active { transition: none; }
+  .foot-status.error .save-dot { animation: none; }
 }
 </style>

@@ -46,6 +46,13 @@ const d = computed(() => store.data!)
 const route = useRoute()
 const router = useRouter()
 
+const props = withDefaults(defineProps<{
+  /** 独立二级页：隐藏新建入口（本面板本来无新建），空态主行动改为清空筛选。 */
+  secondaryMode?: boolean
+}>(), { secondaryMode: false })
+
+const searchQuery = ref('')
+
 // 高亮定位（B4：搜索好奇卡结果跳转；R51：声明顺序修复——viewMode/statusFilter 须先于 immediate watcher）
 const highlightId = ref<string | null>(null)
 const viewMode = ref<'card' | 'list' | 'kanban'>('card')
@@ -59,7 +66,7 @@ const curioFilters = computed(() => [
 ])
 const statusFilter = ref<CuriStatus | 'all'>('all')
 watch(() => route.query.hl, (hl) => {
-  if (!hl || typeof hl !== 'string' || route.path !== '/') return
+  if (!hl || typeof hl !== 'string') return
   // R117（04-61 B）：按 `?hk=` 认领——调度台首页同页还有任务卡消费者（认领 'task'），
   // 不认领时直接让路；只有真正滚到目标才清 query，避免把另一个消费者要用的 hl 清掉。
   const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
@@ -106,9 +113,11 @@ function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'd
 const filtered = computed(() => {
   // R110-LC（T3）：默认视图排除已归档好奇卡（只在 ⏳ 生命周期面板中查看 / 恢复）
   const alive = curiosities.value.filter(c => !c.lifecycleArchived)
-  const list = statusFilter.value === 'all'
+  let list = statusFilter.value === 'all'
     ? alive
     : alive.filter(c => c.status === statusFilter.value)
+  const q = searchQuery.value.trim().toLowerCase()
+  if (q) list = list.filter(c => c.question.toLowerCase().includes(q))
   const dirMul = sortDir.value === 'asc' ? 1 : -1
   return [...list].sort((a, b) => {
     const r = markRank(b) - markRank(a)
@@ -137,6 +146,11 @@ const statusCounts = computed(() => {
  * 回收站里点"恢复"= 撤销这次转化（戳记同时清除，本计数随之回落）。
  */
 const convertedCount = computed(() => (d.value.curiosities || []).filter(c => c.convertedAt).length)
+
+function clearCurioFilter(): void {
+  statusFilter.value = 'all'
+  searchQuery.value = ''
+}
 
 const kanbanCols = computed(() => {
   const statuses: CuriStatus[] = ['todo', 'doing', 'done', 'shelf']
@@ -172,6 +186,7 @@ function openDetail(id: string) {
     store.persistHot()
   }
 }
+defineExpose({ openDetail })
 function saveDetail() {
   if (detailId.value && editDraft.value.trim()) {
     update(detailId.value, { question: editDraft.value.trim() })
@@ -482,7 +497,8 @@ function srcShort(url: string): string {
 
     <div class="cz-body">
       <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->
-      <DeckControls panel="curio" :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
+      <DeckControls panel="curio" search search-ph="搜索好奇心..." :query="searchQuery" @search="searchQuery = $event"
+        :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
         :views="CURIO_VIEWS" :view="viewMode" @view="viewMode = $event as 'card' | 'list' | 'kanban'"
         :sort-dir="sortDir" :sort-dir-titles="['捕获时间倒序（新→旧），点击切换正序', '捕获时间正序（旧→新），点击切换倒序']" @sort-dir="toggleSortDir"
         :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
@@ -555,8 +571,9 @@ function srcShort(url: string): string {
         </template>
         <!-- G3（V3.8.27）：好奇心池零结果改走 EmptyState；class 保留为网格跨列锚点 -->
         <EmptyState v-if="!filtered.length" class="cz-empty" size="section" icon="bulb"
-          title="还没有好奇心"
-          hint="按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。" />
+          :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
+          :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。'"
+          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
       </div>
 
       <!-- 列表视图 -->
@@ -589,9 +606,10 @@ function srcShort(url: string): string {
             </div>
           </div>
         </template>
-        <EmptyState v-if="!filtered.length" icon="bulb" title="还没有好奇心"
-            desc="按 Ctrl+Shift+I 一键采集（支持先选中网页文字）"
-            action-label="盘一盘方向树" @action="$router ? null : null" />
+        <EmptyState v-if="!filtered.length" icon="bulb"
+          :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
+          :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集（支持先选中网页文字）。'"
+          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
       </div>
 
       <!-- 看板视图（跨列拖拽改状态） -->

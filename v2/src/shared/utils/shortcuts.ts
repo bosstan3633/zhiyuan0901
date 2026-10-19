@@ -16,11 +16,11 @@
  * 所以本文件不是"抽个常量"，而是**把四份清单合成一份可派生的结构**：
  * 三处 UI（速查面板 / 设置页 / 手册正文含独立分享版）都从这里派生，不再各写一份。
  *
- * ★切台键用 `{MOD}` 占位而不是写死 Alt：速查面板与设置页都要按**用户当前偏好**渲染真实键位。
- *   （这是本批唯一一处"文案随偏好变"的地方，因此派生函数一律显式收 mod 参数，不在模块里读 store。）
+ * V3.9.1：应用内切台键固定 Alt+1…9，设置页只读。
+ * 旧 `wsSwitchMod` 字段保留兼容存量数据，但不再影响任何实际键位或文案。
  */
 
-/** 修饰键偏好 → 展示文案（与 App.vue onGlobalKeydown 的五种分支一一对应，改一处必须改两处） */
+/** 修饰键 → 展示文案（仅保留旧数据兼容；应用内切台固定 Alt） */
 export const MOD_LABELS: Record<string, string> = {
   alt: 'Alt',
   ctrl: 'Ctrl',
@@ -29,21 +29,20 @@ export const MOD_LABELS: Record<string, string> = {
   none: '无修饰键',
 }
 
-/** 取修饰键展示文案；未设置时回落 Alt（repository 迁移后的库内默认值同为 alt） */
+/** 取修饰键展示文案；应用内切台固定 Alt */
 export function modLabelOf(mod?: string): string {
-  return MOD_LABELS[mod || 'alt'] || MOD_LABELS.alt
+  void mod
+  return MOD_LABELS.alt
 }
 
 /**
  * 把 `{MOD}` 占位换成真实修饰键文案；其余键位原样返回。
  *
- * ★`none`（纯数字键、无修饰）单独处理：直接拼成「无修饰键+1」是句读不通的废话，
- * 而这一档是**真实存在的用户选择**（设置页下拉第五项），不能当作边角情况糊过去——
- * 键位文案必须写成用户真能按的那个：就是「1」。
+ * V3.9.1 起只渲染固定 Alt，不再有“纯数字键”这一档。
  */
 export function resolveKeys(keys: string, mod?: string): string {
-  if ((mod || 'alt') === 'none') return keys.replace(/\{MOD\}\+/g, '')
-  return keys.replace(/\{MOD\}/g, modLabelOf(mod))
+  void mod
+  return keys.replace(/\{MOD\}/g, MOD_LABELS.alt)
 }
 
 /** 一条快捷键：keys = 按键（可含 {MOD}），action = 动作，where = 生效场景 */

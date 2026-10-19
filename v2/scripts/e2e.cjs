@@ -10,11 +10,11 @@
  *   E2E-34 ★R4-Dd Airtable 标签列名落盘（不碰网络，核配置链与 PAT 遮罩）
  *   E2E-35 ★R4-De 池卡定位落调度台卡池（采集后 Enter 那条链路不再跳死页）
  *   E2E-36 ★R4-Dg 导出 Markdown 含池卡 + 台名走单源（「资源卡池」）
- *   E2E-4  北极星「新增卡片/删除卡片」卡渲染（R45-1 三档周期联动改名）
+ *   E2E-4  调度台右栏「未归档」入口进入任务二级页并预选筛选
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
- *   E2E-7  调度台底部双 tab（R117-C1）：任务调度（默认）+ 好奇心培育（懒挂载）；方向台不再持任务模块
- *   E2E-8  调度台三件事 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值，R45 T-04 → R49 迁移）
+ *   E2E-7  V3.9.1 三类“查看全部”独立二级路由：任务/好奇心/资源各自可直达，二级页无新建入口
+ *   E2E-8  V3.9.1 两栏调度台：三件事工作单 + 手边卡预览 + 右侧案头栏；整行点击打开任务详情
  *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
  *   E2E-10 策展统一树：遗留投射记录迁移物化 + 源卡实时 + 原生卡 + 清空引用回落零影响（R53）
  *   E2E-11 方向台首屏项目卡头（★R3-B1 树即一级）+ 指标条未归档任务格 + 档位入表头（R50-F4/F5）
@@ -22,15 +22,15 @@
  *   E2E-29 ★R3-B2 方向树同目标拖拽排序 + 置顶（落位重写 order / 📌 钉到非主攻组前排）
  *   E2E-13 方向树返回方向台 + 项目详情头部添加成功指标 + 返回项目列表移除（R52-F5/F6/F8）
  *   E2E-14 项目调度指标下钻弹窗（R54-B2）
- *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A）
+ *   E2E-15 面包屑 + 来源感知返回 + 树定位闭环（R54-A；按钮退役后由来路提示 + Esc 承接）
  *   E2E-16 快速采集任务面板（R55-C）
  *   E2E-17 项目调度 4 指标恢复左列 + 下钻链路（R56-P1）
  *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
  *   E2E-19 删除策展台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
  *   E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）
- *   E2E-21 周报浮层可见 + 可关闭（R113-N3 P0：模板引用但未 import 的静默失效修复）
+ *   E2E-21 调度台页脚「今日战报」就地开弹窗并可关闭
  *   E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）
- *   E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 / 写链路：保存→pagehide→days 出现今天）
+ *   E2E-25 R174-3 按日快照落盘（画像页年度段读合并 + 写链路保存→pagehide→today）
  *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
  *   E2E-27 R2-⑧ 池控制行：新建单卡入池 → 批量全选打标签 → 批量软删进回收站
  *   E2E-28 R4-a 迁移报告卡：出卡 → 回退落停用开关并清报告 → 可重新执行迁移
@@ -149,21 +149,24 @@ async function main() {
   const treeRows = await page.locator('.gs-tt-row').count()
   report('E2E-3 全景退役归零 + 标签双栏仍两列', panNodes === 0 && navPan === 0 && wrapCols === 2 && treeRows >= 1, `panNodes=${panNodes} navPan=${navPan} cols=${wrapCols} treeRows=${treeRows}`)
 
-  // E2E-4 方向状态四格（R55-D1 迁调度台顶部；R57-F3 详细指标按钮移除 → 改验证四格自下钻抽屉）
-  // R110 修漂移：`.mb-cells` 已不存在（MetricBar 根为 .metric-bar + .mb-row）；「未归档任务」文案
-  //   已在 R65-F8 单行压缩时简化为「未归档」（全称保留在 tooltip）——两处选择器/文案同步。
+  // E2E-4（V3.9.1 重指）：合流指标条已退役，方向状态由两栏首页右栏承接。
+  // 本用例守的真实链路：右栏「未归档」读数 → 独立任务二级页 → 状态筛选预选 unarchived。
+  // 不再在首页寻找已迁走的 `.metric-bar/.mb-cell`。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  const metricBarOn = await page.locator('.metric-bar').first().isVisible().catch(() => false)
-  const cellCount = await page.locator('.mb-cell').count()
-  const offCourse = (await page.locator('.mb-cell .mb-k').nth(4).textContent().catch(() => '')) === '未归档'
-  const drillBtnGone = (await page.locator('.mb-drill').count()) === 0
-  await page.locator('.mb-cell').nth(4).click().catch(() => {})
-  await page.waitForTimeout(900)
-  const cellDrawer = await page.getByText('未归档任务 · 待归档清单').first().isVisible().catch(() => false)
-  await page.keyboard.press('Escape').catch(() => {})
-  report('E2E-4（R120-TB1 修订）方向状态五格迁调度台顶部（合流条）+ 各格自下钻', metricBarOn && cellCount === 5 && offCourse && drillBtnGone && cellDrawer,
-    'bar=' + metricBarOn + ' cells=' + cellCount + ' unarch=' + offCourse + ' drillBtnGone=' + drillBtnGone + ' cellDrawer=' + cellDrawer)
+  const sideRail = page.locator('.side-rail').first()
+  const unarchivedRow = sideRail.locator('.stat-row').filter({ hasText: '未归档' }).first()
+  const sideRailOn = await sideRail.isVisible().catch(() => false)
+  const unarchivedText = ((await unarchivedRow.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  await unarchivedRow.click().catch(() => {})
+  await page.waitForTimeout(1500)
+  const unarchivedUrl = page.url()
+  const unarchivedRoute = unarchivedUrl.includes('#/deck/task') && unarchivedUrl.includes('filter=unarchived')
+  const taskDeckOn = await page.locator('.deck-page .mgr-body').first().isVisible().catch(() => false)
+  const taskFilter = await page.locator('.deck-page select[title="状态筛选"]').first().inputValue().catch(() => '')
+  report('E2E-4 V3.9.1 右栏「未归档」→ 任务二级页并预选筛选',
+    sideRailOn && unarchivedText.includes('未归档') && unarchivedRoute && taskDeckOn && taskFilter === 'unarchived',
+    `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" url=${unarchivedUrl.split('#')[1] || ''} deck=${taskDeckOn} filter=${taskFilter}`)
 
   // E2E-5 PDF 双击 file:// 打开
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -262,40 +265,53 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 ★R2-③ 随迁 · ★W1.1 再随迁（V3.8.1 改名改序）：DeckTabs 三张卡（任务卡默认 / 好奇心卡 / 资源卡懒挂载）；方向台不再持任务模块
+  // E2E-7 V3.9.1：三类“查看全部”是独立二级路由，旧的底部 .bt-tab 已整体退役。
+  // 同时守“二级页无新建入口”：筛选/排序/批量仍在，但新建任务与新建资源卡按钮必须为 0。
+  const deckChecks = []
+  for (const [kind, host] of [['task', '.mgr-body'], ['curiosity', '.cz-body'], ['resource', '.pcp']]) {
+    await page.goto(base + '#/deck/' + kind, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(2200)
+    const panel = await page.locator(host).first().isVisible().catch(() => false)
+    const newButtons = await page.locator('.dk-new').count()
+    const importButton = kind === 'resource'
+      ? await page.locator('button', { hasText: '导入本地文件' }).count()
+      : 0
+    deckChecks.push({ kind, panel, newButtons, importButton })
+  }
+  const deckOk = deckChecks.every(x => x.panel && x.newButtons === 0 && x.importButton === 0)
+  const oldTabsGone = (await page.locator('.bt-tab').count()) === 0
+  // 浏览器返回：先回到首页，再同文档进入任务二级页；点“返回调度台”必须落回两栏首页。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
-  await page.waitForSelector('.bt-tab', { timeout: 8000 }).catch(() => {})
-  const tabsCount = await page.locator('.bt-tab').count()
-  // W1.1：默认 tab = 任务卡（第 1 枚激活）；好奇心卡第 2、资源卡第 3
-  const taskTabActive = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('任务卡')).catch(() => false)
-  const taskPaneOn = await page.locator('.tm-card, .trow, .tm-empty, .mgr-count').first().isVisible().catch(() => false)
-  // 懒挂载：未切到好奇 tab 前好奇心面板整棵不在 DOM（`.cz-batch-btn` 是面板内首个稳定锚点；
-  //   section#zy-mod-curiosity 常驻，故不能用它计数）
-  const curioBefore = await page.locator('.cz-batch-btn').count()
-  /*W1.1 随迁：好奇心卡改序到第 2 枚（原 nth(2)=好奇心培育）*/ await page.locator('.bt-tab').nth(1).click().catch(() => {})
+  await page.waitForTimeout(1000)
+  await page.evaluate(() => { location.hash = '#/deck/task' })
   await page.waitForTimeout(1200)
-  const curioPanelOn = await page.locator('.cz-batch-btn').first().isVisible().catch(() => false)
-  // 方向台不再有任务调度模块（搬迁后宿主为调度台）
-  await page.evaluate(() => { location.hash = '#/compass' })
-  await page.waitForTimeout(1800)
-  const dirTaskModule = await page.locator('#task-mgmt-module').count()
-  report('E2E-7 ★R2-③+W1.1 调度台底部三张卡：任务卡（默认）+ 好奇心卡 + 资源卡（好奇心懒挂载）；方向台无任务模块',
-    tabsCount === 3 && taskTabActive && taskPaneOn && curioBefore === 0 && curioPanelOn && dirTaskModule === 0,
-    'tabs=' + tabsCount + ' taskTab=' + taskTabActive + ' taskPane=' + taskPaneOn + ' curioBefore=' + curioBefore + ' curioOn=' + curioPanelOn + ' dirTaskModule=' + dirTaskModule)
+  await page.locator('.deck-back').first().click().catch(() => {})
+  await page.waitForTimeout(1000)
+  const backHome = (await page.locator('.desk-layout').count()) > 0
+  report('E2E-7 V3.9.1 三类查看全部独立二级路由：任务/好奇心/资源直达 + 二级页零新建入口 + 返回调度台',
+    deckOk && oldTabsGone && backHome,
+    deckChecks.map(x => `${x.kind}:panel=${x.panel},new=${x.newButtons},import=${x.importButton}`).join(' | ') + ` oldTabs=${oldTabsGone} backHome=${backHome}`)
 
-  // E2E-8 调度台首页（R49 迁移）：三件事卡片 + 项目调度面板（愿景/使命小卡 + 战略目标 + 四数值）
+  // E2E-8 V3.9.1 两栏调度台：左工作单 + 手边卡，右案头栏；旧的纵向卡片堆叠与卡内子任务视口退役。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  const todayCard = await page.locator('.today-card').first().isVisible().catch(() => false)
-  // R2-②：项目调度卡退役——槽内子任务视口承接执行细节；DeckTabs 三张卡同页
-  // ★P5 翻转（2026-10-16）：卡内子任务视口 tc-subs 随重复病根退役（子任务由下方 P4 全貌单行唯一承接），
-  //   本断言由「视口可见」翻转为「视口已不可见」，todayCard 与 DeckTabs 锚不变。
-  const curGone = !(await page.locator('.card.curation').first().isVisible().catch(() => false))
-  const slotSubsGone = !(await page.locator('.tc-subs').first().isVisible().catch(() => false))
-  const deckTabs = await page.locator('.bt-tab').count()
-  report('E2E-8 ★R2-②+P5 调度台三件事（卡内视口已退役，子任务走全貌单行）+ 项目调度卡退役 + DeckTabs 三张卡', todayCard && curGone && slotSubsGone && deckTabs === 3,
-    `todayCard=${todayCard} 调度卡已退役=${curGone} 卡内视口已删=${slotSubsGone} deckTabs=${deckTabs}`)
+  const home = await page.evaluate(() => ({
+    workBoard: !!document.querySelector('.work-board'),
+    focusRows: document.querySelectorAll('.focus-row').length,
+    handBoard: !!document.querySelector('.hand-board'),
+    handGrid: !!document.querySelector('.hand-grid'),
+    sideRail: !!document.querySelector('.side-rail'),
+    oldCuration: !!document.querySelector('.card.curation'),
+    oldSubs: !!document.querySelector('.tc-subs'),
+  }))
+  const firstFocus = page.locator('.focus-row[role="button"]').first()
+  if (await firstFocus.count()) await firstFocus.click().catch(() => {})
+  await page.waitForTimeout(900)
+  const drawerOpened = await page.locator('.drawer').first().isVisible().catch(() => false)
+  report('E2E-8 V3.9.1 两栏调度台：工作单 + 手边卡预览 + 案头栏；旧纵向卡面退役；整行点击打开右侧任务详情',
+    home.workBoard && home.focusRows === 3 && home.handBoard && home.handGrid && home.sideRail
+      && !home.oldCuration && !home.oldSubs && drawerOpened,
+    `workBoard=${home.workBoard} focusRows=${home.focusRows} handBoard=${home.handBoard} handGrid=${home.handGrid} sideRail=${home.sideRail} oldCuration=${home.oldCuration} oldSubs=${home.oldSubs} drawer=${drawerOpened}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -451,20 +467,21 @@ async function main() {
   }), [dsOldDay])
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  // 读合并断言：显式导航到调度台（热力图 W2 起在 #/ 而非设置页；上个用例把 hash 留在了资源台）；8 月块（第 8 个 .mb）出现 l2 格 + fullSince 徽章含老日子
-  await page.evaluate(() => { location.hash = '#/' })
-  await page.waitForTimeout(2200)
-  // ★W12(V3.8.12)随迁备案：全年 366 格自 V3.8.7 起收进「看全年 ›」展开态（默认 expanded=false），
-  //   而本用例的读合并断言直接找 .dz-months .mb 与 .dz-sec-h 里的 .dz-badge ——
-  //   **这两个都在展开态才渲染**，V3.8.7 起就注定找不到（漏迁三轮，本轮实跑才暴露）。
-  //   所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格（不因纯重建而褪色）+ fullSince 徽章含老日子。
-  //   修法：先点「看全年 ›」进展开态，再量。折叠本身由 W7-3 守着（双向可达）。
-  await page.locator('.dz-mini-more').first().click({ timeout: 8000 }).catch(() => {})
+  // 读合并断言（V3.9.1 重指）：热力图已迁画像洞察页 PiYear。
+  // 先到 #/profile，再用 PiRail「本年度」定位年度段，最后点「看全年 ›」进入展开态。
+  // 所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格，且 fullSince 说明仍含老日子。
+  await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2400)
+  const yearRail = page.locator('.pi-rail .pi-rnode').filter({ hasText: '本年度' }).first()
+  await yearRail.click().catch(() => {})
+  await page.waitForTimeout(700)
+  const yearModuleOn = await page.locator('#mod-year').first().isVisible().catch(() => false)
+  await page.locator('#mod-year .dz-mini-more').first().click({ timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(900)
   const dsExpanded = await page.locator('.dz-months .mb').count()
   const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
   // fullSince 徽章真实落点在网格下方的 .note 区（文案「调出维度自 X 起完整」），不在 .dz-sec-h 里
-  const dsBadge = await page.locator('.dz-sec-b .note, .note').first().innerText().catch(() => '')
+  const dsBadge = await page.locator('#mod-year .dz-sec-b .note').first().innerText().catch(() => '')
   // 写链路：进资源台 → 单击开抽屉 → 改标题 → 保存 → pagehide → 读回
   await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
@@ -492,9 +509,9 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
-  report('E2E-25 R174-3 按日快照落盘（读合并：老日子不褪色 8月l2格+fullSince；写链路：保存→pagehide→days 出现今天）★W12随迁：全年网格自 V3.8.7 起在「看全年 ›」展开态才渲染，本用例先点开再量；fullSince 徽章真实落点在 .note 区而非 .dz-sec-h',
-    dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
-    `月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
+  report('E2E-25 R174-3 按日快照落盘（画像页年度段读合并 + 保存→pagehide→今日写链路）',
+    yearModuleOn && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
+    `年度段=${yearModuleOn} 月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
   // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -552,7 +569,7 @@ async function main() {
   //   原锚 .tc-strategic-branch / .tree-project-branch / .tp-* 六个类名全部退役 ⇒ 本段曾因 host=undefined
   //   直接抛未捕获异常**终止整个脚本**，其后约 30 条用例从未执行（skill §0.1「中断比失败更危险」）。
   //   现按真实结构重写：舱=.tower（平级序列，用卡头 .tw-crumb 里的「战略目标 · X」判归属），
-  //   卡头=.tw-head / 标题=.tw-name-t / 手柄=.tw-grip / 动作组=.tw-acts .tw-act / 菜单=.tw-menu .twm-item。
+  //   卡头=.tw-head（整块可拖）/ 标题=.tw-name-t / 动作组=.tw-acts .tw-act / 菜单=.tw-menu .twm-item。
   //   所守行为未变：同目标内拖拽落位重写 order 且所见即所得、▾ 菜单置顶钉到前排并落库出 📌 徽标。
   const dragOut = await page.evaluate(async () => {
     const dirNameOf = (t) => {
@@ -573,20 +590,21 @@ async function main() {
     const read = () => group.map(nameOf)
     const before = read()
     const dt = new DataTransfer()
-    // ★dragstart/dragover/drop 三件套**全部绑在 .tw-grip 手柄上**（CompassTower 模板 L141-150），
-    //   不是卡头 .tw-head —— 手柄才draggable=true，卡头只负责点击进全景。
-    //   而 drop-on 落位指示绑在**舱容器 .tower** 上（dropOn prop → :class），两处各挂各的。
-    const grip = group[0].querySelector('.tw-grip')
-    const grip2 = group[1].querySelector('.tw-grip')
+    // ★V3.9.1：独立手柄 .tw-grip 已退役，dragstart/dragover/drop 三件套全部绑在整块卡头 .tw-head 上。
+    //   卡头同时负责点击进全景；onHeadDragStart 会在按钮/输入/菜单上取消拖拽。
+    //   drop-on 落位指示仍绑在**舱容器 .tower** 上（dropOn prop → :class），两处各挂各的。
+    const head = group[0].querySelector('.tw-head')
+    const head2 = group[1].querySelector('.tw-head')
     const tower2 = group[1]
-    if (!grip || !grip2) return { ok: false, why: '舱头缺少拖拽手柄 .tw-grip' }
-    grip.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
-    grip2.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    if (!head || !head2) return { ok: false, why: '舱头缺少可拖拽卡头 .tw-head' }
+    const headDraggable = head.getAttribute('draggable') === 'true'
+    head.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
+    head2.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
     // Vue 的 class 绑定在下一个 tick 才落到 DOM，同步读必假——落位指示要等一拍再量
     await new Promise((r) => setTimeout(r, 120))
     const showedDrop = tower2.classList.contains('drop-on')
-    grip2.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
-    grip.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }))
+    head2.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    head.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }))
     // 落位后走 store.persist() → Vue 重渲染 → DOM 重排；数据层 order 已即时写入，
     // 但 DOM 顺序要等下一个 tick 后的重排落定。900ms 实测偏紧（读到的仍是旧序），给到 1600ms。
     await new Promise((r) => setTimeout(r, 1600))
@@ -596,7 +614,7 @@ async function main() {
     const stored = await chrome.storage.local.get('zy_data_v2')
     const dirs = ((stored['zy_data_v2'] || {}).compass?.directions || [])
     const dir = dirs.find((x) => (x.projects || []).length >= 2 && x.name === dirNameOf(group[0]))
-    return { ok: showedDrop && after[0] === before[1] && after[1] === before[0], showedDrop, before, after,
+    return { ok: headDraggable && showedDrop && after[0] === before[1] && after[1] === before[0], headDraggable, showedDrop, before, after,
       // order 是可选字段（`order?: number`），种的数据本来没有；用 ?? '-' 免得诊断里一串 undefined 掩盖真因
       orders: (dir?.projects || []).map((x) => x.name + '=' + (x.order ?? '-')) }
   })
@@ -636,7 +654,7 @@ async function main() {
       moved: !!now[0] && nameOf(now[0]) === before[1], badge,
       pinned: (dir?.projects || []).filter((x) => x.pinned).map((x) => x.name) }
   })
-  report('E2E-29 ★R3-B2 方向台拖拽排序（落位重写 order 且所见即所得）+ ▾ 菜单置顶（钉到非主攻组前排 + 📌 徽标 + 落库）★W12随迁：选择器由已退役的 .tc-strategic-branch/.tree-project-branch/.tp-* 改钉 .tower/.tw-head/.tw-name-t/.tw-grip/.tw-acts/.tw-menu',
+  report('E2E-29 ★R3-B2 方向台整块舱头拖拽排序 + ▾ 菜单置顶（落位重写 order / 📌 徽标 / 落库）★V3.9.1：独立 .tw-grip 手柄退役，改钉 .tw-head',
     dragOut.ok && pinOut.ok, `拖拽=${JSON.stringify(dragOut)} 置顶=${JSON.stringify(pinOut)}`)
 
   // E2E-14 指标下钻弹窗（R54-B2）：调度台项目调度 4 格可点击 → 弹窗列指标清单
@@ -660,22 +678,24 @@ async function main() {
   report('E2E-14 ★R2-② 指标下钻弹窗随项目调度卡退役（能力去向：方向台展板 metric-sec 任务行）——弹窗不再出现、展板任务行在位', drillModal === false && drillRow && drillGone,
     `modal=${drillModal} row=${drillRow} gone=${drillGone}`)
 
-  // E2E-15 二级导航闭环（R54-A）：项目详情 → 跳树带定位与来源 → 树返回按钮=返回项目详情 → 回到项目详情
+  // E2E-15 二级导航闭环（R54-A / V3.9.1）：项目详情 → 跳树带定位与来源 → 来路提示可见 → Esc 返回项目详情。
+  // 「← 返回项目详情」按钮已退役，但 fromProjId / goBack / Esc 的来源感知能力保留。
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
   await page.waitForTimeout(1500)
   const crumbUp = await page.getByText('方向台', { exact: true }).first().isVisible().catch(() => false)
   // R121：树定位入口收进展板 ⋯ 菜单（原 back-row「🌳 完整方向树」按钮已随重排退役）
   await page.locator('.pb-more-wrap .mini-btn.icon').first().click().catch(() => {})
   await page.waitForTimeout(400)
-  await page.getByText('🌳 在完整方向树中定位').first().click().catch(() => {})
+  await page.locator('.pb-menu .pm-item', { hasText: '在完整方向树中定位' }).first().click().catch(() => {})
   await page.waitForTimeout(1500)
   const urlHasFrom = page.url().includes('from=proj') && page.url().includes('hl=')
-  const backToProjBtn = await page.getByText('← 返回项目详情').first().isVisible().catch(() => false)
-  await page.getByText('← 返回项目详情').first().click().catch(() => {})
+  const fromProjLabel = ((await page.locator('.hero-from').first().innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(1500)
   const backOnProj = page.url().includes('/compass/projects') && page.url().includes('p=e2e-proj-1')
-  report('E2E-15 面包屑+来源感知返回+树定位闭环（R54-A）', crumbUp && urlHasFrom && backToProjBtn && backOnProj,
-    `crumb=${crumbUp} fromHl=${urlHasFrom} backBtn=${backToProjBtn} backOnProj=${backOnProj}`)
+  report('E2E-15 面包屑+来源感知返回+树定位闭环（R54-A · V3.9.1 按钮退役后由来源提示 + Esc 承接）',
+    crumbUp && urlHasFrom && fromProjLabel.includes('来自项目「E2E 策展项目」') && backOnProj,
+    `crumb=${crumbUp} fromHl=${urlHasFrom} fromLabel="${fromProjLabel}" backOnProj=${backOnProj}`)
 
 
   // E2E-16 快速采集任务（R55-C）：应用内面板四字段非必填 → 保存进全域任务
@@ -844,28 +864,25 @@ async function main() {
     'drag=' + dropResult + ' metricId=' + moved.metricId + ' taskIds双写=' + moved.inTaskIds)
 
 
-  // E2E-21 调度台入口整合（R172-T9 · 取代原周报浮层用例）：
-  // 原用例（R113-N3 P0）测的是"模板引用了组件却从未 import ⇒ 点按钮毫无反应"这个病根；
-  // 组件退役后病根消失，但**入口必须依然真能到达** —— ★W9 退役重指带备案：仪表盘整块再迁画像洞察页。
-  // ★W12 实跑补随迁备案：原判据量的是 `.dz-sec` 概览带 + `.dz-chip` 存量卡，
-  //   但 W10 已把画像洞察页**三段式时间轴重构**并拆成 PiHero/PiRail/PiToday/PiRhythm/PiYear 五组件，
-  //   `.dz-sec` / `.dz-chip` 两类只留在 dashboard 自己的 Heatmap/ReviewPanel 里，宿主页上一个都没有
-  //   ⇒ chips 恒假，本条自 W10重构起就一直红着（本轮实跑才暴露）。
-  //   现改钉真结构：`.pi-page` 页面根 + `.pi-hero` 画像 Hero + `.pi-tl` 时间轴，宿主与形态两处都验到。
+  // E2E-21（V3.9.1 重指）：调度台页脚「今日战报」不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。
+  // 本用例守「入口真的连到组件」这件事：点页脚入口 → 战报弹窗出现 → 关闭钮收起。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
-  const revBtn = page.locator('.mb-act.cta').first()
-  const revBtnText = ((await revBtn.innerText().catch(() => '')) || '').replace(/\s+/g, '')
-  await revBtn.click()
+  const battleBtn = page.locator('.page-foot .foot-link').first()
+  const battleBtnText = ((await battleBtn.innerText().catch(() => '')) || '').replace(/\s+/g, '')
+  await battleBtn.click()
   await page.waitForTimeout(1400)
-  const revUrl = page.url()
-  const revAtProfile = /\/profile/.test(revUrl)
-  const revPage = await page.locator('.pi-page').first().isVisible().catch(() => false)
-  const revHero = await page.locator('.pi-hero').first().isVisible().catch(() => false)
-  const revTimeline = await page.locator('.pi-tl').first().isVisible().catch(() => false)
-  report('E2E-21 调度台「📈 复盘」直达画像洞察页 /profile（R172-T9 · ★W9 重指 · ★W12补随迁：判据由 W10 重构前的 .dz-sec/.dz-chip 改钉 .pi-page/.pi-hero/.pi-tl）',
-    revBtnText.includes('复盘') && revAtProfile && revPage && revHero && revTimeline,
-    'btn=' + JSON.stringify(revBtnText) + ' atProfile=' + revAtProfile + ' page=' + revPage + ' hero=' + revHero + ' timeline=' + revTimeline)
+  const battleModal = page.locator('.dz-day-modal').first()
+  const battleOpen = await battleModal.isVisible().catch(() => false)
+  const battleTitle = ((await battleModal.locator('.dz-day-title').first().innerText().catch(() => '')) || '').replace(/\s+/g, '')
+  const battleCloseBtn = battleModal.locator('[aria-label="关闭"]').first()
+  const battleCloseVisible = await battleCloseBtn.isVisible().catch(() => false)
+  await battleCloseBtn.click().catch(() => {})
+  await page.waitForTimeout(700)
+  const battleClosed = !(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))
+  report('E2E-21 V3.9.1 调度台页脚「今日战报」就地开弹窗并可关闭',
+    battleBtnText.includes('今日战报') && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
+    `btn="${battleBtnText}" modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
 
   // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。
   // 走「设置 › AI 助手 › 本周回顾」：它已接左栏（投料原文）与指令框，且不依赖真网关——
@@ -970,9 +987,9 @@ async function main() {
   await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  await page.evaluate(() => { location.hash = '#/?hl=e2e-pool-1&hk=res' })
+  await page.evaluate(() => { location.hash = '#/deck/resource?hl=e2e-pool-1&hk=res' })
   await page.waitForTimeout(1600)
-  const poolTabOn = await page.locator('.bt-tab.on').first().textContent().then((t) => (t || '').includes('资源卡')).catch(() => false)
+  const poolDeckOn = await page.locator('.deck-page .pcp').first().isVisible().catch(() => false)
   const hlNode = page.locator('[data-rid="e2e-pool-1"]')
   const hlCount = await hlNode.count()
   const hlFlash = hlCount ? (await hlNode.first().getAttribute('class').catch(() => '') || '').includes('flash') : false
@@ -992,30 +1009,32 @@ async function main() {
     const hot = raw['zy_stats_v1']
     return { n: hit.length, kind: hit.length ? hit[0].kind : '', hotEntry: hot && hot.cards ? hot.cards['e2e-pool-1'] : null }
   }))
-  report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开详情记一次调出（热度键与事件日志双落盘）',
-    poolTabOn && hlCount === 1 && hlFlash && drawerTitle.includes('E2E 池卡定位') && callEv.n > 0 && !!callEv.hotEntry,
-    `池tab=${poolTabOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)}`)
+  report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（独立资源二级页 + 目标卡高亮）+ 打开详情记一次调出（热度键与事件日志双落盘）',
+    poolDeckOn && hlCount === 1 && hlFlash && drawerTitle.includes('E2E 池卡定位') && callEv.n > 0 && !!callEv.hotEntry,
+    `资源二级页=${poolDeckOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)}`)
 
-  // E2E-27（R2-⑧）：池管理面控制行——新建单卡 → 批量打标签 → 批量软删（三步都走真实点击）
-  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  // E2E-27（R2-⑧ · V3.9.1 重指）：独立资源二级页不得再有新建入口；
+  //   批量全选打标签 → 批量软删仍走真实点击，种卡只是替代已退役的“新建”准备步骤。
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  // ★W1.1 随迁：默认档由池切到任务卡 ⇒ 进池面板须先显式点「资源卡」tab（池面板 v-show 常驻但隐藏，按钮点不到）
-  await page.locator('.bt-tab').nth(2).click().catch(() => {})
-  await page.waitForTimeout(900)
-  const countBefore = await page.locator('.pcp-card').count()
-  await page.locator('.dk-row[data-panel="pool"] .dk-new').click().catch(() => {})
-  await page.waitForTimeout(500)
-  const popOn = await page.locator('.pcp-pop').count()
-  const popInputs = page.locator('.pcp-pop input')
-  await popInputs.nth(0).fill('E2E 新建池卡').catch(() => {})
-  await popInputs.nth(1).fill('https://example.com/new').catch(() => {})
-  await popInputs.nth(2).fill('E2E 标签甲').catch(() => {})
-  await page.getByText('存入卡池').first().click().catch(() => {})
-  await page.waitForTimeout(900)
-  const newCard = page.locator('.pcp-card', { hasText: 'E2E 新建池卡' }).first()
-  const newCardOn = await newCard.isVisible().catch(() => false)
-  const countAfterNew = await page.locator('.pcp-card').count()
+  const poolNewGone = (await page.locator('.dk-new').count()) === 0
+  const seedTitle = 'E2E 批量探针池卡'
+  await page.evaluate((title) => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']
+    d.resources = (d.resources || []).filter(r => r.title !== title)
+    d.resources.unshift({
+      id: 'e2e-batch-pool', kind: 'resource', title, linkType: 'url', link: 'https://example.com/batch-pool',
+      workspaceId: 'zy-curation', categoryId: '', tags: ['E2E 标签甲'], pinned: false, callCount: 0,
+      createdAt: Date.now(), updatedAt: Date.now(), description: '', customFields: {}, assets: []
+    })
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }), seedTitle)
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  const countBefore = await page.locator('.pcp-card, .pcp-row').count()
+  const seedCard = page.locator('.pcp-card, .pcp-row', { hasText: seedTitle }).first()
+  const seedCardOn = await seedCard.isVisible().catch(() => false)
   // 批量：进批量态 → 全选 → 加标签 → 应用
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').trim() === '批量') b.click() })
   await page.waitForTimeout(400)
@@ -1031,27 +1050,27 @@ async function main() {
     let pinia = null
     for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
     const st = pinia && pinia._s.get('app')
-    const c = st && (st.data.resources || []).find(x => x.title === 'E2E 新建池卡' && !x.deletedAt)
+    const c = st && (st.data.resources || []).find(x => x.title === 'E2E 批量探针池卡' && !x.deletedAt)
     return { found: !!c, tags: c ? c.tags : [], ws: c ? c.workspaceId : '' }
   })
   // 批量软删：删完这张卡应当从台面消失，且带 deletedAt（回收站族）
-  await page.getByText('🗑 删除（进回收站）').first().click().catch(() => {})
+  await page.locator('.pcp .dkb-bar button', { hasText: '删除（进回收站）' }).first().click().catch(() => {})
   await page.waitForTimeout(900)
-  const goneAfterBatch = (await page.locator('.pcp-card', { hasText: 'E2E 新建池卡' }).count()) === 0
+  const goneAfterBatch = (await page.locator('.pcp-card, .pcp-row', { hasText: seedTitle }).count()) === 0
   const softDeleted = await page.evaluate(() => {
     const app = document.querySelector('#app').__vue_app__
     const prov = app && app._context && app._context.provides
     let pinia = null
     for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
     const st = pinia && pinia._s.get('app')
-    const c = st && (st.data.resources || []).find(x => x.title === 'E2E 新建池卡')
+    const c = st && (st.data.resources || []).find(x => x.title === 'E2E 批量探针池卡')
     return !!(c && c.deletedAt)
   })
-  report('E2E-27 ★R2-⑧ 池控制行：新建入池（计数+1）→ 批量全选打标签 → 批量软删进回收站',
-    popOn === 1 && newCardOn && countAfterNew > countBefore && batchBarOn
+  report('E2E-27 ★R2-⑧ V3.9.1 二级资源页零新建入口 → 批量全选打标签 → 批量软删进回收站',
+    poolNewGone && seedCardOn && countBefore >= 1 && batchBarOn
     && tagged.found && tagged.ws === 'zy-curation' && (tagged.tags || []).includes('E2E 标签甲') && (tagged.tags || []).includes('E2E 批量标签')
     && goneAfterBatch && softDeleted,
-    `浮层=${popOn} 新卡上屏=${newCardOn} 计数=${countBefore}→${countAfterNew} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
+    `新建入口归零=${poolNewGone} 种子卡上屏=${seedCardOn} 初始计数=${countBefore} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
 
   // E2E-30（R3-Ca）：池面板补齐——列表视图 / 待打标筛选 / 批量反选 / 右键菜单置顶
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -1063,14 +1082,14 @@ async function main() {
     d.resources.unshift(mk('e2e-ca-1', 'E2E 池卡甲', ['E2E 标签甲']), mk('e2e-ca-2', 'E2E 池卡乙', []), mk('e2e-ca-3', 'E2E 池卡丙', ['E2E 标签丙']))
     return chrome.storage.local.set({ zy_data_v2: d })
   }))
-  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2600)
-  // ★W1.1 随迁：默认档改为任务卡 ⇒ 先显式点到「资源卡」tab 再操作池面板
-  await page.locator('.bt-tab').nth(2).click().catch(() => {})
-  await page.waitForTimeout(800)
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').includes('退出批量')) b.click() })
   await page.waitForTimeout(400)
+  // V3.9.1：池面板默认列表视图；先显式切网格量一次，再切列表量一次，才是在测“两视图同源”。
+  await page.locator('.dk-row[data-panel="pool"] .dk-view', { hasText: '网格' }).click().catch(() => {})
+  await page.waitForTimeout(600)
   const gridCount = await page.locator('.pcp-card').count()
   await page.locator('.dk-row[data-panel="pool"] .dk-view', { hasText: '列表' }).click().catch(() => {})
   await page.waitForTimeout(600)
@@ -1119,11 +1138,9 @@ async function main() {
     d.curiosities.unshift(mk('e2e-cb-1', 'E2E 好奇甲'), mk('e2e-cb-2', 'E2E 好奇乙'))
     return chrome.storage.local.set({ zy_data_v2: d })
   }))
-  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/deck/task', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  /*W1.1 随迁：任务卡改序到第 1 枚（原 nth(1)=任务调度）*/ await page.locator('.bt-tab').nth(0).click().catch(() => {})
-  await page.waitForTimeout(900)
   // 按钮文案是「☑ 批量管理」/「✓ 完成」——按文案找，别按 .cz-batch-btn 的第一枚（那是 AI 转化研判钮）
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="task"] .dk-batch'); if (b && (b.textContent || '').includes('批量管理')) b.click() })
   await page.waitForTimeout(600)
@@ -1144,7 +1161,7 @@ async function main() {
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="task"] .dk-batch'); if (b && (b.textContent || '').includes('批量管理')) b.click() })
   await page.waitForTimeout(600)
   const selAfterReenter = parseInt(((await page.locator('.mgr-body .dkb-count').textContent().catch(() => 'x')) || '').replace(/\D/g, '') || 'x', 10)
-  /*W1.1 随迁：好奇心卡改序到第 2 枚（原 nth(2)=好奇心培育）*/ await page.locator('.bt-tab').nth(1).click().catch(() => {})
+  await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1400)
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="curio"] .dk-batch'); if (b && (b.textContent || '').includes('批量管理')) b.click() })
   await page.waitForTimeout(600)
@@ -1468,20 +1485,26 @@ async function main() {
   const paNone = await paSearch('zzqqxx')                    // 零命中不许捞出一张
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
-  // 结果表失效验证：先在关面板的状态下经界面新建一张卡，再开面板搜它
+  // 结果表失效验证：先在关面板的状态下经真实快捷键采集面板新建一张卡，再开面板搜它。
+  // V3.9.1 二级页已按要求移除“新建”，所以这条准备步骤改走用户真正的建卡主路径。
   const paPreMissing = (await paSearch('E2E-Pa 新建缓存卡')).titles.length === 0
   await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
-  // ★W1.1 随迁：默认档改为任务卡 ⇒ 先显式点到「资源卡」tab 再进池面板
-  await page.locator('.bt-tab').nth(2).click().catch(() => {})
-  await page.waitForTimeout(800)
-  await page.locator('.dk-row[data-panel="pool"] .dk-new').click().catch(() => {})
-  await page.waitForTimeout(500)
-  await page.locator('.pcp-pop input').nth(0).fill('E2E-Pa 新建缓存卡').catch(() => {})
-  await page.locator('.pcp-pop input').nth(1).fill('https://e2e-pa.test/new').catch(() => {})
-  await page.getByText('存入卡池').first().click().catch(() => {})
+  await worker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({ url: chrome.runtime.getURL('src/newtab/index.html') + '*' })
+    if (tabs[0] && tabs[0].id) await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-capture' })
+  })
+  await page.getByText('快速采集资源卡').first().waitFor({ state: 'visible', timeout: 6000 }).catch(() => {})
+  await page.locator('.gp-overlay.open .gp-field-input').nth(0).fill('E2E-Pa 新建缓存卡').catch(() => {})
+  await page.locator('.gp-overlay.open .gp-field-input').nth(1).fill('https://e2e-pa.test/new').catch(() => {})
+  await page.locator('.gp-overlay.open button', { hasText: '保存（Ctrl+Enter）' }).first().click().catch(() => {})
   await page.waitForTimeout(1200)
+  // 保存后采集面板仍以“已保存”状态留在屏幕上。先按用户真实路径关掉浮层，
+  // 再打开搜索，避免 paOpen() 看到已有 open 浮层后误以为搜索面板已经打开。
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForFunction(() => !document.querySelector('.gp-overlay.open'), null, { timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(300)
   const paAfterCreate = (await paSearch('E2E-Pa 新建缓存卡')).titles
   const paHits = (r, s) => r.titles.some(t => t.includes(s))
   const paAllOk = [paTitles.cjk, paTitles.py, paTitles.norm, paTitles.digit].every(s => paAll.titles.some(t => t.includes(s)))
@@ -1590,11 +1613,9 @@ async function main() {
       d.resources = (d.resources || []).filter(r => !String(r.title || '').includes(q))
       return chrome.storage.local.set({ zy_data_v2: d })
     }), { ws: wsList, q: epQ })
-    await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+    await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2400)
-    /*W1.1 随迁：好奇心卡改序到第 2 枚（原 nth(2)=好奇心培育）*/ await page.locator('.bt-tab').nth(1).click().catch(() => {})
-    await page.waitForTimeout(1300)
     /* ★点的是探针那张卡所在的行，不是"第一行"：面板默认按创建时间排，硬造的探针卡不一定排最前——
        取第一行会转化到别人的卡上，toast 照样绿、落库核收空（第一版就红在这）。 */
     await page.locator('.cz-list-item, .cz-card', { hasText: epQ }).first().click().catch(() => {})
@@ -1652,7 +1673,7 @@ async function main() {
   ])
   // 还原快照，别把后面的用例建在同一份改造过的库上
   await page.evaluate((raw) => chrome.storage.local.set({ zy_data_v2: JSON.parse(raw) }), epSnapshot)
-  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   const epOk = (r) => r.form.开 && r.form.文本[0] === '资源卡池' && r.form.选项[0].endsWith('→zy-curation')
@@ -1784,38 +1805,58 @@ await paOpen()
   await page.mouse.move(4, 4)
   await page.waitForTimeout(250)
   const gpRow = await page.evaluate((t) => {
-    // ★W1.1 随迁：精确标题匹配（诱饵卡标题以同一前缀开头，includes 会先命中它）
-    const row = [...document.querySelectorAll('.gp-result-item')].find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').trim() === t)
+    // 搜索结果的首行会被默认选中，且鼠标扫过结果区也会把 hover 行保持为 selected。
+    // 本用例要验的是「未选中行 hover 才显动作区」，因此从真实结果中挑一条非选中资源行，
+    // 而不是假设固定探针一定是未选中态。
+    const rows = [...document.querySelectorAll('.gp-result-item')]
+    const candidates = rows.filter(r =>
+      r.querySelector('.gp-ri-actions') && !r.classList.contains('selected') &&
+      ((r.querySelector('.gp-ri-title') || {}).textContent || '').trim()
+    )
+    const row = candidates.find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').trim() === t) || candidates[0]
     if (!row) return { found: false, titles: [], actsOpacity: '' }
+    const target = ((row.querySelector('.gp-ri-title') || {}).textContent || '').trim()
     const box = row.querySelector('.gp-ri-actions')
     return {
       found: true,
+      target,
       titles: [...row.querySelectorAll('.gp-ri-act')].map(b => (b.getAttribute('title') || '').trim()),
-      // 探针行必须"未选中"，它才是 hover 前该隐藏的那个样本（面板默认 selected 落在别的行上）
       未选中: !row.classList.contains('selected'),
       actsOpacity: box ? getComputedStyle(box).opacity : '无动作区',
       全部行: [...document.querySelectorAll('.gp-result-item .gp-ri-title')].map(x => ((x.textContent || '').trim())).slice(0, 5),
     }
   }, gpQ)
-  await page.locator('.gp-result-item', { has: page.locator('.gp-ri-title', { hasText: new RegExp('^' + gpQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) }).first().hover().catch(() => {})
+  const gpTarget = gpRow.target || gpQ
+  await page.locator('.gp-result-item', { has: page.locator('.gp-ri-title', { hasText: new RegExp('^' + gpTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) }).first().hover().catch(() => {})
   await page.waitForTimeout(350)
   const gpHover = await page.evaluate((t) => {
     const row = [...document.querySelectorAll('.gp-result-item')].find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').trim() === t)
     const box = row && row.querySelector('.gp-ri-actions')
     return box ? Number(getComputedStyle(box).opacity) : -1
-  }, gpQ)
+  }, gpTarget)
   const gpClickStar = () => page.evaluate((q) => {
     const row = [...document.querySelectorAll('.gp-result-item')].find(r => ((r.querySelector('.gp-ri-title') || {}).textContent || '').trim() === q)
     const b = row && row.querySelector('.gp-ri-act')          // 第一枚就是星标（.gp-ri-actions 被 tab 条挡住，点 handler 不点坐标）
     if (b) b.click()
     return !!b
-  }, gpQ)
-  const gpReadStar = () => page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(r => {
-    const c = (r['zy_data_v2'].resources || []).find(x => x.title === t); return c ? !!c.starred : '无卡'
-  }), gpQ)
+  }, gpTarget)
+  // 星标会立即改内存 store，写盘则走 300ms 防抖；读 storage 会在“点后/复原前”读到旧值。
+  // 这里读同一份内存态，仍核真实 toggleStar 是否改变卡片字段。
+  const gpReadStar = () => page.evaluate((t) => {
+    const app = document.querySelector('#app').__vue_app__
+    const prov = app && app._context && app._context.provides
+    let pinia = null
+    for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
+    const st = pinia && pinia._s.get('app')
+    const c = st && (st.data.resources || []).find(x => x.title === t)
+    return c ? !!c.starred : '无卡'
+  }, gpTarget)
   await gpClickStar()
   await page.waitForTimeout(1500)
   const starAfter = await gpReadStar()
+  // 星标会改变排序权重，行可能被默认选中；按标题重新取卡后再点一次，避免点到重排后的另一行。
+  await page.mouse.move(4, 4)
+  await page.waitForTimeout(250)
   await gpClickStar()
   await page.waitForTimeout(1500)
   const starBack = await gpReadStar()
@@ -1829,41 +1870,60 @@ await paOpen()
     && gpRow.未选中 && Number(gpRow.actsOpacity) === 0 && gpHover > 0.9 && starAfter === true && starBack === false,
     `行=${gpRow.found} 钮=${JSON.stringify(gpRow.titles)} hover 前 opacity=${gpRow.actsOpacity} 面板行=${JSON.stringify(gpRow.全部行)} hover 后=${gpHover} starred: 点后=${JSON.stringify(starAfter)} 复原=${JSON.stringify(starBack)}`)
 
-  // ══════════ E2E-42（R4-Ew）★指标条五格各自下钻的抽屉都真渲染 ══════════
-  // E2E-4 只点过第 5 格（未归档），另外三种抽屉（战略目标明细 / WCE / WRR）在门禁里从没打开过。
-  const DRILLS = [
-    { i: 0, 名: '战略目标', 题: '战略目标 / 推进项目 · 明细', 需计数行: false },
-    { i: 2, 名: 'WCE 探索', 题: 'WCE 好奇探索 · 明细', 需计数行: true },
-    { i: 3, 名: 'WRR 复用', 题: 'WRR 资源复用 · 明细', 需计数行: true },
-    // 未归档这格的行**不挂定位**（挂的是两支归档下拉：选项目→选指标），动作面按 .md-select 判
-    { i: 4, 名: '未归档', 题: '未归档任务 · 待归档清单', 需计数行: false, 动作: 'select' },
-  ]
-  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2200)
-  const drillRes = []
-  for (const dr of DRILLS) {
-    await page.locator('.mb-cell').nth(dr.i).click().catch(() => {})
+  // ══════════ E2E-42（R4-Ew）★画像洞察页四格 KPI 的下钻出口都真响应 ══════════
+  // V3.9.1：调度台合流指标条退役，四类指标能力迁画像洞察页 PiHero。
+  // 本用例保留 R4-Ew「不能只有数字、没有真出口」的原意，按新宿主的三种真实响应形态判：
+  //   total/support → 卡片清单抽屉；entropy → 口径 toast；focus → 全量记录抽屉（focusOnly 预设）。
+  await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2400)
+  const heroKpiCount = await page.locator('.hero-kpis-grid .hero-kpi').count()
+  const heroDrillRes = []
+  for (const dr of [
+    { i: 0, 名: '全库净资产', 型: 'drawer', 题: '全部卡片明细' },
+    { i: 1, 名: '知识熵', 型: 'toast', 题: '知识熵' },
+    { i: 2, 名: '任务有证据支撑', 型: 'drawer', 题: '任务证据支撑明细' },
+    { i: 3, 名: '近30天精力落主攻', 型: 'log', 题: '全部记录' },
+  ]) {
+    await page.locator('.hero-kpis-grid .hero-kpi').nth(dr.i).click().catch(() => {})
     await page.waitForTimeout(900)
     const one = await page.evaluate((d) => {
-      // 注意取 .drawer-title 而不是 .drawer*：document.querySelector('.drawer, [class*="drawer"]')
-      // 会先命中遮罩 .drawer-overlay（无文本），标题就永远读不到
-      const title = (document.querySelector('.drawer-title') || {}).textContent || ''
-      const rows = document.querySelectorAll('.md-row').length
-      const empty = !!document.querySelector('.md-empty')
-      const tip = !!document.querySelector('.md-tip')
-      const head = !!document.querySelector('.md-head-count')
-      const loc = document.querySelectorAll('.md-go').length
-      const sel = document.querySelectorAll('.md-task .md-select').length
-      return { 名: d.名, 题在: title.includes(d.题), 题: title.trim().slice(0, 30), rows, empty, tip, head, loc, sel }
+      const drawerTitle = ((document.querySelector('.drawer-title') || {}).textContent || '').trim()
+      const toast = [...document.querySelectorAll('.toast-msg')].map(x => (x.textContent || '').trim()).join(' ')
+      const rows = document.querySelectorAll('.drawer .gs-ev-row').length
+      const empty = !!document.querySelector('.drawer .gs-ev-empty')
+      const logRows = document.querySelectorAll('.drawer .dz-log-row').length
+      const logEmpty = !!document.querySelector('.drawer .dz-log-empty')
+      const logNote = ((document.querySelector('.drawer .dz-log-note') || {}).textContent || '').trim()
+      return {
+        名: d.名,
+        抽屉在: !!document.querySelector('.drawer'),
+        题在: d.型 === 'toast' ? toast.includes(d.题) : drawerTitle.includes(d.题),
+        题: drawerTitle.slice(0, 36),
+        toast: toast.slice(0, 60),
+        rows,
+        empty,
+        logRows,
+        logEmpty,
+        logNote: logNote.slice(0, 60),
+      }
     }, dr)
-    drillRes.push({ ...one, 需计数行: dr.需计数行, 动作: dr.动作 })
-    await page.keyboard.press('Escape').catch(() => {})
-    await page.waitForTimeout(500)
+    heroDrillRes.push({ ...one, 型: dr.型 })
+    if (dr.型 === 'toast') {
+      await page.waitForTimeout(1900)
+    } else {
+      await page.locator('.drawer .drawer-close').first().click().catch(() => {})
+      await page.waitForFunction(() => document.querySelectorAll('.drawer').length === 0, null, { timeout: 4000 }).catch(() => {})
+    }
   }
-  const drillOk = drillRes.every(r => r.题在 && r.tip && (r.rows > 0 || r.empty) && (!r.需计数行 || r.head)
-    && (r.动作 === 'select' ? (r.rows === 0 || r.sel === r.rows * 2) : (r.rows === 0 || r.loc === r.rows)))
-  report('E2E-42 ★R4-Ew 指标条四种下钻抽屉各自真渲染（此前只点过第 5 格）：标题对得上、有行或有空态、说明行在、WCE/WRR 带计数行，且每行都挂着自己的动作面（三格=「定位 ›」，未归档=两支归档下拉）',
-    drillOk, drillRes.map(r => `${r.名}:题=${r.题在} 行=${r.rows} 空=${r.empty} tip=${r.tip} 计数=${r.head} 定位=${r.loc} 下拉=${r.sel}`).join(' ｜ '))
+  const heroDrillOk = heroKpiCount === 4 && heroDrillRes.every(r =>
+    r.题在 && (r.型 === 'toast'
+      ? r.toast.includes('知识熵')
+      : r.型 === 'log'
+        ? r.抽屉在 && r.logNote.includes('近30天主攻动作') && (r.logRows > 0 || r.logEmpty)
+        : r.抽屉在 && (r.rows > 0 || r.empty)))
+  report('E2E-42 ★R4-Ew 画像洞察页四格 KPI 真响应：卡片清单抽屉 / 知识熵口径 toast / 主攻动作全量记录抽屉',
+    heroDrillOk,
+    heroDrillRes.map(r => `${r.名}:题=${r.题在} 抽屉=${r.抽屉在} 行=${r.rows} 日志行=${r.logRows} 空态=${r.logEmpty} note=${r.logNote} toast=${r.toast}`).join(' ｜ '))
 
   // ══════════ E2E-43（R4-Fb）★不可注入页的降级出口：两种入口都要真开面板 ══════════
   // 原来这条链的末端是一个**从未进过构建**的独立弹窗（dist/src/popup/index.html 仍引 ./main.ts、

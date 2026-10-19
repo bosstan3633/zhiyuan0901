@@ -9,24 +9,24 @@ const {
 
 // ============== W7（V3.8.7）调度台视觉焦点契约 ==============
 console.log('【W7 · 调度台焦点契约】');
-check('W7-1 ★焦点契约（本页只允许一处display 级主体，用户 2026-10-12 拍板）：今日三件事 = 全页唯一 fs-display(22px) + 重框 shadow-lg；三张卡与年度热力图标题降到 fs-title(15px)，三张卡框体去阴影。★为什么值得钉：W5「三标题统一 17px」把主角与工具区抹成同规格，首屏因此没有焦点（fs-display 全站主工作面 0 使用）——本条是那个病灶的棘轮。锚点取**行首可执行的选择器**而非标题文案（改文案不必重指）', () => {
+check('W7-1 ★V3.9.1 随迁备案：今日三件事仍是首屏唯一主体 —— 页面标题承担 display 级视觉焦点，工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。本条继续守「首屏只有一个主角」，只把锚点从旧三张卡迁到现役两栏工作台', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   /* 主角：唯一 display + 重框 */
-  return ch.includes('.card.focus .card-head .nm { font-size: var(--fs-display);')
-    && ch.includes('.card.focus { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-lg); }')
-    /* 内容也参与焦点：格内任务名 headline + 勾选框 18px */
-    && ch.includes('.tc-title { font-size: var(--fs-headline);')
-    && ch.includes('.tc-check { width: 18px')
-    /* 次级降级：三张卡 title + 去阴影；热力图 title */
-    && ch.includes('.decks-title .nm { font-size: var(--fs-title);')
-    && ch.includes('.deck-frame { padding: 12px 20px 16px;') && ch.includes('box-shadow: none;')
+  return /\.desk-heading h1 \{[\s\S]*?font-size: clamp\(26px, 2\.4vw, 34px\)/.test(ch)
+    && ch.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }')
+    /* 内容也参与焦点：计划行标题正文级、整行可点、勾选框独立 */
+    && ch.includes('.title-text {') && ch.includes('font-size: var(--fs-body);')
+    && ch.includes('.row-check {') && ch.includes('width: 20px;')
+    /* 次级层：手边卡降为 shadow-sm，侧栏只做案头信息 */
+    && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--shadow-sm);')
+    && ch.includes('.hand-board { margin-top: 18px; }')
     && css.includes('.dz-sec-h .dz-t { font-size: var(--fs-title);')
-    /* ★负锚：display 不得外溢到次级区（这条是"唯一"二字的守法，改成"至少一处"就红） */
-    && !ch.includes('.decks-title .nm { font-size: var(--fs-display)')
-    && !css.includes('.dz-sec-h .dz-t { font-size: var(--fs-display)');
+    /* ★负锚：旧三张卡不得把主角形态带回来，侧栏也不许用重框 */
+    && !ch.includes('.card.focus {') && !ch.includes('.today-card {')
+    && !/\.rail-panel \{[^}]*box-shadow: var\(--shadow-lg\)/.test(ch);
 });
-check('W7-2 ★焦点必须是**唯一标题级display**而不是"这一处是 22px"：现扫 src 全站`var(--fs-display)` 的**标题类**用法（选择器名含 title / nm / head / h1-h6），落在四大工作面（调度台 / 方向台 / 策展台 / 单台详情 + dashboard 组件）的必须只有今日三件事一处 —— 防止焦点契约被后续轮次稀释成"到处都 display"。★豁免带备案（写清为何不算标题焦点）：① ManualPage / RecycleBin 是工具页，页面标题本就该是全站最大；② GlobalSettings 的 `.gs-io-icon` 是 36×36 **图标位**不是标题；③ ConfirmDialog 的 `.cdf-icon` 同为图标位', () => {
+check('W7-2 ★V3.9.1 随迁备案：焦点必须仍是**唯一标题级 display**。现扫全 src 标题类 display 用法，调度台只能有页头主标题一处；旧三张卡的 display 锚点不得回流。豁免仍为工具页标题与两枚图标位', () => {
   const TOOL_PAGES = ['newtab/views/ManualPage.vue', 'newtab/views/RecycleBin.vue'];
   const ICON_SEL = ['.gs-io-icon', '.cdf-icon'];
   const hits = [];
@@ -46,7 +46,12 @@ check('W7-2 ★焦点必须是**唯一标题级display**而不是"这一处是 2
       hits.push(e.rel + ' → ' + chain);
     }
   }
-  return hits.length === 1 && hits[0].startsWith('newtab/views/CompassHome.vue');
+  /* V3.9.1：调度台主标题改用 clamp 级排版，不再借用 22px 的 display token；
+     因此这里核「调度台有一处页头主标题，且没有任何旧标题类 display 回流」。 */
+  const home = codeOnly(read('/newtab/views/CompassHome.vue'));
+  const homeFocus = /\.desk-heading h1 \{[\s\S]*?font-size: clamp\(26px, 2\.4vw, 34px\)/.test(home);
+  const homeDisplayTitles = hits.filter(h => h.startsWith('newtab/views/CompassHome.vue'));
+  return homeFocus && homeDisplayTitles.length === 0;
 });
 check('W7-3 ★热力图概览条（用户拍板A 案：压成 26 周概览条 + 「看全年 ›」，回看型内容不再占首屏最大连续面积）：dz-mini 在位且类名是**字面量表** l0..l5（dead-css-scan 看不见运行时拼串，故不许 `l${lv}`）+ COMPACT_WEEKS=26 + 展开态保留全年 366 格与切年/导出/图例（折叠的是呈现不是数据）+ 两枚数字口径走 actsOf 单一真源。★2026-10-12 补钉**双向**：V3.8.7 首版只给「看全年 ›」没给回来的路——展开后与旧版长得一样且回不去（用户真机截图当场发现），本条因此同时钉住 `expanded = false` 的收起路径，不许再退化成单向门', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));

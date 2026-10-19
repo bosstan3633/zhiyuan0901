@@ -10,6 +10,14 @@ const router = createRouter({
       meta: { title: '知源调度台 · 调度台' }
     },
     {
+      // V3.9.1：三类「查看全部」是独立二级路由，浏览器返回直接回调度台原位置。
+      // :kind 只收 task/curiosity/resource；深链 hl/hk 统一落这里。
+      path: '/deck/:kind(task|curiosity|resource)',
+      name: 'deck-all',
+      component: () => import('./views/CompassDeckView.vue'),
+      meta: { title: '知源调度台 · 全部卡片' }
+    },
+    {
       // R49（V2.22.0）：旧「今日行动」页整体移除（三件事迁调度台首页、任务管理在调度台底部 Tab）
       path: '/compass/actions',
       redirect: '/'

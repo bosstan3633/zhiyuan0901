@@ -108,7 +108,7 @@ check('F4-1 ★三处入口共用一份诊断会话缓存（用户拍板：全�
 });
 
 // ────────────────────────── P4 全貌改单行子任务（宿主接线） ──────────────────────────
-check('P4-1 ★调度台「今日三件事」模块头退役后的接线（用户拍板 P4 D1–D5）：FocusDetail 上方不再有独立模块头（「全貌 / IN FULL」随块退役）；单行三态的能力去向逐条接真源 —— D2 单击子任务 = 就地勾选（@toggle-sub → toggleSlotSub 落 done 落库）、D5 空态「＋ 拆分」直达抽屉并聚焦子任务输入框（open(t,{focusSub:true}) → SubtaskList focusAdd）。判据钉四段链路：① CompassHome 无 focusDetailEvents/全貌模块头 ② @toggle-sub/@split 各一次 ③ drawer.open 第二参 focusSub ④ SubtaskList defineExpose focusAdd 真被 subListRef 调', () => {
+check('P4-1 ★V3.9.1 随迁备案：FocusDetail 全貌区退役后，子任务能力继续从右侧任务详情进入。旧 @toggle-sub/@split 宿主接线不再挂在首页，但「拆分子任务并聚焦输入框」的抽屉链路必须原样保留，避免随布局迁移丢能力', () => {
   const ch = codeOnly(CT_ALL_HOME())
   const fd = codeOnly(read('/newtab/components/compass/FocusDetail.vue'))
   const dr = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
@@ -116,11 +116,11 @@ check('P4-1 ★调度台「今日三件事」模块头退役后的接线（用�
   /* ① 模块头退役：无 events/locate/supports 三件套（D4 整体退役的负锚） */
   const headGone = !ch.includes('focusDetailEvents') && !fd.includes('events?:') && !fd.includes('locate?:') && !fd.includes('supports?:')
     && !fd.includes("(e: 'locate'") && !fd.includes("(e: 'events'")
-  /* ② 绑定在位 */
-  const wired = (ch.match(/@toggle-sub="/g) || []).length === 1
-    && (ch.match(/@split="/g) || []).length === 1
-    && ch.includes('@toggle-sub="(tid, sid) => selTask && toggleSlotSub(selTask, sid)"')
-    && ch.includes('function onFocusDetailSplit(t: TaskCard) { drawerRef.value?.open(t, { focusSub: true }) }')
+  /* ② 首页不再挂 FocusDetail，子任务从共享详情进入 */
+  const wired = !ch.includes('<FocusDetail')
+    && ch.includes('function openCellTask(c: FocusCell)')
+    && ch.includes('drawerRef.value?.open(c.task)')
+    && dr.includes('function open(task: TaskCard, opts?: { focusSub?: boolean })')
   /* ③④ 聚焦链 */
   const chain = dr.includes('function open(task: TaskCard, opts?: { focusSub?: boolean })')
     && dr.includes('subListRef.value?.focusAdd()')

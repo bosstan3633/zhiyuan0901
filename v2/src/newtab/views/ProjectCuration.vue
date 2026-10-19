@@ -404,9 +404,13 @@ function goTreeLocated() {
 /** R54-A4：Esc = 返回上级（抽屉/弹层打开时让位其自关） */
 function onPageEsc(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
+  // V3.9.1：KeepAlive 旧实例仍会收到 document 级键盘事件；只在项目详情路由处理返回，
+  // 避免与方向树自己的来源感知 Esc 同时导航。
+  if (route.name !== 'compass-projects') return
   // R117（04-61 C）：一级内嵌态没有「上级」可回——Esc 让位抽屉/弹层后不再跳转
   if (props.embedded) return
-  if (document.querySelector('.task-sidebar, .overlay, .modal-mask')) return
+  // V3.9.1：全局 GP 浮层恒挂载，裸 `.overlay` 会让项目详情的 Esc 返回永远失效。
+  if (document.querySelector('.task-sidebar, .overlay:not(.gp-overlay), .modal-mask, .drawer-overlay, .drawer, .picker-modal, .md-panel, .lm-mask')) return
   e.preventDefault()
   goBack()
 }
@@ -1047,8 +1051,6 @@ function addTaskFromHeader() {
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-enter-active, .slide-leave-active { transition: transform .2s var(--ease-emphasis); }
-.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
 
 /* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
 .tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }

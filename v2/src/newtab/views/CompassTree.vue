@@ -89,9 +89,14 @@ function locateHlGoal() {
 }
 function onPageEsc(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
+  // V3.9.1：KeepAlive 只暂停渲染、不卸载监听。若当前已离开本页，旧实例不得再处理 Esc，
+  // 否则会与当前页的返回监听形成竞态（项目详情 → 方向树时最终可能多退一级）。
+  if (route.name !== 'compass') return
   // R3-B1：一级台面没有上级可回——Esc 交回给浮层/浏览器默认行为
   if (!fromProjId.value) return
-  if (document.querySelector('.task-sidebar, .overlay, .modal-mask')) return
+  // V3.9.1：全局 GP 浮层恒挂载，不能用裸 `.overlay` 判断——它会让来源感知返回永远让位。
+  // 同时把方向台自己的关联卡片弹窗 `.lm-mask` 与共享抽屉遮罩算进来，Esc 先关上层。
+  if (document.querySelector('.task-sidebar, .overlay:not(.gp-overlay), .modal-mask, .drawer-overlay, .drawer, .picker-modal, .md-panel, .lm-mask')) return
   e.preventDefault()
   goBack()
 }

@@ -7,7 +7,7 @@ import { ref, computed, onMounted, onUnmounted, shallowRef, nextTick } from 'vue
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
-import { saveUIPrefs } from '@/shared/storage/repository'
+import Drawer from '@/shared/components/Drawer.vue'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
@@ -35,25 +35,6 @@ const { d, allProjects } = useCompass()
 const emit = defineEmits<{ (e: 'closed'): void }>()
 
 const sidebarOpen = ref(false)
-// B7：抽屉宽度记忆（UIPrefs.drawerWs.task，360~680px）
-const drawerW = ref(store.ui?.drawerWs?.task || 440)
-function startDrawerResize(e: MouseEvent) {
-  e.preventDefault()
-  const startX = e.clientX
-  const startW = drawerW.value
-  const move = (ev: MouseEvent) => {
-    drawerW.value = Math.min(680, Math.max(360, startW + (startX - ev.clientX)))
-  }
-  const up = () => {
-    document.removeEventListener('mousemove', move)
-    document.removeEventListener('mouseup', up)
-    if (!store.ui) return
-    store.ui.drawerWs = { ...(store.ui.drawerWs || {}), task: Math.round(drawerW.value) }
-    saveUIPrefs({ drawerWs: store.ui.drawerWs })
-  }
-  document.addEventListener('mousemove', move)
-  document.addEventListener('mouseup', up)
-}
 const selectedTask = ref<TaskCard | null>(null)
 const taskTitleDraft = ref('')
 /** 第卅三轮 REQ-024：任务备注文本框高度（默认 180px，拖拽记忆） */
@@ -356,58 +337,48 @@ function onSidebarDocKey(e: KeyboardEvent) {
   if (!sidebarOpen.value) return
   if (aiJob.value) return /* 上层弹窗在场：键盘归它（Ctrl+↩ 也不该穿下去保存抽屉） */
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); saveTaskTitleAndClose() }
-  else if (e.key === 'Escape') { e.preventDefault(); close() }
 }
 onMounted(() => { document.addEventListener('keydown', onSidebarDocKey, true) })
 onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, true) })
 </script>
 
 <template>
-  <!-- ===== 任务详情抽屉（B1 级联 + B2 Ctrl+Enter） ===== -->
-  <Transition name="fade">
-    <div v-if="sidebarOpen" class="overlay" @click="close" />
-  </Transition>
-  <Transition name="slide">
-    <div v-if="sidebarOpen && selectedTask" class="task-sidebar" :style="{ width: drawerW + 'px' }" @keydown.ctrl.enter.prevent="saveTaskTitleAndClose" @keydown.meta.enter.prevent="saveTaskTitleAndClose">
-      <div class="ts-resize" @mousedown="startDrawerResize" />
-      <div class="ts-head">
-        <!-- R166 定案 6：头部三行。① 勾选+标题+关闭 ② **AI 三入口独立一行**（等宽三格，不挤标题行）
-             ③ 状态/成熟度/子任务进度/AI 凭据。三入口都改的是这张卡，放一行里彼此并列、也说得清各管什么。 -->
-        <div class="ts-head-row">
-          <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
-          <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..."
-            @blur="saveTaskTitle" />
-          <div class="ts-close" @click="close">×</div>
+  <!-- ===== 任务详情：共享 Drawer 唯一壳（遮罩 / 动画 / Esc / 拖宽统一） ===== -->
+  <Drawer :open="sidebarOpen && !!selectedTask" width="520px" width-storage-key="task" :close-on-escape="!aiJob" @close="close">
+    <template v-if="selectedTask" #title>
+        <div class="ts-title-wrap">
+          <div class="ts-title-row">
+            <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
+            <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..." @blur="saveTaskTitle" />
+          </div>
+          <div class="ts-head-row2">
+            <div class="ds-status-wrap" @click.stop>
+              <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
+              <div v-if="statusMenuOpen" class="ds-status-menu">
+                <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
+              </div>
+            </div>
+            <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
+            <span v-if="subtasks.length" class="ts-rel-chip" :title="`子任务 ${subtaskDone}/${subtasks.length} 已完成（不进成熟度与周报计分）`"><Icon name="corner" :size="13"/> 子任务 {{ subtaskDone }}/{{ subtasks.length }}</span>
+            <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/新鲜度（规则引擎即时评）" />
+            <AiTouchedChip :ts="selectedTask.aiTouchedAt" verb="" />
+          </div>
         </div>
+    </template>
+    <template v-if="selectedTask" #title-extra>
         <div class="ts-ai-row">
           <button class="ts-ai-cell" :disabled="aiBusy" title="AI 对照本卡现状找缺项（验收标准 / 标签 / 归属 / 估时），已填的不覆盖；弹窗左右对照逐条采纳" @click="aiEnrich">
             <AiEntryButton variant="inline" label="补全" :spin="aiBusy" />
           </button>
           <button class="ts-ai-cell" :disabled="aiBusy" title="AI 拆解本任务：采纳为子任务清单，或只把步骤写进详情（双通道）；可换执笔专家" @click="aiBreakdown">
-            <AiEntryButton variant="inline" label="拆解步骤" :spin="aiBusy" />
+            <AiEntryButton variant="inline" label="拆解" :spin="aiBusy" />
           </button>
           <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源卡池，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
-            <AiEntryButton variant="inline" label="找资源支持" :spin="aiBusy" />
+            <AiEntryButton variant="inline" label="找支持" :spin="aiBusy" />
           </button>
         </div>
-        <div class="ts-head-row2">
-          <!-- R48 详情重设计：状态下拉 chip（色彩只做语义信号） -->
-          <div class="ds-status-wrap" @click.stop>
-            <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
-            <div v-if="statusMenuOpen" class="ds-status-menu">
-              <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
-            </div>
-          </div>
-          <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
-          <!-- R166 定案 1：子任务进度胶囊（内嵌清单的 done/all，零子任务零噪音）——
-               原 R144 的「↳ 父名 ⤴ / N 子任务」父子软层级随 parentId 退役 -->
-          <span v-if="subtasks.length" class="ts-rel-chip" :title="`子任务 ${subtaskDone}/${subtasks.length} 已完成（不进成熟度与周报计分）`"><Icon name="corner" :size="13"/> 子任务 {{ subtaskDone }}/{{ subtasks.length }}</span>
-          <!-- R142（反馈 #4）：成熟度大徽标——规则引擎即时分，hover 展开扣分构成 -->
-          <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/新鲜度（规则引擎即时评）" />
-          <!-- 三入口共用一个 aiTouchedAt ⇒ verb 传空，chip 说"最近"而不硬猜是哪一枚动的 -->
-          <AiTouchedChip :ts="selectedTask.aiTouchedAt" verb="" />
-        </div>
-      </div>
+    </template>
+    <template v-if="selectedTask">
       <div class="ts-body">
         <!-- R48：说明区上移为 Hero（此前被四个大下拉挤到最底部） -->
         <div class="ts-section">
@@ -491,13 +462,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <AssetManager v-model="selectedTask.assets" :owner-id="selectedTask.id" @update:model-value="onTaskAssetsChange" @html-added="onTaskHtmlAdded" />
         </details>
       </div>
-      <!-- R165-A：页脚收敛两钮——删除（二次确认）+ 完成并关闭；AI 拆解已升标题行 -->
-      <div class="ts-foot">
+    </template>
+    <template v-if="selectedTask" #footer>
+        <div class="ts-foot">
         <ArmDeleteButton @confirm="deleteTask(selectedTask.id)" />
         <button class="mini-btn primary" @click="saveTaskTitleAndClose"><Icon name="check" :size="13"/> 完成并关闭 <span class="ts-kbd">Ctrl+<Icon name="arrowleft" :size="13"/></span></button>
-      </div>
-    </div>
-  </Transition>
+        </div>
+    </template>
+  </Drawer>
   <!-- R135-C2′：拆解建议评审抽屉（步骤子任务+行动方案，勾选采纳才落库；置于 Transition 外保单子节点约束） -->
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
@@ -513,25 +485,15 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-enter-active, .slide-leave-active { transition: transform .2s var(--ease-emphasis); }
-.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
-
-/* 任务抽屉 */
-.task-sidebar { position: fixed; top: 0; right: 0; width: 440px; max-width: 94vw; height: 100%; background: var(--surface); border-left: 1px solid var(--border); z-index: calc(var(--z-overlay) + 1); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); }
-.ts-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 3; }
-.ts-resize:hover { background: var(--accent); opacity: .4; }
-.ts-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-/* R165-A（方案 A 标准）：两行头部 */
-.ts-head-row { display: flex; align-items: flex-start; gap: 10px; }
+/* 任务抽屉：外框、标题槽、正文滚动与页脚由 Drawer.vue 统一承担。 */
+.ts-title-wrap { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ts-title-row { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .ts-head-row2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* R166 定案 6：AI 三入口独立一行，等宽三格（丙版：不挤标题行，三件事并列说得清） */
-.ts-ai-row { display: flex; gap: 8px; }
+.ts-ai-row { display: flex; gap: 6px; flex-shrink: 0; }
 .ts-ai-cell {
-  flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 7px 8px; border-radius: 9px; cursor: pointer;
+  min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  min-height: 30px; padding: 4px 8px; border-radius: 8px; cursor: pointer;
   font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent-ink); background: var(--accent-light);
   font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: hidden;
 }
@@ -560,9 +522,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
 .ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
-.ts-close { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; color: var(--text-3); font-size: 18px; flex-shrink: 0; }
-.ts-close:hover { background: var(--surface-3); color: var(--text); }
-.ts-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+.ts-body { min-width: 0; }
 .ts-section { margin-bottom: 16px; }
 .ts-goto { margin-top: 7px; font-size: var(--fs-caption); color: var(--accent); cursor: pointer; }
 .ts-goto:hover { text-decoration: underline; }
@@ -587,7 +547,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-link-input:focus { border-color: var(--accent); }
 .ts-link-btn { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); }
 .ts-link-btn:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-.ts-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+.ts-foot { display: flex; gap: 10px; align-items: center; width: 100%; }
 .ts-foot .mini-btn { justify-content: center; padding: 9px 16px; flex: 1; }
 .ts-foot .mini-btn.primary { flex: 2; }
 .ts-kbd { font-size: var(--fs-tiny); background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }

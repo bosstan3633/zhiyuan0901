@@ -100,17 +100,13 @@ check('W15-5 ★行末动作常驻 + 镜像入口两侧同口径：① 列表行
     && !/r\.workspaceId\s*=\s*(?!=)/.test(POOL_C);
 });
 
-check('W15-6 ★首屏焦点：三件事与它的子任务必须**同框**（共享卡面，只用一条 hairline 分隔），与下方三张卡之间用 ≥28px 空白拉开 —— 原先三个平级 module 全是 14px 间距，三块等重、焦点只靠字号撑着。负锚：子任务区不许退回独立强模块（那会把焦点从三件事挪走）', () => {
-  const zone = HOME.indexOf('class="focus-sub-zone"');
-  const card = HOME.indexOf('class="card focus"');
-  const gap = HOME_C.match(/\.page > #zy-mod-curiosity \{[^}]*margin-top:\s*(\d+)px/)?.[1];
-  return HOME.includes('class="focus-sub-zone"')
-    && zone > card && zone < HOME.indexOf('</section>', card)     /* 子任务区在三件事卡内部，未越出 section */
-    && HOME_C.includes('.focus-sub-zone {') && HOME_C.includes('border-top: 1px solid var(--border)')
-    && !!gap && parseInt(gap) >= 28
-    && !/<section class="module">\s*<FocusDetail/.test(HOME.replace(/\n\s*/g, ' '))
-    /* 勾子任务链路零变化（G5-1/P4-1 钉的那条，本批只挪位置不改行为） */
-    && HOME.includes('@toggle-sub="(tid, sid) => selTask && toggleSlotSub(selTask, sid)"')
-    /* 三件事仍是唯一焦点主体（W7-1 的重框与标题级别不许在本批被顺手改掉） */
-    && HOME_C.includes('.card.focus') && HOME_C.includes('shadow-lg');
+check('W15-6 ★V3.9.1 随迁备案：首屏焦点仍收在一张工作单里。三件事与子任务信息不再各自开模块，而是同一计划行 + 右侧共享详情；工作单与手边卡之间保留独立留白，旧「全貌子任务区」不得作为第二个强模块回流', () => {
+  return HOME.includes('class="focus-list"')
+    && HOME.includes('class="focus-row"')
+    && HOME.includes('子任务 {{ c.task.subtasks.filter(s => s.done).length }}/{{ c.task.subtasks.length }}')
+    && HOME.includes('drawerRef.value?.open(c.task)')
+    && HOME_C.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }')
+    && HOME_C.includes('.hand-board { margin-top: 18px; }')
+    && !HOME.includes('class="focus-sub-zone"')
+    && !/<section class="module">\s*<FocusDetail/.test(HOME.replace(/\n\s*/g, ' '));
 });

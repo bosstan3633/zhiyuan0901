@@ -443,14 +443,14 @@ if (!/openToday\s*=\s*\(\)\s*=>/.test(tbh) || !tbh.includes('todayKey()')) retur
   return true;
 });
 
-check('W12-D4 ★热力图必须真的退役：调度台无 HeatmapModule 引用，且那个槽位改挂 FocusDetail 且顺序仍在「今日三件事之后、三卡之前」（原热力图的位置锚点不许漂）。同时 Heatmap 组件本体保留——画像洞察页仍在用它，不许连锅端', () => {
+check('W12-D4 ★V3.9.1 随迁备案：热力图仍不得回调度台；原「全貌」槽位已被两栏工作台吸收，今日三件事整行直接打开右侧任务详情。Heatmap 本体仍留在画像洞察页，能力与位置约束继续成立', () => {
   const ch = read('/newtab/views/CompassHome.vue');
-  const iH = ch.indexOf('<FocusDetail');
-  const iF = ch.indexOf('focusAllDone');
-  const iC = ch.indexOf('id="zy-mod-curiosity"');
   if (ch.includes('HeatmapModule')) return false;
-  if (iH < 0 || iF < 0 || iC < 0) return false;
-  if (!(iH > iF && iH < iC)) return false;
+  if (ch.includes('<FocusDetail')) return false;
+  if (!ch.includes('@click="openCellTask(c)"')) return false;
+  if (!ch.includes('drawerRef.value?.open(c.task)')) return false;
+  /* 原热力图槽位现在由今日工作单本身承接：工作单必须在手边卡之前。 */
+  if (!(ch.indexOf('class="work-board"') < ch.indexOf('class="hand-board"'))) return false;
   // Heatmap 本体保留（画像洞察页在用）——基路径走 helpers 的 base，禁止硬编码盘符（原 D:/… 在非 Windows 环境恒 false）
   const exists = fs.existsSync(base + '/newtab/components/dashboard/Heatmap.vue');
   if (!exists) return false;
@@ -458,13 +458,13 @@ check('W12-D4 ★热力图必须真的退役：调度台无 HeatmapModule 引用
   return read('/newtab/components/profile/PiYear.vue').includes('Heatmap');
 });
 
-check('W12-D5 ★选中空槽必须显引导态、**不许静默回落**。原式 `focusTasks[selIdx] || focusTasks.find(t => !!t) || null` 会在选到空槽时悄悄回落到另一条任务——你点 02 看的是 01 的内容却以为在看 02（用户 2026-10-13 拍板）。判据：① selTask 只取该槽、无 find 兜底 ② 有 selSlotEmpty 区分「选到空位」③ FocusDetail 有空槽引导态与未选态两种分支', () => {
+check('W12-D5 ★V3.9.1 随迁备案：空槽仍必须是明确入口，不许静默回落。现役形态为空行「从任务库选取」，点击打开带搜索/项目/状态筛选的弹窗；FocusDetail 的旧空槽分支保留为能力证据，但首页不再以隐式选中态渲染它', () => {
   const ch = read('/newtab/views/CompassHome.vue');
   const fd = read('/newtab/components/compass/FocusDetail.vue');
-  const m = ch.match(/const selTask = computed<TaskCard \| null>\(\(\) =>([^)]*)\)/);
-  if (!m) return false;
-  if (m[1].includes('find(')) return false;
-  if (!ch.includes('const selSlotEmpty = computed')) return false;
+  if (!ch.includes('class="focus-row empty-row"')) return false;
+  if (!ch.includes('@click="openPicker(c.idx)"')) return false;
+  if (!ch.includes('class="picker-modal"')) return false;
+  if (!ch.includes('v-model="pickerProject"') || !ch.includes('v-model="pickerStatus"')) return false;
   // FocusDetail 两分支 + 引导态文案
   if (!fd.includes('emptySlot')) return false;
   if (!fd.includes('这个位置还空着')) return false;
@@ -501,19 +501,19 @@ check('W12-D6 ★「全貌」模块形态与能力守恒。【W12-D 原判】钉
   return true;
 });
 
-check('W12-D7 ★双击行为**已由 V3.8.18 决策翻转**：W12-D 当时把双击从「弹抽屉」改成「走 ?hl 定位通道滚动+高亮下方任务列表」（用户 2026-10-13 拍板 B2）；N1 把全貌模块从七层纵向堆叠改成三栏横排后，那个决定的前提不成立了 ——「上方已常驻展示全貌」不再成立，首屏只承载「选中时扫一眼」，要动手时的完整信息只剩抽屉。★所以本条随 N1 翻转回抽屉，且翻转理由写在这里（改靶缘由必须留在判据里，不能只留注释）。★能力守恒：`?hl=<id>&hk=task` 定位通道与它的消费方 TaskManagerPanel 一字未动（下方任务卡面板的定位能力仍在），共享抽屉接线从「仅编辑按钮」变成「编辑按钮 + 双击」两处，只增不减。判据：① openCellTask 走 drawerRef.open ② 双击不再 router.push ③ 定位通道与消费方仍在位', () => {
+check('W12-D7 ★V3.9.1 再随迁备案：三件事从「双击」升级为「整行单击」打开共享任务详情；不再跳页，勾选框只负责完成。`?hl=<id>&hk=task` 定位通道保留，二级任务列表继续消费并高亮目标', () => {
   const ch = read('/newtab/views/CompassHome.vue');
   const m = ch.match(/function openCellTask\(c: FocusCell\) \{[\s\S]{0,400}?\n\}/);
   if (!m) return false;
   const body = m[0];
-  // ① 双击 → 共享抽屉
+  // ① 整行 → 共享抽屉
   if (!body.includes('drawerRef.value?.open(c.task)')) return false;
   // ② 不再跳转
   if (body.includes('router.push')) return false;
   if (body.includes("hk: 'task'")) return false;
-  // ③ 编辑按钮这条老路仍在（能力只增不减）
-  if (!ch.includes('function onFocusDetailEdit')) return false;
-  if (!ch.includes('drawerRef.value?.open(t)')) return false;
+  // ③ 整行绑定与勾选阻断：点勾选不能顺带打开详情
+  if (!ch.includes('@click="openCellTask(c)"')) return false;
+  if (!ch.includes('@click.stop="c.slot && toggleTodayDone(c.slot)"')) return false;
   // ④ 定位通道与消费方一字未动
   const tmp = read('/newtab/components/compass/TaskManagerPanel.vue');
   return tmp.includes('route.query.hl') && tmp.includes('hk') && tmp.includes('scrollIntoView');
@@ -542,7 +542,8 @@ check('W12-E2 ★「← 返回项目详情」退役，但**来路感知必须保
   const ct = read('/newtab/views/CompassTree.vue');
   if (!ct.includes('function goBack')) return false;
   if (!ct.includes('fromProjId')) return false;
-  if (!/function onPageEsc\(e: KeyboardEvent\)[\s\S]{0,300}goBack\(\)/.test(ct)) return false;
+  // V3.9.1：KeepAlive 路由守卫加在 Esc 与 goBack 之间，判据只守接线仍在，不限制注释/守卫长度。
+  if (!/function onPageEsc\(e: KeyboardEvent\)[\s\S]{0,800}goBack\(\)/.test(ct)) return false;
   // 旧入口「返回方向台」仍零命中
   if (CT_ALL.includes('返回方向台')) return false;
   return true;

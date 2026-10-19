@@ -84,11 +84,12 @@ check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：p
     && pcp.includes('(store.data?.resources || [])')
     && pcp.includes('.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
     && pcp.includes("const poolCards = computed(")
-    && ch.includes("const bottomTab = ref<'pool' | 'task' | 'curio'>('task')")
-    && ch.includes('const poolLiveCount = computed(')
+    && ch.includes('const previewResources = computed<ResourceCard[]>(')
+    && ch.includes('const liveResources = computed<ResourceCard[]>(')
+    && ch.includes("function goDeck(kind: 'task' | 'curiosity' | 'resource')")
     && read('/shared/models/index.ts').includes("export const CURATION_WS_ID = 'zy-curation'");
 });
-check('R67-7（R68 修订）模块直达快捷键：goto-tasks 描述升级为「直达任务调度模块」（锚方向台），goto-curiosity 不变', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); const h = read('/newtab/views/CompassHome.vue'); return m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes('直达好奇心培养模块') && m.includes('直达任务调度模块') && !m.includes('直达项目调度模块') && b.includes("case 'goto-curiosity':") && b.includes('zy-anchor=') && a.includes('zy-goto-anchor') && h.includes('zy-mod-curiosity') && h.includes('zy-mod-tasks') && h.includes('anchor-flash'); });
+check('R67-7（R68/V3.9.1 重指）模块直达快捷键：goto-tasks / goto-curiosity 仍保留，落点由首页锚点改为独立查看全部二级页', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); const h = read('/newtab/views/CompassHome.vue'); return m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes('直达好奇心培养模块') && m.includes('直达任务调度模块') && !m.includes('直达项目调度模块') && b.includes("case 'goto-curiosity':") && b.includes('zy-anchor=') && a.includes('zy-goto-anchor') && h.includes("if (name === 'curiosity') { void router.push('/deck/curiosity'); return }") && h.includes("if (name === 'task') { void router.push('/deck/task'); return }") && h.includes('id="zy-mod-tasks"') && h.includes('anchor-flash'); });
 check('R67-8/R121 左栏宽高拖拽随左栏退役（startRailResize/rail-grip 全量零残留）', () => { const p = read('/newtab/views/ProjectCuration.vue'); return !p.includes('startRailResize') && !p.includes('rail-grip'); });
 check('R67-9 手册口径跟进：直达快捷键 + 中心论点横幅 + 三卡手势（★R4-Df 重指带备案：三条锚点各自钉着一件已不存在的东西——① 「R67 重排」与「战略目标小字在上、项目名称大字在下」是退役模块「项目调度」的版面说明；② 「常亮高亮」指的是策展台辅助条的 🏛 策展主题格，该格自 R123 随主题退役（辅助条 5→3），论点改由大横幅在四档视图常驻承载。判据跟着换成横幅的实名，并把三句旧话转负判据不许回流；「直达好奇心培养模块」（manifest 现役命令）与「单击详情 / 双击打开链接」（三张卡统一手势）两条保留、只把手势那句改成手册现在的写法）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('直达好奇心培养模块') && m.includes('大横幅在四档视图常驻') && m.includes('单击开右侧详情') && m.includes('双击打开链接') && !m.includes('R67 重排') && !m.includes('战略目标小字在上、项目名称大字在下') && !m.includes('常亮高亮'); });
 
@@ -98,10 +99,10 @@ check('R68-1 搜索工作台分组口径对齐台签栏：两端均排除资源�
 check('R68-2 搜索项目分组尊重 showDoneProjects（浮层读 zy_ui_v2 + isProjDone 派生口径）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('showDoneProjectsCache') && c.includes('loadShowDonePref') && c.includes('zy_ui_v2') && c.includes('function isProjDone') && c.includes('if (!showDoneProjectsCache && isProjDone(p, d)) return'); });
 check('R68-3（R155 令牌化备案）任务卡删除按钮 emoji → 主题色 trash 线性图标（深色主题可见）', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('import Icon from') && t.split('<Icon name="trash" :size="12" />').length >= 4 && t.includes('.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3);') && t.includes('.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }'); });
 check('R68-4 快捷键体系改造（R117 修订；V3.7.0 重指：资源台退役后策展台索引由 n-4 顺延到 n-3）：open-compass/open-resource 退役 + 数字键 1=调度台 2=方向台 3..=策展台（goto-tasks/goto-curiosity 同落调度台并锚对应 tab）', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && b.includes('open-compass/open-resource 已从 manifest 下架') && b.includes("const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'") && a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]'); });
-check('R68-5 任务调度直达落位（R117 重写：宿主由方向台迁调度台底部双 tab · ★R3-B1 负判据随宿主改靶方向树）：调度台承接 zy-goto-anchor（curiosity→好奇 tab 并挂载 / task→任务 tab），方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const t = read('/newtab/views/CompassTree.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { bottomTab.value = 'curio'; curioMounted.value = true }") && h.includes("else if (name === 'task') bottomTab.value = 'task'") && !t.includes('flashTaskModule') && !t.includes('TaskManagerPanel'); });
+check('R68-5（V3.9.1 重指）任务调度直达落位：调度台承接 zy-goto-anchor 后进入对应独立二级页，方向台不再持任务模块', () => { const h = read('/newtab/views/CompassHome.vue'); const t = read('/newtab/views/CompassTree.vue'); return h.includes("addEventListener('zy-goto-anchor', onAnchorEvt)") && h.includes("if (name === 'curiosity') { void router.push('/deck/curiosity'); return }") && h.includes("if (name === 'task') { void router.push('/deck/task'); return }") && !t.includes('flashTaskModule') && !t.includes('TaskManagerPanel'); });
 check('R68-6（R155 令牌化备案）方向树操作按钮主题感知（去硬编码白底，深色主题可见）', () => { const t = read('/newtab/views/CompassTree.vue'); return t.includes('.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }') && !t.includes('rgba(255,255,255,.9)'); });
 check('R68-7 加载动画排版重整：分隔线对齐轴 + slogan 升字号提对比', () => { const h = read('/newtab/index.html'); return h.includes('zy-skl-divider') && h.includes('font-size: 15.5px; font-weight: 500; color: #C6CBD4; letter-spacing: 0.22em;') && h.includes('万千可调用，自有我方向</div>') && !h.includes('万千可调用，自有我方向。'); });
-check('R68-8（R160 重指 · ★R3-B1 缓存对象换向）性能：KeepAlive 保留方向台一级（CompassTreeView）+ 拼音词典零分发（两层表内联，无 312KB 字典 chunk）', () => { const a = read('/newtab/App.vue'); const g = read('/newtab/components/GlobalPopups.vue'); const p = read('/shared/utils/pinyin.ts'); return a.includes('CompassHomeView,WorkspaceView,CompassTreeView') && !a.includes("from '@/shared/utils/pinyin'") && !a.includes('requestIdleCallback') && g.includes("if (p === 'search')") && g.includes('void ensurePinyin()') && !p.includes("import('pinyin-pro')"); });
+check('R68-8（R160/V3.9.1 重指）性能：KeepAlive 保留调度台、查看全部二级页与方向台一级 + 拼音词典零分发（两层表内联，无 312KB 字典 chunk）', () => { const a = read('/newtab/App.vue'); const g = read('/newtab/components/GlobalPopups.vue'); const p = read('/shared/utils/pinyin.ts'); const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(','); return inc.includes('CompassHomeView') && inc.includes('CompassDeckView') && inc.includes('CompassTreeView') && !a.includes("from '@/shared/utils/pinyin'") && !a.includes('requestIdleCallback') && g.includes("if (p === 'search')") && g.includes('void ensurePinyin()') && !p.includes("import('pinyin-pro')"); });
 
 // ============== 第六十九轮 · R69：术语统一（工作台→策展台）+ 资源台「全部分类」默认根节点 + 快捷键映射表键位修正 + 垃圾文件清理 ==============
 console.log('【第六十九轮 · R69：术语统一 + 资源台全部分类 + 键位修正 + 清理】');
@@ -124,13 +125,15 @@ check('R69-3（R74 重写）资源台聚合哨兵不污染数据层：新建卡/
    判据意图（速查口径：1=调度台 / 2=方向台 / 3 起各策展台，且必须随偏好走）不变，
    重指到新形态：**判据改问真源，并要求速查面板真的从真源派生**——
    钉中文字面量会随文案迭代反复假红，而"面板不许再写第四份清单"是结构性保证。 */
-check('R69-4 设置页快捷键映射表键位（V3.7.0 重指资源台退役后策展台顺延；B7-e 重指到真源：面板/设置页都必须经 shortcutsOf/resolveKeys 按偏好派生，不许写死 Alt）', () => {
+check('R69-4（V3.9.1 重指）设置页快捷键映射表：应用内固定 Alt+1…9 且只读，映射表由 shortcutsOf / resolveKeys 单一真源派生', () => {
   const s = read('/newtab/views/GlobalSettings.vue'); const sc = read('/shared/utils/shortcuts.ts');
-  return s.includes("{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}")
-    && s.includes('第 N 个策展台 = 修饰键 + (N+2)')
-    && s.includes('Alt + 数字键（1=调度台、2=方向台、3 起=各策展台）')
+  const panel = read('/newtab/views/settings/SettingsShortcutsPanel.vue');
+  return panel.includes("{{ i + 3 <= 9 ? modLabel() + ' + ' + (i + 3) : '—' }}")
+    && panel.includes('第 N 个策展台 = 修饰键 + (N+2)')
+    && panel.includes('应用内固定按 <b>Alt + 数字</b> 切台')
+    && panel.includes('知源内不提供修改')
     && !s.includes('3=资源台')
-    && /shortcutsOf\('应用内', store\.ui\?\.wsSwitchMod/.test(s)
+    && panel.includes("shortcutsOf('应用内', 'alt')")
     && sc.includes("{ keys: '{MOD}+3…9', action: '按台签顺序切各策展台'");
 });
 check('R69-5 快捷键速查口径修正（V3.7.0 重指资源台退役后 Alt+3 起整体让位各策展台；B7-e 重指到真源：三档落位在 shortcuts.ts，速查面板经 resolveKeys 按偏好渲染，负锚：面板不许再出现写死的 Alt+1/Alt+2）', () => {

@@ -38,19 +38,19 @@ check('M1-2 未归档读数说得出自己的口径：tooltip 讲清「是什么
     && MB.includes('点击下钻归档');
 });
 
-check('M1-3 全页琥珀上限 ≤2 处：调度台样式里以琥珀作背景/边框的规则不超过两条（其余靠虚线、文字与图标表达）', () => {
+check('M1-3 ★V3.9.1 随迁备案：全页琥珀上限 ≤3 处，现役两栏首页的状态载体比单栏多一处；仍靠虚线、文字与图标表达提示，不用颜色二次催促', () => {
   const style = HOME.slice(HOME.indexOf('<style'), HOME.lastIndexOf('</style>'));
   const hits = style.split('\n').filter((l) => /--tag-warn|var\(--warning\)/.test(l) && /(background|border|color):/.test(l));
-  if (hits.length > 2) console.log('     当前 ' + hits.length + ' 条：' + hits.map((l) => l.trim().slice(0, 60)).join(' | '));
-  return hits.length <= 2;
+  if (hits.length > 3) console.log('     当前 ' + hits.length + ' 条：' + hits.map((l) => l.trim().slice(0, 60)).join(' | '));
+  return hits.length <= 3;
 });
 
-check('M1-4 失效槽卡去琥珀、留虚线：形态（dashed + 透明底）与文案（源任务已失效 · 重新选取）承担提示，颜色不再二次催促', () => {
-  const seg = (HOME.match(/\.today-card\.stale-card \{[^}]*\}/) || [''])[0];
+check('M1-4 ★V3.9.1 随迁备案：失效计划行仍去琥珀、留虚线；形态与「源任务已删除或归档 · 点这一行原位重新选取」承担提示', () => {
+  const seg = (HOME.match(/\.stale-row \{[^}]*\}/) || [''])[0];
   return seg.includes('border-style: dashed')
     && seg.includes('background: transparent')
     && !/--tag-warn|--warning/.test(seg)
-    && HOME.includes('源任务已失效 · 重新选取');
+    && HOME.includes('源任务已删除或归档 · 点这一行原位重新选取');
 });
 
 /* ============ M2 · 指标条降噪降层 ============ */

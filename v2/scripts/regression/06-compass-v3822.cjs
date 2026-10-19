@@ -14,12 +14,13 @@ const HOME_RAW = RAW('src/newtab/views/CompassHome.vue');
 console.log('【V3.8.22 · 批一 P5/F6/F7 三项界面调整】');
 
 // ────────────────────────── P5 调度台卡内子任务视口退役 ──────────────────────────
-check('G5-1 ★调度台「今日三件事」卡内子任务视口必须退役（P5，用户拍板 2026-10-16）：卡内子任务列表（tc-subs 模板块 + sub* 五声明与滚动函数）整段删除，子任务读写走 FocusDetail 单行链唯一通道 —— 判据钉：① 负锚 tc-subs 模板块与 sub* 滚动函数不许回流 ② toggleSlotSub 函数保留且仍接 @toggle-sub（子任务勾选能力没丢，只是视口没了）③ 备案注释在位（退役物必须留证，否则下轮会当"漏实现"补回来）', () => {
+check('G5-1 ★V3.9.1 随迁备案：卡内子任务视口与 FocusDetail 单行区都已退出首页，子任务只从右侧任务详情读写。负锚继续钉旧 tc-subs / sub* 滚动函数不得回流；正锚改钉共享抽屉的 SubtaskList 接线', () => {
   return !HOME.includes('class="tc-subs"')
     && !HOME.includes('function onSubScroll') && !HOME.includes('function subScrollAt')
     && !HOME.includes('const SUB_VISIBLE_ROWS') && !HOME.includes('function subMoreCount')
-    && HOME.includes('function toggleSlotSub')
-    && HOME.includes('@toggle-sub="(tid, sid) => selTask && toggleSlotSub(selTask, sid)"')
+    && !HOME.includes('class="focus-sub-zone"')
+    && HOME.includes('drawerRef.value?.open(c.task)')
+    && READ('src/newtab/components/compass/TaskDetailDrawer.vue').includes('<SubtaskList ref="subListRef"')
     && HOME_RAW.includes('tc-subs 模板块一并退役')   /* ③ 备案锚查原始文本（在块注释里，codeOnly 已剥） */
 });
 

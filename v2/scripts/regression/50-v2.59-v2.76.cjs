@@ -77,20 +77,23 @@ check('R90-11 版本五处同步（manifest/package/ManualPage/regression/关于
 console.log('【第九十一轮 · V2.60.0：主攻直通调度台速览】');
 /** 速览条段（以「左右分栏」注释为界，避开模板内的嵌套 template） */
 
-check('R91-1 调度台消费 focusedProjects（改前唯一消费方在方向台，调度台零消费 ⇒ 手册承诺落空）', () => {
-  return CH91.includes('focusedProjects') && STRIP91_C.includes('focusedProjects.length')
-    && CH91.includes('useCompass()');
+check('R91-1（V3.9.1 重指）调度台消费 focusedProjects：首页主攻胶囊与右栏状态都从同一取数层派生', () => {
+  return CH91.includes('focusedProjects') && CH91.includes('for (const p of focusedProjects.value)')
+    && CH91.includes('useCompass()') && CH91.includes('const mainFocus = computed<Project | null>')
+    && CH91.includes('const extraFocus = computed<Project | null>');
 });
-check('R91-2（R120-TB1 修订）主攻并入合流方向条', () => { const h = read('/newtab/views/CompassHome.vue'); const ci = h.indexOf('<MetricBar>'); const bar = h.indexOf('</MetricBar>'); const seg = h.slice(ci, bar); return ci >= 0 && seg.includes('class="cf-label"') && h.indexOf('class="card focus"') > bar;  });
+check('R91-2（V3.9.1 重指）主攻摘要收进页头：主胶囊展示第一个主攻，第二个以 +1 展开，不占工作区首屏', () => { const h = read('/newtab/views/CompassHome.vue'); const seg = h.slice(h.indexOf('<div class="desk-actions">'), h.indexOf('</header>')); return seg.includes('class="focus-pill"') && seg.includes('class="extra-pill"') && seg.includes('class="extra-focus-pop"') && !h.includes('<MetricBar>'); });
 check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
   return CH91.includes('const focusMeta = computed(')
     && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')
     && !STRIP91_C.includes('projectTasksOf(')
-    && STRIP91_C.includes('focusMeta.get(p.id)');
+    && STRIP91_C.includes('focusMeta.get(mainFocus.id)')
+    && STRIP91_C.includes('focusMeta.get(extraFocus.id)');
 });
 check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（停滞取既有 isProjectStalled 口径）', () => {
-  return stripComments(FOCUS_FN91).includes('isProjectStalled(p)') && STRIP91_C.includes('cf-stall')
-    && STRIP91_C.includes('停滞');
+  return stripComments(FOCUS_FN91).includes('isProjectStalled(p)')
+    && CH91.includes('stall: isProjectStalled(p)')
+    && CH91.includes('focusMeta');
 });
 check('R91-5 ★W12-E 退役重指带备案（用户 2026-10-13 拍板 C1「只删入口」）：方向树 ▾ 菜单「进入项目详情页」随四枚项目详情入口退役一并移除。★守的语义转「重指后的形态」：调度台主攻速览那一处（CH91）仍直达 /compass/projects?p=<id> 未动；方向树侧改为不再把用户引过去（项目塔/全景就地看全），但路由字面量真源仍在 CompassTree、整页与 ⌘K 项目搜索仍在。判据：① 调度台主攻速览那处未变 ② 方向树内不再有 from=tree 的 projects 跳转（走 codeOnly 剥注释）与 @goto-detail= 绑定 ③ 整页仍在、⌘K 项目搜索仍可达', () => {
   const t = CT_W11;
@@ -101,8 +104,8 @@ check('R91-5 ★W12-E 退役重指带备案（用户 2026-10-13 拍板 C1「只�
     && read('/newtab/components/GlobalPopups.vue').includes('/compass/projects');
 });
 check('R91-6 无主攻时给轻引导，且**可点去方向台**（不是一句死文案）', () => {
-  return STRIP91_C.includes('cf-hint') && STRIP91_C.includes("router.push('/compass')")
-    && STRIP91_C.includes('去方向台指定');
+  return STRIP91_C.includes('class="no-focus"') && STRIP91_C.includes("router.push('/compass')")
+    && STRIP91_C.includes('去方向台指定主攻');
 });
 check('R91-7 models 注释不再把主攻指向已退役的「任务中心顶部」（R49 已删 /tasks 路由）', () => {
   const mi = read('/shared/models/index.ts');
@@ -229,13 +232,15 @@ check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在', () => {
 check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成）', () => {
   return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
 });
-check('R94-6 B3：完成态挂在 .card.focus 上，.today-cards 走 filter: saturate( 去饱和 ★R175 重指带备案：去饱和幅距 .5→.65（新原型 spec，仍低饱和+安静收束哲学不变）', () => {
-  return CH94.includes('<div class="card focus" :class="{ \'all-done\': focusAllDone }">')
-    && CH94.includes('.card.focus.all-done .today-cards { filter: saturate(.65); }');
+check('R94-6（V3.9.1 重指）B3：完成态挂在 .work-board.all-done 上，整张工作单轻降饱和，仍低饱和 + 安静收束', () => {
+  return CH94.includes('class="work-board" :class="{ \'all-done\': focusAllDone }"')
+    && /\.work-board\.all-done \{[^}]*background: color-mix/.test(CH94)
+    && !CH94.includes('.today-cards { filter: saturate');
 });
-check('R94-7 ★ B3 安静（R120-TB2 文案对齐原型）：完成行「✓ 今日三件事已闭环 · 专注带来从容」；完成态样式零 --danger / 零 animation / 零百分比（★G1(V3.8.25)随迁带备案：✓ 前缀迁 <Icon name="check">，文案与「零 --danger / 零 animation / 零百分比」三条样式纪律一字未动）', () => {
-  return /<Icon name="check"[^>]*\/> 今日三件事已闭环 · 专注带来从容/.test(TODAY94)
-    && !DONE_STYLE94.includes('--danger') && !DONE_STYLE94.includes('animation') && !DONE_STYLE94.includes('%');
+check('R94-7 ★ B3 安静（V3.9.1 重指）：完成条「今日三件事已闭环 · 专注带来从容」；完成态样式零 --danger / 零 animation / 零百分比', () => {
+  const quietStyle = DONE_STYLE94.replace(/color-mix\([^)]*\)/g, '')
+  return /<Icon name="check"[^>]*\/> 今日三件事已闭环 · 专注带来从容/.test(CH94)
+    && !quietStyle.includes('--danger') && !quietStyle.includes('animation') && !quietStyle.includes('%');
 });
 check('R94-8 ★ B2 不持久化：curTreeOpen 不写 saveUIPrefs / UIPrefs（写了就变成"记住上次"，与"默认折叠"矛盾）', () => {
   return !/saveUIPrefs\([^)]*curTreeOpen/.test(CH94_C)

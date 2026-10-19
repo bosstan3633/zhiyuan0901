@@ -75,8 +75,8 @@ check(NAME(
 });
 
 check(NAME(
-  'H3-2 ★切台键不得硬编码任何具体修饰键：清单里写 {MOD} 占位，速查面板与设置页按当前偏好解析'), () => {
-  // 真源里切台三条必须是占位
+  'H3-2 ★V3.9.1 决策更新：应用内切台固定 Alt+1…9，真源仍以 {MOD} 表示可展示键位，速查与设置统一解析成 Alt；设置页只读，旧修饰键偏好不再影响行为'), () => {
+  // 真源里切台三条仍走占位，避免未来换展示口径时散落硬编码
   for (const k of ['{MOD}+1', '{MOD}+2', '{MOD}+3…9']) {
     if (!SC.includes(k)) { console.log(`真源缺占位 ${k}`); return false }
   }
@@ -85,9 +85,12 @@ check(NAME(
   // ★变量别取错：MPC 是**手册页**的 codeOnly，这里要核的是速查面板（GPC）——
   //   写错变量时判据会拿手册页去问「你的模板消费派生量了吗」，恒假红（R4-Dl 族第六次）
   if (!/v-for="grp in SHORTCUT_GROUPS_VIEW"/.test(GPC)) { console.log('速查模板未消费派生量'); return false }
-  // 设置页：appShortcuts 必须走 shortcutsOf 并传 mod
-  if (!/shortcutsOf\('应用内', store\.ui\?\.wsSwitchMod/.test(GSC)) { console.log('设置页未按偏好取清单'); return false }
-  // 负锚：三处都不许出现写死的 Alt+1 / Alt+2 作为切台键位
+  // 设置页：appShortcuts 必须走 shortcutsOf 并固定 Alt
+  if (!/shortcutsOf\('应用内', 'alt'\)/.test(GSC)) { console.log('设置页未固定 Alt 取清单'); return false }
+  if (!GSC.includes('Alt + 1…9（固定）') || !GSC.includes('gs-sr-readonly')) { console.log('设置页切台未呈现只读态'); return false }
+  // 负锚：旧偏好选择器与可写入口不许回流
+  if (GSC.includes('v-model="wsMod"') || GSC.includes('saveWsMod')) { console.log('设置页仍可修改切台修饰键'); return false }
+  // 负锚：两处展示层不许再各自写死旧 Alt 映射串
   for (const [name, src] of [['速查面板', GPC], ['设置页', GSC]]) {
     if (/keys: 'Alt\+1'/.test(src) || /keys: 'Alt \+ 数字键'/.test(src)) {
       console.log(`${name} 仍写死 Alt 切台键`); return false
@@ -248,15 +251,14 @@ check(NAME(
 });
 
 check(NAME(
-  'M6-2 ★热区下限 28px：顶栏与指标条三枚 chip 用 min-height 撑盒子（不改字号与横向 padding）', 
+  'M6-2 ★V3.9.1 随迁备案：热区下限仍为 28px。顶栏 chip 与两栏首页的页脚状态、战报、推荐依据钮全部用 min-height / 固定盒撑住',
   '★为什么用 min-height 而不是加 padding：padding 会把 48px 顶栏顶高、把左右 chip 间距撑散，',
   '那是对"窄窗不破版"这条验收的净损失。min-height 不改变任何相邻元素的排布。'), () => {
   const targets = [
     ['App.vue 顶栏', APPC, /\.brand-chip, \.nav-shortcut-tip \{ min-height: 28px/, '顶栏 chip'],
-    ['CompassHome 存储 chip', CHC, /\.storage-chip \{[^}]*min-height: 28px/, 'storage-chip'],
-    ['CompassHome 同步 chip', CHC, /\.sync-chip \{[^}]*min-height: 28px/, 'sync-chip'],
-    ['CompassHome 战报钮', CHC, /\.mb-act \{[^}]*min-height: 28px/, 'mb-act'],
-    ['CompassHome 推荐依据钮', CHC, /\.focus-why-ico \{[^}]*width: 28px; height: 28px/, 'focus-why-ico'],
+    ['CompassHome 存储状态', CHC, /\.foot-status \{[^}]*min-height: 28px/, 'foot-status'],
+    ['CompassHome 战报钮', CHC, /\.foot-link \{[^}]*min-height: 28px/, 'foot-link'],
+    ['CompassHome 推荐依据钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
   ]
   for (const [name, src, re, who] of targets) {
     if (!re.test(src)) { console.log(`${who} 未达 28px（${name}）`); return false }

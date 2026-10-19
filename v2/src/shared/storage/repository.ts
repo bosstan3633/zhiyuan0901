@@ -202,7 +202,9 @@ export function normalizeLegacyCards(d: AppData): void {
     }
     if (typeof c.description !== 'string' && typeof c.desc === 'string') c.description = c.desc
     if (c.status === undefined && typeof c.done === 'boolean') c.status = c.done ? 'done' : 'todo'
-    if (!Array.isArray(c.customFields)) c.customFields = {}
+    // customFields 是键值对象，不是数组。旧判据误用 Array.isArray 会把所有正常的
+    // 对象形式自定义字段清空（转卡时整片字段静默丢失），这里只挡缺失与非对象形状。
+    if (!c.customFields || typeof c.customFields !== 'object' || Array.isArray(c.customFields)) c.customFields = {}
   })
   /* ★★执行顺序是一条真缺陷，不是排版问题（P0-2 夹具实跑抓出来的）：
      本函数**必须在 `fixCurioStatus` 之前跑**。原来 `fixCurioStatus` 在前，它看到 `status` 缺失
@@ -231,7 +233,7 @@ export function normalizeLegacyCards(d: AppData): void {
     if (!c || typeof c !== 'object') return
     if (typeof c.description !== 'string' && typeof c.desc === 'string') c.description = c.desc
     if (!c.dueDate && typeof c.dueAt === 'number') c.dueDate = c.dueAt
-    if (!Array.isArray(c.customFields)) c.customFields = {}
+    if (!c.customFields || typeof c.customFields !== 'object' || Array.isArray(c.customFields)) c.customFields = {}
   })
   fixCardLegacyFields(d.tasks as unknown as Record<string, unknown>[])
   fixCardLegacyFields(d.curiosities as unknown as Record<string, unknown>[])

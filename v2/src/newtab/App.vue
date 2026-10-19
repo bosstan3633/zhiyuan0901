@@ -46,7 +46,7 @@ onErrorCaptured((err) => {
   return false
 })
 function reloadPage() { location.reload() }
-interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts', prefill?: { title?: string; description?: string }) => void; closeAll: () => void }
+interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts', prefill?: { title?: string; description?: string }) => void; closeAll: () => void; activePanel: string | null }
 const globalPopups = ref<GpHandle | null>(null)
 const gpMounted = ref(false)
 let pendingPanel: { name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'; prefill?: { title?: string; description?: string } } | null = null
@@ -149,7 +149,7 @@ function onBrandClick(): void {
 }
 
 const activeTab = computed(() => {
-  if (route.path === '/') return 'home'
+  if (route.path === '/' || route.path.startsWith('/deck/')) return 'home'
   if (route.path.startsWith('/compass')) return 'compass'
   // V3.7.0（R179）：/curation 已 redirect 到 /（资源台退役）；hub 工作区路由不复存在
   if (route.path.startsWith('/settings')) return 'settings'
@@ -315,17 +315,15 @@ function onWsTabDrop(e: DragEvent, ws: Workspace) {
 
 function onGlobalKeydown(e: KeyboardEvent) {
   if (e.code === 'Escape') {
-    globalPopups.value?.closeAll()
-    return
+    // V3.9.1：只有全局浮层真的开着时才拦截 Esc。
+    // 旧实现无条件 closeAll + return，捕获阶段先于页面 Esc，导致方向树「来源感知返回」永远收不到 Esc。
+    if (globalPopups.value?.activePanel) {
+      globalPopups.value.closeAll()
+      return
+    }
   }
-  // O18：应用内切台修饰键五种可选（默认 Alt）
-  const mod = store.ui?.wsSwitchMod || 'alt'
-  let modPressed = false
-  if (mod === 'ctrl') modPressed = e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey
-  else if (mod === 'alt') modPressed = e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey
-  else if (mod === 'ctrl-shift') modPressed = e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey
-  else if (mod === 'alt-shift') modPressed = e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey
-  else modPressed = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey
+  // V3.9.1：应用内切台键固定为 Alt+1…9（设置页只读）。旧 wsSwitchMod 仅兼容存量数据，不再影响行为。
+  const modPressed = e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey
   // B3：? 呼出快捷键速查
   if (e.key === '?' && !isEditableTarget(e)) { e.preventDefault(); gpOpen('shortcuts'); return }
   if (modPressed && /^Digit[1-9]$/.test(e.code) && !isEditableTarget(e)) {
@@ -546,7 +544,7 @@ const backupReminderDot = computed(() => {
 
       <div class="topbar-right">
         <!-- R176（原型 nav-shortcut-tip）：⌘K 快捷键提示 chip（点击即呼出全局搜索） -->
-        <button class="nav-shortcut-tip" title="全局搜索" @click="gpOpen('search')">调出快捷键 ⌘K</button>
+        <button class="nav-shortcut-tip" title="全局搜索" @click="gpOpen('search')">调出 Ctrl+K</button>
         <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
         <span class="save-dot" :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="theme-select">
@@ -588,7 +586,7 @@ const backupReminderDot = computed(() => {
              R148-P1a：设置页与回收站纳入缓存——设置页 3500+ 行、挂载即算 lcCards/gFlat/tagUsage，
              每次进都全量重挂是"切模块卡"的主要来源之一（实测冷挂 190ms / 二挂 101ms） -->
         <router-view v-slot="{ Component }">
-          <keep-alive include="CompassHomeView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,RecycleBinView,ProfileInsightsView">
+          <keep-alive include="CompassHomeView,CompassDeckView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,RecycleBinView,ProfileInsightsView">
             <component :is="Component" />
           </keep-alive>
         </router-view>

@@ -165,44 +165,44 @@
             <div class="gp-ri-icon" :class="item.iconClass">{{ item.iconText }}</div>
             <div class="gp-ri-main">
               <div class="gp-ri-title" v-html="hlTitle(item.title)"></div>
-            <div class="gp-ri-meta">
-              <span class="gp-ri-badge ws">{{ item.ws }}</span>
-              <span class="gp-ri-badge cat">{{ item.cat }}</span>
-              <span v-for="b in item.badges" :key="b.text" class="gp-ri-badge" :class="b.type">{{ b.text }}</span>
-              <!-- R152：AI 命中挂在主列表这一行上（弱相关仍标"低置信"，判弱只用客观信号不藏） -->
-              <!-- R152：命中信息并入主列表这一行；弱相关仍显式标「低置信」，不许因为并组就藏掉 -->
-              <span v-if="aiHitById[item.id]" class="gp-ri-badge ai" :class="{ weak: aiHitById[item.id].weak }" :title="aiHitById[item.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从库内挑出来时点名了这张卡'"><Icon name="sparkle" :size="10"/>{{ aiHitById[item.id].weak ? '低置信' : '命中' }}</span>
-              <span v-if="item.link" class="gp-ri-link" :class="item.link.type"><Icon :name="linkIconName(item.link.type)" :size="12"/> {{ item.link.text }}</span>
-              <span v-if="item.due" class="gp-ri-due" :class="{overdue: item.dueOverdue}"><Icon v-if="item.dueOverdue" name="clock" :size="13"/> {{ item.due }}</span>
-            </div>
-            <div v-if="item.summary" class="gp-ri-summary" v-html="hlTitle(item.summary)"></div>
-            <div v-if="aiHitById[item.id]?.why" class="gp-ai-why">{{ aiHitById[item.id].why }}</div>
-          </div>
-          <div v-if="grp.total > grp.items.length" class="gp-group-more">… 还有 {{ grp.total - grp.items.length }} 条，输入更精确的关键词</div>
-          <div class="gp-ri-actions">
-            <template v-if="item.type==='res'">
-              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
-              <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
-              <button class="gp-ri-act go" title="打开链接（外开浏览器）" @click.stop="openResLink(item)"><Icon name="external" :size="13"/></button>
-            </template>
-            <template v-else-if="item.type==='task'">
-              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
-              <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
-              <button class="gp-ri-act go" title="定位到任务卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
-            </template>
-            <template v-else-if="item.type==='curio'">
-              <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
-              <div class="gp-ri-act convert" title="转化为...">
-                <span @click.stop="toggleConvertMenu(item.id)"><Icon name="refresh" :size="13"/>▾</span>
-                <div class="gp-convert-menu" :class="{open: convertMenuId===item.id}" @click.stop>
-                  <div class="gp-convert-menu-item" @click="convertCurio(item, 'res')"><Icon name="filetext" :size="13"/> 转化为资源卡</div>
-                  <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')"><Icon name="check" :size="13"/> 转化为任务卡</div>
-                </div>
+              <div class="gp-ri-meta">
+                <span class="gp-ri-badge ws">{{ item.ws }}</span>
+                <span class="gp-ri-badge cat">{{ item.cat }}</span>
+                <span v-for="b in item.badges" :key="b.text" class="gp-ri-badge" :class="b.type">{{ b.text }}</span>
+                <!-- R152：AI 命中挂在主列表这一行上（弱相关仍标"低置信"，判弱只用客观信号不藏） -->
+                <!-- R152：命中信息并入主列表这一行；弱相关仍显式标「低置信」，不许因为并组就藏掉 -->
+                <span v-if="aiHitById[item.id]" class="gp-ri-badge ai" :class="{ weak: aiHitById[item.id].weak }" :title="aiHitById[item.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从库内挑出来时点名了这张卡'"><Icon name="sparkle" :size="10"/>{{ aiHitById[item.id].weak ? '低置信' : '命中' }}</span>
+                <span v-if="item.link" class="gp-ri-link" :class="item.link.type"><Icon :name="linkIconName(item.link.type)" :size="12"/> {{ item.link.text }}</span>
+                <span v-if="item.due" class="gp-ri-due" :class="{overdue: item.dueOverdue}"><Icon v-if="item.dueOverdue" name="clock" :size="13"/> {{ item.due }}</span>
               </div>
-              <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
-            </template>
-          </div>
+              <div v-if="item.summary" class="gp-ri-summary" v-html="hlTitle(item.summary)"></div>
+              <div v-if="aiHitById[item.id]?.why" class="gp-ai-why">{{ aiHitById[item.id].why }}</div>
+            </div>
+            <div class="gp-ri-actions">
+              <template v-if="item.type==='res'">
+                <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
+                <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
+                <button class="gp-ri-act go" title="打开链接（外开浏览器）" @click.stop="openResLink(item)"><Icon name="external" :size="13"/></button>
+              </template>
+              <template v-else-if="item.type==='task'">
+                <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
+                <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
+                <button class="gp-ri-act go" title="定位到任务卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
+              </template>
+              <template v-else-if="item.type==='curio'">
+                <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
+                <div class="gp-ri-act convert" title="转化为...">
+                  <span @click.stop="toggleConvertMenu(item.id)"><Icon name="refresh" :size="13"/>▾</span>
+                  <div class="gp-convert-menu" :class="{open: convertMenuId===item.id}" @click.stop>
+                    <div class="gp-convert-menu-item" @click="convertCurio(item, 'res')"><Icon name="filetext" :size="13"/> 转化为资源卡</div>
+                    <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')"><Icon name="check" :size="13"/> 转化为任务卡</div>
+                  </div>
+                </div>
+                <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
+              </template>
+            </div>
           </div><!-- /gp-result-item -->
+          <div v-if="grp.total > grp.items.length" class="gp-group-more">… 还有 {{ grp.total - grp.items.length }} 条，输入更精确的关键词</div>
         </template>
         </template>
         </template><!-- /R49-G ws 树分支 v-else -->
@@ -1396,7 +1396,7 @@ function locateOnly(item: SearchResult) {
        所以定位改靶到首页 + `?hk=res`（CompassHome 的 watch 负责切到池 tab，PoolCardsPanel 负责高亮滚动）。
        台内原生卡（论点卡等 workspaceId≠池 id）仍走策展台深链，那条路是通的。 */
     if (r.workspaceId === CURATION_WS_ID) {
-      router.push({ path: '/', query: { hl: item.id, hk: 'res' } })
+      router.push({ path: '/deck/resource', query: { hl: item.id, hk: 'res' } })
       closeAll()
       showToast('已定位到资源卡池')
       return
@@ -1409,13 +1409,13 @@ function locateOnly(item: SearchResult) {
     return
   }
   if (item.type === 'task') {
-    router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
+    router.push({ path: '/deck/task', query: { hl: item.id, hk: 'task' } })
     closeAll()
     showToast('已定位到任务卡片')
     return
   }
   if (item.type === 'curio') {
-    router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
+    router.push({ path: '/deck/curiosity', query: { hl: item.id, hk: 'curio' } })
     closeAll()
     showToast('已定位到好奇心卡片')
     return
@@ -1518,12 +1518,12 @@ function openItem(item: SearchResult) {
     recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
     store.persistHot()
     // R117（04-61 B）：hk 显式分派——调度台同时挂着任务卡与好奇心卡两个 hl 消费者
-    router.push({ path: '/', query: { hl: item.id, hk: 'task' } })
+    router.push({ path: '/deck/task', query: { hl: item.id, hk: 'task' } })
     showToast('↗ 已定位到任务卡片')
   } else {
     recordCardOpen(d.value, d.value.curiosities.find(c => c.id === item.id))
     store.persistHot()
-    router.push({ path: '/', query: { hl: item.id, hk: 'curio' } })
+    router.push({ path: '/deck/curiosity', query: { hl: item.id, hk: 'curio' } })
     showToast('↗ 已定位到好奇心卡片')
   }
   closeAll()
@@ -1602,19 +1602,20 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
     closeAll()
     showToast('已转化为资源卡，存入资源卡池', { label: '查看', cb: () => {
       // 与 locateOnly 同一改靶口径：池卡的居所是调度台「资源卡池」，不是策展台深链
-      router.push({ path: '/', query: { hl: r.id, hk: 'res' } })
+      router.push({ path: '/deck/resource', query: { hl: r.id, hk: 'res' } })
     } })
     return
   }
   const t = convertToTask(c)
   closeAll()
-  showToast('已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/', query: { hl: t.id, hk: 'task' } }) })
+  showToast('已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/deck/task', query: { hl: t.id, hk: 'task' } }) })
 }
 
 // ===== B3：快捷键速查数据 =====
 // B7-e H3：清单搬进 shared/utils/shortcuts.ts（与设置页、手册共用一份真源）。
 // 这里只做**派生**：把 {MOD} 占位按用户当前修饰键偏好换成真实键位。
-const SC_MOD = computed(() => store.ui?.wsSwitchMod || 'alt')
+// V3.9.1：应用内切台固定 Alt，速查面板不再跟随旧偏好字段。
+const SC_MOD = computed(() => 'alt')
 const SHORTCUT_GROUPS_VIEW = computed(() =>
   SHORTCUT_GROUPS.map(g => ({
     title: g.title,
@@ -1666,7 +1667,7 @@ function tcOpenBoard() {
   resetTcForm()
   closeAll()
   // R117（04-61 C1）：任务调度面板已迁调度台底部 tab ⇒ 改走 ?bottom=task（原 /compass?zone=task 失效）
-  router.push({ path: '/', query: { bottom: 'task' } })
+  router.push({ path: '/deck/task' })
 }
 function resetTcForm() {
   tcForm.title = ''; tcForm.description = ''; tcForm.projectId = ''; tcForm.metricId = ''

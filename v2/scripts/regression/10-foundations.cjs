@@ -26,7 +26,16 @@ check('好奇心反馈 好奇心+1', () => read('/content/overlay-impl.ts').incl
 check('B9 已保存态 Enter 监听', () => read('/content/search-overlay.ts').includes("document.addEventListener('keydown', onSavedKeydown, true)"));
 
 console.log('【B组 修复】');
-check('B1/B2 任务抽屉级联+Ctrl+Enter 容器级', () => read('/newtab/components/compass/TaskDetailDrawer.vue').includes('onSelProjectChange') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('task-sidebar" :style="{ width: drawerW + \'px\' }" @keydown.ctrl.enter.prevent'));
+check('B1/B2（V3.9.1 重指）任务抽屉级联 + Ctrl+Enter 容器级：共享 Drawer 壳承接 Esc/宽度，任务详情仍负责项目级联与文档级保存快捷键', () => {
+  const f = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  return f.includes('onSelProjectChange')
+    && f.includes('<Drawer :open="sidebarOpen && !!selectedTask"')
+    && f.includes('width="520px"')
+    && f.includes('width-storage-key="task"')
+    && f.includes(':close-on-escape="!aiJob"')
+    && f.includes('function onSidebarDocKey(')
+    && f.includes("(e.ctrlKey || e.metaKey) && e.key === 'Enter'");
+});
 check('B3 单例询问链路（zy-where）', () => read('/background/index.ts').includes('zy-where'));
 check('B4/R120 搜索两入口统一：单击/Enter=开链（openLinkOrLocate）· Ctrl+Enter=仅定位（locateOnly：hl+hk 三件套 + cat）· 行内 ↗ 保留', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes('function openLinkOrLocate') && g.includes('function locateOnly') && g.includes("hk: 'res'") && g.includes("hk: 'task'") && g.includes("hk: 'curio'") && g.includes('function openResLink'); });
 check('B10 open-dashboard 复用标签页', () => read('/background/index.ts').includes('B10：已有新标签页则聚焦回归'));
@@ -235,7 +244,7 @@ check('B3 快捷键速查面板（? 呼出）', () => read('/newtab/components/G
 check('B4/B9 键盘导航（任务列表 + 日期）', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onTaskNavKey') && read('/newtab/views/CompassHome.vue').includes('onDateKey'));
 check('B5 统一右键菜单（三卡）', () => read('/shared/components/ContextMenu.vue').includes('cx-item') && read('/newtab/views/Workspace.vue').includes('openResCtx') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('openTaskCtx') && read('/newtab/components/compass/CuriosityPanel.vue').includes('openCurioCtx'));
 check('B6 拖拽插入线', () => read('/newtab/views/Workspace.vue').includes('drop-line-t') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('drop-line-t') && read('/newtab/components/compass/CuriosityPanel.vue').includes('drop-line-t'));
-check('B7 抽屉宽度记忆', () => read('/shared/models/index.ts').includes('drawerWs') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('startDrawerResize'));
+check('B7（V3.9.1 重指）抽屉宽度记忆：任务详情经共享 Drawer 的 widthStorageKey 落 drawerWs.task，全站其余抽屉共用 shared', () => { const f = read('/newtab/components/compass/TaskDetailDrawer.vue'); const dr = read('/shared/components/Drawer.vue'); return read('/shared/models/index.ts').includes('drawerWs') && f.includes('width-storage-key="task"') && dr.includes('widthStorageKey') && dr.includes('store.ui?.drawerWs?.[props.widthStorageKey]') && dr.includes("const key = props.widthStorageKey || 'shared'"); });
 check('B8/B10/B11 焦点返还/列头sticky/加载态', () => read('/newtab/components/GlobalPopups.vue').includes('lastFocused') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('.khead { position: sticky;') && read('/newtab/views/CompassHome.vue').includes('exportBusy'));
 
 console.log('【第十七轮 · 修复与功能补全】');
@@ -272,7 +281,7 @@ check('R28-6 展板任务拖拽 off-by-one 修复+落库', () => read('/newtab/v
 
 console.log('【第廿九轮 · Tab排序/拖卡归档/信纸留白 · V2.9.0】');
 check('R29-1 工作台 Tab 拖拽排序（插入线+order 全量规整落库）', () => read('/newtab/App.vue').includes('onWsTabDrop') && read('/newtab/App.vue').includes('wsDropMark') && read('/newtab/App.vue').includes('list.forEach((w, i) => { w.order = i })'));
-check('R29-2 快捷键跟随位置（顺序即快捷键，自定义绑定移除）', () => read('/newtab/views/GlobalSettings.vue').includes('顺序即快捷键') && read('/newtab/App.vue').includes('switchToIndex') && !read('/newtab/views/GlobalSettings.vue').includes('setWsHotkey'));
+check('R29-2（V3.9.1 重指）应用内切台键随台签顺序：固定 Alt+1…9、设置页只读，自定义绑定入口零残留', () => { const s = read('/newtab/views/settings/SettingsShortcutsPanel.vue'); const a = read('/newtab/App.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return s.includes('拖拽改序后数字键跟随顺序') && s.includes('知源内不提供修改') && a.includes('function switchToIndex(') && a.includes('e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey') && !g.includes('setWsHotkey'); });
 check('R29-3 资源卡拖到侧栏分类改归属（三视图通用+待分类落点）', () => read('/newtab/views/Workspace.vue').includes('cardDropTarget') && read('/newtab/views/Workspace.vue').includes('onDropToCategory(e, cat.id)') && read('/newtab/views/Workspace.vue').includes("onDropToCategory(e, '')"));
 check('R29-4 分类落点高亮（与分类拖拽指示区分）', () => read('/newtab/views/Workspace.vue').includes('.cat-item.card-drop'));
 check('R29-5/R49 信纸明显留白（应用内+分享版同步；R49 行距 3.1）', () => read('/newtab/views/GlobalSettings.vue').includes('line-height: 3.1') && read('/newtab/letter-data.ts').includes('line-height: 3.1'));

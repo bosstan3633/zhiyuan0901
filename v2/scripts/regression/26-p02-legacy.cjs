@@ -47,6 +47,11 @@ check('P0-2-2a ★B7-e 四条仍在（task status/priority · curio status · cu
     && NORM.includes('c.title') && NORM.includes('c.question')
     && NORM.includes('c.desc') && NORM.includes('c.dueAt');
 });
+check('P0-2-2a2 ★customFields 是键值对象，不是数组：旧判据 `Array.isArray(c.customFields)` 会把每张正常卡的字段清空——好奇心转资源时自定义字段整片静默丢失，而且启动/导入两条路都会触发。负锚钉死不得回退成数组判据', () => {
+  const ok = /if \(!c\.customFields \|\| typeof c\.customFields !== 'object' \|\| Array\.isArray\(c\.customFields\)\) c\.customFields = \{\}/.test(NORM);
+  const old = /if \(!Array\.isArray\(c\.customFields\)\) c\.customFields = \{\}/.test(NORM);
+  return ok && !old && NORM.includes('customFields 是键值对象，不是数组');
+});
 check('P0-2-2b ★**资源卡 linkType 兜底 + url→link 映射**（P0-2a 首次补齐的一条）。★它与前四条性质不同：**不会崩**，所以任何"点开就炸"的实拍都抓不到它——是一次纯静态盘点才发现的行为缺陷：缺 linkType 时 toOpenableUrl 走 url 分支 ⇒ 本地文件卡被当网页打开；linkStateOf 判不出 incomplete ⇒「⚠ 待补全路径」永不出现。判据点名四段：url 映射 / 三档形状推断（file·obsidian·url）/ zy-asset:// 归 file / 已有值不改', () => {
   return NORM.includes('const fixResourceLinkType')
     && NORM.includes("typeof c.url === 'string'")

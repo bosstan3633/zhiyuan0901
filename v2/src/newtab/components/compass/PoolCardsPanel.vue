@@ -33,6 +33,11 @@ const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
 
+const props = withDefaults(defineProps<{
+  /** 独立二级页：隐藏新建/本地导入入口，空态主行动改为清空筛选。 */
+  secondaryMode?: boolean
+}>(), { secondaryMode: false })
+
 const query = ref('')
 /** R3-Ca：视图两档（网格/列表）——与任务、好奇面板同口径存组件内 ref，不落盘（三面板一致，别在这里单开持久化）
  *  ★W15-T2（用户拍板 2026-10-16）：**默认改列表** —— 池卡 261 张，网格一屏只放得下十几张且标签要折行，
@@ -40,6 +45,10 @@ const query = ref('')
 const viewMode = ref<'card' | 'list'>('list')
 /** R3-Ca：「待打标」筛选——池卡由标签组织，无标签=召回不上的存量，这条是 R179 迁移时承诺的兜底出口 */
 const onlyUntagged = ref(false)
+type CalledFilter = 'all' | 'called' | 'never'
+const calledFilter = ref<CalledFilter>('all')
+// V3.9.1：首页「本周复用」进入资源二级页时直接落到“已调出”，保持入口语义。
+if (route.query.called === 'called') calledFilter.value = 'called'
 /* W5（V3.8.5）#3：排序接线 DeckControls —— 三档（最近更新默认 / 最近采集 / 最近调出）+ 方向钮。
    偏好键用 `pool`（新键，不碰 useResourceView 的 `sortPrefs.res`——那是策展台资源台的口径）。
    置顶恒浮顶（与档位/方向无关，右键菜单的置顶动作语义即"钉在最上面"）。 */
@@ -70,6 +79,7 @@ const poolCards = computed(() => {
     .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .filter(r => !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
     .filter(r => !onlyUntagged.value || !(r.tags || []).length)
+    .filter(r => calledFilter.value === 'all' || (calledFilter.value === 'called' ? !!r.lastCalledAt : !r.lastCalledAt))
     .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (keyOf(b) - keyOf(a)) * dirMul)
 })
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
@@ -146,11 +156,23 @@ function doMirror(r: ResourceCard) {
   showToast(`已镜像到「${name}」（源卡仍在资源卡池）`)
 }
 /** 胶囊组没有"再点一次取消"的语义（点谁选谁），这里补上：再点「待打标」= 回到全部 */
-function onPoolFilter(v: string) { onlyUntagged.value = v === 'untagged' ? !onlyUntagged.value : false }
+function onPoolFilter(v: string) {
+  if (v === 'untagged') { onlyUntagged.value = !onlyUntagged.value; calledFilter.value = 'all'; return }
+  onlyUntagged.value = false
+  calledFilter.value = v === 'called' || v === 'never' ? v : 'all'
+}
 const poolFilters = computed(() => [
   { id: 'all', label: '全部', count: poolTotal.value },
-  { id: 'untagged', label: '待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' }
+  { id: 'untagged', label: '待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' },
+  { id: 'called', label: '已调出', count: (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && r.lastCalledAt).length, title: '至少被打开过一次' },
+  { id: 'never', label: '从未调出', count: (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !r.lastCalledAt).length, title: '还没有被打开过的卡' }
 ])
+const activeFilter = computed(() => onlyUntagged.value ? 'untagged' : calledFilter.value)
+function clearPoolFilter(): void {
+  query.value = ''
+  onlyUntagged.value = false
+  calledFilter.value = 'all'
+}
 
 /* ===== R2-⑧ 增量渲染：默认一屏 60 张，滚动到底自动追加（260 张实测 449ms/longtask 0，
    但线性上涨到 500+ 就是首屏成本——上限先立住，不必等它变慢再补） ===== */
@@ -207,6 +229,12 @@ function openCard(r: ResourceCard) {
     emitOpenDrawer({ kind: 'res', id: r.id })
   }, 260)
 }
+/** 二级页深链 `?hl=`：直接打开右侧资源详情，不依赖 260ms 单击去重计时器。 */
+function openDetail(id: string) {
+  const r = (store.data?.resources || []).find(x => x.id === id && !x.deletedAt)
+  if (r) emitOpenDrawer({ kind: 'res', id: r.id })
+}
+defineExpose({ openDetail })
 function openCardLink(r: ResourceCard) {
   const url = toOpenableUrl(r.linkType, r.link)
   if (!url) { showToast('该卡片还没有可打开的链接，可在详情中添加'); return }
@@ -249,6 +277,7 @@ function openCtx(e: MouseEvent, r: ResourceCard) {
 const newOpen = ref(false)
 const newDraft = ref({ title: '', link: '', tags: '' })
 function openNew() {
+  if (props.secondaryMode) return
   newDraft.value = { title: '', link: '', tags: '' }
   newOpen.value = true
 }
@@ -311,13 +340,13 @@ function deleteSelected() {
   <div class="pcp">
     <!-- R3-Cc2：控制行收归 DeckControls——顺序/样式一份实现，池的值域（两档视图 + 全部/待打标）以数据传入 -->
     <DeckControls panel="pool" search search-ph="快速过滤标题 / 标签..." :query="query" @search="query = $event"
-      :filters="poolFilters" :filter="onlyUntagged ? 'untagged' : 'all'" @filter="onPoolFilter"
+      :filters="poolFilters" :filter="activeFilter" @filter="onPoolFilter"
       :views="poolViews" :view="viewMode" @view="viewMode = $event as 'card' | 'list'"
       :sorts="POOL_SORTS" :sort="sortBy" @sort="sortBy = $event as PoolSortBy"
       :sort-dir="sortDir" :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
-      new-label="＋ 新建卡" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
-      <button class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()"><Icon name="inbox" :size="13"/> 导入本地文件</button>
+      :new-label="secondaryMode ? '' : '＋ 新建卡'" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
+      <button v-if="!secondaryMode" class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()"><Icon name="inbox" :size="13"/> 导入本地文件</button>
       <!-- ★W15-T3（用户拍板 2026-10-16）链接类型分组下拉：组序固定 本地文件 → URL → Obsidian → 无链接（垫底）；
            再点一次同一组 = 取消分组（回到平铺）。分组只在列表视图生效（网格不做分组，避免一屏信息过载）。 -->
       <div v-if="viewMode === 'list'" class="pcp-groupbar">
@@ -337,7 +366,7 @@ function deleteSelected() {
     </DeckBatchBar>
 
     <!-- 新建单卡浮层：v-if 不开即零节点（全站浮层纪律） -->
-    <div v-if="newOpen" class="pcp-mask" @click.self="newOpen = false">
+    <div v-if="!secondaryMode && newOpen" class="pcp-mask" @click.self="newOpen = false">
       <div class="pcp-pop">
         <div class="pcp-pop-h">＋ 新建资源卡<span class="pcp-pop-x" @click="newOpen = false">×</span></div>
         <label>标题<input v-model="newDraft.title" placeholder="这张卡叫什么" @keydown.enter="createCard"></label>
@@ -353,10 +382,10 @@ function deleteSelected() {
     <!-- G3（V3.8.27）：三种"空"收进同一个契约组件——区别只在 是什么/怎么开始/主行动，结构不再各写一套。
          class="pcp-empty" 保留：theme-audit.cjs 的场景探针按这个选择器取面板，不能丢。 -->
     <EmptyState v-if="!poolCards.length" class="pcp-empty" icon="folder"
-      :size="(onlyUntagged || query) ? 'inline' : 'section'"
-      :title="onlyUntagged ? '池里每张卡都有标签了' : (query ? `没有匹配「${query}」的资源卡` : '资源卡池还空着')"
-      :hint="onlyUntagged ? '切回「全部」即可看到池里的卡。' : (query ? '清空过滤词，或换个更短的关键词。' : '用 Ctrl+Shift+J 从任意网页采集第一张卡，或点上方「＋ 新建卡」。')"
-      :action-label="(onlyUntagged || query) ? '' : '＋ 新建卡'" @action="openNew" />
+      :size="(onlyUntagged || query || calledFilter !== 'all') ? 'inline' : 'section'"
+      :title="onlyUntagged ? '池里每张卡都有标签了' : (query ? `没有匹配「${query}」的资源卡` : (calledFilter !== 'all' ? '这个调用状态没有资源卡' : '资源卡池还空着'))"
+      :hint="onlyUntagged ? '切回「全部」即可看到池里的卡。' : (query ? '清空过滤词，或换个更短的关键词。' : (calledFilter !== 'all' ? '切换到「全部」即可看到池里的卡。' : '用 Ctrl+Shift+J 从任意网页采集第一张卡。'))"
+      :action-label="(onlyUntagged || query || calledFilter !== 'all') ? '清空筛选' : ''" @action="clearPoolFilter" />
 
     <!-- R3-Ca 列表视图：一屏看更多 + 标签全展开（网格留作默认，两档共用同一份 poolCards 与分页） -->
     <div v-else-if="viewMode === 'list'" class="pcp-list">

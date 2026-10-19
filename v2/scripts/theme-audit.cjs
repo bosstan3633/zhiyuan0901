@@ -103,7 +103,7 @@ const VIEWPORT = { width: 1440, height: 900 }
  *  · 页脚计数必须按**容器**取且两代容器都认（内联抽屉 `.dr-footer` / 共享 Drawer `.drawer-footer`）——
  *    按 `.dr-footer-btn` 类名全站数会把链接行的动作钮算进来；
  *  · 三张卡详情各在哪个台面：资源卡在资源台（内联抽屉；App 级抽屉由总线打开，同一套件），
- *    任务/好奇在**调度台首页底部 Tab**（CompassHome 挂 '/'）。
+ *    任务/好奇在 V3.9.1 的独立二级页（`#/deck/task` / `#/deck/curiosity`）。
  */
 const DRAWER_VIEWS = [
   {
@@ -112,12 +112,14 @@ const DRAWER_VIEWS = [
     foot: '.dr-footer button, .drawer-footer button',
   },
   {
-    id: 'drawer-task', name: '任务卡详情', hash: '#/', tab: '任务卡',
-    card: '[data-tid]', open: '.task-sidebar', ai: '.task-sidebar .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
-    invert: '.task-sidebar .ts-ai-cell',
+    id: 'drawer-task', name: '任务卡详情', hash: '#/deck/task',
+    /* V3.9.1：任务详情已统一到共享 Drawer 壳，旧的 `.task-sidebar` 只存在于历史选择器里。
+       改用抽屉内的标题块作为打开判据，AI 入口仍在同一层，避免把真实可用的详情误判成“没打开”。 */
+    card: '[data-tid]', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
+    invert: '.drawer .ts-ai-cell',
   },
   {
-    id: 'drawer-curio', name: '好奇心详情', hash: '#/', tab: '好奇心卡',
+    id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
     card: '.cz-card', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 1, foot: '.drawer-footer button',
   },
 ]
@@ -1092,66 +1094,40 @@ if (argv.scenes) {
       await page.waitForTimeout(400)
       await closeOverlays(page)
     }
-    // R2-②③ 改靶判据（原 R169-T4 项目调度 spotlight 随调度卡退役）：现场核调度台新主交付面
-    //   = DeckTabs 三张卡（资源卡池默认 / 任务调度 / 好奇心培育）+ R2-① 槽内子任务视口（固定 5 行 / 零编辑控件）
+    // V3.9.1 改靶：调度台首页已是两栏工作台——左「今日三件事 + 手边卡」，右「案头栏」。
+    // 旧 DeckTabs 与卡内子任务视口均已退役，不能再用 .bt-tab 给新首页做判据。
     await page.setViewportSize(VIEWPORT)
     await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+    await settle(page, 'desk-home')
     await page.waitForTimeout(2000)
-    /* ★R2 判据坑两条：① 同 hash 的 goto 不触发 SPA 重载，上一阶段留下的 tab 态会污染默认档判定
-       ⇒ 用真实点击复位（第一枚 tab）。② 不可用 page.reload 复位：dailyStats 快照走 saveData 后 45s 时间闸，
-       reload 会连同模块内 pending timer 一起死掉，下游 dz-report 的「本期动作」就断了来源。 */
-    await page.locator('.bt-tab').first().click().catch(() => {})
-    await page.waitForTimeout(500)
-    /* ★W1.1 随迁（V3.8.1 三张卡改名改序 + 默认切任务卡）：默认档这一格先钉新形状——
-       第一枚 tab 必须激活且文案是「任务卡」。随后**显式点到「资源卡」tab**再量池面板
-       （旧口径靠「第一枚=资源卡池默认」顺带量到池面板，改序后那条捷径没了；
-        场景要量的是池面板本身，不是它恰好是默认档）。 */
-    const dflt = await page.evaluate(() => {
-      const first = document.querySelector('.bt-tab')
-      return { on: !!first && first.classList.contains('on'), text: (first && first.textContent || '').trim() }
-    })
-    await page.evaluate(() => {
-      const b = [...document.querySelectorAll('.bt-tab')].find(x => (x.textContent || '').includes('资源卡'))
-      if (b) b.click()
-    })
-    /* ★B4（V3.8.29）：池面板是懒挂载的。500ms 盲等在每个 run 的**第一个主题**上会量到"面板还没进 DOM"，
-       于是 paneOn 假红（实测只在 linear 复现，raycast 起数据已就绪就绿了——交替出现的红最容易被当成偶发忽略）。
-       改成显式等容器 `.pcp` 出现，超时才退回盲等；判据本身一个都没放松。 */
-    await page.locator('.pcp').first().waitFor({ state: 'attached', timeout: 6000 }).catch(() => {})
-    /* 视图模式（网格/列表）是持久化的：上一次 run 停在列表时，这一屏既没有 .pcp-card 也没有 .pcp-empty，
-       paneOn 会假红。判据只认「面板在不在」，但截图必须与其它主题同构 ⇒ 先幂等切回网格。 */
-    await page.evaluate(() => {
-      const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('网格'))
-      if (b) b.click()
-    })
-    await page.waitForTimeout(300)
     await resetView(page)
     const spot = await page.evaluate(() => {
-      const tabs = Array.from(document.querySelectorAll('.bt-tab'))
-      const poolBtn = tabs.find(x => (x.textContent || '').includes('资源卡'))
-      const poolOn = !!poolBtn && poolBtn.classList.contains('on')
-      const pane = document.querySelector('.pcp-card, .pcp-empty') || document.querySelector('.pcp')
-      /* 不靠数据碰运气：无 .tc-subs 时视口判据记「无数据」，DeckTabs 结构判据恒核 */
-      const subs = document.querySelector('.today-cards .tc-subs')
-      let subInfo = null
-      if (subs) {
-        const rows = Array.from(subs.querySelectorAll('.tc-sub'))
-        const sRect = subs.getBoundingClientRect()
-        const visible = rows.filter(r => r.getBoundingClientRect().bottom <= sRect.bottom + 1).length
-        subInfo = { rows: rows.length, visible, maxH: Math.round(sRect.height), editors: subs.querySelectorAll('input,textarea,[contenteditable]').length }
+      return {
+        layout: !!document.querySelector('.desk-layout'),
+        workBoard: !!document.querySelector('.work-board'),
+        focusRows: document.querySelectorAll('.focus-row').length,
+        handBoard: !!document.querySelector('.hand-board'),
+        handGrid: !!document.querySelector('.hand-grid'),
+        sideRail: !!document.querySelector('.side-rail'),
+        oldTabs: document.querySelectorAll('.bt-tab').length,
       }
-      return { tabN: tabs.length, poolOn, paneOn: !!pane, subInfo }
     })
     const spotFile = path.join(outDir, `${theme}-deck.png`)
     await page.screenshot({ path: spotFile })
     shots.push(spotFile)
-    const dfltOk = dflt.on && dflt.text.includes('任务卡')
-    const spotOk = dfltOk && spot.tabN === 3 && spot.poolOn && spot.paneOn
-      && (!spot.subInfo || (spot.subInfo.editors === 0 && spot.subInfo.visible <= 6))
-    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} tabs=${spot.tabN}/3 默认档=${dfltOk ? '任务卡' : dflt.text.slice(0, 4) + '(非任务卡)'} 池面板=${spot.paneOn ? '有' : '无'} 槽内子任务=${spot.subInfo ? spot.subInfo.visible + '/' + spot.subInfo.rows + '可见·编辑' + spot.subInfo.editors : '无数据'}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
-    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify({ ...spot, dflt })}（应：三张卡 + 默认档=任务卡 + 资源卡面板可见 + 槽内视口≤6可见/零编辑控件）`)
-    /* R3-Ca：池面板新增的列表视图（四主题各一张）——量完当场切回网格，别把视图态留给后面的场景 */
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('列表')); if (b) b.click() })
+    const spotOk = spot.layout && spot.workBoard && spot.focusRows === 3 && spot.handBoard
+      && spot.handGrid && spot.sideRail && spot.oldTabs === 0
+    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} 两栏=${spot.layout ? '是' : '否'} 工作单=${spot.workBoard ? '是' : '否'} 三件事=${spot.focusRows}/3 手边卡=${spot.handBoard && spot.handGrid ? '是' : '否'} 案头栏=${spot.sideRail ? '是' : '否'} 旧Tab=${spot.oldTabs}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
+    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：两栏工作台 + 恒三行工作单 + 手边卡网格 + 右侧案头栏 + 旧 Tab 为零）`)
+
+    // 资源卡「查看全部」：独立二级页的列表形态（四主题各一张）
+    await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
+    await settle(page, 'deck-resource-list')
+    await page.waitForTimeout(1600)
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('列表'))
+      if (b) b.click()
+    })
     await page.waitForTimeout(700)
     await resetView(page)
     const pl = await page.evaluate(() => {
@@ -1159,19 +1135,19 @@ if (argv.scenes) {
       const cards = document.querySelectorAll('.pcp-card').length
       const none = document.querySelectorAll('.pcp-tag-none').length
       const untaggedBtn = !!document.querySelector('.dk-row[data-panel="pool"] .dk-pill')
-      return { rows, cards, none, untaggedBtn }
+      const deckBack = !!document.querySelector('.deck-back')
+      return { rows, cards, none, untaggedBtn, deckBack }
     })
     const plFile = path.join(outDir, `${theme}-deck-pool-list.png`)
     await page.screenshot({ path: plFile })
     shots.push(plFile)
-    /* 量完当场切回网格再往下走——视图态是组件内的，不切回会串到后面的场景截图里 */
-    await page.evaluate(() => { const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('网格')); if (b) b.click() })
-    await page.waitForTimeout(500)
-    const plOk = pl.rows > 0 && pl.cards === 0 && pl.untaggedBtn
-    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 待打标钮=${pl.untaggedBtn ? '是' : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
-    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：列表有行、网格零残留、控制行含「待打标」）`)
+    const plOk = pl.deckBack && pl.rows > 0 && pl.cards === 0 && pl.untaggedBtn
+    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 二级返回=${pl.deckBack ? '是' : '否'} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 待打标钮=${pl.untaggedBtn ? '是' : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
+    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：独立二级页带返回 + 列表有行 + 网格零残留 + 控制行含「待打标」）`)
+
     /* R3-Cc：三张卡共用的批量栏（DeckBatchBar）——池面板这侧底色由 surface-2 换成 accent-light，
-       四主题各拍一张，量「栏在 / 全选·反选·应用标签三枚齐 / 卡型动作在槽内」，量完退出批量免得串染 */
+       四主题各拍一张，量「栏在 / 全选·反选·应用标签三枚齐 / 卡型动作在槽内」，量完退出批量免得串染。
+       V3.9.1 起在独立资源二级页直接量。 */
     await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b) b.click() })
     await page.waitForTimeout(700)
     await resetView(page)
@@ -1214,7 +1190,7 @@ if (argv.scenes) {
            `#/settings?page=tags`（标签双栏）/ `#/manual`（手册）/ `#/`（⌘K面板）三类，
            用画像页的类去核它们会把**自己的镜头**判成"未挂载"（实测五屏被误伤）。 */
       const HOST = sc.host
-        || (sc.hash === '#/' ? '.metric-bar, .mb-row'
+        || (sc.hash === '#/' ? '.desk-layout, .work-board'
           : sc.hash && sc.hash.startsWith('#/settings') ? '.gs-panel'
             : sc.hash === '#/manual' ? '.mn-page'
               : '.pi-hero')

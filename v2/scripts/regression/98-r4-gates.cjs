@@ -84,7 +84,7 @@ check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描
 });
 check('R4-Dm ★算式本体仍是唯一判池的地方：`resourceLocateRoute` 里那条 `=== CURATION_WS_ID` 必须在位且返回调度台 + `hk`；同时全站不许出现把 `/workspace/` 与池 id（字面量或 `${CURATION_WS_ID}`）拼在一起的写法——R2-④ 那条"字面量零残留"继续留着，这条补它看不见的另一半', () => {
   const loc = codeOnly(read('/shared/utils/locate.ts'));
-  return loc.includes('workspaceId === CURATION_WS_ID') && loc.includes("path: '/', query") && loc.includes('LOCATE_HK')
+  return loc.includes('workspaceId === CURATION_WS_ID') && loc.includes("path: '/deck/resource', query") && loc.includes('LOCATE_HK')
     && !read('/shared/utils/locate.ts').includes('/workspace/${CURATION_WS_ID}')
     && !codeOnly(read('/newtab/components/GlobalPopups.vue')).includes('/workspace/${CURATION_WS_ID}')
     && !codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue')).includes('/workspace/${');
@@ -462,15 +462,17 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
 
 // ============== R4-Ew 三条运行时触点进 e2e ==============
 console.log('【R4-Ew · 采集保存链路 / hover 动作区 / 下钻抽屉】');
-check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、池提示行显示「资源卡池」且两枚下拉已退役、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42 指标条四种下钻抽屉各自真渲染，且每格按**自己的动作面形状**判（三格=每行一个「定位 ›」，未归档=每行两支归档下拉）。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
+check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、池提示行显示「资源卡池」且两枚下拉已退役、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42（V3.9.1 重指）画像洞察页四格 KPI 按各自真实响应形态判：两格落卡片清单抽屉、知识熵出含数值与高频标签的口径 toast、精力落主攻打开 focusOnly 全量记录抽屉，且四格数量必须恰为 4。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
   return e.includes("type: 'zy-open-capture'") && e.includes("capPoolText.includes('资源卡池')")
     && e.includes('capDropGone') && e.includes('/资源卡池/.test(capToast)')
     && e.includes('capRow.ws === \'zy-curation\'') && e.includes('capRow.catEmpty')
     && e.includes('Number(gpRow.actsOpacity) === 0') && e.includes('gpHover > 0.9')
     && e.includes('starAfter === true && starBack === false')
-    && e.includes('r.sel === r.rows * 2') && e.includes('r.loc === r.rows')
-    && e.includes("题在: title.includes(d.题)");
+    && e.includes('heroKpiCount === 4')
+    && e.includes("r.题在 && (r.型 === 'toast'")
+    && e.includes("r.logNote.includes('近30天主攻动作')")
+    && e.includes("r.抽屉在 && (r.rows > 0 || r.empty)");
 });
 check('R4-Ew② ★content 侧用例的两条环境事实必须留在脚本里（本轮各踩一次）：① MV3 的 http 宿主页里**没有 chrome.storage**（浮层自己走消息，测试取库要回扩展页）——所以库读写一律 page.evaluate，出现 capPage.evaluate 里读 chrome.storage 即红；② 宿主页端口用 listen(0) 现取、用完关，不写死端口（写死会撞本机其它服务，且 theme-audit/perf 同一手法各自起）', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
@@ -519,14 +521,15 @@ check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模�
     && mb.includes('.mb-metrics {') && !!gapM && Number(gapM[1]) <= 8
     && !mb.includes('.mb-divider');
 });
-check('W5-2 ★标题统一「SVG 图标(accent) + 英文副标」（用户拍板#2/#3）：Heatmap 标题 dz-n 数字退役，改 `.dz-n dz-ico` 内联日历 SVG + CompassHome 三张卡上方加 `.decks-title`（Icon layers + 三张卡 + THREE DECKS 英文副标）。★V3.8.7 随迁带备案：原「三标题统一 17px」这一条被焦点契约推翻——统一形态（图标+英文副标）保留，但**字号分层**改由 W7-1 守（今日三件事 display 唯一，三张卡与热力图降到 title）；W5-2 守的是"三标题形态一致"，不再是"三标题同字号"', () => {
+check('W5-2（V3.9.1 重指）标题形态统一「图标 + 英文副标」：今日三件事与手边的卡都用 board-ico + kicker，旧 decks-title / 底部三卡 tab 退役', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   return hm.includes('dz-n dz-ico') && hm.includes('<svg viewBox="0 0 24 24"')
     && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
-    && ch.includes('decks-title') && ch.includes('THREE DECKS')
-    && ch.includes('.decks-title {')
+    && ch.includes('class="board-ico"') && ch.includes('class="board-title"')
+    && ch.includes('class="hand-heading"') && ch.includes('THREE DECKS')
+    && !ch.includes('decks-title') && !ch.includes('bottom-tabs')
     && css.includes('.dz-n.dz-ico') && css.includes('.dz-sec-h .dz-t');
 });
 check('W5-3 ★热力图摘要四卡图标化（用户拍板#2/#4c）：SUM_ICONS 四枚内联 SVG（act/done/streak/peak 键）+ summary 条目带 ic 字段 + `.dz-sum` 改 4 列 grid 图标卡（accent-light 底 icon 方块）；`.dz-sum .c` 与 `.dz-sum .d`（R174-5 保 DOM，display:none）两条判据锚不动；峰路径不含 L[0-5]（R172-6 负锚——SVG 路径里的 L21 曾误触发）', () => {
@@ -616,9 +619,17 @@ check('W11-1 ★版本同步第七处「根 README 当前版本行」真正纳�
   const hits = [...rootR.matchAll(/当前版本\s+V([\d.]+)/g)].map(x => x[1]);
   const cl = read('/newtab/changelog-data.ts');
   const vs = [...cl.matchAll(/version:\s*'([\d.]+)'/g)].map(x => x[1]);
+  const cmp = (a, b) => {
+    const A = a.split('.').map(Number), B = b.split('.').map(Number);
+    for (let i = 0; i < Math.max(A.length, B.length); i++) {
+      if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) - (B[i] || 0);
+    }
+    return 0;
+  };
   return hits.length === 1 && hits[0] === CUR_VER
     && vs[0] === CUR_VER
-    && /^3\.8\.\d+$/.test(vs[1]) && Number(vs[1].split('.')[2]) === Number(CUR_VER.split('.')[2]) - 1;
+    && vs.length > 1 && cmp(vs[0], vs[1]) > 0
+    && vs.every((v, i) => i === 0 || cmp(vs[i - 1], v) > 0);
 });
 
 check('W5-10 ★设置页产品更新日志（用户拍板 NEW-#3）：changelog-data.ts 单一真源（CHANGELOG 倒序、裸版本号与 manifest 同格式、发版日期、要点数组）+ GlobalSettings 导航「系统信息」组 letter 与 about 之间挂 changelog 分区 + 时间线面板（gs-cl-* 样式、current 版本轨染 accent、当前版本徽标对照 runtimeVersion 不写字面量）；深链 /settings?page=changelog 经 navGroups 白名单自动生效。★V3.8.38（S5）重指：面板不再平铺渲染，改走 RichText + 三段式分组，导入语句由 `import { CHANGELOG }` 变为 `import { CHANGELOG, kindGroupsOf }`——断言改为「两个具名都取自 changelog-data」，不因多取一个具名而失效', () => {
@@ -654,13 +665,13 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
 });
-check('W6-2 ★三张卡模块标题入框（用户拍板：标题在框内、矩形一体化）：CompassHome 三张卡整块包进 .card.deck-frame（与今日三件事/年度热力图同款框），decks-title 由框外浮标题改为框内头部；内层 ModuleCard 用 :deep 压成无框无底（避免双框）；bt-tab 三枚与 bottom-pane 三面板结构不动', () => {
+check('W6-2（V3.9.1 重指）手边三卡入一张框：任务 / 好奇心 / 资源三列共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
-  return ch.includes('class="card deck-frame"') && ch.includes('.deck-frame {')
-    && ch.includes('.deck-frame :deep(.module-card)') && ch.includes('.deck-frame :deep(.module-title)') && ch.includes('.deck-frame :deep(.module-body)')
-    && ch.includes('decks-title') && ch.includes('THREE DECKS')
-    && ch.includes('bottom-tabs') && ch.includes('bt-tab')
-    && ch.includes('<TaskManagerPanel />') && ch.includes('<CuriosityPanel') && ch.includes('<PoolCardsPanel');
+  return ch.includes('class="hand-board"') && ch.includes('class="hand-head"')
+    && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
+    && (ch.match(/class="mini-list"/g) || []).length === 3
+    && ch.includes('THREE DECKS')
+    && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');
 });
 check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角直跑补全（用户拍板：点图标直接跑补全，不弹菜单）：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner（列表/看板/项目页保留 TaskAiMenu）；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskEnrich + buildTaskEnrichJob + AiDrawer 懒栈）；手册默认视图文案同步；R147-5 判据按 9+3 拆分', () => {
   const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));

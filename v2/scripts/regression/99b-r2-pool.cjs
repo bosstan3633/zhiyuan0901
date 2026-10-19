@@ -86,18 +86,15 @@ check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底�
 
 // ============== W2 ★热力图迁调度台（V3.8.2） ==============
 console.log('【W2 · 热力图迁调度台】');
-check('W2-1 ★W12-D 退役重指带备案：热力图从调度台退役后，「那个槽位」与「读日志只在宿主做」两条纪律都还在，只是宿主换了。年度热力图由画像洞察页全量覆盖，用户 2026-10-13 拍板调度台这份退役；槽位改成「全貌」模块（今日三件事选中项详情）。判据：① CompassHome 挂 TodayBattleHost（今日战报自包含宿主）且无 HeatmapModule ② 槽位顺序仍在「今日三件事之后、三卡之前」（原 HeatmapModule 的位置锚点）③ CompassHome 源码内仍无 readEventLog（R49-3：读日志的活只在宿主组件做）④ 全貌模块 FocusDetail 存在且挂在该槽位', () => {
+check('W2-1（V3.9.1 重指）热力图与 FocusDetail 均不常驻调度台：今日战报由 TodayBattleHost 自包含承载，首页只保留三件事工作单与手边卡预览，读日志仍只在宿主内', () => {
   const ch = read('/newtab/views/CompassHome.vue');
   const iH = ch.indexOf('<TodayBattleHost ref="battleHost" />');
-  const iF = ch.indexOf('focusAllDone');
-  const iC = ch.indexOf('id="zy-mod-curiosity"');
-  const iFocus = ch.indexOf('<FocusDetail');
+  const iF = ch.indexOf('class="work-board"');
+  const iC = ch.indexOf('class="hand-board"');
   return ch.includes("import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'")
-    && !ch.includes('HeatmapModule')
+    && !ch.includes('HeatmapModule') && !ch.includes('<FocusDetail')
     && iH > 0 && iF > 0 && iC > 0
-    && iH > iF && iH < iC
-    && ch.includes("import FocusDetail from '../components/compass/FocusDetail.vue'")
-    && iFocus > iF && iFocus < iC
+    && iH > iF && iH > iC
     && !/readEventLog/.test(ch)
 });
 check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog）——★W9 再随迁带备案：本条原还要求「概览带 + 复盘段 + 操作记录保留」在 GlobalSettings 里，而这三样已随 V3.8.7 整块迁画像洞察页；负锚三条继续钉在 GS 上（热力图与 onDashOpenLog 都不许搬回设置页），正锚改指新宿主 ProfileInsights（dashYear/dashSelDay/dashStats + <ReviewPanel> + openLog(），能力一项未减', () => {

@@ -111,7 +111,7 @@ function locateGoal(dirId: string) {
 }
 function locateCurio(id: string) {
   emit('close')
-  router.push({ path: '/', query: { hl: id } })
+  router.push({ path: '/deck/resource', query: { hl: id, hk: 'res' } })
 }
 /**
  * R4-Dk：资源卡定位落点改走唯一算式 `resourceLocateRoute`。
@@ -133,7 +133,7 @@ function locateTask(id: string) {
   emit('close')
   // R117（04-61 C1）：任务调度面板已迁调度台底部 tab（与好奇心培育并列）⇒ 定位改为
   // 「调度台 + 切任务 tab + 高亮目标任务」；原 /compass?zone=task 随模块搬迁失效。
-  router.push({ path: '/', query: { hl: id, hk: 'task' } })
+  router.push({ path: '/deck/task', query: { hl: id, hk: 'task' } })
 }
 </script>
 

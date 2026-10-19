@@ -43,6 +43,11 @@ const router = useRouter()
 const store = useAppStore()
 const { d, allProjects, projectProgress, taskArchiveIssue } = useCompass()
 
+const props = withDefaults(defineProps<{
+  /** 独立二级页：隐藏所有新建入口；空态主行动改为清空筛选。 */
+  secondaryMode?: boolean
+}>(), { secondaryMode: false })
+
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 // ---- 视图与工具栏状态 ----
@@ -64,6 +69,8 @@ if (store.ui?.sortPrefs?.task?.by) sortBy.value = store.ui.sortPrefs.task.by
 type TaskFilter = 'all' | 'todo' | 'doing' | 'done' | 'unarchived'
 const savedFilter = store.ui?.sortPrefs?.task?.filter
 const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doing' || savedFilter === 'done' || savedFilter === 'unarchived' ? savedFilter : 'all')
+// V3.9.1：首页「未归档」读数进入二级页时带筛选，不把用户丢在全量列表里再找一次。
+if (route.query.filter === 'unarchived') filterBy.value = 'unarchived'
 watch([sortBy, sortDir, filterBy, groupMode], () => {
   const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value, group: groupMode.value } }
   if (store.ui) store.ui.sortPrefs = sp
@@ -294,6 +301,7 @@ async function deleteTask(taskId: string) {
   } })
 }
 function createNewTask() {
+  if (props.secondaryMode) return
   const task: TaskCard = {
     id: uid('tk'),
     kind: 'task',
@@ -547,12 +555,18 @@ function onTaskRowClick(t: TaskCard) {
     drawerRef.value?.open(t)
   }, 260)
 }
+/** 二级页深链 `?hl=`：让独立页也能直接展开右侧任务详情（与列表点击同一抽屉）。 */
+function openDetail(id: string) {
+  const t = d.value.tasks.find(x => x.id === id && !x.deletedAt)
+  if (t) drawerRef.value?.open(t)
+}
 function onTaskRowDblClick(t: TaskCard) {
   if (taskClickTimer) { clearTimeout(taskClickTimer); taskClickTimer = null }
   recordCardOpen(d.value, t)
   store.persistHot()
   openCardLink(t.link)
 }
+defineExpose({ openDetail })
 /** 第十七轮：任务置顶切换 */
 function toggleTaskPin(t: TaskCard) {
   t.pinned = !t.pinned
@@ -589,6 +603,7 @@ watch(() => route.query.hl, (hl) => {
   const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
   if (hk && hk !== 'task') return
   highlightId.value = hl
+  // 二级页不依赖首页三页签；深链直接由本面板渲染并滚动到目标。
   setTimeout(() => {
     const el = document.querySelector(`[data-tid="${hl}"]`)
     if (el) {
@@ -681,7 +696,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         :sort-dir="(sortBy === 'recent' || sortBy === 'priority') ? sortDir : ''"
         :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
         :groups="viewMode === 'list' ? TASK_GROUPS : []" :group="groupMode" @group="groupMode = $event as TaskGroupMode"
-        :batch-on="batchMode" @batch="toggleBatchMode" new-label="＋新建任务" @create="createNewTask">
+        :batch-on="batchMode" @batch="toggleBatchMode" :new-label="secondaryMode ? '' : '＋新建任务'" @create="createNewTask">
         <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
         <ColsPicker v-if="viewMode === 'card'" v-model="taskCols" label="列数" />
         <template #count><span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{ act: filterBy !== 'all' || searchQuery.trim() }" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span></template>
@@ -709,9 +724,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
       <!-- 卡片视图（第卌五轮新增 · 默认；R47-A3：置顶/非置顶分组区块渲染，与好奇心培育同款） -->
       <div v-if="viewMode==='card'" class="tm-grid" :style="{ '--grid-cols': String(taskCols) }">
         <div v-if="!filteredTasks.length" class="tm-grid-empty">
-          <EmptyState icon="clipboard" title="暂无任务"
-            desc="点击右上角按钮新建，或在方向树的成功指标下添加任务"
-            action-label="＋ 新建任务" @action="createNewTask" />
+          <EmptyState icon="clipboard" title="没有匹配的任务"
+            :hint="secondaryMode ? '当前搜索或筛选没有结果。清空筛选后可继续浏览全部任务。' : '新建统一走扩展快捷键；也可在方向树的成功指标下添加任务。'"
+            :action-label="secondaryMode ? '清空筛选' : ''" @action="clearTaskFilter" />
         </div>
         <template v-if="pinnedTasks.length">
           <div class="tm-group-label"><Icon name="pin" :size="13"/> 已置顶 · {{ pinnedTasks.length }}</div>
@@ -850,9 +865,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         </div>
         <!-- G3（V3.8.27）：列表视图与卡片视图同构，不再一个 EmptyState 一个裸文本 -->
         <EmptyState v-if="!filteredTasks.length" class="list-empty" size="section" icon="clipboard"
-          title="暂无任务"
-          hint="点右上角「＋ 新建任务」，或在方向树的成功指标下添加任务。"
-          action-label="＋ 新建任务" @action="createNewTask" />
+          title="没有匹配的任务"
+          :hint="secondaryMode ? '当前搜索或筛选没有结果。清空筛选后可继续浏览全部任务。' : '新建统一走扩展快捷键；也可在方向树的成功指标下添加任务。'"
+          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearTaskFilter" />
       </div>
 
       <!-- 列表视图（旧平铺分支已由 R127 统一分组取代） -->
@@ -900,9 +915,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           <TaskAiMenu :task="task" @detail="openTaskFromAi" />
           <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="13"/></button>
         </div>
-        <EmptyState v-if="!filteredTasks.length" icon="clipboard" title="暂无任务"
-          desc="点击右上角按钮新建，或在方向树的成功指标下添加任务"
-          action-label="＋ 新建任务" @action="createNewTask" />
+        <EmptyState v-if="!filteredTasks.length" icon="clipboard" title="没有匹配的任务"
+          :hint="secondaryMode ? '当前搜索或筛选没有结果。清空筛选后可继续浏览全部任务。' : '新建统一走扩展快捷键；也可在方向树的成功指标下添加任务。'"
+          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearTaskFilter" />
       </div>
 
       <!-- 看板视图（跨列改状态 · 列内按项目分组 · 拖拽改归属 O17） -->

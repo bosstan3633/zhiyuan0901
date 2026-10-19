@@ -17,7 +17,7 @@
  *   ⇒ 由 scripts/regression/33-gs-baseline.cjs 接管：判据直接查「子组件用的 class 在此表有定义」。
  *
  * ★ 纪律：搬样式一律脚本切原文（`scripts/move-gs-baseline.cjs`），人只核对边界，不重打内容。
- *   另：注释里禁止出现 `/* … */` 字面量（会提前闭合注释块，build 才拦得住）。
+ *   另：注释里禁止出现 CSS 块注释的起止符号字面量（会提前闭合注释块，build 才拦得住）。
  */
 .gs-page-header { margin-bottom: 22px; position: relative; }
 /* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：R3-F38 的 `.gs-dash-hl` 三条
@@ -116,6 +116,7 @@
 
 /* 按键 */
 .gs-keycap { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); font-size: var(--fs-sub); font-family: monospace; color: var(--text); min-width: 120px; justify-content: center; }
+.gs-sr-readonly { font-size: var(--fs-caption); color: var(--text-3); }
 .gs-keycap-link { text-decoration: none; cursor: pointer; transition: all var(--dur); }
 .gs-keycap-link:hover { border-color: var(--accent); color: var(--accent); }
 .gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }

@@ -41,7 +41,7 @@ export function resourceLocateRoute(workspaceId: string, categoryId = ''): Locat
   const query: Record<string, string> = { hk: LOCATE_HK.resource }
   if (categoryId) query.cat = categoryId
   return workspaceId === CURATION_WS_ID
-    ? { path: '/', query }
+    ? { path: '/deck/resource', query }
     : { path: `/workspace/${workspaceId}`, query }
 }
 
@@ -57,10 +57,10 @@ export function locateTargetOf(d: AppData, kind: LocateKind, id: string): Locate
     const t = resourceLocateRoute(r.workspaceId, r.categoryId)
     return { path: t.path, query: { hl: id, ...t.query } }
   }
-  // R117：任务卡与好奇心卡的宿主都在调度台 `/`（任务调度与好奇心培育同页 tab）
+  // V3.9.1：任务卡与好奇心卡的「查看全部」已是独立二级页，定位直接落对应列表。
   const exists = kind === 'task' ? d.tasks.some(t => t.id === id) : d.curiosities.some(c => c.id === id)
   if (!exists) return null
-  return { path: '/', query: { hl: id, hk: LOCATE_HK[kind] } }
+  return { path: kind === 'task' ? '/deck/task' : '/deck/curiosity', query: { hl: id, hk: LOCATE_HK[kind] } }
 }
 
 /** 从任意 kind 字符串归一为 LocateKind（旧调用方传的是 'resource'|'task'|'curiosity'|'ws'|'proj'） */

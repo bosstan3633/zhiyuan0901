@@ -188,11 +188,11 @@ check('R169-12 ★「为什么是这三件」是右上角一枚小图标，不�
     && ch.includes('不改任务卡、不改状态、不改归属')
 });
 check('R169-13 ★整行归属=进方向树的唯一入口', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-crumb') && !h.includes('gotoTree');  });
-check('R169-14 ★R2-②→★P5 重指带备案（2026-10-16）：原「项目调度卡双栏退役 → 承接者=槽内 tc-subs 视口」的两跳重指，第二跳随 P5 一并退役——子任务现在由 P4 全貌单行唯一承接（FocusDetail：前 3 条 visibleSubs + 溢出 +N + 单击勾选），本条改钉「卡内视口零残留 + 落库链仍在」', () => {
+check('R169-14（V3.9.1 重指）子任务卡内视口退役后，doneAt 落库链仍在；今日三件事整行进详情，FocusDetail 不再挂首页', () => {
   const h = read('/newtab/views/CompassHome.vue'); const c = codeOnly(h)
   return !c.includes('class="tc-subs"') && !c.includes('function onSubScroll')      /* 视口本体与滚动监听已删（codeOnly 剥退役注释） */
-    && h.includes('function toggleSlotSub') && h.includes("doneAt: !s.done ? Date.now() : undefined") /* 落库链保留：FocusDetail 单行 @toggle-sub 仍走这条（P4-1） */
-    && h.includes('@toggle-sub=')                                                    /* 宿主接线在位 */
+    && h.includes('function toggleSlotSub') && h.includes("doneAt: !s.done ? Date.now() : undefined") /* 落库链保留 */
+    && !h.includes('<FocusDetail') && !h.includes('@toggle-sub=')
     && !h.includes('spot-dual')
 });
 check('R169-15 ★R2-② 重指带备案（2026-10-16 P5 翻转）：原「槽内视口只勾选/进详情、零输入控件」随视口退役改钉「FocusDetail 单行零输入 + 溢出 +N + openCellTask 进详情仍在」', () => {
@@ -231,7 +231,8 @@ check('R169-20 ★accent 底上的徽标必须反相（本轮最贵的视觉陷�
   const ov = '--ai-mark-fill: #fff; --ai-mark-eye: var(--accent)'
   return tdd.includes('.ts-ai-cell:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); ' + ov + '; }')
     && tab.includes('.th-ai-btn:hover { background: var(--accent); color: #fff; ' + ov + '; }')
-    && ch.includes('.focus-why-ico.on { background: var(--accent); border-color: var(--accent); color: #fff; ' + ov + '; }')
+    && ch.includes('.why-trigger.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }')
+    && !ch.includes('.focus-why-ico')
 });
 check('R169-21 ★自动推荐的触发点注册顺序（本轮自查抓到的真缺陷）：watch(d) 必须在 todayKey/FOCUS_LIMIT/ensureAutoFocus 之后注册 —— immediate watch 在 setup 期就跑，放文件头会读尚未初始化的 const（TDZ），async 把异常吞成 unhandled rejection ⇒ 首屏三格永远空、界面上一个字都不说。perf-census A/B 实测到才修（641 vs 640）', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'))

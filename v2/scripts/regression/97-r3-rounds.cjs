@@ -361,11 +361,11 @@ check('R4-Dd ★422 不等于「记录被删」：写值错误（INVALID_VALUE_F
 
 // ============== R4-De · 旧世界清账：池卡定位落点收进唯一算式 ==============
 console.log('【R4-De · 池卡定位链路对齐】');
-check('R4-De ★池卡不是 workspace 实体：定位落点必须由 resourceLocateRoute 一处算，zy-curation 一律落调度台卡池 tab（R2-④ 当年改了四处深链，漏了这个被四处共用的算式本身）', () => {
+check('R4-De（V3.9.1 重指）池卡不是 workspace 实体：定位落点由 resourceLocateRoute 一处算，zy-curation 一律落资源卡查看全部二级页', () => {
   const l = read('/shared/utils/locate.ts');
   return l.includes('export function resourceLocateRoute')
     && l.includes('workspaceId === CURATION_WS_ID')
-    && l.includes("path: '/', query")
+    && l.includes("path: '/deck/resource', query")
     && l.includes('hk: LOCATE_HK.resource')
     && l.includes('return { path: t.path, query: { hl: id, ...t.query } }')
     && !/return \{ path: `\/workspace\/\$\{r\.workspaceId\}`/.test(l);
@@ -441,21 +441,24 @@ check('R4-Df ★应用内切台键位口径写对：1=调度台、2=方向台、
   if (m.includes('从 1 起按导航顺序计数')) { console.log('旧错句「从 1 起按导航顺序计数」回流'); return false }
   return true;
 });
-check('R4-Df2 ★手册改对了而界面在打对台＝白改：设置页用户可见文案不许把已退役台面/已下架命令写成现役功能，且那句「N 条无默认键命令」的 N 必须等于 manifest 现算值。★判据不写死"六"——将来增删一条命令，界面这句就得跟着改口；另加一条语境判据：设置页里每一枚「资源台」字样都必须落在"这东西已退役"的句子里，否则等于给用户指一个不存在的去处。★B7-e（V3.8.40）重指末尾两条正锚：原锚要求设置页快捷键清单里「在」资源卡池控制行『批量』与资源卡池资源卡两行——而 H3 核出那两行**根本不是快捷键**（一个是按钮位置、一个是卡型），把它们留在按键清单里等于教用户去按一个不存在的键。H3 把整份手写清单换成 shortcutsOf 真源后它们自然消失，故重指为：① 那两行不许再出现在按键清单里（负锚）；② 按键清单必须从真源派生（正锚）；③ 「资源卡池资源卡」这类**卡型名词**仍可出现在设置页别处（该正锚保留，只是它已不由快捷键清单提供）。', () => {
+check('R4-Df2 ★手册改对了而界面在打对台＝白改：设置页用户可见文案不许把已退役台面/已下架命令写成现役功能。★V3.9.1 重指：应用内切台已固定为 Alt+1…9 且设置页只读，旧判据仍要求「N 条无默认键命令」与 wsSwitchMod 动态键位，等于把已退役的旧界面当成唯一真相。现改为核当前共享真源：①「应用内」与「编辑与检索」两组都从 shortcutsOf(...,\'alt\') 派生；② 固定 Alt + 1…9（固定）明确展示；③ 浏览器级配置仍只指向 chrome://extensions/shortcuts；④ 旧台面/旧命令文案不许回流。', () => {
   const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
-  const nk = noKeyCmds();
   const stray = [...gs.matchAll(/资源台/g)]
     .filter(x => !/退役|已删|旧世界/.test(gs.slice(Math.max(0, x.index - 14), x.index + 14)))
     .map(x => gs.slice(Math.max(0, x.index - 18), x.index + 18));
-  return nk.length >= 1 && gs.includes(`${CN_NUM[nk.length]}条无默认键命令`)
-    && stray.length === 0
+  return stray.length === 0
     && !gs.includes('资源台：双击卡片打开链接') && !gs.includes('资源台工具条')
     && !gs.includes('含方向台/资源台/完整方向树/任务调度') && !gs.includes('资源台资源卡')
     && !gs.includes('方向台/资源台/完整方向树无默认键')
     // ↓ B7-e 重指：非快捷键行不许留在按键清单里
     && !gs.includes('资源卡池控制行「批量」')
-    // ↓ B7-e 重指：按键清单必须从真源派生
-    && /shortcutsOf\('应用内', store\.ui\?\.wsSwitchMod/.test(gs);
+    // ↓ V3.9.1：应用内键位固定 Alt，两组清单仍必须从共享真源派生
+    && /shortcutsOf\('应用内', 'alt'\)/.test(gs)
+    && /shortcutsOf\('编辑与检索', 'alt'\)/.test(gs)
+    && gs.includes('Alt + 1…9（固定）')
+    && gs.includes('chrome://extensions/shortcuts')
+    && !gs.includes('wsSwitchMod')
+    && !gs.includes('无默认键命令');
 });
 check('R4-Df2 ★手册里五处"照做会走进死路"的事实订正必须在位且旧说法不许回流：撤销窗口秒数（不是 3 秒）、生命周期入口只有一个（不是三处 ⏳）、阈值是可配的（不是"本期固定 30/90"）、不再教用户去分配已下架的命令、没有"台面级入口"的旧句式。★这几条各钉一句曾经逐字教错的话——判据只核新说法在场且旧说法回不来，回潮即红。★B7-e（V3.8.40）重指第一处：原锚写死「窗口 9 秒」，而 G5 已把窗口收到 6 秒、X-1 又把手册六处订正成6 秒。**秒数改为从 undo.ts 的 UNDO_WINDOW_MS 现算**——判据不该把某个具体数字当真理，真理在实现里。', () => {
   const m = read('/newtab/manual-data.ts');
@@ -771,11 +774,11 @@ check('R4-Dk ★转化落点显式归池：改前写 `d.value.workspaces[0]?.id`
     && !body.includes('workspaces[0]')
     && !g.includes("showToast('✓ 已转化为资源卡，存入待分类'");
 });
-check('R4-Dk ★「查看」不许再拼 `/workspace/${r.workspaceId}`：R2-④ 清这族死链时判据是**路由字面量扫描**，变量拼法它天生看不见，所以这个入口漏到了今天。实测三种形状——① 无 hub 实体的库点过去是「策展台不存在」；② 存量库点过去渲染出一枚 0 个分类的退役「资源台」空台面（刚转出的卡在池里，这个台面上看不见它，比死页更隐蔽）；③ 默认库直接进错台。改后走 locateOnly 同一改靶口径 `/?hl=&hk=res`', () => {
+check('R4-Dk（V3.9.1 重指）「查看」不许再拼 `/workspace/${r.workspaceId}`：资源与任务转化后的查看统一落独立查看全部二级页', () => {
   const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
   const i = g.indexOf('function convertCurio(');
   const body = g.slice(i, g.indexOf('\n}', i));
-  return body.includes("router.push({ path: '/', query: { hl: r.id, hk: 'res' } })")
+  return body.includes("router.push({ path: '/deck/resource', query: { hl: r.id, hk: 'res' } })")
     && body.includes("query: { hl: t.id, hk: 'task' }")
     && !body.includes('`/workspace/${r.workspaceId}`')
     && !body.includes("router.push('/')");
