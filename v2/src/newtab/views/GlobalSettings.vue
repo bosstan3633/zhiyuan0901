@@ -627,24 +627,8 @@
         </div>
       </div>
 
-      <!-- ===== 使用手册（第廿一轮：独立页入口） ===== -->
-      <div v-if="activePage === 'manual'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="book" :size="13"/> 产品使用手册</div>
-          <div class="gs-page-desc">速览 / 基础 / 方法 / 理念 / 附录 —— 五篇图文教程，独立页面阅读体验最佳</div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-body gs-empty">
-            <!-- ★V3.8.25（B1-a）：原来外层 div 写死 font-size:34px、内层 Icon 却是 :size="13"——
-                 Icon 用 width/height 定尺寸，外层 font-size 对它无效，所以这颗"大图标"一直是 13px，
-                 比旁边的正文还小。改成直接给 :size="34"，外层只留排版的 flex 项。 -->
-            <div class="gs-empty-ico"><Icon name="book" :size="34"/></div>
-            <div class="gs-empty-title">使用手册已升级为独立阅读页</div>
-            <div class="gs-empty-desc">五篇结构：速览一页上手 › 基础篇 › 方法篇（认知增强方法论）› 理念篇（知源哲学与理论根基）› 附录（快捷键全表与数据安全）。点击下方按钮在新标签页打开，支持左侧目录锚点定位。</div>
-            <button class="gs-manual-open" @click="openManualTab"><Icon name="book" :size="13"/> 打开使用手册（新标签页）</button>
-          </div>
-        </div>
-      </div>
+      <!-- V3.8.42 P0-3 第二批：「使用手册」子域已搬至 settings/SettingsManualPanel.vue -->
+      <SettingsManualPanel v-if="activePage === 'manual'" />
 
       <!-- ===== 写给用户的一封信 ===== -->
       <!-- V3.8.42 P0-3 第一批：子域已搬至 settings/SettingsLetterPanel.vue（判据锚点由 helpers 的
@@ -727,78 +711,17 @@
         </div>
       </div>
 
-      <!-- ===== 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化） ===== -->
-      <div v-if="activePage === 'changelog'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="clock" :size="13"/> 产品更新日志</div>
-          <div class="gs-page-desc">每个版本的发版时间与功能要点——看看这个产品是怎么一步步长成今天这样的</div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-body">
-            <div class="gs-cl-list">
-              <!-- S5：当前版本置顶（CHANGELOG 本身倒序，「最新」自然在首；此处的置顶是对
-                   「数据顺序与展示顺序是两件事」的显式声明——将来若有人把数组改成正序，
-                   置顶不靠运气。徽章仍由 runtimeVersion 对照，不用数组下标。 -->
-              <div v-for="e in orderedChangelog" :key="e.version" class="gs-cl-item" :class="{ current: e.version === runtimeVersion }">
-                <div class="gs-cl-meta">
-                  <span class="gs-cl-ver">V{{ e.version }}</span>
-                  <span class="gs-cl-date">{{ e.date }}</span>
-                  <span v-if="e.version === runtimeVersion" class="gs-cl-now">当前版本</span>
-                </div>
-                <div class="gs-cl-title">{{ e.title }}</div>
-                <!-- S5：三段式（新增 / 修复 / 优化）。kindGroupsOf 返回 null 的版本
-                     （v2 时代单要点、标注缺失或脱节）走平铺列表，不硬造空段。 -->
-                <template v-if="kindGroupsOf(e)">
-                  <div v-for="g in kindGroupsOf(e)" :key="g.kind" class="gs-cl-group">
-                    <div class="gs-cl-group-h"><span class="gs-cl-group-k">{{ g.label }}</span><span class="gs-cl-group-n">{{ g.items.length }}</span></div>
-                    <ul class="gs-cl-points"><li v-for="(p, i) in g.items" :key="i"><RichText :text="p" /></li></ul>
-                  </div>
-                </template>
-                <ul v-else class="gs-cl-points"><li v-for="(p, i) in e.points" :key="i"><RichText :text="p" /></li></ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- V3.8.42 P0-3 第二批：子域已搬至 settings/SettingsChangelogPanel.vue -->
+      <SettingsChangelogPanel v-if="activePage === 'changelog'" :runtime-version="runtimeVersion" :ordered-changelog="orderedChangelog" />
 
-      <!-- ===== 关于 ===== -->
-      <div v-if="activePage === 'about'" class="gs-panel">
-        <div class="gs-page-header"><div class="gs-page-title"><Icon name="question" :size="13"/> 关于</div></div>
-        <div class="gs-card">
-          <div class="gs-card-body gs-about-card">
-            <div class="gs-about-logo"><img :src="logoUrl" alt="知源调度台" /></div>
-            <div class="gs-about-name">知源调度台</div>
-            <div class="gs-about-version">版本 V{{ runtimeVersion }}</div>
-            <div class="gs-about-motto">万千可调用，自有我方向。</div>
-          </div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-body">
-            <div class="gs-about-row">
-              <span class="label">数据存储</span>
-              <span class="value">
-                全部在本地，不上传云端
-                <span v-if="bytesInUse > 0" class="gs-storage-detail">
-                  · 当前占 {{ formatBytes(bytesInUse) }}
-                  <template v-if="!unlimitedStorage"> / 配额上限 10 MB</template>
-                  <template v-else>（已申请 unlimitedStorage，无 10 MB 上限）</template>
-                </span>
-              </span>
-            </div>
-            <div v-if="saveError" class="gs-about-row gs-about-row-danger">
-              <span class="label"><Icon name="warn" :size="13"/> 写入异常</span>
-              <span class="value">
-                <span class="gs-save-error-kind">{{ saveErrorLabel(saveError.kind) }}</span>
-                · {{ saveError.message }}
-                <span v-if="saveError.bytesInUse != null">（当前 {{ formatBytes(saveError.bytesInUse) }}）</span>
-                <span class="gs-link gs-link--spaced" @click="markSaveErrorRead">已处理 ›</span>
-              </span>
-            </div>
-            <div class="gs-about-row"><span class="label">检查更新</span><span class="value gs-link" @click="showToast('当前已是最新版本')">检查更新 ›</span></div>
-            <div class="gs-about-row"><span class="label">开源致谢</span><span class="value gs-link" @click="showToast('Vue 3 · TypeScript · Vite · Pinia · @crxjs')">查看 ›</span></div>
-          </div>
-        </div>
-      </div>
+      <!-- V3.8.42 P0-3 第二批：子域已搬至 settings/SettingsAboutPanel.vue。
+           存储态与订阅仍留宿主（onMounted 的 refreshStorage / subscribeSaveError 属宿主生命周期，
+           随 v-if 拆出去会导致切页时反复退订重订），子组件只收 props、发事件。 -->
+      <SettingsAboutPanel v-if="activePage === 'about'"
+        :logo-url="logoUrl" :runtime-version="runtimeVersion"
+        :bytes-in-use="bytesInUse" :unlimited-storage="unlimitedStorage" :save-error="saveError"
+        @dismiss-save-error="markSaveErrorRead" @toast="showToast" />
+
     </main>
 
     <!-- R134-F：AI 建议评审抽屉（批量补全/沉睡唤醒/深度诊断共用消费面） -->
@@ -848,7 +771,11 @@ import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defa
 import { testConnection, runSync, quotaHint, catPathOf, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 // V3.8.42 P0-3：「一封信」子域随迁（letter-data 仍留在原处，仅模板与下载函数搬出）
 import { CHANGELOG, kindGroupsOf } from '../changelog-data'
+// V3.8.42 P0-3：已搬出的子域组件（判据锚点由 helpers 的设置页聚合读取层接住，214 处读设置页正文的判据零改动）
 import SettingsLetterPanel from './settings/SettingsLetterPanel.vue'
+import SettingsManualPanel from './settings/SettingsManualPanel.vue'
+import SettingsChangelogPanel from './settings/SettingsChangelogPanel.vue'
+import SettingsAboutPanel from './settings/SettingsAboutPanel.vue'
 import RichText from '../components/RichText.vue'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
@@ -895,14 +822,6 @@ const route = useRoute()
 const store = useAppStore()
 const shortcutsUrl = 'chrome://extensions/shortcuts'
 
-// ---- 使用手册独立页入口 ----
-function openManualTab() {
-  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
-    chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html') + '#/manual' })
-  } else {
-    router.push('/manual')
-  }
-}
 
 // ---- 导航 ----
 /** R146（回退契约 ⑨）：导航项可挂路由出口——回收站是整页（列表+批量操作），设置页内不重复实现一份 */
@@ -2594,10 +2513,6 @@ const activeManualSec = ref('quick-1')
 /* ★V3.8.25（B1-a）：手册页的"已升级为独立阅读页"空态。
    原先是一串内联 flex + 三处 font-size，其中大图标因为 Icon 用 width/height 定尺寸而一直是 13px。
    注意本段必须排在 `.gs-card-body` 之后，否则同为单类选择器时 padding 抢不过 16px 18px。 */
-.gs-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 20px; text-align: center; }
-.gs-empty-ico { line-height: 1; }
-.gs-empty-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); }
-.gs-empty-desc { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.8; max-width: 420px; }
 
 /* 预览 */
 .gs-preview-section { margin-top: 16px; }
@@ -2646,10 +2561,6 @@ const activeManualSec = ref('quick-1')
 .gs-switch input:checked + .gs-switch-slider { background: var(--accent); }
 .gs-switch input:checked + .gs-switch-slider::before { transform: translateX(16px); background: #fff; }
 
-.gs-storage-detail { color: var(--text-3); font-size: var(--fs-caption); }
-.gs-about-row-danger { color: var(--danger); }
-.gs-about-row-danger .label { color: var(--danger); }
-.gs-save-error-kind { display: inline-block; padding: 1px 6px; background: rgba(196,68,68,.12); color: var(--danger); border-radius: 4px; font-weight: 500; font-size: var(--fs-caption); margin-right: 4px; }
 
 /* 危险区 */
 .gs-danger-zone { border-color: rgba(196,68,68,.2); }
@@ -2682,55 +2593,7 @@ const activeManualSec = ref('quick-1')
 .gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }
 .gs-shortcut-link:hover { text-decoration: underline; }
 
-/* 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化）——时间线：左轨 + 圆点，当前版本整轨染 accent */
-.gs-cl-list { position: relative; }
-.gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 22px 18px; position: relative; }
-.gs-cl-item:last-child { border-left-color: transparent; padding-bottom: 0; }
-.gs-cl-item::before { content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface-3); border: 2px solid var(--border-strong); }
-.gs-cl-item.current { border-left-color: var(--accent); }
-.gs-cl-item.current::before { background: var(--accent); border-color: var(--accent); }
-.gs-cl-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-/* S5：版本号走等宽字体。版本号是一串要被逐位比对的字符（3.8.37 / 3.8.4 谁新谁旧），
-   等宽下 8 与 3 的宽度一致、竖排时小数点自然对齐；比例字体下这些数字宽窄不一，
-   扫一列版本号时找不到对齐线。 */
-.gs-cl-ver { font-weight: 700; font-size: var(--fs-sub); color: var(--text); font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-/* S5：日期升到 --text-3。此前用 --text-4，在浅色主题下约 2:1（真机近乎隐形）——
-   日期是"这个版本什么时候发的"这一层事实，不该弱到读不出来。降噪只动字号与间距，不动对比度。 */
-.gs-cl-date { font-size: var(--fs-caption); color: var(--text-3); }
-.gs-cl-now { font-size: var(--fs-micro); background: var(--accent-light); color: var(--accent-ink); border-radius: 99px; padding: 1px 8px; font-weight: 600; }
-.gs-cl-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); margin-bottom: 4px; }
-/* S5：正文行宽 ≤68ch。设置页内容列宽 1100px，12px 正文铺满一行有近 90 个汉字，
-   眼睛从行尾扫回行首会迷路；限宽后一行约 34 个汉字（中文按半角折算），落在可读区间。
-   只限正文与标题，左轨继续通到卡片右缘——轨是时间轴的脊，不该被行宽截断。 */
-.gs-cl-title, .gs-cl-points { max-width: 68ch; }
-.gs-cl-points { margin: 0; padding-left: 18px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.75; }
-.gs-cl-points li { margin-bottom: 6px; }
-.gs-cl-points li:last-child { margin-bottom: 0; }
-/* S5：要点里的 `**加粗**` 由 RichText 渲染成真加粗（此前星号原样显示给用户） */
-.gs-cl-points b { color: var(--text); font-weight: 600; }
-/* S5：变更分组（新增 / 修复 / 优化）。段头弱而不隐——它是扫读时的路标，
-   用 caption 字号 + --text-2，不靠加粗抢眼（内容本身才是主角）。 */
-.gs-cl-group { margin-top: 10px; }
-.gs-cl-group:first-of-type { margin-top: 6px; }
-.gs-cl-group-h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.gs-cl-group-k { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); letter-spacing: var(--tracking-sm); }
-.gs-cl-group-n { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 6px; line-height: var(--lh-micro); }
 
-/* 关于 */
-.gs-about-card { text-align: center; padding: 28px 20px; }
-.gs-about-logo { width: 64px; height: 64px; border-radius: 16px; overflow: hidden; margin: 0 auto 14px; box-shadow: var(--shadow); }
-.gs-about-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.gs-about-name { font-size: 16px; font-weight: 700; color: var(--text); }
-.gs-about-version { font-size: var(--fs-body); color: var(--text-2); margin-bottom: 4px; }
-.gs-about-motto { font-size: var(--fs-sub); color: var(--text-3); font-style: italic; margin-bottom: 0; }
-.gs-about-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
-.gs-about-row:last-child { border-bottom: none; }
-.gs-about-row .label { color: var(--text-3); }
-.gs-about-row .value { color: var(--text-2); }
-.gs-about-row .value.gs-link { color: var(--accent); cursor: pointer; }
-.gs-about-row .value.gs-link:hover { text-decoration: underline; }
-/* ★V3.8.25（B1-a）：保存异常行里"已处理 ›"需要与前面的字节数拉开 8px（原先写内联 margin-left） */
-.gs-about-row .value .gs-link--spaced { margin-left: 8px; }
 /* 回滚确认弹窗里的高危强调（原先两处写内联 color:var(--danger)） */
 .gs-danger-text { color: var(--danger); }
 
@@ -2744,10 +2607,8 @@ const activeManualSec = ref('quick-1')
 .gs-confirm-input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: var(--fs-sub); outline: none; font-family: inherit; margin-top: 8px; background: var(--surface); color: var(--text); }
 .gs-confirm-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(196,68,68,.15); }
 .gs-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-.gs-manual-open { padding: 10px 22px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; transition: all var(--dur); }
 /* 信件页底部"下载这封信"按钮的居中容器（原先写内联 text-align + margin-top） */
 .gs-letter-actions { text-align: center; margin-top: 14px; }
-.gs-manual-open:hover { background: var(--accent-hover); }
 
 /* 标签管理（N4） */
 .gs-tt-row.editing { border-color: var(--accent); }
