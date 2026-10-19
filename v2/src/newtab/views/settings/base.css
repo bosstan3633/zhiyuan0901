@@ -120,3 +120,16 @@
 .gs-keycap-link:hover { border-color: var(--accent); color: var(--accent); }
 .gs-shortcut-link { font-size: var(--fs-sub); color: var(--accent); text-decoration: none; }
 .gs-shortcut-link:hover { text-decoration: underline; }
+
+/* ---------------------------------------------------------------
+   ★V3.8.42（P0-3 第四批）随「导出数据 / 快捷键设置」两个子域共享而并入本表：
+   开关（.gs-switch 及其 slider）——它有两处挂载点（导出页备份提醒、快捷键页），
+   留在任一子域的 scoped 里，另一处就会掉样式。与本文件头记录的那个坑同型。
+   本段由 move-gs-switch-to-base.cjs 从宿主样式段逐行切出，未重打一字。 */
+/* 第卅六轮 REQ-038：开关 + 容量/异常行 */
+.gs-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex: 0 0 auto; }
+.gs-switch input { opacity: 0; width: 0; height: 0; }
+.gs-switch-slider { position: absolute; cursor: pointer; inset: 0; background: var(--surface-3); border-radius: 99px; transition: .2s; }
+.gs-switch-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 2px; top: 2px; background: var(--text); border-radius: 50%; transition: .2s; }
+.gs-switch input:checked + .gs-switch-slider { background: var(--accent); }
+.gs-switch input:checked + .gs-switch-slider::before { transform: translateX(16px); background: #fff; }

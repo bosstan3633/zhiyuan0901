@@ -319,139 +319,16 @@
         <p class="gs-field-hint">隐私与性能口径：仅投本场景相关实体文本（KB 级），附件本体与其它数据不出本机；全部手动触发、无常驻轮询；AI 建议不入库，勾选采纳才落。</p>
       </div>
 
-      <!-- ===== 导入数据 ===== -->
-      <div v-if="activePage === 'import'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="download" :size="13"/> 导入数据</div>
-          <div class="gs-page-desc">从外部导入资源卡或策展台数据，导入时与现有数据取并集</div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">导入方式</span></div>
-          <div class="gs-card-body">
-            <div class="gs-import-option" @click="triggerFileImport">
-              <div class="gs-io-icon"><Icon name="package" :size="13"/></div>
-              <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择 JSON 文件，与现有数据取并集（同 ID 更新，不同 ID 新增）；全量包附带界面偏好（主题/密度）时自动应用。<b>导入前会先自动下载一份当前数据备份</b>（防误合并，不含 Airtable 凭证）</div></div>
-              <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
-            </div>
-            <div class="gs-import-option" @click="assetPackInput?.click()">
-              <div class="gs-io-icon"><Icon name="folder" :size="13"/></div>
-              <div><div class="gs-io-name">导入附件包</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
-              <button class="gs-btn gs-io-btn">选择文件</button>
-            </div>
-            <div class="gs-import-option" @click="bookmarkImport()">
-              <div class="gs-io-icon"><Icon name="bookmark" :size="13"/></div>
-              <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡；文件夹›分类的建树导入已随资源台退役。</div></div>
-              <button class="gs-btn gs-io-btn">选择文件</button>
-            </div>
-            <!-- R154（E3）：导入完不再自动弹评审抽屉——它抢焦点、也没人点过它。改成回执上的显式入口 -->
-            <div v-if="pendingImportEnrich && pendingImportEnrich.length" class="gs-setting-row gs-setting-row--gap">
-              <span class="gs-sr-label">刚导入 {{ pendingImportEnrich.length }} 张卡</span>
-              <div class="gs-sr-control">
-                <button class="gs-btn" :disabled="!aiReady" @click="aiImportEnrichNow">{{ aiReady ? '归类并补全这批' : '先在 AI 助手完成接入' }}</button>
-                <button class="gs-btn" @click="pendingImportEnrich = null">这次不用</button>
-              </div>
-            </div>
-            <div class="gs-setting-row gs-setting-row--gap">
-              <span class="gs-sr-label">书签导入到</span>
-              <div class="gs-sr-control">
-                <select class="gs-select" v-model="bookmarkTargetWs">
-                  <option value="__new__">新建「书签导入 &lt;今天日期&gt;」策展台</option>
-                  <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-        <input ref="fileInput" type="file" accept=".json" class="gs-file-hidden" @change="handleFileImport" />
-        <input ref="assetPackInput" type="file" accept=".zip" class="gs-file-hidden" @change="handleAssetPackImport" />
-        <input ref="bookmarkInput" type="file" accept=".html,.htm" class="gs-file-hidden" @change="onBookmarkFile" />
-      </div>
 
-      <!-- ===== 导出数据 ===== -->
-      <div v-if="activePage === 'export'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="upload" :size="13"/> 导出数据</div>
-          <div class="gs-page-desc">导出数据用于备份或跨设备迁移（全量 JSON + 附件包两步才算完整迁移）</div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">备份提醒</span></div>
-          <div class="gs-card-body">
-            <!-- V2.20.1 BUG-2：存量归属修复记录（静默回填，仅修复时显示） -->
-            <div v-if="gd.projBackfillFixed" class="gs-export-row">
-              <div class="gs-er-info">
-                <div class="gs-er-name"><Icon name="wrench" :size="13"/> 存量归属修复（V2.20.1）</div>
-                <div class="gs-er-desc">启动时已自动修复 {{ gd.projBackfillFixed }} 个任务的项目归属（有成功指标但缺项目关联的历史数据，按指标反查所属项目补齐），数据一致性已恢复。</div>
-              </div>
-            </div>
-            <div class="gs-export-row">
-              <div class="gs-er-info">
-                <div class="gs-er-name">自动提醒</div>
-                <div class="gs-er-desc">
-                  开启后，若 30 天未导出备份、或存储容量超过 50 MB 时，顶部右上角显示红点提醒。
-                  {{ backupReminderEnabled ? '当前已启用' : '当前已关闭' }}
-                  {{ lastBackupAt ? '· 上次导出：' + formatBackupAgo(lastBackupAt) : '· 尚无导出记录' }}
-                </div>
-              </div>
-              <label class="gs-switch">
-                <input type="checkbox" :checked="backupReminderEnabled" @change="toggleBackupReminder" />
-                <span class="gs-switch-slider"></span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">导出方式</span></div>
-          <div class="gs-card-body">
-            <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出全部数据</div><div class="gs-er-desc">全量JSON：调度台（愿景/使命/方向/项目/成功指标）+ 方向台（策展台/三卡/标签/统计）及全部数据关系，用于整体迁移备份</div></div>
-              <button class="gs-btn gs-btn-primary" @click="exportAll">导出</button>
-            </div>
-            <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">按策展台导出 CSV</div><div class="gs-er-desc">字段：系统字段全导 + 自定义字段按可见性，列名/顺序跟随「字段管理」；尾随 链接类型/分类/置顶/星标/更新时间，适配 Airtable 等多维表</div></div>
-              <select class="gs-select" v-model="csvWsId">
-                <option value="">选择策展台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
-              </select>
-              <button class="gs-btn" @click="exportCsvForWorkspace" :disabled="!csvWsId">导出CSV</button>
-            </div>
-            <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出指定策展台</div><div class="gs-er-desc">选择一个策展台导出为 JSON（只含该台的分类与卡，用于跨设备搬台）</div></div>
-              <select class="gs-select" v-model="exportWsId">
-                <option value="">选择策展台…</option>
-                <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
-              </select>
-              <button class="gs-btn" @click="exportWorkspace" :disabled="!exportWsId">导出</button>
-            </div>
-            <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出为Markdown</div><div class="gs-er-desc">将资源卡导出为带链接和注解的Markdown文档</div></div>
-              <button class="gs-btn" @click="exportMarkdown">导出MD</button>
-            </div>
-          </div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title"><Icon name="paperclip" :size="12"/> 附件存储</span><span class="gs-card-desc">图片/HTML 本体在 IndexedDB，不占主数据</span></div>
-          <div class="gs-card-body">
-            <div class="gs-export-row">
-              <div class="gs-er-info">
-                <div class="gs-er-name">附件占用：{{ assetCount }} 个 · {{ formatBytes(assetBytes) }}</div>
-                <div class="gs-er-desc">JSON 导出不含附件本体（保持轻量）；附件本体用下方附件包导出/导入迁移</div>
-              </div>
-              <button class="gs-btn" @click="refreshAssetStats">刷新</button>
-            </div>
-            <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">导出附件包</div><div class="gs-er-desc">全部附件本体打包为 zip；与「导出全部数据 JSON」配合 = 完整可迁移备份</div></div>
-              <button class="gs-btn gs-btn-primary" @click="exportAssetPack">导出附件包</button>
-            </div>
-            <div class="gs-export-row">
-              <div class="gs-er-info"><div class="gs-er-name">清理孤儿附件</div><div class="gs-er-desc">删除未被任何卡片引用的残留附件（上传中断等异常场景产生）</div></div>
-              <button class="gs-btn" @click="cleanupOrphanAssetsAction">清理</button>
-            </div>
-          </div>
-        </div>
-        <DataCheckupCard v-if="activePage === 'export'" /><!-- R171-A2/A3 数据体检卡：独立组件（R164-2 增长门禁） -->
-      </div>
 
       <!-- ===== 快捷键设置 ===== -->
+      <!-- ===== 导出数据 =====（V3.8.42 P0-3 第四批：已拆为 settings/SettingsExportPanel.vue，
+           连带附件统计 / 孤儿清理 / 附件包 zip / 备份提醒 / 导出四路 与 export-row、er-* 样式随迁。
+           downloadFile 与 dateStr 的真源随之迁入本子域，import 子域改为 props 取同一份引用。
+           判据锚：R42-15/16 附件包、R39-12 附件存储入口、R46-5 存量归属修复、R95-1 uiPrefs 并段、
+           R110-B2-2 csvWsId 软删过滤、R171-3 数据体检卡挂载 —— 均走 read() 聚合层可命中） -->
+      <SettingsExportPanel v-if="activePage === 'export'" ref="exportRef"
+        :format-bytes="formatBytes" :ws-display-name-of="wsDisplayNameOf" />
       <div v-if="activePage === 'shortcuts'" class="gs-panel">
         <div class="gs-page-header">
           <div class="gs-page-title">快捷键设置</div>
@@ -637,6 +514,14 @@
 
 
       <!-- V3.8.42 P0-3 第三批：「重置与回滚」子域（含回滚确认弹窗）已搬至 settings/SettingsResetPanel.vue -->
+      <!-- ===== 导入数据 =====（V3.8.42 P0-3 第四批：已拆为 settings/SettingsImportPanel.vue，
+           连带 import-option / io-* / file-hidden 五条专属样式随迁。判据锚：R42-16 assetPackInput、
+           R110-B2-3 useBookmarkImport 握手、P0-2-1b 归一化位置、R170-3 gs-io-btn 三处按钮、
+           R138-5 pendingImportEnrich 回执 —— 全部走 read() 聚合层，正文在 settings/ 下仍可命中） -->
+      <SettingsImportPanel v-if="activePage === 'import'"
+        :ai-ready="aiReady" :ai-enrich-ids="aiEnrichIds"
+        :ws-display-name-of="wsDisplayNameOf"
+        @asset-pack="onAssetPack" />
       <SettingsResetPanel v-if="activePage === 'reset'" />
 
 
@@ -693,6 +578,8 @@ import SettingsChangelogPanel from './settings/SettingsChangelogPanel.vue'
 import SettingsAboutPanel from './settings/SettingsAboutPanel.vue'
 import SettingsResetPanel from './settings/SettingsResetPanel.vue'
 import SettingsExtensionPanel from './settings/SettingsExtensionPanel.vue'
+import SettingsImportPanel from './settings/SettingsImportPanel.vue'
+import SettingsExportPanel from './settings/SettingsExportPanel.vue'
 import RichText from '../components/RichText.vue'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
@@ -709,7 +596,6 @@ import { assetSummary } from '@/shared/utils/assetKind'
 import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspace, Category, TagNode, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView, sanitizeThesisDuplicates } from '@/shared/storage/hub'
-import DataCheckupCard from '../components/DataCheckupCard.vue'
 import MigrateReportCard from '../components/MigrateReportCard.vue'
 /* ★W9 退役重指带备案：标签管理面板的「卡片详情」抽屉仍在本页（ttDetail），Drawer 壳的 import 不随
    仪表盘/生命周期两组抽屉一起删——本轮漏删导致模板 <Drawer> 无对应 import，被 R113-2 孤儿组件护栏抓到。 */
@@ -749,6 +635,12 @@ function onNavClick(item: NavItem) {
 }
 // V3.8.9（W9）：默认首屏改为「资源卡」——原「知源仪表盘」退役迁至画像洞察页（/profile），
 // 「资源生命周期」面板同步迁出；R44-6 门禁带退役重指备案改写。
+/** 附件包导入的**中转**：实现随「导出数据」子域搬走了（连附件统计刷新一起），
+ *  而驱动它的是导入页那枚 zip input。两个子域不能互相引用（会成环），
+ *  所以由宿主当一次转发点：import emit → 这里 → export 的 expose。 */
+const exportRef = ref<{ handleAssetPackImport?: (e: Event) => void } | null>(null)
+function onAssetPack(e: Event) { exportRef.value?.handleAssetPackImport?.(e) }
+
 const activePage = ref('resource')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
@@ -761,7 +653,6 @@ onMounted(() => {
   // 第卅六轮 REQ-038：关于页容量水位 + 保存错误订阅 + 备份提醒状态
   refreshStorage()
   // REQ-048：深链直达导出页时初始化附件统计
-  if (activePage.value === 'export') refreshAssetStats()
   const unsub = subscribeSaveError((e) => { saveError.value = e })
   // 卸载时取消订阅（实例可能被路由复用）
   return () => unsub && unsub()
@@ -806,117 +697,6 @@ function saveErrorLabel(k: 'quota' | 'serial' | 'unknown'): string {
   return k === 'quota' ? '配额超限' : k === 'serial' ? '序列化失败' : '写入异常'
 }
 
-// ---- REQ-048：附件存储统计 + 孤儿清理（导出数据页） ----
-const assetCount = ref(0)
-const assetBytes = ref(0)
-async function refreshAssetStats() {
-  try {
-    const s = await getAssetStats()
-    assetCount.value = s.count
-    assetBytes.value = s.bytes
-  } catch (err) {
-    console.error('[assets] stats failed:', err)
-  }
-}
-/** 清理孤儿附件：与策展台钻取抽屉同一条实现（`cleanupOrphanAssetsOf` 一份 keepIds 算式，含论证卡）
- *  ★R4-Dc 补确认门：这一枚钮点下去是**物理删除不可恢复的 IndexedDB 本体**，此前单击即删；
- *  同一张卡上「导出附件包」被写成"完整可迁移备份"，两个相邻动作给出相反的风险信号——
- *  与 R146 当年给「清空回收站」补门是同一条理由（见本文件 emptyRecycleBin 那段注释）。 */
-async function cleanupOrphanAssetsAction() {
-  const all = store.data
-  if (!all) return
-  let orphans: string[] = []
-  try {
-    orphans = await listOrphanAssetIds(collectReferencedAssetIds(all))
-  } catch (err) {
-    console.error('[assets] scan failed:', err)
-    showToast('盘点失败，请重试')
-    return
-  }
-  if (!orphans.length) { showToast('无孤儿附件，一切干净'); return }
-  const ok = await useConfirm({
-    title: '清理孤儿附件',
-    message: `共发现 ${orphans.length} 个未被任何卡片（含回收站里的卡与论证卡）引用的附件本体。\n清理后不可恢复，但不会影响任何现存卡片的附件。\n想先留一份，可点上面的「导出附件包」。`,
-    confirmText: `清理 ${orphans.length} 个`
-  })
-  if (!ok) return
-  try {
-    const n = await cleanupOrphanAssetsOf(all)
-    await refreshAssetStats()
-    showToast(n > 0 ? `已清理 ${n} 个孤儿附件` : '无孤儿附件，一切干净')
-  } catch (err) {
-    console.error('[assets] cleanup failed:', err)
-    showToast('清理失败，请重试')
-  }
-}
-watch(activePage, (p) => { if (p === 'export') refreshAssetStats() })
-// ---- 第卌二轮 REQ-059：附件包导出/导入（zip STORE 模式，零依赖） ----
-/** 导出附件包：全部附件本体 → 附件包 zip（manifest + assets/<id> 原件）。与主数据 JSON 备份配合 = 完整可迁移备份 */
-async function exportAssetPack() {
-  try {
-    const all = await getAllAssets()
-    if (!all.length) { showToast('暂无附件可导出'); return }
-    const manifest = JSON.stringify({
-      type: EXPORT_MARKERS.ASSET_PACK, version: 1, exportedAt: new Date().toISOString(), count: all.length,
-      items: all.map(a => ({ id: a.id, size: a.blob.size, mime: a.blob.type || '' }))
-    }, null, 2)
-    const entries: ZipEntry[] = [
-      { name: 'manifest.json', data: new TextEncoder().encode(manifest) }
-    ]
-    for (const a of all) entries.push({ name: `assets/${a.id}`, data: new Uint8Array(await a.blob.arrayBuffer()) })
-    const zip = buildZip(entries)
-    const url = URL.createObjectURL(zip)
-    const aEl = document.createElement('a')
-    aEl.href = url; aEl.download = `zhiyuan_assets_${dateStr()}.zip`; aEl.click()
-    URL.revokeObjectURL(url)
-    showToast(`附件包已导出：${all.length} 个附件`)
-  } catch (err) {
-    console.error('[assets] export pack failed:', err)
-    showToast('附件包导出失败，请重试')
-  }
-}
-
-/** 导入附件包：解包 zip → 按 assetId 写回 zy_assets（同 ID 覆盖，q-3 拍板） */
-async function handleAssetPackImport(e: Event) {
-  const input = e.target as HTMLInputElement
-  // ⚠ 第卌一轮教训：先快照再清空 input.value（清空会重置 FileList）
-  const file = (input.files || [])[0]
-  input.value = ''
-  if (!file) return
-  try {
-    const entries = readZip(await file.arrayBuffer())
-    const assets = entries.filter(en => en.name.startsWith('assets/'))
-    if (!assets.length) { showToast('附件包内无附件数据（manifest 或 zip 格式不符）'); return }
-    await putAssets(assets.map(en => ({ id: en.name.slice('assets/'.length), blob: new Blob([en.data]) })))
-    await refreshAssetStats()
-    showToast(`附件包导入完成：${assets.length} 个附件（同 ID 已覆盖）`)
-  } catch (err) {
-    console.error('[assets] import pack failed:', err)
-    showToast(`附件包导入失败：${err instanceof Error ? err.message : '格式不符'}`)
-  }
-}
-
-/** 第卅六轮 REQ-038：备份提醒开关 + 上次备份时间 */
-const backupReminderEnabled = ref<boolean>(typeof store.ui?.backupReminderEnabled === 'boolean' ? store.ui.backupReminderEnabled : true)
-const lastBackupAt = ref<number | undefined>(store.ui?.lastBackupAt)
-function toggleBackupReminder(ev: Event) {
-  const checked = (ev.target as HTMLInputElement).checked
-  backupReminderEnabled.value = checked
-  saveUIPrefs({ backupReminderEnabled: checked })
-}
-function markBackupNow() {
-  const t = Date.now()
-  lastBackupAt.value = t
-  saveUIPrefs({ lastBackupAt: t })
-}
-function formatBackupAgo(ts: number): string {
-  const ms = Date.now() - ts
-  const day = Math.floor(ms / 86400000)
-  if (day <= 0) return '今天'
-  if (day === 1) return '昨天'
-  if (day < 30) return `${day} 天前`
-  return new Date(ts).toLocaleDateString('zh-CN')
-}
 watch(() => route.query.page, () => { const p = pageFromQuery(); if (p) activePage.value = p })
 const navGroups: { title: string; items: NavItem[] }[] = [
   // R54-E1（修订第卌四轮五组拍板）：总览 = 知源仪表盘 + 策展台全景并列，「整理」组取消
@@ -1060,378 +840,13 @@ const resourcePreviewHtml = computed(() => {
   return html
 })
 
-// ---- 导入 ----
-const fileInput = ref<HTMLInputElement | null>(null)
-const assetPackInput = ref<HTMLInputElement | null>(null)
-const bookmarkTargetWs = ref('__new__')
-// R4-Db：书签导入的解析与落库全部住在 useBookmarkImport（原先本页自带第二份解析器，
-// 与 useWorkspaceImport 那份互为副本、且漏了实体解码与软删分类排除两处硬化）
-const { bookmarkInput, bookmarkImport, handleBookmarkImport } = useBookmarkImport({
-  d: computed(() => store.data!),
-  persist: () => store.persist()
-})
-/** 导入回执：把新建卡 id 交给「归类并补全这批」入口（R138-H3：不自动弹抽屉） */
-async function onBookmarkFile(e: Event) {
-  const ids = await handleBookmarkImport(e, bookmarkTargetWs.value)
-  if (ids.length) pendingImportEnrich.value = ids
-}
-
-function triggerFileImport() { fileInput.value?.click() }
-
-function handleFileImport(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    try {
-      const imported = JSON.parse(reader.result as string) as AppData
-      // R47-A2：版本校验（不兼容直接拒绝，不做部分导入）
-      if (!imported || typeof imported !== 'object' || imported.version !== 2) {
-        showToast('数据版本不兼容（需 v2 格式），已取消导入'); return
-      }
-      // R47-A2：导入前自动备份当前数据到本地文件（防误合并，T3 安全网）
-      // R70：自动备份同样剥离 Airtable 凭证与同步映射——用户不会预期「我只是导入，怎么生成了一个含令牌的文件」。
-      try {
-        const safeBackup = { ...(store.data as unknown as Record<string, unknown>) }
-        delete safeBackup.airtableSync
-        downloadFile(`zhiyuan_auto_backup_before_import_${dateStr()}.json`, JSON.stringify(safeBackup, null, 2))
-      } catch (e) {
-        // R114-59：导入前自动备份是防误合并安全网——失败必须让用户知道（导入仍继续，但明示风险）
-        console.warn('[zy] 导入前自动备份失败', e)
-        showToast('导入前自动备份失败（将直接导入，建议先取消并手动导出备份）')
-      }
-      const n = mergeImport(imported)
-      // R66-F4：全量包附带 uiPrefs 时自动应用主题/密度（即时生效，不再询问）
-      const ui = (imported as unknown as Record<string, unknown>).uiPrefs as Record<string, unknown> | undefined
-      if (ui && typeof ui === 'object') {
-        if (typeof ui.theme === 'string' && ui.theme) {
-          // R156：ui.theme 可为 'auto'（跟随系统），落 data-theme 前统一解析
-          document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))
-          saveUIPrefs({ theme: ui.theme })
-        }
-        if (typeof ui.density === 'string' && ui.density) {
-          if (ui.density === 'compact') document.documentElement.setAttribute('data-density', 'compact')
-          else document.documentElement.removeAttribute('data-density')
-          saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })
-        }
-        // R72-G7：界面偏好包补齐「卡片视图列数」（按模块键 + 4/5/6/7 白名单校验后落库，非法值丢弃）
-        const cols = sanitizeCardCols(ui.cardCols)
-        if (Object.keys(cols).length) saveUIPrefs({ cardCols: cols })
-        // R84（W2-②）：界面偏好包补齐「各台视图模式」（按台 id + 四值白名单校验后落库，非法值丢弃）
-        const wv = sanitizeWsView(ui.wsViewMode)
-        if (Object.keys(wv).length) saveUIPrefs({ wsViewMode: wv })
-      }
-      showToast(`导入完成（并集）：卡片 ${n.cards}、罗盘方向 ${n.dirs}、策展台 ${n.ws}${ui ? '；界面偏好已应用' : ''}${n.catFix ? `；分类树已自动修复（${n.catFix}）`: ''}${n.thesisClear ? `；中心论点重复已净化（清 ${n.thesisClear} 张多余标记）`: ''}；已自动下载导入前备份`)
-    } catch { showToast('文件格式错误，请选择有效的JSON文件') }
-  }
-  reader.readAsText(file)
-  input.value = ''
-}
 
 /** 解析 Netscape 书签 HTML（浏览器导出格式） */
 /** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标）+ 引擎数据 + 全部关系字段
  *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
  *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
-function mergeImport(imported: AppData): { cards: number; dirs: number; ws: number; catFix: string; thesisClear: number } {
-  const d = store.data!
-  // R70：分类树结构净化（唯一的导入防线）——此前只认 version。含环的 categories 经下面的
-  // mergeById（{ ...existing, ...incoming } 会覆盖 parentId）进库后，分类树渲染/计数递归会无限
-  // 展开（或 while 上行走链死转）→ 资源台与相关策展台永久打不开，且界面里没有入口能删掉坏分类。
-  // 净化失败（节点数超上限）时只跳过分类段，其余段照常合并，把损失限制到最小。
-  const catSan = sanitizeCategoryTree(imported.categories || [])
-  const safeCats = catSan.ok ? catSan.cats : []
-  const catFix = catSan.ok ? (catTreeFixedAny(catSan.fixed) ? catTreeFixNote(catSan.fixed) : '') : '分类数量超上限，已跳过分类段'
-  const mergeById = <T extends { id: string }>(existing: T[], incoming: T[]): T[] => {
-    const map = new Map(existing.map(x => [x.id, x]))
-    for (const item of incoming) map.set(item.id, { ...map.get(item.id), ...item })
-    return [...map.values()]
-  }
-  const union = (...lists: (ID[] | undefined)[]): ID[] => Array.from(new Set(lists.flatMap(l => l || [])))
-  const wsBefore = d.workspaces.length
-
-  // ---- 方向台：策展台 / 分类 / 三卡 ----
-  // R48-B2：导入卡片统一打 importedAt 戳（双口径统计「新建 X · 导入 Y」的依据；合并进既有卡也重打——它确实在本次被导入）
-  const importedNow = Date.now() // R166（实测 K5a）：mergeById 覆盖式合并且导入晚于载入 ⇒ 退役字段在下面三行各剥一次（真源 repository.RETIRED_CARD_KEYS）
-  d.workspaces = mergeById(d.workspaces, imported.workspaces || [])
-  d.categories = mergeById(d.categories, safeCats)
-  d.resources = mergeById(d.resources, stripRetiredCardKeys<ResourceCard>(imported.resources).map(r => ({ ...r, importedAt: importedNow })))
-  d.tasks = mergeById(d.tasks, stripRetiredCardKeys<TaskCard>(imported.tasks).map(t => ({ ...t, importedAt: importedNow })))
-  d.curiosities = mergeById(d.curiosities, stripRetiredCardKeys<CuriosityCard>(imported.curiosities).map(c => ({ ...c, importedAt: importedNow })))
-  /* P0-2（V3.8.41）★导入是**老库的主要入口**，必须走同一套字段归一化。
-     漏它的后果具体到可复现：用户导入一份 V2.x 备份，那份里的好奇卡是
-     `{title, desc, done}` 旧结构、资源卡只有 `url` 没有 `linkType`——
-     合并进库后当场炸在 `STATUS_MAP[c.status].cls`（崩溃），
-     而本地文件卡会静默走错打开通道（不崩，但双击打不开 ⇒ 更难查）。
-     归一化幂等，只在缺失时补，所以先合并后归一化 == 先归一化后合并，本处选后者口径更简：
-     在**合并之后**、返回之前对整棵 `d` 跑一次，同时顺带治好了「库里本来就有的残缺卡」。 */
-  normalizeLegacyCards(d)
-  const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0) + (imported.curiosities?.length || 0)
-
-  // ---- 调度台：愿景/使命（内容取较新，关联取并集）----
-  if (imported.compass) {
-    const ic = imported.compass
-    for (const key of ['vision', 'mission'] as const) {
-      const inc = ic[key]
-      if (!inc) continue
-      const cur = d.compass[key]
-      if (!cur || (inc.updatedAt || 0) > (cur.updatedAt || 0)) {
-        d.compass[key] = { ...inc, linkedResourceIds: union(cur?.linkedResourceIds, inc.linkedResourceIds), linkedCuriosityIds: union(cur?.linkedCuriosityIds, inc.linkedCuriosityIds) }
-      } else {
-        cur.linkedResourceIds = union(cur.linkedResourceIds, inc.linkedResourceIds)
-        cur.linkedCuriosityIds = union(cur.linkedCuriosityIds, inc.linkedCuriosityIds)
-      }
-    }
-    // ---- 方向 → 项目 → 指标 三层按 id 合并，指标 taskIds 取并集（保留任务↔指标关系）----
-    for (const incDir of ic.directions || []) {
-      const curDir = d.compass.directions.find(x => x.id === incDir.id)
-      if (!curDir) { d.compass.directions.push(JSON.parse(JSON.stringify(incDir))); continue }
-      curDir.name = incDir.name ?? curDir.name
-      curDir.status = incDir.status ?? curDir.status
-      curDir.term = incDir.term ?? curDir.term
-      curDir.calibratedAt = incDir.calibratedAt ?? curDir.calibratedAt
-      for (const incProj of incDir.projects || []) {
-        const curProj = curDir.projects.find(x => x.id === incProj.id)
-        if (!curProj) { curDir.projects.push(JSON.parse(JSON.stringify(incProj))); continue }
-        Object.assign(curProj, incProj, { metrics: curProj.metrics })
-        for (const incMet of incProj.metrics || []) {
-          const curMet = curProj.metrics.find(x => x.id === incMet.id)
-          if (!curMet) { curProj.metrics.push(JSON.parse(JSON.stringify(incMet))); continue }
-          Object.assign(curMet, incMet, { taskIds: union(curMet.taskIds, incMet.taskIds) })
-        }
-      }
-    }
-  }
-
-  // ---- 今日三件事：按日期合并，槽位按 id 去重 ----
-  if (imported.dailyFocus) {
-    for (const [date, slots] of Object.entries(imported.dailyFocus)) {
-      const cur = d.dailyFocus[date]
-      if (!cur) { d.dailyFocus[date] = slots; continue }
-      const seen = new Set(cur.map(s => s.id))
-      for (const s of slots) if (!seen.has(s.id)) cur.push(s)
-    }
-  }
-
-  // ---- 统计：计数取最大，map 按键取较大时间/次数 ----
-  if (imported.stats) {
-    if (imported.stats.wrr && d.stats.wrr) {
-      d.stats.wrr.totalCumulativeUsage = Math.max(d.stats.wrr.totalCumulativeUsage || 0, imported.stats.wrr.totalCumulativeUsage || 0)
-      // R129-B10：本周档不再是裸取最大——先各自按周戳折算成「本周值」再取最大（老数据无戳按旧口径全留），
-      // 合并结果统一归属到本周，避免导入上周/上月数据把本周 WRR 顶高。
-      const wkNow = weekStartKey(dateKey(new Date()))
-      const weekVal = (w?: { thisWeekUsage?: number; thisWeekStart?: string }) =>
-        !w ? 0 : (!w.thisWeekStart || w.thisWeekStart === wkNow) ? (w.thisWeekUsage || 0) : 0
-      d.stats.wrr.thisWeekUsage = Math.max(weekVal(d.stats.wrr), weekVal(imported.stats.wrr))
-      d.stats.wrr.thisWeekStart = wkNow
-      d.stats.wrr.lastUpdatedAt = Math.max(d.stats.wrr.lastUpdatedAt || 0, imported.stats.wrr.lastUpdatedAt || 0)
-    }
-    for (const key of ['lastReuse', 'lastVisits'] as const) {
-      const inc = imported.stats[key]
-      if (!inc) continue
-      const cur = d.stats[key] as Record<string, number>
-      for (const [k, v] of Object.entries(inc)) cur[k] = Math.max(cur[k] || 0, v)
-    }
-  }
-
-  // ---- 行为日志：按 id 追加去重 ----
-  // R58-B5：activityLogs 已退役（事件日志迁 zy_event_log），导入不再搬运死字段
-  d.activityLogs = []
-
-  // ---- R53-E1（P0 修复）：策展投射清单并入——此前导入合并遗漏此字段，备份→恢复会静默丢弃全部策展投射 ----
-  if (imported.curationProjections?.length || d.curationProjections?.length) {
-    d.curationProjections = mergeById(d.curationProjections || [], imported.curationProjections || [])
-  }
-
-  // ---- R63-2：Airtable 映射表并入（recordId 以导入方为准同 id 覆盖；不覆盖本地较新的 syncedAt） ----
-  if (imported.airtableMap) {
-    d.airtableMap = { ...(imported.airtableMap), ...(d.airtableMap || {}) }
-  }
-
-  // ---- 标签体系 / 字段配置（原有逻辑保留）----
-  if (imported.tagTree?.length) {
-    const existIds = new Set(d.tagTree.map(t => t.id))
-    for (const root of imported.tagTree) if (!existIds.has(root.id)) d.tagTree.push(root)
-  }
-  if (imported.fieldConfig) {
-    const cfg = d.fieldConfig
-    // R62-3：thesis 组老数据可能缺失——先补默认再合并
-    if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()
-    for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const) {
-      const importedGroup = imported.fieldConfig[key]
-      const group = cfg[key]
-      if (!importedGroup || !group) continue
-      const existingKeys = new Set(group.map(f => f.key))
-      for (const f of importedGroup) {
-        if (!existingKeys.has(f.key)) group.push(f)
-      }
-    }
-  }
-  // R171-A1：覆盖式合并可能让同台多张 isThesis 并存，导入即归一（口径=保留首张）
-  const thesisFix = sanitizeThesisDuplicates(d)
-  store.persist()
-  return { cards: cardsAdded, dirs: imported.compass?.directions?.length || 0, ws: d.workspaces.length - wsBefore + (imported.workspaces?.length || 0), catFix, thesisClear: thesisFix.cleared }
-}
 
 
-// ---- 导出 ----
-const exportWsId = ref('')
-const csvWsId = ref('')
-
-function downloadFile(filename: string, content: string, type = 'application/json') {
-  const blob = new Blob([content], { type })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = filename; a.click()
-  URL.revokeObjectURL(url)
-}
-function dateStr() { return new Date().toISOString().slice(0, 10) }
-
-/** R66-F4：全量导出 = AppData 全段 + UI 偏好（主题/密度等 zy_ui_v2 独立键并入 uiPrefs 段，导入侧自动应用） */
-async function exportAll() {
-  const d = store.data!
-  let uiPrefs: Record<string, unknown> | undefined
-  // R114-59：读 UI 偏好失败 → 降级为「不带 uiPrefs 段导出」，需告警而非静默（导出物缺主题段会让用户困惑）
-  try { uiPrefs = await loadUIPrefs() as unknown as Record<string, unknown> } catch (e) { console.warn('[zy] 导出时读取 UI 偏好失败，本次导出将不含 uiPrefs 段', e) }
-  // R70：剥离 Airtable 凭证与同步映射——导出物会被分享/传网盘（产品本身就鼓励「导出即带走」），
-  // airtableSync.pat 明文随文件外流＝拿到的人可读写用户的 Airtable Base，与「数据 100% 本机、不代持凭证」冲突。
-  const safeData = { ...(d as unknown as Record<string, unknown>) }
-  delete safeData.airtableSync
-  const payload = uiPrefs ? { ...safeData, uiPrefs } : safeData
-  downloadFile(`zhiyuan_backup_${dateStr()}.json`, JSON.stringify(payload, null, 2))
-  markBackupNow()
-  showToast('全量数据已导出（含全部策展台与界面偏好）')
-}
-
-/** 第卌一轮 REQ-055：资源目录字段 → CSV 单元格文本（系统字段键值映射；自定义字段取 customFields） */
-function resCsvValue(r: ResourceCard, key: string): string {
-  if (key.startsWith('custom_')) {
-    const v = r.customFields?.[key]
-    return v == null ? '' : String(v)
-  }
-  switch (key) {
-    case 'title': return r.title
-    case 'link': return r.link || ''
-    case 'description': return r.description || ''
-    case 'sourceType': return r.sourceType || ''
-    case 'tags': return (r.tags || []).join(';')
-    case 'createdAt': return new Date(r.createdAt).toISOString().slice(0, 10)
-    case 'assets':
-      // 附件列 = 文本摘要（与 fieldValue assets 同规则：N 图 · N PDF · M HTML）
-      // R81（R15）：原实现把 PDF 算进 HTML 档，改调共享 assetSummary，与徽标/字段值三出口同源
-      return assetSummary(r.assets)
-    default: {
-      const v = (r as unknown as Record<string, unknown>)[key]
-      return v == null ? '' : String(v)
-    }
-  }
-}
-
-/** 按策展台导出 CSV —— 第卌一轮 REQ-055：动态列对齐字段目录
- * 目录字段（title/link/description/sourceType/tags/createdAt/assets + 自定义）全按目录配置：
- * 系统字段无条件导出、自定义字段按可见性过滤，列顺序 = fieldDef.order、列标题 = fieldDef.label（跟随重命名/显隐/排序）；
- * 目录外管理列（链接类型/分类/置顶/星标/更新时间）为卡片固有元数据，固定尾随。 */
-function exportCsvForWorkspace() {
-  if (!csvWsId.value) return
-  const d = store.data!
-  const ws = d.workspaces.find(w => w.id === csvWsId.value)
-  if (!ws) return
-  const catMap = new Map(d.categories.map(c => [c.id, c.name]))
-  // R63-2：资源台 = 原生卡；策展台 = 台内 + 镜像（boardCardsOf），与台内视图一致
-  const isBoard = !isHubWs(ws)
-  const cards = isBoard
-    ? boardCardsOf(d, ws.id)
-    : d.resources.filter(r => !r.deletedAt && r.workspaceId === csvWsId.value)
-  // 动态目录列：系统字段全导出（无视 visible，保证数据基线完整）+ 自定义字段按可见性过滤，按 order 排序
-  const dirCols = allFields(d.fieldConfig, 'resource')
-    .filter(f => !f.key.startsWith('custom_') || f.visible)
-    .sort((a, b) => a.order - b.order)
-  const cols: Array<{ label: string; get: (r: ResourceCard) => string }> = dirCols.map(f => ({ label: f.label, get: r => resCsvValue(r, f.key) }))
-  // 目录外管理列（卡片固有元数据，固定尾随）
-  cols.push(
-    { label: '链接类型', get: r => (r.linkType === 'url' ? 'URL' : r.linkType === 'file' ? '本地文件' : 'Obsidian') },
-    { label: '分类', get: r => catMap.get(r.categoryId || "") || '待分类' },
-    // R63-2：金字塔路径/层级/中心论点（适配多维表分层分析）
-    { label: '分类路径', get: r => catPathOf(d, r.workspaceId, r.categoryId).path || '待分类' },
-    { label: '层级', get: r => String(catPathOf(d, r.workspaceId, r.categoryId).level) },
-    { label: '是否中心论点', get: r => (r.isThesis ? '是' : '') },
-    { label: '镜像标记', get: r => (isMirrorView(r) ? '是' : '') },
-    { label: '置顶', get: r => (r.pinned ? '是' : '') },
-    { label: '星标', get: r => (r.starred ? '是' : '') },
-    { label: '更新时间', get: r => (r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : '') }
-  )
-  const headers = cols.map(c => c.label)
-  const rows = cards.map(r => cols.map(c => csvEscape(c.get(r))))
-  downloadFile(`zhiyuan_${wsDisplayNameOf(ws)}_${dateStr()}.csv`,
-    '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n'),
-    'text/csv;charset=utf-8')
-  markBackupNow()
-  showToast(`「${wsDisplayNameOf(ws)}」已导出 ${cards.length} 条资源卡 CSV`)
-}
-
-function exportWorkspace() {
-  if (!exportWsId.value) return
-  const d = store.data!
-  const ws = d.workspaces.find(w => w.id === exportWsId.value)
-  if (!ws) return
-  const cats = d.categories.filter(c => c.workspaceId === ws.id)
-  // R70：同 exportAll——导出物不含 Airtable 凭证
-  const rootForExport = { ...(d as unknown as Record<string, unknown>) }
-  delete rootForExport.airtableSync
-  const subset: AppData = {
-    ...(rootForExport as unknown as AppData), workspaces: [ws], categories: cats,
-    resources: d.resources.filter(r => r.workspaceId === ws.id),
-    tasks: d.tasks,
-    curiosities: d.curiosities,
-    // R63-2：只带本台的镜像引用（projection 指向资源台真身，导入合并按 id 并集恢复）
-    curationProjections: (d.curationProjections || []).filter(p => p.targetWsId === ws.id)
-  }
-  downloadFile(`zhiyuan_${ws.name}_${dateStr()}.json`, JSON.stringify(subset, null, 2))
-  markBackupNow()
-  showToast(`「${ws.name}」已导出`)
-}
-
-function exportMarkdown() {
-  const d = store.data!
-  const wsMap = new Map(d.workspaces.map(w => [w.id, wsNameById(d.workspaces, w.id)]))
-  const catMap = new Map(d.categories.map(c => [c.id, c.name]))
-  let md = '# 知源调度台 · 资源卡导出\n\n'
-  // R4-Dg：按**卡自己的** workspaceId/categoryId 分组，不再按 workspace 实体枚举——
-  // 资源卡池既可能没有实体（新建库），其卡又恒无分类（categoryId 置空＝待分类），
-  // 旧的两层 for（先台后分类）会把池卡整批静默漏掉。
-  const byWs = new Map<string, ResourceCard[]>()
-  for (const r of d.resources.filter(x => !x.deletedAt)) {
-    const arr = byWs.get(r.workspaceId)
-    if (arr) arr.push(r); else byWs.set(r.workspaceId, [r])
-  }
-  for (const [wsId, cards] of byWs) {
-    md += `## ${wsNameById(d.workspaces, wsId) || '未知来源'}\n\n`
-    const byCat = new Map<string, ResourceCard[]>()
-    for (const r of cards) {
-      const k = r.categoryId || ''
-      const arr = byCat.get(k)
-      if (arr) arr.push(r); else byCat.set(k, [r])
-    }
-    for (const [catId, catCards] of byCat) {
-      md += `### ${catMap.get(catId) || '待分类'}\n\n`
-      for (const r of catCards) {
-        md += `- [${r.title}](${r.link})`
-        if (r.description) md += `— ${r.description}`
-        if (r.tags?.length) md += `${r.tags.map(t => `#${t}`).join(' ')}`
-        md += '\n'
-      }
-      md += '\n'
-    }
-  }
-  downloadFile(`zhiyuan_resources_${dateStr()}.md`, md, 'text/markdown;charset=utf-8')
-  markBackupNow()
-  showToast('资源卡已导出为Markdown')
-}
-
-function csvEscape(v: string): string {
-  if (v.includes(',') || v.includes('"') || v.includes('\n')) return '"' + v.replace(/"/g, '""') + '"'
-  return v
-}
 
 
 
@@ -1880,14 +1295,6 @@ function aiCatVocab(d: AppData, cards: ResourceCard[]): string {
   return lines.join('\n')
 }
 
-/** R154（E3）：书签导入完攒下的卡 id——等用户点「归类并补全这批」才起评审，不再自动弹 */
-const pendingImportEnrich = ref<string[] | null>(null)
-function aiImportEnrichNow() {
-  const ids = pendingImportEnrich.value
-  if (!ids || !ids.length) return
-  pendingImportEnrich.value = null
-  aiEnrichIds(new Set(ids))
-}
 /** A1-批量：标签管理右列选中卡 → 逐卡补标签/描述/分类建议 */
 function aiTtEnrich() { aiEnrichIds(ttPicked.value) }
 /** R138-H3：泛型化——任意 id 集走批量补全评审（书签导入完成后复用同一条 job） */
@@ -2320,25 +1727,8 @@ const activeManualSec = ref('quick-1')
 .gs-preview-card :deep(.gs-pv-meta) { font-size: var(--fs-tiny); color: var(--text-3); }
 
 /* 导入导出 */
-.gs-import-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-xs); margin-bottom: 10px; cursor: pointer; transition: all var(--dur); background: var(--surface); }
-.gs-import-option:hover { border-color: var(--accent); background: var(--accent-light); }
-.gs-io-icon { font-size: var(--fs-display); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--surface-2); border-radius: 8px; flex-shrink: 0; }
-.gs-io-name { font-size: var(--fs-body); font-weight: 500; color: var(--text); }
-.gs-io-desc { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; }
-.gs-io-btn { margin-left: auto; flex-shrink: 0; white-space: nowrap; align-self: center; }
-.gs-export-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.gs-export-row:last-child { border-bottom: none; }
-.gs-er-info { flex: 1; }
-.gs-er-name { font-size: var(--fs-body); font-weight: 500; color: var(--text); }
-.gs-er-desc { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; }
 
 /* 第卅六轮 REQ-038：开关 + 容量/异常行 */
-.gs-switch { position: relative; display: inline-block; width: 36px; height: 20px; flex: 0 0 auto; }
-.gs-switch input { opacity: 0; width: 0; height: 0; }
-.gs-switch-slider { position: absolute; cursor: pointer; inset: 0; background: var(--surface-3); border-radius: 99px; transition: .2s; }
-.gs-switch-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 2px; top: 2px; background: var(--text); border-radius: 50%; transition: .2s; }
-.gs-switch input:checked + .gs-switch-slider { background: var(--accent); }
-.gs-switch input:checked + .gs-switch-slider::before { transform: translateX(16px); background: #fff; }
 
 
 

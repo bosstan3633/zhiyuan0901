@@ -382,12 +382,31 @@ check('R171-2 ★两条导入链即净化：策展台数据包导入（useWorksp
     && gs.includes('const thesisFix = sanitizeThesisDuplicates(d)') && gs.includes('n.thesisClear');
 });
 
-check('R171-3 ★数据体检卡（设置→导出数据页）：中心论点重复检测（纯盘点 countThesisDuplicates，挂载即刷新）+ 一键修复按钮（useConfirm 确认 → sanitizeThesisDuplicates → persist → 复扫）——真库脏卡有了不进 AI 链的修复入口（R171 重指：R164-2 增长门禁，卡片实现抽独立组件 DataCheckupCard.vue，宿主一行挂载）', () => {
+/* ★V3.8.42 P0-3 第四批重指（纪律 11「承重锚换了就重指」）：
+   导出数据子域已搬为 settings/SettingsExportPanel.vue，卡片挂载随之进子域。
+   旧锚 `gs.includes('<DataCheckupCard v-if="activePage === \'export\'" />')` 有两处失效：
+     ① 挂载行已不在宿主本体（聚合读也命中不到那串字面量）；
+     ② 面板显隐**没有丢**——它搬到宿主给子组件的 `v-if="activePage === 'export'"` 上，
+        组件内部 activePage 不可达，故那行必须摘成恒真（照此重指时**不能只改锚不改语义**，
+        否则子域里的卡片会常驻挂载、四个页面都冒出一张体检卡）。
+   重指后仍钉两件事：卡片真挂在导出子域里 + 该子域真被宿主的 export 显隐门控。 */
+check('R171-3 ★数据体检卡（设置→导出数据页）：中心论点重复检测（纯盘点 countThesisDuplicates，挂载即刷新）+ 一键修复按钮（useConfirm 确认 → sanitizeThesisDuplicates → persist → 复扫）——真库脏卡有了不进 AI 链的修复入口（R171 重指：R164-2 增长门禁，卡片实现抽独立组件 DataCheckupCard.vue，宿主一行挂载；V3.8.42 P0-3 第四批再随导出子域迁入 SettingsExportPanel.vue，显隐门控上移到宿主接线上）', () => {
   const dc = read('/newtab/components/DataCheckupCard.vue');
+  const ep = read('/newtab/views/settings/SettingsExportPanel.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
   return dc.includes('<Icon name="stethoscope"') && dc.includes('数据体检') && dc.includes('refreshThesisScan') && dc.includes('fixThesisDuplicates')
     && dc.includes("countThesisDuplicates(store.data!)") && dc.includes('onMounted(refreshThesisScan)')
-    && gs.includes('<DataCheckupCard v-if="activePage === \'export\'" />');
+    /* 卡片真挂在导出子域里，且是恒真挂载（显隐交给宿主那一层） */
+    && ep.includes('<DataCheckupCard />') && !/<DataCheckupCard[^>]*v-if/.test(ep)
+    /* ★负锚的写法踩过一次坑（纪律 18「负锚在聚合下会放大」的镜像形态）：
+       `gs` 是**聚合读**（宿主 + settings/ 全目录），拿它判「宿主内不得残留裸挂载」必然假红——
+       子域里那份挂载自己就把这个字符串喂进来了。正解不是改去读宿主本体，而是把语义写准：
+       **聚合全文里这张卡的模板挂载点恰好一个**（回迁宿主、或两边各挂一份，都会变成 2 ⇒ 红）。
+       正则只吃模板形态 `<DataCheckupCard` 后接空白/斜杠/尖括号，import 行（`import DataCheckup…`）
+       与注释里的提及都不算挂载点——否则这条会随注释改字而假红（纪律 15）。 */
+    && (gs.match(/<DataCheckupCard[\s/>]/g) || []).length === 1
+    /* 子域真被宿主的 export 显隐门控 —— 这才是「只在导出数据页」这条语义现在的承重锚 */
+    && gs.includes('<SettingsExportPanel v-if="activePage === \'export\'"');
 });
 
 check('R171-4 ★命令面板「快速开关」组（04-63「全部开关收进去」收口；★W3 随迁：常用内容 Tab 内快速开关索引基=近期最常用+快捷操作）：GlobalPopups 出 PALETTE_TOGGLES（暗色主题/紧凑密度/已完成项目/备份提醒，computed 行内明示当前态）、模板渲染序同步插组、runFlat/runFlatLocator 两键位都认 tgl；store.ui 手改与 saveUIPrefs 双写（R170 uiCache/store.ui 两份引用教训）', () => {

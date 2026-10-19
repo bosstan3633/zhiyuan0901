@@ -90,6 +90,15 @@ async function main() {
   const base = `chrome-extension://${extId}/${EXT_INDEX}`
   const page = await ctx.newPage()
 
+  /* ★V3.8.42 P0-3 第四批新增：抓运行期错误并**在"未就绪"提示里一并打印**。
+     动机：拆子域那批出现的症状是「标题空、panel=false」，看不出任何原因——
+     而真因（模板引用了未导入的组件 / props 少传一个）在浏览器 console 里一句话就说清。
+     ⇒ **页面没渲染时，先看有没有运行期异常，再猜别的**。这与纪律 9 的
+     「四主题全 0 不是一致，是都没渲染」同源：先证明"没渲染"的原因，别急着调选择器。 */
+  const pageErrors = []
+  page.on('pageerror', e => pageErrors.push(String(e && e.message || e)))
+  page.on('console', m => { if (m.type() === 'error') pageErrors.push('[console] ' + m.text()) })
+
   // ③ 先进一次让扩展初始化完成（否则随后注入被 createDefaultData 覆盖）
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(3000)
@@ -164,6 +173,14 @@ async function main() {
       if (!ready) {
         const now = await page.evaluate(() => ({ hash: location.hash, title: (document.querySelector('.gs-page-title')?.textContent || '').trim(), panel: !!document.querySelector('.gs-panel') }))
         console.log(`  ⚠ ${key}: 未就绪（标题=${now.title} panel=${now.panel}）跳过`)
+        /* 打印本轮累积的运行期异常 —— 「没渲染」几乎总是它引起的，
+           不打印就等于让读数的人靠猜（V3.8.42 第四批：真因是 props 少传一个，
+           症状只有「标题空、panel=false」，两者毫无关联）。 */
+        if (pageErrors.length) {
+          console.log('    ↳ 运行期异常：')
+          for (const e of [...new Set(pageErrors)].slice(0, 5)) console.log('      ' + e.slice(0, 300))
+          pageErrors.length = 0
+        }
         continue
       }
       const onPage = await page.evaluate(() => ({
