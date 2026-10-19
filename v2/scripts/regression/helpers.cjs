@@ -44,7 +44,12 @@ function readGateCache(scriptPath, args = []) {
 }
 // V2.21：content script 拆为三文件（search-overlay.ts 信号层 + overlay-impl.ts 浮层实现 + selection.ts 选区捕获）。
 // 断言语义不变：「content script 源码包含 X」——按三文件拼接后的整体判断，历史断言无需逐条改写。
-const CONTENT_SRC_FILES = ['/content/search-overlay.ts', '/content/overlay-impl.ts', '/content/selection.ts'];
+// V3.8.42 P0-4：浮层的 174 行样式本体自 overlay-impl.ts 搬至 overlay-styles.ts ⇒ 补进本聚合表。
+// ★这一步是照着既有先例做的，不是新发明：本表与 WORKSPACE_SRC_FILES 就是为「拆文件但断言不改」存在的。
+// ★教训备案（本次差点又踩一次）：搬代码前必须先查「有没有判据在读被搬走的那段正���」——
+//   实测 R77 / R93 / R105 / B14 / D3 / D7 等 16 条判据读的正是那段 CSS；
+//   没有聚合表的话，这 16 条会同时红，且红得看不出真因（症状像「浮层样式被谁改了」）。
+const CONTENT_SRC_FILES = ['/content/search-overlay.ts', '/content/overlay-impl.ts', '/content/overlay-styles.ts', '/content/selection.ts'];
 // R115（04-59 技术债第三批）：Workspace.vue 按域拆为 8 个 composable + 样式外置 workspace.css。
 // 断言语义不变：「资源台/策展台源码包含 X」——按宿主 + 域文件拼接后的整体判断（沿用 content 三文件同一机制），历史断言无需逐条改写。
 const WORKSPACE_SRC_FILES = [
@@ -64,11 +69,33 @@ const WORKSPACE_SRC_FILES = [
 function read(p) {
   // R110：CRLF/LF 归一化——Windows 检出（autocrlf）下多行锚串不再失配
   const norm = (t) => t.replace(/\r\n/g, '\n');
-  if (p === '/content/search-overlay.ts') {
+  if (p === '/content/search-overlay.ts' || p === '/content/overlay-impl.ts') {
+    // ★V3.8.42 P0-4：overlay-impl.ts 搬走 174 行样式后，R77/R93/R105 等 16 条判据仍从
+    // `read('/content/overlay-impl.ts')` 取样式锚点 ⇒ 这个路径也必须返回 content 全量聚合。
+    // 两个入口都返回同一份聚合，是既有做法（signal 层与实现层互为别名，V2.21 起即如此）。
     return norm(CONTENT_SRC_FILES.map(f => fs.readFileSync(base + f, 'utf8')).join('\n'));
   }
   if (p === '/newtab/views/Workspace.vue') {
     return norm(WORKSPACE_SRC_FILES.map(f => fs.readFileSync(base + f, 'utf8')).join('\n'));
+  }
+  /* V3.8.42 · P0-3 锚点迁移层：设置页接入**与 Workspace / search-overlay 完全同一套**聚合机制。
+     为什么接在 `read()` 而不是只做一个 GS 常量：实测判据对设置页有**两条读法并存**——
+     ① `GS.includes(…)`（214 处里的大头）② 直接 `read('/newtab/views/GlobalSettings.vue').includes(…)`
+     （10-foundations 等片大量使用，如 D2R / N2 / N4 / O20 / O22 / logo 单源化）。
+     只改 GS 的话，②这一类在子域搬走后读到的仍是残缺宿主 ⇒ 十几片同时红，且红的都是"与本批无关"的锚点。
+     ★这个位置不是新发明：`/content/search-overlay.ts` 与 `/newtab/views/Workspace.vue` 的聚合**早就在这里**
+     （Workspace 拆分五批正是靠它做到"断言一处不改"）。设置页只是第三个需要它的对象——
+     它需要，纯粹是因为它有 214 处判据读正文，是规模差异的必然成本。 */
+  if (p === '/newtab/views/GlobalSettings.vue') {
+    const host = norm(fs.readFileSync(base + p, 'utf8'));
+    const dir = path.join(base, 'newtab/views/settings');
+    if (!fs.existsSync(dir)) return host;      // 目录不存在 ⇒ 等价于未拆分，读数与拆分前逐字节一致
+    const extra = fs.readdirSync(dir)
+      .filter(f => f.endsWith('.vue') || f.endsWith('.ts'))
+      .sort()                                     // 排序保证读数稳定（目录遍历顺序不可依赖）
+      .map(f => `\n/* ---- 聚合成员：newtab/views/settings/${f} ---- */\n` + norm(fs.readFileSync(path.join(dir, f), 'utf8')))
+      .join('');
+    return host + extra;
   }
   return norm(fs.readFileSync(base + p, 'utf8'));
 }
@@ -268,7 +295,20 @@ const stripComments = (s) => s.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.tes
 const BADGE = read('/shared/components/AssetBadge.vue');
 const BADGE_TPL = segOf(BADGE, '<template>', '</template>');
 const FIELDS = read('/shared/utils/fields.ts');
-const GS = read('/newtab/views/GlobalSettings.vue');
+/* V3.8.42 · P0-3 锚点迁移层（★本批最关键的一步，214 处判据因此零改动）
+   聚合逻辑已接进 `read()`（见上方 read 的 GlobalSettings 分支，与 Workspace / search-overlay 同机制）。
+   此处只需让 `GS` / `GS109` **每次访问现读**，理由有二：
+   ① `check()` 是**立即执行**的（见本文件第 16 行），模块级常量会在加载期固化，子域文件那时还不存在；
+   ② 判据对 GS 的用法实测有 `includes` 41 / `match` 22 / `indexOf` 5 / `slice` 3 五种，全部走原生 String。
+   ★试过并否决的两条路（记在这里免得下一个人再走一遍）：
+   - `new Proxy(str, …)`：target 必须是非空对象，字符串直接 `TypeError: Cannot create proxy with a non-object`；
+   - `new String(…)` 包装：**只覆盖 String.prototype 上的方法**，判据里的 `GS.match()` 不在其上
+     （match 源自 RegExp）⇒ "大部分能用、少部分塌"，是最危险的形态。
+   ⇒ 终局就是最笨那条：getter，每次访问现算一次字符串（代价 = 一次 read，可忽略）。 */
+const gsHolder = {};
+Object.defineProperty(gsHolder, 'GS', { get: () => read('/newtab/views/GlobalSettings.vue'), enumerable: true });
+Object.defineProperty(gsHolder, 'GS109', { get: () => read('/newtab/views/GlobalSettings.vue'), enumerable: true });
+const { GS, GS109 } = gsHolder;
 const ASSET_KIND = read('/shared/utils/assetKind.ts');
 const WS82 = read('/newtab/views/Workspace.vue');
 const CTX_FN = segOf(WS82, 'function openResCtx(', '// B6：拖拽插入线');
@@ -401,7 +441,6 @@ const ITM109 = read('/newtab/components/ImportTemplateModal.vue');
 const MI109 = read('/shared/utils/mdImport.ts');
 const APP109 = read('/newtab/App.vue');
 const WSP109 = read('/newtab/views/Workspace.vue');
-const GS109 = read('/newtab/views/GlobalSettings.vue');
 const RB109 = read('/newtab/views/RecycleBin.vue');
 /** 现扫 src 的全部 .ts/.vue（判据要"现算而不是我以为有哪些文件"时的唯一入口） */
 function walkSrcFiles(dir, out) {

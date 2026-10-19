@@ -202,3 +202,40 @@ check('B8-6c ★文档与代码对账要有责任标记 —— 「活文档」�
   if (!mv || mv[1] !== cur[1]) return false;
   return ARCH.includes('本轮回填改了哪七类') || ARCH.includes('回填说明');
 });
+
+/* V3.8.42 · P1-10 叙事文档守卫（把「产品认知基线」也纳入门禁）
+   为什么补这条：B8-6a/b/c 三条只守**架构总览**，而**产品认知基线**（接手必读的那份）是叙事性文档里
+   数字最多的一份——V3.8.41 刚把它「回正」，2026-10-19 实测它又漂了 3 处（回归 1,961 → 实跑 1,964；
+   分片数 39 → 41；索引 202 文件 → 204）。**症状：不报错、不变红，只是慢慢变成另一个人写的东西。**
+   ★这不是重复劳动：B8-6 守的是「架构总览的正文不得停留在旧口径」，本条守的是「另一份文档的
+   增量表必须与代码生成物一致」——两份文档、两套数字，判据不能互相顶替。
+   ★判定方式照抄 B8-6a 的纪律：**不写死当期数字**（会随版本变），而是从 `02_代码索引.md` 与
+   `regression.cjs` 实读当期值来对照。 */
+console.log('【B8-7 · 叙事文档不得静默失真】');
+const BASE = read('/../../知源调度台_产品认知基线_V3.8.24.md');
+check('B8-7a ★产品认知基线的增量表必须与代码生成物一致：回归通过数取自 `regression.cjs` 实跑前的分片表规模、索引规模取自 `02_代码索引.md` 的摘要句、实拍图数取自 `gen-code-index` 同批的 census 场景数 —— 三者任一对不上即红。★为什么要查三样而不是只查版本号：版本号由 manifest 派生（B8-6c 已守），**数字才是真正会腐烂的东西**，且腐烂时版本号纹丝不动', () => {
+  if (!BASE) return false;
+  const IDX = read('/../../评审交接包/02_代码索引.md');
+  const REG = fs.readFileSync(path.join(SCRIPTS_DIR, 'regression.cjs'), 'utf8');
+  const m0 = REG.match(/const SHARDS = \[([\s\S]*?)\]/);
+  if (!m0) return false;
+  const shards = [...m0[1].matchAll(/'([^']+)'/g)].length;
+  const m1 = (IDX || '').match(/规模：\*\*(\d+)\s*个源文件\s*\/\s*([\d,]+)\s*行/);
+  if (!m1 || !m1[2]) return false;
+  // 分片数：基线里以「**41 分片**」形态出现
+  const shardRe = new RegExp(`\\*\\*${shards} 分片\\*\\*`);
+  if (!shardRe.test(BASE)) {
+    console.log(`     实测分片数 ${shards}，基线增量表里找不到「**${shards} 分片**」`);
+    return false;
+  }
+  // 索引规模：文件数与行数都要在
+  if (!BASE.includes(m1[1]) || !BASE.includes(m1[2])) {
+    console.log(`     实测索引 ${m1[1]} 文件 / ${m1[2]} 行，基线增量表里对不上`);
+    return false;
+  }
+  return true;
+});
+check('B8-7b ★基线必须留有「哪一批补记」的登记行：文档一旦失去「最后一项由哪批收掉」的痕迹，数字腐烂时无法核对的事实也就没有了 —— 与 B8-6c 对架构总览的差异账同一口径，本条把它扩到认知基线', () => {
+  if (!BASE) return false;
+  return /V3\.8\.4\d 补记|数字[廿零三四五六七八九]+填|增量（\d{4}-\d{2}-\d{2}/.test(BASE);
+});

@@ -72,7 +72,15 @@ check('R78-1 A3 保存回执 toast 化：showSaved 只做「关浮层 + 一行 t
 });
 check('R78-2 A3 自动关闭 5000 → 2500（回执定时器统一走 clearSavedState）', () => {
   const o = read('/content/overlay-impl.ts');
-  return o.includes('savedTimer = setTimeout(clearSavedState, 2500)') && !o.includes(', 5000)');
+  // ★V3.8.42 P0-4 精度修订：原负锚是全文件 `!o.includes(", 5000)")`，在 content 单文件下靠
+  // 「恰好别处不用 5000」侥幸成立。overlay-impl 搬走 174 行样式、/content/overlay-impl.ts 改为
+  // 返回 content 全量聚合后，DOM 节点清理里那个真·无关的 `setTimeout(…, 5000)`（el.remove 兜底，
+  // 与回执时长无关）被聚合进来，负锚当场咬自己。
+  // ★这就是负锚的通用病：**「某字面量在全文件里不存在」≠「在某处不存在」**，聚合会放大它。
+  // 修法按既有纪律「豁免条件必须逐个旧值对齐它出现那一句的语义」：把范围收到**回执那一句**，
+  // 而不是把 5000 从全文件里一刀切掉。
+  return o.includes('savedTimer = setTimeout(clearSavedState, 2500)')
+    && !/savedTimer\s*=\s*setTimeout\(\s*clearSavedState\s*,\s*5000\s*\)/.test(o);
 });
 check('R78-3 A3 例外：重复卡确认视图维持整屏（showDupConfirm 未被牵连）', () => {
   const o = read('/content/overlay-impl.ts');

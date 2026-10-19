@@ -184,3 +184,38 @@ check('P0-S7 ★内联视觉样式棘轮：已被 B1 收口过的 **22 个文件
   if (bad.length) console.log('     违规 ' + bad.length + ' 处：\n       ' + bad.slice(0, 8).join('\n       '));
   return bad.length === 0;
 });
+
+/* V3.8.42 · 分片行数闸（把 R164-2 的写作惯例变成可执行判据）
+   为什么补这条：R164-2「单片 ≤900 行」一直只写在各分片的文件头注释里，靠人记住。2026-10-19 实测
+   98 顶到 899 / 99 顶到 896——两片都只差 1~4 行就破闸，而当时没有任何东西会告诉下一个人"不能再加了"。
+   这与 B8-6 判据盯的是同一类病：**约定只写在注释里 = 没有守卫**。上一轮刚给文档补了门禁，本条给分片补。
+   处置原则仍是既有的那一条：**上限靠加分片而不是放宽**（见 01/05/06/07 各片文件头的历史备案）。
+   阈值取 900 是照抄既有纪律的字面值，不写死"当前最高多少行"——那个数每轮都会变，写死即腐烂。 */
+console.log('【分片卫生 · 行数闸与语法闸】');
+check('P0-S9 ★回归分片不得逼近 R164-2 的 900 行上限：逐片按 `wc -l` 口径（末尾换行不计）量行数，超过 900 即红并点名是哪几片、多少行。★为什么现在补：这条纪律此前只活在各片文件头的注释里，2026-10-19 实测 98 已到 899、99 已到 896（各差 1~4 行即破闸）却无人被提醒——「靠人记住的约定」在项目活到第 41 个版本时的存活率已被证伪。★处置出口是加分片不是放宽上限：01/05/06/07 各片文件头都留着同一条历史备案（99 曾到 906、97 曾到 956，均以独立成片化解，断言一条不减零改写）', () => {
+  const dir = path.join(SCRIPTS_DIR, 'regression');
+  const over = [];
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.endsWith('.cjs')) continue;
+    const n = fs.readFileSync(path.join(dir, f), 'utf8').split('\n').length - 1; // 与 wc -l 同口径
+    if (n > 900) over.push(`${f}=${n}`);
+  }
+  if (over.length) console.log('     超 900 行的分片：' + over.join('， '));
+  return over.length === 0;
+});
+check('P0-S10 ★每个分片都必须是**语法合法**的 CommonJS 源：交给 node 自带的 parser 逐片编译一次，不得抛 SyntaxError。★为什么只查语法不实加载：分片里的 `check()` 在**被 require 的那一刻就执行**，若用子进程实加载，本片自己会被子进程再执行一遍 ⇒ P0-S10 递归调用自己（2026-10-19 实测：单独 require 本片能正常打印全绿，而加载式检查把它判红，报"未知错误"——这是测量方法错，不是被测物坏）。语法层才是搬运事故的真实暴露面：坏在头部 require 块时抛的是 SyntaxError，而语法编译不执行任何断言，天然无副作用。★症状说明：整条回归在加载期就死，看起来像门禁坏了，真因是切片时把 require 解构块切错了行，而 P0-S6 只查文件存在与 git 跟踪，抓不到语法层', () => {
+  const dir = path.join(SCRIPTS_DIR, 'regression');
+  const vm = require('vm');
+  const broken = [];
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.endsWith('.cjs')) continue;
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    try {
+      new vm.Script(src, { filename: f });   // 只编译不执行 ⇒ 无副作用、无递归
+    } catch (e) {
+      broken.push(`${f} :: ${String(e.message).split('\n')[0]}`);
+    }
+  }
+  if (broken.length) console.log('     语法不合法：\n       ' + broken.join('\n       '));
+  return broken.length === 0;
+});
