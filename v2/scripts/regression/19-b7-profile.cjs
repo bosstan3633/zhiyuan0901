@@ -31,21 +31,18 @@ console.log('【B7-a · 画像洞察：A1 Hero 主次归位 / A3 四段时间轴
 /* ══════════════════════ A1 · Hero 主次归位 ══════════════════════ */
 
 check(NAME(
-  'A1-1 ★Hero 的主角是「使命主线」而不是数字：使命带无药丸底与边框，改左缘 accent 竖条（inset 内画）；',
-  '使命文本 fs-body + 600，空态引导同档。V3.9.3 四格读数迁入概览后，Hero 内不再存在与之争宽的指标副带。'), () => {
-  const bar = CSS.match(/\.hero-compass-bar \{[^}]*\}/)?.[0] || '';
-  const em = CSS.match(/\.hcb-mission em \{[^}]*\}/)?.[0] || '';
-  if (!bar || !em) { console.log('     锚点缺失'); return false; }
-  /* ① 药丸盒退役：底色与边框零残留。负锚走 codeOnly（注释里按纪律写了「药丸盒退役」，必须剥完再判） */
-  if (/background:/.test(bar)) return false;
-  if (/border:/.test(bar)) return false;
-  if (!/box-shadow:\s*inset 3px 0 0 var\(--accent\)/.test(bar)) return false;
-  /* 竖条必须 inset 内画：加 border-left 会与 Hero 卡面自身边框叠成双线 */
-  if (/border-left:/.test(bar)) return false;
-  /* ② 使命文本抬档 */
-  return /font-weight:\s*600/.test(em)
-    && CSS.includes('.hcb-mission { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-body)')
-    && /font-size:\s*var\(--fs-body\)/.test((CSS.match(/\.hcb-empty \{[^}]*\}/) || [''])[0])
+  'A1-1 ★使命主线是方向区的主角（★W17-C09 · 2026-10-20 重指带备案）：原判据守 Hero 内 .hero-compass-bar 的',
+  '「无药丸底 + 左缘 accent 竖条 + 使命文本 fs-body/600」。本批方向带整体迁入 PiOverview 方向状态面板，',
+  '所守意图不变，承重锚改到 .pi-dir-mission：无底色无边框、左缘竖条（inset 内画）、使命文本 600 字重。'), () => {
+  const ov = read('/newtab/components/profile/PiOverview.vue');
+  const m = ov.match(/\.pi-dir-mission \{[^}]*\}/)?.[0] || '';
+  if (!m) { console.log('     锚点缺失'); return false; }
+  if (/background:/.test(m)) return false;
+  if (/border:/.test(m)) return false;
+  if (!/box-shadow:\s*inset 3px 0 0 var\(--accent\)/.test(m)) return false;
+  if (/border-left:/.test(m)) return false;
+  return /font-weight:\s*600/.test((ov.match(/\.pi-dir-mission strong \{[^}]*\}/) || [''])[0])
+    && !codeOnly(HERO).includes('hero-compass-bar')
     && !codeOnly(HERO).includes('hero-kpis-grid');
 });
 
@@ -65,12 +62,13 @@ check(NAME(
   'A1-3 ★使命线的两处前缀同步降档：「使命主线」标签补 600 字重 + 字距改走 tracking-sm 令牌',
   '（它只是路标的前缀，不是内容；字距不许留裸值），空态引导钮与正文同档',
   '（用户已设定的样子与「还没设定」不该一个字号）'), () => {
-  const b = CSS.match(/\.hcb-mission b \{[^}]*\}/)?.[0] || '';
-  return /font-size:\s*var\(--fs-caption\)/.test(b)
-    && /font-weight:\s*600/.test(b)
-    && /var\(--tracking-sm\)/.test(b)
-    && !/letter-spacing:\s*\.\d+em/.test(b)
-    && /font-size:\s*var\(--fs-body\)/.test((CSS.match(/\.hcb-empty \{[^}]*\}/) || [''])[0]);
+  /* ★W17-C09 重指：使命前缀随方向带迁入 PiOverview 方向状态面板（.pi-dir-mission .k）。 */
+  const ov = read('/newtab/components/profile/PiOverview.vue');
+  const b = ov.match(/\.pi-dir-mission \.k \{[^}]*\}/)?.[0] || '';
+  return /font-size:\s*var\(--fs-micro\)/.test(b)
+    && /font-weight:\s*700/.test(b)
+    && /letter-spacing/.test(b)
+    && /font-size:\s*var\(--fs-body\)/.test((ov.match(/\.pi-dir-mission strong \{[^}]*\}/) || [''])[0]);
 });
 
 check(NAME(
@@ -80,9 +78,10 @@ check(NAME(
     && (OVERVIEW.match(/<button class="pi-ov-kpi[^"]*"[^>]*:title=/g) || []).length === 4
     && (OVERVIEW.match(/点击看明细/g) || []).length === 4
     && (OVERVIEW.match(/emit\('kpi-drill', '/g) || []).length === 4
-    && HERO.includes("(e: 'open-project', projectId: string): void")
-    && HERO.includes("(e: 'goto-compass'): void")
-    && HERO.includes('hcb-empty') && HERO.includes('focusPills')
+    /* ★W17-C09 重指：主攻项目与使命空态引导迁入方向状态面板，能力零损失（E2E-21 双类锚点仍在）。 */
+    && OVERVIEW.includes("(e: 'open-project', projectId: string): void")
+    && OVERVIEW.includes("(e: 'goto-compass'): void")
+    && OVERVIEW.includes('尚未设定使命愿景') && OVERVIEW.includes('focusProjects')
     && HERO.includes('class="pi-hero hero-card"');
 });
 
@@ -124,11 +123,13 @@ check(NAME(
     /<PiMonth v-else-if="activeRange === 'month'"/,
     /<PiYear v-else/
   ];
-  return PI.includes("const activeRange = ref<PiRange>('year')")
+  /* ★W17-C09（2026-10-20 用户拍板）重指带备案：默认范围从「本年」改为「今天」（页面定位改为使用状态），
+     左轨 onRailJump 随时间线退役；所守意图不变——四个时间尺度四选一挂载、页签是唯一导航、旧发丝线零回流。 */
+  return PI.includes("const activeRange = ref<PiRange>('today')")
     && mounts.every(re => re.test(PI))
     && PI.includes('<PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)"')
-    && PI.includes('function setRange(k: PiRange, scroll = false)')
-    && PI.includes('@jump="onRailJump"')
+    && PI.includes('function setRange(k: PiRange): void')
+    && !PI.includes('@jump="onRailJump"') && !PI.includes('<PiRail')
     && mods.includes('animation: pi-range-in')
     && (PI.match(/class="pi-sep"/g) || []).length === 0;
 });
@@ -179,7 +180,9 @@ check(NAME(
   '本批新增的发丝线与徽标不许顶掉任何一个既有出口'), () => {
   return [TODAY, RHY, MONTH, YEAR].every(s => (s.match(/class="one-insight"/g) || []).length === 1)
     && [TODAY, RHY, MONTH, YEAR].every(s => s.includes('class="strip4"'))
-    && TODAY.includes("emit('open-battle')") && TODAY.includes("emit('bind', r.idx)")
+    /* ★W17-C09 重指：今日段三行对账退役（bind/归位能力唯一归调度台），',
+       改为守「打开战报 + 焦点格去调度台」两个专属出口。 */
+    && TODAY.includes("emit('open-battle')") && TODAY.includes("emit('open-focus')")
     && RHY.includes("emit('open-err')") && RHY.includes("emit('goal-drill', g.id)")
     && MONTH.includes("emit('topic', t.tag)") && MONTH.includes('class="funnel3"')
     && YEAR.includes('<Heatmap') && YEAR.includes('<LifecyclePanel')
@@ -204,15 +207,19 @@ check(NAME(
 check(NAME(
   'A3-9 ★首屏先方向再行动：PiOverview 独立承载「本周精力」与「今天三件事」双栏，',
   '四格核心读数与既有下钻在概览左栏同源承载；宿主不直接堆这套模板，避免超过 W13-8 行数闸。'), () => {
-  return PI.includes('<PiOverview') && PI.includes(':week-insight="concise.week"')
-    && PI.includes(':today-insight="concise.today"') && PI.includes(':rows="todayRows"')
+  /* ★W17-C09（2026-10-20 用户拍板）重指带备案：首屏从「本周精力 + 今天三件事」双栏改为
+     「知源产品使用状态 + 你的方向状态」双面板——今天三件事与调度台重复，用户要求移除。
+     所守意图（首屏先给方向、四格读数与下钻在概览同源承载、宿主不堆模板）一条未减。 */
+  return PI.includes('<PiOverview') && PI.includes(':mission-text="heroMission"')
+    && PI.includes(':focus-projects="heroFocusProjects"')
     && PI.includes('@kpi-drill="onHeroDrill"')
     && OVERVIEW.includes('class="pi-overview"')
-    && OVERVIEW.includes('这周，你把精力放在哪里')
-    && OVERVIEW.includes('今天，从哪三件事开始')
+    && OVERVIEW.includes('知源产品使用状态')
+    && OVERVIEW.includes('你的方向状态')
+    && !/class="pi-ov-lines"/.test(OVERVIEW)
     && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
-    && OVERVIEW.includes("emit('toggle', r.idx)") && OVERVIEW.includes("emit('bind', r.idx)")
-    && OVERVIEW.includes("emit('fill', i)");
+    && OVERVIEW.includes("emit('open-project', p.id)")
+    && OVERVIEW.includes("emit('goto-compass')");
 });
 
 /* ══════════════════════ A3-8 · 产物级：模板真编译（★堵「读源码发现不了」的盲区） ══════════════════════ */

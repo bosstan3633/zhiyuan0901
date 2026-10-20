@@ -134,11 +134,17 @@ check('A2-3 四格 KPI 每格都有口径 tooltip，且数值用中性 text（�
 });
 
 check('A2-4 洞察卡与归属标签同样不裁决：one-insight / pi-tag 的 ok 与 warn 不落红绿琥珀', () => {
+  /* ★W17-C09（2026-10-20）重指带备案：`.pi-tag` 那组归属标签随「今日三件事」退役被 dead-css 判死删除，
+     所守意图（归属标记不做好坏裁决）改由仍在使用中的 `.one-insight` 与方向状态面板的 `.pi-dir-state` 承担。 */
   const ins = (PI_CSS.match(/\.one-insight\.(ok|warn)[^{]*\{[^}]*\}/g) || []).join('\n');
-  const tag = (PI_CSS.match(/\.pi-tag\.(ok|warn) \{[^}]*\}/g) || []).join('\n');
+  const ov = read('/newtab/components/profile/PiOverview.vue');
+  const state = (ov.match(/\.pi-dir-state[^{]*\{[^}]*\}/g) || []).join('\n');
   const bad = [];
   if (/var\(--(success|danger|warning)\)/.test(ins)) bad.push('one-insight');
-  if (/var\(--(success|warning)\)|success-bg-soft/.test(tag)) bad.push('pi-tag');
+  if (/var\(--(success|warning)\)|success-bg-soft/.test(state)) bad.push('pi-dir-state');
   if (bad.length) console.log('     仍按好坏上色：' + bad.join(' / '));
-  return bad.length === 0 && ins.includes('var(--accent)') && tag.includes('var(--surface-3)');
+  return bad.length === 0 && ins.includes('var(--accent)')
+    && state.includes('var(--text-3)')
+    /* 负锚：已退役的 pi-tag 规则不许回流（dead-css 判死过） */
+    && !/\.pi-tag \.?\{?/.test(PI_CSS.replace(/\/\*[\s\S]*?\*\//g, ''));
 });

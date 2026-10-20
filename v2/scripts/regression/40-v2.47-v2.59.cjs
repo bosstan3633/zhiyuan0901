@@ -196,10 +196,10 @@ check('R80-6 R13 导入 input 的 accept 已列支持类型（图片 / HTML / PD
   const inp = segOf(pool, '<input ref="fileImportInput"', '@change="handleFileImport"');
   return inp.includes('accept="image/*') && inp.includes('.pdf') && inp.includes('.html');
 });
-check('R80-7 R14 zy-asset:// 三分支齐全：image 走 AssetPreview / html·pdf 走 openHtmlAsset', () => {
+check('R80-7 R14 zy-asset:// 三分支齐全：image 走 AssetPreview / html·pdf 走 openHtmlAsset（★W17-C02 重指带备案：分支语义一件未减，只把 `return` 改成 `return true` —— openResourceLink 改返回 boolean 供调度台「最近调出」单击分流，image/html/pdf 三条分支仍由 useResourceOpen 同一份实现承载）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return OPEN_LINK_FN.includes("if (meta.kind === 'image') { void openImageAsset(meta); return }")
-    && OPEN_LINK_FN.includes("if (meta.kind === 'html' || meta.kind === 'pdf') { openHtmlAsset(meta); return }")
+  return OPEN_LINK_FN.includes("if (meta.kind === 'image') { void openImageAsset(meta); return true }")
+    && OPEN_LINK_FN.includes("if (meta.kind === 'html' || meta.kind === 'pdf') { openHtmlAsset(meta); return true }")
     && w.includes('<AssetPreview :open="previewOpen"') && w.includes('async function openImageAsset(');
 });
 check('R80-8 R14 附件本体缺失提示「重新上传」（不静默失败）', () => {

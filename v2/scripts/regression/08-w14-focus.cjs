@@ -17,22 +17,24 @@ console.log('【W14 · 主攻项目详情抽屉 + 顶部瘦身（V3.8.23 批）�
 check('W14-1 ★主攻项目的点击必须落在"那个项目"上，不能两枚胶囊同落一处：Hero 的 ≤2 枚 🚀 主攻胶囊点开的是**右侧滑出的项目详情抽屉**（ProjectDetailDrawer，与方向台/策展台同一枚），今日三件事行的 🚀 主攻标签同出口。★病根：胶囊原 @click="emit(\'drill\',\'focus\')" 不带项目 id，两枚胶囊点开的是同一个「主攻动作记录」抽屉，按下那一下就丢了"点的是哪一个"。断言钉四段：① PiHero 有独立发射器 open-project（不与 drill 混用 —— drill 的 focus 键语义归"近30天精力落主攻"那张底盘卡）② 胶囊点击带上 p.id ③ 宿主挂 ProjectDetailDrawer + openProjectDetail ④ 负锚：胶囊不再 emit drill focus。另：PiToday 主攻标签由 span 改 button（"看着能点"不算能点），TodayRow 带 projectId', () => {
   const HERO_C = codeOnly(HERO);
   const TODAY_C = codeOnly(TODAY);
-  return HERO.includes("(e: 'open-project', projectId: string): void")
-    && HERO.includes("emit('open-project', p.id)")
-    /* 负锚：胶囊那一枚不许再 emit drill focus；focus 键的现役语义归概览四格。 */
-    && !HERO.match(/hcb-pill[\s\S]{0,400}?emit\('drill', 'focus'\)/)
+  /* ★W17-C09（2026-10-20）重指带备案：主攻胶囊从 Hero 迁入 PiOverview 方向状态面板
+     （项目名完整呈现），点开仍是"那个项目"的详情抽屉。承重锚改到 OVERVIEW：
+     方向面板有 open-project 发射器 + 带 p.id + 项目卡可点；宿主仍唯一挂 ProjectDetailDrawer。
+     计数从 3 → 2：Hero 不再发项目点击，今日三件事行随 C09 退役，只剩方向面板与今日焦点格。 */
+  return OVERVIEW.includes("(e: 'open-project', projectId: string): void")
+    && OVERVIEW.includes("emit('open-project', p.id)")
     && OVERVIEW.includes("emit('kpi-drill', 'focus')")
-    && HERO.includes('点击查看项目详情')
+    && OVERVIEW.includes('点击项目可查看阶段目标与任务')
     && PI.includes("import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'")
     && PI.includes('function openProjectDetail(projectId: string)')
     && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId"')
-    /* V3.9.3 单段切换：Hero、首屏概览里的今日三件事、PiToday 主攻标签三处同接一个出口。
-       计数增加是入口增加，不是放权；项目详情抽屉仍只有一枚。 */
-    && (PI.match(/@open-project="openProjectDetail"/g) || []).length === 3
-    && TODAY.includes("emit('open-project', r.projectId)")
-    && TODAY_C.includes('pi-tag ok as-btn')
-    && TODAY.includes('projectId: string')
-    && PI.includes('projectId: pid')
+    /* 计数 3 → 1：Hero 不再发项目点击、今日三件事行退役；只剩方向状态面板这一个入口。 */
+    && (PI.match(/@open-project="openProjectDetail"/g) || []).length === 1
+    && TODAY.includes('slotCount')
+    && TODAY_C.includes('class="strip4"')
+    /* 负锚：Hero 不再挂方向带，也不许把 24ch 截断的胶囊带回来 */
+    && !HERO_C.includes('hcb-pill')
+    && !HERO_C.includes('focusPills')
     /* 抽屉本体仍是真的可编辑抽屉（有任务新建与删除确认），不是只读速览 */
     && PDD.includes('TaskAddDrawer') && PDD.includes('删除') && PDD.includes('useConfirm')
     && PDD.includes('width="480px"');
@@ -69,7 +71,10 @@ check('W14-3 ★Hero 不是视觉焦点：主标题降为 fs-title，且画像�
     && !PI_C.includes('--fs-display')
     && HERO.includes('class="pi-hero-eyebrow"') && HERO.includes('画像洞察')
     && HERO.includes('class="hero-row-top"')
-    && HERO.includes('class="hero-compass-bar"');
+    /* ★W17-C09 重指：方向坐标带整体迁出 Hero（迁入 PiOverview 方向状态面板），
+       于是"Hero 不抢焦点"反而更彻底 —— 负锚改成 Hero 内零方向带、零主攻胶囊。 */
+    && !HERO.includes('class="hero-compass-bar"')
+    && !HERO.includes('hcb-');
 });
 
 check('W14-4 ★压体积不许压能力：页头三件套（刷新 · 导出 · 全部记录）零丢失、四格下钻出口在概览零丢失、使命轻引导出口保留、H2P 双类锚点保持（E2E-21 靠它）', () => {
@@ -77,7 +82,8 @@ check('W14-4 ★压体积不许压能力：页头三件套（刷新 · 导出 ·
     && HERO.includes("emit('open-log')") && HERO.includes('<Icon name="folder" :size="13"/> 全部记录')
     && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
     && HERO.includes('class="pi-hero hero-card"')                  /* E2E-21 双类锚点 */
-    && HERO.includes("(e: 'goto-compass'): void")                 /* 使命轻引导出口保留 */
-    && HERO.includes('hcb-empty')
-    && HERO.includes('focusPills');                                /* 主攻胶囊一枚未减 */
+    /* ★W17-C09 重指：使命空态轻引导与主攻项目整体迁入方向状态面板，能力一件未减。 */
+    && OVERVIEW.includes("(e: 'goto-compass'): void")
+    && OVERVIEW.includes('尚未设定使命愿景')
+    && OVERVIEW.includes('focusProjects');
 });

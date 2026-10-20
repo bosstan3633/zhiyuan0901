@@ -603,7 +603,7 @@ export interface UIPrefs {
   drawerWs?: Record<string, number>
   /** 第卅三轮 REQ-007：三视图排序偏好（res/task/curio → { by, dir }），时间排序默认倒序 */
   /** 第卅二轮 REQ-007：各模块排序偏好（by/dir）；第卅五轮 REQ-036：task.filter 状态筛选偏好持久化 */
-  sortPrefs?: Record<string, { by?: string; dir?: 'asc' | 'desc'; filter?: string }>
+  sortPrefs?: Record<string, { by?: string; dir?: 'asc' | 'desc'; filter?: string; group?: string }>
   /** 第卅三轮 REQ-024：详情抽屉文本框高度记忆（组件键 → px） */
   taHeights?: Record<string, number>
   /** 第卅三轮 REQ-026：卡片网格密度档位（compact=紧凑 / cozy=舒适，默认 cozy） */

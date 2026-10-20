@@ -135,6 +135,29 @@ const archivedHintCount = computed(() => curiosities.value
 // R113-N2：生命周期入口收敛到 设置→总览（原 R110-LC 面板接线移除）
 const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
 
+/* ★W17-C05（2026-10-20 用户拍板）：两段文字标签升级为可折叠组头——
+ * 组 = 已置顶 / 全部好奇心（数据源仍是 pinnedCount 分区），折叠状态只存在组件内、不持久化。 */
+const curioGroups = computed(() => {
+  return [
+    { id: 'pin', name: '已置顶', items: filtered.value.filter(c => c.pinned) },
+    { id: 'rest', name: '全部好奇心', items: filtered.value.filter(c => !c.pinned) }
+  ].filter(g => g.items.length)
+})
+const collapsedGroups = ref<Set<string>>(new Set())
+const allGroupsCollapsed = computed(() => curioGroups.value.length > 0 && curioGroups.value.every(g => collapsedGroups.value.has(g.id)))
+/** 全局开关文案：任一组展开时给「全部折叠」，全收起时给「全部展开」 */
+const allGroupsLabel = computed(() => allGroupsCollapsed.value ? '▾ 全部展开' : '▸ 全部折叠')
+function isGroupCollapsed(id: string): boolean { return collapsedGroups.value.has(id) }
+function toggleGroupCollapsed(id: string): void {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  collapsedGroups.value = next
+}
+function toggleAllGroups(): void {
+  collapsedGroups.value = allGroupsCollapsed.value ? new Set() : new Set(curioGroups.value.map(g => g.id))
+}
+
 const statusCounts = computed(() => {
   const counts: Record<string, number> = { all: curiosities.value.length }
   for (const c of curiosities.value) counts[c.status] = (counts[c.status] || 0) + 1
@@ -524,10 +547,18 @@ function srcShort(url: string): string {
       </div>
 
       <!-- 卡片视图 -->
-      <div v-if="viewMode === 'card'" class="cz-grid" :style="{ '--grid-cols': String(curioCols) }">
-        <template v-for="(c, i) in filtered" :key="c.id">
-          <div v-if="pinnedCount && i === 0" class="cz-group-label"><Icon name="pin" :size="13"/> 已置顶</div>
-          <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
+      <div v-if="viewMode === 'card'" class="cz-groups">
+        <section v-for="g in curioGroups" :key="g.id" class="cz-group">
+          <div class="cz-group-head">
+            <button class="cz-group-label cz-group-toggle" :aria-expanded="!isGroupCollapsed(g.id)"
+              :title="isGroupCollapsed(g.id) ? '展开该组' : '收起该组'" @click="toggleGroupCollapsed(g.id)">
+              <span class="cz-group-ar">{{ isGroupCollapsed(g.id) ? '▸' : '▾' }}</span>
+              <Icon v-if="g.id === 'pin'" name="pin" :size="13"/> {{ g.name }}
+            </button>
+            <span class="cz-group-cnt">{{ g.items.length }} 张</span>
+          </div>
+          <div v-if="!isGroupCollapsed(g.id)" class="cz-grid" :style="{ '--grid-cols': String(curioCols) }">
+          <template v-for="c in g.items" :key="c.id">
           <div class="cz-card"
             :class="{selected: selected.has(c.id), pinned: c.pinned, flash: highlightId===c.id, 'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}"
             :data-czid="c.id" draggable="true"
@@ -569,18 +600,28 @@ function srcShort(url: string): string {
             </div>
           </div>
         </template>
+          </div>
+        </section>
+      </div>
         <!-- G3（V3.8.27）：好奇心池零结果改走 EmptyState；class 保留为网格跨列锚点 -->
         <EmptyState v-if="!filtered.length" class="cz-empty" size="section" icon="bulb"
           :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
           :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。'"
           :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
-      </div>
 
       <!-- 列表视图 -->
       <div v-else-if="viewMode === 'list'" class="cz-list">
-        <template v-for="(c, i) in filtered" :key="c.id">
-          <div v-if="pinnedCount && i === 0" class="cz-group-label"><Icon name="pin" :size="13"/> 已置顶</div>
-          <div v-else-if="pinnedCount && i === pinnedCount" class="cz-group-label">全部好奇心</div>
+        <section v-for="g in curioGroups" :key="g.id" class="cz-group">
+          <div class="cz-group-head">
+            <button class="cz-group-label cz-group-toggle" :aria-expanded="!isGroupCollapsed(g.id)"
+              :title="isGroupCollapsed(g.id) ? '展开该组' : '收起该组'" @click="toggleGroupCollapsed(g.id)">
+              <span class="cz-group-ar">{{ isGroupCollapsed(g.id) ? '▸' : '▾' }}</span>
+              <Icon v-if="g.id === 'pin'" name="pin" :size="13"/> {{ g.name }}
+            </button>
+            <span class="cz-group-cnt">{{ g.items.length }} 张</span>
+          </div>
+          <template v-if="!isGroupCollapsed(g.id)">
+        <template v-for="c in g.items" :key="c.id">
           <div class="cz-list-item" draggable="true"
             @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
             @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
@@ -610,6 +651,8 @@ function srcShort(url: string): string {
           :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
           :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集（支持先选中网页文字）。'"
           :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
+          </template>
+        </section>
       </div>
 
       <!-- 看板视图（跨列拖拽改状态） -->
@@ -906,4 +949,10 @@ function srcShort(url: string): string {
 .cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
 .cz-ext-src:hover { text-decoration: underline; }
 .cz-list-assets { margin: 0 2px; }
+/* ★W17-C05：好奇卡两段标签升级为可折叠组头（卡片 / 列表两视图同构） */
+.cz-groups { display: flex; flex-direction: column; gap: 12px; }
+.cz-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cz-group-toggle { grid-column: auto; border: 0; background: transparent; padding: 2px 2px 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
+.cz-group-ar { font-size: var(--fs-tiny); color: var(--text-4); }
+.cz-group-cnt { font-size: var(--fs-micro); color: var(--text-4); }
 </style>

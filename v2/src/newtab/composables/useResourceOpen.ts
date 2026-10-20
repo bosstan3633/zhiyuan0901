@@ -45,18 +45,22 @@ export function useResourceOpen(ctx: ResourceOpenCtx) {
   /** 第卌二轮 REQ-061：双击卡片打开——挂了 HTML 附件的资源卡（link=zy-asset://<id>）走 openHtmlAsset
    *  file:// 落盘完整打开，与详情内打开同一函数同一效果（新标签页，内联脚本可运行）
    *  R80（R14）：补上 image 分支——此前判据只放行 html/pdf，图片附件卡双击会落到
-   *  「文档附件不存在或已失效」的误报；现图片走 AssetPreview 就地预览。 */
-  function openResourceLink(r: ResourceCard) {
-    recordResourceOpen(d.value, r)
-    store.persistHot?.()
+   *  「文档附件不存在或已失效」的误报；现图片走 AssetPreview 就地预览。
+   *  ★W17-C02（2026-10-20）改返回 boolean + 记账后置：先判定可打开性，**确认可打开才记账**，
+   *  返回成败供调用方分流（调度台「最近调出」单击：true=已打开，false=回落开详情抽屉）。
+   *  原实现一进函数就 recordResourceOpen，失败分支也计一次——「失败回落开抽屉」路径
+   *  （详情抽屉 openFromId 自己记一次）会双计。纪律：失败分支零记账，记账只发生在真的打开那一刻。 */
+  function openResourceLink(r: ResourceCard): boolean {
     if (r.linkType === 'file' && /^zy-asset:\/\//i.test((r.link || '').trim())) {
       const assetId = (r.link || '').trim().replace(/^zy-asset:\/\//i, '')
       const meta = (r.assets || []).find(a => a.id === assetId)
-      if (!meta) { showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传'); return }
-      if (meta.kind === 'image') { void openImageAsset(meta); return }
-      if (meta.kind === 'html' || meta.kind === 'pdf') { openHtmlAsset(meta); return }
+      if (!meta) { showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传'); return false }
+      recordResourceOpen(d.value, r)
+      store.persistHot?.()
+      if (meta.kind === 'image') { void openImageAsset(meta); return true }
+      if (meta.kind === 'html' || meta.kind === 'pdf') { openHtmlAsset(meta); return true }
       showToast('⚠ 卡片指向的附件不存在或已失效，请重新上传')
-      return
+      return false
     }
     const url = toOpenableUrl(r.linkType, r.link)
     if (!url) {
@@ -65,9 +69,12 @@ export function useResourceOpen(ctx: ResourceOpenCtx) {
       if (st === 'none') showToast('⚠ 该卡还没填链接 —— 点卡片右上角 ↗ 或进入详情补一个')
       else if (st === 'incomplete') showToast('⚠ 仅存文件名，需补全完整路径（如 D:\\docs\\file.pdf）')
       else showToast('⚠ 该链接无法打开（协议不受支持）')
-      return
+      return false
     }
+    recordResourceOpen(d.value, r)
+    store.persistHot?.()
     openExternalLink(url)
+    return true
   }
 
   return { previewOpen, previewUrl, previewName, closePreview, openImageAsset, openResourceLink }

@@ -5,13 +5,13 @@
  * 本版把已确认的高保真原型落为生产：
  *   §0 PiHero 页头（标题 / 使命与主攻 / 全库读数 / 刷新、导出、全部记录）
  *   §1 PiOverview 首屏双栏（左：本周方向；右：今天三件事）
- *   §2 PiRangeTabs + 左 PiRail 导航 + 右单段时间轴（四选一）：
+ *   §2 PiRangeTabs（唯一导航）+ 单段时间面板（四选一）：
  *     ① PiToday  今天 · TODAY（今日六格 + 今日三件事 + 洞察条）
  *     ② PiRhythm 本周 · WEEK（strip + 节奏柱 + 目标 + 规则对照；★V3.8.20 固定周窗口）
  *     ③ PiMonth  本月 · MONTH（★V3.8.20 新增轻量月度段：strip + 月柱 + 6 KPI + 环比；目标/预警/操作流不重复）
  *     ④ PiYear   全年 · YEAR（F20 诊断条 + F21 strip4 + 默认展开年度热力图 + 生命周期）
  *
- * 单段切换取代四段纵向堆叠：默认「本年」，让年度热力图成为首屏主视觉；页签与左轨
+ * 单段切换取代四段纵向堆叠：★W17-C09 起默认「今天」；页签与左轨
  * 共用 activeRange，只切换当前时间尺度，不滚动到隐藏的段落。点热力格直接打开该日战报。
  *
  * 决策落实：
@@ -39,8 +39,7 @@ import { showToast } from '@/shared/components/toast'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { downloadText, stampDay } from '@/shared/utils/download'
 import { uid } from '@/shared/utils'
-import { suggestFocus } from '@/shared/utils/focusSuggest'
-import type { TodayRow, FocusRecommend } from '@/newtab/components/profile/PiToday.vue'
+import type { TodayRow } from '@/newtab/components/profile/PiToday.vue'
 import {
   snoozeCard, reactivateCard, setCoolingDays,
   coolingDefaultDaysOf, setCoolingDefaultDays, lifecycleState, coolingMsOf
@@ -54,13 +53,13 @@ import {
 import type { DirLike, TaskLike, ConciseCtx } from '@/shared/utils/reviewReport'
 import { aggregateRange } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
-import PiRail from '@/newtab/components/profile/PiRail.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
 import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
 import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
 import PiYear from '@/newtab/components/profile/PiYear.vue'
-import PiOverview from '@/newtab/components/profile/PiOverview.vue'
+import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
+import { useCompass } from '@/newtab/stores/compass'
 import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
 /* ★W13-D5：ReviewPanel 弹窗挂载退役（2026-10-16）——组件文件保留待复用，宿主零 import。 */
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
@@ -73,6 +72,8 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 const router = useRouter()
 const store = useAppStore()
 const gd = computed(() => store.data!)
+/* ★W17-C09：方向状态面板要「停滞 / 已完成 / 未完成数」——与方向台同一口径，故直接用 compass store */
+const { focusedProjects, projectProgress, projectTasksOf, isProjectStalled, isProjectDone } = useCompass()
 
 /* ===== 页头 KPI（PiHero 输入） ===== */
 const pageSub = computed(() => {
@@ -169,15 +170,22 @@ const heroMission = computed(() => {
   const c = gd.value.compass
   return (c?.mission?.content || '').trim() || (c?.vision?.content || '').trim()
 })
-/** F2 · 主攻胶囊（≤2，进度取 Project.progress 0-100） */
-const heroFocusPills = computed(() => {
-  const out: { id: string; name: string; progress: number }[] = []
-  for (const d of gd.value.compass?.directions || []) {
-    for (const p of d.projects || []) {
-      if (p.isFocused && p.status !== 'archived') out.push({ id: p.id, name: p.name, progress: Math.round(p.progress || 0) })
-    }
+/** ★W17-C09 · 方向状态面板的主攻项目（≤2）：全名 + 状态 + 进度 + 未完成任务数，
+ *  与方向台同一口径（isProjectDone / isProjectStalled 由 useCompass 提供）。 */
+const heroFocusProjects = computed<FocusProjectView[]>(() => {
+  const out: FocusProjectView[] = []
+  for (const p of focusedProjects.value) {
+    const open = projectTasksOf(p.id).filter(x => !x.deletedAt && x.status !== 'done').length
+    out.push({
+      id: p.id,
+      name: p.name,
+      progress: Math.round(projectProgress(p).pct || 0),
+      state: isProjectDone(p) ? 'done' : isProjectStalled(p) ? 'stalled' : 'active',
+      open
+    })
+    if (out.length >= 2) break
   }
-  return out.slice(0, 2)
+  return out
 })
 /** F4 · 支撑口径复用集：已挂支撑关联的任务 id 集 + 主攻项目 id 集（下钻/清单同源） */
 const supportedTaskIds = computed(() => new Set((gd.value.supportLinks || []).map(l => l.taskId)))
@@ -300,61 +308,9 @@ const concise = computed(() => {
     }
   }
 })
-/** F11 空槽推荐：suggestFocus 排除已排任务取 top1（主攻/顺延/到期加权同源打分） */
-const todayRecommend = computed<FocusRecommend | null>(() => {
-  const idx = todayRows.value.findIndex(r => !r)
-  if (idx < 0) return null
-  const c = suggestFocus(gd.value, {
-    anchorKey: todayKey(),
-    excludeTaskIds: todayFocus.value.map(s => s.sourceId || ''),
-    limit: 8
-  })[0]
-  return c ? { idx, title: c.title, why: c.why } : null
-})
-function onTodayToggle(i: number) {
-  const s = gd.value.dailyFocus?.[todayKey()]?.[i]
-  if (!s) return
-  s.done = !s.done
-  s.doneAt = s.done ? Date.now() : undefined
-  if (s.sourceType === 'task' && s.sourceId) {
-    const t = gd.value.tasks.find(x => x.id === s.sourceId)
-    if (t) { t.status = s.done ? 'done' : 'todo'; t.completedAt = s.doneAt; t.updatedAt = Date.now() }
-  }
-  store.persist()
-}
-function onTodayBind(i: number) {
-  const r = todayRows.value[i]
-  if (!r || r.slot.sourceType !== 'task' || !r.slot.sourceId) return
-  const t = gd.value.tasks.find(x => x.id === r.slot.sourceId)
-  if (!t) return
-  const targetId = [...focusProjectIds.value][0]
-  if (!t.projectId && targetId) { t.projectId = targetId; t.updatedAt = Date.now() }
-  const matches = matchResourcesOf(t)
-  let added = 0
-  if (!gd.value.supportLinks) gd.value.supportLinks = []
-  for (const res of matches) {
-    if (gd.value.supportLinks.some(l => l.taskId === t.id && l.resourceId === res.id)) continue
-    gd.value.supportLinks.push({
-      id: uid('sl'), taskId: t.id, resourceId: res.id,
-      from: 'manual', why: '画像洞察 · 一键归位（W13-F10）', createdAt: Date.now()
-    })
-    added++
-  }
-  store.persist()
-  showToast(`已归入「${projNameById.value.get(targetId || '') || '主攻项目'}」，新增绑定 ${added} 张支撑卡`)
-}
-function onTodayFill(i: number) {
-  const key = todayKey()
-  const c = suggestFocus(gd.value, {
-    anchorKey: key, excludeTaskIds: todayFocus.value.map(s => s.sourceId || ''), limit: 8
-  })[0]
-  if (!c) { showToast('没有可推荐的待办任务'); return }
-  if (!gd.value.dailyFocus) gd.value.dailyFocus = {}
-  const list = gd.value.dailyFocus[key] || (gd.value.dailyFocus[key] = [])
-  list[i] = { id: uid('focus'), sourceType: 'task', sourceId: c.taskId, text: c.title, done: false, auto: true }
-  store.persist()
-  showToast(`已填入「${c.title}」`)
-}
+/* ★W17-C09 退役带备案：空槽推荐（F11）随「今日三件事」整块退出画像页——
+   排今日三件事的唯一入口是调度台，页面不再提供就地补位。todayRows 仍保留：
+   诊断口径（conciseCtx）与「已备弹药」取数都依赖它，只是不再渲染成行。 */
 /** ★W13-T7 · 四条诊断 CTA 的统一动作分发（buildConciseInsights 出 8 个 ctaAction 键，
     四组件条带全部走这一个出口——原先四段各写各的 onXxxInsightAction，现按键分派）。
     键 → 动作：openFocusBoard 去排三件事 / bindFocus 归位首件游离 / callSupport 调出支撑卡 /
@@ -362,10 +318,10 @@ function onTodayFill(i: number) {
     convertCurio 批量转化成熟好奇卡 / wakeCooling · openLifecycle 冷却区唤醒复温。 */
 function onConciseAction(action: string) {
   if (action === 'openFocusBoard') { void router.push('/'); showToast('已跳调度台 · 排一排今日三件事'); return }
+  /* ★W17-C09：画像页不再提供就地归位（三件事能力唯一归调度台），CTA 改为跳过去处理 */
   if (action === 'bindFocus') {
-    const idx = todayRows.value.findIndex(r => r && r.canBind)
-    if (idx >= 0) onTodayBind(idx)
-    else showToast('没有待归位的焦点任务')
+    void router.push('/')
+    showToast('已跳调度台 · 到今日三件事里完成归位')
     return
   }
   if (action === 'callSupport') { openStatDrawer('ammo'); return }
@@ -399,25 +355,14 @@ function openProjectDetail(projectId: string) {
   projDetailOpen.value = true
 }
 
-/* ===== 时间尺度：四选一单段展示 ===== */
-type RailK = 'now' | 'week' | 'month' | 'year'
-const activeRange = ref<PiRange>('year')
-const railActive = computed<RailK>(() => activeRange.value === 'today' ? 'now' : activeRange.value)
-const timelineAnchor = ref<HTMLElement | null>(null)
+/* ===== 时间尺度：四选一单段展示 =====
+ * ★W17-C09（2026-10-20 用户拍板）：左侧时间线与节点整体退役——周期区唯一导航 = 四个页签。
+ * 原 timelineAnchor 滚动锚与 onRailJump 随之删除（页签切换不再需要"滚到隐藏段落"）。 */
+const activeRange = ref<PiRange>('today')
 const rangeLabel = computed(() => ({
   today: '今天', week: '本周', month: '本月', year: '本年'
 }[activeRange.value]))
-
-function setRange(k: PiRange, scroll = false): void {
-  activeRange.value = k
-  if (!scroll) return
-  requestAnimationFrame(() => {
-    timelineAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
-}
-function onRailJump(k: RailK) {
-  setRange(k === 'now' ? 'today' : k, true)
-}
+function setRange(k: PiRange): void { activeRange.value = k }
 
 /* 首屏概览的窗口范围（左栏标题右侧的小日期刻度） */
 const overviewWeekRange = computed(() => {
@@ -974,46 +919,37 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 </script>
 <template>
   <div class="pi-page">
-    <!-- ===== §0 Hero 页头 ===== -->
-    <PiHero
-      :mission-text="heroMission" :focus-pills="heroFocusPills" :error-count="errorLogCount"
+    <!-- ===== §0 Hero 页头（★W17-C09：只留标题 + 三件套；方向带迁入方向状态面板） ===== -->
+    <PiHero :error-count="errorLogCount"
       @refresh="onHeroRefresh" @export="onHeroExport"
-          @export-error="exportErrorLog" @open-log="openLog('log')" @goto-compass="gotoCompass"
-          @open-project="openProjectDetail" />
+      @export-error="exportErrorLog" @open-log="openLog('log')" />
 
-    <!-- ===== 首屏概览：先方向，再行动 ===== -->
+    <!-- ===== §1 首屏双面板：产品使用状态 + 个人方向状态 ===== -->
     <PiOverview
-      :week-range="overviewWeekRange" :week-insight="concise.week" :today-insight="concise.today"
       :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
       :top-tags="heroTopTags"
       :support-rate="heroSupportRate" :focus-share="heroFocusShare"
-      :rows="todayRows" :recommend="todayRecommend" :focus-filled="todayFilled"
-      @week-action="onConciseAction" @today-action="onConciseAction"
-      @kpi-drill="onHeroDrill"
-      @open-focus="() => router.push('/')" @toggle="onTodayToggle"
-      @bind="onTodayBind" @fill="onTodayFill" @open-project="openProjectDetail" />
+      :mission-text="heroMission" :focus-projects="heroFocusProjects"
+      @kpi-drill="onHeroDrill" @goto-compass="gotoCompass"
+      @open-project="openProjectDetail" />
 
-    <!-- ===== 单段时间轴：页签与左轨共同控制当前尺度 ===== -->
-    <div ref="timelineAnchor" class="pi-tl-anchor">
+    <!-- ===== §2 按周期观察：页签是唯一导航（★W17-C09：时间线与节点已退役） ===== -->
+    <div class="pi-period-head">
       <div class="pi-tl-bar">
         <div>
-          <span class="pi-tl-kicker">TIMELINE · {{ rangeLabel }}</span>
-          <p>一次只读一个时间尺度。默认落在本年，点热力格直接看那天发生了什么。</p>
+          <span class="pi-tl-kicker">PERIOD · {{ rangeLabel }}</span>
+          <p>一次只看一个时间范围，切换页签即可；每个周期的状态在下方一张面板里读完。</p>
         </div>
         <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
       </div>
     </div>
-    <div class="pi-tl">
-      <PiRail :active="railActive" @jump="onRailJump" />
       <div class="pi-rmods pi-rmods-single">
         <PiToday v-if="activeRange === 'today'"
           :today-add="todayAdd" :today-called="todayCalled"
-          :focus-filled="todayFilled" :ammo="todayAmmo"
-          :insight="concise.today" :rows="todayRows" :recommend="todayRecommend"
+          :focus-filled="todayFilled" :ammo="todayAmmo" :slot-count="3"
+          :insight="concise.today"
           @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')"
-          @insight-action="onConciseAction" @toggle="onTodayToggle"
-          @open-project="openProjectDetail"
-          @bind="onTodayBind" @fill="onTodayFill" />
+          @insight-action="onConciseAction" />
 
         <PiRhythm v-else-if="activeRange === 'week'"
           :stats="dashStats" :directions="dashDirections"
@@ -1040,7 +976,6 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
           @lc-settings="lcSetOpen = true" />
-      </div>
     </div>
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。

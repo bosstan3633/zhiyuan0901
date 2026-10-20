@@ -77,25 +77,35 @@ check('W15-4 ★三类链接分组口径与组序（用户澄清定案 2026-10-1
     && idxs.every(x => x >= 0) && idxs.every((x, i) => i === 0 || x > idxs[i - 1])   /* 组序固定 */
     && POOL.includes('const groupBy = ref') && POOL.includes('const groupSections = computed')
     && POOL.includes('class="pcp-group-h"')
-    /* 网格不做分组（下拉只在列表视图出现） */
-    && POOL.includes('v-if="viewMode === \'list\'" class="pcp-groupbar"')
+    /* ★W17-C08（2026-10-20 用户拍板）重指：一排分组按钮退役，改 DeckControls 下拉（与任务卡同构）。
+       所守意图不变：分组只在列表视图出现、网格不做分组、组序与计数口径不动。 */
+    && POOL.includes(':groups="viewMode === \'list\' ? POOL_GROUP_OPTIONS : []"')
     /* 已镜像标记（防重复镜像 + 状态可读） */
     && POOL.includes('function isMirrored(r: ResourceCard)') && POOL.includes('curationProjections')
     && POOL.includes('class="pcp-mirror-badge"');
 });
 
-check('W15-5 ★行末动作常驻 + 镜像入口两侧同口径：① 列表行末的删除与镜像**常驻可见**（原先 opacity:0 只在 hover 出现 ⇒ "不进详情就能删"这件事事实上没有出口）② 行内镜像是小下拉选台（不为一个下拉再加一层弹窗，用户拍板）③ 镜像与详情抽屉走**同一个** projectCardToBoard ④ 详情抽屉侧镜像控件提到链接工具行常驻（N8⑤ 的意图是不许进 #footer，仍守）⑤ 负锚：镜像是引用投射，绝不许把 workspaceId 直接赋值物理搬走', () => {
-  const rddFoot = RDD.slice(RDD.indexOf('<template #footer>'), RDD.indexOf('<template #footer>') + 400);
+check('W15-5 ★行末动作常驻 + 镜像入口两侧同口径：① 列表行末的删除与镜像**常驻可见**（原先 opacity:0 只在 hover 出现 ⇒ "不进详情就能删"这件事事实上没有出口）② 镜像入口两宿主同口径（★W17-C06 改判：行内下拉 → 中央多选弹窗，勾选=镜像/取消=移出）③ 镜像与详情抽屉走**同一个** projectCardToBoard ④ 详情抽屉侧镜像控件提到链接工具行常驻（N8⑤ 的意图是不许进 #footer，仍守）⑤ 负锚：镜像是引用投射，绝不许把 workspaceId 直接赋值物理搬走', () => {
+  /* ★W17-C06 重指：footer 切片原先取「起点 + 400 字符」，改为切到 footer 自己的 </template> ——
+     固定窗口会把模板末尾挂的弹窗误算进 footer（诊断器读的是片段边界，不是语义）。 */
+  const rddFootStart = RDD.indexOf('<template #footer>');
+  const rddFootEnd = rddFootStart >= 0 ? RDD.indexOf('</template>', rddFootStart) : -1;
+  const rddFoot = rddFootStart >= 0 && rddFootEnd > rddFootStart ? RDD.slice(rddFootStart, rddFootEnd) : '';
+  /* ★W17-C06（2026-10-20 用户拍板）重指带备案：行内小下拉 + doMirror 随「镜像改中央多选弹窗」退役
+     ——原拍板「不为一个下拉再加一层弹窗」被本批新反馈推翻（用户要求弹窗多选、可镜像到多个台）。
+     所守意图不变：镜像入口常驻行末、走引用投射而非物理搬卡、两宿主同一实现。
+     承重锚改为「行末常驻镜像按钮 + 共享弹窗（含写入与移出）」。 */
   return POOL.includes('class="pcp-r-acts"')
-    && POOL.includes('class="pcp-mirror-pop"') && POOL.includes('class="pcp-mirror-sel"')
-    && POOL.includes('function doMirror(r: ResourceCard)')
-    && POOL.includes('projectCardToBoard(store.data, r.id, wsId)')
+    && POOL.includes('@click.stop="openMirror(r)"')
+    && POOL.includes('<ResourceMirrorModal')
+    && POOL.includes('mirrorNamesOf(r)')
     /* 删除键不再 opacity:0（常驻） */
     && !/opacity:\s*0/.test(POOL_C.match(/\.pcp-del \{[^}]*\}/)?.[0] || '')
     /* 网格视图的删除键同样常驻（原来是 .pcp-card:hover 才显形） */
-    && POOL_C.includes('.pcp-act:hover') && POOL_C.includes('.pcp-mirror-pop')
-    /* 详情抽屉侧：镜像控件在 #link-actions 内（常驻），且不在 #footer */
-    && RDD.indexOf('rd-mirror-select') > RDD.indexOf('<template #link-actions>')
+    && POOL_C.includes('.pcp-act:hover')
+    /* 详情抽屉侧：镜像入口仍在 #link-actions 内（常驻），且不进 #footer */
+    && RDD.indexOf('mirrorOpen = true') > RDD.indexOf('<template #link-actions>')
+    && RDD.includes('<ResourceMirrorModal')
     && !/mirror|镜像/i.test(rddFoot)
     && !/r\.workspaceId\s*=\s*(?!=)/.test(POOL_C);
 });

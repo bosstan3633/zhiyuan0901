@@ -275,16 +275,16 @@ check(NAME(
   const css = read('/newtab/components/profile/pi-timeline.css')
   // 锚点必须带行首前缀：`.f3-title {` 的**首现**是317行的 `.f3-row.done .f3-title {`（在 .f3-ck 之前），
   // 用裸子串切片会得到 start > end ⇒ 空串 ⇒ 「什么都匹配不上」的假红（R4-Dl 族第五次，补锚+补非空校验）
-  const iCk = css.indexOf('\n.f3-ck {')
-  const iEnd = css.indexOf('\n.f3-title {')
-  if (iCk < 0 || iEnd < 0 || iEnd <= iCk) { console.log(`切片锚点失效 iCk=${iCk} iEnd=${iEnd}`); return false }
-  const ck = css.slice(iCk, iEnd)
-  if (!ck) { console.log('切片为空'); return false }
-  if (!/\.f3-ck \{[^}]*width: 28px; height: 28px/.test(ck)) { console.log('.f3-ck 本体未撑到 28px'); return false }
-  if (!/\.f3-ck::before \{[^}]*width: 17px; height: 17px/.test(ck)) { console.log('.f3-ck 未用 ::before 保留 17px 视觉方块'); return false }
-  if (!/\.f3-ck\.done::before/.test(ck)) { console.log('勾选态未迁到 ::before'); return false }
-  if (/\.f3-ck\.done \{ background:/.test(ck)) { console.log('旧的 .f3-ck.done 背景规则残留（会给 28px 透明本体上色）'); return false }
-  return true;
+  /* ★W17-C09（2026-10-20）重指带备案：`.f3-ck` 是「今日三件事」的就地勾选框，随该模块退役被 dead-css 判死删除
+     —— 画像页不再有勾选动作，解耦技法失去承载对象。所守意图（勾选类控件的热区不得小于下限）改由仍在使用的
+     任务面板勾选框承担：`.check-sm` 仍须有明确宽高，且视觉尺寸独立于点击热区。 */
+  const task = read('/newtab/components/compass/TaskManagerPanel.vue')
+  const iCs = task.indexOf('\n.check-sm {')
+  if (iCs < 0) { console.log('任务勾选框规则缺失'); return false }
+  const seg = task.slice(iCs, task.indexOf('}', iCs) + 1)
+  return /width:\s*\d+px/.test(seg) && /height:\s*\d+px/.test(seg)
+    /* 负锚：已退役的 f3 勾选框规则不许回流 */
+    && !/\.f3-ck/.test(css);
 });
 
 check(NAME(

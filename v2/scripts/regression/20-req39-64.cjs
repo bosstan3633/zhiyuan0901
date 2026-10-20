@@ -708,7 +708,9 @@ check('R63-12 ★R4-Da 退役重指带备案：原守「全景移动守卫：镜
   return retired.every(k => !g.includes(k))
     && mir.includes('function moveMirrorTo(m: MirrorView, catId: string)') && mir.includes('p.targetCatId = catId || undefined')
     && hub.includes('const src = d.resources.find(r => r.id === cardId && !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
-    && hub.includes('if (toWsId === CURATION_WS_ID) return null')
+    /* ★W17-C06 重指：hub 拆出可判别版本 projectCardToBoardEx（返回 { id, created }），
+       「池不是搬运目标」这道硬门槛一字未减，只是返回值从 null 变成 { id: null, created: false }。 */
+    && hub.includes('if (toWsId === CURATION_WS_ID) return { id: null, created: false }')
     && bat.includes("if (mirrors.length && !natives.length) { showToast('📡 所选均为镜像卡——移动请在源卡处操作，或先移出镜像'); return }")
     && bat.includes('natives.forEach(r => { r.workspaceId = moveWsId.value; r.categoryId = catId; r.updatedAt = Date.now() })')
     && bat.includes("if (isMirrorView(r)) { showToast('📡 镜像卡为引用——移动落点请直接拖拽，编辑请到源卡'); return }");

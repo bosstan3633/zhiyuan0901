@@ -35,7 +35,10 @@ check('M3-1 ★V3.9.1 随迁备案：空计划位仍是「主行动」而不是�
 
 check('M3-2 ★V3.9.1 随迁备案：三件事工作单只保留一个主行动——空行点开任务库；选中任务后立即转成计划行，不再出现第二枚实底主按钮', () => {
   const i = HOME.indexOf('<section id="zy-mod-tasks"');
-  const j = HOME.indexOf('<section class="hand-board"');
+  /* ★W17-C03（2026-10-20）重指带备案：hand-board 节点本批加了 ref（等高测量），
+     原锚点是整串字面量 ⇒ 属性多一个就切空；改为按 class 子串定位，所守行为（切到下一张工作板）不变。 */
+  const handAt = HOME.search(/<section[^>]*class="hand-board"/);
+  const j = handAt;
   const seg = i >= 0 && j > i ? HOME.slice(i, j) : '';
   if (!seg) { console.log('     切片为空（模板标记漂移）'); return false; }
   if (seg.includes('mini-btn primary')) console.log('     hero 段内仍有实底主按钮');

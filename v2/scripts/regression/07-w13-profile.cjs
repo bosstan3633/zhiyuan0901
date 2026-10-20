@@ -52,9 +52,9 @@ check('W13-3 ★消除同屏双层指标重复：周度与月度两文件各只�
     && !mo.includes('.pi-k6') && !mo.includes('kpisOf');
 });
 
-check('W13-4 ★今天与本月视觉块差异化（拒绝跨模块克隆）：今天段是 .f3-compact 单行归属弹药对账表（含一键归位绑卡出口 bind 事件与「绑 N 张卡」命中数），本月段是「Top 主题映射 + .funnel3 三步转化漏斗」双栏；负锚钉两条不许互相克隆 —— 月份文件不得出现周度那种逐日柱状图（.bars 系列），周度文件不得出现漏斗三段', () => {
+check('W13-4 ★今天与本月视觉块差异化（★W17-C09 · 2026-10-20 重指带备案）：原判据用 `.f3-compact` 三行对账（bind / matchCount）作今天段的差异化锚——本批「今日三件事」整块退出画像页（能力唯一归调度台），该锚失去承载。所守意图不变：今天段与本月段不得互相克隆。今天段定版为「诊断条 + strip4 四格（只读计数 + 去调度台）」；本月段仍是「Top 主题映射 + .funnel3 三步转化漏斗」双栏；负锚照旧（月段无逐日柱、周段无漏斗三段）。', () => {
   const td = codeOnly(TODAY), mo = codeOnly(MONTH), rh = codeOnly(RHY);
-  return td.includes('f3-compact') && td.includes("emit('bind'") && td.includes('matchCount')
+  return td.includes('class="strip4"') && td.includes("emit('drill'") && !td.includes('f3-compact')
     && mo.includes('class="funnel3"') && mo.includes('topics')
     && !mo.includes('.bars') && !mo.includes('level(w, max)')
     && !rh.includes('funnel3') && rh.includes('class="pi-bars"')       /* 柱子唯一归周度（pi-bars 是 F14 的 7 日密度柱） */
@@ -130,13 +130,13 @@ check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘�
 });
 
 check('W13-T7d ★四条诊断的 CTA 走同一个分发出口：八个 ctaAction 键（openFocusBoard / bindFocus / callSupport / openBattle / openObjectives / openLog / convertCurio / wakeCooling·openLifecycle）全部在宿主 onConciseAction 一处分派，四组件 @insight-action 全接它 —— 此前四段各写各的 onXxxInsightAction（bind:N / call / battle / focus / convert / lc / mo-add / goal:八套键），"改一个动作要改四个出口"是不可维护的形状。F5 导出补四条 strip-html 诊断行 ⇒ 导出与界面同源', () => {
-  /* V3.9.3 单段切换后，今日/本周两条诊断同时出现在首屏概览（@week-action / @today-action），
-     四个时间尺度模块仍各自接 @insight-action；所有诊断仍只有 onConciseAction 一个分发器。 */
+  /* ★W17-C09（2026-10-20）重指：首屏右栏「今天三件事」退役后，概览不再挂 week/today 两条诊断；
+     四个时间尺度模块仍各自接 @insight-action（4 处），所有诊断仍只有 onConciseAction 一个分发器。 */
   return PI.includes('function onConciseAction(action: string)')
     && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'convertCurio'", "'wakeCooling'", "'openLifecycle'"]
       .every(k => PI.includes(k))
     && (PI.match(/@insight-action="onConciseAction"/g) || []).length === 4
-    && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 2
+    && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 0
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')
     && !PI_C.includes('onYearInsightAction') && !PI_C.includes('onRhythmInsight')
     && PI.includes('insightLines') && PI.includes(".replace(/<[^>]+>/g, '')")

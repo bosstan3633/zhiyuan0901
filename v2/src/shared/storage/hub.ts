@@ -48,14 +48,29 @@ export function projectionsOf(d: AppData, targetWsId: ID): CurationProjection[] 
  * @returns 投射记录 id；失败返回 null（重复镜像 / 源卡不在资源台）
  */
 export function projectCardToBoard(d: AppData, cardId: ID, toWsId: ID, targetCatId?: ID): string | null {
+  return projectCardToBoardEx(d, cardId, toWsId, targetCatId).id
+}
+
+/**
+ * ★W17-C06（2026-10-20 用户拍板）：镜像写入的**可判别**版本。
+ *
+ * 病根：旧 projectCardToBoard 对「已存在」的记录会顺手更新 targetCatId 并返回**已有 id**，
+ * 调用方拿到的 id 与新建成功完全一样 ⇒ 无法区分「新建」与「本来就有」，于是重复镜像也提示
+ * 「已镜像成功」（用户 2026-10-20 报的实际缺陷）。镜像多选弹窗要汇总「新增 N 个台 · 移出 M 个台」，
+ * 这个判别是硬需求，不能靠 toast 猜。
+ *
+ * @returns `{ id, created }`：created=true 为本次新建，false 为早已镜像过（id 为既有投射 id）；
+ *          源卡不在池内 / 目标是池本身 ⇒ `{ id: null, created: false }`。
+ */
+export function projectCardToBoardEx(d: AppData, cardId: ID, toWsId: ID, targetCatId?: ID): { id: string | null; created: boolean } {
   const src = d.resources.find(r => r.id === cardId && !r.deletedAt && r.workspaceId === CURATION_WS_ID)
-  if (!src) return null
-  if (toWsId === CURATION_WS_ID) return null
+  if (!src) return { id: null, created: false }
+  if (toWsId === CURATION_WS_ID) return { id: null, created: false }
   d.curationProjections = d.curationProjections || []
   const existed = d.curationProjections.find(p => p.kind === 'card' && p.cardId === cardId && p.targetWsId === toWsId)
   if (existed) {
     existed.targetCatId = targetCatId || undefined
-    return existed.id
+    return { id: existed.id, created: false }
   }
   const rec: CurationProjection = {
     id: uid('curp'), kind: 'card', wsId: CURATION_WS_ID, cardId,
@@ -64,7 +79,7 @@ export function projectCardToBoard(d: AppData, cardId: ID, toWsId: ID, targetCat
     catId: src.categoryId, targetWsId: toWsId, targetCatId: targetCatId || undefined, addedAt: Date.now()
   }
   d.curationProjections.push(rec)
-  return rec.id
+  return { id: rec.id, created: true }
 }
 
 /** 移出某台的一个镜像（只删引用，源卡零影响） */

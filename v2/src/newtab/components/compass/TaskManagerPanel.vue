@@ -152,6 +152,23 @@ const doneTasks = computed(() => filteredTasks.value.filter(t => t.status === 'd
 // 第卅三轮 BUG-D 修复 + REQ-020：置顶独立分区（源数组顺序权威不变，仅渲染分流）
 const pinnedTasks = computed(() => filteredTasks.value.filter(t => t.pinned))
 const normalTasks = computed(() => filteredTasks.value.filter(t => !t.pinned))
+/* ★W17-C05（2026-10-20 用户拍板）分组折叠：状态**只存在组件内**（切分组 / 刷新 / 离开一律回全展开），
+ * 与「折叠记忆不持久化」的拍板一致。空集合 = 全部展开。 */
+const collapsedGroups = ref<Set<string>>(new Set())
+function isGroupCollapsed(key: string): boolean { return collapsedGroups.value.has(key) }
+function toggleGroupCollapsed(key: string): void {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  collapsedGroups.value = next
+}
+/** 全局开关：任一组展开时给「全部折叠」，全收起时给「全部展开」 */
+const allGroupsCollapsed = computed(() => listGroups.value.length > 0 && listGroups.value.every(g => collapsedGroups.value.has(g.key)))
+function toggleAllGroups(): void {
+  collapsedGroups.value = allGroupsCollapsed.value ? new Set() : new Set(listGroups.value.map(g => g.key))
+}
+watch([groupMode, viewMode], () => { collapsedGroups.value = new Set() })
+
 /** R127：列表视图三档分组（按项目 / 按任务状态 / 按置顶与否） */
 const listGroups = computed<{ key: string; name: string; icon: string; pct: number; tasks: TaskCard[] }[]>(() => {
   const tasks = filteredTasks.value
@@ -445,6 +462,24 @@ function onKanbanDrop(status: 'todo' | 'doing' | 'done') {
 const kgDragOver = ref('')
 const tgDragOver = ref('')
 /** O21：分组列表跨组拖拽 = 改项目归属 */
+/** ★W17-C05：折叠组仍是合法落点——拖拽悬停 300ms 自动展开，让用户看见要放进哪一组 */
+let tgHoverTimer: ReturnType<typeof setTimeout> | null = null
+function onGroupHeadDragOver(key: string) {
+  if (groupMode.value === 'project') tgDragOver.value = key
+  if (collapsedGroups.value.has(key)) {
+    if (tgHoverTimer) clearTimeout(tgHoverTimer)
+    tgHoverTimer = setTimeout(() => {
+      tgHoverTimer = null
+      const next = new Set(collapsedGroups.value)
+      next.delete(key)
+      collapsedGroups.value = next
+    }, 300)
+  }
+}
+function onGroupHeadDragLeave(key: string) {
+  if (tgDragOver.value === key) tgDragOver.value = ''
+  if (tgHoverTimer) { clearTimeout(tgHoverTimer); tgHoverTimer = null }
+}
 function onListGroupDrop(e: DragEvent, projectKey: string) {
   e.preventDefault(); e.stopPropagation()
   tgDragOver.value = ''
@@ -699,6 +734,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         :batch-on="batchMode" @batch="toggleBatchMode" :new-label="secondaryMode ? '' : '＋新建任务'" @create="createNewTask">
         <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
         <ColsPicker v-if="viewMode === 'card'" v-model="taskCols" label="列数" />
+        <!-- ★W17-C05：分组折叠全局开关（列表视图才出现；任一组展开时给「全部折叠」） -->
+        <button v-if="viewMode === 'list' && listGroups.length" class="tg-allbtn" type="button"
+          :title="allGroupsCollapsed ? '展开全部组' : '收起全部组，只看组头'" @click="toggleAllGroups">
+          {{ allGroupsCollapsed ? '▾ 全部展开' : '▸ 全部折叠' }}
+        </button>
         <template #count><span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{ act: filterBy !== 'all' || searchQuery.trim() }" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span></template>
       </DeckControls>
 
@@ -834,13 +874,17 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
       <div v-else-if="viewMode==='list'" class="task-list">
         <div v-for="grp in listGroups" :key="grp.key" class="tgroup">
           <div class="tg-head" :class="{'drag-over': groupMode==='project' && tgDragOver === grp.key}"
-            @dragover.prevent.stop="groupMode==='project' && (tgDragOver = grp.key)"
-            @dragleave="tgDragOver === grp.key && (tgDragOver = '')"
+            @dragover.prevent.stop="onGroupHeadDragOver(grp.key)"
+            @dragleave="onGroupHeadDragLeave(grp.key)"
             @drop.stop="groupMode==='project' && onListGroupDrop($event, grp.key)">
-            <span class="tg-name" :class="{none: grp.key==='__none__'}">{{ grp.icon }} {{ grp.name }}</span>
+            <button class="tg-name tg-toggle" :class="{none: grp.key==='__none__'}" :aria-expanded="!isGroupCollapsed(grp.key)"
+              :title="isGroupCollapsed(grp.key) ? '展开该组' : '收起该组'" @click.stop="toggleGroupCollapsed(grp.key)">
+              <span class="tg-ar">{{ isGroupCollapsed(grp.key) ? '▸' : '▾' }}</span>{{ grp.icon }} {{ grp.name }}
+            </button>
             <span v-if="grp.pct >= 0" class="tg-pct">{{ grp.pct }}%</span>
             <span class="tg-count">{{ grp.tasks.length }} 任务</span>
           </div>
+          <template v-if="!isGroupCollapsed(grp.key)">
           <div v-for="task in grp.tasks" :key="task.id" class="trow" :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id}"
             :data-tid="task.id"
             draggable="true" @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop="onTaskDrop(task, true)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
@@ -862,6 +906,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="13"/></button>
           </div>
+          </template>
         </div>
         <!-- G3（V3.8.27）：列表视图与卡片视图同构，不再一个 EmptyState 一个裸文本 -->
         <EmptyState v-if="!filteredTasks.length" class="list-empty" size="section" icon="clipboard"
@@ -1158,6 +1203,12 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 /* G3（V3.8.27）：.list-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
 .tgroup { border-bottom: 1px solid var(--border); }
 .tgroup:last-child { border-bottom: none; }
+/* ★W17-C05：组头可点折叠（箭头随状态）+ 全局开关按钮 */
+.tg-toggle { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.tg-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tg-ar { font-size: var(--fs-tiny); color: var(--text-4); width: 10px; display: inline-block; }
+.tg-allbtn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 4px 10px; font-size: var(--fs-caption); font-weight: 600; font-family: inherit; cursor: pointer; }
+.tg-allbtn:hover { border-color: var(--border-strong); color: var(--text); }
 .tg-head { display: flex; align-items: center; gap: 8px; padding: 9px 16px; background: var(--surface-3); position: sticky; top: 0; cursor: default; transition: background var(--dur-fast); }
 .tg-head.drag-over { background: var(--accent-light); box-shadow: inset 0 2px 0 var(--accent); }
 .tg-name { font-size: var(--fs-sub); font-weight: 700; color: var(--text); }

@@ -26,6 +26,7 @@ import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { projectCardToBoard } from '@/shared/storage/hub'
+import { togglePinOf } from '@/newtab/composables/useResourcePin'
 import { CURATION_WS_ID } from '@/shared/models'
 import type { ResourceCard, TaskCard } from '@/shared/models'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
@@ -34,6 +35,7 @@ import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // ResourceAiStrip 内部守住（懒评审抽屉 + 点击时 dynamic import），本宿主不再自己拉 AI 栈。
 import DetailTitle from './DetailTitle.vue'
 import ResourceAiStrip from './ResourceAiStrip.vue'
+import ResourceMirrorModal from './ResourceMirrorModal.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -66,7 +68,6 @@ function openFromId(id: string) {
   if (!r || !data) return
   resId.value = id
   resetEditing(r)
-  mirrorWsId.value = ''
   open.value = true
   highlight.value = true
   /* R2-⑤（★口径合一）：此前 App 级抽屉只在「↗ 打开链接」时记调出，而内联抽屉宿主
@@ -125,34 +126,24 @@ function openLink() {
   openExternalLink(url)
 }
 
+/** ★W17-C07：抽屉头部图钉——置顶切换立即写库生效，不依赖底部「保存」。
+ *  ★陷阱：editing 是源卡的深拷贝，save() 会用整份 editing 覆盖库内记录；
+ *  只改库内对象不同步 editing.pinned，用户随后点保存会把置顶状态覆盖回去 ⇒ 两处同改。 */
+function togglePinnedHere() {
+  const src = resource.value
+  if (!src) return
+  const { label } = togglePinOf({ card: src, draft: editing, persist: () => store.persist() })
+  showToast(label)
+}
 function copyLink() {
   if (!editing.link) { showToast('链接为空'); return }
   navigator.clipboard?.writeText(editing.link).then(() => showToast('链接已复制')).catch(() => {})
 }
 
-/* N8（V3.8.18）镜像到策展台——推送方向。★两宿主同源（R167 那条规矩：只改一边等于交付一半）：
-   资源卡池内联抽屉（Workspace 右键菜单 → 选台弹窗）与本 App 级抽屉（搜素/⌘K 拉起）
-   必须都有这个入口。这里用「行内选台 + 一枚动作」而不是弹窗——本宿主没有 workspace.css 的
-   modal 形态（那份 css scoped 给 Workspace），为一个下拉再引一层容器得不偿失。 */
-const mirrorWsId = ref('')
-const mirrorBoards = computed(() =>
-  (store.data?.workspaces || []).filter(w => w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived)
-)
-function mirrorToBoard() {
-  const id = resId.value, wsId = mirrorWsId.value
-  if (!id || !wsId) { showToast('请先选一个目标策展台'); return }
-  if (!store.data) return
-  const rec = projectCardToBoard(store.data, id, wsId)
-  if (!rec) { showToast('该台已经镜像过这张卡了'); return }
-  store.persist()
-  const name = (store.data.workspaces || []).find(w => w.id === wsId)?.name || '策展台'
-  showToast(`已镜像到「${name}」（源卡仍在资源卡池）`)
-}
-
-/**
- * R166 T7：反查行点击=去那个任务的归属页看它（有项目直达二级页，没有回方向台）。
- * 这是**读操作**：不改任务、不改关联，所以资源侧只读边界没有被破。
- */
+/* ★W17-C06（2026-10-20 用户拍板）：镜像入口统一到共享弹窗 ResourceMirrorModal。
+   原先本抽屉是「行内选台下拉 + 一枚动作」，与资源卡池的行内浮层各写一套，且都已镜像时还提示成功。
+   现在两个宿主（本抽屉 / 资源卡池）共用同一个多选弹窗：勾选=镜像、取消勾选=移出、可多选。 */
+const mirrorOpen = ref(false)
 function gotoTaskOwner(t: TaskCard): void {
   close()
   router.push(t.projectId ? `/compass/projects?p=${t.projectId}` : '/compass')
@@ -205,9 +196,11 @@ const kicker = computed(() => {
         @update:model-value="editing.title = $event" @enter="save" />
     </template>
     <template #title-extra>
-      <span v-if="editing.pinned || editing.starred" class="ds-ai-when">
-        {{ [editing.pinned && '置顶', editing.starred && '星标'].filter(Boolean).join(' · ') }}
-      </span>
+      <!-- ★W17-C07：置顶从只读文字改为可点按钮（可置顶、可取消） -->
+      <button class="ds-ib ds-pin-btn" :class="{ on: editing.pinned }"
+        :title="editing.pinned ? '已置顶，点击取消' : '置顶（排到池内最前）'"
+        @click.stop="togglePinnedHere"><Icon name="pin" :size="13"/></button>
+      <span v-if="editing.starred" class="ds-ai-when">星标</span>
     </template>
 
     <!-- R167 ②：AI 入口一行两格（正文首行），与 Workspace 内联抽屉同一组件（一份承诺） -->
@@ -223,12 +216,8 @@ const kicker = computed(() => {
         <button class="ds-ib" title="复制链接" @click="copyLink">⧉</button>
         <!-- ★W15-T3（用户拍板 2026-10-16）：镜像到策展台从「关联与凭证」面板提到**链接工具行常驻** ——
              原入口埋在属性区里，用户找不到（列表侧同期补了行内 🪞，两处同口径 projectCardToBoard）。 -->
-        <template v-if="mirrorBoards.length">
-          <select v-model="mirrorWsId" class="rd-mirror-select" title="选一个策展台作为镜像目标">
-            <option value="">镜像到策展台…</option>
-            <option v-for="w in mirrorBoards" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-          <button class="ds-ib" :disabled="!mirrorWsId" title="镜像到该策展台（引用投射，源卡仍留在资源卡池）" @click="mirrorToBoard"><Icon name="mirror" :size="13"/></button>
+        <template v-if="(store.data?.workspaces || []).some(w => w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived)">
+          <button class="ds-ib" title="镜像到策展台（可多选，取消勾选即移出）" @click="mirrorOpen = true"><Icon name="mirror" :size="13"/></button>
         </template>
       </template>
       <!-- 宿主差异内容：落在「关联与凭证」面板内 -->
@@ -246,6 +235,9 @@ const kicker = computed(() => {
       <button class="red-save" @click="save"><Icon name="check" :size="13"/> 保存<span class="red-kbd">Ctrl+<Icon name="arrowleft" :size="13"/></span></button>
     </template>
   </Drawer>
+
+  <!-- ★W17-C06：与资源卡池同一枚镜像弹窗（一份实现） -->
+  <ResourceMirrorModal :open="mirrorOpen" :card-id="resId" :card-title="editing.title" @close="mirrorOpen = false" />
 </template>
 
 <style scoped>
@@ -256,14 +248,6 @@ const kicker = computed(() => {
 .rd-kv > .v b { color: var(--text); font-weight: 600; }
 /* B1-c：「最近调用」时间戳弱一档（原内联 color） */
 .rd-last { color: var(--text-4); }
-/* N8：镜像目标台下拉——贴着行内其它字段的字号/高度走，不做成一个独立控件的体量 */
-.rd-mirror-select {
-  width: 100%; max-width: 240px; height: 26px; padding: 0 6px;
-  font-size: var(--fs-caption); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface-2); cursor: pointer;
-}
-.rd-mirror-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rd-kv .ds-ib:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .red-save {
   flex: 1; padding: 10px 0; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent); color: #fff;
@@ -271,4 +255,6 @@ const kicker = computed(() => {
 }
 .red-save:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .red-kbd { font-size: var(--fs-tiny); opacity: .7; margin-left: 6px; font-weight: 400; }
+/* ★W17-C07：抽屉头部图钉（置顶态与池内图钉同一语言） */
+.ds-pin-btn.on { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent); }
 </style>

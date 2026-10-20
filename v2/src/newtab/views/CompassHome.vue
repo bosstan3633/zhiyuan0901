@@ -5,7 +5,7 @@ defineOptions({ name: 'CompassHomeView' })
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
 // - 底部专区：好奇心培育单区直呈（R55-B2：任务调度迁方向台）
-import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount, nextTick, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -25,10 +25,15 @@ import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
+import { useEqualHeight } from '@/newtab/composables/useEqualHeight'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { weekUsageOf } from '@/shared/storage/stats'
-import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
+// ★W17-C02（2026-10-20）：本地那份「双击打开链接」小实现退役（不记调出、不分流三态、失败静默），
+// 全库统一走 useResourceOpen —— 同一个动作只允许一个实现，且它返回成败供单击分流。
+import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
+import AssetPreview from '@/shared/components/AssetPreview.vue'
 // ★W12-D（V3.8.16）：年度热力图从调度台退役（用户 2026-10-13 拍板——画像洞察页已全量覆盖，
 // 调度台再放一份是重复），但「今日战报」要保留，故先把日详情从 Heatmap.vue 解耦出来，
 // 由 TodayBattleHost 自包含承载（数据桥 + 事件日志读取 + 日详情 + 全量记录抽屉都在它里面）。
@@ -43,9 +48,17 @@ const route = useRoute()
 const store = useAppStore()
 // R91：解构出主攻相关口径——手册「🚀 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**。
 // R3-B1：方向台的主攻聚焦条随 CompassShell 退役，focusedProjects 的**唯一**消费方就是本页速览。
-const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce, unarchivedTaskCount } = useCompass()
+const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce, unarchivedTaskCount, taskArchiveIssue } = useCompass()
 // R127：挂载即刷新 WCE 事件缓存（事件日志异步读取一次；computed 同步消费）
-onMounted(() => { refreshWce?.() })
+onMounted(() => {
+  refreshWce?.()
+  /* ★W17-C03：等高测量等首帧渲染完再量（DOM 未挂时量到的是 0） */
+  nextTick(() => onEqualHeightReady())
+})
+
+/* ★W17-C02（2026-10-20）：打开链接统一走 useResourceOpen（协议分流 + 附件校验 + 三态 toast +
+   记账一体），本页原先的本地 openResourceLink（不记账）随本行退役——同一个动作不留两个实现。 */
+const { openResourceLink, previewOpen, previewUrl, previewName, closePreview } = useResourceOpen({ store, d })
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
@@ -687,12 +700,47 @@ const focusDoneCount = computed(() => todayFocusList.value.filter(s => s.done).l
 const mainFocus = computed<Project | null>(() => focusedProjects.value[0] || null)
 const extraFocus = computed<Project | null>(() => focusedProjects.value[1] || null)
 const extraFocusOpen = ref(false)
+/* ★W17-C03（2026-10-20 用户拍板 · 方案 C）：右栏与左栏等高 + 最近调出按可用高度多显示。
+ * 病根：右栏两块面板按内容自然伸缩，左栏卡片随数据变高，1440 下右下留大片空白、顶/底边都不齐。
+ * 口径：ResizeObserver 测左侧两张卡实测高度 → CSS 变量（--rail-top-h / --rail-bottom-h）→ 右栏读取；
+ *      最近调出条数按「第二块面板可用高度 ÷ 单行高度」动态算（预期 5-6 条），超出时列表内部滚动。
+ * ★负锚：条数不许写死 slice(0,3)。 */
+const RECENT_ROW_H = 46
+const railAvailable = ref(0)
+const recentLimit = computed(() => {
+  const h = railAvailable.value
+  if (!h) return 3
+  /* 面板头 40px + 底部呼吸 8px，其余全部给列表 */
+  return Math.max(3, Math.floor((h - 48) / RECENT_ROW_H))
+})
 const recentResources = computed<ResourceCard[]>(() =>
   (d.value.resources || [])
     .filter(r => !r.deletedAt && r.lastCalledAt)
     .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0))
-    .slice(0, 3)
+    .slice(0, recentLimit.value)
 )
+const workBoardRef = ref<HTMLElement | null>(null)
+const handBoardRef = ref<HTMLElement | null>(null)
+const deskLayoutRef = ref<HTMLElement | null>(null)
+const recentPanelRef = ref<HTMLElement | null>(null)
+const { measure: measureRail } = useEqualHeight({
+  top: workBoardRef, bottom: handBoardRef, host: deskLayoutRef
+})
+/* 右栏「最近调出」面板的实测高度 → 条数（与等高测量同一帧，避免两套 layout 读数打架） */
+let railRO: ResizeObserver | null = null
+function observeRailPanel() {
+  const el = recentPanelRef.value
+  if (!el || typeof ResizeObserver === 'undefined') return
+  railRO?.disconnect()
+  railRO = new ResizeObserver(() => { railAvailable.value = el.getBoundingClientRect().height })
+  railRO.observe(el)
+  railAvailable.value = el.getBoundingClientRect().height
+}
+function onEqualHeightReady() {
+  measureRail()
+  observeRailPanel()
+}
+onBeforeUnmount(() => { railRO?.disconnect(); railRO = null })
 const liveTasks = computed<TaskCard[]>(() =>
   (d.value.tasks || []).filter(t => !t.deletedAt && !t.lifecycleArchived)
 )
@@ -733,20 +781,86 @@ function openCurioPreview(c: CuriosityCard): void {
 function openResourcePreview(r: ResourceCard): void {
   emitOpenDrawer({ kind: 'res', id: r.id })
 }
-function openResourceLink(r: ResourceCard): void {
-  const url = toOpenableRawLink(r.link)
-  if (!url) { showToast('这张资源还没有可打开的链接'); return }
-  openExternalLink(url)
+/** ★W17-C02（2026-10-20 用户拍板）：「最近调出」单击分流——
+ *  有可打开链接 → 直接打开（useResourceOpen 内部记账一次）；
+ *  无链接 / 打不开 → 回落右侧滑出详情抽屉。回落路径**零提前记账**（C02.3 陷阱：
+ *  ResourceDetailDrawer.openFromId 打开时自己记一次，两边都记 = 双计）。 */
+function openRecentResource(r: ResourceCard): void {
+  if (openResourceLink(r)) return
+  openResourcePreview(r)
 }
 function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
   void router.push(`/deck/${kind}`)
 }
-function openUnarchived(): void {
-  void router.push({ path: '/deck/task', query: { filter: 'unarchived' } })
+/* ★W17-C01（2026-10-20 用户拍板）「今天的状态」三行 → 中央只读明细弹窗。
+ * 原行为是 router.push 跳到另一个页面（说 A 给 B）；现改为就地弹窗，不跳路由、不改 URL。
+ * ★口径同源：明细清单与行内数字共用同一份取数（项目看 focusMeta / 未归档看 taskArchiveIssue /
+ * 本周复用看 wrr 周戳 + lastVisits），数字与条数不许各说各话。 */
+const statusDetail = ref<StatusDetailKey | ''>('')
+const statusDetailTitle = computed(() => ({
+  focus: '主攻项目明细', unarchived: '未归档任务明细', reuse: '本周复用明细', '': ''
+}[statusDetail.value]))
+const statusDetailItems = computed<StatusDetailItem[]>(() => {
+  const k = statusDetail.value
+  if (k === 'focus') {
+    return focusedProjects.value.map(p => {
+      const m = focusMeta.value.get(p.id)
+      return {
+        title: p.name,
+        meta: m ? `${m.finished ? '已完成' : m.stall ? '停滞' : '推进中'} · 未完成任务 ${m.open} 项` : '推进中',
+        extra: `${m?.pct ?? 0}%`
+      }
+    })
+  }
+  if (k === 'unarchived') {
+    return (d.value.tasks || [])
+      .filter(x => !x.deletedAt && taskArchiveIssue(x) !== '')
+      .map(x => ({
+        title: x.title || '（无标题）',
+        meta: taskArchiveIssue(x),
+        extra: projectName(x.projectId) || '未挂项目'
+      }))
+  }
+  if (k === 'reuse') {
+    /* ★C01.3 陷阱：跨周后 stats.lastVisits 不会自动清空，只有 thisWeekStart 才是本周戳时数字才不为 0；
+       清单必须按同一周戳过滤，否则会把上周的调用当本周列出来，而顶部数字是 0。 */
+    const wrr = d.value.stats?.wrr
+    const thisWeek = weekStartKeyOf(Date.now())
+    const start = wrr?.thisWeekStart === thisWeek ? wrr.thisWeekStart : ''
+    const list = (d.value.resources || [])
+      .filter(r => !r.deletedAt && r.lastCalledAt)
+      .filter(r => !!start && weekStartKeyOf(r.lastCalledAt || 0) === start)
+      .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0))
+    const visits = d.value.stats?.lastVisits || {}
+    return start ? list.map(r => ({
+      title: r.title || '（无标题）',
+      meta: `本周调用 ${visits[r.id] || 0} 次`,
+      extra: new Date(r.lastCalledAt || 0).toLocaleDateString('zh-CN')
+    })) : []
+  }
+  return []
+})
+const statusDetailNote = computed(() => ({
+  focus: '主攻项目 = 方向台上标记为主攻且未归档的项目；进度与停滞判定与方向台同一口径。',
+  unarchived: '未归档 = 未删除、但缺项目归属或已完成未归档的任务；与行内数字同源。',
+  reuse: '本周复用 = 本周内被打开过的资源卡（按最近调出倒序）；跨周后清单为空，与行内 0 一致。',
+  '': ''
+}[statusDetail.value]))
+const statusDetailEmpty = computed(() => ({
+  focus: '还没有设定主攻项目。去方向台把最重要的 1-2 个项目标为主攻。',
+  unarchived: '没有待归档的任务——当前任务都有项目归属。',
+  reuse: '本周还没有调出记录。打开一张资源卡后，会出现在这里。',
+  '': ''
+}[statusDetail.value]))
+/** 周戳工具：与 stats.weekStartKey 同口径（本地周一为一周起点） */
+function weekStartKeyOf(ts: number): string {
+  const dt = new Date(ts)
+  dt.setHours(0, 0, 0, 0)
+  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7))
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
 }
-function openWeeklyReuse(): void {
-  void router.push({ path: '/deck/resource', query: { called: 'called' } })
-}
+function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }
 function curioStatusLabel(c: CuriosityCard): string {
   return c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索'
 }
@@ -828,9 +942,9 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
       </div>
     </header>
 
-    <div class="desk-layout">
+    <div ref="deskLayoutRef" class="desk-layout">
       <main class="desk-main">
-        <section id="zy-mod-tasks" class="work-board" :class="{ 'all-done': focusAllDone }" aria-labelledby="focusTitle">
+        <section id="zy-mod-tasks" ref="workBoardRef" class="work-board" :class="{ 'all-done': focusAllDone }" aria-labelledby="focusTitle">
           <header class="board-head">
             <div class="board-title">
               <span class="board-ico"><Icon name="compass" :size="18" /></span>
@@ -938,7 +1052,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           </footer>
         </section>
 
-        <section class="hand-board" aria-labelledby="handTitle">
+        <section ref="handBoardRef" class="hand-board" aria-labelledby="handTitle">
           <header class="hand-head">
             <div class="hand-heading">
               <span class="board-ico"><Icon name="layers" :size="18" /></span>
@@ -1031,17 +1145,17 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <button type="button" @click="openReview">战报</button>
           </header>
           <div class="stat-list">
-            <button class="stat-row" type="button" :disabled="!mainFocus" @click="mainFocus && openFocusProject(mainFocus)">
+            <button class="stat-row" type="button" :disabled="!mainFocus" @click="openStatusDetail('focus')">
               <span class="sk">主攻</span>
               <span class="sv">{{ mainFocus ? mainFocus.name : '尚未指定' }}</span>
               <span class="se accent">{{ mainFocus ? (focusMeta.get(mainFocus.id)?.pct || 0) + '%' : '去设置' }}</span>
             </button>
-            <button class="stat-row" type="button" @click="openUnarchived">
+            <button class="stat-row" type="button" @click="openStatusDetail('unarchived')">
               <span class="sk">未归档</span>
               <span class="sv">{{ archivedCount }} / {{ liveTasks.length }} 件任务</span>
               <span class="se">去归位</span>
             </button>
-            <button class="stat-row" type="button" @click="openWeeklyReuse">
+            <button class="stat-row" type="button" @click="openStatusDetail('reuse')">
               <span class="sk">本周复用</span>
               <span class="sv">{{ weeklyReuse }} 次</span>
               <span class="se">查看</span>
@@ -1049,13 +1163,13 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           </div>
         </section>
 
-        <section class="rail-panel">
+        <section ref="recentPanelRef" class="rail-panel rail-panel-recent">
           <header class="rail-head">
             <b>最近调出</b>
             <button type="button" @click="goDeck('resource')">全部</button>
           </header>
           <div v-if="recentResources.length" class="recent-list">
-            <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" @click="openResourcePreview(r)">
+            <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" :title="r.link ? '单击打开链接 · 打不开则滑出详情' : '单击滑出详情'" @click="openRecentResource(r)">
               <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" />
               <span class="recent-copy"><span class="recent-title">{{ r.title }}</span><span class="recent-meta">{{ fmtRecentTime(r.lastCalledAt) }} · 打开 {{ r.callCount || 0 }} 次</span></span>
             </button>
@@ -1068,6 +1182,14 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
     </div>
 
     <TodayBattleHost ref="battleHost" />
+
+    <!-- ★W17-C01：三行状态明细（中央只读弹窗，不跳路由） -->
+    <CompassStatusModal :open="!!statusDetail" :kind="statusDetail || 'focus'"
+      :title="statusDetailTitle" :note="statusDetailNote" :items="statusDetailItems"
+      :empty-text="statusDetailEmpty" @close="statusDetail = ''" />
+
+    <!-- ★W17-C02：useResourceOpen 的图片附件就地预览（zy-asset:// 图片卡，与 Workspace 同一壳） -->
+    <AssetPreview :open="previewOpen" :url="previewUrl" :name="previewName" @close="closePreview" />
 
     <Transition name="fade">
       <div v-if="pickerOpen" class="overlay" @click="pickerOpen = false" />
@@ -1790,6 +1912,15 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   gap: 12px;
   min-width: 0;
 }
+/* ★W17-C03（2026-10-20 用户拍板 · 方案 C）：右栏两块面板与左栏卡片等高。
+   高度由 useEqualHeight 用 ResizeObserver 量出来写进 --rail-top-h / --rail-bottom-h（页面根继承）；
+   量不到时回退 auto —— 右栏绝不被压成 0 高，也不会强行拉伸内部元素。
+   1200px 以下降级单列（见下方媒体查询），不强制等高。 */
+.rail-panel:not(.rail-panel-recent) { height: var(--rail-top-h, auto); display: flex; flex-direction: column; }
+.rail-panel:not(.rail-panel-recent) .stat-list { flex: 1; min-height: 0; }
+.rail-panel-recent { height: var(--rail-bottom-h, auto); display: flex; flex-direction: column; }
+.recent-list { flex: 1; min-height: 0; overflow-y: auto; }
+.rail-panel .rail-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
 .rail-panel {
   overflow: hidden;
   border: 1px solid var(--border);

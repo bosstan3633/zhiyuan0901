@@ -1,81 +1,89 @@
 <script setup lang="ts">
 /**
- * 画像洞察 · 首屏概览。
+ * 画像洞察 · 首屏状态双面板（★W17-C09 · 2026-10-20 用户拍板原型 profile-insights-review-v2.html）。
  *
- * 左栏先回答「这周精力放在哪里」，右栏回答「今天从哪三件事开始」。
- * 组件只消费宿主传入的数据；勾选、归位、空槽补位都通过事件回到宿主，保持单一写入出口。
+ * 页面新定位：呈现「用户使用知源产品的状态」——产品使用状态 + 个人方向状态。
+ *   左：知源产品使用状态（四格读数沿用既有口径 + 近 30 天使用构成条，可下钻）
+ *   右：你的方向状态（使命主线完整呈现 + 主攻项目完整列表：全名 / 状态 / 进度条 / 点开详情抽屉）
+ *
+ * ★退役带备案：原右栏「今日焦点三行」整块退役——它与调度台首页重复，
+ *   排三件事、勾选、归位、填空的能力唯一归调度台（用户 2026-10-20 拍板）。
  */
 import Icon from '@/shared/components/Icon.vue'
-import type { ConciseInsight } from '@/shared/utils/reviewReport'
-import type { FocusRecommend, TodayRow } from './PiToday.vue'
+
+export interface FocusProjectView {
+  id: string
+  name: string
+  /** 0-100 */
+  progress: number
+  /** 停滞 / 已完成 / 推进中（由宿主按方向台同一口径判定） */
+  state: 'active' | 'stalled' | 'done'
+  /** 未完成任务数 */
+  open: number
+}
 
 const props = defineProps<{
-  weekRange: string
-  weekInsight: ConciseInsight
-  todayInsight: ConciseInsight
-  /** 页头四格读数的下钻入口：口径与 PiHero 完全同源，只是换到概览里承载。 */
+  /** 四格读数：全库净资产 / 知识熵 / 证据支撑率 / 近 30 天精力落主攻 */
   total: number
   kindCounts: { res: number; task: number; curio: number }
   entropy: number
-  /** Top 3 高频标签（知识熵口径 tooltip，与下钻 toast 同源） */
   topTags: string[]
   supportRate: number
   focusShare: number
-  rows: (TodayRow | null)[]
-  recommend: FocusRecommend | null
-  focusFilled: number
+  /** 方向状态：使命主线（空串由本组件出轻引导） */
+  missionText: string
+  /** 主攻项目完整列表（≤2，项目名不截断） */
+  focusProjects: FocusProjectView[]
 }>()
 
 const emit = defineEmits<{
-  (e: 'week-action', action: string): void
-  (e: 'today-action', action: string): void
   (e: 'kpi-drill', k: 'total' | 'entropy' | 'support' | 'focus'): void
-  (e: 'open-focus'): void
-  (e: 'toggle', idx: number): void
-  (e: 'bind', idx: number): void
-  (e: 'fill', idx: number): void
+  (e: 'goto-compass'): void
   (e: 'open-project', projectId: string): void
 }>()
+
+const STATE_LABEL: Record<FocusProjectView['state'], string> = {
+  active: '推进中', stalled: '停滞', done: '已完成'
+}
+/** 近 30 天使用构成（用三类在库占比作诚实近似；事件口径的 30 天窗口另见周期段） */
+const mix = () => {
+  const { res, task, curio } = props.kindCounts
+  const sum = res + task + curio
+  return { res, task, curio, sum, resPct: sum ? Math.round(res / sum * 100) : 0, taskPct: sum ? Math.round(task / sum * 100) : 0, curioPct: sum ? Math.round(curio / sum * 100) : 0 }
+}
 </script>
 
 <template>
   <div class="pi-overview">
-    <section class="pi-ov-card" aria-labelledby="pi-week-overview-title">
+    <!-- 左：知源产品使用状态 -->
+    <section class="pi-ov-card" aria-labelledby="pi-usage-title">
       <div class="pi-ov-head">
         <div class="t">
-          <span class="eyebrow">DIRECTION · THIS WEEK</span>
-          <h2 id="pi-week-overview-title">这周，你把精力放在哪里</h2>
-          <p>先看方向，再看节奏。数字只描述事实，不评价好坏。</p>
+          <span class="eyebrow">PRODUCT USAGE</span>
+          <h2 id="pi-usage-title">知源产品使用状态</h2>
+          <p>全库资产与使用情况 · 只呈现状态，不作评价。</p>
         </div>
-        <span class="meta">{{ weekRange }}</span>
-      </div>
-      <div class="pi-ov-insight">
-        <span class="ic"><Icon :name="weekInsight.warn ? 'warn' : 'bulb'" :size="14"/></span>
-        <span class="body" v-html="weekInsight.html"></span>
-        <button class="cta" :title="weekInsight.html" @click="emit('week-action', weekInsight.ctaAction)">
-          {{ weekInsight.ctaLabel }}
-        </button>
       </div>
       <div class="pi-ov-kpis">
         <button class="pi-ov-kpi"
           :title="`全库净资产 = 三类未删卡合计（回收站不计）· 资源 ${kindCounts.res} · 任务 ${kindCounts.task} · 好奇 ${kindCounts.curio} —— 点击看明细`"
           @click="emit('kpi-drill', 'total')">
           <span class="v">{{ total.toLocaleString() }}<small>张</small></span>
-          <span class="l">全库净资产</span>
+          <span class="l">在库卡片</span>
           <span class="d">资源 {{ kindCounts.res }} · 任务 {{ kindCounts.task }} · 好奇 {{ kindCounts.curio }}</span>
         </button>
         <button class="pi-ov-kpi"
           :title="`知识熵 ${entropy.toFixed(1)} bit = 卡片标签分布的离散度（越高铺得越散）· 高频标签：${topTags.length ? topTags.join(' · ') : '尚无带标签的卡片'} —— 点击看明细`"
           @click="emit('kpi-drill', 'entropy')">
           <span class="v">{{ entropy.toFixed(1) }}<small>bit</small></span>
-          <span class="l">知识熵 · 聚焦度</span>
+          <span class="l">标签分布</span>
           <span class="d">越低越集中</span>
         </button>
         <button class="pi-ov-kpi"
           :title="`任务有证据支撑 ${supportRate}% = 有 ≥1 张支撑资源卡关联的未删任务 ÷ 未删任务总数 —— 点击看明细`"
           @click="emit('kpi-drill', 'support')">
           <span class="v">{{ supportRate }}<small>%</small></span>
-          <span class="l">任务有证据支撑</span>
+          <span class="l">任务有资源支撑</span>
           <span class="d">显式关联，不是标签相似</span>
         </button>
         <button class="pi-ov-kpi pi-ov-kpi-bar"
@@ -89,58 +97,101 @@ const emit = defineEmits<{
           </span>
         </button>
       </div>
-      <div class="pi-ov-foot">
-        <span><b>本周</b> 是节奏与方向的主视图</span>
-        <span>切到「本周」看完整分布与规则对照 ›</span>
+      <div v-if="mix().sum" class="pi-ov-mix">
+        <span class="pi-ov-mix-lab">在库构成</span>
+        <span class="pi-ov-mix-bar" aria-hidden="true">
+          <i class="m-res" :style="{ width: mix().resPct + '%' }"></i>
+          <i class="m-task" :style="{ width: mix().taskPct + '%' }"></i>
+          <i class="m-curio" :style="{ width: mix().curioPct + '%' }"></i>
+        </span>
+        <span class="pi-ov-mix-tx">资源 {{ mix().resPct }}% · 任务 {{ mix().taskPct }}% · 好奇 {{ mix().curioPct }}%</span>
       </div>
     </section>
 
-    <section class="pi-ov-card" aria-labelledby="pi-today-overview-title">
+    <!-- 右：你的方向状态（使命 + 主攻项目完整呈现） -->
+    <section class="pi-ov-card pi-ov-dir" aria-labelledby="pi-dir-title">
       <div class="pi-ov-head">
         <div class="t">
-          <span class="eyebrow">FOCUS · TODAY</span>
-          <h2 id="pi-today-overview-title">今天，从哪三件事开始</h2>
-          <p>只保留今天真正要推进的动作。</p>
+          <span class="eyebrow">PERSONAL DIRECTION</span>
+          <h2 id="pi-dir-title">你的方向状态</h2>
         </div>
-        <button class="pi-ov-link" @click="emit('open-focus')">去调度台 ›</button>
       </div>
-      <div class="pi-ov-insight">
-        <span class="ic"><Icon :name="todayInsight.warn ? 'warn' : 'bulb'" :size="14"/></span>
-        <span class="body" v-html="todayInsight.html"></span>
-        <button class="cta" :title="todayInsight.html" @click="emit('today-action', todayInsight.ctaAction)">
-          {{ todayInsight.ctaLabel }}
+      <div class="pi-dir-mission">
+        <span class="k">使命主线</span>
+        <strong v-if="missionText">{{ missionText }}</strong>
+        <button v-else class="pi-dir-empty" @click="emit('goto-compass')">尚未设定使命愿景 —— 前往方向台设定 ›</button>
+      </div>
+
+      <div class="pi-dir-sub">当前主攻项目<span>项目名完整呈现 · 进度取自方向台</span></div>
+      <div v-if="focusProjects.length" class="pi-dir-list">
+        <button v-for="(p, i) in focusProjects" :key="p.id" class="pi-dir-item"
+          :title="`${p.name} · ${STATE_LABEL[p.state]} · 进度 ${p.progress}% · 未完成 ${p.open} 项（点击查看项目详情）`"
+          @click="emit('open-project', p.id)">
+          <span class="pi-dir-main">
+            <span class="pi-dir-tag">主攻 {{ i + 1 }}</span>
+            <span class="pi-dir-name">{{ p.name }}</span>
+          </span>
+          <span class="pi-dir-state" :class="p.state">{{ STATE_LABEL[p.state] }}</span>
+          <span class="pi-dir-prog">
+            <span class="pi-dir-track"><i :style="{ width: Math.max(0, Math.min(100, p.progress)) + '%' }"></i></span>
+            <span class="pi-dir-pct">{{ p.progress }}%</span>
+          </span>
         </button>
       </div>
-      <div class="pi-ov-lines">
-        <div v-for="(r, i) in rows" :key="r ? r.slot.id : 'ov-e' + i" class="pi-ov-line"
-          :class="{ done: r && r.slot.done }">
-          <button class="pi-ov-check" :class="{ done: r && r.slot.done }"
-            :disabled="!r" :title="r ? (r.slot.done ? '取消完成' : '就地完成') : '空槽'"
-            @click="r && emit('toggle', r.idx)">
-            <Icon v-if="r && r.slot.done" name="check" :size="11"/>
-          </button>
-          <template v-if="r">
-            <span class="title">{{ r.slot.text || '（空槽）' }}</span>
-            <button v-if="r.focused && r.projectId" class="tag main" :title="`主攻项目：${r.projectName} · 查看项目`"
-              @click="emit('open-project', r.projectId)">
-              <Icon name="main-focus" :size="11"/> {{ r.projectName }}
-            </button>
-            <span v-else-if="r.hasProject" class="tag" :title="`所属项目：${r.projectName}`">
-              <Icon name="folder" :size="11"/> {{ r.projectName }}
-            </span>
-            <span v-else class="tag">未挂项目</span>
-            <button v-if="r.canBind" class="line-act" :title="`归入主攻并绑定 ${r.matchCount} 张支撑卡`"
-              @click="emit('bind', r.idx)">归位 ›</button>
-          </template>
-          <template v-else>
-            <span class="empty">空槽 · 从任务库选一件</span>
-            <button v-if="recommend && recommend.idx === i" class="line-act" :title="recommend.why"
-              @click="emit('fill', i)">＋ 填入</button>
-            <button v-else class="line-act" @click="emit('open-focus')">打开 ›</button>
-          </template>
-        </div>
+      <div v-else class="pi-dir-none">
+        还没有主攻项目。去方向台把最重要的 1-2 个项目标为主攻，这里就会显示它们的状态与进度。
+        <button class="pi-dir-go" @click="emit('goto-compass')">前往方向台 ›</button>
       </div>
-      <div class="pi-ov-progress"><b>{{ focusFilled }} / 3</b> 今日焦点已排</div>
+      <div class="pi-dir-foot"><Icon name="bulb" :size="12"/> 点击项目可查看阶段目标与任务；主攻关系在方向台维护。</div>
     </section>
   </div>
 </template>
+
+<style scoped>
+/* ★W17-C09：右栏方向状态面板（使命完整 + 主攻项目完整呈现，项目名不截断） */
+.pi-ov-dir { min-width: 0; }
+.pi-dir-mission {
+  display: flex; gap: 10px; align-items: flex-start; min-width: 0;
+  margin: 2px 0 10px; padding: 8px 0 8px 11px; box-shadow: inset 3px 0 0 var(--accent);
+}
+.pi-dir-mission .k { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .06em; padding-top: 2px; }
+.pi-dir-mission strong { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.6; overflow-wrap: anywhere; }
+.pi-dir-empty { background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-body); font-weight: 600; color: var(--accent-ink); cursor: pointer; text-align: left; }
+.pi-dir-empty:hover { text-decoration: underline; }
+.pi-dir-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); margin-bottom: 7px; }
+.pi-dir-sub span { font-size: var(--fs-micro); font-weight: 400; color: var(--text-4); }
+.pi-dir-list { display: flex; flex-direction: column; gap: 7px; }
+.pi-dir-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; width: 100%;
+  padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface-2); text-align: left; font-family: inherit; cursor: pointer; transition: all var(--dur-fast);
+}
+.pi-dir-item:hover { border-color: var(--accent); background: var(--accent-light); }
+.pi-dir-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pi-dir-tag { font-size: var(--fs-micro); font-weight: 800; color: var(--accent-ink); letter-spacing: .04em; }
+/* ★项目名不截断（C09 核心诉求）：允许换行、不设 max-width */
+.pi-dir-name { font-size: var(--fs-sub); font-weight: 700; color: var(--text); line-height: 1.5; overflow-wrap: anywhere; }
+.pi-dir-state { align-self: center; flex: none; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-3); background: var(--surface); white-space: nowrap; }
+.pi-dir-state.stalled { color: var(--text-2); border-color: var(--border-strong); }
+.pi-dir-state.done { color: var(--text-2); }
+.pi-dir-prog { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 40px; align-items: center; gap: 9px; }
+.pi-dir-track { height: 4px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.pi-dir-track i { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-fast); }
+.pi-dir-pct { text-align: right; font-size: var(--fs-micro); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.pi-dir-none { font-size: var(--fs-caption); color: var(--text-4); line-height: 1.75; padding: 10px 0; }
+.pi-dir-go { display: block; margin-top: 6px; border: 0; background: none; padding: 0; font: inherit; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); cursor: pointer; }
+.pi-dir-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); display: flex; align-items: center; gap: 4px; }
+.pi-ov-mix { display: flex; align-items: center; gap: 9px; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); min-width: 0; }
+.pi-ov-mix-lab { flex: none; }
+.pi-ov-mix-bar { flex: 1; min-width: 40px; height: 5px; display: flex; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
+.pi-ov-mix-bar i { display: block; height: 100%; }
+.pi-ov-mix-bar .m-res { background: var(--accent); }
+.pi-ov-mix-bar .m-task { background: var(--info-blue); }
+.pi-ov-mix-bar .m-curio { background: var(--success); }
+.pi-ov-mix-tx { flex: none; white-space: nowrap; }
+@media (max-width: 640px) {
+  .pi-ov-mix { flex-wrap: wrap; }
+  .pi-ov-mix-bar { order: 3; flex-basis: 100%; }
+  .pi-ov-mix-tx { white-space: normal; }
+}
+</style>

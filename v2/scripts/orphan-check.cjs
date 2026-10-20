@@ -170,6 +170,11 @@ const RETAINED = {
     'V3.9.1 起调度台三件事整行打开右侧任务详情，FocusDetail 不再挂载；' +
     'W12-D5 / W12-D6 / P4-1 等回归判据仍逐条读取它的空槽引导、单行子任务与只读纪律，' +
     '用于证明能力迁移而非丢失。**V3.10.0 里程碑复核**：相关判据整组改指共享抽屉后删除。',
+  'shared/utils/index.ts':
+    '纯转发桶文件（re-export 收纳），零内部 import 是**常态**而非死代码——' +
+    '它是给外部/后续代码提供稳定导入面的入口，删掉会让既有文档里的导入路径失效。' +
+    '★2026-10-20 W17 批登记：orphan-check 把它算作孤儿属误判（桶文件天然无入边）；' +
+    '**V3.10.0 里程碑复核**：若届时仍无任何外部消费者，改成按需直引并删除该桶。',
   'newtab/components/compass/MetricBar.vue':
     'V3.9.1 起合流方向条退役，主攻与状态读数收进调度台页头与右栏；' +
     'M1/M2/R120-6/R124-6 等历史判据仍读取它的读数口径与视觉纪律，' +
@@ -179,7 +184,9 @@ const RETAINED = {
 
 
 const found = files.filter(f => !isEntry(f) && (incoming.get(f) || 0) === 0)
-  .map(f => path.relative(ROOT, f))
+  /* ★W17：名册键统一用正斜杠 —— Windows 下 path.relative 产出反斜杠，曾导致名册命中不了、
+     8 个已登记保留的文件被误报成孤儿（B8-2a 长期红）。 */
+  .map(f => path.relative(ROOT, f).split(path.sep).join('/'))
 const orphans = found.filter(f => !RETAINED[f])
 const retained = found.filter(f => RETAINED[f])
 

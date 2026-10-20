@@ -55,15 +55,17 @@ watch(
 
 <template>
   <div class="deck-page">
+    <!-- ★W17-C04（2026-10-20 用户拍板）：返回按钮独立成首行、左对齐；
+         标题块另起一块，左缘与下方筛选栏 / 列表严格一致（原先三列 flex 把标题整体右推约 130px）。 -->
     <header class="deck-head">
-      <button class="deck-back" type="button" @click="goBack"><Icon name="arrowleft" :size="14"/> 返回调度台</button>
+      <div class="deck-head-top">
+        <button class="deck-back" type="button" @click="goBack"><Icon name="arrowleft" :size="14"/> 返回调度台</button>
+        <span class="deck-hint"><Icon name="bulb" :size="13"/> 新建统一走扩展快捷键</span>
+      </div>
       <div class="deck-head-copy">
         <div class="deck-kicker">{{ kicker }}</div>
         <h1>{{ title }}</h1>
         <p>{{ description }}</p>
-      </div>
-      <div class="deck-head-actions">
-        <span class="deck-hint"><Icon name="bulb" :size="13"/> 新建统一走扩展快捷键</span>
       </div>
     </header>
 
@@ -77,18 +79,23 @@ watch(
 
 <style scoped>
 .deck-page { max-width: 1440px; margin: 0 auto; padding: 18px 36px 72px; }
-.deck-head { display: flex; align-items: flex-start; gap: 18px; padding: 4px 0 18px; }
+/* ★W17-C04：页头改单列为两行——首行返回 + 右侧提示，第二行标题块（左缘与列表对齐） */
+.deck-head { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 18px; }
+.deck-head-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .deck-back {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 30px;
   padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-family: inherit; cursor: pointer;
 }
 .deck-back:hover { border-color: var(--border-strong); color: var(--text); }
-.deck-head-copy { flex: 1; min-width: 0; }
+.deck-head-copy { min-width: 0; }
 .deck-kicker { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 4px; }
 .deck-head h1 { font-size: var(--fs-display); line-height: 1.2; letter-spacing: -.02em; color: var(--text); }
-.deck-head p { max-width: 760px; margin-top: 6px; font-size: var(--fs-sub); line-height: 1.7; color: var(--text-3); }
-.deck-head-actions { flex-shrink: 0; padding-top: 4px; }
+.deck-head p {
+  max-width: 760px; margin: 6px 0 0; font-size: var(--fs-sub); line-height: 1.7; color: var(--text-3);
+  /* 三页标题区高度固定：描述固定单行，超出省略（原为两行自由折行，切页内容起始位置会跳） */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: calc(var(--fs-sub) * 1.7);
+}
 .deck-hint { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-3); }
 .deck-body { min-height: 320px; }
 .deck-body :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
@@ -97,6 +104,5 @@ watch(
 @media (max-width: 760px) {
   .deck-page { padding: 14px 16px 48px; }
   .deck-head { flex-wrap: wrap; }
-  .deck-head-actions { width: 100%; padding-top: 0; }
 }
 </style>

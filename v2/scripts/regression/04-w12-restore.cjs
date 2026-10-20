@@ -311,18 +311,14 @@ check('W12-C3 ★tk-title 由 span 改 button 之后样式不得裸奔：浏览�
   return !/#[0-9a-f]{3,6}|rgba?\(/i.test(block);
 });
 
-check('W12-C4 ★W12-A 的时间轴接线修法必须是「结构性对齐」而不是「把 30px 调成 39px」。原 `.pi-rail::before` 把线钉死在 left:30px，圆点却跟 align-items:center 走 78px 列宽（中心 39px），两套坐标系横向差 7.5px、整列圆点浮在线右侧（2026-10-13 反馈）。修法改为每节点画自己那段连线、与圆点共用 left:50% ⇒ 以后改列宽也不会再偏。判据：① 负锚：.pi-rail::before 与 left:30px 一行都不许回来 ② 连线段挂在 :not(:last-child)::after 且用 left:50% + translateX(-50%) ③ 末节点 padding-bottom:0（线不再向下悬空）④ 线以 bottom:-12px 落在下一个圆点中心（不穿过标签）。★负锚走 codeOnly：修法本身要在注释里讲清「原来错在哪、为何这么改」，而注释里必然出现 `.pi-rail::before` 与 `left:30px` 这两个退役字面量，不剥注释判据恒假（R166 纪律）', () => {
-  const raw = read('/newtab/components/profile/pi-timeline.css');
-  const css = codeOnly(raw);
-  if (/\.pi-rail::before/.test(css)) return false;
-  if (/left:\s*30px/.test(css)) return false;
-  if (!/\.pi-rnode:not\(:last-child\)::after/.test(css)) return false;
-  if (!/left:\s*50%/.test(css)) return false;
-  if (!/translateX\(-50%\)/.test(css)) return false;
-  if (!/\.pi-rnode:last-child \{ padding-bottom: 0/.test(css)) return false;
-  if (!/bottom:\s*-12px/.test(css)) return false;
-  // 正锚：注释里必须留改靶缘由（防后来人只看到代码不知道为何这么写）
-  return /结构性对齐|永不再偏/.test(raw);
+check('W12-C4 ★时间轴接线判据（★W17-C09 · 2026-10-20 用户拍板重指带备案）：原判据守「rail 连线与圆点结构性对齐（left:50%）」。本批用户明确要求「移除时间线及节点」——整条 rail（含连线、圆点、节点间距）随 PiRail 退役，原对齐技法失去承载对象。所守意图改为负锚三条：① 宿主零挂载 PiRail；② .pi-rail / .pi-rnode 活规则零命中（codeOnly，注释里的退役说明不咬）；③ 周期区不再是「78px 轨 + 内容」双列（.pi-tl 不得是 grid 双列）。★这是拍板变更，不是判据调松：导航唯一性由 A3-2 的正锚承担。', () => {
+  const pi = read('/newtab/views/ProfileInsights.vue');
+  const css = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
+  if (pi.includes('<PiRail')) return false;
+  if (/\.pi-rail\s*\{/.test(css)) return false;
+  if (/\.pi-rnode[\s:.]/.test(css)) return false;
+  if (/\.pi-tl \{[^}]*grid-template-columns:\s*78px/.test(css)) return false;
+  return /退役/.test(read('/newtab/components/profile/pi-timeline.css'));
 });
 
 check('W12-C5 ★方向台大标题下的定位语（.hero-sub）。【W12-A 原判 · V3.8.13】钉 nowrap 截断 + title 同源。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：定位语连同整个左文案栏（.hero-l：面包屑/眉标/大标题/副标）与 N4 就地编辑一并退役 —— 定调语由骨架条 .spine-h「上层定方向 · 下层见动作」承担，方向台首屏直接给「动作 + 状态」。翻转不删断言：正锚改钉退役负锚（.hero-sub 与 cpSub 在 CompassTree codeOnly 零命中，防"文案区回流"），退役缘由写在这里。能力守恒：方向台的"定位语"能力未删 —— 它换了居所（.spine-h 定位语 + 层级面板内联说明），不是消失。', () => {
@@ -636,19 +632,18 @@ check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。�
 });
 
 console.log('【N 系列 · 画像洞察 N6 时间轨吸顶 / N7 Hero KPI 居中】');
-check('N6 ★时间轨吸顶（左轨 sticky）：三段式很长，左轨原先随页面滚走 ⇒ 滚到"全年"段就看不见自己在第几段，导航丢了。判据钉的是**三件套**，少一件都会静默失效：① `.pi-rail` 有 `position: sticky` ② 必须配 `align-self: start`（grid item 默认 stretch ⇒ 盒子拉满整列、没有可粘余量，sticky 形同虚设）③ 必须配 `max-height + overflow-y` 兜底（轨约 330px，小视口不兜底会顶出屏幕 ⇒ 溢出的导航条等于没做）。负锚：不许退回 `position: relative`（那是滚走的形态）；`align-self` 不许是 stretch', () => {
-  const c = read('/newtab/components/profile/pi-timeline.css');
-  const m = c.match(/\.pi-rail \{[\s\S]*?\n\}/);
-  if (!m) return false;
-  const s = m[0];
-  if (!s.includes('position: sticky')) return false;
-  if (!s.includes('align-self: start')) return false;
-  if (!s.includes('max-height: calc(100vh')) return false;
-  if (!s.includes('overflow-y: auto')) return false;
-  if (s.includes('position: relative')) return false;
-  if (/align-self:\s*stretch/.test(s)) return false;
-  // 轨仍是 PiRail.vue 的那一个（吸顶吸错了元素就白做）
-  return read('/newtab/components/profile/PiRail.vue').includes('class="pi-rail"');
+check('N6 ★时间轨吸顶判据（★W17-C09 · 2026-10-20 用户拍板重指带备案）：原判据守「左轨 sticky 三件套」——本批时间线整体退役，rail 不再存在，吸顶无从谈起。所守意图改为「导航不许丢」的新承载：① 周期区唯一导航是 PiRangeTabs（role="tablist" + 四枚 tab）；② 页签常驻在周期面板之上，切范围不需要滚动找段落；③ 负锚：宿主不再用 IntersectionObserver / scrollIntoView 在四个时间尺度之间做"滚到隐藏段"的导航。', () => {
+  const pi = read('/newtab/views/ProfileInsights.vue');
+  const range = read('/newtab/components/profile/PiRangeTabs.vue');
+  if (pi.includes('<PiRail')) return false;
+  if (!pi.includes('<PiRangeTabs')) return false;
+  if (!range.includes('role="tablist"')) return false;
+  if (!pi.includes("activeRange === 'today'") && !pi.includes('activeRange')) return false;
+  /* 注释里允许留「原 timelineAnchor 已删除」的备案，故剥离注释后判 */
+  if (/timelineAnchor/.test(codeOnly(pi))) return false;
+  /* 只禁「切周期时滚到隐藏段落」的旧接线；wakeCooling 滚 #lc-sec 是年度段内导航，与本条无关。 */
+  if (/timelineAnchor/.test(codeOnly(pi))) return false;
+  return /退役/.test(pi);
 });
 
 check('N7 ★V3.9.3 再随迁：原判「Hero 5 枚 KPI 药丸必须居中」→ 四格读数归位概览后，概览四格仍须等宽铺满。现行判据：① `.pi-ov-kpis` 主规则在位且含 repeat(4, minmax(0, 1fr))（等宽 = 居中语义消解）② 退役负锚走 codeOnly：`.pi-hero-sum {`、`.pi-hchip {` 与旧 Hero 四格规则零命中 ③ 概览四格容器不许 justify-content: flex-start、不许 margin auto 假居中', () => {
@@ -686,11 +681,17 @@ check('N8 ★资源卡镜像到策展台（推送方向恢复）：V3.7.0（R179
   if (!ws.includes('确认镜像')) return false;
   if (!ws.includes(':disabled="!mirrorWsId"')) return false;
   if (!ws.includes('v-if="mirrorOpen"')) return false;
-// ③+⑤ 宿主二：App 级抽屉，行内选台
+// ★宿主二：App 级抽屉 —— ★W17-C06（2026-10-20 用户拍板）重指：
+  //   行内「选台下拉」随镜像改判为**中央多选弹窗**而退役（勾选=镜像 / 取消勾选=移出 / 可多选），
+  //   所守意图不变：抽屉仍有镜像入口、仍走 projectCardToBoard 引用投射、仍不物理搬卡。
+  //   承重锚改为「抽屉入口 + 共享弹窗 + 弹窗内两个写操作」。
   const rdd = read('/newtab/components/ResourceDetailDrawer.vue');
   const c2 = codeOnly(rdd);
-  if (!c2.includes('rd-mirror-select')) return false;
-  if (!c2.includes('projectCardToBoard')) return false;
+  if (!c2.includes('ResourceMirrorModal')) return false;
+  if (!c2.includes('mirrorOpen = true')) return false;
+  const mm = codeOnly(read('/newtab/components/ResourceMirrorModal.vue'));
+  if (!mm.includes('projectCardToBoardEx')) return false;
+  if (!mm.includes('removeProjection')) return false;
   /* ★W15-T3（用户拍板 2026-10-16）⑤ 重指：镜像控件由「#extra 属性区」提到 **#link-actions 链接工具行**
      —— 原入口埋在属性区里，用户找不到（列表侧同期补了行内 🪞，两处同口径）。
      ⑤ 守的**意图**是「镜像控件不许进 #footer」（footer 仍是删除 + 保存两钮，theme-audit drawer-res
@@ -700,7 +701,7 @@ check('N8 ★资源卡镜像到策展台（推送方向恢复）：V3.7.0（R179
   const es = rdd.indexOf('<template #extra>');
   const ee = rdd.indexOf('</template>', es);
   if (la < 0 || lae < 0 || es < 0 || ee < 0) return false;
-  if (!rdd.slice(la, lae).includes('rd-mirror-select') && !rdd.slice(es, ee).includes('rd-mirror-select')) return false;
+  if (!rdd.slice(la, lae).includes('mirrorOpen = true') && !rdd.slice(es, ee).includes('mirrorOpen = true')) return false;
   const fs = rdd.indexOf('<template #footer>');
   const fe = rdd.indexOf('</template>', fs);
   if (fs < 0 || fe < 0) return false;

@@ -15,25 +15,6 @@
 .pi-ov-head h2 { margin: 3px 0 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -.015em; color: var(--text); }
 .pi-ov-head p { margin: 4px 0 0; font-size: var(--fs-caption); line-height: 1.65; color: var(--text-3); }
 .pi-ov-head .meta { flex: none; padding-top: 2px; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums; }
-.pi-ov-link {
-  flex: none; min-height: 28px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: transparent; color: var(--text-2); font-family: inherit; font-size: var(--fs-caption); cursor: pointer;
-}
-.pi-ov-link:hover { border-color: var(--border-strong); color: var(--text); }
-.pi-ov-insight {
-  display: flex; align-items: flex-start; gap: 9px; min-width: 0;
-  padding: 3px 0 3px 11px; border-left: 2px solid var(--accent);
-  font-size: var(--fs-caption); line-height: 1.7; color: var(--text-2);
-}
-.pi-ov-insight .ic { flex: none; margin-top: 2px; color: var(--accent-ink); }
-.pi-ov-insight .body { flex: 1; min-width: 0; }
-.pi-ov-insight .body b { color: var(--text); font-weight: 600; }
-.pi-ov-insight .cta {
-  flex: none; min-height: 28px; padding: 2px 0; border: 0; background: transparent;
-  color: var(--accent-ink); font-family: inherit; font-size: var(--fs-caption); font-weight: 700;
-  cursor: pointer; white-space: nowrap;
-}
-.pi-ov-insight .cta:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pi-ov-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--border); margin-top: auto; }
 .pi-ov-kpi {
   min-width: 0; padding: 10px 10px 2px; border: 0; border-right: 1px solid var(--border);
@@ -55,47 +36,12 @@
   border-radius: 999px; transition: width var(--dur-fast);
 }
 .pi-ov-kpi-fill[style*="width: 0%"] { border-radius: 0; }
-.pi-ov-lines { display: flex; flex-direction: column; min-width: 0; }
-.pi-ov-line {
-  display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 38px;
-  border-top: 1px solid var(--border); font-size: var(--fs-caption);
-}
-.pi-ov-line:first-child { border-top: 0; }
-.pi-ov-check {
-  flex: none; width: 28px; height: 28px; border: 0; background: transparent; padding: 0;
-  display: grid; place-items: center; cursor: pointer; position: relative; color: #fff;
-}
-.pi-ov-check::before {
-  content: ''; position: absolute; width: 16px; height: 16px; border-radius: 5px;
-  border: 1.5px solid var(--border-strong); background: transparent;
-}
-.pi-ov-check.done::before { background: var(--success); border-color: var(--success); }
-.pi-ov-check:disabled { cursor: default; }
-.pi-ov-check:disabled::before { border-style: dashed; }
-.pi-ov-check > * { position: relative; z-index: 1; }
-.pi-ov-line .title { flex: 1; min-width: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pi-ov-line.done .title { color: var(--text-4); text-decoration: line-through; }
-.pi-ov-line .empty { flex: 1; min-width: 0; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pi-ov-line .tag {
-  flex: none; max-width: 112px; padding: 1px 7px; border-radius: 999px; border: 0;
-  background: var(--surface-3); color: var(--text-3); font-family: inherit; font-size: var(--fs-micro);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.pi-ov-line .tag.main { color: var(--text-2); cursor: pointer; }
-.pi-ov-line .line-act {
-  flex: none; min-height: 28px; padding: 3px 0; border: 0; background: transparent;
-  color: var(--accent-ink); font-family: inherit; font-size: var(--fs-caption); font-weight: 700;
-  cursor: pointer; white-space: nowrap;
-}
-.pi-ov-line .line-act:hover { text-decoration: underline; text-underline-offset: 3px; }
-.pi-ov-foot { display: flex; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); }
-.pi-ov-foot b { color: var(--text-2); }
-.pi-ov-foot span:last-child { margin-left: auto; }
-.pi-ov-progress { margin-top: auto; padding-top: 4px; text-align: right; font-size: var(--fs-micro); color: var(--text-4); }
-.pi-ov-progress b { color: var(--text-2); font-variant-numeric: tabular-nums; }
-
+/* ★W17-C09 退役带备案：概览右栏「今天，从哪三件事开始」整块退役，其专属样式
+   （.pi-ov-insight / .pi-ov-lines / .pi-ov-line / .pi-ov-check / .pi-ov-foot / .pi-ov-progress / .pi-ov-link）
+   同批删除——排三件事的能力唯一归调度台。四格读数样式（.pi-ov-kpis / .pi-ov-kpi）保留。 */
 /* ===== 时间尺度页签 + 单段时间轴（V3.9.3） ===== */
-.pi-tl-anchor { scroll-margin-top: 72px; }
+/* ★W17-C09：时间轴退役后这里只是周期区标题带（原锚点类名同步改名） */
+.pi-period-head { scroll-margin-top: 72px; }
 .pi-tl-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
 .pi-tl-bar > div:first-child { flex: 1; min-width: 260px; }
 .pi-tl-kicker { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .12em; color: var(--accent-ink); }
@@ -118,47 +64,7 @@
 .pi-range-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ===== 容器：左 rail + 右单段模块 ===== */
-.pi-tl { display: grid; grid-template-columns: 78px 1fr; }
-/* ★N6（V3.8.18）时间轨吸顶：三段式时间轴很长（今天 + 近期 + 全年），左侧轨原先随页面一起滚走，
-   滚到"全年"段时就看不见自己在第几段——**导航丢了**。
-   吸顶三件套，少一件都会静默失效（棘轮里的祖先断层判据就是防这个）：
-     ① `position: sticky` ② `align-self: start`（grid item 默认 stretch 会把盒子拉满整列，
-        盒子和容器一样高 ⇒ 没有可粘的余量，sticky 形同虚设）
-     ③ `max-height + overflow-y` 兜底：轨自身约 330px，小视口上不加这层会顶出屏幕，
-        而溢出的导航条等于没做。
-   top 取 56px = 48px 全局 topbar + 8px 呼吸，与 `.gs-nav`(66) / `.pd-dir`(64) 同一量级；
-   `.pi-mod { scroll-margin-top: 72px }` 也按这层高度算，jump 落点不会被轨压住。
-   连线画在节点之间的那套坐标（W12-A 的 `left:50%`）不受影响——sticky 只挪整列，不改内部定位。 */
-.pi-rail {
-  position: sticky; top: 56px; align-self: start;
-  max-height: calc(100vh - 80px); overflow-y: auto;
-  scrollbar-width: none;
-}
-.pi-rail::-webkit-scrollbar { display: none; }
-/* ★W12-A 线画在「节点之间」而不是画在 rail 上：
-   原 `.pi-rail::before` 把线钉死在 left:30px，而圆点跟着 `align-items:center` 走 rail 列宽
-   （`grid-template-columns: 78px` ⇒ 中心在 39px）——两套坐标系对不上，横向差 7.5px，
-   圆点整体浮在线右侧（用户 2026-10-13 报「节点不在时间线上」）。
-   改为每节点画自己的连线段，与圆点共用 `left:50%` 同一坐标系 ⇒ 结构性对齐，永不再偏。
-   同时 `bottom:-12px` 让线正好落在**下一个圆点中心**（节点盒底 + 下节点 padding-top 4px + 半径 8px），
-   不再穿过标签文字；末节点 `padding-bottom:0` ⇒ 线不再向下悬空。 */
-.pi-rnode {
-  position: relative; padding: 4px 0 76px; display: flex; flex-direction: column; align-items: center; gap: 9px;
-  cursor: pointer; background: none; border: 0; font-family: inherit;
-}
-.pi-rnode:not(:last-child)::after {
-  content: ''; position: absolute; left: 50%; top: 12px; bottom: -12px; width: 3px;
-  transform: translateX(-50%); border-radius: 3px; opacity: .5;
-  background: linear-gradient(180deg, var(--accent), var(--info-blue) 52%, var(--warning));
-}
-.pi-rnode:last-child { padding-bottom: 0; }
-.pi-rdot {
-  width: 16px; height: 16px; border-radius: 50%; background: var(--bg); border: 4px solid var(--accent);
-  position: relative; z-index: 2; transition: all var(--dur);
-}
-.pi-rnode.on .pi-rdot { transform: scale(1.28); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent); }
-.pi-rlab { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .05em; color: var(--text-4); text-align: center; line-height: 1.5; }
-.pi-rnode.on .pi-rlab { color: var(--accent-ink); }
+/* ★W17-C09（2026-10-20）：时间轨退役后周期区为单列（原 78px 轨列已无内容） */
 /* ★A3（V3.8.35）段间节奏：72px → `var(--sp-6)`(32px)。
    72px 是「三段时代」留下的间距：段数从 3 涨到 4 之后，每段的滚动长度都变了，
    72px 的空档在长段之间读成断裂（像四张不相干的卡），32px 才是「一段结束、下一段开始」的呼吸。
@@ -197,10 +103,6 @@
   display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; color: var(--text);
 }
 .pi-mod-t h2 .en { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em; color: var(--text-4); }
-.pi-mod-t h2 .tagline {
-  font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); background: var(--accent-light);
-  padding: 3px 10px; border-radius: 999px;
-}
 .pi-mod-t p { font-size: var(--fs-caption); color: var(--text-3); margin: 6px 0 0; line-height: 1.7; max-width: 600px; }
 .pi-mod-b { padding: 20px 26px 24px; display: flex; flex-direction: column; gap: 18px; }
 .pi-mod-acts { display: flex; gap: 8px; flex: none; flex-wrap: wrap; align-items: center; }
@@ -302,45 +204,9 @@
   color: var(--text);
 }
 .pi-hero-t .en { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em; color: var(--text-4); margin-left: 10px; }
-/* ② 方向坐标带（F2）：mission 单行省略（title 悬停全文），主攻胶囊 ≤2
-   ★A1（V3.8.35）主次归位：**这条是 Hero 的主角，③ 读数带才是副带**。
-   改前的病灶是主次正好反过来 —— 主角被裹进一个 `surface-2 + border` 的药丸盒里、只分到 1 份宽，
-   副带（KPI）却裸着占 3 份宽、数字还是 13px/700，比使命文本（12px/400）更重。
-   于是首眼落在"四个数字"上，读到的不是"画像"而是"仪表盘"。
-   修法三件（都在这一条里闭环）：
-     ① 药丸盒退役 —— 去掉底色与边框，改**左缘 accent 竖条**（inset 内画，与 B6 的 W5 论点根同一手法），
-        主角行不需要再套一层容器才像主角；
-     ② 使命文本抬档 —— `em` 由继承 `--fs-sub`(12px) 提到 `--fs-body`(13px) 并加 600，与 KPI 数字同档但更宽更重；
-     ③ 「使命主线」标签降到 caption 档（它是路标的前缀，不是内容）。
-   负锚：竖条用 inset 内画，不许改 `border-left`（这条本身没有 border，加外边会与 Hero 卡面边框双线）。 */
-.hero-compass-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
-  border-radius: var(--radius-md);
-  padding: 5px 10px 5px 12px;
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-.hcb-mission { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-body); color: var(--text-2); }
-.hcb-ico { font-style: normal; flex: none; }
-.hcb-mission b { font-size: var(--fs-caption); font-weight: 600; color: var(--text-4); letter-spacing: var(--tracking-sm); flex: none; }
-.hcb-mission em {
-  font-style: normal; color: var(--text); font-weight: 600; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56vw;
-}
-.hcb-empty {
-  background: none; border: 0; padding: 0; font: inherit; font-size: var(--fs-body); font-weight: 600;
-  color: var(--accent-ink); cursor: pointer;
-}
-.hcb-empty:hover { text-decoration: underline; }
-.hcb-pills { display: inline-flex; gap: 8px; flex: none; flex-wrap: wrap; min-width: 0; }
-.hcb-pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
-  background: var(--accent-light); border: 1px solid var(--accent); color: var(--accent-ink);
-  font-size: var(--fs-caption); font-weight: 700; cursor: pointer; font-family: inherit;
-  transition: all var(--dur);
-  /* ★W16-T1：胶囊名截断 —— 「教育+AI行业地图研究」不截断时会挤掉半个数据行 */
-  max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
-}
-.hcb-pill:hover { border-color: var(--accent-ink); }
+/* ★W17-C09 退役带备案：原 .hero-compass-bar / .hcb-mission / .hcb-pill 等方向坐标带样式
+   随「使命 + 主攻胶囊」迁入 PiOverview 方向状态面板而退役（胶囊 24ch 截断问题同批消解）。
+   方向状态面板的样式在 PiOverview.vue scoped 内，不再共享到这里。 */
 .pi-hero-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====
@@ -371,75 +237,8 @@
    均分铺满网格，单元格仍复用 .pi-chip——chip 数定版 4（F8），hover/active 两态不变） ===== */
 .strip4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
 
-/* ===== W13-F9~F11 · f3-compact 紧凑三行对账（序号 · 就地勾选 · 标题 · 徽标 · 弹药 · 归位/填入） ===== */
-.f3-compact { display: flex; flex-direction: column; gap: 6px; }
-.f3-row {
-  display: flex; align-items: center; gap: 9px; min-width: 0;
-  padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--surface-2); transition: all var(--dur);
-}
-.f3-row:hover { border-color: var(--border-strong); }
-.f3-row.done .f3-title { color: var(--text-4); text-decoration: line-through; }
-.f3-no { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .08em; width: 18px; }
-/* M6：勾选框 17px → 28px 热区。★为什么这枚特殊：它是**唯一一处视觉尺寸与热区必须解耦**的控件——
-   勾选框的视觉大小就是它的语义（17px 方块是「勾」这一动作的图形本体），放大视觉会毁掉整行对账的密度。
-   做法：保留 17px 的 ::before 伪元素画方块，本体撑到 28px 透明承接点击。 */
-.f3-ck {
-  flex: none; width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent;
-  display: grid; place-items: center; font-size: 10px; color: #fff; cursor: pointer;
-  transition: all var(--dur); padding: 0; position: relative;
-}
-.f3-ck::before {
-  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 17px; height: 17px; border-radius: 5px; border: 1.6px solid var(--border-strong);
-  background: transparent; transition: all var(--dur);
-}
-.f3-ck.done::before { background: var(--success); border-color: var(--success); }
-.f3-ck.ghost { cursor: default; }
-.f3-ck.ghost::before { border-style: dashed; }
-.f3-ck > * { position: relative; z-index: 1; }
-.f3-title { flex: 1; min-width: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.f3-title.done { color: var(--text-4); text-decoration: line-through; }
-.f3-title.muted { color: var(--text-4); font-weight: 500; }
-.f3-ammo { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); }
-.f3-ammo.zero { color: var(--text-4); }
-/* M6：热区下限 28px（实测 25px）——只撑盒子 */
-.f3-bind {
-  flex: none; font-size: var(--fs-caption); font-weight: 700; font-family: inherit;
-  padding: 4px 11px; min-height: 28px; border-radius: 999px; cursor: pointer;
-  background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent);
-  transition: all var(--dur); white-space: nowrap;
-}
-.f3-bind:hover { filter: brightness(1.06); }
-/* M6：热区下限 28px（与 .f3-bind 同款）——只撑盒子 */
-.f3-fill {
-  flex: none; font-size: var(--fs-caption); font-weight: 700; font-family: inherit;
-  padding: 4px 11px; min-height: 28px; border-radius: 999px; cursor: pointer;
-  background: var(--success-bg-soft, var(--surface-3)); color: var(--success);
-  border: 1px dashed var(--success); transition: all var(--dur); white-space: nowrap;
-}
-.f3-fill:hover { filter: brightness(1.05); }
-.f3-rec { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.f3-pending { flex: 1; min-width: 0; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.f3-row.empty { border-style: dashed; background: transparent; }
-.pi-tag {
-  display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); font-weight: 600;
-  padding: 2px 8px; border-radius: 999px; white-space: nowrap; flex: none;
-}
-.pi-tag.neutral { background: var(--surface-3); color: var(--text-3); }
-/* ★A2（V3.8.28）：`ok` / `warn` 两档去色相 —— 「主攻」是归属标记、「未挂项目」是当前状态，
-   都不是好坏裁决；原来一绿一琥珀，等于给任务贴了对错标签。文案与图标保留，颜色收成中性。 */
-.pi-tag.ok { background: var(--surface-3); color: var(--text-2); }
-.pi-tag.acc { background: var(--accent-light); color: var(--accent-ink); }
-.pi-tag.warn { background: var(--surface-3); color: var(--text-2); }
 /* ★W14-T1：标签改可点（今日三件事行的 🚀 主攻标签 → 打开项目详情抽屉）。
    按钮默认外观必须显式归零，否则线性/raycast 深色主题下会透出浏览器默认 buttonface 白底。 */
-.pi-tag.as-btn {
-  font-family: inherit; line-height: inherit; cursor: pointer; border: 1px solid transparent;
-  transition: all var(--dur); appearance: none; -webkit-appearance: none;
-}
-.pi-tag.as-btn:hover { border-color: var(--accent); filter: brightness(1.06); }
-.pi-tag.as-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* ===== 节奏柱状图 ===== */
 .pi-bars { display: flex; align-items: flex-end; gap: 5px; height: 76px; padding: 0 2px; }
@@ -551,8 +350,6 @@
 /* ===== 小屏 ===== */
 @media (max-width: 900px) {
   .pi-overview { grid-template-columns: 1fr; }
-  .pi-tl { grid-template-columns: 1fr; }
-  .pi-rail { display: none; }
   .light-split { grid-template-columns: 1fr; }
   .pi-hero-acts { justify-content: flex-start; }
   /* 四格读数已归概览；窄屏只需让使命带与主攻胶囊自然折行。 */
@@ -564,14 +361,9 @@
   .pi-ov-kpi:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
   .pi-ov-head { flex-wrap: wrap; }
   .pi-ov-head .meta { width: 100%; padding-top: 0; }
-  .pi-ov-insight { flex-wrap: wrap; }
-  .pi-ov-insight .cta { margin-left: 23px; }
-  .pi-ov-line { flex-wrap: wrap; padding: 5px 0; }
-  .pi-ov-line .title, .pi-ov-line .empty { flex-basis: calc(100% - 36px); }
   .pi-tl-bar { align-items: stretch; }
   .pi-range-tabs { width: 100%; }
   .pi-range-tab { flex: 1; justify-content: center; }
-  .f3-row { flex-wrap: wrap; }
   .strip4 { grid-template-columns: repeat(2, 1fr); }
   .pi-goal .nm { width: 112px; }
 }
