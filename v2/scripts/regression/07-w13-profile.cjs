@@ -7,6 +7,7 @@
 const { check, codeOnly, read, path, fs, runGateSync, SCRIPTS_DIR } = require('./helpers.cjs');
 
 const HERO = read('/newtab/components/profile/PiHero.vue');
+const OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
 const TODAY = read('/newtab/components/profile/PiToday.vue');
 const RHY = read('/newtab/components/profile/PiRhythm.vue');
 const MONTH = read('/newtab/components/profile/PiMonth.vue');
@@ -18,12 +19,15 @@ const PI_C = codeOnly(PI);
 
 console.log('【W13 · 画像洞察极简认知版（批次画像洞察页 · 四段式三段式收敛）】');
 
-check('W13-1 ★Hero 三层规整结构与全页指标零重复：Hero 只保留「页头行 / 方向承载条 / 底盘四卡」三层，连续打卡与最长连续两项时间指标唯一归位 PiYear —— 负锚走 codeOnly（Hero 头注与备案注释里按纪律必须写清这两个旧指标的去向，剥完才算残留）。真源：PiYear 的 strip4 F21 四格含「本年活跃 / 最长连续」两格', () => {
+check('W13-1 ★V3.9.3 首屏结构与全页指标零重复：Hero 只保留「页头行 / 方向承载条」两层，四格核心读数唯一归位 PiOverview，连续打卡与最长连续两项时间指标唯一归位 PiYear —— 负锚走 codeOnly（备案注释里写清旧指标去向，剥完才算残留）。真源：PiOverview 的四格 + PiYear 的 strip4 F21 四格', () => {
   const HERO_C = codeOnly(HERO);
   const YEAR_C = codeOnly(YEAR);
-  return HERO.includes('.hero-row-top') && HERO.includes('.hero-compass-bar') && HERO.includes('.hero-kpis-grid')
+  const OVERVIEW_C = codeOnly(OVERVIEW);
+  return HERO.includes('.hero-row-top') && HERO.includes('.hero-compass-bar')
     && !HERO_C.includes('连续打卡') && !HERO_C.includes('最长连续')
-    && HERO_C.includes('hero-kpis-grid')
+    && !HERO_C.includes('hero-kpis-grid') && !HERO_C.includes("emit('drill'")
+    && (OVERVIEW_C.match(/<button class="pi-ov-kpi(?:\s|")/g) || []).length === 4
+    && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
     && YEAR_C.includes('最长连续') && YEAR.includes('class="strip4"')
     && PI_C.includes('heroStreak') === false && PI_C.includes('currentStreak') === false;
 });
@@ -61,7 +65,8 @@ check('W13-5 ★五段式今日战报（DayDetail）完整在位、零简化：�
   return PI.includes('<DayDetail') && PI.includes('function openTodayBattle') && PI.includes('function openDayBattle')
     && (PI.match(/@open-battle=/g) || []).length >= 3
     && TODAY.includes("emit('open-battle')") && RHY.includes("'open-battle'") && YEAR.includes("'open-battle'")
-    && PI.includes('@open-battle="openTodayBattle"') || PI.includes('@open-battle="openDayBattle"');
+    && YEAR.includes("if (day) emit('open-battle', day)")
+    && PI.includes('@open-battle="openTodayBattle"') && PI.includes('@open-battle="openDayBattle"');
 });
 
 check('W13-6 ★资源生命周期与高价值沉睡证据唤醒完整在位：年度段挂 #lc-sec 与 LifecyclePanel，冷却期能识别 callCount >= 3 的高价值核心卡（🔥 徽标 + .lc-row.hv + 「历史高频调用 N 次 · 已冷却 M 天」注），冷却态三动作齐全（唤醒复温 / 延后 / 归档）、归档态可唤醒复温、阈值设置弹窗宿主接线在位', () => {
@@ -73,12 +78,12 @@ check('W13-6 ★资源生命周期与高价值沉睡证据唤醒完整在位：�
     && PI.includes('function wakeCooling');
 });
 
-check('W13-7 ★孤儿 CSS 清零棘轮（本批专属）：实跑扫描器确认两桶为零，且本批退役的三组选择器 .pi-k6 / .pi-flow / .pi-rev-* 与 T6 退役的 .pi-strip-row 一条都不许出现在判死名单里 —— 清零不是"把判据调松"，是规则真删；pi-timeline.css 的复盘弹窗壳四段随挂载退役改注释备案', () => {
+check('W13-7 ★孤儿 CSS 清零棘轮（本批专属）：实跑扫描器确认两桶为零，且退役选择器 .pi-k6 / .pi-flow / .pi-rev-* / .pi-strip-row / 旧 Hero 四格 一条都不许出现在判死名单里 —— 清零不是"把判据调松"，是规则真删；pi-timeline.css 的复盘弹窗壳四段随挂载退役改注释备案', () => {
   const p = path.resolve(SCRIPTS_DIR, 'dead-css-scan.cjs');
   let out = null; try { out = JSON.parse(runGateSync(p, ['--json']).stdout || '') } catch { }
   const dead = (out && out.死) || [];
   return !!out && out.祖先断.length === 0
-    && !dead.some(d => /\.(pi-k6|pi-flow|pi-rev-|pi-strip-row)/.test(d.选择器 || d.sel || JSON.stringify(d)))
+    && !dead.some(d => /\.(pi-k6|pi-flow|pi-rev-|pi-strip-row|hero-kpis-grid|hero-kpi)/.test(d.选择器 || d.sel || JSON.stringify(d)))
     && !codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'newtab', 'components', 'profile', 'pi-timeline.css'), 'utf8')).includes('.pi-rev-overlay')
     && fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'newtab', 'components', 'profile', 'pi-timeline.css'), 'utf8').includes('pi-rev-overlay');
 });
@@ -125,10 +130,13 @@ check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘�
 });
 
 check('W13-T7d ★四条诊断的 CTA 走同一个分发出口：八个 ctaAction 键（openFocusBoard / bindFocus / callSupport / openBattle / openObjectives / openLog / convertCurio / wakeCooling·openLifecycle）全部在宿主 onConciseAction 一处分派，四组件 @insight-action 全接它 —— 此前四段各写各的 onXxxInsightAction（bind:N / call / battle / focus / convert / lc / mo-add / goal:八套键），"改一个动作要改四个出口"是不可维护的形状。F5 导出补四条 strip-html 诊断行 ⇒ 导出与界面同源', () => {
+  /* V3.9.3 单段切换后，今日/本周两条诊断同时出现在首屏概览（@week-action / @today-action），
+     四个时间尺度模块仍各自接 @insight-action；所有诊断仍只有 onConciseAction 一个分发器。 */
   return PI.includes('function onConciseAction(action: string)')
     && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'convertCurio'", "'wakeCooling'", "'openLifecycle'"]
       .every(k => PI.includes(k))
     && (PI.match(/@insight-action="onConciseAction"/g) || []).length === 4
+    && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 2
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')
     && !PI_C.includes('onYearInsightAction') && !PI_C.includes('onRhythmInsight')
     && PI.includes('insightLines') && PI.includes(".replace(/<[^>]+>/g, '')")

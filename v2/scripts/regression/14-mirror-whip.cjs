@@ -17,7 +17,7 @@ const MB = read('/newtab/components/compass/MetricBar.vue');
 const HOME = read('/newtab/views/CompassHome.vue');
 const TREE = read('/newtab/views/CompassTree.vue');
 const PI_CSS = read('/newtab/components/profile/pi-timeline.css');
-const PI_HERO = read('/newtab/components/profile/PiHero.vue');
+const PI_OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
 
 console.log('【B3 · V3.8.28：镜子不鞭子（M1 / M2 / C1 / A2）】');
 
@@ -122,14 +122,12 @@ check('A2-2 环比徽标零红绿：涨跌不是好坏（动作涨是好事、�
   return !/var\(--(success|danger)\)/.test(seg) && seg.includes('var(--surface-3)');
 });
 
-check('A2-3 四格 KPI 每格都有口径 tooltip，且数值用中性 text（不按好坏上色）', () => {
-  // ★V3.8.36（A2）重指：原锚 `class="hero-kpi" :title=` 把 class 与 title 的**相邻关系**钉住了，
-  // 而 A2 给第四格加了 hero-kpi-bar（进度条），字面量随之变长。守的是「四格都有口径」这件事，
-  // 与第四格还带不带别的类无关，故改为分别计数：KPI 格数 + 带 title 的格数，两者相等即达标。
-  const kpiCells = (PI_HERO.match(/<button class="hero-kpi[^"]*"/g) || []).length;
-  const titledCells = (PI_HERO.match(/<button class="hero-kpi[^"]*"[^>]*:title=/g) || []).length;
+check('A2-3 四格 KPI 每格都有口径 tooltip，且数值用中性 text（不按好坏上色）· V3.9.3 随四格归位概览', () => {
+  // 四格读数已从 Hero 迁入 PiOverview；守的仍是「四格都有口径、数值中性」。
+  const kpiCells = (PI_OVERVIEW.match(/<button class="pi-ov-kpi[^"]*"/g) || []).length;
+  const titledCells = (PI_OVERVIEW.match(/<button class="pi-ov-kpi[^"]*"[^>]*:title=/g) || []).length;
   const n = titledCells;
-  const v = (PI_CSS.match(/\.hero-kpi \.v \{[^}]*\}/) || [''])[0];
+  const v = (PI_CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/) || [''])[0];
   if (n < 4) console.log('     当前 ' + n + ' 格有 title');
   return n >= 4 && kpiCells === n
     && v.includes('color: var(--text)') && !/success|danger/.test(v);

@@ -25,6 +25,8 @@ const props = defineProps<{
   selDay: string | null
   events: CardEvent[]
   liveLink: number
+  /** 画像洞察的年度视图默认直接展开全年；调度台等其它宿主仍保持近 26 周概览。 */
+  defaultExpanded?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'update:year', y: number): void
@@ -114,7 +116,7 @@ function pickCell(c: { k: string; cls: string }) {
    但把 366 格的全年网格收进「看全年 ›」展开态（数据与交互零改动，只是默认折叠）。
    取数复用 months 已算好的 lv，不重扫 days。 */
 const COMPACT_WEEKS = 26
-const expanded = ref(false)
+const expanded = ref(!!props.defaultExpanded)
 /** 最近 26 周：每周取该周内最高的 lv 作为该周强度（无记录=0 静默档） */
 const compactWeeks = computed(() => {
   const cells = months.value.flatMap(m => m.cells).filter(c => !c.cls.includes('future'))

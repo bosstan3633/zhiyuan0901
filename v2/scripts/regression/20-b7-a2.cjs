@@ -14,7 +14,7 @@
  */
 const { check, codeOnly, read } = require('./helpers.cjs');
 
-const HERO = read('/newtab/components/profile/PiHero.vue');
+const OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
 const RHY = read('/newtab/components/profile/PiRhythm.vue');
 const MONTH = read('/newtab/components/profile/PiMonth.vue');
 const TODAY = read('/newtab/components/profile/PiToday.vue');
@@ -29,26 +29,26 @@ console.log('【B7-b · A2 镜面口径中性化（全库唯一未落地 P0 · V
 /* ══════════════════════ A2-1 · 精力落主攻的中性进度条 ══════════════════════ */
 
 check(NAME(
-  'A2-1 ★精力落主攻必须有进度条（A2 原文第三条，本批新增的唯一结构件）：原实现只有裸数字 80%，',
+  'A2-1 ★精力落主攻必须有进度条（V3.9.3 随四格归位概览）：原实现只有裸数字 80%，',
   '「用百分比 + 中性进度条表达」的后半截一直缺着 —— 数字看不出它是个「占比」，读者无从判断 80% 是高是低。',
-  '进度条三件：① 挂在第四格 .hero-kpi-bar 上（只有这一格有「占多少」语义）',
+  '进度条三件：① 挂在第四格 .pi-ov-kpi-bar 上（只有这一格有「占多少」语义）',
   '② 轨 --surface-3 + 条 --accent 两种中性色 ③ 宽度做 0–100 夹取（数据越界不许撑破轨道）。',
   '★负锚：另外三格是计数与熵值，无占比语义，不许给它们也加轨。'), () => {
-  const track = CSS.match(/\.hero-kpi-bar \.hero-kpi-track \{[^}]*\}/)?.[0] || '';
-  const fill = CSS.match(/\.hero-kpi-bar \.hero-kpi-fill \{[^}]*\}/)?.[0] || '';
+  const track = CSS.match(/\.pi-ov-kpi-track \{[^}]*\}/)?.[0] || '';
+  const fill = CSS.match(/\.pi-ov-kpi-fill \{[^}]*\}/)?.[0] || '';
   // ★切片纪律（B5 教训）：定长窗口 `[\s\S]{0,700}` 会被注释行数挤爆，改按结构切——
   // 从带 bar 的那个 button 切到「四格容器收尾」，与注释长度无关。
-  const iCell = HERO.indexOf('<button class="hero-kpi hero-kpi-bar"');
-  const iEnd = HERO.indexOf('\n      </div>', iCell);
-  const cell = iCell >= 0 && iEnd > iCell ? HERO.slice(iCell, iEnd) : '';
-  return HERO.includes('class="hero-kpi hero-kpi-bar"')
-    && cell.includes('class="hero-kpi-track"') && cell.includes('class="hero-kpi-fill"')
+  const iCell = OVERVIEW.indexOf('<button class="pi-ov-kpi pi-ov-kpi-bar"');
+  const iEnd = OVERVIEW.indexOf('\n      </div>', iCell);
+  const cell = iCell >= 0 && iEnd > iCell ? OVERVIEW.slice(iCell, iEnd) : '';
+  return OVERVIEW.includes('class="pi-ov-kpi pi-ov-kpi-bar"')
+    && cell.includes('class="pi-ov-kpi-track"') && cell.includes('class="pi-ov-kpi-fill"')
     && cell.includes('Math.max(0, Math.min(100, props.focusShare))')
     && track.includes('background: var(--surface-3)') && fill.includes('background: var(--accent)')
     // 负锚：带轨的格子必须恰好一处。★计数必须走 codeOnly（剥注释）——
     // 类名在本段注释里被复述过一次（教训 R71-4：注释复述字面量会让自建断言假红）
-    && (codeOnly(HERO).match(/hero-kpi-track/g) || []).length === 1
-    && (codeOnly(HERO).match(/hero-kpi-bar/g) || []).length === 1;
+    && (codeOnly(OVERVIEW).match(/pi-ov-kpi-track/g) || []).length === 1
+    && (codeOnly(OVERVIEW).match(/pi-ov-kpi-bar/g) || []).length === 1;
 });
 
 check(NAME(
@@ -56,8 +56,8 @@ check(NAME(
   '镜子立刻变鞭子，且比原来的裸数字更具说服力（人会不自觉地把长度读成评分）。',
   '因此负锚钉三条：① 轨与条只准用 --surface-3 与 --accent 两个色令牌，',
   '② 样式里不许出现 heat/success/warning/danger 类色令牌 ③ 不许出现阈值线/分段选择器的写法。'), () => {
-  const block = (CSS.match(/\.hero-kpi-bar \.hero-kpi-track \{[^}]*\}[\s\S]*?\n\}/)?.[0] || '')
-    + (CSS.match(/\.hero-kpi-bar \.hero-kpi-fill \{[^}]*\}/)?.[0] || '');
+  const block = (CSS.match(/\.pi-ov-kpi-track \{[^}]*\}/)?.[0] || '')
+    + (CSS.match(/\.pi-ov-kpi-fill \{[^}]*\}/)?.[0] || '');
   if (!block) { console.log('     进度条样式缺失'); return false; }
   return !/var\(--(heat-|success|warning|danger|info-blue)/.test(block)
     && !/nth-child|max-width:\s*\d+px;\s*border-left|nth-of-type/.test(block);
@@ -115,20 +115,20 @@ check(NAME(
 });
 
 check(NAME(
-  'A2-6 ★每个读数可悬停看口径（A2 验收原文）：画像页十八个读数格（段内 14 + Hero 4）逐一要有 title。',
+  'A2-6 ★每个读数可悬停看口径（A2 验收原文）：画像页十八个读数格（段内 14 + 概览 4）逐一要有 title。',
   '★口径纪律：格子的语义类可以留（钩子），但**语义类不是口径** —— 口径必须写在 title 里说清分子分母，',
   '否则「80%」既不知道算什么，也不知道点进去看什么。负锚：段内语义格恰好 14 处、Hero 恰好 4 处，',
   '与实际渲染数一一对应（多一处说明新增了读数没补口径，少一处说明被删了口径）。'), () => {
   // 语义格 = 各段 strip4/指标行的 pi-chip（今日 4 / 本周 4 / 本月 4 / 全年 2）；
-  // Hero 四格走独立的 hero-kpi 类，单独计。★两处都要 codeOnly，避免注释复述干扰计数。
+  // 概览四格走独立的 pi-ov-kpi 类，单独计。★两处都要 codeOnly，避免注释复述干扰计数。
   const body = [TODAY, RHY, MONTH, YEAR].map(codeOnly).join('\n');
   const cells = body.match(/<button class="pi-chip[^"]*"[^>]*title="/g) || [];
-  const kpis = (codeOnly(HERO).match(/<button class="hero-kpi[^"]*"[^>]*:title=/g) || []).length;
+  const kpis = (codeOnly(OVERVIEW).match(/<button class="pi-ov-kpi[^"]*"[^>]*:title=/g) || []).length;
   if (cells.length !== 14) { console.log('     段内语义格数 = ' + cells.length + '（应为 14）'); return false; }
-  if (kpis !== 4) { console.log('     Hero KPI 格数 = ' + kpis + '（应为 4）'); return false; }
-  // Hero 四格必须把分子分母说全：全库净资产=三类合计 / 熵=标签分布离散度 / 支撑=有支撑任务÷总数 / 落主攻=主攻动作÷总动作
-  return HERO.includes('回收站不计')
-    && HERO.includes('卡片标签分布的离散度')
-    && HERO.includes('未删任务总数')
-    && HERO.includes('近30天总有效动作');
+  if (kpis !== 4) { console.log('     概览 KPI 格数 = ' + kpis + '（应为 4）'); return false; }
+  // 概览四格必须把分子分母说全：全库净资产=三类合计 / 熵=标签分布离散度 / 支撑=有支撑任务÷总数 / 落主攻=主攻动作÷总动作
+  return OVERVIEW.includes('回收站不计')
+    && OVERVIEW.includes('卡片标签分布的离散度')
+    && OVERVIEW.includes('未删任务总数')
+    && OVERVIEW.includes('近 30 天总有效动作');
 });

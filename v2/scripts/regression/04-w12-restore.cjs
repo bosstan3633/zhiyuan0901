@@ -191,26 +191,26 @@ check('W12-12 ★方向台四个组件里所有 button 都必须显式压掉浏�
   const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
   const foldOk = /offsetParent !== null \|\| getComputedStyle\(body\)\.display !== 'none'/.test(audit)
     && !/const bad = foldedTowers\.filter\(t => t\.querySelectorAll\('\.metric-card'\)\.length > 0\)/.test(audit)
-  // ④ 数全年格子的场景必须先点「看全年 ›」进展开态 ——
-  //   全年网格自 V3.8.7 起默认收起，dz-heatmap 直接数 .dz-cell 会在收起态数出 0（从 V3.8.7 起就一直红着）。
-  //   ★W12 补跑后收窄到「只对 dz-heatmap 生效」：dz-day 的 act 要挑「有记录的格子」
-  //   （四格统计带 v-if="dlSum.n" 前置，展开后若再统一展开一次，它的 act 会点到第二层去）。
+  // ④ V3.9.3：画像洞察页的年度热力图默认展开，不再需要点「看全年 ›」。
+  //   场景仍要先验证年度宿主在位；折叠概览条只留给其它宿主，展开/收起双回程由 W7-3 守。
   const expandOk = /if \(sc\.id === 'dz-heatmap'\)/.test(audit)
-    && /await page\.locator\('\.dz-mini-more'\)\.first\(\)\.click/.test(audit)
+    && /\.dz-months \.dz-cell'\)\.first\(\)\.waitFor/.test(audit)
+    && /default-expanded/.test(read('/newtab/components/profile/PiYear.vue'))
+    && !/await page\.locator\('\.dz-mini-more'\)\.first\(\)\.click/.test(audit)
   return btnOk && panelOk && foldOk && expandOk
 });
 
-check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与act 就必须跟着搬一次；「关浮层」要认当届弹窗壳。★这一族全是补跑真机抓出来的红，四轮迁了四个地方：① 概览带宿主 DashboardOverview.vue 整体退役 → PiHero（判据还钉 .dz-ov/.dz-chip/.dz-calib ⇒ chip=0/5）② 日详情搬进 Heatmap 的 Teleport 弹窗，四格统计带 v-if="dlSum.n" 前置 ⇒ act 必须挑「有记录的格子」③ ReviewPanel 搬进画像页中央弹窗 .pi-rev-modal，于是 .dz-kpi / .dz-rev-grid / .dz-rpt 全在空 body 上找 ⇒ 全 0 ④ overlayOpen 只认前两代壳 ⇒ closeOverlays 直接 return，弹窗跨场景残留，把 ② ③ 的红进一步放大。★★B7-e（V3.8.40）第四次迁移，本条再次整体重指：⑤ 概览带芯片再改名（.pi-hero-sum .pi-hchip → .hero-kpis-grid > .hero-kpi，且由五枚变四枚，「活跃度」并进了title 口径）⑥ 热力图从调度台迁到画像页 PiYear（场景里那个指向调度台的 hash 是 W2 时代的旧宿主）⑦ **点热力图格子不再打开日详情弹窗**——Heatmap 只 emit update:selDay，开弹窗的 openDayBattle() 全库零调用，唯一真入口是 PiToday 的「打开战报」⑧ ReviewPanel 已随 W13-D5（2026-10-16）**产品侧退役**，四条场景（复盘两栏/AI 报告/下钻列表/调度台复盘入口）整组下线——它们量的类只存在于 CSS 与三个零挂载的组件文件里。★判据随迁只换承重锚不换所守行为；只有 ⑧ 是例外：**被测物已退役的断言不迁移，直接下线并留复活指引**（留着只会让真红被淹没）', () => {
+check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必须跟着搬一次；「关浮层」要认当届弹窗壳。★这一族是补跑真机抓出来的红，已迁五次：① 概览带宿主 DashboardOverview 退役 → PiHero ② 日详情搬进 Heatmap 的 Teleport 弹窗 ③ ReviewPanel 迁入画像页中央弹窗 ④ overlayOpen 壳名失配导致残留 ⑤ ★V3.9.3 四格核心读数从 PiHero 归位 PiOverview（`.pi-ov-kpis > .pi-ov-kpi`）。热力图宿主仍是画像页 PiYear，点热力格现为当日战报直接入口；ReviewPanel 四条场景已产品侧退役并留复活指引。★判据随迁只换承重锚，不换所守行为。', () => {
   const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
   // ① closeOverlays 必须认画像页两个新弹窗壳，否则前一场的弹窗会残留到下一场
   const shellsOk = /\.dz-day-modal-overlay, \.pi-rev-overlay/.test(audit)
     && /\.pi-rev-close/.test(audit)
-  // ② ★B7-e 第四次重指：概览带芯片的承重锚已从 `.pi-hero-sum .pi-hchip` 变成
-  //    `.hero-kpis-grid > .hero-kpi`（PiHero 模板实测挂载，旧名全库 `class=` 命中 0）。
+  // ② ★V3.9.3 第五次重指：四格读数从 PiHero 迁入 PiOverview，承重锚改为
+  //    `.pi-ov-kpis > .pi-ov-kpi`。旧 `.hero-kpis-grid` 已清零，不许借判据回流。
   //    守的还是同一批行为——四枚都在 / 同排一行 / 每枚带title 口径 / 无错误徽章；
   //    数量由 5 改 4 不是放权：第五枚「活跃度」的维度已并进其余四格的 title 口径里。
-  const ovOk = /id: 'dz-overview', name: '页头 KPI 带'/.test(audit)
-    && /\.hero-kpis-grid > \.hero-kpi/.test(audit)
+  const ovOk = /id: 'dz-overview', name: '概览 KPI 带'/.test(audit)
+    && /\.pi-ov-kpis > \.pi-ov-kpi/.test(audit)
     && /base\.rows === 1/.test(audit)
     && /base\.titled === N/.test(audit)
     && /base\.n === N/.test(audit)
@@ -224,17 +224,15 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与act 就必�
   const DASH_CSS = read('/newtab/components/dashboard/dashboard.css');
   const ovDead = !/querySelectorAll\('\.dz-ov \.dz-chip'\)/.test(audit)
     && !/\.dz-calib \.cb \.r/.test(audit)
-    && !/pi-hero-sum \.pi-hchip/.test(audit)
+    && !/pi-hero-sum \.pi-hchip/.test(audit) && !/hero-kpis-grid > \.hero-kpi/.test(audit)
     && !/\.dz-calib/.test(DASH_CSS) && !/\.dz-ov-say/.test(DASH_CSS) && !/\.dz-recentry/.test(DASH_CSS)
-  // ④ ★B7-e 重指：act 不再"点有记录的格子"——**点格子现在只改选中态，不开弹窗**
-  //    （Heatmap 的click 只 emit update:selDay，一路到 ProfileInsights 只写 dashSelDay；
-  //      开弹窗的 openDayBattle() 全库零调用）。真实入口是 PiToday 的「打开战报」→
-  //      openTodayBattle()，它自己会挑「今天有记录就今天、否则最近有记录的一天」，
-  //      正是原注释想用"选格"绕过的那个问题。判据本身不放宽：仍要求 ≥4 格 + 热力带 + 时间线。
+  // ④ ★V3.9.3 重指：热力格恢复为当日战报的直接入口（PiYear 的 onHeatmapSel 先保留
+  //    selDay 再 emit open-battle）。dz-day 场景走 PiToday 的「打开战报」，
+  //    两条入口都必须落到同一枚 .pi-day-modal；判据仍要求 ≥4 格 + 热力带 + 时间线。
   const dayOk = /打开战报/.test(audit)
     && /\.pi-day-modal/.test(audit)
-    // 负锚：那个已不存在的交互不许被"顺手"接回去（接回去等于凭空多一个日详情入口）
-    && !/\.dz-cell\.l1:not\(\.future\)/.test(audit)
+    && /onHeatmapSel/.test(read('/newtab/components/profile/PiYear.vue'))
+    && /emit\('open-battle', day\)/.test(read('/newtab/components/profile/PiYear.vue'))
   // ⑤ ★B7-e 重指：⑧ 之后 `openReviewModal` 已随四条场景一起下线（原为恰好 3 处），
   //    改守「**退役的四条场景在代码里有活凭据**」——
   //    ★锚必须落在**代码**而不是注释上：判据跑在 `codeOnly()` 上，注释会被抹成等长空白，
@@ -653,17 +651,18 @@ check('N6 ★时间轨吸顶（左轨 sticky）：三段式很长，左轨原先
   return read('/newtab/components/profile/PiRail.vue').includes('class="pi-rail"');
 });
 
-check('N7 ★W13-D1 退役重指带备案（2026-10-16 · 画像洞察极简认知版）：原判「Hero 5 枚 KPI 药丸 `.pi-hero-sum` 必须 justify-content: center 居中」随 D1 三层卡片结构整体退役——N7 的病根（读数排"贴左挤在标题下"）在新结构里已消解：药丸行改为 `.hero-kpis-grid` 4 等宽底盘，grid repeat(4,1fr) 整行铺满，读数不再是标题的附属，而是与标题分层的独立底盘（N7「位置在两头之间」的意图由 ③ 独立层承接）。现行判据：① `.hero-kpis-grid` 主规则在位且含 repeat(4, 1fr)（等宽铺满 = 居中语义消解）② 退役负锚走 codeOnly：`.pi-hero-sum {` 与 `.pi-hchip {` 规则零命中（删干净的凭据；注释可回指）③ 老药丸的两个坑不许在新容器重演——.hero-kpis-grid 规则内不许 justify-content: flex-start、不许 margin auto 假居中', () => {
+check('N7 ★V3.9.3 再随迁：原判「Hero 5 枚 KPI 药丸必须居中」→ 四格读数归位概览后，概览四格仍须等宽铺满。现行判据：① `.pi-ov-kpis` 主规则在位且含 repeat(4, minmax(0, 1fr))（等宽 = 居中语义消解）② 退役负锚走 codeOnly：`.pi-hero-sum {`、`.pi-hchip {` 与旧 Hero 四格规则零命中 ③ 概览四格容器不许 justify-content: flex-start、不许 margin auto 假居中', () => {
   const c = read('/newtab/components/profile/pi-timeline.css');
   const cod = codeOnly(c);
-  const m = c.match(/\.hero-kpis-grid \{[\s\S]*?\}/);
+  const m = c.match(/\.pi-ov-kpis \{[\s\S]*?\}/);
   if (!m) return false;
   const s = m[0];
-  if (!s.includes('repeat(4, 1fr)')) return false;
+  if (!s.includes('repeat(4, minmax(0, 1fr))')) return false;
   if (/justify-content:\s*flex-start/.test(s)) return false;
   if (/margin:\s*0 auto|margin-left:\s*auto|margin-right:\s*auto/.test(s)) return false;
   // ② 退役负锚（codeOnly 剥注释，防备案注释自匹配）
-  return !cod.includes('.pi-hero-sum {') && !cod.includes('.pi-hchip {');
+  return !cod.includes('.pi-hero-sum {') && !cod.includes('.pi-hchip {')
+    && !cod.includes('.hero-kpis-grid {') && !cod.includes('.hero-kpi {');
 });
 
 

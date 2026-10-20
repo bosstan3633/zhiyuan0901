@@ -54,7 +54,7 @@ check('W7-2 ★V3.9.1 随迁备案：焦点必须仍是**唯一标题级 display
   const homeDisplayTitles = hits.filter(h => h.startsWith('newtab/views/CompassHome.vue'));
   return homeFocus && homeDisplayTitles.length === 0;
 });
-check('W7-3 ★热力图概览条（用户拍板A 案：压成 26 周概览条 + 「看全年 ›」，回看型内容不再占首屏最大连续面积）：dz-mini 在位且类名是**字面量表** l0..l5（dead-css-scan 看不见运行时拼串，故不许 `l${lv}`）+ COMPACT_WEEKS=26 + 展开态保留全年 366 格与切年/导出/图例（折叠的是呈现不是数据）+ 两枚数字口径走 actsOf 单一真源。★2026-10-12 补钉**双向**：V3.8.7 首版只给「看全年 ›」没给回来的路——展开后与旧版长得一样且回不去（用户真机截图当场发现），本条因此同时钉住 `expanded = false` 的收起路径，不许再退化成单向门', () => {
+check('W7-3 ★V3.9.3 重指：热力图仍保留 26 周概览与全年网格两态，但画像洞察页的年度宿主默认展开全年；调度台等其它宿主默认仍收在概览条。正锚守住「折叠的是呈现不是数据」：COMPACT_WEEKS=26 + 概览条字面类 l0..l5 + 展开态全年网格 / 切年 / 导出 / 图例 + actsOf 单一真源；默认值由 `defaultExpanded` 显式选择，且展开/收起两个方向都必须有落点，不许退化成单向门', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   return hm.includes('class="dz-mini"') && hm.includes('class="dz-mini-w"') && hm.includes('class="dz-mini-more"')
@@ -82,7 +82,9 @@ check('W7-3 ★热力图概览条（用户拍板A 案：压成 26 周概览条 +
     /* ★双向折叠：默认 false + 两个方向都要有落点（收起用行内@click="expanded = false"，
        正锚吃原文/codeOnly 不吃——所以这里特意用完整绑定串而不是只看 "expanded" 这个词，
        否则「声明了变量但没接按钮」也会绿）。*/
-    && hm.includes('const expanded = ref(false)')
+    && hm.includes('defaultExpanded?: boolean')
+    && hm.includes('const expanded = ref(!!props.defaultExpanded)')
+    && read('/newtab/components/profile/PiYear.vue').includes('default-expanded')
     && hm.includes('@click="expanded = true"')
     && hm.includes('@click="expanded = false"');
 });

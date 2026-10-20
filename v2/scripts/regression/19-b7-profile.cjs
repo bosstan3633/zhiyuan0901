@@ -14,6 +14,8 @@ const TODAY = read('/newtab/components/profile/PiToday.vue');
 const RHY = read('/newtab/components/profile/PiRhythm.vue');
 const MONTH = read('/newtab/components/profile/PiMonth.vue');
 const YEAR = read('/newtab/components/profile/PiYear.vue');
+const RANGE = read('/newtab/components/profile/PiRangeTabs.vue');
+const OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
 /** 段头切片：四段各有自己的右缘操作（今日=按钮 / 本周=徽标+按钮 / 本月=徽标 / 本年=徽标），
  *  只看段头这一段，才不会把段身里的按钮误算成「右缘操作」。 */
 const segHead = (src) => {
@@ -29,16 +31,11 @@ console.log('【B7-a · 画像洞察：A1 Hero 主次归位 / A3 四段时间轴
 /* ══════════════════════ A1 · Hero 主次归位 ══════════════════════ */
 
 check(NAME(
-  'A1-1 ★Hero 的主角是「使命主线」而不是四个数字 —— 这是本项真正要治的病：改前**主次正好反过来**，',
-  '主角被裹进一个 surface-2 + border 的药丸盒里、只分到 1 份宽，副带（KPI 读数）却裸着占 3 份宽、',
-  '数字还比使命文本更大更重（13px/700 vs 12px/400），于是首眼落在数字上，读到的是仪表盘不是画像。',
-  '三件修法逐条钉：① 药丸盒退役（底色/边框零残留，改左缘 accent 竖条，inset 内画不占宽度）',
-  '② 使命文本抬档到 fs-body + 600，与 KPI 数字同档但更宽更重 ③ 权重反转 1:3 → 1:2'), () => {
+  'A1-1 ★Hero 的主角是「使命主线」而不是数字：使命带无药丸底与边框，改左缘 accent 竖条（inset 内画）；',
+  '使命文本 fs-body + 600，空态引导同档。V3.9.3 四格读数迁入概览后，Hero 内不再存在与之争宽的指标副带。'), () => {
   const bar = CSS.match(/\.hero-compass-bar \{[^}]*\}/)?.[0] || '';
   const em = CSS.match(/\.hcb-mission em \{[^}]*\}/)?.[0] || '';
-  const row = CSS.match(/\.hero-data-row \.hero-compass-bar \{[^}]*\}/)?.[0] || '';
-  const grid = CSS.match(/\.hero-data-row \.hero-kpis-grid \{[^}]*\}/)?.[0] || '';
-  if (!bar || !em || !row || !grid) { console.log('     锚点缺失'); return false; }
+  if (!bar || !em) { console.log('     锚点缺失'); return false; }
   /* ① 药丸盒退役：底色与边框零残留。负锚走 codeOnly（注释里按纪律写了「药丸盒退役」，必须剥完再判） */
   if (/background:/.test(bar)) return false;
   if (/border:/.test(bar)) return false;
@@ -49,22 +46,19 @@ check(NAME(
   return /font-weight:\s*600/.test(em)
     && CSS.includes('.hcb-mission { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-body)')
     && /font-size:\s*var\(--fs-body\)/.test((CSS.match(/\.hcb-empty \{[^}]*\}/) || [''])[0])
-    /* ③ 权重反转：主角拿大头、副带让位（原 1 1 240px / 3 1 460px） */
-    && /flex:\s*1 1 300px/.test(row) && /flex:\s*2 1 420px/.test(grid)
-    && !/flex:\s*1 1 240px/.test(row) && !/flex:\s*3 1 460px/.test(grid);
+    && !codeOnly(HERO).includes('hero-kpis-grid');
 });
 
 check(NAME(
-  'A1-2 ★KPI 数字不许比使命文本更重：读数降为副带档（仍是 fs-body，但 weight 700 → 600，与使命 em 同档）。',
-  '★降字重**不降对比度**（R153-4 的 AA 护栏原样成立）：色仍是 --text。',
-  '负锚：数字不许退回 700（那正是「四个大数字压过使命线」的形态），也不许改成更浅的色（会把读数打成灰脚注）'), () => {
-  const v = CSS.match(/\.hero-kpi \.v \{[^}]*\}/)?.[0] || '';
+  'A1-2 ★V3.9.3 概览四格读数保持中性、清晰的层级：数值用 --text 与 600 字重，',
+  '不从颜色上做好坏裁决；说明行用较弱层级承担口径补充。'), () => {
+  const v = CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/)?.[0] || '';
   if (!v) { console.log('     锚点缺失'); return false; }
-  return /font-size:\s*var\(--fs-body\)/.test(v)
+  return /font-size:\s*var\(--fs-title\)/.test(v)
     && /font-weight:\s*600/.test(v)
     && /color:\s*var\(--text\)/.test(v)
     && !/font-weight:\s*700/.test(v)
-    && !/--text-2|--text-3/.test(v);
+    && !/var\(--(success|warning|danger)/.test(v);
 });
 
 check(NAME(
@@ -80,14 +74,12 @@ check(NAME(
 });
 
 check(NAME(
-  'A1-4 ★Hero 的能力零损失（降噪不许降能力）：四个下钻出口全在、四格口径 tooltip 全在、',
-  '主攻胶囊与空态引导出口在、E2E-21 的双类锚点不动 —— 本项只动视觉层级，一个出口都不许少'), () => {
-  return ['total', 'entropy', 'support', 'focus'].every(k => HERO.includes(`emit('drill', '${k}')`))
-    // ★V3.8.36（A2）重指：第四格新增 hero-kpi-bar（中性进度条），原锚把 class 字面量钉死会假红。
-    // 改锚「带 title 的 KPI 格数 = 4」，守的是四格口径一个不少这件事本身。
-    && (HERO.match(/<button class="hero-kpi[^"]*"[^>]*:title=/g) || []).length === 4
-    && (HERO.match(/点击看明细/g) || []).length === 4
-    && (HERO.match(/emit\('drill', '/g) || []).length === 4
+  'A1-4 ★能力零损失（降噪不许降能力）：四个下钻出口与四格口径 tooltip 全在概览、',
+  '主攻胶囊与空态引导出口在 Hero、E2E-21 的双类锚点不动 —— 本项只动承载位置，一个出口都不许少'), () => {
+  return ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
+    && (OVERVIEW.match(/<button class="pi-ov-kpi[^"]*"[^>]*:title=/g) || []).length === 4
+    && (OVERVIEW.match(/点击看明细/g) || []).length === 4
+    && (OVERVIEW.match(/emit\('kpi-drill', '/g) || []).length === 4
     && HERO.includes("(e: 'open-project', projectId: string): void")
     && HERO.includes("(e: 'goto-compass'): void")
     && HERO.includes('hcb-empty') && HERO.includes('focusPills')
@@ -95,13 +87,12 @@ check(NAME(
 });
 
 check(NAME(
-  'A1-5 ★窄屏回落仍然成立：使命带折行后 100% 宽、KPI 两列、页头动作组左对齐（900px 断点）—— ',
-  '权重反转改的是 flex 比例，窄窗那套必须原样留着，否则窄屏会退回四列挤字'), () => {
+  'A1-5 ★窄屏回落仍然成立：概览双栏折成单栏、概览四格折成两列、页头动作组左对齐（900 / 640px 断点）'), () => {
   const mq = CSS.match(/@media \(max-width: 900px\) \{[\s\S]*?\n\}/)?.[0] || '';
-  return /flex-direction:\s*column/.test(mq)
-    && /align-items:\s*stretch/.test(mq)
-    && /grid-template-columns:\s*repeat\(2, 1fr\)/.test(mq)
-    && /justify-content:\s*flex-start/.test(mq);
+  const mq2 = CSS.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/)?.[0] || '';
+  return /\.pi-overview \{ grid-template-columns: 1fr; \}/.test(mq)
+    && /\.pi-hero-acts \{ justify-content: flex-start; \}/.test(mq)
+    && /\.pi-ov-kpis \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/.test(mq2);
 });
 
 /* ══════════════════════ A3 · 四段时间轴节奏统一 ══════════════════════ */
@@ -123,42 +114,49 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-2 ★段间发丝线：四段在视觉上真正立成四段（改前 72px 的大空档把它们读成四张散落的卡）。',
-  '三处分隔线盒 + 间距由线盒承担而非 flex gap —— 负锚：pi-rmods 的 gap 必须是 0',
-  '（若同时留 gap，间距就被算成两遍，段间变 64px）'), () => {
-  const sep = CSS.match(/\.pi-sep \{[^}]*\}/)?.[0] || '';
-  const line = CSS.match(/\.pi-sep::before \{[^}]*\}/)?.[0] || '';
-  const mods = CSS.match(/\.pi-rmods \{[^}]*\}/)?.[0] || '';
-  if (!sep || !line || !mods) { console.log('     锚点缺失'); return false; }
-  const n = (PI.match(/class="pi-sep"/g) || []).length;
-  return n === 3
-    && /height:\s*var\(--sp-6\)/.test(sep) && /align-items:\s*center/.test(sep)
-    && /height:\s*1px/.test(line) && /background:\s*var\(--border\)/.test(line)
-    && /gap:\s*0/.test(mods) && !/gap:\s*72px/.test(mods)
-    && !/gap:\s*var\(--sp-6\)/.test(mods);
+  'A3-2 ★V3.9.3 单段时间轴：四个时间尺度必须四选一挂载，默认「本年」，',
+  '不再用三条 pi-sep 把四段纵向拉成长页；页签与左轨共用 activeRange，',
+  '切换时只换当前模块。负锚：四段同时存在与旧发丝线盒零回流。'), () => {
+  const mods = CSS.match(/\.pi-rmods-single[^{]*\{[^}]*\}/)?.[0] || '';
+  const mounts = [
+    /<PiToday v-if="activeRange === 'today'"/,
+    /<PiRhythm v-else-if="activeRange === 'week'"/,
+    /<PiMonth v-else-if="activeRange === 'month'"/,
+    /<PiYear v-else/
+  ];
+  return PI.includes("const activeRange = ref<PiRange>('year')")
+    && mounts.every(re => re.test(PI))
+    && PI.includes('<PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)"')
+    && PI.includes('function setRange(k: PiRange, scroll = false)')
+    && PI.includes('@jump="onRailJump"')
+    && mods.includes('animation: pi-range-in')
+    && (PI.match(/class="pi-sep"/g) || []).length === 0;
 });
 
 check(NAME(
-  'A3-3 ★发丝线必须写在卡外，所以只能是模板里的真节点而不是伪元素：',
-  'pi-mod 有 overflow:hidden（裁圆角外的子元素），伪元素画不出卡外 —— 这条钉住「为什么是三处 div 而不是三条 CSS 规则」，',
-  '防止后人顺手简化回伪元素并静默失效'), () => {
-  const mod = CSS.match(/\.pi-mod \{[^}]*\}/)?.[0] || '';
-  if (!/overflow:\s*hidden/.test(mod)) { console.log('     .pi-mod 已非 overflow:hidden，本条前提变化需重指'); return false; }
-  /* 三个线盒必须带 aria-hidden：纯装饰节点不该进无障碍树 */
-  return (PI.match(/class="pi-sep" aria-hidden="true"/g) || []).length === 3
-    && !CSS.includes('.pi-mod + .pi-mod::before')
-    && !CSS.includes('.pi-mod:not(:first-child)::before');
+  'A3-3 ★页签必须是真的 tablist：四个 role=tab、aria-selected 与 tabindex 跟随选中，',
+  '支持左右方向键循环、Home / End 直达首尾；默认本年必须由页签自身表达，而不是靠 CSS 隐藏。'), () => {
+  return RANGE.includes('role="tablist"') && RANGE.includes('aria-label="画像洞察时间范围"')
+    && (RANGE.match(/role="tab"/g) || []).length === 1
+    && RANGE.includes(':aria-selected="props.modelValue === t.key"')
+    && RANGE.includes(':tabindex="props.modelValue === t.key ? 0 : -1"')
+    && RANGE.includes("e.key === 'ArrowRight'") && RANGE.includes("e.key === 'ArrowLeft'")
+    && RANGE.includes("e.key === 'Home'") && RANGE.includes("e.key === 'End'")
+    && RANGE.includes("modelValue: 'year'");
 });
 
 check(NAME(
-  'A3-4 ★段内一级容器圆角统一 lg：热力盒 pi-hmbox 与四段里的 lbox 同为「段内一级卡」，',
-  '原是一档 md 一档 lg，横向扫到全年段时节奏断一下；负锚钉死不许退回 md'), () => {
+  'A3-4 ★V3.9.3 单段视觉去套娃：热力盒 pi-hmbox 不再自带第二层厚卡底与内距，',
+  '全年热力图直接落在 PiYear 的段体里；段内一级卡仍只有 lbox 一档圆角。',
+  '负锚：热力盒不许恢复 surface-2 底、边框或内边距，旧 .pi-sep 规则也不许回流。'), () => {
   const hm = CSS.match(/\.pi-hmbox \{[^}]*\}/)?.[0] || '';
   const lb = CSS.match(/\.lbox \{[^}]*\}/)?.[0] || '';
   if (!hm || !lb) { console.log('     锚点缺失'); return false; }
-  return /border-radius:\s*var\(--radius-lg\)/.test(hm)
+  return /background:\s*transparent/.test(hm)
+    && /border-radius:\s*0/.test(hm)
+    && /padding:\s*0/.test(hm)
     && /border-radius:\s*var\(--radius-lg\)/.test(lb)
-    && !/border-radius:\s*var\(--radius-md\)/.test(hm);
+    && !CSS.includes('.pi-sep {') && !CSS.includes('.pi-sep::before');
 });
 
 check(NAME(
@@ -189,16 +187,32 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-7 ★四段的顺序锚与左轨仍对齐（发丝线是纯装饰，不许改动导航语义）：',
-  '三个线盒必须排在四个段组件**之间**而不是之前/之后，否则 IntersectionObserver 的段序与滚动落点会错位 —— ',
-  '负锚：线盒数恰为 3（多一个说明某段前多了一条，段序就错了）'), () => {
-  const start = PI.indexOf('<div class="pi-rmods">');
-  const end = PI.indexOf('\n      </div>\n    </div>');
-  if (start < 0 || end < start) { console.log('     锚点缺失'); return false; }
-  const mods = PI.slice(start, end);
-  const order = [...mods.matchAll(/<div class="pi-sep"|<Pi(?:Today|Rhythm|Month|Year)\b/g)].map(m => m[0]);
-  const want = ['<PiToday', '<div class="pi-sep"', '<PiRhythm', '<div class="pi-sep"', '<PiMonth', '<div class="pi-sep"', '<PiYear'];
-  return JSON.stringify(order) === JSON.stringify(want);
+  'A3-7 ★年度热力图是默认主视觉：PiYear 传 default-expanded，Heatmap 初值跟随 prop，',
+  '因此进入画像页第一眼就是全年 53 周，而不是近 26 周概览条；点任意热力格必须',
+  '同时保留选中态并打开该日战报（open-battle 不能再只挂无人调用的旧出口）。'), () => {
+  const HM = read('/newtab/components/dashboard/Heatmap.vue');
+  return HM.includes('defaultExpanded?: boolean')
+    && HM.includes('const expanded = ref(!!props.defaultExpanded)')
+    && YEAR.includes('default-expanded')
+    && YEAR.includes('function onHeatmapSel(day: string | null)')
+    && YEAR.includes("emit('update:selDay', day)")
+    && YEAR.includes("if (day) emit('open-battle', day)")
+    && YEAR.includes('@update:sel-day="onHeatmapSel"')
+    && PI.includes('@open-battle="openDayBattle"');
+});
+
+check(NAME(
+  'A3-9 ★首屏先方向再行动：PiOverview 独立承载「本周精力」与「今天三件事」双栏，',
+  '四格核心读数与既有下钻在概览左栏同源承载；宿主不直接堆这套模板，避免超过 W13-8 行数闸。'), () => {
+  return PI.includes('<PiOverview') && PI.includes(':week-insight="concise.week"')
+    && PI.includes(':today-insight="concise.today"') && PI.includes(':rows="todayRows"')
+    && PI.includes('@kpi-drill="onHeroDrill"')
+    && OVERVIEW.includes('class="pi-overview"')
+    && OVERVIEW.includes('这周，你把精力放在哪里')
+    && OVERVIEW.includes('今天，从哪三件事开始')
+    && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
+    && OVERVIEW.includes("emit('toggle', r.idx)") && OVERVIEW.includes("emit('bind', r.idx)")
+    && OVERVIEW.includes("emit('fill', i)");
 });
 
 /* ══════════════════════ A3-8 · 产物级：模板真编译（★堵「读源码发现不了」的盲区） ══════════════════════ */

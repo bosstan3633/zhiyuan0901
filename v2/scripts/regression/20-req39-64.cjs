@@ -108,10 +108,10 @@ check('R44-4 eventLog.ts 独立 key zy_event_log + 5000 条滚动上限 + CardEv
 check('R44-5 repository 全路径挂载：loadData 重建快照 + saveData/saveDataNow flush + syncCache 外部写入静默重建（R160-P5：日志并入整库 set + onChanged 刷缓存）', () => { const s = read('/shared/storage/repository.ts'); return s.includes('flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY') && (s.match(/rebuildEventSnapshot\(/g) || []).length >= 2 && (s.match(/flushCardEvents\(cache\)/g) || []).length === 2; });
 console.log('【第卌四轮 第三批：T-03 知源仪表盘（默认首屏 + 动态条抽屉 + 操作记录时间线 + CSV 按筛选导出）】');
 check('R44-6（R54 重写：四组 ★R178 重指带备案：分组对齐设置中心原型更名——通用与度量/卡片与字段/AI 认知协作者/数据与信任/系统信息；Airtable 归入数据与信任；条目与功能零增减）（★R4-Da 退役重指带备案：本条原判据把「{ key: \'panorama\', icon: \'🗺\', label: \'资源台全景\' }」当成导航必备项——它守的是"设置页导航五组齐备 + 全景有一格"；V3.7.0 资源台退役后全景整页删除，那一格随之消失，故判据拆两半：五组与全部存活键位仍逐项点名（一项不减），全景格改为 codeOnly 零命中判据（注释里写「全景」讲退役缘由不算残留），并点名能力去向的三个真锚点：调度台资源卡池面板 PoolCardsPanel.vue / 策展台 Workspace.vue / 设置页标签管理 gs-tagtree）（★W9 退役重指带备案：原判据拿「const activePage = ref(\'dashboard\')」当"默认首屏是仪表盘"的凭据——知源仪表盘整块随 V3.8.7 迁画像洞察页 /profile，设置页默认页回到「资源卡字段」；本条守的"导航分组齐备"一项未减，默认页凭据改指现役值，并补一条 codeOnly 负锚钉住 ref(\'dashboard\') 不许回流）设置页导航', () => { const s = read('/newtab/views/GlobalSettings.vue'); const c = codeOnly(s); return s.includes("const activePage = ref('resource')") && !c.includes("activePage = ref('dashboard')") && s.includes("{ title: '通用与度量', items: [") && !c.includes("{ key: 'panorama'") && !c.includes("label: '资源台全景'") && !c.includes('🗺') && s.includes("{ title: '卡片与字段', items: [") && s.includes("{ title: '数据与信任', items: [") && s.includes("{ title: '系统信息', items: [") && s.includes("{ title: 'AI 认知协作者', items: [") && !s.includes("{ title: '整理'") && s.indexOf("'tags'") < s.indexOf("const activePage = ref") && s.includes("{ key: 'tags', icon: 'tag', label: '标签管理' }") && c.includes('gs-tagtree') && read('/newtab/components/compass/PoolCardsPanel.vue').includes('const poolCards = computed(') && read('/newtab/views/Workspace.vue').includes('function openResCtx('); });
-check('R44-7 ★W10 退役重指带备案：概览带 8 下钻入口（5 存量 chip + 动态 pill）随 DashboardOverview 整体退役——入口等价迁三段式：PiHero 下钻（★W13-D1 再随迁带备案 2026-10-16：原 5 枚 pi-hchip total/streak/active/entropy/longest 随 Hero 三层结构改 4 枚底盘卡 total/entropy/support/focus，连续打卡/活跃/最长三枚时间指标迁 PiYear 年度段）→ onHeroDrill → openStatDrawer/openDynDrawer（★W13-T7 再随迁带备案 2026-10-16：openDynDrawer 随动态条明细抽屉整体退役，事件时间窗下钻改走 DashboardLogDrawer——focus-acts → openLogFocus()（LogPreset.focusOnly）、month-add → openLog 的 month-in 键；openStatDrawer 保留且收窄为卡片语义下钻，stat 死分支 resource/task/curiosity/link 一并清净）；PiToday 下钻（★W13-F8 再随迁带备案 2026-10-16：strip 四格定版为 入台/调出/焦点/弹药，d-out（今日移出）与 streak（连续打卡迁 PiYear）两枚 drill 键随格退役，收窄为 d-in/d-call 两枚）→ onTodayDrill → openLog；PiRhythm 4 chip（★W13-F13 再随迁带备案 2026-10-16：原 5 枚 wk-add/wk-acts/wk-w/wk-call/wk-pace 随 F13 strip4 四格定版收窄为 wk-acts/wk-w/wk-call/wk-pace，wk-add（本周采集）随格退役，周新增明细由 PiMonth 本月入池格同构承接）→ onRhythmDrill → openLog。入口零丢失双向对账：子组件 emit 与宿主 handler 两侧对得上', () => {
+check('R44-7 ★W10 退役重指带备案：概览带 8 下钻入口随 DashboardOverview 整体退役——入口等价迁移：PiOverview 四格（★V3.9.3：total/entropy/support/focus 从 Hero 归位概览）→ onHeroDrill → 卡片清单抽屉 / 知识熵口径 toast / 主攻动作记录（openLogFocus）；PiToday 两枚 d-in/d-call → onTodayDrill → openLog；PiRhythm 四枚 wk-acts/wk-w/wk-call/wk-pace → onRhythmDrill → openLog。入口零丢失双向对账：子组件 emit 与宿主 handler 两侧对得上', () => {
   const s = read('/newtab/views/ProfileInsights.vue');
   const gsc = codeOnly(read('/newtab/views/GlobalSettings.vue'));
-  const hero = read('/newtab/components/profile/PiHero.vue');
+  const overview = read('/newtab/components/profile/PiOverview.vue');
   const today = read('/newtab/components/profile/PiToday.vue');
   const rh = read('/newtab/components/profile/PiRhythm.vue');
   return s.includes('function onHeroDrill(')
@@ -119,8 +119,8 @@ check('R44-7 ★W10 退役重指带备案：概览带 8 下钻入口（5 存量 
     && s.includes('function onRhythmDrill(')
     && s.includes('function openStatDrawer(t: StatDrawerType)')
     && s.includes('function openLogFocus()') /* ★W13-T7：openDynDrawer 函数随抽屉退役，正锚改钉其等价承接者 */
-    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'entropy')")
-    && hero.includes("emit('drill', 'support')") && hero.includes("emit('drill', 'focus')")
+    && overview.includes("emit('kpi-drill', 'total')") && overview.includes("emit('kpi-drill', 'entropy')")
+    && overview.includes("emit('kpi-drill', 'support')") && overview.includes("emit('kpi-drill', 'focus')")
     && today.includes("emit('drill', 'd-in')") && today.includes("emit('drill', 'd-call')")
     && rh.includes("emit('drill', 'wk-acts')")
     && rh.includes("emit('drill', 'wk-w')") && rh.includes("emit('drill', 'wk-call')") && rh.includes("emit('drill', 'wk-pace')")

@@ -6,6 +6,7 @@
 const { check, codeOnly, read } = require('./helpers.cjs');
 
 const HERO = read('/newtab/components/profile/PiHero.vue');
+const OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
 const TODAY = read('/newtab/components/profile/PiToday.vue');
 const PI = read('/newtab/views/ProfileInsights.vue');
 const PDD = read('/newtab/components/ProjectDetailDrawer.vue');
@@ -18,15 +19,16 @@ check('W14-1 ★主攻项目的点击必须落在"那个项目"上，不能两�
   const TODAY_C = codeOnly(TODAY);
   return HERO.includes("(e: 'open-project', projectId: string): void")
     && HERO.includes("emit('open-project', p.id)")
-    /* 负锚：胶囊那一枚不许再 emit drill focus —— 但**第四张底盘卡**（近30天精力落主攻）仍合法用它，
-       那才是 focus 键的现役语义；所以负锚要钉在胶囊行上，不是全组件零命中 */
+    /* 负锚：胶囊那一枚不许再 emit drill focus；focus 键的现役语义归概览四格。 */
     && !HERO.match(/hcb-pill[\s\S]{0,400}?emit\('drill', 'focus'\)/)
-    && HERO.includes("emit('drill', 'focus')")   /* 底盘卡那一枚仍在位（能力未减） */
+    && OVERVIEW.includes("emit('kpi-drill', 'focus')")
     && HERO.includes('点击查看项目详情')
     && PI.includes("import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'")
     && PI.includes('function openProjectDetail(projectId: string)')
     && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId"')
-    && (PI.match(/@open-project="openProjectDetail"/g) || []).length === 2   /* Hero + 今日三件事行两侧都接 */
+    /* V3.9.3 单段切换：Hero、首屏概览里的今日三件事、PiToday 主攻标签三处同接一个出口。
+       计数增加是入口增加，不是放权；项目详情抽屉仍只有一枚。 */
+    && (PI.match(/@open-project="openProjectDetail"/g) || []).length === 3
     && TODAY.includes("emit('open-project', r.projectId)")
     && TODAY_C.includes('pi-tag ok as-btn')
     && TODAY.includes('projectId: string')
@@ -36,30 +38,25 @@ check('W14-1 ★主攻项目的点击必须落在"那个项目"上，不能两�
     && PDD.includes('width="480px"');
 });
 
-check('W14-2 ★Hero 必须"薄"（用户拍板 2026-10-16 方案A 两行化 → ★W16-T1 指标区再降一档为纯文本读数行）：容器内距、层间 gap 压到上限值以内，且读数格**不得再有卡面**（无底色/无边框/无阴影/无圆角），说明文字收进 title 悬浮。★W16-T1 重指理由：W14-2 落地后指标仍是四张压扁的卡（截图实测仍"太突出"，占位约 96px），用户再拍板方案A「纯文本读数行」—— 病灶是常驻路标占着四个卡面压过真正的主角。负锚两项保留：四格仍等宽铺满（N7）、hover 不抬升。**从源码读常量比阈值**，不写死等值', () => {
+check('W14-2 ★V3.9.3 Hero 必须"薄"：页头 + 使命带两层，容器内距与层间 gap 在预算内；四格读数不再在 Hero 渲染，统一落到概览。概览四格仍须完整：四等宽、四格口径 tooltip、精力落主攻的中性进度条、hover 不抬升。', () => {
   const hero = CSS.match(/\.pi-hero\.hero-card \{[^}]*\}/)?.[0] || '';
-  const grid = CSS.match(/\.hero-kpis-grid \{[^}]*\}/)?.[0] || '';
-  const kpi = CSS.match(/\.hero-kpi \{[^}]*\}/)?.[0] || '';
+  const grid = CSS.match(/\.pi-ov-kpis \{[^}]*\}/)?.[0] || '';
+  const kpi = CSS.match(/\.pi-ov-kpi \{[^}]*\}/)?.[0] || '';
   const pad = (s) => {
     const m = s.match(/padding:\s*([\d.]+)px\s+([\d.]+)px(?:\s+([\d.]+)px\s+([\d.]+)px)?/)
     return m ? m.slice(1).map(x => parseFloat(x || '0')) : []
   };
   const [pt, pr, pb, pl] = pad(hero)
-  const [kt, kr, kb, kl] = pad(kpi)
   const gapRow = parseFloat((hero.match(/gap:\s*([\d.]+)px/) || [0, '99'])[1])
   return pt <= 14 && pr <= 18 && pb <= 14 && pl <= 18            /* 容器内距上限（原 20/22/18/22） */
     && gapRow <= 10
-    && kt <= 4 && kr <= 14 && kb <= 4 && kl <= 14                /* 读数格内距：方案A 已是纯文本，压到 2/14 */
-    && CSS.includes('repeat(4, 1fr)')                            /* ★N7 负锚：四格仍等宽铺满 */
     && !/transform:\s*translateY/.test(kpi)                       /* ★负锚：hover 不许再抬升（常驻区要静） */
-    /* ★W16-T1 负锚：读数格不许再有卡面 —— 底色/边框/圆角/阴影四项全清 */
-    && /background:\s*transparent/.test(kpi) && !/border:\s*1px/.test(kpi.replace(/border-right[^;]*;/, ''))
-    && !/border-radius/.test(kpi) && !/box-shadow/.test(kpi)
-    && grid.includes('grid-template-columns: repeat(4, 1fr)')
-    /* 说明文字收进 title：模板零命中 .d 节点（title 里带说明） */
-    && !HERO.includes('class="d"') && !CSS.includes('.hero-kpi .d')
-    && HERO.includes('点击看明细')
-    && !CSS.includes('.pi-hero-sub')                             /* 副标题整段退役（含 CSS 规则） */
+    && grid.includes('repeat(4, minmax(0, 1fr))')
+    && (OVERVIEW.match(/<button class="pi-ov-kpi(?:\s|")/g) || []).length === 4
+    && (OVERVIEW.match(/点击看明细/g) || []).length === 4
+    && !codeOnly(HERO).includes('hero-kpis-grid')
+    && !codeOnly(HERO).includes('hero-kpi')
+    && !/\.pi-hero-sub\s*\{/.test(CSS)                          /* 副标题规则退役；注释备案可留 */
     && !/<p class="pi-hero-sub"/.test(HERO);
 });
 
@@ -71,15 +68,14 @@ check('W14-3 ★Hero 不是视觉焦点：主标题降为 fs-title，且画像�
     && !/--fs-display/.test(CSS)                                  /* 画像洞察页样式层零 display 级字号 */
     && !PI_C.includes('--fs-display')
     && HERO.includes('class="pi-hero-eyebrow"') && HERO.includes('画像洞察')
-    && HERO.includes('class="hero-data-row"')                     /* 使命带与读数行并作一行 */
     && HERO.includes('class="hero-row-top"')
-    && CSS.includes('.hero-data-row .hero-compass-bar') && CSS.includes('.hero-data-row .hero-kpis-grid');
+    && HERO.includes('class="hero-compass-bar"');
 });
 
-check('W14-4 ★压体积不许压能力：页头三件套（刷新 · 导出 · 全部记录）零丢失、四张底盘卡的四个下钻出口零丢失、使命轻引导出口保留、H2P 双类锚点保持（E2E-21 靠它）', () => {
+check('W14-4 ★压体积不许压能力：页头三件套（刷新 · 导出 · 全部记录）零丢失、四格下钻出口在概览零丢失、使命轻引导出口保留、H2P 双类锚点保持（E2E-21 靠它）', () => {
   return HERO.includes("emit('refresh')") && HERO.includes('<ExportMenu')
     && HERO.includes("emit('open-log')") && HERO.includes('<Icon name="folder" :size="13"/> 全部记录')
-    && ['total', 'entropy', 'support', 'focus'].every(k => HERO.includes(`emit('drill', '${k}')`))
+    && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
     && HERO.includes('class="pi-hero hero-card"')                  /* E2E-21 双类锚点 */
     && HERO.includes("(e: 'goto-compass'): void")                 /* 使命轻引导出口保留 */
     && HERO.includes('hcb-empty')

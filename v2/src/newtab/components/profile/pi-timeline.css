@@ -2,7 +2,122 @@
    仅被 components/profile/*.vue 引用；类名一律 pi- 前缀，避免与 dashboard.css 的 dz- 冲突。
    Token 全部对齐 shared/styles/tokens.css（四主题）。 */
 
-/* ===== 容器：左 rail + 右模块列 ===== */
+/* ===== 概览：先方向，再行动（V3.9.3） ===== */
+.pi-overview { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: stretch; }
+.pi-ov-card {
+  min-width: 0; display: flex; flex-direction: column; gap: 11px;
+  padding: 16px 18px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); box-shadow: var(--shadow);
+}
+.pi-ov-head { display: flex; align-items: flex-start; gap: 12px; }
+.pi-ov-head .t { flex: 1; min-width: 0; }
+.pi-ov-head .eyebrow { display: block; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .13em; color: var(--text-4); }
+.pi-ov-head h2 { margin: 3px 0 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -.015em; color: var(--text); }
+.pi-ov-head p { margin: 4px 0 0; font-size: var(--fs-caption); line-height: 1.65; color: var(--text-3); }
+.pi-ov-head .meta { flex: none; padding-top: 2px; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums; }
+.pi-ov-link {
+  flex: none; min-height: 28px; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-2); font-family: inherit; font-size: var(--fs-caption); cursor: pointer;
+}
+.pi-ov-link:hover { border-color: var(--border-strong); color: var(--text); }
+.pi-ov-insight {
+  display: flex; align-items: flex-start; gap: 9px; min-width: 0;
+  padding: 3px 0 3px 11px; border-left: 2px solid var(--accent);
+  font-size: var(--fs-caption); line-height: 1.7; color: var(--text-2);
+}
+.pi-ov-insight .ic { flex: none; margin-top: 2px; color: var(--accent-ink); }
+.pi-ov-insight .body { flex: 1; min-width: 0; }
+.pi-ov-insight .body b { color: var(--text); font-weight: 600; }
+.pi-ov-insight .cta {
+  flex: none; min-height: 28px; padding: 2px 0; border: 0; background: transparent;
+  color: var(--accent-ink); font-family: inherit; font-size: var(--fs-caption); font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.pi-ov-insight .cta:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pi-ov-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--border); margin-top: auto; }
+.pi-ov-kpi {
+  min-width: 0; padding: 10px 10px 2px; border: 0; border-right: 1px solid var(--border);
+  background: transparent; text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.pi-ov-kpi:last-child { border-right: 0; }
+.pi-ov-kpi:hover { background: var(--surface-2); }
+.pi-ov-kpi .v { display: block; font-size: var(--fs-title); line-height: 1.2; font-weight: 600; letter-spacing: -.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+.pi-ov-kpi .v small { margin-left: 2px; font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); }
+.pi-ov-kpi .l { display: block; margin-top: 2px; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-ov-kpi .d { display: block; margin-top: 3px; font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 精力落主攻的中性进度条：只给这一格，轨道与填充各用一种中性色，不设阈值色。 */
+.pi-ov-kpi-track {
+  display: block; width: 100%; height: 3px; margin-top: 5px;
+  background: var(--surface-3); border-radius: 999px; overflow: hidden;
+}
+.pi-ov-kpi-fill {
+  display: block; height: 100%; background: var(--accent);
+  border-radius: 999px; transition: width var(--dur-fast);
+}
+.pi-ov-kpi-fill[style*="width: 0%"] { border-radius: 0; }
+.pi-ov-lines { display: flex; flex-direction: column; min-width: 0; }
+.pi-ov-line {
+  display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 38px;
+  border-top: 1px solid var(--border); font-size: var(--fs-caption);
+}
+.pi-ov-line:first-child { border-top: 0; }
+.pi-ov-check {
+  flex: none; width: 28px; height: 28px; border: 0; background: transparent; padding: 0;
+  display: grid; place-items: center; cursor: pointer; position: relative; color: #fff;
+}
+.pi-ov-check::before {
+  content: ''; position: absolute; width: 16px; height: 16px; border-radius: 5px;
+  border: 1.5px solid var(--border-strong); background: transparent;
+}
+.pi-ov-check.done::before { background: var(--success); border-color: var(--success); }
+.pi-ov-check:disabled { cursor: default; }
+.pi-ov-check:disabled::before { border-style: dashed; }
+.pi-ov-check > * { position: relative; z-index: 1; }
+.pi-ov-line .title { flex: 1; min-width: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-ov-line.done .title { color: var(--text-4); text-decoration: line-through; }
+.pi-ov-line .empty { flex: 1; min-width: 0; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-ov-line .tag {
+  flex: none; max-width: 112px; padding: 1px 7px; border-radius: 999px; border: 0;
+  background: var(--surface-3); color: var(--text-3); font-family: inherit; font-size: var(--fs-micro);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pi-ov-line .tag.main { color: var(--text-2); cursor: pointer; }
+.pi-ov-line .line-act {
+  flex: none; min-height: 28px; padding: 3px 0; border: 0; background: transparent;
+  color: var(--accent-ink); font-family: inherit; font-size: var(--fs-caption); font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.pi-ov-line .line-act:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pi-ov-foot { display: flex; align-items: center; gap: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); }
+.pi-ov-foot b { color: var(--text-2); }
+.pi-ov-foot span:last-child { margin-left: auto; }
+.pi-ov-progress { margin-top: auto; padding-top: 4px; text-align: right; font-size: var(--fs-micro); color: var(--text-4); }
+.pi-ov-progress b { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* ===== 时间尺度页签 + 单段时间轴（V3.9.3） ===== */
+.pi-tl-anchor { scroll-margin-top: 72px; }
+.pi-tl-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.pi-tl-bar > div:first-child { flex: 1; min-width: 260px; }
+.pi-tl-kicker { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .12em; color: var(--accent-ink); }
+.pi-tl-bar p { margin: 4px 0 0; font-size: var(--fs-caption); line-height: 1.6; color: var(--text-3); }
+.pi-range-tabs {
+  display: flex; align-items: center; gap: 2px; padding: 3px; max-width: 100%;
+  overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); scrollbar-width: none;
+}
+.pi-range-tabs::-webkit-scrollbar { display: none; }
+.pi-range-tab {
+  display: inline-flex; align-items: baseline; gap: 5px; min-height: 30px; padding: 5px 11px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--text-3);
+  font-family: inherit; font-size: var(--fs-caption); white-space: nowrap; cursor: pointer;
+}
+.pi-range-tab small { font-size: 8px; letter-spacing: .08em; color: var(--text-2); }
+.pi-range-tab:hover { color: var(--text); }
+.pi-range-tab.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.16); font-weight: 700; }
+.pi-range-tab.on small { color: var(--accent-ink); }
+.pi-range-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ===== 容器：左 rail + 右单段模块 ===== */
 .pi-tl { display: grid; grid-template-columns: 78px 1fr; }
 /* ★N6（V3.8.18）时间轨吸顶：三段式时间轴很长（今天 + 近期 + 全年），左侧轨原先随页面一起滚走，
    滚到"全年"段时就看不见自己在第几段——**导航丢了**。
@@ -51,14 +166,15 @@
    ★轨的节点间距（`.pi-rnode` 的 padding-bottom 76px）不动：它是导航轨自己的固定步进，
    与内容段间距是两套坐标系（N6 已把两者解耦）。 */
 .pi-rmods { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.pi-rmods-single > .pi-mod { animation: pi-range-in var(--dur) var(--ease-out-soft) both; }
+@keyframes pi-range-in {
+  from { opacity: .55; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .pi-rmods-single > .pi-mod { animation: none; } }
 
-/* ★A3（V3.8.35）段间发丝线：把「段」在视觉上真正立成四段，而不是四张散落的卡。
-   做法：线盒占满整段间距（高 `var(--sp-6)`），线在盒内垂直居中 —— 于是段间读起来是
-   「卡 16px · 线 · 16px 卡」，线既标出了分节，又不额外吃掉节奏。
-   为此 `.pi-rmods` 的 gap 归零（间距改由本盒承担），避免「gap + 线盒」两处各算一次间距。
-   负锚：线宽恒 1px 且用 `var(--border)`（不写死色值，四主题自动跟随）。 */
-.pi-sep { height: var(--sp-6); display: flex; align-items: center; }
-.pi-sep::before { content: ''; flex: 1; height: 1px; background: var(--border); }
+/* ★V3.9.3 退役带备案：四段纵向堆叠与三条段间发丝线（`.pi-sep`）一并退役。
+   单段切换后同一时刻只挂载一个时间尺度，分隔线不再有承载对象。 */
 
 /* ===== 模块卡壳 ===== */
 .pi-mod {
@@ -163,12 +279,10 @@
 
 /* ===== 分段控件（★W13-F13 退役带备案 2026-10-16：`.pi-seg` 随操作流筛选行整体退役） ===== */
 
-/* ===== Hero（W13-D1 · 三层规整卡片 .hero-card，2026-10-16）=====
-   ① .hero-row-top 两端对齐页头（F1）② .hero-compass-bar 通栏使命/主攻坐标带（F2）
-   ③ .hero-kpis-grid 4 等宽底盘（F3）
-   ★随迁带备案：原 `.pi-hero-l/.pi-hero-r` 两栏 flex 与 `.pi-hero-sum/.pi-hchip` 5 药丸行
-   随三层结构整体退役（药丸读数改为底盘卡网格；N7「KPI 居中」的思路由 ③ 整行铺满承接——
-   读数不再是标题的附属，而是与标题分层的独立底盘）。 */
+/* ===== Hero（V3.9.3 · 页头 + 方向坐标）=====
+   ① .hero-row-top 两端对齐页头 ② .hero-compass-bar 通栏使命/主攻坐标带。
+   四格核心读数整体迁入 PiOverview，Hero 不再渲染同一组指标。
+   ★退役带备案：`.hero-data-row/.hero-kpis-grid/.hero-kpi` 随四格归位概览而清零。 */
 .pi-hero.hero-card {
   display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px;
   background: var(--surface); border: 1px solid var(--border);
@@ -188,7 +302,7 @@
   color: var(--text);
 }
 .pi-hero-t .en { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em; color: var(--text-4); margin-left: 10px; }
-/* ② 方向坐标带（F2）：mission 单行省略（title 悬停全文），主攻胶囊 ≤2 —— ★W14-T2 起与 ③ 读数行并作一行
+/* ② 方向坐标带（F2）：mission 单行省略（title 悬停全文），主攻胶囊 ≤2
    ★A1（V3.8.35）主次归位：**这条是 Hero 的主角，③ 读数带才是副带**。
    改前的病灶是主次正好反过来 —— 主角被裹进一个 `surface-2 + border` 的药丸盒里、只分到 1 份宽，
    副带（KPI）却裸着占 3 份宽、数字还是 13px/700，比使命文本（12px/400）更重。
@@ -227,55 +341,6 @@
   max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
 .hcb-pill:hover { border-color: var(--accent-ink); }
-/* ③ 4 等宽底盘读数（F3）
-   ★W16-T1（用户拍板 2026-10-16 · 方案A「纯文本读数行」）：指标区从"四张卡"**彻底降级为一行字** ——
-   病灶是它太突出：Hero 在页面最顶部且常驻，读一眼就够，却占着四个卡面 + 15px 大数字 + 说明文字，
-   视觉重量压过真正的主角（今天的战报与三件事）。
-   落地：① 去卡面底色/边框/阴影，只用竖线分隔四格 ② 数字降到 fs-body 加粗、标签同行 micro
-        ③ 说明文字收进 title 悬浮（信息不删，只是不再常驻占位）④ 悬停出底色 + ▸ 提示可下钻
-        ⑤ hover 不抬升（常驻区要静）。
-   负锚：仍是 repeat(4,1fr) 四等宽（N7 钉住，不许改回居中或不等宽）；下限由 W14-2 那条判据守着。 */
-.hero-kpis-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-left: 1px solid var(--border); }
-.hero-kpi {
-  position: relative; display: flex; flex-direction: column; gap: 0; text-align: left; cursor: pointer; font-family: inherit;
-  background: transparent; border: 0; border-right: 1px solid var(--border);
-  padding: 2px 14px; transition: background var(--dur-fast); color: inherit; min-width: 0;
-}
-.hero-kpi:last-child { border-right: none; }
-/* ★A2（V3.8.36）中性进度条 —— 只给「近30天精力落主攻」这一格（A2 原文点名的那一个）。
-   口径纪律：轨=--surface-3、条=--accent，**两种中性色，零阈值色**。不按数值分段、不设阈值线、
-   不随高低换色相——进度条一旦染上「达标/偏低」色，这块镜子就又变回鞭子（R03/R10）。
-   负锚：其余三格是计数与熵值（无「占多少」语义），不许给它们也加轨，故下面用 `.hero-kpi-bar` 限定。 */
-.hero-kpi-bar .hero-kpi-track {
-  display: block; width: 100%; height: 3px; margin-top: 5px;
-  background: var(--surface-3); border-radius: 999px; overflow: hidden;
-}
-.hero-kpi-bar .hero-kpi-fill {
-  display: block; height: 100%; background: var(--accent);
-  border-radius: 999px; transition: width var(--dur-fast);
-}
-/* 零值时不该留一个「看起来像 100% 但其实空」的圆头 */
-.hero-kpi-bar .hero-kpi-fill[style*="width: 0%"] { border-radius: 0; }
-
-.hero-kpi:hover { background: var(--surface-2); }
-.hero-kpi .v { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.45; white-space: nowrap; }
-.hero-kpi .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-4); margin-left: 2px; }
-.hero-kpi .l { font-size: var(--fs-micro); font-weight: 400; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* ★W16-T1：原 `.hero-kpi .d` 说明行随方案A 整段退役 —— 说明文字已改为各格 title 悬浮，
-   模板里没有这个节点，留着就是孤儿规则（dead-css-scan 判死）。 */
-/* 悬停时的下钻提示箭头 */
-.hero-kpi::after {
-  content: '▸'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
-  font-size: 9px; color: var(--text-4); opacity: 0; transition: opacity var(--dur-fast);
-}
-.hero-kpi:hover::after { opacity: 1; }
-/* ★W16-T1 数据行：使命带 + 四格读数（读数区不再有卡面，两段之间的层级靠竖线与底色差）
-   ★A1（V3.8.35）权重反转：主角拿大头、副带让位 —— 原比例是 1:3（`flex: 1 1 240px` vs `3 1 460px`），
-   正好把三分之二宽度给了读数；现改为 1:2 并抬高主角的 flex 基准，使全宽下使命文本可读的宽度增加约 25%。
-   窄屏回落见下方 @media 900px（折行后各段 100% 宽，比例不再生效）。 */
-.hero-data-row { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
-.hero-data-row .hero-compass-bar { flex: 1 1 300px; min-width: 0; }
-.hero-data-row .hero-kpis-grid { flex: 2 1 420px; }
 .pi-hero-acts { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====
@@ -463,7 +528,10 @@
 /* ===== 年度热力盒子 ===== */
 /* ★A3（V3.8.35）段内卡片圆角统一 lg：热力盒与四段里的其它段内卡（`.lbox`）原是 md，
    同为「段内一级容器」却两档圆角 —— 横向扫下来节奏在全年段断了一下。 */
-.pi-hmbox { background: var(--surface-2); border-radius: var(--radius-lg); padding: 16px 18px; }
+.pi-hmbox { background: transparent; border-radius: 0; padding: 0; }
+.pi-hmbox .dz-sec { border: 0; background: transparent; }
+.pi-hmbox .dz-sec-h { padding: 0 0 10px; }
+.pi-hmbox .dz-sec-b { padding: 0; }
 .pi-hm-legend {
   display: flex; align-items: center; gap: 5px; font-size: var(--fs-micro); color: var(--text-4);
   margin-top: 12px; flex-wrap: wrap;
@@ -482,15 +550,27 @@
 
 /* ===== 小屏 ===== */
 @media (max-width: 900px) {
+  .pi-overview { grid-template-columns: 1fr; }
   .pi-tl { grid-template-columns: 1fr; }
   .pi-rail { display: none; }
   .light-split { grid-template-columns: 1fr; }
   .pi-hero-acts { justify-content: flex-start; }
-  /* ★W14-T2：数据行在窄屏回落为上下两段（使命带一行 + 读数两列），不压成四列挤字 */
-  .hero-data-row { flex-direction: column; align-items: stretch; }
-  .hero-kpis-grid { grid-template-columns: repeat(2, 1fr); }
+  /* 四格读数已归概览；窄屏只需让使命带与主攻胶囊自然折行。 */
 }
 @media (max-width: 640px) {
+  .pi-ov-card { padding: 14px; }
+  .pi-ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pi-ov-kpi:nth-child(2) { border-right: 0; }
+  .pi-ov-kpi:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  .pi-ov-head { flex-wrap: wrap; }
+  .pi-ov-head .meta { width: 100%; padding-top: 0; }
+  .pi-ov-insight { flex-wrap: wrap; }
+  .pi-ov-insight .cta { margin-left: 23px; }
+  .pi-ov-line { flex-wrap: wrap; padding: 5px 0; }
+  .pi-ov-line .title, .pi-ov-line .empty { flex-basis: calc(100% - 36px); }
+  .pi-tl-bar { align-items: stretch; }
+  .pi-range-tabs { width: 100%; }
+  .pi-range-tab { flex: 1; justify-content: center; }
   .f3-row { flex-wrap: wrap; }
   .strip4 { grid-template-columns: repeat(2, 1fr); }
   .pi-goal .nm { width: 112px; }

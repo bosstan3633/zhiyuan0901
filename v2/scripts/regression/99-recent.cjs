@@ -300,17 +300,15 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
     && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
-check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + 概览带专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、Hero KPI 卡承接存量摘要职责；★B8 补（V3.8.41）：其版式 CSS（.dz-sec-ov 等 13 条）已随换真 census 被 dead-css-scan 判死并删除，退役从"组件没了、样式还在"补齐为"组件与样式都清干净"；判据转退役三条腿：① DashboardOverview.vue 文件不存在（删干净的凭据）② 新宿主 PiHero 底盘卡在位（★W13-D1 再随迁2026-10-16：原 5 枚 pi-hchip 改 4 枚 .hero-kpi total/entropy/support/focus，时间三指标迁 PiYear）③ 宿主 import pi-timeline.css 且不再 import DashboardOverview', () => {
+check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + 概览带专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、存量摘要后由 Hero 承接；★B8 补（V3.8.41）：其版式 CSS（.dz-sec-ov 等 13 条）已随换真 census 被 dead-css-scan 判死并删除；★V3.9.3 再随迁：四格核心读数从 Hero 归位 PiOverview，宿主仍 import pi-timeline.css 且不再 import DashboardOverview。判据三条腿：① DashboardOverview.vue 文件不存在 ② 概览四格 total/entropy/support/focus 在位 ③ 宿主样式接线在位', () => {
   const fsx = require('fs');
   const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
-  const hero = read('/newtab/components/profile/PiHero.vue');
+  const overview = read('/newtab/components/profile/PiOverview.vue');
   const pi = read('/newtab/views/ProfileInsights.vue');
   return gone
-    // ★V3.8.36（A2）重指：A2 给第四格加 hero-kpi-bar 类，原锚 `class="hero-kpi"` 带引号定界会漏配。
-    // 改锚「以 hero-kpi 开头的 button 数」，仍钉死四格不多不少。
-    && (hero.match(/<button class="hero-kpi[\s"]/g) || []).length === 4
-    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'entropy')")
-    && hero.includes("emit('drill', 'support')") && hero.includes("emit('drill', 'focus')")
+    && (overview.match(/<button class="pi-ov-kpi[\s"]/g) || []).length === 4
+    && overview.includes("emit('kpi-drill', 'total')") && overview.includes("emit('kpi-drill', 'entropy')")
+    && overview.includes("emit('kpi-drill', 'support')") && overview.includes("emit('kpi-drill', 'focus')")
     && pi.includes("import '@/newtab/components/profile/pi-timeline.css'")
     && !codeOnly(pi).includes('DashboardOverview');
 });
@@ -523,18 +521,18 @@ check('R172-4 ★T4 复盘计算引擎（04-67 §6/§7.6）：四范围窗口 + 
     && !/\.persist\(|saveData|chrome\.storage/.test(rr);
 });
 
-check('R172-5 ★W10 退役重指带备案：概览带 UI（DashboardOverview 5 存量 chip + 概览带叙述行 + bind 高亮）随时间轴三段式整体退役（★B8 补V3.8.41：叙述行与校准面板的 CSS 已判死删除）；能力拆解为：① 存量摘要移交 PiHero（★W13-D1 再随迁带备案 2026-10-16：原 total/streak/active/entropy/longest 5 枚 chip 改 4 枚底盘卡 total/entropy/support/focus——streak/active/longest 三枚时间指标不再留在 Hero，迁 PiYear 年度段，消除全页重复）② 窗口聚合移交 PiRhythm（aggregateRange + 等长窗口 prevWindow/pct）③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变（buildDailyStats 重建 + 快照合并 + selDay 态）⑤ GS 零命中负锚不变', () => {
+check('R172-5 ★W10 退役重指带备案：概览带 UI 随时间轴三段式整体退役（★B8 补V3.8.41：叙述行与校准面板 CSS 已判死删除）；能力拆解为：① 存量摘要四格归位 PiOverview（★V3.9.3：total/entropy/support/focus；连续/活跃/最长三枚时间指标归 PiYear）② 窗口聚合移交 PiRhythm ③ W_ROWS 口径表单一真源留 dailyStats.ts ④ 数据桥 useDashboardStats 三锚不变 ⑤ GS 零命中负锚不变', () => {
   const fsx = require('fs');
   const gone = !fsx.existsSync(path.resolve(base, 'newtab/components/dashboard/DashboardOverview.vue'));
-  const hero = read('/newtab/components/profile/PiHero.vue');
+  const overview = read('/newtab/components/profile/PiOverview.vue');
   const rh = read('/newtab/components/profile/PiRhythm.vue');
   const rr = read('/shared/utils/reviewReport.ts');
   const ds = read('/shared/utils/dailyStats.ts');
   const pi = read('/newtab/views/ProfileInsights.vue');
   const ud = read('/newtab/components/dashboard/useDashboardStats.ts');
   return gone
-    && hero.includes("emit('drill', 'total')") && hero.includes("emit('drill', 'entropy')")
-    && hero.includes("emit('drill', 'support')") && hero.includes("emit('drill', 'focus')")
+    && overview.includes("emit('kpi-drill', 'total')") && overview.includes("emit('kpi-drill', 'entropy')")
+    && overview.includes("emit('kpi-drill', 'support')") && overview.includes("emit('kpi-drill', 'focus')")
     && rh.includes('aggregateRange(') && rh.includes('prevWindow(') && rh.includes('pct(')
     && ds.includes('export const W_ROWS')
     && rr.includes('export function stockBoundTo(') && ds.includes('export function aggregateRange(')

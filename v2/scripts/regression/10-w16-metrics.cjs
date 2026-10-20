@@ -6,30 +6,30 @@
 const { check, codeOnly, read } = require('./helpers.cjs');
 
 const HERO = read('/newtab/components/profile/PiHero.vue');
+const OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
 const PI = read('/newtab/views/ProfileInsights.vue');
 const CSS = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
 
 console.log('【W16 · 指标区方案A（纯文本读数行）与下钻明细准确性（V3.8.24 批）】');
 
-check('W16-1 ★指标区必须"降级为一行字"而不是四张卡（用户拍板 2026-10-16 方案A）：四格读数**去卡面**（底色/边框/圆角/阴影全清，只用竖线分隔），数字降到 fs-body 加粗、标签同行 micro；说明文字收进各格 title 悬浮（信息不删，只是不再常驻占位）；悬停出底色与 ▸ 箭头；主攻胶囊名截断（不截断时「教育+AI行业地图研究」会挤掉半个数据行）。★病根：Hero 在页面最顶部且常驻，读一眼就够，却占着四个卡面 + 15px 大数字压过真正的主角（今天的战报与三件事）。负锚：仍 repeat(4,1fr) 四等宽铺满（N7）、hover 不抬升、title 必须带"点击看明细"', () => {
-  const grid = CSS.match(/\.hero-kpis-grid \{[^}]*\}/)?.[0] || '';
-  const kpi = CSS.match(/\.hero-kpi \{[^}]*\}/)?.[0] || '';
-  const v = CSS.match(/\.hero-kpi \.v \{[^}]*\}/)?.[0] || '';
-  const l = CSS.match(/\.hero-kpi \.l \{[^}]*\}/)?.[0] || '';
+check('W16-1 ★V3.9.3 四格读数归位概览后的指标形态：四格用竖线分隔、数字与说明分层；每格带分子分母口径 tooltip，点击可下钻；第四格保留中性进度条；主攻胶囊名截断。Hero 本身不再渲染指标，避免首屏同组读数出现两次。', () => {
+  const grid = CSS.match(/\.pi-ov-kpis \{[^}]*\}/)?.[0] || '';
+  const kpi = CSS.match(/\.pi-ov-kpi \{[^}]*\}/)?.[0] || '';
+  const v = CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/)?.[0] || '';
+  const l = CSS.match(/\.pi-ov-kpi \.l \{[^}]*\}/)?.[0] || '';
+  const d = CSS.match(/\.pi-ov-kpi \.d \{[^}]*\}/)?.[0] || '';
   const pill = CSS.match(/\.hcb-pill \{[^}]*\}/)?.[0] || '';
   return /background:\s*transparent/.test(kpi)
     && !/border-radius/.test(kpi) && !/box-shadow/.test(kpi)
-    && !/border:\s*1px solid/.test(kpi)          /* 只留 border-right 作分隔线 */
     && kpi.includes('border-right: 1px solid var(--border)')
-    && grid.includes('repeat(4, 1fr)') && grid.includes('border-left: 1px solid var(--border)')
-    && v.includes('font-size: var(--fs-body)')  /* 数字从 fs-title 降到 fs-body */
-    && l.includes('font-size: var(--fs-micro)')
-    && !CSS.includes('.hero-kpi .d')             /* 说明节点整段退役（信息去了 title） */
-    && !HERO.includes('class="d"')
-    && CSS.includes('.hero-kpi::after') && CSS.includes('content: \'▸\'')
+    && grid.includes('repeat(4, minmax(0, 1fr))')
+    && v.includes('font-size: var(--fs-title)')
+    && l.includes('font-size: var(--fs-caption)')
+    && d.includes('font-size: var(--fs-caption)')
     && pill.includes('max-width: 24ch') && pill.includes('text-overflow: ellipsis')
-    && (HERO.match(/点击看明细/g) || []).length === 4
-    && (HERO.match(/emit\('drill', '/g) || []).length === 4   /* 四格下钻出口一枚未减 */
+    && (OVERVIEW.match(/点击看明细/g) || []).length === 4
+    && (OVERVIEW.match(/emit\('kpi-drill', '/g) || []).length === 4
+    && !codeOnly(HERO).includes('hero-kpi')
     && !/transform:\s*translateY/.test(kpi);
 });
 

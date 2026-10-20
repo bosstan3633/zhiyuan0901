@@ -467,8 +467,8 @@ async function main() {
   }), [dsOldDay])
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  // 读合并断言（V3.9.1 重指）：热力图已迁画像洞察页 PiYear。
-  // 先到 #/profile，再用 PiRail「本年度」定位年度段，最后点「看全年 ›」进入展开态。
+  // 读合并断言（V3.9.3 重指）：热力图已迁画像洞察页 PiYear，且画像页默认本年、
+  // 年度热力图默认展开；无需再点「看全年 ›」。
   // 所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格，且 fullSince 说明仍含老日子。
   await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2400)
@@ -476,8 +476,17 @@ async function main() {
   await yearRail.click().catch(() => {})
   await page.waitForTimeout(700)
   const yearModuleOn = await page.locator('#mod-year').first().isVisible().catch(() => false)
-  await page.locator('#mod-year .dz-mini-more').first().click({ timeout: 8000 }).catch(() => {})
-  await page.waitForTimeout(900)
+  const heatTarget = page.locator('#mod-year .dz-cell:not(.future):not(.today)').first()
+  const heatTargetDay = await heatTarget.getAttribute('title').then(t => (t || '').split(' · ')[0]).catch(() => '')
+  await heatTarget.click({ timeout: 6000 }).catch(() => {})
+  await page.waitForTimeout(700)
+  const heatBattle = await page.evaluate(() => {
+    const modal = document.querySelector('.pi-day-modal')
+    const sub = (document.querySelector('.pi-day-modal .dz-day-sub')?.textContent || '').trim()
+    return { open: !!modal, sub }
+  })
+  await page.locator('.pi-day-modal .dz-btn.ghost.sm').filter({ hasText: '收起' }).click().catch(() => {})
+  await page.waitForTimeout(300)
   const dsExpanded = await page.locator('.dz-months .mb').count()
   const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
   // fullSince 徽章真实落点在网格下方的 .note 区（文案「调出维度自 X 起完整」），不在 .dz-sec-h 里
@@ -510,8 +519,9 @@ async function main() {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   report('E2E-25 R174-3 按日快照落盘（画像页年度段读合并 + 保存→pagehide→今日写链路）',
-    yearModuleOn && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
-    `年度段=${yearModuleOn} 月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
+    yearModuleOn && heatBattle.open && heatBattle.sub.includes(heatTargetDay)
+      && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
+    `年度段=${yearModuleOn} 战报=${heatBattle.open} 战报日=${heatBattle.sub} 点格日=${heatTargetDay} 月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
   // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -1871,12 +1881,12 @@ await paOpen()
     `行=${gpRow.found} 钮=${JSON.stringify(gpRow.titles)} hover 前 opacity=${gpRow.actsOpacity} 面板行=${JSON.stringify(gpRow.全部行)} hover 后=${gpHover} starred: 点后=${JSON.stringify(starAfter)} 复原=${JSON.stringify(starBack)}`)
 
   // ══════════ E2E-42（R4-Ew）★画像洞察页四格 KPI 的下钻出口都真响应 ══════════
-  // V3.9.1：调度台合流指标条退役，四类指标能力迁画像洞察页 PiHero。
+  // V3.9.3：四类指标从 PiHero 归位画像洞察首屏概览，仍是同一组真实下钻出口。
   // 本用例保留 R4-Ew「不能只有数字、没有真出口」的原意，按新宿主的三种真实响应形态判：
   //   total/support → 卡片清单抽屉；entropy → 口径 toast；focus → 全量记录抽屉（focusOnly 预设）。
   await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2400)
-  const heroKpiCount = await page.locator('.hero-kpis-grid .hero-kpi').count()
+  const heroKpiCount = await page.locator('.pi-ov-kpis .pi-ov-kpi').count()
   const heroDrillRes = []
   for (const dr of [
     { i: 0, 名: '全库净资产', 型: 'drawer', 题: '全部卡片明细' },
@@ -1884,7 +1894,7 @@ await paOpen()
     { i: 2, 名: '任务有证据支撑', 型: 'drawer', 题: '任务证据支撑明细' },
     { i: 3, 名: '近30天精力落主攻', 型: 'log', 题: '全部记录' },
   ]) {
-    await page.locator('.hero-kpis-grid .hero-kpi').nth(dr.i).click().catch(() => {})
+    await page.locator('.pi-ov-kpis .pi-ov-kpi').nth(dr.i).click().catch(() => {})
     await page.waitForTimeout(900)
     const one = await page.evaluate((d) => {
       const drawerTitle = ((document.querySelector('.drawer-title') || {}).textContent || '').trim()

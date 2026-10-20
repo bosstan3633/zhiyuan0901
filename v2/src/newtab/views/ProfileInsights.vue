@@ -1,14 +1,18 @@
 ﻿<script setup lang="ts">
 /**
- * W10（V3.9.0）：画像洞察页 —— 时间轴三段式（今天 / 近期 / 全年）。
+ * V3.9.3：画像洞察页 —— 概览 + 单段时间轴（今天 / 本周 / 本月 / 本年）。
  *
- * 本版把 v6 原型布局落为生产：
- *   §0 PiHero 页头（5 KPI chip + 刷新/导出/AI 解读/今日战报）
- *   左 PiRail 导航（IntersectionObserver 高亮） + 右三模块：
+ * 本版把已确认的高保真原型落为生产：
+ *   §0 PiHero 页头（标题 / 使命与主攻 / 全库读数 / 刷新、导出、全部记录）
+ *   §1 PiOverview 首屏双栏（左：本周方向；右：今天三件事）
+ *   §2 PiRangeTabs + 左 PiRail 导航 + 右单段时间轴（四选一）：
  *     ① PiToday  今天 · TODAY（今日六格 + 今日三件事 + 洞察条）
- *     ② PiRhythm 本周 · WEEK（strip + 6 KPI + 节奏柱 + 目标 + 预警 + 操作流，T5 并段；★V3.8.20 固定周窗口）
+ *     ② PiRhythm 本周 · WEEK（strip + 节奏柱 + 目标 + 规则对照；★V3.8.20 固定周窗口）
  *     ③ PiMonth  本月 · MONTH（★V3.8.20 新增轻量月度段：strip + 月柱 + 6 KPI + 环比；目标/预警/操作流不重复）
- *     ④ PiYear   全年 · YEAR（F20 诊断条 + F21 strip4 归位四格 + 年度热力图 + 生命周期，T6 并段，#lc-sec 深链锚保留）
+ *     ④ PiYear   全年 · YEAR（F20 诊断条 + F21 strip4 + 默认展开年度热力图 + 生命周期）
+ *
+ * 单段切换取代四段纵向堆叠：默认「本年」，让年度热力图成为首屏主视觉；页签与左轨
+ * 共用 activeRange，只切换当前时间尺度，不滚动到隐藏的段落。点热力格直接打开该日战报。
  *
  * 决策落实：
  *   D1 六维砍掉 → PiRhythm 用复盘段真实 kpisOf 六枚
@@ -56,6 +60,8 @@ import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
 import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
 import PiYear from '@/newtab/components/profile/PiYear.vue'
+import PiOverview from '@/newtab/components/profile/PiOverview.vue'
+import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
 /* ★W13-D5：ReviewPanel 弹窗挂载退役（2026-10-16）——组件文件保留待复用，宿主零 import。 */
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
 import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
@@ -393,14 +399,32 @@ function openProjectDetail(projectId: string) {
   projDetailOpen.value = true
 }
 
-/* ===== PiRail 导航（★V3.8.20：三节点 → 四节点，本月段新增落点） ===== */
+/* ===== 时间尺度：四选一单段展示 ===== */
 type RailK = 'now' | 'week' | 'month' | 'year'
-const railActive = ref<RailK>('now')
-let railObs: IntersectionObserver | null = null
-function onRailJump(k: RailK) {
-  const id = k === 'now' ? 'mod-now' : k === 'week' ? 'mod-recent' : k === 'month' ? 'mod-month' : 'mod-year'
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+const activeRange = ref<PiRange>('year')
+const railActive = computed<RailK>(() => activeRange.value === 'today' ? 'now' : activeRange.value)
+const timelineAnchor = ref<HTMLElement | null>(null)
+const rangeLabel = computed(() => ({
+  today: '今天', week: '本周', month: '本月', year: '本年'
+}[activeRange.value]))
+
+function setRange(k: PiRange, scroll = false): void {
+  activeRange.value = k
+  if (!scroll) return
+  requestAnimationFrame(() => {
+    timelineAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
+function onRailJump(k: RailK) {
+  setRange(k === 'now' ? 'today' : k, true)
+}
+
+/* 首屏概览的窗口范围（左栏标题右侧的小日期刻度） */
+const overviewWeekRange = computed(() => {
+  const w = windowOf('week', {})
+  const f = (s: string) => `${Number(s.slice(5, 7))}.${s.slice(8, 10)}`
+  return `${f(w.s)} — ${f(w.e)}`
+})
 
 /* ===== 复盘弹窗（★W13-D5 退役 2026-10-16）：ReviewPanel 挂载随「复盘能力四段常驻」拍板下线——
    reviewOpen/openReview/useDashboardReport 四出口（save/task/goto/export）一并退役，组件文件保留。 ===== */
@@ -938,25 +962,13 @@ function fmtDay(ts?: number): string {
 onMounted(() => {
   void refreshEventLog()
   void refreshErrorCount()
-  // PiRail IntersectionObserver（★V3.8.20：mod-month 第四锚点）
-  railObs = new IntersectionObserver((entries) => {
-    for (const en of entries) {
-      if (en.isIntersecting) {
-        const id = en.target.id
-        railActive.value = id === 'mod-now' ? 'now' : id === 'mod-recent' ? 'week' : id === 'mod-month' ? 'month' : 'year'
-      }
-    }
-  }, { rootMargin: '-25% 0px -55% 0px' })
-  for (const id of ['mod-now', 'mod-recent', 'mod-month', 'mod-year']) {
-    const el = document.getElementById(id)
-    if (el) railObs.observe(el)
-  }
   // 支持 #lifecycle / #lc-sec 深链（归档提示条 → PiYear 生命周期段）
   if (location.hash === '#lifecycle' || location.hash === '#lc-sec') {
+    activeRange.value = 'year'
     setTimeout(() => document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth' }), 160)
   }
 })
-onUnmounted(() => { railObs?.disconnect(); offErrLog() })
+onUnmounted(() => { offErrLog() })
 // 战报打开前重读事件日志（keep-alive 场景数据不冻结；复盘弹窗 watch 随 D5 退役）
 watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 </script>
@@ -964,18 +976,37 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
   <div class="pi-page">
     <!-- ===== §0 Hero 页头 ===== -->
     <PiHero
-      :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
-      :top-tags="heroTopTags" :support-rate="heroSupportRate" :focus-share="heroFocusShare"
       :mission-text="heroMission" :focus-pills="heroFocusPills" :error-count="errorLogCount"
-@drill="onHeroDrill" @refresh="onHeroRefresh" @export="onHeroExport"
+      @refresh="onHeroRefresh" @export="onHeroExport"
           @export-error="exportErrorLog" @open-log="openLog('log')" @goto-compass="gotoCompass"
           @open-project="openProjectDetail" />
 
-    <!-- ===== 时间轴：左 rail + 右四模块（★V3.8.20：本月段新增，3 段 → 4 段） ===== -->
+    <!-- ===== 首屏概览：先方向，再行动 ===== -->
+    <PiOverview
+      :week-range="overviewWeekRange" :week-insight="concise.week" :today-insight="concise.today"
+      :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
+      :top-tags="heroTopTags"
+      :support-rate="heroSupportRate" :focus-share="heroFocusShare"
+      :rows="todayRows" :recommend="todayRecommend" :focus-filled="todayFilled"
+      @week-action="onConciseAction" @today-action="onConciseAction"
+      @kpi-drill="onHeroDrill"
+      @open-focus="() => router.push('/')" @toggle="onTodayToggle"
+      @bind="onTodayBind" @fill="onTodayFill" @open-project="openProjectDetail" />
+
+    <!-- ===== 单段时间轴：页签与左轨共同控制当前尺度 ===== -->
+    <div ref="timelineAnchor" class="pi-tl-anchor">
+      <div class="pi-tl-bar">
+        <div>
+          <span class="pi-tl-kicker">TIMELINE · {{ rangeLabel }}</span>
+          <p>一次只读一个时间尺度。默认落在本年，点热力格直接看那天发生了什么。</p>
+        </div>
+        <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
+      </div>
+    </div>
     <div class="pi-tl">
       <PiRail :active="railActive" @jump="onRailJump" />
-      <div class="pi-rmods">
-        <PiToday
+      <div class="pi-rmods pi-rmods-single">
+        <PiToday v-if="activeRange === 'today'"
           :today-add="todayAdd" :today-called="todayCalled"
           :focus-filled="todayFilled" :ammo="todayAmmo"
           :insight="concise.today" :rows="todayRows" :recommend="todayRecommend"
@@ -984,13 +1015,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           @open-project="openProjectDetail"
           @bind="onTodayBind" @fill="onTodayFill" />
 
-        <!-- ★A3（V3.8.35）段间发丝线：三处分隔线盒把四段在视觉上立成四段（间距由线盒承担，见 pi-timeline.css）。
-             写死三处而不是给 .pi-mod 加兄弟选择器伪元素：线要落在**卡外**的间距中央，
-             而 .pi-mod 有 `overflow: hidden`（裁圆角外的子元素），伪元素画不出卡外。 -->
-        <div class="pi-sep" aria-hidden="true"></div>
-
-        <!-- ★V3.8.20 @open-review / ★W13-D5 目标对账按钮：复盘入口随 ReviewPanel 全量退役，Hero 不再有 review 出口 -->
-        <PiRhythm
+        <PiRhythm v-else-if="activeRange === 'week'"
           :stats="dashStats" :directions="dashDirections"
           :tasks="dashTasks" :error-count="errorLogCount"
           :insight="concise.week"
@@ -998,17 +1023,13 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
           @insight-action="onConciseAction" />
 
-        <div class="pi-sep" aria-hidden="true"></div>
-
-        <PiMonth
+        <PiMonth v-else-if="activeRange === 'month'"
           :stats="dashStats" :insight="concise.month" :ent="mEntTrend"
           :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
           :curio-conv="mCurioConv" :projected="mProjected"
           @drill="onMonthDrill" @topic="onMonthTopic" @insight-action="onConciseAction" />
 
-        <div class="pi-sep" aria-hidden="true"></div>
-
-        <PiYear
+        <PiYear v-else
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
           :events="timelineEvents" :live-link="linkCardCount"
           :lc-cards="lcCards" :all-events="timelineEvents"

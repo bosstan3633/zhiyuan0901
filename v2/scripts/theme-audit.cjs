@@ -146,7 +146,7 @@ const RETIRED_DASH_SCENES = ['dz-drill', 'dz-review', 'dz-report', 'dz-entry']
 
 const DASH_SCENES = [
   {
-    id: 'dz-overview', name: '页头 KPI 带',
+    id: 'dz-overview', name: '概览 KPI 带',
     /* ★W12(V3.8.12)随迁备案：原判据守的是 DashboardOverview 的「概览带」——`.dz-ov` 容器 + 五枚
        `.dz-chip` + `.dz-calib` 口径表 + 说明默认藏/悬停才现。而 DashboardOverview.vue 已随 W10 三段式
        时间轴重构整体退役（本轮实测 `components/dashboard/` 下确无该文件），职责落到 PiHero：
@@ -159,19 +159,14 @@ const DASH_SCENES = [
        口径表 `.dz-calib` 在 dashboard.css 里仍有 7 条规则，但已无任何模板挂载点 ⇒ 随判据一并退役。 */
     judge: async (page) => {
       const base = await page.evaluate(() => {
-        /* ★B7-e（2026-10-18）第三次重指：`.pi-hero-sum .pi-hchip` 在**模板里已无挂载点**
-           （全库 `class=` 命中 0，只在 CSS 注释里留了字面量）——PiHero 早把它换成
-           `.hero-kpis-grid` + 四枚 `.hero-kpi`（N7 钉住 repeat(4,1fr) 等宽铺满）。
-           判据锚点停在旧名上，于是「chip=0/5」是与组件改名同步产生的**长期假红**。
-           ——重指后守的还是同一批行为：四枚都在② 同排一行（等宽 grid 不许改回居中或不等宽）
-           ③ 每枚必须带 title 口径（那是原 `.dz-calib` 口径表的承载物）
-           ④ 出错时不得冒错误徽章（`.pi-btn-warn`，原 `.dz-ov-err`）。
-           ★数量从五改四不是放水：五枚那一版含「活跃度」，该维度已并入其余四格的 title 口径里。 */
-        const chips = [...document.querySelectorAll('.hero-kpis-grid > .hero-kpi')]
+        /* ★V3.9.3 第五次重指：四格核心读数从 PiHero 归位 PiOverview，
+           承重锚改为 `.pi-ov-kpis > .pi-ov-kpi`。守的行为不变：
+           ① 四枚都在 ② 同排一行 ③ 每枚必须带 title 口径 ④ 出错时不得冒错误徽章。 */
+        const chips = [...document.querySelectorAll('.pi-ov-kpis > .pi-ov-kpi')]
         const rows = new Set(chips.map(c => Math.round(c.getBoundingClientRect().top))).size
         const titled = chips.filter(c => (c.getAttribute('title') || '').trim().length > 0).length
         const errPill = !!document.querySelector('.pi-btn-warn')
-        return { sec: !!document.querySelector('.hero-kpis-grid'), n: chips.length, rows, titled, errPill }
+        return { sec: !!document.querySelector('.pi-ov-kpis'), n: chips.length, rows, titled, errPill }
       })
       const N = 4
       return {
@@ -220,6 +215,10 @@ const DASH_SCENES = [
        （它自己会挑「今天有记录就今天、否则最近有记录的一天」，正是原注释想用选格绕过的那个问题）。
        判据守的还是同一批行为：四格统计 ≥4 + 热力带 + 时间线三者齐全，一格都不放宽。 */
     act: async (page) => {
+      /* V3.9.3：默认落在「本年」，热力格本身就是当日战报入口；先切「今天」再走
+         PiToday 的「打开战报」，两种入口都要真开弹窗。 */
+      await page.locator('.pi-range-tab[data-range="today"]').first().click({ timeout: 8000 }).catch(() => {})
+      await page.waitForTimeout(350)
       const btn = page.locator('button', { hasText: '打开战报' }).first()
       await btn.click({ timeout: 8000 }).catch(() => {})
       await page.waitForTimeout(1200)
@@ -1205,16 +1204,11 @@ if (argv.scenes) {
         }
         console.log(`  · ${theme.padEnd(8)} ${sc.name.padEnd(6)} 同 hash 未换页（懒 chunk），已 reload 兜底`)
       }
-      /* ★W12(V3.8.12)随迁备案：全年 366 格自 V3.8.7 起收进「看全年 ›」展开态
-         （Heatmap 的 expanded 初值 false），而 dz-heatmap 的判据直接数 .dz-cell ——
-         这些节点**在收起态不存在** ⇒「格=0(应≥360)」是从 V3.8.7 起就一直红着的，
-         与方向台那批同根因（漏迁三轮）。这里先展开再判。
-         折叠本身由 W7-3 守着（双向可达），本处只负责让场景拿到节点。
-         ★只对 dz-heatmap 生效：dz-day 的 act 自己要挑「有记录的格子」（四格统计带 v-if="dlSum.n"
-         前置，展开后点首格必是空白日），若这里也展开一次，它的 act 会点到第二层去。 */
+      /* ★V3.9.3：画像洞察页的年度宿主传 default-expanded，全年网格默认就在位；
+         不再点「看全年 ›」——那个入口仍属于其它宿主，展开/收起双回程由 W7-3 守。
+         这里只确认宿主已给出全年格；缺失时留空，由下方判据点名，不静默补一次点击。 */
       if (sc.id === 'dz-heatmap') {
-        await page.locator('.dz-mini-more').first().click({ timeout: 6000 }).catch(() => {})
-        await page.waitForTimeout(800)
+        await page.locator('.dz-months .dz-cell').first().waitFor({ state: 'attached', timeout: 6000 }).catch(() => {})
       }
       if (sc.act) await sc.act(page)
       await resetView(page)

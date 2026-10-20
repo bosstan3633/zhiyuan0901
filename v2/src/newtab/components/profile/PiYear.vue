@@ -60,6 +60,12 @@ const ls = computed(() => longestStreak(props.stats, props.year))
    （lifecycleState 单一真源：含 per-card 自定义阈值与 snooze 覆盖，不自造 30/90 近似） */
 const activeAssets = computed(() => props.lcCards.filter(c => lifecycleState(c) === 'active').length)
 const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) === 'cooling' && (c.callCount || 0) >= 3).length)
+
+/** 年度视图里热力格是「当日战报」的直接入口：先保留选中描边，再打开该日战报。 */
+function onHeatmapSel(day: string | null): void {
+  emit('update:selDay', day)
+  if (day) emit('open-battle', day)
+}
 </script>
 
 <template>
@@ -117,11 +123,11 @@ const highCooling = computed(() => props.lcCards.filter(c => lifecycleState(c) =
       <div class="pi-hair"></div>
 
       <div>
-        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 / 近半年 26 周 · 点格选中那天 · 战报见「今日」段</span></div>
+        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 · 点任意日期 › 直接打开当日战报</span></div>
         <div class="pi-hmbox">
           <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
-            @update:year="emit('update:year', $event)" @update:sel-day="emit('update:selDay', $event)"
-            @open-log="emit('open-battle', $event)" />
+            default-expanded
+            @update:year="emit('update:year', $event)" @update:sel-day="onHeatmapSel" />
           <div class="pi-hm-legend">
             <span>少</span>
             <span class="s s-h0"></span><span class="s s-h1"></span>
