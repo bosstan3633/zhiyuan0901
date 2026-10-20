@@ -27,6 +27,7 @@ import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import MetricDetailDrawer from '../components/compass/MetricDetailDrawer.vue'
 // W11（V3.8.11）战略金字塔：骨架控制条 / 层级展开面板 / 项目舱 / 项目全景 四件套（原型 v1 视觉基准）
 import CompassSpine from '../components/compass/CompassSpine.vue'
 import CompassLayerPanel from '../components/compass/CompassLayerPanel.vue'
@@ -145,8 +146,15 @@ watch(() => d.value?.compass.directions, () => expandMetricsOfOpenProjects(), { 
     W1.1 修「收起后展开没反应」：收起把每个项目显式写 projFoldOverride=false 落盘（显式值压过主攻默认），
     而旧实现只补指标层、不复位项目层 ⇒ 点展开循环体被 projOpen 守卫挡在门外，零副作用。
     修复＝与 collapseAllNodes 对称：展开把每个项目写 override=true 并全摊指标，按钮才真的反向。 */
+/** 一键展开/收起只作用于“当前可见项目”：
+ *  受战略目标筛选、断链模式、已完成项目显隐共同收窄。
+ *  否则筛到 1 个目标后点“全部展开”，会顺手把其它不可见目标也写开，
+ *  清除筛选后看起来像“我没点过它们，却全展开了”。 */
+function visibleProjectsForBulk(): Project[] {
+  return towerGroups.value.flatMap(g => g.projs.map(r => r.proj))
+}
 function expandAllNodes() {
-  for (const dir of d.value.compass.directions) for (const proj of dir.projects) {
+  for (const proj of visibleProjectsForBulk()) {
     projFoldOverride.value[proj.id] = true
     expandMetricsOf(proj)
   }
@@ -155,9 +163,9 @@ function expandAllNodes() {
 
 /** R49-C7：一键展开/收起全部（R3-B′ 起两级一起管：项目卡 + 指标） */
 function collapseAllNodes() {
-  for (const dir of d.value.compass.directions) for (const proj of dir.projects) projFoldOverride.value[proj.id] = false
+  for (const proj of visibleProjectsForBulk()) projFoldOverride.value[proj.id] = false
   writeProjFold()
-  expandedMetrics.value.clear()
+  for (const proj of visibleProjectsForBulk()) for (const m of proj.metrics) expandedMetrics.value.delete(m.id)
 }
 
 /** ★V3.8.18（N11）：合并开关的当前状态 —— 「全部项目舱是否都处于展开」。
@@ -165,7 +173,7 @@ function collapseAllNodes() {
  *  ★判据只读 projFoldOverride，不读 projOpen —— 后者带「主攻默认展开」兜底，
  *  那个兜底会让「全部收起」之后仍被算成已展开，按钮就永远弹回同一个状态（死按钮）。 */
 const allExpanded = computed(() => {
-  const projs = d.value.compass.directions.flatMap(x => x.projects)
+  const projs = towerGroups.value.flatMap(g => g.projs.map(r => r.proj))
   if (!projs.length) return false
   return projs.every(p => projFoldOverride.value[p.id] === true)
 })
@@ -795,6 +803,16 @@ function openTaskDetail(taskId: string): void {
   if (!t) { showToast('该任务已不在'); return }
   detailRef.value?.open(t)
 }
+/* 项目 → 指标 → 任务连续下钻：
+   指标详情由本页单一实例承载，项目详情里的指标行也走这里，
+   不另造一套指标详情。Esc 层级由 Drawer.vue 的抽屉栈统一裁决。 */
+const metricDetailId = ref<string | null>(null)
+const metricDetailOpen = ref(false)
+function openMetricDetail(metricId: string) {
+  if (!findMetric(metricId)) { showToast('该指标已不在'); return }
+  metricDetailId.value = metricId
+  metricDetailOpen.value = true
+}
 const taskAddMetricTitle = computed(() => {
   if (!taskAdd.value) return ''
   for (const dir of d.value.compass.directions) {
@@ -879,6 +897,13 @@ const activeTowerId = ref('')
 /** 点左栏舱 → 定位到该舱（与项目塔的定位动作同一入口，不另起一条路） */
 function gotoTower(projId: string) {
   activeTowerId.value = projId
+  /* 全景 → 左栏项目导航也走这里：必须先把视图切回项目塔，
+     否则 querySelector 在泳道 DOM 里找不到 [data-tower]，点了像没反应。 */
+  if (viewMode.value === 'pano') {
+    viewMode.value = 'tower'
+    layerView.value = null
+    layerOpen.value = null
+  }
   ensureTower('定位项目舱').then(() => {
     const el = document.querySelector(`[data-tower="${projId}"]`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -1022,6 +1047,9 @@ const projDrawerId = ref<string | null>(null)
 function openProjectDrawer(projId: string) {
   projDrawerId.value = projId
   projDrawerOpen.value = true
+  /* 项目详情是“当前项目”的另一种读法：左栏高亮必须同步，
+     否则打开 A 项目详情时左栏仍停在滚动命中的 B 舱，制造两个当前项目。 */
+  activeTowerId.value = projId
 }
 
 // 第卅六轮 REQ-039：搜索浮层单击 → 项目详情抽屉
@@ -1307,6 +1335,7 @@ onUnmounted(() => {
               @toggle-task="toggleTask"
               @task-grade="showTaskGrade"
               @open-detail="openTaskDetail"
+              @open-metric="openMetricDetail"
               @add-task="(mid, pid) => openTaskAdd(mid, pid)"
               @add-metric="addMetric"
               @ai-metric="(id) => aiChain('metrics', id)"
@@ -1414,6 +1443,7 @@ onUnmounted(() => {
                   @toggle-task="toggleTask"
                   @task-grade="showTaskGrade"
                   @open-detail="openTaskDetail"
+                  @open-metric="openMetricDetail"
                   @add-task="(mid) => { const r = findMetric(mid); if (r) openTaskAdd(mid, r.proj.id) }"
                   @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @ai-task="(mid) => aiChain('tasks', mid)"
@@ -1492,7 +1522,8 @@ onUnmounted(() => {
     </Drawer>
 
     <!-- 第卅二轮 REQ-003：项目全景透视抽屉 -->
-    <ProjectDetailDrawer :open="projDrawerOpen" :project-id="projDrawerId" @close="projDrawerOpen = false" />
+    <ProjectDetailDrawer :open="projDrawerOpen" :project-id="projDrawerId" enable-metric-drill @close="projDrawerOpen = false" />
+    <MetricDetailDrawer :open="metricDetailOpen" :metric-id="metricDetailId" @close="metricDetailOpen = false" />
 
     <!-- 第卅三轮 REQ-016：指标添加任务双模式（新建 / 关联） -->
     <TaskAddDrawer :open="!!taskAdd" :metric-id="taskAdd?.metricId || ''" :project-id="taskAdd?.projId || ''"
@@ -1691,6 +1722,43 @@ onUnmounted(() => {
   width: 176px; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 8px;
   max-height: calc(100vh - 120px); overflow-y: auto;
+}
+
+/* 响应式：保留“左项目导航 + 右方向画布”的架构，只按可用宽度逐级压缩。
+   1024 先收页边距和列间距；800 以下左栏改为横向项目条，避免 176px 常驻把主画布挤窄；
+   390 下所有工具与读数允许换行，不出现横向滚动。 */
+@media (max-width: 1100px) {
+  .compass-layout { padding-left: 24px; padding-right: 24px; }
+  .tree-layout { gap: 24px; }
+  .navside { width: 160px; }
+}
+@media (max-width: 800px) {
+  .compass-layout { padding: 16px 16px 48px; }
+  .tree-layout { display: block; }
+  .navside {
+    position: static; width: 100%; max-height: none;
+    flex-direction: row; gap: 6px; overflow-x: auto;
+    padding-bottom: 8px; margin-bottom: 14px;
+    scroll-snap-type: x proximity;
+  }
+  .navside .ns-t, .navside .ns-hint { display: none; }
+  .ns-item { flex: 0 0 164px; width: 164px; scroll-snap-align: start; }
+  .canvas-inner { padding: 14px 14px 16px; }
+  .hero-tools { margin-left: 0; }
+}
+@media (max-width: 480px) {
+  .compass-layout { padding: 12px 10px 40px; }
+  .hero { gap: 8px; margin-bottom: 22px; }
+  .hero-acts { gap: 7px; }
+  .hero-stats { gap: 6px; }
+  .hs-sep { display: none; }
+  .view-seg { width: 100%; }
+  .vs-b { flex: 1; padding-left: 8px; padding-right: 8px; }
+  .hero-tools { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tree-tool { flex: 1; text-align: center; }
+  .canvas-inner { padding: 12px 10px 14px; border-radius: var(--radius-lg); }
+  .ns-item { flex-basis: 148px; width: 148px; }
+  .footer-hint { margin-top: 20px; padding: 12px 8px; }
 }
 .ns-t {
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em;

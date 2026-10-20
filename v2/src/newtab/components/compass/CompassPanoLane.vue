@@ -34,6 +34,8 @@ const emit = defineEmits<{
    *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
   (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
+  /** 打开指标详情（与项目塔指标卡同一出口） */
+  (e: 'openMetric', metricId: string): void
   /** ★F1：泳道头删除本指标（走真源 removeMetricWithConfirm，这里只上抛） */
   (e: 'delMetric', metricId: string): void
 }>()
@@ -73,6 +75,7 @@ function priOf(t: TaskCard): string {
         <span class="lane-i">{{ idx }}</span>
         <span class="lane-n">{{ m.title }}</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
+        <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
         <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
         <span class="lane-ops" @click.stop>
           <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
@@ -147,6 +150,12 @@ function priOf(t: TaskCard): string {
 }
 .lane-dot.doing { background: var(--warning-bg-soft); color: var(--warning); }
 .lane-dot.done { background: var(--success-bg-soft); color: var(--success); }
+.lane-detail {
+  flex: none; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 600;
+  padding: 2px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur);
+}
+.lane-detail:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 /* ★F1：泳道头删除入口 —— hover 显形（与项目塔指标卡同语言），「⋯」下拉同款 */
 .lane-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .lo-del, .lo-more {

@@ -258,6 +258,8 @@ check(NAME(
     ['App.vue 顶栏', APPC, /\.brand-chip, \.nav-shortcut-tip \{ min-height: 28px/, '顶栏 chip'],
     ['CompassHome 存储状态', CHC, /\.foot-status \{[^}]*min-height: 28px/, 'foot-status'],
     ['CompassHome 战报钮', CHC, /\.foot-link \{[^}]*min-height: 28px/, 'foot-link'],
+    ['CompassHome 页脚齿轮', CHC, /\.foot-gear \{[^}]*width: 28px;[\s\S]*?height: 28px/, 'foot-gear'],
+    ['CompassHome 右栏文字钮', CHC, /\.rail-head button \{[^}]*min-height: 28px/, 'rail-head button'],
     ['CompassHome 推荐依据钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
   ]
   for (const [name, src, re, who] of targets) {
@@ -283,6 +285,20 @@ check(NAME(
   if (!/\.f3-ck\.done::before/.test(ck)) { console.log('勾选态未迁到 ::before'); return false }
   if (/\.f3-ck\.done \{ background:/.test(ck)) { console.log('旧的 .f3-ck.done 背景规则残留（会给 28px 透明本体上色）'); return false }
   return true;
+});
+
+check(NAME(
+  'M6-3b ★调度台三件事勾选框与「查看全部」也必须实测达到 28px 热区：V3.9.1 两栏改造后，.row-check 仍是裸 20px button、',
+  '.hand-link 只有 20.5px 高，m6 实拍在 1440/1024/800 三档共报 7 处不足。',
+  '修法同 M6-3：勾选框保留 20px 视觉方块（::before 画），按钮本体撑到 28px；「查看全部」用 min-height 撑高，',
+  '不靠加大 padding 改变手边卡标题行的密度。'), () => {
+  const okCheck = /\.row-check \{[\s\S]*?width: 28px;[\s\S]*?height: 28px;/.test(CHC)
+    && /\.row-check::before \{[^}]*width: 20px; height: 20px;/.test(CHC)
+    && /\.row-check\.done::before \{[^}]*background: var\(--accent\)/.test(CHC)
+  const okLink = /\.hand-link \{[\s\S]*?min-height: 28px;/.test(CHC)
+  if (!okCheck) console.log('调度台勾选框未完成「28px 热区 + 20px 视觉」解耦')
+  if (!okLink) console.log('调度台「查看全部」未达到 28px 热区')
+  return okCheck && okLink;
 });
 
 check(NAME(

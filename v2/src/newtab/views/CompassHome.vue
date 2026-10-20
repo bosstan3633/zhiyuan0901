@@ -1460,7 +1460,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 .focus-row {
   position: relative;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto 28px;
+  grid-template-columns: 28px minmax(0, 1fr) auto 28px;
   align-items: center;
   gap: 12px;
   min-height: 74px;
@@ -1479,18 +1479,21 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 .row-check {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  /* 视觉上的勾选框仍由 ::before 保持 20px；按钮本体撑到 28px 热区，避免点不中。 */
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border: 1.5px solid var(--border-strong);
-  border-radius: 5px;
-  background: var(--surface);
+  border: 0;
+  background: transparent;
   color: #fff;
   cursor: pointer;
   transition: border-color var(--dur), background var(--dur);
 }
-.row-check:hover { border-color: var(--accent); }
-.row-check.done { border-color: var(--accent); background: var(--accent); }
+.row-check::before { content: ''; width: 20px; height: 20px; border: 1.5px solid var(--border-strong); border-radius: 5px; background: var(--surface); transition: border-color var(--dur), background var(--dur); }
+.row-check svg { position: relative; z-index: 1; grid-area: 1 / 1; }
+.row-check::before { grid-area: 1 / 1; }
+.row-check:hover::before { border-color: var(--accent); }
+.row-check.done::before { border-color: var(--accent); background: var(--accent); }
 .row-main { min-width: 0; }
 .row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .title-text {
@@ -1654,8 +1657,10 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   align-items: center;
   gap: 2px;
   margin-left: auto;
-  padding: 3px 5px;
+  min-height: 28px;
+  padding: 3px 7px;
   border-radius: var(--radius-xs);
+  font-weight: 600;
   font-size: var(--fs-micro);
   white-space: nowrap;
 }
@@ -1758,8 +1763,8 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border-radius: 3px;
 }
@@ -1801,7 +1806,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 }
 .rail-head b { color: var(--text-2); font-size: var(--fs-caption); font-weight: 700; }
 .rail-head button {
-  min-height: 24px;
+  min-height: 28px;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   font-size: var(--fs-micro);
@@ -2112,7 +2117,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   .focus-pill { max-width: min(240px, calc(100vw - 112px)); }
   .board-head { align-items: flex-start; flex-direction: column; gap: 9px; padding: 13px 15px; }
   .board-tools { width: 100%; flex-wrap: wrap; }
-  .focus-row { grid-template-columns: 24px minmax(0, 1fr) 28px; gap: 9px; padding: 12px 12px 12px 15px; }
+  .focus-row { grid-template-columns: 28px minmax(0, 1fr) 28px; gap: 9px; padding: 12px 12px 12px 15px; }
   .focus-row .row-side { display: none; }
   .focus-row .row-remove { grid-column: 3; }
   .stale-action { grid-column: 2; justify-self: start; }

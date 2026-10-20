@@ -55,7 +55,7 @@ check('R4-a ★回退要停得住：回退同时落 K.MIGRATE_OPTOUT，启动期
 
 // ============== R3-B′ 方向台树：项目层折叠 + 卡头收敛 + 页头整合 ==============
 console.log('【R3-B′ · 方向台树交互收敛】');
-check('R3-B′ ★项目层折叠口径：主攻自动展开、非主攻折叠成卡头（caret 开合），折叠项目不再渲染其指标（不是 v-show 藏起来）；开合态是**会话记忆**走 sessionStorage 键（浏览态不进 UIPrefs，不随导出/同步跑掉）；⊞⊟ 两级一起管', () => {
+check('R3-B′ ★项目层折叠口径：主攻自动展开、非主攻折叠成卡头（caret 开合），折叠项目不再渲染其指标（不是 v-show 藏起来）；开合态是**会话记忆**走 sessionStorage 键（浏览态不进 UIPrefs，不随导出/同步跑掉）；⊞⊟ 两级一起管。★随迁备案：批量开合已收窄到当前可见项目（战略目标筛选 / 断链模式 / 已完成显隐），判据改钉 visibleProjectsForBulk()，不再要求遍历全部 dir.projects', () => {
   const t = CT_ALL, m = read('/shared/models/index.ts'), k = read('/shared/storage/keys.ts')
   return t.includes('function projOpen(') && t.includes('o === undefined ? !!p.isFocused : o')
     /* ★W11 随迁带备案：指标渲染判据由树内 v-if 迁到舱组件 props（:open="projOpen(row.proj)"），
@@ -63,10 +63,13 @@ check('R3-B′ ★项目层折叠口径：主攻自动展开、非主攻折叠�
     && t.includes(':open="projOpen(row.proj)"') && t.includes('<div v-show="open" class="tw-body">')
     && t.includes('function toggleProjectFold(')
     && t.includes('PROJ_FOLD_KEY = K.TREE_PROJ_FOLD_SS') && k.includes("TREE_PROJ_FOLD_SS: 'zy_tree_proj_fold_v1'")
-    && !m.includes('treeProjFold') && t.includes('function collapseAllNodes') && t.includes('for (const proj of dir.projects) projFoldOverride.value[proj.id] = false')
+    && !m.includes('treeProjFold') && t.includes('function collapseAllNodes')
+    && t.includes('function visibleProjectsForBulk()')
+    && t.includes('for (const proj of visibleProjectsForBulk()) projFoldOverride.value[proj.id] = false')
     /* ★W11 随迁带备案：⊞ 展开的落点随舱结构改为「遍历项目 → projFoldOverride=true + expandMetricsOf(proj)」
        两步配对（折与开同时动），与 ⊟ 收起对称。判据钉两步都在位。 */
-    && t.includes('function expandAllNodes') && /expandMetricsOf\(proj\)/.test(t)
+    && t.includes('function expandAllNodes') && t.includes('for (const proj of visibleProjectsForBulk())')
+    && /expandMetricsOf\(proj\)/.test(t)
     && /projFoldOverride\.value\[proj\.id\] = true/.test(t)
 });
 check('R3-B′ ★卡头常驻入口收敛：原「全景 / AI / ▾」六入口 → ★F5 激进瘦身（用户拍板 2026-10-15）舱头常驻只留三控件「＋指标 / ⋯ / 折叠」，菜单项收敛为五项（主攻 / 置顶 / ✦AI建议指标 / 📋导入模板 / 🗑删除）。★翻转带备案：① ＋添加成功指标由菜单项升为常驻「＋指标」钮（高频动作不必开菜单）② ✦ AI 建议指标由常驻钮收进菜单（低频且图标难懂）③ 菜单钮 ▾ 改 ⋯（此前两个 ▾ 并排，语义全靠 title 撑）④ 「📄 进入项目详情页」已随 W12-E 退役（进详情路径改走页头/⌘K）。删除防呆不降级：compassNodeCounts 报数 + useConfirm + 撤销照旧；点菜单外区域关闭照旧', () => {

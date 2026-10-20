@@ -246,7 +246,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.9.1'";
+const VER_ANCHOR_LITERAL = "version: '3.9.2'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -440,7 +440,14 @@ const CT_W11 = read('/newtab/views/CompassTree.vue');
  *  诊断两态）一个没少，只是**居所**从塔本体挪到了状态挂件，所以 TOWER 从此合看两个文件
  *  （与上面 CT_W11 同一套路：断言守行为，不守文件位置）。塔本体自身的行数仍由 W11-12 逐文件读。 */
 const TOWER_ST = read('/newtab/components/compass/CompassTowerStatus.vue');
-const TOWER = [read('/newtab/components/compass/CompassTower.vue'), TOWER_ST].join('\n');
+const TOWER_NEXT = read('/newtab/components/compass/CompassTowerNext.vue');
+const TOWER_ORPHANS = read('/newtab/components/compass/CompassTowerOrphans.vue');
+const TOWER = [
+  read('/newtab/components/compass/CompassTower.vue'),
+  TOWER_ST,
+  TOWER_NEXT,
+  TOWER_ORPHANS,
+].join('\n');
 const LANE = read('/newtab/components/compass/CompassLane.vue');
 const SPINE = read('/newtab/components/compass/CompassSpine.vue');
 const PANEL = read('/newtab/components/compass/CompassLayerPanel.vue');

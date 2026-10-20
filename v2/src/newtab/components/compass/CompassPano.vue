@@ -43,6 +43,7 @@ const emit = defineEmits<{
    *  这条链路此前从未存在——泳道里任务标题只是个 div，点了没反应，W11-10 断言本轮重指时暴露。 */
   (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
+  (e: 'openMetric', metricId: string): void
   (e: 'addMetric', projId: string): void
   (e: 'aiMetric', projId: string): void
   (e: 'bindOrphan', taskId: string, projId: string): void
@@ -140,6 +141,12 @@ const ringC = 2 * Math.PI * ringR
             <span>{{ bandStats?.metrics }} 条成功指标 · {{ bandStats?.allTasks }} 条任务</span>
             <button class="ph-link" title="回到项目塔里看它与其它项目的对比" @click="emit('toTower', current.proj.id)"><Icon name="arrowupdown" :size="13"/> 回项目塔</button>
           </nav>
+          <!-- 与项目塔同源：nextStep 由 compassMeta 统一解析，全景不另算一套 -->
+          <div class="ph-next" :class="current.pm.nextStepSource === 'empty' ? 'src-empty' : `src-${current.pm.nextStepSource}`">
+            <span class="ph-next-l">下一步</span>
+            <span class="ph-next-v" :title="current.pm.nextStep">{{ current.pm.nextStep }}</span>
+            <span v-if="current.pm.nextStepSource === 'task'" class="ph-next-src">按任务推导</span>
+          </div>
         </div>
         <div class="ph-r">
           <div class="ph-prog" :title="`项目级完成度 ${current.pm.pct}%（跨全部指标聚合）`">
@@ -207,6 +214,7 @@ const ringC = 2 * Math.PI * ringR
           @toggle-task="emit('toggleTask', $event)"
           @task-grade="emit('taskGrade', $event)"
           @open-detail="emit('openDetail', $event)"
+          @open-metric="emit('openMetric', $event)"
           @add-task="(mid, pid) => emit('addTask', mid, pid)"
           @del-metric="(mid) => emit('delMetric', mid)"
         />
@@ -239,7 +247,8 @@ const ringC = 2 * Math.PI * ringR
 /* ── 项目选择条 ── */
 .pano-pick {
   background: var(--surface); border-radius: var(--radius-lg);
-  box-shadow: var(--shadow); padding: 12px 16px; margin-bottom: 16px;
+  border: 1px solid var(--border);
+  padding: 12px 16px; margin-bottom: 16px;
 }
 .pp-t { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .11em; color: var(--text-4); margin-bottom: 9px; }
 .pp-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; }
@@ -261,7 +270,7 @@ const ringC = 2 * Math.PI * ringR
 /* ── 项目头 ── */
 .pano-h {
   display: flex; align-items: center; gap: 16px; padding: 16px 20px;
-  border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow);
+  border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border);
   margin-bottom: 16px; flex-wrap: wrap;
 }
 .ph-i {
@@ -280,6 +289,15 @@ const ringC = 2 * Math.PI * ringR
 .ph-sep { opacity: .6; }
 .ph-link { font-size: var(--fs-micro); color: var(--accent-ink); cursor: pointer; font-weight: 600; }
 .ph-link:hover { text-decoration: underline; }
+.ph-next {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  margin-top: 8px; padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, var(--hue) 52%, transparent);
+}
+.ph-next-l { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: .04em; }
+.ph-next-v { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
+.ph-next.src-empty .ph-next-v { color: var(--text-3); font-weight: 500; }
+.ph-next-src { flex: none; font-size: var(--fs-tiny); color: var(--text-4); padding: 1px 6px; border-radius: 999px; background: var(--surface-2); }
 
 .ph-r { display: flex; align-items: center; gap: 20px; flex: none; }
 .ph-prog { display: flex; align-items: center; gap: 9px; }
@@ -323,7 +341,7 @@ const ringC = 2 * Math.PI * ringR
 .lane {
   flex: 0 0 262px; display: flex; flex-direction: column;
   background: var(--surface); border-radius: var(--radius-lg);
-  box-shadow: var(--shadow); overflow: hidden; max-height: 64vh;
+  border: 1px solid var(--border); overflow: hidden; max-height: 64vh;
 }
 .lane.orph { border: 1px dashed var(--danger-border); background: var(--danger-bg-soft); }
 .lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex: none; }
@@ -348,4 +366,21 @@ const ringC = 2 * Math.PI * ringR
 .lb { font-size: var(--fs-micro); font-weight: 600; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
 .lb-clue { color: var(--warning); background: var(--warning-bg-soft); }
 .lb-bind { color: var(--accent-ink); background: var(--accent-light); cursor: pointer; }
+
+@media (max-width: 800px) {
+  .pano-h { align-items: flex-start; padding: 14px 16px; gap: 12px; }
+  .ph-r { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .ph-acts { flex-wrap: wrap; }
+  .band { overflow-x: auto; }
+}
+@media (max-width: 480px) {
+  .pano-pick { padding: 10px 12px; }
+  .pano-h { padding: 12px 14px; }
+  .ph-b { min-width: 0; width: 100%; }
+  .ph-i { width: 34px; height: 34px; }
+  .ph-num { display: none; }
+  .ph-next { align-items: flex-start; }
+  .ph-next-src { display: none; }
+  .lane { flex-basis: min(82vw, 262px); }
+}
 </style>

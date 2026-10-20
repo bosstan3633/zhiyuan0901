@@ -17,7 +17,8 @@ check('W7-1 ★V3.9.1 随迁备案：今日三件事仍是首屏唯一主体 —
     && ch.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }')
     /* 内容也参与焦点：计划行标题正文级、整行可点、勾选框独立 */
     && ch.includes('.title-text {') && ch.includes('font-size: var(--fs-body);')
-    && ch.includes('.row-check {') && ch.includes('width: 20px;')
+    && ch.includes('.row-check {') && ch.includes('width: 28px;')
+    && ch.includes('.row-check::before') && ch.includes('width: 20px;')
     /* 次级层：手边卡降为 shadow-sm，侧栏只做案头信息 */
     && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--shadow-sm);')
     && ch.includes('.hand-board { margin-top: 18px; }')

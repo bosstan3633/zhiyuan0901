@@ -12,6 +12,8 @@
 import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
 import CompassLane from './CompassLane.vue'
+import CompassTowerNext from './CompassTowerNext.vue'
+import CompassTowerOrphans from './CompassTowerOrphans.vue'
 import CompassTowerStatus from './CompassTowerStatus.vue'
 import type { Direction, Project, TaskCard } from '@/shared/models'
 import type { ProjectMeta } from '../../views/compassMeta'
@@ -61,6 +63,7 @@ const emit = defineEmits<{
   (e: 'editTitle', metricId: string, ev: MouseEvent | undefined): void
   (e: 'saveTitle', metricId: string, ev: FocusEvent | KeyboardEvent): void
   (e: 'cancelTitle', metricId: string): void
+  (e: 'openMetric', metricId: string): void
   (e: 'editProject'): void
   (e: 'aiMetric', projId: string): void
   (e: 'openPano', projId: string): void
@@ -155,6 +158,7 @@ function hasClue(t: TaskCard): boolean {
           <span class="tw-cr-sep">›</span>
           <span class="tw-cr">{{ meta.metrics.length }} 指标 · {{ meta.total }} 任务</span>
         </nav>
+        <CompassTowerNext :step="meta.nextStep" :source="meta.nextStepSource" />
       </div>
 
       <div class="tw-right" @click.stop>
@@ -220,23 +224,12 @@ function hasClue(t: TaskCard): boolean {
           @edit-title="(mid, ev) => emit('editTitle', mid, ev)"
           @save-title="(mid, ev) => emit('saveTitle', mid, ev)"
           @cancel-title="emit('cancelTitle', $event)"
+          @open-metric="emit('openMetric', $event)"
           @del-metric="(mid) => emit('delMetric', mid)"
         />
       </div>
 
-      <!-- 无归属收容区：在舱内但没挂任何成功指标的任务 -->
-      <div v-if="shownOrphans.length" class="tw-orphans">
-        <span class="to-i"><Icon name="warn" :size="13"/></span>
-        <span class="to-t">
-          <b>{{ shownOrphans.length }} 条无归属任务</b> —— 在本舱内但未挂任何成功指标
-        </span>
-        <ul class="to-list">
-          <li v-for="t in shownOrphans" :key="t.id" class="to-item">
-            <span class="toi-t">{{ t.title }}</span>
-            <button class="toi-bind" title="为它选一个成功指标" @click="emit('bindOrphan', t.id, proj.id)">＋ 挂指标</button>
-          </li>
-        </ul>
-      </div>
+      <CompassTowerOrphans :tasks="shownOrphans" :proj-id="proj.id" @bind="(taskId) => emit('bindOrphan', taskId, proj.id)" />
 
       <div v-if="!shownMetrics.length && !shownOrphans.length" class="tw-empty">
         <span class="twe-t">暂无成功指标</span>
@@ -254,10 +247,15 @@ function hasClue(t: TaskCard): boolean {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  /* 视觉降噪：项目舱是页面主结构，不再叠一层全局阴影。
+     层级由左侧色条、边框、间距和内部 surface-2 指标卡承担；
+     阴影只留给 hover/拖拽这类临时状态，避免整页出现“卡片浮在卡片上”。 */
+  box-shadow: none;
   position: relative;
   overflow: hidden;
+  transition: border-color var(--dur), box-shadow var(--dur);
 }
+.tower:hover { border-color: color-mix(in srgb, var(--hue) 30%, var(--border)); }
 /* 左侧 4px 项目色条：舱身份的唯一标识 */
 .tower::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
@@ -299,7 +297,6 @@ function hasClue(t: TaskCard): boolean {
 .tw-cr.on { color: var(--text-3); cursor: default; }
 .tw-cr.on:hover { color: var(--text-3); }
 .tw-cr-sep { font-size: var(--fs-micro); color: var(--text-4); opacity: .6; }
-
 /* ★右侧区固定一块不换行：窄舱时按钮挤成两行是最刺眼的失真，flex-wrap 的容器里给 nowrap + min-width:0 */
 .tw-right { display: flex; align-items: center; gap: 14px; flex: none; }
 .tw-acts { display: flex; align-items: center; gap: 6px; position: relative; }
@@ -343,6 +340,23 @@ function hasClue(t: TaskCard): boolean {
 }
 .tw-fold:hover { color: var(--text); background: var(--surface-3); }
 
+/* 窄屏：舱头从“左右两端对齐”切为上下两段，操作区换行但不压住项目名。 */
+@media (max-width: 800px) {
+  .tw-head { gap: 10px; padding: 14px 14px 12px 18px; }
+  .tw-idx { width: 30px; height: 30px; }
+  .tw-id { min-width: 0; }
+  .tw-right { width: 100%; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .tw-acts { margin-left: auto; }
+  .tw-body { padding: 2px 14px 16px 18px; }
+}
+@media (max-width: 480px) {
+  .tw-name-t { font-size: var(--fs-body); }
+  .tw-crumb { gap: 4px; }
+  .tw-right :deep(.tw-status) { flex-wrap: wrap; }
+  .tw-rail { padding-left: 14px; }
+  .tw-rail > :deep(section)::before { left: -12px; width: 12px; }
+}
+
 /* ── 舱身：内边距与轨道缩进对齐原型 .tw-b / .mgrid ── */
 .tw-body { padding: 2px 22px 22px 24px; }
 .tw-rail { position: relative; padding-left: 22px; }
@@ -364,26 +378,6 @@ function hasClue(t: TaskCard): boolean {
   content: ''; position: absolute; left: 3px; top: 20px;
   width: 9px; height: 9px; border-radius: 50%;
   background: var(--surface); box-shadow: inset 0 0 0 2.5px var(--hue);
-}
-
-/* ── 无归属收容区 ── */
-.tw-orphans {
-  margin-top: 12px; margin-left: 22px;
-  padding: 10px 13px; border-radius: 8px;
-  border: 1px dashed var(--danger-border); background: var(--danger-bg-soft);
-}
-.to-i { font-size: var(--fs-micro); color: var(--danger); margin-right: 5px; }
-.to-t { font-size: var(--fs-micro); color: var(--text-2); }
-.to-t b { color: var(--danger); }
-.to-list { list-style: none; margin: 7px 0 0; display: flex; flex-direction: column; gap: 5px; }
-.to-item {
-  display: flex; align-items: center; gap: 9px;
-  background: var(--surface); border-radius: 6px; padding: 4px 9px;
-}
-.toi-t { font-size: var(--fs-micro); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.5; }
-.toi-bind {
-  font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
-  background: var(--accent-light); padding: 2px 8px; border-radius: 999px; cursor: pointer; flex: none;
 }
 
 .tw-empty {

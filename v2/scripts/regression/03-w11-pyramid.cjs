@@ -274,3 +274,110 @@ check('W11-13 ★舱色六档必须**从 --accent 派生**而不是新增色系�
   if (named.length) console.error('   · 具名色复活：' + named.join(' / '));
   return A.length === 6 && okSpine && okTree && okPano && hardBg.length === 0 && named.length === 0;
 });
+
+// ============== 四、V3.9.2 方向台体验迭代 ==============
+
+check('W11-14 ★任务归属只有一个解析口径：项目、指标聚合、项目详情、指标详情都必须走 compassMeta 的 tasksOfProject / tasksOfMetric。指标口径必须是 `task.metricId / metric.taskIds` 双路并集，否则历史双写数据会进入项目总数、却从指标页和指标详情消失；无归属判定也必须看“指标是否认领”，不能只看 metricId', () => {
+  const pd = read('/newtab/components/ProjectDetailDrawer.vue')
+  const md = read('/newtab/components/compass/MetricDetailDrawer.vue')
+  const buildSeg = CMETA.slice(CMETA.indexOf('export function buildCompassMeta'))
+  return CMETA.includes('export function tasksOfProject')
+    && CMETA.includes('export function tasksOfMetric')
+    && CMETA.includes('const linkedIds = new Set(metric.taskIds || [])')
+    && CMETA.includes('t.metricId === metric.id || linkedIds.has(t.id)')
+    /* 聚合走单次建桶（性能红线）：两条关联路径都必须入同一桶，且 aggMetric 仍做 id 去重 */
+    && buildSeg.includes('for (const t of live) if (t.metricId) addToBucket(t.metricId, t)')
+    && buildSeg.includes('for (const taskId of metric.taskIds || [])')
+    && buildSeg.includes('addToBucket(metric.id, task)')
+    /* 桶内容仍需去重：覆盖 REQ-034 的历史重复 id 脏数据 */
+    && buildSeg.includes('aggMetric(m, bucket.get(m.id) || [])')
+    && CMETA.includes('function dedupeSorted(tasks: TaskCard[]): TaskCard[]')
+    && CMETA.includes('const ownedTaskIds = new Set(metrics.flatMap(mm => mm.tasks.map(t => t.id)))')
+    && CMETA.includes('projTasks.filter(t => !ownedTaskIds.has(t.id))')
+    && pd.includes('tasksOfMetric(metric, d.value.tasks)')
+    && pd.includes('const linkedIds = new Set(')
+    && md.includes('tasksOfMetric(metric.value, d.value.tasks)')
+    && !/\.filter\(t => !t\.deletedAt && t\.metricId === metric\.value!?\.id\)/.test(md)
+});
+
+check('W11-15 ★「下一步」是可写可选字段 + 任务自动回退的唯一解析：用户填写优先；清空后不写占位、回退到未完成任务；doing 优先于 todo，再按 updatedAt 新者优先；自动推导绝不反写 project.nextStep。三层展示（项目塔 / 全景 / 项目详情）都必须复用 resolveProjectNextStep，并给“按任务推导”弱标签', () => {
+  const seg = CMETA.slice(CMETA.indexOf('export function resolveProjectNextStep'), CMETA.indexOf('/** 全罗盘聚合'));
+  return CMETA.includes('export function resolveProjectNextStep')
+    && seg.includes("const manual = (proj.nextStep || '').trim()")
+    && seg.includes("nextStepSource: 'manual'")
+    && seg.includes("filter(t => t.status !== 'done')")
+    && seg.includes("Number(b.status === 'doing') - Number(a.status === 'doing')")
+    && seg.includes('(b.updatedAt || 0) - (a.updatedAt || 0)')
+    && seg.includes("nextStepSource: 'task'")
+    && seg.includes("nextStepSource: 'empty'")
+    && !seg.includes('proj.nextStep =')
+    && CMETA.includes('...resolveProjectNextStep(p, projTasks)')
+    && read('/newtab/components/compass/CompassTowerNext.vue').includes('>按任务推导</span>')
+    && PANO.includes('>按任务推导</span>')
+    && read('/newtab/components/ProjectDetailDrawer.vue').includes('>按任务推导</span>')
+    && read('/newtab/components/ProjectDetailDrawer.vue').includes('project.value.nextStep = value || undefined')
+});
+
+check('W11-16 ★项目详情第一版只做「概览 / 指标 / 任务」三页签：默认概览、切换后不复用其它页面；页签按钮要有完整 WAI-ARIA tab 语义（role=tab + aria-selected + roving tabindex + controls），并支持左右方向键/Home/End；下方三个面板用 role=tabpanel 回指对应页签', () => {
+  const pd = read('/newtab/components/ProjectDetailDrawer.vue')
+  return pd.includes('const tab = ref<\'overview\' | \'metrics\' | \'tasks\'>(\'overview\')')
+    && pd.includes("const TABS = ['overview', 'metrics', 'tasks'] as const")
+    && pd.includes('@keydown="onTabKeydown($event, 0)"')
+    && pd.includes("@click=\"tab = 'overview'\"")
+    && pd.includes("@click=\"tab = 'metrics'\"")
+    && pd.includes("@click=\"tab = 'tasks'\"")
+    && (pd.match(/class="pd-tab" role="tab"/g) || []).length === 3
+    && (pd.match(/:aria-selected="tab === '/g) || []).length === 3
+    && (pd.match(/role="tabpanel"/g) || []).length === 3
+    && pd.includes('id="pd-panel-overview"') && pd.includes('aria-labelledby="pd-tab-overview"')
+    && pd.includes("key === 'ArrowRight' ? (current + 1) % TABS.length")
+    && pd.includes("'ArrowLeft', 'ArrowRight', 'Home', 'End'")
+});
+
+check('W11-17 ★指标详情入口不改变既有改名习惯：指标标题单击仍进入就地改名，详情必须由独立按钮触发；项目塔、全景泳道、项目详情三处都要有明确“详情 ›”出口，并跨组件接到同一个 MetricDetailDrawer（按钮在、事件没接 = 死按钮）', () => {
+  const pd = read('/newtab/components/ProjectDetailDrawer.vue')
+  return LANE.includes('class="mc-title editable"')
+    && LANE.includes("@click=\"$emit('editTitle', m.id, $event)\"")
+    && LANE.includes('class="mc-detail"')
+    && LANE.includes("emit('openMetric', m.id)")
+    && PANO_LANE.includes('class="lane-detail"')
+    && PANO_LANE.includes("emit('openMetric', m.id)")
+    && pd.includes('class="pd-mini pd-detail"')
+    && pd.includes('@click="openMetric(m.id)"')
+    && pd.includes(':value="m.title" @change="renameMetric(m.id, $event)"')
+    && CT_W11.includes('@open-metric="openMetricDetail"')
+    && CT_W11.includes('<MetricDetailDrawer :open="metricDetailOpen"')
+    && read('/newtab/components/compass/MetricDetailDrawer.vue').includes('TaskDetailDrawer')
+});
+
+check('W11-18 ★项目 → 指标 → 任务连续下钻的 Esc 边界：共享 Drawer 必须维护全局栈，只有栈顶处理 Escape；后开抽屉层级高于先开；stopPropagation 只能挡住别的节点、挡不住 document 同节点更早注册的监听，所以不能靠它替代栈；弹窗在场时任务详情仍以 closeOnEscape=false 让位', () => {
+  const dr = codeOnly(read('/shared/components/Drawer.vue'));
+  const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  return dr.includes('const drawerStack = ref<number[]>([])')
+    && dr.includes('if (drawerStack.value[drawerStack.value.length - 1] !== drawerId) return')
+    && dr.includes('drawerStack.value.push(drawerId)')
+    && dr.includes('drawerStack.value.splice(at, 1)')
+    && dr.includes("const overlayZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2})`)")
+    && dr.includes("const drawerZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2 + 1})`)")
+    && dr.includes('if (props.closeOnEscape === false) return')
+    && dr.includes('e.stopPropagation()')
+    && dr.includes('withDefaults(defineProps<') && /closeOnEscape:\s*true/.test(dr)
+    && td.includes(':close-on-escape="!aiJob"');
+});
+
+check('W11-19 ★抽屉栈必须位于 SFC 模块作用域，不能写回 <script setup>：后者会被 Vue 编进每个组件实例的 setup()，三层下钻时每个 Drawer 各持一份栈，表现为第一次 Esc 关最上层、后续 Esc 全部失效。判据同时钉普通 <script> 内的声明与 <script setup> 内的负锚', () => {
+  const raw = read('/shared/components/Drawer.vue').replace(/\r\n/g, '\n');
+  const moduleScript = /<script lang="ts">([\s\S]*?)<\/script>/.exec(raw)?.[1] || '';
+  const setupScript = /<script setup lang="ts">([\s\S]*?)<\/script>/.exec(raw)?.[1] || '';
+  return moduleScript.includes('let drawerSeq = 0')
+    && moduleScript.includes('const drawerStack = ref<number[]>([])')
+    && !setupScript.includes('let drawerSeq = 0')
+    && !setupScript.includes('const drawerStack = ref<number[]>([])');
+});
+
+check('W11-20 ★窄屏项目条不能把全部项目压进一行：800px 下左栏改横向后，项目项必须固定为可滚动宽度（flex-basis + width），否则 flex 子项收缩后每项只剩几十像素。390px 下同一条固定宽策略必须继续成立', () => {
+  const css = read('/newtab/views/CompassTree.vue').replace(/\r\n/g, '\n');
+  const at800 = /@media \(max-width: 800px\) \{[\s\S]*?\.ns-item \{ flex: 0 0 164px; width: 164px; scroll-snap-align: start; \}/.test(css);
+  const at480 = /@media \(max-width: 480px\) \{[\s\S]*?\.ns-item \{ flex-basis: 148px; width: 148px; \}/.test(css);
+  return at800 && at480;
+});

@@ -413,7 +413,13 @@ check('R34-24 REQ-031 P-031-8 采集去重 Map 化（capUrlMap 打开时构建�
 console.log('【第卅五轮 · V2.14 需求包第一批：REQ-034 任务重复项修复】');
 check('R35-1 REQ-034 根因：移除裸 Enter 双重 keydown（仅 ctrl/meta 触发一次保存）', () => !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="createTask"') && !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="linkTasks"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks"'));
 check('R35-2 REQ-034 提交锁防重复触发（createTask/linkTasks creating/linking 标志 + finally 解锁）', () => read('/newtab/components/TaskAddDrawer.vue').includes('if (creating) return') && read('/newtab/components/TaskAddDrawer.vue').includes('if (linking) return') && read('/newtab/components/TaskAddDrawer.vue').includes('creating = true') && read('/newtab/components/TaskAddDrawer.vue').includes('finally {'));
-check('R35-3 REQ-034 渲染侧按 id 去重双保险 ★W11(V3.8.11)随迁带备案：三处口径改为四处，方向台的 seen 集合随集中取数层从 CompassTree 的 tasksForMetric() 迁到 compassMeta 的 dedupeSorted() —— 守的行为未变（同 id 只算一次，否则 done+total 会大于项目实际任务数），只是承重处换了文件。判据重指到取数层并加负锚（旧函数已退役，留着就是性能债复活入口）', () => read('/newtab/views/compassMeta.ts').includes('seen.has(t.id)') && !CT_ALL.includes('function tasksForMetric(') && read('/newtab/views/ProjectCuration.vue').includes('seen.has(t.id)') && read('/newtab/components/ProjectDetailDrawer.vue').includes('seen.has(t.id)'));
+check('R35-3 REQ-034 渲染侧按 id 去重双保险 ★W11(V3.8.11)随迁带备案：方向台旧 seen 集合已退役，统一由 compassMeta 的 dedupeSorted / tasksOfProject / tasksOfMetric 收口（同 id 只算一次，否则 done+total 会大于项目实际任务数）。★V3.9.1 再随迁：项目详情不再自写 seen，改为直接复用唯一口径 tasksOfProject / tasksOfMetric；策展页保留自己的本地 seen。负锚仍守旧函数与抽屉内第二套去重实现不许回流', () => {
+  const m = read('/newtab/views/compassMeta.ts'); const pd = read('/newtab/components/ProjectDetailDrawer.vue');
+  return m.includes('seen.has(t.id)') && m.includes('export function tasksOfProject') && m.includes('export function tasksOfMetric')
+    && !CT_ALL.includes('function tasksForMetric(') && read('/newtab/views/ProjectCuration.vue').includes('seen.has(t.id)')
+    && pd.includes('tasksOfProject(project.value, d.value.tasks)') && pd.includes('tasksOfMetric(metric, d.value.tasks)')
+    && !pd.includes('const seen = new Set<string>()');
+});
 
 console.log('【第卅五轮 · V2.14 需求包第二批：REQ-035 好奇心排序持久化】');
 check('R35-4 REQ-035 模型新增 sortOrder 字段（CuriosityCard 拖拽排序持久化载体）', () => read('/shared/models/index.ts').includes('sortOrder?: number') && read('/shared/models/index.ts').includes('第卅五轮 REQ-035'));

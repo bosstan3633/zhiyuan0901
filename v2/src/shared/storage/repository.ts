@@ -156,6 +156,13 @@ function foldParentIdSubtasks(data: AppData): void {
 export function normalizeLegacyCards(d: AppData): void {
   // N4：老数据补齐 tagTree 与任务/好奇心卡 tags 字段行
   if (!d.tagTree) d.tagTree = []
+  /* V3.9.2：项目“下一步”是新增可选字段——旧库/旧备份不需要写迁移戳，
+     这里只把非字符串脏值收敛为空串，避免模板把对象/数字直接渲染成 [object Object]。 */
+  for (const dir of d.compass?.directions || []) {
+    for (const p of dir.projects || []) {
+      if (p.nextStep !== undefined && typeof p.nextStep !== 'string') p.nextStep = ''
+    }
+  }
   // B35：卡片 tags 字段归一化——迁移/历史数据中存在非数组 tags（对象/数字等），
   // 会让 .includes/.join 崩溃（标签管理白屏、网页端搜索空白）。
   const fixTags = (cards: { tags?: unknown }[] | undefined) => (cards || []).forEach((c: { tags?: unknown }) => {

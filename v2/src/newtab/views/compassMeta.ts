@@ -8,12 +8,11 @@
  *
  * 三条纪律（照抄本项目既有红线，不新造）：
  *  1. **纯函数零副作用**：不写 store、不改传入对象
- *  2. **渲染 computed 内禁 `.sort()` 原地改**：这里 sort 的是 filter 出来的**新数组**，与红线不冲突
- *     （红线禁的是"在 computed 里对已有数组原地 sort"）
- *  3. **口径单一**：任务归属只认 `t.metricId`；项目归属只认 `t.projectId`
+ *  2. **渲染 computed 内禁 `.sort()` 原地改**：这里 sort 的是新数组，与红线不冲突
+ *  3. **口径单一**：项目任务认 `projectId / task.metricId / metric.taskIds` 三路并集；
+ *     指标任务认 `task.metricId / metric.taskIds` 双路并集。历史双写数据不会在任一视图消失。
  */
 import type { AppData, Direction, Metric, Project, TaskCard } from '@/shared/models'
-
 /** 单条成功指标的聚合结果（第 5 层） */
 export interface MetricMeta {
   id: string
@@ -38,6 +37,9 @@ export interface MetricMeta {
 /** 单个攻坚项目的聚合结果（第 4 层） */
 export interface ProjectMeta {
   id: string
+  /** 下一步唯一取数（用户填写优先，否则由任务回退） */
+  nextStep: string
+  nextStepSource: 'manual' | 'task' | 'empty'
   metrics: MetricMeta[]
   total: number
   done: number
@@ -48,6 +50,45 @@ export interface ProjectMeta {
   risk: number
   /** 在项目内但既无 metricId 也无 projectId 的任务（原型「无归属收容区」） */
   orphanTasks: TaskCard[]
+}
+
+/** 项目任务唯一口径：projectId / task.metricId / metric.taskIds 三路并集。 */
+export function tasksOfProject(proj: Project, tasks: TaskCard[]): TaskCard[] {
+  const metricIds = new Set(proj.metrics.map(m => m.id))
+  const taskIds = new Set(proj.metrics.flatMap(m => m.taskIds))
+  const seen = new Set<string>()
+  const out: TaskCard[] = []
+  for (const t of tasks) {
+    if (t.deletedAt) continue
+    if (t.projectId !== proj.id && !(t.metricId && metricIds.has(t.metricId)) && !taskIds.has(t.id)) continue
+    if (seen.has(t.id)) continue
+    seen.add(t.id)
+    out.push(t)
+  }
+  return out.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+}
+
+/** 指标任务唯一口径：task.metricId / metric.taskIds 双路并集，按 id 去重。 */
+export function tasksOfMetric(metric: Metric, tasks: TaskCard[]): TaskCard[] {
+  const linkedIds = new Set(metric.taskIds || [])
+  return dedupeSorted(tasks.filter(t => !t.deletedAt && (t.metricId === metric.id || linkedIds.has(t.id))))
+}
+
+/** 项目“下一步”唯一口径：用户填写 → 进行中任务 → 未完成任务 → 空态；只读，自动推导不反写 nextStep。 */
+export function resolveProjectNextStep(proj: Project, tasks: TaskCard[]): Pick<ProjectMeta, 'nextStep' | 'nextStepSource'> {
+  const manual = (proj.nextStep || '').trim()
+  if (manual) return { nextStep: manual, nextStepSource: 'manual' }
+  const pending = tasks
+    .filter(t => t.status !== 'done')
+    .slice()
+    .sort((a, b) => {
+      const doing = Number(b.status === 'doing') - Number(a.status === 'doing')
+      return doing || ((b.updatedAt || 0) - (a.updatedAt || 0))
+    })
+  const task = pending[0]
+  return task
+    ? { nextStep: task.title, nextStepSource: 'task' }
+    : { nextStep: '还没有待推进任务，先补一条可执行的下一步', nextStepSource: 'empty' }
 }
 
 /** 全罗盘聚合（第 1~6 层统一口径，骨架条数字与项目塔数字必须同源） */
@@ -88,9 +129,8 @@ function dedupeSorted(tasks: TaskCard[]): TaskCard[] {
   return out.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
 }
 
-/** 单条指标的聚合（口径与旧 tasksForMetric + metricMaturity 一致） */
-function aggMetric(m: Metric, byMetric: TaskCard[]): MetricMeta {
-  const tasks = dedupeSorted(byMetric.filter(t => t.metricId === m.id))
+/** 单条指标的聚合（任务已由唯一口径 tasksOfMetric 解析并去重） */
+function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
   const total = tasks.length
   const done = tasks.filter(t => t.status === 'done').length
   const anyDoing = tasks.some(t => t.status === 'doing')
@@ -116,14 +156,24 @@ function aggMetric(m: Metric, byMetric: TaskCard[]): MetricMeta {
  */
 export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean): CompassMeta {
   const live = d.tasks.filter(t => !t.deletedAt)
-  /* 按 metricId 分桶一次，避免每个指标各扫一遍全表 */
+  /* 单次建桶覆盖两条关联路径；aggMetric 再按 id 去重。 */
   const bucket = new Map<string, TaskCard[]>()
-  for (const t of live) {
-    const k = t.metricId || ''
-    if (!k) continue
-    const arr = bucket.get(k)
-    if (arr) arr.push(t)
-    else bucket.set(k, [t])
+  const liveById = new Map(live.map(t => [t.id, t]))
+  const addToBucket = (metricId: string, task: TaskCard) => {
+    const arr = bucket.get(metricId)
+    if (arr) arr.push(task)
+    else bucket.set(metricId, [task])
+  }
+  for (const t of live) if (t.metricId) addToBucket(t.metricId, t)
+  for (const dir of d.compass.directions) {
+    for (const proj of dir.projects) {
+      for (const metric of proj.metrics) {
+        for (const taskId of metric.taskIds || []) {
+          const task = liveById.get(taskId)
+          if (task) addToBucket(metric.id, task)
+        }
+      }
+    }
   }
   const byMetric = new Map<string, MetricMeta>()
   const byProject = new Map<string, ProjectMeta>()
@@ -133,19 +183,20 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
     /* 排序键要用到 isFocused / pinned / order，先建 id→Project 查表，避免每个舱都 find（O(n²)） */
     const projById = new Map(dir.projects.map((x) => [x.id, x]))
     const projects = dir.projects.map(p => {
-      /* 项目内任务＝挂在该项目任一指标下的 + projectId 命中的（后者是「未挂指标」的候选） */
-      const projTasks = live.filter(t => t.projectId === p.id)
-      const ownedIds = p.metrics.map(m => m.id)
+      /* 项目内任务走唯一取数口径：projectId 命中 + 指标归属命中，按 id 去重。 */
+      const projTasks = tasksOfProject(p, live)
       const metrics = p.metrics.map(m => aggMetric(m, bucket.get(m.id) || []))
       for (const mm of metrics) byMetric.set(mm.id, mm)
-      const total = metrics.reduce((s, mm) => s + mm.total, 0)
-      const done = metrics.reduce((s, mm) => s + mm.done, 0)
-      /* 无归属＝在本项目内、却没挂到本项目任何一个指标下 */
-      const ownedSet = new Set(ownedIds)
-      const orphanTasks = dedupeSorted(projTasks.filter(t => !t.metricId || !ownedSet.has(t.metricId)))
+      const total = projTasks.length
+      const done = projTasks.filter(t => t.status === 'done').length
+      /* 无归属＝在本项目内、却没有任何一个指标通过任一条关联路径认领它。
+         不能只看 t.metricId：历史 metric.taskIds 单侧关联也是有效归属。 */
+      const ownedTaskIds = new Set(metrics.flatMap(mm => mm.tasks.map(t => t.id)))
+      const orphanTasks = dedupeSorted(projTasks.filter(t => !ownedTaskIds.has(t.id)))
       const risk = metrics.filter(mm => mm.orphanMetric).length + orphanTasks.length
       const pm: ProjectMeta = {
         id: p.id,
+        ...resolveProjectNextStep(p, projTasks),
         metrics,
         total,
         done,
@@ -199,12 +250,7 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
   }
 }
 
-/**
- * 成熟度等级 → 颜色令牌。
- * ★判据 W11-5 的配套：等级色只做**小圆点/小徽标**，
- * 绝不许用在指标名或任务名上（那会造成"等级压过标题"的层级倒置）。
- * 令牌真名以 tokens.css 为准：--success / --info-blue / --warning / --danger（无 --ok / --info）。
- */
+/** 成熟度等级 → 颜色令牌；等级色只用于小圆点/徽标，不得压过标题（W11-5）。 */
 export function gradeColorVar(grade: string): string {
   return grade === 'A' ? 'var(--success)'
     : grade === 'B' ? 'var(--info-blue)'

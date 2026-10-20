@@ -48,6 +48,8 @@ const emit = defineEmits<{
   (e: 'editTitle', metricId: string, ev: MouseEvent | undefined): void
   (e: 'saveTitle', metricId: string, ev: FocusEvent | KeyboardEvent): void
   (e: 'cancelTitle', metricId: string): void
+  /** 打开指标详情：标题单击仍保留就地改名，详情用独立按钮，不改变既有编辑习惯 */
+  (e: 'openMetric', metricId: string): void
   /** ★F1：删除成功指标（走真源 removeMetricWithConfirm —— 报数确认 + 撤销，本组件只上抛） */
   (e: 'delMetric', metricId: string): void
 }>()
@@ -102,6 +104,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       <button class="mc-toggle" :aria-expanded="open" @click="emit('toggle', m.id)">
         {{ open ? '收起 ▾' : '展开 ▸' }}
       </button>
+      <button class="mc-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
       <!-- ★R135-4（能力保留）：任务层 AI 入口 —— 六入口之一，删了判据红就是能力丢不是判据的问题 -->
       <button class="mc-ai" title="AI 依本成功指标拆解支撑步骤（查重后采纳才创建）" @click="emit('aiTask', m.id)"><Icon name="sparkle" :size="13"/></button>
       <!-- ★R32-14（能力保留）：指标条目 ＋ 加任务 —— 断链空位之外也必须有一份常规出口，
@@ -219,6 +222,12 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   background: transparent; border: 1px solid transparent;
 }
 .mc-toggle:hover { color: var(--text); background: var(--surface-3); }
+.mc-detail {
+  flex: none; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 600;
+  padding: 2px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur);
+}
+.mc-detail:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 /* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释）
    ★F1：删除 🗑 与「⋯」并入同一套 hover 显形 —— 不新增常驻位，指标头不因删除入口变挤 */
 .mc-add, .mc-ai, .mc-del, .mc-more {
@@ -296,6 +305,21 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-box:hover { border-color: var(--hue); }
 .tk-box.done { background: var(--success); border-color: var(--success); color: #fff; }
 .tk-box.doing { border-color: var(--warning); }
+/* 触控：任务标题是下钻入口，窄屏给整行最小热区，避免只能点中文字。 */
+@media (max-width: 800px) {
+  .mc-head { gap: 7px; }
+  .mc-bar { margin-left: 0; }
+  .mc-detail { order: 8; }
+  .tk-row { min-height: 42px; padding: 9px 10px; }
+  .tk-title { min-height: 24px; }
+}
+@media (max-width: 480px) {
+  .metric-card { padding: 12px 12px 12px 14px; }
+  .mc-title { flex-basis: calc(100% - 26px); }
+  .mc-bar { width: 100%; margin-top: 2px; }
+  .mc-track { flex: 1; width: auto; }
+  .mc-toggle, .mc-detail { min-height: 30px; }
+}
 /* ★W12-C：任务标题从 <span> 改成 <button>（单击开任务详情抽屉）。
    补齐按钮态归零——只给交互态（hover / focus）加反馈，不改变任何既有字号字色。 */
 .tk-title {

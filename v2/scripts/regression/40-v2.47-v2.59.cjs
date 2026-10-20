@@ -354,7 +354,7 @@ check('R83-6/R121 M3 项目卡头三读数 ★W11(V3.8.11)随迁带备案：读�
     && /任务完成/.test(T);
 });
 
-check('R83-7 ★性能红线 ★W11(V3.8.11)随迁带备案：方向台模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务。W11 更进一步：全部取数收进 compassMeta.ts 一次聚合成 Map，模板只做 O(1) 取值——本条改钉这条更强的口径', () => {
+check('R83-7 ★性能红线 ★W11(V3.8.11)随迁带备案：方向台模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务。W11 更进一步：全部取数收进 compassMeta.ts 一次聚合成 Map，模板只做 O(1) 取值——本条改钉这条更强的口径。★V3.9.1 再随迁：指标任务桶扩为 `task.metricId / metric.taskIds` 双路单次建桶，仍不得在每个指标里各扫全表', () => {
   const tpl = CT_W11.slice(CT_W11.indexOf('<template>'));
   /* 模板内零逐项调 */
   const noInline = !/projectProgress\(/.test(tpl) && !/isProjectStalled\(/.test(tpl);
@@ -364,6 +364,7 @@ check('R83-7 ★性能红线 ★W11(V3.8.11)随迁带备案：方向台模板内
   const meta = CMETA;
   const centralized = meta.includes('export function buildCompassMeta')
     && meta.includes('const bucket = new Map<string, TaskCard[]>()')
+    && meta.includes('for (const taskId of metric.taskIds || [])')
     && meta.includes('byMetric')
     && meta.includes('byProject');
   /* 视图确实吃这份聚合 */

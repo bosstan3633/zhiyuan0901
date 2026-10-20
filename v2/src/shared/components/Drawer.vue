@@ -1,12 +1,36 @@
+<script lang="ts">
+import { ref } from 'vue'
+
+/*
+ * 全局抽屉栈必须声明在普通 <script> 的模块作用域。
+ * 若写在 <script setup>，Vue 会把声明编进每个组件实例的 setup()；
+ * 三层下钻时每个 Drawer 各持一份栈，Esc 就无法只关最上层。
+ */
+let drawerSeq = 0
+const drawerStack = ref<number[]>([])
+</script>
+
 <script setup lang="ts">
-import { useOverlayTarget } from '@/shared/utils/overlayHost'
-// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
-const overlayTarget = useOverlayTarget()
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { computed, onUnmounted, watch } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import Icon from '@/shared/components/Icon.vue'
-const props = defineProps<{
+import { useOverlayTarget } from '@/shared/utils/overlayHost'
+
+// R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
+const overlayTarget = useOverlayTarget()
+
+/**
+ * 全局抽屉栈：同一时刻只让最上层响应 Esc。
+ *
+ * 为什么不能继续“每个 Drawer 各自挂 document 捕获监听”：
+ * 项目详情 → 指标详情 → 任务详情会同时挂三个 open Drawer，三个监听都在 document 上；
+ * stopPropagation 挡不住同一节点更早注册的监听，一次 Esc 会连关三层。
+ *
+ * 栈按挂载顺序记录实例 id；open 时入栈，close/unmount 时出栈。
+ * 只有栈顶实例处理 Esc。这样无需宿主逐个传 closeOnEscape，也不会改变现有单抽屉行为。
+ */
+const props = withDefaults(defineProps<{
   open: boolean
   title?: string
   /** G1 迁移（V3.8.25）：抽屉标题的图标标记走 prop 而不是塞进 title 字符串 ——
@@ -21,8 +45,17 @@ const props = defineProps<{
   closeOnEscape?: boolean
   /** 可选的独立宽度记忆键；不传则沿用全站共用的 drawerWs.shared。 */
   widthStorageKey?: string
-}>()
+}>(), {
+  /* Boolean prop 缺省为 false。不显式给 true，会让所有没传该 prop 的抽屉
+     默认失去 Esc；只有 AI 弹窗在场时，任务详情才传 false 让位。 */
+  closeOnEscape: true
+})
 const emit = defineEmits<{ close: [] }>()
+const drawerId = ++drawerSeq
+/** 栈深决定层级：后开的抽屉必须盖住先开的，而 Teleport 的 DOM 顺序不等于打开顺序 */
+const stackDepth = computed(() => Math.max(0, drawerStack.value.indexOf(drawerId)))
+const overlayZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2})`)
+const drawerZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2 + 1})`)
 
 // R170-②：详情抽屉全局统一拖宽（拍板：所有卡片详情页可左右拖拽 + 记忆）。
 // 落点选共享壳 = 一处改、7 处宿主（资源/项目/好奇/指标下钻/添加任务/策展钻取/北极星）同时生效。
@@ -62,25 +95,48 @@ watch(() => props.widthStorageKey, () => {
 
 // 第卅一轮修复：Esc 关闭抽屉（open 期间 document 级捕获监听，任何焦点下生效——此前抽屉不响应 Esc）
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && props.closeOnEscape !== false) { e.stopPropagation(); emit('close') }
+  if (e.key !== 'Escape' || !props.open) return
+  if (drawerStack.value[drawerStack.value.length - 1] !== drawerId) return
+  if (props.closeOnEscape === false) return
+  e.stopPropagation()
+  /* Hand top-of-stack to the next drawer immediately. The host writes open=false
+     only after the leave transition, so waiting would swallow later Esc presses. */
+  syncStack(false)
+  emit('close')
+}
+function syncStack(open: boolean) {
+  const at = drawerStack.value.indexOf(drawerId)
+  if (open) {
+    if (at < 0) drawerStack.value.push(drawerId)
+    else {
+      drawerStack.value.splice(at, 1)
+      drawerStack.value.push(drawerId)
+    }
+    return
+  }
+  if (at >= 0) drawerStack.value.splice(at, 1)
 }
 // R157：补 `immediate: true`。现网 14 个宿主都是常驻挂载（`:open` 响应式），不补也能工作；
 // 但只要未来出现 `v-if` 条件挂载的宿主（组件出生时 open 已为 true），watch 等不到那次变化，
 // Esc 监听就永不注册——与 R161 在 Modal.vue 实踩的坑同源（交付说明 §8.6）。1 行拆掉这个理论陷阱。
 watch(() => props.open, (v) => {
+  syncStack(v)
   if (v) document.addEventListener('keydown', onKey, true)
   else document.removeEventListener('keydown', onKey, true)
 }, { immediate: true })
-onUnmounted(() => document.removeEventListener('keydown', onKey, true))
+onUnmounted(() => {
+  syncStack(false)
+  document.removeEventListener('keydown', onKey, true)
+})
 </script>
 
 <template>
   <Teleport :to="overlayTarget">
     <Transition name="overlay">
-      <div v-if="open" class="drawer-overlay" @click="emit('close')"></div>
+      <div v-if="open" class="drawer-overlay" :style="{ zIndex: overlayZ }" @click="emit('close')"></div>
     </Transition>
     <Transition name="drawer">
-      <aside v-if="open" class="drawer" :class="{ dragging }" :style="{ width: w + 'px' }">
+      <aside v-if="open" class="drawer" :class="{ dragging }" :style="{ width: w + 'px', zIndex: drawerZ }">
         <!-- R170-②：左缘拖宽把手（双击复位默认宽） -->
         <div class="drawer-resize" title="拖拽调宽 · 双击复位" @mousedown="startResize" @dblclick="resetWidth" />
         <header class="drawer-header">
