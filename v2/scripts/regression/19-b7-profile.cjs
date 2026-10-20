@@ -125,7 +125,8 @@ check(NAME(
   ];
   /* ★W17-C09（2026-10-20 用户拍板）重指带备案：默认范围从「本年」改为「今天」（页面定位改为使用状态），
      左轨 onRailJump 随时间线退役；所守意图不变——四个时间尺度四选一挂载、页签是唯一导航、旧发丝线零回流。 */
-  return PI.includes("const activeRange = ref<PiRange>('today')")
+  /* ★W18 重指：默认范围回到「本年」（用户拍板），所守意图（四选一挂载 + 页签唯一导航）不变。 */
+  return PI.includes("const activeRange = ref<PiRange>('year')")
     && mounts.every(re => re.test(PI))
     && PI.includes('<PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)"')
     && PI.includes('function setRange(k: PiRange): void')

@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>方向台｜视觉聚焦优化方案与交互原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7f6f3;
+      --surface: #fff;
+      --surface-soft: #f2f0eb;
+      --surface-hover: #ece9e2;
+      --line: #e6e2da;
+      --line-strong: #d6d0c6;
+      --ink: #28251f;
+      --ink-2: #5f5a51;
+      --ink-3: #938d83;
+      --accent: #8f3fa1;
+      --accent-soft: #f5edf6;
+      --accent-line: #d8b6df;
+      --amber: #a56812;
+      --amber-soft: #faf2e2;
+      --green: #487458;
+      --green-soft: #eef5ef;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --sans: "Aptos", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--page);
+      font-synthesis: none;
+    }
+    [data-theme="cool"] {
+      color-scheme: light;
+      --page: #f5f5f7; --surface: #fff; --surface-soft: #f0f0f3; --surface-hover: #e9e9ee;
+      --line: #e5e5e9; --line-strong: #d1d1da; --ink: #242329; --ink-2: #5c5b63; --ink-3: #8c8a93;
+      --accent: #6756c7; --accent-soft: #f0eefb; --accent-line: #cbc4ed;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 360px; background: var(--page); font-size: 13px; line-height: 1.5; }
+    button { font: inherit; color: inherit; }
+    .topbar { height: 54px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: space-between; padding: 0 max(28px, calc((100vw - 1500px)/2)); position: sticky; top: 0; z-index: 5; }
+    .brand, .top-links, .top-tools, .top-link { display: flex; align-items: center; }
+    .brand { gap: 9px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+    .brand-mark { width: 21px; height: 21px; border-radius: 6px; display: grid; place-items: center; background: #182a2c; color: #fff; font-size: 12px; }
+    .brand small { color: var(--ink-3); font-size: 11px; font-weight: 500; }
+    .top-links { gap: 4px; margin-left: 24px; }
+    .top-link { gap: 7px; padding: 7px 12px; border-radius: 8px; color: var(--ink-2); }
+    .top-link.active { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+    .top-tools { gap: 16px; color: var(--ink-3); font-size: 12px; }
+    .top-tool { padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+    .shell { max-width: 1500px; margin: 0 auto; padding: 22px 34px 76px; }
+    .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .health-line { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; color: var(--ink-3); font-size: 11px; }
+    .health { color: var(--ink); font-weight: 650; background: #eeece6; padding: 5px 9px; border-radius: 6px; }
+    .health .dot { color: var(--green); margin-right: 5px; }
+    .health-line .sep { width: 1px; height: 12px; background: var(--line-strong); }
+    .head-actions { display: flex; gap: 8px; align-items: center; }
+    .btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); padding: 7px 11px; border-radius: 7px; cursor: pointer; transition: background .15s, color .15s, border .15s; }
+    .btn:hover { background: var(--surface-soft); color: var(--ink); }
+    .btn.primary { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 650; }
+    .btn.primary:hover { filter: brightness(.94); }
+    .btn.ghost { background: transparent; }
+    .spine { border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); min-height: 54px; display: flex; align-items: center; gap: 8px; padding: 8px 0; overflow-x: auto; white-space: nowrap; }
+    .spine-label { color: var(--ink-3); font-size: 11px; margin-right: 3px; }
+    .layer-chip { border: 0; background: transparent; padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink-2); display: inline-flex; align-items: center; gap: 7px; }
+    .layer-chip:hover { background: var(--surface-soft); }
+    .layer-chip b { color: var(--ink); font-weight: 700; }
+    .layer-chip.active { background: var(--accent-soft); color: var(--accent); }
+    .layer-chip.active b { color: var(--accent); }
+    .layer-chip .num { color: var(--ink-3); font-size: 10px; }
+    .chevron { color: #b9b3a9; font-size: 12px; }
+    .focus-strip { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 15px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
+    .focus-label { flex: none; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .focus-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+    .focus-detail { color: var(--ink-2); font-size: 12px; }
+    .focus-strip.vision-mode { background: var(--surface-soft); border-left-color: var(--line-strong); }
+    .focus-strip.vision-mode .focus-label { color: var(--ink-3); }
+    .focus-progress { width: 100px; height: 5px; background: rgba(143,63,161,.15); border-radius: 8px; overflow: hidden; margin-left: auto; flex: none; }
+    .focus-progress i { display: block; width: 28%; height: 100%; background: var(--accent); border-radius: inherit; }
+    .focus-count { color: var(--ink-2); font-size: 11px; white-space: nowrap; }
+    .work-area { display: grid; grid-template-columns: 248px minmax(0,1fr); gap: 36px; margin-top: 27px; align-items: start; }
+    .project-nav { position: sticky; top: 82px; }
+    .nav-heading { display: flex; justify-content: space-between; color: var(--ink-3); font-size: 11px; margin: 2px 0 13px; }
+    .nav-group { padding: 0 0 12px; margin: 0 0 10px; border-bottom: 1px solid var(--line); }
+    .nav-goal { color: var(--ink-3); font-size: 11px; padding: 0 8px 7px; }
+    .nav-item { width: 100%; text-align: left; display: flex; align-items: flex-start; gap: 9px; border: 0; padding: 9px 8px; border-radius: 7px; background: transparent; cursor: pointer; color: var(--ink-2); }
+    .nav-item:hover { background: rgba(255,255,255,.65); }
+    .nav-item.selected { color: var(--ink); background: #fff; box-shadow: inset 2px 0 var(--accent); }
+    .nav-index { flex: none; font-size: 10px; color: var(--ink-3); padding-top: 2px; }
+    .nav-copy { min-width: 0; }
+    .nav-name { font-size: 12px; font-weight: 620; line-height: 1.4; }
+    .nav-meta { font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+    .nav-focus { color: var(--accent); font-size: 10px; margin-left: 4px; }
+    .nav-note { color: #aaa49a; font-size: 10px; line-height: 1.55; padding: 4px 8px; }
+    .board { min-width: 0; }
+    .board-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+    .board-title { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+    .board-title h1 { font-size: 17px; margin: 0; line-height: 1.3; letter-spacing: -.02em; font-weight: 690; }
+    .board-title span { color: var(--ink-3); font-size: 11px; white-space: nowrap; }
+    .view-switch { display: flex; align-items: center; gap: 2px; padding: 3px; background: var(--surface-soft); border-radius: 7px; flex: none; }
+    .view-switch button { border: 0; background: transparent; color: var(--ink-2); cursor: pointer; padding: 5px 10px; border-radius: 5px; font-size: 11px; }
+    .view-switch button.active { color: var(--ink); background: #fff; font-weight: 650; }
+    .project-head { display: grid; grid-template-columns: minmax(220px,1fr) auto auto; align-items: center; gap: 24px; padding: 18px 2px 17px; border-bottom: 1px solid var(--line-strong); }
+    .project-overline { color: var(--ink-3); font-size: 10px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .focus-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+    .project-title { display: flex; gap: 9px; align-items: center; }
+    .project-title h2 { font-size: 20px; line-height: 1.25; letter-spacing: -.025em; margin: 0; font-weight: 690; }
+    .main-tag { color: var(--accent); font-size: 10px; font-weight: 700; background: var(--accent-soft); padding: 3px 7px; border-radius: 4px; white-space: nowrap; }
+    .project-context { color: var(--ink-3); font-size: 11px; margin-top: 5px; }
+    .completion { display: flex; align-items: center; gap: 10px; min-width: 145px; }
+    .completion-ring { width: 38px; height: 38px; border: 3px solid #e8e4de; border-right-color: var(--accent); border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: var(--ink-2); }
+    .completion-text strong { display: block; font-size: 13px; font-weight: 650; }
+    .completion-text span { color: var(--ink-3); font-size: 10px; }
+    .project-actions { display: flex; align-items: center; gap: 6px; }
+    .project-actions .btn { font-size: 11px; padding: 6px 9px; }
+    .project-actions .icon-btn { border: 0; background: transparent; color: var(--ink-3); padding: 7px; cursor: pointer; }
+    .layer-summary { display: flex; gap: 8px; align-items: center; padding: 13px 0 9px; color: var(--ink-3); font-size: 10px; }
+    .layer-summary strong { color: var(--ink-2); font-size: 11px; font-weight: 600; }
+    .layer-summary .sep { height: 11px; width: 1px; background: var(--line-strong); }
+    .metrics { display: flex; flex-direction: column; gap: 0; }
+    .metric { border-top: 1px solid var(--line); padding: 13px 2px 14px; transition: background .16s; }
+    .metric.focus-metric { border-left: 2px solid var(--accent); padding-left: 12px; }
+    .metric-head { display: flex; align-items: center; gap: 9px; min-height: 25px; }
+    .metric-index { color: var(--ink-3); font-size: 10px; width: 16px; flex: none; }
+    .metric-name { font-size: 13px; font-weight: 660; }
+    .metric-sub { color: var(--ink-3); font-size: 10px; margin-left: 4px; }
+    .metric-status { margin-left: auto; display: flex; align-items: center; gap: 9px; color: var(--ink-3); font-size: 10px; white-space: nowrap; }
+    .metric-status .warn { color: var(--amber); background: var(--amber-soft); padding: 3px 6px; border-radius: 4px; }
+    .metric-status .ok { color: var(--green); }
+    .metric-toggle { color: var(--ink-3); border: 0; background: transparent; cursor: pointer; padding: 4px 2px; font-size: 10px; }
+    .metric-toggle:hover { color: var(--ink); }
+    .metric-desc { color: var(--ink-3); font-size: 11px; padding: 7px 0 7px 25px; }
+    .task-list { margin: 7px 0 0 25px; border-top: 1px solid var(--line); }
+    .task-row { min-height: 43px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 6px 4px; cursor: pointer; }
+    .check { width: 15px; height: 15px; border: 1px solid #c9c4ba; border-radius: 4px; display: grid; place-items: center; color: #fff; flex: none; font-size: 10px; }
+    .task-row.done .check { background: var(--green); border-color: var(--green); }
+    .task-name { font-size: 12px; color: var(--ink-2); flex: 1; }
+    .task-row.done .task-name { color: var(--ink-3); text-decoration: line-through; }
+    .task-meta { color: var(--ink-3); font-size: 10px; }
+    .task-more { opacity: 0; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; }
+    .task-row:hover .task-more { opacity: 1; }
+    .empty-task { margin: 9px 0 0 25px; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 9px 11px; color: var(--ink-2); background: var(--amber-soft); border-left: 2px solid #d1a95e; font-size: 11px; }
+    .empty-task .empty-copy { flex: 1; }
+    .empty-task .empty-copy strong { display: block; color: var(--amber); font-size: 11px; margin-bottom: 1px; }
+    .empty-task .btn { background: transparent; border-color: #d7bd88; color: #835613; padding: 4px 8px; white-space: nowrap; font-size: 10px; }
+    .add-row { margin: 12px 0 0 25px; color: var(--ink-3); border: 0; background: transparent; font-size: 11px; padding: 5px 0; cursor: pointer; }
+    .add-row:hover { color: var(--accent); }
+    .overview { display: none; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; padding-top: 12px; }
+    .overview-lane { border-left: 1px solid var(--line-strong); padding-left: 13px; min-width: 0; }
+    .overview-lane h3 { font-size: 12px; margin: 0 0 11px; font-weight: 650; }
+    .overview-item { padding: 9px 0; border-top: 1px solid var(--line); }
+    .overview-item strong { display: block; font-size: 12px; line-height: 1.45; }
+    .overview-item small { color: var(--ink-3); display: block; font-size: 10px; margin-top: 4px; }
+    .overview-item.current { border-left: 2px solid var(--accent); padding-left: 9px; margin-left: -14px; }
+    .hidden { display: none !important; }
+    .review { margin: 54px 0 0 284px; border-top: 1px solid var(--line-strong); padding-top: 24px; }
+    .review-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 19px; }
+    .review h2 { font-size: 17px; margin: 0; letter-spacing: -.02em; }
+    .review-head p { font-size: 11px; color: var(--ink-3); margin: 5px 0 0; }
+    .review-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+    .review-item { border-top: 2px solid var(--accent); padding-top: 10px; }
+    .review-number { color: var(--accent); font-size: 10px; font-weight: 700; }
+    .review-item h3 { font-size: 12px; margin: 5px 0; }
+    .review-item p { color: var(--ink-2); font-size: 11px; line-height: 1.7; margin: 0; }
+    .review-controls { display: flex; gap: 7px; margin-top: 20px; flex-wrap: wrap; }
+    .review-controls button { background: transparent; border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px; color: var(--ink-2); cursor: pointer; font-size: 10px; }
+    .review-controls button.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .review-controls .control-label { align-self: center; color: var(--ink-3); font-size: 10px; margin: 0 2px 0 10px; }
+    .prototype-bar { position: fixed; z-index: 6; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border: 1px solid rgba(255,255,255,.08); background: #2d2a28; color: #f6f2eb; border-radius: 9px; box-shadow: 0 6px 20px rgba(25,21,18,.16); font-size: 11px; white-space: nowrap; }
+    .prototype-bar button { border: 0; border-radius: 5px; padding: 6px 9px; color: #fff; background: var(--accent); cursor: pointer; font-weight: 600; }
+    .prototype-bar button.quiet { background: #494542; color: #ece8e1; }
+    .toast { position: fixed; top: 68px; left: 50%; transform: translate(-50%,-8px); opacity: 0; pointer-events: none; background: #302d29; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 11px; z-index: 10; transition: .18s; }
+    .toast.visible { opacity: 1; transform: translate(-50%,0); }
+    body.compare .project-head, body.compare .metric, body.compare .focus-strip, body.compare .spine, body.compare .goal-wrap { box-shadow: 0 2px 10px rgba(47,37,25,.10); border-radius: 10px; }
+    body.compare .metric { background: #f0eee9; border: 1px solid #e1ddd5; margin-bottom: 10px; padding: 13px 12px; }
+    body.compare .task-row { background: white; margin: 4px 0; border: 1px solid #e5e1da; border-radius: 6px; padding: 8px; }
+    body.compare .metric-status .warn { border-radius: 99px; }
+    body.compare .focus-strip { background: #fff; }
+    body.compare .project-head { border: 1px solid var(--line); padding: 18px; background: white; }
+    @media (max-width: 1050px) {
+      .shell { padding-left: 22px; padding-right: 22px; }
+      .work-area { grid-template-columns: 205px minmax(0,1fr); gap: 24px; }
+      .project-head { grid-template-columns: minmax(190px,1fr) auto; gap: 14px; }
+      .project-actions { grid-column: 1 / -1; justify-content: flex-end; }
+      .review { margin-left: 229px; }
+      .top-links { margin-left: 10px; }
+    }
+    @media (max-width: 720px) {
+      .topbar { padding: 0 13px; }
+      .brand small, .top-link:not(.active), .top-tools span:first-child { display: none; }
+      .top-links { margin-left: 8px; }
+      .shell { padding: 17px 14px 90px; }
+      .page-head { align-items: flex-start; gap: 9px; flex-direction: column; }
+      .head-actions { align-self: flex-end; }
+      .focus-strip { align-items: flex-start; flex-wrap: wrap; }
+      .focus-progress { margin-left: 0; }
+      .work-area { display: flex; flex-direction: column; gap: 17px; margin-top: 19px; }
+      .project-nav { position: static; width: 100%; overflow: hidden; }
+      .nav-heading { margin-bottom: 7px; }
+      .nav-group { display: flex; gap: 5px; overflow-x: auto; border: 0; margin: 0; padding: 0; }
+      .nav-goal, .nav-note { display: none; }
+      .nav-item { width: auto; min-width: 175px; border: 1px solid var(--line); background: rgba(255,255,255,.7); padding: 8px; }
+      .nav-item.selected { border-color: var(--accent-line); }
+      .board { width: 100%; }
+      .board-toolbar { align-items: flex-start; flex-direction: column; }
+      .project-head { grid-template-columns: minmax(0,1fr) auto; }
+      .project-title h2 { font-size: 17px; }
+      .project-actions { grid-column: 1/-1; justify-content: flex-start; }
+      .metric-status { gap: 5px; }
+      .metric-sub { display: none; }
+      .overview { grid-template-columns: 1fr; gap: 12px; }
+      .review { margin: 40px 0 0; }
+      .review-grid { grid-template-columns: 1fr; gap: 16px; }
+      .prototype-bar { width: calc(100% - 20px); justify-content: space-between; gap: 6px; font-size: 10px; }
+      .prototype-bar button { padding: 6px 7px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div style="display:flex;align-items:center">
+      <div class="brand"><span class="brand-mark">知</span><span>知源调度台</span><small>Ownway</small></div>
+      <nav class="top-links"><span class="top-link">调度台</span><span class="top-link active">⌖ 方向台</span></nav>
+    </div>
+    <div class="top-tools"><span>调出 Ctrl+K</span><span>● 纸墨白⌄</span><span>⌕</span></div>
+  </header>
+
+  <main class="shell">
+    <div class="page-head">
+      <div class="health-line">
+        <span class="health"><span class="dot">●</span>方向健康度：关注</span><i class="sep"></i>
+        <span>愿景 1</span><span>使命 1</span><span>战略目标 3</span><span>项目 6</span><span>主攻 2</span><span>停滞 3</span><span>指标 20</span><span>任务 31</span>
+      </div>
+      <div class="head-actions"><button class="btn ghost" id="themeButton">切换主题</button><button class="btn primary" data-toast="新战略目标已准备创建">＋ 战略目标</button></div>
+    </div>
+
+    <div class="spine" aria-label="方向层级">
+      <span class="spine-label">方向结构</span>
+      <button class="layer-chip" data-layer="1"><span class="num">1</span><span>愿景</span><b>1</b></button><span class="chevron">›</span>
+      <button class="layer-chip" data-layer="2"><span class="num">2</span><span>使命</span><b>1</b></button><span class="chevron">›</span>
+      <button class="layer-chip" data-layer="3"><span class="num">3</span><span>战略目标</span><b>3</b></button><span class="chevron">›</span>
+      <button class="layer-chip active" data-layer="4"><span class="num">4</span><span>攻坚项目</span><b>6</b></button><span class="chevron">›</span>
+      <button class="layer-chip" data-layer="5"><span class="num">5</span><span>成功指标</span><b>20</b></button><span class="chevron">›</span>
+      <button class="layer-chip" data-layer="6"><span class="num">6</span><span>任务</span><b>31</b></button>
+    </div>
+
+    <section class="focus-strip" aria-label="当前主攻">
+      <span class="focus-label" id="focusLabel">当前主攻</span><span class="focus-title" id="focusProjectName">软硬一体服务系统解决方案</span>
+      <span class="focus-detail">产品生命周期管理专家 · 2 项指标</span>
+      <span class="focus-progress"><i></i></span><span class="focus-count">1 / 4 项任务</span>
+      <button class="btn" data-scroll="project-content">继续推进 ↓</button>
+    </section>
+
+    <div class="work-area">
+      <aside class="project-nav">
+        <div class="nav-heading"><span>项目导航</span><span>6 个项目</span></div>
+        <div class="nav-group">
+          <div class="nav-goal">产品生命周期管理专家</div>
+          <button class="nav-item selected" data-project="soft"><span class="nav-index">1.1</span><span class="nav-copy"><span class="nav-name">软硬一体服务系统解决方案 <span class="nav-focus">主攻</span></span><span class="nav-meta">2 指标 · 1 / 4 任务完成</span></span></button>
+          <button class="nav-item" data-project="sales"><span class="nav-index">1.2</span><span class="nav-copy"><span class="nav-name">知源产品打造与销售</span><span class="nav-meta">1 指标 · 2 / 9 任务完成</span></span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-goal">AI知识管理 + 个人中台专家</div>
+          <button class="nav-item" data-project="education"><span class="nav-index">2.1</span><span class="nav-copy"><span class="nav-name">教育+AI行业地图研究</span><span class="nav-meta">2 指标 · 5 / 7 任务完成</span></span></button>
+          <button class="nav-item" data-project="policy"><span class="nav-index">2.2</span><span class="nav-copy"><span class="nav-name">武汉地区教育政策研究</span><span class="nav-meta">5 指标 · 2 / 6 任务完成</span></span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-goal">内容与方法论</div>
+          <button class="nav-item" data-project="content"><span class="nav-index">3.1</span><span class="nav-copy"><span class="nav-name">内容生产工程</span><span class="nav-meta">2 指标 · 4 / 5 任务完成</span></span></button>
+        </div>
+        <p class="nav-note">项目名是定位锚点。选中项用细色轨标记，避免每个项目都变成一张抢眼的卡片。</p>
+      </aside>
+
+      <section class="board" id="project-content">
+        <div class="board-toolbar">
+          <div class="board-title"><h1 id="goalTitle">产品生命周期管理专家</h1><span id="goalMeta">2 个攻坚项目 · 6 个成功指标</span></div>
+          <div style="display:flex;align-items:center;gap:11px">
+            <label style="font-size:10px;color:var(--ink-3);display:flex;align-items:center;gap:5px;cursor:pointer"><input id="showDone" type="checkbox"> 显示已完成</label>
+            <div class="view-switch"><button class="active" data-view="tower">项目塔</button><button data-view="overview">全景</button></div>
+          </div>
+        </div>
+
+        <div class="project-head">
+          <div>
+            <div class="project-overline"><span class="focus-dot"></span><span id="projectOverline">战略目标 1 · 攻坚项目</span></div>
+            <div class="project-title"><h2 id="projectTitle">软硬一体服务系统解决方案</h2><span class="main-tag" id="focusBadge">主攻</span></div>
+            <div class="project-context" id="projectContext">把硬件、软件和服务整合为可交付的标准方案</div>
+          </div>
+          <div class="completion"><span class="completion-ring" id="completionRing">25%</span><span class="completion-text"><strong id="completionCount">1 / 4</strong><span>任务完成</span></span></div>
+          <div class="project-actions"><button class="btn" data-toast="项目详情面板已打开">项目详情</button><button class="btn" data-toast="指标模板已打开">导入模板</button><button class="btn" data-toast="成功指标创建入口已打开">＋ 指标</button><button class="icon-btn" title="更多操作" data-toast="更多项目操作">···</button></div>
+        </div>
+
+        <div class="tower-view" id="towerView">
+          <div class="layer-summary"><strong>成功指标 <span id="metricCount">2</span></strong><span class="sep"></span><span>结果验收</span><span class="sep"></span><strong>关联任务 <span id="taskCount">4</span></strong><span style="margin-left:auto">按指标归组 · 直接看完成条件与下一步</span></div>
+          <div class="metrics">
+            <article class="metric focus-metric" data-metric="solution">
+              <div class="metric-head">
+                <span class="metric-index">01</span><span class="metric-name">产品解决方案</span><span class="metric-sub">验收标准：方案可演示、可交付</span>
+                <div class="metric-status"><span class="warn">缺任务</span><span>0 / 1 · 0%</span><button class="metric-toggle" aria-expanded="true">收起⌃</button></div>
+              </div>
+              <div class="metric-desc">验收标准已确定，动作还没落下。先补出第一条支撑任务。</div>
+              <div class="empty-task"><span>△</span><span class="empty-copy"><strong>指标有标准，缺少执行动作</strong>补一条具体任务，让这个结果开始推进。</span><button class="btn" data-add-task="solution">＋ 建第一条任务</button></div>
+            </article>
+            <article class="metric" data-metric="sales-kit">
+              <div class="metric-head">
+                <span class="metric-index">02</span><span class="metric-name">产品销售工具包</span><span class="metric-sub">方案材料与客户沟通准备</span>
+                <div class="metric-status"><span>1 / 3 · 33%</span><button class="metric-toggle" aria-expanded="true">收起⌃</button></div>
+              </div>
+              <div class="task-list">
+                <div class="task-row done" data-task><span class="check">✓</span><span class="task-name">梳理首批客户常见问题</span><span class="task-meta">已完成</span><button class="task-more" title="任务操作">···</button></div>
+                <div class="task-row" data-task><span class="check"></span><span class="task-name">整理产品演示材料与报价模板</span><span class="task-meta">待开始</span><button class="task-more" title="任务操作">···</button></div>
+                <div class="task-row" data-task><span class="check"></span><span class="task-name">完成一版销售工具包并请同事试讲</span><span class="task-meta">待开始</span><button class="task-more" title="任务操作">···</button></div>
+              </div>
+              <button class="add-row" data-add-task="sales-kit">＋ 添加任务</button>
+            </article>
+            <article class="metric hidden" data-metric="delivery">
+              <div class="metric-head"><span class="metric-index">03</span><span class="metric-name">交付流程跑通</span><span class="metric-sub">已完成的辅助指标</span><div class="metric-status"><span class="ok">已完成</span><span>2 / 2</span><button class="metric-toggle" aria-expanded="false">展开⌄</button></div></div>
+              <div class="task-list"><div class="task-row done" data-task><span class="check">✓</span><span class="task-name">完成首个客户方案交付</span><span class="task-meta">已完成</span></div><div class="task-row done" data-task><span class="check">✓</span><span class="task-name">收集交付后的改进意见</span><span class="task-meta">已完成</span></div></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="overview" id="overviewView">
+          <div class="overview-lane"><h3>需要补动作 <span class="metric-sub">· 1</span></h3><div class="overview-item current"><strong>产品解决方案</strong><small>缺少支撑任务 · 建第一条任务</small></div></div>
+          <div class="overview-lane"><h3>正在推进 <span class="metric-sub">· 1</span></h3><div class="overview-item"><strong>产品销售工具包</strong><small>1 / 3 项任务完成 · 下一步：整理演示材料</small></div></div>
+          <div class="overview-lane"><h3>已完成 <span class="metric-sub">· 1</span></h3><div class="overview-item"><strong>交付流程跑通</strong><small>2 / 2 项任务完成</small></div></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="review">
+      <div class="review-head"><div><h2>这版调整了什么</h2><p>视觉层级由“框、底色、阴影”转为“位置、字号、留白和少量状态色”。</p></div><button class="btn" id="compareButton">查看现状装饰强度</button></div>
+      <div class="review-grid">
+        <article class="review-item"><span class="review-number">01 / 注意力顺序</span><h3>先看到当前主攻，再进入指标和任务</h3><p>上方一条主攻提示提供当前落点；项目详情标题与进度紧随其后。页头统计、层级导航压低对比度，只承担定位。</p></article>
+        <article class="review-item"><span class="review-number">02 / 容器减法</span><h3>减少“卡片套卡片”与多重底色</h3><p>指标改为连续分组和细分隔线。边框仅用于输入、按钮和选中态；不靠阴影制造层级，警示底色只留给缺任务状态。</p></article>
+        <article class="review-item"><span class="review-number">03 / 行动聚焦</span><h3>让缺口直接带出下一步动作</h3><p>空指标明确显示“标准已定、缺少任务”，按钮就在缺口旁边。普通任务采用轻行列表，已完成项降权并可隐藏。</p></article>
+      </div>
+      <div class="review-controls" aria-label="评审选项">
+        <div class="choice-group"><span class="control-label">请评审主角</span><button class="selected" data-choice="focus">主攻项目为主角</button><button data-choice="vision">愿景为主角</button></div>
+        <div class="choice-group"><span class="control-label">信息密度</span><button class="selected" data-choice="compact">紧凑，任务默认展开</button><button data-choice="airy">更疏朗，指标默认收起</button></div>
+        <div class="choice-group"><span class="control-label">主攻标记</span><button class="selected" data-choice="rail">左侧色轨 + 文字标记</button><button data-choice="pill">紫色标签</button></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="prototype-bar"><span>方向台视觉聚焦 · 交互原型</span><button id="focusMode">聚焦模式</button><button class="quiet" id="resetButton">重置交互</button></div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const projectData = {
+      soft: { goal: '产品生命周期管理专家', title: '软硬一体服务系统解决方案', context: '把硬件、软件和服务整合为可交付的标准方案', pct: 25, done: 1, total: 4, focus: true },
+      sales: { goal: '产品生命周期管理专家', title: '知源产品打造与销售', context: '验证核心产品价值，沉淀可复用的销售材料', pct: 22, done: 2, total: 9, focus: false },
+      education: { goal: 'AI知识管理 + 个人中台专家', title: '教育+AI行业地图研究', context: '形成可复用的行业结构与关键案例地图', pct: 71, done: 5, total: 7, focus: true },
+      policy: { goal: 'AI知识管理 + 个人中台专家', title: '武汉地区教育政策研究', context: '整理关键政策变化，形成区域研究成果', pct: 33, done: 2, total: 6, focus: false },
+      content: { goal: '内容与方法论', title: '内容生产工程', context: '让选题、制作、发布和复盘形成稳定流程', pct: 80, done: 4, total: 5, focus: false }
+    };
+    const toastEl = document.getElementById('toast');
+    let currentProjectKey = 'soft';
+    let toastTimer;
+    function toast(text) { toastEl.textContent = text; toastEl.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 1800); }
+    document.querySelectorAll('[data-project]').forEach(button => button.addEventListener('click', () => {
+      const d = projectData[button.dataset.project]; if (!d) return;
+      currentProjectKey = button.dataset.project;
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('selected', item === button));
+      document.getElementById('goalTitle').textContent = d.goal;
+      document.getElementById('projectTitle').textContent = d.title;
+      document.getElementById('focusProjectName').textContent = d.title;
+      document.getElementById('focusLabel').textContent = d.focus ? '当前主攻' : '正在查看';
+      document.getElementById('projectContext').textContent = d.context;
+      document.getElementById('focusBadge').classList.toggle('hidden', !d.focus);
+      document.querySelector('.focus-strip .focus-detail').textContent = d.goal + ' · ' + (d.focus ? '当前主攻' : '普通项目');
+      document.getElementById('completionRing').textContent = d.pct + '%';
+      document.getElementById('completionCount').textContent = d.done + ' / ' + d.total;
+      document.querySelector('.focus-progress i').style.width = d.pct + '%';
+      document.querySelector('.focus-count').textContent = d.done + ' / ' + d.total + ' 项任务';
+      toast('已切换到「' + d.title + '」');
+    }));
+    document.querySelectorAll('.metric-toggle').forEach(button => button.addEventListener('click', () => {
+      const metric = button.closest('.metric'); const expanded = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!expanded)); button.textContent = expanded ? '展开⌄' : '收起⌃';
+      metric.querySelectorAll('.metric-desc,.empty-task,.task-list,.add-row').forEach(el => el.classList.toggle('hidden', expanded));
+    }));
+    document.querySelectorAll('[data-task]').forEach(row => row.addEventListener('click', event => {
+      if (event.target.closest('.task-more')) { toast('任务操作菜单已打开'); return; }
+      row.classList.toggle('done'); const check = row.querySelector('.check'); check.textContent = row.classList.contains('done') ? '✓' : '';
+      const meta = row.querySelector('.task-meta'); if (meta) meta.textContent = row.classList.contains('done') ? '已完成' : '待开始';
+      toast(row.classList.contains('done') ? '任务已完成' : '任务已恢复待办');
+    }));
+    document.querySelectorAll('[data-add-task]').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.addTask === 'solution') {
+        const empty = button.closest('.empty-task');
+        const row = document.createElement('div'); row.className = 'task-row'; row.dataset.task = '';
+        row.innerHTML = '<span class="check"></span><span class="task-name">确认首个试点客户的场景与验收范围</span><span class="task-meta">待开始</span><button class="task-more" title="任务操作">···</button>';
+        empty.replaceWith(row);
+        row.addEventListener('click', () => { row.classList.toggle('done'); row.querySelector('.check').textContent = row.classList.contains('done') ? '✓' : ''; toast(row.classList.contains('done') ? '任务已完成' : '任务已恢复待办'); });
+      } else toast('新任务输入行已准备就绪');
+      toast('已添加第一条支撑任务');
+    }));
+    document.getElementById('showDone').addEventListener('change', event => {
+      document.querySelectorAll('.metric[data-metric="delivery"]').forEach(metric => metric.classList.toggle('hidden', !event.target.checked));
+      toast(event.target.checked ? '已显示完成项' : '已隐藏完成项');
+    });
+    document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-view]').forEach(item => item.classList.toggle('active', item === button));
+      const overview = button.dataset.view === 'overview';
+      document.getElementById('towerView').style.display = overview ? 'none' : 'block';
+      document.getElementById('overviewView').style.display = overview ? 'grid' : 'none';
+      toast(overview ? '切换到项目全景' : '切换到项目塔');
+    }));
+    document.querySelectorAll('[data-layer]').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-layer]').forEach(item => item.classList.toggle('active', item === button));
+      const layer = button.dataset.layer;
+      if (layer === '5') document.getElementById('metricCount').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else if (layer === '6') document.querySelector('.task-list')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else if (layer === '4') document.getElementById('project-content').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else toast('第 ' + layer + ' 层内容定位入口');
+    }));
+    document.querySelectorAll('[data-toast]').forEach(button => button.addEventListener('click', () => toast(button.dataset.toast)));
+    document.querySelectorAll('[data-scroll]').forEach(button => button.addEventListener('click', () => document.getElementById(button.dataset.scroll).scrollIntoView({ behavior: 'smooth', block: 'start' })));
+    document.getElementById('themeButton').addEventListener('click', () => {
+      const cool = document.documentElement.dataset.theme !== 'cool'; document.documentElement.dataset.theme = cool ? 'cool' : 'paper'; toast(cool ? '已切换冷灰白主题' : '已切换纸墨白主题');
+    });
+    document.getElementById('compareButton').addEventListener('click', event => {
+      document.body.classList.toggle('compare'); event.currentTarget.textContent = document.body.classList.contains('compare') ? '返回优化稿' : '查看现状装饰强度';
+    });
+    document.getElementById('focusMode').addEventListener('click', event => {
+      document.body.classList.toggle('focus-mode'); const enabled = document.body.classList.contains('focus-mode');
+      document.querySelectorAll('.nav-note,.metric-sub,.project-context').forEach(el => el.classList.toggle('hidden', enabled));
+      event.currentTarget.textContent = enabled ? '退出聚焦模式' : '聚焦模式';
+    });
+    document.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => {
+      const group = button.closest('.choice-group'); group.querySelectorAll('[data-choice]').forEach(item => item.classList.toggle('selected', item === button));
+      const choice = button.dataset.choice;
+      if (choice === 'focus' || choice === 'vision') {
+        const strip = document.querySelector('.focus-strip');
+        const project = projectData[currentProjectKey];
+        const visionMode = choice === 'vision';
+        strip.classList.toggle('vision-mode', visionMode);
+        document.getElementById('focusLabel').textContent = visionMode ? '愿景方向' : (project.focus ? '当前主攻' : '正在查看');
+        document.getElementById('focusProjectName').textContent = visionMode ? '成为终身受用的深度研究与自主知识调度践行者' : project.title;
+        strip.querySelector('.focus-detail').textContent = visionMode ? '使命：以认知周转率为尺，经营个人数据资产与行动成果' : project.goal + ' · ' + (project.focus ? '2 项指标' : '普通项目');
+        strip.querySelector('.focus-progress').classList.toggle('hidden', visionMode);
+        strip.querySelector('.focus-count').classList.toggle('hidden', visionMode);
+        strip.querySelector('[data-scroll]').classList.toggle('hidden', visionMode);
+      }
+      if (choice === 'airy') document.querySelectorAll('.metric-toggle').forEach(toggle => { if (toggle.getAttribute('aria-expanded') === 'true') toggle.click(); });
+      if (choice === 'compact') document.querySelectorAll('.metric-toggle').forEach(toggle => { if (toggle.getAttribute('aria-expanded') === 'false') toggle.click(); });
+      if (choice === 'pill') document.querySelectorAll('.main-tag').forEach(tag => { tag.style.borderRadius = '99px'; tag.style.padding = '3px 9px'; });
+      if (choice === 'rail') document.querySelectorAll('.main-tag').forEach(tag => { tag.style.borderRadius = '4px'; tag.style.padding = '3px 7px'; });
+      toast('已记录评审选择：' + button.textContent);
+    }));
+    document.getElementById('resetButton').addEventListener('click', () => location.reload());
+  </script>
+</body>
+</html>

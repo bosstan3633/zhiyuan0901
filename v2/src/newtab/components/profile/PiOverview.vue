@@ -123,7 +123,8 @@ const mix = () => {
       </div>
 
       <div class="pi-dir-sub">当前主攻项目<span>项目名完整呈现 · 进度取自方向台</span></div>
-      <div v-if="focusProjects.length" class="pi-dir-list">
+      <!-- ★W18：主攻项目并排两列（C 布局）——单个项目时占满整行，不留半张空卡 -->
+      <div v-if="focusProjects.length" class="pi-dir-cols" :class="{ single: focusProjects.length === 1 }">
         <button v-for="(p, i) in focusProjects" :key="p.id" class="pi-dir-item"
           :title="`${p.name} · ${STATE_LABEL[p.state]} · 进度 ${p.progress}% · 未完成 ${p.open} 项（点击查看项目详情）`"
           @click="emit('open-project', p.id)">
@@ -148,11 +149,20 @@ const mix = () => {
 </template>
 
 <style scoped>
+/* ★W18（2026-10-20 用户拍板）：顶部两块面板**固定等高 440px**。
+   左卡：四格读数贴底（中间留白吸收多余高度），在库构成条压在最后一行；
+   右卡：使命通栏 + 主攻项目并排两列（C 布局），两卡顶/底边严格对齐。
+   440 的来历：与左侧「页头 + 四格 + 构成条」的实际内容高度对齐，不靠魔法数字猜。 */
+.pi-overview { --pi-panel-h: 440px; align-items: stretch; }
+.pi-ov-card { height: var(--pi-panel-h); min-height: var(--pi-panel-h); }
+/* 左卡内部：头部与读数之间留白弹性吸收，读数行贴底 */
+.pi-ov-card:not(.pi-ov-dir) .pi-ov-kpis { margin-top: auto; }
+
 /* ★W17-C09：右栏方向状态面板（使命完整 + 主攻项目完整呈现，项目名不截断） */
-.pi-ov-dir { min-width: 0; }
+.pi-ov-dir { min-width: 0; overflow: hidden; }
 .pi-dir-mission {
   display: flex; gap: 10px; align-items: flex-start; min-width: 0;
-  margin: 2px 0 10px; padding: 8px 0 8px 11px; box-shadow: inset 3px 0 0 var(--accent);
+  margin: 2px 0 12px; padding: 8px 0 8px 11px; box-shadow: inset 3px 0 0 var(--accent);
 }
 .pi-dir-mission .k { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .06em; padding-top: 2px; }
 .pi-dir-mission strong { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.6; overflow-wrap: anywhere; }
@@ -160,9 +170,11 @@ const mix = () => {
 .pi-dir-empty:hover { text-decoration: underline; }
 .pi-dir-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); margin-bottom: 7px; }
 .pi-dir-sub span { font-size: var(--fs-micro); font-weight: 400; color: var(--text-4); }
-.pi-dir-list { display: flex; flex-direction: column; gap: 7px; }
+/* C 布局：两个主攻项目并排；只有一个时独占整行（不留半张空卡） */
+.pi-dir-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.pi-dir-cols.single { grid-template-columns: minmax(0, 1fr); }
 .pi-dir-item {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; width: 100%; min-width: 0;
   padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-md);
   background: var(--surface-2); text-align: left; font-family: inherit; cursor: pointer; transition: all var(--dur-fast);
 }
@@ -189,6 +201,11 @@ const mix = () => {
 .pi-ov-mix-bar .m-task { background: var(--info-blue); }
 .pi-ov-mix-bar .m-curio { background: var(--success); }
 .pi-ov-mix-tx { flex: none; white-space: nowrap; }
+/* 900px 以下（概览已折单列）与 640px 以下：取消固定高度，按内容自然排，避免半屏空白 */
+@media (max-width: 900px) {
+  .pi-overview { --pi-panel-h: auto; }
+  .pi-dir-cols { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 640px) {
   .pi-ov-mix { flex-wrap: wrap; }
   .pi-ov-mix-bar { order: 3; flex-basis: 100%; }

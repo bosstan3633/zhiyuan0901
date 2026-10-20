@@ -358,7 +358,8 @@ function openProjectDetail(projectId: string) {
 /* ===== 时间尺度：四选一单段展示 =====
  * ★W17-C09（2026-10-20 用户拍板）：左侧时间线与节点整体退役——周期区唯一导航 = 四个页签。
  * 原 timelineAnchor 滚动锚与 onRailJump 随之删除（页签切换不再需要"滚到隐藏段落"）。 */
-const activeRange = ref<PiRange>('today')
+/* ★W18（2026-10-20 用户拍板）：默认落在「本年」——页面定位是看长期状态，先给全年再逐层下钻。 */
+const activeRange = ref<PiRange>('year')
 const rangeLabel = computed(() => ({
   today: '今天', week: '本周', month: '本月', year: '本年'
 }[activeRange.value]))
@@ -1070,6 +1071,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
         <div class="pi-day-modal" role="dialog" aria-modal="true" aria-label="今日战报">
           <DayDetail
             :stats="dashStats" :day="dashSelDay" :events="timelineEvents" :live-link="linkCardCount"
+            :kinds="{ ...heroKindCounts, label: '在库' }"
             @close="dayOpen = false" @open-log="onDayOpenLog" />
         </div>
       </div>

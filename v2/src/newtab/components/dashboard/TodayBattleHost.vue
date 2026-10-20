@@ -107,6 +107,7 @@ defineExpose({ openToday })
       <div v-if="dashSelDay" class="dz-day-modal-overlay" @click.self="dashSelDay = null">
         <div class="dz-day-modal" role="dialog" aria-modal="true">
           <DayDetail :stats="dashStats" :day="dashSelDay" :events="timelineEvents" :live-link="linkCardCount"
+            :kinds="{ task: gTaskLive.length, curio: gCurioLive.length, res: gResLive.length, label: '在库' }"
             @close="dashSelDay = null" @open-log="onOpenLog" />
         </div>
       </div>

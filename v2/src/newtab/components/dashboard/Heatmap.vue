@@ -16,6 +16,7 @@ import {
 import { yearAgg, longestStreak, todayKey } from '@/shared/utils/reviewReport'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
 import { pngBlobFromSpec, heatmapShareHtml, exportName } from '@/shared/utils/exportView'
+import { zyCardBlob, zyCardHtml } from '@/shared/utils/zyCard'
 import { downloadBlob, downloadText } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
 
@@ -170,28 +171,25 @@ function gridCells(): { c: number; r: number; lv: number }[] {
 const kpiSpec = () => summary.value.map(s => ({ label: s.k, value: `${typeof s.v === 'number' ? fmtW(s.v) : s.v}${s.u}`, note: s.d }))
 const footerText = '知源调度台 · 档位由加权分映射 · 数据只在本机'
 
-async function exportPng(): Promise<void> {
-  const blob = await pngBlobFromSpec({
+/** ★W18（统一卡片模板）：年度热力图也走「知源卡片」——骨相与日战报一致，只是把明细区换成 12 个月格子图。 */
+function buildZyCard() {
+  return {
+    kicker: '年度热力',
     title: `${props.year} 年调度热力图`,
     sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · P90 = ${agg.value.p90} 分 · 最长连续 ${streak.value} 天`,
-    kpis: kpiSpec(),
-    grid: { cells: gridCells(), cols: 32, rows: 24, cell: 11, gap: 2, label: '六档：' + LV_NAME.join('/ ') },
-    footer: footerText
-  })
-  downloadBlob(exportName('热力图', 'png', String(props.year)), blob)
-  showToast('已导出年历 PNG（当前主题配色）')
+    readouts: kpiSpec(),
+    grid: { cells: gridCells(), cols: 32, rows: 24 },
+    footer: '知源调度台 · 档位由加权分映射 · 数据只在本机'
+  }
+}
+async function exportPng(): Promise<void> {
+  const blob = await zyCardBlob(buildZyCard())
+  downloadBlob(exportName('热力图卡', 'png', String(props.year)), blob)
+  showToast('已导出年历卡片图片（当前主题配色）')
 }
 function exportHtml(): void {
-  const html = heatmapShareHtml({
-    title: `${props.year} 年调度热力图`,
-    sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · 最长连续 ${streak.value} 天`,
-    kpis: kpiSpec(),
-    grid: { cells: gridCells(), cols: 32, rows: 24, cell: 11, gap: 2, label: '每日档位（0–5 档，越深越忙）' },
-    legend: LV_NAME.map((n, i) => ({ name: n, desc: LV_DESC[i] })),
-    footer: footerText
-  })
-  downloadText(exportName('热力图', 'html', String(props.year)), html, 'html')
-  showToast('已导出 HTML 分享页（任何人浏览器打开即看）')
+  downloadText(exportName('热力图卡', 'html', String(props.year)), zyCardHtml(buildZyCard()), 'html')
+  showToast('已导出 HTML 卡片（任何人浏览器打开即看）')
 }
 function onExport(fmt: ExportFmt): void {
   if (fmt === 'png') void exportPng()

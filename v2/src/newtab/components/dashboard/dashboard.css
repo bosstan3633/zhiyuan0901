@@ -127,6 +127,9 @@
 .dz-day { margin: 0; border: 0; border-radius: 18px; }
 /* 原型 md-head：36px 图标方块 + 标题/日期双行 + 关闭 */
 .dz-day-head { display: flex; align-items: center; gap: 10px; padding: 18px 22px 0; }
+/* ★W18：战报头部「保存为图片」独立入口（下载方式卡片化，与导出菜单并列但更显眼） */
+.dz-save-card { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
+.dz-save-card + .dz-btn { margin-left: 0; }
 .dz-day-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-light); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .dz-day-txt { flex: 1; min-width: 0; }
 .dz-day-title { font-size: 17px; font-weight: 700; letter-spacing: .2px; }

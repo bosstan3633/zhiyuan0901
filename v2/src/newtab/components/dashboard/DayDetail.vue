@@ -32,6 +32,7 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import DrillCardList from './DrillCardList.vue'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
 import { pngBlobFromSpec, dailyReportShareHtml, sectionsToMd, exportName } from '@/shared/utils/exportView'
+import { zyCardBlob, zyCardHtml } from '@/shared/utils/zyCard'
 import { downloadBlob, downloadText } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
 
@@ -40,6 +41,8 @@ const props = defineProps<{
   day: string
   events: CardEvent[]
   liveLink: number
+  /** ★W18：三类卡存量（任务 / 好奇 / 资源）——统一卡片里的「知源卡带」 */
+  kinds?: { task: number; curio: number; res: number; label?: string } | null
 }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'open-log', day: string): void }>()
 
@@ -164,29 +167,39 @@ const summaryText = computed(() => dlSum.value.n
   ? `当天完成 ${dlSum.value.n} 项操作，涉及 ${dlSum.value.cards} 张卡片${dlSum.value.last ? `，最近一次 ${hm(dlSum.value.last)}`: ''}`
   : '这一天没有操作记录。')
 
-async function exportPng(): Promise<void> {
-  const blob = await pngBlobFromSpec({
+/** ★W18（统一卡片模板）：战报图片改走「知源卡片」模板——眉标 / 读数 / 三类卡带 / 流水 / 品牌页脚，
+ *  与热力图、月度导出同一张卡的骨相，便于阅读与传播。 */
+function buildZyCard() {
+  const c = statCells.value
+  const kinds = props.kinds || null
+  return {
+    kicker: '每日战报',
     title: `每日战报 ${props.day}`,
-    sub: summaryText.value,
-    kpis: exportKpis(),
-    grid: null,
+    sub: `周${wd.value} · 加权 ${rec.value.w} 分 · ${lv.value} · ${summaryText.value}`.slice(0, 96),
+    readouts: [
+      { label: '新增', value: String(c[0].n), note: '采集入卡' },
+      { label: '调出', value: String(c[1].n), note: '打开卡片' },
+      { label: '推进', value: String(c[2].n), note: '状态变更' },
+      { label: '清理', value: String(c[3].n), note: '删除 / 清理' }
+    ],
+    kinds,
     rows: exportRows(),
+    rowsTitle: '当日操作流水',
     footer: '知源调度台 · 每日战报 · 数据只在本机'
-  })
-  downloadBlob(exportName('战报', 'png', props.day), blob)
-  showToast('已导出战报 PNG（当前主题配色）')
+  }
+}
+/** 弹窗头部的独立入口：一键保存当日战报图片（不用再进导出菜单） */
+async function saveCardImage(): Promise<void> {
+  const blob = await zyCardBlob(buildZyCard())
+  downloadBlob(exportName('战报卡', 'png', props.day), blob)
+  showToast('已保存战报卡图片（当前主题配色）')
+}
+async function exportPng(): Promise<void> {
+  await saveCardImage()
 }
 function exportHtml(): void {
-  const html = dailyReportShareHtml({
-    title: `每日战报 ${props.day}`,
-    sub: `周${wd.value} · 加权 ${rec.value.w} 分 · 有效动作 ${actsOf(rec.value)} 件`,
-    summary: summaryText.value.replace(/(\d+)/g, '<b>$1</b>'),
-    kpis: exportKpis(),
-    rows: exportRows(),
-    footer: '知源调度台 · 每日战报 · 数据只在本机'
-  })
-  downloadText(exportName('战报', 'html', props.day), html, 'html')
-  showToast('已导出 HTML 分享页（任何人浏览器打开即看）')
+  downloadText(exportName('战报卡', 'html', props.day), zyCardHtml(buildZyCard()), 'html')
+  showToast('已导出 HTML 卡片（任何人浏览器打开即看）')
 }
 function exportMd(): void {
   const md = sectionsToMd(`每日战报 ${props.day}`, `周${wd.value} · ${summaryText.value}`, [
@@ -215,6 +228,9 @@ function onExport(fmt: ExportFmt): void {
         <div class="dz-day-title">今日战报</div>
         <div class="dz-day-sub">{{ day }} 周{{ wd }}</div>
       </div>
+      <!-- ★W18：当日战报图片的独立入口（下载方式也要卡片化，便于阅读与传播） -->
+      <button class="dz-btn ghost sm dz-save-card" title="把这一天存成一张知源卡片图片"
+        aria-label="保存为图片" @click="saveCardImage"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg> 保存为图片</button>
       <button class="dz-btn ghost sm" aria-label="关闭" @click="emit('close')">收起 ×</button>
     </div>
 

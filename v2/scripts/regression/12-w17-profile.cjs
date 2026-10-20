@@ -54,7 +54,8 @@ check('W17-20 ★时间线退役：宿主零挂载 PiRail，样式零命中，�
     && !CSS.includes('.pi-rail {') && !/\.pi-rnode[\s:{.]/.test(CSS)
     && !/\.pi-tl \{[^}]*grid-template-columns:\s*78px/.test(CSS)
     && PI.includes('<PiRangeTabs')
-    && PI_C.includes("const activeRange = ref<PiRange>('today')")
+    /* ★W18（2026-10-20 用户拍板）重指：默认范围改为「本年」——先看长期状态，再按需下钻。 */
+    && PI_C.includes("const activeRange = ref<PiRange>('year')")
     && !PI_C.includes('onRailJump') && !PI_C.includes('railActive')
     /* 段头文案不再用 TIMELINE 叙事 */
     && PI.includes('PERIOD ·');
@@ -71,4 +72,49 @@ check('W17-21 ★今日对账段退役：PiToday 无 f3-compact，画像页不�
     /* 诊断 CTA 仍统一分发（bindFocus 改为跳调度台处理） */
     && PI.includes('function onConciseAction(action: string)')
     && PI.includes("if (action === 'bindFocus') {");
+});
+
+/* ══════════════ W18 · 画像洞察顶部等高 + 卡片化导出（2026-10-20 用户拍板） ══════════════ */
+
+const ZY = read('/shared/utils/zyCard.ts');
+const DAY = read('/newtab/components/dashboard/DayDetail.vue');
+const HEAT = read('/newtab/components/dashboard/Heatmap.vue');
+
+check('W18-1 ★顶部两块面板固定等高 440px，右卡主攻项目并排两列（C 布局：使命通栏 → 两列项目）', () => {
+  return /--pi-panel-h:\s*440px/.test(OV)
+    && /\.pi-ov-card \{ height: var\(--pi-panel-h\)/.test(OV)
+    && OV.includes('class="pi-dir-cols"')
+    && /\.pi-dir-cols \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/.test(OV)
+    && OV.includes('pi-dir-cols" :class="{ single: focusProjects.length === 1 }"')
+    /* 900px 以下取消固定高度，按内容自然排 */
+    && /\.pi-overview \{ --pi-panel-h: auto; \}/.test(OV);
+});
+
+check('W18-2 ★周期区默认「本年」：进入画像洞察先给全年状态，再按需下钻', () => {
+  return PI.includes("const activeRange = ref<PiRange>('year')")
+    && !PI.includes("const activeRange = ref<PiRange>('today')");
+});
+
+check('W18-3 ★战报弹窗头部有独立「保存为图片」入口（不必再进导出菜单）', () => {
+  return DAY.includes('saveCardImage')
+    && DAY.includes('保存为图片')
+    && DAY.includes('class="dz-btn ghost sm dz-save-card"')
+    /* 下载的是卡片图片，文件名带「战报卡」 */
+    && DAY.includes("exportName('战报卡', 'png'")
+    /* 头部按钮在「收起」之前 */
+    && DAY.indexOf('保存为图片') < DAY.indexOf('收起 ×');
+});
+
+check('W18-4 ★L3 统一卡片模板：战报 / 热力图同一份卡骨相（眉标 + 读数 + 三类卡带 + 明细 + 品牌页脚）', () => {
+  return ZY.includes('export function zyCardBlob(') && ZY.includes('export function zyCardHtml(')
+    /* 三类卡是知源「卡」世界观的最小可视单位 */
+    && ZY.includes('task: number') && ZY.includes('curio: number') && ZY.includes('res: number')
+    && ZY.includes('任务卡') && ZY.includes('好奇心卡') && ZY.includes('资源卡')
+    && ZY.includes('kicker') && ZY.includes('readouts') && ZY.includes('rowsTitle')
+    /* 两个导出点都改走同一模板，不再各写一套版式 */
+    && DAY.includes('zyCardBlob(buildZyCard())') && DAY.includes('zyCardHtml(buildZyCard())')
+    && HEAT.includes('zyCardBlob(buildZyCard())') && HEAT.includes('zyCardHtml(buildZyCard())')
+    /* 负锚：日战报 PNG 不再走旧的 pngBlobFromSpec 版式 */
+    && !DAY.includes('pngBlobFromSpec({')
+    && !HEAT.includes('pngBlobFromSpec({');
 });

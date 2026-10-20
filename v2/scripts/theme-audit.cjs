@@ -1208,6 +1208,11 @@ if (argv.scenes) {
          不再点「看全年 ›」——那个入口仍属于其它宿主，展开/收起双回程由 W7-3 守。
          这里只确认宿主已给出全年格；缺失时留空，由下方判据点名，不静默补一次点击。 */
       if (sc.id === 'dz-heatmap') {
+        /* ★W18：日详情场景会先切到「今天」且不复位；本场景必须显式切回「本年」，
+           否则 .pi-hmbox 根本不挂载（实测四主题各少一张图、普查 token 腰斩）。
+           这不是放宽判据，而是把场景间的隐式状态依赖显式化。 */
+        await page.locator('.pi-range-tab[data-range="year"]').first().click({ timeout: 8000 }).catch(() => {})
+        await page.waitForTimeout(400)
         await page.locator('.dz-months .dz-cell').first().waitFor({ state: 'attached', timeout: 6000 }).catch(() => {})
       }
       if (sc.act) await sc.act(page)
