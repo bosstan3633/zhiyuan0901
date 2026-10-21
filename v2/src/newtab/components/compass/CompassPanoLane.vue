@@ -131,17 +131,25 @@ function priOf(t: TaskCard): string {
 </template>
 
 <style scoped>
+/* ★视觉聚焦（与项目塔同一把尺子）：泳道是"分组"不是"卡"。
+   原来泳道是 surface 底 + lg 圆角 + 全局阴影，头部分 surface-2、任务再 surface-2 ——
+   四层容器叠在一屏里，读者先数框。现在只留一条边界线（横向并排需要它），
+   层级由指标名、验收行、进度条和连接轨承担。 */
 .lane {
   flex: 0 0 262px; display: flex; flex-direction: column;
-  background: var(--surface); border-radius: var(--radius-lg);
-  box-shadow: var(--shadow); overflow: hidden; max-height: 64vh;
+  background: transparent;
+  /* 圆角与板/舱/列表同族（判据 C4-1）：去的是底色与阴影，不是形状语言 */
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: none; overflow: hidden; max-height: 64vh;
 }
-.lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex: none; }
+.lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: transparent; flex: none; }
 .lane-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
 .lane-i {
   width: 17px; height: 17px; border-radius: 6px; display: grid; place-items: center;
   font-size: var(--fs-micro); font-weight: 700; flex: none;
-  background: color-mix(in srgb, var(--hue) 24%, transparent); color: var(--text);
+  /* 序号是刻度不是印章：泳道身份由连接轨与进度条同色承担 */
+  background: var(--surface-2); color: var(--text-3);
 }
 .lane-n { font-size: var(--fs-sub); font-weight: 700; line-height: 1.45; flex: 1; min-width: 0; color: var(--text); }
 .lane-dot {
@@ -205,10 +213,12 @@ function priOf(t: TaskCard): string {
   background: var(--surface); border: 1.6px solid color-mix(in srgb, var(--hue) 75%, transparent);
 }
 .ltask {
-  position: relative; padding: 9px 10px 9px 30px; border-radius: var(--radius-sm);
-  background: var(--surface-2); transition: all var(--dur); border-left: 2px solid var(--hue);
+  position: relative; padding: 9px 10px 9px 30px; border-radius: 0;
+  /* 任务行从"小卡"退成"行"：保留左侧状态色与连接轨分支点，去掉底色与外边距 */
+  background: transparent; transition: all var(--dur); border-left: 2px solid var(--hue);
+  border-bottom: 1px solid var(--border);
 }
-.ltask:hover { background: var(--surface-3); transform: translateX(2px); }
+.ltask:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); transform: translateX(2px); }
 .ltask.done { border-left-color: var(--success); }
 .ltask.doing { border-left-color: var(--warning); }
 /* ★W12-C：div 改 button（单击开抽屉 + 键盘可达）。显式归零浏览器默认按钮外观，
@@ -236,11 +246,13 @@ function priOf(t: TaskCard): string {
 .lb-clue { color: var(--warning); background: var(--warning-bg-soft); }
 .lb-g { background: var(--surface-3); letter-spacing: .04em; cursor: pointer; }
 
-/* ★空泳道：缺任务也占位，"缺"必须在全景里同样可见 */
+/* ★空泳道：缺任务也占位，"缺"必须在全景里同样可见。
+   ★视觉聚焦：从"虚线告警框"改为"带色轨的行动提示"——虚线圈+圆角+底色叠起来像一块出错的卡，
+   而它要说的只有一句：标准已定、缺一条动作，右边就是入口。 */
 .lane-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  padding: 20px 14px; border-radius: var(--radius-md);
-  border: 1px dashed var(--warning-border); background: var(--warning-bg-soft);
+  padding: 20px 14px; border-radius: 0;
+  border: 0; border-left: 2px solid var(--warning-border); background: var(--warning-bg-soft);
   min-height: 96px; text-align: center;
 }
 .le-i {
@@ -255,7 +267,7 @@ function priOf(t: TaskCard): string {
 }
 .le-add:hover { filter: brightness(1.08); }
 
-.lane-foot { padding: 9px 11px; border-top: 1px solid var(--border); flex: none; background: var(--surface-2); }
+.lane-foot { padding: 9px 11px; border-top: 1px solid var(--border); flex: none; background: transparent; }
 .lane-add {
   display: flex; align-items: center; gap: 6px; width: 100%;
   font-size: var(--fs-micro); color: var(--text-2); cursor: pointer;

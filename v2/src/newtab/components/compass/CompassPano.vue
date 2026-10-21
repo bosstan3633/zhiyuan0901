@@ -244,23 +244,31 @@ const ringC = 2 * Math.PI * ringR
 </template>
 
 <style scoped>
+/* ★视觉聚焦（与项目塔同一把尺子）：全景的导航与内容都改发丝线分节，不再各套一张卡 ——
+   四层容器都带底色+边框+阴影时，首屏先读到的是框，而不是"推进到哪、哪条指标缺动作"。 */
 /* ── 项目选择条 ── */
 .pano-pick {
-  background: var(--surface); border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  padding: 12px 16px; margin-bottom: 16px;
+  background: transparent; border-radius: 0;
+  border: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 11px 0; margin-bottom: 18px;
 }
 .pp-t { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .11em; color: var(--text-4); margin-bottom: 9px; }
 .pp-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; }
 .pp-empty { font-size: var(--fs-micro); color: var(--text-4); padding: 8px 2px; }
 .pp {
-  position: relative; flex: 0 0 auto; padding: 8px 13px 8px 14px;
-  border-radius: var(--radius-md); background: var(--surface-2);
+  position: relative; flex: 0 0 auto; padding: 7px 12px 7px 14px;
+  /* 未选中的项目退回"纯文本条目"：只有左侧色条与名字，不再是一块带底的卡。
+     一屏六七个项目时，底色块会把"选谁"这件事变成看色块而不是读项目名。
+     ★必须显式 border: 0 —— button 默认边框在透明底上会露出一圈黑框。 */
+  border: 0; border-radius: 0; background: transparent;
   cursor: pointer; transition: all var(--dur); min-width: 132px; text-align: left;
 }
-.pp::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--pc); }
-.pp:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-.pp.on { background: color-mix(in srgb, var(--pc) 18%, var(--surface-2)); box-shadow: inset 0 0 0 1.5px var(--pc); }
+.pp::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--pc); opacity: .45; }
+.pp:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.pp:hover::before { opacity: .8; }
+/* 选中态 = 色轨加粗 + 文字提亮，不再铺一层底色（与左栏项目导航同一套标记语言） */
+.pp.on { background: transparent; box-shadow: none; }
+.pp.on::before { opacity: 1; width: 4px; }
 .pp-n {
   display: block; font-size: var(--fs-sub); font-weight: 700; line-height: 1.4;
   white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; color: var(--text);
@@ -269,14 +277,16 @@ const ringC = 2 * Math.PI * ringR
 
 /* ── 项目头 ── */
 .pano-h {
-  display: flex; align-items: center; gap: 16px; padding: 16px 20px;
-  border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border);
-  margin-bottom: 16px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 16px; padding: 16px 0 18px;
+  border-radius: 0; background: transparent;
+  border: 0; border-bottom: 1px solid var(--border-strong);
+  margin-bottom: 14px; flex-wrap: wrap;
 }
 .ph-i {
-  width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
   font-size: var(--fs-title); font-weight: 700; flex: none;
-  background: color-mix(in srgb, var(--hue) 20%, transparent); color: var(--text);
+  /* 序号是刻度不是印章：舱的身份由左侧色条承担，这里不再用彩色底 */
+  background: var(--surface-2); color: var(--text-3);
 }
 .ph-b { flex: 1; min-width: 240px; }
 /* ★项目名 --fs-title(15px)：与指标 --fs-sub(12px) 拉开一档，不抢焦点（愿景才是 display） */
@@ -320,13 +330,14 @@ const ringC = 2 * Math.PI * ringR
 .ph-act.ai { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }
 
 /* ── 层级带（F3 单行面包屑）── */
-/* 恒高单行：层名小字 + 计数强调；渐变底色降为极淡单色，不再用三段渐变抢焦点 */
+/* 恒高单行：层名小字 + 计数强调。★视觉聚焦：去底色与边框，只留一条细分隔线，
+   它是"路牌"不是"招牌"—— 原来那层淡色底让它和下面的泳道抢同一层注意力。 */
 .band {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 14px; margin-bottom: 16px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--hue) 6%, var(--surface));
-  border: 1px solid var(--border);
+  padding: 0 0 9px; margin-bottom: 14px;
+  border-radius: 0;
+  background: transparent;
+  border: 0; border-bottom: 1px solid var(--border);
   font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap;
 }
 .bd-seg { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; letter-spacing: .04em; }
@@ -340,11 +351,12 @@ const ringC = 2 * Math.PI * ringR
 /* ── 收容泳道（留在本组件：它不属于任何指标，是项目级的第三态）── */
 .lane {
   flex: 0 0 262px; display: flex; flex-direction: column;
-  background: var(--surface); border-radius: var(--radius-lg);
+  /* ★视觉聚焦：泳道去掉底色与阴影，但保留与板/舱同族的 lg 圆角（判据 C4-1） */
+  background: transparent; border-radius: var(--radius-lg);
   border: 1px solid var(--border); overflow: hidden; max-height: 64vh;
 }
-.lane.orph { border: 1px dashed var(--danger-border); background: var(--danger-bg-soft); }
-.lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex: none; }
+.lane.orph { border: 1px solid var(--danger-border); border-left: 2px solid var(--danger); background: transparent; }
+.lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: transparent; flex: none; }
 .lane.orph .lane-h { background: transparent; border-bottom-color: var(--danger-border); }
 .lane-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
 .lane-i {
@@ -358,8 +370,9 @@ const ringC = 2 * Math.PI * ringR
 .lane-acc .bad { color: var(--danger); }
 .lane-b { padding: 9px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 74px; }
 .ltask {
-  position: relative; padding: 9px 10px 9px 11px; border-radius: var(--radius-sm);
-  background: var(--surface-2); transition: all var(--dur); border-left: 2px solid var(--danger);
+  position: relative; padding: 9px 10px 9px 11px; border-radius: 0;
+  background: transparent; transition: all var(--dur); border-left: 2px solid var(--danger);
+  border-bottom: 1px solid var(--border);
 }
 .ltask-t { font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; color: var(--text); }
 .ltask-b { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap; }

@@ -91,10 +91,10 @@ check('C3-2 过渡参数与降级都在：150ms + 8px 上浮；reduced-motion �
 });
 
 /* ============ C4 · 圆角层级 ============ */
-check('C4-1 同族同圆角：板 xl（18）/ 项目舱 · 泳道 · 层级列表 lg（14）——三种视图形态的节点卡圆角一致', () => {
+check('C4-1 同族同圆角：板 xl（18）/ 项目舱 · 泳道 · 层级列表 lg（14）——三种视图形态的节点卡圆角一致。★V3.9.6 重指带备案（方向台视觉聚焦）：原锚把泳道写成 `background: var(--surface); border-radius: var(--radius-lg)` 连写，等于把"泳道必须有底色"也钉进了圆角判据 —— 本轮泳道改为透明底（与项目舱、指标同一条"去容器底色"的决定），底色不该由圆角判据代管。重指后只钉**圆角同族**这条本意，底色归 dead-css / theme-audit 的视觉走查管', () => {
   const board = (CT.match(/^\.canvas-inner \{[^}]*\}/m) || [''])[0];
   const tower = (TOWER.match(/border-radius: var\(--radius-lg\)/) || [''])[0];
-  const lane = (PANO.match(/background: var\(--surface\); border-radius: var\(--radius-lg\)/) || [''])[0];
+  const lane = (PANO.match(/border-radius: var\(--radius-lg\)/) || [''])[0];
   const list = (LIST.match(/border-radius: var\(--radius-lg\)/) || [''])[0];
   if (!board.includes('--radius-xl') || !tower || !lane || !list) {
     console.log('     板 xl=' + board.includes('--radius-xl') + ' / 舱 lg=' + !!tower + ' / 泳道 lg=' + !!lane + ' / 列表 lg=' + !!list);
