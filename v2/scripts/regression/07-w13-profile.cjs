@@ -93,7 +93,7 @@ check('W13-8 ★本批改动的反漂纪律：索引生成物由 R163-1 守、�
   /* ★W16-T2/T3（2026-10-16）上限 1100 → 1250 并写明理由：本轮新增四类清单分支的取数修正
      （createdIds/calledIds 拆分 + 弹药同源 + 冷却语义）与抽屉对账条六分支，各有口径要写在代码里
      （口径注释比压行数重要）。真正要防的是"无节制地堆功能"，不是"这个文件不许长"。 */
-  return lineCount <= 1250
+  return lineCount <= 1100
     && !PI_C.includes('dynDrawer') && !PI_C.includes('openDynDrawer') && !PI_C.includes('DynDrawerType')
     && !PI_C.includes('<ReviewPanel') && !PI_C.includes('openReview')
     && !PI_C.includes('eventActionLabel') && !PI_C.includes('eventKindLabel') && !PI_C.includes('fmtEventTime')

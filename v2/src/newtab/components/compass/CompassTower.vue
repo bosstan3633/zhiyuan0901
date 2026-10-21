@@ -10,6 +10,7 @@
  * 全程用线连起来，让"任务属于这个项目的这个指标"成为视觉事实。
  */
 import Icon from '@/shared/components/Icon.vue'
+import './hotzone.css'
 import { computed } from 'vue'
 import CompassLane from './CompassLane.vue'
 import CompassTowerNext from './CompassTowerNext.vue'

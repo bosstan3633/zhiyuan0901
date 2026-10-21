@@ -129,17 +129,18 @@ function dedupeSorted(tasks: TaskCard[]): TaskCard[] {
   return out.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
 }
 
-/** 单条指标的聚合（任务已由唯一口径 tasksOfMetric 解析并去重） */
+/** 单指标聚合：双路关联会重复入桶，按 id 去重。 */
 function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
-  const total = tasks.length
-  const done = tasks.filter(t => t.status === 'done').length
-  const anyDoing = tasks.some(t => t.status === 'doing')
+  const uniqueTasks = dedupeSorted(tasks)
+  const total = uniqueTasks.length
+  const done = uniqueTasks.filter(t => t.status === 'done').length
+  const anyDoing = uniqueTasks.some(t => t.status === 'doing')
   return {
     id: m.id,
     title: m.title,
     acceptance: m.acceptance || '',
     target: m.target || '',
-    tasks,
+    tasks: uniqueTasks,
     total,
     done,
     pct: total ? Math.round((done / total) * 100) : 0,
@@ -250,10 +251,8 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
   }
 }
 
-/** 成熟度等级 → 颜色令牌；等级色只用于小圆点/徽标，不得压过标题（W11-5）。 */
-export function gradeColorVar(grade: string): string {
-  return grade === 'A' ? 'var(--success)'
-    : grade === 'B' ? 'var(--info-blue)'
-      : grade === 'C' ? 'var(--warning)'
-        : 'var(--danger)'
-}
+/** 成熟度等级 → 颜色令牌（W11-5） */
+export const gradeColorVar = (grade: string): string => grade === 'A' ? 'var(--success)'
+  : grade === 'B' ? 'var(--info-blue)'
+    : grade === 'C' ? 'var(--warning)'
+      : 'var(--danger)'

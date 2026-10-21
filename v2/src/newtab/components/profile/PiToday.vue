@@ -31,6 +31,13 @@ export interface TodayRow {
 const props = defineProps<{
   todayAdd: number
   todayCalled: number
+  /** ★V3.9.6 双口径补齐：今日「导 N」= 今日被导入的卡数（导入继承原 createdAt，不混入新建数）。
+   *  手册「新增/导入双口径（V2.21.3 起）」白纸黑字承诺过「导入的卡单独显示『导 Y』」，
+   *  但 R48-5 判据只钉住了数据层（todayImportCount），界面那一半一直是**登记待接**的欠账。
+   *  本轮补上：徽标挂在段头右缘（不是 strip4 里），因为它是**同一读数的另一个口径**，
+   *  放进四格网格会挤掉一格既有读数并破坏「恰四枚 chip」的定版断言。
+   *  0 时不渲染（没有导入就别占一格宽度）。 */
+  todayImport: number
   /** 今日焦点 M/3（有内容的槽位数 / 3） */
   focusFilled: number
   /** 已备弹药 K：三件事所关联任务的 SupportLink 去重资源卡总数 */
@@ -61,6 +68,12 @@ const emit = defineEmits<{
         <p>当天的四类记录，全部来自本机事件日志。排三件事请去调度台——本页只呈现使用状态。</p>
       </div>
       <div class="pi-mod-acts">
+        <!-- ★V3.9.6 双口径徽标：今日入台 N 张里，有 M 张是**导入**的（不是今天新建的）。
+             放在段头右缘而非格内——它是「今日入台」这枚读数的口径拆分，不是第五个读数。 -->
+        <span v-if="props.todayImport > 0" class="pi-imp-badge"
+          :title="`今日入台 ${props.todayAdd} 张中，${props.todayImport} 张是导入的（导入继承原创建时间，不计入今天新建）`">
+          <Icon name="upload" :size="13"/> 导 {{ props.todayImport }}
+        </span>
         <button class="pi-btn line" @click="emit('open-battle')">打开战报</button>
       </div>
     </div>

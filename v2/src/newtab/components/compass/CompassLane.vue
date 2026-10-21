@@ -13,6 +13,7 @@
  * 焦点纪律：任务标题最高 --fs-body，**不许用 --fs-title 及以上**（会与指标名争层级）。
  */
 import Icon from '@/shared/components/Icon.vue'
+import './hotzone.css'
 import { computed, ref } from 'vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
@@ -182,14 +183,12 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .metric-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
 .mc-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .mc-dot {
-  width: 17px; height: 17px; border-radius: 50%; flex: none;
-  border: 1.5px solid var(--border); background: var(--surface);
   color: var(--text-4); font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   transition: all var(--dur);
 }
-.mc-dot.doing { border-color: var(--warning); color: var(--warning); }
-.mc-dot.done { background: var(--success); border-color: var(--success); color: #fff; }
+.mc-dot.doing { color: var(--warning); }
+.mc-dot.done { color: #fff; }
 .mc-title {
   font-size: var(--fs-sub); font-weight: 700; color: var(--text);
   flex: 1; min-width: 0; line-height: 1.45;
@@ -253,7 +252,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mc-menu {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 148px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column;
+  box-shadow: none; padding: 4px; display: flex; flex-direction: column;
 }
 .mcm-item {
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-2); text-align: left;
@@ -304,15 +303,14 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-row.done .tk-title { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .tk-row.doing .tk-title { color: var(--text); font-weight: 600; }
 .tk-box {
-  width: 16px; height: 16px; border-radius: 5px; flex: none;
-  border: 1.5px solid var(--border); background: var(--surface);
+  /* ★V3.9.6：视觉尺寸与点击盒子已拆到 hotzone.css（本体 28px 透明 + ::before 画 16px 方块），
+     本条只留**非尺寸**属性（尺寸写在 hotzone.css，否则本条 scoped 的特异性会盖掉它）。 */
+  border-radius: 5px; flex: none;
   color: transparent; font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   transition: all var(--dur);
 }
-.tk-box:hover { border-color: var(--hue); }
-.tk-box.done { background: var(--success); border-color: var(--success); color: #fff; }
-.tk-box.doing { border-color: var(--warning); }
+.tk-box.done { color: #fff; }
 /* 触控：任务标题是下钻入口，窄屏给整行最小热区，避免只能点中文字。 */
 @media (max-width: 800px) {
   .mc-head { gap: 7px; }
@@ -358,7 +356,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 /* ★解绑钮：默认低调（不与勾选框争），hover 才显形 —— 误触成本高，不能做成随手可点 */
 .tk-unbind {
   font-size: var(--fs-micro); color: var(--text-4);
-  width: 16px; height: 16px; border-radius: 4px; line-height: 1;
+  /* ★V3.9.6：视觉尺寸与点击盒子已拆到 hotzone.css（本体 28px 透明 + ::before 画 16px）。 */
+  border-radius: 4px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all var(--dur); opacity: 0;
   background: transparent; border: 1px solid transparent;

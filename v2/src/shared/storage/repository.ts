@@ -53,14 +53,52 @@ export function markDataDirty(): void { mutationSeq++ }
 // 原实现是时间戳比较（守卫从未生效），R70 改内容指纹（每次 onChanged 对整树 stringify 一次，千卡 40–100ms）。
 // R131-C1a：写入载荷带全局唯一 `__wid`（上下文随机前缀 + 自增序号），onChanged 只比一个字符串——
 // 判定退化为 O(1)。跨上下文序号独立不碰撞（前缀不同）；旧存量数据无 __wid → 判为外部写入（保守正确）。
+//
+// ★R175（2026-10-21 修）只比 `__wid` 不够：整树写回的上下文会把上一枚写戳原样复制走。
+// 于是「载荷里再加一枚内容指纹」这条修法在实测里**同样不成立**——外部整树回写
+// 会把那枚指纹（以及任何随载荷一起走的元数据）一并复制走，两道闸同时命中，
+// 外部那处改动仍被当成自己的回声静默丢弃（症状：数据写进库了但界面不更新，随机 flaky）。
+// ⇒ 判据必须建立在**「写的人有没有换戳」**上，而不是「载荷里带了什么」——
+//   随载荷走的东西一定会被复制走，写戳的**变化**不会被。
+// chrome.storage 的变更事件自带 `oldValue`：本上下文每次写入都铸新戳，
+//   所以自写回声的 old≠new；外部「读整树→改→整棵写回」会复制走旧戳 ⇒ old≡new。
+// ⇒ `isStampReused(change)`：变更前后写戳相同 ⇒ 写的人没换戳 ⇒ 判外部写入。
+// 全程 O(1)，不引入第二次整树序列化（R70/R71 性能治理不许退让）。
 const SELF_CTX_ID = Math.random().toString(36).slice(2, 8) + '-' + Date.now().toString(36)
 let selfWriteSeq = 0
 let lastSelfWriteId = ''
 
+/**
+ * ★R175：判断一次 storage 变更是否**复用了写戳**（= 写的人没换戳）。
+ *
+ * 判据只依赖「变更前后写戳是否相同」，不依赖载荷里带了什么——
+ * 因为随载荷走的东西一定会被整树复制走，只有**写戳的变化**骗不了人：
+ *   · 本上下文自写：每次写入铸新戳 ⇒ old.__wid ≠ new.__wid ⇒ 不算复用 ⇒ 判回声（跳过）。
+ *   · 外部整树回写：复制走上一枚戳 ⇒ old.__wid ≡ new.__wid ⇒ 算复用 ⇒ 判外部（走合并）。
+ *   · 外部全新写：多半没戳或换了戳 ⇒ 不算复用，但 `isSelfWrite` 本就不认 ⇒ 仍走合并。
+ *
+ * O(1)：只比两个字符串，不整树序列化。
+ */
+export function isStampReused(change: { oldValue?: unknown; newValue?: unknown } | null | undefined): boolean {
+  if (!change) return false
+  const oldV = change.oldValue as { __wid?: unknown } | null | undefined
+  const newV = change.newValue as { __wid?: unknown } | null | undefined
+  const oldWid = oldV?.__wid
+  const newWid = newV?.__wid
+  if (typeof oldWid !== 'string' || typeof newWid !== 'string') return false
+  return oldWid === newWid
+}
+
 // R56-PERF-c：数据版本号——每次成功写入/外部同步自增（重计算 memo 的失效键）
 let dataVersion = 0
 export function getDataVersion(): number { return dataVersion }
-/** 判断一次 storage 变更是否由本上下文写入（writeId 比对，O(1)；非本页写入返回 false，走合并路径） */
+/**
+ * 判断一次 storage 变更是否由本上下文写入（writeId 比对，O(1)；非本页写入返回 false，走合并路径）。
+ *
+ * ★R175 注意：这张判据**单独用不够**——整树回写的外部上下文会把上一枚 `__wid` 复制走，
+ *   于是「像自己的回声」。必须与 `isStampReused` 合起来看：
+ *   `isSelfWrite(ext) && !isStampReused(change)` 才是真回声。
+ */
 export function isSelfWrite(newValue: unknown): boolean {
   if (!lastSelfWriteId) return false
   return (newValue as { __wid?: unknown } | null)?.__wid === lastSelfWriteId
@@ -766,7 +804,11 @@ export function attachStorageSync(): void {
     if (dch) {
       const ext = dch.newValue as AppData | undefined
       // 键被删除（清库/重置）时 newValue 为 undefined：保持既有语义，不触发合并
-      if (ext && !isSelfWrite(ext)) {
+      /* ★R175：真回声 = 「像自己的写入」且「写的人换了戳」。
+         只判 `isSelfWrite(ext)` 不够——外部整树回写会复制走上一枚 `__wid`，
+         于是外部那处改动被当成自己的回声静默丢弃（症状：数据写进库了但界面不更新，随机 flaky）。
+         `isStampReused(dch)` 看的是「变更前后写戳相同」⇒ 写的人没换戳 ⇒ 判外部。 */
+      if (ext && !(isSelfWrite(ext) && !isStampReused(dch))) {
         try { mergeExternalData(ext) } catch { /* 合并失败保持本页树，下次写入仍按本页为准 */ }
         if (cache) listeners.forEach((fn) => fn(cache!))
       }

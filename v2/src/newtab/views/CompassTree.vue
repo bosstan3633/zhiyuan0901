@@ -2,6 +2,7 @@
 // R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
 defineOptions({ name: 'CompassTreeView' })
 import Icon from '@/shared/components/Icon.vue'
+import '../components/compass/hotzone.css'
 
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -1098,14 +1099,7 @@ onUnmounted(() => {
           ★fromProjId / goBack / Esc 返回保留（R54-A1 深链来路感知），来路文本随行显示。 -->
     <section class="hero">
       <div class="hero-acts">
-        <!-- ★W11 视图切换（D3：方向台内第二视图）。双向可达：两个按钮都在，任何时候都能来回切。
-             ★V3.8.18（N10）：提为页头**唯一主焦点**（实底 + 加粗 + 加高）。
-             病根＝它原来和旁边六枚同尺寸、同底色、同字重的按钮挤在一排里，谁都不像主入口；
-             而这两个视图恰恰是这一页的第一个决策（它决定下方长什么样），其余都是它的从属开关。 -->
-        <div class="view-seg" role="tablist" aria-label="方向台视图形态">
-          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'; layerView = null">项目塔</button>
-          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
-        </div>
+        <!-- ★V3.9.7：项目塔 / 项目全景的选择已移到下方项目模块。页头只保留全页级别操作。 -->
         <span v-if="fromProjName" class="hero-from">来自项目「{{ fromProjName }}」</span>
         <!-- ★C2（V3.8.33 B5-c）：筛选态提示条从画布内提到这里，压成 hero 动作行里的一枚胶囊。
              病根＝它原来横在引导条与项目舱之间，把树区从中间拦了一刀；而它本质是"当前视图正被什么收窄"，
@@ -1308,6 +1302,11 @@ onUnmounted(() => {
      现在只保留「层号 + 层名 + 计数 + 一句灰字说明」：字号降一档、去底色、发丝分隔，默认安静。
      ★保留 .tl-head-row 容器类名（R3-B′ 判据靠它切片定位层内区域）。 -->
 <div class="tl-head-row">
+            <!-- ★V3.9.7：紧贴它实际改变的项目画布，不再占页头首屏焦点。 -->
+            <div class="view-seg" role="tablist" aria-label="项目视图形态">
+              <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'; layerView = null">项目塔</button>
+              <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
+            </div>
             <span class="gs-i"><i class="gs-n">3</i>战略目标 <b>{{ treeStats.dirs }}</b></span>
             <span class="gs-d">方向要往哪走</span>
             <span class="gs-sep" aria-hidden="true" />
@@ -1973,6 +1972,7 @@ onUnmounted(() => {
 .tl-text.sub { font-size: var(--fs-headline); font-weight: 500; color: var(--text-2); line-height: 1.4; }
 .tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
 .tl-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.tl-head-row > .view-seg { order: 99; margin-left: auto; }
 /* ★V3.8.41（B8）：本行下方原有一条辅助提示样式判死——全库仅此一处字面量、无模板挂载点、
    判据零命中。同族的愿景正文与其副形态、链接行、头行四段仍在用，未连坐。
    ★备案：这是"删样式"与"删掉一个提示"是两回事——那条提示连同它的语义早已在层级重构里被更好的
@@ -1986,9 +1986,9 @@ onUnmounted(() => {
    六枚同权重按钮并排时没有任何一枚"是入口"，用户只能逐个试。 */
 .view-seg {
   display: inline-flex; align-items: center; gap: 2px;
-  background: var(--surface-2); border: 1px solid var(--accent);
+  background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 999px; padding: 3px;
-  box-shadow: 0 0 0 3px var(--accent-light);
+  box-shadow: none;
 }
 .vs-b {
   font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);

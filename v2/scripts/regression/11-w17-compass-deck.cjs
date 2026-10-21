@@ -199,3 +199,33 @@ check('W17-17 ★页头左缘单锚：返回按钮独立成行，标题块与列
     && /\.deck-head \{ display: flex; flex-direction: column;/.test(DECK)
     && /white-space: nowrap; overflow: hidden; text-overflow: ellipsis/.test(DECK);
 });
+
+/* ══════════════ V3.9.7 · 调度台与卡池收口 ══════════════ */
+console.log('【V3.9.7 · 手边卡密度、项目详情、卡池切换】');
+
+check('V3.9.7-1 ★手边的卡三类各 5 行；右栏最近调出按可用高度给 5–7 条', () => {
+  const tasks = PI.slice(PI.indexOf('const previewTasks'), PI.indexOf('const liveCuriosities'));
+  const curios = PI.slice(PI.indexOf('const previewCuriosities'), PI.indexOf('const liveResources'));
+  const resources = PI.slice(PI.indexOf('const previewResources'), PI.indexOf('const hasAnyPreview'));
+  return /\.slice\(0, 5\)/.test(tasks)
+    && /\.slice\(0, 5\)/.test(curios)
+    && /\.slice\(0, 5\)/.test(resources)
+    && PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
+});
+
+check('V3.9.7-2 ★主攻项目点击打开项目详情抽屉，不再跳方向树', () => {
+  const fn = PI.slice(PI.indexOf('function openFocusProject'), PI.indexOf('// ================= 底部专区'));
+  return PI.includes("import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'")
+    && PI.includes('<ProjectDetailDrawer :open="focusProjectOpen"')
+    && fn.includes('focusProjectOpen.value = true')
+    && !fn.includes('router.push');
+});
+
+check('V3.9.7-3 ★卡池二级页可在任务 / 好奇心 / 资源三类自由切换，切换写路由以保留浏览器返回', () => {
+  return DECK.includes('const DECK_TABS')
+    && DECK.includes("kind: 'task'") && DECK.includes("kind: 'curiosity'") && DECK.includes("kind: 'resource'")
+    && DECK.includes('function switchKind(next: DeckKind): void')
+    && DECK.includes('router.push(`/deck/${next}`)')
+    && DECK.includes('role="tablist" aria-label="卡片类型"')
+    && DECK.includes(':aria-selected="kind === tab.kind"');
+});

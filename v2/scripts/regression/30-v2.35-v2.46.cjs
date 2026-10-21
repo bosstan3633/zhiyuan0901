@@ -137,11 +137,14 @@ check('R69-4（V3.9.1 重指）设置页快捷键映射表：应用内固定 Alt
     && sc.includes("{ keys: '{MOD}+3…9', action: '按台签顺序切各策展台'");
 });
 check('R69-5 快捷键速查口径修正（V3.7.0 重指资源台退役后 Alt+3 起整体让位各策展台；B7-e 重指到真源：三档落位在 shortcuts.ts，速查面板经 resolveKeys 按偏好渲染，负锚：面板不许再出现写死的 Alt+1/Alt+2）', () => {
-  const s = read('/newtab/components/GlobalPopups.vue'); const sc = read('/shared/utils/shortcuts.ts');
+  /* ★V3.9.6 重指带备案：速查面板已从 GlobalPopups.vue 拆到 GlobalPopupsShortcuts.vue
+     （GlobalPopups 第二梯队拆分 · 第一块），派生量随之改名 `groups`。
+     判据意图（真源三档 + 经 resolveKeys 渲染 + 不许写死 Alt）一字未改。 */
+  const s = read('/newtab/components/GlobalPopupsShortcuts.vue'); const sc = read('/shared/utils/shortcuts.ts');
   const trio = ["{ keys: '{MOD}+1', action: '切到调度台'", "{ keys: '{MOD}+2', action: '切到方向台'", "{ keys: '{MOD}+3…9', action: '按台签顺序切各策展台'"];
   for (const t of trio) if (!sc.includes(t)) return false;
   return /resolveKeys\(it\.keys, SC_MOD\.value\)/.test(s)
-    && /v-for="grp in SHORTCUT_GROUPS_VIEW"/.test(s)
+    && /v-for="grp in groups"/.test(s)
     && !/keys: 'Alt\+1'/.test(s) && !/keys: 'Alt\+2'/.test(s) && !/keys: 'Alt\+3…9'/.test(s);
 });
 check('R69-6 垃圾清理：旧版浮层备份 search-overlay.ts.orig.bak 与 scripts/.r6a 已移除', () => !exists('/content/search-overlay.ts.orig.bak') && !fs.existsSync(path.resolve(SCRIPTS_DIR, '..', 'scripts', '.r6a')));
@@ -275,9 +278,13 @@ check('R71-9 P2 持久化去掉冗余序列化往返（2 序列化+2 解析 → 
   const r = read('/shared/storage/repository.ts');
   return r.includes('payloadJson = JSON.stringify(cache)') && !r.includes('JSON.stringify(JSON.parse(JSON.stringify(cache)))');
 });
-check('R71-10（R131-C1a 重写）isSelfWrite 判据 = 载荷 __wid 与最近自写戳全等（长度比对退役，单字符串相等）', () => {
+check('R71-10（R131-C1a 重写 · R175 再收紧）isSelfWrite 判据 = 载荷 __wid O(1) 快路径 + old/new 写戳复用核（复制旧写戳的外部回写不得被误当回声）', () => {
   const r = read('/shared/storage/repository.ts');
-  return r.includes('if (!lastSelfWriteId) return false') && r.includes("?.__wid === lastSelfWriteId") && !r.includes('lastSelfWriteJson');
+  return r.includes('if (!lastSelfWriteId) return false')
+    && r.includes('oldWid === newWid')
+    && r.includes('isSelfWrite(ext) && !isStampReused(dch)')
+    && !r.includes('__wh')
+    && !r.includes('lastSelfWriteJson');
 });
 check('R71-11 P2 事件日志就地扫描三数组（不再 collectCards 建整张中间数组）', () => {
   const e = read('/shared/utils/eventLog.ts');

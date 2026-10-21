@@ -383,28 +383,10 @@
     </div>
   </div>
 
-  <!-- B3：快捷键速查面板（? 呼出） -->
-  <div class="gp-overlay" :class="{open: activePanel==='shortcuts'}" @click.self="closeAll">
-    <div class="gp-panel gp-panel-shortcuts">
-      <div class="gp-cap-head">
-        <div class="gp-cap-icon res"><Icon name="settings" :size="18" /></div>
-        <div class="gp-cap-titles">
-          <div class="gp-cap-title">快捷键速查</div>
-          <div class="gp-cap-sub">键盘优先 · 按 Esc 关闭</div>
-        </div>
-        <button class="gp-cap-close" @click="closeAll">×</button>
-      </div>
-      <div class="gp-sc-body">
-        <div v-for="grp in SHORTCUT_GROUPS_VIEW" :key="grp.title" class="gp-sc-group">
-          <div class="gp-sc-title">{{ grp.title }}</div>
-          <div v-for="it in grp.items" :key="it.keys" class="gp-sc-row">
-            <span class="gp-sc-keys"><kbd v-for="k in it.keys.split('+')" :key="k">{{ k }}</kbd></span>
-            <span class="gp-sc-desc">{{ it.desc }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- B3：快捷键速查面板（? 呼出）—— ★V3.9.6 拆出为 GlobalPopupsShortcuts.vue
+       （GlobalPopups 第二梯队拆分 · 第一块：按弹窗家族切，一轮一块不打包）。
+       交互与类名一字未改：宿主只管「当前是不是这个面板」与「关掉」。 -->
+  <GlobalPopupsShortcuts :active="activePanel==='shortcuts'" @close="closeAll" />
 
   <!-- R158：AI 建议面板（被动型入口统一建议流；命令面板 AI 建议组 / openPanel('ai-advice') 呼出） -->
   <div class="gp-overlay" :class="{open: activePanel==='ai-advice'}" @click.self="closeAll">
@@ -480,10 +462,9 @@ import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCar
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { saveUIPrefs } from '@/shared/storage/repository'
-// B7-e H3：快捷键速查面板不再各写一份清单——与设置页、手册同源（shared/utils/shortcuts.ts）。
-// ★此前这里把切台键硬编码成 Alt+1/2/3，而修饰键有五种可选（wsSwitchMod）；
-//   用户改成 Ctrl 之后速查面板仍在教他按一个不存在的键位。现按当前偏好派生。
-import { SHORTCUT_GROUPS, resolveKeys } from '@/shared/utils/shortcuts'
+// ★V3.9.6：快捷键速查面板已拆出为 `GlobalPopupsShortcuts.vue`，
+//   清单真源（shared/utils/shortcuts.ts，与设置页、手册同源）随之搬进那个组件。
+import GlobalPopupsShortcuts from './GlobalPopupsShortcuts.vue'
 // R158：命令面板 AI 分组数据源——只引注册表**纯声明**（零 import 红线：registry.ts 不拉任何工厂，
 // 入口 chunk 触达的只是静态常量，启动零 AI 不变；真正的 AI 栈仍由各宿主懒加载）
 import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
@@ -1611,18 +1592,6 @@ function convertCurio(item: SearchResult, target: 'res'|'task') {
   showToast('已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/deck/task', query: { hl: t.id, hk: 'task' } }) })
 }
 
-// ===== B3：快捷键速查数据 =====
-// B7-e H3：清单搬进 shared/utils/shortcuts.ts（与设置页、手册共用一份真源）。
-// 这里只做**派生**：把 {MOD} 占位按用户当前修饰键偏好换成真实键位。
-// V3.9.1：应用内切台固定 Alt，速查面板不再跟随旧偏好字段。
-const SC_MOD = computed(() => 'alt')
-const SHORTCUT_GROUPS_VIEW = computed(() =>
-  SHORTCUT_GROUPS.map(g => ({
-    title: g.title,
-    items: g.items.map(it => ({ keys: resolveKeys(it.keys, SC_MOD.value), desc: it.action })),
-  }))
-)
-
 // ===== 采集资源卡 =====
 const capForm = reactive({
   title: '', linkType: 'url' as 'url'|'file'|'obsidian', link: '', description: '',
@@ -1890,7 +1859,6 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 
 .gp-panel-narrow { width: 400px; max-height: 600px; overflow-y: auto; }
 .gp-panel-curio { width: 640px; }
-.gp-panel-shortcuts { width: 560px; }
 /* R158：AI 建议面板（被动型入口统一建议流） */
 .gp-panel-advice { width: 560px; }
 .gp-adv-body { padding: 14px 24px 20px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
@@ -1903,13 +1871,6 @@ onUnmounted(() => window.removeEventListener('keydown', onSavedKeydown, true))
 .gp-adv-days-input { width: 64px; background: var(--surface-3); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; color: var(--text); font-size: var(--fs-caption); }
 .gp-adv-card .gp-btn { flex-shrink: 0; align-self: center; }
 .gp-adv-foot { font-size: var(--fs-caption); color: var(--text-3); padding-top: 2px; }
-.gp-sc-body { padding: 14px 24px 20px; max-height: 60vh; overflow-y: auto; }
-.gp-sc-group { margin-bottom: 16px; }
-.gp-sc-group:last-child { margin-bottom: 0; }
-.gp-sc-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-.gp-sc-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; font-size: var(--fs-body); color: var(--text-2); }
-.gp-sc-keys { min-width: 150px; display: flex; gap: 4px; flex-shrink: 0; }
-.gp-sc-keys kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 7px; font-size: var(--fs-caption); color: var(--text); font-family: inherit; box-shadow: 0 1px 0 var(--border); }
 .gp-cap-desc { min-height: 64px; }
 
 /* 已保存状态条 */

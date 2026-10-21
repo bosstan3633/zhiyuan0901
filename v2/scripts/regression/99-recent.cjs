@@ -288,17 +288,19 @@ check('R174-2 ZIP 减重（04-69 T0-b）：pack.cjs 发布包剥离 .vite/ 构�
   const p = read('/../scripts/pack.cjs');
   return p.includes("path.sep + '.vite' + path.sep") && p.includes("!f.includes(viteDir)") && !fs.existsSync(base + '/assets/logo.png');
 });
-check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数据地基——① 独立存储通道 dailyStatsStore.ts（时间闸 45s + 页隐藏/卸载 flushDailyStatsNow 跳闸补写 + 内容未变跳写 + base 恒存 0 由消费方反推）；② repository saveData/saveDataNow 两处保存链都挂 scheduleDailyStatsWrite（不进整库 set 包）；③ 纯合并 mergeDailyStats：边界日规则——k>boundary 重建权威 / k≤boundary 且重建无此日整日取快照 / 重建有此日则**事件段换快照（c/del/s/u/x）+ 字段段留重建（d/sub/focus/link）**，w = 快照事件分+重建字段分（防边界日幸存事件双计）；④ 数据桥 useDashboardStats 启动装载 readDailySnapshot + snapRef 触发重算（首帧不等快照）', () => {
+check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数据地基——① 独立存储通道 dailyStatsStore.ts（时间闸 45s + 页隐藏/卸载 flushDailyStatsNow 跳闸补写 + 内容未变跳写 + base 恒存 0 由消费方反推）；② repository saveData/saveDataNow 两处保存链都挂 scheduleDailyStatsWrite（不进整库 set 包）；③ 纯合并 mergeDailyStats：边界日规则——k>boundary 重建权威 / k≤boundary 且重建无此日整日取快照 / 重建有此日则**事件段换快照（c/del/s/u/x）+ 字段段留重建（d/sub/focus/link）**，w = 快照事件分+重建字段分（防边界日幸存事件双计）；④ 数据桥 useDashboardStats 启动装载 readDailySnapshot + snapRef 触发重算（首帧不等快照）；⑤ V3.9.7 写闸与卸载补写竞态——排程保存最新数据并串行补写，碰在途写不丢最后一次用户动作', () => {
   const st = read('/shared/storage/dailyStatsStore.ts');
   const rp = read('/shared/storage/repository.ts');
   const ds = read('/shared/utils/dailyStats.ts');
   const ub = read('/newtab/components/dashboard/useDashboardStats.ts');
   return st.includes('DAILY_STATS_WRITE_GATE_MS = 45_000') && st.includes("document.addEventListener('visibilitychange'") && st.includes("window.addEventListener('pagehide'")
     && st.includes('flushDailyStatsNow') && st.includes("base: { res: 0, task: 0, curio: 0, link: 0 }") && st.includes('json === lastWrittenJson')
+    && st.includes('pendingWriteData = data') && st.includes('pendingWriteData = null') && st.includes('scheduledData = data')
     && (rp.match(/scheduleDailyStatsWrite\(cache\)/g) || []).length === 2 && !rp.includes('DAILY_STATS_STORE_KEY')
     && ds.includes('export function mergeDailyStats(') && ds.includes('export function boundaryDayOf(') && ds.includes('export function eventFieldW(')
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
-    && ub.includes('readDailySnapshot') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
+    && st.includes('export function loadDailySnapshotCache') && st.includes('const snap = await loadDailySnapshotCache()') && st.includes('mergeDailyStats(snap, rebuild, boundaryDayOf(events))')
+    && ub.includes('loadDailySnapshotCache') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
 check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + 概览带专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、存量摘要后由 Hero 承接；★B8 补（V3.8.41）：其版式 CSS（.dz-sec-ov 等 13 条）已随换真 census 被 dead-css-scan 判死并删除；★V3.9.3 再随迁：四格核心读数从 Hero 归位 PiOverview，宿主仍 import pi-timeline.css 且不再 import DashboardOverview。判据三条腿：① DashboardOverview.vue 文件不存在 ② 概览四格 total/entropy/support/focus 在位 ③ 宿主样式接线在位', () => {
   const fsx = require('fs');

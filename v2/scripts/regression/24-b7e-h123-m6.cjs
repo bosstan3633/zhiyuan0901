@@ -60,8 +60,13 @@ check(NAME(
     if (!SC.includes(needle)) { console.log(`真源缺 ${needle}`); return false }
   }
   // 三个消费点必须 import 真源，且各自的本地清单定义已消失
-  if (!/from '@\/shared\/utils\/shortcuts'/.test(GP)) { console.log('速查面板未消费真源'); return false }
-  if (/const SHORTCUT_GROUPS = \[/.test(GPC)) { console.log('速查面板仍自带手写清单'); return false }
+  /* ★V3.9.6 重指带备案：速查面板已拆到 `GlobalPopupsShortcuts.vue`（GlobalPopups 第二梯队拆分 · 第一块），
+     真源的 import 随之搬进那个组件 ⇒ 锚点改指拆出后的文件，判据意图（单一真源）一字未改。 */
+  const GPS = codeOnly(read('/newtab/components/GlobalPopupsShortcuts.vue'))
+  if (!/from '@\/shared\/utils\/shortcuts'/.test(GPS)) { console.log('速查面板未消费真源'); return false }
+  if (/const SHORTCUT_GROUPS = \[/.test(GPS)) { console.log('速查面板仍自带手写清单'); return false }
+  // 负锚：宿主（GlobalPopups）里不许再留速查面板的本地清单/派生量（拆干净了）
+  if (/SHORTCUT_GROUPS|resolveKeys/.test(GP)) { console.log('宿主仍留着速查面板的清单派生（应已拆出）'); return false }
   if (!/from '@\/shared\/utils\/shortcuts'/.test(GS)) { console.log('设置页未消费真源'); return false }
   if (/const appShortcuts = \[/.test(GSC)) { console.log('设置页仍自带手写清单'); return false }
   if (!/from '@\/shared\/utils\/shortcuts'/.test(MD)) { console.log('手册未消费真源'); return false }
@@ -76,22 +81,28 @@ check(NAME(
 
 check(NAME(
   'H3-2 ★V3.9.1 决策更新：应用内切台固定 Alt+1…9，真源仍以 {MOD} 表示可展示键位，速查与设置统一解析成 Alt；设置页只读，旧修饰键偏好不再影响行为'), () => {
+  /* ★V3.9.6 重指带备案（GlobalPopups 第二梯队拆分 · 第一块）：
+     速查面板已从 `GlobalPopups.vue` 拆到 `GlobalPopupsShortcuts.vue`，
+     派生量随之改名 `groups`（原 `SHORTCUT_GROUPS_VIEW`）。
+     ⇒ 锚点从「宿主 GPC」改指「拆出后的组件」，**判据意图一字未改**：
+        仍是「必须经 resolveKeys 派生」+「模板消费派生量」+「不许写死 Alt 键位」。 */
+  const GPS = codeOnly(read('/newtab/components/GlobalPopupsShortcuts.vue'))
   // 真源里切台三条仍走占位，避免未来换展示口径时散落硬编码
   for (const k of ['{MOD}+1', '{MOD}+2', '{MOD}+3…9']) {
     if (!SC.includes(k)) { console.log(`真源缺占位 ${k}`); return false }
   }
   // 速查面板：必须经 resolveKeys 派生，且模板消费派生量
-  if (!/resolveKeys\(it\.keys, SC_MOD\.value\)/.test(GP)) { console.log('速查面板未按偏好解析 {MOD}'); return false }
+  if (!/resolveKeys\(it\.keys, SC_MOD\.value\)/.test(GPS)) { console.log('速查面板未按偏好解析 {MOD}'); return false }
   // ★变量别取错：MPC 是**手册页**的 codeOnly，这里要核的是速查面板（GPC）——
   //   写错变量时判据会拿手册页去问「你的模板消费派生量了吗」，恒假红（R4-Dl 族第六次）
-  if (!/v-for="grp in SHORTCUT_GROUPS_VIEW"/.test(GPC)) { console.log('速查模板未消费派生量'); return false }
+  if (!/v-for="grp in groups"/.test(GPS)) { console.log('速查模板未消费派生量'); return false }
   // 设置页：appShortcuts 必须走 shortcutsOf 并固定 Alt
   if (!/shortcutsOf\('应用内', 'alt'\)/.test(GSC)) { console.log('设置页未固定 Alt 取清单'); return false }
   if (!GSC.includes('Alt + 1…9（固定）') || !GSC.includes('gs-sr-readonly')) { console.log('设置页切台未呈现只读态'); return false }
   // 负锚：旧偏好选择器与可写入口不许回流
   if (GSC.includes('v-model="wsMod"') || GSC.includes('saveWsMod')) { console.log('设置页仍可修改切台修饰键'); return false }
   // 负锚：两处展示层不许再各自写死旧 Alt 映射串
-  for (const [name, src] of [['速查面板', GPC], ['设置页', GSC]]) {
+  for (const [name, src] of [['速查面板', GPS], ['设置页', GSC]]) {
     if (/keys: 'Alt\+1'/.test(src) || /keys: 'Alt \+ 数字键'/.test(src)) {
       console.log(`${name} 仍写死 Alt 切台键`); return false
     }
@@ -309,6 +320,91 @@ check(NAME(
   if (!/flex-direction: column/.test(mq1024)) { console.log('1024px 未改单栏'); return false }
   if (!/\.mn-toc \{[^}]*position: static/.test(mq1024)) { console.log('1024px 未把目录改为非 sticky（规范允许的顶部章目形态）'); return false }
   if (!/\.mn-content \{ max-width: 100%/.test(mq1024)) { console.log('1024px 未解除正文行宽限制'); return false }
+  return true;
+});
+
+/* ★V3.9.6 新增：方向台热区棘轮（承 M6-2 / M6-3b 的口径）。
+   由来：`m6-responsive-audit.cjs` 此前**在本机从未跑起来过**——它的备份查找写在仓库根目录，
+   而备份实际在用户 Downloads ⇒ 一上来就 "找不到备份数据" 退出，M6 的热区读数一直是抄旧账。
+   修好查找（见脚本内注）后第一次实跑，真相是：方向台 1440px 首屏有 **30 处** <28px 的热区
+   （文档里却记成「画像页 4 枚」——归属都记错了，画像页实测本就是 0 处）。
+   本批把 30 处按 B7-e 既有口径收口（撑盒子不加内边距；视觉尺寸与热区解耦的走 `::before`），
+   实拍复测 12 档（三台面 × 1440/1024/800）**全部 0 处**。
+   本条把「0 处」钉成棘轮：方向台四族控件必须各自撑到 28px，且解耦族的视觉尺寸不得被顺手放大。 */
+check(NAME(
+  'M6-6 ★方向台热区必须全部达到 28px 下限（V3.9.6 实拍 30 处 → 0 处后立的棘轮）',
+  '★四条口径：① 撑盒子用 min-height（不改字号与横向 padding）② 视觉尺寸是语义的小控件（16px 方块 / 17px 圆点）',
+  '走「本体 28px 透明 + ::before 画视觉」的解耦法 ③ 解耦族的视觉尺寸不得被顺手放大（那会毁掉行内密度）',
+  '④ m6 走查脚本的备份查找必须指向 Downloads（否则它在本机根本跑不起来，热区读数只能是抄的）。'), () => {
+  const TOWER = read('/newtab/components/compass/CompassTower.vue')
+  const LANE = read('/newtab/components/compass/CompassLane.vue')
+  const TREE = read('/newtab/views/CompassTree.vue')
+  const STATUS = read('/newtab/components/compass/CompassTowerStatus.vue')
+  if (!TOWER || !LANE || !TREE || !STATUS) { console.log('方向台组件读不到'); return false }
+
+  /* ★规则收在一处：`components/compass/hotzone.css`（V3.9.6 新建）。
+     理由：同一族控件的写法必须一致，而组件文件本身有 400 行上限（W11-12）——
+     散落各文件 ⇒ 改一处漏一处，且每处都要重复一遍注释。
+     ⇒ 判据也钉在**这一个文件**上：各组件必须 import 它（import 缺失 = 样式根本没生效）。 */
+  const HZ = read('/newtab/components/compass/hotzone.css')
+  if (!HZ) { console.log('hotzone.css 不存在（方向台热区规则的真源）'); return false }
+
+  // ① 撑盒子族：min-height: 28px（写在真源文件里）
+  const minH = [
+    [HZ, '.tw-act', /\.tw-act \{[^}]*min-height: 28px;/],
+    [HZ, '.mc-toggle', /\.mc-toggle \{[^}]*min-height: 28px;/],
+    [HZ, '.mc-detail', /\.mc-detail \{[^}]*min-height: 28px;/],
+    [HZ, '.mc-add/.mc-ai/.mc-del/.mc-more', /\.mc-add, \.mc-ai, \.mc-del, \.mc-more \{[^}]*min-height: 28px;/],
+    [HZ, '.tk-title', /\.tk-title \{[^}]*min-height: 28px;/],
+    [HZ, '.tk-grade', /\.tk-grade \{[^}]*min-height: 28px;/],
+    [HZ, '.fs-name', /\.fs-name \{[^}]*min-height: 28px;/],
+    [HZ, '.fs-go', /\.fs-go \{[^}]*min-height: 28px;/],
+    [HZ, '.dir-badge', /\.dir-badge \{[^}]*min-height: 28px;/],
+    [HZ, '.dt.run', /\.dt\.run \{[^}]*min-height: 28px;/],
+  ];
+  for (const [src, who, re] of minH) {
+    if (!re.test(src)) { console.log(`${who} 未达 28px 热区下限`); return false }
+  }
+
+  // ② 解耦族：本体 28px + ::before 画视觉，且视觉尺寸**不得**被放大
+  const decoupled = [
+    [HZ, '.mc-dot', /\.mc-dot \{[^}]*width: 28px; height: 28px;/, /\.mc-dot::before \{[^}]*width: 17px; height: 17px;/],
+    [HZ, '.tk-box', /\.tk-box \{[^}]*width: 28px; height: 28px;/, /\.tk-box::before \{[^}]*width: 16px; height: 16px;/],
+    [HZ, '.tk-unbind', /\.tk-unbind \{[^}]*width: 28px; height: 28px;/, /\.tk-unbind::before \{[^}]*width: 16px; height: 16px;/],
+  ];
+  for (const [src, who, box, visual] of decoupled) {
+    if (!box.test(src)) { console.log(`${who} 本体未撑到 28px`); return false }
+    if (!visual.test(src)) { console.log(`${who} 的 ::before 视觉尺寸缺失`); return false }
+  }
+  // ③ 解耦族的视觉尺寸不得被顺手放大（负锚：16px/17px 就是语义尺寸）
+  if (/\.tk-box::before \{[^}]*width: (1[7-9]|2[0-9])px/.test(HZ)) { console.log('.tk-box 视觉方块被放大了（行内密度会塌）'); return false }
+  if (/\.mc-dot::before \{[^}]*width: (1[89]|2[0-9])px/.test(HZ)) { console.log('.mc-dot 视觉圆点被放大了（行内密度会塌）'); return false }
+  // 解耦族的本体不得再带视觉底色/边框（否则 28px 透明盒会显出一个大方块）
+  // ★锚点写法备案：源文件是 CRLF，锚点若写死 `\n.cls {` 会恒不命中（Windows checkout）。
+  //   改用「类名 + {」定位后**再回溯到行首**，对 LF / CRLF 都成立。
+  for (const [src, who, cls] of [[HZ, '.mc-dot', 'mc-dot'], [HZ, '.tk-box', 'tk-box']]) {
+    const at = src.indexOf(`.${cls} {`);
+    const i = at < 0 ? -1 : src.lastIndexOf('\n', at) + 1;
+    if (i < 0) { console.log(`${who} 规则缺失`); return false }
+    const seg = src.slice(i, src.indexOf('}', i) + 1)
+    if (/background:\s*var\(--surface\)/.test(seg)) { console.log(`${who} 本体仍带视觉底色（解耦后应透明）`); return false }
+  }
+
+  // ⑤ 四个宿主必须 import 真源文件（import 缺失 = 样式根本没生效，而上面全绿）
+  for (const [src, who, imp] of [
+    [TOWER, 'CompassTower', "import './hotzone.css'"],
+    [LANE, 'CompassLane', "import './hotzone.css'"],
+    [STATUS, 'CompassTowerStatus', "import './hotzone.css'"],
+    [TREE, 'CompassTree', "import '../components/compass/hotzone.css'"],
+  ]) {
+    if (!src.includes(imp)) { console.log(`${who} 未 import hotzone.css（热区规则不会生效）`); return false }
+  }
+
+  // ④ m6 走查脚本必须从 Downloads 找备份（修好之后它才真能跑）
+  const m6 = read('/../scripts/m6-responsive-audit.cjs')
+  if (!m6) { console.log('m6-responsive-audit.cjs 不存在'); return false }
+  if (!/os\.homedir\(\)[\s\S]*?Downloads/.test(m6)) { console.log('m6 走查脚本的备份查找未指向 Downloads（它在本机就跑不起来）'); return false }
+  if (!/const MIN_HOT = 28/.test(m6)) { console.log('m6 走查脚本的热区下限常量丢失'); return false }
   return true;
 });
 

@@ -18,11 +18,14 @@ check('R120-4 应用内 Ctrl+Enter=仅定位：locateOnly（hl+hk+cat，无 emit
    而"三处同源"才是这条判据真正要守的东西。 */
 check('R120-5 手册与键位提示同步：搜索章节三键说明 + 底部键位条 + 快捷键清单（★G1(V3.8.24)随迁带备案：底部键位条 ⏎ 符号随 emoji→Icon 迁移改纯文本 Enter，锚点随迁；★B7-e 重指末两条：手写清单已随 H3 退役，改钉真源派生 + 该条动作名仍在真源）', () => {
   const m = read('/newtab/manual-data.ts'); const g = read('/newtab/components/GlobalPopups.vue'); const sc = read('/shared/utils/shortcuts.ts');
+  /* ★V3.9.6 重指带备案：速查面板已拆到 GlobalPopupsShortcuts.vue（GlobalPopups 第二梯队拆分 · 第一块），
+     派生量随之改名 `groups` ⇒ 末条锚点改指拆出后的组件，判据意图（速查仍经派生量渲染）一字未改。 */
+  const gps = read('/newtab/components/GlobalPopupsShortcuts.vue');
   return m.includes('结果键位（单击 / Enter / Ctrl+Enter 三键）') && m.includes('打开卡片链接')
     && g.includes('<kbd>Ctrl+Enter / 单击</kbd> 定位卡片') /* R153 备案：鼠标侧补了 Ctrl+单击=定位，脚注键位条同步写明，别再只写键盘一条路 */
     && sc.includes("action: '仅定位到卡片所在处，不打开链接'")
     && /shortcutTableHtml\('placeholder'\)/.test(m)
-    && /SHORTCUT_GROUPS_VIEW/.test(g);
+    && /v-for="grp in groups"/.test(gps);
 });
 
 // ============== R120 · V2.88.0 批次B：调度台 UI 对齐原型（只改 UI，功能与交互不动） ==============
@@ -161,7 +164,7 @@ check('R126-6 ★R4-Da 退役重指带备案：原守「全景列表：单击=�
 && g.includes(':open="!!ttDetail" title="卡片详情"')
     && pcp.includes('function openCard(r: ResourceCard)') && pcp.includes('if (batchMode.value) { toggleSel(r.id); return }') && pcp.includes("emitOpenDrawer({ kind: 'res', id: r.id })");
 });
-check('R126-7 生命周期阈值设置：全局默认可配（UIPrefs.coolingDaysDefault + 启动注入）+ 弹窗入口（★W9 退役重指带备案：弹窗宿主由 GlobalSettings 改指 ProfileInsights §3——lcSetOpen / saveLcDefault / lc-set-list 三条照搬，「全局默认可配 + 启动注入」前四条一字未动；GS 按 codeOnly 零命中负锚）', () => { const m = read('/shared/models/index.ts'); const lf = read('/shared/utils/lifecycle.ts'); const rp = read('/shared/storage/repository.ts'); const g = read('/newtab/views/ProfileInsights.vue'); return m.includes('coolingDaysDefault?: number') && lf.includes('export function setCoolingDefaultDays') && lf.includes('export function coolingDefaultDaysOf') && rp.includes('setCoolingDefaultDays(uiCache.coolingDaysDefault ?? 30)') && g.includes('lcSetOpen = ref(false)') && g.includes('saveLcDefault') && g.includes('lc-set-list') && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('lcSetOpen'); });
+check('R126-7 生命周期阈值设置：全局默认可配（UIPrefs.coolingDaysDefault + 启动注入）+ 弹窗入口（★W9 退役重指带备案：弹窗宿主由 GlobalSettings 改指 ProfileInsights §3——lcSetOpen / saveLcDefault / lc-set-list 三条照搬，「全局默认可配 + 启动注入」前四条一字未动；GS 按 codeOnly 零命中负锚；★V3.9.7：弹窗呈现迁入 PiLifecycleSettingsModal，宿主保留状态与存储动作）', () => { const m = read('/shared/models/index.ts'); const lf = read('/shared/utils/lifecycle.ts'); const rp = read('/shared/storage/repository.ts'); const g = read('/newtab/views/ProfileInsights.vue'); const d = read('/newtab/components/profile/PiLifecycleSettingsModal.vue'); return m.includes('coolingDaysDefault?: number') && lf.includes('export function setCoolingDefaultDays') && lf.includes('export function coolingDefaultDaysOf') && rp.includes('setCoolingDefaultDays(uiCache.coolingDaysDefault ?? 30)') && g.includes('lcSetOpen = ref(false)') && g.includes('saveLcDefault') && d.includes('class="card-list"') && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('lcSetOpen'); });
 check('R126-8 标签最多两级：拖拽根→根 + 子标签提升为根（⇪）+ 三级新建入口退役', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('最多两级：只能挂到根标签下') && g.includes('function ttUnnest(rootId: string, childId: string)') && g.includes('title="提升为根标签"') && !g.includes('添加第三级标签') && g.includes('两级标签体系'); });
 check('R126-9 标签「父/子」路径同步：归一工具 + 启动迁移 + 重命名/删除/挂载级联 + 选择器/搜索路径口径', () => { const t = read('/shared/utils/tags.ts'); const a = read('/newtab/stores/app.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const tp = read('/shared/components/TagPicker.vue'); const u = read('/newtab/composables/useResourceView.ts'); return t.includes('export function normalizeCardTagPaths') && t.includes('export function flattenTagTree') && a.includes('normalizeCardTagPaths(data.value)') && g.includes("const oldPath = parentName ? parentName + '/' + oldName : oldName") && g.includes('killPaths') && g.includes("const newPath = to.node.name + '/' + from.node.name") && tp.includes('function valOf(t: FlatTag)') && u.includes("c.split('/').pop() === t"); });
 check('R126-10 标签收纳：从卡片收纳标签入口（三卡扫描入树）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('function ttCollectFromCards()') && g.includes('⤓ 从卡片收纳标签'); });
@@ -182,7 +185,13 @@ check('R127-8 页头单形态（V3.7.0 退役）：资源台页头设计与对�
 // ============== R128 · V2.96.0：P0 数据安全批次（跨上下文合并下沉 / 迁移可重试 / 永久删除口径 / 浮层注入收口） ==============
 console.log('【R128 · V2.96.0：P0 数据安全】');
 check('R128-1 A1 合并下沉：repository 导出 attachStorageSync 且在 loadData 内自动注册（幂等 syncAttached 守卫）', () => { const r = read('/shared/storage/repository.ts'); return r.includes('let syncAttached = false') && r.includes('export function attachStorageSync(): void') && r.includes('if (syncAttached) return') && (r.match(/attachStorageSync\(\)/g) || []).length >= 2; });
-check('R128-2 A1 数据键消费：非本页写入 → mergeExternalData → 通知订阅者（弹窗/浮层同样受保护）', () => { const r = read('/shared/storage/repository.ts'); const i = r.indexOf('export function attachStorageSync'); const seg = r.slice(i, i + 1200); return seg.includes('changes[STORAGE_KEY]') && seg.includes('if (ext && !isSelfWrite(ext))') && seg.includes('mergeExternalData(ext)') && seg.includes('listeners.forEach((fn) => fn(cache!))'); });
+/* ★R175 重指带备案：原锚点钉的是「只要不是自己写的就合并」的单条件判据。
+   单条件在 R175 之后**不够**——整树回写的外部上下文会复制走上一枚 `__wid`，
+   于是外部那处改动被当成自己的回声静默丢弃（症状：数据写进库了但界面不更新，随机 flaky）。
+   现行判据是**两道闸合看**：「像自己的写入」且「写的人换了戳」才是真回声。
+   判据意图（非本页写入 → mergeExternalData → 通知订阅者，弹窗/浮层同样受保护）一字未松，
+   反而收紧了一档：原先会把外部改动误当回声丢掉，现在不会了。 */
+check('R128-2 A1 数据键消费：非本页写入 → mergeExternalData → 通知订阅者（弹窗/浮层同样受保护；★R175 重指：真回声 = isSelfWrite 且非写戳复用）', () => { const r = read('/shared/storage/repository.ts'); const i = r.indexOf('export function attachStorageSync'); const seg = r.slice(i, i + 1600); return seg.includes('changes[STORAGE_KEY]') && seg.includes('isSelfWrite(ext) && !isStampReused(dch)') && seg.includes('mergeExternalData(ext)') && seg.includes('listeners.forEach((fn) => fn(cache!))'); });
 check('R128-3 A1 UI 偏好逐键合并：uiSelfWritten 记账 + mergeExternalUIPrefs（A 改主题不再被 B 改列数回退）', () => { const r = read('/shared/storage/repository.ts'); return r.includes('const uiSelfWritten = new Map<string, string>()') && r.includes('function mergeExternalUIPrefs') && r.includes("if (uch) mergeExternalUIPrefs(uch.newValue as UIPrefs | undefined)") && r.includes('uiSelfWritten.set(k'); });
 check('R128-4 A1 单一接线点：newtab store 不再自挂 onChanged（避免同一外部写入被两处各合并一次）', () => { const a = read('/newtab/stores/app.ts'); return !a.includes('chrome.storage.onChanged.addListener') && a.includes('subscribe((d) => {') && !a.includes('mergeExternalData'); });
 check('R128-5 A1 content 走仓库链路：saveData→repoSaveNow（共享 flushCardEvents 与 JSON 纯净清洗）+ 订阅刷新缓存', () => { const o = read('/content/overlay-impl.ts'); return o.includes('saveDataNow as repoSaveNow') && o.includes('await repoSaveNow()') && o.includes('invalidateCountCache()') && !o.includes('async function saveData(d: any) {'); });

@@ -27,6 +27,18 @@ const description = computed(() => kind.value === 'task'
   : kind.value === 'curiosity'
     ? '好奇心不是待办。这里按求证阶段浏览问题，并看清每个问题已经积累了多少材料。'
     : '资源卡按最近调用与所属主题浏览。打开一行进入阅读与关联，不在这里重复采集入口。')
+const DECK_TABS: { kind: DeckKind; label: string }[] = [
+  { kind: 'task', label: '任务卡' },
+  { kind: 'curiosity', label: '好奇心卡' },
+  { kind: 'resource', label: '资源卡' },
+]
+/** ★V3.9.7：二级卡池允许在任务 / 好奇心 / 资源之间直接切换。
+ *  仍以路由作为唯一状态源：切换 push 新 URL，浏览器返回键自然回到各自类型，
+ *  不另造一份 activeKind ref 与 URL 竞争。 */
+function switchKind(next: DeckKind): void {
+  if (next === kind.value) return
+  void router.push(`/deck/${next}`)
+}
 
 function goBack(): void {
   // 独立二级路由保留浏览器返回；没有历史时明确回首页，不制造空白页。
@@ -67,6 +79,11 @@ watch(
         <h1>{{ title }}</h1>
         <p>{{ description }}</p>
       </div>
+      <div class="deck-kind-seg" role="tablist" aria-label="卡片类型">
+        <button v-for="tab in DECK_TABS" :key="tab.kind" type="button" role="tab"
+          :class="{ on: kind === tab.kind }" :aria-selected="kind === tab.kind"
+          @click="switchKind(tab.kind)">{{ tab.label }}</button>
+      </div>
     </header>
 
     <section class="deck-body">
@@ -96,6 +113,18 @@ watch(
   /* 三页标题区高度固定：描述固定单行，超出省略（原为两行自由折行，切页内容起始位置会跳） */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: calc(var(--fs-sub) * 1.7);
 }
+.deck-kind-seg {
+  display: inline-flex; align-self: flex-start; align-items: center; gap: 2px;
+  padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.deck-kind-seg button {
+  min-height: 30px; padding: 4px 13px; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-caption);
+  font-weight: 600; cursor: pointer;
+}
+.deck-kind-seg button:hover { color: var(--text); background: var(--surface); }
+.deck-kind-seg button.on { color: var(--accent-ink); background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--border)); }
 .deck-hint { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-3); }
 .deck-body { min-height: 320px; }
 .deck-body :deep(.module-card) { background: transparent; border: none; box-shadow: none; }

@@ -18,11 +18,16 @@ const {
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
 
-check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。【W12 原判 · V3.8.12】钉「左文案 .hero-l + 右动作 .hero-r」两栏。★V3.8.20 翻转带备案（用户拍板 2026-10-15）：左上标题文案区（面包屑/眉标/大标题/副标 + N4 就地编辑）整块退役 —— 方向台是工作台面不是宣传页，定调语由骨架条 .spine-h 承担；hero 改**纵向单列**：动作行（.hero-acts：视图切换主焦点 + 工具开关 + 来路感知文本）+ 读数行（.hero-stats：健康度徽章领衔，★F6 起左对齐）。原病根（工具密排横排、首屏无结构）的解法不变：结构分层、主焦点唯一。★本条钉：① <section class="hero"> 在 .tree-layout 之前 ② .hero-acts 在位且含 view-seg ③ .hero-stats 在位且含 dhi-badge（健康度随迁读数行首位，N13 意图随迁）④ 展开收起与已完成显隐两枚常驻按钮在 .hero-acts 的 .hero-tools 内，无下拉菜单（★F6 翻转带备案，用户拍板 2026-10-16：二次翻转 V3.8.20 下拉收纳——高频操作两跳 + 状态开关藏菜单后状态不可见，下拉壳退役）。★负锚：.tree-page-head 一行密排形态不许复活；退役的 .hero-l/.hero-r 不许回流；.hero-tools-menu 下拉壳不许回流', () => {
+check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。V3.9.7 再重指：视图切换迁到下方项目层行，页头只留全页级别动作；项目塔/全景仍双向可达。★负锚：.tree-page-head、退役的 .hero-l/.hero-r、.hero-tools-menu 下拉壳不许回流', () => {
   const t = codeOnly(CT_W11);
+  const hero = t.slice(t.indexOf('<section class="hero">'), t.indexOf('class="hero-stats"'))
+  const row = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<CompassLayerList'))
   return t.includes('<section class="hero">')
     && t.includes('class="hero-acts"') && t.includes('class="hero-stats"')
     && t.includes('class="hero-tools"')
+    && !hero.includes('class="view-seg"')
+    && row.includes('class="view-seg"')
+    && row.includes('项目塔') && row.includes('项目全景')
     && t.includes('↕ ') && t.includes('<Icon name="eye" :size="13"/> 已完成项目')   /* ★F6 ④ 两枚常驻（在 .hero-acts 链上的 .hero-tools 内；G1 迁移后 Icon eye） */
     && !t.includes('hero-tools-menu') && !t.includes('toolsOpen') /* ★F6 负锚：下拉壳与开关 state 零残留 */
     && t.includes('class="dhi-badge"')

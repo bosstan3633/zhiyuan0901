@@ -20,6 +20,7 @@
  */
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { chromium } = require('playwright-core');
 const { CHROME } = require('./browser.cjs');
 
@@ -46,12 +47,30 @@ const VIEW_NAMES = { '/': '调度台', '/compass': '方向台', '/profile': '画
 const MIN_HOT = 28;
 
 function latestBackup() {
-  const dir = path.join(ROOT, '..');
-  const files = fs.readdirSync(dir)
-    .filter(f => /^zhiyuan_backup_.*\.json$/.test(f))
-    .sort().reverse();
-  if (!files.length) throw new Error('找不到备份数据（zhiyuan_backup_*.json）');
-  return path.join(dir, files[0]);
+  /* ★V3.9.6 修（2026-10-21）：本函数原来在**仓库根目录**找 `zhiyuan_backup_*.json`，
+     但备份实际落在**用户 Downloads**（theme-audit 一直是从那里取的）⇒ 本脚本在本机
+     **从未跑起来过**（一上来就 "找不到备份数据"），M6 的热区 / 溢出读数其实一直是**抄旧账**。
+     与 theme-audit 同款修法：先按 Downloads 取候选，再**按数据量**挑（不是按文件名末位——
+     2026-10-20 那份是空库，按文件名取会选中它，实拍判据会集体失去数据前置）。 */
+  const dl = path.join(os.homedir(), 'Downloads');
+  const hits = fs.readdirSync(dl).filter(f => /^zhiyuan_backup_.*\.json$/.test(f)).sort();
+  if (!hits.length) throw new Error('未找到备份数据（Downloads 下无 zhiyuan_backup_*.json）');
+  const countOf = (f) => {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(dl, f), 'utf8'));
+      const d = j && j.data ? j.data : (j || {});
+      const n = (k) => (Array.isArray(d[k]) ? d[k].length : 0);
+      return n('resources') + n('tasks') + n('curiosities') + n('categories') + n('argCards');
+    } catch { return 0 }
+  };
+  let best = hits[0], bestN = -1;
+  for (const f of hits) {
+    const n = countOf(f);
+    if (n >= bestN) { bestN = n; best = f; }
+  }
+  if (bestN <= 0) console.log(`⚠ 所有候选备份都是空库（${hits.length} 份），热区判据将失去数据前置`);
+  else console.log(`· 数据源：${best}（${bestN} 条记录 · 按数据量选，非按文件名末位）`);
+  return path.join(dl, best);
 }
 
 (async () => {
@@ -159,6 +178,7 @@ function latestBackup() {
           overflowX,
           offenders: offenders.slice(0, 6),
           small: small.slice(0, 8),
+          smallAll: small,
           smallTotal: small.length,
           focusTop: focus ? Math.round(focus.getBoundingClientRect().top) : null,
           focusVisible: focus ? focus.getBoundingClientRect().top < window.innerHeight : null,
@@ -183,7 +203,17 @@ function latestBackup() {
     if (ov || focusBad) bad++;
     console.log(`${mark} ${String(r.w).padStart(4)}px ${(r.name || r.v).padEnd(6)} 横向溢出 ${r.overflowX}px · 三件事首屏 ${r.focusTop === null ? '本页无' : (r.focusVisible ? `可见(top ${r.focusTop})` : `不可见(top ${r.focusTop})`)} · 首屏热区 <${MIN_HOT}px ${r.smallTotal} 处`);
     for (const o of r.offenders) console.log(`      ↳ 越界 ${o.cls} right=${o.right} w=${o.w} pos=${o.pos}`);
-    for (const s of r.small.slice(0, 4)) console.log(`      · 小热区 ${s.cls} h=${s.h} 「${s.txt}」`);
+    /* ★V3.9.6：明细全打（原先只打前 4 条，30 处只露出 4 处 ⇒ 看不全就下不了结论）；
+       按类名聚合计数，同名多处合并成一行（便于一眼看出是哪一族控件）。 */
+    const byCls = {};
+    for (const s of r.smallAll) {
+      const k = s.cls;
+      if (!byCls[k]) byCls[k] = { n: 0, h: s.h, txt: s.txt };
+      byCls[k].n++;
+    }
+    for (const [k, v] of Object.entries(byCls)) {
+      console.log(`      · 小热区 ${k} ×${v.n} h=${v.h} 「${v.txt}」`);
+    }
   }
   console.log(bad ? `\n❌ ${bad} 处破版` : '\n✅ 全部档位无横向溢出、主角首屏可达');
   process.exit(bad ? 1 : 0);

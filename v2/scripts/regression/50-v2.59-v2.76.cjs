@@ -95,9 +95,11 @@ check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（�
     && CH91.includes('stall: isProjectStalled(p)')
     && CH91.includes('focusMeta');
 });
-check('R91-5 ★W12-E 退役重指带备案（用户 2026-10-13 拍板 C1「只删入口」）：方向树 ▾ 菜单「进入项目详情页」随四枚项目详情入口退役一并移除。★守的语义转「重指后的形态」：调度台主攻速览那一处（CH91）仍直达 /compass/projects?p=<id> 未动；方向树侧改为不再把用户引过去（项目塔/全景就地看全），但路由字面量真源仍在 CompassTree、整页与 ⌘K 项目搜索仍在。判据：① 调度台主攻速览那处未变 ② 方向树内不再有 from=tree 的 projects 跳转（走 codeOnly 剥注释）与 @goto-detail= 绑定 ③ 整页仍在、⌘K 项目搜索仍可达', () => {
+check('R91-5 ★W12-E 退役重指带备案，V3.9.7 再重指：方向树 ▾ 菜单「进入项目详情页」与调度台主攻的“跳整页再找项目”都退役；主攻改为就地打开 ProjectDetailDrawer，方向树侧仍零 projects 跳转（codeOnly），整页与 ⌘K 项目搜索仍可达', () => {
   const t = CT_W11;
-  return CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
+  return CH91.includes('const focusProjectOpen = ref(false)')
+    && CH91.includes('<ProjectDetailDrawer :open="focusProjectOpen"')
+    && !CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
     && !/path: '\/compass\/projects', query: \{ p: [\w.]+, from: 'tree' \}/.test(codeOnly(t))
     && !t.includes('@goto-detail=')
     && require('fs').existsSync(path.resolve(base, 'newtab/views/ProjectCuration.vue'))

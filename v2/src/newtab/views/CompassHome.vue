@@ -25,6 +25,7 @@ import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import { useEqualHeight } from '@/newtab/composables/useEqualHeight'
 import { emitOpenDrawer } from '@/shared/utils/bus'
@@ -682,9 +683,15 @@ const focusMeta = computed(() => {
   }
   return m
 })
-/** 主攻速览点项目 = 进项目详情页（方向台一级现为完整方向树，树里的项目走 ▾ 菜单「进入项目详情页」同一条路由） */
+/**
+ * ★V3.9.7：主攻摘要点击改为就地打开项目详情抽屉。
+ * 原先跳 /compass/projects 说 A 给 B：用户在调度台看主攻，下一页却是整棵方向树，还要再找项目。
+ */
+const focusProjectOpen = ref(false)
+const focusProjectId = ref<string | null>(null)
 function openFocusProject(p: Project) {
-  router.push({ path: '/compass/projects', query: { p: p.id } })
+  focusProjectId.value = p.id
+  focusProjectOpen.value = true
 }
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
@@ -705,13 +712,13 @@ const extraFocusOpen = ref(false)
  * 口径：ResizeObserver 测左侧两张卡实测高度 → CSS 变量（--rail-top-h / --rail-bottom-h）→ 右栏读取；
  *      最近调出条数按「第二块面板可用高度 ÷ 单行高度」动态算（预期 5-6 条），超出时列表内部滚动。
  * ★负锚：条数不许写死 slice(0,3)。 */
-const RECENT_ROW_H = 46
+const RECENT_ROW_H = 44
 const railAvailable = ref(0)
 const recentLimit = computed(() => {
   const h = railAvailable.value
-  if (!h) return 3
+  if (!h) return 5
   /* 面板头 40px + 底部呼吸 8px，其余全部给列表 */
-  return Math.max(3, Math.floor((h - 48) / RECENT_ROW_H))
+  return Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))
 })
 const recentResources = computed<ResourceCard[]>(() =>
   (d.value.resources || [])
@@ -748,7 +755,7 @@ const previewTasks = computed<TaskCard[]>(() => {
   const rank = (t: TaskCard) => (t.status === 'doing' ? 0 : t.status === 'todo' ? 1 : 2)
   return [...liveTasks.value]
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || rank(a) - rank(b) || (b.updatedAt || 0) - (a.updatedAt || 0))
-    .slice(0, 3)
+    .slice(0, 5)
 })
 const liveCuriosities = computed<CuriosityCard[]>(() =>
   (d.value.curiosities || []).filter(c => !c.deletedAt && !c.lifecycleArchived)
@@ -756,7 +763,7 @@ const liveCuriosities = computed<CuriosityCard[]>(() =>
 const previewCuriosities = computed<CuriosityCard[]>(() =>
   [...liveCuriosities.value]
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
-    .slice(0, 3)
+    .slice(0, 5)
 )
 const liveResources = computed<ResourceCard[]>(() =>
   (d.value.resources || []).filter(r => !r.deletedAt)
@@ -764,7 +771,7 @@ const liveResources = computed<ResourceCard[]>(() =>
 const previewResources = computed<ResourceCard[]>(() =>
   [...liveResources.value]
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.lastCalledAt || b.updatedAt || 0) - (a.lastCalledAt || a.updatedAt || 0))
-    .slice(0, 3)
+    .slice(0, 5)
 )
 const hasAnyPreview = computed(() => !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length)
 const weeklyReuse = computed(() => weekUsageOf(d.value))
@@ -1182,6 +1189,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
     </div>
 
     <TodayBattleHost ref="battleHost" />
+    <ProjectDetailDrawer :open="focusProjectOpen" :project-id="focusProjectId" enable-metric-drill @close="focusProjectOpen = false" />
 
     <!-- ★W17-C01：三行状态明细（中央只读弹窗，不跳路由） -->
     <CompassStatusModal :open="!!statusDetail" :kind="statusDetail || 'focus'"

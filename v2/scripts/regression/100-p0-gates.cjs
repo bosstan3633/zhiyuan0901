@@ -53,6 +53,7 @@ check('P0-C6-B ★AI 字面量入口白名单：系统组件内凡出现 AI 入�
     '/newtab/components/compass/CompassPano.vue',
     '/newtab/components/compass/CompassTower.vue',
     '/newtab/components/compass/CompassTowerStatus.vue',
+    '/newtab/views/ProfileInsights.vue',
     '/newtab/components/ImportTemplateModal.vue',
     '/newtab/components/compass/ProjectDiagnoseModal.vue',
     '/newtab/components/dashboard/ReviewReportModal.vue',

@@ -1,0 +1,89 @@
+/* ============================================================
+   方向台 · 最小点击热区 28px（规范 M6）· V3.9.6
+   ============================================================
+   为什么单独成文件：方向台各组件（CompassTower / CompassLane / CompassTree）里
+   同一族控件的写法必须一致，而组件文件本身有 400 行上限（W11-12）。
+   散落各文件 ⇒ 改一处漏一处，且每处都要重复一遍注释。⇒ 收口到一处。
+
+   两种手法（口径同 B7-e 批量收口）：
+   ① **撑盒子**：`min-height: 28px`。不改字号与横向 padding ⇒ 相邻元素排布一字不动。
+      适用：文字型按钮（可点区域本来就跟文字走）。
+   ② **视觉与热区解耦**：视觉尺寸是**语义**的小方块 / 圆点（16px / 17px），
+      本体撑到 28px 透明盒，视觉用 `::before` 画。
+      ★状态色必须随之迁到伪元素上——留在本体上会给 28px 的透明本体上色，
+      视觉上凭空多出一个大方块（同 M6-3 的 `.f3-ck` 备案）。
+      适用：勾选方块 / 状态圆点 / ✕ 按钮。
+
+   实拍（m6-responsive-audit.cjs，三台面 × 1440/1024/800 三档）：
+   方向台 1440px 首屏 <28px 的热区 **30 处 → 0 处**。
+   */
+
+/* ---------- ① 撑盒子族 ---------- */
+
+/* 舱头三控件：＋指标 / ⋯ / 折叠 */
+.tw-act { min-height: 28px; }
+.tw-fold { min-height: 28px; }
+
+/* 指标头：收起 ▾ / 详情 › / ＋任务 / AI / 删除 / ⋯ */
+.mc-toggle { min-height: 28px; }
+.mc-detail { min-height: 28px; }
+.mc-add, .mc-ai, .mc-del, .mc-more { min-height: 28px; }
+
+/* 任务行：标题（打开任务详情抽屉）/ 成熟度 */
+.tk-title { min-height: 28px; }
+.tk-grade { min-height: 28px; }
+
+/* 「当前主攻」条：项目名（定位入口）/ 继续推进 ↓ */
+.fs-name { min-height: 28px; }
+.fs-go { min-height: 28px; }
+
+/* 方向层头的「N 战略目标」pill（点即过滤） */
+.dir-badge { min-height: 28px; }
+
+/* 舱头 AI 诊断入口（无报告 → 「🧠 AI 诊断」） */
+.dt.run { min-height: 28px; }
+
+/* ---------- ② 视觉与热区解耦族 ---------- */
+
+/* 指标前的 17px 状态圆点 */
+.mc-dot {
+  position: relative; width: 28px; height: 28px;
+  background: transparent; border: 0;
+}
+.mc-dot::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 17px; height: 17px; border-radius: 50%;
+  border: 1.5px solid var(--border); background: var(--surface);
+}
+.mc-dot.doing::before { border-color: var(--warning); }
+.mc-dot.done::before { background: var(--success); border-color: var(--success); }
+.mc-dot > * { position: relative; z-index: 1; }
+
+/* 任务行前的 16px 勾选方块 */
+.tk-box {
+  position: relative; width: 28px; height: 28px;
+  background: transparent; border: 0;
+}
+.tk-box::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 16px; height: 16px; border-radius: 5px;
+  border: 1.5px solid var(--border); background: var(--surface);
+}
+.tk-box:hover::before { border-color: var(--hue); }
+.tk-box.done::before { background: var(--success); border-color: var(--success); }
+.tk-box.doing::before { border-color: var(--warning); }
+.tk-box > * { position: relative; z-index: 1; }
+
+/* 任务行尾的 16px ✕ 解绑钮（hover 才显形） */
+.tk-unbind {
+  position: relative; width: 28px; height: 28px;
+}
+.tk-unbind::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 16px; height: 16px; border-radius: 4px;
+}
+.tk-unbind > * { position: relative; z-index: 1; }
+
+/* ★这三族的**尺寸与底色**只在本文件写（组件的 scoped 块里不再声明 width/height/background）——
+   否则 scoped 的 `[data-v-xxx]` 特异性更高，会把这里的 28px 透明盒盖回 16px 实心块。
+   组件里保留的只有颜色、圆角、flex 等非尺寸属性。 */

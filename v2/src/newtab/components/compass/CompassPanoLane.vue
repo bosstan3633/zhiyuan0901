@@ -178,7 +178,7 @@ function priOf(t: TaskCard): string {
 .lo-menu {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 148px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column;
+  box-shadow: none; padding: 4px; display: flex; flex-direction: column;
 }
 .lom-item {
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-2); text-align: left;

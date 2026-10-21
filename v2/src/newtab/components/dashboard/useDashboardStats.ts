@@ -18,7 +18,7 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import type { AppData } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { buildDailyStats, boundaryDayOf, mergeDailyStats, type DailyStats } from '@/shared/utils/dailyStats'
-import { readDailySnapshot, setDailySnapshotCache } from '@/shared/storage/dailyStatsStore'
+import { loadDailySnapshotCache } from '@/shared/storage/dailyStatsStore'
 
 export interface LiveCounts { res: number; task: number; curio: number }
 
@@ -43,8 +43,8 @@ export function useDashboardStats(
   function kickSnapshotLoad(): void {
     if (snapLoadKicked) return
     snapLoadKicked = true
-    void readDailySnapshot()
-      .then((s) => { setDailySnapshotCache(s); snapRef.value = s })
+    void loadDailySnapshotCache()
+      .then((s) => { snapRef.value = s })
       .catch(() => { /* 读失败按无快照：合并退化为纯重建 */ })
   }
   const stats = computed<DailyStats>(() => {

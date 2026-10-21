@@ -49,10 +49,12 @@ check('B8-2b ★判据自身可证伪：真在 src 里造一个无人 import 的
     return !!r && r.status === 1 && r.stdout.includes('__B8_orphan_probe__.vue') && r.stdout.includes('发现 1 个孤儿文件');
   } finally { fs.rmSync(probe, { force: true }); }
 });
-check('B8-2c ★保留必须是明文的：想留在名册里，就带理由与复核时点登记，且每条目写清"还在等什么"，答不上来就删——accidental retention（"先放着"）是死代码的温床。CatPicker 现行条目须带 V3.9.0 里程碑复核时点', () => {
+check('B8-2c ★保留必须是明文的：想留在名册里，就带理由与复核时点登记，且每条目写清"还在等什么"，答不上来就删——accidental retention（"先放着"）是死代码的温床。★V3.9.6 复核补记（2026-10-21）：CatPicker 的复核时点原钉 V3.9.0，该时点**已过**（V3.9.0 之后本项目未升版，本轮为 V3.9.6）。实测结论 = **保留**，理由：判据 R169-23 / R32-4 仍在读它的本体，删它就是删掉"分类控件已下线"这条负锚的对照证据 ⇒ 名册条目改钉 **V3.10.0 里程碑复核**（与名册其余条目统一），且必须写清本次核对结论。本条的正锚随之从「V3.9.0 里程碑复核」改为「V3.10.0 里程碑复核」', () => {
   return ORPHAN_SEG.includes('const RETAINED = {')
     && ORPHAN_SEG.includes('shared/components/CatPicker.vue')
-    && ORPHAN_SEG.includes('V3.9.0 里程碑复核')
+    && ORPHAN_SEG.includes('V3.10.0 里程碑复核')
+    /* 本次复核结论必须落在名册里——否则下一个版本又得从头查一遍 */
+    && ORPHAN_SEG.includes('V3.9.6 复核')
     && ORPHAN_SEG.includes('不登记就是孤儿，删');
 });
 
@@ -69,7 +71,16 @@ check('B8-3 ★★W13-D5 的组件保留拍板不许被孤儿尺子顺手推翻�
   ];
   if (!four.every(p => fs.existsSync(path.join(base, p.replace(/^\//, ''))))) return false;
   if (!ORPHAN_SEG.includes('W13-D5')) return false;
-  if ((ORPHAN_SEG.match(/V3\.9\.0 里程碑复核/g) || []).length < 4) return false;
+  /* ★V3.9.6 复核补记（2026-10-21）：原锚写死「V3.9.0 里程碑复核」出现 ≥4 次。
+     那个复核时点**已过**（V3.9.0 之后本项目未升版，本轮为 V3.9.6），于是四条名册条目的
+     复核时点全部过期 ⇒ 这正是本判据想抓的病（"复核时点过了没人去复核"）。
+     本轮实测结论：**四个文件全部保留**——它们的删除条件（「确认新宿主已独立站稳」）
+     经核对确实成立，但**删除会连带推翻仍在读它们的判据**（NorthStarPanel 被引 27 次 /
+     ReviewPanel 30 次 / HeatmapModule 12 次 / useDashboardReport 3 次），
+     属"需要人拍板"而非"待办" ⇒ 名册时点统一改为 V3.10.0，并写明本次核对结论。
+     正锚随之从「V3.9.0 里程碑复核」改为「V3.10.0 里程碑复核」+ 必含本次复核结论。 */
+  if ((ORPHAN_SEG.match(/V3\.10\.0 里程碑复核/g) || []).length < 8) return false;
+  if (!ORPHAN_SEG.includes('V3.9.6 复核')) return false;
   /* 腿②：退役备案仍在宿主里 */
   if (!pi.includes('W13-D5') || !pi.includes('组件文件保留待复用')) return false;
   /* 腿③：退役仍是零挂载零 import，不许因为文件还在就挂回去 */

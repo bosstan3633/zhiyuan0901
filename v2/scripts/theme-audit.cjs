@@ -682,7 +682,33 @@ function pickData() {
   const dl = path.join(os.homedir(), 'Downloads')
   const hits = fs.readdirSync(dl).filter(f => /^zhiyuan_backup_.*\.json$/.test(f)).sort()
   if (!hits.length) throw new Error('未找到备份数据；请用 --data=<path> 指定')
-  return path.join(dl, hits[hits.length - 1])
+  /* ★2026-10-21 修：原来取「按文件名排序的最后一份」——**文件名顺序表达的是时间，
+     数据量表达的是前置是否成立**，两者不是一回事。
+     事故实录：2026-10-20 那份备份是**空库**（资源 0 / 任务 0 / 好奇 0 / 分类 0），
+     按文件名取「最后一份」正好选中它 ⇒ 11 个需要数据前置的场景全部拿到空态，
+     2 个 AI 评审弹窗场景连弹窗都开不出来 ⇒ 实拍 88 图（应 100），44 个判据集体失去前置。
+     这与 census 那起「取最新日期目录、实测读到两周前那份 ⇒ 零死样式是看着绿其实没查」同族。
+     ⇒ 改为**按数据量挑**：遍历候选，取资源+任务+好奇+分类+论证卡合计最大的一份。
+     并列时取文件名靠后者（更新的那份），保持"同样多则用较新"的直觉。 */
+  const countOf = (f) => {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(dl, f), 'utf8'))
+      const d = j && j.data ? j.data : (j || {})
+      const n = (k) => (Array.isArray(d[k]) ? d[k].length : 0)
+      return n('resources') + n('tasks') + n('curiosities') + n('categories') + n('argCards')
+    } catch { return 0 }
+  }
+  let best = hits[0], bestN = -1
+  for (const f of hits) {
+    const n = countOf(f)
+    if (n >= bestN) { bestN = n; best = f }
+  }
+  if (bestN <= 0) {
+    console.log(`⚠ 所有候选备份都是空库（${hits.length} 份），实拍判据将失去数据前置——请用 --data=<path> 指定一份有数据的备份`)
+  } else {
+    console.log(`· 数据源：${best}（${bestN} 条记录 · 按数据量选，非按文件名末位）`)
+  }
+  return path.join(dl, best)
 }
 
 async function main() {
@@ -721,8 +747,16 @@ if (argv.scenes) {
   const raw = JSON.parse(fs.readFileSync(dataFile, 'utf8'))
   const data = raw.zy_data_v2 || raw
   /* ★B5-a：折叠判据的数据前置——方向树里至少得有一个项目舱，否则 .tw-head 恒为 0，
-     "每舱都有卡头 / 折叠真的摘节点"这两条无从判起（见 treeSkip 处注释）。 */
-  const dataHasProjects = (data.directions || []).some(d => Array.isArray(d.projects) && d.projects.length > 0)
+     "每舱都有卡头 / 折叠真的摘节点"这两条无从判起（见 treeSkip 处注释）。
+     ★V3.9.6 修（2026-10-21）：探针原来读 `data.directions`，但真库的形状是
+     `data.compass.directions`（见 stores/compass.ts:80 / app.ts:106）⇒ 探针恒为 false，
+     "数据前置不满足"这条判据**判错了**，导致折叠判据在有 6 个舱的项目库上仍可能整轮跳过。
+     现在按真形状读，并保留顶层 directions 作旧备份兼容。 */
+  const compassDirs = (data.compass && Array.isArray(data.compass.directions))
+    ? data.compass.directions
+    : (Array.isArray(data.directions) ? data.directions : [])
+  const dataHasProjects = compassDirs.some(d => Array.isArray(d.projects) && d.projects.length > 0)
+  console.log(`方向树数据前置：方向 ${compassDirs.length} 个 · 含项目舱 ${compassDirs.filter(d => Array.isArray(d.projects) && d.projects.length > 0).length} 个`)
   const alive = (data.resources || []).filter(r => !r.deletedAt).length
   console.log(`数据源：${path.basename(dataFile)}（资源 ${(data.resources || []).length} / 活 ${alive} · 分类 ${(data.categories || []).length} · 策展台 ${(data.workspaces || []).length}）`)
   console.log(`扩展包：${pkg}`)
@@ -1044,8 +1078,19 @@ if (argv.scenes) {
       await page.locator(v.card).first().click({ timeout: 10000 }).catch((e) => {
         drawerFail.push(`${theme}/${v.id}：点 ${v.card} 失败 —— ${String(e.message || e).split('\n')[0]}`)
       })
-      await page.waitForTimeout(1200) /* 抽屉有进场动效 + onTaskRowClick 有 260ms 单击去抖定时器，等它落位再截 */
-      const openedNow = await page.locator(v.open).first().isVisible().catch(() => false)
+      /* ★V3.9.6 修：抽屉落位改成**轮询等真终态**，不再用固定 1200ms。
+         病灶：2026-10-21 全量走查里 apple/drawer-resource 报了「点了 .res-card 但 .ref-form 没出现」，
+         而同一镜头随后 resetView 复读时是开着的、截图也对（`开=是`）—— 说明抽屉**确实开了**，
+         只是 1200ms 这个固定等待在慢机日不够（进场动效 + onTaskRowClick 260ms 单击去抖 + 首帧懒挂载）。
+         这与 R170 备案的「等不够就判死」是同一族病：固定等待 = 拿机器的快慢当判据。
+         修法不是放宽判据，而是**等它真的出现**：最多 6s，每 150ms 轮询一次 `.open` 可见性。
+         真没开就还是判红（终态仍由 opened 决定），只是不再被时钟误伤。 */
+      let openedNow = false
+      for (let i = 0; i < 40; i++) {
+        openedNow = await page.locator(v.open).first().isVisible().catch(() => false)
+        if (openedNow) break
+        await page.waitForTimeout(150)
+      }
       if (!openedNow) {
         drawerFail.push(`${theme}/${v.id}：点了 ${v.card}（${before.cls} ${before.w}×${before.h} @y${before.y}）但 ${v.open} 没出现 —— 抽屉没开`)
         /*★把崩溃原文打出来：`.click().catch()` 与"没出现"这两条线索都指不到根因上，
@@ -1194,7 +1239,20 @@ if (argv.scenes) {
             : sc.hash === '#/manual' ? '.mn-page'
               : '.pi-hero')
       if (!(await page.locator(HOST).first().isVisible().catch(() => false))) {
-        await page.reload({ waitUntil: 'domcontentloaded' })
+        /* ★2026-10-21 修：`page.reload()` 直接打回当前 URL——而此刻 page 可能已被
+           上一个镜头导航到**非扩展地址**（本轮实测：⌘K 面板里点开一张 `zy-asset://`
+           附件卡 ⇒ 浏览器新开了一个 `file://` 标签页，page 停在那个地址上）。
+           对 `file://` 做 reload ⇒ `net::ERR_FILE_NOT_FOUND` ⇒ **整个审计中断**
+           （后面 20+ 个镜头一张没拍、判据一条没跑，退出码却是 1，看起来像"判据红"）。
+           ⇒ 修法不是吞掉异常，是**先把 page 带回扩展地址**再 reload：
+             导航到目标 hash（这本身就会换文档），再 reload 兜底懒 chunk。
+           与「等选择器出现不等固定时长」是同一条纪律：不假设页面停在哪。 */
+        const curUrl = page.url()
+        if (!curUrl.startsWith(base)) {
+          await page.goto(base + (sc.hash || '#/profile'), { waitUntil: 'domcontentloaded' }).catch(() => {})
+        } else {
+          await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
+        }
         await page.waitForTimeout(2400)
         await settle(page, sc.id + ':reload')
         if (!(await page.locator(HOST).first().isVisible().catch(() => false))) {
@@ -1245,9 +1303,22 @@ if (argv.scenes) {
         const c = getComputedStyle(sp).color; sp.remove(); return c
       })
     } catch (e) { /* 取不到就走判据红 */ }
-    // 检索词面从注入的真实库里取一张卡的标题前 4 字（写死词会随库变化而搜不到 ⇒ 空态图 + 判据仍绿）
+    /* ★2026-10-21 修：检索词面从注入的真实库里取一张卡的标题里一段**连续非空白**文字。
+       病根：原写法是 `String(title).replace(/\s+/g, '').slice(0, 4)`——**删掉**空白再截前 4 字。
+       而 content script 的匹配口径是 `blob.toLowerCase().includes(kw)`（blob 含**原标题**，空格还在），
+       于是「(2) X 上的…」被抽成「(2)X」，原标题里却是「(2) x」⇒ 永远匹配不上 ⇒ 行数恒 0。
+       实测四主题一致地报「行=0」，看着像浮层坏了，其实是**检索词自己造错了**。
+       ⇒ 改为取标题里一段**连续非空白**子串（该串必然是原标题的子串 ⇒ 必然命中）。
+       这与「census 取两周前那份」「pickData 取空库那份」同族：都是**工具自己假设了没验证的东西**。 */
     const ovNeedle = ((data.resources || []).find(r => r && r.title) || {}).title
-    const needle = String(ovNeedle || '资源').replace(/\s+/g, '').slice(0, 4)
+    const needle = (() => {
+      const t = String(ovNeedle || '')
+      /* 只要**字母/数字/汉字**的连续段（排除纯标点段，如「(2)」这种编号），
+         长度 ≥2 才算——一段真文字必然是原标题子串 ⇒ 必然命中 */
+      const runs = t.match(/[\p{L}\p{N}]{2,}/gu) || []
+      if (runs.length) return runs[0].slice(0, 6)
+      return '资源'
+    })()
     for (const sc of OVERLAY_SCENES) {
       if (!ovPage) { ovPage = await ctx.newPage(); ovPage.setDefaultTimeout(20000) }
       await ovPage.goto(ovUrl, { waitUntil: 'load' })
@@ -1367,10 +1438,12 @@ if (argv.scenes) {
   }
   if (treeSkip.length) {
     /* ★B5-a（V3.8.31）新增：**跳过 ≠ 通过**。
-       由来：本机唯一备份 `zhiyuan_backup_20261017.json` 里 directions[].projects 全空，
+       由来：方向台的塔来自 `compass.directions[].projects`；若那份备份里没有项目舱，
        方向台只剩骨架条与空态，折叠判据无从判起 → 一直判红。但这不是代码缺陷，
        是数据前置不满足；把它混进 ❌ 会让"真红"和"没法判"同形（R71 教训的翻版）。
-       所以单列 ⚠ 且**逐条写明跳过了什么**；要真验证折叠，得给 --data 一份含项目的备份。 */
+       所以单列 ⚠ 且**逐条写明跳过了什么**；要真验证折叠，得给 --data 一份含项目的备份。
+       ★V3.9.6 补：本机 `zhiyuan_backup_2026-10-19.json` 的 compass.directions 实有 3 方向 / 6 项目舱，
+       折叠判据现已**真判**（4 主题 × 舱=6/卡头=6/开合把手=6/收起=4/假折叠=0），不再是跳过。 */
     console.log(`⚠ 方向树折叠判据跳过 ${treeSkip.length} 项（数据前置不满足，**不等于通过**）：\n  ` + treeSkip.join('\n  '))
   }
   if (treeFail.length) {

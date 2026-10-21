@@ -117,7 +117,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'deliver', title: '成果文稿', family: 'proactive', kind: 'job',
     factory: 'buildDeliverJob', factoryFile: 'shared/ai/batchG.ts',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/ProfileInsights.vue'],
     caps: { apply: true, secondary: true, rawText: true, persona: true, autoReport: true, resave: true },
     panel: { icon: 'clipboard', mode: 'nav', route: '/settings', hint: '设置页 · AI 能力' },
     note: 'secondary=下载 .md；R154-D3：编辑后正文须同喂下载与落卡；withReport 自动落卡+存为卡',
@@ -140,7 +140,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'tag-govern', title: '标签体检', family: 'proactive', kind: 'job',
     factory: 'buildTagGovernJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/ProfileInsights.vue'],
     caps: { apply: true },
     panel: { icon: 'layers', mode: 'nav', route: '/settings', hint: '设置页 · 标签治理' },
   },

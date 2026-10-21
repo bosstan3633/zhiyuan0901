@@ -48,7 +48,7 @@ check('G3-2 十个空态位全部走 EmptyState（方向台 / 项目详情×3 / 
     ['/newtab/views/Workspace.vue', '中心论点下面还没有分支'],
     ['/newtab/views/Workspace.vue', '金字塔还空着'],
     ['/newtab/views/RecycleBin.vue', '这台删除过的资源卡会停在这里'],
-    ['/newtab/views/ProfileInsights.vue', '还没有可列出的卡片'],
+    ['/newtab/components/profile/PiMetricDetailDrawer.vue', '还没有可列出的卡片'],
     ['/newtab/components/compass/PoolCardsPanel.vue', '资源卡池还空着'],
     ['/newtab/components/compass/CuriosityPanel.vue', '还没有好奇心'],
     ['/newtab/components/compass/TaskManagerPanel.vue', '暂无任务'],

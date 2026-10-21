@@ -540,3 +540,28 @@ check('R166-11 ★依赖锁自证：package-lock 每条 .tgz 依赖的 version �
   if (bad.length) throw new Error('与 tarball 不符：' + bad.join(' | '))
   return true
 });
+
+/* ★R175：跨上下文同步的「自身写入判定」必须扛得住**写戳被搬运**。
+   —— 这条是本轮 E2E 随机漂移的根因级防线，判据要点四：
+   ① 自身写入判定仍走 O(1) 的写戳比对（不许退回整树 stringify——R70/R71 性能治理不许退让）；
+   ② 另有第二道闸：变更前后**写戳相同** ⇒ 写的人没换戳 ⇒ 判外部写入（`isStampReused`）；
+   ③ 两者必须**合看**：真回声 = 「像自己的写入」且「写的人换了戳」；
+   ④ 负锚：不得引入**随载荷一起走**的第二道指纹字段（内容哈希之类）——
+      外部整树回写会把它连同 `__wid` 一起复制走，两道闸同时命中 ⇒ 外部改动仍被静默丢弃。
+      这条负锚守的是一条**已被实测证伪**的修法（载荷带内容指纹 `__wh`），
+      防止后来者「再想一遍」又把它请回来。 */
+check('R175-1 ★跨上下文同步的自身写入判定：O(1) 写戳快路径 + 写戳复用第二道闸（外部整树回写不得被误当回声丢掉）', () => {
+  const r = read('/shared/storage/repository.ts')
+  const has = (s) => r.includes(s)
+  return has('export function isSelfWrite(newValue: unknown): boolean')
+    && has('export function isStampReused')
+    && has('isSelfWrite(ext) && !isStampReused(dch)')
+    // 第二道闸必须真的看「变更前后写戳是否相同」，而不是又一枚随载荷走的指纹
+    && has('oldWid === newWid')
+    // 负锚：不得回退到「载荷里再带一枚内容指纹」那条已被证伪的修法
+    && !has('__wh')
+    && !has('lastSelfWriteHash')
+    && !has('contentHashOf')
+    // 负锚：也不许引入整树二次序列化（R70 性能治理的原始诉求）
+    && !/JSON\.stringify\([^)]*\)\s*,\s*\(?key/.test(r)
+});

@@ -149,14 +149,14 @@ const mix = () => {
 </template>
 
 <style scoped>
-/* ★W18（2026-10-20 用户拍板）：顶部两块面板**固定等高 440px**。
-   左卡：四格读数贴底（中间留白吸收多余高度），在库构成条压在最后一行；
-   右卡：使命通栏 + 主攻项目并排两列（C 布局），两卡顶/底边严格对齐。
-   440 的来历：与左侧「页头 + 四格 + 构成条」的实际内容高度对齐，不靠魔法数字猜。 */
-.pi-overview { --pi-panel-h: 440px; align-items: stretch; }
-.pi-ov-card { height: var(--pi-panel-h); min-height: var(--pi-panel-h); }
-/* 左卡内部：头部与读数之间留白弹性吸收，读数行贴底 */
-.pi-ov-card:not(.pi-ov-dir) .pi-ov-kpis { margin-top: auto; }
+/* ★V3.9.7：顶部两块面板按内容排布并同高。
+   原先固定 440px 是为了对齐，但也把内容少的一侧拉出一大片空白；现在让同一行
+   栅格自然取较高者的高度，两侧 stretch 对齐，内容直接向下接续。
+   列宽由 pi-timeline.css 统一改为 1fr / 1fr。 */
+.pi-overview { align-items: stretch; }
+.pi-ov-card { height: auto; min-height: 0; display: flex; flex-direction: column; }
+.pi-ov-card .pi-ov-kpis { margin-top: 12px; }
+.pi-ov-card .pi-ov-mix { margin-top: auto; }
 
 /* ★W17-C09：右栏方向状态面板（使命完整 + 主攻项目完整呈现，项目名不截断） */
 .pi-ov-dir { min-width: 0; overflow: hidden; }
@@ -201,9 +201,9 @@ const mix = () => {
 .pi-ov-mix-bar .m-task { background: var(--info-blue); }
 .pi-ov-mix-bar .m-curio { background: var(--success); }
 .pi-ov-mix-tx { flex: none; white-space: nowrap; }
-/* 900px 以下（概览已折单列）与 640px 以下：取消固定高度，按内容自然排，避免半屏空白 */
+/* 900px 以下（概览已折单列）与 640px 以下：自然排，不强行同高 */
 @media (max-width: 900px) {
-  .pi-overview { --pi-panel-h: auto; }
+  .pi-ov-card { height: auto; }
   .pi-dir-cols { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {

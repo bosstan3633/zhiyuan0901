@@ -54,29 +54,57 @@ let snapCacheLoaded = false
 let lastWrittenJson = ''
 let writeTimer: ReturnType<typeof setTimeout> | null = null
 let writeInFlight = false
+let snapshotLoad: Promise<DailyStats | null> | null = null
+let scheduledData: AppData | null = null
+let pendingWriteData: AppData | null = null
 
-/** 快照缓存注入（启动期 readDailySnapshot 的调用方回填，供合并与写侧共用） */
+/** 读取并注入快照缓存；并发调用复用同一请求，避免多个宿主在启动时互相覆盖缓存。 */
+export function loadDailySnapshotCache(): Promise<DailyStats | null> {
+  if (snapCacheLoaded) return Promise.resolve(snapCache)
+  if (!snapshotLoad) {
+    snapshotLoad = readDailySnapshot()
+      .then((s) => { setDailySnapshotCache(s); return s })
+      .finally(() => { snapshotLoad = null })
+  }
+  return snapshotLoad
+}
+
+/** 快照缓存注入（数据桥显示完成后回填，供合并与写侧共用） */
 export function setDailySnapshotCache(s: DailyStats | null): void {
   snapCache = s
   snapCacheLoaded = true
 }
 
-/** 重建 + 合并（boundary 取当前事件日志），落盘内容未变则跳写 */
+/** 重建 + 合并（boundary 取当前事件日志），落盘内容未变则跳写。
+ *  ★V3.9.7：画像页是唯一读快照的宿主，但保存链可能在画像页首次挂载前已经排程。
+ *  首次写必须等缓存装载（含“无快照”的 null），否则会把已有快照当空值覆盖。
+ *  只在 writeDailyStatsNow 的内层等待 loadPromise；外层单飞锁防并发写入。 */
 export async function writeDailyStatsNow(data: AppData): Promise<void> {
   const cs = store()
   if (!cs || !data) return
-  if (writeInFlight) return
+  if (writeInFlight) {
+    // 页隐藏补写可能撞上时间闸正在写盘。若直接丢弃，这一次用户动作会等到
+    // 下一次整库保存才进入快照；页面已卸载时没有下一次。保留最新数据，写完后再补。
+    pendingWriteData = data
+    return
+  }
   writeInFlight = true
   try {
+    const snap = await loadDailySnapshotCache()
     const events = await readEventLog()
     const rebuild = buildDailyStats(data, events)
-    const merged = mergeDailyStats(snapCache, rebuild, boundaryDayOf(events))
+    const merged = mergeDailyStats(snap, rebuild, boundaryDayOf(events))
     const json = JSON.stringify({ v: 1, days: merged.days, fullSince: merged.fullSince, base: { res: 0, task: 0, curio: 0, link: 0 } })
     if (json === lastWrittenJson) return
     lastWrittenJson = json
     await cs.set({ [DAILY_STATS_STORE_KEY]: JSON.parse(json) })
   } catch { /* 快照写失败不影响主数据，下轮时间闸重试 */ }
-  finally { writeInFlight = false }
+  finally {
+    writeInFlight = false
+    const pending = pendingWriteData
+    pendingWriteData = null
+    if (pending) void writeDailyStatsNow(pending)
+  }
 }
 
 /**
@@ -85,14 +113,21 @@ export async function writeDailyStatsNow(data: AppData): Promise<void> {
  */
 export function scheduleDailyStatsWrite(data: AppData): void {
   lastData = data
+  scheduledData = data
   bindLifecycle()
   if (writeTimer) return
-  writeTimer = setTimeout(() => { writeTimer = null; void writeDailyStatsNow(data) }, DAILY_STATS_WRITE_GATE_MS)
+  writeTimer = setTimeout(() => {
+    writeTimer = null
+    const pending = scheduledData
+    scheduledData = null
+    if (pending) void writeDailyStatsNow(pending)
+  }, DAILY_STATS_WRITE_GATE_MS)
 }
 
 /** 页隐藏/卸载补写（跳闸立即发出；R173-T2 同款：防抖窗口里的写会随页面一起丢） */
 export function flushDailyStatsNow(data: AppData): void {
   if (writeTimer) { clearTimeout(writeTimer); writeTimer = null }
+  scheduledData = null
   void writeDailyStatsNow(data)
 }
 

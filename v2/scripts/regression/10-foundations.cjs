@@ -240,7 +240,10 @@ check('A1/A2 图标体系 + EmptyState 组件', () => read('/shared/components/I
 check('A3~A10 全局形态（徽章/滚动条/负字距/等宽/焦点环）', () => read('/shared/styles/tokens.css').includes('body .tag, body .rc-tag') && read('/shared/styles/tokens.css').includes('font-variant-numeric: tabular-nums') && read('/shared/styles/tokens.css').includes(':focus-visible'));
 check('B1 命令面板升级（分组/高亮/快捷操作/最近）', () => read('/newtab/components/GlobalPopups.vue').includes('groupedResults') && read('/newtab/components/GlobalPopups.vue').includes('QUICK_ACTIONS') && read('/newtab/components/GlobalPopups.vue').includes('hlTitle') && read('/content/search-overlay.ts').includes('QUICK_ACTIONS_ZY'));
 check('B2 删除可撤销（Toast 全局单例统一 2.4s，REQ-030 收敛；★G5(V3.8.27) 重指：3s → 2.4s，回执是确认不是阅读材料）', () => read('/shared/components/toast.ts').includes('TOAST_DURATION = 2400') && read('/newtab/App.vue').includes('<Toast />') && read('/newtab/views/Workspace.vue').includes("label: '撤销'") && read('/shared/components/Toast.vue').includes('toastState') && !read('/newtab/views/Workspace.vue').includes('runToastAction') && !read('/newtab/components/GlobalPopups.vue').includes('gp-toast'));
-check('B3 快捷键速查面板（? 呼出）', () => read('/newtab/components/GlobalPopups.vue').includes('SHORTCUT_GROUPS') && read('/newtab/App.vue').includes("e.key === '?'"));
+/* ★V3.9.6 重指带备案：速查面板已从 GlobalPopups.vue 拆到 GlobalPopupsShortcuts.vue
+   （GlobalPopups 第二梯队拆分 · 第一块），清单真源的消费点随之搬进那个组件。
+   判据意图（速查面板吃真源清单 + ? 键可呼出）一字未改。 */
+check('B3 快捷键速查面板（? 呼出）', () => read('/newtab/components/GlobalPopupsShortcuts.vue').includes('SHORTCUT_GROUPS') && read('/newtab/App.vue').includes("e.key === '?'"));
 check('B4/B9 键盘导航（任务列表 + 日期）', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onTaskNavKey') && read('/newtab/views/CompassHome.vue').includes('onDateKey'));
 check('B5 统一右键菜单（三卡）', () => read('/shared/components/ContextMenu.vue').includes('cx-item') && read('/newtab/views/Workspace.vue').includes('openResCtx') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('openTaskCtx') && read('/newtab/components/compass/CuriosityPanel.vue').includes('openCurioCtx'));
 check('B6 拖拽插入线', () => read('/newtab/views/Workspace.vue').includes('drop-line-t') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('drop-line-t') && read('/newtab/components/compass/CuriosityPanel.vue').includes('drop-line-t'));
@@ -406,7 +409,13 @@ check('R34-18 REQ-031 P-031-2 结果分组一次遍历归桶（buckets 数组替
 check('R34-19 REQ-031 P-031-3 计数缓存 + Tab DOM 按需重建（countCache 仅数据变更失效，searchType 不变只更计数）', () => read('/content/search-overlay.ts').includes('function invalidateCountCache') && read('/content/search-overlay.ts').includes('function computeCounts') && read('/content/search-overlay.ts').includes("tabs.getAttribute('data-search-type')") && read('/content/search-overlay.ts').includes('invalidateCountCache()'));
 check('R34-20 REQ-031 P-031-4 escapeHtml 正则化（createElement → 正则白名单替换）', () => read('/content/search-overlay.ts').includes("String(s ?? '')\n    .replace(/&/g, '&amp;')") && !read('/content/search-overlay.ts').includes("const div = document.createElement('div')\n  div.textContent = s"));
 check('R34-21 REQ-031 P-031-5 应用内搜索 150ms 防抖（debouncedQuery 驱动过滤，输入框即时回显）', () => read('/newtab/views/Workspace.vue').includes('const debouncedQuery = ref') && read('/newtab/views/Workspace.vue').includes('searchDebounceTimer = setTimeout(() => { debouncedQuery.value = v }, 150)') && read('/newtab/views/Workspace.vue').includes('if (debouncedQuery.value.trim())'));
-check('R34-22 REQ-031 P-031-6 onChanged 自身写入跳过（R131-C1a 起改载荷 __wid O(1) 判定；R128-A1 统一接线不变）', () => read('/shared/storage/repository.ts').includes('__wid === lastSelfWriteId') && read('/shared/storage/repository.ts').includes('export function isSelfWrite') && read('/shared/storage/repository.ts').includes('if (ext && !isSelfWrite(ext))'));
+check('R34-22 REQ-031 P-031-6 onChanged 自身写入跳过（R131-C1a 载荷 __wid O(1) 快路径 + R175 old/new 写戳复用核；R128-A1 统一接线不变）', () => {
+  const r = read('/shared/storage/repository.ts')
+  return r.includes('return oldWid === newWid')
+    && r.includes('export function isStampReused')
+    && r.includes('export function isSelfWrite')
+    && r.includes('isSelfWrite(ext) && !isStampReused(dch)')
+});
 check('R34-23 REQ-031 P-031-7 定位并行化（Promise.all 并行询问 + 150ms 短超时取首个命中）', () => read('/background/index.ts').includes('await Promise.all(tabs.map') && read('/background/index.ts').includes('askRoute(tab.id, 150)') && read('/background/index.ts').includes('hits.find((t) => t !== null)'));
 check('R34-24 REQ-031 P-031-8 采集去重 Map 化（capUrlMap 打开时构建一次 + 保存 O(1) 查重 + 增量写入）', () => read('/content/search-overlay.ts').includes('let capUrlMap: Map<string, any> | null = null') && read('/content/search-overlay.ts').includes('capUrlMap?.get(fp)') && read('/content/search-overlay.ts').includes('capUrlMap.set(nfp, resource)'));
 

@@ -447,7 +447,7 @@ check('R4-Eu② ★"标记还在"不等于"切片还对"：漂移闸只抓"标�
 
 // ============== R4-Ev 祖先段口径 + 行号自证：第二批孤儿 CSS 清账 ==============
 console.log('【R4-Ev · 扫描器口径的四处修正与清零棘轮】');
-check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就得先承认旧口径的四处误判并把救活它的四条票钉住：① 逗号选择器列表必须**逐段判**（旧版把整串当一条链，body .module-title .name, body .tc-module-title .tc-name 里第一段断了就把整条报成祖先断，而第二段活着）；② 括号要**配平**剥（:is(a, :not(b)) 用 [^)]* 会在第一个右括号早停，把 :is 的尾巴当成祖先段）；③ 运行时插值的类名（Heatmap 的 `l${lv}` ⇒ .dz-cell.l4）token 匹配天生看不见，要有"插值前缀"票；④ 类名值由**别的文件**的数据表产出（curiosity.ts 的 cls: exploring、DashboardLogDrawer 的 expanded）时，scoped 也要吃"全站精确字符串"这一票。**棘轮就是实跑扫描器两桶为零**：这四条里任何一条被拆掉，对应的规则立刻浮回名单 ⇒ 清零不是"把判据调松"能换来的。ET_RETIRE 已随本批扩到第二批的 40 条退役选择器', () => {
+check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就得先承认旧口径的四处误判并把救活它的四条票钉住：① 逗号选择器列表必须**逐段判**（旧版把整串当一条链，body .module-title .name, body .tc-module-title .tc-name 里第一段断了就把整条报成祖先断，而第二段活着）；② 括号要**配平**剥（:is(a, :not(b)) 用 [^)]* 会在第一个右括号早停，把 :is 的尾巴当成祖先段）；③ 运行时插值的类名（Heatmap 的 `l${lv}` ⇒ .dz-cell.l4）token 匹配天生看不见，要有"插值前缀"票；④ 类名值由**别的文件**的数据表产出（curiosity.ts 的 cls: exploring、DashboardLogDrawer 的 expanded）时，scoped 也要吃"全站精确字符串"这一票。**棘轮就是实跑扫描器两桶为零**：这四条里任何一条被拆掉，对应的规则立刻浮回名单 ⇒ 清零不是"把判据调松"能换来的。ET_RETIRE 已随本批扩到第二批的 40 条退役选择器。★V3.9.7 重指：画像指标的第三张 scoped 票由已删除的 `.pi-recon-cell` 改为同组件现役 `.recon-cell`，守的扫描器能力与零死规则口径不变', () => {
   const p = path.resolve(SCRIPTS_DIR, 'dead-css-scan.cjs');
   const s = fs.readFileSync(p, 'utf8');
   const ran = runGateSync(p, ['--json']);
@@ -457,12 +457,12 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
     && s.includes('function splitTopLevel') && s.includes('function stripParens')
     && s.includes('interpPrefixes.add') && s.includes('globalTokens.has(tok)')
     && ex('.metric-item.expanded') && ex('.dz-cell.l4') && ex('body .module-title')
-    && ex('.picker-item') && ex('.toggle') && ex('.pi-recon-cell') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在它随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像洞察页的 scoped 类，顺带证明扫描器在新页的 <style scoped> 上照常工作。★B8 再随迁（V3.8.41）：第二张票随概览带整族判死而失效——它本来就在 dashboard.css 里（注释里写的"画像洞察页 scoped 类"从一开始就不准确，该名全库只出现在 CSS 里），故一并作废。教训与头注①同源：**"证明扫描器在某类宿主上工作"的票必须选真正活着的宿主类，不能选一个恰好没被清理的同名残留**——票红时先问"被测物是不是已经退役了"，别急着换锚点。 */;
+    && ex('.picker-item') && ex('.toggle') && ex('.recon-cell') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在它随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像指标的 scoped 类，顺带证明扫描器在新页的 <style scoped> 上照常工作。★B8 再随迁（V3.8.41）：第二张票随概览带整族判死而失效。★V3.9.7 再重指：抽屉拆成 PiMetricDetailDrawer 后类名改为 `.recon-cell`，不让已退役的 `.pi-recon-cell` 继续充当活性票。教训与头注①同源：**"证明扫描器在某类宿主上工作"的票必须选真正活着的宿主类，不能选一个恰好没被清理的同名残留**——票红时先问"被测物是不是已经退役了"，别急着换锚点。 */;
 });
 
 // ============== R4-Ew 三条运行时触点进 e2e ==============
 console.log('【R4-Ew · 采集保存链路 / hover 动作区 / 下钻抽屉】');
-check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、池提示行显示「资源卡池」且两枚下拉已退役、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42（V3.9.1 重指）画像洞察页四格 KPI 按各自真实响应形态判：两格落卡片清单抽屉、知识熵出含数值与高频标签的口径 toast、精力落主攻打开 focusOnly 全量记录抽屉，且四格数量必须恰为 4。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
+check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E2E-40 content 采集面板从 http 宿主页唤起、池提示行显示「资源卡池」且两枚下拉已退役、真点保存后核 toast 与**落库那张卡的 workspaceId=zy-curation 且分类留空**；E2E-41 ⌘K 结果行动作区三枚钮 title 齐、hover 前 opacity 为 0 后为 1、点星标**真写库**再点回**真复原**；E2E-42（V3.9.7 重指）画像洞察页四格 KPI 按各自真实响应形态判：两格落卡片清单抽屉、标签分布落四段解释抽屉、精力落主攻打开 focusOnly 全量记录抽屉，且四格数量必须恰为 4。锚点一律取判据表达式而非用例标题——标题留在文件里而条件被删掉，是 R4-Dl 那族失效的老形状', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
   return e.includes("type: 'zy-open-capture'") && e.includes("capPoolText.includes('资源卡池')")
     && e.includes('capDropGone') && e.includes('/资源卡池/.test(capToast)')
@@ -470,9 +470,12 @@ check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E
     && e.includes('Number(gpRow.actsOpacity) === 0') && e.includes('gpHover > 0.9')
     && e.includes('starAfter === true && starBack === false')
     && e.includes('heroKpiCount === 4')
-    && e.includes("r.题在 && (r.型 === 'toast'")
+    && e.includes('r.题在 && r.抽屉在 && (')
+    && e.includes("const insightHeads = [...document.querySelectorAll('.pi-tag-insight h4')]")
+    && e.includes("const LABELS = ['这个指标怎么看', '当前分布', '下一步建议', '交给 AI 助手处理']")
+    && e.includes("insightHeads.every((h, i) => h.textContent.includes(LABELS[i]))")
     && e.includes("r.logNote.includes('近30天主攻动作')")
-    && e.includes("r.抽屉在 && (r.rows > 0 || r.empty)");
+    && e.includes('r.rows > 0 || r.empty');
 });
 check('R4-Ew② ★content 侧用例的两条环境事实必须留在脚本里（本轮各踩一次）：① MV3 的 http 宿主页里**没有 chrome.storage**（浮层自己走消息，测试取库要回扩展页）——所以库读写一律 page.evaluate，出现 capPage.evaluate 里读 chrome.storage 即红；② 宿主页端口用 listen(0) 现取、用完关，不写死端口（写死会撞本机其它服务，且 theme-audit/perf 同一手法各自起）', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));

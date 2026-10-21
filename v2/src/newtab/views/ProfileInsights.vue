@@ -61,17 +61,25 @@ import PiYear from '@/newtab/components/profile/PiYear.vue'
 import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
 import { useCompass } from '@/newtab/stores/compass'
 import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
+import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
 /* ★W13-D5：ReviewPanel 弹窗挂载退役（2026-10-16）——组件文件保留待复用，宿主零 import。 */
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
 import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
+import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
 import DayDetail from '@/newtab/components/dashboard/DayDetail.vue'
-import Drawer from '@/shared/components/Drawer.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
+import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
+import { emitOpenDrawer } from '@/shared/utils/bus'
+import PiTagDistributionDrawer from '@/newtab/components/profile/PiTagDistributionDrawer.vue'
+import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
+import PiLifecycleSettingsModal from '@/newtab/components/profile/PiLifecycleSettingsModal.vue'
 
 const router = useRouter()
 const store = useAppStore()
 const gd = computed(() => store.data!)
+const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+const { openResourceLink } = useResourceOpen({ store, d: gd })
 /* ★W17-C09：方向状态面板要「停滞 / 已完成 / 未完成数」——与方向台同一口径，故直接用 compass store */
 const { focusedProjects, projectProgress, projectTasksOf, isProjectStalled, isProjectDone } = useCompass()
 
@@ -409,8 +417,13 @@ function openLogFocus() {
 type StatDrawerType = '' | 'all' | 'support' | 'goal-week'
   | 'curio-conv' | 'curated' | 'mo-support' | 'topic'
   | 'ammo' | 'cooling' | 'today-in' | 'today-call'
-interface StatRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; ts: number; owner?: string }
+type StatRow = PiStatRow
 const statDrawer = ref<StatDrawerType>('')
+/** ★V3.9.7：标签分布不再借通用卡片明细抽屉。知识熵是产品使用状态的一项解释，
+ *  需要把“它是什么 / 当前为什么是这样 / 下一步做什么 / AI 怎么处理”讲成一组连续内容。 */
+const tagInsightOpen = ref(false)
+type TagOptimizeJob = import('@/shared/ai/job').AiJob
+const tagAiJob = shallowRef<TagOptimizeJob | null>(null)
 /* F15：战略目标点行 → 该方向本周「新建 ∪ 完成」任务明细（PiRhythm goal-drill 落点） */
 const goalDirId = ref('')
 /* F18：Top 主题行下钻 → 该标签本月新增卡片清单 */
@@ -552,15 +565,58 @@ const statFiltered = computed<StatRow[]>(() => {
 const statPageCount = computed(() => Math.max(1, Math.ceil(statFiltered.value.length / STAT_PAGE)))
 const statShown = computed(() => statFiltered.value.slice((statPage.value - 1) * STAT_PAGE, statPage.value * STAT_PAGE))
 function statGo(delta: number) { statPage.value = Math.min(statPageCount.value, Math.max(1, statPage.value + delta)) }
-function statKindIcon(kind: string) { return kind === 'task' ? 'checksquare' : kind === 'curiosity' ? 'bulb' : 'filetext' }
-function statKindLabel(kind: string) { return kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源' }
+/**
+ * ★V3.9.7 指标明细点击的唯一分流：
+ *  · 资源有可打开的链接 → 直接打开；链接为空或打不开 → 打开资源详情；
+ *  · 任务 → 打开任务详情；
+ *  · 好奇心 → 打开全站好奇心详情。
+ * 不再走 locateTargetOf / `/deck/:kind`：用户点的是一张卡，不是“去卡片池再看一次”。
+ */
 function openStatCard(x: { kind: string; id: string }) {
-  const kind = asLocateKind(x.kind)
-  if (!kind) { showToast('该卡片类型暂不支持定位'); return }
-  const t = locateTargetOf(gd.value, kind, x.id)
-  if (!t) { showToast('该卡片已不在库中'); return }
+  // 统计行沿用 resource/task/curiosity；若上游历史数据给了 res/curio 短码，也一并归一。
+  const rawKind = x.kind === 'res' ? 'resource' : x.kind === 'curio' ? 'curiosity' : x.kind
+  const kind = asLocateKind(rawKind)
+  if (!kind) { showToast('该卡片类型暂不支持打开'); return }
+  const exists = kind === 'resource'
+    ? gResLive.value.some(r => r.id === x.id)
+    : kind === 'task'
+      ? gTaskLive.value.some(t => t.id === x.id)
+      : gCurioLive.value.some(c => c.id === x.id)
+  if (!exists) { showToast('该卡片已不在库中'); return }
   statDrawer.value = ''
-  void router.push(t)
+  if (kind === 'resource') {
+    const resource = gResLive.value.find(r => r.id === x.id)!
+    if (openResourceLink(resource)) return
+    emitOpenDrawer({ kind: 'res', id: resource.id })
+    return
+  }
+  if (kind === 'task') {
+    const task = gTaskLive.value.find(t => t.id === x.id)!
+    taskDetailRef.value?.open(task)
+    return
+  }
+  emitOpenDrawer({ kind: 'curio', id: x.id })
+}
+
+async function openTagDistribution() {
+  tagInsightOpen.value = true
+  statDrawer.value = ''
+}
+async function runTagOptimizeAi() {
+  try {
+    const [{ loadAiConfig, aiReady, aiConfig }, govern] = await Promise.all([
+      import('@/shared/ai/config'), import('@/shared/ai/govern'),
+    ])
+    await loadAiConfig()
+    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成地址、Key 与模型配置'); return }
+    const job = govern.buildTagGovernJob({
+      d: gd.value, depth: aiConfig.value.depth, persist: () => store.persist(),
+    })
+    if (!job) { showToast('当前没有可处理的标签问题'); return }
+    tagAiJob.value = job
+  } catch (e) {
+    showToast('AI 入口载入失败：' + (e instanceof Error ? e.message : String(e)))
+  }
 }
 const statDrawerTitle = computed(() => ({
   all: `全部卡片明细（${totalCards.value}）`,
@@ -579,11 +635,10 @@ const statDrawerTitle = computed(() => ({
 
 /** ★W16-T3 · 抽屉对账条（用户拍板 2026-10-16「要」）：把"次数"与"张数"两套口径并排摆出来。
     病灶是同一件事有两个数（今日调出按事件次数、去重后才是卡数），标题只写一个数会让人以为对不上账。 */
-interface ReconCell { k: string; n: string; u?: string; warn?: boolean }
-const statReconcile = computed<ReconCell[] | null>(() => {
+const statReconcile = computed<PiReconCell[] | null>(() => {
   const S = statDrawer.value
   if (!S) return null
-  const cell = (k: string, n: number | string, u?: string, warn?: boolean): ReconCell => ({ k, n: String(n), u, warn })
+  const cell = (k: string, n: number | string, u?: string, warn?: boolean): PiReconCell => ({ k, n: String(n), u, warn })
   switch (S) {
     case 'today-call':
       /* 计数 todayCalled 是事件次数，清单是去重卡数 —— 两个数并排，说清差别 */
@@ -597,11 +652,13 @@ const statReconcile = computed<ReconCell[] | null>(() => {
       return [cell('存活弹药卡', ammoSplit.value.live.length, '张'), cell('已进回收站', ammoSplit.value.removed, '张', ammoSplit.value.removed > 0),
         cell('支撑关联条数', (gd.value.supportLinks || []).filter(l => l.taskId && todayRows.value.some(r => r && r.slot.sourceId === l.taskId)).length, '条')]
     case 'cooling':
-      return [cell('冷却期卡', statList.value.length, '张'), cell('其中高价值（调用≥3）', coolingCards.value.filter(c => (c.owner || '').length >= 0).length, '张'),
+      return [cell('冷却期卡', statList.value.length, '张'), cell('其中高价值（调用≥3）', coolingCards.value.filter(c => (gResLive.value.find(r => r.id === c.id)?.callCount || 0) >= 3).length, '张'),
         cell('默认冷却阈值', Math.round((coolingDefaultDaysOf() || 30)), '天'), cell('默认归档阈值', Math.round((coolingDefaultDaysOf() || 30) * 3), '天')]
     case 'support':
-      return [cell('支撑率', heroSupportRate.value, '%'), cell('已支撑', statList.value.filter(c => (c.owner || '').startsWith('')).length, '个'),
-        cell('未支撑', statList.value.filter(c => (c.owner || '').startsWith('')).length, '个', statList.value.some(c => (c.owner || '').startsWith('')))]
+      const supported = (gd.value.supportLinks || []).filter(l => l.taskId).map(l => l.taskId)
+      const supportedTasks = gTaskLive.value.filter(t => supported.includes(t.id)).length
+      return [cell('支撑率', heroSupportRate.value, '%'), cell('已支撑', supportedTasks, '个'),
+        cell('未支撑', Math.max(0, gTaskLive.value.length - supportedTasks), '个', supportedTasks < gTaskLive.value.length)]
     case 'all':
       return [cell('存活卡片', totalCards.value, '张'), cell('资源', gResLive.value.length, '张'),
         cell('任务', gTaskLive.value.length, '张'), cell('好奇', gCurioLive.value.length, '张')]
@@ -725,11 +782,7 @@ function onHeroDrill(k: 'total' | 'entropy' | 'support' | 'focus') {
   if (k === 'total') { openStatDrawer('all'); return }
   if (k === 'support') { openStatDrawer('support'); return }
   if (k === 'focus') { openLogFocus(); return }
-  if (k === 'entropy') {
-    const t = topTags.value
-    showToast(t.length ? `知识熵 ${heroEntropy.value} bit · 高频标签：${t.map(([n, c]) => `${n}(${c})`).join('、')}` : '知识熵 0 bit · 库里还没有带标签的卡片')
-    return
-  }
+  if (k === 'entropy') { void openTagDistribution(); return }
 }
 function onHeroRefresh() {
   void refreshEventLog()
@@ -947,6 +1000,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
       <div class="pi-rmods pi-rmods-single">
         <PiToday v-if="activeRange === 'today'"
           :today-add="todayAdd" :today-called="todayCalled"
+          :today-import="todayImportCount"
           :focus-filled="todayFilled" :ammo="todayAmmo" :slot-count="3"
           :insight="concise.today"
           @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')"
@@ -987,34 +1041,10 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
      「周/月/年复盘」能力已全量常驻页面四段模块（今日三件事 / 本周节律 / 本月沉淀 / 全年足迹），
      目标对账明细由 PiRhythm 战略目标点行（goal-week 抽屉）承接；组件文件保留待复用（同 CatPicker 先例）。 -->
 
-    <!-- ===== 阈值设置弹窗 ===== -->
-    <Teleport to="body">
-      <div class="gs-modal-overlay" :class="{ open: lcSetOpen }" @click.self="lcSetOpen = false">
-        <div class="gs-modal pi-lc-modal">
-          <div class="gs-modal-header"><Icon name="settings" :size="13"/> 冷却阈值设置</div>
-          <div class="gs-modal-body">
-            <p>全局默认冷却 <b>{{ lcDefaultDraft || 30 }}</b> 天 · 归档 = 冷却 × 3 = <b>{{ (lcDefaultDraft || 30) * 3 }}</b> 天；每张卡可单独覆盖（清除后回落全局默认）。<br />修改阈值只影响状态判定，<b>不会改变卡片活跃度</b>。</p>
-            <div class="lc-set-global">
-              <span>默认冷却天数</span>
-              <input v-model.number="lcDefaultDraft" type="number" min="1" max="365" class="gs-confirm-input pi-num-sm" />
-              <button class="gs-btn" @click="saveLcDefault">保存</button>
-            </div>
-            <div class="lc-set-list">
-              <div v-for="c in lcCards" :key="c.id" class="lc-set-row">
-                <span class="lc-set-name" :title="(c as any).title">{{ (c as any).title || (c as any).question || '未命名' }}</span>
-                <input class="gs-confirm-input pi-num-xs" type="number" min="1" max="365" placeholder="默认"
-                  :value="(c as any).coolingDays || ''"
-                  @change="onLcSetDays(c.id, Number(($event.target as HTMLInputElement).value) || null)" />
-                <button class="gs-btn" @click="onLcSetDays(c.id, null)">清除</button>
-              </div>
-            </div>
-          </div>
-          <div class="gs-modal-footer">
-            <button class="gs-btn" @click="lcSetOpen = false">关闭</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <PiLifecycleSettingsModal
+      :open="lcSetOpen" :default-draft="lcDefaultDraft" :cards="lcCards"
+      @close="lcSetOpen = false" @save-default="saveLcDefault"
+      @update:default-draft="lcDefaultDraft = $event" @set-days="onLcSetDays" />
 
     <!-- ===== 全量记录抽屉 ===== -->
     <DashboardLogDrawer :open="logOpen" :events="timelineEvents" :data="gd" :preset="logPreset" @close="logOpen = false" />
@@ -1023,44 +1053,22 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
          🚀 主攻标签 → 右侧滑出**那个项目**的详情（沿用方向台/策展台同一枚 ProjectDetailDrawer，
          可编辑项目名·指标·任务，编辑实时写回 store） ===== -->
     <ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" @close="projDetailOpen = false" />
+    <TaskDetailDrawer ref="taskDetailRef" />
 
-    <!-- ===== 核心指标下钻抽屉 ===== -->
-    <Drawer :open="!!statDrawer" :title="statDrawerTitle" width="520px" @close="statDrawer = ''">
-      <div class="gs-drawer-fill">
-        <!-- ★W16-T3 对账条：次数 / 张数 / 已删 等两套口径并排（用户拍板"要"） -->
-        <div v-if="statReconcile && statReconcile.length" class="pi-recon">
-          <div v-for="(c, i) in statReconcile" :key="i" class="pi-recon-cell" :class="{ warn: c.warn }">
-            <span class="k">{{ c.k }}</span>
-            <span class="n">{{ c.n }}<small v-if="c.u">{{ c.u }}</small></span>
-          </div>
-        </div>
-        <p v-if="statReconcileNote" class="pi-recon-note">{{ statReconcileNote }}</p>
-        <div class="gs-drawer-search">
-          <input v-model="statSearch" placeholder="搜索标题 / 归属 / 说明">
-          <span class="cnt">{{ statFiltered.length }} 条</span>
-        </div>
-        <div class="gs-ev-list">
-          <div v-for="c in statShown" :key="c.id" class="gs-ev-row static clickable" @click="openStatCard(c)">
-            <span class="gs-ev-kind"><Icon :name="statKindIcon(c.kind)" :size="13"/></span>
-            <span class="gs-ev-badge">{{ statKindLabel(c.kind) }}</span>
-            <span class="gs-ev-title">{{ c.title }}</span>
-            <!-- ★W16-T2：说明列对**所有**卡类显示（原先 v-if="c.kind === 'task'" ⇒ 冷却/弹药都是资源卡，说明整列都不显示） -->
-            <span v-if="c.owner" class="gs-ev-owner">{{ c.owner }}</span>
-            <span class="gs-ev-time">{{ fmtDay(c.ts) }}</span>
-          </div>
-          <!-- G3（V3.8.27）：筛选无结果与真空两态共用契约，措辞按"是不是搜出来的"分流 -->
-          <EmptyState v-if="!statFiltered.length" class="gs-ev-empty" size="inline" icon="folder"
-            :title="statSearch.trim() ? '没有匹配的卡片' : '还没有可列出的卡片'"
-            :hint="statSearch.trim() ? '换个更短的关键词，或清空搜索。' : '采集或新建卡片后，这里会按时间列出每一次变化。'" />
-          <div v-if="statList.length" class="pi-hint"><Icon name="bulb" :size="13"/> 单击行可跳转定位到卡片所在页面。</div>
-        </div>
-        <div v-if="statPageCount > 1" class="gs-pager">
-          <button :disabled="statPage <= 1" @click="statGo(-1)">‹ 上一页</button>
-          <span>第 {{ statPage }} / {{ statPageCount }} 页 · 每页 {{ STAT_PAGE }} 条</span>
-          <button :disabled="statPage >= statPageCount" @click="statGo(1)">下一页 ›</button>
-        </div>
-      </div>
-    </Drawer>
+    <PiTagDistributionDrawer
+      :open="tagInsightOpen" :entropy="heroEntropy"
+      :resources="gResLive" :tasks="gTaskLive"
+      @close="tagInsightOpen = false" @optimize="runTagOptimizeAi" />
+
+    <AiDrawer v-if="tagAiJob" :job="tagAiJob" :job-key="tagAiJob.key" @close="tagAiJob = null" />
+
+    <PiMetricDetailDrawer
+      :open="!!statDrawer" :title="statDrawerTitle" :rows="statShown"
+      :filtered-count="statFiltered.length" :total-count="statList.length"
+      :search="statSearch" :page="statPage" :page-count="statPageCount"
+      :page-size="STAT_PAGE" :reconcile="statReconcile" :reconcile-note="statReconcileNote"
+      @close="statDrawer = ''" @update:search="statSearch = $event"
+      @page="statGo" @open-card="openStatCard" />
 
     <!-- ★W13-D5/F28：「动态条明细抽屉」（dynDrawer）已退役——事件时间窗下钻统一走
      DashboardLogDrawer（month-add → openLog('month-in')；主攻动作 → openLogFocus()）。 -->
@@ -1082,72 +1090,8 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 <style scoped>
 /* ===== 页面容器 ===== */
 .pi-page { max-width: 1440px; margin: 0 auto; padding: 24px 36px 64px; display: flex; flex-direction: column; gap: 24px; }
-.pi-hint { font-size: var(--fs-caption); color: var(--text-3); margin-top: 8px; }
-/* ===== ★W16-T3 抽屉对账条：把"次数 / 张数 / 已删"两套口径并排摆出来 =====
-   病灶：同一件事有两个数（今日调出按事件次数、去重后才是卡数），标题只写一个数时
-   用户点开一看对不上，以为是 bug。对账条把两个数并排 + 一句脚注说明差别在哪。 */
-.pi-recon { display: flex; gap: 8px; flex-wrap: wrap; }
-.pi-recon-cell {
-  flex: 1 1 92px; min-width: 0; display: flex; flex-direction: column; gap: 1px;
-  padding: 6px 9px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
-}
-.pi-recon-cell .k { font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pi-recon-cell .n { font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.pi-recon-cell .n small { font-size: var(--fs-micro); font-weight: 400; color: var(--text-4); margin-left: 2px; }
-.pi-recon-cell.warn .n { color: var(--warning); }
-.pi-recon-note { font-size: var(--fs-micro); color: var(--text-4); line-height: 1.6; margin-top: 0; }
-
-/* ===== 阈值弹窗（复用 gs-modal） ===== */
-.gs-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; }
-.gs-modal-overlay.open { display: flex; }
-.gs-modal { background: var(--surface); border-radius: 12px; box-shadow: 0 24px 80px rgba(0,0,0,.25); display: flex; flex-direction: column; max-height: 85vh; }
-.gs-modal-header { font-size: var(--fs-title); font-weight: 700; color: var(--text); padding: 18px 22px 12px; border-bottom: 1px solid var(--border); }
-.gs-modal-body { padding: 16px 22px; overflow-y: auto; flex: 1; font-size: var(--fs-body); color: var(--text-2); line-height: 1.8; }
-.gs-modal-footer { padding: 12px 22px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
-.gs-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub);
-  border-radius: var(--radius-sm); padding: 5px 14px; cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
-.gs-btn:hover { border-color: var(--border-strong); color: var(--text); }
-.gs-confirm-input { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
-  font-size: var(--fs-sub); border-radius: var(--radius-sm); padding: 4px 8px; font-family: inherit; }
-.gs-confirm-input:focus { outline: none; border-color: var(--accent); }
-.lc-set-global { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
-/* B1-c（V3.8.26）：阈值设置弹窗 3 处模板内联样式收口，值逐字等价 */
-.gs-modal.pi-lc-modal { width: 640px; }
-.gs-confirm-input.pi-num-sm { width: 90px; }
-.gs-confirm-input.pi-num-xs { width: 80px; }
-.lc-set-list { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; }
-.lc-set-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); }
-.lc-set-name { flex: 1; font-size: var(--fs-caption); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-
 /* ===== 今日战报弹窗壳 ===== */
 .pi-day-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
 .pi-day-modal { width: min(720px, 92vw); max-height: 86vh; background: var(--surface); border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.25); overflow: hidden; display: flex; flex-direction: column; }
 
-/* ===== 抽屉填充（复用 gs-drawer 样式） ===== */
-.gs-drawer-fill { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
-.gs-drawer-search { display: flex; align-items: center; gap: 8px; }
-.gs-drawer-search input { flex: 1; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
-  font-size: var(--fs-sub); border-radius: var(--radius-sm); padding: 6px 10px; font-family: inherit; }
-.gs-drawer-search input:focus { outline: none; border-color: var(--accent); }
-.gs-drawer-search .cnt { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
-.gs-ev-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; min-height: 0; }
-.gs-ev-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); border: 1px solid transparent; }
-.gs-ev-row.static { border-color: var(--border); }
-.gs-ev-row.static.clickable { cursor: pointer; }
-.gs-ev-row.static.clickable:hover { background: var(--surface-2); border-color: var(--border-strong); }
-.gs-ev-kind { flex-shrink: 0; }
-.gs-ev-badge { flex-shrink: 0; font-size: var(--fs-tiny); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-3); }
-.gs-ev-badge.create { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
-.gs-ev-badge.delete { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
-.gs-ev-badge.call { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
-.gs-ev-badge.status { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
-.gs-ev-title { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.gs-ev-owner { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-3); }
-.gs-ev-time { flex-shrink: 0; font-size: var(--fs-tiny); color: var(--text-4); font-variant-numeric: tabular-nums; }
-/* G3（V3.8.27）：.gs-ev-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
-.gs-pager { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: var(--fs-caption); color: var(--text-3); }
-.gs-pager button { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption);
-  border-radius: var(--radius-sm); padding: 3px 10px; cursor: pointer; font-family: inherit; }
-.gs-pager button:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
-.gs-pager button:disabled { opacity: var(--opacity-disabled); cursor: default; }
 </style>

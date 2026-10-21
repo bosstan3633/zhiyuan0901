@@ -1678,43 +1678,8 @@ const activeManualSec = ref('quick-1')
 
 /* ===== 第卌四轮：知源仪表盘 ===== */
 .gs-dash-en { font-size: var(--fs-tiny); color: var(--text-3); letter-spacing: 2px; margin-left: 6px; }
-/* R48-B1：明细抽屉搜索框 + 翻页器 */
-.gs-drawer-search { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.gs-drawer-search input { flex: 1; padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); font-family: inherit; outline: none; background: var(--surface); color: var(--text); }
-.gs-drawer-search input:focus { border-color: var(--accent); }
-.gs-drawer-search .cnt { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
-.gs-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 2px 0; border-top: 1px solid var(--border); }
-.gs-pager span { font-size: var(--fs-caption); color: var(--text-3); }
-.gs-pager button { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; font-family: inherit; transition: all var(--dur-fast); }
-.gs-pager button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.gs-pager button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-/* R172-T8：记录条自身的筛选行/明细行样式随内联卡退役 —— 三维筛选与明细已在 DashboardLogDrawer.vue */
-.gs-ev-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
-/* R51-B7：抽屉内列表撑满高度——搜索固定、列表 flex 撑满、翻页贴底，消除下方大片空白 */
-.gs-drawer-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.gs-drawer-fill .gs-drawer-search { flex-shrink: 0; }
-.gs-drawer-fill .gs-ev-list { flex: 1; max-height: none; overflow-y: auto; min-height: 0; }
-.gs-drawer-fill .gs-pager { flex-shrink: 0; margin-top: 10px; }
-.gs-ev-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all var(--dur-fast); font-size: var(--fs-body); }
-.gs-ev-row:hover { border-color: var(--accent); background: var(--accent-light); }
-.gs-ev-row.static { cursor: default; }
-.gs-ev-row.static:hover { border-color: var(--border); background: var(--surface); }
-/* V2.20.1 BUG-3b：下钻明细行可点击定位 + 加载更多 */
-.gs-ev-row.static.clickable { cursor: pointer; }
-.gs-ev-row.static.clickable:hover { border-color: var(--accent); background: var(--accent-light); }
-.gs-ev-time { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.gs-ev-badge { font-size: var(--fs-caption); border-radius: 5px; padding: 2px 8px; font-weight: 600; flex-shrink: 0; }
-.gs-ev-badge.create { color: #7fbf8a; background: rgba(127,191,138,.14); }
-.gs-ev-badge.delete { color: #e07a7a; background: rgba(224,122,122,.14); }
-.gs-ev-badge.restore { color: var(--accent-ink); background: var(--accent-light); }
-.gs-ev-badge.call { color: var(--tag-info-text); background: var(--tag-info-bg); }
-/* R117（04-61 C3）：好奇心探索状态变更事件 */
-.gs-ev-badge.status { color: var(--tag-warn-text); background: var(--tag-warn-bg); }
-.gs-ev-badge.purge { color: #d46a6a; background: rgba(212,106,106,.2); }
-/* R47-B2：任务明细行「项目 · 指标」归属徽标 */
-.gs-ev-owner { font-size: var(--fs-caption); color: var(--text-2); background: var(--bg-3, rgba(127,127,127,.12)); border-radius: 4px; padding: 1px 6px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
-.gs-ev-kind { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
-.gs-ev-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+/* V3.9.7：指标抽屉及其搜索、翻页、对账样式已迁入
+   PiMetricDetailDrawer.vue；宿主只保留数据与动作，禁止在这里恢复旧规则。 */
 
 
 /* ===== R4-Da（旧世界清账）：🗺 全景整页退役后，原同一段样式里仍被存活页面消费的规则补回。

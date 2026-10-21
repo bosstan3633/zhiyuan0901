@@ -13,6 +13,7 @@
  * 过期（数据已变更）只降亮标签，**不撤标签**——撤了反而看不出"这个项目曾经有过结论"。
  */
 import Icon from '@/shared/components/Icon.vue'
+import './hotzone.css'
 import { computed } from 'vue'
 import type { ProjectMeta } from '../../views/compassMeta'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'

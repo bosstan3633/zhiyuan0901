@@ -10,7 +10,7 @@
  *   E2E-34 ★R4-Dd Airtable 标签列名落盘（不碰网络，核配置链与 PAT 遮罩）
  *   E2E-35 ★R4-De 池卡定位落调度台卡池（采集后 Enter 那条链路不再跳死页）
  *   E2E-36 ★R4-Dg 导出 Markdown 含池卡 + 台名走单源（「资源卡池」）
- *   E2E-4  调度台右栏「未归档」入口进入任务二级页并预选筛选
+ *   E2E-4  ★W17-C01 重指：调度台右栏「未归档」→ 中央只读明细弹窗（原地不改路由 / 只读 / Esc 可关 / 焦点回归）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
  *   E2E-7  V3.9.1 三类“查看全部”独立二级路由：任务/好奇心/资源各自可直达，二级页无新建入口
@@ -52,6 +52,39 @@ const results = []
 function report(name, ok, detail) {
   results.push({ name, ok, detail })
   console.log(`${ok ? '✅' : '❌'} ${name}${detail ? ' — ' + detail : ''}`)
+}
+
+/* ★R175-补：条件轮询助手——替代「固定等 N 毫秒后再断言」。
+   为什么必须改：固定等待是 E2E 随机漂移（flaky）的另一半根因。
+   同一个断言在快机器上等够了、在慢机器上没等够 ⇒ 假红；机器一快一慢又变绿。
+   本助手把「等多久」从拍脑袋的常量变成「等到达目标状态为止」：
+   达标即返回（通常远早于原固定值 ⇒ 全套 E2E 变快），超时才用最后一次采样值走原断言口径。
+   **断言强度不放松**：超时后仍拿真实采样值去判，判据与改动前一字未改。 */
+async function pollUntil(fn, { timeout = 8000, interval = 120, label = '' } = {}) {
+  const deadline = Date.now() + timeout
+  let last
+  for (;;) {
+    try { last = await fn() } catch (e) { last = false }
+    if (last) return last
+    if (Date.now() >= deadline) return last
+    await new Promise(r => setTimeout(r, interval))
+  }
+}
+/** 轮询某个 locator 出现（并可选满足额外条件） */
+async function waitForLocator(page, selector, opts = {}) {
+  return pollUntil(async () => {
+    const n = await page.locator(selector).count().catch(() => 0)
+    if (n <= 0) return false
+    if (opts.visible) return page.locator(selector).first().isVisible().catch(() => false)
+    return true
+  }, { label: selector, ...opts })
+}
+/** 轮询页面内某个谓词成立（读 storage 落库这类没有 DOM 信号的场合） */
+async function waitForStorage(page, keys, predicate, opts = {}) {
+  return pollUntil(async () => {
+    const raw = await page.evaluate((ks) => chrome.storage.local.get(ks), keys).catch(() => null)
+    return raw ? predicate(raw) : false
+  }, { label: 'storage:' + (Array.isArray(keys) ? keys.join(',') : keys), ...opts })
 }
 
 async function main() {
@@ -149,24 +182,47 @@ async function main() {
   const treeRows = await page.locator('.gs-tt-row').count()
   report('E2E-3 全景退役归零 + 标签双栏仍两列', panNodes === 0 && navPan === 0 && wrapCols === 2 && treeRows >= 1, `panNodes=${panNodes} navPan=${navPan} cols=${wrapCols} treeRows=${treeRows}`)
 
-  // E2E-4（V3.9.1 重指）：合流指标条已退役，方向状态由两栏首页右栏承接。
-  // 本用例守的真实链路：右栏「未归档」读数 → 独立任务二级页 → 状态筛选预选 unarchived。
-  // 不再在首页寻找已迁走的 `.metric-bar/.mb-cell`。
+  // E2E-4（V3.9.1 重指 → ★W17-C01 再重指，2026-10-21）：右栏「今天的状态」三行不再跳页。
+  //   原用例守的是「未归档读数 → 独立任务二级页 → 状态筛选预选 unarchived」这条跳页链路；
+  //   W17-C01 把三行改成**中央只读明细弹窗**（用户拍板：说 A 给 B），跳页行为已被产品明确废弃。
+  //   ⇒ 判据重指为守**新契约**（纪律：只增不减、重指不删除，理由写进本注释）：
+  //     ① 右栏三行仍在（.stat-row）
+  //     ② 点「未归档」→ 中央弹窗出现，标题含「未归档任务明细」
+  //     ③ **URL 不变**（这是 C01 的核心：原地弹窗，不改路由）
+  //     ④ 明细只读：行内无可点语义（role=button / tabindex=0 / cursor:pointer）
+  //     ⑤ Esc 可关，关闭后焦点回到触发按钮
+  //   任务二级页那条链路已由 E2E-7 覆盖（#/deck/task 直达 + 二级页零新建入口）。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const sideRail = page.locator('.side-rail').first()
   const unarchivedRow = sideRail.locator('.stat-row').filter({ hasText: '未归档' }).first()
   const sideRailOn = await sideRail.isVisible().catch(() => false)
   const unarchivedText = ((await unarchivedRow.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  const urlBeforeClick = page.url()
   await unarchivedRow.click().catch(() => {})
   await page.waitForTimeout(1500)
-  const unarchivedUrl = page.url()
-  const unarchivedRoute = unarchivedUrl.includes('#/deck/task') && unarchivedUrl.includes('filter=unarchived')
-  const taskDeckOn = await page.locator('.deck-page .mgr-body').first().isVisible().catch(() => false)
-  const taskFilter = await page.locator('.deck-page select[title="状态筛选"]').first().inputValue().catch(() => '')
-  report('E2E-4 V3.9.1 右栏「未归档」→ 任务二级页并预选筛选',
-    sideRailOn && unarchivedText.includes('未归档') && unarchivedRoute && taskDeckOn && taskFilter === 'unarchived',
-    `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" url=${unarchivedUrl.split('#')[1] || ''} deck=${taskDeckOn} filter=${taskFilter}`)
+  const urlAfterClick = page.url()
+  const statusModal = page.locator('.md-panel').filter({ hasText: '未归档任务明细' }).first()
+  const statusModalOn = await statusModal.isVisible().catch(() => false)
+  const urlUnchanged = urlBeforeClick === urlAfterClick
+  /* 只读核验：明细行不得有可点语义（role=button / tabindex=0），且鼠标样式不是 pointer */
+  const detailRows = statusModal.locator('.sd-row')
+  const rowCount = await detailRows.count()
+  const clickableRows = await detailRows.evaluateAll(rows => rows.filter(r =>
+    r.getAttribute('role') === 'button' || r.getAttribute('tabindex') === '0'
+    || getComputedStyle(r).cursor === 'pointer').length).catch(() => -1)
+  /* Esc 可关 + 焦点回归触发按钮 */
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(700)
+  const closedByEsc = !(await statusModal.isVisible().catch(() => false))
+  const focusBack = await page.evaluate(() => {
+    const el = document.activeElement
+    return !!(el && el.classList && el.classList.contains('stat-row'))
+  })
+  report('E2E-4 ★W17-C01 右栏「未归档」→ 中央只读明细弹窗（原地不改路由 · 只读 · Esc 可关 · 焦点回归）',
+    sideRailOn && unarchivedText.includes('未归档') && statusModalOn && urlUnchanged
+    && rowCount >= 0 && clickableRows === 0 && closedByEsc && focusBack,
+    `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" modal=${statusModalOn} url不变=${urlUnchanged} 明细行=${rowCount} 可点行=${clickableRows} Esc关=${closedByEsc} 焦点回归=${focusBack}`)
 
   // E2E-5 PDF 双击 file:// 打开
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -270,7 +326,8 @@ async function main() {
   const deckChecks = []
   for (const [kind, host] of [['task', '.mgr-body'], ['curiosity', '.cz-body'], ['resource', '.pcp']]) {
     await page.goto(base + '#/deck/' + kind, { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(2200)
+    /* ★R175-补：等面板真出现，而不是死等 2200ms（慢机器上等不够 ⇒ E2E-7 随机假红）。 */
+    await waitForLocator(page, host, { visible: true, timeout: 10000 })
     const panel = await page.locator(host).first().isVisible().catch(() => false)
     const newButtons = await page.locator('.dk-new').count()
     const importButton = kind === 'resource'
@@ -294,7 +351,8 @@ async function main() {
 
   // E2E-8 V3.9.1 两栏调度台：左工作单 + 手边卡，右案头栏；旧的纵向卡片堆叠与卡内子任务视口退役。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
+  /* ★R175-补：两栏骨架出现即继续（不等死 2500ms）。 */
+  await waitForLocator(page, '.work-board', { timeout: 10000 })
   const home = await page.evaluate(() => ({
     workBoard: !!document.querySelector('.work-board'),
     focusRows: document.querySelectorAll('.focus-row').length,
@@ -304,9 +362,12 @@ async function main() {
     oldCuration: !!document.querySelector('.card.curation'),
     oldSubs: !!document.querySelector('.tc-subs'),
   }))
-  const firstFocus = page.locator('.focus-row[role="button"]').first()
+  /* ★R175-补：工作单行真出现再点（原来靠上面那步的固定等待，时机不可控）。 */
+  await waitForLocator(page, ".focus-row[role='button']", { visible: true, timeout: 10000 })
+  const firstFocus = page.locator(".focus-row[role='button']").first()
   if (await firstFocus.count()) await firstFocus.click().catch(() => {})
-  await page.waitForTimeout(900)
+  /* ★R175-补：抽屉真出现即继续。 */
+  await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
   const drawerOpened = await page.locator('.drawer').first().isVisible().catch(() => false)
   report('E2E-8 V3.9.1 两栏调度台：工作单 + 手边卡预览 + 案头栏；旧纵向卡面退役；整行点击打开右侧任务详情',
     home.workBoard && home.focusRows === 3 && home.handBoard && home.handGrid && home.sideRail
@@ -454,16 +515,23 @@ async function main() {
   const dsOldDay = '2026-08-15'
   const dsNow = new Date()
   const dsToday = dsNow.getFullYear() + '-' + String(dsNow.getMonth() + 1).padStart(2, '0') + '-' + String(dsNow.getDate()).padStart(2, '0')
-  await page.evaluate(([oldDay]) => chrome.storage.local.get('zy_data_v2').then((cur) => {
+  const dsSeeded = await page.evaluate(([oldDay]) => chrome.storage.local.get('zy_data_v2').then(async (cur) => {
     const data = cur['zy_data_v2']
+    // R175：__wid 是页面上下文自己的写戳，不是备份数据的一部分。
+    // 测试直种整树时若原样复制旧写戳，old/new 写戳会被判为复用，
+    // 从而走外部合并；这与真实导入/备份回灌同一纪律。
+    if (data) delete data.__wid
     if (data && !data.resources.some(r => r.id === 'e2e-ds-1')) {
       data.resources.push({ id: 'e2e-ds-1', kind: 'resource', title: 'E2E 落盘卡', linkType: 'url', link: 'https://example.com/e2e-ds', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
     }
-    return chrome.storage.local.set({
+    await chrome.storage.local.set({
       zy_data_v2: data,
       zy_daily_stats: { v: 1, days: { [oldDay]: { c: { res: 9, curio: 0, task: 0 }, del: { res: 0, curio: 0, task: 0 }, s: { curio: 0, task: 0 }, u: 0, d: 0, sub: 0, focus: 0, link: 0, x: { add: 9, del: 0 }, w: 9 } }, fullSince: oldDay, base: { res: 0, task: 0, curio: 0, link: 0 } },
       zy_event_log: [{ id: 'e2e-ds-create', ts: Date.now() - 60000, action: 'create', kind: 'resource', title: 'E2E 落盘卡', cardId: 'e2e-ds-1' }]
     })
+    const reread = await chrome.storage.local.get('zy_data_v2')
+    const card = (reread['zy_data_v2']?.resources || []).find(r => r.id === 'e2e-ds-1')
+    return { card: !!card, wid: reread['zy_data_v2']?.__wid || '' }
   }), [dsOldDay])
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
@@ -472,11 +540,11 @@ async function main() {
   // 所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格，且 fullSince 说明仍含老日子。
   await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2400)
-  const yearRail = page.locator('.pi-rail .pi-rnode').filter({ hasText: '本年度' }).first()
-  await yearRail.click().catch(() => {})
+  const yearTab = page.locator('.pi-range button, .pi-ray button').filter({ hasText: '本年' }).first()
+  await yearTab.click().catch(() => {})
   await page.waitForTimeout(700)
   const yearModuleOn = await page.locator('#mod-year').first().isVisible().catch(() => false)
-  const heatTarget = page.locator('#mod-year .dz-cell:not(.future):not(.today)').first()
+  const heatTarget = page.locator('#mod-year .dz-cell:not(.future):not(.today)').last()
   const heatTargetDay = await heatTarget.getAttribute('title').then(t => (t || '').split(' · ')[0]).catch(() => '')
   await heatTarget.click({ timeout: 6000 }).catch(() => {})
   await page.waitForTimeout(700)
@@ -504,7 +572,12 @@ async function main() {
   await page.locator('.drawer .dr-footer-btn.primary').first().click({ timeout: 5000 }).catch(() => {})
   await page.waitForTimeout(900) /* saveData 300ms 防抖 + flushCardEvents + schedule 排程 */
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
-  await page.waitForTimeout(1500)
+  /* ★R175-补：等今日快照**真的落进 storage** 再读（原来死等 1500ms；
+     写链路含 saveData 300ms 防抖 + flushCardEvents + pagehide 补写，慢机器上 1500ms 常常不够
+     ⇒ E2E-25 随机假红）。判据与判读口径一字未改。 */
+  const dsWrittenOk = await waitForStorage(page, 'zy_daily_stats',
+    (raw) => { const st = raw.zy_daily_stats; const rec = st && st.days ? st.days[dsToday] : null; return !!(rec && rec.x && rec.x.add >= 1) },
+    { timeout: 15000 })
   const dsWritten = await page.evaluate((t) => chrome.storage.local.get('zy_daily_stats').then((cur) => {
     const st = cur['zy_daily_stats']
     const rec = st && st.days ? st.days[t] : null
@@ -520,8 +593,8 @@ async function main() {
   await page.waitForTimeout(2000)
   report('E2E-25 R174-3 按日快照落盘（画像页年度段读合并 + 保存→pagehide→今日写链路）',
     yearModuleOn && heatBattle.open && heatBattle.sub.includes(heatTargetDay)
-      && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWritten.has && dsWritten.add >= 1,
-    `年度段=${yearModuleOn} 战报=${heatBattle.open} 战报日=${heatBattle.sub} 点格日=${heatTargetDay} 月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
+      && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWrittenOk && dsWritten.has && dsWritten.add >= 1,
+    `年度段=${yearModuleOn} 战报=${heatBattle.open} 战报日=${heatBattle.sub} 点格日=${heatTargetDay} 月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 种卡=${dsSeeded.card} 种子写戳=${!!dsSeeded.wid} 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
   // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -691,17 +764,20 @@ async function main() {
   // E2E-15 二级导航闭环（R54-A / V3.9.1）：项目详情 → 跳树带定位与来源 → 来路提示可见 → Esc 返回项目详情。
   // 「← 返回项目详情」按钮已退役，但 fromProjId / goBack / Esc 的来源感知能力保留。
   await page.evaluate(() => { location.hash = '#/compass/projects?p=e2e-proj-1' })
-  await page.waitForTimeout(1500)
+  /* ★R175-补：等项目详情真挂载（面包屑在）再操作，不死等 1500ms。 */
+  await page.getByText("方向台", { exact: true }).first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {})
   const crumbUp = await page.getByText('方向台', { exact: true }).first().isVisible().catch(() => false)
   // R121：树定位入口收进展板 ⋯ 菜单（原 back-row「🌳 完整方向树」按钮已随重排退役）
   await page.locator('.pb-more-wrap .mini-btn.icon').first().click().catch(() => {})
   await page.waitForTimeout(400)
   await page.locator('.pb-menu .pm-item', { hasText: '在完整方向树中定位' }).first().click().catch(() => {})
-  await page.waitForTimeout(1500)
+  /* ★R175-补：等树页真到位（URL 带 from=proj 且来源提示在）再读，不死等。 */
+  await page.locator(".hero-from").first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {})
   const urlHasFrom = page.url().includes('from=proj') && page.url().includes('hl=')
   const fromProjLabel = ((await page.locator('.hero-from').first().innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
   await page.keyboard.press('Escape').catch(() => {})
-  await page.waitForTimeout(1500)
+  /* ★R175-补：等真的退回项目详情（URL 变回）再判，不死等。 */
+  await pollUntil(() => page.url().includes("/compass/projects") && page.url().includes("p=e2e-proj-1"), { timeout: 10000 })
   const backOnProj = page.url().includes('/compass/projects') && page.url().includes('p=e2e-proj-1')
   report('E2E-15 面包屑+来源感知返回+树定位闭环（R54-A · V3.9.1 按钮退役后由来源提示 + Esc 承接）',
     crumbUp && urlHasFrom && fromProjLabel.includes('来自项目「E2E 策展项目」') && backOnProj,
@@ -767,7 +843,8 @@ async function main() {
     })
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2200)
+  /* ★R175-补：种卡真上屏再拖（原来死等 2200ms；慢机器上种子卡还没渲染就发拖拽事件 ⇒ E2E-18 随机假红）。 */
+  await waitForLocator(page, "[data-rid='e2e-drag-a']", { visible: true, timeout: 10000 })
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1600) }
   // 真值检查：draggable 属性必须是字符串 'true'（R57-F1 根因防线）
   const dragAttr = await page.evaluate(() => {
@@ -786,7 +863,10 @@ async function main() {
     src.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
     return 'dispatched'
   })
-  await page.waitForTimeout(700)
+  /* ★R175-补：等落卡真写进库（categoryId 已变）再读，不死等 700ms。 */
+  await waitForStorage(page, "zy_data_v2",
+    (raw) => ((((raw["zy_data_v2"] || {}).resources || []).find(x => x.id === "e2e-drag-a") || {}).categoryId === "e2e-drag-c2"),
+    { timeout: 8000 })
   const movedCat = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => ((r['zy_data_v2'].resources || []).find(x => x.id === 'e2e-drag-a') || {}).categoryId ?? '(无)'))
   report('E2E-18 策展台资源卡可拖真值+跨分类落卡（R111 承接 R57-F1）', dragAttr === 'true' && seedOk && areaDrop === 'dispatched' && movedCat === 'e2e-drag-c2',
     'draggable=' + dragAttr + ' seed=' + seedOk + ' area=' + areaDrop + ' cat=e2e-drag-c1→' + movedCat)
@@ -809,20 +889,25 @@ async function main() {
   await page.waitForTimeout(1800)
   await page.evaluate(() => { location.hash = '#/workspace/e2e-del-ws' })
   await page.waitForTimeout(1600)
-  await page.evaluate(() => { const b = document.querySelector('.hero-btn.settings'); if (b) b.click() })
-  await page.waitForTimeout(400)
-  await page.evaluate(() => { const it = [...document.querySelectorAll('.sm-item')].find(x => x.textContent.includes('删除策展台')); if (it) it.click() })
-  await page.waitForTimeout(500)
+  /* 「导入模板」也复用了 .hero-btn.settings，必须按真实入口的 title 定位设置齿轮，否则点到同类按钮。 */
+  await page.locator('button.hero-btn.settings[title="策展台设置"]').click()
+  await page.getByText('删除策展台', { exact: true }).last().click()
+  /* ★R175-补：等确认弹窗真出现再点（原来死等 500ms）。 */
+  await page.getByText("移入回收站").first().waitFor({ state: "visible", timeout: 8000 }).catch(() => {})
   const confirmMsg = await page.getByText('移入回收站').first().isVisible().catch(() => false)
   await page.evaluate(() => { const b = document.querySelector('.cdf-btn.ok'); if (b) b.click() })
-  await page.waitForTimeout(1200)
+  /* ★R175-补：等软删真落库（台已移出 + 卡带 deletedAt）再读。 */
+  await waitForStorage(page, "zy_data_v2",
+    (raw) => { const dd = raw["zy_data_v2"] || {}; const card = (dd.resources || []).find(x => x.id === "e2e-del-card"); return !(dd.workspaces || []).some(w => w.id === "e2e-del-ws") && !!(card && card.deletedAt) },
+    { timeout: 10000 })
   const afterDel = await page.evaluate(() => new Promise((res) => chrome.storage.local.get('zy_data_v2').then(r => {
     const dd = r['zy_data_v2']
     const card = (dd.resources || []).find(x => x.id === 'e2e-del-card')
     res({ wsGone: !(dd.workspaces || []).some(w => w.id === 'e2e-del-ws'), softDeleted: !!(card && card.deletedAt && !card.purged), cardExists: !!card })
   })))
   await page.evaluate(() => { location.hash = '#/recycle' })
-  await page.waitForTimeout(1400)
+  /* ★R175-补：等回收站列表真出现该卡再判。 */
+  await page.getByText("E2E 待删台资源卡").first().waitFor({ state: "visible", timeout: 10000 }).catch(() => {})
   const inRecycle = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('[data-rid], .recycle-item, .rb-item, tr, .res-row')].map(n => n.textContent || '')
     return rows.some(t => t.includes('E2E 待删台资源卡')) || (document.body.textContent || '').includes('E2E 待删台资源卡')
@@ -1883,31 +1968,35 @@ await paOpen()
   // ══════════ E2E-42（R4-Ew）★画像洞察页四格 KPI 的下钻出口都真响应 ══════════
   // V3.9.3：四类指标从 PiHero 归位画像洞察首屏概览，仍是同一组真实下钻出口。
   // 本用例保留 R4-Ew「不能只有数字、没有真出口」的原意，按新宿主的三种真实响应形态判：
-  //   total/support → 卡片清单抽屉；entropy → 口径 toast；focus → 全量记录抽屉（focusOnly 预设）。
+   //   total/support → 卡片清单抽屉；entropy → 独立解释抽屉；focus → 全量记录抽屉（focusOnly 预设）。
   await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2400)
   const heroKpiCount = await page.locator('.pi-ov-kpis .pi-ov-kpi').count()
   const heroDrillRes = []
   for (const dr of [
-    { i: 0, 名: '全库净资产', 型: 'drawer', 题: '全部卡片明细' },
-    { i: 1, 名: '知识熵', 型: 'toast', 题: '知识熵' },
-    { i: 2, 名: '任务有证据支撑', 型: 'drawer', 题: '任务证据支撑明细' },
-    { i: 3, 名: '近30天精力落主攻', 型: 'log', 题: '全部记录' },
+    { i: 0, 名: '在库卡片', 型: 'drawer', 题: '全部卡片明细' },
+    { i: 1, 名: '标签分布', 型: 'explain', 题: '标签分布 · 知识熵' },
+    { i: 2, 名: '任务有资源支撑', 型: 'drawer', 题: '任务证据支撑明细' },
+    { i: 3, 名: '近 30 天精力落主攻', 型: 'log', 题: '全部记录' },
   ]) {
     await page.locator('.pi-ov-kpis .pi-ov-kpi').nth(dr.i).click().catch(() => {})
     await page.waitForTimeout(900)
     const one = await page.evaluate((d) => {
       const drawerTitle = ((document.querySelector('.drawer-title') || {}).textContent || '').trim()
       const toast = [...document.querySelectorAll('.toast-msg')].map(x => (x.textContent || '').trim()).join(' ')
-      const rows = document.querySelectorAll('.drawer .gs-ev-row').length
-      const empty = !!document.querySelector('.drawer .gs-ev-empty')
+      const rows = document.querySelectorAll('.drawer .metric-drawer .row').length
+      const empty = !!document.querySelector('.drawer .metric-drawer .empty-state')
       const logRows = document.querySelectorAll('.drawer .dz-log-row').length
       const logEmpty = !!document.querySelector('.drawer .dz-log-empty')
       const logNote = ((document.querySelector('.drawer .dz-log-note') || {}).textContent || '').trim()
+      const explain = document.querySelector('.drawer .pi-tag-insight')
+      const explainText = (explain?.textContent || '').replace(/\s+/g, ' ').trim()
+      const insightHeads = [...document.querySelectorAll('.pi-tag-insight h4')]
+      const LABELS = ['这个指标怎么看', '当前分布', '下一步建议', '交给 AI 助手处理']
       return {
         名: d.名,
         抽屉在: !!document.querySelector('.drawer'),
-        题在: d.型 === 'toast' ? toast.includes(d.题) : drawerTitle.includes(d.题),
+        题在: drawerTitle.includes(d.题),
         题: drawerTitle.slice(0, 36),
         toast: toast.slice(0, 60),
         rows,
@@ -1915,25 +2004,25 @@ await paOpen()
         logRows,
         logEmpty,
         logNote: logNote.slice(0, 60),
+        explain: !!explain && insightHeads.every((h, i) => h.textContent.includes(LABELS[i])),
+        explainText: explainText.slice(0, 80),
       }
     }, dr)
     heroDrillRes.push({ ...one, 型: dr.型 })
-    if (dr.型 === 'toast') {
-      await page.waitForTimeout(1900)
-    } else {
-      await page.locator('.drawer .drawer-close').first().click().catch(() => {})
-      await page.waitForFunction(() => document.querySelectorAll('.drawer').length === 0, null, { timeout: 4000 }).catch(() => {})
-    }
+    await page.locator('.drawer .drawer-close').first().click().catch(() => {})
+    await page.waitForFunction(() => document.querySelectorAll('.drawer').length === 0, null, { timeout: 4000 }).catch(() => {})
+    await page.waitForTimeout(250)
   }
-  const heroDrillOk = heroKpiCount === 4 && heroDrillRes.every(r =>
-    r.题在 && (r.型 === 'toast'
-      ? r.toast.includes('知识熵')
+  const heroDrillOk = heroKpiCount === 4 && heroDrillRes.every(r => r.题在 && r.抽屉在 && (
+    r.型 === 'explain'
+      ? r.explain
       : r.型 === 'log'
-        ? r.抽屉在 && r.logNote.includes('近30天主攻动作') && (r.logRows > 0 || r.logEmpty)
-        : r.抽屉在 && (r.rows > 0 || r.empty)))
-  report('E2E-42 ★R4-Ew 画像洞察页四格 KPI 真响应：卡片清单抽屉 / 知识熵口径 toast / 主攻动作全量记录抽屉',
+        ? r.logNote.includes('近30天主攻动作') && (r.logRows > 0 || r.logEmpty)
+        : r.rows > 0 || r.empty
+  ))
+  report('E2E-42 ★R4-Ew 画像洞察页四格 KPI 真响应：卡片清单抽屉 / 知识熵解释抽屉 / 主攻动作全量记录抽屉',
     heroDrillOk,
-    heroDrillRes.map(r => `${r.名}:题=${r.题在} 抽屉=${r.抽屉在} 行=${r.rows} 日志行=${r.logRows} 空态=${r.logEmpty} note=${r.logNote} toast=${r.toast}`).join(' ｜ '))
+    heroDrillRes.map(r => `${r.名}:题=${r.题在} 抽屉=${r.抽屉在} 行=${r.rows} 日志行=${r.logRows} 空态=${r.logEmpty} note=${r.logNote} 解释=${r.explain}`).join(' ｜ '))
 
   // ══════════ E2E-43（R4-Fb）★不可注入页的降级出口：两种入口都要真开面板 ══════════
   // 原来这条链的末端是一个**从未进过构建**的独立弹窗（dist/src/popup/index.html 仍引 ./main.ts、

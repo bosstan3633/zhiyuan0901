@@ -97,7 +97,7 @@ check('W11-5 ★方向台的数字必须**单一真源**：骨架条六层数、
 });
 
 check('W11-6 ★成熟度等级色只做小圆点/小徽标，绝不许用在指标名或任务名上 —— 那会造成"等级压过标题"的层级倒置（W7 的 V3.8.7 病灶在方向台的复现形态）。等级色令牌真名以 tokens.css 为准：--success / --info-blue / --warning / --danger（**没有** --ok / --info，记错就是静默失效）', () => {
-  return CMETA.includes('export function gradeColorVar(')
+  return CMETA.includes('export const gradeColorVar = (grade: string): string =>')
     && CMETA.includes("grade === 'A' ? 'var(--success)'")
     && CMETA.includes("'var(--info-blue)'") && CMETA.includes("'var(--warning)'") && CMETA.includes("'var(--danger)'")
     /* ★负锚：老令牌名一旦复活就是渲染成继承色而不报错 */
@@ -285,10 +285,13 @@ check('W11-14 ★任务归属只有一个解析口径：项目、指标聚合、
     && CMETA.includes('export function tasksOfMetric')
     && CMETA.includes('const linkedIds = new Set(metric.taskIds || [])')
     && CMETA.includes('t.metricId === metric.id || linkedIds.has(t.id)')
-    /* 聚合走单次建桶（性能红线）：两条关联路径都必须入同一桶，且 aggMetric 仍做 id 去重 */
+    /* 聚合走单次建桶（性能红线）：两条关联路径都必须入同一桶，且 aggMetric 必须真的做 id 去重。
+       ★V3.9.7：此前注释声称会去重，但函数体没有调用 dedupeSorted；历史双写数据在指标下
+       显示成两行，删一行又会软删同一任务、两行一起消失。 */
     && buildSeg.includes('for (const t of live) if (t.metricId) addToBucket(t.metricId, t)')
     && buildSeg.includes('for (const taskId of metric.taskIds || [])')
     && buildSeg.includes('addToBucket(metric.id, task)')
+    && CMETA.includes('const uniqueTasks = dedupeSorted(tasks)')
     /* 桶内容仍需去重：覆盖 REQ-034 的历史重复 id 脏数据 */
     && buildSeg.includes('aggMetric(m, bucket.get(m.id) || [])')
     && CMETA.includes('function dedupeSorted(tasks: TaskCard[]): TaskCard[]')
