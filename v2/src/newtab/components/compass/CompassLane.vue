@@ -166,14 +166,20 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 </template>
 
 <style scoped>
+/* ★视觉聚焦（方向台优化）：指标从"卡"退成"分组"。
+   原来指标卡是 surface-2 底 + 圆角，任务行又是 surface 白卡，再套在项目舱卡里 ——
+   同一屏三层容器，边框与底色把注意力从"这条指标要交付什么"上拽走。
+   现在指标只用一条发丝线与序号定位，层级由字号与留白承担；
+   hover 不再加描边环（那是"框"的语言），改为极淡的底色提示。 */
 .metric-card {
-  background: var(--surface-2);
-  border-radius: var(--radius-md);
-  padding: 14px 16px 14px 18px;
+  background: transparent;
+  border-radius: 0;
+  border-top: 1px solid var(--border);
+  padding: 13px 4px 14px 16px;
   position: relative;
-  transition: box-shadow var(--dur);
+  transition: background var(--dur);
 }
-.metric-card:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--hue) 34%, transparent); }
+.metric-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
 .mc-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .mc-dot {
   width: 17px; height: 17px; border-radius: 50%; flex: none;
@@ -274,17 +280,19 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   width: 2px; border-radius: 2px;
   background: color-mix(in srgb, var(--hue) 34%, transparent);
 }
-/* ★任务行：原型 .task 是 9px 12px 内边距 + 悬停右移 2px + 白底卡。
-   之前是 4px 8px 的裸行，一屏十几条时全部糊成一条灰带，"任务属于哪个指标"也就看不见了。 */
+/* ★任务行：保留白底行（W12-5 判据）与 hover 位移（手感），但去掉圆角与卡间距 ——
+   圆角 + 外边距会让每一行都像一张独立小卡，一屏十几条就是十几张卡；
+   改成"表格行"形态后，任务读起来是同一个列表里的连续条目。 */
 .tk-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: 8px; margin-bottom: 6px;
+  padding: 9px 12px; border-radius: 0; margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
   background: var(--surface);
   position: relative; transition: all var(--dur); cursor: default;
 }
-.tk-row:last-child { margin-bottom: 0; }
+.tk-row:last-child { margin-bottom: 0; border-bottom: 0; }
 .tk-row:hover {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hue) 42%, transparent);
+  background: color-mix(in srgb, var(--surface) 70%, var(--bg));
   transform: translateX(2px);
 }
 /* ★分叉臂：任务从指标轨道分出的横线——同样是无内容容器 */
@@ -358,10 +366,12 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-row:hover .tk-unbind { opacity: 1; }
 .tk-unbind:hover { color: var(--danger); background: var(--danger-bg-soft); }
 
-/* 断链空位：★用 surface-3 而不是低 alpha 底色——亮色主题下低 alpha 等于隐形（判据 W11-6） */
+/* 断链空位：★视觉聚焦 —— 从"虚线告警框"改为"带色轨的行动提示"。
+   虚线圈 + 圆角 + 底色三者叠加时，它看起来像一块"出错的卡"；而它真正要说的只有一句：
+   标准已定、缺一条动作，右边就是建任务的入口。 */
 .mc-orphan {
-  margin: 11px 0 0 26px; padding: 10px 13px;
-  border: 1px dashed var(--warning-border); border-radius: 8px;
+  margin: 9px 0 0 26px; padding: 9px 12px;
+  border: 0; border-left: 2px solid var(--warning-border); border-radius: 0;
   background: var(--warning-bg-soft);
   min-height: 44px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }

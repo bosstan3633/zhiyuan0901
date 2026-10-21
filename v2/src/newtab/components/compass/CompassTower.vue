@@ -244,18 +244,20 @@ function hasClue(t: TaskCard): boolean {
 /* 舱间大间距由 .tower-list 的 gap 承担（原型 --sp-8），这里不再叠一份 margin，
    否则两级间距相加成 80px，页面会被撑得比原型松散一倍 */
 .tower {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* ★视觉聚焦（方向台优化）：舱体不再是一张"浮在画布上的卡"。
+     原先 surface 底 + 边框，指标卡又是 surface-2、任务行再是 surface —— 三层容器叠加后读者先数框。
+     改为无底色、只留发丝分隔线，区隔由左侧色条与舱间间距承担（判据 W11-1 的 gap 不变）。
+     层级由色条、发丝线与间距承担；阴影只留给 hover/拖拽这类临时状态。 */
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  /* 视觉降噪：项目舱是页面主结构，不再叠一层全局阴影。
-     层级由左侧色条、边框、间距和内部 surface-2 指标卡承担；
-     阴影只留给 hover/拖拽这类临时状态，避免整页出现“卡片浮在卡片上”。 */
   box-shadow: none;
   position: relative;
   overflow: hidden;
   transition: border-color var(--dur), box-shadow var(--dur);
 }
-.tower:hover { border-color: color-mix(in srgb, var(--hue) 30%, var(--border)); }
+.tower:hover { border-top-color: color-mix(in srgb, var(--hue) 30%, var(--border)); }
 /* 左侧 4px 项目色条：舱身份的唯一标识 */
 .tower::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
@@ -273,8 +275,10 @@ function hasClue(t: TaskCard): boolean {
 /* ★序号牌 34px：原型 .tw-idx 是舱的"身份印章"，22px 时与 12px 指标序号同量级、层级拉不开 */
 .tw-idx {
   width: 34px; height: 34px; border-radius: 11px; flex: none;
-  background: color-mix(in srgb, var(--hue) 22%, transparent);
-  color: var(--text); font-size: var(--fs-sub); font-weight: 700;
+  /* ★视觉聚焦：序号从"彩色印章"退成"刻度"——淡底 + text-3。
+     舱的身份已由左侧色条承担，序号只需回答"第几个"，不该与项目名争色。 */
+  background: var(--surface-2);
+  color: var(--text-3); font-size: var(--fs-sub); font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
 .tw-id { flex: 1; min-width: 200px; }

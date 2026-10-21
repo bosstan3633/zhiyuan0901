@@ -412,6 +412,19 @@ const towerGroups = computed(() => {
   return out
 })
 
+/**
+ * ★视觉聚焦（方向台优化）：当前主攻 = 第一个可见主攻项目；没有主攻时回落到第一个可见项目。
+ * 它只做"我在哪 + 推进到哪 + 下一步往哪走"的一条摘要，不新增任何数据源——
+ * 全部取自 towerGroups（同一份 compassMeta），与项目塔、骨架条口径一致。
+ */
+const focusTower = computed(() => {
+  const all = towerGroups.value.flatMap(g => g.projs.map(r => ({ ...r, dir: g.dir })))
+  return all.find(r => r.proj.isFocused) || all[0] || null
+})
+function gotoFocusTower() {
+  if (focusTower.value) gotoTower(focusTower.value.proj.id)
+}
+
 /** 按 id 找项目（供子组件 emit 回传给 store 层动作） */
 function findProject(id: string): Project | undefined {
   for (const dir of d.value.compass.directions) {
@@ -1175,6 +1188,19 @@ onUnmounted(() => {
       </CompassSpine>
     </div>
 
+    <!-- ══ 视觉聚焦条（方向台优化）：把"当前主攻 / 推进到哪 / 下一步"收成一条摘要 ══
+         为什么加：原首屏把注意力先给了页头读数与六层导航，真正要动手的项目要往下滚才看得见。
+         这条不是新模块，而是项目塔里那个主攻项目的一行投影 —— 数据全部取自 towerGroups，
+         点击直接定位到对应舱，与左栏项目导航是同一个 gotoTower 入口（不新增第二条路）。 -->
+    <section v-if="focusTower && viewMode === 'tower' && !layerView" class="focus-strip" aria-label="当前主攻">
+      <span class="fs-label">{{ focusTower.proj.isFocused ? '当前主攻' : '当前项目' }}</span>
+      <button class="fs-name" :title="`定位到项目舱：${focusTower.proj.name}`" @click="gotoFocusTower">{{ focusTower.proj.name }}</button>
+      <span class="fs-detail">{{ focusTower.dir.name }} · {{ focusTower.meta.metrics.length }} 指标 · {{ focusTower.meta.total }} 任务</span>
+      <span class="fs-progress" aria-hidden="true"><i :style="{ width: focusTower.meta.pct + '%' }" /></span>
+      <span class="fs-count">{{ focusTower.meta.done }} / {{ focusTower.meta.total }} 项任务</span>
+      <button class="fs-go" @click="gotoFocusTower">继续推进 ↓</button>
+    </section>
+
     <!-- 画布：左栏 = 项目导航（原型 .navside，吸顶常驻），右侧 = 项目塔 -->
     <div class="tree-layout">
       <!-- ★W12：左栏由「六层数字目录」改为「项目导航」。
@@ -1610,6 +1636,49 @@ onUnmounted(() => {
 .spine-bar { margin-bottom: 26px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .spine-bar .spine { margin-bottom: 0; }
 
+/* ══ 视觉聚焦条（方向台优化）：一条摘要承担"我在哪、推进到哪、下一步" ══
+   为什么用「左侧实轨 + 无底色」而不是再套一张卡：项目塔里已经有舱（卡）与指标（卡），
+   首屏再叠一张强调卡，等于让容器层级先于内容说话 —— 焦点条只承担一条信息，
+   所以用 3px accent 实轨 + 与页面同底色，焦点由位置和那条轨承担，不靠阴影。 */
+.focus-strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 11px 0 11px 14px; margin-bottom: 20px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.fs-label {
+  flex: none; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
+  color: var(--accent-ink);
+}
+.fs-name {
+  font-size: var(--fs-title); font-weight: 700; color: var(--text);
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; text-align: left; letter-spacing: -.01em;
+}
+.fs-name:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+.fs-detail { font-size: var(--fs-micro); color: var(--text-3); }
+.fs-progress {
+  margin-left: auto; flex: none; width: 96px; height: 4px; border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent); overflow: hidden;
+}
+.fs-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width var(--dur); }
+.fs-count { flex: none; font-size: var(--fs-micro); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.fs-go {
+  flex: none; font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 9px; cursor: pointer; font-family: inherit; transition: all var(--dur);
+}
+.fs-go:hover { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+@media (max-width: 800px) {
+  .focus-strip { gap: 8px; padding-left: 11px; }
+  .fs-progress { width: 64px; }
+}
+@media (max-width: 480px) {
+  .focus-strip { align-items: flex-start; }
+  .fs-detail { flex-basis: 100%; }
+  .fs-progress { margin-left: 0; }
+}
+
 /* ══ ★V3.8.18（N3）三层引导条：极窄路牌 ══ */
 .tl-head-row {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -1772,19 +1841,24 @@ onUnmounted(() => {
   font-family: inherit; width: 100%;
 }
 .ns-item:hover { background: var(--surface-2); }
+/* ★视觉聚焦（方向台优化）：当前项用"左侧细轨 + 纸面白底"标记，不用彩色底 + 彩色边框。
+   原来选中态是一块带色边框的彩色块，未选中项在 hover 时也变色，
+   一栏五六个项目扫下去最先看到的是"色块"，而不是项目名。 */
 .ns-item.on {
-  background: color-mix(in srgb, var(--pc, var(--accent)) 14%, transparent);
-  border-color: color-mix(in srgb, var(--pc, var(--accent)) 40%, transparent);
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: inset 2px 0 var(--pc, var(--accent));
 }
 .ns-idx {
   width: 20px; height: 20px; border-radius: 6px; flex: none; margin-top: 1px;
-  background: color-mix(in srgb, var(--pc, var(--accent)) 18%, transparent);
-  color: var(--text-2);
+  /* 序号是刻度不是徽章：常驻中性色，选中也不反白 */
+  background: transparent;
+  color: var(--text-4);
   font-size: 9px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.ns-item.on .ns-idx { background: var(--pc, var(--accent)); color: #fff; }
+.ns-item.on .ns-idx { background: transparent; color: var(--text-3); }
 .ns-body { min-width: 0; flex: 1; }
 .ns-n {
   display: block;

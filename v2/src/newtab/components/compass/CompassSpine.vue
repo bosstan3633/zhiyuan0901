@@ -146,11 +146,17 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 
 <style scoped>
 /* ── 骨架条本体 ── */
+/* ★视觉聚焦（方向台优化）：骨架条是"地图"，不是主角。
+   原来它是整页第一张带阴影的卡（surface + 阴影 + 内层六枚带底色按钮），
+   首屏最先被读到的是它，而不是"我现在推进到哪"。改为发丝线分节、无阴影：
+   层级仍由 1→6 的宽度流向表达（见下方 flex 规则），但不靠容器抢注意力。 */
 .spine {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
   margin-bottom: 16px;
 }
@@ -197,12 +203,15 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-lv {
   display: flex; align-items: center; gap: 7px;
   padding: 7px 13px; border-radius: 8px;
-  background: var(--surface-2);
+  /* ★视觉聚焦：六层按钮退回"文字 + 数字"的导航形态。
+     原来每枚都是带底色的方块，六个色块并排时视觉重量接近内容卡，
+     读者会先看导航再看项目。底色只在 hover / 当前层出现。 */
+  background: transparent;
   border: 1px solid transparent;
   cursor: pointer; transition: all var(--dur); min-height: 34px;
 }
-.spine-lv:hover { background: var(--surface-3); }
-.spine-lv.on { background: var(--accent-light); border-color: var(--accent); }
+.spine-lv:hover { background: var(--surface-2); }
+.spine-lv.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .slv-n { font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); }
 .slv-t { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); white-space: nowrap; }
 .spine-lv.on .slv-t { color: var(--accent); }
@@ -211,8 +220,8 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .slv-c b { font-size: var(--fs-sub); font-weight: 700; color: var(--text); }
 .spine-lv.on .slv-c { border-left-color: color-mix(in srgb, var(--accent) 35%, transparent); }
 .spine-lv.on .slv-c b { color: var(--accent); }
-/* 上层两级用强调底，视觉上"压"着下层 */
-.spine-lv.lv1, .spine-lv.lv2 { background: var(--accent-light); }
+/* ★视觉聚焦：原来 lv1/lv2 常驻 accent 底色，等于在导航里先点亮两块色；
+   层级关系已由宽度流向表达，这里不再重复用底色强调。 */
 /* ★W12：宽度直接编码层级流向（原型 .lv-1~3 flex:0 0 auto / .lv-4~6 flex:1 1 0）。
    上层按内容宽、下层三段等分铺满 ⇒ 六颗按钮在版面上自动排成"上窄下宽"的漏斗，
    "逐层收窄"从一句口号变成看得见的形状。这两条缺任一条，六层就退化成六个等大标签。 */
