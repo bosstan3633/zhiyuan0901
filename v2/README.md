@@ -204,7 +204,7 @@ npm install          # 按 package-lock.json 还原依赖
 npm run dev          # 开发模式（HMR 输出到 dist/）
 npm run build        # vue-tsc --noEmit 类型检查 + vite build（交付必须两者通过）
 npm run typecheck    # 仅类型检查
-node scripts/regression.cjs   # 静态回归：必须全绿（当前 1,785 项，只增不减）
+node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,023 项，45 分片，只增不减）
 ```
 
 ### 4.3 加载到浏览器
@@ -310,7 +310,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 1,785 项�
 
 ## 十、开发规范与回归基线
 
-- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 1,785 项，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
+- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 2,023 项 / 45 分片，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
 - **性能门禁**：`scripts/perf.cjs` A/B 基准台——视图切换 <40ms 红线（R71 起）；新功能默认须过性能走查
 - **数据红线**：Resource/Curiosity/TagNode 禁止 taskId；删除一律软删；stats.lastVisits 只走 recordResourceOpen
 - **标记排序**：一律走 `utils/marksort.ts`（置顶 > 星标 > 命中度），拖拽排序列表的渲染 computed 禁止 `.sort()`
