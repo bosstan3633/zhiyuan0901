@@ -3,6 +3,8 @@
 export interface DrillCatRow { id: string; name: string; count: number; depth: number }
 /** R169-T1：`verb` = 这一行的动作（新增/删除/恢复/清理/改状态/更新），由事件的卡时间归并派生 */
 export interface DrillCardRow { id: string; title: string; updatedAt: number; verb?: string }
+/** V3.9.8：论据卡片明细行——所属节点、来源与镜像标记直接给到抽屉，避免再做一次全树查找。 */
+export interface DrillDetailRow { id: string; title: string; nodeName: string; sourceType?: string; mirrored: boolean; updatedAt: number }
 export interface DrillAssetRow { cardId: string; cardTitle: string; assetId: string; name: string; kind: string; size: number; createdAt: number }
 </script>
 
@@ -30,6 +32,8 @@ const props = defineProps<{
   catRows: DrillCatRow[]
   nativeCards: DrillCardRow[]
   mirrorCards: DrillCardRow[]
+  /** `mode='total'` 的完整资源卡明细（标题 / 节点 / 来源 / 镜像 / 更新时间） */
+  cardRows: DrillDetailRow[]
   assetRows: DrillAssetRow[]
   recentRows: DrillCardRow[]
   /** R110-BUG2：来源卡是否存在（宿主跨台全量判定，含未软删条件）——不存在即「孤儿行」 */
@@ -54,7 +58,7 @@ const emit = defineEmits<{
 }>()
 
 const TITLE: Record<string, string> = {
-  total: '卡片总数 · 按分类明细',
+  total: '论据卡片明细',
   source: '来源构成 · 台内 vs 镜像',
   assets: '附件明细',
   recent: '最近更新流水'
@@ -69,6 +73,10 @@ const recentShown = computed(() => recentSorted.value.slice(0, recentPage.value 
 watch(() => [props.open, props.mode] as const, ([o, m]) => { if (o && m === 'recent') recentPage.value = 1 })
 /** 镜像卡 id 集（最近更新流水的图标与跳转分流） */
 const mirrorIds = computed(() => new Set(props.mirrorCards.map(c => c.id)))
+
+function sourceLabel(source?: string): string {
+  return ({ official: '官方', academic: '学术', media: '媒体', personal: '个人', 'ai-tool': 'AI 工具', 'own-work': '个人成果' } as Record<string, string>)[source || ''] || '未标注'
+}
 
 function fmtTs(ts?: number): string {
   if (!ts) return '—'
@@ -196,14 +204,25 @@ async function onCleanupAll() {
 
 <template>
   <Drawer :open="open" :title="TITLE[mode] || '明细'" width="480px" @close="emit('close')">
-    <!-- 总数 · 按分类 -->
+    <!-- 总数 · 资源卡明细 + 分类汇总 -->
     <div v-if="mode === 'total'" class="dd-list">
+      <div class="dd-scope">本台全部论据资源卡 · 含台内卡与资源卡池镜像</div>
+      <div v-for="c in cardRows" :key="'card-' + c.id" class="dd-row clickable" @click="rowClick(c.id, c.mirrored)">
+        <span class="dd-ico"><Icon :name="c.mirrored ? 'satellite' : 'filetext'" :size="13"/></span>
+        <span class="dd-name">
+          <span class="dd-asset-name">{{ c.title }}</span>
+          <span class="dd-sub">{{ c.nodeName }} · {{ sourceLabel(c.sourceType) }}<template v-if="c.mirrored"> · 镜像</template></span>
+        </span>
+        <span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
+      </div>
+      <div v-if="!cardRows.length" class="dd-empty">本台还没有论据资源卡</div>
+      <div class="dd-group-title dd-group-sep"><Icon name="folder" :size="13"/> 按论证节点汇总</div>
       <div v-for="c in catRows" :key="c.id" class="dd-row clickable" :style="{ paddingLeft: (8 + c.depth * 16) + 'px' }" @click="emit('jump-cat', c.id)">
         <span class="dd-ico"><template v-if="c.depth">↳</template><Icon v-else name="folder" :size="13"/></span>
         <span class="dd-name">{{ c.name }}</span>
         <span class="dd-count">{{ c.count }}</span>
       </div>
-      <div v-if="!catRows.length" class="dd-empty">暂无分类节点</div>
+      <div v-if="!catRows.length" class="dd-empty">暂无论证节点</div>
     </div>
 
     <!-- 来源构成 -->

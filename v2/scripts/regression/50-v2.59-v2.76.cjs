@@ -22,10 +22,11 @@ check('R90-2 R8-①（V3.7.0 退役）：HUB_HELP_TEXT 四段文案现行源码�
   return !WS90.includes('HUB_HELP_TEXT') && !WS90.includes('卡片在此存储为真身')
     && !WS90.includes('📡 单卡') && !WS90.includes('📤 分类');
 });
-check('R90-3（V3.9.8 随迁）主 CTA 前置：画布工具条第一动作是“新建分支”，创建路径统一走 useCurationMindMap.createChild', () => {
-  return TB90.indexOf('mind.createChild(\'root\')') < TB90.indexOf('class="toolbar-search"')
-    && (TB90.match(/mind\.createChild\('root'\)/g) || []).length === 1
-    && !TB90.includes('openNewArgument');
+check('R90-3（V3.9.9 随迁）工具栏只承担成果导入 / 分享 / 搜索；建支无按钮，统一走节点 Tab / Enter 与 useCurationMindMap.createChild', () => {
+  return !TB90.includes("mind.createChild('root')")
+    && TB90.indexOf('导入成果 HTML') < TB90.indexOf('class="toolbar-search"')
+    && !TB90.includes('openNewArgument')
+    && read('/newtab/components/curation/CurationMindMap.vue').includes("emit('create-child', 'root')");
 });
 check('R90-4 R8-②：右推职责交给 .toolbar-spacer（.toolbar-search 不再自带 margin-left:auto）', () => {
   const search = segOf(STYLE90, '.toolbar-search {', '}');

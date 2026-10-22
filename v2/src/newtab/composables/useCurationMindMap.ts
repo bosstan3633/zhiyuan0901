@@ -37,6 +37,7 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
   const editRequestSeq = ref(0)
   const keyboardDragSource = ref('')
   const keyboardDragTarget = ref('')
+  const clipboardId = ref('')
   const revealId = ref('')
   const fullscreen = ref(false)
   const fullscreenFallback = ref(false)
@@ -113,6 +114,11 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
 
   function selectNode(id: string): void {
     selectedId.value = id
+  }
+
+  /** 整树拖拽/键盘移动共用：源节点的全部后代（不含自身），用于「移动 N 个节点」提示。 */
+  function descendantsOf(id: string): string[] {
+    return id === 'root' ? [] : catIdx.value.descendants(id)
   }
 
   function setLayout(next: CurationCanvasLayout): void {
@@ -246,6 +252,38 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     return true
   }
 
+  /** 剪切：只记来源节点，不改数据；真正移动在粘贴时完成，失败不会让树消失。 */
+  function cutNode(id: string): boolean {
+    if (id === 'root') {
+      showToast('中心论点固定为 L1，不能剪切')
+      return false
+    }
+    if (!wsCats.value.some(c => c.id === id)) return false
+    clipboardId.value = id
+    selectedId.value = id
+    showToast('已剪切分支——选择目标节点后按 Ctrl/⌘+V 粘贴')
+    return true
+  }
+
+  /** 粘贴为子级；与拖拽共用同一套防环与四级上限校验。 */
+  function pasteInto(targetId: string): boolean {
+    const id = clipboardId.value
+    if (!id) {
+      showToast('剪贴板为空：先选中分支按 Ctrl/⌘+X')
+      return false
+    }
+    if (id === targetId) {
+      showToast('不能粘贴到自身')
+      return false
+    }
+    const moved = moveNode(id, targetId)
+    if (moved) {
+      clipboardId.value = ''
+      showToast('✓ 已粘贴到目标节点下')
+    }
+    return moved
+  }
+
   /** 指标下钻 / 附件定位共用：选中目标分类并滚动到画布节点。 */
   function revealNode(id: string): boolean {
     if (id === 'root') {
@@ -342,6 +380,7 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     editRequestSeq.value++
     keyboardDragSource.value = ''
     keyboardDragTarget.value = ''
+    clipboardId.value = ''
     revealId.value = ''
   }
 
@@ -369,6 +408,7 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     selectedCards,
     keyboardDragSource,
     keyboardDragTarget,
+    clipboardId,
     keyboardDragHint,
     revealId,
     fullscreen,
@@ -376,6 +416,7 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     flattenedIds,
     thesisCard,
     selectNode,
+    descendantsOf,
     setLayout,
     focusEdit,
     createChild,
@@ -384,6 +425,8 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     updateDescription,
     validateDrop,
     moveNode,
+    cutNode,
+    pasteInto,
     revealNode,
     startKeyboardDrag,
     moveKeyboardTarget,

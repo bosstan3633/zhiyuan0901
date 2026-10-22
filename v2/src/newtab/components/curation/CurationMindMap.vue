@@ -42,12 +42,15 @@ const emit = defineEmits<{
   rename: [node: Category, value: string]
   'update-description': [node: Category, value: string]
   'link-resource': [node: Category]
+  'unlink-resource': [nodeId: string, card: ResourceCard]
   'open-resource': [card: ResourceCard]
   'open-resource-link': [card: ResourceCard]
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
   'open-thesis': []
   'open-create-thesis': []
   move: [sourceId: string, targetId: string]
+  cut: [id: string]
+  paste: [id: string]
   'keyboard-drag-start': [id: string]
   'keyboard-drag-target': [dir: -1 | 1]
   'keyboard-drag-confirm': []
@@ -154,26 +157,30 @@ watch(() => props.layout, () => {
 
 const layoutLabel = computed(() => props.layout === 'pyramid' ? '金字塔' : '树状')
 
-function canCreateChild(id: string): boolean {
-  if (id === 'root') return true
-  const node = props.nodes.find(n => n.id === id)
-  return !!node && levelOf(node) < 4
-}
-
-function canCreateSibling(id: string): boolean {
-  return id !== 'root'
-}
-
 function onCanvasKeydown(e: KeyboardEvent): void {
-  if (e.key !== 'Escape') return
-  if (dragSource.value) {
-    e.preventDefault()
-    clearDrag()
+  // 节点已处理 Tab/Enter/剪切/粘贴时不再冒泡到画布执行第二遍。
+  if (e.defaultPrevented) return
+  if (e.key === 'Escape') {
+    if (dragSource.value) {
+      e.preventDefault()
+      clearDrag()
+      return
+    }
+    if (props.keyboardDragSource) {
+      e.preventDefault()
+      emit('keyboard-drag-cancel')
+    }
     return
   }
-  if (props.keyboardDragSource) {
+  const target = e.target as HTMLElement | null
+  if (target?.closest('input,textarea,select,[contenteditable="true"]')) return
+  if (!(e.metaKey || e.ctrlKey)) return
+  if (e.key.toLowerCase() === 'x' && props.selectedId !== 'root') {
     e.preventDefault()
-    emit('keyboard-drag-cancel')
+    emit('cut', props.selectedId)
+  } else if (e.key.toLowerCase() === 'v' && props.selectedId) {
+    e.preventDefault()
+    emit('paste', props.selectedId)
   }
 }
 
@@ -275,17 +282,13 @@ onBeforeUnmount(() => {
         :title="fullscreen ? '退出全屏（Esc）' : '全屏编辑策展画布'" @click="toggleFullscreen">
         <Icon name="fullscreen" :size="12"/> {{ fullscreen ? '退出全屏' : '全屏' }}
       </button>
-      <button v-if="selectedId !== 'root'" class="mindmap-action" type="button"
-        :disabled="!canCreateSibling(selectedId)" @click="emit('create-sibling', selectedId)">
-        <Icon name="plus" :size="12"/> 同级
-      </button>
-      <button v-if="canCreateChild(selectedId)" class="mindmap-action primary" type="button"
-        @click="emit('create-child', selectedId)"><Icon name="plus" :size="12"/> 子分支</button>
     </div>
     <div class="mindmap-help" aria-label="思维导图快捷操作">
       <span><kbd>Tab</kbd> 创建子分支</span>
       <span><kbd>Enter</kbd> 创建同级</span>
-      <span><kbd>拖拽</kbd> 调整归属</span>
+      <span><kbd>拖拽</kbd> 移动整棵子树</span>
+      <span><kbd>⌘/Ctrl+X</kbd> 剪切</span>
+      <span><kbd>⌘/Ctrl+V</kbd> 粘贴为子级</span>
       <span><kbd>双击</kbd> 就地编辑</span>
       <span><kbd>↑↓ + M</kbd> 键盘移动</span>
       <span class="mindmap-help-spacer"></span>
@@ -322,9 +325,6 @@ onBeforeUnmount(() => {
               <span><b>确立中心论点</b><small>先写结论，再长出支撑分支</small></span>
             </button>
             <div class="mind-node-foot">
-              <button class="mind-add" type="button" @click.stop="emit('create-child', 'root')">
-                <Icon name="plus" :size="13"/> 二级分支
-              </button>
               <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('open-thesis')">
                 <Icon name="filetext" :size="13"/> 论点卡详情
               </button>
@@ -343,7 +343,9 @@ onBeforeUnmount(() => {
               @select="emit('select', $event)" @create-child="emit('create-child', $event)"
               @create-sibling="emit('create-sibling', $event)" @rename="(n, v) => emit('rename', n, v)"
               @update-description="(n, v) => emit('update-description', n, v)"
-              @link-resource="emit('link-resource', $event)" @open-resource="emit('open-resource', $event)"
+              @link-resource="emit('link-resource', $event)"
+              @unlink-resource="(nodeId, card) => emit('unlink-resource', nodeId, card)"
+              @open-resource="emit('open-resource', $event)"
               @open-resource-link="emit('open-resource-link', $event)"
               @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
               @drag-start="onDragStart" @drag-over="onDragOver" @drag-leave="dropTarget = ''" @drop="onDrop"
@@ -351,6 +353,7 @@ onBeforeUnmount(() => {
               @keyboard-drag-target="emit('keyboard-drag-target', $event)"
               @keyboard-drag-confirm="emit('keyboard-drag-confirm')"
               @keyboard-drag-cancel="emit('keyboard-drag-cancel')"
+              @cut="emit('cut', $event)" @paste="emit('paste', $event)"
               @remove-node="emit('remove-node', $event)" />
           </div>
         </div>
@@ -358,8 +361,8 @@ onBeforeUnmount(() => {
       <EmptyState v-if="thesis && !nodes.length" size="inline" icon="hexagon"
         title="中心论点下面还没有分支"
         desc="中心论点是结论，分支是支撑它的论据。"
-        hint="按 Tab，或点下方按钮创建第一个二级分支。"
-        action-label="＋ 新建论据分支" @action="emit('create-child', 'root')" />
+        hint="选中中心论点后按 Tab，创建第一个二级分支。"
+      />
       <EmptyState v-if="!thesis" icon="compass"
         title="先确立中心论点"
         desc="从一句可被反驳的判断出发，再把证据长成树。"

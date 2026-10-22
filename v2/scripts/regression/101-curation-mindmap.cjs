@@ -185,15 +185,21 @@ check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链�
     && SHARE_UI.includes("downloadText(filename.value, html.value, 'html')");
 });
 
-check('C101-14 分享 HTML 安全边界：自包含、无脚本、无外链资源；仅输出 http(s)，转义文本，不泄露内部 ID / 路径', () => {
+check('C101-14 分享 HTML 安全边界：自包含、无可执行脚本、无外链资源；仅输出 http(s)，转义文本，不泄露内部 ID / 路径', () => {
   /* 内部 ID 用于在内存中按节点归属筛选资源，不等于写进分享产物。
-     这里守的是输出边界：禁止把 `${node.id}` / `${card.id}` 插进 HTML，同时仍钉住自包含与转义。 */
+     这里守的是输出边界：论证树层级按真实 L1–L4 输出，JSON 快照必须 inert，同时仍钉住自包含与转义。 */
+  const scripts = [...SHARE.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
+  const onlyInertSnapshot = scripts.length === 1
+    && /type=["']application\/json["']/i.test(scripts[0][1])
+    && /id=["']zy-curation-share-data["']/i.test(scripts[0][1])
   return SHARE.includes('<!doctype html>')
     && SHARE.includes('<style>')
-    && !/<script/i.test(SHARE)
+    && onlyInertSnapshot
     && !SHARE.includes('http://')
     && SHARE.includes('/^https?:\\/\\//i.test(url)')
     && SHARE.includes('const esc =')
+    && SHARE.includes('node-kicker">L${depth + 2} · 论证节点')
+    && !SHARE.includes('L2+')
     && SHARE.includes('rel="noopener noreferrer"')
     && !SHARE.includes('${card.id}')
     && !SHARE.includes('${node.id}')
@@ -223,13 +229,14 @@ check('C101-16 画布视觉契约：金字塔向下、树状向右；金字塔�
     && CSS.includes('overflow: auto');
 });
 
-check('C101-17 旧版卡片网格的排序 / 筛选 / 密度 / 快捷筛选 / 批量入口从画布工具条移除，只留画布动作与全台搜索', () => {
+check('C101-17（V3.9.9 随迁）工具栏收敛：旧四视图与批量入口退役；建支只走节点键盘操作，成果 HTML 与分享成果常驻，全台搜索保留', () => {
   const s = WS.indexOf('<div class="ws-toolbar">');
   const e = WS.indexOf('<CurationMindMap', s);
   const block = WS.slice(s, e);
   return s >= 0 && e > s
-    && block.includes('＋ 新建分支')
-    && block.includes('导入数据包')
+    && !block.includes('＋ 新建分支')
+    && !block.includes('导入数据包')
+    && block.includes('导入成果 HTML')
     && block.includes('分享成果')
     && block.includes('导入模板')
     && block.includes('检索论证节点')
@@ -238,6 +245,49 @@ check('C101-17 旧版卡片网格的排序 / 筛选 / 密度 / 快捷筛选 / �
     && !block.includes('toolbar-filter')
     && !block.includes('toggleBatchMode')
     && !block.includes('density');
+});
+
+check('C101-21 思维导图编辑闭环：整卡可拖、剪切粘贴共用校验、节点焦点支持 Tab / Enter、资源 chip 可解除关联', () => {
+  return NODE.includes('draggable="true"')
+    && NODE.includes("emit('drag-start', props.node.id)")
+    && NODE.includes("emit('cut', props.node.id)")
+    && NODE.includes("emit('paste', props.node.id)")
+    && NODE.includes("emit('unlink-resource', props.node.id, card)")
+    && NODE.includes('class="mind-resource-remove"')
+    && MAP.includes('if (e.defaultPrevented) return')
+    && MAP.includes("emit('cut', props.selectedId)")
+    && MAP.includes("emit('paste', props.selectedId)")
+    && MAP.includes('<kbd>拖拽</kbd> 移动整棵子树')
+    && MAP.includes('<kbd>⌘/Ctrl+X</kbd> 剪切');
+});
+
+check('C101-22 成果 HTML 回导：新建 / 合并双分支、按节点路径合并、同台重复投射去重且可更新落点', () => {
+  const imp = read('/newtab/composables/useCurationShareImport.ts');
+  return imp.includes('function importNew()')
+    && imp.includes('function importMerge()')
+    && imp.includes('function sameNode(')
+    && imp.includes('function uniqueNodeName(')
+    && imp.includes('function projectionExists(')
+    && imp.includes('existed.targetCatId = categoryId || undefined')
+    && imp.includes('if (projectionExists(d.value, pool.id, wsId, cat.id)) continue')
+    && imp.includes('if (ensureProjection(d.value, pool.id, wsId, cat.id)) result.cards++')
+    && WS.includes('confirmNewShareImport')
+    && WS.includes('confirmMergeShareImport');
+});
+
+check('C101-23 删除策展台语义：本台原生卡软删进回收站，台内镜像投射仅移除引用，资源池源卡状态不变', () => {
+  const crud = read('/shared/utils/compassCrud.ts');
+  const meta = read('/newtab/composables/useWsMeta.ts');
+  const start = crud.indexOf('export function deleteDeck');
+  const body = start >= 0 ? crud.slice(start, crud.indexOf('\n}', start) + 2) : '';
+  return crud.includes("for (const r of d.resources) if (r.workspaceId === wsId && !r.deletedAt)")
+    && crud.includes("!(p.kind === 'card' && p.targetWsId === wsId)")
+    && body.includes('return { ws, index, cardIds, catIds }')
+    && !body.includes('pruneMirrorCats(d, wsId)')
+    && meta.includes('本台原生资源卡')
+    && meta.includes('镜像引用会移除')
+    && meta.includes('资源卡池里的源卡状态不变')
+    && meta.includes('池卡未受影响');
 });
 
 check('C101-18 全台检索覆盖节点与节点下资源卡，资源 chip 右键菜单从画布可达', () => {

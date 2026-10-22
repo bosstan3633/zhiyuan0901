@@ -164,6 +164,19 @@
 .modal-option .mo-name { font-size: var(--fs-body); font-weight: 500; color: var(--text); }
 .modal-option .mo-desc { font-size: var(--fs-caption); color: var(--text-3); margin-top: 2px; line-height: 1.5; }/* R4-Db：书签导入「文件夹勾选」弹窗的两份 .bk-* 样式一并删除（模板锚点已随死链消失）。   ★原先这两段是逐字重复的两份（同一批规则在 R73-S2 迁来时又贴了一遍），本轮一并清掉。 */
 
+/* V3.9.9：成果 HTML 回导预览——先读清“导什么”，再让用户选新建或合并。 */
+.mb-label { margin-bottom: 7px; font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); }
+.share-import-mode { margin-top: 16px; }
+.share-import-name { font-size: var(--fs-body); font-weight: 700; color: var(--text); line-height: 1.55; }
+.share-import-option { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: border-color var(--dur-fast), background var(--dur-fast); }
+.share-import-option + .share-import-option { margin-top: 8px; }
+.share-import-option:hover { border-color: var(--accent); background: var(--accent-light); }
+.share-import-option .mo-icon { margin-top: 1px; color: var(--accent); }
+.share-import-option > span:last-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.share-import-option b { font-size: var(--fs-sub); color: var(--text); }
+.share-import-option small { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.55; }
+.share-import-error { padding: 8px 10px; border-radius: 7px; background: var(--danger-bg-soft); color: var(--danger); font-size: var(--fs-caption); }
+
 /* Toast */
 
 /* ===== R62-1：指标条（R98 起三格单形态；V3.7.0 资源台退役，hub 三格分流选择器删除） ===== */

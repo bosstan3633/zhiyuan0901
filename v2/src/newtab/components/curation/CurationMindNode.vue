@@ -29,6 +29,7 @@ const emit = defineEmits<{
   rename: [node: Category, value: string]
   'update-description': [node: Category, value: string]
   'link-resource': [node: Category]
+  'unlink-resource': [nodeId: string, card: ResourceCard]
   'open-resource': [card: ResourceCard]
   'open-resource-link': [card: ResourceCard]
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
@@ -40,6 +41,8 @@ const emit = defineEmits<{
   'keyboard-drag-target': [dir: -1 | 1]
   'keyboard-drag-confirm': []
   'keyboard-drag-cancel': []
+  cut: [id: string]
+  paste: [id: string]
   'remove-node': [id: string]
 }>()
 
@@ -164,7 +167,26 @@ function onNodeKeydown(e: KeyboardEvent): void {
   } else if (e.key === 'Enter') {
     e.preventDefault()
     emit('create-sibling', props.node.id)
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'x') {
+    e.preventDefault()
+    emit('cut', props.node.id)
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v') {
+    e.preventDefault()
+    emit('paste', props.node.id)
   }
+}
+
+function focusCard(e: MouseEvent): void {
+  const target = e.target as HTMLElement | null
+  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-resource-more,.mind-drag,.mind-resource-remove')) return
+  ;(e.currentTarget as HTMLElement).focus({ preventScroll: true })
+  emit('select', props.node.id)
+}
+
+function onResourceRemove(e: MouseEvent, card: ResourceCard): void {
+  e.preventDefault()
+  e.stopPropagation()
+  emit('unlink-resource', props.node.id, card)
 }
 
 function onDragHandleKeydown(e: KeyboardEvent): void {
@@ -182,6 +204,13 @@ function onDragHandleKeydown(e: KeyboardEvent): void {
 }
 
 function dragStart(e: DragEvent): void {
+  const target = e.target as HTMLElement | null
+  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-resource-remove')) {
+    if (!target.closest('.mind-drag')) {
+      e.preventDefault()
+      return
+    }
+  }
   e.stopPropagation()
   e.dataTransfer?.setData('text/plain', props.node.id)
   if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
@@ -237,7 +266,8 @@ onBeforeUnmount(() => {
         'keyboard-target': keyboardDragSource && keyboardDragTarget === node.id
       }"
       :data-mind-node="node.id" tabindex="0" :aria-label="`L${level()} ${node.name}`"
-      @click="emit('select', node.id)" @keydown="onNodeKeydown"
+      draggable="true" @click="focusCard" @focus="emit('select', node.id)" @keydown="onNodeKeydown"
+      @dragstart="dragStart"
       @dragover="emit('drag-over', $event, node.id)" @dragleave="emit('drag-leave')"
       @drop="emit('drop', $event, node.id)">
       <div class="mind-node-head">
@@ -245,24 +275,25 @@ onBeforeUnmount(() => {
         <span class="mind-type">{{ children().length ? `${children().length} 个子分支` : '论证节点' }}</span>
         <span class="mind-drag" draggable="true" tabindex="0" role="button"
           :aria-label="`拖动「${node.name || '未命名分支'}」调整归属`"
-          title="拖动调整归属；聚焦后 ↑/↓ 选目标，M 确认" @dragstart="dragStart" @keydown.stop="onDragHandleKeydown">
+          title="拖动整棵子树调整归属；聚焦后 ↑/↓ 选目标，M 确认" @keydown.stop="onDragHandleKeydown">
           <Icon name="arrowupdown" :size="13"/>
         </span>
       </div>
       <input v-if="editingField === 'title'" ref="titleRef" v-model="titleDraft" class="mind-edit-title"
         placeholder="分支标题" @click.stop @keydown="onEditKeydown" @blur="commitEdit" />
-      <button v-else class="mind-title" type="button" @click.stop="beginEdit('title')"
-        @dblclick.stop="beginEdit('title')" :title="`单击编辑标题；双击同样进入编辑（F2）`">
+      <span v-else class="mind-title" @dblclick.stop="beginEdit('title')"
+        title="单击选中；双击或按 F2 编辑标题">
         {{ node.name || '未命名分支' }}
-      </button>
+      </span>
       <textarea v-if="editingField === 'desc'" ref="descRef" v-model="descDraft" class="mind-edit-desc"
         rows="2" placeholder="解释这个分支为什么成立（可选）" @click.stop @keydown="onEditKeydown" @blur="commitEdit" />
-      <button v-else class="mind-desc" :class="{ muted: !node.description }" type="button" @click.stop="beginEdit('desc')">
-        {{ node.description || '点击补充分支说明' }}
-      </button>
+      <span v-else class="mind-desc" :class="{ muted: !node.description }"
+        @dblclick.stop="beginEdit('desc')" title="单击选中；双击编辑分支说明">
+        {{ node.description || '双击补充分支说明' }}
+      </span>
       <div class="mind-resources">
-        <button v-for="card in cards().slice(0, 2)" :key="card.id" class="mind-resource"
-          :class="{ 'search-hit': cardMatches(card) }" type="button"
+        <span v-for="card in cards().slice(0, 2)" :key="card.id" class="mind-resource"
+          :class="{ 'search-hit': cardMatches(card) }"
           :data-rid="card.id"
           :title="card.title + '；单击打开详情，双击打开链接，右键打开卡片菜单'"
           @click.stop="onResourceClick(card)"
@@ -270,7 +301,9 @@ onBeforeUnmount(() => {
           @contextmenu.prevent.stop="emit('open-resource-context', $event, card)">
           <span class="mind-resource-dot" :data-source="card.sourceType || 'personal'"></span>
           {{ card.title.length > 13 ? card.title.slice(0, 13) + '…' : card.title }}
-        </button>
+          <button class="mind-resource-remove" type="button" title="解除与当前节点的关联（资源卡池源卡保留）"
+            aria-label="解除关联" @click="onResourceRemove($event, card)">×</button>
+        </span>
         <button v-if="cards().length > 2" class="mind-resource-more" type="button"
           @click.stop="emit('link-resource', node)">+{{ cards().length - 2 }}</button>
         <button v-if="!children().length && !cards().length" class="evidence-gap"
@@ -279,9 +312,6 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <div class="mind-node-foot">
-        <button class="mind-add" type="button" @click.stop="emit('create-child', node.id)">
-          <Icon name="plus" :size="13"/> 子分支
-        </button>
         <button class="mind-add" type="button" @click.stop="emit('link-resource', node)">
           <Icon name="link" :size="13"/> 关联资源
         </button>
@@ -307,7 +337,9 @@ onBeforeUnmount(() => {
         @select="emit('select', $event)" @create-child="emit('create-child', $event)"
         @create-sibling="emit('create-sibling', $event)" @rename="(n, v) => emit('rename', n, v)"
         @update-description="(n, v) => emit('update-description', n, v)"
-        @link-resource="emit('link-resource', $event)" @open-resource="emit('open-resource', $event)"
+        @link-resource="emit('link-resource', $event)"
+        @unlink-resource="(nodeId, card) => emit('unlink-resource', nodeId, card)"
+        @open-resource="emit('open-resource', $event)"
         @open-resource-link="emit('open-resource-link', $event)"
         @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
         @drag-start="emit('drag-start', $event)" @drag-over="(e, id) => emit('drag-over', e, id)"
@@ -316,6 +348,7 @@ onBeforeUnmount(() => {
         @keyboard-drag-target="emit('keyboard-drag-target', $event)"
         @keyboard-drag-confirm="emit('keyboard-drag-confirm')"
         @keyboard-drag-cancel="emit('keyboard-drag-cancel')"
+        @cut="emit('cut', $event)" @paste="emit('paste', $event)"
         @remove-node="emit('remove-node', $event)" />
     </div>
   </div>

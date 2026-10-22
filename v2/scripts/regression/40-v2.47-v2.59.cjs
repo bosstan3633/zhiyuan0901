@@ -781,16 +781,17 @@ check('R88-6（V3.9.8 随迁备案）批量开关常驻资源池控制行：批�
     && pool.includes('@invert="invertSel"')
     && !WS88_TPL.includes('toggleBatchMode');
 });
-check('R88-7 W6：导入收进 ⚙（V3.7.0 重指：资源台分支退役后单形态「⬇ 导入数据包」，按台改名消歧义不再需要）（★G1(V3.8.25)随迁带备案：⬇ 前缀迁 <Icon name="download">，单形态与入口不变）', () => {
-  return SM88.includes('@click="openImport"') && /<Icon name="download"[^>]*\/> 导入数据包/.test(SM88) && !SM88.includes("isHub ? '⬇ 导入资源'")
+check('R88-7（V3.9.9 重指）双入口各守其责：⚙ 内导入 JSON 备份（全库合并）；一级工具栏导入成果 HTML（新台或合并）并分享成果', () => {
+  return SM88.includes('@click="openImport"') && /<Icon name="download"[^>]*\/> 导入 JSON 备份/.test(SM88) && !SM88.includes("isHub ? '⬇ 导入资源'")
+    && /<Icon name="download"[^>]*\/> 导入成果 HTML/.test(WS88) && /<Icon name="share"[^>]*\/> 分享成果/.test(WS88)
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（V3.9.8 随迁备案）策展画布主色稀缺：一级工具条只有「＋ 新建分支」一枚 primary；导入数据包 / 分享成果为 ghost 次级，导入模板与设置保持 settings 次级；旧资源池批量与新建 CTA 不回流到画布', () => {
-  return (TB1_88.match(/hero-btn primary/g) || []).length === 1
-    && TB1_88.includes('hero-btn primary" @click="mind.createChild(\'root\')"')
+check('R88-8（V3.9.9 随迁备案）策展画布主色稀缺：建支改由节点键盘触发后，一级工具条零 primary；导入成果 HTML / 分享成果为 ghost 次级，导入模板与设置保持 settings 次级；旧资源池批量与建支 CTA 不回流', () => {
+  return (TB1_88.match(/hero-btn primary/g) || []).length === 0
+    && !TB1_88.includes("mind.createChild('root')")
     && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
-    && /<Icon name="download"[^>]*\/> 导入数据包/.test(TB1_88)
+    && /<Icon name="download"[^>]*\/> 导入成果 HTML/.test(TB1_88)
     && /<Icon name="share"[^>]*\/> 分享成果/.test(TB1_88)
     && !TB1_88.includes('openNewArgument')
     && !TB1_88.includes('batchMode');

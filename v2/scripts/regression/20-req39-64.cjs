@@ -456,7 +456,7 @@ check('R53-6（V3.9.8 随迁）画布层级上限仍为 4 级：新建与拖拽�
     && m.includes('if (deepest > 4)');
 });
 // R74 退役 R53-7：随 CurationCenter.vue 删除退役（锁 curFrom 死代码链，见 04-23 §六 A 组）
-check('R53-8 A3 删除策展台级联：清理其策展镜像分类（卡回落/投射回待分类/子提根）· R146 备案：真源移入 compassCrud.pruneMirrorCats，归档与删除两入口各接一次', () => { const cr = read('/shared/utils/compassCrud.ts'); const j0 = cr.indexOf('function pruneMirrorCats'); const seg = cr.slice(j0, cr.indexOf('/** 供确认文案', j0)); return seg.includes('mirrorIds.has(p.targetCatId)') && seg.includes('c.parentId && mirrorIds.has(c.parentId)') && seg.includes("r.categoryId = ''") && (cr.match(/pruneMirrorCats\(d, /g) || []).length === 2; });
+check('R53-8 A3 删除策展台语义（V3.9.9 重指）：归档仍清理镜像分类；删除只移除本台镜像投射引用，池卡与其分类状态不变 · R146 备案：pruneMirrorCats 只保留归档入口', () => { const cr = read('/shared/utils/compassCrud.ts'); const j0 = cr.indexOf('function pruneMirrorCats'); const seg = cr.slice(j0, cr.indexOf('/** 供确认文案', j0)); const del = cr.slice(cr.indexOf('export function deleteDeck'), cr.indexOf('/** 撤销删除台', cr.indexOf('export function deleteDeck'))); return seg.includes('mirrorIds.has(p.targetCatId)') && seg.includes('c.parentId && mirrorIds.has(c.parentId)') && seg.includes("r.categoryId = ''") && (cr.match(/pruneMirrorCats\(d, /g) || []).length === 1 && del.includes('!(p.kind === \'card\' && p.targetWsId === wsId)') && !del.includes('pruneMirrorCats(d, wsId)') && !del.includes("r.categoryId = ''"); });
 check('R53-9 A3（R61 方向反转）分类镜像物化：hub.ts mirrorCategoryToBoard 在目标策展台生成 curFrom 分类（源=资源台）', () => { const h = read('/shared/storage/hub.ts'); const w = read('/newtab/views/Workspace.vue'); return h.includes('curFrom: { wsId: CURATION_WS_ID, catId: hubCatId') && !w.includes("kind: 'category'"); });
 check('R53-10 A3 删除源分类级联：清理对应策展镜像分类（curFrom.catId === cat.id）', () => { const w = read('/newtab/views/Workspace.vue'); return read('/newtab/composables/useCategoryCrud.ts').includes('curFrom?.catId === cat.id') && read('/newtab/composables/useCategoryCrud.ts').includes('级联清理该源分类的策展镜像分类'); });
 // R179-MIGRATED R53-11
@@ -521,7 +521,8 @@ check('R54-12（R74 重写）dragend 统一复位 clearDragState + 卡片拖过�
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   return m.includes('function clearDrag()')
     && m.includes('@dragend="clearDrag"')
-    && m.includes("if (e.key !== 'Escape') return")
+    && m.includes('if (e.defaultPrevented) return')
+    && m.includes("if (e.key === 'Escape')")
     && m.includes("emit('keyboard-drag-cancel')")
     && !host.includes('clearDragState');
 });

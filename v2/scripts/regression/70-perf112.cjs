@@ -142,11 +142,15 @@ check('R113-3 N4 导入金字塔模板一级入口：hero-btn settings 样式（
   return w.includes('class="hero-btn settings py-import-btn"') && w.includes('@click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>')
     && !w.includes('导入金字塔模板'); // 旧溢出菜单项已移除
 });
-check('R113-4（V3.9.8 随迁）节点动作收敛：画布节点原位只保留“子分支 / 关联资源 / 删除空节点”，改名与说明走就地编辑；旧分类溢出菜单零回流', () => {
+check('R113-4（V3.9.9 随迁）节点动作收敛：建支只走 Tab / Enter，节点原位只留“关联资源 / 删除空节点”，标题与说明单击选中、双击编辑；旧分类溢出菜单零回流', () => {
   const n = read('/newtab/components/curation/CurationMindNode.vue');
+  const m = read('/newtab/components/curation/CurationMindMap.vue');
   const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
-  return n.includes('子分支') && n.includes('关联资源') && n.includes('删除')
-    && n.includes('@click.stop="beginEdit(\'title\')"') && n.includes('@click.stop="beginEdit(\'desc\')"')
+  return n.includes('关联资源') && n.includes('删除')
+    && !n.includes("emit('create-child', node.id)")
+    && n.includes('@dblclick.stop="beginEdit(\'title\')"') && n.includes('@dblclick.stop="beginEdit(\'desc\')"')
+    && n.includes('<kbd>Tab</kbd> 子级 · <kbd>Enter</kbd> 同级')
+    && !m.includes('子分支</button>')
     && !host.includes('class="cat-actions"') && !host.includes('openCatMenu(');
 });
 check('R113-5（V3.9.8 随迁）画布宽度控制：旧侧栏拖宽退役，画布在宿主内自适应占满；兼容偏好字段保留但页面不再渲染侧栏', () => {

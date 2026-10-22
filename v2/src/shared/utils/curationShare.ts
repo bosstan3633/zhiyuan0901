@@ -7,6 +7,7 @@
  * - 附件只展示名称、类型和大小，不输出 IndexedDB 键或存储路径。
  */
 import type { Category, ResourceCard } from '@/shared/models'
+import { buildCurationSnapshot } from './curationShareData'
 
 export interface CurationShareOptions {
   format: 'reading' | 'tree'
@@ -23,6 +24,7 @@ export interface CurationShareInput {
   nodes: Category[]
   cards: ResourceCard[]
   options: CurationShareOptions
+  imageDataUrl?: string
   generatedAt?: number
 }
 
@@ -97,23 +99,39 @@ function nodeReadingHtml(node: Category, nodes: Category[], cards: ResourceCard[
   </section>`
 }
 
-function nodeTreeHtml(node: Category, nodes: Category[], cards: ResourceCard[], options: CurationShareOptions, index = 0): string {
+function nodeTreeHtml(
+  node: Category,
+  nodes: Category[],
+  cards: ResourceCard[],
+  options: CurationShareOptions,
+  depth: number,
+  index = 0,
+): string {
   const ownCards = cards.filter(c => c.categoryId === node.id)
   const children = childrenOf(nodes, node.id)
   return `<li class="tree-branch">
     <div class="tree-node">
-      <div class="node-kicker">L2+ · 论证节点</div>
+      <div class="node-kicker">L${depth + 2} · 论证节点</div>
       <h3>${esc(node.name || '未命名分支')}</h3>
       ${node.description ? `<p>${esc(node.description)}</p>` : ''}
       ${ownCards.length ? `<div class="resources">${ownCards.map(card => cardHtml(card, options)).join('')}</div>` : '<div class="empty">暂未挂资源卡。</div>'}
     </div>
-    ${children.length ? `<ul>${children.map((child, i) => nodeTreeHtml(child, nodes, cards, options, index * 10 + i + 1)).join('')}</ul>` : ''}
+    ${children.length ? `<ul>${children.map((child, i) => nodeTreeHtml(child, nodes, cards, options, depth + 1, index * 10 + i + 1)).join('')}</ul>` : ''}
   </li>`
 }
 
 export function buildCurationShareHtml(input: CurationShareInput): string {
   const { workspaceName, thesis, nodes, cards, options } = input
   const generatedAt = input.generatedAt || Date.now()
+  const snapshot = buildCurationSnapshot({
+    workspaceName,
+    thesis,
+    nodes,
+    cards,
+    layout: options.format === 'reading' ? 'pyramid' : 'tree',
+    generatedAt,
+  })
+  const snapshotJson = JSON.stringify(snapshot).replace(/</g, '\\u003c')
   const roots = childrenOf(nodes)
   const attachmentCount = cards.reduce((n, c) => n + (c.assets?.length || 0), 0)
   const thesisTitle = thesis?.title || `${workspaceName} · 策展成果`
@@ -149,10 +167,13 @@ export function buildCurationShareHtml(input: CurationShareInput): string {
     </header>
     <div class="tree-scroll"><div class="share-tree">
       <div class="share-root"><div class="node-kicker">L1 · 中心论点</div><h2>${esc(thesisTitle)}</h2><p>${esc(thesisDesc)}</p></div>
-      <ul class="tree-root">${roots.length ? roots.map((n, i) => nodeTreeHtml(n, nodes, cards, options, i + 1)).join('') : '<li class="empty-page">暂无论证分支。</li>'}</ul>
+      <ul class="tree-root">${roots.length ? roots.map((n, i) => nodeTreeHtml(n, nodes, cards, options, 0, i + 1)).join('') : '<li class="empty-page">暂无论证分支。</li>'}</ul>
     </div></div>
     <footer class="footer">由知源生成${options.date ? ` · ${fmtDate(generatedAt)}` : ''}<br>资源链接可点击；分享文件不依赖知源扩展。</footer>
   </main>`
+  const imageLink = input.imageDataUrl
+    ? `<a class="image-download" download="${esc(workspaceName.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40) || '策展成果')}_高清长图.png" href="${esc(input.imageDataUrl)}"><span>↓</span> 下载高清长图</a>`
+    : ''
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(thesisTitle)}</title>
@@ -166,7 +187,9 @@ a{color:inherit;text-decoration:none}.doc-shell{max-width:1220px;margin:0 auto;p
 .resources{display:flex;flex-direction:column;gap:9px}.resource{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:13px 14px}.resource-head{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px}.resource-head .type,.tag,.source{font-size:10px;border-radius:4px;padding:1px 6px;border:1px solid var(--line);color:var(--ink-3)}.tag{background:var(--surface-2)}.source.official{color:#2368b7;background:#eaf2fb}.source.academic{color:#2e7d45;background:#edf5ee}.source.media{color:#9b6819;background:#faf1e1}.source.own{color:var(--accent);background:var(--accent-soft)}.source.ai{color:#7652a8;background:#f2edf8}.source.personal{color:var(--ink-3);background:var(--surface-2)}
 .res-title{display:inline-block;font-size:15px;font-weight:700;line-height:1.5;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent);text-underline-offset:3px}.res-title:hover{color:var(--accent)}.open{font-size:11px;color:var(--accent);font-weight:700;text-decoration:none;white-space:nowrap;margin-left:7px}.resource p{margin:5px 0 0;font-size:13px;line-height:1.65;color:var(--ink-2)}.empty,.empty-page{border:1px dashed var(--line);border-radius:8px;padding:11px;font-size:13px;color:var(--ink-3)}.asset-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.asset{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:6px;background:var(--surface-2);font-size:11px}.asset small{color:var(--ink-3)}.attachment-section{margin-top:32px;padding-top:24px;border-top:1px solid var(--line)}.attachment-section h2{font-size:20px;margin:7px 0 12px}.attachment-row{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid var(--line);padding:8px 0;font-size:13px;color:var(--ink-2)}.attachment-row small{color:var(--ink-3);text-align:right}.footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font-size:11px;line-height:1.7;color:var(--ink-3)}
 .tree-doc{max-width:1440px;margin:0 auto;padding:46px 26px 60px}.tree-hero{max-width:880px}.tree-scroll{overflow-x:auto;padding-bottom:16px}.share-tree{display:flex;gap:44px;align-items:flex-start;min-width:1080px;margin-top:28px}.share-root{width:300px;flex:none;border:2px solid var(--accent);border-radius:14px;padding:18px;background:linear-gradient(135deg,var(--accent-soft),var(--surface));box-shadow:0 12px 34px var(--shadow)}.share-root h2{font-size:20px;line-height:1.4;margin:6px 0 8px}.share-root p{font-size:13px;color:var(--ink-2);margin:0}.tree-root,.tree-root ul{list-style:none;margin:0;padding:0}.tree-root{display:flex;flex-direction:column;gap:14px;padding-left:24px;border-left:1px solid var(--line)}.tree-branch{position:relative}.tree-branch::before{content:"";position:absolute;left:-24px;top:28px;width:24px;height:1px;background:var(--line)}.tree-node{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:13px 15px;width:330px}.tree-node h3{font-size:17px;margin:5px 0}.tree-node p{font-size:12px;color:var(--ink-2);margin:0 0 9px}.tree-branch>ul{display:flex;flex-direction:column;gap:10px;margin:10px 0 0 20px;padding-left:20px;border-left:1px solid var(--line)}.tree-node .resources{gap:7px}.tree-node .resource{padding:9px 10px}.tree-node .res-title{font-size:13px}.tree-node .resource p{font-size:12px}
+.image-download{position:fixed;right:22px;bottom:22px;z-index:10;display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid var(--accent);border-radius:999px;background:var(--surface);color:var(--accent);box-shadow:0 8px 26px var(--shadow);font-size:12px;font-weight:700;text-decoration:none}.image-download:hover{background:var(--accent-soft)}.image-download span{font-size:16px;line-height:1}
 @media(max-width:900px){.doc-shell{display:block;padding:32px 18px 50px}.toc{position:relative;top:auto;display:none}.article{max-width:none}.hero h1{font-size:34px}.lead{font-size:16px}.depth-1,.depth-2,.depth-3{margin-left:0}.tree-doc{padding:30px 16px 44px}.share-tree{min-width:900px}.share-root{width:250px}}
 @media print{body{background:#fff}.doc-shell{display:block;padding:0}.toc{display:none}.article{max-width:none}.resource,.tree-node{break-inside:avoid}.footer{position:static}}
-</style></head><body>${options.format === 'reading' ? reading : tree}</body></html>`
+</style></head><body>${options.format === 'reading' ? reading : tree}${imageLink}
+<script type="application/json" id="zy-curation-share-data">${snapshotJson}</script></body></html>`
 }

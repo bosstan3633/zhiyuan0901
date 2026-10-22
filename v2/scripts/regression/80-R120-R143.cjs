@@ -98,13 +98,14 @@ check('R121-12 树内能力保留：编辑 + 节点操作 hover + 指标折叠 +
 check('R122-1 页头摘要（V3.7.0 重指）：自写描述内联 + 「N 个分类」摘要 + 更新流水入口；提示条/教学气泡退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('v-if="wsHeadDescOwn"') && w.includes('{{ categories.length }} 个分类') && w.includes('class="wsh-upd"') && !w.includes('wsh-tip') && !w.includes('wsh-help') && !w.includes('资源卡唯一存储'); });
 // V3.7.0（R179）退役：hub 横排指标盒（ws-metrics hub3 flat）随资源台退役——指标条单形态（cur3 三格）由 R75-5 承接。
 check('R122-2 指标条横排盒（V3.7.0 退役）：hub3 flat 形态零残留', () => { const w = read('/newtab/views/Workspace.vue'); return !w.includes('ws-metrics hub3') && !w.includes('hub3'); });
-check('R122-3（V3.9.8 随迁）工具条提权：策展画布主行动是「＋ 新建分支」，导入数据包与分享成果并列常驻；旧「＋ 新建论证卡」与画布批量栏均已退役，不得回流', () => {
+check('R122-3（V3.9.9 随迁）工具条提权：策展画布常驻导入成果 HTML 与分享成果；建支只走节点 Tab / Enter，旧「＋ 新建分支」「＋ 新建论证卡」与画布批量栏均已退役，不得回流', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
-  return w.includes('<button class="hero-btn primary" @click="mind.createChild(\'root\')">＋ 新建分支</button>')
-    && w.includes('<Icon name="download" :size="13"/> 导入数据包</button>')
+  return !w.includes('＋ 新建分支')
+    && !w.includes("@click=\"mind.createChild('root')\"")
+    && w.includes('<Icon name="download" :size="13"/> 导入成果 HTML</button>')
     && w.includes('<Icon name="share" :size="13"/> 分享成果</button>')
     && w.includes('placeholder="检索论证节点..."')
-    && !w.includes('＋ 新建论证卡</button>') && !w.includes('⬇ 导入资源')
+    && !w.includes('＋ 新建论证卡</button>') && !w.includes('导入数据包</button>')
     && !w.includes("batchMode ? '完成批量' : '批量'");
 });
 check('R122-4（V3.9.8 随迁）状态快捷筛选语义保留：hot 仍以 callCount ≥ 3 判定；旧资源网格列数控件与工具栏 quick-filter 已随四视图退役，现役筛选分别落在资源池控制行与画布检索', () => {
@@ -221,7 +222,7 @@ check('R124-6（V3.9.1 重指）调度台工作单焦点：主工作区强描边
 check('R124-7 调度台：任务树按钮文案', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('展开关联任务树') && pc.includes('removeMetric');  });
 check('R124-8 方向台：中性退色（prTag plain / 短文案 / 灰点 hover 显 + 展板紫调光带）', () => { const pc = read('/newtab/views/ProjectCuration.vue'); return pc.includes("return pr === 'high' ? 'danger' : 'plain'") && pc.includes("'高优' : pr === 'mid' || pr === 'medium' ? '中优' : '低优'") && pc.includes('.tag.plain .tag-dot') && pc.includes('.btask:hover .tag.plain .tag-txt { display: inline; }') && pc.includes('.page.is-embedded { background-color: var(--surface);'); });
 check('R124-9（V3.9.8 随迁）资源池富卡：网格卡最小高度 94px，标题与说明按内容收敛；旧 120–160 锁高与单行截断均退役', () => { const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return pool.includes('min-height: 94px;') && !pool.includes('max-height: 160px;') && !pool.includes('-webkit-line-clamp: 1;'); });
-check('R124-10（V3.9.8 随迁备案）策展台空态：旧虚线金字塔骨架与“去金字塔挂载”随四视图退役；现役画布用两处 EmptyState 分别承接“无论点”和“有论点无分支”，各给一条明确主行动', () => {
+check('R124-10（V3.9.9 随迁备案）策展台空态：旧虚线金字塔骨架与“去金字塔挂载”随四视图退役；无论点用 EmptyState 主行动，有论点无分支改为键盘提示，不再提供建支按钮', () => {
   const m = read('/newtab/components/curation/CurationMindMap.vue');
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   return !host.includes('cur-empty-skeleton') && !host.includes('L2 论据分支 A')
@@ -229,7 +230,8 @@ check('R124-10（V3.9.8 随迁备案）策展台空态：旧虚线金字塔骨�
     && m.includes('action-label="＋ 写下中心论点"')
     && m.includes("emit('open-create-thesis')")
     && m.includes('<EmptyState v-if="thesis && !nodes.length" size="inline" icon="hexagon"')
-    && m.includes('action-label="＋ 新建论据分支"')
+    && !m.includes('action-label="＋ 新建论据分支"')
+    && m.includes('hint="选中中心论点后按 Tab，创建第一个二级分支。"')
     && m.includes("emit('create-child', 'root')");
 });
 
@@ -474,12 +476,12 @@ check('R132-5 T3 ★R4-Da 退役重指带备案：原守「全景树分类双击
     && g.includes('@dblclick="ttRename(root.id)"') && g.includes('@dblclick="ttRename(child.id)"')
     && g.includes('const dup = tagFlat().some(t => t.name === name && t.id !== ed.id)') && g.includes("showToast('已存在同名标签')");
 });
-check('R132-6（V3.9.8 随迁）策展画布节点改名：标题单击/双击都进入行内 input，不再弹窗；旧资源台 startCatRename(sc.cat) 与 CatNodeName 宿主已退役', () => {
+check('R132-6（V3.9.9 随迁）策展画布节点改名：标题单击选中、双击（或 F2）进入行内 input，不再弹窗；旧资源台 startCatRename(sc.cat) 与 CatNodeName 宿主已退役', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const node = read('/newtab/components/curation/CurationMindNode.vue');
   return node.includes('class="mind-edit-title"')
-    && node.includes('@click.stop="beginEdit(\'title\')"')
     && node.includes('@dblclick.stop="beginEdit(\'title\')"')
+    && node.includes("if (e.key === 'F2')")
     && !w.includes('@dblclick="startCatRename(sc.cat)"')
     && !w.includes('<CatNodeName class="cat-name"');
 });

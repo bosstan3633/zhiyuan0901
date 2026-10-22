@@ -64,7 +64,8 @@ check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描
   const REG = {
     'shared/utils/locate.ts': 1,                    // 唯一算式本体（resourceLocateRoute 的 else 分支）
     'newtab/App.vue': 3,                            // 台签 / 新建台后跳转 / 数字快捷键跳台：来源都是 store.workspaces getter（已过滤池）
-    'newtab/components/GlobalPopups.vue': 3         // locateOnly 的池分支之后、ws 类型行、分类树定位：三处都在 !== CURATION_WS_ID 过滤之后
+    'newtab/components/GlobalPopups.vue': 3,        // locateOnly 的池分支之后、ws 类型行、分类树定位：三处都在 !== CURATION_WS_ID 过滤之后
+    'newtab/views/Workspace.vue': 1                 // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
   };
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
   const found = {};

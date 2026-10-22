@@ -7,7 +7,7 @@ const {
 } = require('./helpers.cjs');
 
 console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
-check('R65-1（V3.9.8 重指）工具能力分宿主保留：策展画布留搜索/新建论证卡/导入/分享；资源池留搜索/列表·网格/四档筛选/批量/新建/本地导入。旧卡片·列表·看板·金字塔四视图值域退役', () => {
+check('R65-1（V3.9.9 重指）工具能力分宿主保留：策展画布留搜索/成果导入/分享/模板；资源池留搜索/列表·网格/四档筛选/批量/新建/本地导入。旧四视图与工具栏建支按钮退役', () => {
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   const hostCode = codeOnly(host);
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
@@ -15,7 +15,7 @@ check('R65-1（V3.9.8 重指）工具能力分宿主保留：策展画布留搜�
   return !hostCode.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')")
     && !hostCode.includes('class="view-tabs"')
     && host.includes('class="ws-toolbar"') && host.includes('toolbar-search')
-    && host.includes('＋ 新建分支') && host.includes('导入数据包') && host.includes('分享成果')
+    && !host.includes('＋ 新建分支') && host.includes('导入成果 HTML') && host.includes('分享成果')
     && pool.includes('<DeckControls panel="pool"') && pool.includes('poolViews')
     && pool.includes("id: 'card'") && pool.includes("id: 'list'")
     && pool.includes('poolFilters') && pool.includes("id: 'all'") && pool.includes("id: 'untagged'")
@@ -579,12 +579,12 @@ check('R74-2 路由收敛保持（V3.7.0 重指）：/curation 仍为 redirect�
   const r = read('/newtab/router.ts');
   return r.includes("path: '/curation'") && r.includes("redirect: () => ({ path: '/' })") && !r.includes("'/workspace/' + CURATION_WS_ID");
 });
-check('R74-3（V3.9.8 重指：四视图入口退役，画布保留搜索/新建分支/导入/分享与金字塔、树状布局切换）', () => {
+check('R74-3（V3.9.9 重指：四视图入口退役；画布保留搜索/成果导入/分享与金字塔、树状布局切换，建支只走节点键盘）', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   const wc = codeOnly(w);
   const m = read('/newtab/components/curation/CurationMindMap.vue');
-  return w.includes('toolbar-search') && w.includes('＋ 新建分支')
-    && w.includes('导入数据包') && w.includes('分享成果')
+  return w.includes('toolbar-search') && !w.includes('＋ 新建分支')
+    && w.includes('导入成果 HTML') && w.includes('分享成果')
     && m.includes("emit('update:layout', 'pyramid')") && m.includes("emit('update:layout', 'tree')")
     && !wc.includes('class="view-tabs"') && !wc.includes('toggleBatchMode');
 });
@@ -633,7 +633,7 @@ check('R74-7（V3.9.8 重指）镜像卡同树呈现：boardCardsOf 先并入 al
     && hook.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>(() => {')
     && hook.includes('for (const r of allResources.value)')
     && node.includes('return props.cardsByCat.get(props.node.id) || []')
-    && node.includes('<button v-for="card in cards().slice(0, 2)"');
+    && node.includes('<span v-for="card in cards().slice(0, 2)"');
 });
 // V3.7.0（R179）退役：hub 镜像推送入口（卡面 📡 / 分类 ⋯ 📤 / 目标台弹窗）随资源台退役整体下线——
 // 宿主 Workspace.vue 与 useWorkspaceMirror.ts 双清；策展台内镜像**引用侧**（📡 徽标 / 定位 / 移出）仍在。
@@ -800,7 +800,7 @@ check('R76-3（V3.9.8 重指）分类计数不再聚合/直属三元混用：画
   return !w.includes('{{ sc.directCount }}')
     && !w.includes('sc.hasChildren ? sc.aggCount : sc.directCount')
     && node.includes('return props.cardsByCat.get(props.node.id) || []')
-    && node.includes('<button v-for="card in cards().slice(0, 2)"')
+    && node.includes('<span v-for="card in cards().slice(0, 2)"')
     && pool.includes('{{ sec.cards.length }} 张');
 });
 check('R76-4（V3.9.8 重指）分页只影响渲染集，不影响计数：列表/网格均渲染 rendered，头部仍显示 poolCards.length / poolTotal', () => {

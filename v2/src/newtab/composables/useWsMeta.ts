@@ -117,12 +117,12 @@ export function useWsMeta(ctx: WsMetaCtx) {
     if (workspaceId.value === CURATION_WS_ID) { showToast('ℹ 「资源卡池」是系统空间，不在此删除'); return }
     // R146（回退契约）：接真源 deleteDeck——确认里报出会被带进回收站的卡数，删除后 3 秒可整台撤销
     const n = deckCardCount(d.value, workspaceId.value)
-    if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${wsDisplayNameOf(workspace.value)}」？\n其中 ${n} 张资源卡与全部分类将移入回收站（可恢复）；台本身从标签栏移除，3 秒内可撤销，超时后需在回收站逐张恢复。`, confirmText: '确认删除' }))) return
+    if (!(await useConfirm({ title: '删除策展台', message: `确定删除策展台「${wsDisplayNameOf(workspace.value)}」？\n其中 ${n} 张本台原生资源卡与全部分类将移入回收站（可恢复）；本台内的镜像引用会移除，但资源卡池里的源卡状态不变。\n台本身从标签栏移除，3 秒内可撤销，超时后需在回收站逐张恢复。`, confirmText: '确认删除' }))) return
     const snap = deleteDeck(d.value, workspaceId.value)
     if (!snap) { showToast('⚠ 该策展台已不存在'); return }
     store.persist()
     router.push('/compass')
-    showToast(`已删除策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」· ${snap.cardIds.length} 张卡进回收站`, { label: '撤销', cb: () => {
+    showToast(`已删除策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡进回收站，池卡未受影响`, { label: '撤销', cb: () => {
       restoreDeck(d.value, snap)
       store.persist()
       showToast(`✓ 已恢复策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」及其 ${snap.cardIds.length} 张卡`)

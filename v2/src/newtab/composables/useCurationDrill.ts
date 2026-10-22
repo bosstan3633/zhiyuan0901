@@ -14,7 +14,7 @@ import type { Category, ResourceCard } from '@/shared/models'
 import type { CatIndex } from '@/shared/utils/catIndex'
 import { isMirrorView } from '@/shared/storage/hub'
 import { readEventLog, EVENT_ACT_LABEL, type CardEvent } from '@/shared/utils/eventLog'
-import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
+import type { DrillCatRow, DrillCardRow, DrillDetailRow } from '@/newtab/components/CurationDrillDrawer.vue'
 
 export interface CurationDrillCtx {
   allResources: ComputedRef<ResourceCard[]>
@@ -56,6 +56,18 @@ export function useCurationDrill(ctx: CurationDrillCtx) {
   const toDrillRow = (r: ResourceCard): DrillCardRow => ({ id: r.id, title: r.title, updatedAt: r.updatedAt || r.createdAt })
   const drillNative = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(r => !isMirrorView(r)).map(toDrillRow) : [])
   const drillMirror = computed<DrillCardRow[]>(() => drillOpen.value ? allResources.value.filter(isMirrorView).map(toDrillRow) : [])
+  /** 卡片总数抽屉：明细与分类汇总同源同开——每张卡直接带所属节点，不再要求用户点分类才看到卡。 */
+  const drillCardRows = computed<DrillDetailRow[]>(() => {
+    if (!drillOpen.value || drillMode.value !== 'total') return []
+    return allResources.value.map(r => ({
+      id: r.id,
+      title: r.title,
+      nodeName: catIdx.value.byId.get(r.categoryId || '')?.name || '待分类',
+      sourceType: r.sourceType,
+      mirrored: isMirrorView(r),
+      updatedAt: r.updatedAt || r.createdAt,
+    })).sort((a, b) => b.updatedAt - a.updatedAt)
+  })
 
   /**
    * R169-T1：「最近更新流水」改**事件流 + 卡时间归并**（原先只读卡 `updatedAt` 的 Top 30，
@@ -83,5 +95,5 @@ export function useCurationDrill(ctx: CurationDrillCtx) {
     })
   })
 
-  return { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent }
+  return { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillCardRows, drillRecent }
 }

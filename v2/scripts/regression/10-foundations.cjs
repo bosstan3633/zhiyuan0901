@@ -455,12 +455,13 @@ check('R33-2 REQ-023 星标字段 starred（CardBase 一份 + 卡 extends，零�
 check('R33-2b REQ-023 导出 CSV 补置顶/星标两列（第卌一轮 REQ-055 资源改固定管理尾列；任务 CSV 仍含两列）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const t = read('/newtab/views/CompassHome.vue'); return g.includes("{ label: '置顶', get: r => (r.pinned ? '是' : '') }") && g.includes("{ label: '星标', get: r => (r.starred ? '是' : '') }") && t.includes("t?.pinned ? '是' : ''") && t.includes("t?.starred ? '是' : ''"); });
 check('R33-3 BUG-A 好奇置顶分组错位修复（置顶卡前置 + 组内 sortOrder/时间序）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)') && read('/newtab/components/compass/CuriosityPanel.vue').includes("from '@/shared/utils/marksort'"));
 check('R33-4 BUG-B Ctrl+Enter 口径统一（采集浮层标题/链接去除裸 Enter 保存）', () => !read('/newtab/components/GlobalPopups.vue').includes('@keydown.enter.prevent="saveCapture"') && read('/newtab/components/GlobalPopups.vue').includes('<Icon name="save" :size="13"/> 保存（Ctrl+Enter）'));
-check('R33-5（V3.9.8 随迁）新建子分类死链退役：改由画布节点「子分支」按钮与 Tab 创建，父级 id 直接写入 Category.parentId，旧侧栏弹窗入口零回流', () => {
+check('R33-5（V3.9.9 随迁）新建子分类死链退役：建支只由节点 Tab / Enter 触发，父级 id 直接写入 Category.parentId，旧侧栏弹窗与节点建支按钮零回流', () => {
   const m = read('/newtab/components/curation/CurationMindMap.vue');
   const n = read('/newtab/components/curation/CurationMindNode.vue');
   const h = read('/newtab/composables/useCurationMindMap.ts');
-  return n.includes('@click.stop="emit(\'create-child\', node.id)"')
+  return !n.includes("emit('create-child', node.id)")
     && m.includes("emit('create-child', 'root')")
+    && m.includes('<kbd>Tab</kbd>')
     && h.includes('parentId: parent?.id')
     && !read('/newtab/views/Workspace.vue').includes('openCreateCat');
 });
@@ -533,7 +534,7 @@ check('R34-5 各组件不再持有本地 Toast 实例（ref/showToast 残留清�
 
 console.log('【第卅四轮 · V2.13 需求包第二批：REQ-027 分组分区视图 + 折叠增强】');
 check('R34-6（R64 修订）卡片/列表分类分区：树状递归分组（walk 直属卡+子分类下钻 depth 缩进）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const resourceGroups') && w.includes("title: '待分类'") && w.includes('walk(sub.id, sub.name, depth + 1)'); });
-check('R34-7（V3.9.8 随迁）分组折叠退役，画布用节点展开表达层级：子节点随父节点递归渲染，空分支/空画布各有独立主动作', () => {
+check('R34-7（V3.9.9 随迁）分组折叠退役，画布用节点展开表达层级：子节点随父节点递归渲染，空画布有主行动、空分支给键盘提示', () => {
   const m = read('/newtab/components/curation/CurationMindMap.vue');
   const n = read('/newtab/components/curation/CurationMindNode.vue');
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
@@ -541,7 +542,8 @@ check('R34-7（V3.9.8 随迁）分组折叠退役，画布用节点展开表达�
     && n.includes('<CurationMindNode v-for="child in children()"')
     && m.includes('v-if="thesis && !nodes.length"')
     && m.includes('v-if="!thesis"')
-    && m.includes('action-label="＋ 新建论据分支"')
+    && !m.includes('action-label="＋ 新建论据分支"')
+    && m.includes('hint="选中中心论点后按 Tab，创建第一个二级分支。"')
     && m.includes('action-label="＋ 写下中心论点"')
     && !host.includes('collapsedGroups');
 });

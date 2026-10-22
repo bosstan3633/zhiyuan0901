@@ -182,7 +182,6 @@ export function deleteDeck(d: AppData, wsId: string): DeckSnapshot | null {
   for (const c of d.categories) if (c.workspaceId === wsId && !c.deletedAt) { c.deletedAt = now; catIds.push(c.id) }
   d.workspaces.splice(index, 1)
   if (d.curationProjections?.length) d.curationProjections = d.curationProjections.filter(p => !(p.kind === 'card' && p.targetWsId === wsId))
-  pruneMirrorCats(d, wsId)
   return { ws, index, cardIds, catIds }
 }
 

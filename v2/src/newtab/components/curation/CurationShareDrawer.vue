@@ -1,10 +1,12 @@
 <script setup lang="ts">
-/** 策展成果分享：选项、真实 HTML 预览和本地下载同源。 */
-import { computed, reactive } from 'vue'
+/** 策展成果分享：阅读长文 / 论证树 / 高清长图共用同一份成果数据。 */
+import { computed, reactive, ref, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import Icon from '@/shared/components/Icon.vue'
-import { downloadText, stampDay } from '@/shared/utils/download'
+import { downloadBlob, downloadText, stampDay } from '@/shared/utils/download'
+import { showToast } from '@/shared/components/toast'
 import { buildCurationShareHtml, type CurationShareOptions } from '@/shared/utils/curationShare'
+import { renderCurationImage } from '@/shared/utils/curationImage'
 import type { Category, ResourceCard } from '@/shared/models'
 
 const props = defineProps<{
@@ -28,21 +30,87 @@ const options = reactive<CurationShareOptions>({
 
 const roots = computed(() => props.nodes.filter(n => !n.parentId).length)
 const attachmentCount = computed(() => props.cards.reduce((n, c) => n + (c.assets?.length || 0), 0))
+const imageDataUrl = ref('')
+const imageBusy = ref(false)
+let imageSeq = 0
+
 const html = computed(() => buildCurationShareHtml({
   workspaceName: props.workspaceName,
   thesis: props.thesis,
   nodes: props.nodes,
   cards: props.cards,
   options: { ...options },
+  imageDataUrl: imageDataUrl.value || undefined,
 }))
 const filename = computed(() => {
   const title = (props.thesis?.title || props.workspaceName || '策展成果').replace(/[\\/:*?"<>|]/g, '_').slice(0, 48)
   return `${title}_策展分享_${stampDay()}.html`
 })
+const imageFilename = computed(() => {
+  const title = (props.thesis?.title || props.workspaceName || '策展成果').replace(/[\\/:*?"<>|]/g, '_').slice(0, 48)
+  return `${title}_高清长图_${stampDay()}.png`
+})
 
 function download(): void {
   downloadText(filename.value, html.value, 'html')
 }
+
+async function buildImage(): Promise<string> {
+  if (!props.open) return ''
+  const seq = ++imageSeq
+  imageBusy.value = true
+  try {
+    const out = await renderCurationImage({
+      workspaceName: props.workspaceName,
+      thesis: props.thesis,
+      nodes: props.nodes,
+      cards: props.cards,
+      layout: options.format === 'tree' ? 'tree' : 'pyramid',
+      theme: options.theme,
+    })
+    if (seq === imageSeq && props.open) imageDataUrl.value = out.dataUrl
+    return out.dataUrl
+  } catch (error) {
+    if (seq === imageSeq) showToast('长图生成失败：' + ((error as Error).message || '未知错误'))
+    return ''
+  } finally {
+    if (seq === imageSeq) imageBusy.value = false
+  }
+}
+
+async function downloadImage(): Promise<void> {
+  imageBusy.value = true
+  try {
+    const out = await renderCurationImage({
+      workspaceName: props.workspaceName,
+      thesis: props.thesis,
+      nodes: props.nodes,
+      cards: props.cards,
+      layout: options.format === 'tree' ? 'tree' : 'pyramid',
+      theme: options.theme,
+    })
+    downloadBlob(imageFilename.value, out.blob)
+    showToast(`已下载高清长图（${out.width} × ${out.height}）`)
+  } catch (error) {
+    showToast('长图生成失败：' + ((error as Error).message || '未知错误'))
+  } finally {
+    imageBusy.value = false
+  }
+}
+
+watch(
+  () => [props.open, options.format, options.theme, props.nodes, props.cards, props.thesis] as const,
+  () => {
+    if (!props.open) {
+      imageSeq++
+      imageDataUrl.value = ''
+      return
+    }
+    imageDataUrl.value = ''
+    void buildImage()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -83,9 +151,18 @@ function download(): void {
       <div class="cs-label">真实效果预览</div>
       <iframe class="cs-preview" title="分享 HTML 预览" sandbox="allow-popups allow-popups-to-escape-sandbox" :srcdoc="html"></iframe>
     </div>
+    <div class="cs-image-row">
+      <span class="cs-image-state">
+        <Icon name="image" :size="14"/>
+        <span><b>高清长图</b><small>{{ imageBusy ? '正在生成完整 L1–L4 长图…' : imageDataUrl ? '已嵌入分享 HTML；接收方可直接下载' : '打开分享时可生成' }}</small></span>
+      </span>
+      <button type="button" class="cs-btn" :disabled="imageBusy" @click="downloadImage">
+        <Icon name="download" :size="13"/> 下载高清长图
+      </button>
+    </div>
     <template #footer>
       <button type="button" class="cs-btn" @click="emit('close')">取消</button>
-      <button type="button" class="cs-btn primary" @click="download"><Icon name="download" :size="13"/> 下载 HTML</button>
+      <button type="button" class="cs-btn primary" :disabled="imageBusy" @click="download"><Icon name="download" :size="13"/> 下载 HTML</button>
     </template>
   </Drawer>
 </template>
@@ -116,9 +193,15 @@ function download(): void {
 .cs-summary { margin-top: 16px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
 .cs-summary b { color: var(--text-2); }
 .cs-preview { width: 100%; height: 360px; border: 1px solid var(--border); border-radius: 9px; background: #f7f4ed; }
+.cs-image-row { margin-top: 12px; display: flex; align-items: center; gap: 12px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.cs-image-state { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--text-3); }
+.cs-image-state > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cs-image-state b { color: var(--text-2); font-size: var(--fs-sub); }
+.cs-image-state small { color: var(--text-3); font-size: var(--fs-tiny); line-height: 1.5; }
 .cs-btn { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-2); cursor: pointer; font: inherit; font-size: var(--fs-sub); }
 .cs-btn:hover { border-color: var(--accent); color: var(--accent); }
+.cs-btn:disabled { opacity: var(--opacity-disabled); cursor: wait; }
 .cs-btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .cs-btn.primary:hover { background: var(--accent-hover); color: #fff; }
-@media (max-width: 640px) { .cs-format-grid { grid-template-columns: 1fr; } .cs-preview { height: 300px; } }
+@media (max-width: 640px) { .cs-format-grid { grid-template-columns: 1fr; } .cs-preview { height: 300px; } .cs-image-row { align-items: stretch; flex-direction: column; } }
 </style>

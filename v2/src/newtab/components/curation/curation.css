@@ -273,6 +273,35 @@
   font: inherit;
   font-size: var(--fs-micro);
 }
+.mind-resource {
+  position: relative;
+  padding-right: 18px;
+}
+.mind-resource-remove {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-3);
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  transform: translateY(-50%);
+  transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+}
+.mind-resource:hover .mind-resource-remove,
+.mind-resource:focus-within .mind-resource-remove,
+.mind-resource-remove:focus-visible { opacity: 1; }
+.mind-resource-remove:hover { background: var(--danger-bg-soft); color: var(--danger); }
 .mind-resource:hover,
 .mind-resource-more:hover { border-color: var(--accent); color: var(--accent); }
 .mind-resource.search-hit { border-color: var(--warning); background: var(--warning-bg-soft); color: var(--warning); }

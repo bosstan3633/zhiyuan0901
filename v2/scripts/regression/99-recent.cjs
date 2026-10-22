@@ -90,8 +90,9 @@ check('R168-1 ★AI 徽标图形只挂一份：形状本体在 AiMarkSymbol（�
 check('R168-2（V3.9.8 随迁）台面零“常驻浮层”：Workspace 原生 modal 一律 v-if，点开才进 DOM；资源详情走共享 Drawer 壳内 v-if，关联资源走共享 Modal 壳内 v-if；旧书签/批量移动浮层不得回流', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'); const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue'); const m = read('/shared/components/Modal.vue')
   const overlays = [...w.matchAll(/<div\s+v-if="([^"]+)"\s+class="modal-overlay open"/g)].map(x => x[1])
-  return overlays.length === 3
-    && overlays.includes('importModalOpen') && overlays.includes('mirrorOpen') && overlays.includes('inputModal.open')
+  return overlays.length === 4
+    && overlays.includes('importModalOpen') && overlays.includes('mirrorOpen') && overlays.includes('shareImportPending')
+    && overlays.includes('inputModal.open')
     && !w.includes('class="modal-overlay" :class="{open:')
     && !w.includes('bookmarkModalOpen') && !w.includes('moveModalOpen') && !w.includes('moveOneOpen')
     && w.includes('<Drawer :open="drawerOpen" width="520px"') && !w.includes('class="drawer" :class="{open: drawerOpen}"')

@@ -145,7 +145,8 @@ check('R101-1 ★ 下钻域拆分不变量：状态与数据在 composable（惰
     && DR101.includes("if (!drillOpen.value) return []")
     && DR101.includes('const drillNative = computed') && DR101.includes('const drillMirror = computed') && DR101.includes('const drillRecent = computed')
     && WSP101.includes('useCurationDrill({')
-    && WSP101.includes('const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent } = useCurationDrill({')
+    && WSP101.includes('const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillCardRows, drillRecent } = useCurationDrill({')
+    && DR101.includes('drillCardRows')
     && WSP101.includes('function onDrillJumpCat(id: string) {') && WSP101.includes('function onDrillOpenCard(id: string) {') && WSP101.includes('function onDrillLocate(id: string) {')
     && !WSP101.includes('const drillCatRows = computed');
 });

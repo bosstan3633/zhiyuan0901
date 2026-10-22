@@ -152,9 +152,9 @@ check(NAME(
 })
 
 check(NAME(
-  'W4-2 ★（V3.9.8 随迁）画布两处空态都必须有主行动：',
-  '无论点 → open-create-thesis；有论点无分支 → create-child(root)。',
-  '两处行动分别对应用户此刻缺的那一层，不是笼统的“新建”。'), () => {
+  'W4-2 ★（V3.9.8 随迁）画布两处空态都必须说明下一步：',
+  '无论点 → 写下中心论点；有论点无分支 → 选中中心论点按 Tab。',
+  '建支只走节点键盘操作，空态不再提供“新建分支”按钮。'), () => {
   const i1 = MAP.indexOf('<EmptyState v-if="thesis && !nodes.length"')
   const j1 = i1 >= 0 ? MAP.indexOf('/>', i1) : -1
   const c1 = i1 >= 0 && j1 > i1 ? MAP.slice(i1, j1) : ''
@@ -163,18 +163,18 @@ check(NAME(
   const c2 = i2 >= 0 && j2 > i2 ? MAP.slice(i2, j2) : ''
   if (!c1) { console.log('     未找到零节点空态'); return false }
   if (!c2) { console.log('     未找到空金字塔空态'); return false }
-  if (!c1.includes('action-label=')) { console.log('     零节点缺主行动'); return false }
-  if (!c1.includes("emit('create-child', 'root')")) { console.log('     零节点主行动应为 create-child(root)'); return false }
+  if (!c1.includes('hint="选中中心论点后按 Tab，创建第一个二级分支。"')) { console.log('     零节点缺少键盘建支提示'); return false }
+  if (c1.includes('action-label=')) { console.log('     零节点空态不应再提供建支按钮'); return false }
   if (!c2.includes("emit('open-create-thesis')")) { console.log('     空画布主行动应为 open-create-thesis'); return false }
   if (!c2.includes('action-label="＋ 写下中心论点"')) { console.log('     空金字塔主行动文案不对'); return false }
   return true
 })
 
 check(NAME(
-  'W4-3 ★（V3.9.8 随迁）空态次行动不丢：画布无论点时主行动是“写下中心论点”，',
-  '同一宿主工具条仍保留「＋ 新建分支」作为先建结构、后补论点的开张路径。'), () => {
+  'W4-3 ★（V3.9.9 随迁）建支按钮彻底退役：画布无论点仍可从“写下中心论点”开张，',
+  '宿主工具条不得再以「＋ 新建分支」绕过节点键盘操作。'), () => {
   if (!MAP.includes('action-label="＋ 写下中心论点"')) { console.log('     空画布主行动缺失'); return false }
-  if (!WS.includes('＋ 新建分支') || !WS.includes("@click=\"mind.createChild('root')\"")) { console.log('     分支次入口缺失'); return false }
+  if (WS.includes('＋ 新建分支') || WS.includes("@click=\"mind.createChild('root')\"")) { console.log('     建支按钮回流'); return false }
   return true
 })
 

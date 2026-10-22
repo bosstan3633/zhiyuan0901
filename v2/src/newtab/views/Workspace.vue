@@ -67,7 +67,7 @@
     </div>
 
     <!-- 下钻抽屉（R62-2） -->
-    <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
+    <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :card-rows="drillCardRows" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
       :card-exists="cardExistsGlobally" :referenced-asset-ids="referencedAssetIds"
       @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate"
       @locate-asset="onDrillLocateAsset" @cleanup-asset="onDrillCleanupAsset" @cleanup-orphans="onDrillCleanupOrphans" />
@@ -88,7 +88,7 @@
     <div class="settings-menu" :class="{open: settingsMenuOpen}" @click.stop>
       <!-- R88（W6）：「⬇ 导入」自工具条收进此处，并**按台身份改名**消歧义（资源台=导入资源，策展台=导入策展台数据包）。
            V3.7.0（R179）：资源台退役——「导入」只剩数据包一种，消歧义前提消失，名称不再按台分支。 -->
-      <div class="sm-item" @click="openImport"><Icon name="download" :size="13"/> 导入数据包</div>
+      <div class="sm-item" @click="openImport"><Icon name="download" :size="13"/> 导入 JSON 备份</div>
       <!-- V3.9.8：策展画布不再提供卡片批量栏。池卡的批量动作统一在调度台「资源卡池」，
            本页设置菜单不再保留无落点的“批量管理”入口。 -->
       <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源卡池） -->
@@ -99,7 +99,7 @@
       <div class="sm-item" @click="editDesc"><Icon name="filetext" :size="13"/> 编辑描述</div>
       <div class="sm-item" @click="toggleIconPick($event)"><Icon name="palette" :size="13"/> 更换图标</div>
       <div class="sm-divider"></div>
-      <div class="sm-item" @click="exportWorkspace"><Icon name="package" :size="13"/> 导出策展台数据</div>
+      <div class="sm-item" @click="exportWorkspace"><Icon name="package" :size="13"/> 导出 JSON 备份</div>
       <div class="sm-divider"></div>
       <div class="sm-item danger" @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
     </div>
@@ -107,10 +107,9 @@
     <!-- ② 策展工具条 -->
     <div class="ws-toolbar">
       <span class="toolbar-mode"><Icon name="tree" :size="13"/> 策展画布</span>
-      <!-- 画布只渲染 Category 树：主 CTA 必须直接创建一个可见的二级分支。 -->
-      <button class="hero-btn primary" @click="mind.createChild('root')">＋ 新建分支</button>
-      <button class="hero-btn ghost" title="导入策展台数据包" @click="openImport"><Icon name="download" :size="13"/> 导入数据包</button>
-      <button class="hero-btn ghost" title="分享为自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
+      <!-- V3.9.8 体验收口：分支只由节点键盘操作创建；成果 HTML 是独立回导链，不再伪装成 JSON 数据包。 -->
+      <button class="hero-btn ghost" title="导入知源分享的策展成果 HTML" @click="openShareHtmlImport"><Icon name="download" :size="13"/> 导入成果 HTML</button>
+      <button class="hero-btn ghost" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
            与「＋新建」同属"往本台生成内容"，紧邻放置；V3.7.0（R179）：资源台退役后无 hub 门控，按钮常驻。 -->
       <button class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（中心论点 + 论证分支一次生成）"
@@ -157,9 +156,12 @@
       @select="mind.selectNode"
       @create-child="onMindCreateChild"
       @create-sibling="onMindCreateSibling"
+      @cut="mind.cutNode"
+      @paste="mind.pasteInto"
       @rename="mind.renameNode"
       @update-description="mind.updateDescription"
       @link-resource="openLinkCards"
+      @unlink-resource="onUnlinkResource"
       @open-resource="onCardClick"
       @open-resource-link="openResourceLink"
       @open-resource-context="openResCtx"
@@ -247,6 +249,7 @@
           <div class="modal-close" @click="importModalOpen=false">×</div>
         </div>
         <div class="modal-body">
+          <!-- 旧 JSON 备份降级为高级恢复通道；一级工具条的「导入成果 HTML」才是策展成果回导主场。 -->
           <!-- V3.7.0（R179）：hub 导入分支（书签/本地文件）随资源台退役——
                书签导入唯一路线收敛到 设置→导入数据（文件夹→标签）；
                ★R2-⑧：本地文件导入入口已按 R179 的既定去向重落到 调度台「资源卡池」控制行
@@ -304,6 +307,40 @@
         </div>
       </div>
     </div>
+
+    <!-- 成果 HTML 回导：新建或合并由用户当场选；先预览节点/资源规模再落库。 -->
+    <div v-if="shareImportPending" class="modal-overlay open" @click.self="closeShareHtmlImport">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <span class="mh-ico"><Icon name="upload" :size="13"/></span>
+          <span class="mh-title">导入策展成果 HTML</span>
+          <div class="modal-close" @click="closeShareHtmlImport">×</div>
+        </div>
+        <div class="modal-body">
+          <div>
+            <div class="mb-label">成果名称</div>
+            <div class="share-import-name">{{ shareImportPending.snapshot.thesis.title }}</div>
+            <div class="dr-hint">{{ shareImportPending.filename }} · {{ shareImportPending.nodeCount }} 个论证节点 · {{ shareImportPending.cardCount }} 张资源卡</div>
+          </div>
+          <div class="share-import-mode">
+            <div class="mb-label">导入方式</div>
+            <div class="share-import-option" @click="confirmNewShareImport">
+              <span class="mo-icon"><Icon name="folderopen" :size="13"/></span>
+              <span><b>新建一个策展台</b><small>保留成果的 L1–L4 结构，并切换到新台。</small></span>
+            </div>
+            <div class="share-import-option" @click="confirmMergeShareImport">
+              <span class="mo-icon"><Icon name="branch" :size="13"/></span>
+              <span><b>合并到当前策展台</b><small>同路径同标题的节点更新，不同则追加；重名自动加序号。</small></span>
+            </div>
+          </div>
+          <div v-if="shareImportError" class="share-import-error">{{ shareImportError }}</div>
+        </div>
+        <div class="modal-footer-row">
+          <button class="dr-footer-btn" @click="closeShareHtmlImport">取消</button>
+        </div>
+      </div>
+    </div>
+    <input ref="shareImportInput" type="file" accept=".html,.htm,text/html" class="file-hidden" @change="handleShareHtmlFile" />
 
     <!-- 第八轮：通用输入弹窗（策展台重命名/描述） -->
     <div v-if="inputModal.open" class="modal-overlay open" @click.self="inputModal.open=false">
@@ -368,6 +405,7 @@ import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { useResourceDrawer } from '@/newtab/composables/useResourceDrawer'
 import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
+import { useCurationShareImport } from '@/newtab/composables/useCurationShareImport'
 import { usePyramid } from '@/newtab/composables/usePyramid'
 import { useCurationMindMap } from '@/newtab/composables/useCurationMindMap'
 import { useWsMeta } from '@/newtab/composables/useWsMeta'
@@ -444,6 +482,23 @@ function saveThesisCard(patch: { title: string; description: string }): void {
   card.updatedAt = Date.now()
   store.persist()
   showToast('中心论点卡已保存')
+}
+
+/** 资源 chip 的 × 只解除当前节点关联：镜像删投射记录，台内原生卡回到未分类；池卡本体不改。 */
+function onUnlinkResource(nodeId: string, card: ResourceCard): void {
+  if (isMirrorView(card)) {
+    removeMirror(card)
+    return
+  }
+  const live = d.value.resources.find(r => r.id === card.id && !r.deletedAt)
+  if (!live || (live.categoryId || '') !== nodeId) {
+    showToast('ℹ 这张资源卡已不在当前节点')
+    return
+  }
+  live.categoryId = ''
+  live.updatedAt = Date.now()
+  store.persist()
+  showToast('已解除节点关联；资源卡仍在资源卡池')
 }
 
 function onMindCreateChild(id: string): void {
@@ -535,7 +590,7 @@ function confirmInputModal() {
 
 // ===== 下钻抽屉（R62-2）：状态与数据拆入 useCurationDrill =====
 // 状态与数据迁入 composable，落点导航回调（onDrill*）留宿主——它们写视图状态，是接线不是实现。
-const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent } = useCurationDrill({
+const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillCardRows, drillRecent } = useCurationDrill({
   allResources, resBucket, catIdx, isUncat
 })
 
@@ -623,6 +678,17 @@ const {
   importModalOpen, boardImportInput,
   handleBoardImport
 } = useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })
+
+const {
+  shareImportInput, shareImportPending, shareImportError,
+  openShareHtmlImport, handleShareHtmlFile, closeShareHtmlImport,
+  confirmNewShareImport, confirmMergeShareImport,
+} = useCurationShareImport({
+  d,
+  workspaceId,
+  persist: () => store.persist(),
+  navigate: (id) => router.push(`/workspace/${id}`),
+})
 
 // ===== 画布辅助域：模板导入 / 关联资源 / 全屏（旧金字塔视图已退出宿主）=====
 const {
