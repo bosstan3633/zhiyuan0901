@@ -36,6 +36,7 @@
  *   E2E-28 R4-a 迁移报告卡：出卡 → 回退落停用开关并清报告 → 可重新执行迁移
  *   E2E-30 R3-Ca 池面板：列表视图 / 待打标筛选 / 批量反选 / 右键置顶
  *   E2E-31 R3-Cb 三张卡批量口径合一：栏即出 / 全选反选可达 / 退出清空 / 任务批量打标
+ *   E2E-48 V3.9.11 设置页更新日志：左目录点击定位、右内容滚动同步高亮、720px 单列
  */
 const path = require('path')
 const fs = require('fs')
@@ -177,6 +178,92 @@ async function main() {
   const timelineVisible = await page.locator('.gs-ev-head, .gs-ev-empty, .gs-dash-dyn').first().isVisible().catch(() => false)
   // R178 备案：分组重组 4→5（AI 认知协作者独立成组，原型分组口径；条目零增减）
   report('E2E-2 设置默认首屏=资源卡字段（★W9 仪表盘迁 /profile；导航五组 R54→R178 + 默认面板真渲染 + 时间线区归零）', defaultPanelVisible && groupCount === 5 && !timelineVisible && !activeNavText.includes('仪表盘'), `groups=${groupCount} active=${JSON.stringify(activeNavText)} panel=${defaultPanelVisible} timeline=${timelineVisible}`)
+
+  // E2E-48（V3.9.11 · G-09）：更新日志必须真的是“目录 → 内容”工作台，不是双栏装饰。
+  //   点击最末的旧版本后，右侧滚动容器要移动到对应 article；目录与正文同步 active；
+  //   720px 以下必须回退单列，且右侧不再创建嵌套滚动区。
+  const clPage = await ctx.newPage()
+  await clPage.setViewportSize({ width: 1440, height: 1000 })
+  await clPage.goto(base + '#/settings?page=changelog', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(clPage, '.gs-cl-shell', { visible: true, timeout: 10000 })
+  const clDesktop = await clPage.evaluate(() => {
+    const shell = document.querySelector('.gs-cl-shell')
+    return {
+      columns: shell ? getComputedStyle(shell).gridTemplateColumns.split(' ').length : 0,
+      navItems: document.querySelectorAll('.gs-cl-dir-item').length,
+      articles: document.querySelectorAll('.gs-cl-item').length,
+    }
+  })
+  // 取中段旧版本：末条通常短到无法滚到容器顶部，不能拿它验证“目标对齐”。
+  const clMidIndex = Math.floor(clDesktop.navItems / 2)
+  const clOldDir = clPage.locator('.gs-cl-dir-item').nth(clMidIndex)
+  const clOldVersion = await clOldDir.locator('b').innerText().then(t => t.replace(/^V/, ''))
+  await clOldDir.click()
+  const clJumpOk = await pollUntil(async () => clPage.evaluate((version) => {
+    const root = document.querySelector('.gs-cl-list')
+    const target = document.querySelector(`.gs-cl-item[data-version="${version}"]`)
+    if (!root || !target) return false
+    const rootTop = root.getBoundingClientRect().top
+    const targetTop = target.getBoundingClientRect().top
+    return root.scrollTop > 100 && targetTop >= rootTop - 2 && targetTop <= rootTop + 36
+  }, clOldVersion), { timeout: 8000, label: '更新日志目录定位' })
+  await pollUntil(async () => clPage.evaluate((version) => {
+    const root = document.querySelector('.gs-cl-list')
+    const dir = [...document.querySelectorAll('.gs-cl-dir-item')]
+      .find(el => el.querySelector('b')?.textContent?.replace(/^V/, '') === version)
+    const article = document.querySelector(`.gs-cl-item[data-version="${version}"]`)
+    return !!root && !!dir && !!article
+      && dir.classList.contains('active')
+      && article.classList.contains('active')
+      && dir.getAttribute('aria-current') === 'true'
+  }, clOldVersion), { timeout: 5000, label: '更新日志目录高亮同步' })
+  const clActive = await clPage.evaluate((version) => {
+    const dir = [...document.querySelectorAll('.gs-cl-dir-item')]
+      .find(el => el.querySelector('b')?.textContent?.replace(/^V/, '') === version)
+    const article = document.querySelector(`.gs-cl-item[data-version="${version}"]`)
+    return {
+      dir: dir?.classList.contains('active') || false,
+      article: article?.classList.contains('active') || false,
+      ariaCurrent: dir?.getAttribute('aria-current') || '',
+    }
+  }, clOldVersion)
+  // jumpTo 用 smooth 滚动并锁定 900ms，避免动画中间帧把点击目标的高亮抢回旧版本。
+  // 滚动同步是“动画落定后”的行为，先等锁定窗口结束，再模拟用户手动滚到底。
+  await clPage.waitForTimeout(950)
+  const clLastVersion = await clPage.locator('.gs-cl-dir-item').last().locator('b')
+    .innerText().then(t => t.replace(/^V/, ''))
+  const clScrollSync = await pollUntil(async () => clPage.evaluate(async (version) => {
+    const root = document.querySelector('.gs-cl-list')
+    if (!root) return false
+    root.scrollTop = root.scrollHeight
+    root.dispatchEvent(new Event('scroll'))
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    const active = document.querySelector('.gs-cl-dir-item.active b')?.textContent?.replace(/^V/, '')
+    return active === version
+  }, clLastVersion), { timeout: 5000, label: '更新日志滚动同步高亮' })
+
+  await clPage.setViewportSize({ width: 700, height: 1000 })
+  await clPage.waitForTimeout(300)
+  const clNarrow = await clPage.evaluate(() => {
+    const shell = document.querySelector('.gs-cl-shell')
+    const nav = document.querySelector('.gs-cl-dir')
+    const list = document.querySelector('.gs-cl-list')
+    const navRect = nav?.getBoundingClientRect()
+    const listRect = list?.getBoundingClientRect()
+    return {
+      columns: shell ? getComputedStyle(shell).gridTemplateColumns.split(' ').length : 0,
+      stacked: !!navRect && !!listRect && listRect.top >= navRect.bottom - 1,
+      listOverflow: list ? getComputedStyle(list).overflowY : '',
+      bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    }
+  })
+  await clPage.close()
+  report('E2E-48 V3.9.11 更新日志目录工作台：点击旧版本定位正文、滚动同步高亮、700px 单列且无页面横向溢出',
+    clDesktop.columns === 2 && clDesktop.navItems === clDesktop.articles && clDesktop.articles >= 100
+      && clJumpOk === true && clActive.dir && clActive.article && clActive.ariaCurrent === 'true' && clScrollSync === true
+      && clNarrow.columns === 1 && clNarrow.stacked && clNarrow.listOverflow === 'visible'
+      && clNarrow.bodyOverflow <= 1,
+    `desktop=${JSON.stringify(clDesktop)} target=${clOldVersion} jump=${clJumpOk} active=${JSON.stringify(clActive)} scrollSync=${clLastVersion}:${clScrollSync} narrow=${JSON.stringify(clNarrow)}`)
 
   // E2E-3 ★R4-Da 改靶：「资源台全景」整页随资源台退役删除，本场景原先只核那一屏能否切出。
   //   不写"页面没了所以恒过"的空转判据，改测两件本轮真实交付面：
@@ -965,6 +1052,208 @@ async function main() {
     JSON.stringify(sharePreview))
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(500)
+
+  // E2E-47（V3.9.11 · G-07）：分享 HTML 的真实外部分享验收。
+  //   不读生成器源码、也不只看站内抽屉：下载 HTML 后用独立页面打开，检查桌面、移动、
+  //   打印三种媒介下的横向树可读性、公开链接、自包含长图下载与页面无横向溢出。
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const d = r['zy_data_v2']
+    if (!d) return false
+    const now = Date.now()
+    d.resources = (d.resources || []).filter(x => x && x.id !== 'e2e-public-res')
+    d.resources.push({
+      id: 'e2e-public-res', kind: 'resource', title: 'E2E 公开证据',
+      description: '用于验证分享 HTML 的公开资源链接。',
+      linkType: 'url', link: 'https://example.com/evidence',
+      workspaceId: 'e2e-main-board', categoryId: 'e2e-key-root',
+      sourceType: 'official', tags: ['E2E'], pinned: false, callCount: 0,
+      customFields: {}, assets: [], createdAt: now, updatedAt: now,
+    })
+    return chrome.storage.local.set({ zy_data_v2: d }).then(() => true)
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-mind-node="e2e-key-root"]', { visible: true, timeout: 10000 })
+  await page.locator('.share-action').first().click()
+  await waitForLocator(page, '.cs-paper', { visible: true, timeout: 10000 })
+  await page.locator('.cs-format').filter({ hasText: '论证树' }).click()
+  await pollUntil(async () => {
+    const text = await page.locator('.cs-image-state').innerText().catch(() => '')
+    return text.includes('已嵌入分享 HTML')
+  }, { timeout: 20000, label: '分享长图嵌入完成' })
+  const htmlDownloadPromise = page.waitForEvent('download', { timeout: 15000 })
+  await page.locator('.cs-btn.primary').filter({ hasText: '下载 HTML' }).click()
+  const htmlDownload = await htmlDownloadPromise
+  const os = require('os')
+  const shareTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'zy-share-e2e-'))
+  const shareFile = path.join(shareTmp, 'share.html')
+  await htmlDownload.saveAs(shareFile)
+  const shareHtml = fs.readFileSync(shareFile, 'utf8')
+  const shareServer = require('http').createServer((rq, rs) => {
+    rs.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    rs.end(shareHtml)
+  })
+  await new Promise(resolve => shareServer.listen(0, '127.0.0.1', resolve))
+  const sharePort = shareServer.address().port
+  const sharePage = await ctx.newPage()
+  await sharePage.setViewportSize({ width: 1440, height: 1000 })
+  await sharePage.goto(`http://127.0.0.1:${sharePort}/`, { waitUntil: 'domcontentloaded' })
+  await sharePage.waitForTimeout(300)
+  const shareDesktop = await sharePage.evaluate(() => {
+    const tree = document.querySelector('.tree-scroll')
+    const treeCanvas = document.querySelector('.share-tree')
+    const link = document.querySelector('.tree-node a.res-title')
+    const image = document.querySelector('.image-download')
+    return {
+      title: document.querySelector('.tree-hero h1')?.textContent || '',
+      bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+      treeReady: !!tree && !!treeCanvas
+        && !!tree.querySelector('.share-root')
+        && tree.querySelectorAll('.tree-node').length >= 4,
+      treeSize: tree ? `${tree.scrollWidth}/${tree.clientWidth}` : '',
+      levels: [...new Set([...document.querySelectorAll('.node-kicker')].map(x => (x.textContent || '').trim()))],
+      linkHref: link?.getAttribute('href') || '',
+      linkTarget: link?.getAttribute('target') || '',
+      imageData: (image?.getAttribute('href') || '').startsWith('data:image/png;base64,'),
+      imageVisible: !!image && getComputedStyle(image).display !== 'none',
+      themeBg: getComputedStyle(document.body).backgroundColor,
+    }
+  })
+  let sharePopupOpened = false
+  await ctx.route('https://example.com/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: '<!doctype html><title>E2E public evidence</title><main>ok</main>',
+  }))
+  try {
+    const popupPromise = sharePage.waitForEvent('popup', { timeout: 5000 })
+    await sharePage.locator('.tree-node a.res-title').first().click()
+    const popup = await popupPromise
+    sharePopupOpened = /example\.com/.test(popup.url())
+    await popup.close()
+  } catch { /* 结果由 sharePopupOpened 记账，不吞成假绿 */ }
+  await ctx.unroute('https://example.com/**').catch(() => {})
+
+  const imageDownloadPromise = sharePage.waitForEvent('download', { timeout: 20000 })
+  await sharePage.locator('.image-download').click()
+  const imageDownload = await imageDownloadPromise
+  const imageFile = path.join(shareTmp, 'share-image.png')
+  await imageDownload.saveAs(imageFile)
+  const png = fs.readFileSync(imageFile)
+  const pngOk = png.length > 24
+    && png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  const imageW = pngOk ? png.readUInt32BE(16) : 0
+  const imageH = pngOk ? png.readUInt32BE(20) : 0
+
+  await sharePage.setViewportSize({ width: 390, height: 844 })
+  const shareMobile = await sharePage.evaluate(() => ({
+    bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    titleVisible: !!document.querySelector('.tree-hero h1'),
+    linkCount: document.querySelectorAll('.tree-node a.res-title').length,
+    imageVisible: (() => {
+      const el = document.querySelector('.image-download')
+      return !!el && getComputedStyle(el).display !== 'none'
+    })(),
+  }))
+  await sharePage.setViewportSize({ width: 1440, height: 1000 })
+  await sharePage.emulateMedia({ media: 'print' })
+  const sharePrint = await sharePage.evaluate(() => ({
+    bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    downloadHidden: (() => {
+      const el = document.querySelector('.image-download')
+      return !!el && getComputedStyle(el).display === 'none'
+    })(),
+    treeNodeCount: document.querySelectorAll('.tree-node').length,
+  }))
+  await sharePage.close().catch(() => {})
+  shareServer.closeAllConnections?.()
+  await new Promise(resolve => shareServer.close(resolve))
+
+  // 同一套验收再跑墨黑主题：不能只证明纸白主题在外部可读。
+  await page.locator('.cs-themes button').filter({ hasText: '墨黑演示版' }).click()
+  await pollUntil(async () => {
+    const text = await page.locator('.cs-image-state').innerText().catch(() => '')
+    return text.includes('已嵌入分享 HTML')
+  }, { timeout: 20000, label: '墨黑分享长图嵌入完成' })
+  const inkDownloadPromise = page.waitForEvent('download', { timeout: 15000 })
+  await page.locator('.cs-btn.primary').filter({ hasText: '下载 HTML' }).click()
+  const inkDownload = await inkDownloadPromise
+  const inkFile = path.join(shareTmp, 'share-ink.html')
+  await inkDownload.saveAs(inkFile)
+  const inkHtml = fs.readFileSync(inkFile, 'utf8')
+  const inkServer = require('http').createServer((rq, rs) => {
+    rs.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    rs.end(inkHtml)
+  })
+  await new Promise(resolve => inkServer.listen(0, '127.0.0.1', resolve))
+  const inkPort = inkServer.address().port
+  const inkPage = await ctx.newPage()
+  await inkPage.setViewportSize({ width: 1440, height: 1000 })
+  await inkPage.goto(`http://127.0.0.1:${inkPort}/`, { waitUntil: 'domcontentloaded' })
+  const inkDesktop = await inkPage.evaluate(() => {
+    const tree = document.querySelector('.tree-scroll')
+    const treeCanvas = document.querySelector('.share-tree')
+    return {
+      title: document.querySelector('.tree-hero h1')?.textContent || '',
+      bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+      treeReady: !!tree && !!treeCanvas
+        && !!tree.querySelector('.share-root')
+        && tree.querySelectorAll('.tree-node').length >= 4,
+      themeBg: getComputedStyle(document.body).backgroundColor,
+      levels: [...new Set([...document.querySelectorAll('.node-kicker')].map(x => (x.textContent || '').trim()))],
+      imageVisible: (() => {
+        const el = document.querySelector('.image-download')
+        return !!el && getComputedStyle(el).display !== 'none'
+      })(),
+    }
+  })
+  await inkPage.setViewportSize({ width: 390, height: 844 })
+  const inkMobile = await inkPage.evaluate(() => ({
+    bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    titleVisible: !!document.querySelector('.tree-hero h1'),
+    linkCount: document.querySelectorAll('.tree-node a.res-title').length,
+  }))
+  await inkPage.setViewportSize({ width: 1440, height: 1000 })
+  await inkPage.emulateMedia({ media: 'print' })
+  const inkPrint = await inkPage.evaluate(() => ({
+    bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    downloadHidden: (() => {
+      const el = document.querySelector('.image-download')
+      return !!el && getComputedStyle(el).display === 'none'
+    })(),
+    treeNodeCount: document.querySelectorAll('.tree-node').length,
+  }))
+  const shareExternalOk = shareHtml.includes('id="zy-curation-share-data"')
+    && shareDesktop.title.trim().length > 0
+    && shareDesktop.bodyOverflow <= 1
+    && shareDesktop.treeReady
+    && shareDesktop.levels.includes('L2 · 论证节点')
+    && shareDesktop.levels.includes('L3 · 论证节点')
+    && shareDesktop.levels.includes('L4 · 论证节点')
+    && shareDesktop.linkHref === 'https://example.com/evidence'
+    && shareDesktop.linkTarget === '_blank'
+    && sharePopupOpened
+    && shareDesktop.imageData && shareDesktop.imageVisible
+    && pngOk && imageW >= 1200 && imageH >= 800
+    && shareMobile.bodyOverflow <= 1 && shareMobile.titleVisible
+    && shareMobile.linkCount > 0 && shareMobile.imageVisible
+    && sharePrint.bodyOverflow <= 1 && sharePrint.downloadHidden && sharePrint.treeNodeCount >= 4
+    && inkHtml.includes('id="zy-curation-share-data"')
+    && inkDesktop.title.trim().length > 0
+    && inkDesktop.bodyOverflow <= 1 && inkDesktop.treeReady
+    && inkDesktop.themeBg === 'rgb(23, 24, 28)'
+    && inkDesktop.levels.includes('L2 · 论证节点')
+    && inkDesktop.levels.includes('L3 · 论证节点')
+    && inkDesktop.levels.includes('L4 · 论证节点')
+    && inkDesktop.imageVisible
+    && inkMobile.bodyOverflow <= 1 && inkMobile.titleVisible && inkMobile.linkCount > 0
+    && inkPrint.bodyOverflow <= 1 && inkPrint.downloadHidden && inkPrint.treeNodeCount >= 4
+  report('E2E-47 V3.9.11 分享 HTML 外部独立打开：桌面横向树、公开链接、自包含长图下载、移动与打印',
+    shareExternalOk,
+    `paper=${Math.round(Buffer.byteLength(shareHtml) / 1024)}KB desktop=${JSON.stringify(shareDesktop)} popup=${sharePopupOpened} png=${imageW}×${imageH}/${Math.round(png.length / 1024)}KB mobile=${JSON.stringify(shareMobile)} print=${JSON.stringify(sharePrint)} ink=${Math.round(Buffer.byteLength(inkHtml) / 1024)}KB desktop=${JSON.stringify(inkDesktop)} mobile=${JSON.stringify(inkMobile)} print=${JSON.stringify(inkPrint)}`)
+  await inkPage.close().catch(() => {})
+  inkServer.closeAllConnections?.()
+  await new Promise(resolve => inkServer.close(resolve))
+  fs.rmSync(shareTmp, { recursive: true, force: true })
 
 
   // E2E-19 删除策展台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用策展台

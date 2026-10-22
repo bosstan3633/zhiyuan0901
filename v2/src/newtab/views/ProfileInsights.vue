@@ -74,6 +74,8 @@ import { emitOpenDrawer } from '@/shared/utils/bus'
 import PiTagDistributionDrawer from '@/newtab/components/profile/PiTagDistributionDrawer.vue'
 import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
 import PiLifecycleSettingsModal from '@/newtab/components/profile/PiLifecycleSettingsModal.vue'
+import { useRangeAiInsight } from '@/newtab/composables/useRangeAiInsight'
+import { profileDirectionFitText, profileExportLines, profileRangeFacts } from '@/newtab/views/profileInsightsReport'
 
 const router = useRouter()
 const store = useAppStore()
@@ -368,10 +370,36 @@ function openProjectDetail(projectId: string) {
  * 原 timelineAnchor 滚动锚与 onRailJump 随之删除（页签切换不再需要"滚到隐藏段落"）。 */
 /* ★W18（2026-10-20 用户拍板）：默认落在「本年」——页面定位是看长期状态，先给全年再逐层下钻。 */
 const activeRange = ref<PiRange>('year')
-const rangeLabel = computed(() => ({
-  today: '今天', week: '本周', month: '本月', year: '本年'
-}[activeRange.value]))
 function setRange(k: PiRange): void { activeRange.value = k }
+
+/* G-04：四段 AI 续写只解释本页已算出的本地事实，不改数字、不改用户决策。
+   动态载入与失败回落统一收在 composable；宿主只提供本地事实。 */
+const {
+  job: rangeAiJob,
+  open: openRangeAi,
+} = useRangeAiInsight({
+  activeRange,
+  data: gd,
+  persist: () => store.persist(),
+  localInsight: range => concise.value[range],
+  facts: range => profileRangeFacts(range, {
+    concise: concise.value[range],
+    stats: dashStats.value,
+    directions: dashDirections.value,
+    tasks: dashTasks.value,
+    todayAdd: todayAdd.value,
+    todayCalled: todayCalled.value,
+    todayFilled: todayFilled.value,
+    todayAmmo: todayAmmo.value,
+    monthCurioConv: mCurioConv.value,
+    monthProjected: mProjected.value,
+    monthTopics: mTopics.value,
+    yearCoolingHigh: yCoolHigh.value,
+    yearDirFit: String(yDirFit.value || '暂无'),
+    total: heroTotal.value,
+    kinds: heroKindCounts.value,
+  }),
+})
 
 /* 首屏概览的窗口范围（左栏标题右侧的小日期刻度） */
 const overviewWeekRange = computed(() => {
@@ -726,25 +754,7 @@ function saveLcDefault() {
 /* ===== PiYear 年度诊断条（W13-T6/F20~F23：方向归属占比 × 高价值冷却卡） ===== */
 const lcFocus = ref<'active' | 'cooling' | 'archived' | undefined>(undefined)
 const yCoolHigh = computed(() => lcCards.value.filter(c => lifecycleState(c) === 'cooling' && (c.callCount || 0) >= 3).length)
-const yDirFit = computed(() => {
-  /* 方向归属 = 存活任务经 projectId → 方向项目归位后的头号占比；无归属任务返回空串（诚实兜底文案） */
-  const owner = new Map<string, string>()
-  for (const d of dashDirections.value) for (const p of d.projects || []) if (!owner.has(p.id)) owner.set(p.id, d.id)
-  const cnt = new Map<string, number>()
-  let total = 0
-  for (const t of dashTasks.value) {
-    if (t.deletedAt) continue
-    const did = t.projectId ? owner.get(t.projectId) : undefined
-    if (!did) continue
-    cnt.set(did, (cnt.get(did) || 0) + 1)
-    total++
-  }
-  if (!total) return ''
-  let top = '', n = 0
-  for (const [id, v] of cnt) if (v > n) { n = v; top = id }
-  const name = dashDirections.value.find(d => d.id === top)?.name || ''
-  return name ? `主方向「${name}」承接 ${Math.round((n / total) * 100)}% 的已归属任务` : ''
-})
+const yDirFit = computed(() => profileDirectionFitText(dashDirections.value, dashTasks.value))
 function wakeCooling() {
   lcFocus.value = 'cooling'
   document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -793,21 +803,15 @@ function onHeroRefresh() {
 function gotoCompass() { void router.push('/compass'); showToast('已跳转方向台 · 在骨架条第 1 层设定使命愿景') }
 function onHeroExport(fmt: string) {
   /* F5：导出 = 使命主线 + 4 项全库底盘指标 + 四尺度一句话诊断（与界面四条同源：strip-html 后落盘） */
-  const insightLines = (['today', 'week', 'month', 'year'] as const).map(k => {
-    const label = { today: '今天', week: '本周', month: '本月', year: '本年' }[k]
-    return `${label}·诊断：${concise.value[k].html.replace(/<[^>]+>/g, '')}`
+  const lines = profileExportLines({
+    mission: heroMission.value,
+    total: heroTotal.value,
+    kinds: heroKindCounts.value,
+    entropy: heroEntropy.value,
+    supportRate: heroSupportRate.value,
+    focusShare: heroFocusShare.value,
+    concise: concise.value,
   })
-  const lines = [
-    `画像洞察导出 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
-    '',
-    `使命主线：${heroMission.value || '（尚未设定）'}`,
-    `全库净资产：${heroTotal.value} 张（资源 ${heroKindCounts.value.res} · 任务 ${heroKindCounts.value.task} · 好奇 ${heroKindCounts.value.curio}）`,
-    `知识熵 (聚焦度)：${heroEntropy.value} bit`,
-    `任务有证据支撑：${heroSupportRate.value}%`,
-    `近30天精力落主攻：${heroFocusShare.value}%`,
-    '',
-    ...insightLines
-  ]
   if (fmt === 'csv') {
     const csv = '指标,数值\n' + lines.slice(2).map(l => l.replace('：', ',')).join('\n')
     downloadText(`画像洞察摘要_${stampDay()}.csv`, csv, 'csv')
@@ -990,10 +994,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
     <!-- ===== §2 按周期观察：页签是唯一导航（★W17-C09：时间线与节点已退役） ===== -->
     <div class="pi-period-head">
       <div class="pi-tl-bar">
-        <div>
-          <span class="pi-tl-kicker">PERIOD · {{ rangeLabel }}</span>
-          <p>一次只看一个时间范围，切换页签即可；每个周期的状态在下方一张面板里读完。</p>
-        </div>
+        <div><span class="pi-tl-kicker">PERIOD · 一次只看一个时间范围，切页签即可</span></div>
         <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
       </div>
     </div>
@@ -1004,7 +1005,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           :focus-filled="todayFilled" :ammo="todayAmmo" :slot-count="3"
           :insight="concise.today"
           @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')"
-          @insight-action="onConciseAction" />
+          @insight-action="onConciseAction" @ai-insight="openRangeAi" />
 
         <PiRhythm v-else-if="activeRange === 'week'"
           :stats="dashStats" :directions="dashDirections"
@@ -1012,13 +1013,13 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           :insight="concise.week"
           @open-err="exportErrorLog"
           @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
-          @insight-action="onConciseAction" />
+          @insight-action="onConciseAction" @ai-insight="openRangeAi" />
 
         <PiMonth v-else-if="activeRange === 'month'"
           :stats="dashStats" :insight="concise.month" :ent="mEntTrend"
           :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
           :curio-conv="mCurioConv" :projected="mProjected"
-          @drill="onMonthDrill" @topic="onMonthTopic" @insight-action="onConciseAction" />
+          @drill="onMonthDrill" @topic="onMonthTopic" @insight-action="onConciseAction" @ai-insight="openRangeAi" />
 
         <PiYear v-else
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
@@ -1030,7 +1031,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
           @drill="onYearDrill" @insight-action="onConciseAction"
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
-          @lc-settings="lcSetOpen = true" />
+          @lc-settings="lcSetOpen = true" @ai-insight="openRangeAi" />
     </div>
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。
@@ -1061,6 +1062,7 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
       @close="tagInsightOpen = false" @optimize="runTagOptimizeAi" />
 
     <AiDrawer v-if="tagAiJob" :job="tagAiJob" :job-key="tagAiJob.key" @close="tagAiJob = null" />
+    <AiDrawer v-if="rangeAiJob" :job="rangeAiJob" :job-key="rangeAiJob.key" @close="rangeAiJob = null" />
 
     <PiMetricDetailDrawer
       :open="!!statDrawer" :title="statDrawerTitle" :rows="statShown"

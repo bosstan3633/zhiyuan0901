@@ -7,6 +7,7 @@ import { downloadBlob, downloadText, stampDay } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
 import { buildCurationShareHtml, type CurationShareOptions } from '@/shared/utils/curationShare'
 import { renderCurationImage } from '@/shared/utils/curationImage'
+import { buildCurationRenderTree } from '@/shared/utils/curationShareData'
 import type { Category, ResourceCard } from '@/shared/models'
 
 const props = defineProps<{
@@ -28,44 +29,18 @@ const options = reactive<CurationShareOptions>({
   theme: 'paper',
 })
 
-const roots = computed(() => props.nodes.filter(n => !n.parentId).length)
-const attachmentCount = computed(() => props.cards.reduce((n, c) => n + (c.assets?.length || 0), 0))
+const renderTree = computed(() => buildCurationRenderTree({
+  nodes: props.nodes,
+  cards: props.cards,
+  thesis: props.thesis,
+}))
+const roots = computed(() => renderTree.value.roots.length)
+const attachmentCount = computed(() => renderTree.value.attachmentCount)
 const imageDataUrl = ref('')
 const imageBusy = ref(false)
 let imageSeq = 0
 
-interface PreviewNode {
-  id: string
-  name: string
-  description: string
-  level: number
-  cards: ResourceCard[]
-  children: PreviewNode[]
-}
-
-function childrenOf(parentId?: string): Category[] {
-  return props.nodes
-    .filter(n => (n.parentId || '') === (parentId || ''))
-    .sort((a, b) => a.order - b.order)
-}
-
-function buildPreviewNodes(parentId: string | undefined, level: number): PreviewNode[] {
-  return childrenOf(parentId).map(node => ({
-    id: node.id,
-    name: node.name || '未命名分支',
-    description: node.description || '',
-    level,
-    cards: props.cards.filter(card => card.categoryId === node.id),
-    children: buildPreviewNodes(node.id, level + 1),
-  }))
-}
-
-const previewNodes = computed(() => buildPreviewNodes(undefined, 2))
-const previewFlatNodes = computed(() => flattenPreviewNodes(previewNodes.value))
-
-function flattenPreviewNodes(nodes: PreviewNode[]): PreviewNode[] {
-  return nodes.flatMap(node => [node, ...flattenPreviewNodes(node.children)])
-}
+const previewFlatNodes = computed(() => renderTree.value.flat)
 
 const previewTitle = computed(() => props.thesis?.title || `${props.workspaceName} · 策展成果`)
 const previewDescription = computed(() => props.thesis?.description || '这份策展成果尚未补充中心论点说明。')
@@ -198,16 +173,16 @@ watch(
             <h3>{{ previewTitle }}</h3>
             <p>{{ previewDescription }}</p>
             <div class="cs-paper-metrics">
-              <span><b>{{ cards.length }}</b> 张资源</span>
-              <span><b>{{ nodes.length }}</b> 个节点</span>
+              <span><b>{{ renderTree.cardCount }}</b> 张资源</span>
+              <span><b>{{ renderTree.nodeCount }}</b> 个节点</span>
               <span><b>{{ roots }}</b> 个一级分支</span>
             </div>
           </header>
-          <div v-if="!previewNodes.length" class="cs-paper-empty">这份成果还没有论证分支。</div>
+          <div v-if="!renderTree.roots.length" class="cs-paper-empty">这份成果还没有论证分支。</div>
           <template v-else>
           <section v-for="node in previewFlatNodes" :key="node.id" class="cs-paper-node" :style="{ '--depth': Math.min(3, node.level - 2) }">
             <span class="cs-paper-level">L{{ node.level }} · 论证节点</span>
-            <h4>{{ node.name }}</h4>
+            <h4>{{ node.title }}</h4>
             <p v-if="node.description">{{ node.description }}</p>
             <div v-if="node.cards.length" class="cs-paper-cards">
               <span v-for="card in node.cards.slice(0, 3)" :key="card.id" class="cs-paper-card">

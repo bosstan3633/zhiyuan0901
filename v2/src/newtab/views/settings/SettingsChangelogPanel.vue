@@ -16,11 +16,30 @@
     </div>
     <div class="gs-card">
       <div class="gs-card-body">
-        <div class="gs-cl-list">
+        <div class="gs-cl-shell">
+          <nav class="gs-cl-dir" aria-label="更新日志版本目录">
+            <div class="gs-cl-dir-h">
+              <b>版本目录</b>
+              <span>{{ orderedChangelog.length }} 个版本</span>
+            </div>
+            <div class="gs-cl-dir-list">
+              <button v-for="e in orderedChangelog" :key="'nav-' + e.version" type="button"
+                class="gs-cl-dir-item" :class="{ current: e.version === runtimeVersion, active: activeVersion === e.version }"
+                :aria-current="activeVersion === e.version ? 'true' : undefined"
+                @click="jumpTo(e.version)">
+                <span class="gs-cl-dir-dot" aria-hidden="true"></span>
+                <span class="gs-cl-dir-text"><b>V{{ e.version }}</b><small>{{ e.date }}</small></span>
+                <span v-if="e.version === runtimeVersion" class="gs-cl-dir-now">当前</span>
+              </button>
+            </div>
+          </nav>
+          <div ref="contentRef" class="gs-cl-list" @scroll="onScroll">
           <!-- S5：当前版本置顶（CHANGELOG 本身倒序，「最新」自然在首；此处的置顶是对
                「数据顺序与展示顺序是两件事」的显式声明——将来若有人把数组改成正序，
                置顶不靠运气。徽章仍由 runtimeVersion 对照，不用数组下标。 -->
-          <div v-for="e in orderedChangelog" :key="e.version" class="gs-cl-item" :class="{ current: e.version === runtimeVersion }">
+          <article v-for="e in orderedChangelog" :id="anchorOf(e.version)" :key="e.version" class="gs-cl-item"
+            :class="{ current: e.version === runtimeVersion, active: activeVersion === e.version }"
+            :data-version="e.version">
             <div class="gs-cl-meta">
               <span class="gs-cl-ver">V{{ e.version }}</span>
               <span class="gs-cl-date">{{ e.date }}</span>
@@ -36,6 +55,7 @@
               </div>
             </template>
             <ul v-else class="gs-cl-points"><li v-for="(p, i) in e.points" :key="i"><RichText :text="p" /></li></ul>
+          </article>
           </div>
         </div>
       </div>
@@ -44,12 +64,74 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { kindGroupsOf } from '../../changelog-data'
 import Icon from '@/shared/components/Icon.vue'
 import RichText from '../../components/RichText.vue'
 
 /** 宿主传入：当前运行版本号（三子域共用，故留在宿主） */
-defineProps<{ runtimeVersion: string; orderedChangelog: typeof import('../../changelog-data').CHANGELOG }>()
+const props = defineProps<{ runtimeVersion: string; orderedChangelog: typeof import('../../changelog-data').CHANGELOG }>()
+const contentRef = ref<HTMLElement | null>(null)
+const activeVersion = ref(props.runtimeVersion)
+let scrollRaf = 0
+let jumpLock = 0
+
+const anchorOf = (version: string): string => `cl-v-${version.replace(/\./g, '-')}`
+function jumpTo(version: string): void {
+  const root = contentRef.value
+  const target = root?.querySelector<HTMLElement>(`[data-version="${version}"]`)
+  if (!root || !target) return
+  activeVersion.value = version
+  // Smooth scrolling emits many intermediate positions. Keep the clicked
+  // version selected until the target settles instead of letting the
+  // previous article reclaim the highlight mid-flight.
+  jumpLock = Date.now() + 900
+  // `.gs-cl-list` is the scroll container and `position: relative`; article offsetTop
+  // is already relative to it. Subtracting root.offsetTop double-counts the offset.
+  const top = target.offsetTop - 12
+  root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+}
+function syncActiveFromScroll(): void {
+  const root = contentRef.value
+  if (!root) return
+  if (Date.now() < jumpLock) return
+  // The oldest entry is often shorter than the viewport. At the physical
+  // bottom there may be no article crossing the probe line, so treat the
+  // bottom position as an explicit selection of the last entry.
+  const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 2
+  if (atBottom) {
+    const last = root.querySelector<HTMLElement>('.gs-cl-item:last-child')
+    if (last?.dataset.version) {
+      activeVersion.value = last.dataset.version
+      return
+    }
+  }
+  const rows = [...root.querySelectorAll<HTMLElement>('.gs-cl-item')]
+  if (!rows.length) return
+  const line = root.getBoundingClientRect().top + Math.min(160, root.clientHeight * 0.28)
+  let hit = rows[0]
+  for (const row of rows) {
+    if (row.getBoundingClientRect().top <= line) hit = row
+    else break
+  }
+  activeVersion.value = hit.dataset.version || activeVersion.value
+}
+function onScroll(): void {
+  cancelAnimationFrame(scrollRaf)
+  scrollRaf = requestAnimationFrame(() => {
+    // Ignore animation frames caused by the programmatic jump, but never
+    // extend the lock from scroll itself: a fast user scroll during the
+    // smooth animation would otherwise suppress highlight updates forever.
+    if (Date.now() < jumpLock) return
+    syncActiveFromScroll()
+  })
+}
+watch(() => props.runtimeVersion, v => { activeVersion.value = v })
+// One source of truth: the scroll position. An observer can keep the previous
+// tall article "visible" while the clicked target is aligned at the top, which
+// overwrites the user's selection with a different version.
+onMounted(() => { void nextTick(syncActiveFromScroll) })
+onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
 </script>
 
 <style src="./base.css"></style>
@@ -60,10 +142,30 @@ defineProps<{ runtimeVersion: string; orderedChangelog: typeof import('../../cha
    （等宽版本号 / 日期对比度 / 68ch 行宽 / RichText 加粗 / 段头弱而不隐），
    手抄必漏注释，而**注释就是后续轮的判据锚点** ⇒ 搬移一律用脚本切原文，禁止重打。
    `.gs-cl-*` 全族经 grep 确认只被本子域使用，随迁不影响其他子域。 */
-/* 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化）——时间线：左轨 + 圆点，当前版本整轨染 accent */
-.gs-cl-list { position: relative; }
-.gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 22px 18px; position: relative; }
-.gs-cl-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+/* 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化 · V3.9.11 目录化）
+   左侧是版本线与可点击目录，右侧是内容区；左侧随内容高亮，右侧独立滚动，长历史不把页面拉成一条线。 */
+.gs-cl-shell { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 28px; align-items: start; }
+.gs-cl-dir { position: sticky; top: 12px; max-height: min(68vh, 640px); display: flex; flex-direction: column; min-height: 0; }
+.gs-cl-dir-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 10px 9px; border-bottom: 1px solid var(--border); }
+.gs-cl-dir-h b { color: var(--text); font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); }
+.gs-cl-dir-h span { color: var(--text-3); font-size: var(--fs-micro); white-space: nowrap; }
+.gs-cl-dir-list { min-height: 0; overflow: auto; padding: 7px 0 2px; border-left: 2px solid var(--border); }
+.gs-cl-dir-item { position: relative; width: 100%; min-height: 44px; display: flex; align-items: center; gap: 8px; margin: 0; padding: 5px 8px 5px 12px; border: 0; background: transparent; color: var(--text-3); text-align: left; font: inherit; cursor: pointer; scroll-margin-block: 8px; }
+.gs-cl-dir-item:hover { background: var(--surface-2); color: var(--text-2); }
+.gs-cl-dir-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gs-cl-dir-item.active { scroll-margin-block: 8px; }
+.gs-cl-dir-dot { position: absolute; left: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface-3); border: 2px solid var(--border-strong); }
+.gs-cl-dir-item.current .gs-cl-dir-dot { background: var(--accent); border-color: var(--accent); }
+.gs-cl-dir-item.active { background: var(--accent-light); color: var(--accent-ink); }
+.gs-cl-dir-item.active .gs-cl-dir-dot { box-shadow: 0 0 0 3px var(--accent-glow); }
+.gs-cl-dir-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gs-cl-dir-text b { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--fs-caption); color: var(--text-2); }
+.gs-cl-dir-text small { font-size: var(--fs-micro); color: var(--text-3); }
+.gs-cl-dir-item.active .gs-cl-dir-text b { color: var(--accent-ink); }
+.gs-cl-dir-now { margin-left: auto; flex: none; padding: 1px 5px; border-radius: 99px; background: var(--surface); color: var(--accent-ink); font-size: var(--fs-micro); }
+.gs-cl-list { position: relative; min-width: 0; max-height: min(68vh, 640px); overflow: auto; scroll-behavior: smooth; padding: 2px 4px 8px 18px; scrollbar-gutter: stable; }
+.gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 22px 18px; position: relative; scroll-margin-top: 16px; }
+.gs-cl-item:last-child { border-left-color: transparent; padding-bottom: 6px; }
 .gs-cl-item::before { content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface-3); border: 2px solid var(--border-strong); }
 .gs-cl-item.current { border-left-color: var(--accent); }
 .gs-cl-item.current::before { background: var(--accent); border-color: var(--accent); }
@@ -93,4 +195,10 @@ defineProps<{ runtimeVersion: string; orderedChangelog: typeof import('../../cha
 .gs-cl-group-h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .gs-cl-group-k { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); letter-spacing: var(--tracking-sm); }
 .gs-cl-group-n { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 6px; line-height: var(--lh-micro); }
+@media (max-width: 720px) {
+  .gs-cl-shell { grid-template-columns: 1fr; gap: 12px; }
+  .gs-cl-dir { position: static; max-height: none; }
+  .gs-cl-dir-list { max-height: 190px; }
+  .gs-cl-list { max-height: none; overflow: visible; padding-left: 14px; }
+}
 </style>

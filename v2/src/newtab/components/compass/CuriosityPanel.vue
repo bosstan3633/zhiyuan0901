@@ -37,6 +37,12 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { visibleFields } from '@/shared/utils/fields'
 import { recordCardOpen } from '@/shared/storage/stats'
+import {
+  addCurioSupportLink,
+  buildSupportIndex,
+  listByCurio,
+  removeCurioSupportLink,
+} from '@/shared/utils/supportLinks'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 
@@ -290,6 +296,68 @@ function openSourceUrl(url: string) {
   // R129-B5：协议过滤与打开通道统一走 shared/utils/link（原此处自写一份白名单）
   const t = toOpenableRawLink(url)
   if (t) openExternalLink(t)
+}
+
+/* G-03：好奇心 ↔ 资源卡的「资源支撑」闭环。
+   关联记录住在独立表 curioSupportLinks，好奇卡与资源卡本体都不持有对方 id；
+   解绑只删记录，资源池源卡状态不变。 */
+const curioSupportIdx = computed(() => buildSupportIndex(d.value))
+const curioSupportDraft = ref('')
+const curioSupportRows = computed(() => {
+  const curio = detailItem.value
+  if (!curio) return [] as { link: ReturnType<typeof listByCurio>[number]; resource: ResourceCard }[]
+  return listByCurio(curioSupportIdx.value, curio.id)
+    .map(link => ({
+      link,
+      resource: (d.value.resources || []).find(r => r.id === link.resourceId && !r.deletedAt),
+    }))
+    .filter((row): row is { link: ReturnType<typeof listByCurio>[number]; resource: ResourceCard } => !!row.resource)
+})
+const curioSupportCands = computed(() => {
+  const q = curioSupportDraft.value.trim().toLowerCase()
+  if (!q) return [] as ResourceCard[]
+  const linked = new Set(curioSupportRows.value.map(row => row.resource.id))
+  return (d.value.resources || [])
+    .filter(r => !r.deletedAt && !linked.has(r.id) && (r.title || '').toLowerCase().includes(q))
+    .slice(0, 8)
+})
+function addCurioSupport(): void {
+  const curio = detailItem.value
+  const q = curioSupportDraft.value.trim()
+  if (!curio || !q) return
+  const resource = (d.value.resources || []).find(r => !r.deletedAt && r.title === q)
+    || curioSupportCands.value[0]
+  if (!resource) {
+    showToast('没找到匹配的资源卡')
+    return
+  }
+  const out = addCurioSupportLink(d.value, {
+    curioId: curio.id,
+    resourceId: resource.id,
+    from: 'manual',
+  })
+  if (out.dup) {
+    showToast('这张资源卡已经在支撑列表里了')
+    return
+  }
+  curioSupportDraft.value = ''
+  store.persist()
+  showToast(`已关联「${resource.title.slice(0, 12)}」`)
+}
+function removeCurioSupport(linkId: string): void {
+  if (!removeCurioSupportLink(d.value, linkId)) return
+  store.persist()
+  showToast('已解除关联（资源卡本体未变动）')
+}
+function openCurioSupportResource(resource: ResourceCard): void {
+  recordCardOpen(d.value, resource)
+  store.persistHot()
+  const url = toOpenableRawLink(resource.link)
+  if (!url) {
+    showToast('这张资源卡还没有可打开的链接')
+    return
+  }
+  openExternalLink(url)
 }
 function onCardDblClick(c: CuriosityCard) {
   if (clickTimer) { clearTimeout(clickTimer); clickTimer = null }
@@ -733,6 +801,26 @@ function srcShort(url: string): string {
           </span></div>
         </section>
 
+        <section class="ds-pnl">
+          <div class="ds-pnl-h"><b>资源支撑</b><i>点标题打开原文 · 解绑只删关联记录</i><span class="r">{{ curioSupportRows.length }} 张</span></div>
+          <div v-if="curioSupportRows.length" class="ds-sup-list">
+            <div v-for="row in curioSupportRows" :key="row.link.id" class="ds-sup-row">
+              <button type="button" class="ds-sup-name" :title="row.resource.title" @click="openCurioSupportResource(row.resource)">
+                <Icon name="link" :size="12"/> {{ row.resource.title }}
+              </button>
+              <button type="button" class="ds-sup-remove" title="解除关联（资源池源卡状态不变）" aria-label="解除资源关联" @click="removeCurioSupport(row.link.id)">×</button>
+            </div>
+          </div>
+          <div v-else class="ds-sup-empty">还没有资源支撑。可在下方搜索资源池并手动关联。</div>
+          <div class="ds-sup-add">
+            <input v-model="curioSupportDraft" list="curio-support-cands" placeholder="搜索资源标题，回车关联…" @keydown.enter.prevent="addCurioSupport">
+            <datalist id="curio-support-cands">
+              <option v-for="r in curioSupportCands" :key="r.id" :value="r.title" />
+            </datalist>
+            <button type="button" class="mini-btn" :disabled="!curioSupportDraft.trim()" @click="addCurioSupport">关联</button>
+          </div>
+        </section>
+
         <!-- 焦点：问题原文整块撑高（R165-A 正名：现状标签「摘录」实绑 question；REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->
         <section class="ds-pnl hero">
           <div class="ds-pnl-h"><b>问题原文</b><i>点进去即编辑 · Ctrl+<Icon name="arrowleft" :size="13"/> 保存并关闭</i><span class="r">{{ editDraft.length }} 字</span></div>
@@ -832,6 +920,16 @@ function srcShort(url: string): string {
 .cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 
 .mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.ds-sup-list { display: flex; flex-direction: column; gap: 6px; }
+.ds-sup-row { min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 5px 7px 5px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); }
+.ds-sup-name { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-sub); text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-sup-name:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.ds-sup-remove { flex: none; width: 28px; height: 28px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-3); font: inherit; cursor: pointer; }
+.ds-sup-remove:hover, .ds-sup-remove:focus-visible { border-color: color-mix(in srgb, var(--danger) 38%, var(--border)); background: color-mix(in srgb, var(--danger) 8%, transparent); color: var(--danger); }
+.ds-sup-empty { padding: 10px; border: 1px dashed var(--border); border-radius: 7px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.55; }
+.ds-sup-add { display: flex; gap: 7px; margin-top: 8px; }
+.ds-sup-add input { flex: 1; min-width: 0; height: 32px; padding: 0 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-sub); }
+.ds-sup-add input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px var(--accent-glow); }
 /* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
 .cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
 .cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }

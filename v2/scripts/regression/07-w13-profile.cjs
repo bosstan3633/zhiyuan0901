@@ -132,6 +132,7 @@ check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘�
 check('W13-T7d ★四条诊断的 CTA 走同一个分发出口：八个 ctaAction 键（openFocusBoard / bindFocus / callSupport / openBattle / openObjectives / openLog / convertCurio / wakeCooling·openLifecycle）全部在宿主 onConciseAction 一处分派，四组件 @insight-action 全接它 —— 此前四段各写各的 onXxxInsightAction（bind:N / call / battle / focus / convert / lc / mo-add / goal:八套键），"改一个动作要改四个出口"是不可维护的形状。F5 导出补四条 strip-html 诊断行 ⇒ 导出与界面同源', () => {
   /* ★W17-C09（2026-10-20）重指：首屏右栏「今天三件事」退役后，概览不再挂 week/today 两条诊断；
      四个时间尺度模块仍各自接 @insight-action（4 处），所有诊断仍只有 onConciseAction 一个分发器。 */
+  const REPORT = read('/newtab/views/profileInsightsReport.ts')
   return PI.includes('function onConciseAction(action: string)')
     && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'convertCurio'", "'wakeCooling'", "'openLifecycle'"]
       .every(k => PI.includes(k))
@@ -139,6 +140,7 @@ check('W13-T7d ★四条诊断的 CTA 走同一个分发出口：八个 ctaActio
     && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 0
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')
     && !PI_C.includes('onYearInsightAction') && !PI_C.includes('onRhythmInsight')
-    && PI.includes('insightLines') && PI.includes(".replace(/<[^>]+>/g, '')")
-    && PI.includes('concise.value[k].html');
+    && PI.includes('profileExportLines({') && PI.includes('concise: concise.value')
+    && REPORT.includes('const insightLines') && REPORT.includes(".replace(/<[^>]+>/g, '')")
+    && REPORT.includes('input.concise[k].html');
 });

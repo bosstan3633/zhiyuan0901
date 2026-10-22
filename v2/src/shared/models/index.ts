@@ -287,6 +287,23 @@ export interface SupportLink {
   createdAt: number
 }
 
+/**
+ * 好奇心卡 ↔ 资源卡的「资源支撑」关联记录。
+ *
+ * 与任务支持分开建表，而不是把 SupportLink.taskId 改成可选：
+ * - 不改变任务支持现有的统计口径与查询类型；
+ * - 两张卡本体仍互不持有对方 id；
+ * - 资源卡始终是供给方，好奇侧只负责关联与解绑记录。
+ */
+export interface CurioSupportLink {
+  id: ID
+  curioId: ID
+  resourceId: ID
+  from: 'ai' | 'manual'
+  why?: string
+  createdAt: number
+}
+
 /** 好奇心卡（从好奇出发） */
 export interface CuriosityCard extends CardBase {
   kind: 'curiosity'
@@ -481,6 +498,8 @@ export interface AppData {
   curationProjections?: CurationProjection[]
   /** R166 定案 5：任务/子任务 ↔ 资源的「支持」关联记录（独立表，卡对象互不持有 id；导入合并同 `curationProjections` 走 mergeByIdArr） */
   supportLinks?: SupportLink[]
+  /** 好奇心卡 ↔ 资源的支撑关联记录（独立表；导入合并按 id 并集） */
+  curioSupportLinks?: CurioSupportLink[]
   /** R166 定案 2：存量 `parentId` 子卡折叠进父卡 `subtasks` 的幂等标记（有值即跳过迁移） */
   subtasksFoldedAt?: number
   /** R61：资源台结构迁移完成时间戳（幂等标记——有值即跳过迁移；迁移前自动备份下载由调用方执行） */

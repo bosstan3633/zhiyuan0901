@@ -1,0 +1,156 @@
+{
+  "generatedAt": "2026-10-22T18:08:16.917Z",
+  "source": "real-local-browser",
+  "dist": "/Users/beantan/Downloads/zhiyuan0904/v2/dist",
+  "manifestVersion": "3.9.11",
+  "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1148/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+  "platform": "darwin-arm64",
+  "node": "v22.23.1",
+  "host": "Macmini",
+  "budgets": {
+    "overlay_open": 800,
+    "cmdk_first_open": 1500,
+    "search_type": 400,
+    "page_switch": 800,
+    "share_drawer": 1000,
+    "long_image": 4000
+  },
+  "metrics": {
+    "overlay_open": {
+      "key": "overlay_open",
+      "label": "网页浮层唤起",
+      "unit": "ms",
+      "samples": [
+        110,
+        10,
+        12,
+        14,
+        14
+      ],
+      "sampleCount": 5,
+      "p50": 14,
+      "p95": 110,
+      "budgetP95": 800,
+      "pass": true,
+      "notes": [
+        "从 background 发出 zy-open-search 到宿主页搜索输入框出现；包含 content UI 就绪。"
+      ],
+      "error": null
+    },
+    "cmdk_first_open": {
+      "key": "cmdk_first_open",
+      "label": "⌘K / Ctrl+K 首屏",
+      "unit": "ms",
+      "samples": [
+        158,
+        44,
+        16,
+        43,
+        51
+      ],
+      "sampleCount": 5,
+      "p50": 44,
+      "p95": 158,
+      "budgetP95": 1500,
+      "pass": true,
+      "notes": [
+        "每个样本都从整页重载后的首次打开计时，计到检索面板与结果容器出现。"
+      ],
+      "error": null
+    },
+    "search_type": {
+      "key": "search_type",
+      "label": "搜索键入到结果更新",
+      "unit": "ms",
+      "samples": [
+        140.8,
+        128.1,
+        138,
+        128.4,
+        129.6
+      ],
+      "sampleCount": 5,
+      "p50": 129.6,
+      "p95": 140.8,
+      "budgetP95": 400,
+      "pass": true,
+      "notes": [
+        "从最终查询词触发 input 到 .gp-results 实际发生 DOM 更新；包含 120ms 输入防抖与 Vue 渲染。"
+      ],
+      "error": null
+    },
+    "page_switch": {
+      "key": "page_switch",
+      "label": "调度台 / 方向台切换",
+      "unit": "ms",
+      "samples": [
+        104,
+        55,
+        48,
+        50,
+        48,
+        52,
+        69,
+        47,
+        49,
+        52
+      ],
+      "sampleCount": 10,
+      "p50": 50,
+      "p95": 104,
+      "budgetP95": 800,
+      "pass": true,
+      "notes": [
+        "每轮记录两次真实导航：调度台→方向台、方向台→调度台；计到目标页根节点出现。"
+      ],
+      "error": null
+    },
+    "share_drawer": {
+      "key": "share_drawer",
+      "label": "分享抽屉打开",
+      "unit": "ms",
+      "samples": [
+        191,
+        122,
+        120,
+        126,
+        110
+      ],
+      "sampleCount": 5,
+      "p50": 122,
+      "p95": 191,
+      "budgetP95": 1000,
+      "pass": true,
+      "notes": [
+        "从点击分享成果到分享抽屉内原生预览 .cs-paper 可见。"
+      ],
+      "error": null
+    },
+    "long_image": {
+      "key": "long_image",
+      "label": "高清长图生成完成",
+      "unit": "ms",
+      "samples": [
+        168,
+        145,
+        146
+      ],
+      "sampleCount": 3,
+      "p50": 146,
+      "p95": 168,
+      "budgetP95": 4000,
+      "pass": true,
+      "notes": [
+        "从点击分享成果到完整 PNG 数据 URL 已回填、界面显示「已嵌入分享 HTML」。"
+      ],
+      "error": null
+    }
+  },
+  "failures": [],
+  "overallPass": true,
+  "fixture": {
+    "boardId": "perf-slo-board",
+    "resourceCount": 19,
+    "categoryCount": 3
+  }
+}

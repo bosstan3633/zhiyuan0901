@@ -14,6 +14,7 @@
  *   CSS 双侧清零（迁移期双态结束）。
  */
 import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed } from 'vue'
 import { yearAgg, longestStreak, type ConciseInsight } from '@/shared/utils/reviewReport'
 import { lifecycleState } from '@/shared/utils/lifecycle'
@@ -52,6 +53,7 @@ const emit = defineEmits<{
   /** F21 四格下钻：活跃期资产 → 全部卡片明细；高价值冷却 → 唤醒（滚 #lc-sec + 切冷却 Tab） */
   (e: 'drill', k: 'yr-assets' | 'yr-high'): void
   (e: 'insight-action', action: string): void
+  (e: 'ai-insight'): void
 }>()
 
 const ya = computed(() => yearAgg(props.stats, props.year))
@@ -89,6 +91,9 @@ function onHeatmapSel(day: string | null): void {
           :title="`${year} 年内有动作的天数 = ${ya.act} 天（与热力图同口径，点格看某天明细）`">
           本年活跃 {{ ya.act }} 天
         </span>
+        <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
+          <AiEntryButton variant="inline" label="AI 续写" />
+        </button>
       </div>
     </div>
     <div class="pi-mod-b">

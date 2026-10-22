@@ -12,6 +12,7 @@
  *   已排计数，点击跳回调度台。组件零取 store，数值全部由宿主传入。
  */
 import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { ConciseInsight } from '@/shared/utils/reviewReport'
 import type { FocusSlot } from '@/shared/models'
 
@@ -56,6 +57,7 @@ const emit = defineEmits<{
   (e: 'open-focus'): void
   /** F7 诊断条动作钮分发 */
   (e: 'insight-action', action: string): void
+  (e: 'ai-insight'): void
 }>()
 </script>
 
@@ -74,6 +76,9 @@ const emit = defineEmits<{
           :title="`今日入台 ${props.todayAdd} 张中，${props.todayImport} 张是导入的（导入继承原创建时间，不计入今天新建）`">
           <Icon name="upload" :size="13"/> 导 {{ props.todayImport }}
         </span>
+        <button class="pi-btn line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
+          <AiEntryButton variant="inline" label="AI 续写" />
+        </button>
         <button class="pi-btn line" @click="emit('open-battle')">打开战报</button>
       </div>
     </div>

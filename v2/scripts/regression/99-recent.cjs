@@ -7,12 +7,20 @@ const {
 } = require('./helpers.cjs');
 
 console.log('【R167 · 两卡详情 OPPO 质感重排 / AI 入口共享化 / 弹窗下半部主导】');
-check('R167-1 ★分组面板体系是真源不是各写各的：detail-sheet.css 的 ds-* 七件套在位，资源与好奇两详情各自用满三块面板，焦点面板整块撑高（读起来是"内容区"不是又一个输入框）', () => {
+check('R167-1 ★分组面板体系是真源不是各写各的：detail-sheet.css 的 ds-* 七件套在位，资源详情三块面板，好奇详情在核心三块之外允许第四块「资源支撑」，焦点面板整块撑高（读起来是"内容区"不是又一个输入框）', () => {
   const css = read('/shared/styles/detail-sheet.css')
   const f = read('/newtab/components/ResourceEditForm.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue')
+  const curioPanels = c.match(/class="ds-pnl( hero)?"/g) || []
   return ['.ds-pnl', '.ds-pnl-h', '.ds-kv', '.ds-ai-strip', '.ds-hero-note', '.ds-h1', '.ds-kicker'].every(k => css.includes(k))
     && css.includes('.ds-pnl.hero') && /min-height:\s*34vh/.test(css)
-    && (f.match(/class="ds-pnl( hero)?"/g) || []).length === 3 && (c.match(/class="ds-pnl( hero)?"/g) || []).length === 3
+    && (f.match(/class="ds-pnl( hero)?"/g) || []).length === 3
+    && curioPanels.length === 4
+    && curioPanels.filter(x => x === 'class="ds-pnl"').length === 3
+    && curioPanels.filter(x => x === 'class="ds-pnl hero"').length === 1
+    && c.includes('<b>来源与标签</b>')
+    && c.includes('<b>资源支撑</b>')
+    && c.includes('<b>流转与凭证</b>')
+    && (c.match(/<b>问题原文<\/b>/g) || []).length === 1
     && f.includes('class="ds-hero-note"') && c.includes('class="ds-hero-note"')
 });
 check('R167-2 ★资源详情 AI 入口全站只有一处实现：ResourceAiStrip 被两宿主同时挂载，而两宿主本体（Workspace.vue 自身与 RDD）零 AI 接线（不出现 shared/ai 路径，也不出现评审抽屉）。"并入口时只改一个宿主"正是 R165-A 被绕过的红线，这条把它变成正向门禁——新宿主想自装一枚，必须动这个组件', () => {
@@ -289,8 +297,8 @@ check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退
     && !css.includes('.dr-head') && !css.includes('.dr-close') && !css.includes('.drawer {') && !css.includes('.dr-enter-active')
     && css.includes('.dr-readonly .ref-form') && css.includes('.dr-footer-btn {');
 });
-check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 23 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针；★G4/G6(V3.8.27)：a11y-tab-audit.cjs（键盘可达审计）与 install-hooks.cjs（pre-commit 安装器）登记入册；★B7-e(V3.8.40)：m6-responsive-audit.cjs 登记入册（响应式实拍量具——量的是运行时盒子，静态扫描读不出横向溢出，与 theme-audit 同类）；★B8(V3.8.41)：orphan-check.cjs 登记入册（import 图孤立检测——"grep 文件名"数不出引用数，注释/备案句/字符串里都有文件名而真 import 只有两种形态）；★P0-3(V3.8.42)：shoot-settings-prototype.cjs 登记入册（设置页高保真实拍量具——**原型审核件必须来自真实构建产物而非手绘**，手绘等于引入与代码无关的第二个真相源；与 theme-audit 同类但不同用途：不更新权威 census，只出审核图，故不进回归链）；★P0-3 第三批(V3.8.42)：probe-gs-baseline.cjs 登记入册（**样式作用域探针**——直接读 computed style 与 data-v，用来证明「父组件 scoped 样式命中不了子组件内部元素」。它的价值在于：像素 A/B 报过假绿（跳过 0 张），而这类 bug 用**计算样式**一读就穿帮；本批的基类外提就是靠它证伪的）', () => {
-  const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'orphan-check.cjs', 'pack.cjs', 'perf-census.cjs', 'perf.cjs', 'probe-f.cjs', 'probe-gs-baseline.cjs', 'regression-eb.cjs', 'regression.cjs', 'shoot-settings-prototype.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
+check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 27 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针；★G4/G6(V3.8.27)：a11y-tab-audit.cjs（键盘可达审计）与 install-hooks.cjs（pre-commit 安装器）登记入册；★B7-e(V3.8.40)：m6-responsive-audit.cjs 登记入册（响应式实拍量具——量的是运行时盒子，静态扫描读不出横向溢出，与 theme-audit 同类）；★B8(V3.8.41)：orphan-check.cjs 登记入册（import 图孤立检测——"grep 文件名"数不出引用数，注释/备案句/字符串里都有文件名而真 import 只有两种形态）；★P0-3(V3.8.42)：shoot-settings-prototype.cjs 登记入册（设置页高保真实拍量具——**原型审核件必须来自真实构建产物而非手绘**，手绘等于引入与代码无关的第二个真相源；与 theme-audit 同类但不同用途：不更新权威 census，只出审核图，故不进回归链）；★P0-3 第三批(V3.8.42)：probe-gs-baseline.cjs 登记入册（**样式作用域探针**——直接读 computed style 与 data-v，用来证明「父组件 scoped 样式命中不了子组件内部元素」。它的价值在于：像素 A/B 报过假绿（跳过 0 张），而这类 bug 用**计算样式**一读就穿帮；本批的基类外提就是靠它证伪的）；★G-02/G-05(V3.9.11)：curation-pressure.cjs（策展导出压力与边界门禁）与 perf-slo.cjs（六类真实浏览器性能 SLO 采样）登记入册', () => {
+  const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'curation-pressure.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'orphan-check.cjs', 'pack.cjs', 'perf-census.cjs', 'perf-slo.cjs', 'perf.cjs', 'probe-f.cjs', 'probe-gs-baseline.cjs', 'regression-eb.cjs', 'regression.cjs', 'shoot-settings-prototype.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
   const actual = fs.readdirSync(SCRIPTS_DIR).filter(f => f !== 'archive' && f !== 'regression' && !f.endsWith('.log'));
   return actual.length === ALLOW.length && actual.every(f => ALLOW.includes(f)) && fs.existsSync(path.join(SCRIPTS_DIR, 'archive', 'test-perf.cjs')) && fs.existsSync(path.join(SCRIPTS_DIR, 'regression', 'helpers.cjs'));
 });

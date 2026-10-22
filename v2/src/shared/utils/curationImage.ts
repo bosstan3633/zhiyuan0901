@@ -6,6 +6,13 @@
  * - 分享 HTML 可以内嵌一张可下载的 PNG，而不必把截图脚本带进分享文件。
  */
 import type { Category, ResourceCard } from '@/shared/models'
+import {
+  buildCurationRenderTree,
+  CURATION_RENDER_LIMITS,
+  type CurationRenderCard,
+  type CurationRenderNode,
+  type CurationRenderTree,
+} from './curationShareData'
 
 export interface CurationImageInput {
   workspaceName: string
@@ -28,7 +35,7 @@ interface DrawNode {
   title: string
   description: string
   level: number
-  cards: ResourceCard[]
+  cards: CurationRenderCard[]
   children: DrawNode[]
   width: number
   height: number
@@ -44,12 +51,6 @@ const V_GAP = 54
 const PAD = 54
 const HEADER_H = 116
 const FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif'
-
-function childrenOf(nodes: Category[], parentId?: string): Category[] {
-  return nodes
-    .filter(n => (n.parentId || '') === (parentId || ''))
-    .sort((a, b) => a.order - b.order)
-}
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const radius = Math.min(r, w / 2, h / 2)
@@ -91,24 +92,23 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
   return lines
 }
 
-function buildTree(ctx: CanvasRenderingContext2D, nodes: Category[], cards: ResourceCard[], parentId: string | undefined, depth: number): DrawNode[] {
-  return childrenOf(nodes, parentId).map(cat => {
-    const ownCards = cards.filter(c => c.categoryId === cat.id)
-    const children = buildTree(ctx, nodes, cards, cat.id, depth + 1)
-    const width = depth === 1 ? ROOT_W : NODE_W
+function buildDrawTree(ctx: CanvasRenderingContext2D, nodes: CurationRenderNode[], rootLevel = 2): DrawNode[] {
+  return nodes.map(node => {
+    const children = buildDrawTree(ctx, node.children, rootLevel + 1)
+    const width = node.level === rootLevel ? ROOT_W : NODE_W
     const inner = width - 30
     ctx.font = `700 16px ${FONT}`
-    const titleLines = wrapLines(ctx, cat.name || '未命名分支', inner, 3)
+    const titleLines = wrapLines(ctx, node.title, inner, 3)
     ctx.font = `12px ${FONT}`
-    const descLines = wrapLines(ctx, cat.description || '', inner, 4)
-    const resourceHeight = ownCards.length * 22 + (ownCards.length ? 10 : 0)
+    const descLines = wrapLines(ctx, node.description || '', inner, 4)
+    const resourceHeight = node.cards.length * 22 + (node.cards.length ? 10 : 0)
     const height = Math.max(92, 50 + titleLines.length * 23 + descLines.length * 19 + resourceHeight + 32)
     return {
-      id: cat.id,
-      title: cat.name || '未命名分支',
-      description: cat.description || '',
-      level: depth + 1,
-      cards: ownCards,
+      id: node.id,
+      title: node.title,
+      description: node.description || '',
+      level: node.level,
+      cards: node.cards,
       children,
       width,
       height,
@@ -283,7 +283,8 @@ export async function renderCurationImage(input: CurationImageInput): Promise<Cu
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('当前浏览器无法创建长图画布')
   const theme = input.theme || 'paper'
-  const roots = buildTree(ctx, input.nodes, input.cards, undefined, 1)
+  const renderTree = buildCurationRenderTree({ nodes: input.nodes, cards: input.cards, thesis: input.thesis })
+  const roots = buildDrawTree(ctx, renderTree.roots)
   const root = buildRoot(input, roots)
   const allNodes = [root, ...flatten(roots)]
   const pyramid = input.layout === 'pyramid'
@@ -325,11 +326,20 @@ export async function renderCurationImage(input: CurationImageInput): Promise<Cu
 
   width = Math.max(960, Math.ceil(width))
   height = Math.max(620, Math.ceil(height))
-  const maxSide = 12000
-  const maxArea = 40_000_000
-  const scale = Math.max(0.5, Math.min(2, maxSide / width, maxSide / height, Math.sqrt(maxArea / (width * height))))
-  canvas.width = Math.max(1, Math.floor(width * scale))
-  canvas.height = Math.max(1, Math.floor(height * scale))
+  if (width > CURATION_RENDER_LIMITS.maxLogicalWidth || height > CURATION_RENDER_LIMITS.maxLogicalHeight) {
+    throw new Error(
+      `长图画布 ${width} × ${height} 超过 ${CURATION_RENDER_LIMITS.maxLogicalWidth} × ${CURATION_RENDER_LIMITS.maxLogicalHeight} 的逻辑尺寸上限；请收起部分分支或拆分策展台后再导出`
+    )
+  }
+  const area = width * height
+  const scale = Math.min(2, Math.sqrt(CURATION_RENDER_LIMITS.maxPixelArea / area))
+  const pixelWidth = Math.max(1, Math.floor(width * scale))
+  const pixelHeight = Math.max(1, Math.floor(height * scale))
+  if (pixelWidth * pixelHeight > CURATION_RENDER_LIMITS.maxPixelArea) {
+    throw new Error(`长图像素 ${pixelWidth} × ${pixelHeight} 超过 ${CURATION_RENDER_LIMITS.maxPixelArea} 像素上限`)
+  }
+  canvas.width = pixelWidth
+  canvas.height = pixelHeight
   ctx.scale(scale, scale)
 
   const bg = theme === 'ink' ? '#17181c' : '#f7f4ed'
@@ -354,7 +364,7 @@ export async function renderCurationImage(input: CurationImageInput): Promise<Cu
   ctx.font = `11px ${FONT}`
   ctx.fillStyle = ink2
   ctx.textAlign = 'right'
-  ctx.fillText(`${input.cards.length} 张资源 · ${allNodes.length - 1} 个论证节点 · L1-L4`, width - PAD - 18, 84)
+  ctx.fillText(`${renderTree.cardCount} 张资源 · ${renderTree.nodeCount} 个论证节点 · L1-L${renderTree.maxLevel}`, width - PAD - 18, 84)
   ctx.textAlign = 'left'
 
   for (const parent of allNodes) {

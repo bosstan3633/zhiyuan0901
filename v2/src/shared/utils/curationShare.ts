@@ -7,7 +7,12 @@
  * - 附件只展示名称、类型和大小，不输出 IndexedDB 键或存储路径。
  */
 import type { Category, ResourceCard } from '@/shared/models'
-import { buildCurationSnapshot } from './curationShareData'
+import {
+  buildCurationRenderTree,
+  buildCurationSnapshot,
+  type CurationRenderCard,
+  type CurationRenderNode,
+} from './curationShareData'
 
 export interface CurationShareOptions {
   format: 'reading' | 'tree'
@@ -62,23 +67,19 @@ function sourceClass(source?: string): string {
   return ({ official: 'official', academic: 'academic', media: 'media', personal: 'personal', 'ai-tool': 'ai', 'own-work': 'own' } as Record<string, string>)[source || ''] || 'personal'
 }
 
-function childrenOf(nodes: Category[], parentId?: string): Category[] {
-  return nodes.filter(n => (n.parentId || '') === (parentId || '')).sort((a, b) => a.order - b.order)
-}
-
-function cardHtml(card: ResourceCard, options: CurationShareOptions): string {
-  const url = options.links ? safeUrl(card.link) : ''
+function cardHtml(card: CurationRenderCard, options: CurationShareOptions): string {
+  const url = options.links ? safeUrl(card.url) : ''
   const title = url
     ? `<a class="res-title" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(card.title)}<span class="open">打开原文 ↗</span></a>`
     : `<span class="res-title">${esc(card.title)}</span>`
   const tags = (card.tags || []).slice(0, 5).map(tag => `<span class="tag">#${esc(tag)}</span>`).join('')
-  const assets = options.attachments && card.assets?.length
+  const assets = options.attachments && card.assets.length
     ? `<div class="asset-list">${card.assets.map(a => `<span class="asset"><b>${esc(a.name || kindLabel(a.kind))}</b><small>${kindLabel(a.kind)} · ${fmtSize(a.size)}</small></span>`).join('')}</div>`
     : ''
   return `<article class="resource">
     <div class="resource-head">
       ${options.sources ? `<span class="source ${sourceClass(card.sourceType)}">${esc(sourceLabel(card.sourceType))}</span>` : ''}
-      ${card.assets?.length && options.attachments ? `<span class="type">${card.assets.length} 个附件</span>` : ''}
+      ${card.assets.length && options.attachments ? `<span class="type">${card.assets.length} 个附件</span>` : ''}
       ${tags}
     </div>
     ${title}
@@ -87,36 +88,29 @@ function cardHtml(card: ResourceCard, options: CurationShareOptions): string {
   </article>`
 }
 
-function nodeReadingHtml(node: Category, nodes: Category[], cards: ResourceCard[], options: CurationShareOptions, depth = 0, index = 0): string {
-  const ownCards = cards.filter(c => c.categoryId === node.id)
-  const children = childrenOf(nodes, node.id)
+function nodeReadingHtml(node: CurationRenderNode, options: CurationShareOptions, index: string): string {
+  const depth = Math.max(0, node.level - 2)
   return `<section class="node depth-${Math.min(depth, 3)}" id="node-${index}">
-    <div class="node-kicker">L${depth + 2} · 论证节点</div>
-    <h2>${esc(node.name || '未命名分支')}</h2>
+    <div class="node-kicker">L${node.level} · 论证节点</div>
+    <h2>${esc(node.title)}</h2>
     ${node.description ? `<p class="node-desc">${esc(node.description)}</p>` : ''}
-    <div class="resources">${ownCards.length ? ownCards.map(card => cardHtml(card, options)).join('') : '<div class="empty">这个节点暂未挂资源卡。</div>'}</div>
-    ${children.map((child, i) => nodeReadingHtml(child, nodes, cards, options, depth + 1, index * 10 + i + 1)).join('')}
+    <div class="resources">${node.cards.length ? node.cards.map(card => cardHtml(card, options)).join('') : '<div class="empty">这个节点暂未挂资源卡。</div>'}</div>
+    ${node.children.map((child, i) => nodeReadingHtml(child, options, `${index}-${i + 1}`)).join('')}
   </section>`
 }
 
 function nodeTreeHtml(
-  node: Category,
-  nodes: Category[],
-  cards: ResourceCard[],
+  node: CurationRenderNode,
   options: CurationShareOptions,
-  depth: number,
-  index = 0,
 ): string {
-  const ownCards = cards.filter(c => c.categoryId === node.id)
-  const children = childrenOf(nodes, node.id)
   return `<li class="tree-branch">
     <div class="tree-node">
-      <div class="node-kicker">L${depth + 2} · 论证节点</div>
-      <h3>${esc(node.name || '未命名分支')}</h3>
+      <div class="node-kicker">L${node.level} · 论证节点</div>
+      <h3>${esc(node.title)}</h3>
       ${node.description ? `<p>${esc(node.description)}</p>` : ''}
-      ${ownCards.length ? `<div class="resources">${ownCards.map(card => cardHtml(card, options)).join('')}</div>` : '<div class="empty">暂未挂资源卡。</div>'}
+      ${node.cards.length ? `<div class="resources">${node.cards.map(card => cardHtml(card, options)).join('')}</div>` : '<div class="empty">暂未挂资源卡。</div>'}
     </div>
-    ${children.length ? `<ul>${children.map((child, i) => nodeTreeHtml(child, nodes, cards, options, depth + 1, index * 10 + i + 1)).join('')}</ul>` : ''}
+    ${node.children.length ? `<ul>${node.children.map(child => nodeTreeHtml(child, options)).join('')}</ul>` : ''}
   </li>`
 }
 
@@ -131,15 +125,16 @@ export function buildCurationShareHtml(input: CurationShareInput): string {
     layout: options.format === 'reading' ? 'pyramid' : 'tree',
     generatedAt,
   })
+  const renderTree = buildCurationRenderTree({ nodes, cards, thesis })
   const snapshotJson = JSON.stringify(snapshot).replace(/</g, '\\u003c')
-  const roots = childrenOf(nodes)
-  const attachmentCount = cards.reduce((n, c) => n + (c.assets?.length || 0), 0)
+  const roots = renderTree.roots
+  const attachmentCount = renderTree.attachmentCount
   const thesisTitle = thesis?.title || `${workspaceName} · 策展成果`
   const thesisDesc = thesis?.description || '这份策展成果尚未补充中心论点说明。'
   const treeTheme = options.theme === 'ink'
     ? { bg: '#17181c', surface: '#202126', surface2: '#26272d', ink: '#f4f0e8', ink2: '#d8d2c8', ink3: '#aaa397', line: 'rgba(255,255,255,.20)', accent: '#c3d0dd', accentSoft: 'rgba(195,208,221,.18)', shadow: 'rgba(0,0,0,.32)' }
     : { bg: '#f7f4ed', surface: '#fffdf8', surface2: '#efeade', ink: '#25221c', ink2: '#4d483f', ink3: '#71695d', line: 'rgba(40,34,24,.18)', accent: '#2f5955', accentSoft: '#e7f0ed', shadow: 'rgba(54,44,30,.12)' }
-  const toc = roots.map((n, i) => `<a href="#node-${i + 1}">${esc(n.name || '未命名分支')}</a>`).join('')
+  const toc = roots.map((n, i) => `<a href="#node-${i + 1}">${esc(n.title)}</a>`).join('')
   const reading = `<div class="doc-shell">
     <aside class="toc">
       <div class="kicker">策展目录</div>
@@ -151,23 +146,23 @@ export function buildCurationShareHtml(input: CurationShareInput): string {
         <div class="kicker">策展成果 · 阅读长文</div>
         <h1>${esc(thesisTitle)}</h1>
         <p class="lead">${esc(thesisDesc)}</p>
-        <div class="metrics"><span><b>${cards.length}</b> 张资源</span><span><b>${nodes.length}</b> 个节点</span><span><b>${roots.length}</b> 个一级分支</span><span><b>${attachmentCount}</b> 个附件</span></div>
+        <div class="metrics"><span><b>${renderTree.cardCount}</b> 张资源</span><span><b>${renderTree.nodeCount}</b> 个节点</span><span><b>${roots.length}</b> 个一级分支</span><span><b>${attachmentCount}</b> 个附件</span></div>
       </header>
-      ${roots.length ? roots.map((n, i) => nodeReadingHtml(n, nodes, cards, options, 0, i + 1)).join('') : '<div class="empty-page">这份成果还没有论证分支。</div>'}
-      ${options.attachments && attachmentCount ? `<section class="attachment-section"><div class="kicker">附件清单</div><h2>可追溯的材料</h2>${cards.filter(c => c.assets?.length).map(c => `<div class="attachment-row"><span>${esc(c.title)}</span><small>${c.assets!.map(a => `${esc(a.name || kindLabel(a.kind))}（${kindLabel(a.kind)} · ${fmtSize(a.size)}）`).join('、')}</small></div>`).join('')}</section>` : ''}
+      ${roots.length ? roots.map((n, i) => nodeReadingHtml(n, options, String(i + 1))).join('') : '<div class="empty-page">这份成果还没有论证分支。</div>'}
+      ${options.attachments && attachmentCount ? `<section class="attachment-section"><div class="kicker">附件清单</div><h2>可追溯的材料</h2>${renderTree.flat.filter(n => n.cards.some(c => c.assets.length)).map(n => n.cards.filter(c => c.assets.length).map(c => `<div class="attachment-row"><span>${esc(c.title)}</span><small>${c.assets.map(a => `${esc(a.name || kindLabel(a.kind))}（${kindLabel(a.kind)} · ${fmtSize(a.size)}）`).join('、')}</small></div>`).join('')).join('')}</section>` : ''}
       <footer class="footer">由知源生成${options.date ? ` · ${fmtDate(generatedAt)}` : ''}<br>本文件为自包含 HTML，不含账号、密钥、内部标识或本地绝对路径。</footer>
     </main>
   </div>`
-  const tree = `<main class="tree-doc">
+  const treeHtml = `<main class="tree-doc">
     <header class="hero tree-hero">
       <div class="kicker">策展成果 · 论证树</div>
       <h1>${esc(thesisTitle)}</h1>
       <p class="lead">${esc(thesisDesc)}</p>
-      <div class="metrics"><span><b>${cards.length}</b> 张资源</span><span><b>${nodes.length}</b> 个节点</span><span><b>${roots.length}</b> 个一级分支</span></div>
+      <div class="metrics"><span><b>${renderTree.cardCount}</b> 张资源</span><span><b>${renderTree.nodeCount}</b> 个节点</span><span><b>${roots.length}</b> 个一级分支</span></div>
     </header>
     <div class="tree-scroll"><div class="share-tree">
       <div class="share-root"><div class="node-kicker">L1 · 中心论点</div><h2>${esc(thesisTitle)}</h2><p>${esc(thesisDesc)}</p></div>
-      <ul class="tree-root">${roots.length ? roots.map((n, i) => nodeTreeHtml(n, nodes, cards, options, 0, i + 1)).join('') : '<li class="empty-page">暂无论证分支。</li>'}</ul>
+      <ul class="tree-root">${roots.length ? roots.map(n => nodeTreeHtml(n, options)).join('') : '<li class="empty-page">暂无论证分支。</li>'}</ul>
     </div></div>
     <footer class="footer">由知源生成${options.date ? ` · ${fmtDate(generatedAt)}` : ''}<br>资源链接可点击；分享文件不依赖知源扩展。</footer>
   </main>`
@@ -189,7 +184,7 @@ a{color:inherit;text-decoration:none}.doc-shell{max-width:1220px;margin:0 auto;p
 .tree-doc{max-width:1440px;margin:0 auto;padding:46px 26px 60px}.tree-hero{max-width:880px}.tree-scroll{overflow-x:auto;padding-bottom:16px}.share-tree{display:flex;gap:44px;align-items:flex-start;min-width:1080px;margin-top:28px}.share-root{width:300px;flex:none;border:2px solid var(--accent);border-radius:14px;padding:18px;background:linear-gradient(135deg,var(--accent-soft),var(--surface));box-shadow:0 12px 34px var(--shadow)}.share-root h2{font-size:20px;line-height:1.4;margin:6px 0 8px}.share-root p{font-size:13px;color:var(--ink-2);margin:0}.tree-root,.tree-root ul{list-style:none;margin:0;padding:0}.tree-root{display:flex;flex-direction:column;gap:14px;padding-left:24px;border-left:1px solid var(--line)}.tree-branch{position:relative}.tree-branch::before{content:"";position:absolute;left:-24px;top:28px;width:24px;height:1px;background:var(--line)}.tree-node{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:13px 15px;width:330px}.tree-node h3{font-size:17px;margin:5px 0}.tree-node p{font-size:12px;color:var(--ink-2);margin:0 0 9px}.tree-branch>ul{display:flex;flex-direction:column;gap:10px;margin:10px 0 0 20px;padding-left:20px;border-left:1px solid var(--line)}.tree-node .resources{gap:7px}.tree-node .resource{padding:9px 10px}.tree-node .res-title{font-size:13px}.tree-node .resource p{font-size:12px}
 .image-download{position:fixed;right:22px;bottom:22px;z-index:10;display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border:1px solid var(--accent);border-radius:999px;background:var(--surface);color:var(--accent);box-shadow:0 8px 26px var(--shadow);font-size:12px;font-weight:700;text-decoration:none}.image-download:hover{background:var(--accent-soft)}.image-download span{font-size:16px;line-height:1}
 @media(max-width:900px){.doc-shell{display:block;padding:32px 18px 50px}.toc{position:relative;top:auto;display:none}.article{max-width:none}.hero h1{font-size:34px}.lead{font-size:16px}.depth-1,.depth-2,.depth-3{margin-left:0}.tree-doc{padding:30px 16px 44px}.share-tree{min-width:900px}.share-root{width:250px}}
-@media print{body{background:#fff}.doc-shell{display:block;padding:0}.toc{display:none}.article{max-width:none}.resource,.tree-node{break-inside:avoid}.footer{position:static}}
-</style></head><body>${options.format === 'reading' ? reading : tree}${imageLink}
+@media print{body{background:#fff}.doc-shell{display:block;padding:0}.toc{display:none}.article{max-width:none}.resource,.tree-node{break-inside:avoid}.footer{position:static}.image-download{display:none}}
+</style></head><body>${options.format === 'reading' ? reading : treeHtml}${imageLink}
 <script type="application/json" id="zy-curation-share-data">${snapshotJson}</script></body></html>`
 }

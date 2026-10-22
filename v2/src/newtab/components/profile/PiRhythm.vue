@@ -15,6 +15,7 @@
  *   偏离预警（runRules 8 规则）不属于重复读数，保留为独立分段。
  */
 import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed, ref } from 'vue'
 import {
   windowOf, prevWindow, pct,
@@ -40,6 +41,7 @@ const emit = defineEmits<{
   (e: 'goal-drill', dirId: string): void
   /** F12 诊断条动作分发（goal:<dirId> / lc / wk-acts） */
   (e: 'insight-action', action: string): void
+  (e: 'ai-insight'): void
 }>()
 
 /* ===== 窗口固定为本周 ===== */
@@ -114,6 +116,9 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
           :title="`等长窗口对比：本周有效动作 ${agg.acts} vs 上周 ${prevAgg.acts}`">
           环比上周 {{ fmtPct(deltaActs) }}
         </span>
+        <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
+          <AiEntryButton variant="inline" label="AI 续写" />
+        </button>
         <button v-if="errorCount > 0" class="pi-btn sm line pi-btn-warn"
           @click="emit('open-err')"><Icon name="alert" :size="13"/> 错误 {{ errorCount }}</button>
       </div>

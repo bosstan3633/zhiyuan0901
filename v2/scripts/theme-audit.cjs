@@ -841,6 +841,59 @@ if (argv.scenes) {
       card('audit-r4', '把一次解决变成可交付方案', 'audit-cat-evidence', 'own-work', '结构化成果让经验可以分享，也可以被检验。'),
     ]
   }
+  /* ★G-09（V3.9.11）：方向树折叠判据的数据前置。
+     只补空样本，不改备份里已有的方向与项目；判据要测的是真实 DOM 的折叠行为，
+     不能因为备份恰好在方向树为空而长期把 8 项报成“跳过”。 */
+  const directionHasProjects = (directions) => Array.isArray(directions)
+    && directions.some(d => Array.isArray(d.projects) && d.projects.length > 0)
+  if (!directionHasProjects(data.compass?.directions) && !directionHasProjects(data.directions)) {
+    const at = FREEZE_AT + 13 * 60 * 60 * 1000
+    data.compass = data.compass || {
+      vision: { content: '', updatedAt: 0 },
+      mission: { content: '', updatedAt: 0 },
+      directions: [],
+    }
+    if (!Array.isArray(data.compass.directions)) data.compass.directions = []
+    data.compass.directions = data.compass.directions.filter(d => d && d.id !== 'audit-dir-1')
+    data.compass.directions.push({
+      id: 'audit-dir-1',
+      name: '认知调度研究',
+      status: 'active',
+      term: 'mid',
+      projects: [{
+        id: 'audit-proj-1',
+        name: '认知调度产品化',
+        nextStep: '把方向树折叠判据从跳过改成真判。',
+        isFocused: true,
+        progress: 0,
+        status: 'active',
+        order: 0,
+        metrics: [{
+          id: 'audit-metric-1',
+          title: '视觉验收覆盖完整',
+          target: '8 项真判',
+          acceptance: '四主题实拍不再跳过方向树折叠',
+          taskIds: ['audit-task-1'],
+        }],
+      }],
+    })
+    data.tasks = (data.tasks || []).filter(t => t && t.id !== 'audit-task-1')
+    data.tasks.push({
+      id: 'audit-task-1',
+      kind: 'task',
+      title: '补齐方向树实拍夹具',
+      description: '让折叠判据在真实渲染上有数据可判。',
+      projectId: 'audit-proj-1',
+      metricId: 'audit-metric-1',
+      status: 'doing',
+      priority: 'high',
+      customFields: {},
+      tags: ['视觉验收'],
+      pinned: false,
+      createdAt: at,
+      updatedAt: at,
+    })
+  }
   /* ★B5-a：折叠判据的数据前置——方向树里至少得有一个项目舱，否则 .tw-head 恒为 0，
      "每舱都有卡头 / 折叠真的摘节点"这两条无从判起（见 treeSkip 处注释）。
      ★V3.9.6 修（2026-10-21）：探针原来读 `data.directions`，但真库的形状是

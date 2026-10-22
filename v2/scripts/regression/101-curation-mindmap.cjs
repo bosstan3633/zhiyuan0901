@@ -19,6 +19,8 @@ const HOOK = read('/newtab/composables/useCurationMindMap.ts');
 const THESIS = read('/newtab/components/curation/CurationThesisDrawer.vue');
 const SHARE_UI = read('/newtab/components/curation/CurationShareDrawer.vue');
 const SHARE = read('/shared/utils/curationShare.ts');
+const SHARE_DATA = read('/shared/utils/curationShareData.ts');
+const SHARE_IMAGE = read('/shared/utils/curationImage.ts');
 const CSS = read('/newtab/components/curation/curation.css');
 
 console.log('【V3.9.8 · 策展台成果态与思维导图】');
@@ -176,7 +178,7 @@ check('C101-12 分享收集全部非论点证据（含镜像），不再把镜�
     && WS.includes(':cards="shareCards"');
 });
 
-check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链接 / 附件 / 来源 / 日期四开关、纸白 / 墨黑双主题', () => {
+check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链接 / 附件 / 来源 / 日期四开关、纸白 / 墨黑双主题；预览消费规范树而不是私有平铺递归', () => {
   return SHARE_UI.includes('分享页预览')
     && SHARE_UI.includes('阅读长文')
     && SHARE_UI.includes('论证树')
@@ -189,13 +191,16 @@ check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链�
     && SHARE_UI.includes('class="cs-paper"')
     && SHARE_UI.includes('role="document"')
     && SHARE_UI.includes('cs-preview-section')
-    /* V3.9.10：预览必须递归平铺真实层级；只遍历顶层会让 L3/L4 从预览里消失。 */
-    && SHARE_UI.includes('flattenPreviewNodes')
+    /* G-01：预览、HTML 与长图共用 buildCurationRenderTree；私有 flattenPreviewNodes
+       会让 L3/L4 在不同出口各算一遍，回归必须守住“单一规范树”。 */
+    && SHARE_UI.includes('buildCurationRenderTree')
+    && SHARE_UI.includes('const previewFlatNodes = computed(() => renderTree.value.flat)')
+    && !SHARE_UI.includes('flattenPreviewNodes')
     && SHARE_UI.includes('v-for="node in previewFlatNodes"')
     && SHARE_UI.includes("downloadText(filename.value, html.value, 'html')");
 });
 
-check('C101-14 分享 HTML 安全边界：自包含、无可执行脚本、无外链资源；仅输出 http(s)，转义文本，不泄露内部 ID / 路径', () => {
+check('C101-14 分享 HTML 安全边界与真实层级：自包含、无可执行脚本、无外链资源；仅输出 http(s)，按 node.level 输出 L1–L4，不泄露内部 ID / 路径', () => {
   /* 内部 ID 用于在内存中按节点归属筛选资源，不等于写进分享产物。
      这里守的是输出边界：论证树层级按真实 L1–L4 输出，JSON 快照必须 inert，同时仍钉住自包含与转义。 */
   const scripts = [...SHARE.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
@@ -208,7 +213,9 @@ check('C101-14 分享 HTML 安全边界：自包含、无可执行脚本、无�
     && !SHARE.includes('http://')
     && SHARE.includes('/^https?:\\/\\//i.test(url)')
     && SHARE.includes('const esc =')
-    && SHARE.includes('node-kicker">L${depth + 2} · 论证节点')
+    && SHARE.includes('const renderTree = buildCurationRenderTree({ nodes, cards, thesis })')
+    && SHARE.includes('node-kicker">L${node.level} · 论证节点')
+    && !SHARE.includes('L${depth + 2}')
     && !SHARE.includes('L2+')
     && SHARE.includes('rel="noopener noreferrer"')
     && !SHARE.includes('${card.id}')
@@ -218,14 +225,56 @@ check('C101-14 分享 HTML 安全边界：自包含、无可执行脚本、无�
     && !SHARE.includes('airtable');
 });
 
-check('C101-15 分享两种版式都按节点挂卡：阅读长文递归章节、论证树递归横向树，空证据有明确文案', () => {
+check('C101-15 分享两种版式都按节点挂卡：阅读长文与论证树都消费同一规范树、保留真实 L1–L4，空证据有明确文案', () => {
   return SHARE.includes('function nodeReadingHtml')
     && SHARE.includes('function nodeTreeHtml')
-    && SHARE.includes('children.map((child, i) => nodeReadingHtml')
-    && SHARE.includes('children.map((child, i) => nodeTreeHtml')
+    && SHARE.includes('${node.children.map((child, i) => nodeReadingHtml(child, options, `${index}-${i + 1}`)).join(\'\')}')
+    && SHARE.includes('${node.children.map(child => nodeTreeHtml(child, options)).join(\'\')}')
+    && SHARE.includes('const renderTree = buildCurationRenderTree({ nodes, cards, thesis })')
+    && !SHARE.includes('const byParent = new Map<string, Category[]>')
     && SHARE.includes('这个节点暂未挂资源卡')
     && SHARE.includes('暂未挂资源卡')
     && SHARE.includes("options.format === 'reading' ? reading : tree");
+});
+
+check('C101-G01-1 共享渲染树覆盖 L1–L4、稳定排序与路径：L1 是论点卡，L2–L4 按 order/id 稳定输出，路径随父子关系累积', () => {
+  return SHARE_DATA.includes('export interface CurationRenderTree')
+    && SHARE_DATA.includes('level: number')
+    && SHARE_DATA.includes('path: string')
+    && SHARE_DATA.includes('const roots = (byParent.get(\'\') || []).map(node => walk(node, 2, \'\'))')
+    && SHARE_DATA.includes('node.parentId || \'\'')
+    && SHARE_DATA.includes('arr.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))')
+    && SHARE_DATA.includes('out.children = (byParent.get(node.id) || []).map(child => walk(child, level + 1, path))')
+    && SHARE_DATA.includes('maxLevel = flat.reduce((n, node) => Math.max(n, node.level), input.thesis ? 1 : 0)');
+});
+
+check('C101-G01-2 共享渲染树排除论点卡、清洗附件与公开 URL：论点卡不进入节点资源，附件只保留 name/kind/size，非 http(s) 不进分享', () => {
+  return SHARE_DATA.includes('if (!card || card.isThesis || !card.categoryId) continue')
+    && SHARE_DATA.includes('url: safeUrl(card.link) || undefined')
+    && SHARE_DATA.includes('return /^https?:\\/\\//i.test(url) ? url : \'\'')
+    && SHARE_DATA.includes('assets: (card.assets || []).map(asset => ({')
+    && SHARE_DATA.includes('name: asset.name || \'\'')
+    && SHARE_DATA.includes('kind: asset.kind || \'\'')
+    && SHARE_DATA.includes('size: asset.size || 0')
+    && SHARE_DATA.includes('tags: (card.tags || []).slice(0, 8)');
+});
+
+check('C101-G01-3 共享渲染树守卫循环与上限：节点 5000 / 资源 5000 / 最深 L4，超限明确抛错；长图也复用同一极限常量', () => {
+  return SHARE_DATA.includes('nodes: 5000')
+    && SHARE_DATA.includes('cards: 5000')
+    && SHARE_DATA.includes('maxLevel: 4')
+    && SHARE_DATA.includes('maxLogicalWidth: 20000')
+    && SHARE_DATA.includes('maxLogicalHeight: 30000')
+    && SHARE_DATA.includes('maxPixelArea: 40_000_000')
+    && SHARE_DATA.includes('const visiting = new Set<string>()')
+    && SHARE_DATA.includes('if (visiting.has(node.id))')
+    && SHARE_DATA.includes('if (tree.nodeCount > CURATION_RENDER_LIMITS.nodes)')
+    && SHARE_DATA.includes('if (tree.cardCount > CURATION_RENDER_LIMITS.cards)')
+    && SHARE_DATA.includes('if (tree.maxLevel > CURATION_RENDER_LIMITS.maxLevel)')
+    && SHARE_IMAGE.includes('CURATION_RENDER_LIMITS.maxLogicalWidth')
+    && SHARE_IMAGE.includes('CURATION_RENDER_LIMITS.maxLogicalHeight')
+    && SHARE_IMAGE.includes('CURATION_RENDER_LIMITS.maxPixelArea')
+    && !SHARE_IMAGE.includes('Math.max(0.5');
 });
 
 check('C101-16 画布视觉契约：金字塔向下、树状向右；金字塔同层横向连接线在位；窄屏无页面级溢出', () => {

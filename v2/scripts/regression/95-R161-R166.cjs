@@ -173,10 +173,10 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2 声明结构完备：kind 三值 job×20 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 25 条（R166 任务侧补全 + 找资源支持 +2；R169-T3 今日三件事排序 +1；N2 项目诊断 +1 —— 与设置页 diagnose 整库会诊**各走各的**，是新 job 不是改旧的）且 id 唯一（数量锚：增删入口必须连文档一起改；R162 推荐挂载退役 -1）', () => {
+check('R157-2 声明结构完备：kind 三值 job×21 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 26 条（R166 任务侧补全 +2；R169-T3 今日三件事排序 +1；N2 项目诊断 +1；G-04 周期洞察续写 +1 —— 与设置页 diagnose 整库会诊**各走各的**，是新 job 不是改旧的）且 id 唯一（数量锚：增删入口必须连文档一起改；R162 推荐挂载退役 -1）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 25
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 20
+  return ids.length === 26
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 21
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
@@ -233,10 +233,10 @@ const REGISTRY_FILE = read('/shared/ai/jobs/registry.ts');
 const GP_FILE = read('/newtab/components/GlobalPopups.vue');
 const SETTINGS_FILE = read('/newtab/views/GlobalSettings.vue');
 
-check('R158-1 注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；21 条显式 panel + search 型 2 条缺省 hidden（R169-T3 focus-rank 亦 nav → 22）；popup 只认 ai-advice；nav 必带 route+hint', () => {
+check('R158-1 注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；22 条显式 panel + search 型 2 条缺省 hidden（R169-T3 focus-rank 与 G-04 range-insight 均 nav → 23）；popup 只认 ai-advice；nav 必带 route+hint', () => {
   const modes = (REGISTRY_FILE.match(/mode: '(nav|popup|hidden)',/g) || []).length;
   return REGISTRY_FILE.includes('export interface AiPanelDecl')
-    && modes === 22 /* R166 +2：task-enrich / task-support；R169-T3 +1：focus-rank，均 nav */
+    && modes === 23 /* R166 +2：task-enrich / task-support；R169-T3 +1：focus-rank；G-04 +1：range-insight，均 nav */
     && (REGISTRY_FILE.match(/popup: 'ai-advice'/g) || []).length === 3
     && REGISTRY_FILE.includes('route?: string')
     && REGISTRY_FILE.includes('hint?: string')
@@ -284,9 +284,9 @@ check('R158-6（V3.9.8 随迁）右键菜单：打开→复制→编辑→置顶
   return iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMirror && iMirror < iThesis && iThesis < iDel
     && !c.includes("label: '移动分类'");
 });
-check('R158-7 ★入口数量锚（V3.7.0 重指 · N2 +1）：注册表 25 条（N2 单项目诊断与设置页 diagnose 各走各的，是新增不是改旧）；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
+check('R158-7 ★入口数量锚（V3.7.0 重指 · N2 +1 · G-04 +1）：注册表 26 条（周期洞察续写是画像页新增只读入口，不与任务诊断复用）；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 25
+  return ids === 26
     && !GP_FILE.includes("label: '打开资源台'")
     && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });

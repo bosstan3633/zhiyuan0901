@@ -53,6 +53,7 @@ const SHARDS = [
   '99b-r2-pool',
   '100-p0-gates',
   '101-curation-mindmap',
+  '102-g09-experience',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

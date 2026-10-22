@@ -56,8 +56,8 @@ export interface AiEntryCaps {
   steps?: boolean
   /** 角色选择器（job.persona 或 ctx.personaId/onPersona 通道） */
   persona?: boolean
-  /** 一次性指令作用域字面量（须与源码逐字一致；'' = 未接地基） */
-  promptScope?: string
+  /** 一次性指令作用域字面量（须与源码逐字一致；true = 动态拼装，由工厂测试守作用域） */
+  promptScope?: string | true
   /** 次采纳通道 */
   secondary?: boolean
   /** 模型回叙事文本（报告型），跳过 JSON 提取 */
@@ -237,6 +237,14 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     hosts: ['newtab/components/dashboard/ReviewPanel.vue'],
     caps: { before: true, paneMode: 'context', promptScope: 'insight', rawText: true, autoReport: true, resave: true },
     panel: { icon: 'flame', mode: 'nav', route: '/', hint: '仪表盘复盘段内发起' },
+  },
+  {
+    id: 'range-insight', title: '周期洞察续写', family: 'proactive', kind: 'job',
+    factory: 'buildRangeInsightJob', factoryFile: 'shared/ai/select.ts',
+    hosts: ['newtab/composables/useRangeAiInsight.ts'],
+    caps: { before: true, paneMode: 'context', promptScope: true, rawText: true },
+    panel: { icon: 'trendup', mode: 'nav', route: '/profile', hint: '画像洞察 · 今天/本周/本月/本年诊断条右侧「AI 续写」' },
+    note: 'G-04：只解释页面已算好的本地事实，adoptable:false，不自动落卡；配置缺失或调用失败时保留本地规则洞察。',
   },
   // ★ R167：原 'card-optimize'（全方位优化）已并入上面的 'card-enrich' —— 两枚入口并成一枚，
   //   注册表 23 → 22；「抓正文」能力随工厂合并迁入，不再存在"两条口径不一的单卡工厂"。

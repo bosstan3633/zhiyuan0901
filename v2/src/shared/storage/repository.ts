@@ -772,6 +772,7 @@ export function mergeExternalData(ext: AppData): AppData {
     /* R166 定案 5：SupportLink 是"无 updatedAt 的实体段"，与 curationProjections 同法按 id 取并集。
        不能走卡片那条 LWW 骨架——它没有 updatedAt 可比，按时间戳合并会把另一端的关联整段冲掉。 */
     supportLinks: mergeByIdArr(cur.supportLinks || [], snap.supportLinks || [], ext.supportLinks || []),
+    curioSupportLinks: mergeByIdArr(cur.curioSupportLinks || [], snap.curioSupportLinks || [], ext.curioSupportLinks || []),
     /* V3.7.0：论证节点卡——同为"无 updatedAt 必比"的实体段（新建/改名/排序），按 id 并集。 */
     argCards: mergeByIdArr(cur.argCards || [], snap.argCards || [], ext.argCards || [])
   }

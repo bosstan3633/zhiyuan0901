@@ -12,6 +12,7 @@
  * props-only 红线（R172-9）：聚合全在宿主算好传入，本组件零扫 store。
  */
 import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed } from 'vue'
 import { windowOf, type ConciseInsight } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
@@ -37,6 +38,7 @@ const emit = defineEmits<{
   (e: 'drill', k: 'mo-add' | 'mo-call' | 'mo-support' | 'mo-conv' | 'mo-curate'): void
   (e: 'topic', tag: string): void
   (e: 'insight-action', action: string): void
+  (e: 'ai-insight'): void
 }>()
 
 /* ===== 窗口：本月（聚合由宿主与本组件双侧按同口径轻算，stats 为前缀和数据源） ===== */
@@ -62,6 +64,9 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
           :title="`上月底 ${ent.from} bit → 当前 ${ent.to} bit（香农熵：越低越聚焦）`">
           知识熵 {{ ent.from }} › {{ ent.to }} bit · {{ entState }}
         </span>
+        <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
+          <AiEntryButton variant="inline" label="AI 续写" />
+        </button>
       </div>
     </div>
     <div class="pi-mod-b">

@@ -13,7 +13,7 @@
  *
  * 纯函数、零 UI / store 依赖——任务详情、资源详情、卡面三处共用同一份。
  */
-import type { AppData, SupportLink } from '@/shared/models'
+import type { AppData, CurioSupportLink, SupportLink } from '@/shared/models'
 import { uid } from '@/shared/utils'
 
 export interface SupportIndex {
@@ -23,9 +23,17 @@ export interface SupportIndex {
   bySub: Map<string, SupportLink[]>
   /** resourceId → 引用该资源的所有关联（资源侧只读反查用） */
   byResource: Map<string, SupportLink[]>
+  curioByCurio: Map<string, CurioSupportLink[]>
+  curioByResource: Map<string, CurioSupportLink[]>
 }
 
-const emptyIndex = (): SupportIndex => ({ byTask: new Map(), bySub: new Map(), byResource: new Map() })
+const emptyIndex = (): SupportIndex => ({
+  byTask: new Map(),
+  bySub: new Map(),
+  byResource: new Map(),
+  curioByCurio: new Map(),
+  curioByResource: new Map(),
+})
 
 /**
  * 建反查索引，同时做软删过滤：两端任一在回收站里 ⇒ 这条不进索引（记录本身保留）。
@@ -51,6 +59,13 @@ export function buildSupportIndex(d: AppData): SupportIndex {
     push(idx.byResource, l.resourceId, l)
   }
   for (const m of [idx.byTask, idx.bySub, idx.byResource]) for (const arr of m.values()) arr.sort((a, b) => b.createdAt - a.createdAt)
+  const liveCurio = new Set((d.curiosities || []).filter(c => c && !c.deletedAt).map(c => c.id))
+  for (const l of d.curioSupportLinks || []) {
+    if (!l || !liveCurio.has(l.curioId) || !liveRes.has(l.resourceId)) continue
+    pushCurio(idx.curioByCurio, l.curioId, l)
+    pushCurio(idx.curioByResource, l.resourceId, l)
+  }
+  for (const m of [idx.curioByCurio, idx.curioByResource]) for (const arr of m.values()) arr.sort((a, b) => b.createdAt - a.createdAt)
   return idx
 }
 
@@ -58,10 +73,15 @@ function push<K>(m: Map<K, SupportLink[]>, k: K, l: SupportLink): void {
   const arr = m.get(k)
   if (arr) arr.push(l); else m.set(k, [l])
 }
+function pushCurio<K>(m: Map<K, CurioSupportLink[]>, k: K, l: CurioSupportLink): void {
+  const arr = m.get(k)
+  if (arr) arr.push(l); else m.set(k, [l])
+}
 
 export function listByTask(idx: SupportIndex, taskId: string): SupportLink[] { return idx.byTask.get(taskId) || [] }
 export function listBySub(idx: SupportIndex, subId: string): SupportLink[] { return idx.bySub.get(subId) || [] }
 export function listByResource(idx: SupportIndex, resourceId: string): SupportLink[] { return idx.byResource.get(resourceId) || [] }
+export function listByCurio(idx: SupportIndex, curioId: string): CurioSupportLink[] { return idx.curioByCurio.get(curioId) || [] }
 
 /**
  * 新增关联。同一 (taskId, subId, resourceId) 已存在则不重复挂（返回 dup）——
@@ -106,6 +126,43 @@ export function purgeSupportLinks(d: AppData, opt: { taskIds?: Set<string>; reso
   const kept = list.filter(l => !dead(l))
   const n = list.length - kept.length
   if (n) d.supportLinks = kept
+  return n
+}
+
+export function addCurioSupportLink(
+  d: AppData,
+  input: { curioId: string; resourceId: string; from: 'ai' | 'manual'; why?: string }
+): { link?: CurioSupportLink; dup: boolean } {
+  const list = (d.curioSupportLinks = d.curioSupportLinks || [])
+  if (list.some(x => x.curioId === input.curioId && x.resourceId === input.resourceId)) return { dup: true }
+  const link: CurioSupportLink = {
+    id: uid('csl'),
+    curioId: input.curioId,
+    resourceId: input.resourceId,
+    from: input.from,
+    createdAt: Date.now(),
+    ...(input.why ? { why: input.why.slice(0, 120) } : {}),
+  }
+  list.push(link)
+  return { link, dup: false }
+}
+
+export function removeCurioSupportLink(d: AppData, id: string): boolean {
+  const list = d.curioSupportLinks || []
+  const i = list.findIndex(l => l.id === id)
+  if (i < 0) return false
+  list.splice(i, 1)
+  return true
+}
+
+export function purgeCurioSupportLinks(d: AppData, opt: { curioIds?: Set<string>; resourceIds?: Set<string> }): number {
+  const list = d.curioSupportLinks
+  if (!Array.isArray(list) || !list.length) return 0
+  const kept = list.filter(l =>
+    !(opt.curioIds && opt.curioIds.has(l.curioId))
+    && !(opt.resourceIds && opt.resourceIds.has(l.resourceId)))
+  const n = list.length - kept.length
+  if (n) d.curioSupportLinks = kept
   return n
 }
 

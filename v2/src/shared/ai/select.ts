@@ -12,7 +12,7 @@ import { chatStream, extractJson } from './llm'
 import { projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
-  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
+  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, rangeInsightSystem, fullOptimizeSystem,
   chainPersonaText, allPersonas, personaOverrides,
   type TaskDraft,
 } from './scenarios'
@@ -482,5 +482,48 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
       return [{ key: 'insight', badge: '洞察', main: text, changeType: 'new', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { text: (t.main || '').trim() } }) }, data: { text } }]
     },
   }, ctx, () => `🗓 深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['深度洞察'])
+}
+
+export type InsightRange = 'today' | 'week' | 'month' | 'year'
+
+/** G-04：画像四段的只读 AI 续写。
+ *  入参 facts 由 ProfileInsights 从既有本地诊断口径整理；SLO 与统计数字仍以本地为准。
+ *  失败由抽屉显示错误，页面原本地 ConciseInsight 不受影响。 */
+export function buildRangeInsightJob(
+  ctx: SelectCtx,
+  range: InsightRange,
+  localInsight: { html: string },
+  facts: string[],
+): AiJob {
+  const label = { today: '今天', week: '本周', month: '本月', year: '本年' }[range]
+  const source = [
+    `范围：${label}`,
+    `本地诊断：${String(localInsight.html || '').replace(/<[^>]+>/g, '')}`,
+    ...facts.map(f => `- ${String(f).slice(0, 240)}`),
+  ].join('\n')
+  return {
+    key: `insight-${range}`,
+    title: `${label} · AI 洞察续写`,
+    subject: `📊 ${label}本地事实 · 只读续写`,
+    hint: 'AI 只解释本地已算好的事实，不改数字、不写卡片、不替你做决定。失败时页面仍保留本地诊断。',
+    rawText: true,
+    adoptable: false,
+    before: () => digestPane(source),
+    paneMode: 'context',
+    promptScope: `insight:${range}`,
+    build: () => ({ messages: [{ role: 'system', content: rangeInsightSystem(range) }, { role: 'user', content: source }], jsonMode: false }),
+    parse: (raw) => {
+      const text = String(raw || '').trim()
+      if (!text) return []
+      return [{
+        key: `insight-${range}`,
+        badge: '续写',
+        main: text,
+        changeType: 'new',
+        edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { text: (t.main || '').trim() } }) },
+        data: { text },
+      }]
+    },
+  }
 }
 
