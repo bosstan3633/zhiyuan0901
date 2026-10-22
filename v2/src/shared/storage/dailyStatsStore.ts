@@ -8,7 +8,7 @@
  * 口径（与 hotStats.ts 同构的三条，缺一不可）：
  *  1. **重建是权威**：事件日志覆盖区间内（> 边界日）以重算为准——防刷分 ×0.5、24h 内软删 ×0.3
  *     这类只在事件重放时成立的修正不能被快照固化；
- *  2. **快照只补淘汰的老日子**（≤ 边界日）：事件段以快照为准、字段段以重算为准（见
+ *  2. **快照只补淘汰的老日子**（< 边界日；边界日当天留重算——见 R176 备案）：事件段以快照为准、字段段以重算为准（见
  *     dailyStats.mergeDailyStats——字段是 doneAt 类时间戳，不进日志、不会被淘汰）；
  *  3. **写是低频小载荷**：随整库保存时间闸（45s）重建+落盘，内容未变跳写；页隐藏/卸载
  *     `flushDailyStatsNow` 跳闸立即写——防抖定时器会随页面冻结丢失，补写必须立即发出
@@ -75,6 +75,50 @@ export function setDailySnapshotCache(s: DailyStats | null): void {
   snapCacheLoaded = true
 }
 
+/**
+ * ★R176（2026-10-21 修）：**写快照前重读库里的最新快照**，不信任本上下文的陈旧缓存。
+ *
+ * 病根（探针实测复现，双上下文真机场景）：
+ *   ① 上下文 A 打开画像页 → `useDashboardStats` 读一次 `zy_daily_stats` → A 的缓存 = 当时的值（空）；
+ *   ② 上下文 B（新标签页 / 浮层）写了一次快照 → 库里出现了新的一天 D1；
+ *   ③ A 回到策展台改一张卡 → 保存 → `scheduleDailyStatsWrite` → `writeDailyStatsNow`
+ *      用的是 **A 的陈旧缓存**（空）去 merge ⇒ 输出里根本没有 D1
+ *      ⇒ A 把整棵快照写回去 ⇒ **D1 被静默抹掉**。
+ *   探针输出（修复前）：库里 `["2026-03-03"]` → A 写完后 `["2026-10-21"]`，D1 消失。
+ *
+ * 为什么这是"热力图褪色"的**同一个病**从另一个口子回来：
+ *   R174-3 造快照是为了让老格子不被日志淘汰挤掉；结果这一写通道自己把别的上下文
+ *   刚补好的格子抹了 ⇒ 用户看到的还是"老日子凭空消失"，而这次连日志里都没有线索。
+ *
+ * 修法：**写路径不读缓存，直接重读存储**。
+ *   · 写快照是低频动作（45s 时间闸 + 页隐藏补写），多一次 `chrome.storage.local.get`
+ *     的代价可忽略；而读缓存省下的那点 IO，换来的是"跨上下文丢数据"，不划算。
+ *   · 读回来的最新快照才是库里的真相 ⇒ merge 的输入完整 ⇒ 写出去也完整。
+ *   · 读失败（无 storage 权限等）时**退回缓存**而不是退回 null——退回 null 会把
+ *     "读失败"误当成"库里没有快照"，那等于用空覆盖，是本缺陷的另一种形态。
+ */
+async function readLatestSnapshotForWrite(): Promise<DailyStats | null> {
+  const latest = await readDailySnapshot()
+  if (latest) {
+    // 顺手刷新缓存（下次读侧也能拿到最新值）
+    setDailySnapshotCache(latest)
+    return latest
+  }
+  // 读失败或库里确实没有快照：此时「无快照」是可信的（库里真没有）⇒ 用 null；
+  // 但要区分「读失败」与「真的没有」——读失败时不能拿 null 去覆盖已有快照。
+  const cs = store()
+  if (!cs) return snapCache
+  try {
+    const raw = await cs.get([DAILY_STATS_STORE_KEY])
+    if (raw[DAILY_STATS_STORE_KEY] !== undefined) {
+      // 键存在但形状不合法（坏快照）——按「无快照」处理，但要保缓存那份
+      return snapCache
+    }
+  } catch { return snapCache }
+  setDailySnapshotCache(null)
+  return null
+}
+
 /** 重建 + 合并（boundary 取当前事件日志），落盘内容未变则跳写。
  *  ★V3.9.7：画像页是唯一读快照的宿主，但保存链可能在画像页首次挂载前已经排程。
  *  首次写必须等缓存装载（含“无快照”的 null），否则会把已有快照当空值覆盖。
@@ -90,7 +134,9 @@ export async function writeDailyStatsNow(data: AppData): Promise<void> {
   }
   writeInFlight = true
   try {
-    const snap = await loadDailySnapshotCache()
+    // ★R176：写路径**重读库里的最新快照**，不用本上下文的陈旧缓存
+    //   （陈旧缓存会把别的上下文刚补好的历史格子整段覆盖掉——探针已实测复现）
+    const snap = await readLatestSnapshotForWrite()
     const events = await readEventLog()
     const rebuild = buildDailyStats(data, events)
     const merged = mergeDailyStats(snap, rebuild, boundaryDayOf(events))

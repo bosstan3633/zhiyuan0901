@@ -45,6 +45,7 @@ const SHARDS = [
   '80-R120-R143',
   '90-R144-R160',
   '95-R161-R166',
+  '96-R176-daily-stats',
   '97-r3-rounds',
   '98-r4-gates',
   '98b-r4-visual',

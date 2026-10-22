@@ -27,12 +27,31 @@ const PIN_VERSIONS_MAC = ['chromium-1234', 'chromium-1223']
 const PIN_VERSIONS_WIN = ['chromium-1223', 'chromium-1211']
 
 function cacheRoot() {
-  if (IS_WIN) return path.join(process.env.LOCALAPPDATA || '', 'ms-playwright')
+  if (IS_WIN) {
+    // ★R176（2026-10-22 修）：Windows 下 `LOCALAPPDATA` **不总是真实用户目录**——
+    //   沙箱 / 应用虚拟化（Windows AppContainer、MSIX 包）会把
+    //   `LOCALAPPDATA` 重定向到 `…\AppData\Local\Packages\<pkg>\AC\`，
+    //   而 playwright 的 Chromium 缓存仍然装在**真实用户目录** `C:\Users\<u>\AppData\Local\ms-playwright`。
+    //   症状（本轮实测）：`cacheRoot()` 指向一个**不存在**的目录 ⇒ 缓存回落整段失效
+    //   ⇒ 解析落到系统 Chrome ⇒ 新版 Chrome 不再支持 `--load-extension`
+    //   ⇒ MV3 service worker 起不来 ⇒ E2E 第一条就超时（15s），
+    //   报错只说"超时"，完全看不出真因是"浏览器解析错了"。
+    //   ⇒ 这里**多回落几个候选根**，逐个扫；任一存在即用。
+    const roots = []
+    const push = (p) => { if (p && !roots.includes(p)) roots.push(p) }
+    push(path.join(process.env.LOCALAPPDATA || '', 'ms-playwright'))
+    // 真实用户目录：从 USERPROFILE 推（Windows 上 %LOCALAPPDATA% 默认 = %USERPROFILE%\AppData\Local）
+    const up = process.env.USERPROFILE || process.env.HOME || ''
+    if (up) push(path.join(up, 'AppData', 'Local', 'ms-playwright'))
+    return roots
+  }
   return path.join(process.env.HOME || '', 'Library', 'Caches', 'ms-playwright')
 }
 function pinnedCandidates() {
   const vers = IS_WIN ? PIN_VERSIONS_WIN : PIN_VERSIONS_MAC
-  if (IS_WIN) return vers.map(v => path.join(cacheRoot(), v, 'chrome-win64', 'chrome.exe'))
+  // ★R176：cacheRoot() 在 Windows 上可能返回**多个候选根**（沙箱重定向时）⇒ 逐根展开
+  const roots = Array.isArray(cacheRoot()) ? cacheRoot() : [cacheRoot()]
+  if (IS_WIN) return roots.flatMap(r => vers.map(v => path.join(r, v, 'chrome-win64', 'chrome.exe')))
   if (IS_MAC) {
     return vers.flatMap(v => [
       path.join(cacheRoot(), v, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
@@ -43,17 +62,22 @@ function pinnedCandidates() {
 }
 /** 本机任意一个 ms-playwright Chromium（取版本号最大的） */
 function anyCachedChromium() {
-  const root = cacheRoot()
+  const roots = Array.isArray(cacheRoot()) ? cacheRoot() : [cacheRoot()]
   let dirs = []
-  try { dirs = fs.readdirSync(root).filter(x => /^chromium(-headless-shell)?-\d+$/.test(x)).sort() } catch { return '' }
+  for (const root of roots) {
+    try { dirs = dirs.concat(fs.readdirSync(root).filter(x => /^chromium(-headless-shell)?-\d+$/.test(x))) } catch { /* 该根不存在就跳下一个 */ }
+  }
+  dirs = [...new Set(dirs)].sort()
   for (const d of dirs.reverse()) {
-    const cands = IS_WIN
-      ? [path.join(root, d, 'chrome-win64', 'chrome.exe')]
-      : IS_MAC
-        ? [path.join(root, d, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium'),
-           path.join(root, d, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')]
-        : [path.join(root, d, 'chrome-linux', 'chrome')]
-    for (const p of cands) if (fs.existsSync(p)) return p
+    for (const root of roots) {
+      const cands = IS_WIN
+        ? [path.join(root, d, 'chrome-win64', 'chrome.exe')]
+        : IS_MAC
+          ? [path.join(root, d, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium'),
+             path.join(root, d, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing')]
+          : [path.join(root, d, 'chrome-linux', 'chrome')]
+      for (const p of cands) if (fs.existsSync(p)) return p
+    }
   }
   return ''
 }

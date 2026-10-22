@@ -1082,22 +1082,63 @@ async function main() {
   await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
+  /* ★R176-补：把前台化**提到导航之前**。
+     原位置在导航与取高亮之后（注释说"后台页定时器会被节流"）——但真正受害的恰恰是
+     导航到二级页这一段：异步组件 chunk 拉取 + 挂载 + 定位高亮都在导航后发生，
+     页面处于后台时这段会被拖到秒级 ⇒ 「资源二级页=false 目标卡=0」全项假红
+     （本轮第二轮 E2E 实测复现该形状：第一轮全绿、第二轮全 false）。
+     前台化前移 ⇒ 这段链路从一开始就以正常节奏跑。 */
+  await page.bringToFront()
   await page.evaluate(() => { location.hash = '#/deck/resource?hl=e2e-pool-1&hk=res' })
-  await page.waitForTimeout(1600)
+  /* ★R176-补：等资源二级页**真的上屏**再判，而不是死等 1600ms。
+     病根（本轮第二轮 E2E 实测复现）：同一份代码第一轮全绿、第二轮 E2E-26 全项 false
+     （连「资源二级页」都没渲染）⇒ 固定等待在慢机器/后台标签页上根本不够，
+     后面每一步（点卡、开抽屉、读热度）都在「页面还没到」的状态下跑 ⇒ 必然全 false。
+     判据强度不放松：超时后仍拿真实采样值去判，与改动前同口径。 */
+  await waitForLocator(page, '.deck-page .pcp', { visible: true, timeout: 10000 })
   const poolDeckOn = await page.locator('.deck-page .pcp').first().isVisible().catch(() => false)
   const hlNode = page.locator('[data-rid="e2e-pool-1"]')
+  /* 目标卡是**深链定位**的结果：路由 query 到位后卡片才渲染出来 ⇒ 等它出现再数。 */
+  await waitForLocator(page, '[data-rid="e2e-pool-1"]', { timeout: 10000 })
   const hlCount = await hlNode.count()
   const hlFlash = hlCount ? (await hlNode.first().getAttribute('class').catch(() => '') || '').includes('flash') : false
-  await page.bringToFront() // 前面几步开过 popup/新页面（E2E-5 的 file:// 尝试、E2E-22 的全屏页）——后台页的定时器会被节流，热度写的 250ms 防抖就永远不触发
+  /* ★R176-补：取证字段——「二级页没上屏」有三种互斥可能（路由没切 / 渲染崩了 / 真没渲染），
+     只看 poolDeckOn=false 分不清是哪一种 ⇒ 判红时必须能一眼看出根因。
+     诊断**不参与判定**（判据一字未改），只进 detail 字符串。 */
+  const e26Diag = await page.evaluate(() => {
+    const err = document.querySelector('.render-error .re-msg')
+    return {
+      url: location.hash,
+      renderError: err ? (err.textContent || '').slice(0, 120) : '',
+      deckCount: document.querySelectorAll('.deck-page').length,
+      pcpCount: document.querySelectorAll('.pcp').length,
+      bodyStart: (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 80)
+    }
+  })
+  const e26ErrLog = await page.evaluate(() => chrome.storage.local.get('zy_error_log').then((r) => {
+    const arr = r['zy_error_log'] || []
+    return arr.slice(-2).map(e => `${e.source}:${String(e.message).slice(0, 90)}@${e.route}`)
+  })).catch(() => [])
   await hlNode.first().click().catch(() => {})
-  await page.waitForTimeout(1500)
+  /* ★R176-补：等抽屉**真的打开**再取标题（单击有 260ms 去重计时器 + 抽屉懒挂载）。 */
+  await waitForLocator(page, '.drawer-title', { visible: true, timeout: 10000 })
   // 抽屉标题是决定性证据（`.ds-ib` 只证明"有个抽屉"，证明不了"开的是这张卡"）
   const drawerTitle = await page.evaluate(() => {
     const t = document.querySelector('.drawer-title')
     const el = t && (t.querySelector('input,textarea') || t)
     return el ? String(el.value !== undefined && el.value !== '' ? el.value : el.textContent || '') : ''
   })
-  await page.waitForTimeout(2500) // 热度写 250ms 防抖 + 事件日志并入同一次 set（R2-⑦ 修好后这条通道才真的通）
+  /* ★R176-补：等「调出」事件真的落进事件日志 + 热度键（原来死等 2500ms）。
+     热度写 250ms 防抖 + 事件日志并入同一次 set（R2-⑦ 修好后这条通道才真的通），
+     但慢机器上 2500ms 未必够 ⇒ 随机假红。判据不变，只是把「等多久」改成「等到什么」。 */
+  await waitForStorage(page, ['zy_event_log', 'zy_stats_v1'],
+    (raw) => {
+      const ev = raw.zy_event_log || []
+      const hit = ev.filter((e) => e.action === 'call' && e.cardId === 'e2e-pool-1')
+      const hot = raw.zy_stats_v1
+      return hit.length > 0 && !!(hot && hot.cards && hot.cards['e2e-pool-1'])
+    },
+    { timeout: 15000 })
   const callEv = await page.evaluate(() => chrome.storage.local.get(['zy_event_log', 'zy_stats_v1']).then((raw) => {
     const ev = raw['zy_event_log'] || []
     const hit = ev.filter(e => e.action === 'call' && e.cardId === 'e2e-pool-1')
@@ -1106,7 +1147,7 @@ async function main() {
   }))
   report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（独立资源二级页 + 目标卡高亮）+ 打开详情记一次调出（热度键与事件日志双落盘）',
     poolDeckOn && hlCount === 1 && hlFlash && drawerTitle.includes('E2E 池卡定位') && callEv.n > 0 && !!callEv.hotEntry,
-    `资源二级页=${poolDeckOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)}`)
+    `资源二级页=${poolDeckOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)} | 诊断 url="${e26Diag.url}" renderError="${e26Diag.renderError}" deck=${e26Diag.deckCount} pcp=${e26Diag.pcpCount} 正文="${e26Diag.bodyStart}" 错误日志=${JSON.stringify(e26ErrLog)}`)
 
   // E2E-27（R2-⑧ · V3.9.1 重指）：独立资源二级页不得再有新建入口；
   //   批量全选打标签 → 批量软删仍走真实点击，种卡只是替代已退役的“新建”准备步骤。
@@ -1184,36 +1225,55 @@ async function main() {
   await page.waitForTimeout(400)
   // V3.9.1：池面板默认列表视图；先显式切网格量一次，再切列表量一次，才是在测“两视图同源”。
   await page.locator('.dk-row[data-panel="pool"] .dk-view', { hasText: '网格' }).click().catch(() => {})
-  await page.waitForTimeout(600)
+  /* ★R176-补：等**网格视图真的上屏**再数，而不是死等 600ms。
+     病根：固定等待在慢机器上不够 ⇒ gridCount 读到切换前的旧值 ⇒ 后面「列表/待打标/右键」
+     整串操作都在错误状态上跑（本次实测症状：全选只选中 1 张、右键菜单为空）。
+     判据强度不放松：等超时后仍拿真实采样值去判，与改动前同口径。 */
+  await waitForLocator(page, '.pcp-card', { timeout: 8000 })
   const gridCount = await page.locator('.pcp-card').count()
   await page.locator('.dk-row[data-panel="pool"] .dk-view', { hasText: '列表' }).click().catch(() => {})
-  await page.waitForTimeout(600)
+  await waitForLocator(page, '.pcp-row', { timeout: 8000 })
   const listCount = await page.locator('.pcp-row').count()
   const noTagShown = await page.locator('.pcp-row', { hasText: 'E2E 池卡乙' }).first().isVisible().catch(() => false)
   await page.locator('.dk-row[data-panel="pool"] .dk-pill', { hasText: '待打标' }).click().catch(() => {})
-  await page.waitForTimeout(600)
+  /* 等筛选真的生效（待打标 ⇒ 只剩无标签那张）——同 R176-补 的理由：不等状态就往下跑 */
+  await pollUntil(async () => (await page.locator('.pcp-row').count()) === 1, { timeout: 8000, label: '待打标筛选生效' })
   const untaggedCount = await page.locator('.pcp-row').count()
   const untaggedIsB = untaggedCount === 1 && (await page.locator('.pcp-row').first().textContent() || '').includes('E2E 池卡乙')
   await page.locator('.dk-row[data-panel="pool"] .dk-pill', { hasText: '待打标' }).click().catch(() => {})
-  await page.waitForTimeout(500)
+  /* 等筛选真的退回全部（3 张）——第二次点「待打标」是 toggle，语义是「回到全部」 */
+  await pollUntil(async () => (await page.locator('.pcp-row').count()) >= 3, { timeout: 8000, label: '待打标筛选退回全部' })
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').trim() === '批量') b.click() })
   await page.waitForTimeout(400)
   await page.locator('.pcp .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
-  await page.waitForTimeout(400)
+  /* ★R176-补：等全选计数真的变成「全部张数」再读（原来死等 400ms ⇒ 读到旧计数） */
+  await pollUntil(async () => {
+    const t = await page.locator('.pcp .dkb-count').textContent().catch(() => '0')
+    return parseInt((t || '').replace(/\D/g, '') || '0', 10) >= 3
+  }, { timeout: 8000, label: '全选计数到位' })
   const selAll = parseInt((await page.locator('.pcp .dkb-count').textContent().catch(() => '0'))?.replace(/\D/g, '') || '0', 10)
   await page.locator('.pcp .dkb-bar button', { hasText: /^反选$/ }).first().click().catch(() => {})
-  await page.waitForTimeout(400)
+  /* 等反选真的归零 */
+  await pollUntil(async () => {
+    const t = await page.locator('.pcp .dkb-count').textContent().catch(() => '')
+    return parseInt((t || '').replace(/\D/g, '') || 'x', 10) === 0
+  }, { timeout: 8000, label: '反选归零' })
   const selAfterInvert = parseInt((await page.locator('.pcp .dkb-count').textContent().catch(() => 'x'))?.replace(/\D/g, '') || 'x', 10)
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').includes('退出批量')) b.click() })
   await page.waitForTimeout(400)
   // 右键取「甲」——它有链接，菜单应是四件（无链接的卡少一项「复制链接」，那正是条件项的口径）
   const cardA = page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first()
   await cardA.click({ button: 'right' }).catch(() => {})
-  await page.waitForTimeout(500)
+  /* ★R176-补：等右键菜单**真的渲染出来**再取它的条目（原来死等 500ms）。
+     慢机器上菜单尚未挂上 ⇒ ctxItems=[] ⇒ 置顶点不到 ⇒ 落库 pinned=false ⇒ 假红。 */
+  await waitForLocator(page, '.cx-item', { timeout: 8000 })
   const ctxItems = await page.locator('.cx-item').allTextContents().catch(() => [])
   const pinItem = page.locator('.cx-item', { hasText: '置顶' }).first()
   await pinItem.click().catch(() => {})
-  await page.waitForTimeout(900)
+  /* 等置顶真的落库（storage 里 pinned 变 true）——判据不变，只是把「等多久」改成「等到什么」 */
+  await waitForStorage(page, 'zy_data_v2',
+    (raw) => { const c = ((raw.zy_data_v2 || {}).resources || []).find(x => x.id === 'e2e-ca-1'); return !!(c && c.pinned) },
+    { timeout: 8000 })
   const pinnedBack = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const c = ((cur['zy_data_v2'] || {}).resources || []).find(x => x.id === 'e2e-ca-1')
     return { pinned: !!(c && c.pinned) }

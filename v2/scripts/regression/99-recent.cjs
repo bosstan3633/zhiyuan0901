@@ -288,7 +288,19 @@ check('R174-2 ZIP 减重（04-69 T0-b）：pack.cjs 发布包剥离 .vite/ 构�
   const p = read('/../scripts/pack.cjs');
   return p.includes("path.sep + '.vite' + path.sep") && p.includes("!f.includes(viteDir)") && !fs.existsSync(base + '/assets/logo.png');
 });
-check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数据地基——① 独立存储通道 dailyStatsStore.ts（时间闸 45s + 页隐藏/卸载 flushDailyStatsNow 跳闸补写 + 内容未变跳写 + base 恒存 0 由消费方反推）；② repository saveData/saveDataNow 两处保存链都挂 scheduleDailyStatsWrite（不进整库 set 包）；③ 纯合并 mergeDailyStats：边界日规则——k>boundary 重建权威 / k≤boundary 且重建无此日整日取快照 / 重建有此日则**事件段换快照（c/del/s/u/x）+ 字段段留重建（d/sub/focus/link）**，w = 快照事件分+重建字段分（防边界日幸存事件双计）；④ 数据桥 useDashboardStats 启动装载 readDailySnapshot + snapRef 触发重算（首帧不等快照）；⑤ V3.9.7 写闸与卸载补写竞态——排程保存最新数据并串行补写，碰在途写不丢最后一次用户动作', () => {
+/* ★R176 重指备案（2026-10-21）：本条判据的**两处锚点**随 R176 修复而改指，语义未放松、只增不减。
+   ① 「k ≤ boundary 换快照」→「k < boundary 换快照 + k == boundary 留重建」。
+      理由：边界日的定义是「日志里最早一条非 system 事件的日期」，它同时是**日志幸存起点**与
+      **当日仍在增长的那一天**。原口径把边界日当天也整段换快照 ⇒ 当天再发生的调出/采集被
+      「当天早些时候的快照切片」冻住（探针实测：重建 u=1 ⇒ 合并后 u=0/w=1，用户看到热力图
+      「今天」那一格不涨）。R176 改为边界日当天留重建 ⇒ 该格会随当天操作实时增长。
+      行为级判据在 R176-1/R176-2（分片 96-R176-daily-stats），本条守的是**地基形状**未变。
+   ② 「const snap = await loadDailySnapshotCache()」→「const snap = await readLatestSnapshotForWrite()」。
+      理由：写路径原先吃本上下文的陈旧缓存 ⇒ A 上下文会把 B 上下文刚补好的历史格子整段覆盖掉
+      （探针实测：库里 ['2026-03-03'] ⇒ A 写完后只剩 ['2026-10-21']）。
+      R176 改为写前重读库里的最新快照；读侧仍走 loadDailySnapshotCache（那条不变）。
+      负锚补一条：写路径不得直接吃 snapCache。 */
+check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数据地基——① 独立存储通道 dailyStatsStore.ts（时间闸 45s + 页隐藏/卸载 flushDailyStatsNow 跳闸补写 + 内容未变跳写 + base 恒存 0 由消费方反推）；② repository saveData/saveDataNow 两处保存链都挂 scheduleDailyStatsWrite（不进整库 set 包）；③ 纯合并 mergeDailyStats：边界日规则——k>boundary 重建权威 / k<boundary 且重建无此日整日取快照 / 重建有此日则**事件段换快照（c/del/s/u/x）+ 字段段留重建（d/sub/focus/link）**，w = 快照事件分+重建字段分（防边界日幸存事件双计）；★R176 重指：k == boundary（边界日当天）留重建，不换快照（否则当天新事件被陈旧快照冻住）；④ 数据桥 useDashboardStats 启动装载 readDailySnapshot + snapRef 触发重算（首帧不等快照）；⑤ V3.9.7 写闸与卸载补写竞态——排程保存最新数据并串行补写，碰在途写不丢最后一次用户动作；★R176 重指：写路径写前重读库里的最新快照（readLatestSnapshotForWrite），不吃本上下文的陈旧缓存', () => {
   const st = read('/shared/storage/dailyStatsStore.ts');
   const rp = read('/shared/storage/repository.ts');
   const ds = read('/shared/utils/dailyStats.ts');
@@ -299,7 +311,9 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && (rp.match(/scheduleDailyStatsWrite\(cache\)/g) || []).length === 2 && !rp.includes('DAILY_STATS_STORE_KEY')
     && ds.includes('export function mergeDailyStats(') && ds.includes('export function boundaryDayOf(') && ds.includes('export function eventFieldW(')
     && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
-    && st.includes('export function loadDailySnapshotCache') && st.includes('const snap = await loadDailySnapshotCache()') && st.includes('mergeDailyStats(snap, rebuild, boundaryDayOf(events))')
+    && ds.includes('if (k === boundary)')   // ★R176 重指：边界日当天留重建
+    && st.includes('export function loadDailySnapshotCache') && st.includes('const snap = await readLatestSnapshotForWrite()') && st.includes('mergeDailyStats(snap, rebuild, boundaryDayOf(events))')
+    && !/writeDailyStatsNow[\s\S]{0,600}mergeDailyStats\(snapCache/.test(st)   // ★R176 负锚：写路径不吃陈旧缓存
     && ub.includes('loadDailySnapshotCache') && ub.includes('mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))') && ub.includes('snapRef.value = s');
 });
 check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOverview + 概览带专段版式）随 W10 时间轴三段式重构整体退役——D1 拍板砍假六维、存量摘要后由 Hero 承接；★B8 补（V3.8.41）：其版式 CSS（.dz-sec-ov 等 13 条）已随换真 census 被 dead-css-scan 判死并删除；★V3.9.3 再随迁：四格核心读数从 Hero 归位 PiOverview，宿主仍 import pi-timeline.css 且不再 import DashboardOverview。判据三条腿：① DashboardOverview.vue 文件不存在 ② 概览四格 total/entropy/support/focus 在位 ③ 宿主样式接线在位', () => {
