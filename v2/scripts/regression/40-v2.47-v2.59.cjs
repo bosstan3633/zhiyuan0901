@@ -3,7 +3,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, POOL_PANEL, DECK_CONTROLS, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
 
 console.log('【第七十七轮 · V2.46.0：浮层主题化（A1 主题接入 + A2 轻 scrim + C2 主色稀缺）】');
 check('R77-1 浮层硬编码品牌色清零（#0E7A4E / #FDFDFC / #1A1D23 全文零命中，含注释）', () => {
@@ -133,35 +133,82 @@ check('R78-10 A7 写入的槽位与 CompassHome.selectTaskForSlot 同构（sourc
     && c.includes("sourceType: 'task'") && c.includes('sourceId: task.id') && c.includes('doneAt: task.completedAt');
 });
 
-console.log('【第七十九轮 · V2.48.0：三视图卡片信息量对齐（R1 收尾）】');
-/** 截取具名函数/代码段——断言只看实现，不被注释或同名字符串干扰（R78 引入，沿用） */
-/** 六动作在模板中的固定顺序（↗ 📌 ⭐ 📂 📡 🗑） */
-check('R79-1（R158 重指）卡片一级 hover = AI徽标/移动/删除/⋯（+断链补全）；置顶降级进右键；打开走双击 / 右键菜单', () => { const seg = RES_CARD_ACTIONS; return seg.includes('<CardAiEntry :card="r" />') && seg.includes('openMoveOne(r)') && seg.includes('deleteResource(r)') && seg.includes('fixLink(r)') && seg.includes('openResCtx($event, r)') && !seg.includes('togglePin(r)') && !seg.includes('toggleStar(r)'); });
-check('R79-2（R162 重指；★V3.8.18（N8）决策翻转再备案）卡片 hover 顺序 AI徽标→📂→🗑（→✏→⋯）；右键菜单序：打开→复制→编辑→置顶→星标→移动→镜像到策展台→论点→删除（挂载位仍随挂载关系退役；★镜像位由红转绿，理由见下）', () => { const seg = RES_CARD_ACTIONS; const a = seg.indexOf('<CardAiEntry'), b = seg.indexOf('openMoveOne(r)'), c = seg.indexOf('deleteResource(r)'), x = seg.indexOf('fixLink(r)'), m = seg.indexOf('openResCtx($event, r)'); const res = read('/newtab/composables/useResourceDrawer.ts'); const k1 = res.indexOf('resCtxItems.value = ['); const k2 = res.indexOf('resCtxItems.value = [', k1 + 1); const own = k2 >= 0 ? res.slice(k2, res.indexOf('resCtx.value = {', k2)) : ''; const ownC = stripComments(own); const iOpen = ownC.indexOf('打开链接'), iEdit = ownC.indexOf('编辑详情'), iPin = ownC.indexOf('取消置顶'), iStar = ownC.indexOf('取消星标'), iMove = ownC.indexOf('移动分类'), iMir = ownC.indexOf('镜像到策展台'), iDel = ownC.indexOf("label: '删除'"); return a >= 0 && b > a && c > b && x > c && m > x && iOpen >= 0 && iEdit > iOpen && iPin > iEdit && iStar > iPin && iMove > iStar && iDel > iMove && !ownC.includes('挂载到任务') && iMir > iMove && iMir < iDel && !ownC.includes('挂载到任务') && !ownC.includes('openMirrorCard'); });
-check('R79-3 列表视图动作条（V3.7.0 重指：镜像推送退役后收敛五动作）= ↗ / 📌 / ⭐ / 📂 / 🗑，与卡片/看板视图同顺序', () => {
-  return RES_ROW_ACTIONS.includes('openResourceLink(r)') && RES_ROW_ACTIONS.includes('openMoveOne(r)')
-    && !RES_ROW_ACTIONS.includes('openMirrorCard(r)') && inOrder(RES_ROW_ACTIONS);
+console.log('【第七十九轮 · V2.48.0：资源池两视图信息量对齐（R1 收尾）】');
+/** V3.9.8：旧策展台卡片 / 列表 / 看板三视图随单一画布退役。
+ *  现役资源池保留网格与列表两种视图；两者都从卡面常驻动作区直达 AI、置顶、镜像、删除。
+ *  原断言的产品语义不变：高频动作同序、打开走单击 / 双击 / 右键，不在卡面重复占位。 */
+check('R79-1（V3.9.8 随迁）资源池网格一级动作 = AI徽标 / 星标 / 镜像 / 置顶 / 删除；打开走单击详情、双击链接、右键更多', () => {
+  const seg = RES_CARD_ACTIONS;
+  const a = seg.indexOf('<CardAiEntry :card="r" />');
+  const s = seg.indexOf('toggleStar(r)');
+  const m = seg.indexOf('openMirror(r)');
+  const p = seg.indexOf('togglePin(r)');
+  const d = seg.indexOf('removeCard(r)');
+  return a >= 0 && s > a && m > s && p > m && d > p
+    && !seg.includes('openMoveOne(r)') && !seg.includes('fixLink(r)')
+    && !seg.includes('openMirrorCard(r)')
+    && POOL_PANEL.includes('@dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)"');
 });
-check('R79-4（R122 重指）列表 🔥 rr-calls 与卡片 🔥 rc-heat 同口径（v-if="r.callCount"）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('class="rr-calls"') && w.includes('<span v-if="r.callCount" class="rr-calls"')
-    && w.includes('class="rc-heat"') && w.includes('<Icon name="flame" :size="13"/> {{ r.callCount }}');
+check('R79-2（V3.9.8 随迁）池卡右键菜单保留完整长尾：打开详情 → 星标 → 置顶 → 复制链接 → 删除；危险项恒居底', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const fn = stripComments(segOf(pool, 'function openCtx(', '/* ===== R2-⑧ 新建单卡'));
+  const iOpen = fn.indexOf("label: '打开详情'");
+  const iStar = fn.indexOf("r.starred ? '取消星标' : '星标'");
+  const iPin = fn.indexOf("r.pinned ? '取消置顶' : '置顶'");
+  const iCopy = fn.indexOf("label: '复制链接'");
+  const iDel = fn.indexOf("label: '删除（进回收站）'");
+  return iOpen >= 0 && iStar > iOpen && iPin > iStar && iCopy > iPin && iDel > iCopy
+    && !fn.includes('openMoveOne') && !fn.includes('挂载到任务') && !fn.includes('openMirrorCard');
 });
-check('R79-5 看板视图新增完整动作条 .kc-actions（六动作同顺序），.kc-card 已 position: relative', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const cardRule = segOf(w, '.kc-card {', '}');
-  return KANBAN_ACTIONS.includes('openResourceLink(r)') && inOrder(KANBAN_ACTIONS)
-    && cardRule.includes('position: relative;');
+check('R79-3（V3.9.8 随迁）资源池列表动作条与网格同序：AI徽标 → 星标 → 镜像 → 置顶 → 删除', () => {
+  const row = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>\n          </div>');
+  const a = row.indexOf('<CardAiEntry');
+  const s = row.indexOf('toggleStar(r)');
+  const m = row.indexOf('openMirror(r)');
+  const p = row.indexOf('togglePin(r)');
+  const d = row.indexOf('removeCard(r)');
+  return a >= 0 && s > a && m > s && p > m && d > p
+    && !row.includes('openMoveOne(r)')
+    && !row.includes('openMirrorCard(r)');
 });
-check('R79-6 看板视图 ⭐ 由只读标记改为可点切换（toggleStar + :class on），只读图标仍保留', () => {
-  return KANBAN_ACTIONS.includes('toggleStar(r)') && KANBAN_ACTIONS.includes(':class="{on: r.starred}"')
-    && read('/newtab/views/Workspace.vue').includes('kc-star');
+check('R79-4（V3.9.8 随迁备案）资源池列表与网格共用同一份 poolCards 排序读数：列表保留日期列，调用热度由“最近调出”排序与筛选承接；旧 rr-calls / rc-heat 随策展台三视图退役', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return pool.includes('class="pcp-date"')
+    && pool.includes("sortBy.value === 'called' ? (r.callCount || 0)")
+    && pool.includes("id: 'called', label: '已调出'")
+    && pool.includes("id: 'never', label: '从未调出'")
+    && !pool.includes('class="rr-calls"') && !pool.includes('class="rc-heat"');
 });
-check('R79-7 看板视图补 🔥 调用 N 次（kc-calls）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('<span v-if="r.callCount" class="kc-calls"') && w.includes('.rr-calls, .kc-calls');
+check('R79-5（V3.9.8 随迁备案）旧看板随资源池两视图退役（池卡无状态列可看）；网格 / 列表动作区共用常驻 pcp-r-acts，卡片定位与网格状态仍由 data-rid / picked 表达', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return pool.includes('<span class="pcp-r-acts">')
+    && pool.includes(':data-rid="r.id"')
+    && pool.includes(':class="{ flash: highlightId === r.id, picked: selected.has(r.id) }"')
+    && !pool.includes('class="kc-card"') && !pool.includes('class="kc-actions"');
 });
-check('R79-8（R123 重指；V3.7.0 随迁）三视图镜像口径：镜像推送（openMirrorCard）三视图全零——镜像卡引用侧 🎯 定位 / ✕ 移出仍在列表与看板', () => { return !RES_CARD_ACTIONS.includes('openMirrorCard(r)') && !RES_ROW_ACTIONS.includes('openMirrorCard(r)') && !KANBAN_ACTIONS.includes('openMirrorCard(r)') && RES_ROW_ACTIONS.includes('locateMirrorSource(r)') && KANBAN_ACTIONS.includes('locateMirrorSource(r)'); });
+check('R79-6（V3.9.8 随迁）池卡星标有三处同源入口：右键、卡面按钮、详情抽屉；旧看板 kc-star 零回流', () => {
+  const drawer = read('/newtab/composables/useResourceDrawer.ts');
+  return drawer.includes("r.starred ? '☆ 取消星标' : '⭐ 星标'")
+    && drawer.includes('function toggleStar(r: ResourceCard)')
+    && POOL_PANEL.includes("r.starred ? '取消星标' : '星标'")
+    && (POOL_PANEL.match(/@click\.stop="toggleStar\(r\)"/g) || []).length >= 3
+    && !POOL_PANEL.includes('kc-star');
+});
+check('R79-7（V3.9.8 随迁备案）调用次数读数从卡面迁移到排序 / 筛选数据口径：最近调出按 callCount，已调出 / 从未调出按 lastCalledAt；旧 kc-calls 随看板退役', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return pool.includes("sortBy.value === 'called' ? (r.callCount || 0)")
+    && pool.includes("calledFilter.value === 'called' ? !!r.lastCalledAt : !r.lastCalledAt")
+    && !pool.includes('kc-calls');
+});
+check('R79-8（V3.9.8 随迁备案）资源池只呈现池卡源卡，不存在镜像引用侧；镜像推送统一走 openMirror → ResourceMirrorModal，旧三视图 locateMirrorSource / removeMirror 引用侧随策展台镜像列表退役', () => {
+  return !RES_CARD_ACTIONS.includes('openMirrorCard(r)')
+    && !RES_ROW_ACTIONS.includes('openMirrorCard(r)')
+    && RES_CARD_ACTIONS.includes('openMirror(r)')
+    && RES_ROW_ACTIONS.includes('openMirror(r)')
+    && !RES_ROW_ACTIONS.includes('locateMirrorSource(r)')
+    && !KANBAN_ACTIONS.includes('locateMirrorSource(r)')
+    && POOL_PANEL.includes('<ResourceMirrorModal :open="mirrorOpen"');
+});
 
 console.log('【第八十轮 · V2.49.0：附件卡闭环（R13 导入改为附件卡 + R14 开放附件卡打开）】');
 // R100 重指：导入实现拆入 useWorkspaceImport（宿主保留绑定与入口面）
@@ -281,18 +328,33 @@ check('R81-8 版本五处同步（manifest/package/ManualPage/regression/关于�
 
 console.log('【第八十二轮 · V2.51.0：挂载到任务（R4）】');
 // R102 重指：挂载实现拆入 useWorkspaceBatch
-check('R82-1（R162 重指：挂载到任务整体退役）三视图动作条零挂载入口 + 右键菜单零挂载项 + 卡片 hover 仍收敛', () => {
-  const G_WRAP = '<template v-if="!isMirrorView(r)">';
-  return RES_CARD_ACTIONS.includes(G_WRAP) && !RES_CARD_ACTIONS.includes('rc-action mount')
-    && !read('/newtab/composables/useResourceDrawer.ts').includes('挂载到任务')
-    && RES_ROW_ACTIONS.includes(G_WRAP) && !RES_ROW_ACTIONS.includes('-action mount')
-    && KANBAN_ACTIONS.includes(G_WRAP) && !KANBAN_ACTIONS.includes('-action mount');
+check('R82-1（V3.9.8 随迁备案：挂载到任务整体退役）资源池网格 / 列表动作条零挂载入口 + 池卡右键菜单零挂载项 + 卡面仍收敛到 AI / 置顶 / 镜像 / 删除', () => {
+  const drawer = stripComments(read('/newtab/composables/useResourceDrawer.ts'));
+  const pool = stripComments(POOL_PANEL);
+  return RES_CARD_ACTIONS.includes('<CardAiEntry :card="r" />')
+    && !RES_CARD_ACTIONS.includes('mount')
+    && RES_ROW_ACTIONS.includes('<CardAiEntry')
+    && !RES_ROW_ACTIONS.includes('mount')
+    && !drawer.includes('挂载到任务') && !drawer.includes('openMountOne')
+    && !pool.includes('openMountOne') && !pool.includes('mountTaskOptions');
 });
-check('R82-2（R162 重指；V3.7.0 随迁：镜像位随资源台退役）卡片 hover 移动→删除（断链再补全，AI徽标居首）；列表/看板 📂 后直接 🗑', () => {
-  const at = (seg, s) => seg.indexOf(s);
-  const ok = (seg) => { const m = at(seg, 'openMoveOne(r)'), d = at(seg, 'deleteResource(r)'); return m >= 0 && d > m && !seg.includes('openMountOne') && !seg.includes('openMirrorCard'); };
-  const cardOk = at(RES_CARD_ACTIONS, 'deleteResource(r)') > at(RES_CARD_ACTIONS, 'openMoveOne(r)') && at(RES_CARD_ACTIONS, 'openResCtx($event, r)') > at(RES_CARD_ACTIONS, 'deleteResource(r)');
-  return cardOk && ok(RES_ROW_ACTIONS) && ok(KANBAN_ACTIONS);
+check('R82-2（V3.9.8 随迁）池卡一级动作 AI徽标居首，星标 → 镜像 → 置顶 → 删除；网格 / 列表同序，移动分类与断链补全零回流', () => {
+  const seq = (seg) => {
+    const a = seg.indexOf('<CardAiEntry');
+    const s = seg.indexOf('toggleStar(r)');
+    const m = seg.indexOf('openMirror(r)');
+    const p = seg.indexOf('togglePin(r)');
+    const d = seg.indexOf('removeCard(r)');
+    return a >= 0 && s > a && m > s && p > m && d > p;
+  };
+  const grid = segOf(POOL_PANEL, '<template v-else>\n            <CardAiEntry :card="r" />', '</template>');
+  const row = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>\n          </div>');
+  const seqAI = (seg) => seg.indexOf('<CardAiEntry') >= 0;
+  return seqAI(grid) && seqAI(row) && seq(grid) && seq(row)
+    && !grid.includes('openMoveOne')
+    && !row.includes('openMoveOne')
+    && !grid.includes('openMountOne')
+    && !row.includes('openMirrorCard');
 });
 check('R82-3（R162 重指）右键菜单两分支零挂载入口（镜像只读口径不变）', () => {
   const own = stripComments(CTX_OWN), mir = stripComments(CTX_MIRROR);
@@ -407,12 +469,19 @@ check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')
     && WS84.includes('class="ws-id-head"');
 });
-check('R84-5 W2-① 论点横幅两态：已设 → 标题 + 查看金字塔；未设 → 轻引导', () => {
-  return BANNER_TPL.includes('class="tb-title"') && BANNER_TPL.includes("setViewMode('pyramid')")
-    && BANNER_TPL.includes('class="tb-hint"') && BANNER_TPL.includes('＋ 点击确立本策展台的 L1 中心论点');
+check('R84-5（V3.9.8 随迁备案）论点横幅两态：已设 → 标题 + 论点卡详情入口；未设 → 轻引导 + 确立按钮。旧“查看金字塔”随四视图退役，能力改由常驻画布承接', () => {
+  return BANNER_TPL.includes('class="tb-title"')
+    && BANNER_TPL.includes('class="tb-open"') && BANNER_TPL.includes('论点卡详情')
+    && BANNER_TPL.includes('class="tb-hint"') && BANNER_TPL.includes('＋ 点击确立本策展台的 L1 中心论点')
+    && BANNER_TPL.includes("openThesisCard()") && BANNER_TPL.includes('openThesisCreate()')
+    && !BANNER_TPL.includes("setViewMode('pyramid')");
 });
-check('R84-6 W2-① 横幅只在卡片视图出现（金字塔视图本身有 L1 根，不重复）', () => {
-  return WS84.includes("<div v-if=\"viewMode==='card'\">\n          <!-- R84（W2-①）") || WS84.includes("<!-- R84（W2-①）：中心论点提到首屏");
+check('R84-6（V3.9.8 随迁备案）论点横幅单形态常驻：旧“只在卡片视图出现”随四视图退役；现役页头后只有一处横幅，画布根节点复用同一张论点卡但不再渲染第二份横幅', () => {
+  const w = codeOnly(WS84);
+  return !w.includes("v-if=\"viewMode==='card'\"")
+    && (w.match(/<div class="thesis-banner"/g) || []).length === 1
+    && w.includes('@open-thesis="openThesisCard"')
+    && read('/newtab/components/curation/CurationMindMap.vue').includes('class="mind-node mind-root"');
 });
 check('R84-7 W2-② 视图偏好按台持久化：四值白名单 + 读写 + sanitize + 默认「有论点→金字塔」', () => {
   const v = stripComments(WSVIEW);
@@ -556,19 +625,36 @@ check('R87-1 T0：链接三态判据只在 shared/utils/link.ts 定义（Resourc
     && REF87.includes("import { linkStateOf,") /* R169-T2 备案：同一行还引三槽口径（LINK_SLOT_TABS/switchLinkSlot…），判据收窄到前缀，"单一真源"不变 */
     && WS87.includes('linkStateOf');
 });
-check('R87-2 R5-①：排序五档齐备，hot 按 callCount 降序 + lastCalledAt 兜底；偏好读值走白名单', () => {
-  const opts = segOf(WS_TPL, '<select class="toolbar-select" v-model="sortBy">', '</select>');
-  const fn = stripComments(segOf(WS87, 'function applySort(', '// REQ-028'));
-  return ['manual', 'recent', 'visited', 'hot', 'title'].every(k => opts.includes('value="' + k + '"'))
-    && fn.includes("sortBy.value === 'hot'") && fn.includes('b.callCount||0') && fn.includes('b.lastCalledAt||0')
-    && WS87.includes('const SORT_BY_KEYS') && WS87.includes('SORT_BY_KEYS.includes(store.ui.sortPrefs.res.by)');
+check('R87-2（V3.9.8 随迁备案）R5-①：旧策展台五档排序下拉随卡片网格退役；现役资源池排序保留“最近更新 / 最近采集 / 最近调出”三档，排序方向与偏好白名单仍在', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const deck = read('/newtab/components/compass/DeckControls.vue');
+  return !WS_TPL.includes('<select class="toolbar-select" v-model="sortBy">')
+    && !WS_TPL.includes('value="manual"')
+    && pool.includes("type PoolSortBy = 'updated' | 'created' | 'called'")
+    && ['updated', 'created', 'called'].every(k => pool.includes("id: '" + k + "'"))
+    && pool.includes('const POOL_SORT_KEYS: PoolSortBy[]')
+    && pool.includes('POOL_SORT_KEYS.includes(savedPoolSort as PoolSortBy)')
+    && pool.includes("sortBy.value === 'created' ? (r.createdAt || 0)")
+    && pool.includes("sortBy.value === 'called' ? (r.callCount || 0)")
+    && pool.includes('(r.updatedAt || 0)')
+    && pool.includes("sortDir.value === 'asc' ? 1 : -1")
+    && deck.includes('class="dk-select dk-sort"')
+    && deck.includes('@change="emit(\'sort\'');
 });
-check('R87-3（R162 重指）筛选 7 档（optgroup 两组；旧四档值不变，unmounted 随挂载退役）', () => {
-  const sel = segOf(WS_TPL, '<select class="toolbar-select" v-model="filterBy">', '</select>');
-  return sel.includes('optgroup label="按链接类型"') && sel.includes('optgroup label="按状态"')
-    && ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets'].every(k => sel.includes('value="' + k + '"'))
-    && !sel.includes('unmounted')
-    && WS87.includes('const FILTER_KEYS') && WS87.includes('const FILTER_PREDICATES');
+check('R87-3（V3.9.8 随迁备案）旧策展台七档类型筛选随四视图退役；现役资源池筛选保留全部 / 待打标 / 已调出 / 从未调出四态，并仍由同一过滤管线消费', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !WS_TPL.includes('<select class="toolbar-select" v-model="filterBy">')
+    && !WS_TPL.includes('optgroup label="按链接类型"')
+    && !WS_TPL.includes('optgroup label="按状态"')
+    && !pool.includes('unmounted')
+    && ['all', 'untagged', 'called', 'never'].every(k => pool.includes("id: '" + k + "'"))
+    && pool.includes('const activeFilter = computed(')
+    && pool.includes('function onPoolFilter(v: string)')
+    && pool.includes('onlyUntagged.value || !(r.tags || []).length')
+    && pool.includes("calledFilter.value === 'called' ? !!r.lastCalledAt : !r.lastCalledAt")
+    && pool.includes('<DeckControls panel="pool"')
+    && pool.includes(':filters="poolFilters"')
+    && pool.includes(':filter="activeFilter"');
 });
 check('R87-4（R162 重指）unmounted 筛档与 mountedResIds 反查索引随挂载退役（谓词表零 unmounted）', () => {
   const pred = stripComments(segOf(WS87, 'const FILTER_PREDICATES', '// 筛选（第八轮'));
@@ -581,20 +667,24 @@ check('R87-5 R7：zy-asset:// 附件卡判为 ok（不再被误报「待补全�
   return fn.includes("if (isZyAssetLink(t)) return 'ok'") && iZy > 0 && iFile > iZy
     && REF87.includes('const linkIncomplete = computed') && REF87.includes('linkStateOf(props.model.linkType');
 });
-check('R87-6（R122 重指）断链三视图：卡片整卡警示 + 描述替换引导，列表/看板徽标沿用，样式全走 tokens（★G1(V3.8.25)随迁带备案：⚠ 前缀迁 <Icon name="warn">，「本地路径断链 · 点击补全」文案与三视图徽标能力一件未减）', () => {
-  return WS_TPL.includes('v-if="isBrokenPath(r)"')
-    && WS_TPL.includes("'warning-broken': isBrokenPath(r)") && /<Icon name="warn"[^>]*\/> 本地路径断链 · 点击补全/.test(WS_TPL) && WS_TPL.includes('class="rr-broken"') && WS_TPL.includes('class="kc-broken"')
-    && WS_STY.includes('.rr-broken, .kc-broken') && WS_STY.includes('.warning-broken')
-    && WS_STY.includes('var(--warning)') && WS_STY.includes('var(--surface-2)')
-    && !WS_STY.includes('#D9A03C');
+check('R87-6（V3.9.8 随迁备案）断链提示保留在资源编辑表单：linkStateOf 判定 incomplete 时以 warn 图标提示补全完整路径，颜色只走 tokens；旧卡片整卡警示 / 列表 / 看板徽标随策展台三视图退役', () => {
+  const form = read('/newtab/components/ResourceEditForm.vue');
+  const warn = segOf(form, '<div v-if="linkIncomplete" class="ref-warn">', '</div>');
+  return form.includes("linkStateOf(props.model.linkType, props.model.link) === 'incomplete'")
+    && warn.includes('<Icon name="warn" :size="13"/>')
+    && warn.includes('请补全完整路径')
+    && form.includes('.ref-warn {')
+    && form.includes('var(--danger)') && form.includes('var(--danger-bg-soft)')
+    && !form.includes('#D9A03C')
+    && !WS_TPL.includes('class="rr-broken"') && !WS_TPL.includes('class="kc-broken"');
 });
-check('R87-7 R7-②：一键补全 = fixLink 打开抽屉 + focusLink 聚焦链接框；镜像卡只读拦截', () => {
-  // ★R4-Eu 随迁备案：原终点注释随 R115 拆分搬走 ⇒ 切片过宽；换成 fixLink 之后的段落标题。
+check('R87-7（V3.9.8 随迁备案）一键补全能力保留在共享资源抽屉：fixLink 对镜像卡只读拦截，普通卡打开详情后 focusLink 聚焦并全选链接框；旧卡面 fixLink 按钮随策展台三视图退役', () => {
   const fn = stripComments(segOf(WS87, 'function fixLink(', '\n  // B5：右键菜单'));
-  return WS_TPL.includes('@click.stop="fixLink(r)"') && fn.includes('isMirrorView(r)')
+  return fn.includes('isMirrorView(r)')
     && fn.includes('openResource(r)') && fn.includes('resFormRef.value?.focusLink()')
     && REF87.includes('defineExpose({ focusLink })') && REF87.includes('function focusLink(')
-    && REF87.includes('linkInputRef.value?.select()');
+    && REF87.includes('linkInputRef.value?.focus()') && REF87.includes('linkInputRef.value?.select()')
+    && !WS_TPL.includes('@click.stop="fixLink(r)"');
 });
 check('R87-8 R7-③：双击打不开的 toast 按三态分流（none / incomplete / 协议不受支持）', () => {
   // ★R4-Eu 随迁备案：fixLink 现在是 `async function`，`'\nfunction fixLink('` 永不命中 ⇒ 切片过宽；
@@ -603,10 +693,14 @@ check('R87-8 R7-③：双击打不开的 toast 按三态分流（none / incomple
     && fn.includes('该卡还没填链接') && fn.includes('仅存文件名') && fn.includes('协议不受支持')
     && !fn.includes('请先补全链接（本地文件需完整路径');
 });
-check('R87-9 R5 收尾：筛选为零时空态说明原因 + 一键「清除筛选」（不让人以为卡丢了）', () => {
-  return WS_TPL.includes('hasActiveFilter') && WS_TPL.includes('当前筛选没有匹配的资源卡')
-    && WS_TPL.includes('清除筛选') && WS87.includes('function resetFilters()')
-    && WS87.includes('const FILTER_LABELS');
+check('R87-9（V3.9.8 随迁备案）资源池筛选为零时空态说明具体原因 + 一键「清空筛选」：搜索词、待打标、已调出 / 从未调出三种空态各自给出口，不让人以为卡丢了', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return pool.includes("query ? `没有匹配「${query}」的资源卡`")
+    && pool.includes("onlyUntagged ? '池里每张卡都有标签了'")
+    && pool.includes("calledFilter !== 'all' ? '这个调用状态没有资源卡'")
+    && pool.includes("(onlyUntagged || query || calledFilter !== 'all') ? '清空筛选'")
+    && pool.includes('@action="clearPoolFilter"')
+    && pool.includes('function clearPoolFilter(): void');
 });
 check('R87-10 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -617,54 +711,89 @@ check('R87-10 版本五处同步（manifest/package/ManualPage/regression/关于
     && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL) && GS.includes('runtimeVersion');
 });
 
-console.log('【第八十八轮 · V2.57.0：工具条分级与导入归位（W3 + W6）】');
-// 气泡是工具条**中间**的嵌套子元素——要判"一级还剩什么"，得把气泡段**剔除**（不是从它起截断，
-// 那会把气泡之后的「＋新建 / ⚙」一并切掉）
-check('R88-1 W3：筛选气泡点外部关闭（复用 ⚙ 的 document click 机制），且与 ⚙ 菜单互斥', () => {
-  return WS88.includes('function closeFilterPop()') && WS88.includes("document.addEventListener('click', closeFilterPop)")
-    && WS88.includes("document.removeEventListener('click', closeFilterPop)")
-    && WS88.includes('function toggleSettingsMenu()')
-    && segOf(WS88, 'function toggleSettingsMenu(', '/** R88（W6）').includes('filterPopOpen.value = false')
-    && segOf(WS88, 'function toggleFilterPop(', 'function closeFilterPop').includes('settingsMenuOpen.value = false');
+console.log('【第八十八轮 · V2.57.0：资源池控制行分级与导入归位（W3 + W6）】');
+// V3.9.8：旧策展台筛选气泡与设置菜单随四视图退役。现役资源池把排序 / 方向 / 筛选 / 视图
+// 统一放进 DeckControls 单行；打开外部页不依赖气泡互斥，而是各按钮自洽。
+check('R88-1（V3.9.8 随迁备案）旧筛选气泡与 ⚙ 菜单随策展台四视图退役；资源池控制行不保留第二套浮层关闭机制，排序 / 筛选 / 视图均直接驱动同一个 poolCards', () => {
+  const pool = stripComments(POOL_PANEL);
+  const deck = stripComments(DECK_CONTROLS);
+  return !WS88.includes('filterPopOpen') && !WS88.includes('function closeFilterPop()')
+    && deck.includes('@click="emit(\'filter\', f.id)"')
+    && deck.includes('@change="emit(\'sort\'' ) && deck.includes('@click="emit(\'sort-dir\')"')
+    && pool.includes(':filter="activeFilter" @filter="onPoolFilter"')
+    && pool.includes(':sorts="POOL_SORTS" :sort="sortBy"');
 });
-check('R88-2 W3-①：工具条一级 = 视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋新建 ｜ ⚙', () => {
-  return TB1_88.includes('class="view-tabs"') && TB1_88.includes('class="toolbar-search"')
-    && TB1_88.includes('class="toolbar-filter"') && TB1_88.includes('＋ 新建')
-    && TB1_88.includes('class="hero-btn settings"');
+check('R88-2（V3.9.8 随迁备案）资源池控制行一级顺序 = 搜索 ｜ 筛选 ｜ 视图 ｜ 排序 ｜ 方向 ｜ 分组 ｜ 面板动作 ｜ 计数 ｜ 批量 ｜ 新建；旧视图 Tab / ⚙ 专属文案随策展台四视图退役', () => {
+  const deck = stripComments(DECK_CONTROLS);
+  const iSearch = deck.indexOf('class="dk-search"');
+  const iFilter = deck.indexOf('class="dk-filters"');
+  const iView = deck.indexOf('class="dk-views"');
+  const iSort = deck.indexOf('class="dk-select dk-sort"');
+  const iDir = deck.indexOf('class="dk-btn dk-sort-dir"');
+  const iGroup = deck.indexOf('class="dk-select dk-group"');
+  const iCount = deck.indexOf('class="dk-count"');
+  const iBatch = deck.indexOf('class="dk-btn dk-batch"');
+  const iNew = deck.indexOf('class="dk-btn dk-new"');
+  return iSearch >= 0 && iFilter > iSearch && iView > iFilter && iSort > iView
+    && iDir > iSort && iGroup > iDir && iCount > iGroup && iBatch > iCount && iNew > iBatch
+    && !TB1_88.includes('class="view-tabs"') && !TB1_88.includes('class="toolbar-filter"');
 });
-check('R88-3（R122 重指）排序 / 方向 / 密度 / 八档类型筛选仍收在气泡；列数方片与状态快捷筛选按原型提权到一级', () => {
+check('R88-3（V3.9.8 随迁备案）旧筛选气泡内的排序 / 方向 / 密度 / 八档类型筛选随四视图退役；现役资源池把排序、方向、分组、视图与筛选直接放在控制行，列数不再由策展台持有', () => {
+  const pool = stripComments(POOL_PANEL);
   return !TB1_88.includes('v-model="sortBy"') && !TB1_88.includes('sort-dir-btn')
     && !TB1_88.includes('v-model="filterBy"') && !TB1_88.includes('v-model="density"')
-    && TB1_88.includes('<ColsPicker') && TB1_88.includes('chips') && TB1_88.includes('v-model="quickFilter"');
+    && pool.includes(':views="poolViews" :view="viewMode"')
+    && pool.includes(':sorts="POOL_SORTS" :sort="sortBy"')
+    && pool.includes(':sort-dir="sortDir"')
+    && pool.includes(':groups="viewMode === \'list\' ? POOL_GROUP_OPTIONS : []"')
+    && !pool.includes('<ColsPicker') && !pool.includes('v-model="quickFilter"');
 });
-check('R88-4 W3-②：气泡内四行控件齐全（排序+方向 / 类型 / 密度 / 列数），列数仍仅卡片视图', () => {
-  // ⚠ 方向按钮的 class 是 `"toolbar-select sort-dir-btn"`（两个类），只能判子串
-  return POP88.includes('v-model="sortBy"') && POP88.includes('sort-dir-btn')
-    && POP88.includes('v-model="filterBy"') && POP88.includes('v-model="density"')
-    && POP88.includes('<ColsPicker') && POP88.includes('class="fp-row"')
-    && POP88.includes('重置全部') && POP88.includes(`v-if="viewMode==='card'"`);
+check('R88-4（V3.9.8 随迁备案）控制行组件内控件齐全：搜索 / 筛选 / 视图 / 排序 / 方向 / 分组 / 面板插槽 / 计数 / 批量 / 新建；旧气泡四行控件随四视图退役', () => {
+  const deck = stripComments(DECK_CONTROLS);
+  return deck.includes('v-if="search" class="dk-search"')
+    && deck.includes('v-if="filters.length" class="dk-filters"')
+    && deck.includes('v-if="views.length" class="dk-views"')
+    && deck.includes('v-if="sorts.length" class="dk-select dk-sort"')
+    && deck.includes('v-if="sortDir" class="dk-btn dk-sort-dir"')
+    && deck.includes('v-if="groups.length" class="dk-select dk-group"')
+    && deck.includes('<slot />') && deck.includes('<slot name="count" />')
+    && deck.includes('v-if="batchLabels" class="dk-btn dk-batch"')
+    && deck.includes('v-if="newLabel" class="dk-btn dk-new"')
+    && !POP88.includes('class="fp-row"') && !POP88.includes('重置全部');
 });
-check('R88-5 W3-③：生效值徽标——四项非默认才计入、最多 2 个 chip、超出 +N、默认时无徽标', () => {
-  const fn = stripComments(segOf(WS88, 'const filterSummary = computed', '/** 徽标挤不下时的兜底'));
-  return fn.includes("sortBy.value !== 'manual'") && fn.includes("filterBy.value !== 'all'")
-    && fn.includes("density.value !== 'cozy'") && fn.includes('CARD_COLS_DEFAULT.res')
-    && fn.includes("viewMode.value === 'card'")          // 列数只在卡片视图算"生效中"
-    && WS88_TPL.includes('filterSummary.slice(0, 2)') && WS88_TPL.includes('filterSummary.length - 2')
-    && WS88_TPL.includes('class="tf-chip"') && WS88_TPL.includes(':class="{on: filterSummary.length}"');
+check('R88-5（V3.9.8 随迁备案）旧生效值徽标随筛选气泡退役；资源池把生效值直接体现在控件状态与计数：筛选胶囊 on、视图 on、方向箭头、分组下拉与「N / 全部 M 张」读数', () => {
+  const pool = stripComments(POOL_PANEL);
+  const deck = stripComments(DECK_CONTROLS);
+  return !WS88_TPL.includes('filterSummary') && !WS88_TPL.includes('filterPopTitle')
+    && !WS88_TPL.includes('class="tf-chip"') && !pool.includes('class="tf-chip"')
+    && deck.includes(':class="{ on: filter === f.id }"')
+    && deck.includes(':class="{ on: view === v.id }"')
+    && deck.includes("props.sortDir === 'desc' ? '↓ 倒序' : '↑ 正序'")
+    && pool.includes('class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张');
 });
-check('R88-6（R122 重指）批量开关常驻一级：批量中显「✓ 完成批量」（toggleBatchMode），退出通道不断（★G1(V3.8.25)随迁带备案：✓/☑ 前缀迁 Icon check/checksquare 双态，文案三元与退出通道不变）', () => {
-  return WS88_TPL.includes("'完成批量' : '批量'") && WS88_TPL.includes('toggleBatchMode');
+check('R88-6（V3.9.8 随迁备案）批量开关常驻资源池控制行：批量中显示「退出批量」，批量栏出现全选 / 反选 / 打标签与池专属动作；旧“完成批量”文案随共享控件换代，退出通道不变', () => {
+  const pool = stripComments(POOL_PANEL);
+  return pool.includes(":batch-labels=\"['批量', '退出批量']\" :batch-on=\"batchMode\"")
+    && pool.includes('@batch="toggleBatch"')
+    && pool.includes('function toggleBatch()')
+    && pool.includes('<DeckBatchBar v-if="batchMode"')
+    && pool.includes('@select-all="selectAll"')
+    && pool.includes('@invert="invertSel"')
+    && !WS88_TPL.includes('toggleBatchMode');
 });
 check('R88-7 W6：导入收进 ⚙（V3.7.0 重指：资源台分支退役后单形态「⬇ 导入数据包」，按台改名消歧义不再需要）（★G1(V3.8.25)随迁带备案：⬇ 前缀迁 <Icon name="download">，单形态与入口不变）', () => {
   return SM88.includes('@click="openImport"') && /<Icon name="download"[^>]*\/> 导入数据包/.test(SM88) && !SM88.includes("isHub ? '⬇ 导入资源'")
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（R122 重指；V3.7.0 随迁 · R1.5 重指带备案：主 CTA 文案随「台内新建=论证卡」改「＋ 新建论证卡」）主色稀缺：一级只有一个 primary（导入/批量为 ghost 次级）（★G1(V3.8.25)随迁带备案：⬇/☑ 前缀迁 <Icon>，一级 primary 唯一与两枚 ghost 的层级不变）', () => {
+check('R88-8（V3.9.8 随迁备案）策展画布主色稀缺：一级工具条只有「＋ 新建分支」一枚 primary；导入数据包 / 分享成果为 ghost 次级，导入模板与设置保持 settings 次级；旧资源池批量与新建 CTA 不回流到画布', () => {
   return (TB1_88.match(/hero-btn primary/g) || []).length === 1
-    && TB1_88.includes('hero-btn primary" @click="openNewArgument"')
+    && TB1_88.includes('hero-btn primary" @click="mind.createChild(\'root\')"')
     && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
-    && /<Icon name="download"[^>]*\/> 导入数据包/.test(TB1_88) && /:name="batchMode \? 'check' : 'checksquare'"/.test(TB1_88);
+    && /<Icon name="download"[^>]*\/> 导入数据包/.test(TB1_88)
+    && /<Icon name="share"[^>]*\/> 分享成果/.test(TB1_88)
+    && !TB1_88.includes('openNewArgument')
+    && !TB1_88.includes('batchMode');
 });
 check('R88-9 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');
@@ -689,35 +818,44 @@ check('R89-2 R6：`#标签` 直筛 —— 多个取**交集**，单个 # 回落�
 });
 // R110-LC（T3）：过滤管线收敛到 applyViewFilters（分类 → 筛选器 → 搜索），filteredResources 只做委托 + 归档排除；
 // 归档提示计数复用同一实现 ⇒「搜索判据只有一份」的约束仍在，只是落点从 filteredResources 换到 applyViewFilters。
-check('R89-3（R110 重指）★ R6：搜索判据**只有一份** matchCard（收敛于 applyViewFilters；filteredResources 委托且不内联匹配）', () => {
-  const fn = stripComments(segOf(WS89, 'function applyViewFilters(', 'const filteredResources = computed('));
-  const fr = stripComments(segOf(WS89, 'const filteredResources = computed(', '// 排序（第卅二轮'));
-  return fn.includes('parseQuery(debouncedQuery.value)') && fn.includes('matchCard(r, p)')
-    && !fn.includes("r.title.toLowerCase().includes(q)")
-    && fr.includes('applyViewFilters(allResources.value)')
-    && !fr.includes('matchCard(')
-    && WS89_TPL.includes('#标签 可按标签直筛');
+check('R89-3（V3.9.8 随迁备案）资源池搜索判据只有一份：poolCards 先按标题 / 标签模糊匹配，再叠加待打标与调用状态，不在模板另写第二套过滤', () => {
+  const pool = stripComments(POOL_PANEL);
+  const fn = segOf(pool, 'const poolCards = computed(', 'const poolTotal = computed(');
+  return fn.includes("r.title.toLowerCase().includes(q)")
+    && fn.includes("(r.tags || []).some(t => t.toLowerCase().includes(q))")
+    && fn.includes('!onlyUntagged.value || !(r.tags || []).length')
+    && fn.includes("calledFilter.value === 'all' || (calledFilter.value === 'called' ? !!r.lastCalledAt : !r.lastCalledAt)")
+    && !pool.includes('function matchCard(') && !pool.includes('function parseQuery(');
 });
-check('R89-4 W5：starred 星标筛选**四处同步**（白名单 / 谓词 / 标签 / 下拉）（★G1(V3.8.25)随迁带备案：下拉项 ⭐ 前缀迁 <Icon name="star">，四处同步一项未减）', () => {
-  const keys = stripComments(segOf(WS89, 'const FILTER_KEYS = [', '\n'));
-  const pred = stripComments(segOf(WS89, 'const FILTER_PREDICATES', '// 筛选（第八轮'));
-  const labels = stripComments(segOf(WS89, 'const FILTER_LABELS', 'const filterLabel'));
-  return keys.includes("'starred'") && pred.includes('starred: (r) => !!r.starred')
-    && labels.includes("starred: '⭐ 星标'") && /<option value="starred"><Icon name="star"[^>]*\/> 星标<\/option>/.test(WS89_TPL);
+check('R89-4（V3.9.8 随迁备案）星标筛选随旧八档筛选退役；星标能力保留在共享资源抽屉右键与 toggleStar，资源池用待打标 / 已调出 / 从未调出组织召回，四项筛选值域仍完整', () => {
+  const drawer = stripComments(read('/newtab/composables/useResourceDrawer.ts'));
+  const pool = stripComments(POOL_PANEL);
+  return drawer.includes("r.starred ? '☆ 取消星标' : '⭐ 星标'")
+    && drawer.includes('function toggleStar(r: ResourceCard)')
+    && !pool.includes("id: 'starred'")
+    && ['all', 'untagged', 'called', 'never'].every(k => pool.includes("id: '" + k + "'"))
+    && pool.includes('const activeFilter = computed(')
+    && pool.includes('const poolFilters = computed(');
 });
-check('R89-5 ★ W4：三视图写动作（📌📂🗑）对镜像卡隐藏——门控在包裹 template 上', () => {
-  const wrap = '<template v-if="!isMirrorView(r)">';
-  const segs = [RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS];
-  return segs.every(seg => seg.includes(wrap) && seg.includes('openMoveOne(r)') && seg.includes('deleteResource(r)'));
+check('R89-5（V3.9.8 随迁备案）资源池只管理池内源卡，写动作不暴露镜像只读语义：网格与列表都直接提供置顶 / 镜像 / 删除，且批量态以 v-if 收起卡面动作', () => {
+  const grid = segOf(POOL_PANEL, '<template v-else>\n            <CardAiEntry :card="r" />', '</template>');
+  const row = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>\n          </div>');
+  return grid.includes('<CardAiEntry :card="r" />') && row.includes('<CardAiEntry v-if="!batchMode"')
+    && grid.includes('togglePin(r)') && row.includes('togglePin(r)')
+    && grid.includes('removeCard(r)') && row.includes('removeCard(r)')
+    && !grid.includes('isMirrorView(r)') && !row.includes('isMirrorView(r)')
+    && !KANBAN_ACTIONS.includes('class="kc-actions"');
 });
-check('R89-6 W4：三视图镜像专属两动作 🎯 定位源 / ✕ 移出镜像 齐备，走既有 locateMirrorSource / removeMirror', () => {
-  const segs = [
-    [RES_CARD_ACTIONS, 'class="rc-action locate"', 'locateMirrorSource(r)', 'removeMirror(r)'],
-    [RES_ROW_ACTIONS, 'class="rr-action locate"', 'locateMirrorSource(r)', 'removeMirror(r)'],
-    [KANBAN_ACTIONS, 'class="kc-action locate"', 'locateMirrorSource(r)', 'removeMirror(r)']
-  ];
-  return segs.every(([seg, cls, a, b]) => seg.includes(cls) && seg.includes(a) && seg.includes(b))
-    && read('/newtab/composables/useWorkspaceMirror.ts').includes('function locateMirrorSource(') && read('/newtab/composables/useWorkspaceMirror.ts').includes('function removeMirror(');
+check('R89-6（V3.9.8 随迁备案）镜像能力保留为“池卡投射到策展台”：网格 / 列表 openMirror → ResourceMirrorModal，批量投射走 openBatchMirror；旧三视图镜像专属“定位源 / 移出镜像”随镜像列表退役', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return RES_CARD_ACTIONS.includes('openMirror(r)')
+    && RES_ROW_ACTIONS.includes('openMirror(r)')
+    && pool.includes('<ResourceMirrorModal :open="mirrorOpen"')
+    && pool.includes('function openBatchMirror()')
+    && pool.includes('projectCardToBoardEx(store.data!, cardId, wsId)')
+    && !RES_CARD_ACTIONS.includes('locateMirrorSource(r)')
+    && !RES_ROW_ACTIONS.includes('removeMirror(r)')
+    && !KANBAN_ACTIONS.includes('class="kc-action locate"');
 });
 check('R89-7 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');

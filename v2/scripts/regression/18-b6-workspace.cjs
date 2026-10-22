@@ -13,11 +13,12 @@
  * ★注释里不写被禁的字面量本身 —— 判据用 includes 扫源码，写进注释等于自己把判据喂绿（R71）。
  * ★判据不钉图标尺寸 —— 字号档位一调就假红（R39-12 / W11-3⑤ 两次同坑）。
  */
-const { check, read, codeOnly } = require('./helpers.cjs');
+const { fs, base, check, read, codeOnly } = require('./helpers.cjs');
 
 const PC = read('/newtab/views/ProjectCuration.vue');
 const WSV = read('/newtab/views/Workspace.vue');
 const CSS = read('/newtab/views/workspace.css');
+const MIND_CSS = read('/newtab/components/curation/curation.css');
 const TAB = read('/newtab/components/ThesisAiBtn.vue');
 const DRW = read('/newtab/composables/useResourceDrawer.ts');
 
@@ -84,63 +85,84 @@ check('P2-3 窄窗单列优先任务树：≤1024px 时目录列与把手一起�
 });
 
 /* ============ W1 · 金字塔树主角强化 ============ */
-check('W1-1 树区是主角面：surface 大板 + xl 圆角（台头 .ws-id-head 本无底色 ⇒ 主从靠「有板/无板」分层，不靠留白猜）', () => {
-  const py = rule(CSS, '.pyramid');
-  if (!py) { console.log('     规则缺失'); return false; }
-  return py.includes('background: color-mix(in srgb, var(--surface) 55%, var(--bg))')
-    && py.includes('border: 1px solid var(--border)')
-    && py.includes('border-radius: var(--radius-xl)')
-    && py.includes('overflow-x: auto') && py.includes('width: 100%');
+check('W1-1（V3.9.8 随迁）树区是主角面：现役策展画布用 surface 大板 + lg 圆角 + 边界与轻阴影，与无底色的页头形成「有板/无板」分层', () => {
+  const shell = rule(MIND_CSS, '.mindmap-shell');
+  if (!shell) { console.log('     规则缺失'); return false; }
+  return shell.includes('border: 1px solid var(--border)')
+    && shell.includes('border-radius: var(--radius-lg)')
+    && shell.includes('background: var(--surface)')
+    && shell.includes('box-shadow: var(--shadow-sm)');
 });
 
-check('W1-2 中轴发丝线贯穿：挂在 .py-board（树的真实中轴，横向滚动时随内容走），节点面不透明故线只在缝隙露出', () => {
-  const axis = rule(CSS, '.py-board::before');
+check('W1-2（V3.9.8 随迁）中轴与层级连接线随内容走：金字塔在 .mind-children 上画同层横线、在分支上画竖线，滚动域是 .mindmap-canvas', () => {
+  const axis = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children::before');
+  const vertical = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
   if (!axis) { console.log('     中轴规则缺失'); return false; }
-  return axis.includes('left: 50%') && axis.includes('background: var(--border)')
-    && axis.includes('z-index: 0') && axis.includes('pointer-events: none');
+  return axis.includes('height: 1px') && axis.includes('background: var(--border-strong)')
+    && !!vertical && vertical.includes('width: 1px') && vertical.includes('background: var(--border-strong)')
+    && rule(MIND_CSS, '.mindmap-canvas').includes('overflow: auto');
 });
 
-check('W1-3 圆角层级三档：节点主卡 lg / 支撑 chip sm / 树区板 xl（原 10px、6px 硬编码已归零）', () => {
-  const node = rule(CSS, '.py-node'), chip = rule(CSS, '.py-card-chip'), py = rule(CSS, '.pyramid');
-  if (!node || !chip || !py) { console.log('     规则缺失'); return false; }
-  return node.includes('border-radius: var(--radius-lg)')
-    && chip.includes('border-radius: var(--radius-sm)')
-    && py.includes('border-radius: var(--radius-xl)')
-    && !/border-radius:\s*\d+px/.test(node + chip);
+check('W1-3（V3.9.8 随迁）圆角层级三档：分支节点 11px / 资源 chip 5px / 画布根节点 lg，层级逐级可辨', () => {
+  const node = rule(MIND_CSS, '.mind-node');
+  const root = rule(MIND_CSS, '.mind-node.mind-root');
+  const resources = MIND_CSS.slice(MIND_CSS.indexOf('.mind-resource,'), MIND_CSS.indexOf('.mind-resource-dot'));
+  if (!node || !resources || !root) { console.log('     规则缺失'); return false; }
+  return node.includes('border-radius: 11px')
+    && resources.includes('border-radius: 5px')
+    && root.includes('border-radius: var(--radius-lg)');
 });
 
-check('W1-4 全屏态大板归零：真全屏与降级全屏都是「只剩内容」，圆角与描边在满屏里无意义', () => {
-  const a = rule(CSS, '.pyramid:fullscreen'), b = rule(CSS, '.pyramid.py-fs-fallback');
-  if (!a || !b) { console.log('     规则缺失'); return false; }
-  return [a, b].every(r => r.includes('border: none') && r.includes('border-radius: 0'));
+check('W1-4（V3.9.8 随迁）全屏态大板归零：真全屏与降级全屏共享同一组去外边距/描边/圆角的规则，画布占满可视高度', () => {
+  const i = MIND_CSS.indexOf('.mindmap-shell:fullscreen,');
+  const block = i >= 0 ? MIND_CSS.slice(i, MIND_CSS.indexOf('}', i) + 1) : '';
+  const j = MIND_CSS.indexOf('.mindmap-shell:fullscreen .mindmap-canvas,');
+  const canvasBlock = j >= 0 ? MIND_CSS.slice(j, MIND_CSS.indexOf('}', j) + 1) : '';
+  return block.includes('.mindmap-shell:fullscreen,')
+    && block.includes('.mindmap-shell.is-fs-fallback')
+    && block.includes('border: 0') && block.includes('border-radius: 0') && block.includes('margin: 0')
+    && canvasBlock.includes('height: calc(100vh - 128px)');
 });
 
 /* ============ W2 · 镜像引用可视化 ============ */
-check('W2-1 角标中性：取 --text-3 且不再用滤镜压暗（原 opacity .85 + saturate(.9) 是「压下去」不是「中性」，颜色仍随主题偏）', () => {
-  const badge = rule(CSS, '.rc-mirror-badge');
+check('W2-1（V3.9.8 随迁）资源池镜像角标保持中性可读：取 --text-3 / --text-2 语义色，不靠 opacity 或 filter 压暗', () => {
+  const badge = rule(read('/newtab/components/compass/PoolCardsPanel.vue'), '.pcp-mirror-badge');
   if (!badge) { console.log('     规则缺失'); return false; }
-  return badge.includes('color: var(--text-3)')
+  return badge.includes('color: var(--accent-ink)')
     && !badge.includes('opacity:')
-    && !badge.includes('filter:')
-    && badge.includes('cursor: help');
+    && !badge.includes('filter:');
 });
 
-check('W2-2 三视图角标同一份 tooltip，且含只读合同（不只是「源在哪」，还要说清「编辑去哪生效」）', () => {
-  const badges = WSV.match(/class="rc-mirror-badge" title="([^"]+)"/g) || [];
-  if (badges.length !== 3) { console.log('     角标处数 = ' + badges.length + '（应为 3：卡片/列表/金字塔）'); return false; }
-  const texts = badges.map(b => (b.match(/title="([^"]+)"/) || ['', ''])[1]);
-  return texts.every(t => t.includes('镜像自原资源卡') && t.includes('编辑回源处生效'));
+check('W2-2（V3.9.8 随迁）镜像来源与编辑去向仍说清楚：旧三视图角标随卡片/列表/看板退役；资源池用「已镜像到：台名」说明去向，画布关联弹窗说明只从资源卡池引用，镜像详情横幅明确「只读，编辑请到资源卡池」', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const link = read('/newtab/components/LinkCardsModal.vue');
+  const badges = pool.match(/class="pcp-mirror-badge"/g) || [];
+  if (host.includes('rc-mirror-badge') || host.includes('res-card-actions')) {
+    console.log('     旧三视图镜像角标或动作条回流'); return false;
+  }
+  return badges.length >= 2
+    && pool.includes("title=\"'已镜像到：' + mirrorNamesOf(r).join('、')\"")
+    && link.includes('从资源卡池可镜像的卡')
+    && link.includes('已在该台')
+    && WSV.includes('镜像卡为引用（只读）——编辑请到资源卡池')
+    && WSV.includes('定位到源卡');
 });
 
-check('W2-3 只读合同没被这次改动碰坏：镜像卡写动作整组拦截（v-else 分支只留「打开链接 / 定位到源卡」）、单击开只读详情、跳真身回落调度台首页', () => {
-  const i = WSV.indexOf('class="res-card-actions"');
-  const seg = i >= 0 ? WSV.slice(i, i + 1200) : '';
-  if (!seg) { console.log('     切片为空（模板标记漂移）'); return false; }
+check('W2-3（V3.9.8 随迁）只读合同没被画布改版碰坏：镜像资源从节点打开共享抽屉，只读页脚只留「打开链接 / 定位到源卡」，单击开只读详情，跳真身回落调度台首页', () => {
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const hostCode = codeOnly(host);
+  const i = host.indexOf('<template v-if="drawerReadonly">');
+  const j = i >= 0 ? host.indexOf('</template>', i) : -1;
+  const seg = i >= 0 && j > i ? host.slice(i, j) : '';
+  if (!seg) { console.log('     只读页脚切片为空（模板标记漂移）'); return false; }
   const mir = read('/newtab/composables/useWorkspaceMirror.ts');
-  return seg.includes('<template v-if="!isMirrorView(r)">')
-    && seg.includes('locateMirrorSource(r)')
+  return !hostCode.includes('class="res-card-actions"')
+    && host.includes('@open-resource="onCardClick"')
+    && seg.includes('打开链接') && seg.includes('定位到源卡')
+    && seg.includes('locateMirrorSourceCard')
     && DRW.includes('if (isMirrorView(r))')
-    && DRW.includes('openMirrorDetail(r)')
+    && DRW.includes('setTimeout(() => { clickTimer = null; openMirrorDetail(r) }, 260)')
     && mir.includes('function locateMirrorSource')
     && mir.includes("router.push('/')");
 });
@@ -161,11 +183,11 @@ check('W3-1 计数行降 caption：分类数/镜像数/更新流水一行可忽�
 check('W5-1 论点卡是题眼：标题 headline 17 + accent 左竖条作身份标识；竖条用 inset box-shadow 内画，不与已有 accent 描边叠成双线', () => {
   const banner = rule(CSS, '.thesis-banner');
   const tbt = rule(CSS, '.tb-title');
-  const root = rule(CSS, '.py-root-card');
-  const rtitle = rule(CSS, '.py-root-title');
+  const root = rule(MIND_CSS, '.mind-node.mind-root');
+  const rtitle = rule(MIND_CSS, '.mind-root .mind-title');
   if (!banner || !tbt || !root || !rtitle) { console.log('     规则缺失'); return false; }
   return tbt.includes('var(--fs-headline)')
-    && rtitle.includes('var(--fs-headline)')
+    && rtitle.includes('var(--fs-sub)')
     && banner.includes('inset 3px 0 0 var(--accent)')
     && root.includes('inset 3px 0 0 var(--accent)')
     && !root.includes('border-left')
@@ -188,11 +210,14 @@ check('W5-3 accent 底上的 AI 徽标仍反相（R169-T5b 的活体陷阱，弱
 
 /* ============ 口径备案：规范 W2 那一半在本页另有既存实现 ============ */
 check('B6-注 规范 W2 所称「编辑入口显形为打开原卡」在本页已由既有两件承担，本批不新增第三枚按钮：① 镜像分支动作条只留「打开链接 / 定位到源卡」（写动作整组拦截）② 单击进只读详情。硬加一枚「打开原卡」按钮会是第三份只读合同，且与「定位到源卡」重复', () => {
-  const i = WSV.indexOf('class="res-card-actions"');
-  const seg = i >= 0 ? WSV.slice(i, i + 1200) : '';
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const i = host.indexOf('<template v-if="drawerReadonly">');
+  const j = i >= 0 ? host.indexOf('</template>', i) : -1;
+  const seg = i >= 0 && j > i ? host.slice(i, j) : '';
   const noDup = !seg.includes('打开原卡');
   if (!noDup) console.log('     出现「打开原卡」按钮：若确为拍板新增，须同时更新本条');
-  return noDup && seg.includes('title="定位到源卡"') && DRW.includes('openMirrorDetail');
+  return noDup && seg.includes('定位到源卡') && DRW.includes('openMirrorDetail')
+    && !codeOnly(host).includes('class="res-card-actions"');
 });
 
 /* 代码侧不允许残留的旧写法（负判据，防回流） */

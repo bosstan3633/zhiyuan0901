@@ -1124,13 +1124,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .mgr-body { padding-bottom: 4px; }
 .mgr-body.batch .check-sm { display: none; }
 /* R176（原型 panel-toolbar）：模块标题行退役 ⇒ 工具条自带顶部内距；批量/新建动作组贴右 */
-/* R175（原型 macos-segmented）：视图三态改连体分段（subtle 底 + 选中浮起白片），类名与交互一字未动 */
-.view-tabs { display: flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
-.view-tab { padding: 5px 12px; border-radius: var(--radius-xs); font-size: var(--fs-sub); cursor: pointer; color: var(--text-2); transition: all var(--dur); border: none; background: transparent; font-family: inherit; }
-.view-tab.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow-sm); }
+/* V3.9.8：视图 / 排序方向统一由 DeckControls 渲染，面板内旧分段样式退役。 */
 .sel { padding: 5px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
-.sort-dir-btn { white-space: nowrap; font-size: var(--fs-sub); }
-.sort-dir-btn:hover { border-color: var(--accent); color: var(--text); }
 .mgr-count { display: flex; align-items: center; gap: 2px; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-right: 4px; }
 .mgr-count .cur { color: var(--text-2); font-weight: 600; }
 .mgr-count .total { cursor: default; }

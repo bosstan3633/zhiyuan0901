@@ -44,9 +44,9 @@ check('G3-2 十个空态位全部走 EmptyState（方向台 / 项目详情×3 / 
     ['/newtab/views/ProjectCuration.vue', '这个项目还没有成功指标'],
     ['/newtab/views/ProjectCuration.vue', '项目有指标，还没有任务'],
     ['/newtab/views/ProjectCuration.vue', '这个项目暂无任务附件'],
-    ['/newtab/views/Workspace.vue', '这台策展台还空着'],
-    ['/newtab/views/Workspace.vue', '中心论点下面还没有分支'],
-    ['/newtab/views/Workspace.vue', '金字塔还空着'],
+    // V3.9.8 随迁：策展台两处空态已迁入现役 CurationMindMap；旧卡片网格空态随四视图退役。
+    ['/newtab/components/curation/CurationMindMap.vue', '中心论点下面还没有分支'],
+    ['/newtab/components/curation/CurationMindMap.vue', '先确立中心论点'],
     ['/newtab/views/RecycleBin.vue', '这台删除过的资源卡会停在这里'],
     ['/newtab/components/profile/PiMetricDetailDrawer.vue', '还没有可列出的卡片'],
     ['/newtab/components/compass/PoolCardsPanel.vue', '资源卡池还空着'],
@@ -58,6 +58,8 @@ check('G3-2 十个空态位全部走 EmptyState（方向台 / 项目详情×3 / 
     const s = codeOnly(read(f));
     if (!s.includes('<EmptyState') || !s.includes(t)) miss.push(f + ' :: ' + t);
   }
+  const ws = codeOnly(read('/newtab/views/Workspace.vue'));
+  if (ws.includes('这台策展台还空着') || ws.includes('金字塔还空着')) miss.push('Workspace 旧空态回流');
   if (miss.length) console.log('     缺：' + miss.join(' / '));
   return miss.length === 0;
 });

@@ -409,6 +409,19 @@ check(NAME(
 });
 
 check(NAME(
+  'M6-7 ★画像洞察首屏热区必须全部达到 28px：概览空态「前往方向台」与热力图「收起 / 导出」两类小按钮用 min-height 撑盒，字号与密度不变',
+  '★V3.9.8 四主题实拍后，M6 复跑在 1440/1024 各量到 5 处、800 量到 1 处 <28px；',
+  '其中 .pi-dir-go 只有 19.3px。修法与 M6-2 同源：不改字号、不扩大视觉方块，只撑可点击盒。'), () => {
+  const PIO = read('/newtab/components/profile/PiOverview.vue');
+  const DZ = read('/newtab/components/dashboard/dashboard.css');
+  const go = /\.pi-dir-go \{[^}]*min-height: 28px;/.test(PIO);
+  const sm = /\.dz-btn\.sm \{[^}]*min-height: 28px;/.test(DZ);
+  if (!go) console.log('画像概览「前往方向台」未达到 28px 热区');
+  if (!sm) console.log('画像热力图小号按钮未达到 28px 热区');
+  return go && sm;
+});
+
+check(NAME(
   'M6-5 ★实拍走查脚本必须在库：m6-responsive-audit.cjs 量的是运行时盒子（getBoundingClientRect），不是 CSS 字面量', 
   '★为什么必须实拍：横向溢出是**布局计算结果**——同一份 CSS 在 1440 不溢出、1024 溢出，',
   '差别只在运行时算出的 min-content 宽度，源码里读不出来。'), () => {

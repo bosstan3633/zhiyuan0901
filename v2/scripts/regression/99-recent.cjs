@@ -70,8 +70,10 @@ check('R167-8 ★单条判决卡（curio-triage 单卡态）：契约 layout:"ve
 });
 check('R167-9 ★抽屉宽度与视觉走查判据同频：两代资源详情与好奇详情一律 520px；theme-audit 的卡详情判据必须同时含「AI 格数」与「主标题处数」，并核弹窗三件套（对照区/指令条/分栏把手）——走查判据落后于版式等于白跑', () => {
   const r = read('/newtab/components/ResourceDetailDrawer.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue')
-  const css = read('/newtab/views/workspace.css'); const g = read('/../scripts/theme-audit.cjs')
-  return r.includes('width="520px"') && c.includes('width="520px"') && css.includes('width: 520px')
+  const drawer = read('/shared/components/Drawer.vue'); const g = read('/../scripts/theme-audit.cjs')
+  return r.includes('width="520px"') && c.includes('width="520px"')
+    && drawer.includes("parseInt(props.width || '', 10) || 440")
+    && drawer.includes(':style="{ width: w + \'px\', zIndex: drawerZ }"')
     && g.includes("h1: '.ds-h1'") && g.includes('aiCount: 2') && g.includes('aiCount: 1') && g.includes('aiCount: 3')
     && g.includes("class=\"ai-dir\"") === false && g.includes('.ai-dir') && g.includes('.ai-drag') && g.includes('if (modalFail.length)')
     && g.includes('const wantDrag = m.width >= 1200') /* 窄屏已降单栏 ⇒ 把手"不该在"也是判据（单栏挂一根拖宽把手=能拖一个不存在的分界） */
@@ -85,21 +87,24 @@ check('R168-1 ★AI 徽标图形只挂一份：形状本体在 AiMarkSymbol（�
     && (app.match(/<AiMarkSymbol/g) || []).length === 1 && app.includes("import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'")
     && read('/shared/components/AiEntryButton.vue').includes("from '@/shared/components/AiMark.vue'")
 });
-check('R168-2 ★台面零"常驻浮层"（V3.7.0 重指：镜像两弹窗随资源台退役，九副 → 七副；★R4-Db 再重指带备案：七副 → 六副，减的那一副是书签「文件夹勾选」弹窗——它随整条够不着的建树死链删除，**不是**把某副常驻浮层改成了 v-if，本条守的语义反而更硬：openConds 少一项、计数判据同步下调，且加一条负判据要求那副弹窗与它的开关都不许回流；★V3.8.18（N8）再加一副：镜像选台弹窗 mirrorOpen，六副 → 七副。★加的是「第七副」而不是「把某副改回常驻」——本条守的语义没变：它同样走 v-if，不开就不在 DOM；顺手把 mirrorOpen 也塞进 openConds 负锚，谁把它改成 v-show 或 transform 冒充关掉就红）：Workspace 的浮层（详情抽屉 + 6 个 modal）一律 v-if——真库实测抽屉开着与否都在 DOM 里（168 节点含 88 个 option），而它是每次进台面都摊的固定成本；不得再用 transform 移出视口冒充"关掉"（R169 重指：抽屉进出场/Esc/遮罩随两代容器合并进 Drawer 壳单源，壳内 v-if="open" 点开才挂）', () => {
-  const w = read('/newtab/views/Workspace.vue'); const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue')
-  const openConds = ['importModalOpen', 'moveModalOpen', 'moveOneOpen', 'catModal.open', 'inputModal.open', 'mirrorOpen']
-  const stillMounted = openConds.filter(k => w.includes(`class="modal-overlay" :class="{open: ${k}`))
-  return stillMounted.length === 0 && (w.match(/class="modal-overlay open"/g) || []).length === 7 && !w.includes('bookmarkModalOpen')
+check('R168-2（V3.9.8 随迁）台面零“常驻浮层”：Workspace 原生 modal 一律 v-if，点开才进 DOM；资源详情走共享 Drawer 壳内 v-if，关联资源走共享 Modal 壳内 v-if；旧书签/批量移动浮层不得回流', () => {
+  const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'); const css = read('/newtab/views/workspace.css'); const d = read('/shared/components/Drawer.vue'); const m = read('/shared/components/Modal.vue')
+  const overlays = [...w.matchAll(/<div\s+v-if="([^"]+)"\s+class="modal-overlay open"/g)].map(x => x[1])
+  return overlays.length === 3
+    && overlays.includes('importModalOpen') && overlays.includes('mirrorOpen') && overlays.includes('inputModal.open')
+    && !w.includes('class="modal-overlay" :class="{open:')
+    && !w.includes('bookmarkModalOpen') && !w.includes('moveModalOpen') && !w.includes('moveOneOpen')
     && w.includes('<Drawer :open="drawerOpen" width="520px"') && !w.includes('class="drawer" :class="{open: drawerOpen}"')
+    && w.includes('<LinkCardsModal') && m.includes('<section v-if="open"')
     && d.includes('<aside v-if="open" class="drawer"') && d.includes('.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }')
     && d.includes('prefers-reduced-motion: reduce') && !css.includes('.drawer.open { transform: translateX(0); }')
 });
-check('R168-3 ★三视图首屏都有渲染上限（"增量渲染"不许在某一个视图名存实亡）：卡片/列表 RENDER_STEP 与看板 KANBAN_COL_STEP 都在，且都有"还有 N 张"的显式续载入口 + 滚动续载通道', () => {
-  const w = read('/newtab/composables/useResourceView.ts'); const t = read('/newtab/views/Workspace.vue')
-  const step = Number((w.match(/const RENDER_STEP = (\d+)/) || [])[1] || 0)
-  const kstep = Number((w.match(/const KANBAN_COL_STEP = (\d+)/) || [])[1] || 0)
-  return step > 0 && step <= 32 && kstep > 0 && kstep <= 8 && w.includes('hiddenCount: items.length - shown.length')
-    && t.includes('kanbanMore(cat.key)') && t.includes('onKanbanColScroll') && t.includes('renderMore()')
+check('R168-3（V3.9.8 随迁）资源池首屏有渲染上限：PAGE=60、rendered 切片、显式“加载更多”与 IntersectionObserver 滚动续载；旧四视图 RENDER_STEP/看板续载接线零残留', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'))
+  return pool.includes('const PAGE = 60') && pool.includes('const rendered = computed(() => poolCards.value.slice(0, visibleCount.value))')
+    && pool.includes('function renderMore()') && pool.includes('new IntersectionObserver') && pool.includes("rootMargin: '240px'")
+    && pool.includes('v-if="hasMore"') && pool.includes('↓ 已显示 {{ rendered.length }} / {{ poolCards.length }} 张')
+    && !w.includes('kanbanMore(cat.key)') && !w.includes('onKanbanColScroll') && !w.includes('renderMore()')
 });
 check('R168-4 ★盘点用的两个口径必须留在 perf 里（体感靠数字不靠印象）：--real 真实路径 R1~R7 与 DOM 账单 M14/R6 计数（可见节点/卡/svg/徽标）——散布 >2 倍时唯一可信的就是结构量', () => {
   const p = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'perf.cjs'), 'utf8').replace(/\r\n/g, '\n')
@@ -262,12 +267,16 @@ check('R169-23 老账①（V3.7.0 退役）：ResourceEditForm 分类控件零�
     && cp.includes("e.key === 'Escape'") && cp.includes("e.key === 'ArrowDown'") && cp.includes("e.key === 'Enter'")
     && cp.includes('useOverlayTarget');
 });
-check('R173-T1（R169-24 重指带备案；R173-T3 收口带备案）★ 看板列窗口化改**视口驱动**：R169 原口径「列数 > 60 才裁剪」在真库 50 台 / 33 列（48 个资源台）下永不触发、等于没做——R172 实测切看板仍 +1143 节点 / 阻塞 249ms。现口径：窗口 = 滚动位置 ± KANBAN_COL_BUFFER，窗口外两侧渲染等宽 ghost 占位（1 节点/列）保横向几何、scrollWidth 不随窗口漂移；拖拽源列由 setKanbanDragCol 钉住（源节点中途被摘 ⇒ dragend 可能不触发、dragState/dropMark 残留）。★空哨兵必须 null：「待分类」列 key 就是 \'\'，用 \'\' 表空闲会恒命中最后一列（实测 hi 恒 = n-1、窗口右缘收不回、切看板仍全量 23 列）。R173-T3 收口：窗口化的代价是「目标列不在窗外 ⇒ kc-card 节点根本不渲染」——kc-card 补 data-rid+flash、定位时 .kanban 先横滚到目标列（scrollLeft → measureKanbanWin）再抬列内限额。★备案：T3 另查过「检索面板独立合成层（.gp-panel will-change）」提案，真包 A/B 与顺序平衡变体轮转均无可复现收益（早前 lpanel=0 系顺序混淆），已撤下不入包，账见 docs/交付说明_R173-T_性能主线四刀.md', () => {
-  const v = codeOnly(read('/newtab/composables/useResourceView.ts')); const w = codeOnly(read('/newtab/views/Workspace.vue')); const css = read('/newtab/views/workspace.css');
-  return v.includes('const KANBAN_COL_PITCH = 274') && v.includes('const KANBAN_COL_BUFFER = 2') && v.includes('Math.floor(el.scrollLeft / KANBAN_COL_PITCH) - KANBAN_COL_BUFFER') && v.includes('const kanbanDragKey = ref<string | null>(null)') && v.includes('kanbanDragKey.value === null ? -1 :') && v.includes('function setKanbanDragCol(') && v.includes('function measureKanbanWin(') && v.includes('onActivated(onKanbanWinResize)') && v.includes('wrap.scrollLeft = Math.max(0, (ci - KANBAN_COL_BUFFER) * KANBAN_COL_PITCH)') /* R173-T3：目标列先入窗（否则节点不渲染、定位静默落空） */
-    && w.includes('class="kanban" ref="kanbanWrapRef" @scroll="onKanbanWinScroll"') && w.includes('v-for="g in kanbanGhostL"') && w.includes('v-for="g in kanbanGhostR"') && w.includes('setKanbanDragCol(r.categoryId') && w.includes('setKanbanDragCol(null)')
-    && w.includes('flash: highlightId===r.id, \'drop-line-t\'') /* R173-T3：kc-card 接 flash */ && w.includes(':data-rid="r.id" :draggable="!batchMode" @dragstart="onDragStart($event,r); setKanbanDragCol(') /* R173-T3：kc-card 补 data-rid（e2e 早就按这个选择器取卡） */ && css.includes('.res-card.flash, .res-row.flash, .kc-card.flash') /* R173-T3 */
-    && !w.includes('kanbanWinMore') && !css.includes('.kc-col-more') && css.includes('.kanban-col.kc-ghost');
+check('R173-T1（V3.9.8 随迁）看板窗口化随四视图退役；性能语义迁到资源池分页：首屏只渲染 PAGE 张，滚动/点击增量续载，定位目标先扩窗再滚动高亮；旧看板窗口化不得在 Workspace 回流', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); const v = codeOnly(read('/newtab/composables/useResourceView.ts')); const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')); const css = read('/newtab/views/workspace.css')
+  return pool.includes('const PAGE = 60') && pool.includes('const visibleCount = ref(PAGE)')
+    && pool.includes('const rendered = computed(() => poolCards.value.slice(0, visibleCount.value))')
+    && pool.includes('visibleCount.value += PAGE') && pool.includes('new IntersectionObserver')
+    && pool.includes('visibleCount.value = Math.max(visibleCount.value, poolCards.value.findIndex(r => r.id === hl) + 1)')
+    && pool.includes("document.querySelector(`[data-rid=\"${hl}\"]`)?.scrollIntoView")
+    && v.includes('const KANBAN_COL_PITCH = 274') && v.includes('const KANBAN_COL_BUFFER = 2')
+    && !w.includes('kanbanGhostL') && !w.includes('kanbanGhostR') && !w.includes('kc-card')
+    && !w.includes('setKanbanDragCol') && !css.includes('.kanban-col.kc-ghost');
 });
 check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退役、资源详情抽屉走共享 Drawer.vue 壳（Teleport/Esc/遮罩/进出场/reduced-motion 单源）；壳带 bodyClass prop 承载镜像只读态；workspace.css 零 .dr-head/.dr-close/.drawer{ 残留（.dr-footer-btn 家族因弹窗复用而保留，见交付说明）★备案：本条对 Workspace.vue 用裸读不用 codeOnly——模板 accept="image/*," 的 /* 会被注释剥离吞掉后续代码（R169 实踩）', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8').replace(/\r\n/g, '\n');

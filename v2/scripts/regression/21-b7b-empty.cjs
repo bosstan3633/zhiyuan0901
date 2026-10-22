@@ -18,6 +18,7 @@ const { read, codeOnly, check } = require('./helpers.cjs')
 const CT = read('/newtab/views/CompassTree.vue')
 const PC = read('/newtab/views/ProjectCuration.vue')
 const WS = read('/newtab/views/Workspace.vue')
+const MAP = read('/newtab/components/curation/CurationMindMap.vue')
 const RB = read('/newtab/views/RecycleBin.vue')
 
 const NAME = (...parts) => parts.join('')
@@ -134,49 +135,46 @@ check(NAME(
 /* ══════════════ W4 · 策展台空态引导 ══════════════ */
 
 check(NAME(
-  'W4-1 ★策展台三处空态的图标与文案回到「策展成果」定位：原文要求 Icon(compass) +',
-  '「从好奇与资源里搭出你的主线」。旧图标 folder 说的是「这里该放文件」，',
-  '而这一台放的不是文件、是摆成主线的成果——图标与文案都要说清用户在这里干什么。'), () => {
-  const i = WS.indexOf('<EmptyState v-if="!resourceGroups.length" size="section"')
-  const j = i >= 0 ? WS.indexOf('/>', i) : -1
-  const cell = i >= 0 && j > i ? WS.slice(i, j) : ''
-  if (!cell) { console.log('     未找到列表视图零资源卡空态'); return false }
-  if (!cell.includes('icon="compass"')) { console.log('     图标非 compass'); return false }
-  if (!cell.includes('这台策展台还空着')) { console.log('     title 未回到策展定位'); return false }
-  if (!cell.includes('action-label="＋ 添加第一张卡"')) { console.log('     主行动文案须按原文「添加第一张卡」'); return false }
+  'W4-1 ★（V3.9.8 随迁）策展台空态回到「策展成果」定位：旧卡片网格空态随四视图退役，',
+  '现役宿主是 CurationMindMap——空画布必须用 compass 图标与「先确立中心论点」，',
+  '有论点但无分支时用 hexagon 说明“结构还空”，两处都要说清用户在这里搭成果。'), () => {
+  const emptyThesis = MAP.indexOf('<EmptyState v-if="!thesis"')
+  const j1 = emptyThesis >= 0 ? MAP.indexOf('/>', emptyThesis) : -1
+  const c1 = emptyThesis >= 0 && j1 > emptyThesis ? MAP.slice(emptyThesis, j1) : ''
+  const emptyBranches = MAP.indexOf('<EmptyState v-if="thesis && !nodes.length"')
+  const j2 = emptyBranches >= 0 ? MAP.indexOf('/>', emptyBranches) : -1
+  const c2 = emptyBranches >= 0 && j2 > emptyBranches ? MAP.slice(emptyBranches, j2) : ''
+  if (!c1 || !c2) { console.log('     未找到现役画布两处空态'); return false }
+  if (!c1.includes('icon="compass"') || !c1.includes('先确立中心论点')) { console.log('     无论点空态定位不对'); return false }
+  if (!c2.includes('icon="hexagon"') || !c2.includes('中心论点下面还没有分支')) { console.log('     无分支空态定位不对'); return false }
+  if (WS.includes('这台策展台还空着') || WS.includes('金字塔还空着')) { console.log('     旧空态回流'); return false }
   return true
 })
 
 check(NAME(
-  'W4-2 ★金字塔两处空态**都必须有主行动**（原文验收「空态有主行动」，这两处原本一个都没有）。',
-  '★两处主行动刻意不同：空金字塔用 openThesisCreate（建出来的卡自动成为中心论点 L1 根，一步到位），',
-  '有中心论点时用 openCreateCat（建子分类作论据分支）——不是笼统的「新建分类」，',
-  '因为用户此刻缺的是结构里明确的那一层，点了立刻知道自己多了什么。'), () => {
-  const i1 = WS.indexOf('<EmptyState v-if="!pyLayout.cells.length && thesisCard"')
-  const j1 = i1 >= 0 ? WS.indexOf('/>', i1) : -1
-  const c1 = i1 >= 0 && j1 > i1 ? WS.slice(i1, j1) : ''
-  const i2 = WS.indexOf('<EmptyState v-if="!pyramidLevels.length && !thesisCard"')
-  const j2 = i2 >= 0 ? WS.indexOf('/>', i2) : -1
-  const c2 = i2 >= 0 && j2 > i2 ? WS.slice(i2, j2) : ''
+  'W4-2 ★（V3.9.8 随迁）画布两处空态都必须有主行动：',
+  '无论点 → open-create-thesis；有论点无分支 → create-child(root)。',
+  '两处行动分别对应用户此刻缺的那一层，不是笼统的“新建”。'), () => {
+  const i1 = MAP.indexOf('<EmptyState v-if="thesis && !nodes.length"')
+  const j1 = i1 >= 0 ? MAP.indexOf('/>', i1) : -1
+  const c1 = i1 >= 0 && j1 > i1 ? MAP.slice(i1, j1) : ''
+  const i2 = MAP.indexOf('<EmptyState v-if="!thesis"')
+  const j2 = i2 >= 0 ? MAP.indexOf('/>', i2) : -1
+  const c2 = i2 >= 0 && j2 > i2 ? MAP.slice(i2, j2) : ''
   if (!c1) { console.log('     未找到零节点空态'); return false }
   if (!c2) { console.log('     未找到空金字塔空态'); return false }
   if (!c1.includes('action-label=')) { console.log('     零节点缺主行动'); return false }
-  if (!c1.includes('openCreateCat')) { console.log('     零节点主行动应为 openCreateCat'); return false }
-  if (!c2.includes('openThesisCreate')) { console.log('     空金字塔主行动应为 openThesisCreate'); return false }
+  if (!c1.includes("emit('create-child', 'root')")) { console.log('     零节点主行动应为 create-child(root)'); return false }
+  if (!c2.includes("emit('open-create-thesis')")) { console.log('     空画布主行动应为 open-create-thesis'); return false }
   if (!c2.includes('action-label="＋ 写下中心论点"')) { console.log('     空金字塔主行动文案不对'); return false }
   return true
 })
 
 check(NAME(
-  'W4-3 ★幽灵按钮（secondary）两处都在：原文 D3/W4 允许「主行动 + 次行动」并列，',
-  'EmptyState 契约里 secondaryLabel 是现成能力。空金字塔给「新建一张论证卡」，',
-  '让用户不必先想清楚「中心论点」和「普通卡」的区别也能开张。'), () => {
-  const i2 = WS.indexOf('<EmptyState v-if="!pyramidLevels.length && !thesisCard"')
-  const j2 = i2 >= 0 ? WS.indexOf('/>', i2) : -1
-  const c2 = i2 >= 0 && j2 > i2 ? WS.slice(i2, j2) : ''
-  if (!c2) return false
-  if (!c2.includes('secondary-label=')) { console.log('     空金字塔缺幽灵按钮'); return false }
-  if (!c2.includes('@secondary=')) { console.log('     幽灵按钮未接事件'); return false }
+  'W4-3 ★（V3.9.8 随迁）空态次行动不丢：画布无论点时主行动是“写下中心论点”，',
+  '同一宿主工具条仍保留「＋ 新建分支」作为先建结构、后补论点的开张路径。'), () => {
+  if (!MAP.includes('action-label="＋ 写下中心论点"')) { console.log('     空画布主行动缺失'); return false }
+  if (!WS.includes('＋ 新建分支') || !WS.includes("@click=\"mind.createChild('root')\"")) { console.log('     分支次入口缺失'); return false }
   return true
 })
 
@@ -245,7 +243,8 @@ check(NAME(
   const spots = [
     [CT, '方向台还空着'],
     [PC, '项目有指标，还没有任务'],
-    [WS, '这台策展台还空着'],
+    [MAP, '中心论点下面还没有分支'],
+    [MAP, '先确立中心论点'],
     [RB, '这台删除过的资源卡会停在这里'],
   ]
   for (const [src, title] of spots) {
@@ -284,7 +283,7 @@ check(NAME(
   'E-3 ★术语统一负锚：本批四页的可见文案不得出现已退役的台面叫法。',
   '「工作台」已全量退役、「策展中心」只在历史沿革里出现——',
   '空态是用户第一眼看到的文案，比正文更不该带旧称。'), () => {
-  const vis = [CT, PC, WS, RB].map(codeOnly).join('\n')
+  const vis = [CT, PC, WS, MAP, RB].map(codeOnly).join('\n')
   // 只查空态文案片段附近，避免误伤历史注释与正文里的引述
   const titles = [
     ...vis.matchAll(/(?:title|desc|hint|action-label|secondary-label)="([^"]*)"/g),

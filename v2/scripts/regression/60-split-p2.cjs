@@ -89,15 +89,18 @@ console.log('【第一百零四轮 · V2.73.0：Workspace 纯拆分第五批·�
  *  卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层（登记另立项）；本批拆分类 CRUD
  *  （新建/重命名含同名校验与 4 级上限/删除含镜像级联清理/置顶/重复合并）。
  *  拆分五批收官：3583 → 3026 行（-557），五个域级 composable。 */
-check('R104-1 ★ 分类 CRUD 拆分不变量：实现随迁 + 宿主解构绑定 + 宿主零重复实现 + 层级工具由宿主注入（唯一实现）', () => {
-  return CC104.includes('export function useCategoryCrud(')
-    && CC104.includes('function confirmCatModal()') && CC104.includes('async function deleteCategory(cat: Category)')
-    && CC104.includes('async function mergeDupCats()')
-    && CC104.includes('pyDepthOf(parent) + 2 > MAX_CAT_LEVEL')
-    && WSP104.includes('useCategoryCrud({')
-    && WSP104.includes('const { normalizeCatOrders, catModal, openCreateCat, catRenId, startCatRename, commitCatRename, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({')
-    && !WSP104.includes('async function deleteCategory(cat: Category)') && !WSP104.includes('async function mergeDupCats()')
-    && WSP104.includes('function pyDepthOf(c: Category): number {');
+check('R104-1（V3.9.8 随迁）画布分类 CRUD 收敛：新建/同级/改名/说明/删除/拖拽移动由 useCurationMindMap 单一实现，宿主只绑定事件', () => {
+  const h = read('/newtab/composables/useCurationMindMap.ts');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  return h.includes('export function useCurationMindMap(')
+    && h.includes('function createChild(') && h.includes('function createSibling(')
+    && h.includes('function renameNode(') && h.includes('function updateDescription(')
+    && h.includes('async function removeNode(') && h.includes('function moveNode(')
+    && h.includes('MIND_TOTAL_LEVEL')
+    && host.includes('useCurationMindMap({') && host.includes('@create-child="onMindCreateChild"')
+    && host.includes('@rename="mind.renameNode"') && host.includes('@move="mind.moveNode"')
+    && !host.includes('async function deleteCategory(cat: Category)')
+    && !host.includes('async function mergeDupCats()');
 });
 
 console.log('【第一百零三轮 · V2.72.0：Workspace 纯拆分第四批（镜像域 → useWorkspaceMirror）】');
@@ -119,15 +122,18 @@ console.log('【第一百零二轮 · V2.71.0：Workspace 纯拆分第三批（�
 /** R102：第三刀——批量选择/批量移动/单卡移动/挂载到任务 四个子域合一迁出（~130 行散布实现）。
  *  R82 单向挂载红线断言随实现迁入 composable（表达式随 mountTarget ref 化 / persist 注入重指）。
  *  本断言守拆分不变量。 */
-check('R102-1（R162 重指）整理动作域拆分不变量：四子域实现在 composable + 宿主解构绑定 + 宿主零重复实现（挂载域随挂载退役）', () => {
+check('R102-1（V3.9.8 重指）整理动作域迁移不变量：策展宿主不再接 useWorkspaceBatch / batch-bar；资源池改用 useBatchSelect + DeckBatchBar 的唯一实现，旧宿主零重复动作', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
   return BAT102.includes('export function useWorkspaceBatch(')
-    && BAT102.includes('function toggleBatchMode()') && BAT102.includes('async function batchDelete()')
-    && BAT102.includes('function confirmBatchMove()') && BAT102.includes('function confirmMoveOne()')
     && !BAT102.includes('toggleMountTask') && !BAT102.includes('mountedResourceIds')
-    && WSP102.includes('} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, sortedResources, openResourceLink, treeCatOptions })')
-    && WSP102.includes('moveOneTarget,')
-    && !WSP102.includes('function toggleBatchMode()') && !WSP102.includes('async function batchDelete()')
-    && !WSP102.includes('function confirmBatchMove()');
+    && !host.includes('useWorkspaceBatch(') && !host.includes('class="batch-bar"')
+    && !host.includes('function toggleBatchMode()') && !host.includes('async function batchDelete()')
+    && pool.includes("import { useBatchSelect, addTagToCards }")
+    && pool.includes('const { selected, size: selSize, allSelected, toggle: toggleSel, selectAll, invert: invertSel, clear: clearSel, setMode } = useBatchSelect')
+    && pool.includes('function toggleBatch()')
+    && pool.includes('<DeckBatchBar v-if="batchMode"')
+    && pool.includes('function deleteSelected()');
 });
 
 console.log('【第一百零一轮 · V2.70.0：Workspace 纯拆分第二批（下钻抽屉 → useCurationDrill）】');
@@ -198,11 +204,12 @@ check('R108-1 ★ 解析器纯函数：parseGoalTemplate（H1项目/H2指标/H3�
     && MI108.includes('已提升为 L2 承接（跳级容错）')
     && MI108.includes('已提升为 L3 承接（跳级容错）');
 });
-check('R108-2 共享导入弹窗：双模式（goal/pyramid）+ hasThesis 决定 H1 采用 + 实时解析预览 + 节点双入口绘制', () => {
+check('R108-2（V3.9.8 随迁）共享导入弹窗：goal/pyramid/project 三模式 + hasThesis 决定 H1 采用 + 实时解析预览 + 导入后节点关联资源说明', () => {
   return ITM108.includes("mode: 'goal' | 'pyramid'")
     && ITM108.includes('parseGoalTemplate(src.value)')
     && ITM108.includes('parsePyramidTemplate(src.value)')
-    && /<Icon name="link"[^>]*\/> 关联资源卡/.test(ITM108) && /<Icon name="plus"[^>]*\/> 新建卡片/.test(ITM108) /* ★G1(V3.8.25)随迁带备案：🔗/➕ 迁 <Icon link/plus>，节点双入口两枚一项未减 */
+    && ITM108.includes("mode === 'project'")
+    && /<Icon name="link"[^>]*\/> 导入后关联资源卡/.test(ITM108)
     && ITM108.includes('hasThesis')
 
 });
@@ -214,12 +221,12 @@ check('R108-3 ★ goal 写入链：任务双挂（projectId+metricId+taskIds 回
     /* ★W11 随迁带备案：发起端 v-for 变量名由 dir 变 dg（.dir-head 落在 v-for="dg in towerGroups" 内） */
     && CT_ALL.includes('openGoalImport(dg.dir)');
 });
-check('R108-4 ★ pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 每节点同名台内卡 + 200 节点上限 + 完成切金字塔视图', () => {
+check('R108-4（V3.9.8 随迁）pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 200 节点上限 + 导入后回到画布根节点', () => {
   return WSP108.includes('function confirmPyramidImport(payload: { pyramid?: PyramidParseResult })')
     && WSP108.includes('setThesis(d.value, workspaceId.value, card.id)')
     && WSP108.includes('const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && !c.deletedAt && (c.parentId || undefined) === parentId && c.name === name') // R109 重指：同父同名复用排除软删分类
     && WSP108.includes('if (nodeTotal > 200) { showToast(\'⚠ 单次导入建议不超过 200 个节点——请分批导入\'); return }')
-    && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("setViewMode('pyramid')")
+    && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("mind.selectedId.value = 'root'")
     // R113-N4：入口从 ⚙ 溢出菜单提到一级工具条，文案缩短为「📋 导入模板」
     && WSP108.includes('📋 导入模板') && WSP108.includes('@click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>');
 });
@@ -242,17 +249,19 @@ check('R109-1 ★ F11 导入弹窗内嵌 AI 整理规则：GOAL_RULE/PYRAMID_RUL
     && ITM109.includes("navigator.clipboard.writeText(ruleText.value")
     && /<Icon name="book"[^>]*\/> AI 整理规则/.test(ITM109) /* ★G1(V3.8.25)随迁带备案：📖 迁 <Icon name="book"> */;
 });
-check('R109-2 ★ F13 资源台/策展台单一滚动域：顶部三模块移入 ws-content + 工具条吸顶', () => {
+check('R109-2（V3.9.8 随迁）单一滚动域：页头/指标/工具条/画布同处 ws-content，工具条吸顶；旧双栏 ws-columns 退役', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
   return WSP109.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }')
-    && WSP109.includes('class="ws-columns">') && WSP109.includes('.ws-columns { display: flex; align-items: flex-start; }')
     && WSP109.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5;')
-    && WSP109.indexOf('class="ws-id-head"') > WSP109.indexOf('class="ws-content"');
+    && WSP109.indexOf('class="ws-id-head"') > WSP109.indexOf('class="ws-content"')
+    && host.includes('<CurationMindMap')
+    && !host.includes('class="ws-columns"');
 });
-check('R109-3 F14 页头单图标 + 指标卡两行重设计：台名剥离图标前缀 + 纵向布局 + hover 抬升', () => {
+check('R109-3（V3.9.8 随迁）页头单图标 + 双指标盒：台名剥离图标前缀，指标盒横向 label/value，画布节点有 hover 抬升反馈', () => {
+  const c = read('/newtab/components/curation/curation.css');
   return WSP109.includes("wsDisplayNameOf(workspace)")
-    && WSP109.includes('.rc-head { display: flex; align-items: flex-start; gap: 5px;') /* ★R4-Dj 随迁：原锚 "align-items: flex-start; gap: 3px; }" 是 .metric-card 块内的一行，指标卡随台面退役后整块零引用；"图标与标题顶对齐 + 间距"的现役落点是卡片头 .rc-head */
-    && WSP109.includes('.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;')
-    && WSP109.includes('.res-card:hover { border-color: var(--border-strong); transform: translateY(-1px);') /* ★R4-Dj 随迁备案：本条的"卡片纵向布局 + hover 抬升"两半原先钉 .metric-card 的字面样式，而指标卡随资源台台面退役（R4-Da 那批），CSS 里只剩零引用规则；hover 抬升这条视觉语言现役落在 .res-card（值也从 accent 变成 border-strong，是 R133 令牌化的既定口径），所以锚点跟到 .res-card 并逐字核现役值 */
+    && WSP109.includes('.metric-box { background: var(--surface); border: 1px solid var(--border);')
+    && c.includes('.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }')
     && !WSP109.includes('.mc-value') && !WSP109.includes('.metric-card'); /* ★R4-Dj：原第三条正判据 .mc-value{font-size:20px} 与被搬走的 .metric-card 同属退役指标卡，改为负判据钉"死类名不许回流"——数值字号这件事在现役 UI 里没有对应物（台面指标区 R98/R123 起逐步退役、读数移到调度台 MetricBar），硬找等价样式来钉只会再养一条假证据 */
 });
 check('R109-4 ★ F12-a workspaceId 收紧（★R4-Da 退役重指带备案：原判据点名全景右栏的 panSelWs+panSelCat 双过滤、计数的 ws|cat 复合键、树头措辞「全景 · 资源台 · N 分类」——🗺 全景整页随资源台退役删除。"卡列表/计数必须按所在台收紧，别台卡不得混入"这条口径本身没有松：三个存活管理面各自仍有硬判据——① 池面板 workspaceId===CURATION_WS_ID ② 策展台 boardCardsOf(d, workspaceId) + 分类计数走 catId 桶 resBucket ③ 设置页按台导出 CSV 亦带 workspaceId 过滤；全景那三条锚点改为 codeOnly 零命中判据防回流）+ 树头措辞修正随页面退役一并归档', () => {
@@ -323,7 +332,7 @@ check('R110-LC-4（R113-N2 重指：入口收敛）生命周期唯一入口 = �
 check('R110-LC-5 ★ T3 归档集成：默认视图排除归档卡 + 三处降级提示 + 全局搜索排除归档并按同口径报数', () => { const w = read('/newtab/views/Workspace.vue'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const g = read('/newtab/components/GlobalPopups.vue'); return w.includes('.filter(r => !r.lifecycleArchived)') && w.includes('ws-archived-hint') && cp.includes('!c.lifecycleArchived') && cp.includes('cz-archived-hint') && tp.includes('!t.lifecycleArchived') && tp.includes('tm-archived-hint') && g.includes('allResults.value.filter(r => !r.archived)') && g.includes('archivedMatchCount') && g.includes('gp-archived-hint') && g.includes('function hitResult('); });
 check('R110-LC-6 零迁移：lifecycleArchived 为 CardBase 可选字段（三卡共享，老数据无需迁移）', () => { const m = read('/shared/models/index.ts'); return m.includes('/** R110-LC：生命周期归档标记（可选字段，零迁移）') && m.includes('lifecycleArchived?: boolean'); });
 // ---- FS：金字塔全屏 ----
-check('R110-FS-1 ★ 路线 A：元素级 requestFullscreen 真全屏 + 浏览器原生 ESC（fullscreenchange 同步状态）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('await el.requestFullscreen()') && w.includes("document.addEventListener('fullscreenchange', onPyFsChange)") && w.includes('document.exitFullscreen()') && w.includes('const pyFsFallback = ref(false)'); });
-check('R110-FS-2 ★ 路线 B 自动降级：requestFullscreen 缺失/被拒 → fixed 覆盖层 + 自行监听 ESC + 显式「⛶ 退出全屏」双保险', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('pyFsFallback.value = true') && w.includes('py-fs-fallback { position: fixed; inset: 0;') && w.includes("e.key === 'Escape' && pyFsFallback.value") && w.includes('⛶ 退出全屏') && w.includes(':fullscreen { background: var(--bg);'); });
+check('R110-FS-1（V3.9.8 随迁）路线 A：画布壳元素级 requestFullscreen + 原生 fullscreenchange 同步 + exitFullscreen', () => { const m = read('/newtab/components/curation/CurationMindMap.vue'); return m.includes('await el.requestFullscreen()') && m.includes("document.addEventListener('fullscreenchange', onFullscreenChange)") && m.includes('document.exitFullscreen()') && m.includes('const localFallback = ref(false)'); });
+check('R110-FS-2（V3.9.8 随迁）路线 B 自动降级：requestFullscreen 缺失/被拒 → is-fs-fallback 覆盖层 + Esc 退出 + 显式“退出全屏”双保险', () => { const m = read('/newtab/components/curation/CurationMindMap.vue'); const c = read('/newtab/components/curation/curation.css'); return m.includes('localFallback.value = true') && m.includes("e.key === 'Escape' && props.fullscreen && props.fullscreenFallback") && m.includes("fullscreen ? '退出全屏' : '全屏'") && c.includes('.mindmap-shell.is-fs-fallback') && c.includes('position: fixed;'); });
 
 // ============== 第 112 轮 · 性能专项（04-59）第一批：渲染规模治理 + 热路径削减 ==============

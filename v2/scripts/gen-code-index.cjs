@@ -93,7 +93,7 @@ const MANUAL_NOTES = {
   'newtab/manual-data.ts': '内置使用手册的章节数据（另可导出独立 HTML）',
   // ---- 视图（路由级）----
   'newtab/views/GlobalSettings.vue': '全局设置页（全仓最大文件）：手册 / 导入导出 / Airtable 同步 / AI 配置 / 标签管理 / 字段设计 / 仪表盘 / 快捷键',
-  'newtab/views/Workspace.vue': '资源台 + 策展台共用视图（卡片 / 列表 / 看板 / 金字塔四视图 + 分类树 + 批量 + 镜像）',
+  'newtab/views/Workspace.vue': '策展台单一画布（论点卡 + 金字塔/树状思维导图 + 资源证据 + 指标下钻 + 分享）',
   'newtab/views/CompassHome.vue': '调度台首页：方向状态四指标 + 今日三件事 + 底部三张卡（任务卡 / 好奇心卡 / 资源卡）',
   'newtab/views/CompassTree.vue': '完整方向树（战略目标 → 项目 → 指标 → 任务）',
   'newtab/views/ProjectCuration.vue': '项目详情页（内嵌方向台，`?p=` 定位；含金字塔/看板）',

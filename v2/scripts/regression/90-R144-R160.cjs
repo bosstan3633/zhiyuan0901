@@ -22,12 +22,16 @@ check('R144-4 ★G2 三判决与写入边界：verdict 白名单（第四种全�
     && cp.includes('convertToTask(c)') && cp.includes('t.title = title.slice(0, 40)') && cp.includes('转化研判') && cp.includes('AiEntryButton')
     && p.includes('export function projectCurioPool') && !p.includes('curioRelated');
 });
-check('R144-5 G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮', () => {
-  const g = read('/shared/ai/batchG.ts'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue');
+check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮；现役资源入口从画布节点「关联资源」进入 LinkCardsModal，旧 EvidenceMenuItem/nodeMenu 宿主已退役', () => {
+  const g = read('/shared/ai/batchG.ts'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = codeOnly(read('/newtab/views/Workspace.vue'));
+  const mm = read('/newtab/components/curation/CurationMindMap.vue'); const node = read('/newtab/components/curation/CurationMindNode.vue'); const lm = read('/newtab/components/LinkCardsModal.vue');
   return g.includes('!taken.has(r.id)') && g.includes('(bag.items || []).slice(0, 6)') && g.includes('projectCardToBoard(d, id, ctx.wsId, ctx.catId)') && g.includes('function boardCardsInCat')
     && /export function buildDeliverJob[\s\S]*?adoptable: false[\s\S]*?return withReport\(job, ctx,[\s\S]*?\['成果文稿'\]/.test(g) && !/export function buildDeliverJob[\s\S]{0,900}?apply:/.test(g)
     && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
-    && em.includes("import('@/shared/ai/batchG')") && gs.includes('成果文稿') /* ★G1(V3.8.25)随迁带备案：设置页卡片头 📄 前缀迁 <Icon name="compass">，「成果文稿」入口文案仍在 */ && w.includes('<EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId"');
+    && em.includes("import('@/shared/ai/batchG')") && gs.includes('成果文稿') /* ★G1(V3.8.25)随迁带备案：设置页卡片头 📄 前缀迁 <Icon name="compass">，「成果文稿」入口文案仍在 */
+    && node.includes("emit('link-resource', node)") && mm.includes("@link-resource=\"emit('link-resource', $event)\"")
+    && w.includes('@link-resource="openLinkCards"') && w.includes('<LinkCardsModal') && lm.includes('全部分类（资源卡池）')
+    && !w.includes('<EvidenceMenuItem') && !w.includes('nodeMenu');
 });
 check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {
   const ws = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
@@ -263,15 +267,18 @@ check('R151-5 ★角标与预估同源（否则用户没法信方案）：cardHa
 });
 
 /* ===== R151-B2 · 三类卡 × 四视图（卡片/列表/看板 + 详情）AI 入口齐活 ===== */
-check('R151-6 ★AI 入口按"卡种 × 视图"点齐（缺一个视图就是一个功能上进不去）：资源卡三视图动作条 + 详情抽屉正文首行 ResourceAiStrip（只读卡镜像不给，与既有六动作同进同出；R169 备案：抽屉判据随两代容器合并从"页脚 CardAiEntry"随迁为 #title 槽 + ResourceAiStrip）；任务卡看板 6 处补齐（见 R147-5 随迁）；好奇卡卡片 hover / 列表 / 看板 / 详情四处单卡研判 + 批量钮走同一条 aiTriage 通道', () => {
+check('R151-6（V3.9.8 随迁备案）★AI 入口按“卡种 × 现役视图”点齐：资源卡池列表 / 网格各一 + 策展详情正文首行 ResourceAiStrip（镜像只读不给）；任务卡看板 6 处补齐（见 R147-5 随迁）；好奇卡卡片 hover / 列表 / 看板 / 详情四处单卡研判 + 批量钮走同一条 aiTriage 通道。旧 Workspace 三视图动作条零命中', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
   const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const ce = read('/newtab/components/CardAiEntry.vue'); const bg = read('/shared/ai/batchG.ts'); const m = read('/newtab/manual-data.ts')
-  // 资源卡：卡片/列表/看板各一（真身卡分支内），详情抽屉页脚带 label 的那枚是第四处
-  const resEntries = (w.match(/<CardAiEntry :card="r" \/>/g) || []).length
+  // 资源卡现役两视图：列表 / 网格各一；策展台内详情另有 ResourceAiStrip
+  const poolListAi = (pool.match(/<CardAiEntry v-if="!batchMode" :card="r" \/>/g) || []).length
+  const poolGridAi = (pool.match(/<CardAiEntry :card="r" \/>/g) || []).length
   const lineGate = w.split('\n').length <= 1500
   // 好奇卡：三视图单卡 + 详情一处；批量钮必须显式空参（否则 MouseEvent 会被当成单卡入参）
   const curioEntries = (cp.match(/aiTriage\(c\)/g) || []).length
-  return resEntries === 3 && lineGate && !ce.includes('label?: string') /* R167：卡面入口只留徽标形态，label 变体随"AI 进标题行"退役 */
+  return poolListAi === 2 && poolGridAi === 1 && lineGate && !ce.includes('label?: string') /* R167：卡面入口只留徽标形态，label 变体随"AI 进标题行"退役 */
+    && !w.includes('<CardAiEntry :card="r" />')
     && w.includes('<ResourceAiStrip') && read('/newtab/components/ResourceDetailDrawer.vue').includes('<ResourceAiStrip')
     && ce.includes('class="rc-action ai"') && !ce.includes('dr-footer-btn') && w.includes('<template #title>')
     && curioEntries === 3 && cp.includes('aiTriage(detailItem)') && cp.includes('@click="aiTriage()"') && cp.includes('one.status !== \'todo\'')
@@ -321,10 +328,12 @@ check('R152-4 ★"AI 动过"要有凭据：aiTouchedAt 由**每一枚会写卡/�
 
 /* ===== R153 · 真库体检刀（版式 + 自诊） ===== */
 check('R153-1（R155-③ 备案：摘要 2 行的取舍已由用户拍板）★体检发现的"真溢出"要修（页脚标签 chip 从 flex-shrink:0 改成可缩 + 省略号 + 页脚 min-width:0/overflow:hidden 兜底）；原「.rc-desc 摘要截断属刻意取舍、改两行会破网格」的待决状态随富卡形态解除——卡高已改 120~160，等高网格前提不再成立', () => {
-  const c = read('/newtab/views/workspace.css')
-  const foot = c.slice(c.indexOf('.rc-footer { margin-top: auto'), c.indexOf('.rc-heat'))
-  return foot.includes('min-width: 0; overflow: hidden') && foot.includes('flex-shrink: 1') && foot.includes('text-overflow: ellipsis')
-    && c.includes('.res-card { min-height: 120px; max-height: 160px; }') && !c.includes('视觉取舍留给用户定')
+  const c = read('/newtab/components/compass/PoolCardsPanel.vue')
+  const foot = c.slice(c.indexOf('.pcp-foot {'), c.indexOf('.pcp-mark'))
+  const tag = c.slice(c.indexOf('.pcp-tag {'), c.indexOf('.pcp-date'))
+  return foot.includes('min-width: 0') && foot.includes('overflow: hidden')
+    && tag.includes('flex-shrink: 1') && tag.includes('text-overflow: ellipsis')
+    && !c.includes('视觉取舍留给用户定')
 });
 /* R153-2 于 B7-e（V3.8.40）重指下限：R153 时按当时规范钉26px，M6 把热区下限抬到 28px
    （实测首屏仍有 27 处 <28px 的真交互元素，含 .tam-btn 20×17 这类）⇒ 原锚 26 假红。
@@ -332,8 +341,12 @@ check('R153-1（R155-③ 备案：摘要 2 行的取舍已由用户拍板）★�
    将来再调只需改这一个数字、判据自己跟着走。 */
 const HOT_MIN = 28;
 check(`R153-2 ★命中区只量真交互元素并抬到 ${HOT_MIN}px（B7-e 从 26 抬到 28，M6 实测首屏热区下限；任务 AI 菜单钮 20×17 → min ${HOT_MIN}×${HOT_MIN}、排序下拉 15px 高 → min-height ${HOT_MIN}。★体检脚本同时修了假阳性——原来把 pointer 继承来的 span 也算成点击目标，一堆误报）`, () => {
-  const m = read('/newtab/components/TaskAiMenu.vue'); const c = read('/newtab/views/workspace.css')
-  return m.includes(`min-width: ${HOT_MIN}px; min-height: ${HOT_MIN}px`) && c.includes('.head-sort {') && c.includes(`min-height: ${HOT_MIN}px`)
+  const m = read('/newtab/components/TaskAiMenu.vue')
+  const deck = read('/newtab/components/compass/DeckControls.vue')
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
+  return m.includes(`min-width: ${HOT_MIN}px; min-height: ${HOT_MIN}px`)
+    && deck.includes(`min-height: ${HOT_MIN}px`)
+    && pool.includes(`width: ${HOT_MIN}px`) && pool.includes(`height: ${HOT_MIN}px`)
 });
 check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（N 字）」折叠 + 复制，判"模型没答"还是"答了被消毒丢掉"不必再猜；开关随每轮 run 收起（别拿上一轮原文糊弄这一轮）', () => {
   const d = read('/newtab/components/AiSuggestionDrawer.vue')
@@ -519,16 +532,15 @@ check('R155-① ★容器宽度统一 1440：顶栏三档 + 设置页容器 + �
     && mn.includes('max-width: 1440px');
 });
 
-check('R155-③ ★富卡形态（用户拍板：120~160px / 无缩略图 / 摘要 2 行 / 启用字段 3 个）：卡高区间 + intrinsic 140 + 标题与摘要各 2 行 + 字段上限常量（下沉 shared/utils/fields）', () => {
-  const w = read('/newtab/views/workspace.css'); const ws = read('/newtab/views/Workspace.vue'); const fd = read('/shared/utils/fields.ts')
-  return w.includes('.res-card { min-height: 120px; max-height: 160px; }')
-    && w.includes('contain-intrinsic-size: auto 140px')
-    && /\.rc-title \{[^}]*-webkit-line-clamp: 2/.test(w)
-    && /\.rc-desc \{[^}]*-webkit-line-clamp: 2/.test(w)
-    && !/\.rc-desc \{[^}]*white-space: nowrap/.test(w) /* 摘要不再是单行省略 */
+check('R155-③（V3.9.8 随迁）★资源池富卡形态：网格卡保留可读卡高、标题 2 行、页脚标签可缩，字段上限 3 个仍由 shared/utils/fields 单源提供；旧 Workspace 富卡模板已退役', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); const ws = codeOnly(read('/newtab/views/Workspace.vue')); const fd = read('/shared/utils/fields.ts')
+  return pool.includes('.pcp-card {') && /min-height:\s*94px/.test(pool)
+    && /\.pcp-title \{[^}]*-webkit-line-clamp: 2/.test(pool)
+    && /\.pcp-foot \{[^}]*flex-wrap: wrap/.test(pool)
+    && /\.pcp-tag \{[^}]*overflow: hidden[^}]*text-overflow: ellipsis/.test(pool)
     && fd.includes('export const CARD_EXTRA_FIELD_LIMIT = 3') && fd.includes('export function cardExtraFields(') && fd.includes('CARD_SLOT_KEYS')
-    && ws.includes('cardExtraFields(fieldsOf(r))') /* 宿主只留一行引用：为守住 1500 行验收线，实现下沉 shared/utils/fields */
-    && w.includes('contain-intrinsic-size: auto 44px') /* 列表行 44px 不动：形态分层靠卡片变高，不是把列表也改掉 */
+    && pool.includes('class="pcp-foot"') && pool.includes('class="pcp-row"')
+    && !ws.includes('class="rc-title"') && !ws.includes('class="rc-desc"');
 });
 
 check('R155-10d ★AI 入口调用纪律：业务 .vue 零直挂 AiMark、零给徽标写死尺寸；AiEntryButton 尺寸只认 --icon-sm/--icon-lg 且不引 font-size', () => {

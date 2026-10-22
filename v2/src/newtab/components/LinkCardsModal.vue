@@ -61,10 +61,10 @@ const emit = defineEmits<{
         <AiEntryButton variant="inline" :spin="aiBusy" :label="aiBusy ? '检索中…' : 'AI 检索'" />
       </button>
     </div>
-    <!-- R126（诉求 3）：资源台分类过滤（含子分类） -->
+    <!-- R126（诉求 3）：资源卡池分类过滤（含子分类） -->
     <div class="lc-cat-row">
       <select :value="cat" class="lc-cat" @change="emit('update:cat', ($event.target as HTMLSelectElement).value)">
-        <option value="">全部分类（资源台）</option>
+        <option value="">全部分类（资源卡池）</option>
         <option v-for="o in catOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
         <option value="__uncat__">未分类</option>
       </select>
@@ -86,7 +86,7 @@ const emit = defineEmits<{
         <span v-if="aiHits[c.r.id]" class="lc-ai-tag" :class="{ weak: aiHits[c.r.id].weak }"
           :title="(aiHits[c.r.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从可镜像的卡里点名了这张') + (aiHits[c.r.id].why ? '：' + aiHits[c.r.id].why : '')"><Icon name="sparkle" :size="10"/>{{ aiHits[c.r.id].weak ? '低置信' : '命中' }}</span>
       </label>
-      <div v-if="!list.length" class="lc-empty">无匹配的资源台资源卡（也可以直接点右侧 AI 检索，按语义找）</div>
+      <div v-if="!list.length" class="lc-empty">无匹配的资源卡池卡片（也可以直接点右侧 AI 检索，按语义找）</div>
     </div>
     <template #footer>
       <div class="lc-foot">

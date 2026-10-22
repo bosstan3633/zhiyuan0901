@@ -7,20 +7,81 @@ const {
 } = require('./helpers.cjs');
 
 console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
-check('R65-1（R74 重写；R88 重指：导入/批量入口收进 ⚙）资源台工具条：卡片/列表/看板/金字塔四视图 + 搜索 + 批量管理 + 导入 + 新建', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  // R88：导入与批量管理的入口由工具条一级收进 ⚙ 菜单（W6 / W3），能力仍在，只改入口判据
-  return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')") && w.includes('<Icon name="menu" :size="13"/> 列表') && w.includes('▤ 看板') && w.includes('toolbar-search') /* ▤ 是 G1 白名单几何符号，保留 */ && w.includes('toggleBatchMode') && w.includes('name="checksquare"') && w.includes("'完成批量' : '批量'") /* ★G1(V3.8.25)随迁带备案：原锚 `>批量<` 是静态文案；批量钮改为 Icon + 三元文案（图标随态在 check/checksquare 间切换），锚点改指三元表达式，入口与退出通道两件事一件未减 */ && w.includes('importModalOpen.value = true') && w.includes('＋ 新建') && w.includes('function openImport(');
+check('R65-1（V3.9.8 重指）工具能力分宿主保留：策展画布留搜索/新建论证卡/导入/分享；资源池留搜索/列表·网格/四档筛选/批量/新建/本地导入。旧卡片·列表·看板·金字塔四视图值域退役', () => {
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const hostCode = codeOnly(host);
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const dc = read('/newtab/components/compass/DeckControls.vue');
+  return !hostCode.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')")
+    && !hostCode.includes('class="view-tabs"')
+    && host.includes('class="ws-toolbar"') && host.includes('toolbar-search')
+    && host.includes('＋ 新建分支') && host.includes('导入数据包') && host.includes('分享成果')
+    && pool.includes('<DeckControls panel="pool"') && pool.includes('poolViews')
+    && pool.includes("id: 'card'") && pool.includes("id: 'list'")
+    && pool.includes('poolFilters') && pool.includes("id: 'all'") && pool.includes("id: 'untagged'")
+    && pool.includes("id: 'called'") && pool.includes("id: 'never'")
+    && pool.includes('toggleBatch')
+    && pool.includes("'＋ 新建卡'") && pool.includes('导入本地文件')
+    && dc.includes('class="dk-search"') && dc.includes('class="dk-btn dk-view"')
+    && dc.includes('class="dk-btn dk-batch"') && dc.includes('class="dk-btn dk-new"');
 });
-check('R65-2（R74 重写 · R169 重指）资源台抽屉详情：单击 openResource 开抽屉（共享 ResourceEditForm + Drawer 壳）+ 双击打开 + 260ms 判别 · R169 备案：遮罩随两代容器合并进 Drawer 壳（自带 .drawer-overlay），旧的 .overlay.open 自绘遮罩退役', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('ResourceEditForm') && w.includes('function openResource(r: ResourceCard)') && w.includes('<Drawer :open="drawerOpen"') && w.includes('openResource(r') && w.includes('onCardDblClick(r)') && w.includes('260');
+check('R65-2（V3.9.8 重指）资源详情仍是共享抽屉：Workspace 渲染 ResourceEditForm + Drawer，点击分流在 useResourceDrawer（openResource / openMirrorDetail / 260ms），双击开链仍由 onCardDblClick 收口', () => {
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const dr = read('/newtab/composables/useResourceDrawer.ts');
+  return host.includes('ResourceEditForm') && host.includes('<Drawer :open="drawerOpen"')
+    && host.includes('useResourceDrawer({') && host.includes('@open-resource="onCardClick"')
+    && dr.includes('function onCardClick(r: ResourceCard)')
+    && dr.includes('function onCardDblClick(r: ResourceCard)')
+    && dr.includes('openResource(r)') && dr.includes('openMirrorDetail(r)')
+    && dr.includes('}, 260)');
 });
-check('R65-3 资源台批量操作浮动栏：全选/批量打开/移动到/批量删除 + confirmBatchMove 落资源台分类树', () => { const c = read('/newtab/views/Workspace.vue'); return c.includes('batch-bar') && c.includes('selectAllVisible') && c.includes('batchOpen') && c.includes('openBatchMove') && c.includes('batchDelete') && c.includes('moveCatOptions'); });
+check('R65-3（V3.9.8 重指）资源池批量栏：全选 / 反选 / 打标签 / 批量删除在位；旧策展台 batch-bar 零命中。批量打开与投射到策展台由资源池承接，旧“移动到分类”入口退役', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const bar = read('/newtab/components/compass/DeckBatchBar.vue');
+  return !host.includes('class="batch-bar"') && !host.includes('batchOpen') && !host.includes('openBatchMove')
+    && pool.includes('<DeckBatchBar v-if="batchMode"')
+    && pool.includes('@select-all="selectAll"') && pool.includes('@invert="invertSel"')
+    && pool.includes('@apply-tag="applyTagToSelected"') && pool.includes('@click="deleteSelected"')
+    && pool.includes('@click="batchOpen"') && pool.includes('批量打开')
+    && pool.includes('@click="openBatchMirror"') && pool.includes('投射到策展台')
+    && !pool.includes('openBatchMove')
+    && bar.includes("emit('select-all')") && bar.includes("emit('invert')")
+    && bar.includes("emit('apply-tag', t)");
+});
 check('R65-4（R73 修订；R100 拆入 useWorkspaceImport；R2-⑧ 本地文件宿主迁「资源卡池」面板；★R4-Db 再重指带备案：书签链路的持有者从 Workspace 改为 useBookmarkImport——Workspace 那枚 bookmarkInput 是全站零 .click() 的 parked input（入口早收在设置页），本轮连它和它的文件夹勾选弹窗一并删除；makeHubResource 随建树死链退役（hub 是已废弃旧称，它又硬编码池 id），书签卡构造式改名 makeBookmarkCard 且不再指向池）导入链路一条口径：书签=useBookmarkImport 持有 bookmarkInput + handleBookmarkImport + parseBookmarksHtml 且构造式不落池 id，本地文件=PoolCardsPanel 持有 fileImportInput + handleFileImport 且 workspaceId 钉成池 id', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = read('/newtab/composables/useWorkspaceImport.ts'); const w = codeOnly(read('/newtab/views/Workspace.vue')); const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return bk.includes('bookmarkInput') && bk.includes('handleBookmarkImport') && bk.includes('parseBookmarksHtml') && bk.includes('function makeBookmarkCard') && imp.includes('handleFileImport') && !imp.includes('bookmarkInput') && !w.includes('bookmarkInput') && !w.includes('handleBookmarkImport') && !codeOnly(w).includes('fileImportInput') && pool.includes('fileImportInput') && pool.includes('handleFileImport') && pool.includes('workspaceId: computed(() => CURATION_WS_ID)'); });
-check('R65-5/R66 金字塔居中树布局：pyLayout 叶子占列+父跨子组全部列（父横向恒=子组、居中、不跨入其他父域）+ 列宽自适应 minmax(170, 1fr)（R127 居中铺满）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const pyLayout = computed') && w.includes('placeCat') && w.includes('/ span ${cell.colSpan}') && w.includes('minmax(170px, 1fr)') && !w.includes('pyLevelCols'); });
-check('R65-6 金字塔严格树状：DFS 先序排序（同父节点紧邻）', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('const dfsOrder = new Map<string, number>()') && w.includes("walk('')") && w.includes('dfsOrder.get(a.cat.id)'); });
-check('R65-7 节点双入口', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('openLinkCards') && w.includes('linkCandidates') && w.includes('confirmLinkCards') && w.includes('projectCardToBoard(d.value, id, workspaceId.value, m.catId)') && w.includes('<Icon name="link" :size="13"/> 关联资源卡') && w.includes('＋ 新建论证卡') && w.includes('py-node-foot');  });
+check('R65-5/R66（V3.9.8 随迁备案）金字塔居中树布局：旧 CSS Grid 的 pyLayout/placeCat 随四视图退役；现役画布以 .mind-stage 居中、.mind-children 横排子组、每个父分支纵向居中，树状布局则整体向右展开', () => {
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const c = read('/newtab/components/curation/curation.css');
+  return !host.includes('pyLayout') && !host.includes('placeCat')
+    && c.includes('.mind-stage { width: max-content; min-width: 100%; display: flex; justify-content: center;')
+    && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-branch { display: flex; flex-direction: column; align-items: center; }')
+    && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children { display: flex; align-items: flex-start; justify-content: center;')
+    && c.includes('.mindmap-canvas[data-layout="tree"] .mind-stage { justify-content: flex-start; }')
+    && c.includes('.mindmap-canvas[data-layout="tree"] .mind-branch { display: flex; align-items: flex-start;');
+});
+check('R65-6（V3.9.8 重指）金字塔严格树状：递归组件按根序与子序先序展开（同父节点紧邻），旧 dfsOrder 手工排序退役', () => {
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  const map = read('/newtab/components/curation/CurationMindMap.vue');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  const idx = read('/shared/utils/catIndex.ts');
+  return !codeOnly(host).includes('const dfsOrder = new Map<string, number>()')
+    && hook.includes('const rootCats = computed(() => catIdx.value.roots)')
+    && hook.includes('return catIdx.value.childrenOf.get(catId) || []')
+    && idx.includes('roots.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))')
+    && idx.includes('for (const arr of childrenOf.values()) arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))')
+    && map.includes('<CurationMindNode v-for="node in roots"')
+    && node.includes('<CurationMindNode v-for="child in children()"');
+});
+check('R65-7 节点双入口（V3.9.8 重指：画布节点保留“关联资源/子分支”，旧 py-node-foot 四视图退役）', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const m = read('/newtab/components/curation/CurationMindNode.vue');
+  return w.includes('openLinkCards') && w.includes('confirmLinkCards')
+    && m.includes('关联资源') && m.includes('子分支') && m.includes('@link-resource')
+    && !host.includes('py-node-foot');
+});
 check('R65-8（R100 重指：实现拆入 useWorkspaceImport；R169-T1 再重指：资源段合并前先钳 updatedAt）策展台导入=策展台数据包 JSON：version 校验 + 按 ID 并集合并本台段 + 投射清单并入', () => { const imp = read('/newtab/composables/useWorkspaceImport.ts'); return imp.includes('handleBoardImport') && imp.includes("startsWith('2')") && imp.includes('mergeById(d.value.resources, clampUpdatedAt(d.value.resources, incRes)') && imp.includes('curationProjections = mergeById'); });
 check('R65-9 ★R4-Da 退役重指带备案：原守「全景收窄为资源台全景（panHubWss 过滤 isHubWs，策展台不进全景）+ 导航/标题改名（label: 资源台全景 / 页标题 🗺 资源台全景），且旧措辞 label: 工作台全景 不得回流」——V3.7.0 资源台退役后该整页删除，"只呈现资源台"这一收敛语义不再靠过滤函数、而是由数据层直接承担：池卡唯一管理面=调度台资源卡池面板（恒以 workspaceId===CURATION_WS_ID 取数，连"选台"这一步都不存在），策展台管理面=Workspace.vue。判据＝全景侧实现与两种措辞（新旧都算）codeOnly 零命中 + 去向两处真实锚点在位（池过滤 + 隐藏池 id 定义）', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
@@ -30,7 +91,7 @@ check('R65-9 ★R4-Da 退役重指带备案：原守「全景收窄为资源台�
   return retired.every(k => !g.includes(k))
     && !g.includes('(store.data?.workspaces || []).filter(w => isHubWs(w) && !w.archived)')
     && pcp.includes('.filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)')
-    && pcp.includes("import { CURATION_WS_ID, type ResourceCard } from '@/shared/models'")
+    && pcp.includes("import { CURATION_WS_ID, type AppData, type ResourceCard } from '@/shared/models'")
     && mod.includes("export const CURATION_WS_ID = 'zy-curation'");
 });
 // R179-MIGRATED R65-10
@@ -49,18 +110,30 @@ check('R65-12（★M1/V3.8.28 翻转带备案）方向状态单行指标条：�
 // ============== 第六十六轮：任务采集选区预填 + 项目调度瘦身 + 操作记录整合 + 全量导入导出 uiPrefs + 全景递归 + 金字塔居中树 + 品牌刷新 ==============
 console.log('【第六十六轮 · V2.36.0：任务采集选区预填 + 金字塔居中树布局 + 品牌口径升级】');
 check('R66-1 任务采集选区预填：openTaskCapture 接入选区链路（文本→内容/标题→名称/URL→链接字段，均可编辑）+ 保存写 link', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R66-F1') && c.includes('resolveSelection()') && c.includes('clearSelCache()') && c.includes('__zy_tc_link__') && c.includes('（已填入选中文本，可编辑）') && c.includes('link: link || undefined'); });
-check('R66-2 金字塔直角连线：drawPyLinks 改横平竖直折线（父底中点↓横移↑子顶中点）+ SVG 画布按滚动区设定', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}') && w.includes('scrollWidth') && !w.includes('C ${a.x} ${mid}'); });
+check('R66-2（V3.9.8 随迁备案）金字塔直角连线：旧 SVG 路径字符串随 drawPyLinks 退役；现役以 CSS 伪元素生成横平竖直连接，画布本身是横向滚动域（overflow:auto + min-width:100%）', () => {
+  const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const c = read('/newtab/components/curation/curation.css');
+  return !host.includes('M ${a.x} ${a.bottom} L ${a.x} ${mid} L ${b.x} ${mid} L ${b.x} ${b.top}')
+    && c.includes('.mindmap-canvas {') && c.includes('overflow: auto;')
+    && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children::before')
+    && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
+});
 check('R66-3（R156 解析改写）全量导出附 uiPrefs + 导入自动应用：exportAll 载入 UI 偏好并入包，导入侧落 data-theme（经 resolveTheme 解析 auto）/data-density', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('async function exportAll') && g.includes('loadUIPrefs') && g.includes('{ ...safeData, uiPrefs }') && g.includes("document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))") && g.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })") && g.includes('界面偏好已应用'); });
 check('R66-4 ★R4-Da 退役重指带备案：原守「资源台全景递归 N 级：panTree 的 toNode 递归 + flattenPanCats 扁平行渲染（折叠沿祖先链）+ row.depth * 14 缩进」——🗺 全景整页随资源台退役删除。四件事（多级递归 / 扁平序列 / 折叠沿祖先链 / 按层缩进）在两个存活管理面都还在，判据按它们点名：① 策展台分类树 useCatSidebar（sidebarCats 递归 pushTree depth+1 + seenSide 防环 = 扁平序列；selectSidebarCat 沿 parentId 上行走链展开祖先；卡片/列表视图按 g.depth * 16 缩进）② 设置页标签树按 tagDepth 缩进；panTree/toNode/flattenPanCats/panCollapsed 在 GS 按 codeOnly 零命中', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
-  const ws = read('/newtab/views/Workspace.vue');
+  const ws = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  const drill = read('/newtab/components/CurationDrillDrawer.vue');
   const retired = ['function flattenPanCats', '.map(toNode)', 'row.depth * 14', 'const panTree = computed', 'panCollapsed', 'togglePanCollapse'];
   return retired.every(k => !g.includes(k))
-    && ws.includes('const sidebarCats = computed<SidebarCat[]>')
-    && ws.includes('for (const k of childCatsOf(c.id)) pushTree(k, depth + 1')
-    && ws.includes('const seenSide = new Set<string>()')
-    && ws.includes('while (pid && !guard.has(pid) && collapsedCats.value.has(pid))')
-    && ws.includes("'margin-left:' + (g.depth * 16) + 'px'")
+    && !ws.includes('const sidebarCats = computed<SidebarCat[]>')
+    && !ws.includes('const seenSide = new Set<string>()')
+    && !ws.includes('collapsedCats.value.has(pid)')
+    && node.includes('<CurationMindNode v-for="child in children()"')
+    && hook.includes('const flattenedIds = computed<string[]>(() => {')
+    && hook.includes('walk(c.id)')
+    && drill.includes('paddingLeft: (8 + c.depth * 16)')
     && g.includes('paddingLeft: 8 + tagDepth(root.id) * 18');
 });
 check('R66-5 品牌刷新落点：启动动画/采集浮层页脚/搜索页脚/一封信全部换新 Slogan（旧「你不缺信息」清零）', () => { const h = read('/newtab/index.html'); const ov = read('/content/overlay-impl.ts'); const gp = read('/newtab/components/GlobalPopups.vue'); const lt = read('/newtab/letter-data.ts'); return h.includes('万千可调用，自有我方向') && ov.includes('知源调度台 · 万千可调用，自有我方向') && gp.includes('知源调度台 · 万千可调用，自有我方向') && lt.includes('万千可调用，自有我方向') && !lt.includes('你不缺信息') && lt.includes('lp-creed'); });
@@ -162,13 +235,34 @@ check('R70-2 P0 两条导入路径接入净化（全量导入 + 策展台数据�
   return gs.includes('sanitizeCategoryTree(imported.categories') && gs.includes('mergeById(d.categories, safeCats)') && imp.includes('sanitizeCategoryTree(ext.categories');
 });
 check('R70-3（R74 重写）资源台递归/上行走链防环（R71 起收敛至索引层 visited + 缓存）', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
   const w = read('/newtab/views/Workspace.vue');
   const x = read('/shared/utils/catIndex.ts');
-  return w.includes('function descendantIds') && w.includes('function catAggCount') && w.includes('function childCatsOf') && x.includes('带 visited') && x.includes('DFS');
+  const h = read('/newtab/composables/useCurationMindMap.ts');
+  const m = read('/newtab/components/curation/CurationMindMap.vue');
+  return !host.includes('function descendantIds') && !host.includes('function catAggCount') && !host.includes('function childCatsOf')
+    && w.includes('const catIdx = computed(() => buildCatIndex(wsCats.value))')
+    && x.includes('带 visited 的 DFS')
+    && x.includes('const seen = new Set<string>([id])')
+    && h.includes('if (seen.has(c.id)) continue')
+    && h.includes('catIdx.value.descendants(dragId).includes(targetId)')
+    && m.includes('if (descendants.has(child.id)) continue');
 });
 check('R70-4 P0 策展台递归防护 + 金字塔环内节点不再静默丢失', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('function descendantIds(catId: string): string[]') && w.includes('function pyDepthOf(c: Category): number') && w.includes('function pyHeightOf(c: Category, seen = new Set<string>())') && w.includes('if (!placed.has(c.id)) placeCat(c, 0)');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const imp = read('/newtab/composables/useWorkspaceImport.ts');
+  const x = read('/shared/utils/catIndex.ts');
+  const h = read('/newtab/composables/useCurationMindMap.ts');
+  const m = read('/newtab/components/curation/CurationMindMap.vue');
+  return !host.includes('function descendantIds(catId: string): string[]')
+    && !host.includes('function pyDepthOf(c: Category): number')
+    && !host.includes('function pyHeightOf(c: Category, seen = new Set<string>())')
+    && imp.includes('sanitizeCategoryTree(ext.categories')
+    && x.includes('if (!c.parentId || c.parentId === c.id || !byId.has(c.parentId)) { roots.push(c); continue }')
+    && x.includes('if (seen.has(ch.id)) continue')
+    && h.includes('if (seen.has(c.id)) continue')
+    && h.includes('catIdx.value.descendants(dragId).includes(targetId)')
+    && m.includes('if (descendants.has(child.id)) continue');
 });
 check('R70-5 P1 导出与自动备份剥离 Airtable 凭证', () => {
   const gs = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue');
@@ -262,8 +356,14 @@ check('R71-5 P1 看板列改预计算 computed（每列不再各调一次分组�
   return read('/newtab/views/Workspace.vue').includes('const kanbanColumns = computed(');
 });
 check('R71-6（R74 重写）资源台节点计数改预计算表（catAggCount 查索引，替代模板内递归）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('function catAggCount') && w.includes('aggCount: catAggCount(c.id)') && w.includes('directCount: (resBucket.value.get(c.id) || []).length');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const h = read('/newtab/composables/useCurationMindMap.ts');
+  const n = read('/newtab/components/curation/CurationMindNode.vue');
+  return !host.includes('function catAggCount')
+    && h.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>(() => {')
+    && h.includes('const arr = out.get(key)')
+    && h.includes('const nodeCount = computed(() => wsCats.value.length)')
+    && n.includes('return props.cardsByCat.get(props.node.id) || []');
 });
 check('R71-7 P2 boardCardsOf 改 id 索引（O(投射×资源) → O(投射+资源)）', () => {
   const h = read('/shared/storage/hub.ts');
@@ -292,9 +392,17 @@ check('R71-11 P2 事件日志就地扫描三数组（不再 collectCards 建整�
     && e.includes("scan('resource', d.resources)") && e.includes("scan('task', d.tasks)")
     && !e.includes('const current = collectCards(d)');
 });
-check('R71-12（R74 重写）长列表离屏渲染抑制（资源台 2 处 content-visibility）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return (w.match(/content-visibility: auto/g) || []).length >= 2 && w.includes('contain-intrinsic-size: auto 44px');
+check('R71-12（V3.9.8 重指）长列表渲染抑制：资源池按 60 张一页，列表/网格都只渲染 rendered 批次；旧资源台 content-visibility 双锚退役', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !host.includes('content-visibility: auto')
+    && !host.includes('contain-intrinsic-size: auto 44px')
+    && pool.includes('const PAGE = 60')
+    && pool.includes('const visibleCount = ref(PAGE)')
+    && pool.includes('const rendered = computed(() => poolCards.value.slice(0, visibleCount.value))')
+    && pool.includes('const hasMore = computed(() => poolCards.value.length > visibleCount.value)')
+    && pool.includes('function renderMore() { if (hasMore.value) visibleCount.value += PAGE }')
+    && (pool.match(/v-for="r in rendered"/g) || []).length >= 2;
 });
 check('R71-13 P3 下钻面板惰性求值（R101 重指：实现拆入 useCurationDrill，宿主保留绑定）', () => {
   return read('/newtab/composables/useCurationDrill.ts').includes('if (!drillOpen.value) return []') && read('/newtab/views/Workspace.vue').includes('useCurationDrill({');
@@ -338,28 +446,37 @@ check('R72-5 任务调度：列数选择器 + tm-grid-inner 变量驱动（写�
     && !/\.tm-grid-inner \{[^}]*minmax\(240px, 1fr\)/.test(s);
 });
 check('R72-6（R74 重写）资源台 + 策展台：列数选择器 + card-grid 变量驱动', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes("useCardCols('res'") && w.includes('v-model="resCols"') && w.includes("'--grid-cols': String(resCols)") && /.card-grid \{[^}]*var\(--grid-cols/.test(w);
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !host.includes("useCardCols('res'") && !host.includes('v-model="resCols"')
+    && !host.includes('<ColsPicker') && !host.includes('class="card-grid"')
+    && pool.includes("const viewMode = ref<'card' | 'list'>('list')")
+    && pool.includes('class="pcp-grid"')
+    && pool.includes('repeat(auto-fill, minmax(220px, 1fr))')
+    && pool.includes('class="pcp-list"');
 });
 check('R72-7（R74 重写；R88 重指：门控可落在包裹行上）列数选择器仅在卡片视图出现（三处宿主均以 viewMode 门控）', () => {
-  // R88（W3）：Workspace 的列数选择器收进「筛选」气泡后，门控由 ColsPicker 自身移到其包裹行
-  // （<div v-if="viewMode==='card'" class="fp-row">）——整行消失才不会留下一条空的「列数」标签。
-  // 好奇心/任务两处仍是门控挂在组件自身（<ColsPicker v-if="viewMode ..."）。两种写法能力等价，
-  // 故判定放宽为「<ColsPicker 与 viewMode 门控在 200 字符内互为前后」。
-  const files = ['/newtab/components/compass/CuriosityPanel.vue', '/newtab/components/compass/TaskManagerPanel.vue', '/newtab/views/Workspace.vue'];
-  const GATED = /v-if="viewMode[\s\S]{0,200}<ColsPicker|<ColsPicker v-if="viewMode/;
-  return files.every(f => {
-    const flat = read(f).replace(/\n\s*/g, ' ');
-    return flat.includes('<ColsPicker') && GATED.test(flat);
-  });
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !host.includes('<ColsPicker') && !host.includes('useCardCols(')
+    && pool.includes("v-else-if=\"viewMode === 'list'\"")
+    && pool.includes('<div v-else class="pcp-grid">')
+    && pool.includes(":groups=\"viewMode === 'list' ? POOL_GROUP_OPTIONS : []\"")
+    && !pool.includes('<ColsPicker');
 });
-check('R72-8（R106 重指：F3 精确 N 列——auto-fill+精确分数宽在 6/7 列因取整差一位永远少一，生产拍板废弃降列）：三套网格均为 repeat(var(--grid-cols), minmax(0,1fr))', () => {
-  const pats = [
-    ['/newtab/components/compass/CuriosityPanel.vue', 'repeat(var(--grid-cols, 4), minmax(0, 1fr))'],
-    ['/newtab/components/compass/TaskManagerPanel.vue', 'repeat(var(--grid-cols, 5), minmax(0, 1fr))'],
-    ['/newtab/views/Workspace.vue', 'repeat(var(--grid-cols, 5), minmax(0, 1fr))']
-  ];
-  return pats.every(([f, p]) => read(f).includes(p));
+check('R72-8（V3.9.8 重指：F3 精确 N 列仍守两份卡片视图；资源台退役后资源池改为网格/列表两档）：好奇心 cz-grid 与任务 tm-grid-inner 保持精确 N 列，资源池网格走 auto-fill、列表走 pcp-list', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const curio = read('/newtab/components/compass/CuriosityPanel.vue');
+  const task = read('/newtab/components/compass/TaskManagerPanel.vue');
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return curio.includes('repeat(var(--grid-cols, 4), minmax(0, 1fr))')
+    && task.includes('repeat(var(--grid-cols, 5), minmax(0, 1fr))')
+    && !host.includes('class="card-grid"')
+    && !host.includes('repeat(var(--grid-cols, 5), minmax(0, 1fr))')
+    && pool.includes("const viewMode = ref<'card' | 'list'>('list')")
+    && pool.includes('class="pcp-grid"')
+    && pool.includes('repeat(auto-fill, minmax(220px, 1fr))')
+    && pool.includes('class="pcp-list"');
 });
 check('R72-9 G7 界面偏好包补齐列数：导入侧按白名单归一后落库（sanitizeCardCols）', () => {
   const g = read('/newtab/views/GlobalSettings.vue');
@@ -417,11 +534,24 @@ check('R73-6（R100 拆入 useWorkspaceImport；★R4-Db 再重指：书签导�
 // 随资源台退役整体下线——池化架构下「从资源台推镜像」不再存在这回事（策展台取卡走「🔗 关联资源卡」与投射记录）。
 // 实现侧：useWorkspaceMirror 只余引用侧四函数；useResourceDrawer 的 📡 菜单项与 canMirror 门控一并移除。
 // R73-7 hub 镜像推送入口：右键菜单 📡（isHub 门控）/ 分类 📤（菜单）/ 目标台弹窗，且仅 hub 出现
-check('R73-8 hub 补齐 L5：区域级落卡（空白区可落）+ 拖拽结束复位 + 混排重编号', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('@dragover="onAreaDragOver($event, g.key)"') && w.includes('@drop="onAreaDrop($event, g.key)"')
-    && w.includes('function onAreaDrop') && w.includes('function acceptDragOver') && w.includes('function clearDragState')
-    && w.includes('function reorderMixed') && w.includes('function catKeyToCatId');
+check('R73-8（V3.9.8 重指）画布补齐落点：根节点可承接拖拽、拖拽结束复位、移动后新旧父级都重编号；旧区域落卡/混排函数零命中', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const map = read('/newtab/components/curation/CurationMindMap.vue');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  return !host.includes('function onAreaDrop')
+    && !host.includes('function acceptDragOver')
+    && !host.includes('function clearDragState')
+    && !host.includes('function reorderMixed')
+    && !host.includes('function catKeyToCatId')
+    && map.includes('function onDragStart(id: string): void')
+    && map.includes('function onDragOver(e: DragEvent, id: string): void')
+    && map.includes('function onDrop(e: DragEvent, id: string): void')
+    && map.includes('function clearDrag(): void')
+    && map.includes('@dragend="clearDrag"')
+    && map.includes("@drop=\"onDrop($event, 'root')\"")
+    && hook.includes('function moveNode(dragId: string, targetId: string): boolean')
+    && hook.includes('normalizeSiblings(oldParent)')
+    && hook.includes('normalizeSiblings(target.id)');
 });
 check('R73-9 聚合哨兵不污染数据层（hub 口径）：新建/文件导入/空白区落卡 均经 newCardCatId 回落未分类', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -449,49 +579,137 @@ check('R74-2 路由收敛保持（V3.7.0 重指）：/curation 仍为 redirect�
   const r = read('/newtab/router.ts');
   return r.includes("path: '/curation'") && r.includes("redirect: () => ({ path: '/' })") && !r.includes("'/workspace/' + CURATION_WS_ID");
 });
-check('R74-3（R88 重指：导入入口收进 ⚙）hub 资源台工具条：四视图 + 搜索 + 批量 + 导入 + 新建', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')") && w.includes('<Icon name="menu" :size="13"/> 列表') && w.includes('▤ 看板') && w.includes('toolbar-search') /* ▤ 是 G1 白名单几何符号，保留 */ && w.includes('toggleBatchMode') && w.includes('importModalOpen.value = true') && w.includes('function openImport(');
+check('R74-3（V3.9.8 重指：四视图入口退役，画布保留搜索/新建分支/导入/分享与金字塔、树状布局切换）', () => {
+  const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const wc = codeOnly(w);
+  const m = read('/newtab/components/curation/CurationMindMap.vue');
+  return w.includes('toolbar-search') && w.includes('＋ 新建分支')
+    && w.includes('导入数据包') && w.includes('分享成果')
+    && m.includes("emit('update:layout', 'pyramid')") && m.includes("emit('update:layout', 'tree')")
+    && !wc.includes('class="view-tabs"') && !wc.includes('toggleBatchMode');
 });
 check('R74-4 hub 抽屉详情与双击开链（ResourceEditForm + 260ms 判别）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('ResourceEditForm') && w.includes('function openResource(r: ResourceCard)') && w.includes('onCardDblClick(r)') && w.includes('260');
+  const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
+  const dr = read('/newtab/composables/useResourceDrawer.ts');
+  return w.includes('ResourceEditForm') && w.includes('<Drawer :open="drawerOpen"')
+    && dr.includes('function openResource(r: ResourceCard)')
+    && dr.includes('function onCardDblClick(r: ResourceCard)')
+    && dr.includes('openResourceLink(r)') && dr.includes('}, 260)');
 });
-check('R74-5 hub 批量浮动栏：全选/批量打开/移动到/批量删除 + 分类树选项', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('batch-bar') && w.includes('selectAllVisible') && w.includes('openBatchMove') && w.includes('batchDelete') && w.includes('moveCatOptions');
+check('R74-5（V3.9.8 重指）资源池批量栏：全选/反选/打标签 + 批量打开 + 投射到策展台 + 批量删除；旧移动到分类入口零命中', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !w.includes('class="batch-bar"') && !w.includes('openBatchMove')
+    && pool.includes('<DeckBatchBar v-if="batchMode"')
+    && pool.includes('@select-all="selectAll"') && pool.includes('@invert="invertSel"')
+    && pool.includes('@apply-tag="applyTagToSelected"') && pool.includes('@click="deleteSelected"')
+    && pool.includes('@click="batchOpen"') && pool.includes('批量打开')
+    && pool.includes('@click="openBatchMirror"') && pool.includes('投射到策展台')
+    && pool.includes('删除（进回收站）')
+    && !pool.includes('openBatchMove');
 });
-check('R74-6 hub 分类树：一键展开/收起 + 折叠态取反 + 节点计数走索引', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('function expandAllCats') && w.includes('function collapseAllCats') && w.includes('collapsedCats') && w.includes('function catAggCount');
+check('R74-6（V3.9.8 重指）资源池分组折叠：全部展开/收起 + 单组折叠取反 + 组头取当前组卡数；画布节点计数走索引，旧分类树函数零命中', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  return !w.includes('function expandAllCats')
+    && !w.includes('function collapseAllCats')
+    && !w.includes('function catAggCount')
+    && pool.includes('const collapsedGroups = ref<Set<string>>(new Set())')
+    && pool.includes('const allGroupsCollapsed = computed(() =>')
+    && pool.includes('function toggleGroupCollapsed(id: string): void')
+    && pool.includes('function toggleAllGroups(): void')
+    && pool.includes(':aria-expanded="!isGroupCollapsed(sec.id)"')
+    && pool.includes('{{ sec.cards.length }} 张')
+    && hook.includes('const nodeCount = computed(() => wsCats.value.length)')
+    && hook.includes('const rootCats = computed(() => catIdx.value.roots)');
 });
-check('R74-7 hub 镜像分类同树呈现（isMirrorCat 徽标，无独立镜像分区）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('isMirrorCat(sc.cat)') && !w.includes('📡 镜像分组');
+check('R74-7（V3.9.8 重指）镜像卡同树呈现：boardCardsOf 先并入 allResources，cardsByCat 再挂到画布节点；旧镜像分类徽标与独立镜像分组零命中', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  return !w.includes('isMirrorCat(sc.cat)') && !w.includes('📡 镜像分组')
+    && w.includes('const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, workspaceId.value))')
+    && hook.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>(() => {')
+    && hook.includes('for (const r of allResources.value)')
+    && node.includes('return props.cardsByCat.get(props.node.id) || []')
+    && node.includes('<button v-for="card in cards().slice(0, 2)"');
 });
 // V3.7.0（R179）退役：hub 镜像推送入口（卡面 📡 / 分类 ⋯ 📤 / 目标台弹窗）随资源台退役整体下线——
 // 宿主 Workspace.vue 与 useWorkspaceMirror.ts 双清；策展台内镜像**引用侧**（📡 徽标 / 定位 / 移出）仍在。
 // R74-8 hub 镜像推送入口：卡面 📡 / 分类 📤（R113-N1 起走 ⋯ 菜单 runCatMenu） / 目标台弹窗
-check('R74-9 hub 区域级落卡 + 混排重编号 + 拖拽复位', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('@dragover="onAreaDragOver($event, g.key)"') && w.includes('@drop="onAreaDrop($event, g.key)"') && w.includes('function reorderMixed') && w.includes('function acceptDragOver') && w.includes('function clearDragState');
+check('R74-9（V3.9.8 重指）画布拖拽落点 + 移动后重编号 + 拖拽复位：节点 drop 进入 moveNode，新旧父级都 normalizeSiblings，dragend 清空拖拽态', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const map = read('/newtab/components/curation/CurationMindMap.vue');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  return !host.includes('onAreaDragOver')
+    && !host.includes('onAreaDrop')
+    && !host.includes('reorderMixed')
+    && !host.includes('acceptDragOver')
+    && !host.includes('clearDragState')
+    && map.includes('@dragend="clearDrag"')
+    && node.includes('@dragover="emit(\'drag-over\', $event, node.id)"')
+    && node.includes('@drop="emit(\'drop\', $event, node.id)"')
+    && hook.includes('function moveNode(dragId: string, targetId: string): boolean')
+    && hook.includes('normalizeSiblings(oldParent)')
+    && hook.includes('normalizeSiblings(target.id)');
 });
-check('R74-10 hub 分类节点拖拽体系：onCatDragStart/onCatDragOver/onCatDrop/onCatRootDrop + 新建子分类', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('function onCatDragStart') && w.includes('function onCatDragOver') && w.includes('function onCatDrop') && w.includes('function onCatRootDrop') && w.includes('openCreateCat');
+check('R74-10（V3.9.8 重指）画布节点拖拽体系：dragstart/dragover/drop 三事件 + 校验后 moveNode + 新建子分支 createChild；旧分类拖拽函数零命中', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const map = read('/newtab/components/curation/CurationMindMap.vue');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  return !w.includes('function onCatDragStart')
+    && !w.includes('function onCatDragOver')
+    && !w.includes('function onCatDrop')
+    && !w.includes('function onCatRootDrop')
+    && !w.includes('openCreateCat')
+    && node.includes('@dragstart="dragStart"')
+    && node.includes('@dragover="emit(\'drag-over\', $event, node.id)"')
+    && node.includes('@drop="emit(\'drop\', $event, node.id)"')
+    && map.includes('function onDragStart(id: string): void')
+    && map.includes('function onDragOver(e: DragEvent, id: string): void')
+    && map.includes('function onDrop(e: DragEvent, id: string): void')
+    && hook.includes('function validateDrop(dragId: string, targetId: string)')
+    && hook.includes('function moveNode(dragId: string, targetId: string): boolean')
+    && hook.includes('function createChild(parentId = \'root\'): Category | null');
 });
 check('R74-11 hub 删除分类回落：子分类提根 + 卡片回落待分类 + 清 targetWsId 投射', () => {
   const w = read('/newtab/views/Workspace.vue');
   const cc = read('/newtab/composables/useCategoryCrud.ts');
   return cc.includes('kids.forEach(k => { k.parentId = undefined })') && cc.includes('r.categoryId === cat.id') && cc.includes('p.targetWsId === workspaceId.value && p.targetCatId === cat.id');
 });
-check('R74-12 hub 递归防环与索引层：descendantIds/childCatsOf/catAggCount + catIndex 带 visited', () => {
-  const w = read('/newtab/views/Workspace.vue'); const x = read('/shared/utils/catIndex.ts');
-  return w.includes('function descendantIds') && w.includes('function childCatsOf') && w.includes('function catAggCount') && x.includes('带 visited');
+check('R74-12（V3.9.8 重指）递归防环与索引层：catIndex 的 descendants/family/depthOf/pathOf 全带 visited 与缓存，画布经 descendants 拒绝落到自己子树', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const x = read('/shared/utils/catIndex.ts');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  return !w.includes('function descendantIds')
+    && !w.includes('function childCatsOf')
+    && !w.includes('function catAggCount')
+    && x.includes('带 visited 的 DFS')
+    && x.includes('descendants(id: string): string[]')
+    && x.includes('family(id: string): string[]')
+    && x.includes('depthOf(id: string): number')
+    && x.includes('pathOf(id: string, sep?: string): string')
+    && x.includes('const descCache = new Map<string, string[]>()')
+    && x.includes('const familyCache = new Map<string, string[]>()')
+    && x.includes('const depthCache = new Map<string, number>()')
+    && x.includes('const pathCache = new Map<string, string>()')
+    && hook.includes('catIdx.value.descendants(dragId).includes(targetId)')
+    && hook.includes('return catIdx.value.depthOf(cat.id) + 1');
 });
-check('R74-13 hub 离屏渲染抑制：content-visibility 2 处 + contain-intrinsic-size', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return (w.match(/content-visibility: auto/g) || []).length >= 2 && w.includes('contain-intrinsic-size: auto 44px');
+check('R74-13（V3.9.8 重指）资源池滚动自动续载：IntersectionObserver + setSentinel + 240px 预取 + 卸载 disconnect；旧 content-visibility 双锚退役', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !w.includes('content-visibility: auto')
+    && !w.includes('contain-intrinsic-size: auto 44px')
+    && pool.includes('let io: IntersectionObserver | null = null')
+    && pool.includes('const setSentinel = (el: unknown) => {')
+    && pool.includes("new IntersectionObserver((es) => { if (es.some(e => e.isIntersecting)) renderMore() }, { rootMargin: '240px' })")
+    && pool.includes('io.observe(sentinel)')
+    && pool.includes(':ref="setSentinel"')
+    && pool.includes('onBeforeUnmount(() => { io?.disconnect(); io = null })');
 });
 check('R74-14 资源台两入口合一（V3.7.0 重指：资源台页与 tab 高亮分支退役；KeepAlive 三视图不变，★R3-B1 方向台侧由 CompassShell 换成 CompassTreeView）', () => {
   const a = read('/newtab/App.vue');
@@ -514,18 +732,18 @@ console.log('【第七十五轮 · V2.44.0：资源台（hub）指标条 3 格�
 // R75-2 hub 三格 label 齐备：📊 卡片总数 / 📎 附件数量 / 🕐 最近更新
 // V3.7.0（R179）退役：hub 块的「不含论点格」守护随块退役——策展台 cur3 本就不含论点格（论点上横幅）。
 // R75-3 hub 块不含论点格与来源构成格（无 openThesisDetail / 无 source 模式调用 / 无策展主题字样）
-check('R75-4 指标条样式（V3.7.0 重指：hub3 分流随资源台退役——三格形态唯一、.ws-metrics.hub3 选择器零残留；.ws-metrics 本体三列在位）', () => {
+check('R75-4 指标条样式（V3.9.8 重指：资源台退役 + 策展台按用户决策收为两格；.ws-metrics.hub3 零残留，cur2 两列在位）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return !w.includes('.ws-metrics.hub3') && !w.includes('hub3') && w.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }');
+  return !w.includes('.ws-metrics.hub3') && !w.includes('hub3') && w.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }') && w.includes('.ws-metrics.cur2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
 });
-check('R75-5（R123 重指；V3.7.0 随迁：hub 分支退役后 cur3 为唯一形态）策展台指标条 = 3 × metric-box（论据卡片总数 / 佐证附件数量 / 金字塔论证深度）', () => {
+check('R75-5（V3.9.8 重指：策展台只保留可统计的两格——论据卡片总数 / 佐证附件数量；“论证深度”与“来源覆盖”按用户决策退役）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div class="ws-metrics cur3">');
+  const s = w.indexOf('<div class="ws-metrics cur2"');
   if (s < 0) return false;
   const e = w.indexOf('<CurationDrillDrawer', s);
   if (e < 0) return false;
   const blk = w.slice(s, e);
-  return (blk.match(/class="metric-box"/g) || []).length === 3 && blk.includes('论据卡片总数') && blk.includes('佐证附件数量') && blk.includes('金字塔论证深度');
+  return (blk.match(/class="metric-box"/g) || []).length === 2 && blk.includes('论据卡片总数') && blk.includes('佐证附件数量') && !blk.includes('论证深度') && !blk.includes('来源覆盖');
 });
 // R110-B1-3 承接：hub 卡片总数口径不再保留「⚠ 镜像 N 条待清理」异常分支——脏数据改由启动期
 // scrubHubMirrorMarkers 净化 + curationMetrics 对 hub 镜像恒 0 双重兜底（见 R110-B1-2/B1-3）。
@@ -556,47 +774,113 @@ check('R75-9 hub3 样式块（V3.7.0 退役）：选择器零残留 + .metric-bo
 });
 
 console.log('【第七十六轮 · V2.45.0：资源台计数口径统一（R3）】');
-check('R76-1 待分类判据收敛为唯一实现 isUncat（R101 重指：下钻域拆出后，判据调用跨宿主+composable 两文件合计，实现仍唯一）', () => {
-  const w = read('/newtab/views/Workspace.vue'); const imp = read('/newtab/composables/useCurationDrill.ts');
-  return ((w.match(/isUncat\(/g) || []).length + (imp.match(/isUncat\(/g) || []).length) >= 6 && w.includes("function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean") && w.includes('return !r.categoryId || !validIds.has(r.categoryId)') && imp.includes('isUncat');
+check('R76-1（V3.9.8 重指）待分类判据仍只有宿主一份实现 isUncat；下钻经 ctx 注入复用，不再按聚合文件出现次数托底', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const drill = read('/newtab/composables/useCurationDrill.ts');
+  return (w.match(/function isUncat\(/g) || []).length === 1
+    && w.includes('function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean {')
+    && w.includes('return !r.categoryId || !validIds.has(r.categoryId)')
+    && drill.includes('isUncat: (r: ResourceCard, validIds: { has(id: string): boolean }) => boolean')
+    && drill.includes('const { allResources, resBucket, catIdx, isUncat } = ctx')
+    && drill.includes('isUncat(r, catIdx.value.byId)')
+    && !drill.includes('function isUncat(');
 });
-check('R76-2 左树待分类计数改走 isUncat：严格口径（只看 !categoryId）退役', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('const uncategorizedCount = computed(() => allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length)') && !w.includes("filter(r => !r.categoryId).length");
+check('R76-2（V3.9.8 重指）下钻「待分类」计数改走 isUncat：失效 categoryId 也计入，严格口径（只看 !categoryId）退役', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const drill = read('/newtab/composables/useCurationDrill.ts');
+  return drill.includes('const uncat = allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length')
+    && drill.includes("if (uncat) rows.push({ id: 'uncat', name: '待分类', count: uncat, depth: 0 })")
+    && !drill.includes('filter(r => !r.categoryId).length')
+    && !w.includes('filter(r => !r.categoryId).length');
 });
-check('R76-3 左树分类计数统一取 directCount：聚合/直属三元混用退役（同屏不再两个数）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('{{ sc.directCount }}') && !w.includes('sc.hasChildren ? sc.aggCount : sc.directCount');
+check('R76-3（V3.9.8 重指）分类计数不再聚合/直属三元混用：画布节点只展示直属资源 cards().length，池分组头只展示该组 sec.cards.length', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !w.includes('{{ sc.directCount }}')
+    && !w.includes('sc.hasChildren ? sc.aggCount : sc.directCount')
+    && node.includes('return props.cardsByCat.get(props.node.id) || []')
+    && node.includes('<button v-for="card in cards().slice(0, 2)"')
+    && pool.includes('{{ sec.cards.length }} 张');
 });
-check('R76-4 看板列计数仍等于列内卡片数（count=全量 items.length，R116 起切片只影响渲染集，计数口径未被误改）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }') && w.includes('{{ cat.count }}');
+check('R76-4（V3.9.8 重指）分页只影响渲染集，不影响计数：列表/网格均渲染 rendered，头部仍显示 poolCards.length / poolTotal', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return !w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }')
+    && pool.includes('const rendered = computed(() => poolCards.value.slice(0, visibleCount.value))')
+    && (pool.match(/v-for="r in rendered"/g) || []).length >= 2
+    && pool.includes('<b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张')
+    && pool.includes('↓ 已显示 {{ rendered.length }} / {{ poolCards.length }} 张');
 });
-check('R76-5（R122 重指）分组头三计数：直属（direct.length）· 含子分类（groupChildCount）· 共（g.total）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('count: direct.length, total, items: direct, depth') && w.includes('直属 {{ g.count }}') && w.includes('共 {{ g.total }}');
+check('R76-5（V3.9.8 重指）画布节点计数不再并列三套口径：节点头只显示子分支数，节点资源区只显示直属 cards() 数', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  return !w.includes('count: direct.length, total, items: direct, depth')
+    && !w.includes('直属 {{ g.count }}')
+    && !w.includes('共 {{ g.total }}')
+    && node.includes('{{ children().length ? `${children().length} 个子分支` : \'论证节点\' }}')
+    && node.includes('return props.cardsByCat.get(props.node.id) || []')
+    && node.includes('v-if="cards().length > 2"')
+    && node.includes('{{ cards().length - 2 }}');
 });
-check('R76-6 左树「全部」与「待分类」均带口径 title，数值来源不变', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  /* ★R4-Eq 随迁带备案：title 里的「资源台」是退役台面名（池的现名是「资源卡池」，R4-Dg 单源），
-     本轮把它改口 ⇒ 这条正锚跟着换成新串，并补一条旧串负锚防回流；「待分类」那枚 title 与两个数值来源一字未动。 */
-  return w.includes("<span class=\"cat-count\" title=\"本台全部可见卡（策展台含资源卡池镜像卡）\">{{ allResources.length }}</span>")
+check('R76-6（V3.9.8 重指）计数入口保留口径说明：资源池筛选胶囊带 title（全部/待打标/已调出/从未调出），下钻待分类行走统一 isUncat 口径', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const drill = read('/newtab/composables/useCurationDrill.ts');
+  return !w.includes('class="cat-count" title="本台全部可见卡')
+    && !w.includes('class="cat-count" title="未归入任何分类')
     && !w.includes('策展台含资源台镜像卡')
-    && w.includes("<span class=\"cat-count\" title=\"未归入任何分类，或所属分类已失效\">{{ uncategorizedCount }}</span>");
+    && pool.includes("{ id: 'all', label: '全部', count: poolTotal.value }")
+    && pool.includes("{ id: 'untagged', label: '待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' }")
+    && pool.includes("title: '至少被打开过一次'")
+    && pool.includes("title: '还没有被打开过的卡'")
+    && drill.includes("name: '待分类'")
+    && drill.includes('isUncat(r, catIdx.value.byId)');
 });
-check('R76-7 有子分类的侧栏节点以 title 补充子分类数与聚合数（childCount / aggCount 仍被消费）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('childCount: childCatsOf(c.id).length') && w.includes('childCount: number') && w.includes('含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）');
+check('R76-7（V3.9.8 重指）有子分支的节点直接显示子分支数，资源计数仍从 cardsByCat 取直属卡；旧 childCount/aggCount 侧栏口径零命中', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  return !w.includes('childCount: childCatsOf(c.id).length')
+    && !w.includes('含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）')
+    && node.includes('function children(): Category[]')
+    && node.includes('${children().length} 个子分支')
+    && node.includes('return props.cardsByCat.get(props.node.id) || []')
+    && hook.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>(() => {');
 });
-check('R76-8 口径自洽前提：全部 / 各分类 / 待分类三者同源（allResources + 同一 resBucket 分桶 + isUncat）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('{{ allResources.length }}') && w.includes('directCount: (resBucket.value.get(c.id) || []).length') && w.includes("const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))") && w.includes('filter(r => isUncat(r, catIdx.value.byId)).length');
+check('R76-8（V3.9.8 重指）口径自洽：画布卡片、节点直属计数与下钻待分类同源 allResources；resBucket 与 cardsByCat 都按 categoryId 分桶，待分类统一走 isUncat', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  const drill = read('/newtab/composables/useCurationDrill.ts');
+  return w.includes('const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, workspaceId.value))')
+    && w.includes("const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))")
+    && w.includes('useCurationDrill({')
+    && hook.includes('for (const r of allResources.value)')
+    && hook.includes("const key = r.categoryId || ''")
+    && hook.includes('const arr = out.get(key)')
+    && drill.includes('const uncat = allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length')
+    && drill.includes('count: (bucket.get(c.id) || []).length');
 });
-check('R76-9（R122 重指）uncategorizedCount 仍服务侧栏「待分类」入口（≥1 处），指标条 hint 退役', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return !w.includes('hubCountHint') && w.includes('uncategorizedCount');
+check('R76-9（V3.9.8 重指）「待分类」入口仍有真实消费：下钻行由 isUncat 计算，宿主点击跳回画布根节点并提示去资源卡池关联；旧侧栏计数与指标 hint 退役', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const drill = read('/newtab/composables/useCurationDrill.ts');
+  return !w.includes('hubCountHint')
+    && !w.includes('uncategorizedCount')
+    && drill.includes("if (uncat) rows.push({ id: 'uncat', name: '待分类'")
+    && w.includes("if (id === 'uncat')")
+    && w.includes("mind.selectNode('root')")
+    && w.includes('待分类资源尚未挂到论证分支——可在资源卡池中打开卡片并关联到具体节点');
 });
-check('R76-10 卡面「所在分类」与分组归属判据同源 isUncat（五处共用同一实现）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('isUncat(r, catIdx.value.byId)') && w.includes('isUncat(r, validIds)');
+check('R76-10（V3.9.8 重指）卡面所属分类与分组归属同源：宿主唯一 isUncat 定义注入下钻，镜像卡经 cardsByCat 进入同一节点资源列表', () => {
+  const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const drill = read('/newtab/composables/useCurationDrill.ts');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  return w.includes('function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean')
+    && w.includes('return !r.categoryId || !validIds.has(r.categoryId)')
+    && w.includes('allResources, resBucket, catIdx, isUncat')
+    && drill.includes('isUncat(r, catIdx.value.byId)')
+    && hook.includes('if (r.isThesis) continue')
+    && hook.includes("const key = r.categoryId || ''")
+    && node.includes('return props.cardsByCat.get(props.node.id) || []');
 });

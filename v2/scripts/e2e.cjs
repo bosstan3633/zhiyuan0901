@@ -110,7 +110,9 @@ async function main() {
   await page.goto(base + '#/workspace', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
 
-  // 数据种卡：读现有数据 → 第一个工作台追加资源卡（PDF 附件）→ 写回
+  // 数据种卡：建一张真实策展台 + 一个论证分类，再把池卡投射到该分类。
+  // 为什么不再拿 workspaces[0]：R179 后它是隐藏资源池 zy-curation，路由 `/workspace/zy-curation`
+  // 已是明确的不存在页；旧种法会让 E2E-5/6/18/22 永远找不到卡片。
   const seedWsId = await page.evaluate(async () => {
     const minimalPdf = new Blob(
       ["%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\nxref\n0 4\ntrailer<</Size 4/Root 1 0 R>>\n%%EOF"],
@@ -129,18 +131,27 @@ async function main() {
       }
       rq.onerror = () => rej(rq.error)
     })
-    // 2) 主数据追加资源卡（link=zy-asset://e2e-pdf-1，kind=pdf）入第一个工作台（待分类）
+    // 2) 主数据：真实策展台 + 分类 + 池卡 + 投射
     const cur = await chrome.storage.local.get('zy_data_v2')
     const data = cur['zy_data_v2']
-    if (!data || !data.workspaces.length) return ''
-    const wsId = data.workspaces[0].id
+    if (!data) return ''
+    const wsId = 'e2e-main-board'
+    const catId = 'e2e-seed-cat'
+    if (!data.workspaces.some(w => w.id === wsId)) {
+      data.workspaces.push({ id: wsId, name: 'E2E 策展台', icon: '🧪', color: '#3A6B4C', coverTheme: 'deep-sea', order: 10, archived: false, kind: 'curation' })
+    }
+    if (!data.categories.some(c => c.id === catId)) {
+      data.categories.push({ id: catId, workspaceId: wsId, name: 'E2E 论证分支', order: 0 })
+    }
     const cardId = 'e2e-res-1'
     data.resources = data.resources.filter(r => r.id !== cardId)
     data.resources.push({
       id: cardId, kind: 'resource', title: 'E2E PDF 测试卡', linkType: 'file', link: 'zy-asset://e2e-pdf-1',
-      workspaceId: wsId, categoryId: '', tags: [], pinned: false, starred: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now(),
+      workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, starred: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now(),
       notes: '', customFields: {}, assets: [{ id: 'e2e-pdf-1', kind: 'pdf', name: 'e2e-test.pdf', size: 300, mime: 'application/pdf', createdAt: Date.now() }]
     })
+    data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== cardId)
+    data.curationProjections.push({ id: 'e2e-seed-proj', kind: 'card', wsId: 'zy-curation', cardId, catId: '', targetWsId: wsId, targetCatId: catId, addedAt: Date.now() })
     await chrome.storage.local.set({ zy_data_v2: data })
     return wsId
   })
@@ -224,11 +235,12 @@ async function main() {
     && rowCount >= 0 && clickableRows === 0 && closedByEsc && focusBack,
     `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" modal=${statusModalOn} url不变=${urlUnchanged} 明细行=${rowCount} 可点行=${clickableRows} Esc关=${closedByEsc} 焦点回归=${focusBack}`)
 
-  // E2E-5 PDF 双击 file:// 打开
+  // E2E-5 PDF 双击 file:// 打开：走策展画布上的资源 chip（现役入口）
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1500) }
-  const card = page.locator('.res-card[data-rid="e2e-res-1"]').first()
+  await waitForLocator(page, '.mind-resource[data-rid="e2e-res-1"]', { visible: true, timeout: 10000 })
+  const card = page.locator('.mind-resource[data-rid="e2e-res-1"]').first()
   const cardVisible = await card.isVisible().catch(() => false)
   // R110 修漂移：卡片右上角 hover 动作条（.rc-action）在 Playwright dblclick 的「先 hover 再按中心取点」流程下
   //   会覆盖标题中心，pointer 拦截导致 actionability 检查超时（TimeoutError 30s）。
@@ -270,13 +282,16 @@ async function main() {
   }
   report('E2E-5 PDF 附件双击打开（file:// 落盘通道）', fileOk || (dlOk && pathsOk), pdfTab || `cardVisible=${cardVisible} headless落盘证据 downloads=${dlOk} zy_file_paths=${pathsOk}（file:// 导航 headless 不可捕获，真机复核）`)
 
-  // E2E-6 事件日志落盘：右键软删种子卡 → delete 事件写入 zy_event_log（外部种卡按设计静默，不产事件）
-  // R122 修漂移：卡片一级 hover 动作收敛（删除移入右键菜单，原 .rc-action.delete 已退役）→
-  //   改为在卡片上派发 contextmenu → 等 .cx-menu-box 弹出 → 点「删除」菜单项（soft-delete 语义不变）。
-  const box6 = await card.boundingBox().catch(() => null)
-  if (box6) {
-    await page.mouse.click(box6.x + box6.width / 2, box6.y + box6.height / 2, { button: 'right' }).catch(() => {})
-    await page.waitForTimeout(500)
+  // E2E-6 事件日志落盘：到资源卡池右键软删源卡 → delete 事件写入 zy_event_log。
+  // 现役资源 chip 的右键菜单属于策展台上下文，删除动作不再写“资源池源卡”这份语义，故回真实管理面。
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1800)
+  const poolRow = page.locator('.pcp-row[data-rid="e2e-res-1"]').first()
+  await waitForLocator(page, '.pcp-row[data-rid="e2e-res-1"]', { visible: true, timeout: 8000 })
+  const poolRowVisible = await poolRow.isVisible().catch(() => false)
+  if (poolRowVisible) {
+    await poolRow.click({ button: 'right' }).catch(() => {})
+    await waitForLocator(page, '.ctx-menu-box .cx-item', { timeout: 5000 })
   }
   const delItem = page.locator('.ctx-menu-box .cx-item', { hasText: '删除' }).first()
   if (await delItem.count()) {
@@ -285,7 +300,9 @@ async function main() {
   }
   const evRaw = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
   const ev = evRaw && evRaw['zy_event_log']
-  report('E2E-6 事件日志 zy_event_log 落盘（软删产生 delete 事件）', Array.isArray(ev) && ev.length > 0, ev ? `${ev.length} 条，最新=${ev[ev.length - 1] && (ev[ev.length - 1].kind + '/' + ev[ev.length - 1].action)}` : '无日志')
+  report('E2E-6 事件日志 zy_event_log 落盘（资源池软删产生 delete 事件）',
+    poolRowVisible && Array.isArray(ev) && ev.some(x => x && x.action === 'delete' && x.cardId === 'e2e-res-1'),
+    ev ? `${ev.length} 条，最新=${ev[ev.length - 1] && (ev[ev.length - 1].kind + '/' + ev[ev.length - 1].action)} 池行=${poolRowVisible}` : `无日志 池行=${poolRowVisible}`)
 
   // ---- 第卌五轮 R45：罗盘种子数据（战略目标→项目→成功指标→任务→今日三件事） ----
   await page.evaluate(() => {
@@ -386,41 +403,32 @@ async function main() {
   report('E2E-9 存量回填：缺 projectId 的任务按指标反查补齐 + 记录条数', backfill.fixed && backfill.recorded >= 1,
     `projectIdFixed=${backfill.fixed} projBackfillFixed=${backfill.recorded}`)
 
-  // E2E-10 资源台统一树 + 单向挂载红线（R111 承接 R110-B1）
-  //   原 R53「策展中心统一树」断言已随 R72/R73「资源台收敛」退役——`#/curation` 改为 redirect 到
-  //   `/workspace/zy-curation`（router.ts 注释原文：「旧路径 /curation 不再渲染独立组件」），
-  //   旧依赖（「灵活策展空间」文案 / `.mc-field` / 「🧹 清空投射」）在源码中已零命中。
-  //   新等价不变量（数据层可测，不依赖易漂移的 UI 文案）：
-  //     1) 遗留 kind='workspace' 投射 + 指向资源台的脏投射 → 启动归一化应清除（scrubHubMirrorMarkers）
-  //     2) 资源台（hub）镜像标记恒 0（单向挂载红线兜底）
-  //     3) 源卡零影响
-  await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
-  if (!page.url().includes('/workspace/')) { await page.evaluate(() => { location.hash = '#/workspace/zy-curation' }); await page.waitForTimeout(1500) }
-  // 种源分类+源卡 + 遗留 kind='workspace' 投射记录（UI 右键在 headless 不稳定，数据层直种；app.init 迁移应物化为镜像分类）
+  // E2E-10 资源卡池统一管理面 + 单向挂载红线（R111 承接 R110-B1）
+  //   旧断言盯的是已退役的 `/workspace/zy-curation` 资源台分类树；现资源池唯一管理面是
+  //   `#/deck/resource`。数据层不变量保持不变：遗留 kind='workspace' 投射与指向池的脏投射
+  //   在启动归一化时清除；池内源卡保持可用，不被镜像标记污染。
+  //   页面面同时改认现役池面板 `.pcp`，不再找 `.ws-cat-head / .section-label`。
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1800)
+  // 种源卡 + 遗留 kind='workspace' 投射记录（UI 右键在 headless 不稳定，数据层直种）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']
     if (!data) return
-    const wsId = data.workspaces[0].id
-    if (!data.categories.some((c) => c.id === 'e2e-cat-1')) {
-      data.categories.push({ id: 'e2e-cat-1', workspaceId: wsId, name: 'E2E 镜像分类', order: 0 })
-    }
+    const wsId = 'zy-curation'
     if (!data.resources.some((r) => r.id === 'e2e-mir-1')) {
-      data.resources.push({ id: 'e2e-mir-1', kind: 'resource', title: 'E2E 镜像卡', linkType: 'url', link: 'https://example.com/e2e-mir', workspaceId: wsId, categoryId: 'e2e-cat-1', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+      data.resources.push({ id: 'e2e-mir-1', kind: 'resource', title: 'E2E 镜像卡', linkType: 'url', link: 'https://example.com/e2e-mir', workspaceId: wsId, categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
     }
-    // 脏投射双份：遗留 kind='workspace' + 指向资源台的卡片投射（历史双写产物，targetWsId 直指 hub）
+    // 脏投射双份：遗留 kind='workspace' + 指向池的卡片投射（历史双写产物）
     data.curationProjections = [
-      { id: 'e2e-curp-dirty', kind: 'card', wsId, cardId: 'e2e-mir-1', catId: 'e2e-cat-1', targetCatId: 'e2e-cat-1', targetWsId: 'zy-curation', addedAt: Date.now() },
+      { id: 'e2e-curp-dirty', kind: 'card', wsId, cardId: 'e2e-mir-1', catId: '', targetCatId: '', targetWsId: 'zy-curation', addedAt: Date.now() },
       { id: 'e2e-curp-ws', kind: 'workspace', wsId, addedAt: Date.now() }
     ]
     return chrome.storage.local.set({ zy_data_v2: data })
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
-  await page.evaluate(() => { location.hash = '#/workspace/zy-curation' })
   await page.waitForTimeout(1800)
-  const hubHead = await page.locator('.hero-btn').first().isVisible().catch(() => false)
-  const hubTreeOn = await page.locator('.ws-cat-head, .section-label').first().isVisible().catch(() => false)
+  const hubPoolOn = await page.locator('.deck-page .pcp').first().isVisible().catch(() => false)
+  const hubRowOn = await page.locator('.pcp-row[data-rid="e2e-mir-1"]').first().isVisible().catch(() => false)
   // 启动归一化后：指向资源台的脏投射与镜像标记应双双清零
   const scrubbed = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']
@@ -432,8 +440,8 @@ async function main() {
     const data = cur['zy_data_v2']
     return data.resources.some((r) => r.id === 'e2e-mir-1' && !r.deletedAt)
   }))
-  report('E2E-10 资源台统一树 + 单向挂载红线（R111 承接 R110-B1）', hubHead && hubTreeOn && scrubbed.ok && srcKept,
-    `hubHead=${hubHead} hubTree=${hubTreeOn} scrubbed=${scrubbed.ok}(脏投射残留${scrubbed.dirtyLeft}/镜像标记残留${scrubbed.markerLeft}) srcKept=${srcKept}`)
+  report('E2E-10 资源卡池统一管理面 + 单向挂载红线（R111 承接 R110-B1）', hubPoolOn && hubRowOn && scrubbed.ok && srcKept,
+    `pool=${hubPoolOn} row=${hubRowOn} scrubbed=${scrubbed.ok}(脏投射残留${scrubbed.dirtyLeft}/镜像标记残留${scrubbed.markerLeft}) srcKept=${srcKept}`)
 
   // E2E-24（R167）：**镜像只读详情**的边界，与资源台真身详情同判据反向对照。
   // 为什么现在补：R167 把主标题搬进抽屉头、AI 行降到正文首行，两宿主共用一套件之后，
@@ -445,14 +453,18 @@ async function main() {
   const roBoardId = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']
     const boardId = 'e2e-ro-board'
+    const catId = 'e2e-ro-cat'
     if (!data.workspaces.some(w => w.id === boardId)) {
       data.workspaces.push({ id: boardId, name: 'E2E 镜像只读台', icon: '🧪', color: '#3A6B4C', coverTheme: 'deep-sea', order: 99, archived: false, kind: 'curation' })
+    }
+    if (!data.categories.some(c => c.id === catId)) {
+      data.categories.push({ id: catId, workspaceId: boardId, name: 'E2E 只读镜像分支', order: 0 })
     }
     if (!data.resources.some(r => r.id === 'e2e-ro-1')) {
       data.resources.push({ id: 'e2e-ro-1', kind: 'resource', title: 'E2E 只读镜像源卡', linkType: 'url', link: 'https://example.com/e2e-ro', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
     }
     data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== 'e2e-ro-1')
-    data.curationProjections.push({ id: 'e2e-ro-proj', kind: 'card', wsId: 'zy-curation', cardId: 'e2e-ro-1', catId: '', targetWsId: boardId, targetCatId: '', addedAt: Date.now() })
+    data.curationProjections.push({ id: 'e2e-ro-proj', kind: 'card', wsId: 'zy-curation', cardId: 'e2e-ro-1', catId: '', targetWsId: boardId, targetCatId: catId, addedAt: Date.now() })
     return chrome.storage.local.set({ zy_data_v2: data }).then(() => boardId)
   }))  /* 直种存储后必须整页重载：app 运行中 store 不会回读 chrome.storage，
      而且随后的 persist 会把内存态盖回磁盘（E2E-10 同一手法） */
@@ -461,7 +473,8 @@ async function main() {
   await page.goto(base + '#/workspace/' + roBoardId, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   if (!page.url().includes('/workspace/' + roBoardId)) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, roBoardId); await page.waitForTimeout(1800) }
-  const mirCard = page.locator(`.res-card[data-rid="e2e-ro-1"]`).first()
+  await waitForLocator(page, '.mind-resource[data-rid="e2e-ro-1"]', { visible: true, timeout: 10000 })
+  const mirCard = page.locator('.mind-resource[data-rid="e2e-ro-1"]').first()
   const mirFound = await mirCard.count()
   await mirCard.click().catch(() => {})
   await page.waitForTimeout(1300) /* 单击有 260ms 双击判别延时 + 抽屉进场动效 */
@@ -484,9 +497,9 @@ async function main() {
   await page.locator('.drawer .drawer-close').first().click().catch(() => {})
   await page.waitForTimeout(700)
   // 对照面：同一张卡在资源台是**真身**——AI 行两格必须在、标题必须可写
-  await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
-  await page.locator('.res-card[data-rid="e2e-ro-1"]').first().click().catch(() => {})
+  await page.locator('.pcp-row[data-rid="e2e-ro-1"]').first().click().catch(() => {})
   await page.waitForTimeout(1300)
   const hubAiCells = await page.locator('.drawer .ds-ai-cell').count()
   const hubTitleEl = page.locator('.drawer .drawer-header textarea').first()
@@ -498,6 +511,7 @@ async function main() {
     const data = cur['zy_data_v2']
     data.resources = data.resources.filter(r => r.id !== 'e2e-ro-1')
     data.workspaces = data.workspaces.filter(w => w.id !== 'e2e-ro-board')
+    data.categories = data.categories.filter(c => c.id !== 'e2e-ro-cat')
     data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== 'e2e-ro-1')
     return chrome.storage.local.set({ zy_data_v2: data })
   }))
@@ -559,17 +573,18 @@ async function main() {
   const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
   // fullSince 徽章真实落点在网格下方的 .note 区（文案「调出维度自 X 起完整」），不在 .dz-sec-h 里
   const dsBadge = await page.locator('#mod-year .dz-sec-b .note').first().innerText().catch(() => '')
-  // 写链路：进资源台 → 单击开抽屉 → 改标题 → 保存 → pagehide → 读回
-  await page.goto(base + '#/workspace/zy-curation', { waitUntil: 'domcontentloaded' })
+  // 写链路：进资源卡池 → 单击开 App 级详情 → 改标题 → 保存 → pagehide → 读回
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
-  const dsCard = await page.locator('.res-card[data-rid="e2e-ds-1"]').count()
-  await page.locator('.res-card[data-rid="e2e-ds-1"]').first().click({ timeout: 5000 }).catch(() => {})
+  await waitForLocator(page, '.pcp-row[data-rid="e2e-ds-1"]', { visible: true, timeout: 8000 })
+  const dsCard = await page.locator('.pcp-row[data-rid="e2e-ds-1"]').count()
+  await page.locator('.pcp-row[data-rid="e2e-ds-1"]').first().click({ timeout: 5000 }).catch(() => {})
   await page.waitForTimeout(1300)
   const dsTitle = page.locator('.drawer .drawer-header textarea').first()
   const dsDrawer = await dsTitle.isVisible().catch(() => false)
   await dsTitle.fill('E2E 落盘卡·改').catch(() => {})
-  const dsSaveBtn = await page.locator('.drawer .dr-footer-btn.primary').count()
-  await page.locator('.drawer .dr-footer-btn.primary').first().click({ timeout: 5000 }).catch(() => {})
+  const dsSaveBtn = await page.locator('.drawer .red-save').count()
+  await page.locator('.drawer .red-save').first().click({ timeout: 5000 }).catch(() => {})
   await page.waitForTimeout(900) /* saveData 300ms 防抖 + flushCardEvents + schedule 排程 */
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
   /* ★R175-补：等今日快照**真的落进 storage** 再读（原来死等 1500ms；
@@ -819,57 +834,54 @@ async function main() {
     cellsOn === 0 && stripGone === 0 && drawerOpen === false, 'cells=' + cellsOn + ' stripGone=' + stripGone + ' drawer=' + drawerOpen)
 
 
-  // E2E-18 策展台资源卡可拖真值 + 跨分类落卡（R111 承接 R57-F1）
-  //   原断言基于旧策展中心 DOM（`.cur-card` / `.cur-grid` / `.cat-item` / `#/curation`），
-  //   已随 R72/R73「资源台收敛」整体退役（源码中零命中）。当前等价载体：
-  //     载体 = `.res-card`（`:draggable="!batchMode"`，网格/列表两视图共用类名）
-  //     落卡 = 卡片本体 `@drop="onDropCard"`（跨分区 = 修改分类归属）/ 分区网格 `.card-grid`（区域级）
-  //   仍守护 R57-F1 根因：裸 `draggable` 渲染为非法空值（空字符串）会让真实拖拽不启动，
-  //   因此断言取 `getAttribute('draggable') === 'true'`（而非仅 `hasAttribute`）。
+  // E2E-18 策展画布拖拽真值 + 改父级落库（R111 承接 R57-F1）
+  //   旧卡片网格已随 V3.9.8 画布收口退役，现役拖拽对象是思维导图分支的 `.mind-drag`。
+  //   继续守护 R57-F1 的根因：裸 `draggable` 会渲染成空字符串，真实拖拽不启动；
+  //   因此仍断言 `getAttribute('draggable') === 'true'`。
+  //   行为落点从“资源卡跨分类”迁到“论证分支挂到另一分支下”，检查源分类 parentId 真写进存储。
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1500) }
-  // 种两张分属不同分类的资源卡（拖拽源 / 落点）
+  // 种两个同级论证分支（拖拽源 / 落点）
   const seedOk = await page.evaluate(() => new Promise((res) => {
     chrome.storage.local.get('zy_data_v2').then(({ ['zy_data_v2']: d }) => {
       if (!d || d.version !== 2) { res(false); return }
-      const wsId = d.workspaces[0].id
+      const wsId = 'e2e-main-board'
       if (!d.categories.some(c => c.id === 'e2e-drag-c1')) d.categories.push({ id: 'e2e-drag-c1', workspaceId: wsId, name: 'E2E 拖拽分类A', order: 96 })
       if (!d.categories.some(c => c.id === 'e2e-drag-c2')) d.categories.push({ id: 'e2e-drag-c2', workspaceId: wsId, name: 'E2E 拖拽分类B', order: 97 })
-      const mk = (id, title, catId, t) => ({ id, kind: 'resource', title, linkType: 'url', link: 'https://e.com/' + id, workspaceId: wsId, categoryId: catId, tags: [], pinned: false, starred: false, callCount: 0, createdAt: Date.now() - t, updatedAt: Date.now() - t, notes: '', customFields: {}, assets: [] })
-      if (!d.resources.some(r => r.id === 'e2e-drag-a')) d.resources.push(mk('e2e-drag-a', 'E2E 拖拽卡A', 'e2e-drag-c1', 5))
-      if (!d.resources.some(r => r.id === 'e2e-drag-b')) d.resources.push(mk('e2e-drag-b', 'E2E 拖拽卡B', 'e2e-drag-c2', 6))
       chrome.storage.local.set({ ['zy_data_v2']: d }).then(() => res(true))
     })
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
-  /* ★R175-补：种卡真上屏再拖（原来死等 2200ms；慢机器上种子卡还没渲染就发拖拽事件 ⇒ E2E-18 随机假红）。 */
-  await waitForLocator(page, "[data-rid='e2e-drag-a']", { visible: true, timeout: 10000 })
+  /* ★R175-补：等分支真上屏再拖。 */
+  await waitForLocator(page, '[data-mind-node="e2e-drag-c1"]', { visible: true, timeout: 10000 })
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1600) }
-  // 真值检查：draggable 属性必须是字符串 'true'（R57-F1 根因防线）
+  // 真值检查：拖拽柄 draggable 属性必须是字符串 'true'（R57-F1 根因防线）
   const dragAttr = await page.evaluate(() => {
-    const el = document.querySelector('.res-card[data-rid="e2e-drag-a"]') || document.querySelector('.res-row[data-rid="e2e-drag-a"]') || document.querySelector('.kc-card[data-rid="e2e-drag-a"]')
+    const el = document.querySelector('[data-mind-node="e2e-drag-c1"] .mind-drag')
     return el ? el.getAttribute('draggable') : '(无卡)'
   })
-  // 跨分类落卡：卡片 A 拖到卡片 B 上 = 归属改为 B 所在分类（onDropCard 跨分区分支）
+  // 分支 A 拖到分支 B 上 = A.parentId 改为 B（视觉与数据同一棵 Category 树）
   const areaDrop = await page.evaluate(() => {
-    const q = (id) => document.querySelector('.res-card[data-rid="' + id + '"]') || document.querySelector('.res-row[data-rid="' + id + '"]') || document.querySelector('.kc-card[data-rid="' + id + '"]')
+    const q = (id) => document.querySelector('[data-mind-node="' + id + '"]')
     const src = q('e2e-drag-a'), dst = q('e2e-drag-b')
-    if (!src || !dst) return 'missing:' + (src ? '' : 'src ') + (dst ? '' : 'dst')
+    const srcNode = q('e2e-drag-c1'), dstNode = q('e2e-drag-c2')
+    if (!srcNode || !dstNode) return 'missing:' + (srcNode ? '' : 'src ') + (dstNode ? '' : 'dst')
     const dt = new DataTransfer()
-    src.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
-    dst.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
-    dst.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
-    src.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    const srcHandle = srcNode.querySelector('.mind-drag')
+    srcHandle?.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    dstNode.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    dstNode.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    srcHandle?.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
     return 'dispatched'
   })
-  /* ★R175-补：等落卡真写进库（categoryId 已变）再读，不死等 700ms。 */
+  /* ★R175-补：等父级真写进库（parentId 已变）再读，不死等 700ms。 */
   await waitForStorage(page, "zy_data_v2",
-    (raw) => ((((raw["zy_data_v2"] || {}).resources || []).find(x => x.id === "e2e-drag-a") || {}).categoryId === "e2e-drag-c2"),
+    (raw) => ((((raw["zy_data_v2"] || {}).categories || []).find(x => x.id === "e2e-drag-c1") || {}).parentId === "e2e-drag-c2"),
     { timeout: 8000 })
-  const movedCat = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => ((r['zy_data_v2'].resources || []).find(x => x.id === 'e2e-drag-a') || {}).categoryId ?? '(无)'))
-  report('E2E-18 策展台资源卡可拖真值+跨分类落卡（R111 承接 R57-F1）', dragAttr === 'true' && seedOk && areaDrop === 'dispatched' && movedCat === 'e2e-drag-c2',
-    'draggable=' + dragAttr + ' seed=' + seedOk + ' area=' + areaDrop + ' cat=e2e-drag-c1→' + movedCat)
+  const movedParent = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => ((r['zy_data_v2'].categories || []).find(x => x.id === 'e2e-drag-c1') || {}).parentId ?? '(无)'))
+  report('E2E-18 策展画布拖拽真值+改父级落库（R111 承接 R57-F1）', dragAttr === 'true' && seedOk && areaDrop === 'dispatched' && movedParent === 'e2e-drag-c2',
+    'draggable=' + dragAttr + ' seed=' + seedOk + ' area=' + areaDrop + ' parent=e2e-drag-c2→' + movedParent)
 
 
   // E2E-19 删除策展台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用策展台
@@ -1016,8 +1028,9 @@ async function main() {
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
 
-  // E2E-22 金字塔真全屏（R113-N5）：宿主上移 .ws-page 后——
-  // ① requestFullscreen 生效；② 工具条保留 / 侧栏隐藏；③ 节点 ⋯ 菜单（Teleport 动态宿主）在全屏内可见；④ 可退出。
+  // E2E-22 策展画布全屏（V3.9.8 重指）：旧 `.pyramid/.py-fs-btn` 随四视图退役，
+  // 现役入口是共享画布的 `.mindmap-shell`。所守行为仍是：
+  // ① 进入全屏；② 画布工具条/布局切换仍在；③ 画布和节点仍可见可操作；④ 可退出。
   // ⚠ 用新开 page：Chromium 对「按过 Esc 的 tab」有 sticky 全屏禁用（防钓鱼），主 page 早已按过 Esc 必被拒。
   const pyPage = await ctx.newPage()
   const diagErrors = []
@@ -1027,43 +1040,30 @@ async function main() {
   await pyPage.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
   await pyPage.waitForTimeout(2000)
   if (!pyPage.url().includes('/workspace/')) { await pyPage.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await pyPage.waitForTimeout(1500) }
-  // 切到金字塔视图（工具条 .view-tab；分类节点来自 E2E-18 种下的 e2e-drag-c1/c2）
-  const pyTab = pyPage.locator('.view-tab', { hasText: '金字塔' }).first()
-  if (await pyTab.count()) { await pyTab.click().catch(() => {}); await pyPage.waitForTimeout(700) }
-  console.log('      [诊断] pyTabCount=', await pyPage.locator('.view-tab').count(), ' url=', pyPage.url().slice(-40))
-  const pyCount = await pyPage.locator('.pyramid').count()
-  if (!pyCount) {
-    report('E2E-22 金字塔真全屏交互（R113-N5）', true, '跳过：当前数据无金字塔节点（.pyramid 未渲染）')
-  } else {
-    await pyPage.locator('.py-fs-btn').first().click()
-    await pyPage.waitForTimeout(900)
-    const fsOn = await pyPage.evaluate(() => !!document.fullscreenElement)
-    const fsBtnTitle = await pyPage.locator('.py-fs-btn').first().getAttribute('title').catch(() => '?')
-    console.log('      [诊断] fsBtnTitle=', fsBtnTitle, 'consoleErr=', diagErrors.slice(0, 3).join(' | ') || '无')
-    const fsToolbar = await pyPage.locator('.ws-toolbar').first().isVisible().catch(() => false)
-    const fsSidebarGone = (await pyPage.locator('.ws-sidebar').count()) === 0 || !(await pyPage.locator('.ws-sidebar').first().isVisible().catch(() => false))
-    // 节点 ⋯ → 菜单可见（全屏下 Teleport 挂进全屏元素）
-    let nodeMenuVisible = false
-    const moreBtn = pyPage.locator('.py-node .py-op[title="节点菜单"]').first()
-    if (await moreBtn.count()) {
-      await moreBtn.click({ force: true }).catch(() => {})
-      await pyPage.waitForTimeout(500)
-      nodeMenuVisible = await pyPage.locator('.node-menu').first().isVisible().catch(() => false)
-      await pyPage.keyboard.press('Escape').catch(() => {})
-      await pyPage.waitForTimeout(300)
-    } else { nodeMenuVisible = null }
-    // 退出：优先 Esc（真全屏下浏览器可能优先接管），再用 × 按钮与 API 兜底——三通道任一可退即算过
-    await pyPage.keyboard.press('Escape').catch(() => {})
-    await pyPage.waitForTimeout(600)
-    let fsOff = await pyPage.evaluate(() => !document.fullscreenElement)
-    if (!fsOff) { await pyPage.locator('.py-fs-btn').first().click({ force: true }).catch(() => {}); await pyPage.waitForTimeout(600) }
-    fsOff = await pyPage.evaluate(() => !document.fullscreenElement)
-    if (!fsOff) { await pyPage.evaluate(() => document.exitFullscreen && document.exitFullscreen()); await pyPage.waitForTimeout(600) }
-    fsOff = await pyPage.evaluate(() => !document.fullscreenElement)
-    await pyPage.close()
-    report('E2E-22 金字塔真全屏交互（R113-N5）', fsOn && fsToolbar && fsSidebarGone && fsOff && (nodeMenuVisible !== false),
-      'fs=' + fsOn + ' toolbar=' + fsToolbar + ' sidebar隐藏=' + fsSidebarGone + ' 节点菜单=' + nodeMenuVisible + ' exit=' + fsOff)
-  }
+  await waitForLocator(pyPage, '.mindmap-shell', { visible: true, timeout: 10000 })
+  const canvasBefore = await pyPage.locator('.mindmap-canvas[data-layout="pyramid"]').first().isVisible().catch(() => false)
+  const fsButton = pyPage.locator('.mindmap-action', { hasText: '全屏' }).first()
+  await fsButton.click()
+  await pyPage.waitForTimeout(900)
+  const fsOn = await pyPage.evaluate(() => !!document.fullscreenElement)
+    || await pyPage.locator('.mindmap-shell.is-fullscreen, .mindmap-shell.is-fs-fallback').first().isVisible().catch(() => false)
+  const fsToolbar = await pyPage.locator('.mindmap-bar').first().isVisible().catch(() => false)
+  const fsLayoutSwitch = await pyPage.locator('.mindmap-layout button', { hasText: '树状' }).first().isVisible().catch(() => false)
+  const fsCanvas = await pyPage.locator('.mindmap-canvas').first().isVisible().catch(() => false)
+  const fsNode = await pyPage.locator('[data-mind-node="e2e-drag-c1"]').first().isVisible().catch(() => false)
+  await pyPage.locator('.mindmap-layout button', { hasText: '树状' }).first().click().catch(() => {})
+  await pyPage.waitForTimeout(400)
+  const treeSwitched = await pyPage.locator('.mindmap-canvas[data-layout="tree"]').first().isVisible().catch(() => false)
+  // 退出优先按钮，Esc 兜底（真全屏下浏览器可能先接管 Esc）。
+  await pyPage.locator('.mindmap-action', { hasText: '退出全屏' }).first().click().catch(() => {})
+  await pyPage.waitForTimeout(600)
+  let fsOff = !(await pyPage.evaluate(() => !!document.fullscreenElement))
+  if (!fsOff) { await pyPage.keyboard.press('Escape').catch(() => {}); await pyPage.waitForTimeout(500) }
+  fsOff = !(await pyPage.evaluate(() => !!document.fullscreenElement))
+    && !(await pyPage.locator('.mindmap-shell.is-fullscreen, .mindmap-shell.is-fs-fallback').first().isVisible().catch(() => false))
+  await pyPage.close()
+  report('E2E-22 策展画布全屏交互（V3.9.8 重指）', canvasBefore && fsOn && fsToolbar && fsLayoutSwitch && fsCanvas && fsNode && treeSwitched && fsOff,
+    'canvas=' + canvasBefore + ' fs=' + fsOn + ' toolbar=' + fsToolbar + ' layoutSwitch=' + fsLayoutSwitch + ' canvasInFs=' + fsCanvas + ' node=' + fsNode + ' tree=' + treeSwitched + ' exit=' + fsOff + ' errors=' + (diagErrors.slice(0, 2).join(' | ') || '无'))
 
   // E2E-26（R2-④⑤）：K 定位改靶到「资源卡池」+ 打开池卡详情即记一次「调出」
   //   种一张池卡（workspaceId=zy-curation）→ 以 locateOnly 的同一条路由（hash 变更=router.push）落地
@@ -1261,7 +1261,8 @@ async function main() {
   const selAfterInvert = parseInt((await page.locator('.pcp .dkb-count').textContent().catch(() => 'x'))?.replace(/\D/g, '') || 'x', 10)
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').includes('退出批量')) b.click() })
   await page.waitForTimeout(400)
-  // 右键取「甲」——它有链接，菜单应是四件（无链接的卡少一项「复制链接」，那正是条件项的口径）
+  // 右键取「甲」——它有链接，菜单应是五件：打开详情 / 星标 / 置顶 / 复制链接 / 删除。
+  // 无链接的卡会少「复制链接」一项，恰好证明它是条件项，而不是固定渲染空动作。
   const cardA = page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first()
   await cardA.click({ button: 'right' }).catch(() => {})
   /* ★R176-补：等右键菜单**真的渲染出来**再取它的条目（原来死等 500ms）。
@@ -1278,10 +1279,13 @@ async function main() {
     const c = ((cur['zy_data_v2'] || {}).resources || []).find(x => x.id === 'e2e-ca-1')
     return { pinned: !!(c && c.pinned) }
   }))
-  const pinBadge = await page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first().locator('.pcp-pin').isVisible().catch(() => false)
+  const pinBadge = await pollUntil(
+    async () => page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first().locator('.pcp-pin').isVisible().catch(() => false),
+    { timeout: 8000, label: '置顶徽标重渲染' },
+  )
   report('E2E-30 ★R3-Ca 池面板：网格↔列表同源 → 待打标只留无标签卡 → 全选后反选归零 → 右键菜单置顶落库并出 📌',
     gridCount >= 3 && listCount === gridCount && noTagShown && untaggedIsB && selAll >= 3 && selAfterInvert === 0
-    && ctxItems.length === 4 && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
+    && ctxItems.length === 5 && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
     `网格=${gridCount} 列表=${listCount} 待打标只留乙=${untaggedIsB} 全选=${selAll}→反选=${selAfterInvert} 菜单=${JSON.stringify(ctxItems)} 落库pinned=${pinnedBack.pinned} 徽标=${pinBadge}`)
 
   // E2E-31（R3-Cb）：三张卡批量口径合一——批量栏进来就在、全选/反选可达、退出即清空、任务补批量打标

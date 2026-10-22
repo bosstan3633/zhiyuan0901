@@ -16,12 +16,13 @@ check('R112-1 ★ 增量渲染：卡片/列表视图按份额渲染（RENDER_STE
     && w.includes('function renderMore()')
     && w.includes('const hasMoreToRender = computed(');
 });
-check('R112-2 ★ 模板接线：两处分组循环改走 renderedGroups + 滚动容器监听 + 加载更多入口（旧全量循环零残留）', () => {
+check('R112-2（V3.9.8 随迁）模板接线：策展画布由递归节点按需展开，资源池分页仍由 sentinel + 加载更多承接；旧全量分组循环零残留', () => {
   const w = read('/newtab/views/Workspace.vue');
-  return (w.match(/v-for="\(g, gi\) in renderedGroups"/g) || []).length === 2
-    && w.includes('class="ws-content" @scroll.passive="onContentScroll"')
-    && w.includes('class="render-more"')
-    && w.includes('.render-more { margin: 16px 0 4px;')
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const node = read('/newtab/components/curation/CurationMindNode.vue');
+  return node.includes('v-for="child in children()"')
+    && pool.includes('v-if="hasMore" :ref="setSentinel" class="render-more"')
+    && pool.includes('function renderMore()')
     && !w.includes('v-for="(g, gi) in resourceGroups"');
 });
 check('R112-3（R162 重指）挂载计数反查表随挂载退役：mountedCountByResId/mountedTaskCount 零命中', () => {
@@ -35,10 +36,14 @@ check('R112-4 ★ boardCardsOf 去重：curationMetrics 复用宿主 allResource
     && h.includes('const cards = cardsIn || boardCardsOf(d, wsId)')
     && w.includes('curationMetrics(d.value, workspaceId.value, allResources.value)');
 });
-check('R112-5 ★ 字段组去新建：fieldsOf 返回缓存 computed 引用（thesisFields / rFields，不再逐卡 visibleFields）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes("const thesisFields = computed(() => visibleFields(d.value.fieldConfig, 'thesis'))")
-    && w.includes('return (r.isThesis && !isMirrorView(r)) ? thesisFields.value : rFields.value');
+check('R112-5（V3.9.8 随迁）字段组去新建：普通资源由共享 ResourceEditForm 单份承载，论点由专用抽屉承载；宿主不再逐卡建字段数组', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const form = read('/newtab/components/ResourceEditForm.vue');
+  const thesis = read('/newtab/components/curation/CurationThesisDrawer.vue');
+  return host.includes('<ResourceEditForm') && host.includes('<CurationThesisDrawer')
+    && form.includes('<TagPicker v-model="model.tags"') && form.includes('<AssetManager')
+    && thesis.includes('论点标题') && thesis.includes('论点内容')
+    && !host.includes('const thesisFields = computed(') && !host.includes('function fieldsOf(');
 });
 check('R112-6 ★ 日期格式化缓存：fieldValue 的 createdAt 分支走 fmtDateCN 记忆化（避免逐卡构造 Intl）', () => {
   const f = read('/shared/utils/fields.ts');
@@ -137,22 +142,21 @@ check('R113-3 N4 导入金字塔模板一级入口：hero-btn settings 样式（
   return w.includes('class="hero-btn settings py-import-btn"') && w.includes('@click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>')
     && !w.includes('导入金字塔模板'); // 旧溢出菜单项已移除
 });
-check('R113-4 N1 分类行操作收敛（V3.7.0 重指）：hover 只余「＋/⋯」两入口，原平铺 🗑 等移入 ⋯ 溢出菜单（ctm），菜单收敛为置顶/重命名/删除三项（📤 镜像项随资源台退役）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const i = w.indexOf('<span class="cat-actions">');
-  const actions = i >= 0 ? w.slice(i, i + 500) : '';
-  return !!actions && actions.includes("openCreateCat(sc.cat.id)") && actions.includes("openCatMenu($event, sc)")
-    && !actions.includes("openRenameCat(sc.cat)") && !actions.includes("deleteCategory(sc.cat)") && !actions.includes("openMirrorCat(sc.cat)")
-    && w.includes("runCatMenu('pin')") && w.includes("runCatMenu('rename')") && w.includes("runCatMenu('delete')")
-    && !w.includes("runCatMenu('mirror')") && !w.includes('catMenu.canMirror') && w.includes('catMenu.depth === 0');
+check('R113-4（V3.9.8 随迁）节点动作收敛：画布节点原位只保留“子分支 / 关联资源 / 删除空节点”，改名与说明走就地编辑；旧分类溢出菜单零回流', () => {
+  const n = read('/newtab/components/curation/CurationMindNode.vue');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  return n.includes('子分支') && n.includes('关联资源') && n.includes('删除')
+    && n.includes('@click.stop="beginEdit(\'title\')"') && n.includes('@click.stop="beginEdit(\'desc\')"')
+    && !host.includes('class="cat-actions"') && !host.includes('openCatMenu(');
 });
-check('R113-5 N1 分类树宽度拖拽：ws-side-split 双向拖拽 + UIPrefs.wsSideW 持久化 + 160~420px 夹取 + 双击复位', () => {
-  const w = read('/newtab/views/Workspace.vue');
+check('R113-5（V3.9.8 随迁）画布宽度控制：旧侧栏拖宽退役，画布在宿主内自适应占满；兼容偏好字段保留但页面不再渲染侧栏', () => {
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
   const m = read('/shared/models/index.ts');
-  return w.includes('class="ws-side-split"') && w.includes('function startSideResize') && w.includes('function onSideResizeMove') && w.includes('function onSideResizeUp')
-    && w.includes('function resetSideWidth') && w.includes("sideRail ? { width: '36px' } : { width: wsSideW + 'px' }")
-    && w.includes('Math.min(SIDE_W_MAX, Math.max(SIDE_W_MIN') && w.includes('saveUIPrefs({ wsSideW: wsSideW.value })')
-    && m.includes('wsSideW?: number') && w.includes('.ws-side-split:hover');
+  const c = read('/newtab/components/curation/curation.css');
+  return host.includes('<CurationMindMap') && !host.includes('class="ws-side-split"')
+    && !host.includes('function startSideResize')
+    && m.includes('wsSideW?: number')
+    && c.includes('.mindmap-shell {') && c.includes('width: 100%;');
 });
 check('R113-6 N6 今日三件事任务选取弹框按项目筛选：picker 项目下拉（含「未关联项目」哨兵 __none__）+ 过滤链 + 打开时复位', () => {
   const h = read('/newtab/views/CompassHome.vue');
@@ -175,8 +179,8 @@ check('R113-8 ★ T9 snooze 口径修复（R117-E 修订：周期长度跟随该
     && !/snoozeCard[\s\S]*?lastCalledAt\s*=\s*Date\.now/.test(e) // 旧实现（覆盖 lastCalledAt）必须不存在
     && m.includes('snoozedUntil?: number');
 });
-check('R113-9 ★ N5 金字塔真全屏：宿主上移 .ws-page（requestFullscreen）+ overlayHost 动态浮层宿主 + 七处浮层改 :to + :fullscreen 隐藏侧栏/指标条保留工具条', () => {
-  const w = read('/newtab/views/Workspace.vue');
+check('R113-9（V3.9.8 随迁）画布真全屏：全屏壳由 CurationMindMap 自持，overlayHost 动态浮层宿主与六处浮层 :to 接线保持', () => {
+  const m = read('/newtab/components/curation/CurationMindMap.vue');
   const oh = read('/shared/utils/overlayHost.ts');
   const drawer = read('/shared/components/Drawer.vue');
   const cm = read('/shared/components/ContextMenu.vue');
@@ -184,8 +188,8 @@ check('R113-9 ★ N5 金字塔真全屏：宿主上移 .ws-page（requestFullscr
   const ap = read('/shared/components/AssetPreview.vue');
   const ab = read('/shared/components/AssetBadge.vue');
   const tp = read('/shared/components/TagPicker.vue');
-  return w.includes('ref="wsPageRef"') && w.includes('el = wsPageRef.value') && w.includes('setOverlayFsHost(el)')
-    && w.includes(':to="overlayTarget"') && w.includes('.ws-page:fullscreen .ws-sidebar') && !w.includes('.ws-page:fullscreen .ws-toolbar') // 工具条保留（＋新建可用）
+  return m.includes('ref="shellRef"') && m.includes('setOverlayFsHost(props.fullscreen ? shellRef.value : null)')
+    && m.includes('function enterFullscreen()')
     && oh.includes('export function setOverlayFsHost') && oh.includes('export function useOverlayTarget')
     && drawer.includes(':to="overlayTarget"') && cm.includes(':to="overlayTarget"') && cd.includes(':to="overlayTarget"')
     && ap.includes(':to="overlayTarget"') && ab.includes(':to="overlayTarget"') && tp.includes(':to="overlayTarget"');
@@ -205,11 +209,13 @@ check('R114-2 技术债59-B 构建期修复：modulePreload 禁用（content 隔
   const v = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'vite.config.ts'), 'utf8');
   return v.includes('modulePreload: false') && v.includes('fix-content-dynamic-imports') && v.includes('chrome.runtime.getURL');
 });
-check('R114-3 技术债59-B drawPyLinks 减负：每节点单次 rect 读 + 分类 Map 反查（原 O(节点×分类) find 为交互窗口最大热点 505ms）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return w.includes('const anchors = new Map<string, { x: number; top: number; bottom: number }>()')
-    && w.includes('const catById = new Map(wsCats.value.map(c => [c.id, c]))')
-    && !w.includes('wsCats.value.find(c => c.id === el.dataset.pyid)');
+check('R114-3（V3.9.8 随迁）画布热路径：旧 drawPyLinks 的逐节点 rect 测量与 O(节点×分类) 查找退役，资源按 categoryId 一次建桶、子节点由 CatIndex 索引读取', () => {
+  const h = read('/newtab/composables/useCurationMindMap.ts');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  return h.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>')
+    && h.includes('const key = r.categoryId || \'\'')
+    && h.includes('return catIdx.value.childrenOf.get(catId) || []')
+    && !host.includes('function drawPyLinks(') && !host.includes('getBoundingClientRect()');
 });
 
 // ===== 第 115 轮 · 架构拆分 + 骨架屏就绪即过渡（04-59 第三批） =====
@@ -232,14 +238,16 @@ check('R115-2 ★ 断言聚合读取机制：read(Workspace.vue) = 宿主 + 8 co
   const src = fs.readFileSync(ANCHOR_FILE, 'utf8');
   return src.includes('const WORKSPACE_SRC_FILES') && src.includes("'/newtab/composables/useResourceView.ts'") && src.includes("'/newtab/views/workspace.css'");
 });
-check('R115-3 ★ 共享拖拽状态层：dragState（.card/.cat）为卡片/分类双拖拽唯一状态源，金字塔域消费同一份（原宿主共享 let 变量升层）', () => {
+check('R115-3（V3.9.8 随迁）画布拖拽唯一状态源：dragSource/dropTarget 由 CurationMindMap 持有，校验与落库统一走 useCurationMindMap.moveNode', () => {
   const drag = read('/newtab/composables/useResourceDragDrop.ts');
-  const py = read('/newtab/composables/usePyramid.ts');
+  const map = read('/newtab/components/curation/CurationMindMap.vue');
+  const hook = read('/newtab/composables/useCurationMindMap.ts');
   return drag.includes('const dragState: DragState = { card: null, cat: null }')
     && drag.includes('export interface DragState { card: ResourceCard | null; cat: string | null }')
-    && py.includes('dragState: DragState')
-    && py.includes('dragState.card') && py.includes('dragState.cat')
-    && !py.includes('let draggedItem') && !py.includes('let dragCatId');
+    && map.includes("const dragSource = ref('')") && map.includes("const dropTarget = ref('')")
+    && map.includes("emit('move', source, id)")
+    && hook.includes('function validateDrop(') && hook.includes('function moveNode(')
+    && !hook.includes('let draggedItem') && !hook.includes('let dragCatId');
 });
 check('R115-4 ★ 骨架屏「就绪即过渡」：快加载废止 360ms 补足（原 360+220=580ms 地板）→ 150ms 最短防白闪 + 160ms 完成态淡出', () => {
   const m = read('/newtab/main.ts');
@@ -259,13 +267,10 @@ check('R116-1 ★ 看板列增量渲染：KANBAN_COL_STEP + 每列切片（items
     && w.includes('return { key: c.key, name: c.name, items: shown, count: items.length, hiddenCount: items.length - shown.length }')
     && w.includes('function kanbanLimitOf(key: string) { return kanbanColLimit.value[key] || KANBAN_COL_STEP }');
 });
-check('R116-2 看板列追加双通道：列体滚动近底 60px 自动追加（onKanbanColScroll）+ 列底显式入口（kanbanMore → kc-more 按钮）', () => {
-  const v = read('/newtab/views/Workspace.vue');
-  const u = read('/newtab/composables/useResourceView.ts');
-  return u.includes('if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) kanbanMore(key)')
-    && v.includes('@scroll="onKanbanColScroll($event, cat.key)"')
-    && v.includes('v-if="cat.hiddenCount > 0" class="kc-more" @click="kanbanMore(cat.key)"')
-    && v.includes('显示更多 {{ cat.hiddenCount }} 张');
+check('R116-2（V3.9.8 随迁）旧看板追加通道退役：资源池改用 sentinel 自动加载 + 显式“加载更多”入口，两者共用 renderMore', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return pool.includes('IntersectionObserver') && pool.includes('function renderMore()')
+    && pool.includes('@click="renderMore"') && pool.includes('已显示 {{ rendered.length }} / {{ poolCards.length }} 张');
 });
 check('R116-3 看板列限额上下文复位 + 列表/卡片增量渲染机制未被误改（RENDER_STEP=80 仍在）', () => {
   const u = read('/newtab/composables/useResourceView.ts');
@@ -273,10 +278,11 @@ check('R116-3 看板列限额上下文复位 + 列表/卡片增量渲染机制�
     && u.includes('const RENDER_STEP = 32')
     && u.includes('renderLimit.value += RENDER_STEP');
 });
-check('R116-4（R155 令牌化备案）列底入口样式就位（.kc-more 于 workspace.css，hover 下划线）', () => {
+check('R116-4（V3.9.8 随迁）资源池加载更多样式在位：render-more 居中、弱文本色、悬停强调；旧看板 kc-more 零回流', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
   const s = read('/newtab/views/workspace.css');
-  return s.includes('.kc-more { text-align: center; padding: 8px 0 4px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }')
-    && s.includes('.kc-more:hover { text-decoration: underline; }');
+  return pool.includes('.render-more {') && pool.includes('.render-more:hover {')
+    && !s.includes('.kc-more');
 });
 
 // ============== 第一百二十轮 · V2.88.0：搜索键位统一（两入口：单击/Enter=开链 · Ctrl+Enter=仅定位） ==============

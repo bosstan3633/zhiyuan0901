@@ -113,12 +113,15 @@ check('W17-8 ★三处置顶同源：列表 / 网格 / 抽屉共用 togglePinOf�
     && !POOL_C.includes('r.pinned = !r.pinned');
 });
 
-check('W17-9 ★图钉可点：列表 / 网格的图钉由只读 span 变成 button（带 title 两态）', () => {
+check('W17-9 ★星标与图钉都可点：列表 / 网格的星标、图钉均由 button 承载，title 明示当前态与动作', () => {
   return (POOL.match(/class="pcp-act pcp-pin-btn"/g) || []).length === 2
     && (POOL.match(/class="pcp-del pcp-pin-btn"/g) || []).length === 1
+    && (POOL.match(/class="pcp-act pcp-star-btn"/g) || []).length === 2
+    && (POOL.match(/class="pcp-del pcp-star-btn"/g) || []).length === 1
     && POOL.includes("r.pinned ? '已置顶，点击取消' : '置顶（排到最前）'")
-    /* 负锚：行末动作区不许只有只读图标——动作位必须是 button */
-    && /class="pcp-r-acts">[\s\S]{0,240}pcp-pin-btn/.test(POOL);
+    && POOL.includes("r.starred ? '已星标，点击取消' : '星标（搜索时优先展示）'")
+    /* 负锚：行末动作区不许只有只读图标——星标与图钉动作位都必须是 button */
+    && /class="pcp-r-acts">[\s\S]{0,700}pcp-star-btn[\s\S]{0,700}pcp-pin-btn/.test(POOL);
 });
 
 /* ══════════════ C06 · 镜像多选弹窗 ══════════════ */

@@ -666,13 +666,20 @@ check('N7 ★V3.9.3 再随迁：原判「Hero 5 枚 KPI 药丸必须居中」→
 });
 
 
-check('N8 ★资源卡镜像到策展台（推送方向恢复）：V3.7.0（R179）把镜像入口整条删掉时，统一的只是**数据方向**（真身统一入池），但人的**动作方向**没统一——池里要把一张卡投给某台，得先切台→找节点→点「关联资源卡」→在选择器里搜，四步且是在别的台里做。N8 恢复推送，与策展台侧的拉取同一条 projectCardToBoard（hub.ts），不是两套机制。★本条钉六件事：① 右键菜单非镜像分支含「📡 镜像到策展台…」且序在「移动分类」之后 ② 实现走 projectCardToBoard（引用投射），**不许物理移动**（负锚：给 .workspaceId 直接赋值，= 后面不是 = 的那种）③ 两宿主都有入口（Workspace 选台弹窗 + ResourceDetailDrawer 行内选台）——只改一边等于交付一半，这是 R167 那条规矩 ④ 镜像卡本身不许再投射（isMirrorView 守卫）⑤ App 级宿主的镜像行必须落在 #extra 面板区，**不许进 #footer**（footer 仍是「删除 + 保存」两钮，drawer-res 场景 footCount===2 是 theme-audit 硬门禁）⑥ 老实现 openMirrorCard 仍零残留（N8 新写的是 openMirrorToBoard）', () => {
+check('N8（V3.9.8 随迁）★资源卡镜像到策展台：右键八项按打开→复制→编辑→置顶→星标→镜像→中心论点→删除排序，移动分类已退役；仍走 projectCardToBoard 引用投射、不物理搬卡；Workspace 与 ResourceDetailDrawer 双宿主入口、镜像卡守卫、footer 两钮、openMirrorCard 零残留', () => {
   const res = read('/newtab/composables/useResourceDrawer.ts');
   const c = codeOnly(res);
-  // ① 菜单入口在，且排在「移动分类」之后
-  const iMove = c.indexOf("label: '移动分类'");
+  // ① 菜单入口在，且按现役八项顺序；移动分类已退役
+  const iOpen = c.indexOf("{ label: '打开链接'");
+  const iCopy = c.indexOf("{ label: '复制链接'");
+  const iEdit = c.indexOf("'✏️ 编辑详情'");
+  const iPin = c.indexOf("r.pinned ? '取消置顶' : '置顶'");
+  const iStar = c.indexOf("r.starred ? '☆ 取消星标' : '⭐ 星标'");
   const iMir = c.indexOf("label: '📡 镜像到策展台…'");
-  if (iMove < 0 || iMir <= iMove) return false;
+  const iThesis = c.indexOf("'🏛 设为中心论点'");
+  const iDel = c.indexOf("{ label: '删除', icon: 'trash', danger: true");
+  if (!(iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMir && iMir < iThesis && iThesis < iDel)) return false;
+  if (c.includes("label: '移动分类'")) return false;
   // ② 走投影，不许物理移动
   if (!c.includes('projectCardToBoard(')) return false;
   if (/\.workspaceId\s*=(?!=)/.test(c)) return false;

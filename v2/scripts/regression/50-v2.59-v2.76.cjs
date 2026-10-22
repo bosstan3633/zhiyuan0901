@@ -22,11 +22,10 @@ check('R90-2 R8-①（V3.7.0 退役）：HUB_HELP_TEXT 四段文案现行源码�
   return !WS90.includes('HUB_HELP_TEXT') && !WS90.includes('卡片在此存储为真身')
     && !WS90.includes('📡 单卡') && !WS90.includes('📤 分类');
 });
-check('R90-3 R8-② ★R1.5 重指带备案：主 CTA 前置位置不变，锚随「台内新建=论证卡」改 openNewArgument', () => {
-  // R1.5：主 CTA 唯一 = 论证卡新建（openNewResource 仍存在于脚本段供论点创建，但模板内零出现）
-  return !TB90.includes('openNewResource')
-    && TB90.indexOf('openNewArgument') < TB90.indexOf('class="toolbar-search"')
-    && (TB90.match(/openNewArgument/g) || []).length === 1;
+check('R90-3（V3.9.8 随迁）主 CTA 前置：画布工具条第一动作是“新建分支”，创建路径统一走 useCurationMindMap.createChild', () => {
+  return TB90.indexOf('mind.createChild(\'root\')') < TB90.indexOf('class="toolbar-search"')
+    && (TB90.match(/mind\.createChild\('root'\)/g) || []).length === 1
+    && !TB90.includes('openNewArgument');
 });
 check('R90-4 R8-②：右推职责交给 .toolbar-spacer（.toolbar-search 不再自带 margin-left:auto）', () => {
   const search = segOf(STYLE90, '.toolbar-search {', '}');
@@ -278,12 +277,15 @@ console.log('【第九十六轮 · V2.65.0：P2 首轮勘验对账与坏账清�
  *  本轮零业务代码：① 把三项能力用断言钉住，防止再次劣化为坏账；
  *  ② 把两处「AI 接手最危险」的文档失真回正并纳入门禁——架构文档「无 IndexedDB」（附件层第卅九轮即上线）
  *  与 v2/README 版本停在 V2.14.2（后者自本轮成为版本同步第 6 处）。 */
-check('R96-1 ★ P2 资源台组三项能力在位 ★R1.5 重指带备案：rc-add-card 锚随「台内新建=论证卡」改 openNewArgument——starred 筛选（R89/W5）+ 抽屉 recordResourceOpen 统一入口（R70）+ 网格末尾 rc-add-card', () => {
-  return WS96.includes("const FILTER_KEYS = ['all', 'url', 'file', 'obsidian', 'hasLink', 'brokenPath', 'hasAssets', 'starred', 'hot']")
-    && WS96.includes('starred: (r) => !!r.starred')
-    && WS96.includes('class="rc-add-card"') && WS96.includes('@click="openNewArgument"')
+check('R96-1（V3.9.8 随迁）资源池三项能力在位：星标卡面可切换 + 详情打开记录调用 + 池内新建单卡入口', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  return pool.includes('class="pcp-act pcp-star-btn"')
+    && pool.includes('function toggleStar(r: ResourceCard)')
+    && pool.includes('@click.stop="toggleStar(r)"')
+    && pool.includes('@create="openNew"') && pool.includes('function createCard()')
     && RDD96.includes("import { recordResourceOpen } from '@/shared/storage/stats'")
-    && RDD96.includes('recordResourceOpen(store.data, r)');
+    && RDD96.includes('recordResourceOpen(data, r)')
+    && RDD96.includes('store.persistHot()');
 });
 check('R96-2 架构文档事实守卫：存储段含 IndexedDB / zy_assets 附件层事实，「无 IndexedDB」失真表述零命中', () => {
   return ARCH96.includes('IndexedDB') && ARCH96.includes('zy_assets') && !ARCH96.includes('无 IndexedDB');
@@ -333,12 +335,13 @@ console.log('【第九十八轮 · V2.67.0：策展台组三件（W7 + W8 + W9�
  *  （布局层收口而非渲染层隐藏，父节点跨度只跨可见子组）；W8 指标条 5→3 格（来源构成本就与
  *  总数格 hint 同源、最近更新降页头摘要且保住流水下钻入口）；W9 分组标题补「含 N 个子分类」
  *  （直属口径与左树聚合口径写明，消「对不上账」观感）。零数据模型改动、零迁移。 */
-check('R98-1 W7 金字塔层级折叠：pyFold 三档（仅 L2/到 L3/全部）+ placeCat 深度收口 + 控制条 pyramidLevels>=2 门控', () => {
-  return WS98.includes("const pyFold = ref<'l2' | 'l3' | 'all'>('all')")
-    && WS98.includes("pyFold.value === 'l2' ? 0 : pyFold.value === 'l3' ? 1 : Number.POSITIVE_INFINITY")
-    && WS98.includes('const kids = depth >= maxDepth ? [] : (catIdx.value.childrenOf.get(cat.id) || []).filter(x => !placed.has(x.id))')
-    && WS98.includes('v-if="pyramidLevels.length >= 2" class="py-fold"')
-    && WS98.includes('@click="pyFold=\'l2\'"') && WS98.includes('@click="pyFold=\'l3\'"') && WS98.includes('@click="pyFold=\'all\'"');
+check('R98-1（V3.9.8 随迁）层级密度控制换轨：旧 pyFold 三档退役，画布按真实父子树递归展开且新建受 4 级上限约束', () => {
+  const h = read('/newtab/composables/useCurationMindMap.ts');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  return h.includes('export const MIND_TOTAL_LEVEL = 4')
+    && h.includes('if (nodeLevel(parent) >= MIND_TOTAL_LEVEL)')
+    && h.includes('return catIdx.value.childrenOf.get(catId) || []')
+    && !host.includes('const pyFold = ref<');
 });
 check('R98-2 W8 策展台指标条 5→3 格：来源构成零命中（并入总数 hint）+ 最近更新降页头 wsh-upd 且保留流水下钻', () => {
   return WS98.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr);')
@@ -346,10 +349,12 @@ check('R98-2 W8 策展台指标条 5→3 格：来源构成零命中（并入总
     && WS98.includes("class=\"wsh-upd\" title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
     && WS98.includes('· 更新 {{ lastUpdateText }}');
 });
-check('R98-3 W9 分组标题补含子分类数：groupChildCount（uncat→0）+ 卡片/列表两处组标题同款呈现', () => {
-  const occ = WS98.split('· 含 {{ groupChildCount(g.key) }} 个子分类').length - 1;
-  return WS98.includes('function groupChildCount(key: string): number {')
-    && WS98.includes("if (key === 'uncat') return 0")
-    && WS98.includes('return catIdx.value.childrenOf.get(key)?.length || 0')
-    && occ === 2;
+check('R98-3（V3.9.8 随迁）子分类数从分组标题迁到节点原位：每个节点直接显示直属资源数，子节点由递归结构呈现', () => {
+  const n = read('/newtab/components/curation/CurationMindNode.vue');
+  const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  return n.includes('return props.cardsByCat.get(props.node.id) || []')
+    && n.includes('cards().slice(0, 2)')
+    && n.includes('cards().length - 2')
+    && n.includes('v-for="child in children()"')
+    && !host.includes('groupChildCount');
 });

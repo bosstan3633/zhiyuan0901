@@ -107,9 +107,9 @@ const VIEWPORT = { width: 1440, height: 900 }
  */
 const DRAWER_VIEWS = [
   {
-    id: 'drawer-resource', name: '资源卡详情', hash: '#/workspace/zy-curation',
-    card: '.res-card', open: '.ref-form', ai: '.ds-ai-cell', aiCount: 2, h1: '.ds-h1',
-    foot: '.dr-footer button, .drawer-footer button',
+    id: 'drawer-resource', name: '资源卡详情', hash: '#/deck/resource',
+    card: '.pcp-row, .pcp-card', open: '.drawer .ref-form', ai: '.ds-ai-cell', aiCount: 2, h1: '.ds-h1',
+    foot: '.drawer-footer button',
   },
   {
     id: 'drawer-task', name: '任务卡详情', hash: '#/deck/task',
@@ -145,6 +145,30 @@ const DRAWER_VIEWS = [
 const RETIRED_DASH_SCENES = ['dz-drill', 'dz-review', 'dz-report', 'dz-entry']
 
 const DASH_SCENES = [
+  {
+    id: 'curation-canvas', name: '策展台画布', hash: '#/workspace/zy-audit-curation',
+    host: '.mindmap-shell',
+    act: async (page) => {
+      await page.waitForTimeout(500)
+    },
+    judge: async (page) => page.evaluate(() => {
+      const shell = document.querySelector('.mindmap-shell')
+      const root = document.querySelector('.mind-root')
+      const nodes = document.querySelectorAll('.mind-node:not(.mind-root)').length
+      const resources = document.querySelectorAll('.mind-resource').length
+      const more = document.querySelector('.mind-resource-more')
+      const gap = document.querySelector('.evidence-gap')
+      const layouts = document.querySelectorAll('.mindmap-layout button').length
+      const hot = ['.mind-resource', '.mind-resource-more', '.evidence-gap']
+        .flatMap(sel => [...document.querySelectorAll(sel)])
+        .map(el => el.getBoundingClientRect().height)
+      const minHot = hot.length ? Math.min(...hot) : 0
+      return {
+        ok: !!shell && !!root && nodes >= 5 && resources >= 2 && !!more && !!gap && layouts === 2 && minHot >= 28,
+        txt: `画布=${!!shell} 根=${!!root} 分支=${nodes}(应≥5) 资源=${resources}(应≥2) 更多=${!!more} 缺证据=${!!gap} 布局=${layouts}/2 证据热区=${hot.length ? Math.round(minHot) : '无'}px`
+      }
+    })
+  },
   {
     id: 'dz-overview', name: '概览 KPI 带',
     /* ★W12(V3.8.12)随迁备案：原判据守的是 DashboardOverview 的「概览带」——`.dz-ov` 容器 + 五枚
@@ -693,7 +717,7 @@ function pickData() {
   const countOf = (f) => {
     try {
       const j = JSON.parse(fs.readFileSync(path.join(dl, f), 'utf8'))
-      const d = j && j.data ? j.data : (j || {})
+      const d = j && (j.zy_data_v2 || j.data) ? (j.zy_data_v2 || j.data) : (j || {})
       const n = (k) => (Array.isArray(d[k]) ? d[k].length : 0)
       return n('resources') + n('tasks') + n('curiosities') + n('categories') + n('argCards')
     } catch { return 0 }
@@ -746,6 +770,77 @@ if (argv.scenes) {
 
   const raw = JSON.parse(fs.readFileSync(dataFile, 'utf8'))
   const data = raw.zy_data_v2 || raw
+  /* 策展台视觉镜头需要一份真实渲染的数据前置；备份里只有资源池时，给本轮审计临时种一台，
+     让画布的四级结构、资源关联、缺证据态与 28px 热区都进入 DOM。只写本次 Chromium 的
+     storage，不回写 --data 指向的备份文件。 */
+  const AUDIT_WS_ID = 'zy-audit-curation'
+  if (!(data.workspaces || []).some(w => w.id === AUDIT_WS_ID)) {
+    const at = FREEZE_AT + 12 * 60 * 60 * 1000
+    data.workspaces = [
+      ...(data.workspaces || []),
+      {
+        id: AUDIT_WS_ID,
+        name: '认知调度研究',
+        icon: '🧭',
+        color: '#3A6B4C',
+        coverTheme: 'deep-sea',
+        desc: '把零散信息组织成可被复用、被质疑、被分享的判断。',
+        order: 90,
+        archived: false,
+        kind: 'curation',
+        callCount: 0,
+        lastCalledAt: at,
+      },
+    ]
+    const cats = [
+      ['audit-cat-thesis-gap', '真正的瓶颈', '问题不在信息不足，而在判断没有被组织。', 0],
+      ['audit-cat-signal', '信号识别', '先分清哪些信息值得进入认知系统。', 1, 'audit-cat-thesis-gap'],
+      ['audit-cat-evidence', '证据组织', '让资源围绕判断形成可追溯的结构。', 1],
+      ['audit-cat-reuse', '调用与复用', '在问题出现时把证据重新调回现场。', 2, 'audit-cat-evidence'],
+      ['audit-cat-gap', '边界与反例', '主动保留会推翻当前判断的材料。', 3, 'audit-cat-evidence'],
+      ['audit-cat-share', '成果表达', '把论证结构变成他人可阅读的方案。', 4],
+    ]
+    data.categories = [
+      ...(data.categories || []),
+      ...cats.map(([id, name, description, order, parentId]) => ({
+        id,
+        workspaceId: AUDIT_WS_ID,
+        name,
+        description,
+        order,
+        ...(parentId ? { parentId } : {}),
+      })),
+    ]
+    const card = (id, title, categoryId, sourceType, description) => ({
+      id,
+      kind: 'resource',
+      title,
+      description,
+      linkType: 'url',
+      link: 'https://example.com/' + id,
+      workspaceId: AUDIT_WS_ID,
+      categoryId,
+      sourceType,
+      tags: ['认知调度'],
+      pinned: false,
+      callCount: 1,
+      customFields: {},
+      assets: [],
+      createdAt: at,
+      updatedAt: at,
+    })
+    data.resources = [
+      ...(data.resources || []),
+      {
+        ...card('audit-thesis', '知识工作者的真正瓶颈，已经从内容生产转向认知调度。', '', 'own-work', '当生成变得廉价，稀缺的是在正确时刻把信息、判断与证据重新调回现场的能力。'),
+        isThesis: true,
+      },
+      card('audit-r1', '浏览器里的工作现场', 'audit-cat-signal', 'official', '工作发生在标签页之间，调度也必须发生在现场。'),
+      card('audit-r2', '证据链的最小结构', 'audit-cat-evidence', 'academic', '结论、理由、证据与边界需要同时可见。'),
+      card('audit-r3', '复用发生在问题出现时', 'audit-cat-evidence', 'media', '能被快速召回的知识，才会变成能力。'),
+      card('audit-r4', '把一次解决变成可交付方案', 'audit-cat-evidence', 'own-work', '结构化成果让经验可以分享，也可以被检验。'),
+    ]
+  }
   /* ★B5-a：折叠判据的数据前置——方向树里至少得有一个项目舱，否则 .tw-head 恒为 0，
      "每舱都有卡头 / 折叠真的摘节点"这两条无从判起（见 treeSkip 处注释）。
      ★V3.9.6 修（2026-10-21）：探针原来读 `data.directions`，但真库的形状是

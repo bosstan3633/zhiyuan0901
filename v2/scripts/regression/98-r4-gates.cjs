@@ -223,13 +223,19 @@ check('R4-Ep ★"取第一枚实体当默认落点"这一族的扫描形态必�
     && !codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('convWorkspaces.value[0]')
     && !codeOnly(read('/content/overlay-impl.ts')).includes('workspaces[0]');
 });
-check('R4-Ep ★批量移动的目标列表里不许出现池，也不许再用那枚 hub 实体冒充台面：moveWorkspaces 走 boardWsOptions、宿主模板走 label 单源——改前「目标策展台」下拉第一项就是「🗂 资源台」，选中它等于把卡移进池还顺带新建一枚池「待分类」；模板里现拼图标 + wsDisplayNameOf 的旧写法不许回流', () => {
-  const w = codeOnly(read('/newtab/views/Workspace.vue'));
-  const i = w.indexOf('v-for="w in moveWorkspaces"');
-  const seg = w.slice(i, w.indexOf('</select>', i));
-  return i > 0 && seg.includes('{{ w.label }}') && !seg.includes('wsDisplayNameOf(w)')
-    && read('/newtab/views/Workspace.vue').includes('目标策展台（含当前策展台，可只换分类）')
-    && codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')).includes('boardWsOptions(d.value.workspaces)');
+check('R4-Ep ★V3.9.8 随迁：批量目标只列现役策展台，且语义是引用投射而非搬池卡——资源池批量栏与单卡镜像弹窗都排除池 / 归档台；Workspace 不再渲染旧“移动分类”弹窗。改前「目标策展台」下拉第一项是「🗂 资源台」，选中等于把卡移进池还顺带新建一枚池「待分类」', () => {
+  const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
+  const mirror = codeOnly(read('/newtab/components/ResourceMirrorModal.vue'));
+  const workspace = codeOnly(read('/newtab/views/Workspace.vue'));
+  return pool.includes('const batchBoards = computed(() =>')
+    && pool.includes("w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived")
+    && pool.includes('v-for="w in batchBoards"')
+    && pool.includes('源卡仍留在资源卡池；目标台只是新增引用')
+    && mirror.includes("w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived")
+    && mirror.includes('勾选 = 镜像过去 · 取消勾选 = 取消该台镜像')
+    && !workspace.includes('moveWorkspaces')
+    && !workspace.includes('moveModalOpen')
+    && !workspace.includes('目标策展台（含当前策展台，可只换分类）');
 });
 check('R4-Ep ★运行时覆盖补一档：e2e 必须有 E2E-39 真点好奇心归档（存量库/新库两种形状各一次，读下拉选项文本与默认选中、回执 toast、落库 workspaceId）——"下拉印什么名、默认选谁"在源码文本断言里表现为什么都没变，而它是用户每天点的动作', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
@@ -291,18 +297,24 @@ check('R4-Eq ★界面指位类文案不许再指向已退役的台面：采集�
   const ov = read('/content/overlay-impl.ts');
   const iDup = ov.indexOf('function showDupConfirm');
   const segDup = codeOnly(ov).slice(codeOnly(ov).indexOf('function showDupConfirm'));
-  const py = codeOnly(read('/newtab/composables/usePyramid.ts'));
+  const link = codeOnly(read('/newtab/components/LinkCardsModal.vue'));
+  const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
   const wm = codeOnly(read('/newtab/composables/useWsMeta.ts'));
   const at = codeOnly(read('/shared/storage/airtable.ts'));
   return iDup > 0 && segDup.includes('已经收过了（在「${POOL_DISPLAY_NAME}」里）') && !segDup.includes('已存在于资源台')
-    && py.includes('镜像只是引用，打包请在它的源卡上做') && !py.includes('打包请在资源台操作')
+    && link.includes('全部分类（资源卡池）') && link.includes('从资源卡池可镜像的卡') && !link.includes('从资源台可镜像的卡')
+    && pool.includes('源卡仍留在资源卡池；目标台只是新增引用') && !pool.includes('打包请在资源台操作')
     && wm.includes('「资源卡池」是系统空间，不在此删除') && !wm.includes('资源台为系统空间')
     && at.includes('调度台/方向台/资源卡池/策展台名') && !at.includes('调度台/方向台/资源台/策展台名');
 });
-check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：左树「全部」计数的口径 title 与金字塔节点「关联资源卡」的 title 都从「资源台」改成了「资源卡池」（前者是 R76-6 的正锚随迁，后者本轮新钉）；两处旧拼法各一条负锚', () => {
+check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：V3.9.8 退役左树后，关联资源弹窗的「资源卡池」分类口径、镜像只读横幅的编辑去向、池卡投射说明都必须继续指向资源卡池；对应旧拼法各一条负锚', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
-  return w.includes('从资源卡池选择资源卡镜像到该节点') && !w.includes('从资源台选择资源卡镜像到该节点')
-    && w.includes('策展台含资源卡池镜像卡') && !w.includes('策展台含资源台镜像卡');
+  const link = codeOnly(read('/newtab/components/LinkCardsModal.vue'));
+  const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
+  return link.includes('关联资源卡到「') && link.includes('全部分类（资源卡池）')
+    && !link.includes('资源台可镜像')
+    && w.includes('镜像卡为引用（只读）——编辑请到资源卡池') && !w.includes('编辑请到资源台')
+    && pool.includes('源卡仍留在资源卡池') && !pool.includes('源卡仍留在资源台');
 });
 
 // ============== R4-Er ⌘K 驻留尺子（#114 的③，只立尺子不动链路） ==============
@@ -349,8 +361,8 @@ check('R4-Es ★Vue 的 template 区不能按 JS 字符串语义剥（HTML 文�
   const ws = codeOnly(wsRaw);
   return !/第\s*[卌卅一二三四五六七八九十]{1,3}轮/.test(tpl.slice(0, 6000))
     && !wsTpl.includes('parked 的 bookmarkInput') && !wsTpl.includes('fileImportInput。★R4-Db')
-    && !wsTpl.includes('R167（OPPO 质感') && wsTpl.includes('class="cat-count"')
-    && !ws.includes('parked 的 bookmarkInput') && ws.includes('const pyLayout = computed');
+    && !wsTpl.includes('R167（OPPO 质感') && wsTpl.includes('class="thesis-banner"')
+    && !ws.includes('parked 的 bookmarkInput') && ws.includes('const mind = useCurationMindMap');
 });
 
 // ============== R4-Et 孤儿 CSS 清账：依据本身要在门禁里 ==============
@@ -395,7 +407,7 @@ check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同�
     && atLineStart(/^\s*page\.screenshot = async \(opt\) => \{ const r = await orig\(opt\); await censusOf\(page\); await stateOf\(page, opt && opt\.path\); return r \}/m)
     && atLineStart(/^\s*ovPage\.screenshot = async \(opt\) => \{ const r = await os\(opt\); await censusOf\(ovPage\); await stateOf\(ovPage, opt && opt\.path\); return r \}/m)
     && c.场景数 === pngs && pngs > 90 && Object.keys(c.计数).length === c.token数 && c.token数 > 700
-    && !!c.计数['cat-count'] && !c.计数['ts-note'] && !c.计数['goal-node'] && !c.计数['metric-item'] && !c.计数['gs-mc-section'];
+    && !!c.计数['thesis-banner'] && !c.计数['ts-note'] && !c.计数['goal-node'] && !c.计数['metric-item'] && !c.计数['gs-mc-section'];
 });
 const ET_RETIRE = {
   '/newtab/components/AiSuggestionDrawer.vue': ['.ai-badge.b-warn', '.ai-badge.b-ok', '.ai-badge.b-danger', '.ai-badge.b-neutral', '.ai-chg-tag.t-new', '.ai-chg-tag.t-edit', '.ai-chg-tag.t-move', '.ai-chg-tag.t-same'],
@@ -595,13 +607,18 @@ check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格�
     && ev.includes('PngSpec') && ev.includes('rows?')
     && ev.includes('DailyReportShareSpec') && ev.includes('dailyReportShareHtml');
 });
-check('W5-8 ★三卡交互统一「单击详情 / 双击开链接」（用户拍板 NEW-#1）：资源卡池补双击——与任务、好奇面板同款 260ms 去重（pcpClickTimer），双击走 toOpenableUrl(r.linkType, r.link) → openExternalLink 并记热度（recordResourceOpen + persistHot）；无链接 toast 提示；列表/网格两视图均绑 @dblclick，title 提示含「双击打开链接」。任务卡（onTaskRowDblClick）与好奇卡（onCardDblClick）既有实现不动', () => {
+check('W5-8 ★三卡交互统一「单击详情 / 双击开链接」（V3.9.8 随迁）：资源卡池与同步入口同款 260ms 去重（pcpClickTimer），双击统一走 useResourceOpen.openResourceLink —— 该通道覆盖普通 URL、obsidian、本地文件以及 zy-asset:// 的 PDF / HTML / 图片附件，并统一记账；列表/网格两视图均绑 @dblclick，title 提示含「双击打开链接」。任务卡与好奇卡既有实现不动', () => {
   const pc = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
+  const ro = codeOnly(read('/newtab/composables/useResourceOpen.ts'));
   const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
   const cz = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
   return pc.includes('pcpClickTimer') && pc.includes('onCardDblClick')
-    && pc.includes('toOpenableUrl(r.linkType, r.link)') && pc.includes('openExternalLink(url)')
-    && pc.includes('recordResourceOpen') && pc.includes('persistHot')
+    && pc.includes('const { openResourceLink } = useResourceOpen({ store, d: resourceData })')
+    && pc.includes('function openCardLink(r: ResourceCard)')
+    && pc.includes('openResourceLink(r)')
+    && ro.includes('toOpenableUrl(r.linkType, r.link)') && ro.includes('openExternalLink(url)')
+    && ro.includes('recordResourceOpen(d.value, r)') && ro.includes('store.persistHot?.()')
+    && ro.includes("meta.kind === 'image'") && ro.includes("meta.kind === 'html' || meta.kind === 'pdf'")
     && pc.includes('@dblclick="onCardDblClick(r)"')
     && (pc.match(/@dblclick="onCardDblClick\(r\)"/g) || []).length >= 2 /* ★W15-T3 2026-10-16：列表视图新增分组分支后同款双击通道多一处（仍不许少于一档：列表 + 网格） */
     && pc.includes('双击打开链接')

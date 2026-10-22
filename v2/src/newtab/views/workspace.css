@@ -1,4 +1,4 @@
-/* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
+﻿/* R108（F10）：资源台/策展台容器与调度台/方向台统一（1440 居中 + 24px 边距）——三页切换无左右跳动感 */
 .ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }
 .ws-empty { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-3); }
 
@@ -22,12 +22,6 @@
 /* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
 .wsh-upd { cursor: pointer; }
 .wsh-upd:hover { color: var(--accent); }
-/* R98（W7）：金字塔层级折叠控制条——右对齐一行，档位沿用分段控件惯例（tokens 令牌，零硬编码色） */
-.py-fold { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 0 8px; }
-.py-fold-label { font-size: var(--fs-caption); color: var(--text-3); }
-.py-fold-btn { font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
-.py-fold-btn:hover { color: var(--accent); border-color: var(--accent); }
-.py-fold-btn.on { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 /* ★W5（V3.8.34）：论点横幅是默认视图就能看到的题眼（.py-root-card 只在金字塔视图出现），
    所以竖条与字阶两处都落：竖条 inset 3px 内画（同 .py-root-card，不与已有 accent 描边叠成双线），
    标题 14px → headline 档。徽标仍在前端留白处，竖条贴着卡内缘 3px 不与之抢位。 */
@@ -37,6 +31,8 @@
 .tb-badge.gray { color: var(--text-3); background: var(--surface-3); }
 .tb-title { flex: 1; min-width: 0; font-size: var(--fs-headline); font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; letter-spacing: -.01em; }
 .tb-title:hover { color: var(--accent); }
+.tb-desc { flex: 1.4; min-width: 120px; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-open { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
 .tb-btn { flex-shrink: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: all var(--dur); font-family: inherit; }
 .tb-btn:hover { background: var(--accent); color: #fff; }
 .tb-hint { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.icon-pick-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
@@ -74,275 +70,45 @@
 /* 工具条 */
 /* R123（B3）：工具条卡片化（Q6：保留 sticky 吸附） */
 .ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.toolbar-mode { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding-right: 3px; color: var(--text-3); font-size: var(--fs-caption); white-space: nowrap; }
 /* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
 .ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-/* R123（A5/原型）：分段控件 = 边框容器 + active 灰底 */
-.view-tabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--surface); }
-.view-tab { padding: 4px 9px; font-size: var(--fs-sub); cursor: pointer; color: var(--text-2); transition: all var(--dur); display: flex; align-items: center; gap: 4px; background: var(--surface); }
-.view-tab:hover { background: var(--surface-2); color: var(--text); }
-.view-tab.active { background: var(--surface-2); color: var(--text); font-weight: 600; box-shadow: none; }
-.toolbar-select { padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; transition: all var(--dur); }
-.sort-dir-btn { font-family: inherit; white-space: nowrap; }
-.sort-dir-btn:hover { border-color: var(--accent); color: var(--text); }
-.toolbar-select:hover { border-color: var(--accent); color: var(--accent); }
 /* R90（R8-②）：右推职责交给 .toolbar-spacer（主 CTA 前置后，搜索不再是第一个右端元素） */
 .toolbar-spacer { flex: 1; }
 .toolbar-search { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all var(--dur); }
 .toolbar-search:focus-within { border-color: var(--accent); }
 .toolbar-search input { border: none; outline: none; font-size: var(--fs-sub); width: 170px; background: transparent; color: var(--text); }
-.toolbar-search .s-icon { color: var(--text-3); font-size: var(--fs-body); }/* R88（W3）：筛选触发按钮 + 气泡（一级只留这一颗，其余四项收进气泡） */
-.filter-wrap { position: relative; display: flex; align-items: center; }
-.toolbar-filter { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); white-space: nowrap; }
-.toolbar-filter:hover { border-color: var(--accent); color: var(--accent); }
-.toolbar-filter.on { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-.tf-main { flex-shrink: 0; }
-.tf-chip { font-size: var(--fs-micro); padding: 1px 5px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.toolbar-filter.on .tf-chip { background: var(--surface); color: var(--accent); }
-.tf-chip.more { font-weight: 600; }
-/* 气泡用相对定位（.ws-page / .ws-toolbar 均无 overflow:hidden），跟随触发按钮 */
-.filter-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 268px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); padding: 10px 12px; display: none; flex-direction: column; gap: 9px; }
-.filter-pop.open { display: flex; }
-.fp-row { display: flex; align-items: center; gap: 8px; }
-.fp-label { width: 28px; flex-shrink: 0; font-size: var(--fs-caption); color: var(--text-3); }
-.fp-row .toolbar-select { flex: 1; min-width: 0; }
-.fp-foot { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 7px; }
-.fp-reset { font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; }
-.fp-reset:hover { color: var(--accent); }
-
-/* Body */
-/* R109（F13）：单一滚动域——顶部模块移入 ws-content 后，行布局容器不再需要魔法高度 */
-.ws-columns { display: flex; align-items: flex-start; }
-/* R130-T7/T8：视图列原无 flex:1（宽度收缩到内容 max-content，列表标题不长时右缘留空白带）——
-   撑满剩余宽度使行右缘与容器对齐；margin-left 14px 为分类树与内容区之间的呼吸间距 */
-.ws-view, .kanban, .pyramid { flex: 1; min-width: 0; margin-left: 14px; }
-
-/* 侧边栏（R48-V2：Linear 风格树——紧凑行高、缩进导轨、chevron 旋转、弱化计数） */
-/* R123（B4/原型）：侧栏卡片盒（210px、无右分割线） */
-.ws-sidebar { width: 210px; flex-shrink: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px 10px 14px; box-shadow: var(--shadow-sm); overflow-y: auto; }
-/* R113-N1：分类树宽度拖拽分隔条（4px 热区，hover/拖拽中高亮） */
-.ws-side-split { width: 4px; flex-shrink: 0; margin-left: -2px; cursor: col-resize; border-radius: 2px; transition: background var(--dur-fast); z-index: 5; }
-.ws-side-split:hover, .ws-side-split:active { background: var(--accent); opacity: .55; }
-.cat-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 8px; }
-.cat-toolbar .ct-label { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); letter-spacing: .2px; }
-.cat-toolbar .ct-actions { display: inline-flex; gap: 2px; }
-.cat-toolbar .ct-btn { font-size: var(--fs-caption); color: var(--text-3); padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur-fast); }
-.cat-toolbar .ct-btn:hover { color: var(--accent-ink); background: var(--accent-light); }
-.cat-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: background .1s, color .1s; margin-bottom: 1px; }
-.cat-item:hover { background: var(--surface-3); color: var(--text); }
-.cat-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-/* 第廿九轮：卡片拖入分类行的归属落点高亮（与分类拖拽指示区分） */
-.cat-item.card-drop { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--accent); }
-.cat-item .cat-icon { font-size: var(--fs-body); flex-shrink: 0; }
-.cat-item .cat-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cat-item .cat-count { font-size: var(--fs-tiny); color: var(--text-3); background: transparent; padding: 1px 6px; border-radius: 99px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.cat-item:hover .cat-count { background: var(--surface-2); }
-.cat-item.active .cat-count { color: var(--accent); font-weight: 600; }
-.cat-add { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all .1s; margin-top: 6px; }
-.cat-add:hover { color: var(--accent-ink); background: var(--accent-light); }
-.cat-merge { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all .1s; border: 1px dashed var(--border); margin-top: 4px; }
-.cat-merge:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-.cat-divider { height: 1px; background: var(--border); margin: 8px 10px; }
-/* 第八轮：分类树 + 置顶分区 + 拖拽指示 + hover 操作 */
-.cat-section-label { font-size: var(--fs-tiny); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 8px 8px 4px; }
-/* R48-V2：Linear 风格树——子级缩进 + 左侧导轨线；caret 点击展开/折叠（旋转过渡） */
-.cat-item.sub { margin-left: 12px; position: relative; padding-left: 14px; }
-.cat-item.sub::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: var(--border); }
-.cat-caret { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: var(--fs-micro); color: var(--text-3); flex-shrink: 0; line-height: 1; cursor: pointer; border-radius: 4px; transition: transform var(--dur) ease, background var(--dur-fast); margin-left: -4px; }
-.cat-caret:hover { background: var(--surface-3); color: var(--text); }
-.cat-caret.open { transform: rotate(90deg); }
-.cat-caret.placeholder { cursor: default; }
-.cat-item.collapsed { color: var(--text-2); }
-/* R113-N1：分类行动作收敛——hover 只出「＋」「⋯」两项；计数恢复常驻
-   （原 :hover 时 .cat-count 被 display:none 顶掉，长分类名还会被 5 个图标挤没） */
-.cat-item .cat-actions { display: none; gap: 2px; flex-shrink: 0; }
-.cat-item:hover .cat-actions { display: inline-flex; }
-.cat-act { width: 18px; height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: var(--fs-tiny); color: var(--text-3); cursor: pointer; }
-.cat-act:hover { background: var(--surface); color: var(--text); }
-.cat-act.on { color: var(--accent); }
-.cat-act.more { font-size: var(--fs-sub); font-weight: 700; line-height: 1; }
-.cat-act.more:hover { color: var(--accent); }
-/* R113-N1：分类行「⋯」溢出菜单（置顶 / 镜像 / 重命名 / 删除） */
-.ctm-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
-.ctm { position: fixed; z-index: calc(var(--z-popover) + 1); min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; }
-.ctm-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); }
-.ctm-item:hover { background: var(--surface-3); color: var(--text); }
-.ctm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
-.ctm-sep { height: 1px; background: var(--border); margin: 5px 4px; }
-.cat-item.drop-child { background: var(--accent-light); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.cat-item.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
-.cat-item.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
-.cat-root-drop { margin: 8px 0 2px; padding: 8px 10px; border: 1.5px dashed var(--accent); border-radius: 6px; font-size: var(--fs-caption); color: var(--accent-ink); text-align: center; background: var(--accent-light); }
+.toolbar-search .s-icon { color: var(--text-3); font-size: var(--fs-body); }/* Body */
 .ws-modal-input { width: 100%; padding: 10px 13px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-body); background: var(--surface); color: var(--text); outline: none; font-family: inherit; transition: all var(--dur); }
 .ws-modal-input.dup { border-color: var(--danger); box-shadow: 0 0 0 2px var(--danger-bg-soft); }
-.ws-modal-error { color: var(--danger); font-size: var(--fs-sub); margin-top: 6px; }
+
 .ws-modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
-.ws-modal-hint { margin-top: 8px; font-size: var(--fs-caption); color: var(--text-3); }
+
 
 /* 内容区 */
 .ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }
 
-/* 分区标签（置顶区/非置顶区） */
-.section-label { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); margin: 4px 0 10px; padding-left: 2px; }
-.card-grid + .section-label, .res-list + .section-label { margin-top: 22px; }
-/* REQ-027：分组分区标题（点击折叠/展开 F-027-4） */
-.ws-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
-  user-select: none; border-radius: 8px; padding: 6px 10px; margin-left: -10px; margin-right: -10px;
-  transition: background var(--dur) ease; }
-.ws-cat-head:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-.ws-cat-collapse { font-size: var(--fs-tiny); color: var(--text-4); transition: transform .18s ease; }
-
-/* 卡片视图（第卅三轮 REQ-026：间距/内边距/最小宽引用 tokens 密度令牌，一处切换全局生效） */
-/* R72→R106（F3）：卡片视图列数由 --grid-cols 驱动（4/5/6/7），精确 N 列 + 卡片宽度自适应收缩（密度档经 --card-gap 保持） */
-.card-grid { display: grid; /* R106（F3）：精确 N 列（同 F3 口径，资源台/策展台共用） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 10px; }
+/* 卡片拖拽落位反馈（资源卡在画布节点间移动时由卡片宿主消费） */
 .res-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
 .res-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; box-shadow: var(--shadow-sm); cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 120px; min-width: 0; overflow: hidden; /* R107（F8）：内容自适应——防长标题/长链接撑破轨道致列宽不一 */ /* R55-F4：屏外卡片跳过渲染（切策展台 595ms 的渲染段优化） */ content-visibility: auto; contain-intrinsic-size: auto 140px; /* R155-③：intrinsic 96 → 140，与富卡实高（120~160）对齐——原值比实高偏小近 9%，滚动条长度估算失准 */ }
-/* R133-E4（批次 E）：卡片入场递进淡入——fadeIn 250ms + 逐行 20ms 错峰、第 8 行封顶（其后统一 140ms）。
-   keyed v-for 下过滤/拖拽复用既有 DOM 不重播，仅首帧与新节点入场时播放；.res-card.flash 规则在后，闪烁定位优先。 */
-.card-grid > .res-card { animation: fadeIn var(--dur-slow) var(--ease-out-soft) backwards; }
-.card-grid > .res-card:nth-child(2) { animation-delay: 20ms; }
-.card-grid > .res-card:nth-child(3) { animation-delay: 40ms; }
-.card-grid > .res-card:nth-child(4) { animation-delay: 60ms; }
-.card-grid > .res-card:nth-child(5) { animation-delay: 80ms; }
-.card-grid > .res-card:nth-child(6) { animation-delay: 100ms; }
-.card-grid > .res-card:nth-child(7) { animation-delay: 120ms; }
-.card-grid > .res-card:nth-child(8) { animation-delay: 140ms; }
-.card-grid > .res-card:nth-child(n+9) { animation-delay: 140ms; }
-/* R123（C7/原型）：镜像卡 = 虚线发丝边框 + 浅底；hover 变 accent 实时 = 可操作 */
-.res-card.mirror-card { border-style: dashed; border-color: var(--border-strong); background: color-mix(in srgb, var(--text) 1.5%, var(--surface)); }
-.res-card.mirror-card:hover { border-color: var(--accent); border-style: solid; background: var(--surface); }
-/* R123（B6/原型）：hover = 描边加深 + 上浮 1px + 阴影（不再变灰底） */
+.res-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; box-shadow: var(--shadow-sm); cursor: pointer; transition: all var(--dur) ease; position: relative; display: flex; flex-direction: column; min-height: 120px; min-width: 0; overflow: hidden; content-visibility: auto; contain-intrinsic-size: auto 140px; }
 .res-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-hover); }
 .res-card.selected { border-color: var(--accent); background: var(--accent-light); }
 .res-card.pinned { border-left: 3px solid var(--accent); }
-.rc-batch-check { position: absolute; top: 10px; left: 10px; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: #fff; z-index: 3; }
-.rc-batch-check.on { background: var(--accent); border-color: var(--accent); }
-/* R123（B6/原型）：hover 动作 = 白底容器条（原裸图标） */
-.res-card-actions { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 2px; padding: 2px 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: var(--shadow-sm); opacity: 0; transition: opacity var(--dur); z-index: 2; }
-.res-card:hover .res-card-actions { opacity: 1; }
+
+/* CardAiEntry 的共享动作按钮（资源池网格 / 列表复用） */
 .rc-action { min-width: 20px; height: 20px; padding: 0 4px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: var(--fs-caption); line-height: 1; color: var(--text-2); cursor: pointer; transition: all .1s; background: transparent; }
 .rc-action:hover { background: var(--surface-2); color: var(--accent); }
-/* R158：卡面常驻 ⋯ 出口（展开右键同款完整清单）——字面 ⋯ 稍大于 emoji 动作，压一档行高对齐 */
-.rc-action.more { font-size: var(--fs-body); line-height: 0; padding: 0 5px; }
-.rc-action.pin:hover { color: var(--accent); }
-/* R79（R1 收尾）：↗ 打开用链接蓝，与「开链接」语义呼应；六动作里只有 pin 用强调色，主色仍稀缺 */
-.rc-action.open:hover, .rr-action.open:hover, .kc-action.open:hover { color: var(--accent); }
-.rc-action.delete:hover { color: var(--danger); }.rc-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 20px; }
-/* R61：镜像卡徽标 */
-/* ★W2（V3.8.34）：镜像角标中性化——角标只回答「这张从哪来」，不参与卡面主次。
-   原 .85 opacity + saturate(.9) 是"用滤镜压下去"，颜色仍随主题偏色；改为直接取 --text-3，
-   hover 时不加深（它是溯源标识，不是可点按钮，暗示可点反而误导）。
-   tooltip 统一为「镜像自原资源卡 · 只读，编辑回源处生效」（三视图同源，此前三处各写一遍易漂）。 */
-.rc-mirror-badge { display: inline-flex; align-items: center; font-size: var(--fs-tiny); color: var(--text-3); margin-right: 4px; cursor: help; }.rc-footer { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
-.rc-cat { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 2px 8px; border-radius: 99px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; cursor: pointer; flex-shrink: 0; }
-/* R64-F9：子分类分组标题弱化样式（层级由缩进表达） */
-.ws-cat-head.sub span { color: var(--text-3); font-weight: 500; }
-.rc-cat:hover { background: var(--accent); color: #fff; }/* R79（R1-列/看）：列表与看板的调用次数徽章——同一条规则覆盖两个类，与卡片 .rc-calls 同色同形 */
-.rr-calls, .kc-calls { font-size: var(--fs-tiny); color: var(--curio-amber); background: var(--curio-bg); padding: 1px 7px; border-radius: 99px; font-weight: 500; flex-shrink: 0; }
-/* R87（R7-①）：⚠ 待补全徽标——三视图同形（与 .rc-calls 同一视觉语法：10px / 99px 圆角），
-   颜色只走 tokens 的 --warning，不引新色；hover 加下划线提示可点 */
-.rr-broken, .kc-broken { font-size: var(--fs-tiny); color: var(--warning); background: var(--surface-2); border: 1px solid var(--warning); padding: 0 7px; border-radius: 99px; font-weight: 500; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
-.rr-broken:hover, .kc-broken:hover { text-decoration: underline; }.rc-add-card { border: 1.5px dashed var(--border-strong); border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 120px; cursor: pointer; color: var(--text-3); font-size: var(--fs-sub); transition: all var(--dur); flex-direction: column; gap: 6px; }
-.rc-add-card:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-/* R112 性能：增量渲染的「加载更多」入口（卡片/列表视图共用） */
-.render-more { margin: 16px 0 4px; padding: 10px 0; text-align: center; font-size: var(--fs-sub); color: var(--text-3); border: 1px dashed var(--border-strong); border-radius: 8px; cursor: pointer; transition: all var(--dur); }
-.render-more:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
+.rc-action.on { color: #d99a1e; background: color-mix(in srgb, #f5b942 14%, transparent); }
 
-/* 采集跳转高亮（2秒渐隐） · R173-T3：看板 kc-card 此前没接 flash（定位到看板时既不滚也不亮） */
-.res-card.flash, .res-row.flash, .kc-card.flash { animation: rc-flash 2s ease-out; }
-.cat-item.flash { animation: rc-flash 2s ease-out; }
+/* 采集跳转高亮（2秒渐隐） */
+.res-card.flash, .res-row.flash { animation: rc-flash 2s ease-out; }
 @keyframes rc-flash {
   0% { box-shadow: 0 0 0 3px var(--accent), 0 4px 20px color-mix(in srgb, var(--accent) 35%, transparent); background: var(--accent-light); }
   60% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-light); }
   100% { box-shadow: none; }
 }
-
-/* 列表视图 */
-.res-list { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.res-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: all .1s;
-  /* R71：屏外行跳过布局/绘制——长列表滚动时把成本限制在视口内 */
-  content-visibility: auto; contain-intrinsic-size: auto 44px; }
-.res-row.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.res-row.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.res-row:last-child { border-bottom: none; }
-.res-row:hover { background: var(--surface-2); }
-.res-row.selected { background: var(--accent-light); }
-.res-row.pinned { border-left: 3px solid var(--accent); }
-.rr-drag { color: var(--text-3); font-size: var(--fs-sub); cursor: grab; flex-shrink: 0; }
-/* R117（04-61 F1）：列表行内勾选框。原实现复用卡片专用的 .rc-batch-check —— 那条规则是
-   `position:absolute`，参照物只有 .res-card 才有的 `position:relative`；列表行 .res-row 没有定位
-   上下文，勾选框逃逸到页级锚点、全部叠在首行标题上（批量态下 ⋮⋮ 占位又被 v-if 移除，标题顶到
-   16px 处，加重重叠）。改为行内 flex 项（与 .rr-drag 同位同宽），重叠根因消除。 */
-.rr-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: #fff; flex-shrink: 0; cursor: pointer; transition: all var(--dur-fast); }
-.rr-check.on { background: var(--accent); border-color: var(--accent); }
-.rr-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.res-row.pinned .rr-title { font-weight: 600; }
-.rr-f { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rr-assets { flex-shrink: 0; display: inline-flex; margin-left: 2px; }
-/* R117（04-61 F2 拍板：列表行操作入口「常态常显」）：原 opacity:0 只在 hover 显现，
-   用户感知为「列表视图没有删除入口」；改为常态 60% 可见（兼顾极简视觉），hover / 批量选中态全亮。 */
-.rr-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: .6; transition: opacity var(--dur); }
-.res-row:hover .rr-actions, .res-row.selected .rr-actions { opacity: 1; }
-.rr-action { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all .1s; }
-.rr-action:hover { background: var(--surface-3); color: var(--text); }
-.rr-action.delete:hover { color: var(--danger); }
-/* R82（R4）的「📋 已挂载态」高亮（.rc-action.mount.on / .rr-action.mount.on / .kc-action.mount.on）随挂载选择器
-   整域退役（R82-7 判 mountTaskOptions/mountProjectName/mountOneOpen 零命中），样式在 R4-Ev 孤儿 CSS 第二批清掉 */
-/* 第卅三轮 REQ-020：列表行星标高亮 + 卡片操作区星标高亮 */
-.rr-action.on, .rc-action.on { color: #d99a1e; }
-.rc-action.on { background: color-mix(in srgb, #f5b942 14%, transparent); }
-.kc-star { font-size: var(--fs-sub); margin-right: 4px; }
-/* G3（V3.8.27）：零资源兜底的裸空态容器样式，随改走 EmptyState 组件退役 */
-
-/* 看板视图 */
-.kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 10px; min-height: 400px; }
-.kanban-col { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; width: 260px; flex-shrink: 0; display: flex; flex-direction: column; max-height: calc(100vh - 340px); }
-/* R173-T1：窗口外列的 ghost 占位——等宽同高但透明空壳（只保横向几何与滚动条，1 节点/列） */
-.kanban-col.kc-ghost { background: transparent; border-color: transparent; }
-.kc-header { position: sticky; top: 0; z-index: 1; background: var(--surface-2); padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.kc-name { font-size: var(--fs-sub); font-weight: 600; color: var(--text); }
-.kc-count { font-size: var(--fs-tiny); background: var(--surface); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
-.kc-add { margin-left: auto; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; cursor: pointer; color: var(--text-3); font-size: 14px; transition: all .1s; }
-.kc-add:hover { background: var(--surface-3); color: var(--accent); }
-.kc-body { padding: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
-/* R116：看板列增量渲染——列底显式「显示更多」入口（与卡片/列表 R112 同构） */
-.kc-more { text-align: center; padding: 8px 0 4px; font-size: var(--fs-sub); color: var(--accent); cursor: pointer; user-select: none; }
-.kc-more:hover { text-decoration: underline; }
-.kc-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.kc-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-/* R79（R1-看）：position: relative 为 hover 动作条的绝对定位提供参照（插入线走 box-shadow: inset，不受影响） */
-.kc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 7px; cursor: pointer; transition: all var(--dur); position: relative; }
-.kc-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 8%, transparent); }
-.kc-card.pinned { border-left: 3px solid var(--accent); }
-.kc-card-title { font-size: var(--fs-sub); font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-/* R79（R1-看）：看板 hover 动作条——取代原仅有的 kc-del 删除图标，与卡片/列表视图同六动作同顺序 */
-.kc-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity var(--dur); z-index: 2; }
-.kc-card:hover .kc-actions { opacity: 1; }
-.kc-action { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; transition: all .1s; background: var(--surface); }
-.kc-action:hover { background: var(--surface-3); color: var(--text); }
-.kc-action.on { color: #d99a1e; background: color-mix(in srgb, #f5b942 14%, transparent); }
-.kc-action.delete:hover { color: var(--danger); }
-/* R151：同一枚 AI 入口钮（CardAiEntry 的 .rc-action）在三视图各自对齐本机动作尺寸 */
-.rr-actions .rc-action { width: 24px; height: 24px; font-size: var(--fs-sub); }
-.kc-actions .rc-action { width: 22px; height: 22px; font-size: var(--fs-caption); background: var(--surface); }
-.kc-card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.kc-card-assets { display: inline-flex; }
-.kc-card-tag { font-size: var(--fs-micro); padding: 1px 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); }
-.kc-card-link { font-size: var(--fs-tiny); margin-left: auto; }
-.kc-card-link.url { color: var(--accent); }
-.kc-card-link.file { color: var(--curio-amber); }
-.kc-card-link.obsidian { color: var(--violet); }
-
-/* 批量操作浮动栏 */
-.batch-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: var(--z-batch); display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); flex-wrap: wrap; }
-.batch-count { font-size: var(--fs-body); font-weight: 700; color: var(--accent); margin-right: 4px; }
-.batch-btn { padding: 6px 13px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); font-family: inherit; }
-.batch-btn:hover { border-color: var(--accent); color: var(--accent); }
-.batch-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.batch-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.batch-enter-active, .batch-leave-active { transition: all .2s var(--ease-emphasis); }
-.batch-enter-from, .batch-leave-to { opacity: 0; transform: translateX(-50%) translateY(12px); }
 
 /* 抽屉 */
 /* R169-老账③：自绘 .drawer 容器与 dr-head/dr-close/dr-body/dr-* 过渡退役——资源详情抽屉改走共享
@@ -373,8 +139,8 @@
    而且改版时容易只改一半（本轮实测就有 380/420/460 三种并存、没有任何注释说明为什么不同）。
    注意顺序：这三条必须排在 .modal 之后，同优先级靠后者覆盖。 */
 .modal-sm { width: 380px; }
-.modal-md { width: 420px; }
-.modal-lg { width: 460px; }
+
+
 .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
 /* ★V3.8.25（G2）：弹窗头图标壳。原先 7 处写的是 style="font-size:16px" ——
    那是 emoji 时代靠 font-size 控制字形大小的遗留；换成 <Icon :size="13"/> 之后这行**完全无效**
@@ -389,7 +155,6 @@
 .modal-footer-row { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
 /* ★V3.8.25（G2）：六处 footer 里有一处内联写 14px —— 同一个类出现两种内边距属隐性分叉，
    收成修饰类后至少它是有名字、可被搜索到的差异，而不是藏在模板里 */
-.modal-footer-row--tall { padding-top: 14px; padding-bottom: 14px; }
 /* N8（V3.8.18）镜像选台弹窗的说明行——只做"这一步是干什么的"，不抢主控件的注意力：
    颜色取 --text-3 而不是 --text-4（W12-G：交互区附近不许用最淡档，纯说明文字才允许 --text-4） */
 .dr-hint { margin-top: 8px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.6; }
@@ -403,94 +168,12 @@
 
 /* ===== R62-1：指标条（R98 起三格单形态；V3.7.0 资源台退役，hub 三格分流选择器删除） ===== */
 /* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
-.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }/* ===== R62-4：层级色点 ===== */
-.cat-depth-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
-.cat-depth-dot[data-lv="0"] { background: var(--accent); }
-.cat-depth-dot[data-lv="1"] { background: #4A7FB5; }
-.cat-depth-dot[data-lv="2"] { background: #8b6fc9; }
-.cat-depth-dot[data-lv="3"] { background: #d99a1e; }
+.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }
+.ws-metrics.cur2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-/* ===== R62-5：金字塔视图 ===== */
-/* R66-F5：结构连线层（横平竖直直角折线；画布尺寸由 drawPyLinks 按滚动区设定） */
-/* ★W1（V3.8.34）：树区升为主角面——surface 大板 + xl 圆角。台头 .ws-id-head 本来就没有底色，
-   于是两块靠「有板 / 无板」一眼分层，不必再用留白去猜谁主谁次。
-   drawPyLinks 用 getBoundingClientRect 相对容器算坐标，内距天然被算进去，加 padding 不会错位。 */
-.pyramid { display: flex; flex-direction: column; gap: 14px; position: relative; overflow-x: auto; width: 100%; background: color-mix(in srgb, var(--surface) 55%, var(--bg)); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 12px 16px 18px; }
-/* ★W1：中轴发丝线——从论点根一贯到底。挂在 .py-board 上（就是树的真实中轴，横向滚动时也跟着内容走），
-   向上伸进论点根、向下穿过末层；节点面（--surface，不透明）盖住穿过处，线只在缝隙里露出来，
-   所以「这棵树有一条中轴」是看出来的，不是被画上去的 */
-.py-board::before { content: ''; position: absolute; left: 50%; top: -56px; bottom: -14px; width: 1px; background: var(--border); z-index: 0; pointer-events: none; }
-/* R113-N5（T10）：真全屏宿主 = .ws-page——专注金字塔：隐藏标题/指标条/侧栏/归档提示，保留工具条（＋新建 / 📋 导入模板可用） */
-.ws-page:fullscreen { background: var(--bg); overflow-y: auto; padding: 20px 36px 90px; }
-.ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics, .ws-page:fullscreen .ws-sidebar,
-.ws-page:fullscreen .ws-side-split, .ws-page:fullscreen .ws-archived-hint { display: none; }
-/* R110-FS：金字塔全屏——路线 A 元素级真全屏（浏览器原生 ESC），路线 B fixed 覆盖层降级（自行监听 ESC） */
-.py-fs-btn { position: absolute; top: 0; right: 0; z-index: 6; font-size: var(--fs-caption); color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
-.py-fs-btn:hover { color: var(--accent); border-color: var(--accent); }
-/* ★W1（V3.8.34）：全屏/降级全屏时大板归零——全屏是"只剩内容"，圆角与描边在满屏里没有意义 */
-.pyramid:fullscreen { background: var(--bg); padding: 20px 24px; overflow: auto; border: none; border-radius: 0; }
-.pyramid.py-fs-fallback { position: fixed; inset: 0; z-index: var(--z-raised); background: var(--bg); padding: 20px 24px; overflow: auto; border: none; border-radius: 0; }
-.py-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; }
-.py-links-svg path { fill: none; stroke: var(--border-strong, #555); stroke-width: 1; opacity: .5; }
-.pyramid .py-root, .pyramid .py-board { position: relative; z-index: 1; }
-.py-root { position: relative; display: flex; justify-content: center; padding: 6px 0 10px; border-radius: 10px; transition: background var(--dur), box-shadow var(--dur); }
-.py-root.droppable { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-light); }
-/* ★W5（V3.8.34）：中心论点是「你策展的结论」——accent 左竖条作身份标识（不是装饰：它是全树唯一的竖条，
-   一眼把题眼与下方 lg 节点区分开）、标题抬到 headline 17px；主从由字阶与描边双重表达。
-   竖条用 box-shadow 内画而非 border-left：卡面本身已有 1.5px accent 描边，
-   再加 border 会让左侧描边变成两倍宽（视觉上像双线）。 */
-.py-root-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface)); border: 1.5px solid var(--accent); border-radius: var(--radius-lg); padding: 12px 22px; max-width: 520px; text-align: center; cursor: pointer; transition: all var(--dur); box-shadow: inset 3px 0 0 var(--accent); }
-.py-root-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 18%, transparent); }
-.py-root-badge { display: block; font-size: var(--fs-tiny); color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
-.py-root-title { display: block; font-size: var(--fs-headline); font-weight: 700; color: var(--text); line-height: 1.5; }
-.py-root-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; line-height: 1.5; }
-.py-root-unset { position: absolute; top: 2px; right: 8px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; }
-.py-root-unset:hover { background: var(--surface-3); color: var(--danger); }
-.py-root-empty { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg); padding: 14px 24px; font-size: var(--fs-sub); color: var(--text-3); text-align: center; width: 100%; }
-.py-root-empty.clickable { cursor: pointer; transition: all var(--dur); }
-.py-root-empty.clickable:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-/* R66-F5：居中树 board——列宽自适应 minmax(170px,250px)，整体 fit-content 水平居中不占满；
-   行距 34px 留出直角连线空间；父节点跨子组全部列（横向恒=子组、居中悬于其上） */
-.py-board { display: grid; gap: 34px 12px; width: 100%; max-width: 1120px; margin: 6px auto 0; align-items: stretch; }
-/* ★W1（V3.8.34）：节点主卡 lg 圆角（原 10px 硬编码），与论点根同档 —— 同类同级同一模具 */
-.py-node { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); min-width: 0; transition: border-color var(--dur), box-shadow var(--dur); }
-.py-node:hover { border-color: var(--border-strong); }
-.py-node.drop-child { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.py-node.drop-sib { box-shadow: inset 0 2px 0 var(--accent); }
-.py-node.flash { animation: rc-flash 1.6s ease-out; }
-.py-node-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: grab; }
-/* R66-F5：节点层级小徽标（原每行 L 标签随 board 布局退役） */
-.py-node-lv { font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); background: var(--surface-3); border-radius: 4px; padding: 1px 5px; flex-shrink: 0; letter-spacing: .5px; }
-.py-node-name { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.py-node-name:hover { color: var(--accent); }
-.py-node-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
-.py-node-ops { display: inline-flex; gap: 2px; opacity: 0; transition: opacity var(--dur); }
-.py-node-head:hover .py-node-ops { opacity: 1; }
-.py-op { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; }
-.py-op:hover { background: var(--surface-3); color: var(--accent); }
-.py-node-body { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 10px 10px; min-height: 34px; }
-/* ★W1：支撑卡（论证/证据 chip）用 sm 副卡圆角（原 6px 硬编码），嵌在 lg 主节点里 —— 主从一眼可读 */
-.py-card-chip { font-size: var(--fs-caption); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px 8px; cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all var(--dur-fast); }
-.py-card-chip:hover { border-color: var(--accent); color: var(--text); background: var(--accent-light); }
-.py-node-empty { font-size: var(--fs-caption); color: var(--text-4); }
-/* R65-F3：节点双入口底栏 */
-.py-node-foot { display: flex; gap: 6px; padding: 0 10px 9px; }
-.py-foot-btn { flex: 1; text-align: center; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all var(--dur-fast); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.py-foot-btn:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-/* R161-④：原「关联资源卡选择器」的 .lc-* 样式（含 AI 检索那一组）随弹窗抽到 components/LinkCardsModal.vue
-   —— 本文件是 Workspace.vue 的 scoped 样式，跨不到子组件内部，留着就是死代码 */
-.py-node-add { position: absolute; right: -8px; top: -8px; width: 20px; height: 20px; display: none; align-items: center; justify-content: center; border-radius: 6px; background: var(--accent); color: #fff; font-size: var(--fs-body); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
-.py-node:hover .py-node-add { display: flex; }
-/* ★V3.8.25（G2）：居中与内边距原先写在模板的 style="text-align:center;padding:10px 0" 里（该类只此一处消费，直接并进来） */
-/* G3（V3.8.27）：.py-level-empty 随金字塔零节点改走 EmptyState 组件退役 */
-/* ===== R62-6：节点菜单 ===== */
-.node-menu-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
-.node-menu { position: fixed; z-index: calc(var(--z-popover) + 1); width: 216px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; animation: ipIn .16s var(--ease-emphasis); }
-.nm-item { padding: 8px 11px; border-radius: 7px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all .1s; }
-.nm-item:hover { background: var(--surface-3); color: var(--text); }
-.nm-item.danger { color: var(--danger); }
-.nm-item.danger:hover { background: var(--tag-danger-bg); }
-.nm-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+/* 指标条下的画布保持唯一工作区；旧四视图、金字塔网格与节点菜单已退役 */
+.ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics,
+.ws-page:fullscreen .ws-archived-hint { display: none; }
 
 /* ===== R122：资源台 UI 迭代（对齐原型：紧凑页头 / 横排指标盒 / 工具条提权 / 紧凑卡） ===== */
 /* 页头：弹性占位（V3.7.0（R179）：右端提示条规则随资源台退役清理——模板/脚本零引用） */
@@ -503,114 +186,15 @@
 .mbox-value { font-size: 16px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mbox-sub { font-size: var(--fs-caption); font-weight: 400; color: var(--text-3); margin-left: 3px; }
 
-/* 工具条一级：批量 toggle 激活态（accent-light + accent 描边，与全站胶囊激活态同一语言） */
-.hero-btn.ghost.on { background: var(--accent-light); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.quick-filter { flex-shrink: 0; }
-
-/* 分组头：右侧区（排序入口 + 折叠 caret） */
-.head-right { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.head-sort { font-family: inherit; font-size: var(--fs-caption); color: var(--text-3); background: transparent; border: none; outline: none; cursor: pointer; padding: 4px 2px; min-height: 28px; }
-.head-sort:hover { color: var(--accent); }
-
-/* 富卡（R155-③ 用户拍板）：图标+标题2行 → 摘要2行 → 启用字段(≤3) → 页脚。
-   形态纪律：**不放缩略图**（保持纯文本骨架）；与列表行 44px 彻底分层——两者一眼可辨。
-   高度区间 120~160px：下限由 min-height 保证（无摘要的卡也撑住），上限由 max-height 封顶（长文本不撑破轨道）。 */
-.res-card { min-height: 120px; max-height: 160px; }
-.rc-head { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 3px; }
-.rc-type-icon { flex-shrink: 0; font-size: var(--fs-sub); line-height: 1.45; }
-.rc-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; flex: 1; min-width: 0; padding-right: 14px; }
-/* R155-③：摘要由 1 行 → **2 行**（用户拍板）。
-   R153 曾把"摘要单行被截掉 85~91%（真库 380 卡实测）"记为待拍板、不敢动，理由是"改两行会破掉等高卡片网格"——
-   R155 把卡高本身改成 120~160px 区间，等高网格的前提已经变了，两行摘要不再冲突。 */
-.rc-desc { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
-.rc-desc.broken { color: var(--warning); cursor: pointer; }
-.rc-desc.broken:hover { text-decoration: underline; }
-.rc-extra { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
-.rc-x-link { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-x-link.url { color: var(--accent); }
-.rc-x-link.file { color: var(--curio-amber); }
-.rc-x-link.obsidian { color: var(--violet); }
-.rc-x-src { font-size: var(--fs-caption); color: var(--text-3); }
-.rc-x-date { font-size: var(--fs-caption); color: var(--text-4); }
-.rc-x-custom { font-size: var(--fs-caption); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-x-custom span { color: var(--text-3); margin-right: 4px; }
-/* 页脚（原型）：分类 chip + 标签 chips ｜ 附件 / ⭐ / 热度，发丝线分隔 */
-.rc-footer { margin-top: auto; padding-top: 5px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
-.rc-cat { font-size: var(--fs-caption); color: var(--text-2); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; cursor: pointer; flex-shrink: 0; }
-.rc-cat:hover { color: var(--accent-ink); background: var(--accent-light); }
-.rc-tag-chip { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
-/* R153：页脚标签原来 flex-shrink:0 撑破卡片（体检量到真溢出 32~227px），改可缩 + 省略号——宁可少显示一个标签，也不要断在半截 */
-.rc-footer-right { margin-left: auto; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-.rc-heat { font-size: var(--fs-caption); color: var(--warning); font-weight: 600; }
-.rc-star { font-size: var(--fs-tiny); line-height: 1; }
-/* 断链卡（原型 P7）：整卡警示态 */
-.res-card.warning-broken { border-color: color-mix(in srgb, var(--warning) 40%, var(--border)); background: color-mix(in srgb, var(--warning) 4%, var(--surface)); }
-.res-card.warning-broken:hover { border-color: var(--warning); }
-.rc-action.fix:hover { color: var(--warning); }
-
-/* ===== R123（Q6）：密度档位改作用于列表/看板（卡片已固定原型值） ===== */
-[data-density='compact'] .res-row { padding: 7px 16px; }
-[data-density='compact'] .kc-card { padding: 8px 10px; margin-bottom: 6px; }
-/* R123（B7 原型）：镜像卡 footer 类型徽标 */
-.rc-type-chip { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
-
-/* ===== R123（C3/原型）：策展台 3 格辅助条（8×12、数值 14px） ===== */
-.ws-metrics.cur3 .metric-box { padding: 8px 12px; }
-.ws-metrics.cur3 .mbox-value { font-size: 14px; }
-/* ===== R123（C6/原型）：策展台卡片视图分组白盒 ===== */
-.group-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
-.group-box .ws-cat-head { margin: 0 0 8px; }
-.group-box .card-grid + .section-label { margin-top: 0; }
-/* ===== R123（C8/原型）：金字塔成果态皮肤（分支盒浅底 + 节点内白卡 + 镜像虚线） ===== */
-.py-node { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
-.py-card-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface); font-weight: 600; padding: 4px 8px; }
-/* ★W2：金字塔视图的镜像 chip 已有虚线边（形态可辨），此处的 tooltip 由模板给出；
-   虚线取 --border-strong 而非 accent，与 W1 的"支撑卡是 sm 副卡"保持中性主从 */
-.py-card-chip.py-chip-mirror { border-style: dashed; border-color: var(--border-strong); background: color-mix(in srgb, var(--text) 1.5%, var(--surface)); }
-
-/* ===== R124（提案）：策展台空态骨架（虚线金字塔示意） ===== */
-.cur-empty-skeleton { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 42px 20px 46px; }
-.ces-l1 { border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: var(--radius-sm); padding: 10px 18px; font-size: var(--fs-body); font-weight: 600; color: var(--text-2); background: color-mix(in srgb, var(--accent) 4%, transparent); }
-.ces-badge { font-size: var(--fs-tiny); font-weight: 700; color: var(--accent-ink); background: var(--accent-light); border-radius: 4px; padding: 1px 6px; margin-right: 8px; letter-spacing: var(--tracking-sm); }
-.ces-line { width: 1.5px; height: 22px; background: var(--border-strong); }
-.ces-l2row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: min(720px, 100%); }
-.ces-l2 { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 14px 12px; text-align: center; font-size: var(--fs-sub); color: var(--text-3); letter-spacing: var(--tracking-sm); }
-.ces-hint { font-size: var(--fs-sub); color: var(--text-3); margin-top: 6px; }
-.ces-actions { display: flex; gap: 10px; }
-
-/* ===== R125（提案）：卡面微阴影阶梯（发丝线 + 弥散微投影） ===== */
-.metric-box, .group-box { box-shadow: var(--shadow-sm); }
-/* ===== R125（Q5）：侧栏 36px 图标极简轨 ===== */
-.ws-sidebar.rail { padding: 6px 4px 10px; overflow: hidden; }
-.ws-sidebar.rail .cat-toolbar { justify-content: center; padding: 2px 0 6px; }
-.ws-sidebar.rail .ct-label, .ws-sidebar.rail .ct-actions { display: none; }
-.rail-toggle { flex-shrink: 0; }
-.cat-rail { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.cat-rail-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: var(--fs-body); cursor: pointer; color: var(--text-2); transition: background var(--dur-fast); }
-.cat-rail-btn:hover { background: var(--surface-2); color: var(--text); }
-.cat-rail-btn.active { background: var(--accent-light); }
-.cat-rail-sep { width: 18px; height: 1px; background: var(--border); margin: 4px 0; }
-
-/* R126：侧栏工具栏不折行（标题可省略；按钮收成单字图标） */
-.cat-toolbar { gap: 4px; }
-.cat-toolbar .ct-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cat-toolbar .ct-actions { flex-shrink: 0; }
-
-
-/* ===== R1.5：论证节点卡（第 4 卡种）台内过渡呈现 + 快速创建弹窗 ===== */
-.arg-sec { margin-top: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
-.arg-sec-h { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); }
-.arg-sec-n { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 7px; line-height: 16px; font-variant-numeric: tabular-nums; }
-.arg-list { display: flex; flex-direction: column; }
-.arg-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--hairline); }
-.arg-item:last-child { border-bottom: none; }
-.arg-main { flex: 1; min-width: 0; }
-.arg-t { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
-.arg-c { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.55; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
-.arg-del { border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-caption); border-radius: 5px; padding: 2px 6px; flex-shrink: 0; font-family: inherit; }
-.arg-del:hover { color: var(--danger); background: var(--danger-bg-soft); }
-.arg-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 6px; }
-/* ★V3.8.25（G2）：两处 .arg-label 只有第二处需要上方留白（原先内联 margin-top:12px），故用修饰类而不是改基类 */
-.arg-label--spaced { margin-top: 12px; }
-.arg-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: var(--fs-body); background: var(--surface); color: var(--text); outline: none; font-family: inherit; box-sizing: border-box; }
-.arg-input:focus { border-color: var(--accent); }
+@media (max-width: 900px) {
+  .ws-content { padding: 16px 18px 72px; }
+  .ws-id-head { padding-left: 0; }
+  .thesis-banner { align-items: flex-start; flex-wrap: wrap; gap: 7px 9px; }
+  .tb-title, .tb-desc { flex-basis: 100%; }
+  .tb-desc { min-width: 0; }
+  .ws-toolbar { flex-wrap: wrap; gap: 7px; padding: 8px 10px; }
+  .toolbar-mode { width: 100%; }
+  .toolbar-spacer { display: none; }
+  .toolbar-search { flex: 1 1 180px; min-width: 0; }
+  .toolbar-search input { width: 100%; min-width: 0; }
+}

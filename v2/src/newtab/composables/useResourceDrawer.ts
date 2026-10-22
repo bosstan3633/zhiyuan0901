@@ -3,7 +3,7 @@
  * 资源编辑抽屉域 composable——单击/双击分流、编辑抽屉 CRUD、镜像只读详情、
  * 一键清理镜像、置顶/星标、右键菜单。
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
- * 初始化序：晚于 useResourceOpen / useWorkspaceBatch / useWorkspaceMirror（消费其返回值）。
+ * 初始化序：晚于 useResourceOpen / useWorkspaceMirror（消费其返回值）。
  */
 import { ref, reactive, computed, watch, onUnmounted, nextTick, type ComputedRef, type Ref } from 'vue'
 import type { Router } from 'vue-router'
@@ -30,10 +30,6 @@ export interface ResourceDrawerCtx {
   openImageAsset: (meta: AssetMeta) => void | Promise<void>
   setThesisCard: (r: ResourceCard) => void
   unsetThesis: () => void
-  // useWorkspaceBatch
-  batchMode: Ref<boolean>
-  toggleSelect: (id: string) => void
-  openMoveOne: (r: ResourceCard) => void
   // useWorkspaceMirror
   removeMirror: (r: ResourceCard) => void
   locateMirrorSource: (r: ResourceCard) => void
@@ -42,13 +38,11 @@ export interface ResourceDrawerCtx {
 export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   const { store, d, workspaceId, router, categories, activeCategory, thesisCard,
     openResourceLink, openImageAsset, setThesisCard, unsetThesis,
-    batchMode, toggleSelect, openMoveOne,
     removeMirror, locateMirrorSource } = ctx
 
   // 单击（详情）与双击（打开链接）区分
   let clickTimer: ReturnType<typeof setTimeout> | null = null
   function onCardClick(r: ResourceCard) {
-    if (batchMode.value) { toggleSelect(r.id); return }
     if (isMirrorView(r)) {
       // R106（F4）：镜像卡单击 = 打开只读详情（编辑定位回源卡；双击打开链接照常）
       if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return }
@@ -363,7 +357,6 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
         { label: r.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(r) },
         // R90（R10）：星标——toggleStar 能力早就在、hover 动作条早早就有 ⭐，右键此前一直缺
         { label: r.starred ? '☆ 取消星标' : '⭐ 星标', icon: 'star', cb: () => toggleStar(r) },
-        { label: '移动分类', icon: 'folder', cb: () => openMoveOne(r) },
         // N8（★V3.8.18 决策翻转）：「📡 镜像到策展台」自 V3.7.0（R179）退役后恢复——
         // 退役的是"资源台"这个概念，不是"把一张池卡投给某台"这个动作；只留拉取方向
         // 会让人为了投一张卡先切台再翻找（四步），推送与拉取本是同一条 projectCardToBoard。

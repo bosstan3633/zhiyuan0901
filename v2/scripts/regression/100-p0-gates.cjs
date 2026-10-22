@@ -61,6 +61,8 @@ check('P0-C6-B ★AI 字面量入口白名单：系统组件内凡出现 AI 入�
     '/newtab/views/GlobalSettings.vue',
     '/shared/components/AiMark.vue', '/shared/components/AiEntryButton.vue', '/shared/components/AiTouchedChip.vue',
     '/newtab/components/GlobalPopups.vue', '/newtab/components/LinkCardsModal.vue',
+    // CurationMindNode 的「AI 工具」是来源标签，不是 AI 功能入口；入口仍由共享 AI 组件承担。
+    '/newtab/components/curation/CurationMindNode.vue',
   ]);
   const ENTRY_RE = /(>AI |'AI |"AI |label="AI |>AI 建议|>AI 检索|>AI 补全|>AI 诊断|>AI 整理|AI 填表|AI 研判|AI 拆解|AI 通读|AI 提炼|：AI )/;
   const viol = [];

@@ -369,6 +369,8 @@ export interface Category {
   id: ID
   workspaceId: ID
   name: string
+  /** V3.9.8 策展画布：节点说明（可选，零迁移）。标题仍是 name，说明用于解释“为什么这个分支成立”。 */
+  description?: string
   order: number
   parentId?: ID    // 第八轮：父分类 id（最多 2 级；缺省 = 一级分类）。R53 起可指向策展镜像分类 id（同为真实 Category）
   pinned?: boolean // 第八轮：置顶分类（左栏顶部置顶分区）

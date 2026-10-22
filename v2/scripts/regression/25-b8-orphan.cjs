@@ -158,12 +158,12 @@ console.log('【B8-6 · 文档不能是唯一不带门禁的产物】');
    ② 存储键真源只有 keys.ts 一处，架构总览不得复述 V1 旧键或虚构键；
    ③ 主题数以 tokens.css 实际选择器为准。 */
 const ARCH = read('/../../文档中心/00_架构总览.md');
-check('B8-6a ★架构总览的门禁读数不得停留在旧口径 —— 本项目门禁是「越修越好的东西」，旧读数不会自己失效，只会越看越像"还行"（V3.8.41 实测：正文写着回归 1,675 带 3 条失败 / 索引 180 文件 / 实拍 104 图 / 入口 24↔26，而实际已全绿且数字翻了一倍）。判定不写死具体数字（会随版本变），而是**禁止已知退役口径出现在现行段落里**：104 图 / 180 文件 / 24 声明 / 26 调用点 / 1,675 这五个旧值只允许出现在文末的「差异账」对照列中', () => {
+check('B8-6a ★架构总览的门禁读数不得停留在旧口径 —— 本项目门禁是「越修越好的东西」，旧读数不会自己失效，只会越看越像"还行"（V3.8.41 实测：正文写着回归 1,675 带 3 条失败 / 索引 180 文件 / 实拍 100 图 / 入口 24↔26，而实际已全绿且数字翻了一倍）。判定不写死具体数字（会随版本变），而是**禁止已知退役口径出现在现行段落里**：100 图 / 180 文件 / 24 声明 / 26 调用点 / 1,675 / 1,119 / 4,128 / 2,023 / 45 分片 / 227 个源文件 / 56,113 等旧值只允许出现在文末的「差异账」对照列中；当期图数从权威 census 动态读取，不把任何一代场景数写死', () => {
   if (!ARCH) return false;
   // 差异账从「附 · 本轮回填」开始，在那之前是现行正文
   const cur = ARCH.slice(0, ARCH.indexOf('## 附 · 本轮回填'));
   if (!cur) return false;
-  const stale = ['104 图', '180 文件', '24 声明', '26 调用点', '1,675', '六主题', 'zy_backup'];
+  const stale = ['100 图', '180 文件', '24 声明', '26 调用点', '1,675', '1,119', '4,128', '2,023', '45 分片', '227 个源文件', '56,113', '六主题', 'zy_backup'];
   for (const s of stale) {
     // ★豁免只认**显式的过时标记**（"全部过时"/"旧文档写…已不成立"/"从不存在"/"本轮回填更正"）。
     //   第一版豁免写得太宽（只查「虚构」「本轮回填更正」两个词），结果**门禁表上方那句
@@ -184,7 +184,12 @@ check('B8-6a ★架构总览的门禁读数不得停留在旧口径 —— 本�
   if (!line[2]) return false;
   const files = line[1];
   const lines = line[2];
-  return cur.includes(lines) && cur.includes(files) && cur.includes('100 图');
+  const censusPath = path.resolve(base, '..', '..', 'docs', '视觉归档', '_census', 'class-census.json');
+  if (!fs.existsSync(censusPath)) return false;
+  let census = null;
+  try { census = JSON.parse(fs.readFileSync(censusPath, 'utf8')) } catch { return false }
+  if (!census || !Number.isFinite(census.场景数) || census.场景数 < 20) return false;
+  return cur.includes(lines) && cur.includes(files) && cur.includes(`${census.场景数} 图`);
 });
 check('B8-6b ★存储键的唯一真源是 shared/storage/keys.ts —— 文档里每多复述一份键名，就多一处会静默失真的副本（R159 已规定 src 内除该文件外裸键名即红，文档侧此前无同等约束）。本条要求架构总览的存储段指向 keys.ts 常量而非裸键名，且不得出现 keys.ts 里不存在的键', () => {
   if (!ARCH) return false;
@@ -233,6 +238,11 @@ check('B8-7a ★产品认知基线的增量表必须与代码生成物一致：�
   const shards = [...m0[1].matchAll(/'([^']+)'/g)].length;
   const m1 = (IDX || '').match(/规模：\*\*(\d+)\s*个源文件\s*\/\s*([\d,]+)\s*行/);
   if (!m1 || !m1[2]) return false;
+  const censusPath = path.resolve(base, '..', '..', 'docs', '视觉归档', '_census', 'class-census.json');
+  if (!fs.existsSync(censusPath)) return false;
+  let census = null;
+  try { census = JSON.parse(fs.readFileSync(censusPath, 'utf8')) } catch { return false }
+  if (!census || !Number.isFinite(census.场景数) || census.场景数 < 20) return false;
   // 分片数：基线里以「**41 分片**」形态出现
   const shardRe = new RegExp(`\\*\\*${shards} 分片\\*\\*`);
   if (!shardRe.test(BASE)) {
@@ -242,6 +252,10 @@ check('B8-7a ★产品认知基线的增量表必须与代码生成物一致：�
   // 索引规模：文件数与行数都要在
   if (!BASE.includes(m1[1]) || !BASE.includes(m1[2])) {
     console.log(`     实测索引 ${m1[1]} 文件 / ${m1[2]} 行，基线增量表里对不上`);
+    return false;
+  }
+  if (!BASE.includes(`${census.场景数} 图`)) {
+    console.log(`     实测 census ${census.场景数} 图，基线增量表里对不上`);
     return false;
   }
   return true;

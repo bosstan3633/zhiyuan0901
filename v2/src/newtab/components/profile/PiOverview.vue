@@ -191,7 +191,8 @@ const mix = () => {
 .pi-dir-track i { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-fast); }
 .pi-dir-pct { text-align: right; font-size: var(--fs-micro); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .pi-dir-none { font-size: var(--fs-caption); color: var(--text-4); line-height: 1.75; padding: 10px 0; }
-.pi-dir-go { display: block; margin-top: 6px; border: 0; background: none; padding: 0; font: inherit; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); cursor: pointer; }
+/* M6：文字链接视觉不变，盒子撑到 28px 下限，避免空态入口只有 19px 高。 */
+.pi-dir-go { display: inline-flex; align-items: center; min-height: 28px; margin-top: 2px; border: 0; background: none; padding: 0 2px; font: inherit; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); cursor: pointer; }
 .pi-dir-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); display: flex; align-items: center; gap: 4px; }
 .pi-ov-mix { display: flex; align-items: center; gap: 9px; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); min-width: 0; }
 .pi-ov-mix-lab { flex: none; }

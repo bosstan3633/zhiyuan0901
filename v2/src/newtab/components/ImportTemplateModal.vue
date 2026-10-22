@@ -22,7 +22,7 @@
           解析规则：<b># 一级标题 = 项目名称</b>（可多个）｜<b>## 二级标题 = 该项目的成功指标</b>｜<b>### 三级标题 = 该指标下的任务名称</b>｜<b>### 之下的正文 = 该任务的详情</b>（四级及以下标题并入任务详情）
         </template>
         <template v-else>
-          解析规则：<b># 一级标题 = 中心论点</b>（仅一个，多余忽略）｜<b>## 二级标题 = 第二层节点</b>｜<b>### 三级标题 = 第三层节点</b>（隶属上一个二级）｜<b>#### 四级标题 = 第四层节点</b>｜<b>标题下的正文 = 该节点卡片的描述内容</b>
+          解析规则：<b># 一级标题 = 中心论点</b>（仅一个，多余忽略）｜<b>## 二级标题 = 第二层论证分支</b>｜<b>### 三级标题 = 第三层论证分支</b>（隶属上一个二级）｜<b>#### 四级标题 = 第四层论证分支</b>｜<b>标题下的正文 = 该分支的说明内容</b>；导入不会为每个分支新建台内卡片，资源卡在导入后按需关联
         </template>
       </div>
       <div v-if="mode === 'pyramid' && hasThesis" class="itm-notice">
@@ -77,18 +77,18 @@
                   <div v-for="n2 in pyr.thesis.children" :key="n2.name" class="p-col">
                     <div class="p-node"><div class="t"><span class="nm">{{ n2.name }}</span><span class="lb">L2</span></div>
                       <div v-if="n2.desc" class="d">{{ n2.desc }}</div>
-                      <div class="ops"><span><Icon name="link" :size="13"/> 关联资源卡</span><span><Icon name="plus" :size="13"/> 新建卡片</span></div>
+                      <div class="ops"><span><Icon name="link" :size="13"/> 导入后关联资源卡</span></div>
                     </div>
                     <div class="p-sub" v-if="n2.children.length">
                       <div v-for="n3 in n2.children" :key="n3.name" class="p-node">
                         <div class="t"><span class="nm">{{ n3.name }}</span><span class="lb">L3</span></div>
                         <div v-if="n3.desc" class="d">{{ n3.desc }}</div>
-                        <div class="ops"><span><Icon name="link" :size="13"/> 关联资源卡</span><span><Icon name="plus" :size="13"/> 新建卡片</span></div>
+                        <div class="ops"><span><Icon name="link" :size="13"/> 导入后关联资源卡</span></div>
                         <div class="p-sub" v-if="n3.children.length">
                           <div v-for="n4 in n3.children" :key="n4.name" class="p-node">
                             <div class="t"><span class="nm">{{ n4.name }}</span><span class="lb">L4</span></div>
                             <div v-if="n4.desc" class="d">{{ n4.desc }}</div>
-                            <div class="ops"><span><Icon name="link" :size="13"/> 关联资源卡</span><span><Icon name="plus" :size="13"/> 新建卡片</span></div>
+                            <div class="ops"><span><Icon name="link" :size="13"/> 导入后关联资源卡</span></div>
                           </div>
                         </div>
                       </div>
@@ -112,7 +112,7 @@
               <span class="chip">L2 节点 <b>{{ pyrLevel(2) }}</b></span>
               <span class="chip">L3 节点 <b>{{ pyrLevel(3) }}</b></span>
               <span class="chip">L4 节点 <b>{{ pyrLevel(4) }}</b></span>
-              <span class="chip">节点卡片 <b>{{ pyrCardCount }}</b></span>
+              <span class="chip">论证分支 <b>{{ pyrBranchCount }}</b></span>
             </template>
           </div>
         </div>
@@ -181,10 +181,10 @@ const pyrLevel = (lv: number) => {
   if (pyr.value.thesis) walk(pyr.value.thesis)
   return n
 }
-const pyrCardCount = computed(() => {
+const pyrBranchCount = computed(() => {
   let n = 0
   const walk = (node: PyramidNode) => { n++; (node.children || []).forEach(walk) }
-  if (pyr.value.thesis) walk(pyr.value.thesis)
+  ;(pyr.value.thesis?.children || []).forEach(walk)
   return n
 })
 

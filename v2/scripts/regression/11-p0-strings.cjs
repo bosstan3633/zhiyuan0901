@@ -123,10 +123,12 @@ check('P0-S5 ★G1 五类处置各留一条正锚（防"下轮当成漏实现又
   const toast = fs.readFileSync(path.join(SRC, 'shared/components/Toast.vue'), 'utf8');
   const gs = stripAll(fs.readFileSync(path.join(SRC, 'newtab/views/GlobalSettings.vue'), 'utf8'));
   const ws = stripAll(fs.readFileSync(path.join(SRC, 'newtab/views/Workspace.vue'), 'utf8'));
+  const deck = stripAll(fs.readFileSync(path.join(SRC, 'newtab/components/compass/DeckControls.vue'), 'utf8'));
   const tokens = fs.readFileSync(path.join(SRC, 'shared/styles/tokens.css'), 'utf8');
   return iconSrc.includes("dot: '")                                    // A 类载体在图标集里
     && lane.includes('class="mc-ai"') && lane.includes('name="sparkle"') // B 类：AI 弱显走 Icon
-    && ws.includes(":name=\"batchMode ? 'check' : 'checksquare'\"")    // C 类：动作图标双态
+    && deck.includes(":name=\"batchOn ? 'checksquare' : 'check'\"")    // C 类：动作图标双态（随控制行迁入 DeckControls）
+    && !ws.includes(":name=\"batchMode ? 'check' : 'checksquare'\"")   // 旧宿主写法零回流
     && gs.includes("{ key: 'recycle', icon: 'trash', label: '回收站'") // D 类：字符串 prop 里是真图标名
     && tokens.includes('.zy-dot-ok') && tokens.includes('.zy-dot-warn') && tokens.includes('.zy-dot-mut') // A 类：三态点令牌仍在
     && /class="toast-msg">\{\{ t\.msg \}\}/.test(toast)                // E 类：消息体是纯文本插值（不判违规）

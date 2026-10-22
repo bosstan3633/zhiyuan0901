@@ -74,8 +74,12 @@ check('R2-⑧ ★新建仍守池语义不变量：新卡 workspaceId=CURATION_WS
 });
 check('R2-⑧ ★批量口径（★R3-Cb 实现上收到 useBatchSelect/addTagToCards 一份，口径不变）：打标签只加不减（去标签回卡详情，面板里不得有第二套标签编辑）· 批量删除走软删带撤销不弹确认（与单卡/全站一致）', () => {
   const p = read('/newtab/components/compass/PoolCardsPanel.vue'), b = read('/newtab/composables/useBatchSelect.ts')
+  const deleteBody = p.slice(p.indexOf('function deleteSelected()'), p.indexOf('</script>'))
+  const openBody = p.slice(p.indexOf('async function batchOpen()'), p.indexOf('/* 批量投射到策展台'))
   return b.includes('Array.from(new Set([...(it.tags || []), t]))') && p.includes('addTagToCards(') && p.includes('只加不减')
-    && p.includes('r.deletedAt = now') && p.includes("label: '撤销'") && !p.includes('useConfirm')
+    && deleteBody.includes('r.deletedAt = now') && deleteBody.includes("label: '撤销'")
+    && !deleteBody.includes('useConfirm')
+    && openBody.includes('useConfirm') && openBody.includes('批量打开链接')
 });
 check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底自动追加（IntersectionObserver rootMargin 240px）+ 手动「加载更多」兜底；?hl 定位会先把目标卡纳入渲染范围（否则分页之外滚不到）', () => {
   const p = read('/newtab/components/compass/PoolCardsPanel.vue')

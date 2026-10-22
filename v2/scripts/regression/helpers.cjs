@@ -277,12 +277,32 @@ const segOf = (src, head, next) => {
   if (j < 0) { SLICE_MISS.push('segOf 终点缺失「' + String(next).slice(0, 48) + '」'); return src.slice(i); }
   return src.slice(i, j);
 };
-const RES_CARD_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="res-card-actions">', '<div class="rc-head">');
-const RES_ROW_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<span class="rr-actions">', '</span>\n              </div>');
-const KANBAN_ACTIONS = segOf(read('/newtab/views/Workspace.vue'), '<div class="kc-actions">', '</div>\n                <div class="kc-card-title">');
-// R179（V3.7.0）：镜像域退役（资源卡真身统一入池，「镜像到策展台」入口整域删除）——
-// 六动作序列收敛为五动作（原 openMirrorCard(r) 居 📂 与 🗑 之间，随其退役一并移出）。
-const ACTION_SEQ = ['openResourceLink(r)', 'togglePin(r)', 'toggleStar(r)', 'openMoveOne(r)', 'deleteResource(r)'];
+/* V3.9.8 策展台结构迁移：旧 Workspace 卡片 / 列表 / 看板模板已从宿主退役。
+   这些历史切片名仍有分片在引用，但**必须落在现役真实宿主**，不能返回空串：
+   - 资源池列表 / 网格 = PoolCardsPanel 的两种现役视图；
+   - 策展画布工具条 = Workspace 的 ws-toolbar；
+   - 画布节点动作 = CurationMindMap / CurationMindNode。
+   新断言一律优先使用下面语义明确的 POOL_* / CURATION_* / MIND_* 名称。 */
+const POOL_PANEL = read('/newtab/components/compass/PoolCardsPanel.vue');
+const DECK_CONTROLS = read('/newtab/components/compass/DeckControls.vue');
+const CURATION_MAP = read('/newtab/components/curation/CurationMindMap.vue');
+const CURATION_NODE = read('/newtab/components/curation/CurationMindNode.vue');
+const CURATION_CSS = read('/newtab/components/curation/curation.css');
+const THESIS_DRAWER = read('/newtab/components/curation/CurationThesisDrawer.vue');
+const SHARE_DRAWER = read('/newtab/components/curation/CurationShareDrawer.vue');
+const POOL_ROW_ACTIONS = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>');
+const POOL_GRID_ACTIONS = segOf(POOL_PANEL, '<template v-else>\n            <CardAiEntry :card="r" />', '</template>');
+const POOL_CONTROLS = segOf(POOL_PANEL, '<DeckControls panel="pool"', '</DeckControls>');
+const CURATION_TOOLBAR = segOf(read('/newtab/views/Workspace.vue'), '<div class="ws-toolbar">', '<CurationMindMap');
+const MIND_ACTIONS = segOf(CURATION_MAP, '<div class="mindmap-layout"', '<div class="mindmap-status">');
+const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div class="mind-node-foot">', '</div>');
+// 兼容旧导出名：语义已迁到资源池两视图。KANBAN 在池里没有第三种视图，
+// 以“分组列表”的同一动作区承接，避免旧切片静默为空。
+const RES_CARD_ACTIONS = POOL_GRID_ACTIONS;
+const RES_ROW_ACTIONS = POOL_ROW_ACTIONS;
+const KANBAN_ACTIONS = POOL_ROW_ACTIONS;
+// 现役资源池动作的稳定顺序：AI → 星标 → 镜像 → 置顶 → 删除（列表与网格同序）。
+const ACTION_SEQ = ['<CardAiEntry', 'toggleStar(r)', 'openMirror(r)', 'togglePin(r)', 'removeCard(r)'];
 const inOrder = (seg) => {
   let at = -1;
   for (const fn of ACTION_SEQ) {
@@ -343,9 +363,11 @@ const WS_TPL = segOf(WS87, '<template>', '\n</template>');
 const WS_STY = read('/newtab/views/workspace.css');
 const WS88 = read('/newtab/views/Workspace.vue');
 const WS88_TPL = segOf(WS88, '<template>', '\n</template>');
-const TB88 = segOf(WS88, '<div class="ws-toolbar">', '\n    </div>');
-const POP88 = segOf(WS88, '<div class="filter-pop"', '\n        </div>');
-const TB1_88 = TB88.replace(POP88, '');
+/* V3.9.8：旧四视图工具条与筛选气泡已退役。TB1_88 保留为“画布一级动作条”，
+   POP88 明确指向现役资源池控制行（PoolCardsPanel → DeckControls），不再产生空切片。 */
+const TB88 = segOf(WS88, '<div class="ws-toolbar">', '<!-- R110-LC');
+const POP88 = POOL_CONTROLS;
+const TB1_88 = TB88;
 const SM88 = segOf(WS88, '<div class="settings-menu"', '\n    </div>');
 const WS89 = read('/newtab/views/Workspace.vue');
 const WS89_TPL = segOf(WS89, '<template>', '\n</template>');
@@ -353,7 +375,7 @@ const WS90 = read('/newtab/views/Workspace.vue');
 const REF90 = read('/newtab/components/ResourceEditForm.vue');
 const ICON90 = read('/shared/components/Icon.vue');
 const HEAD90 = segOf(WS90, '<div class="ws-id-head">', '</div>');
-const TB90 = segOf(WS90, '<div class="ws-toolbar">', '<!-- ③ 资源策展区 -->');
+const TB90 = CURATION_TOOLBAR;
 // ★R4-Eu 随迁备案：原终点 `// ===== 拖拽排序` 在 R115 拆分后不再紧跟 openResCtx ⇒ 切片一路到聚合文本末尾，
 // 里面既有 `openMirrorDetail` 又有各域 return —— 三条负锚（isHub / openMirrorCard / icon: 'share'）
 // 核的早就不是"右键菜单那一段"了。换成 composable 的 return 作为活边界。
@@ -510,4 +532,4 @@ function getTally() { return { pass, fail }; }
 /* R174-1：分片锚——ANCHOR_FILE = 本文件（版本锚 VER_ANCHOR_LITERAL 与聚合读取机制断言读这里） */
 const ANCHOR_FILE = __filename;
 
-module.exports = { fs, path, base, check, walkSrcFiles, srcFileEntries, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, CT_W11, TOWER, TOWER_ST, LANE, SPINE, PANEL, PANO, PANO_LANE, CMETA, CT_ALL, CT_ALL_META, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };
+module.exports = { fs, path, base, check, walkSrcFiles, srcFileEntries, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, POOL_ROW_ACTIONS, POOL_GRID_ACTIONS, POOL_CONTROLS, CURATION_TOOLBAR, MIND_ACTIONS, MIND_NODE_ACTIONS, POOL_PANEL, DECK_CONTROLS, CURATION_MAP, CURATION_NODE, CURATION_CSS, THESIS_DRAWER, SHARE_DRAWER, IMPORT_FN, OPEN_LINK_FN, stripComments, getSliceMisses, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, ST85, FOCUS_FN, ADDP_FN, CT86, ST86, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, CT_W11, TOWER, TOWER_ST, LANE, SPINE, PANEL, PANO, PANO_LANE, CMETA, CT_ALL, CT_ALL_META, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, getTally };

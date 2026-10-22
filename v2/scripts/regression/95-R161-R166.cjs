@@ -277,10 +277,12 @@ check('R158-5 设置页被动入口退役：无 aiCrossDeck/aiThesisDrift/aiDorm
     && SETTINGS_FILE.includes('@click="aiWeeklyReview"')
     && SETTINGS_FILE.includes('@click="aiDeliver"');
 });
-check('R158-6 右键重排（高频在卡面、长尾在右键）：置顶/星标位于编辑详情之后、移动分类之前；中心论点居删除之前；删除恒居底', () => {
+check('R158-6（V3.9.8 随迁）右键菜单：打开→复制→编辑→置顶→星标→镜像→中心论点→删除；移动分类已退役，删除恒居底', () => {
   const u = read('/newtab/composables/useResourceDrawer.ts');
-  const iEdit = u.indexOf("'✏️ 编辑详情'"), iPin = u.indexOf("r.pinned ? '取消置顶' : '置顶'"), iStar = u.indexOf("r.starred ? '☆ 取消星标' : '⭐ 星标'"), iMove = u.indexOf("{ label: '移动分类'"), iThesis = u.indexOf("'🏛 设为中心论点'"), iDel = u.indexOf("{ label: '删除', icon: 'trash', danger: true");
-  return iEdit > 0 && iEdit < iPin && iPin < iStar && iStar < iMove && iMove < iThesis && iThesis < iDel;
+  const c = codeOnly(u);
+  const iOpen = c.indexOf("{ label: '打开链接'"), iCopy = c.indexOf("{ label: '复制链接'"), iEdit = c.indexOf("'✏️ 编辑详情'"), iPin = c.indexOf("r.pinned ? '取消置顶' : '置顶'"), iStar = c.indexOf("r.starred ? '☆ 取消星标' : '⭐ 星标'"), iMirror = c.indexOf("'📡 镜像到策展台…'"), iThesis = c.indexOf("'🏛 设为中心论点'"), iDel = c.indexOf("{ label: '删除', icon: 'trash', danger: true");
+  return iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMirror && iMirror < iThesis && iThesis < iDel
+    && !c.includes("label: '移动分类'");
 });
 check('R158-7 ★入口数量锚（V3.7.0 重指 · N2 +1）：注册表 25 条（N2 单项目诊断与设置页 diagnose 各走各的，是新增不是改旧）；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;

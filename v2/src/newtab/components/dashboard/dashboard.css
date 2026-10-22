@@ -23,7 +23,8 @@
 .dz-btn:hover { border-color: var(--accent); color: var(--accent); }
 .dz-btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .dz-btn.pri:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
-.dz-btn.sm { padding: 3px 9px; font-size: var(--fs-caption); }
+/* M6：小号按钮视觉密度不变，点击盒统一撑到 28px。 */
+.dz-btn.sm { min-height: 28px; padding: 3px 9px; font-size: var(--fs-caption); }
 .dz-btn.ghost { background: transparent; }
 .dz-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 

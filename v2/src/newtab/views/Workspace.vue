@@ -1,11 +1,11 @@
 ﻿<template>
-  <div ref="wsPageRef" class="ws-page" :class="{ 'ws-fs-on': pyFs }" v-if="workspace" :style="{ '--grid-cols': String(resCols) }">
+  <div class="ws-page" v-if="workspace">
     <!-- R84（W1）：台身份页头——图标 + 台名 + 台描述 + 右端结构摘要（一行 ≤40px）。
          改前：仅资源台有一段 R73-S5a 写死的 .ws-hub-head（无图标、非台名剥图标/description），
          而 **策展台的台名与台描述在页面内零出现**——用户置身于某个策展台，却不知道这是哪个台。
          现统一为这一条，所有台都渲染。V3.7.0（R179）：资源台退役，hub 回落文案与 ? 教学气泡随之下线。 -->
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
-      <div class="ws-content" @scroll.passive="onContentScroll">
+      <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
     <div class="ws-id-head">
       <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
@@ -16,11 +16,17 @@
       <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
     </div>
     <!-- R126（原型还原）：中心论点横幅上移常驻——所有视图可见（原在卡片视图内、切视图即消失） -->
-    <div class="thesis-banner" :class="{ empty: !thesisCard }">
+    <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
+      :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
+      @click="thesisCard ? openThesisCard() : openThesisCreate()"
+      @keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"
+      @keydown.space.prevent="thesisCard ? openThesisCard() : openThesisCreate()">
       <template v-if="thesisCard">
         <span class="tb-badge"><Icon name="landmark" :size="13"/> 中心论点</span>
-        <span class="tb-title" :title="thesisCard.title" @click.stop="onCardClick(thesisCard)">{{ thesisCard.title }}</span>
-        <button class="tb-btn" @click="setViewMode('pyramid')"><Icon name="hexagon" :size="13"/> 查看金字塔结构论证 ›</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
+        <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
+        <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击打开论点卡详情' }}</span>
+        <span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span>
+        <ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
       </template>
       <template v-else>
         <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
@@ -48,8 +54,8 @@
     <!-- R75（R18）指标条按台身份分流 → V3.7.0（R179）：资源台 3 格随资源台退役，策展台 3 格为唯一形态 -->
     <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
          「🕐 最近更新」降为页头摘要「· 更新 X」（可点进流水下钻，入口不断） -->
-    <!-- R123（C3/原型）：策展台 3 格辅助条——论点已在大横幅，主题格退役；新增「金字塔论证深度」 -->
-    <div class="ws-metrics cur3">
+    <!-- R123（C3/原型）：策展台两格辅助条——论点已在大横幅，论证深度 / 来源覆盖不展示。 -->
+    <div class="ws-metrics cur2" data-curation-metrics="2">
       <div class="metric-box" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
         <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
         <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
@@ -57,10 +63,6 @@
       <div class="metric-box" title="点击查看附件明细" @click="openDrill('assets')">
         <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
         <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
-      </div>
-      <div class="metric-box" title="论点 1 层 + 分类树实录层数；闭环 = 无空分类节点">
-        <span class="mbox-label"><Icon name="landmark" :size="13"/> 金字塔论证深度</span>
-        <span class="mbox-value">{{ pyramidDepthText }}</span>
       </div>
     </div>
 
@@ -87,8 +89,8 @@
       <!-- R88（W6）：「⬇ 导入」自工具条收进此处，并**按台身份改名**消歧义（资源台=导入资源，策展台=导入策展台数据包）。
            V3.7.0（R179）：资源台退役——「导入」只剩数据包一种，消歧义前提消失，名称不再按台分支。 -->
       <div class="sm-item" @click="openImport"><Icon name="download" :size="13"/> 导入数据包</div>
-      <!-- 批量管理的入口也收进此处；**退出**仍留在一级（批量中显示「✓ 完成批量」） -->
-      <div v-if="!batchMode" class="sm-item" @click="toggleBatchMode"><Icon name="checksquare" :size="13"/> 批量管理</div>
+      <!-- V3.9.8：策展画布不再提供卡片批量栏。池卡的批量动作统一在调度台「资源卡池」，
+           本页设置菜单不再保留无落点的“批量管理”入口。 -->
       <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源卡池） -->
       <div class="sm-item" @click="cleanAllMirrors"><Icon name="broom" :size="13"/> 清理本台镜像卡</div>
       <!-- R108（T3）：金字塔 Markdown 模板导入 —— R113-N4 已提到一级工具条（见「📋 导入模板」按钮），此处移除 -->
@@ -104,102 +106,21 @@
 
     <!-- ② 策展工具条 -->
     <div class="ws-toolbar">
-      <div class="view-tabs">
-        <div class="view-tab" :class="{active: viewMode==='card'}" @click="setViewMode('card')">▦ 卡片</div>
-        <div class="view-tab" :class="{active: viewMode==='list'}" @click="setViewMode('list')"><Icon name="menu" :size="13"/> 列表</div>
-        <div class="view-tab" :class="{active: viewMode==='kanban'}" @click="setViewMode('kanban')">▤ 看板</div>
-        <!-- R62-5：金字塔结构视图 -->
-        <div class="view-tab" :class="{active: viewMode==='pyramid'}" @click="setViewMode('pyramid')"><Icon name="hexagon" :size="13"/> 金字塔 (成果态)</div>
-      </div>
-      <!-- R90（R8-②）：主 CTA「＋新建」前置——从最右移到视图 Tab 之后、搜索之前。
-           R88 只做了"分级"（一级收到 5 件），**位置仍在右端**；R8 要的是"主 CTA 不被挤到最右"。 -->
-      <button class="hero-btn primary" @click="openNewArgument">＋ 新建论证卡</button>
+      <span class="toolbar-mode"><Icon name="tree" :size="13"/> 策展画布</span>
+      <!-- 画布只渲染 Category 树：主 CTA 必须直接创建一个可见的二级分支。 -->
+      <button class="hero-btn primary" @click="mind.createChild('root')">＋ 新建分支</button>
       <button class="hero-btn ghost" title="导入策展台数据包" @click="openImport"><Icon name="download" :size="13"/> 导入数据包</button>
-      <button class="hero-btn ghost" :class="{ on: batchMode }" title="批量管理（选择卡片后整体移动 / 删除 / 打开）" @click="toggleBatchMode"><Icon :name="batchMode ? 'check' : 'checksquare'" :size="13"/>{{ batchMode ? '完成批量' : '批量' }}</button>
+      <button class="hero-btn ghost" title="分享为自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
            与「＋新建」同属"往本台生成内容"，紧邻放置；V3.7.0（R179）：资源台退役后无 hub 门控，按钮常驻。 -->
-      <button class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（论点 + 分类节点 + 节点卡片一次生成）"
+      <button class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（中心论点 + 论证分支一次生成）"
         @click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>
       <div class="toolbar-spacer"></div>
-      <!-- R122（原型）：列数方片（4/5/6/7）+ 状态快捷筛选（与筛选气泡同源：sortBy / filterBy） -->
-      <ColsPicker v-if="viewMode==='card'" v-model="resCols" chips label="列数" />
-      <select class="toolbar-select quick-filter" v-model="quickFilter" title="状态快捷筛选（高频调用 = 打开次数 ≥ 3）">
-        <option value="all">全部状态</option>
-        <option value="hasAssets">有附件的卡片</option>
-        <option value="hot">高频调用 <Icon name="flame" :size="13"/></option>
-        <option value="brokenPath"><Icon name="warn" :size="13"/> 待补全路径</option>
-      </select>
       <div class="toolbar-search">
         <span class="s-icon"><Icon name="search" :size="13"/></span>
-        <input type="text" v-model="searchQuery" placeholder="检索本台素材..."
-          title="匹配标题 / 描述 / 标签 / 自定义字段；输入 #标签 可按标签直筛（多个取交集，如 #前端 #待读）">
+        <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
+          title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
       </div>
-      <!-- R88（W3）：工具条分级——一级只留「视图 Tab ｜ 搜索 ｜ 筛选 ｜ ＋新建 ｜ ⚙」。
-           排序(+方向) / 类型筛选 / 密度 / 列数 是"改看法"的，全部收进下面的「筛选」气泡；
-           低频的导入与批量管理收进 ⚙。改前这一行堆了 11 个控件，主次不分。 -->
-      <div class="filter-wrap">
-        <button class="toolbar-filter" :class="{on: filterSummary.length}" :title="filterPopTitle"
-          @click.stop="toggleFilterPop">
-          <span class="tf-main"><Icon name="symbol" :size="13"/> 筛选</span>
-          <template v-if="filterSummary.length">
-            <span v-for="s in filterSummary.slice(0, 2)" :key="s" class="tf-chip">{{ s }}</span>
-            <span v-if="filterSummary.length > 2" class="tf-chip more">+{{ filterSummary.length - 2 }}</span>
-          </template>
-        </button>
-        <!-- 气泡：相对定位（.ws-page / .ws-toolbar 均无 overflow:hidden），会跟随触发按钮——
-             比写死 right 的 fixed 定位更健壮（筛选按钮宽度随徽标变化） -->
-        <div class="filter-pop" :class="{open: filterPopOpen}" @click.stop>
-          <div class="fp-row">
-            <span class="fp-label">排序</span>
-            <select class="toolbar-select" v-model="sortBy">
-              <option value="manual">手动拖拽</option>
-              <option value="recent">最近添加</option>
-              <option value="visited">最近访问</option>
-              <option value="hot">调用最多</option>
-              <option value="title">标题 A-Z</option>
-            </select>
-            <!-- 第卅二轮 REQ-007：时间排序方向切换（默认倒序，偏好本地记忆） -->
-            <button v-if="sortBy==='recent' || sortBy==='visited'" class="toolbar-select sort-dir-btn" :title="sortDir==='desc' ? '当前倒序（新→旧），点击切换正序' : '当前正序（旧→新），点击切换倒序'" @click="toggleSortDir">{{ sortDir==='desc' ? '↓ 新→旧' : '↑ 旧→新' }}</button>
-          </div>
-          <div class="fp-row">
-            <span class="fp-label">类型</span>
-            <!-- R87（R5-②）：8 档分两组——原四档是 linkType 维度，新四档是语义谓词维度 -->
-            <select class="toolbar-select" v-model="filterBy">
-              <optgroup label="按链接类型">
-                <option value="all">全部</option>
-                <option value="url">URL链接</option>
-                <option value="file">本地文件</option>
-                <option value="obsidian">Obsidian</option>
-              </optgroup>
-              <optgroup label="按状态">
-                <option value="hasLink">有链接</option>
-                <option value="brokenPath"><Icon name="warn" :size="13"/> 待补全路径</option>
-                <option value="hasAssets">有附件</option>
-                <!-- R89（W5）：星标筛选——`starred` 字段早就在模型里、三视图 ⭐ 也早就能切换，缺的只是筛出口 -->
-                <option value="starred"><Icon name="star" :size="13"/> 星标</option>
-              </optgroup>
-            </select>
-          </div>
-          <div class="fp-row">
-            <span class="fp-label">密度</span>
-            <!-- 第卅三轮 REQ-026：密度档位（紧凑/舒适，记忆 UIPrefs.density） -->
-            <select class="toolbar-select" v-model="density" :title="'密度档位：' + (density === 'compact' ? '紧凑' : '舒适')">
-              <option value="cozy">舒适密度</option>
-              <option value="compact">紧凑密度</option>
-            </select>
-          </div>
-          <!-- R72：卡片视图横向列数（4/5/6/7）——W3 要求列数选择器一并收进「筛选」气泡 -->
-          <div v-if="viewMode==='card'" class="fp-row">
-            <span class="fp-label">列数</span>
-            <ColsPicker v-model="resCols" label="列数" />
-          </div>
-          <div class="fp-foot">
-            <span class="fp-reset" @click="resetAllFilters">重置全部</span>
-          </div>
-        </div>
-      </div>
-      <!-- R88（W3）：批量模式激活时**必须**在一级留退出按钮——.batch-bar 浮动栏的条件是
-           batchMode && selectedIds.size，一张都没选时它不出现，此时这里是唯一退出通道 -->
       <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
       <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu"><Icon name="settings" :size="13"/></button>
     </div>
@@ -209,411 +130,58 @@
       <Icon name="package" :size="13"/> 另有 {{ archivedHintCount }} 张已归档卡片未显示（点此在 设置 › 总览 · 资源生命周期 中查看 / 恢复）
     </div>
 
-    <!-- ③ 资源策展区 -->
-      <div class="ws-columns">
-      <div class="ws-sidebar" :class="{ rail: sideRail }" :style="sideRail ? { width: '36px' } : { width: wsSideW + 'px' }">
-        <div class="cat-toolbar">
-          <span class="ct-label">论证结构目录</span>
-          <span class="ct-actions">
-            <span class="ct-btn" title="全部收起（一键收纳为策展台根部）" @click="collapseAllCats">⊟</span>
-            <span class="ct-btn" title="全部展开" @click="expandAllCats">⊞</span>
-          </span>
-          <span class="ct-btn rail-toggle" :title="sideRail ? '展开目录' : '收起为图标轨'" @click="toggleSideRail">{{ sideRail ? '⊞' : '⊟' }}</span>
-        </div>
-        <template v-if="!sideRail"><div class="cat-item" :class="{active: activeCategory==='all'}" @click="activeCategory='all'">
-          <span class="cat-icon"><Icon name="folder" :size="13"/></span><span class="cat-name">全部</span>
-          <span class="cat-count" title="本台全部可见卡（策展台含资源卡池镜像卡）">{{ allResources.length }}</span>
-        </div>
-        <!-- 第廿九轮：「待分类」成为卡片归属落点 -->
-        <div class="cat-item" :class="{active: activeCategory==='uncat', 'card-drop': cardDropTarget==='uncat'}" @click="activeCategory='uncat'"
-          @dragover="onUncatDragOver" @dragleave="cardDropTarget==='uncat' && (cardDropTarget='')" @drop.stop="onUncatDrop">
-          <span class="cat-icon"><Icon name="inbox" :size="13"/></span><span class="cat-name">待分类</span>
-          <span class="cat-count" title="未归入任何分类，或所属分类已失效">{{ uncategorizedCount }}</span>
-        </div>
-        <div class="cat-divider"></div>
-        <template v-for="sc in sidebarCats" :key="sc.cat.id">
-          <div v-if="sc.sectionLabel" class="cat-section-label">{{ sc.sectionLabel }}</div>
-          <div class="cat-item" :class="{
-              active: activeCategory===sc.cat.id,
-              sub: sc.depth>=1,
-              collapsed: sc.hasChildren && collapsedCats.has(sc.cat.id),
-              flash: catFlashId===sc.cat.id,
-              'card-drop': cardDropTarget===sc.cat.id,
-              'drop-child': catDropTarget===sc.cat.id && catDropMode==='child',
-              'drop-before': catDropTarget===sc.cat.id && catDropMode==='before',
-              'drop-after': catDropTarget===sc.cat.id && catDropMode==='after'
-            }"
-            :style="sc.depth > 1 ? { marginLeft: ((sc.depth - 1) * 14) + 'px' } : undefined"
-            :data-catid="sc.cat.id"
-            :draggable="!batchMode"
-            @click="selectSidebarCat(sc)"
-            @dragstart="onCatDragStart($event, sc.cat)" @dragend="onCatDragEnd"
-            @dragover.prevent.stop="onCatDragOver($event, sc.cat)" @drop.stop="onCatDrop($event, sc.cat)" @dblclick="startCatRename(sc.cat)">
-            <span v-if="sc.hasChildren" class="cat-caret" :class="{open: !collapsedCats.has(sc.cat.id)}" title="展开/折叠" @click.stop="toggleCatCollapse(sc.cat.id)">▸</span>
-            <span v-else class="cat-caret placeholder"></span>
-            <span class="cat-icon" :title="sc.hasChildren ? '展开/折叠' : ''" @click.stop="sc.hasChildren && toggleCatCollapse(sc.cat.id)"><template v-if="sc.depth>0 && !sc.hasChildren">↳</template><Icon v-else-if="sc.cat.pinned" name="pin" :size="12"/><Icon v-else-if="sc.hasChildren" :name="collapsedCats.has(sc.cat.id) ? 'folder' : 'folderopen'" :size="12"/><Icon v-else name="folder" :size="12"/><template v-if="isMirrorCat(sc.cat)"><Icon name="satellite" :size="13"/></template></span>
-            <!-- R62-4：层级色点（L1-L4 一眼分层） -->
-            <span class="cat-depth-dot" :data-lv="sc.depth"></span>
-            <CatNodeName class="cat-name" :name="sc.cat.name" :editing="catRenId===sc.cat.id" @commit="v => commitCatRename(sc.cat, v)" @done="catRenId=''" />
-            <!-- R113-N1：原 5 个图标平铺（且 hover 时把计数顶掉、把分类名挤没）→ 收敛为
-                 「＋ 子分类」+「⋯ 更多」两项；置顶 / 镜像 / 重命名 / 删除 收进 ⋯ 菜单，
-                 主次分明、破坏性操作进二级（误删风险下降）。计数恢复常驻。 -->
-            <span class="cat-actions">
-              <span v-if="sc.depth < 3" class="cat-act" title="创建子分类" @click.stop="openCreateCat(sc.cat.id)">＋</span>
-              <span class="cat-act more" title="更多操作（置顶 / 重命名 / 删除）" @click.stop="openCatMenu($event, sc)">⋯</span>
-            </span>
-            <span class="cat-count" :title="sc.hasChildren ? `仅本分类直属 ${sc.directCount} 张 · 含 ${sc.childCount} 个子分类（共 ${sc.aggCount} 张）` : `仅本分类直属 ${sc.directCount} 张`">{{ sc.directCount }}</span>
-          </div>
-        </template>
-        <div v-if="dragCatId" class="cat-root-drop" @dragover.prevent @drop="onCatRootDrop"><Icon name="upload" :size="13"/> 松手升为一级分类</div>
-        <div class="cat-add" @click="openCreateCat()"><span>＋</span><span>新建分类</span></div>
-        <!-- 第卅三轮 REQ-021：存量重复分类合并工具 -->
-        <div class="cat-merge" @click="mergeDupCats"><span><Icon name="wrench" :size="13"/></span><span>合并重复分类</span></div>
-        </template><template v-else><div class="cat-rail">
-            <div class="cat-rail-btn" :class="{active: activeCategory==='all'}" title="全部" @click="activeCategory='all'"><Icon name="folder" :size="13"/></div><div class="cat-rail-btn" :class="{active: activeCategory==='uncat'}" title="待分类" @click="activeCategory='uncat'"><Icon name="inbox" :size="13"/></div><div class="cat-rail-sep"></div>
-            <div v-for="c in pinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)"><Icon name="pin" :size="13"/></div><div v-for="c in unpinnedRootCats" :key="c.id" class="cat-rail-btn" :class="{active: activeCategory===c.id}" :title="c.name" @click="selectRailCat(c.id)"><Icon v-if="isMirrorCat(c)" name="satellite" :size="12"/><Icon v-else name="folder" :size="12"/></div></div></template>
-      </div>
-      <!-- R113-N1：树宽拖拽手柄（160–420px；双击复位 200px；窄屏隐藏） -->
-      <div class="ws-side-split" title="拖拽调整分类树宽度（双击复位）" @mousedown.prevent="startSideResize" @dblclick="resetSideWidth"></div>
-
-      <!-- R113-N1：分类行「⋯」溢出菜单（fixed 定位——不被侧栏 overflow-y 裁剪；out-of-flow 不进 flex 布局） -->
-      <div v-if="catMenu.open" class="ctm-mask" @click="catMenu.open = false" @contextmenu.prevent="catMenu.open = false"></div>
-      <div v-if="catMenu.open" class="ctm" :style="{ left: catMenu.x + 'px', top: catMenu.y + 'px' }">
-        <div v-if="catMenu.depth === 0" class="ctm-item" @click="runCatMenu('pin')"><Icon name="pin" :size="13"/> {{ catMenu.pinned ? '取消置顶' : '置顶分类' }}</div>
-        <div class="ctm-item" @click="runCatMenu('rename')"><Icon name="edit" :size="13"/> 重命名</div>
-        <div class="ctm-sep"></div>
-        <div class="ctm-item danger" @click="runCatMenu('delete')"><Icon name="trash" :size="13"/> 删除分类</div>
-      </div>
-
-      <!-- 右侧展示区 -->
-
-        <!-- ===== 卡片视图：REQ-027 按分类分组分区；R64-F9 树状递归分组（depth 缩进呈现层级） ===== -->
-        <div v-if="viewMode==='card'" class="ws-view">
-          <!-- R84（W2-①）：中心论点提到首屏——此前论点只出现在指标条第一格与金字塔 L1 根，
-               卡片视图（默认视图）里完全看不到。已设立 → 标题 + 查看金字塔；未设立 → 一行轻引导。 -->
-          <template v-for="(g, gi) in renderedGroups" :key="g.key">
-            <div class="group-wrap" :class="{ 'group-box': viewMode === 'card' && g.depth === 0 }" :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
-            <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
-              <span><template v-if="g.depth">↳</template><Icon v-else name="folder" :size="12"/> {{ g.title }}<template v-if="groupChildCount(g.key)">（直属 {{ g.count }} · 含 {{ groupChildCount(g.key) }} 个子分类共 {{ g.total }}）</template><template v-else> · {{ g.total }}</template></span>
-              <span class="head-right">
-                <!-- R122（原型）：排序入口外移到分组头（与筛选气泡同源 v-model=sortBy） -->
-                <select v-if="gi === 0" class="head-sort" v-model="sortBy" title="排序方式">
-                  <option value="manual">手动拖拽</option>
-                  <option value="recent">最近添加</option>
-                  <option value="visited">最近访问</option>
-                  <option value="hot">调用最多</option>
-                  <option value="title">标题 A-Z</option>
-                </select>
-                <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
-              </span>
-              </div>
-            <div v-show="!collapsedGroups.has(g.key)" class="card-grid"
-              @dragover="onAreaDragOver($event, g.key)" @drop="onAreaDrop($event, g.key)">
-              <div v-for="r in g.items" :key="r.id" class="res-card" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b', 'warning-broken': isBrokenPath(r), 'mirror-card': isMirrorView(r)}"
-                :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
-                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
-                @contextmenu.prevent="openResCtx($event, r)">
-                <div v-if="batchMode" class="rc-batch-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)"><Icon v-if="selectedIds.has(r.id)" name="check" :size="12"/></div>
-                <!-- R158（拍板②）：一级 hover = AI 徽标 / 移动 / 删除（+ 断链补全条件）+ 常驻 ⋯ 出口——
-                     ⋯ 复用右键菜单数据源 openResCtx（完整清单：打开/复制/编辑/置顶/星标/挂载/镜像/论点/删除）；
-                     置顶从一级条降级进右键（高频在卡面、长尾在右键的归属口径） -->
-                <div class="res-card-actions">
-                  <template v-if="!isMirrorView(r)">
-                    <CardAiEntry :card="r" />
-                    <div class="rc-action move" title="移动分类" @click.stop="openMoveOne(r)"><Icon name="folderopen" :size="13"/></div>
-                    <div class="rc-action delete" title="删除" @click.stop="deleteResource(r)"><Icon name="trash" :size="13"/></div>
-                    <div v-if="isBrokenPath(r)" class="rc-action fix" title="补全本地路径" @click.stop="fixLink(r)"><Icon name="edit" :size="13"/></div>
-                    <div class="rc-action more" title="更多操作（编辑 / 置顶 / 星标 / 移动 / 删除…）" @click.stop="openResCtx($event, r)">⋯</div>
-                  </template>
-                  <template v-else>
-                    <div class="rc-action open" title="打开链接" @click.stop="openResourceLink(r)"><Icon name="external" :size="13"/></div>
-                    <div class="rc-action locate" title="定位到源卡" @click.stop="locateMirrorSource(r)"><Icon name="target" :size="13"/></div>
-                    <div class="rc-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)"><Icon name="x" :size="13"/></div>
-                  </template>
-                </div>
-                <!-- 骨架（原型）：类型图标 + 标题（2 行钳制） -->
-                <div class="rc-head">
-                  <span class="rc-type-icon"><Icon :name="linkIcon(r.linkType)" :size="13"/></span>
-                  <span class="rc-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像自原资源卡 · 只读，编辑回源处生效"><Icon name="satellite" :size="13"/></span>{{ r.title }}</span>
-                </div>
-                <!-- 摘要：2 行钳制（R155-③）；断链卡替换为补全引导（原型 P7） -->
-                <div v-if="isBrokenPath(r)" class="rc-desc broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)"><Icon name="warn" :size="13"/> 本地路径断链 · 点击补全</div>
-                <div v-else-if="r.description" class="rc-desc">{{ r.description }}</div>
-                <!-- 启用字段（链接 / 日期 / 来源 / 自定义）渲染在描述与页脚之间（Q2：字段配置仍生效） -->
-                <div v-if="extraFieldsOf(r).length" class="rc-extra">
-                  <template v-for="f in extraFieldsOf(r)" :key="f.key">
-                    <div v-if="f.key==='link' && r.link" class="rc-x-link" :class="r.linkType"><Icon :name="linkIcon(r.linkType)" :size="12"/> {{ linkDisplay(r.link) }}</div>
-                    <div v-else-if="f.key==='sourceType' && r.sourceType" class="rc-x-src"><Icon name="tag" :size="13"/> {{ srcLabel(r.sourceType) }}</div>
-                    <div v-else-if="f.key==='createdAt' && val(r,f.key)" class="rc-x-date"><Icon name="clock" :size="13"/> {{ val(r,f.key) }}</div>
-                    <div v-else-if="f.key.startsWith('custom_') && val(r,f.key)" class="rc-x-custom"><span>{{ f.label }}:</span>{{ val(r,f.key) }}</div>
-                  </template>
-                </div>
-                <!-- 页脚（原型）：分类 chip + 标签 chips ｜ 附件 / ⭐ / 热度 -->
-                <div class="rc-footer">
-                  <span class="rc-cat" title="点击查看所在分类" @click.stop="activeCategory = r.categoryId || 'uncat'"><Icon :name="catIconOf(r)" :size="12"/> {{ catNameOfFamily(r) }}</span>
-                  <span v-for="t in (r.tags || []).slice(0, 2)" :key="t" class="rc-tag-chip">#{{ t }}</span>
-                  <span class="rc-footer-right">
-                    <span v-if="isMirrorView(r)" class="rc-type-chip"><Icon :name="linkIcon(r.linkType)" :size="12"/> {{ linkLabel(r.linkType) }}</span>
-                    <AssetBadge v-if="r.assets?.length" :assets="r.assets" />
-                    <span v-if="r.starred" class="rc-star" title="已星标"><Icon name="star" :size="13"/></span>
-                    <span v-if="r.callCount" class="rc-heat" title="被打开次数"><Icon name="flame" :size="13"/> {{ r.callCount }}</span>
-                  </span>
-                </div>
-              </div>
-              <div v-if="gi === renderedGroups.length - 1 && !hasMoreToRender" class="rc-add-card" @click="openNewArgument">
-                <Icon name="plus" :size="16"/><span>新建论证卡</span>
-              </div>
-            </div>
-            </div>
-          </template>
-
-          <!-- R87（R5 收尾）：有筛选/搜索却零结果时，空态要说明**原因**并给一键清除——
-               否则用户只看到「暂无资源卡」，会以为卡丢了（与 D-B 项目总览同款口径） -->
-          <EmptyState v-if="!resourceGroups.length && hasActiveFilter" icon="folder"
-            :title="hasActiveFilter ? '当前筛选没有匹配的资源卡' : '暂无资源卡'"
-            :desc="hasActiveFilter ? '已按「' + filterLabel + '」过滤' + (debouncedQuery.trim() ? '，且搜索「' + debouncedQuery.trim() + '」无命中' : '') : '双击卡片直达链接；单击查看详情。用 Ctrl+Shift+J 可从任意网页采集'"
-            :action-label="hasActiveFilter ? '清除筛选' : '＋ 新建论证卡'"
-            @action="hasActiveFilter ? resetFilters() : openNewArgument()" />
-          <div v-else-if="!resourceGroups.length" class="cur-empty-skeleton">
-            <div class="ces-l1"><span class="ces-badge">L1</span>中心论点占位 —— 确立后即成为金字塔根节点</div><div class="ces-line"></div>
-            <div class="ces-l2row"><div class="ces-l2">L2 论据分支 A</div><div class="ces-l2">L2 论据分支 B</div><div class="ces-l2">L2 论据分支 C</div></div>
-            <p class="ces-hint">在金字塔节点「<Icon name="link" :size="13"/> 关联资源卡」（AI 语义检索）或新建论证节点卡以支撑论点，把研究变成可表达的成果</p><div class="ces-actions"><button class="hero-btn primary" @click="openNewArgument">＋ 新建论证卡</button><button class="hero-btn ghost" @click="setViewMode('pyramid')"><Icon name="hexagon" :size="13"/> 去金字塔挂载</button></div>
-          </div>
-          <!-- R1.5：论证节点卡（第 4 卡种）台内过渡呈现——台内新建的论证卡在此列出；R2 DeckTabs 收编后由统一渲染器接管 -->
-          <div v-if="argCardsOfWs.length" class="arg-sec">
-            <div class="arg-sec-h"><Icon name="compass" :size="13"/> 论证节点卡<span class="arg-sec-n">{{ argCardsOfWs.length }}</span></div>
-            <div class="arg-list">
-              <div v-for="a in argCardsOfWs" :key="a.id" class="arg-item">
-                <div class="arg-main">
-                  <div class="arg-t">{{ a.title }}</div>
-                  <div v-if="a.content" class="arg-c">{{ a.content }}</div>
-                </div>
-                <button class="arg-del" title="删除论证节点卡（进回收站，可撤销）" @click="deleteArgument(a)"><Icon name="x" :size="13"/></button>
-              </div>
-            </div>
-          </div>
-          <!-- R112 性能：增量渲染的显式入口（滚动到此处也会自动追加一屏） -->
-          <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
-            ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多
-          </div>
-        </div>
-
-        <!-- ===== 列表视图：REQ-027 按分类分组分区（每分区标题行 + 其下条目）；R64-F9 树状缩进 ===== -->
-        <div v-if="viewMode==='list'" class="ws-view">
-          <template v-for="(g, gi) in renderedGroups" :key="g.key">
-            <div class="group-wrap" :style="g.depth ? 'margin-left:' + (g.depth * 16) + 'px' : ''">
-            <div class="section-label ws-cat-head" :class="{first: gi===0, sub: g.depth>0}" @click="toggleGroupCollapse(g.key)">
-              <span><template v-if="g.depth">↳</template><Icon v-else name="folder" :size="12"/> {{ g.title }}<template v-if="groupChildCount(g.key)">（直属 {{ g.count }} · 含 {{ groupChildCount(g.key) }} 个子分类共 {{ g.total }}）</template><template v-else> · {{ g.total }}</template></span>
-              <span class="head-right">
-                <!-- R122（原型）：排序入口外移到分组头（与筛选气泡同源 v-model=sortBy） -->
-                <select v-if="gi === 0" class="head-sort" v-model="sortBy" title="排序方式">
-                  <option value="manual">手动拖拽</option>
-                  <option value="recent">最近添加</option>
-                  <option value="visited">最近访问</option>
-                  <option value="hot">调用最多</option>
-                  <option value="title">标题 A-Z</option>
-                </select>
-                <span class="ws-cat-collapse">{{ collapsedGroups.has(g.key) ? '▸' : '▾' }}</span>
-              </span>
-              </div>
-            <div v-show="!collapsedGroups.has(g.key)" class="res-list">
-              <div v-for="r in g.items" :key="r.id" class="res-row" :class="{pinned: r.pinned, flash: highlightId===r.id, selected: batchMode && selectedIds.has(r.id), 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
-                :data-rid="r.id" :draggable="!batchMode" @click="onCardClick(r)" @dblclick="onCardDblClick(r)"
-                @dragstart="onDragStart($event,r)" @dragover.prevent="markDrop($event, r.id, 'x')" @drop="onDropCard($event,r)" @dragend="clearDragState" @dragleave="clearDropMark"
-                @contextmenu.prevent="openResCtx($event, r)">
-                <!-- R117（04-61 F1）：列表行用行内勾选框 .rr-check（原复用卡片 absolute 定位的 .rc-batch-check 会逃逸重叠） -->
-                <div v-if="batchMode" class="rr-check" :class="{on: selectedIds.has(r.id)}" @click.stop="toggleSelect(r.id)"><Icon v-if="selectedIds.has(r.id)" name="check" :size="12"/></div>
-                <span v-else class="rr-drag">⋮⋮</span>
-                <span class="rr-title"><NewBadge :at="r.createdAt" /><span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像自原资源卡 · 只读，编辑回源处生效"><Icon name="satellite" :size="13"/></span>{{ val(r, titleKey) }}</span>
-                <AssetBadge v-if="hasField('assets') && r.assets?.length" :assets="r.assets" class="rr-assets" />
-                <!-- R87（R7-①）：列表视图同一枚徽标（三视图与卡片同源，见 R79 立的推平原则） -->
-                <span v-if="isBrokenPath(r)" class="rr-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)"><Icon name="warn" :size="13"/> 待补全</span>
-                <!-- R79（R1-列）：调用次数不在字段池里（callCount 无 FieldDef），故与卡片视图一样硬编码一行 -->
-                <span v-if="r.callCount" class="rr-calls" title="被打开次数"><Icon name="flame" :size="13"/>{{ r.callCount }}</span>
-                <span class="rr-f" v-for="f in listFields" :key="f.key">{{ shortVal(r, f) }}</span>
-                <span class="rr-actions">
-                  <!-- R79（R1-列）：动作条对齐卡片视图六动作同一顺序——此前只有 📌⭐🗑 -->
-                  <span class="rr-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）"><Icon name="external" :size="13"/></span>
-                  <!-- R89（W4）：与卡片视图同款——真身卡七动作、镜像卡只读三件套 -->
-                  <template v-if="!isMirrorView(r)">
-                    <span class="rr-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'"><Icon name="pin" :size="13"/></span>
-                    <span class="rr-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'"><Icon name="star" :size="13"/></span>
-                    <span class="rr-action" @click.stop="openMoveOne(r)" title="移动分类"><Icon name="folderopen" :size="13"/></span>
-                    <span class="rr-action delete" @click.stop="deleteResource(r)" title="删除"><Icon name="trash" :size="13"/></span>
-                    <CardAiEntry :card="r" />
-                  </template>
-                  <template v-else>
-                    <span class="rr-action locate" title="定位到源卡" @click.stop="locateMirrorSource(r)"><Icon name="target" :size="13"/></span>
-                    <span class="rr-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)"><Icon name="x" :size="13"/></span>
-                  </template>
-                </span>
-              </div>
-            </div>
-            </div>
-          </template>
-          <!-- G3（V3.8.27）：列表视图零资源卡改走 EmptyState（原来是裸文本，无「怎么开始」） -->
-          <!-- ★W4（V3.8.37）空台引导：原文要求 Icon(compass) +「从好奇与资源里搭出你的主线」
-               + 主行动「添加第一张卡」，呼应「策展成果」定位。
-               ★为什么 icon 从 folder 改成 compass：folder 说的是「这里该放文件」，
-               而策展台放的**不是文件而是策展成果**——原文那句「把研究变成可表达的成果」
-               才是这一台的定位。文案与图标都回到定位上，用户才知道自己在这里干什么。 -->
-          <EmptyState v-if="!resourceGroups.length" size="section" icon="compass"
-            title="这台策展台还空着"
-            desc="策展台是把好奇与资源摆成主线的成果台——卡进来之后，才谈得上论证与取舍。"
-            hint="第一张卡有两个来路：从任意网页 Ctrl+Shift+J 采集，或直接新建一张论证卡。"
-            action-label="＋ 添加第一张卡" @action="openNewArgument" />
-          <!-- R112 性能：增量渲染的显式入口（列表视图同口径） -->
-          <div v-if="hasMoreToRender" class="render-more" @click="renderMore">
-            ↓ 已显示 {{ renderedCount }} / {{ totalVisibleCount }} 张 —— 点此加载更多
-          </div>
-        </div>
-
-        <!-- 看板视图 -->
-        <!-- R173-T1：列窗口化改视口驱动——只渲染滚动位置 ± 缓冲内的列，窗口外两侧用等宽 ghost 占位保几何 -->
-        <div v-if="viewMode==='kanban'" class="kanban" ref="kanbanWrapRef" @scroll="onKanbanWinScroll">
-          <!-- R173-T1：窗口外左侧占位列（1 节点/列，透明空壳——滚到即原位换真列） -->
-          <div v-for="g in kanbanGhostL" :key="'kgl' + g" class="kanban-col kc-ghost"></div>
-          <div v-for="cat in kanbanColumns" :key="cat.key" class="kanban-col"
-            @dragover.prevent @drop="onDropToCategory($event,cat.key)">
-            <div class="kc-header">
-              <span class="kc-name"><Icon name="folderopen" :size="13"/> {{ cat.name }}</span>
-              <span class="kc-count">{{ cat.count }}</span>
-              <div class="kc-add" @click="openNewArgument" title="新建论证节点卡（资源卡经采集入池 / 节点关联引用）">＋</div>
-            </div>
-            <!-- R116 性能：列体增量渲染——滚动近底自动追加（与卡片/列表 R112 同构） -->
-            <div class="kc-body" @scroll="onKanbanColScroll($event, cat.key)">
-              <div v-for="r in cat.items" :key="r.id" class="kc-card" :class="{pinned: r.pinned, flash: highlightId===r.id, 'drop-line-t': dropMark===r.id+'-t', 'drop-line-b': dropMark===r.id+'-b'}"
-                :data-rid="r.id" :draggable="!batchMode" @dragstart="onDragStart($event,r); setKanbanDragCol(r.categoryId || '')" @dragover.prevent.stop="markDrop($event, r.id, 'y')" @dragend="clearDragState(); setKanbanDragCol(null)" @dragleave="clearDropMark" @drop.stop="onKanbanCardDrop($event, r)" @click="onCardClick(r)" @dblclick="onCardDblClick(r)">
-                <!-- R79（R1-看）：看板此前只有 🗑 删除 + 只读星标，动作条与卡片/列表视图严重不齐 -->
-                <div class="kc-actions">
-                  <span class="kc-action open" @click.stop="openResourceLink(r)" title="打开链接（无链接则提示补全）"><Icon name="external" :size="13"/></span>
-                  <!-- R89（W4）：与卡片/列表视图同款 -->
-                  <template v-if="!isMirrorView(r)">
-                    <span class="kc-action" @click.stop="togglePin(r)" :title="r.pinned?'取消置顶':'置顶'"><Icon name="pin" :size="13"/></span>
-                    <span class="kc-action" :class="{on: r.starred}" @click.stop="toggleStar(r)" :title="r.starred?'取消星标':'星标'"><Icon name="star" :size="13"/></span>
-                    <span class="kc-action" @click.stop="openMoveOne(r)" title="移动分类"><Icon name="folderopen" :size="13"/></span>
-                    <span class="kc-action delete" title="删除" @click.stop="deleteResource(r)"><Icon name="trash" :size="13"/></span>
-                    <CardAiEntry :card="r" />
-                  </template>
-                  <template v-else>
-                    <span class="kc-action locate" title="定位到源卡" @click.stop="locateMirrorSource(r)"><Icon name="target" :size="13"/></span>
-                    <span class="kc-action delete" title="移出镜像（源卡保留）" @click.stop="removeMirror(r)"><Icon name="x" :size="13"/></span>
-                  </template>
-                </div>
-                <div class="kc-card-title">
-                  <span v-if="r.starred" class="kc-star" title="已星标"><Icon name="star" :size="13"/></span>{{ val(r, titleKey) }}
-                </div>
-                <div class="kc-card-footer">
-                  <!-- R87（R7-①）：看板同第三枚 -->
-                  <span v-if="isBrokenPath(r)" class="kc-broken" title="仅存文件名，双击无法打开 —— 点击补全完整路径" @click.stop="fixLink(r)"><Icon name="warn" :size="13"/> 待补全</span>
-                  <span v-if="r.callCount" class="kc-calls" title="被打开次数"><Icon name="flame" :size="13"/>{{ r.callCount }}</span>
-                  <span v-if="hasField('tags') && r.tags.length" v-for="t in r.tags" :key="t" class="kc-card-tag">#{{ t }}</span>
-                  <span class="kc-card-link" :class="r.linkType" v-if="r.link"><Icon :name="linkIcon(r.linkType)" :size="12"/></span>
-                  <span v-if="hasField('assets') && r.assets?.length" class="kc-card-assets"><AssetBadge :assets="r.assets" /></span>
-                </div>
-              </div>
-              <!-- R116 性能：增量渲染的显式入口（看板列同口径，保证键盘/触屏场景可达） -->
-              <div v-if="cat.hiddenCount > 0" class="kc-more" @click="kanbanMore(cat.key)">显示更多 {{ cat.hiddenCount }} 张</div>
-            </div>
-          </div>
-          <!-- R173-T1：窗口外右侧占位列（同上；两侧合起来保住 scrollWidth，滚动位置不因窗口漂移而跳） -->
-          <div v-for="g in kanbanGhostR" :key="'kgr' + g" class="kanban-col kc-ghost"></div>
-        </div>
-
-        <!-- ===== R62-5：金字塔视图（L1 中心论点根 + 分类树逐层铺开 + 卡片拖换节点）；R64-F11 SVG 结构连线 ===== -->
-        <div v-if="viewMode==='pyramid'" class="pyramid" ref="pyWrapRef" :class="{ 'py-fs-fallback': pyFsFallback }">
-          <!-- R110-FS：全屏切换（路线 A：Fullscreen API 元素级真全屏，浏览器原生 ESC；路线 B：fixed 覆盖层降级） -->
-          <button class="py-fs-btn" @click.stop="togglePyFullscreen"
-            :title="pyFs ? '退出全屏（ESC）' : '全屏查看金字塔（ESC 退出）'">{{ pyFs ? '⛶ 退出全屏' : '⛶ 全屏' }}</button>
-          <svg class="py-links-svg" aria-hidden="true">
-            <path v-for="(pth, pi) in pyLinkPaths" :key="pi" :d="pth" />
-          </svg>
-          <!-- L1 根：中心论点卡 -->
-          <div class="py-root" :class="{droppable: pyRootDrop}" @dragover.prevent="onPyRootDragOver" @dragleave="pyRootDrop=false" @drop.stop.prevent="onPyRootDrop">
-            <template v-if="thesisCard">
-              <div class="py-root-card" @click="onCardClick(thesisCard)" @dblclick.stop="openResourceLink(thesisCard)">
-                <span class="py-root-badge"><Icon name="landmark" :size="13"/> 中心论点</span>
-                <span class="py-root-title">{{ thesisCard.title }}</span>
-                <span v-if="thesisCard.description" class="py-root-desc">{{ thesisCard.description }}</span>
-              </div>
-              <span class="py-root-unset" title="取消中心论点" @click.stop="unsetThesis"><Icon name="x" :size="13"/></span>
-            </template>
-            <div v-else class="py-root-empty clickable" @click="openThesisCreate"><Icon name="landmark" :size="13"/> 点击设立中心论点 —— 填写卡片保存后自动落为 L1 根节点</div>
-          </div>
-          <!-- L2 起分类节点（R66-F5：居中树布局——叶子占列、父节点跨其子组全部列：父模块横向恒=子组横向、居中悬于子组上方，子组永不跨入其他父节点的横向空间；连线横平竖直直角折线） -->
-          <!-- R98（W7）：层级折叠——仅 L2 / 到 L3 / 全部（本地视图态）；金字塔只有一层时无折叠意义，不渲染 -->
-          <div v-if="pyramidLevels.length >= 2" class="py-fold">
-            <span class="py-fold-label">层级</span>
-            <button class="py-fold-btn" :class="{on: pyFold==='l2'}" @click="pyFold='l2'">仅 L2</button>
-            <button class="py-fold-btn" :class="{on: pyFold==='l3'}" @click="pyFold='l3'">到 L3</button>
-            <button class="py-fold-btn" :class="{on: pyFold==='all'}" @click="pyFold='all'">全部</button>
-          </div>
-          <div class="py-board" :style="{ gridTemplateColumns: `repeat(${pyLayout.cols}, minmax(170px, 1fr))` }">
-            <div v-for="cell in pyLayout.cells" :key="cell.cat.id" class="py-node"
-              :class="{ 'drop-child': pyDropTarget===cell.cat.id && pyDropMode==='child', 'drop-sib': pyDropTarget===cell.cat.id && pyDropMode!=='child', flash: catFlashId===cell.cat.id }"
-              :style="{ gridRow: cell.depth + 1, gridColumn: `${cell.colStart + 1} / span ${cell.colSpan}` }"
-              :data-pyid="cell.cat.id"
-              @dragover.prevent.stop="onPyDragOver($event, cell.cat)" @dragleave.stop="pyDropTarget=''" @drop.stop.prevent="onPyDrop($event, cell.cat)">
-              <div class="py-node-head" :draggable="!batchMode" @dragstart.stop="onCatDragStart($event, cell.cat)" @dragend="onCatDragEnd">
-                <span class="py-node-lv">L{{ cell.depth + 2 }}</span>
-                <CatNodeName class="py-node-name" :name="cell.cat.name" :editing="catRenId===cell.cat.id" @commit="v => commitCatRename(cell.cat, v)" @done="catRenId=''" @click="selectPyNode(cell.cat)" /><span v-if="isMirrorCat(cell.cat)"> <Icon name="satellite" :size="13"/></span>
-                <span class="py-node-count">{{ cell.cards.length }}</span>
-                <span class="py-node-ops">
-                  <span class="py-op" title="前移" @click.stop="moveCatSibling(cell.cat, -1)">⟨</span>
-                  <span class="py-op" title="后移" @click.stop="moveCatSibling(cell.cat, 1)">⟩</span>
-                  <span class="py-op" title="节点菜单" @click.stop="openNodeMenu($event, cell.cat)">⋯</span>
-                </span>
-              </div>
-              <div class="py-node-body">
-                <span v-for="r in cell.cards" :key="r.id" class="py-card-chip" :class="{ 'py-chip-mirror': isMirrorView(r) }" :draggable="!batchMode" :data-rid="r.id"
-                  @dragstart="onDragStart($event, r)" @dragend="clearCardDropTarget"
-                  @click.stop="onCardClick(r)" @dblclick.stop="onCardDblClick(r)" @contextmenu.prevent.stop="openResCtx($event, r)">
-                  <span v-if="isMirrorView(r)" class="rc-mirror-badge" title="镜像自原资源卡 · 只读，编辑回源处生效"><Icon name="satellite" :size="13"/></span>{{ r.title }}
-                </span>
-                <span v-if="!cell.cards.length" class="py-node-empty">拖入资源卡</span>
-              </div>
-              <!-- R65-F3：节点双入口——关联资源卡（资源台选择器镜像）/ 新建卡片（台内卡，可挂附件） -->
-              <div class="py-node-foot">
-                <span class="py-foot-btn" title="从资源卡池选择资源卡镜像到该节点" @click.stop="openLinkCards(cell.cat)"><Icon name="link" :size="13"/> 关联资源卡</span>
-                <span class="py-foot-btn" title="新建论证节点卡（台内原生卡种）" @click.stop="openNewArgument"><Icon name="plus" :size="13"/> 新建论证卡</span>
-              </div>
-              <span v-if="pyDepthOf(cell.cat) < 3" class="py-node-add" title="新建子节点" @click.stop="openCreateCat(cell.cat.id)">＋</span>
-            </div>
-          </div>
-          <!-- G3（V3.8.27）：金字塔画布内零节点改走 EmptyState（与同页另外两处同构） -->
-          <!-- ★W4（V3.8.37）零节点：原文验收「空态有主行动」，此处原缺。
-               主行动建的是**子分类**（论据分支），不是又一张中心论点——中心论点已经有了。 -->
-          <EmptyState v-if="!pyLayout.cells.length && thesisCard" size="inline" icon="hexagon"
-            title="中心论点下面还没有分支"
-            desc="中心论点是结论，分支是支撑它的论据——先把要拿什么证明它写下来。"
-            hint="新建一个子分类作为第一个论据分支，卡挂在分支上。"
-            action-label="＋ 新建论据分支" @action="openCreateCat()"
-            secondary-label="新建一张论证卡" @secondary="openNewArgument" />
-          <!-- ★W4（V3.8.37）空金字塔：原文验收「空态有主行动」，此处原缺。
-               ★主行动用 openThesisCreate（建出来的卡自动成为中心论点 L1 根），
-               而非 openNewArgument（那只是一张普通卡，还要用户自己右键设为中心论点，多绕一步）。
-               幽灵按钮留给「先摆一张普通卡」，两条路都在，用户不必先想清楚区别。 -->
-          <EmptyState v-if="!pyramidLevels.length && !thesisCard" icon="compass"
-            title="金字塔还空着"
-            desc="金字塔从中心论点长出来：先定「要证明什么」，再挂「拿什么证明」。"
-            hint="新建一张论点卡并确立为中心论点，或从台内现有卡片里指定一张。"
-            action-label="＋ 写下中心论点" @action="openThesisCreate"
-            secondary-label="新建一张论证卡" @secondary="openNewArgument" />
-        </div>
-      </div>
+    <!-- ③ 策展画布：金字塔 / 树状共享同一份 Category 树；左侧目录与旧四视图已退役 -->
+    <CurationMindMap
+      class="curation-workspace"
+      :layout="mind.layout.value"
+      :thesis="thesisCard"
+      :nodes="wsCats"
+      :roots="mind.rootCats.value"
+      :selected-id="mind.selectedId.value"
+      :selected-label="mind.selectedLabel.value"
+      :selected-level="mind.selectedLevel.value"
+      :selected-card-count="mind.selectedCards.value.length"
+      :node-count="mind.nodeCount.value"
+      :linked-resource-count="mind.linkedResourceCount.value"
+      :edit-request-id="mind.editRequestId.value"
+      :edit-request-seq="mind.editRequestSeq.value"
+      :cards-by-cat="mind.cardsByCat.value"
+      :search-query="debouncedQuery"
+      :keyboard-drag-source="mind.keyboardDragSource.value"
+      :keyboard-drag-target="mind.keyboardDragTarget.value"
+      :reveal-id="mind.revealId.value"
+      :keyboard-drag-hint="mind.keyboardDragHint.value"
+      :fullscreen="mind.fullscreen.value"
+      :fullscreen-fallback="mind.fullscreenFallback.value"
+      @update:layout="mind.setLayout"
+      @select="mind.selectNode"
+      @create-child="onMindCreateChild"
+      @create-sibling="onMindCreateSibling"
+      @rename="mind.renameNode"
+      @update-description="mind.updateDescription"
+      @link-resource="openLinkCards"
+      @open-resource="onCardClick"
+      @open-resource-link="openResourceLink"
+      @open-resource-context="openResCtx"
+      @open-thesis="openThesisCard"
+      @open-create-thesis="openThesisCreate"
+      @move="mind.moveNode"
+      @keyboard-drag-start="mind.startKeyboardDrag"
+      @keyboard-drag-target="mind.moveKeyboardTarget"
+      @keyboard-drag-confirm="mind.confirmKeyboardMove"
+      @keyboard-drag-cancel="mind.cancelKeyboardDrag"
+      @remove-node="mind.removeNode"
+      @update:fullscreen="mind.setFullscreenState($event.on, $event.fallback)" />
     </div>
 
-    <!-- ===== 批量操作浮动栏 ===== -->
-    <Transition name="batch">
-      <div v-if="batchMode && selectedIds.size" class="batch-bar">
-        <span class="batch-count">已选 {{ selectedIds.size }} 张</span>
-        <button class="batch-btn" @click="selectAllVisible">全选/反选</button>
-        <button class="batch-btn" @click="batchOpen"><Icon name="link" :size="13"/> 批量打开链接</button>
-        <button class="batch-btn" @click="openBatchMove"><Icon name="package" :size="13"/> 移动到…</button>
-        <button class="batch-btn danger" @click="batchDelete"><Icon name="trash" :size="13"/> 批量删除</button>
-        <button class="batch-btn" @click="selectedIds.clear()">取消</button>
-      </div>
-    </Transition>
+    <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats"
+      :root-count="mind.rootBranchCount.value" :resource-count="mind.linkedResourceCount.value"
+      :attachment-count="metrics.attachmentCount"
+      @close="thesisOpen = false" @save="saveThesisCard" @open-create="openThesisCreate"
+      @share="thesisOpen = false; shareOpen = true" />
+
+    <CurationShareDrawer :open="shareOpen" :workspace-name="wsDisplayName" :thesis="thesisCard"
+      :nodes="wsCats" :cards="shareCards" @close="shareOpen = false" />
 
     <!-- 资源卡详情抽屉（单击打开）
          R168：改 `v-if` 点开才挂——常驻 168 节点（含分类下拉 88 个 `<option>`）是每次进台面的固定成本。
@@ -696,61 +264,8 @@
     </div>
     <input ref="boardImportInput" type="file" accept=".json,application/json" class="file-hidden" @change="handleBoardImport" />
 
-    <!-- R1.5：论证节点卡快速创建（台内新建语义 = 论证卡；资源卡经采集入池 / 节点「🔗 关联资源卡」引用） -->
-    <div v-if="argOpen" class="modal-overlay open" @click.self="argOpen=false">
-      <div class="modal modal-lg">
-        <div class="modal-header">
-          <span class="mh-ico"><Icon name="compass" :size="13"/></span>
-          <span class="mh-title">新建论证节点卡</span>
-          <div class="modal-close" @click="argOpen=false">×</div>
-        </div>
-        <div class="modal-body">
-          <div class="arg-label">论证要点（标题）</div>
-          <input v-model="argDraft.title" class="arg-input" placeholder="一句话论点 / 论据短句" @keydown.enter.prevent="saveArgument" @keydown.esc="argOpen=false" />
-          <div class="arg-label arg-label--spaced">论证内容（可选）</div>
-          <textarea v-model="argDraft.content" class="arg-input" rows="4" placeholder="展开说明：为什么这个要点成立、支撑材料是什么……"></textarea>
-        </div>
-        <div class="modal-footer-row modal-footer-row--tall">
-          <button class="mini-btn" @click="argOpen=false">取消</button>
-          <button class="mini-btn primary" @click="saveArgument"><Icon name="check" :size="13"/> 创建</button>
-        </div>
-      </div>
-    </div>
-
     <!-- R4-Db：书签导入「文件夹勾选 → 建池内分类」弹窗随死链一并删除——
          书签唯一路线在 设置→导入数据（目标台 + 文件夹转标签），本页不再有第二个入口 -->
-
-    <!-- 批量移动弹窗（第八轮：策展台→分类级联，含当前策展台） -->
-    <div v-if="moveModalOpen" class="modal-overlay open" @click.self="moveModalOpen=false">
-      <div class="modal modal-md">
-        <div class="modal-header">
-          <span class="mh-ico"><Icon name="package" :size="13"/></span>
-          <span class="mh-title">移动 {{ selectedIds.size }} 张资源卡</span>
-          <div class="modal-close" @click="moveModalOpen=false">×</div>
-        </div>
-        <div class="modal-body">
-          <div class="dr-section">
-            <div class="dr-label">目标策展台（含当前策展台，可只换分类）</div>
-            <select class="dr-category-select" v-model="moveWsId">
-              <option v-for="w in moveWorkspaces" :key="w.id" :value="w.id">
-                {{ w.label }}{{ w.id === workspaceId ? '（当前）' : '' }}
-              </option>
-            </select>
-          </div>
-          <div class="dr-section">
-            <div class="dr-label">目标分类（默认待分类）</div>
-            <select class="dr-category-select" v-model="moveCatId">
-              <option value=""><Icon name="inbox" :size="13"/> 待分类</option>
-              <option v-for="opt in moveCatOptions" :key="opt.id" :value="opt.id"><Icon name="folderopen" :size="13"/> {{ opt.label }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <button class="dr-footer-btn" @click="moveModalOpen=false">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmBatchMove"><Icon name="check" :size="13"/> 确认移动</button>
-        </div>
-      </div>
-    </div>
 
     <!-- R65-F3：节点关联资源卡（资源台全量卡选择器：关键词过滤 + 多选 + 镜像到节点）
          R161-④：① 加「AI 检索」——与全局检索面板同一个 semanticSearch，按语义把**可镜像的卡**顶到最前
@@ -763,30 +278,6 @@
       :ai-scope="linkAiScope" :ai-note="linkAiNote"
       @update:q="linkCardsQ = $event" @update:cat="linkCardsCat = $event" @toggle-pick="toggleLinkPick"
       @confirm="confirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
-
-    <!-- 第八轮：单卡移动分类弹窗 -->
-    <div v-if="moveOneOpen" class="modal-overlay open" @click.self="moveOneOpen=false">
-      <div class="modal modal-sm">
-        <div class="modal-header">
-          <span class="mh-ico"><Icon name="folderopen" :size="13"/></span>
-          <span class="mh-title">移动「{{ moveOneTarget?.title.slice(0, 20) }}…」到分类</span>
-          <div class="modal-close" @click="moveOneOpen=false">×</div>
-        </div>
-        <div class="modal-body">
-          <div class="dr-section">
-            <div class="dr-label">目标分类</div>
-            <select class="dr-category-select" v-model="moveOneCatId">
-              <option value=""><Icon name="inbox" :size="13"/> 待分类</option>
-              <option v-for="opt in moveOneOptions" :key="opt.id" :value="opt.id"><Icon name="folderopen" :size="13"/> {{ opt.label }}</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <button class="dr-footer-btn" @click="moveOneOpen=false">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmMoveOne"><Icon name="check" :size="13"/> 确认移动</button>
-        </div>
-      </div>
-    </div>
 
     <!-- N8（V3.8.18）镜像到策展台——推送方向的选台弹窗（与上面的「移动分类」同款 modal 形态）。
          只选台、不选分类：targetCatId 只是"镜像时刻源卡所在分类"的历史快照，不参与任何业务判定
@@ -810,29 +301,6 @@
         <div class="modal-footer-row">
           <button class="dr-footer-btn" @click="mirrorOpen=false">取消</button>
           <button class="dr-footer-btn primary" :disabled="!mirrorWsId" @click="confirmMirrorToBoard"><Icon name="check" :size="13"/> 确认镜像</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 第八轮：分类新建弹窗（R141 反馈 #7：重命名改为行内就地编辑，弹窗只管新建） -->
-    <div v-if="catModal.open" class="modal-overlay open" @click.self="catModal.open=false">
-      <div class="modal modal-sm">
-        <div class="modal-header">
-          <span class="mh-ico"><Icon name="folder" :size="13"/></span>
-          <span class="mh-title">{{ catModal.parentId ? '新建子分类' : '新建分类' }}</span>
-          <div class="modal-close" @click="catModal.open=false">×</div>
-        </div>
-        <div class="modal-body">
-          <input type="text" class="ws-modal-input" :class="{dup: catNameDup}" v-model="catModal.name" placeholder="分类名称…"
-            @keydown.enter.prevent="confirmCatModal" @keydown.esc="catModal.open=false" autofocus />
-          <div v-if="catNameDup" class="ws-modal-error"><Icon name="warn" :size="13"/> 该策展台已存在同名分类，请更换名称</div>
-          <div v-if="catModal.parentId" class="ws-modal-hint">
-            将创建在「{{ wsCats.find(c=>c.id===catModal.parentId)?.name }}」之下
-          </div>
-        </div>
-        <div class="modal-footer-row">
-          <button class="dr-footer-btn" @click="catModal.open=false">取消</button>
-          <button class="dr-footer-btn primary" @click="confirmCatModal"><Icon name="check" :size="13"/> 创建</button>
         </div>
       </div>
     </div>
@@ -862,20 +330,6 @@
     <!-- R80（R14）：图片附件卡预览——双击 `zy-asset://` 图片卡就地弹窗（此前会落到「文档附件不存在」误报） -->
     <AssetPreview :open="previewOpen" :url="previewUrl" :name="previewName" @close="closePreview" />
 
-    <!-- R62-6：金字塔节点菜单（⋯ 展开，6 项）——R113-N5：动态宿主，真全屏下仍可用 -->
-    <Teleport :to="overlayTarget">
-      <div v-if="nodeMenu.open" class="node-menu-mask" @click="nodeMenu.open=false" />
-      <div v-if="nodeMenu.open" class="node-menu" :style="{ left: nodeMenu.x + 'px', top: nodeMenu.y + 'px' }" @click.stop>
-        <div class="nm-item" @click="nmCreateChild"><Icon name="tree" :size="13"/> 新建子论点（子节点）</div>
-        <div class="nm-item" @click="nmCreateSibling"><Icon name="tree" :size="13"/> 新建同级节点</div>
-        <!-- V3.7.0（R179）：「📤 从资源台镜像分类」随 hub 分类退役——拉取资源卡走「🔗 关联资源卡」（AI 语义检索）与节点挂载 -->
-        <div class="nm-item" @click="nmPack"><Icon name="folder" :size="13"/> 打包所选卡片入此节点</div>
-        <div class="nm-item" @click="nmRename"><Icon name="edit" :size="13"/> 重命名</div><EvidenceMenuItem :ws-id="workspaceId" :cat-id="nodeMenu.catId" @close="nodeMenu.open=false" />
-        <div class="nm-divider"></div>
-        <div class="nm-item danger" @click="nmDelete"><Icon name="trash" :size="13"/> 删除节点（卡片回待分类）</div>
-      </div>
-    </Teleport>
-
     <!-- V3.7.0（R179）：📡/📤 镜像推送弹窗随资源台退役（推送入口与弹窗一并移除；
          池卡入库走节点「🔗 关联资源卡」/ 投射，参考侧「移出镜像 · 定位源卡」保留） -->
 
@@ -887,45 +341,37 @@
 defineOptions({ name: 'WorkspaceView' })
 import Icon from '@/shared/components/Icon.vue'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
+import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { useCompass } from '@/newtab/stores/compass'
 import { recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
-import { useOverlayTarget } from '@/shared/utils/overlayHost'
 import { showToast } from '@/shared/components/toast'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import CardAiEntry from '@/newtab/components/CardAiEntry.vue'; import CatNodeName from '@/newtab/components/CatNodeName.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import EvidenceMenuItem from '@/newtab/components/EvidenceMenuItem.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
-import EmptyState from '@/shared/components/EmptyState.vue'; import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import AssetBadge from '@/shared/components/AssetBadge.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
-// R117（04-61 C3）：当日新增角标（自然日口径）——资源卡卡片视图 / 列表视图同一枚
-import NewBadge from '@/shared/components/NewBadge.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
+import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R161-④：关联资源卡（镜像）弹窗整体抽出（宿主回到 ≤1500 行验收线 + 换 R161 新壳 Modal.vue）
 import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'
-import ColsPicker from '@/shared/components/ColsPicker.vue'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
 import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDrillDrawer.vue'
+import CurationMindMap from '@/newtab/components/curation/CurationMindMap.vue'
+import CurationThesisDrawer from '@/newtab/components/curation/CurationThesisDrawer.vue'
+import CurationShareDrawer from '@/newtab/components/curation/CurationShareDrawer.vue'
 // R169-老账③：两代抽屉容器合并——资源详情抽屉改走共享壳（Esc/遮罩/Teleport/进出场单源）
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
-import { visibleFields, fieldValue, isTitleKey, cardExtraFields } from '@/shared/utils/fields'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
-import { CURATION_WS_ID, type ResourceCard, type Category, type FieldDef, type AssetMeta } from '@/shared/models'
+import { type ResourceCard, type Category } from '@/shared/models'
 import { boardCardsOf, isMirrorView, curationMetrics, setThesis } from '@/shared/storage/hub'
 import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
-import { useResourceView } from '@/newtab/composables/useResourceView'
-import { useCatSidebar, type SidebarCat } from '@/newtab/composables/useCatSidebar'
 import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
-import { useCategoryCrud } from '@/newtab/composables/useCategoryCrud'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
-import { useWorkspaceBatch } from '@/newtab/composables/useWorkspaceBatch'
 import { useResourceDrawer } from '@/newtab/composables/useResourceDrawer'
 import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
-import { useResourceDragDrop } from '@/newtab/composables/useResourceDragDrop'
 import { usePyramid } from '@/newtab/composables/usePyramid'
+import { useCurationMindMap } from '@/newtab/composables/useCurationMindMap'
 import { useWsMeta } from '@/newtab/composables/useWsMeta'
 import { useWsAssetHygiene } from '@/newtab/composables/useWsAssetHygiene'
-// R117（04-61 B）：资源台定位域（?hl= 卡片定位 / ?cat= 分类定位，含增量渲染前置）——宿主 ≤1500 行验收线
-import { useWsLocate } from '@/newtab/composables/useWsLocate'
 // R113-N2：LifecyclePanel / useLifecycle 移除——入口收敛到 设置→总览（GlobalSettings）
 // R115：视图/侧栏/打开/抽屉/拖拽/金字塔六域拆入 composables（04-59 技术债第三批）；实现原位迁出、零行为变更。
 
@@ -936,7 +382,6 @@ const d = computed(() => store.data!)
 /** R166 T7：资源侧反查行点击=去那个任务的归属项目页（只读跳转，不改任何数据；解绑只在任务侧） */
 function gotoTaskOwner(t: { projectId?: string }): void { closeDrawer(); router.push(t.projectId ? `/compass/projects?p=${t.projectId}` : '/compass') }
 /** R113-N5：浮层动态宿主——真全屏时 Teleport 目标指向全屏元素（否则挂 body 的浮层不可见） */
-const overlayTarget = useOverlayTarget()
 /** R82（R4）：取项目扁平表（任务的项目名展示）——与方向台共用 useCompass 的口径 */
 const { allProjects } = useCompass()
 
@@ -968,42 +413,6 @@ const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === w
 const catIdx = computed(() => buildCatIndex(wsCats.value))
 /** 卡片按分类分桶（O(1) 取「某分类的卡」，替代反复 filter 全量卡） */
 const resBucket = computed(() => buildBucketIndex(allResources.value, (r) => r.categoryId || ''))
-const rootCats = computed(() => catIdx.value.roots)
-function childCatsOf(pid: string): Category[] {
-  return catIdx.value.childrenOf.get(pid) || []
-}
-/** R61-4：全部后代 id（深层递归）——4 级树过滤/计数/防环共用；R70 带 visited；R71 走索引缓存 */
-function descendantIds(catId: string): string[] {
-  return catIdx.value.descendants(catId)
-}
-function childIds(catId: string): string[] {
-  return descendantIds(catId)
-}
-/** 家族 id（自己 + 全部后代分类）——过滤与计数共用口径（R61-4 深化至 4 级） */
-function familyIds(catId: string): string[] {
-  return catIdx.value.family(catId)
-}
-/** 家族聚合卡数：索引查表 + 分桶计数 O(家族规模)（此前是 familyIds + 全量 filter + includes） */
-function catAggCount(catId: string): number {
-  let n = 0
-  for (const id of familyIds(catId)) n += (resBucket.value.get(id) || []).length
-  return n
-}
-/** 节点深度（根=0）——R70：带 visited 显式防环（此前仅靠「parentId 单向链」的假设） */
-function pyDepthOf(c: Category): number {
-  // R71：改走索引缓存（此前每次沿父链全表 find；本函数在 pyramidLevels 里对每个分类各调一次）
-  return catIdx.value.depthOf(c.id) - 1  // 索引 depthOf 以根=1 计，本函数历史口径根=0
-}
-function pyHeightOf(c: Category, seen = new Set<string>()): number {
-  // R70：带 visited——防环
-  if (seen.has(c.id)) return 1
-  seen.add(c.id)
-  const ch = catIdx.value.childrenOf.get(c.id) || []
-  return ch.length ? Math.max(...ch.map(x => pyHeightOf(x, seen))) + 1 : 1
-}
-/** 层级上限工具（复用 R61-4 口径：分类最多 4 级） */
-function pyLevelOf(c: Category): number { return pyDepthOf(c) + 1 }
-
 // ===== R62-1/2：策展台 5 指标 + 下钻 =====
 // R112 性能：复用 allResources 已算好的 boardCardsOf 结果（此前 metrics 与 allResources
 // 各算一遍 boardCardsOf ⇒ 每次切换/搜索对全部资源多做一次全量遍历 + 建 Map/Set）
@@ -1019,6 +428,32 @@ const thesisCard = computed<ResourceCard | null>(() => {
   if (!t) return null
   return allResources.value.find(r => r.id === t) || null
 })
+const thesisOpen = ref(false)
+const shareOpen = ref(false)
+
+function openThesisCard(): void {
+  if (thesisCard.value) thesisOpen.value = true
+  else openThesisCreate()
+}
+
+function saveThesisCard(patch: { title: string; description: string }): void {
+  const card = thesisCard.value
+  if (!card) return
+  card.title = patch.title
+  card.description = patch.description
+  card.updatedAt = Date.now()
+  store.persist()
+  showToast('中心论点卡已保存')
+}
+
+function onMindCreateChild(id: string): void {
+  mind.createChild(id)
+}
+
+function onMindCreateSibling(id: string): void {
+  mind.createSibling(id)
+}
+
 function setThesisCard(r: ResourceCard) {
   if (isMirrorView(r)) { showToast('镜像卡不能作为本台中心论点——请先移出镜像或选台内卡'); return }
   setThesis(d.value, workspaceId.value, r.id)
@@ -1029,10 +464,6 @@ function unsetThesis() {
   setThesis(d.value, workspaceId.value, null)
   store.persist()
   showToast('已取消中心论点')
-}
-function openThesisDetail() {
-  if (thesisCard.value) openResource(thesisCard.value)
-  else openThesisCreate()
 }
 /** R64-F12：点击空态 → 弹出新建抽屉（预置 isThesis），保存后自动落为 L1 根节点 */
 function openThesisCreate() {
@@ -1067,25 +498,21 @@ watch(workspaceId, (id) => {
 // R61：本台全量可见卡 = 台内原生卡 + 资源台镜像卡（boardCardsOf 注入视图模型：
 // 镜像卡为浅拷贝 + categoryId 重映射到台内分类，带 __mirrorProjId 标记——写操作一律拦截/回落资源台）
 const allResources = computed<ResourceCard[]>(() => boardCardsOf(d.value, workspaceId.value))
+const mind = useCurationMindMap({
+  d,
+  workspaceId,
+  wsCats,
+  catIdx,
+  allResources,
+  thesisCard,
+  persist: () => store.persist(),
+})
+watch(workspaceId, () => mind.resetForWorkspace())
+const shareCards = computed(() => allResources.value.filter(r => !r.isThesis))
 const categories = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value).sort((a,b) => a.order - b.order))
-const resourceCount = computed(() => allResources.value.length)
-const categoryCount = computed(() => categories.value.length)
-/** R76（R3）：待分类判据——无分类，**或**分类已失效（categoryId 指向本台不存在的分类）。
- *  此前左树与指标条用严格口径（只看 !categoryId），而卡面「所在分类」、卡片/列表分组、下钻抽屉
- *  都用宽松口径 ⇒ 卡面写着「待分类」的悬空卡，点左树「待分类」却找不到。此处收敛为唯一实现。
- *  @param validIds 本台有效分类集合（catIdx.byId 的 Map，或自建 id Set）——只用到 has，故二者皆可 */
 function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean {
   return !r.categoryId || !validIds.has(r.categoryId)
 }
-const uncategorizedCount = computed(() => allResources.value.filter(r => isUncat(r, catIdx.value.byId)).length)
-// R45-2（V2.20.0）：页头新增「今日新增/今日删除」字段——策展台范围实时派生（含软删口径：新增排除已删、删除取 deletedAt）
-const startOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
-const wsTodayAdd = computed(() => d.value.resources
-  .filter(r => r.workspaceId === workspaceId.value && r.createdAt >= startOfToday)
-  .length)
-const wsTodayDel = computed(() => d.value.resources
-  .filter(r => r.workspaceId === workspaceId.value && r.deletedAt && r.deletedAt >= startOfToday)
-  .length)
 const lastUpdateText = computed(() => {
   const latest = allResources.value.reduce((max, r) => Math.max(max, r.updatedAt || r.createdAt), 0)
   if (!latest) return '—'
@@ -1094,75 +521,6 @@ const lastUpdateText = computed(() => {
   if (diff < 172800000) return '昨天'
   return new Date(latest).toLocaleDateString('zh-CN')
 })
-/** R122（Q2）：卡片「描述与页脚之间」的启用字段——标题/描述/标签/附件由骨架固定位承载 */
-/** R155-③：卡面「启用字段」上限 3 个（排除 title/description/tags/assets，见 shared/utils/fields） */
-const extraFieldsOf = (r: ResourceCard) => cardExtraFields(fieldsOf(r))
-/** R123（C3/Q3）：金字塔论证深度 = 论点(1) + 分类树最大层级；闭环 = 无空分类节点 */
-const pyramidDepth = computed(() => {
-  let maxLevel = 0, empty = false
-  for (const c of wsCats.value) { maxLevel = Math.max(maxLevel, pyLevelOf(c)); if (!catAggCount(c.id)) empty = true }
-  return { layers: (thesisCard.value ? 1 : 0) + maxLevel, closed: !empty }
-})
-const pyramidDepthText = computed(() => { const dpt = pyramidDepth.value; return dpt.layers ? dpt.layers + '层 · ' + (dpt.closed ? '完整闭环' : '存在空分支') : '—' })
-
-// ===== 字段渲染（F1：全局设置的字段设计在此生效） =====
-const rFields = computed(() => visibleFields(d.value.fieldConfig, 'resource'))
-/** R112 性能：主题卡字段组也预计算（此前 fieldsOf 每次调用都跑一遍 visibleFields 过滤） */
-const thesisFields = computed(() => visibleFields(d.value.fieldConfig, 'thesis'))
-/** R62-3：主题卡（isThesis 资源卡）走 thesis 独立字段组，其余走 resource 组
- *  R112：改为返回**已缓存的 computed 引用**——此前每卡每次重渲染都新建一个数组，
- *  400 卡 × 每次键入重渲染会持续产生垃圾（CPU profile 中 (program) 占比高即 GC 压力）。 */
-function fieldsOf(r: ResourceCard): FieldDef[] {
-  return (r.isThesis && !isMirrorView(r)) ? thesisFields.value : rFields.value
-}
-const titleKey = computed(() => rFields.value.find(f => isTitleKey(f.key))?.key || 'title')
-/** R117（04-61 D）：取消原 slice(0, 3) 截断——「卡片与字段管理」里设为可见的字段必须都能在列表上看到 */
-const listFields = computed(() => rFields.value.filter(f => !isTitleKey(f.key) && f.key !== 'assets'))
-function hasField(key: string): boolean {
-  return rFields.value.some(f => f.key === key)
-}
-/** R71：分类名 / 台名索引（O(1)）——val() 由模板逐卡逐字段调用，此前每次都是一次全表 find */
-const catNameById = computed(() => {
-  const m = new Map<string, string>()
-  for (const c of d.value.categories) m.set(c.id, c.name)
-  return m
-})
-const wsNameMap = computed(() => {
-  const m = new Map<string, string>()
-  for (const w of d.value.workspaces) m.set(w.id, wsNameById(d.value.workspaces, w.id))
-  return m
-})
-function val(r: ResourceCard, key: string): string {
-  return fieldValue(r, key, {
-    catName: (id) => catNameById.value.get(id) || '待分类',
-    wsName: (id) => wsNameMap.value.get(id) || ''
-  })
-}
-function shortVal(r: ResourceCard, f: FieldDef): string {
-  const v = val(r, f.key)
-  // 列表行是文本节点（不是图标位）⇒ 这里给文字标签，不能返回图标名
-  if (f.key === 'link') return v ? linkLabel(r.linkType) : ''
-  return v.length > 14 ? v.slice(0, 14) + '…' : v
-}
-function srcLabel(s?: string): string {
-  return s || ''
-}
-
-// ===== 卡面所属分类徽标工具（R64-F10 / 批量移动共用）=====
-function catNameOf(r: ResourceCard): string {
-  if (!r.categoryId) return '待分类'
-  return catIdx.value.byId.get(r.categoryId)?.name || '待分类'
-}
-function catIconOf(r: ResourceCard): string {
-  return r.categoryId && catIdx.value.byId.has(r.categoryId) ? 'folder' : 'inbox'
-}
-/** R64-F10：卡面所属文件夹徽标——完整分类路径（根→当前，4 级全链）
- *  R71：走索引缓存（此前沿父链反复全表 find，O(depth×n)；且此函数在卡面模板里逐卡调用） */
-function catNameOfFamily(r: ResourceCard): string {
-  if (isUncat(r, catIdx.value.byId)) return '待分类'
-  return catIdx.value.pathOf(r.categoryId || "")
-}
-
 // ===== 通用输入弹窗（第八轮：策展台重命名/描述，替代原生 prompt） =====
 const inputModal = ref<{ open: boolean; title: string; value: string; cb: ((v: string) => void) | null }>(
   { open: false, title: '', value: '', cb: null })
@@ -1175,9 +533,6 @@ function confirmInputModal() {
   inputModal.value.open = false
 }
 
-// ===== R49-G3：全局检索分类定位闪节点（/workspace/:id?cat=xx）=====
-const catFlashId = ref<string | null>(null)
-
 // ===== 下钻抽屉（R62-2）：状态与数据拆入 useCurationDrill =====
 // 状态与数据迁入 composable，落点导航回调（onDrill*）留宿主——它们写视图状态，是接线不是实现。
 const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror, drillRecent } = useCurationDrill({
@@ -1186,9 +541,12 @@ const { drillOpen, drillMode, openDrill, drillCatRows, drillNative, drillMirror,
 
 function onDrillJumpCat(id: string) {
   drillOpen.value = false
-  if (id === 'uncat') { activeCategory.value = 'uncat'; if (viewMode.value === 'pyramid') viewMode.value = 'card'; return }
-  activeCategory.value = id
-  if (viewMode.value === 'pyramid') { catFlashId.value = id; setTimeout(() => { catFlashId.value = null }, 2000) }
+  if (id === 'uncat') {
+    mind.selectNode('root')
+    showToast('待分类资源尚未挂到论证分支——可在资源卡池中打开卡片并关联到具体节点')
+    return
+  }
+  if (!mind.revealNode(id)) showToast('该分类节点已不存在')
 }
 function onDrillOpenCard(id: string) {
   drillOpen.value = false
@@ -1201,27 +559,24 @@ function onDrillLocate(id: string) {
   if (r) locateMirrorSource(r)
 }
 
-// R113-N2：生命周期面板接线移除（原 R110-LC 块）——归档提示条改跳 设置→总览·资源生命周期
-
-// ===== R115 拆分接线：视图域（视图模式/排序/筛选/搜索/分组/增量渲染/看板）=====
-const {
-  viewMode, applyWsView, setViewMode, pyFold, resCols,
-  SORT_BY_KEYS, SORT_LABELS, FILTER_KEYS, FILTER_LABELS,
-  sortBy, sortDir, filterBy, searchQuery, debouncedQuery, activeCategory,
-  toggleSortDir, density, activeCategoryLabel,
-  hasActiveFilter, filterLabel, parseQuery, matchCard, resetFilters,
-  filterSummary, filterPopTitle, resetAllFilters, isBrokenPath, FILTER_PREDICATES,
-  applyViewFilters, filteredResources, archivedHintCount,
-  applySort, applyGroupSort, sortedResources,
-  collapsedGroups, toggleGroupCollapse, resourceGroups,
-  RENDER_STEP, renderLimit, totalVisibleCount, renderedGroups, renderedCount, hasMoreToRender,
-  onContentScroll, renderMore, ensureCardRendered, groupChildCount,
-  kanbanCategories, resourcesByCategory, kanbanColumns,
-  kanbanMore, onKanbanColScroll, lastUpdateTime, assetKindBreakdown, quickFilter,
-  kanbanGhostL, kanbanGhostR, setKanbanDragCol, onKanbanWinScroll, kanbanWrapRef,
-} = useResourceView({
-  store, d, workspaceId, allResources, metrics, thesisCard, categories, wsCats, catIdx, resBucket,
-  rootCats, childCatsOf, familyIds, isUncat,
+// 画布是唯一工作区：只保留本页真正需要的搜索、归档提示与附件构成。
+const searchQuery = ref('')
+const debouncedQuery = ref('')
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, (v) => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => { debouncedQuery.value = v }, 150)
+})
+const archivedHintCount = computed(() => allResources.value.filter(r => r.lifecycleArchived).length)
+const assetKindBreakdown = computed(() => {
+  const counts = new Map<string, number>()
+  for (const r of allResources.value) {
+    for (const a of r.assets || []) counts.set(a.kind, (counts.get(a.kind) || 0) + 1)
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([kind, n]) => `${kind === 'image' ? '图片' : kind === 'pdf' ? 'PDF' : 'HTML'} ${n}`)
+    .join(' · ')
 })
 // R65-F7：KeepAlive 缓存实例——切换不同策展台（:id 变化）时复位本台局部状态，防上一台残留
 // R129-B1：keep-alive 离开也让 nv=undefined，旧条件 nv&&ov&&nv!==ov 在 A→/compass→B 真换台时判假→空白页；改记上次所在台
@@ -1230,17 +585,8 @@ watch(() => route.params.id, (nv) => {
   if (typeof nv !== 'string' || !nv) return
   if (nv === lastResetWsId) return
   lastResetWsId = nv
-  activeCategory.value = 'all'; searchQuery.value = ''; debouncedQuery.value = ''
-  selectedIds.value.clear(); collapsedGroups.value = new Set()
-})
-
-// ===== R115 拆分接线：分类侧栏 UI 域（树折叠/侧栏序列/树宽拖拽）=====
-const {
-  pinnedRootCats, unpinnedRootCats, treeCatOptions,
-  collapsedCats, toggleCatCollapse, collapseAllCats, expandAllCats, selectSidebarCat, sidebarCats,
-  SIDE_W_DEF, wsSideW, startSideResize, resetSideWidth,
-  sideRail, toggleSideRail, selectRailCat } = useCatSidebar({
-  store, wsCats, catIdx, resBucket, rootCats, activeCategory, childCatsOf, catAggCount,
+  searchQuery.value = ''
+  debouncedQuery.value = ''
 })
 
 // ===== R103（纯拆分第四批）：镜像域拆入 useWorkspaceMirror =====
@@ -1250,41 +596,22 @@ const {
   isMirrorCat, moveMirrorTo, removeMirror, locateMirrorSource,
 } = useWorkspaceMirror({ d, categories, router, persist: () => store.persist() })
 
-// ===== R104（纯拆分第五批·收缩版）：分类 CRUD 拆入 useCategoryCrud =====
-// 新建/重命名/删除（含镜像级联清理）/置顶/重复合并 实现随迁；拖拽与侧栏折叠/选择是视图接线，留宿主
-// （与金字塔深度工具、卡片拖拽状态双向咬合，硬拆需先立共享拖拽状态层——R115 已立 dragState）。
-const { normalizeCatOrders, catModal, openCreateCat, catRenId, startCatRename, commitCatRename, catNameDup, confirmCatModal, deleteCategory, toggleCatPin, mergeDupCats } = useCategoryCrud({
-  d, persist: () => store.persist(), workspaceId, wsCats, activeCategory, allResources,
-  pyDepthOf, childCatsOf, catAggCount
-})
-
 // ===== R115 拆分接线：资源打开域（预览/双击打开统一通道）=====
 const { previewOpen, previewUrl, previewName, closePreview, openImageAsset, openResourceLink } = useResourceOpen({ store, d })
-
-// ===== R102（纯拆分第三批）：卡片整理动作域（批量选择/批量移动/单卡移动）拆入 useWorkspaceBatch =====
-// 实现原位迁出、零行为变更；标识符经解构保留原绑定——三视图模板（勾选框/batch-bar/移动弹窗）零改动。
-// R162：挂载域随任务↔资源挂载关系退役。
-const {
-  batchMode, selectedIds, toggleBatchMode, toggleSelect, selectAllVisible, selectedCards, batchOpen, batchDelete,
-  moveModalOpen, moveWsId, moveCatId, moveWorkspaces, moveCatOptions, openBatchMove, confirmBatchMove,
-  moveOneOpen, moveOneCatId, moveOneOptions, openMoveOne, confirmMoveOne,
-  moveOneTarget,
-} = useWorkspaceBatch({ d, persist: () => store.persist(), workspaceId, wsCats, allResources, sortedResources, openResourceLink, treeCatOptions })
 
 // ===== R115 拆分接线：编辑抽屉域（单击/双击分流/CRUD/右键菜单）=====
 const {
   onCardClick, onCardDblClick,
   drawerOpen, editingResource, isNewResource, drawerReadonly,
-  newCardCatId, openNewResource, openNewArgument, saveArgument, argOpen, argDraft, argCardsOfWs, deleteArgument, openMirrorDetail,
+  newCardCatId, openNewResource, openMirrorDetail,
   cleanAllMirrors, locateMirrorSourceCard, openResource, closeDrawer, syncEditingFromStore,
   saveResource, deleteCurrentResource, deleteResource, togglePin, toggleStar, copyLink,
   resFormRef, fixLink, resCtx, resCtxItems, openResCtx,
   // N8：镜像到策展台（推送方向，右键菜单 → 选台弹窗）
   mirrorOpen, mirrorTarget, mirrorWsId, mirrorBoards, openMirrorToBoard, confirmMirrorToBoard,
 } = useResourceDrawer({
-  store, d, workspaceId, router, categories, activeCategory, thesisCard,
+  store, d, workspaceId, router, categories, activeCategory: mind.selectedId, thesisCard,
   openResourceLink, openImageAsset, setThesisCard, unsetThesis,
-  batchMode, toggleSelect, openMoveOne,
   removeMirror, locateMirrorSource,
 })
 
@@ -1297,87 +624,18 @@ const {
   handleBoardImport
 } = useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })
 
-// ===== R115 拆分接线：拖拽域（卡片/看板/分类/区域拖拽全量；共享拖拽状态层 dragState）=====
-const {
-  dragState, dropMark, markDrop, clearDropMark, acceptDragOver, clearDragState, onDragStart,
-  groupKeyOf, onDropCard, onKanbanCardDrop, onDropToCategory,
-  catKeyToCatId, onAreaDragOver, onAreaDrop, reorderMixed,
-  catDropTarget, catDropMode, cardDropTarget,
-  onUncatDragOver, onUncatDrop, clearCardDropTarget,
-  onCatDragStart, onCatDragEnd, onCatDragOver, onCatDrop, onCatRootDrop,
-} = useResourceDragDrop({
-  store, d, wsCats, rootCats, categories, sortBy, isUncat,
-  childCatsOf, childIds, pyDepthOf, pyHeightOf,
-  moveMirrorTo, normalizeCatOrders,
-})
-/** 模板「升为一级」落点显隐消费 dragCatId（原宿主 let 变量的派生只读视图） */
-const dragCatId = computed(() => dragState.cat)
-
-// ===== R115 拆分接线：金字塔域（布局/连线/全屏/节点拖拽/节点菜单/打包/模板导入）=====
+// ===== 画布辅助域：模板导入 / 关联资源 / 全屏（旧金字塔视图已退出宿主）=====
 const {
   pyramidImportOpen, confirmPyramidImport,
-  pyramidLevels, pyLayout, moveCatSibling,
   linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, confirmLinkCards,
   linkAiBusy, linkAiHits, linkAiFed, linkAiTook, linkAiOn, linkAiScope, linkAiNote, linkAiRun, linkShowList, linkAiHitOf,
-  pyWrapRef, pyFs, pyFsFallback, wsPageRef,
-  enterPyFullscreen, exitPyFullscreen, togglePyFullscreen,
-  pyLinkPaths, drawPyLinks, pyLinksThrottled,
-  pyDropTarget, pyDropMode, pyRootDrop, onPyDragOver, onPyDrop, onPyRootDragOver, onPyRootDrop,
-  selectPyNode,
-  nodeMenu, openNodeMenu, nmCreateChild, nmCreateSibling, nmPack, nmRename, nmDelete,
-  packIntoNode,
-} = usePyramid({
-  store, d, workspaceId, wsCats, catIdx, allResources, thesisCard,
-  viewMode, pyFold, activeCategory, catFlashId, setViewMode, openInputModal,
-  pyDepthOf, pyHeightOf, pyLevelOf, childIds,
-  dragState, onCatDragEnd, clearCardDropTarget,
-  moveMirrorTo, normalizeCatOrders, openCreateCat, startCatRename, deleteCategory,
-  selectedCards, selectedIds,
-})
+} = usePyramid({ store, d, workspaceId, thesisCard, mind })
 
-// ---- R113-N1：分类行「⋯」溢出菜单（fixed 定位——不被侧栏 overflow-y 裁剪；out-of-flow 不进 flex 布局）----
-// 原实现把 5 个操作图标平铺在分类行上、且 hover 时顶掉计数，用户反馈"入口太多快淹没文件夹"。
-// 现只留「＋ 子分类」与「⋯」，其余项收进本菜单（主次分明 + 破坏性操作进二级）。
-// V3.7.0（R179）：📤 镜像项随资源台退役——菜单收敛为 置顶 / 重命名 / 删除 三项。
-const catMenu = ref<{ open: boolean; x: number; y: number; cat: Category | null; depth: number; pinned: boolean }>(
-  { open: false, x: 0, y: 0, cat: null, depth: 0, pinned: false }
-)
-function openCatMenu(ev: MouseEvent, sc: SidebarCat) {
-  const r = (ev.currentTarget as HTMLElement).getBoundingClientRect()
-  const MENU_W = 168
-  catMenu.value = {
-    open: true,
-    x: Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8)),
-    y: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - 172)),
-    cat: sc.cat,
-    depth: sc.depth,
-    pinned: !!sc.cat.pinned
-  }
-}
-function runCatMenu(action: 'pin' | 'rename' | 'delete') {
-  const c = catMenu.value.cat
-  catMenu.value.open = false
-  if (!c) return
-  if (action === 'pin') toggleCatPin(c)
-  else if (action === 'rename') startCatRename(c)
-  else if (action === 'delete') void deleteCategory(c)
-}
-
-// ===== R88（W3）：工具条分级——「筛选」气泡与 ⚙ 菜单（互斥浮层，留宿主）=====
-const filterPopOpen = ref(false)
-function toggleFilterPop() {
-  const next = !filterPopOpen.value
-  settingsMenuOpen.value = false        // 与 ⚙ 互斥
-  filterPopOpen.value = next
-}
-function closeFilterPop() { filterPopOpen.value = false }
 // ===== 设置菜单 =====
 const settingsMenuOpen = ref(false)
 function closeSettingsMenu() { settingsMenuOpen.value = false }
-/** R88（W3）：⚙ 与「筛选」气泡互斥——两个都是点击外部关闭的浮层，同时开只会互相遮挡 */
 function toggleSettingsMenu() {
   const next = !settingsMenuOpen.value
-  filterPopOpen.value = false
   settingsMenuOpen.value = next
 }
 /** R88（W6）：导入弹窗（自工具条收进 ⚙ 后，入口与弹窗标题同为 mode-aware） */
@@ -1386,27 +644,20 @@ function openImport() {
   importModalOpen.value = true
 }
 
-onMounted(() => { applyWsView(); window.addEventListener('dragend', clearCardDropTarget); document.addEventListener('click', closeSettingsMenu); document.addEventListener('click', closeFilterPop); window.addEventListener('resize', pyLinksThrottled); document.addEventListener('visibilitychange', onWsOpenVisibility); nextTick(drawPyLinks) })
-// R88（W3）：筛选气泡与 ⚙ 菜单同为"点外部关闭"的浮层，卸载时一并摘掉监听
+onMounted(() => { document.addEventListener('click', closeSettingsMenu); document.addEventListener('visibilitychange', onWsOpenVisibility) })
 // R112：同时补一次热度落盘（组件真正卸载时，节流中的待写数据不能丢）
-onUnmounted(() => { flushWsOpenPersist(); window.removeEventListener('dragend', clearCardDropTarget); window.removeEventListener('resize', pyLinksThrottled); document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('click', closeFilterPop); document.removeEventListener('visibilitychange', onWsOpenVisibility) })
+onUnmounted(() => { flushWsOpenPersist(); if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null } document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('visibilitychange', onWsOpenVisibility) })
 
 // ===== 设置菜单关闭 + 采集跳转高亮 =====
-const highlightId = ref<string | null>(null)
 // ===== R115 拆分接线：附件卫生域（R110-BUG2 跨台判定/定位/清理）=====
 const { cardExistsGlobally, referencedAssetIds, onDrillLocateAsset, onDrillCleanupAsset, onDrillCleanupOrphans } = useWsAssetHygiene({
-  store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId, ensureCardRendered,
+  store, d, workspaceId, router, drillOpen, revealNode: mind.revealNode,
 })
 // 第廿九轮：document click / window dragend 监听统一在上方 onMounted 注册
 
 // ===== R117 拆分接线：资源台定位域（?hl= 卡片定位 / ?cat= 分类定位，均含增量渲染前置）=====
 // 实现迁至 composables/useWsLocate.ts——两条链路共用「先切分类（展开祖先）再滚卡片」一套口径，
 // 并统一在做 querySelector 之前调 ensureCardRendered（R112/R116 增量渲染后目标卡可能未进渲染集）。
-useWsLocate({
-  route, router, categories, collapsedCats, activeCategory, viewMode,
-  highlightId, catFlashId, searchQuery, debouncedQuery, allResources, familyIds, ensureCardRendered,
-})
-
 // ===== R115 拆分接线：台元信息域（台名/图标/描述/重命名/导出/删除）=====
 const {
   wsDisplayName, onNameBlur, onNameEnter,
@@ -1415,24 +666,6 @@ const {
 } = useWsMeta({ store, d, workspaceId, workspace, router, settingsMenuOpen, openInputModal })
 // ===== 分类管理（第八轮：新建/重命名/删除入口统一到左栏与应用内弹窗） =====
 
-// ===== 链接显示 =====
-/** 链接类型 → 图标名。★G1(V3.8.25) 修复：原三支全返回 ''（emoji 机械剥离留下的死三元），
- *  导致卡片类型图标、链接行、镜像芯片、看板链接四处全空 —— 图标位在、内容没了。 */
-function linkIcon(type: string) {
-  return type === 'url' ? 'link' : type === 'file' ? 'filetext' : type === 'obsidian' ? 'book' : 'layers'
-}
-/** R123（原型）：镜像卡页脚类型徽标文案（🔗 网页 / 📁 文件 / 📝 笔记） */
-function linkLabel(type: string) { return type==='url' ? '网页' : type==='file' ? '文件' : type==='obsidian' ? '笔记' : '卡片' }
-function linkDisplay(link: string) {
-  if (!link) return ''
-  if (link.startsWith('http')) return link.replace(/^https?:\/\//,'').substring(0,30)
-  if (link.startsWith('obsidian')) return 'Obsidian笔记'
-  const parts = link.split(/[\\/]/)
-  return parts[parts.length-1].substring(0,25)
-}
-
-// ===== 工具 =====
-// uid 已从 @/shared/utils 导入（此前为本地重复实现，已统一；R115 随域迁入各 composable）
 </script>
 
 <style scoped src="./workspace.css"></style>

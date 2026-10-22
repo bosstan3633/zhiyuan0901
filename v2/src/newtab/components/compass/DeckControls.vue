@@ -99,7 +99,9 @@ const sortDirTitle = computed(() => {
 
     <span v-if="$slots.count" class="dk-count"><slot name="count" /></span>
 
-    <button v-if="batchLabels" class="dk-btn dk-batch" :class="{ on: batchOn }" @click="emit('batch')">{{ batchOn ? batchLabels[1] : batchLabels[0] }}</button>
+    <button v-if="batchLabels" class="dk-btn dk-batch" :class="{ on: batchOn }" @click="emit('batch')">
+      <Icon :name="batchOn ? 'checksquare' : 'check'" :size="13" />{{ batchOn ? batchLabels[1] : batchLabels[0] }}
+    </button>
     <button v-if="newLabel" class="dk-btn dk-new" :title="newTitle" @click="emit('create')">{{ newLabel }}</button>
   </div>
 </template>
@@ -127,5 +129,6 @@ const sortDirTitle = computed(() => {
 .dk-select { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 4px 8px; font-size: var(--fs-sub); font-family: inherit; outline: none; cursor: pointer; }
 .dk-select:focus { border-color: var(--accent); }
 .dk-count { margin-left: auto; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 4px; }
+.dk-batch { display: inline-flex; align-items: center; gap: 5px; }
 .dk-new { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 </style>

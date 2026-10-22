@@ -24,9 +24,10 @@ import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
 import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
-import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { projectCardToBoard } from '@/shared/storage/hub'
 import { togglePinOf } from '@/newtab/composables/useResourcePin'
+import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
+import type { AppData } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import type { ResourceCard, TaskCard } from '@/shared/models'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
@@ -39,6 +40,11 @@ import ResourceMirrorModal from './ResourceMirrorModal.vue'
 
 const router = useRouter()
 const store = useAppStore()
+const resourceData = computed<AppData>(() => store.data as AppData)
+const { openResourceLink } = useResourceOpen({
+  store,
+  d: resourceData,
+})
 
 const open = ref(false)
 const resId = ref<string | null>(null)
@@ -117,13 +123,8 @@ function remove() {
 }
 
 function openLink() {
-  const r = editing
   if (!store.data) return
-  recordResourceOpen(store.data, r)
-  store.persistHot()
-  const url = toOpenableUrl(r.linkType, r.link)
-  if (!url) { showToast('请先补全链接（本地文件需完整路径，如 D:\\docs\\file.pdf）'); return }
-  openExternalLink(url)
+  openResourceLink(editing)
 }
 
 /** ★W17-C07：抽屉头部图钉——置顶切换立即写库生效，不依赖底部「保存」。

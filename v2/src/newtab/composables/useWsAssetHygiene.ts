@@ -3,7 +3,7 @@
  * 附件卫生域 composable——R110-BUG2 附件明细宿主接线（跨台存在性判定 / 定位 / 单条与批量清理）。
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
  */
-import { computed, nextTick, type ComputedRef, type Ref } from 'vue'
+import { computed, type ComputedRef, type Ref } from 'vue'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { deleteAsset, cleanupOrphanAssetsOf, collectReferencedAssetIds } from '@/shared/storage/assets'
@@ -16,15 +16,12 @@ export interface WsAssetHygieneCtx {
   workspaceId: ComputedRef<string>
   router: Router
   drillOpen: Ref<boolean>
-  activeCategory: Ref<string>
-  viewMode: Ref<'card'|'list'|'kanban'|'pyramid'>
-  highlightId: Ref<string | null>
-  /** R117（04-61 B）：增量渲染前置——把目标卡纳入渲染集（否则 scrollIntoView 静默失败） */
-  ensureCardRendered: (id: string) => boolean
+  /** 现役画布定位：选中资源所属分类并滚动到节点。 */
+  revealNode: (categoryId: string) => boolean
 }
 
 export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
-  const { store, d, workspaceId, router, drillOpen, activeCategory, viewMode, highlightId, ensureCardRendered } = ctx
+  const { store, d, workspaceId, router, drillOpen, revealNode } = ctx
 
   /** 跨台全量判定：附件来源卡是否仍存在（未软删；不限本台） */
   function cardExistsGlobally(id: string): boolean {
@@ -39,19 +36,7 @@ export function useWsAssetHygiene(ctx: WsAssetHygieneCtx) {
     const r = d.value.resources.find(x => x.id === cardId)
     if (!r) { showToast('ℹ 来源卡已不存在——可点行尾 🗑 清理残留'); return }
     if (r.workspaceId === workspaceId.value) {
-      // R117（04-61 B）：与 ?hl= 同口径——切到所在分类（不再一律回 'all'），并先确保目标卡在渲染集里
-      activeCategory.value = r.categoryId || 'all'
-      if (viewMode.value === 'pyramid') viewMode.value = 'card'
-      highlightId.value = cardId
-      nextTick(() => {
-        setTimeout(() => {
-          ensureCardRendered(cardId)
-          nextTick(() => {
-            document.querySelector(`[data-rid="${cardId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            setTimeout(() => { highlightId.value = null }, 2000)
-          })
-        }, 120)
-      })
+      if (!revealNode(r.categoryId || 'root')) showToast('ℹ 来源卡尚未挂到画布分支——可从卡片详情重新关联')
     } else {
       const t = locateTargetOf(d.value, 'resource', cardId)
       // 兜底也走同一个算式：r 是池卡时直拼 /workspace/zy-curation 会落死页（R4-De）
