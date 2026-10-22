@@ -145,7 +145,8 @@ function clearDrag(): void {
 
 function onRootKeydown(e: KeyboardEvent): void {
   const target = e.target as HTMLElement | null
-  if (target?.closest('button,input,textarea,select,a,[contenteditable="true"]')) return
+  const tag = target?.tagName || ''
+  if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag) || target?.isContentEditable) return
   if (e.key !== 'Tab' && e.key !== 'Enter') return
   e.preventDefault()
   emit('create-child', 'root')

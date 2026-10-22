@@ -36,11 +36,11 @@ check('C101-1 顶部论点卡是 L1 唯一入口：整卡可点、键盘可开�
 });
 
 check('C101-2 指标条恰两格，论证深度 / 来源覆盖真正退役，且两格都可下钻', () => {
-  const s = WS.indexOf('<div class="ws-metrics cur2"');
+  const s = WS.indexOf('<div class="cur-metrics" data-curation-metrics="2">');
   const e = WS.indexOf('<CurationDrillDrawer', s);
   if (s < 0 || e < 0) return false;
   const block = WS.slice(s, e);
-  return (block.match(/class="metric-box"/g) || []).length === 2
+  return (block.match(/class="cur-metric"/g) || []).length === 2
     && block.includes('论据卡片总数')
     && block.includes('佐证附件数量')
     && block.includes("openDrill('total')")
@@ -78,7 +78,12 @@ check('C101-4 金字塔 / 树状共享同一份 Category 父子树：切换只�
 
 check('C101-5 根节点键盘事件先排除内部控件：按钮 / 输入框不会误建分支；根节点 Tab / Enter 均建二级', () => {
   const body = MAP.slice(MAP.indexOf('function onRootKeydown'), MAP.indexOf('const layoutLabel'));
-  return body.includes("closest('button,input,textarea,select,a,[contenteditable=\"true\"]')")
+  // V3.9.10：根节点与普通节点都改按完整 tagName 排除控件。
+  // 当前节点自身就是事件目标，`closest(...)` 只需查祖先链反而会放过自身控件；
+  // 同批还发现 /A/ 子串会把 ARTICLE 误判成链接，因此必须钉完整标签与 contentEditable。
+  return body.includes("const tag = target?.tagName || ''")
+    && body.includes('/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag)')
+    && body.includes('target?.isContentEditable')
     && body.includes("e.key !== 'Tab' && e.key !== 'Enter'")
     && body.includes("emit('create-child', 'root')")
     && !MAP.includes('@keydown.tab.prevent="emit(\'create-child\', \'root\')"')
@@ -172,7 +177,7 @@ check('C101-12 分享收集全部非论点证据（含镜像），不再把镜�
 });
 
 check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链接 / 附件 / 来源 / 日期四开关、纸白 / 墨黑双主题', () => {
-  return SHARE_UI.includes('真实效果预览')
+  return SHARE_UI.includes('分享页预览')
     && SHARE_UI.includes('阅读长文')
     && SHARE_UI.includes('论证树')
     && SHARE_UI.includes('资源原文链接')
@@ -181,7 +186,12 @@ check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链�
     && SHARE_UI.includes('生成日期')
     && SHARE_UI.includes('纸白阅读版')
     && SHARE_UI.includes('墨黑演示版')
-    && SHARE_UI.includes('sandbox="allow-popups allow-popups-to-escape-sandbox"')
+    && SHARE_UI.includes('class="cs-paper"')
+    && SHARE_UI.includes('role="document"')
+    && SHARE_UI.includes('cs-preview-section')
+    /* V3.9.10：预览必须递归平铺真实层级；只遍历顶层会让 L3/L4 从预览里消失。 */
+    && SHARE_UI.includes('flattenPreviewNodes')
+    && SHARE_UI.includes('v-for="node in previewFlatNodes"')
     && SHARE_UI.includes("downloadText(filename.value, html.value, 'html')");
 });
 
@@ -230,7 +240,7 @@ check('C101-16 画布视觉契约：金字塔向下、树状向右；金字塔�
 });
 
 check('C101-17（V3.9.9 随迁）工具栏收敛：旧四视图与批量入口退役；建支只走节点键盘操作，成果 HTML 与分享成果常驻，全台搜索保留', () => {
-  const s = WS.indexOf('<div class="ws-toolbar">');
+  const s = WS.indexOf('<div class="ws-toolbar cur-toolbar"');
   const e = WS.indexOf('<CurationMindMap', s);
   const block = WS.slice(s, e);
   return s >= 0 && e > s
@@ -254,6 +264,11 @@ check('C101-21 思维导图编辑闭环：整卡可拖、剪切粘贴共用校�
     && NODE.includes("emit('paste', props.node.id)")
     && NODE.includes("emit('unlink-resource', props.node.id, card)")
     && NODE.includes('class="mind-resource-remove"')
+    /* V3.9.10：`ARTICLE` 含字母 A，旧的子串正则会把节点自身误判成 `<a>`。
+       这里钉住精确标签匹配，防止 L2/L3 的 Tab/Enter 再次被静默吞掉。 */
+    && NODE.includes("if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag)) return")
+    && !NODE.includes('/INPUT|TEXTAREA|SELECT|BUTTON|A/.test(tag)')
+    && MAP.includes("if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag) || target?.isContentEditable) return")
     && MAP.includes('if (e.defaultPrevented) return')
     && MAP.includes("emit('cut', props.selectedId)")
     && MAP.includes("emit('paste', props.selectedId)")
@@ -341,4 +356,13 @@ check('C101-20 文件与注册齐备：专用组件、composable、分享工具�
     && exists('/newtab/composables/useCurationMindMap.ts')
     && exists('/shared/utils/curationShare.ts')
     && exists('/newtab/components/curation/curation.css');
+});
+
+check('C101-24 调度台卡片池返回：三类卡切换后，「返回调度台」必须离开 /deck 路由族直达根页', () => {
+  const deck = read('/newtab/views/CompassDeckView.vue');
+  const body = deck.slice(deck.indexOf('function goBack()'), deck.indexOf('watch(', deck.indexOf('function goBack()')));
+  return deck.includes('function switchKind')
+    && deck.includes('router.push(`/deck/${next}`)')
+    && codeOnly(body).includes("void router.push('/')")
+    && !codeOnly(body).includes('router.back()');
 });

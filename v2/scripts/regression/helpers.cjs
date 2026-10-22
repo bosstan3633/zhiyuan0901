@@ -246,7 +246,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.9.9'";
+const VER_ANCHOR_LITERAL = "version: '3.9.10'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -293,7 +293,7 @@ const SHARE_DRAWER = read('/newtab/components/curation/CurationShareDrawer.vue')
 const POOL_ROW_ACTIONS = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>');
 const POOL_GRID_ACTIONS = segOf(POOL_PANEL, '<template v-else>\n            <CardAiEntry :card="r" />', '</template>');
 const POOL_CONTROLS = segOf(POOL_PANEL, '<DeckControls panel="pool"', '</DeckControls>');
-const CURATION_TOOLBAR = segOf(read('/newtab/views/Workspace.vue'), '<div class="ws-toolbar">', '<CurationMindMap');
+const CURATION_TOOLBAR = segOf(read('/newtab/views/Workspace.vue'), '<div class="ws-toolbar cur-toolbar"', '<CurationMindMap');
 const MIND_ACTIONS = segOf(CURATION_MAP, '<div class="mindmap-layout"', '<div class="mindmap-status">');
 const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div class="mind-node-foot">', '</div>');
 // 兼容旧导出名：语义已迁到资源池两视图。KANBAN 在池里没有第三种视图，
@@ -365,7 +365,7 @@ const WS88 = read('/newtab/views/Workspace.vue');
 const WS88_TPL = segOf(WS88, '<template>', '\n</template>');
 /* V3.9.8：旧四视图工具条与筛选气泡已退役。TB1_88 保留为“画布一级动作条”，
    POP88 明确指向现役资源池控制行（PoolCardsPanel → DeckControls），不再产生空切片。 */
-const TB88 = segOf(WS88, '<div class="ws-toolbar">', '<!-- R110-LC');
+const TB88 = segOf(WS88, '<div class="ws-toolbar cur-toolbar"', '<CurationMindMap');
 const POP88 = POOL_CONTROLS;
 const TB1_88 = TB88;
 const SM88 = segOf(WS88, '<div class="settings-menu"', '\n    </div>');

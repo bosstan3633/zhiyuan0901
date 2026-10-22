@@ -182,7 +182,7 @@ console.log('【R123 · V2.91.0：设计系统对齐 + 资源台卡片精修 + �
 check('R123-1 字体栈按原型完全采纳（系统字体优先 + Hiragino）+ 全局 tnum', () => { const t = read('/shared/styles/tokens.css'); return t.includes('-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC",') && t.includes('"Hiragino Sans GB"') && t.includes('font-feature-settings: "tnum";') && !t.includes('letter-spacing: -0.011em'); });
 check('R123-2（R155 令牌化备案；R171 重指：tab active 文字随 --accent-ink 令牌，淡底深字对比度 ≥4.5）顶栏 48px + tab active 填充块（accent-light + accent-ink 600，下划线退役）', () => { const a = read('/newtab/App.vue'); return a.includes('.topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px;') && a.includes('.tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }') && !a.includes('.tab.active::after'); });
 check('R123-3（R125 重指 · ★R3-B1 随宿主改靶）容器 1440 + 36px：ws-page / align-page(0 36px) / 四页页边距（方向台侧由 CompassShell 换成方向树 .compass-layout）★R175 重指带备案：调度台 .page 随原型改 18px 顶距/72px 收尾', () => { const c = read('/newtab/views/workspace.css'); const app = read('/newtab/App.vue'); const h = read('/newtab/views/CompassHome.vue'); const ct = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue'); return c.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }') && app.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }') && h.includes('padding: 18px 36px 72px') && ct.includes('max-width: 1440px') && ct.includes('padding: 20px 36px 64px') && pc.includes('padding: 20px 36px 64px'); });
-check('R123-4（V3.9.8 随迁）工具条卡片化（sticky 保留）+ 布局切换段控件 active 强调', () => { const c = read('/newtab/views/workspace.css'); const cc = read('/newtab/components/curation/curation.css'); return c.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }') && cc.includes('.mindmap-layout button') && cc.includes('.mindmap-layout button.on'); });
+check('R123-4（V3.9.10 重指）指标与操作单行工具条（sticky 保留）+ 布局切换段控件 active 强调', () => { const c = read('/newtab/views/workspace.css'); const cc = read('/newtab/components/curation/curation.css'); return c.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin-top: 10px;') && c.includes('.cur-metrics {') && cc.includes('.mindmap-layout button') && cc.includes('.mindmap-layout button.on'); });
 check('R123-5（V3.9.8 随迁）资源池卡片尺寸：12×14 内边距 / 富卡 min 94px / 网格 12px / hover 上浮；画布节点自有边界与 hover 反馈', () => { const cc = read('/newtab/components/curation/curation.css'); const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return pool.includes('.pcp-grid { display: grid;') && pool.includes('gap: 12px; }') && pool.includes('padding: 12px 14px;') && pool.includes('min-height: 94px;') && pool.includes('transform: translateY(-1px); box-shadow: var(--shadow-sm);') && cc.includes('.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }'); });
 check('R123-6（V3.9.8 随迁）资源池卡面动作：列表/网格均给 AI、置顶、镜像、删除；镜像态有常驻徽标，入口统一打开共享 ResourceMirrorModal；旧 Workspace 移动/断链/更多动作与镜像虚线卡零残留', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
@@ -198,7 +198,7 @@ check('R123-6（V3.9.8 随迁）资源池卡面动作：列表/网格均给 AI�
     && !w.includes("'mirror-card': isMirrorView(r)");
 });
 check('R123-7（V3.9.8 随迁）旧侧栏卡片盒退役：页面不再渲染 210px 分类侧栏，兼容偏好仍保留；画布占满宿主宽度', () => { const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')); const u = read('/newtab/composables/useCatSidebar.ts'); const cc = read('/newtab/components/curation/curation.css'); return !host.includes('class="ws-sidebar"') && u.includes('const SIDE_W_DEF = 210') && cc.includes('.mindmap-shell {') && cc.includes('width: 100%;'); });
-check('R123-8（V3.9.8 重指）策展台：论点大横幅（tb-badge/tb-open）+ cur2 两格 + 论证深度计算退役', () => { const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/workspace.css'); return w.includes('class="tb-badge"') && w.includes('class="tb-open"') && w.includes('class="ws-metrics cur2"') && !w.includes('const pyramidDepth = computed(') && c.includes('.ws-metrics.cur2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }'); });
+check('R123-8（V3.9.10 重指）策展台：论点大横幅（tb-badge/tb-open）+ 工具条内两格读数 + 论证深度计算退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="tb-badge"') && w.includes('class="tb-open"') && w.includes('class="cur-metrics" data-curation-metrics="2"') && !w.includes('const pyramidDepth = computed('); });
 check('R123-9（V3.9.8 随迁）资源池分组白盒 + 镜像徽标：列表分组用 pcp-group-sec / pcp-group-h，镜像态用 pcp-mirror-badge；旧 group-box / rc-type-chip 宿主零残留', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
@@ -260,11 +260,11 @@ check('R125-8 警示纪律：方向台无 tag warn/ok 残留（仅高优 danger 
 // ============== R126 · V2.94.0：七项体验修复（isThesis 泄漏 / 论点横幅常驻 / 展板框线 / 关联过滤 / 阈值设置 / 全景交互 / 标签两级路径） ==============
 console.log('【R126 · V2.94.0：体验修复与还原】');
 check('R126-1 ★ isThesis 泄漏修复：emptyResource 显式 isThesis:false（杜绝「确立论点」标记泄漏覆盖 L1）', () => { const d = read('/newtab/composables/useResourceDrawer.ts'); return d.includes('pinned: false, isThesis: false, callCount: 0'); });
-check('R126-2（V3.9.8 随迁备案）论点横幅常驻：页头之后 / 两格指标条之前，全页唯一一处；旧 cur3 三格随“论证深度”退役改为 cur2', () => {
+check('R126-2（V3.9.10 随迁备案）论点横幅常驻：页头之后 / 单行工具条之前，全页唯一一处；旧 cur3 三格随“论证深度”退役', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const iHead = w.indexOf('class="ws-id-head"');
   const iBanner = w.indexOf('<div class="thesis-banner"');
-  const iMetrics = w.indexOf('class="ws-metrics cur2"');
+  const iMetrics = w.indexOf('class="cur-metrics" data-curation-metrics="2"');
   return iHead > 0 && iBanner > iHead && iMetrics > iBanner
     && (w.match(/<div class="thesis-banner"/g) || []).length === 1
     && !w.includes('ws-metrics cur3')

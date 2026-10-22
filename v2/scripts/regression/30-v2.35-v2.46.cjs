@@ -14,7 +14,7 @@ check('R65-1（V3.9.9 重指）工具能力分宿主保留：策展画布留搜�
   const dc = read('/newtab/components/compass/DeckControls.vue');
   return !hostCode.includes("viewMode = ref<'card'|'list'|'kanban'|'pyramid'>('card')")
     && !hostCode.includes('class="view-tabs"')
-    && host.includes('class="ws-toolbar"') && host.includes('toolbar-search')
+    && host.includes('class="ws-toolbar cur-toolbar"') && host.includes('toolbar-search')
     && !host.includes('＋ 新建分支') && host.includes('导入成果 HTML') && host.includes('分享成果')
     && pool.includes('<DeckControls panel="pool"') && pool.includes('poolViews')
     && pool.includes("id: 'card'") && pool.includes("id: 'list'")
@@ -732,18 +732,21 @@ console.log('【第七十五轮 · V2.44.0：资源台（hub）指标条 3 格�
 // R75-2 hub 三格 label 齐备：📊 卡片总数 / 📎 附件数量 / 🕐 最近更新
 // V3.7.0（R179）退役：hub 块的「不含论点格」守护随块退役——策展台 cur3 本就不含论点格（论点上横幅）。
 // R75-3 hub 块不含论点格与来源构成格（无 openThesisDetail / 无 source 模式调用 / 无策展主题字样）
-check('R75-4 指标条样式（V3.9.8 重指：资源台退役 + 策展台按用户决策收为两格；.ws-metrics.hub3 零残留，cur2 两列在位）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  return !w.includes('.ws-metrics.hub3') && !w.includes('hub3') && w.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }') && w.includes('.ws-metrics.cur2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }');
+check('R75-4 指标条样式（V3.9.10 重指：资源台退役 + 策展台指标收进单行工具条；旧 .ws-metrics 两套规则真正退役）', () => {
+  const w = codeOnly(read('/newtab/views/Workspace.vue'));
+  const c = read('/newtab/views/workspace.css');
+  return !w.includes('hub3') && !c.includes('.ws-metrics')
+    && c.includes('.cur-metrics {') && c.includes('.cur-metric {')
+    && c.includes('.cur-metric + .cur-metric {');
 });
 check('R75-5（V3.9.8 重指：策展台只保留可统计的两格——论据卡片总数 / 佐证附件数量；“论证深度”与“来源覆盖”按用户决策退役）', () => {
   const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div class="ws-metrics cur2"');
+  const s = w.indexOf('<div class="cur-metrics"');
   if (s < 0) return false;
   const e = w.indexOf('<CurationDrillDrawer', s);
   if (e < 0) return false;
   const blk = w.slice(s, e);
-  return (blk.match(/class="metric-box"/g) || []).length === 2 && blk.includes('论据卡片总数') && blk.includes('佐证附件数量') && !blk.includes('论证深度') && !blk.includes('来源覆盖');
+  return (blk.match(/class="cur-metric"/g) || []).length === 2 && blk.includes('论据卡片总数') && blk.includes('佐证附件数量') && !blk.includes('论证深度') && !blk.includes('来源覆盖');
 });
 // R110-B1-3 承接：hub 卡片总数口径不再保留「⚠ 镜像 N 条待清理」异常分支——脏数据改由启动期
 // scrubHubMirrorMarkers 净化 + curationMetrics 对 hub 镜像恒 0 双重兜底（见 R110-B1-2/B1-3）。

@@ -344,8 +344,8 @@ check('R98-1（V3.9.8 随迁）层级密度控制换轨：旧 pyFold 三档退�
     && h.includes('return catIdx.value.childrenOf.get(catId) || []')
     && !host.includes('const pyFold = ref<');
 });
-check('R98-2 W8 策展台指标条 5→3 格：来源构成零命中（并入总数 hint）+ 最近更新降页头 wsh-upd 且保留流水下钻', () => {
-  return WS98.includes('.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr);')
+check('R98-2 W8 策展台指标条（V3.9.10 重指）：旧 5/3 格条退役，来源构成零命中；读数收进单行工具条，最近更新仍保留页头流水下钻', () => {
+  return read('/newtab/views/workspace.css').includes('.cur-metrics {')
     && !WS98.includes('🔀 来源构成')
     && WS98.includes("class=\"wsh-upd\" title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
     && WS98.includes('· 更新 {{ lastUpdateText }}');

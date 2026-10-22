@@ -41,9 +41,10 @@ function switchKind(next: DeckKind): void {
 }
 
 function goBack(): void {
-  // 独立二级路由保留浏览器返回；没有历史时明确回首页，不制造空白页。
-  if (window.history.length > 1) router.back()
-  else void router.push('/')
+  // V3.9.10：这里必须直接回调度台根路由。
+  // 二级页的三类卡片共用 /deck 路由族，用户切到好奇心/资源后，router.back()
+  // 只会回到"上一类卡片"，而不是离开二级页；表现为点「返回调度台」仍在卡池之间打转。
+  void router.push('/')
 }
 
 /**

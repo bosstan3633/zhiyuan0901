@@ -155,7 +155,12 @@ function onNodeKeydown(e: KeyboardEvent): void {
   if (editingField.value) return
   const target = e.target as HTMLElement | null
   const tag = target?.tagName || ''
-  if (/INPUT|TEXTAREA|SELECT|BUTTON|A/.test(tag) || target?.closest('button,a,[role="button"]')) return
+  // V3.9.10：只跳过真正承载输入/点击的控件。
+  // 旧写法 `closest('[role="button"]')` 会命中节点自身的拖拽把手及其祖先链，
+  // 导致 L2/L3 节点获得焦点后 Tab/Enter 被静默吞掉，只有 L1 能建支。
+  // 必须锚定完整标签名：`ARTICLE` 含字母 A，子串正则会误把节点自身当成 `<a>`。
+  if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag)) return
+  if (target?.isContentEditable) return
   if (e.key === 'F2') {
     e.preventDefault()
     beginEdit('title')

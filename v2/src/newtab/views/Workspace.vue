@@ -54,24 +54,6 @@
     <!-- R75（R18）指标条按台身份分流 → V3.7.0（R179）：资源台 3 格随资源台退役，策展台 3 格为唯一形态 -->
     <!-- R62-1：策展台指标条——R98（W8）5 格 → 3 格：构成明细本就与总数格 hint 同源同文（并入即删格）；
          「🕐 最近更新」降为页头摘要「· 更新 X」（可点进流水下钻，入口不断） -->
-    <!-- R123（C3/原型）：策展台两格辅助条——论点已在大横幅，论证深度 / 来源覆盖不展示。 -->
-    <div class="ws-metrics cur2" data-curation-metrics="2">
-      <div class="metric-box" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
-        <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
-        <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
-      </div>
-      <div class="metric-box" title="点击查看附件明细" @click="openDrill('assets')">
-        <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
-        <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
-      </div>
-    </div>
-
-    <!-- 下钻抽屉（R62-2） -->
-    <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :card-rows="drillCardRows" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
-      :card-exists="cardExistsGlobally" :referenced-asset-ids="referencedAssetIds"
-      @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate"
-      @locate-asset="onDrillLocateAsset" @cleanup-asset="onDrillCleanupAsset" @cleanup-orphans="onDrillCleanupOrphans" />
-
     <!-- R113-N2：生命周期入口收敛到 设置→总览（原就地面板移除） -->
 
     <!-- R108（T3）：金字塔 Markdown 模板导入弹窗（仅策展台入口；hasThesis 决定 H1 是否被采用） -->
@@ -104,12 +86,23 @@
       <div class="sm-item danger" @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
     </div>
 
-    <!-- ② 策展工具条 -->
-    <div class="ws-toolbar">
+    <!-- V3.9.10：指标与工具合并为单行，分享固定在最右侧；为画布腾出纵向空间。 -->
+    <div class="ws-toolbar cur-toolbar" data-curation-metrics="2">
       <span class="toolbar-mode"><Icon name="tree" :size="13"/> 策展画布</span>
+      <!-- V3.9.10：两项读数仍保持独立下钻，但视觉上收成同一枚双段指标胶囊，
+           避免两枚 126px 卡盒在 1024px 宽度下把工具条挤成第二行。 -->
+      <div class="cur-metrics" data-curation-metrics="2">
+        <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
+          <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
+          <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
+        </button>
+        <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
+          <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
+          <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
+        </button>
+      </div>
       <!-- V3.9.8 体验收口：分支只由节点键盘操作创建；成果 HTML 是独立回导链，不再伪装成 JSON 数据包。 -->
       <button class="hero-btn ghost" title="导入知源分享的策展成果 HTML" @click="openShareHtmlImport"><Icon name="download" :size="13"/> 导入成果 HTML</button>
-      <button class="hero-btn ghost" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
            与「＋新建」同属"往本台生成内容"，紧邻放置；V3.7.0（R179）：资源台退役后无 hub 门控，按钮常驻。 -->
       <button class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（中心论点 + 论证分支一次生成）"
@@ -122,7 +115,14 @@
       </div>
       <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
       <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu"><Icon name="settings" :size="13"/></button>
+      <button class="hero-btn ghost share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
     </div>
+
+    <!-- 下钻抽屉（R62-2） -->
+    <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :card-rows="drillCardRows" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
+      :card-exists="cardExistsGlobally" :referenced-asset-ids="referencedAssetIds"
+      @close="drillOpen=false" @jump-cat="onDrillJumpCat" @open-card="onDrillOpenCard" @locate="onDrillLocate"
+      @locate-asset="onDrillLocateAsset" @cleanup-asset="onDrillCleanupAsset" @cleanup-orphans="onDrillCleanupOrphans" />
 
     <!-- R110-LC（T3）：归档卡已从默认视图隐藏——底部一行降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
     <div v-if="archivedHintCount" class="ws-archived-hint" @click="router.push('/profile#lifecycle')">

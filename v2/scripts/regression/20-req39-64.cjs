@@ -745,7 +745,7 @@ check('R62-5（V3.9.8 重指：策展台 2 格横排盒）论据卡片总数（�
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   const wc = codeOnly(w);
   const h = read('/shared/storage/hub.ts');
-  return w.includes('class="ws-metrics cur2"') && w.includes('论据卡片总数')
+  return w.includes('class="cur-metrics" data-curation-metrics="2"') && w.includes('论据卡片总数')
     && w.includes('（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）')
     && w.includes('佐证附件数量') && !wc.includes('金字塔论证深度')
     && h.includes('export function curationMetrics')

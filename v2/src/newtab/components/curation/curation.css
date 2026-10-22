@@ -367,8 +367,9 @@
   top: 14px;
   left: calc(25% - 6.5px);
   right: calc(25% - 6.5px);
-  height: 1px;
-  background: var(--border-strong);
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
 }
 .mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch { flex: 0 0 auto; width: max-content; padding-top: 14px; }
 .mindmap-canvas[data-layout="pyramid"] .mind-stage > .mind-root-branch { width: max-content; max-width: none; margin: 0 auto; }
@@ -378,18 +379,20 @@
   position: absolute;
   left: 50%;
   top: -24px;
-  width: 1px;
+  width: 2px;
   height: 38px;
-  background: var(--border-strong);
+  transform: translateX(-1px);
+  background: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
 }
 .mindmap-canvas[data-layout="pyramid"] .mind-branch:has(> .mind-children) > .mind-node::after {
   content: "";
   position: absolute;
   left: 50%;
   bottom: -39px;
-  width: 1px;
+  width: 2px;
   height: 39px;
-  background: var(--border-strong);
+  transform: translateX(-1px);
+  background: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
 }
 .mindmap-canvas[data-layout="tree"] .mind-stage { justify-content: flex-start; }
 .mindmap-canvas[data-layout="tree"] .mind-branch { display: flex; align-items: flex-start; gap: 44px; }
@@ -401,8 +404,9 @@
   left: -24px;
   top: 50%;
   width: 44px;
-  height: 1px;
-  background: var(--border-strong);
+  height: 2px;
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
 }
 .mindmap-canvas[data-layout="tree"] .mind-branch:has(> .mind-children) > .mind-node::after {
   content: "";
@@ -410,8 +414,9 @@
   right: -45px;
   top: 50%;
   width: 45px;
-  height: 1px;
-  background: var(--border-strong);
+  height: 2px;
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
 }
 .mindmap-canvas[data-layout="tree"] .mind-node { width: 250px; }
 .mindmap-canvas[data-layout="tree"] .mind-root { width: 340px; }

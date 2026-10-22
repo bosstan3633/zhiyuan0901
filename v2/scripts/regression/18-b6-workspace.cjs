@@ -98,8 +98,8 @@ check('W1-2（V3.9.8 随迁）中轴与层级连接线随内容走：金字塔�
   const axis = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children::before');
   const vertical = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
   if (!axis) { console.log('     中轴规则缺失'); return false; }
-  return axis.includes('height: 1px') && axis.includes('background: var(--border-strong)')
-    && !!vertical && vertical.includes('width: 1px') && vertical.includes('background: var(--border-strong)')
+  return axis.includes('height: 2px') && axis.includes('background: color-mix(in srgb, var(--accent) 55%, var(--border-strong))')
+    && !!vertical && vertical.includes('width: 2px') && vertical.includes('background: color-mix(in srgb, var(--accent) 55%, var(--border-strong))')
     && rule(MIND_CSS, '.mindmap-canvas').includes('overflow: auto');
 });
 

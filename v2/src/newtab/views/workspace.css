@@ -68,9 +68,18 @@
 .sm-item.danger:hover { background: var(--tag-danger-bg); }
 .sm-divider { height: 1px; background: var(--border); margin: 4px 0; }
 /* 工具条 */
-/* R123（B3）：工具条卡片化（Q6：保留 sticky 吸附） */
-.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
+/* V3.9.10：指标 + 操作合并为一排，保留 sticky；分享固定在行尾。 */
+.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .toolbar-mode { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding-right: 3px; color: var(--text-3); font-size: var(--fs-caption); white-space: nowrap; }
+.cur-toolbar .hero-btn { flex-shrink: 0; white-space: nowrap; }
+.cur-toolbar .share-action { margin-left: 0; }
+.cur-metrics { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: stretch; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); overflow: hidden; }
+.cur-metric { min-width: 0; min-height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border: 0; background: transparent; color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; }
+.cur-metric + .cur-metric { border-left: 1px solid var(--border); }
+.cur-metric:hover { background: var(--surface); }
+.cur-metric .mbox-label { font-size: var(--fs-caption); }
+.cur-metric .mbox-value { font-size: var(--fs-sub); }
+.cur-metric .mbox-sub { font-size: var(--fs-micro); }
 /* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
 .ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
@@ -179,13 +188,8 @@
 
 /* Toast */
 
-/* ===== R62-1：指标条（R98 起三格单形态；V3.7.0 资源台退役，hub 三格分流选择器删除） ===== */
-/* R64-F13：指标条压缩为紧凑单行（非重点信息，让位策展区） */
-.ws-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 0; }
-.ws-metrics.cur2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
 /* 指标条下的画布保持唯一工作区；旧四视图、金字塔网格与节点菜单已退役 */
-.ws-page:fullscreen .ws-id-head, .ws-page:fullscreen .ws-metrics,
+.ws-page:fullscreen .ws-id-head,
 .ws-page:fullscreen .ws-archived-hint { display: none; }
 
 /* ===== R122：资源台 UI 迭代（对齐原型：紧凑页头 / 横排指标盒 / 工具条提权 / 紧凑卡） ===== */
@@ -207,6 +211,9 @@
   .tb-desc { min-width: 0; }
   .ws-toolbar { flex-wrap: wrap; gap: 7px; padding: 8px 10px; }
   .toolbar-mode { width: 100%; }
+  .cur-metrics { order: 2; flex: 1 1 100%; }
+  .cur-metric { flex: 1; justify-content: space-between; }
+  .cur-toolbar .share-action { margin-left: auto; }
   .toolbar-spacer { display: none; }
   .toolbar-search { flex: 1 1 180px; min-width: 0; }
   .toolbar-search input { width: 100%; min-width: 0; }

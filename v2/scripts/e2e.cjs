@@ -354,11 +354,15 @@ async function main() {
   }
   const deckOk = deckChecks.every(x => x.panel && x.newButtons === 0 && x.importButton === 0)
   const oldTabsGone = (await page.locator('.bt-tab').count()) === 0
-  // 浏览器返回：先回到首页，再同文档进入任务二级页；点“返回调度台”必须落回两栏首页。
+  // 切换三类卡后，点“返回调度台”必须直达两栏首页，而不是在 /deck 路由之间回退。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1000)
   await page.evaluate(() => { location.hash = '#/deck/task' })
   await page.waitForTimeout(1200)
+  await page.locator('.deck-kind-seg button', { hasText: '好奇心卡' }).first().click().catch(() => {})
+  await page.waitForTimeout(500)
+  await page.locator('.deck-kind-seg button', { hasText: '资源卡' }).first().click().catch(() => {})
+  await page.waitForTimeout(500)
   await page.locator('.deck-back').first().click().catch(() => {})
   await page.waitForTimeout(1000)
   const backHome = (await page.locator('.desk-layout').count()) > 0
@@ -882,6 +886,85 @@ async function main() {
   const movedParent = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => ((r['zy_data_v2'].categories || []).find(x => x.id === 'e2e-drag-c1') || {}).parentId ?? '(无)'))
   report('E2E-18 策展画布拖拽真值+改父级落库（R111 承接 R57-F1）', dragAttr === 'true' && seedOk && areaDrop === 'dispatched' && movedParent === 'e2e-drag-c2',
     'draggable=' + dragAttr + ' seed=' + seedOk + ' area=' + areaDrop + ' parent=e2e-drag-c2→' + movedParent)
+
+  // E2E-45（V3.9.10）：节点聚焦后的思维导图键位必须跨层级成立。
+  //   旧实现用 `closest([role=button])` 跳过交互元素，节点自身拖拽把手也命中，
+  //   L2/L3 节点得到焦点后 Tab/Enter 被静默吞掉。这里从真实 L2 节点出发，
+  //   一路按 Enter / Tab / Tab / Enter 建到 L4，再以数据层 parentId 验证树形。
+  const keySeed = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const d = r['zy_data_v2']
+    if (!d) return false
+    d.categories = (d.categories || []).filter(c => !String(c.name || '').startsWith('E2E 键位'))
+    if (!d.categories.some(c => c.id === 'e2e-key-root')) {
+      d.categories.push({ id: 'e2e-key-root', workspaceId: 'e2e-main-board', name: 'E2E 键位根', order: 98 })
+    }
+    return chrome.storage.local.set({ zy_data_v2: d }).then(() => true)
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-mind-node="e2e-key-root"]', { visible: true, timeout: 10000 })
+  await page.locator('[data-mind-node="e2e-key-root"]').focus()
+  await page.keyboard.press('Enter')
+  await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
+  await page.locator('.mind-edit-title').fill('E2E 键位二级同级')
+  await page.keyboard.press('Tab')
+  await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
+  await page.locator('.mind-edit-title').fill('E2E 键位三级子级')
+  await page.keyboard.press('Tab')
+  await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
+  await page.locator('.mind-edit-title').fill('E2E 键位四级子级')
+  await page.keyboard.press('Enter')
+  await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
+  await page.locator('.mind-edit-title').fill('E2E 键位四级同级')
+  await page.locator('.mindmap-title').click()
+  await pollUntil(async () => page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const cats = ((r['zy_data_v2'] || {}).categories || [])
+    return ['E2E 键位二级同级', 'E2E 键位三级子级', 'E2E 键位四级子级', 'E2E 键位四级同级'].every(n => cats.some(c => c.name === n))
+  })), { timeout: 8000, label: '思维导图跨层级键位落库' })
+  const keyTree = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const cats = ((r['zy_data_v2'] || {}).categories || [])
+    const byName = (n) => cats.find(c => c.name === n)
+    const l2 = byName('E2E 键位二级同级')
+    const l3 = byName('E2E 键位三级子级')
+    const l4 = byName('E2E 键位四级子级')
+    const l4s = byName('E2E 键位四级同级')
+    return {
+      l2: !!l2 && !l2.parentId,
+      l3: !!l3 && !!l2 && l3.parentId === l2.id,
+      l4: !!l4 && !!l3 && l4.parentId === l3.id,
+      l4s: !!l4s && !!l3 && l4s.parentId === l3.id,
+      labels: [...document.querySelectorAll('[data-mind-node] .mind-level')].map(x => x.textContent.trim()),
+    }
+  }))
+  report('E2E-45 V3.9.10 节点聚焦键位跨层级：L2 Enter 建同级 → Tab 建 L3 → Tab 建 L4 → Enter 建 L4 同级',
+    keySeed && keyTree.l2 && keyTree.l3 && keyTree.l4 && keyTree.l4s && keyTree.labels.includes('L4'),
+    JSON.stringify(keyTree))
+
+  // E2E-46（V3.9.10）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
+  //   预览按真实 Category 树递归平铺到 L4，且画布工具栏在 1440 宽保持单行、分享在行尾。
+  await page.locator('.share-action').first().click()
+  await waitForLocator(page, '.cs-paper', { visible: true, timeout: 10000 })
+  const sharePreview = await page.evaluate(() => {
+    const paper = document.querySelector('.cs-paper')
+    const text = paper ? paper.textContent : ''
+    const iframes = document.querySelectorAll('.drawer iframe').length
+    const metrics = [...document.querySelectorAll('.cur-metric')].map(el => el.getBoundingClientRect())
+    const share = document.querySelector('.share-action')?.getBoundingClientRect()
+    const settings = document.querySelector('button.hero-btn.settings[title="策展台设置"]')?.getBoundingClientRect()
+    return {
+      visible: !!paper && paper.getBoundingClientRect().height > 50,
+      levels: ['L2', 'L3', 'L4'].filter(l => text.includes(l + ' · 论证节点')),
+      hasNodes: ['E2E 键位二级同级', 'E2E 键位三级子级', 'E2E 键位四级子级'].every(n => text.includes(n)),
+      iframes,
+      singleRow: metrics.length === 2 && !!share && Math.abs(metrics[0].top - share.top) < 8,
+      shareLast: !!(share && settings && share.left >= settings.left),
+    }
+  })
+  report('E2E-46 V3.9.10 分享预览原生可读且递归呈现 L2–L4；分享按钮在工具栏行尾',
+    sharePreview.visible && sharePreview.levels.length === 3 && sharePreview.hasNodes
+      && sharePreview.iframes === 0 && sharePreview.singleRow && sharePreview.shareLast,
+    JSON.stringify(sharePreview))
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForTimeout(500)
 
 
   // E2E-19 删除策展台软删（R58-B1）：删除后资源卡带 deletedAt 进回收站，恢复时孤卡回落首个可用策展台
