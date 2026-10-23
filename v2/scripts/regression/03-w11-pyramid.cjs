@@ -16,7 +16,7 @@
  * 依赖基建见 ./helpers.cjs。
  */
 const {
-  check, read, codeOnly, CT_W11, TOWER, LANE, SPINE, PANEL, PANO, PANO_LANE, CMETA, CT_ALL
+  check, read, codeOnly, CT_W11, TOWER, LANE, SPINE, PANEL, PANO, PANO_LANE, PANO_SWITCH, CMETA, CT_ALL
 } = require('./helpers.cjs');
 
 console.log('【W11 · 方向台战略金字塔结构契约】');
@@ -70,7 +70,7 @@ check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、�
 check('W11-4 ★断链必须**双向都显性**：正向「缺任务的指标」亮 ⚠ 并给虚线空位；反向「无归属任务」进收容区可一键挂指标。只做正向会漏掉"任务已经录了但没挂到指标上"这一类——它是数据录入的常态，比缺任务更隐蔽。判据钉两处宿主都在（舱内纵向 + 全景横向），且收容区必须带可点出口（只显示不给出路等于制造绝望）。★空位承重处随 W11-12 拆到 CompassPanoLane', () => {
   return LANE.includes('class="mc-orphan"')                                          /* 正向：指标卡内断链空位 */
     && TOWER.includes('class="tw-orphans"') && TOWER.includes('＋ 挂指标')           /* 反向：舱内收容 */
-    && PANO.includes('class="lane orph"') && PANO.includes('＋ 挂指标')              /* 反向：全景收容泳道 */
+    && PANO.includes('class="lane-orphan"') && PANO.includes('＋ 挂指标')            /* 反向：全景收容泳道（独立命名空间，避免污染子泳道） */
     && CT_W11.includes('bindOrphan')
     /* ★空态不许悄悄消失：缺任务在两种视图里都要占位可见 */
     && PANO_LANE.includes('class="lane-empty"') && PANO_LANE.includes('＋ 建第一条任务')
@@ -120,17 +120,18 @@ check('W11-6 ★成熟度等级色只做小圆点/小徽标，绝不许用在指
 
 // ============== 三、项目全景（横向第二视图） ==============
 
-check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的另一种写法：一根泳道 = 一条成功指标，泳道内竖排该指标的任务，顶部一条层级带把「第 4 层项目 › 第 5 层指标 › 第 6 层任务」的从属直接印在结构上。★V3.8.21 翻转带备案（用户拍板 F3，2026-10-15）：层级带由「三段等高色块 + flex 递增 1.25/2/2.6 + clip-path 折角箭头」**压成单行面包屑**（.bd-seg ×3 + .bd-sep ×2，约 28–32px 高），三段竖排副文案全砍 —— 层级带与泳道区抢首屏高度，而它承载的「从属」在单行面包屑里同样成立（分隔符 › 就是折角箭头的等价物，从属感不靠伪元素）。翻转不删断言：折角 clip-path 与三段递进宽度改钉退役负锚（回流即红），正锚改钉单行三段 + 分隔符 + 所守不变量（泳道横向 / 固定宽列向堆叠 / 组件真实挂载）。★泳道本体已随 W11-12 拆到 CompassPanoLane（承重处随之迁移，判据随迁带备案）', () => {
+check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的另一种写法：一根泳道 = 一条成功指标，泳道内竖排该指标的任务；第 4/5/6 层的从属必须仍能在全景里被读到。★V3.9.12 视觉收口（用户 2026-10-23「项目全景还是有点乱」）：单行层级带不再独占一条水平带，而是并入项目摘要脚注（第 4 层路径 / 第 5 层指标数 / 第 6 层任务数 / 断链）；守的是“层级从属可见”，不守它必须横成第二块招牌。★V3.8.21 退役负锚保留：三段等高色块与 clip-path 折角不许回流。★泳道本体仍在 CompassPanoLane', () => {
   const L = PANO_LANE;
   return PANO.includes('class="lanes"')
     && /\.lanes \{[^}]*display: flex[^}]*overflow-x: auto/.test(PANO)
     /* 泳道本体：一根固定宽、列向堆叠 */
-    && /\.lane \{[^}]*flex: 0 0 262px[^}]*flex-direction: column/.test(L)
-    /* ★V3.8.21 单行面包屑：三段 .bd-seg + 两枚 .bd-sep 分隔符（层号 + 英文标 + 计数都在段内） */
-    && (PANO.match(/class="bd-seg"/g) || []).length === 3
-    && (PANO.match(/class="bd-sep"/g) || []).length === 2
+    /* 宽度随指标数量弹性铺开；基础最小宽仍 ≥280px，多泳道时容器横向滚动。
+       不再钉死 262px：只有一条指标时该值会让右侧留下整片空画布。 */
+    && /\.lane \{[^}]*flex: 1 0 280px[^}]*flex-direction: column/.test(L)
+    /* 项目摘要脚注里仍逐层点名：第 4 层路径 + 第 5/6 层计数 */
+    && PANO.includes('class="ph-foot"')
     && PANO.includes('第 4 层') && PANO.includes('第 5 层') && PANO.includes('第 6 层')
-    /* ★退役负锚：三段等高色块与 clip-path 折角不许回流（单行面包屑是拍板后的形态） */
+    /* ★退役负锚：三段等高色块与 clip-path 折角不许回流 */
     && !PANO.includes('class="bd"')
     && !/\.bd:nth-child/.test(PANO)
     && !/clip-path: polygon\(0 0, 100% 50%, 0 100%\)/.test(PANO)
@@ -141,14 +142,16 @@ check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的
 check('W11-8 ★全景视图的三态必须都在：① 零任务泳道占位可见（让"缺"在全景里同样显性）；② 无归属收容泳道固定在泳道区**最后**（红框 + 挂指标出口）；③ 项目选择条常驻可点，换主体不需要回项目塔。★第③项是双向可达：只钉"能切过去"的话，选择条被条件渲染藏起来就绿了，所以判据钉它与 .pano 同级常驻。★空位可见的承重处随 W11-12 拆到 CompassPanoLane', () => {
   const L = PANO_LANE;
   return L.includes('class="lane-empty"') && L.includes('＋ 建第一条任务')
-    && PANO.includes('class="lane orph"') && PANO.includes('＋ 挂指标')
+    && PANO.includes('class="lane-orphan"') && PANO.includes('＋ 挂指标')
     /* 收容泳道在 .lanes 内的最后一个 section（在 metrics 的 v-for 之后） */
-    && PANO.indexOf('class="lane orph"') > PANO.indexOf('<CompassPanoLane')
-    /* 选择条：与 pano 同级、v-for 全量项目、不受筛选影响 */
-    && PANO.includes('class="pano-pick"') && PANO.includes('v-for="r in pickRows"')
-    && PANO.includes("emit('pick', r.proj.id)")
-    /* ★双向：全景头有「⇅ 回项目塔」，且落地时带 dirFilter + 展开该舱（不做"回来就丢上下文"的假双向） */
-    && PANO.includes("emit('toTower', current.proj.id)")
+    && PANO.indexOf('class="lane-orphan"') > PANO.indexOf('<CompassPanoLane')
+    /* 换主体：V3.9.12 拆成紧凑切换器组件；v-for 全量项目、点任一项目即换主体，不受筛选影响 */
+    && PANO.includes('<CompassPanoSwitch')
+    && PANO.includes(':rows="pickRows"')
+    && PANO_SWITCH.includes('v-for="r in rows"')
+    && PANO_SWITCH.includes("emit('pick', r.proj.id)")
+    /* 回项目塔由同一行内切换器承担；W11-10 继续核对两跳接线与回程落地。 */
+    && PANO.includes('@back="emit(\'toTower\', current.proj.id)"')
     && CT_W11.includes('function backToTower(') && CT_W11.includes('dirFilter.value = owner.dir.id');
 });
 
@@ -175,7 +178,7 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
 
 check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个视图就丢功能"）。逐项对齐：勾选完成 / 成熟度详情 / 加任务 / 加指标 / AI 建议指标 / 挂指标 / 回项目塔 / 换主体（+任务详情抽屉，W12-C 起）。**跨两层组件的出口要查两跳**（泳道 emit → 全景转发 → 树本体 @监听）—— 只查一跳会漏，而漏了的表现是"按钮在、点了没反应"。同样，动作一律上抛给父组件统一执行，不自己写库、不自己弹层。★W12-E 退役带备案：「进详情页」一项从清单移除（项目塔/全景就地看全，四枚项目详情入口本轮退役），任务详情抽屉（W12-C 的 openDetail）补进清单', () => {
   const L = PANO_LANE;
-  const PANO_L = PANO + '\n' + L;
+  const PANO_L = PANO + '\n' + L + '\n' + PANO_SWITCH;
   /* ① 泳道层出口 */
   const laneEmits = [
     ['勾选完成', "emit('toggleTask', t.id)"],
@@ -190,7 +193,7 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
     ['加指标', "emit('addMetric', current.proj.id)"],
     ['AI 建议指标', "emit('aiMetric', current.proj.id)"],
     ['挂指标', "emit('bindOrphan', t.id, current.proj.id)"],
-    ['回项目塔', "emit('toTower', current.proj.id)"],
+    ['回项目塔', "<CompassPanoSwitch"],
     ['换主体', "emit('pick', r.proj.id)"],
     ['透传-勾选', "@toggle-task=\"emit('toggleTask', $event)\""],
     ['透传-等级', "@task-grade=\"emit('taskGrade', $event)\""],
@@ -202,11 +205,15 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
   const wired = ['@toggle-task="toggleTask"', '@task-grade="showTaskGrade"', '@open-detail="openTaskDetail"',
     '@add-task="(mid, pid) => openTaskAdd(mid, pid)"', '@add-metric="addMetric"', '@ai-metric="(id) => aiChain(\'metrics\', id)"',
     '@bind-orphan="bindOrphan"', '@to-tower="backToTower"', '@pick="panoId = $event"'];
+  /* 回项目塔在切换器内上抛，跨两跳：Switch emit back → Pano 转发 @back → Tree 的 @to-tower。 */
+  const backWired = PANO.includes("@back=\"emit('toTower', current.proj.id)\"")
+    && CT_W11.includes('@to-tower="backToTower"');
   const notWired = wired.filter(w => !CT_W11.includes(w));
   if (missingLane.length) console.error('   · 泳道层缺出口：' + missingLane.join('、'));
   if (missingPano.length) console.error('   · 全景层缺出口：' + missingPano.join('、'));
   if (notWired.length) console.error('   · 树本体未接线：' + notWired.join('、'));
-  return missingLane.length === 0 && missingPano.length === 0 && notWired.length === 0;
+  if (!backWired) console.error('   · 回项目塔未跨两跳接线');
+  return missingLane.length === 0 && missingPano.length === 0 && notWired.length === 0 && backWired;
 });
 
 // ============== 四、焦点与层级纪律 ==============
@@ -245,7 +252,8 @@ check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。R164-2
     'CompassTower': lines('/newtab/components/compass/CompassTower.vue'),
     'CompassLane': lines('/newtab/components/compass/CompassLane.vue'),
     'CompassPano': lines('/newtab/components/compass/CompassPano.vue'),
-    'CompassPanoLane': lines('/newtab/components/compass/CompassPanoLane.vue')
+    'CompassPanoLane': lines('/newtab/components/compass/CompassPanoLane.vue'),
+    'CompassPanoSwitch': lines('/newtab/components/compass/CompassPanoSwitch.vue')
   };
   const meta = lines('/newtab/views/compassMeta.ts');
   const over = Object.entries(comps).filter(([, n]) => n > 400);

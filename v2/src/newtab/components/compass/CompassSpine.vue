@@ -124,7 +124,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
       </div>
 
       <!-- 断链行：收在骨架条内，不独占横幅 -->
-      <div class="spine-risk">
+      <div class="spine-risk" :class="{ zero: meta.counts.risk === 0 }">
         <span class="sr-ico" :class="{ zero: meta.counts.risk === 0 }">
           <Icon v-if="meta.counts.risk === 0" name="check" :size="14"/><Icon v-else name="warn" :size="14"/>
         </span>

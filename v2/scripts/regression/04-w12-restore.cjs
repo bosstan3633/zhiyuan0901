@@ -554,7 +554,9 @@ check('W12-F1 ★全景泳道必须有贯穿连接轨（用户拍板 C2）：项
   if (!L.includes('class="ltask-node"')) return false;
   if (!/\.lane-b \{ position: relative/.test(L)) return false;
   if (!/\.lane-spine \{[\s\S]*?var\(--hue\)/.test(L)) return false;
-  if (!/\.ltask \{[\s\S]*?padding: 9px 10px 9px 30px/.test(L)) return false;
+  const task = (L.match(/\.ltask \{[\s\S]*?\n\}/) || [''])[0];
+  const pad = /padding:\s*(\d+)px\s+(\d+)px\s+(\d+)px\s+(\d+)px/.exec(task);
+  if (!pad || Number(pad[4]) <= 0) return false;
   // 负锚：不许硬编码色
   if (/#[0-9a-f]{3,6}/i.test(L.match(/\.lane-spine \{[\s\S]*?\n\}/) ? L.match(/\.lane-spine \{[\s\S]*?\n\}/)[0] : '')) return false;
   return true;

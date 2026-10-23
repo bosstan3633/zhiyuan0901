@@ -14,14 +14,21 @@
  * ★组件边界：本组件只管「选谁 / 主体是谁」（选择条 + 项目头 + 层级带 + 收容道），
  * 一根根泳道交给 CompassPanoLane。两块各自独立可判 —— 改导航样式不会把内容判据一起拖红。
  *
+ * ★V3.9.12 项目全景视觉收口（用户 2026-10-23 反馈「项目全景看起来有点乱」）：
+ *   保留「选择项目 → 项目摘要 → 横向泳道」这套已有架构，只收口视觉层级与动作密度：
+ *   ① 项目切换从一排常驻卡降为一行紧凑下拉，只有当前项占位；
+ *   ② 项目头只留「下一步 + 一个主行动 + 更多」三个发声点，低频动作全部进「⋯」；
+ *   ③ 「第 4/5/6 层」从第二块水平带降为项目头脚注，不再与项目名争夺行高。
+ *
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 项目名 --fs-title(15px)，主角感由横向铺开与留白承担。
  */
 import Icon from '@/shared/components/Icon.vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Direction, Project } from '@/shared/models'
 import type { CompassMeta, ProjectMeta } from '../../views/compassMeta'
 import CompassPanoLane from './CompassPanoLane.vue'
+import CompassPanoSwitch from './CompassPanoSwitch.vue'
 import CompassTowerStatus from './CompassTowerStatus.vue'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
 
@@ -58,6 +65,14 @@ const emit = defineEmits<{
   (e: 'diagRun', projId: string): void
   (e: 'diagReport', projId: string): void
 }>()
+
+/** V3.9.12：「⋯」用一个本地开合态；点外部由 section 的 focusout 收口。 */
+const moreOpen = ref(false)
+const moreRoot = ref<HTMLElement | null>(null)
+function onMoreFocusout(e: FocusEvent) {
+  const next = e.relatedTarget as Node | null
+  if (!next || !moreRoot.value?.contains(next)) moreOpen.value = false
+}
 
 /** 选择条上的项目序列（扁平成一条，前端不再嵌套遍历） */
 interface PickRow { proj: Project; pm: ProjectMeta; dir: Direction; hue: string; i: number }
@@ -97,36 +112,24 @@ const bandStats = computed(() => {
   return { metrics: pm.metrics.length, withTasks, zero, allTasks, doneTasks, pending: allTasks - doneTasks }
 })
 
-const ringR = 21
-const ringC = 2 * Math.PI * ringR
+const riskLabel = computed(() => {
+  const n = current.value?.pm.risk || 0
+  return n > 0 ? `断链 ${n}` : '链路完整'
+})
+
+/** 单指标时泳道铺满画布；有收容道或第二根指标时仍按可横向滚动的泳道列排布。 */
+const laneCount = computed(() => {
+  const c = current.value
+  return c ? c.pm.metrics.length + (c.pm.orphanTasks.length ? 1 : 0) : 0
+})
 </script>
 
 <template>
   <div class="pano" :style="{ '--hue': current?.hue || 'var(--accent)' }">
-    <!-- ① 项目选择条：全景的入口。★双向可达 —— 点条上任一项目即换主体，不设"必须先选"的门槛 -->
-    <section class="pano-pick" aria-label="选择要横向展开的项目">
-      <div class="pp-t">选择项目 · 横向看全它的一条链</div>
-      <div class="pp-row">
-        <button
-          v-for="r in pickRows" :key="r.proj.id"
-          class="pp" :class="{ on: current?.proj.id === r.proj.id }"
-          :style="{ '--pc': r.hue }"
-          :title="`${r.dir.name} › ${r.proj.name} · ${r.pm.metrics.length} 指标 · ${r.pm.total} 任务`"
-          @click="emit('pick', r.proj.id)"
-        >
-          <span class="pp-n">{{ r.i + 1 }} {{ r.proj.name }}</span>
-          <span class="pp-m">
-            {{ r.pm.metrics.length }} 指标 · {{ r.pm.total }} 任务<template v-if="r.proj.isFocused"> · <Icon name="main-focus" :size="13"/></template>
-          </span>
-        </button>
-        <div v-if="!pickRows.length" class="pp-empty">还没有攻坚项目 —— 先在项目塔里添加一个</div>
-      </div>
-    </section>
-
     <template v-if="current">
-      <!-- ② 项目头：名 + 徽标 + 归属路径 + 完成度 + 四个动作 -->
-      <section class="pano-h">
-        <span class="ph-i" aria-hidden="true">{{ current.i + 1 }}</span>
+      <!-- 项目摘要同时承担“我在哪个项目”和“接下来做什么”：项目切换收进右侧动作区，
+           避免切换条与摘要各写一遍项目名。 -->
+      <section class="pano-h" aria-label="当前项目摘要">
         <div class="ph-b">
           <h3 class="ph-n">
             {{ current.proj.name }}
@@ -134,73 +137,58 @@ const ringC = 2 * Math.PI * ringR
             <span v-if="current.proj.pinned" class="ph-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
             <span v-if="current.pm.stall" class="ph-badge stall" title="近 14 天无推进/完成活动"><Icon name="warn" :size="13"/> 停滞 14 天+</span>
           </h3>
-          <!-- ★归属路径：全景里最容易丢的就是"这个项目的指标从哪来"，所以路径常驻不折叠 -->
-          <nav class="ph-c">
-            <span>{{ current.dir.name }}</span><span class="ph-sep">›</span>
-            <b>第 4 层 · 攻坚项目</b><span class="ph-sep">›</span>
-            <span>{{ bandStats?.metrics }} 条成功指标 · {{ bandStats?.allTasks }} 条任务</span>
-            <button class="ph-link" title="回到项目塔里看它与其它项目的对比" @click="emit('toTower', current.proj.id)"><Icon name="arrowupdown" :size="13"/> 回项目塔</button>
-          </nav>
-          <!-- 与项目塔同源：nextStep 由 compassMeta 统一解析，全景不另算一套 -->
+          <!-- 下一步是这一屏的主句；路径与层数降为脚注，不和项目名并列争夺行高。 -->
           <div class="ph-next" :class="current.pm.nextStepSource === 'empty' ? 'src-empty' : `src-${current.pm.nextStepSource}`">
             <span class="ph-next-l">下一步</span>
             <span class="ph-next-v" :title="current.pm.nextStep">{{ current.pm.nextStep }}</span>
             <span v-if="current.pm.nextStepSource === 'task'" class="ph-next-src">按任务推导</span>
           </div>
+          <div class="ph-foot">
+            <span>{{ current.dir.name }} › 第 4 层 攻坚项目</span>
+            <span class="ph-sep" aria-hidden="true">/</span>
+            <span>第 5 层 {{ bandStats?.metrics }} 指标</span>
+            <span class="ph-sep" aria-hidden="true">/</span>
+            <span>第 6 层 {{ bandStats?.allTasks }} 任务</span>
+            <span class="ph-sep" aria-hidden="true">/</span>
+            <span :class="{ bad: !!current.pm.risk }">{{ riskLabel }}</span>
+          </div>
         </div>
         <div class="ph-r">
+          <CompassPanoSwitch
+            :rows="pickRows"
+            :active-id="current.proj.id"
+            @pick="emit('pick', $event)"
+            @back="emit('toTower', current.proj.id)"
+          />
           <div class="ph-prog" :title="`项目级完成度 ${current.pm.pct}%（跨全部指标聚合）`">
-            <div class="ph-ring">
-              <svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true">
-                <circle cx="24" cy="24" :r="ringR" fill="none" stroke="var(--surface-3)" stroke-width="3.5" />
-                <circle
-                  cx="24" cy="24" :r="ringR" fill="none"
-                  stroke="var(--hue)" stroke-width="3.5" stroke-linecap="round"
-                  :stroke-dasharray="ringC" :stroke-dashoffset="ringC * (1 - current.pm.pct / 100)"
-                />
-              </svg>
-              <span class="ph-ring-v">{{ current.pm.pct }}%</span>
-            </div>
-            <div class="ph-num">
-              <b>{{ current.pm.done }} / {{ current.pm.total }}</b> 任务完成
-              <span>{{ bandStats?.metrics }} 条指标 · {{ current.pm.risk ? `${current.pm.risk} 处断链` : '链路完整' }}</span>
-            </div>
+            <span class="ph-prog-v">{{ current.pm.pct }}%</span>
+            <span class="ph-prog-c">{{ current.pm.done }} / {{ current.pm.total }} 任务</span>
           </div>
           <div class="ph-acts">
-            <button v-if="current.pm.risk > 0" class="ph-act risk" :title="`${current.pm.risk} 处断链：缺任务指标 + 无归属任务`"><Icon name="warn" :size="13"/> 断链 {{ current.pm.risk }}</button>
-            <!-- ★F2：项目层模板导入（📋 与战略目标行同构）——粘贴 # 成功指标 / ## 任务 一次生成 -->
-            <button class="ph-act" title="导入模板：粘贴 Markdown，按「# 成功指标 / ## 任务」批量生成本项目的指标与任务" @click="emit('importTemplate', current.proj.id)"><Icon name="filetext" :size="13"/> 导入模板</button>
             <button class="ph-act" title="在本项目下新建成功指标" @click="emit('addMetric', current.proj.id)">＋ 指标</button>
-            <button class="ph-act ai" title=" AI 依使命与本项目建议成功指标（查重后采纳才创建）" @click="emit('aiMetric', current.proj.id)"><Icon name="sparkle" :size="13"/> AI 建议指标</button>
-            <!-- ★F4：AI 诊断两态入口 —— 与项目塔舱头 CompassTowerStatus 同一套交互（复用同一组件）：
-                 无报告 → 虚线「🧠 AI 诊断」点击才跑；有报告 → 标签组 + 「📄 诊断报告」开中央弹窗。
-                 手动触发红线不破：从不自动跑、不预生成。 -->
-            <CompassTowerStatus
-              class="ph-diag"
-              :proj-id="current.proj.id"
-              :hue="current.hue"
-              :meta="current.pm"
-              :diag="diag"
-              :stale="diagStale"
-              @diag-run="(id) => emit('diagRun', id)"
-              @diag-report="(id) => emit('diagReport', id)"
-            />
-            <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：这枚「📄 详情」与项目塔
-                 舱内菜单、页头那枚同属"进项目详情"的入口，四个视图已能就地看全，一并退役。 -->
+            <div ref="moreRoot" class="ph-more-wrap" @focusout="onMoreFocusout">
+              <button class="ph-more" :class="{ on: moreOpen }" :aria-expanded="moreOpen" aria-haspopup="menu" title="更多项目操作" @click="moreOpen = !moreOpen">⋯</button>
+              <div v-if="moreOpen" class="ph-menu" role="menu">
+                <button class="ph-mi" role="menuitem" @click="moreOpen = false; emit('importTemplate', current.proj.id)">
+                  <Icon name="filetext" :size="13"/> 导入模板
+                </button>
+                <button class="ph-mi" role="menuitem" @click="moreOpen = false; emit('aiMetric', current.proj.id)">
+                  <Icon name="sparkle" :size="13"/> AI 建议指标
+                </button>
+                <CompassTowerStatus
+                  class="ph-diag"
+                  :proj-id="current.proj.id"
+                  :hue="current.hue"
+                  :meta="current.pm"
+                  :diag="diag"
+                  :stale="diagStale"
+                  @diag-run="(id) => { moreOpen = false; emit('diagRun', id) }"
+                  @diag-report="(id) => { moreOpen = false; emit('diagReport', id) }"
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-
-      <!-- ③ 层级带（F3 单行化）：从属引导降为一行面包屑 —— 原三段竖排色块实测 85–90px，
-           夺走下方泳道的视觉焦点；现压成恒高约 30px 的单行，只保留「层 + 计数」。
-           三段副文案（"1个攻坚项目·本次全景的主体"等）全砍：这些数字在项目头进度环与泳道里
-           都有第二来源，不值得再占一整行。 -->
-      <section v-if="bandStats" class="band" aria-label="三层从属">
-        <span class="bd-seg"><i>第 4 层</i> PROJECT</span>
-        <span class="bd-sep" aria-hidden="true">›</span>
-        <span class="bd-seg"><i>第 5 层</i> METRIC <b>{{ bandStats.metrics }}</b> 条指标</span>
-        <span class="bd-sep" aria-hidden="true">›</span>
-        <span class="bd-seg"><i>第 6 层</i> TASK <b>{{ bandStats.allTasks }}</b> 条任务</span>
       </section>
 
       <!-- ④ 横向泳道区：一根泳道 = 一条成功指标（组件化，见 CompassPanoLane） -->
@@ -211,6 +199,7 @@ const ringC = 2 * Math.PI * ringR
           :m="m"
           :idx="mi + 1"
           :proj-id="current.proj.id"
+          :single="laneCount === 1"
           @toggle-task="emit('toggleTask', $event)"
           @task-grade="emit('taskGrade', $event)"
           @open-detail="emit('openDetail', $event)"
@@ -220,20 +209,20 @@ const ringC = 2 * Math.PI * ringR
         />
 
         <!-- ★无归属收容泳道：在项目内但没挂任何成功指标的任务（判据 W11-8 钉它在泳道区最右侧） -->
-        <section v-if="current.pm.orphanTasks.length" class="lane orph" aria-label="无归属任务收容">
-          <header class="lane-h">
-            <div class="lane-top">
-              <span class="lane-i">!</span>
-              <span class="lane-n">无归属任务</span>
+        <section v-if="current.pm.orphanTasks.length" class="lane-orphan" aria-label="无归属任务收容">
+          <header class="lo-head">
+            <div class="lo-top">
+              <span class="lo-i">!</span>
+              <span class="lo-n">无归属任务</span>
             </div>
-            <div class="lane-acc">在项目内，但<b class="bad">没挂任何成功指标</b></div>
+            <div class="lo-note">在项目内，但<b class="bad">没挂任何成功指标</b></div>
           </header>
-          <div class="lane-b">
-            <div v-for="t in current.pm.orphanTasks" :key="t.id" class="ltask orph">
-              <div class="ltask-t">{{ t.title }}</div>
-              <div class="ltask-b">
-                <span class="lb lb-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>
-                <button class="lb lb-bind" @click="emit('bindOrphan', t.id, current.proj.id)">＋ 挂指标</button>
+          <div class="lo-body">
+            <div v-for="t in current.pm.orphanTasks" :key="t.id" class="lo-task">
+              <div class="lo-task-t">{{ t.title }}</div>
+              <div class="lo-task-b">
+                <span class="lo-tag lo-tag-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>
+                <button class="lo-tag lo-tag-bind" @click="emit('bindOrphan', t.id, current.proj.id)">＋ 挂指标</button>
               </div>
             </div>
           </div>
@@ -244,156 +233,126 @@ const ringC = 2 * Math.PI * ringR
 </template>
 
 <style scoped>
-/* ★视觉聚焦（与项目塔同一把尺子）：全景的导航与内容都改发丝线分节，不再各套一张卡 ——
-   四层容器都带底色+边框+阴影时，首屏先读到的是框，而不是"推进到哪、哪条指标缺动作"。 */
-/* ── 项目选择条 ── */
-.pano-pick {
-  background: transparent; border-radius: 0;
-  border: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  padding: 11px 0; margin-bottom: 18px;
-}
-.pp-t { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .11em; color: var(--text-4); margin-bottom: 9px; }
-.pp-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; }
-.pp-empty { font-size: var(--fs-micro); color: var(--text-4); padding: 8px 2px; }
-.pp {
-  position: relative; flex: 0 0 auto; padding: 7px 12px 7px 14px;
-  /* 未选中的项目退回"纯文本条目"：只有左侧色条与名字，不再是一块带底的卡。
-     一屏六七个项目时，底色块会把"选谁"这件事变成看色块而不是读项目名。
-     ★必须显式 border: 0 —— button 默认边框在透明底上会露出一圈黑框。 */
-  border: 0; border-radius: 0; background: transparent;
-  cursor: pointer; transition: all var(--dur); min-width: 132px; text-align: left;
-}
-.pp::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--pc); opacity: .45; }
-.pp:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
-.pp:hover::before { opacity: .8; }
-/* 选中态 = 色轨加粗 + 文字提亮，不再铺一层底色（与左栏项目导航同一套标记语言） */
-.pp.on { background: transparent; box-shadow: none; }
-.pp.on::before { opacity: 1; width: 4px; }
-.pp-n {
-  display: block; font-size: var(--fs-sub); font-weight: 700; line-height: 1.4;
-  white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; color: var(--text);
-}
-.pp-m { display: block; font-size: var(--fs-micro); color: var(--text-4); margin-top: 3px; font-weight: 600; }
-
-/* ── 项目头 ── */
+/* V3.9.12：项目头是一个“摘要段落”，不是又一张卡。
+   标题 → 下一步 → 脚注 → 进度/动作 四层只用留白与发丝线分隔。 */
 .pano-h {
-  display: flex; align-items: center; gap: 16px; padding: 16px 0 18px;
-  border-radius: 0; background: transparent;
-  border: 0; border-bottom: 1px solid var(--border-strong);
-  margin-bottom: 14px; flex-wrap: wrap;
-}
-.ph-i {
-  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
-  font-size: var(--fs-title); font-weight: 700; flex: none;
-  /* 序号是刻度不是印章：舱的身份由左侧色条承担，这里不再用彩色底 */
-  background: var(--surface-2); color: var(--text-3);
+  display: flex; align-items: flex-start; gap: 20px;
+  padding: 2px 0 14px; margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-strong); flex-wrap: wrap;
 }
 .ph-b { flex: 1; min-width: 240px; }
-/* ★项目名 --fs-title(15px)：与指标 --fs-sub(12px) 拉开一档，不抢焦点（愿景才是 display） */
-.ph-n { margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -.015em; display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; color: var(--text); }
+.ph-n {
+  margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -.015em;
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; color: var(--text);
+}
 .ph-badge { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-2); padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
 .ph-badge.focus { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .ph-badge.stall { color: var(--warning); background: var(--warning-bg-soft); }
-.ph-c { font-size: var(--fs-micro); color: var(--text-4); margin-top: 5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.ph-c b { color: var(--text-2); }
-.ph-sep { opacity: .6; }
-.ph-link { font-size: var(--fs-micro); color: var(--accent-ink); cursor: pointer; font-weight: 600; }
-.ph-link:hover { text-decoration: underline; }
 .ph-next {
-  display: flex; align-items: center; gap: 7px; min-width: 0;
-  margin-top: 8px; padding-left: 8px;
-  border-left: 2px solid color-mix(in srgb, var(--hue) 52%, transparent);
+  display: flex; align-items: baseline; gap: 8px; min-width: 0;
+  margin-top: 7px; padding-left: 9px;
+  border-left: 2px solid color-mix(in srgb, var(--hue) 55%, transparent);
 }
 .ph-next-l { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: .04em; }
-.ph-next-v { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
+.ph-next-v {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-body); font-weight: 600; color: var(--text);
+}
 .ph-next.src-empty .ph-next-v { color: var(--text-3); font-weight: 500; }
 .ph-next-src { flex: none; font-size: var(--fs-tiny); color: var(--text-4); padding: 1px 6px; border-radius: 999px; background: var(--surface-2); }
-
-.ph-r { display: flex; align-items: center; gap: 20px; flex: none; }
-.ph-prog { display: flex; align-items: center; gap: 9px; }
-.ph-ring { position: relative; width: 42px; height: 42px; flex: none; }
-.ph-ring-v {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: var(--fs-micro); font-weight: 700; color: var(--text-2);
+.ph-foot {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 7px; font-size: var(--fs-micro); color: var(--text-4);
 }
-.ph-num { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.55; }
-.ph-num b { color: var(--text-2); font-variant-numeric: tabular-nums; display: block; }
-.ph-num span { display: block; }
-.ph-acts { display: flex; gap: 6px; }
+.ph-foot .bad { color: var(--danger); font-weight: 600; }
+.ph-sep { opacity: .55; }
+.ph-r { display: flex; align-items: center; gap: 10px; flex: none; }
+.ph-prog { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; min-width: 62px; }
+.ph-prog-v { font-size: var(--fs-title); font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ph-prog-c { font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap; }
+.ph-acts { display: flex; align-items: center; gap: 5px; }
 .ph-act {
+  min-height: 28px;
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
   background: var(--surface-2); border: 1px solid var(--border);
-  padding: 4px 10px; border-radius: 999px; cursor: pointer; transition: all var(--dur); white-space: nowrap;
+  padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: all var(--dur); white-space: nowrap; font-family: inherit;
 }
 .ph-act:hover { color: var(--accent-ink); border-color: var(--accent-light); background: var(--accent-light); }
-.ph-act.risk { color: var(--danger); background: var(--danger-bg-soft); border-color: var(--danger-border); }
-.ph-act.ai { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }
-
-/* ── 层级带（F3 单行面包屑）── */
-/* 恒高单行：层名小字 + 计数强调。★视觉聚焦：去底色与边框，只留一条细分隔线，
-   它是"路牌"不是"招牌"—— 原来那层淡色底让它和下面的泳道抢同一层注意力。 */
-.band {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 0 9px; margin-bottom: 14px;
-  border-radius: 0;
-  background: transparent;
-  border: 0; border-bottom: 1px solid var(--border);
-  font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap;
+.ph-more-wrap { position: relative; }
+.ph-more {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-2); font-family: inherit;
+  font-size: var(--fs-sub); cursor: pointer;
 }
-.bd-seg { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; letter-spacing: .04em; }
-.bd-seg i { font-style: normal; color: var(--text-4); font-weight: 700; }
-.bd-seg b { font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.bd-sep { color: var(--text-4); opacity: .7; }
+.ph-more:hover, .ph-more.on { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
+.ph-menu {
+  position: absolute; right: 0; top: calc(100% + 5px); z-index: 30;
+  width: 230px; padding: 5px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+}
+.ph-mi {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  min-height: 30px; padding: 6px 8px; border: 0; border-radius: var(--radius-xs);
+  background: transparent; color: var(--text-2); font-family: inherit;
+  font-size: var(--fs-sub); text-align: left; cursor: pointer;
+}
+.ph-mi:hover { background: var(--surface-2); color: var(--text); }
+.ph-diag { padding: 4px 3px; border-top: 1px solid var(--border); margin-top: 2px; }
 
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
-.lanes { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 16px; align-items: flex-start; }
+.lanes {
+  display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 16px;
+  align-items: flex-start; min-height: 0;
+}
 
-/* ── 收容泳道（留在本组件：它不属于任何指标，是项目级的第三态）── */
-.lane {
+/* ── 收容泳道（留在本组件：它不属于任何指标，是项目级的第三态）──
+   使用独立命名空间，不能复用 .lane：Vue 会把父组件的 scope id 透传到子组件根节点，
+   父级 .lane 的固定宽度会覆盖 CompassPanoLane 的弹性宽度。 */
+.lane-orphan {
   flex: 0 0 262px; display: flex; flex-direction: column;
   /* ★视觉聚焦：泳道去掉底色与阴影，但保留与板/舱同族的 lg 圆角（判据 C4-1） */
-  background: transparent; border-radius: var(--radius-lg);
-  border: 1px solid var(--border); overflow: hidden; max-height: 64vh;
+  background: transparent; border-radius: var(--radius-lg); overflow: hidden; max-height: 64vh;
+  border: 1px solid var(--danger-border); border-left: 2px solid var(--danger);
 }
-.lane.orph { border: 1px solid var(--danger-border); border-left: 2px solid var(--danger); background: transparent; }
-.lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: transparent; flex: none; }
-.lane.orph .lane-h { background: transparent; border-bottom-color: var(--danger-border); }
-.lane-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
-.lane-i {
+.lo-head { padding: 13px 15px 12px; border-bottom: 1px solid var(--danger-border); background: transparent; flex: none; }
+.lo-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.lo-i {
   width: 17px; height: 17px; border-radius: 6px; display: grid; place-items: center;
   font-size: var(--fs-micro); font-weight: 700; flex: none;
   background: var(--danger-bg-soft); color: var(--danger);
 }
-.lane-n { font-size: var(--fs-sub); font-weight: 700; line-height: 1.45; flex: 1; min-width: 0; color: var(--text); }
-.lane-acc { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px; }
-.lane-acc b { color: var(--text-2); font-weight: 600; }
-.lane-acc .bad { color: var(--danger); }
-.lane-b { padding: 9px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 74px; }
-.ltask {
+.lo-n { font-size: var(--fs-sub); font-weight: 700; line-height: 1.45; flex: 1; min-width: 0; color: var(--text); }
+.lo-note { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px; }
+.lo-note b { color: var(--text-2); font-weight: 600; }
+.lo-note .bad { color: var(--danger); }
+.lo-body { padding: 9px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 74px; }
+.lo-task {
   position: relative; padding: 9px 10px 9px 11px; border-radius: 0;
   background: transparent; transition: all var(--dur); border-left: 2px solid var(--danger);
   border-bottom: 1px solid var(--border);
 }
-.ltask-t { font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; color: var(--text); }
-.ltask-b { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
-.lb { font-size: var(--fs-micro); font-weight: 600; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
-.lb-clue { color: var(--warning); background: var(--warning-bg-soft); }
-.lb-bind { color: var(--accent-ink); background: var(--accent-light); cursor: pointer; }
+.lo-task-t { font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; color: var(--text); }
+.lo-task-b { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.lo-tag { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
+.lo-tag-clue { color: var(--warning); background: var(--warning-bg-soft); }
+.lo-tag-bind {
+  min-height: 28px; padding: 4px 7px; border: 0; font-family: inherit;
+  color: var(--accent-ink); background: var(--accent-light); cursor: pointer;
+}
 
 @media (max-width: 800px) {
-  .pano-h { align-items: flex-start; padding: 14px 16px; gap: 12px; }
-  .ph-r { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .pano-h { gap: 12px; }
+  .ph-r { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
   .ph-acts { flex-wrap: wrap; }
-  .band { overflow-x: auto; }
 }
 @media (max-width: 480px) {
-  .pano-pick { padding: 10px 12px; }
-  .pano-h { padding: 12px 14px; }
+  .pano-h { padding-bottom: 12px; }
   .ph-b { min-width: 0; width: 100%; }
-  .ph-i { width: 34px; height: 34px; }
-  .ph-num { display: none; }
   .ph-next { align-items: flex-start; }
   .ph-next-src { display: none; }
-  .lane { flex-basis: min(82vw, 262px); }
+  .lane-orphan { flex-basis: min(86vw, 320px); max-width: none; }
 }
 </style>

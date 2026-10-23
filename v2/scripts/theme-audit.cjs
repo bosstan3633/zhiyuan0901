@@ -259,6 +259,44 @@ const DASH_SCENES = [
       return { ok: !!d && stats >= 4 && band && tl, txt: `日详情=${!!d} 四格统计=${stats}(应≥4) 热力带=${band ? '有' : '无'} 时间线=${tl ? '有' : '无'}` }
     })
   },
+  {
+    /* V3.9.12：项目全景是方向台的第二投影，此前只在静态回归里验结构，
+       从未进过四主题实拍。场景必须真点「项目全景」，否则拍到的仍是默认项目塔。 */
+    id: 'compass-pano', name: '项目全景', hash: '#/compass', host: '.tl-head-row',
+    act: async (page) => {
+      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 }).catch(() => {})
+      await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
+      await page.waitForTimeout(700)
+    },
+    judge: async (page) => page.evaluate(() => {
+      const switcher = document.querySelector('.pano-switch')
+      const current = document.querySelector('.ps-current')
+      const summary = document.querySelector('.pano-h')
+      const next = document.querySelector('.ph-next')
+      const lanes = [...document.querySelectorAll('.lanes > .lane')]
+      const metrics = document.querySelectorAll('.lanes > .lane:not(.orph)').length
+      const hero = document.querySelector('.hero')
+      const spine = document.querySelector('.spine')
+      const x = document.querySelector('.lanes')
+      const laneRect = lanes[0] ? lanes[0].getBoundingClientRect() : null
+      const lanesRect = x ? x.getBoundingClientRect() : null
+      const overflowX = Math.round(document.documentElement.scrollWidth - window.innerWidth)
+      const laneScroll = x ? Math.round(x.scrollWidth - x.clientWidth) : 0
+      const size = (el) => el ? Math.round(el.getBoundingClientRect().height) : 0
+      /* 只量独立可点控件；任务标题/勾选框与等级不是独立动作，热区随任务行承担。 */
+      const minHot = [...document.querySelectorAll('.pano-h button, .pano-switch button, .lane-detail, .lane-add, .le-add')]
+        .map(el => el.getBoundingClientRect().height).filter(h => h > 0)
+      const hot = minHot.length ? Math.min(...minHot) : 0
+      return {
+        /* 单泳道时宽度必须铺开：262px 的旧值会在右侧留下整片空画布；
+           多泳道时允许横向滚动，不要求铺满。 */
+        ok: !!switcher && !!current && !!summary && !!next && metrics > 0 && overflowX <= 1 && hot >= 28
+          && size(hero) + size(spine) <= 250
+          && (metrics > 1 || !laneRect || !lanesRect || laneRect.width >= Math.min(820, lanesRect.width * .78)),
+        txt: `切换器=${!!switcher} 当前项目=${!!current} 摘要=${!!summary} 下一步=${!!next} 泳道=${lanes.length}(指标${metrics}) 首泳道宽=${laneRect ? Math.round(laneRect.width) : 0}px 页首高=${size(hero) + size(spine)}px 横向滚动=${laneScroll}px 页面溢出=${overflowX}px 最小热区=${Math.round(hot)}px`
+      }
+    })
+  },
   /* ★W9 退役重指带备案：原 R3-F38「dz-hl 交互点高亮」场景随开关退役删除——量的是「圈出数 == 面板内
      全部可点元素数」，而开关本身（GS 页头工具条按钮 + UIPrefs.dzHl + 面板根 dz-hl 类 + dashboard.css
      两条规则）已整体清账，留着这一屏会让每次走查都红一次「开关=否」。想复活：先把开关写回
@@ -1074,6 +1112,14 @@ if (argv.scenes) {
       await page.goto(base + v.hash, { waitUntil: 'domcontentloaded' })
       await settle(page, v.id) /* ★B1-a：DOM 沉降后再盲等，避免抓到"设置子页还没挂载"的半张脸 */
       await page.waitForTimeout(2300)
+      /* ★V3.9.12：方向树被 KeepAlive 保留，而新增的 `compass-pano` 场景会把它切到全景态。
+         下一主题再拍“方向台”时，若不复位，取到的仍是项目全景（全量首跑实测 3 主题 × 2 张）。
+         这里显式切回项目塔，再等真实卡头出现；超时仍继续，由下方 treeFail 如实记账。 */
+      if ((v.id === 'compass' || v.id === 'compass-tree') && dataHasProjects) {
+        await page.locator('.view-seg .vs-b', { hasText: '项目塔' }).first().click({ timeout: 3000 }).catch(() => {})
+        await page.waitForTimeout(500)
+        await page.locator('.tw-head').first().waitFor({ state: 'attached', timeout: 10000 }).catch(() => {})
+      }
       await resetView(page) /* 视角归零（滚动 + 鼠标 hover），否则 md5/像素对照全是假的 */
       const hash = await page.evaluate(() => location.hash)
       const file = path.join(outDir, `${theme}-${v.id}.png`)

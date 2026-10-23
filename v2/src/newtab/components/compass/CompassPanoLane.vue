@@ -24,6 +24,8 @@ const props = defineProps<{
   idx: number
   /** 当前项目 id（加任务要带出） */
   projId: string
+  /** 单指标时铺满画布，避免只占左侧一半并留下整片空画布。 */
+  single?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -43,6 +45,16 @@ const emit = defineEmits<{
 /** ★F1：泳道头「⋯」菜单（当前只有删除一项，与 CompassLane 同语言） */
 const menuFor = ref<string | null>(null)
 function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : id }
+
+/** V3.9.12：验收标准默认只占一行，需要时再展开——泳道里先读到的是指标与进度，
+ *  不是每根泳道都铺两行说明。 */
+const accOpen = ref(false)
+/** 只在焦点离开整个操作区时收菜单：pointerdown 若先卸载菜单，会吃掉随后的 click。 */
+const menuRoot = ref<HTMLElement | null>(null)
+function onMenuFocusout(e: FocusEvent) {
+  const next = e.relatedTarget as Node | null
+  if (!next || !menuRoot.value?.contains(next)) menuFor.value = null
+}
 
 /** 状态点：○ 空 / ◐ 进行中 / ✓ 全完成（与 CompassLane 同口径） */
 function dotOf(m: MetricMeta): { cls: string; g: string } {
@@ -69,7 +81,7 @@ function priOf(t: TaskCard): string {
 </script>
 
 <template>
-  <section class="lane" :data-metric="m.id">
+  <section class="lane" :class="{ single: single }" :data-metric="m.id">
     <header class="lane-h">
       <div class="lane-top">
         <span class="lane-i">{{ idx }}</span>
@@ -77,7 +89,7 @@ function priOf(t: TaskCard): string {
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
         <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
-        <span class="lane-ops" @click.stop>
+        <span ref="menuRoot" class="lane-ops" @click.stop @focusout="onMenuFocusout">
           <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
           <button class="lo-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
           <span v-if="menuFor === m.id" class="lo-menu" @click.stop>
@@ -85,7 +97,16 @@ function priOf(t: TaskCard): string {
           </span>
         </span>
       </div>
-      <div class="lane-acc">验收：<b>{{ m.acceptance || '未写验收标准' }}</b></div>
+      <div class="lane-acc" :class="{ open: accOpen }">
+        <span class="lane-acc-k">验收</span>
+        <b>{{ m.acceptance || '未写验收标准' }}</b>
+        <button
+          v-if="(m.acceptance || '').length > 28"
+          class="lane-acc-toggle"
+          :aria-expanded="accOpen"
+          @click="accOpen = !accOpen"
+        >{{ accOpen ? '收起' : '展开' }}</button>
+      </div>
       <div class="lane-bar">
         <span class="track"><span class="fill" :style="{ width: m.pct + '%' }" /></span>
         <span class="v">{{ m.pct }}% · {{ m.done }}/{{ m.total }}</span>
@@ -125,7 +146,7 @@ function priOf(t: TaskCard): string {
     </div>
 
     <footer class="lane-foot">
-      <button class="lane-add" @click="emit('addTask', m.id, projId)">＋ 在「{{ m.title }}」下添加任务</button>
+      <button class="lane-add" :title="`在「${m.title}」下添加任务`" @click="emit('addTask', m.id, projId)">＋ 添加任务</button>
     </footer>
   </section>
 </template>
@@ -136,14 +157,26 @@ function priOf(t: TaskCard): string {
    四层容器叠在一屏里，读者先数框。现在只留一条边界线（横向并排需要它），
    层级由指标名、验收行、进度条和连接轨承担。 */
 .lane {
-  flex: 0 0 262px; display: flex; flex-direction: column;
+  /* 少量指标时把泳道铺开，多指标时才横向滚动：避免单泳道只剩 262px、右侧整片空。
+     基础宽度仍保证每根泳道能容纳标题 + 验收 + 任务动作。 */
+  flex: 1 0 280px; max-width: 620px; display: flex; flex-direction: column;
   background: transparent;
   /* 圆角与板/舱/列表同族（判据 C4-1）：去的是底色与阴影，不是形状语言 */
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: none; overflow: hidden; max-height: 64vh;
 }
-.lane-h { padding: 13px 15px 12px; border-bottom: 1px solid var(--border); background: transparent; flex: none; }
+/* 单指标是项目全景最常见的第一屏：泳道承担整条推进链，不该只占画布左侧 52%。
+   920px 上限仍给任务标题留出可读行宽，不为了铺满而把每行拉成超长文本。 */
+.lane.single { flex: 1 1 100%; max-width: 920px; }
+.lane-h {
+  position: relative; padding: 12px 13px 11px 15px;
+  border-bottom: 1px solid var(--border); background: transparent; flex: none;
+}
+.lane-h::before {
+  content: ''; position: absolute; left: 0; top: 12px; bottom: 11px;
+  width: 2px; border-radius: 1px; background: var(--hue); opacity: .7;
+}
 .lane-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
 .lane-i {
   width: 17px; height: 17px; border-radius: 6px; display: grid; place-items: center;
@@ -159,7 +192,7 @@ function priOf(t: TaskCard): string {
 .lane-dot.doing { background: var(--warning-bg-soft); color: var(--warning); }
 .lane-dot.done { background: var(--success-bg-soft); color: var(--success); }
 .lane-detail {
-  flex: none; border: 1px solid var(--border); background: var(--surface);
+  flex: none; min-height: 28px; border: 1px solid var(--border); background: var(--surface);
   color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 600;
   padding: 2px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur);
 }
@@ -167,8 +200,9 @@ function priOf(t: TaskCard): string {
 /* ★F1：泳道头删除入口 —— hover 显形（与项目塔指标卡同语言），「⋯」下拉同款 */
 .lane-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .lo-del, .lo-more {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
   font-size: var(--fs-micro); color: var(--text-3); opacity: 0;
-  padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur);
+  border-radius: 5px; cursor: pointer; transition: all var(--dur);
   border: 1px solid transparent; background: transparent;
 }
 .lane:hover .lo-del, .lane:hover .lo-more,
@@ -187,8 +221,25 @@ function priOf(t: TaskCard): string {
 .lom-item:hover { background: var(--surface-3); }
 .lom-item.danger { color: var(--danger); }
 .lom-item.danger:hover { background: var(--danger-bg-soft); }
-.lane-acc { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px; }
-.lane-acc b { color: var(--text-2); font-weight: 600; }
+.lane-acc {
+  display: flex; align-items: baseline; gap: 5px; min-width: 0;
+  font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px;
+}
+.lane-acc-k {
+  flex: none; font-size: var(--fs-tiny); font-weight: 700; letter-spacing: .04em;
+  color: var(--text-4);
+}
+.lane-acc b {
+  min-width: 0; color: var(--text-3); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lane-acc.open b { white-space: normal; overflow: visible; }
+.lane-acc-toggle {
+  flex: none; min-height: 28px; padding: 6px 4px; margin: -6px -4px;
+  border: 0; background: transparent;
+  color: var(--text-3); font-family: inherit; font-size: var(--fs-tiny); cursor: pointer;
+}
+.lane-acc-toggle:hover { color: var(--accent-ink); }
 .lane-bar { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
 /* ★W12-F：任务区是连接轨的定位上下文 */
 .lane-b { position: relative; }
@@ -205,7 +256,7 @@ function priOf(t: TaskCard): string {
   border-radius: 1px; pointer-events: none;
 }
 .ltask-node {
-  position: absolute; left: 10px; top: 15px; width: 12px; height: 2px;
+  position: absolute; left: 10px; top: 14px; width: 12px; height: 2px;
   background: color-mix(in srgb, var(--hue) 60%, transparent); pointer-events: none;
 }
 .ltask-node::after {
@@ -213,7 +264,7 @@ function priOf(t: TaskCard): string {
   background: var(--surface); border: 1.6px solid color-mix(in srgb, var(--hue) 75%, transparent);
 }
 .ltask {
-  position: relative; padding: 9px 10px 9px 30px; border-radius: 0;
+  position: relative; padding: 7px 10px 7px 30px; border-radius: 0;
   /* 任务行从"小卡"退成"行"：保留左侧状态色与连接轨分支点，去掉底色与外边距 */
   background: transparent; transition: all var(--dur); border-left: 2px solid var(--hue);
   border-bottom: 1px solid var(--border);
@@ -224,27 +275,38 @@ function priOf(t: TaskCard): string {
 /* ★W12-C：div 改 button（单击开抽屉 + 键盘可达）。显式归零浏览器默认按钮外观，
    字号字色与 line-height / padding 一字未动；只加交互态反馈。 */
 .ltask-t {
-  font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; padding-right: 18px; color: var(--text);
+  font-size: var(--fs-micro); font-weight: 500; line-height: 1.55; padding-right: 18px; color: var(--text);
   background: none; border: 0; margin: 0; font-family: inherit; text-align: left; cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm); min-height: 28px;
 }
 .ltask-t:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
 .ltask-t:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ltask.done .ltask-t { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .ltask.doing .ltask-t { font-weight: 700; }
 .ltask-box {
-  position: absolute; right: 8px; top: 8px; width: 14px; height: 14px; border-radius: 4px;
-  box-shadow: inset 0 0 0 1.5px var(--border-strong); cursor: pointer; transition: all var(--dur);
-  background: transparent; padding: 0;
+  position: absolute; right: 1px; top: 1px; width: 28px; height: 28px;
+  cursor: pointer; background: transparent; border: 0; padding: 0;
 }
-.ltask-box:hover { box-shadow: inset 0 0 0 2px var(--hue); }
-.ltask-box.done { background: var(--success); box-shadow: none; }
-.ltask-box.doing { box-shadow: inset 0 0 0 2px var(--warning); }
-.ltask-b { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
-.lb { font-size: var(--fs-micro); font-weight: 600; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
+.ltask-box::before {
+  content: ''; position: absolute; inset: 7px; border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px var(--border-strong); transition: all var(--dur);
+}
+.ltask-box:hover::before { box-shadow: inset 0 0 0 2px var(--hue); }
+.ltask-box.doing::before { box-shadow: inset 0 0 0 2px var(--warning); }
+.ltask-box.done::before { background: var(--success); box-shadow: none; }
+.ltask-box.done::after {
+  content: ''; position: absolute; left: 10px; top: 11px; width: 7px; height: 4px;
+  border-left: 1.8px solid var(--surface); border-bottom: 1.8px solid var(--surface);
+  transform: rotate(-45deg);
+}
+.ltask-b { display: flex; align-items: center; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.lb { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
 .lb-pri { color: var(--text-3); background: var(--surface-3); }
 .lb-clue { color: var(--warning); background: var(--warning-bg-soft); }
-.lb-g { background: var(--surface-3); letter-spacing: .04em; cursor: pointer; }
+.lb-g {
+  background: var(--surface-3); border: 0; font-family: inherit; letter-spacing: .04em;
+  cursor: pointer; min-height: 28px; padding: 5px 5px; margin: -5px -1px;
+}
 
 /* ★空泳道：缺任务也占位，"缺"必须在全景里同样可见。
    ★视觉聚焦：从"虚线告警框"改为"带色轨的行动提示"——虚线圈+圆角+底色叠起来像一块出错的卡，
@@ -263,15 +325,18 @@ function priOf(t: TaskCard): string {
 .le-d { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.6; }
 .le-add {
   font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
-  background: var(--accent-light); padding: 3px 10px; border-radius: 999px; cursor: pointer;
+  background: var(--accent-light); border: 0; font-family: inherit;
+  min-height: 28px; padding: 4px 10px; border-radius: 999px; cursor: pointer;
 }
 .le-add:hover { filter: brightness(1.08); }
 
 .lane-foot { padding: 9px 11px; border-top: 1px solid var(--border); flex: none; background: transparent; }
 .lane-add {
   display: flex; align-items: center; gap: 6px; width: 100%;
+  min-height: 28px;
   font-size: var(--fs-micro); color: var(--text-2); cursor: pointer;
-  padding: 5px 7px; border-radius: var(--radius-xs); transition: all var(--dur); text-align: left;
+  padding: 5px 7px; border: 0; background: transparent; font-family: inherit;
+  border-radius: var(--radius-xs); transition: all var(--dur); text-align: left;
 }
 .lane-add:hover { background: var(--surface-3); color: var(--accent-ink); }
 </style>

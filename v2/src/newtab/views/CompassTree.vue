@@ -1088,7 +1088,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="compass-layout">
+  <div class="compass-layout" :class="{ 'is-pano': viewMode === 'pano' }">
     <!-- ══ W12 HERO 区（V3.8.22 F6 收口）：上=动作行（视图切换主焦点 + 两枚常驻开关），下=读数行（左对齐） ══
          ★V3.8.20（用户拍板 2026-10-15）：左上标题文案区（.hero-l：面包屑/眉标/大标题/副标 + N4 就地编辑）
          整块退役 —— 方向台是工作台面不是宣传页，首屏直接给「动作 + 状态」；定调语由骨架条
@@ -1196,7 +1196,7 @@ onUnmounted(() => {
     </section>
 
     <!-- 画布：左栏 = 项目导航（原型 .navside，吸顶常驻），右侧 = 项目塔 -->
-    <div class="tree-layout">
+    <div class="tree-layout" :class="{ 'is-pano': viewMode === 'pano' }">
       <!-- ★W12：左栏由「六层数字目录」改为「项目导航」。
            病根＝六层目录是 1~6 的纯数字，看不出层级关系；而原型的 .navside 是**项目清单**
            （序号 + 项目名 + 指标/任务数），滚动时自动跟随当前视野所在项目。
@@ -1721,6 +1721,25 @@ onUnmounted(() => {
    原型的 .page 32px 是原型自己的值，拿它覆盖会让另外三页不动的情况下方向台单独"对齐"，
    那正是 R123/R125 要挡的事。HERO 区的呼吸由 .hero 自身的 margin-bottom 承担，不动容器。 */
 .compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }
+
+/* V3.9.12 项目全景工作态：保留页头与战略骨架，但把两者从“两张连续说明牌”
+   压成一条状态尺。全景的主角是当前项目摘要与泳道，先验层不应先吃掉半屏。 */
+.compass-layout.is-pano .hero {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  align-items: center; gap: 18px; margin-bottom: 14px;
+}
+.compass-layout.is-pano .hero-acts { min-width: 0; }
+.compass-layout.is-pano .hero-tools { margin-left: 0; }
+.compass-layout.is-pano .spine-bar {
+  margin-bottom: 14px; padding-bottom: 0; border-bottom: 0;
+}
+.compass-layout.is-pano :deep(.spine-h) { padding: 7px 12px 6px; }
+.compass-layout.is-pano :deep(.spine-hint),
+.compass-layout.is-pano :deep(.spine-badge) { display: none; }
+.compass-layout.is-pano :deep(.spine-b) { padding: 7px 12px 9px; gap: 7px; }
+.compass-layout.is-pano :deep(.spine-lv) { min-height: 30px; padding: 5px 10px; }
+.compass-layout.is-pano :deep(.spine-risk.zero) { display: none; }
+.compass-layout.is-pano :deep(.spine-dirs) { gap: 5px; }
 .tree-layout { display: flex; gap: 36px; align-items: flex-start; }
 .link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
 /* R59-T4：关联卡片选择器（居中弹窗） */
@@ -1797,9 +1816,15 @@ onUnmounted(() => {
    390 下所有工具与读数允许换行，不出现横向滚动。 */
 @media (max-width: 1100px) {
   .compass-layout { padding-left: 24px; padding-right: 24px; }
+  .compass-layout.is-pano .hero {
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  }
   .tree-layout { gap: 24px; }
   .navside { width: 160px; }
 }
+/* 项目全景已有自己的项目切换器；左栏项目清单只服务项目塔，继续常驻会多出一套重复导航。 */
+.tree-layout.is-pano { display: block; }
+.tree-layout.is-pano .navside { display: none; }
 @media (max-width: 800px) {
   .compass-layout { padding: 16px 16px 48px; }
   .tree-layout { display: block; }
