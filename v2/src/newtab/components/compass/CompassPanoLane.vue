@@ -26,6 +26,8 @@ const props = defineProps<{
   projId: string
   /** 单指标时铺满画布，避免只占左侧一半并留下整片空画布。 */
   single?: boolean
+  /** 多泳道时标题最多两行，避免长指标名把整条泳道头撑高。 */
+  dense?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,6 +37,8 @@ const emit = defineEmits<{
    *  这条此前**从未接上**——泳道里任务标题只是个 div，点了没反应（W11-10 断言本轮重指时暴露）。
    *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
   (e: 'openDetail', taskId: string): void
+  /** V3.9.15：任务行直接软删进回收站，无需二次确认。 */
+  (e: 'deleteTask', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
   /** 打开指标详情（与项目塔指标卡同一出口） */
   (e: 'openMetric', metricId: string): void
@@ -81,11 +85,11 @@ function priOf(t: TaskCard): string {
 </script>
 
 <template>
-  <section class="lane" :class="{ single: single }" :data-metric="m.id">
+  <section class="lane" :class="{ single: single, dense: dense }" :data-metric="m.id">
     <header class="lane-h">
       <div class="lane-top">
         <span class="lane-i">{{ idx }}</span>
-        <span class="lane-n">{{ m.title }}</span>
+        <span class="lane-n" :title="m.title">{{ m.title }}</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
         <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
@@ -133,6 +137,7 @@ function priOf(t: TaskCard): string {
             <span v-if="hasClue(t)" class="lb lb-clue" :title="clueOf(t)"><Icon name="warn" :size="13"/> {{ clueOf(t) }}</span>
             <span class="lb lb-pri">{{ priOf(t) }}</span>
             <button class="lb lb-g" :style="{ color: gradeColorVar(gradeOf(t)) }" :title="`成熟度等级 ${gradeOf(t)} · 点击看详情`" @click="emit('taskGrade', t.id)">{{ gradeOf(t) }}</button>
+            <button class="lb-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click.stop="emit('deleteTask', t.id)"><Icon name="trash" :size="12"/></button>
           </div>
         </div>
       </template>
@@ -157,19 +162,16 @@ function priOf(t: TaskCard): string {
    四层容器叠在一屏里，读者先数框。现在只留一条边界线（横向并排需要它），
    层级由指标名、验收行、进度条和连接轨承担。 */
 .lane {
-  /* 少量指标时把泳道铺开，多指标时才横向滚动：避免单泳道只剩 262px、右侧整片空。
-     基础宽度仍保证每根泳道能容纳标题 + 验收 + 任务动作。 */
-  /* 1 条指标独占；2~4 条等分吃满；5 条以上保留 280px 下限并横向滚动。 */
-  flex: 1 1 0; min-width: 280px; max-width: none; display: flex; flex-direction: column;
+  /* 基础宽度给旧版静态锚点；父容器 .lanes-* 会按轨道数覆盖它。 */
+  flex: 1 1 0; min-width: 280px; flex-direction: column; display: flex;
   background: transparent;
   /* 圆角与板/舱/列表同族（判据 C4-1）：去的是底色与阴影，不是形状语言 */
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: none; overflow: hidden; max-height: 64vh;
 }
-/* 单指标是项目全景最常见的第一屏：泳道承担整条推进链，不该只占画布左侧 52%。
-   920px 上限仍给任务标题留出可读行宽，不为了铺满而把每行拉成超长文本。 */
-.lane.single { flex: 1 1 0; width: 100%; max-width: none; }
+/* 单指标宽度同样由父级轨道规则承担；保留类名作为语义钩子。 */
+.lane.single { max-width: none; }
 .lane-h {
   position: relative; padding: 12px 13px 11px 15px;
   border-bottom: 1px solid var(--border); background: transparent; flex: none;
@@ -185,7 +187,20 @@ function priOf(t: TaskCard): string {
   /* 序号是刻度不是印章：泳道身份由连接轨与进度条同色承担 */
   background: var(--surface-2); color: var(--text-3);
 }
-.lane-n { font-size: var(--fs-sub); font-weight: 700; line-height: 1.45; flex: 1; min-width: 0; color: var(--text); }
+.lane-n {
+  font-size: var(--fs-sub); font-weight: 700; line-height: 1.45;
+  flex: 1; min-width: 0; color: var(--text);
+  overflow-wrap: anywhere;
+}
+/* 多泳道时标题固定最多两行；完整文本留在 title，避免用省略号吞掉判断依据。 */
+.lane.dense .lane-n {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: calc(2 * 1.45em);
+  max-height: calc(2 * 1.45em);
+}
 .lane-dot {
   width: 15px; height: 15px; border-radius: 999px; display: grid; place-items: center;
   font-size: 9px; flex: none; background: var(--surface-3); color: var(--text-4);
@@ -279,6 +294,7 @@ function priOf(t: TaskCard): string {
   font-size: var(--fs-micro); font-weight: 500; line-height: 1.55; padding-right: 18px; color: var(--text);
   background: none; border: 0; margin: 0; font-family: inherit; text-align: left; cursor: pointer;
   border-radius: var(--radius-sm); min-height: 28px;
+  min-width: 0; max-width: 100%; overflow-wrap: anywhere;
 }
 .ltask-t:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
 .ltask-t:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -308,6 +324,14 @@ function priOf(t: TaskCard): string {
   background: var(--surface-3); border: 0; font-family: inherit; letter-spacing: .04em;
   cursor: pointer; min-height: 28px; padding: 5px 5px; margin: -5px -1px;
 }
+.lb-del {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  margin: -5px 0 -5px 1px; border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: var(--text-2); cursor: pointer;
+  opacity: .55; transition: all var(--dur);
+}
+.ltask:hover .lb-del, .lb-del:focus-visible { opacity: 1; }
+.lb-del:hover { color: var(--danger); background: var(--danger-bg-soft); }
 
 /* ★空泳道：缺任务也占位，"缺"必须在全景里同样可见。
    ★视觉聚焦：从"虚线告警框"改为"带色轨的行动提示"——虚线圈+圆角+底色叠起来像一块出错的卡，

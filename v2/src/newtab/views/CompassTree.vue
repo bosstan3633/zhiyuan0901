@@ -13,7 +13,7 @@ import { uid } from '@/shared/utils'
 import { K } from '@/shared/storage/keys'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 // R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm, type CompassNodeKind } from '@/shared/utils/compassCrud'
 import { useConfirm } from '@/shared/components/confirm'
@@ -883,6 +883,46 @@ function unbindTask(task: TaskCard) {
   showToast(`已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 
+/** V3.9.15：方向台任务行直接软删进回收站；软删无需二次确认，回执保留撤销。 */
+function deleteTaskDirect(taskId: string) {
+  const task = d.value.tasks.find(t => t.id === taskId)
+  if (!task || task.deletedAt) return
+  const projectId = task.projectId
+  const metricId = task.metricId
+  const linkedMetricIds = new Set<string>()
+  for (const dir of d.value.compass.directions) {
+    for (const project of dir.projects) {
+      for (const metric of project.metrics) {
+        if (metric.taskIds.includes(taskId)) linkedMetricIds.add(metric.id)
+      }
+    }
+  }
+  if (metricId) linkedMetricIds.add(metricId)
+  softDeleteTaskToTrash(d.value, task)
+  const deletedAt = task.deletedAt
+  store.persist()
+  showToast(`已删除「${task.title.slice(0, 18)}」· 可在回收站恢复`, {
+    label: '撤销',
+    cb: () => {
+      const current = d.value.tasks.find(t => t.id === taskId)
+      // 只撤销这一次删除；若任务已在回收站被恢复或再次删除，回执不应改写后来的状态。
+      if (!current || !current.deletedAt || current.deletedAt !== deletedAt) return
+      current.deletedAt = undefined
+      current.updatedAt = Date.now()
+      for (const dir of d.value.compass.directions) {
+        for (const project of dir.projects) {
+          for (const metric of project.metrics) {
+            if (linkedMetricIds.has(metric.id) && !metric.taskIds.includes(current.id)) metric.taskIds.push(current.id)
+          }
+        }
+      }
+      if (projectId && !current.projectId) current.projectId = projectId
+      if (metricId && !current.metricId) current.metricId = metricId
+      store.persist()
+    },
+  })
+}
+
 /* ★W11 二批清账：tasksForMetric() / metricTaskRows() 已退役。
    它们是"任务数据在视图里现算"的最后一处残留 —— W11 集中取数层（compassMeta.ts）落地后，
    指标的任务列表、总数、完成数、状态点全部走 byMetric 的 O(1) 取值。
@@ -1097,7 +1137,7 @@ onUnmounted(() => {
           挪到读数行同样满足 —— 它与计数同属"这页现在什么状况"）。
           ★F6（2026-10-16 二次翻转）：「全部展开/收起」「👁 已完成」恢复动作行常驻，⚙ 下拉整壳退役。
           ★fromProjId / goBack / Esc 返回保留（R54-A1 深链来路感知），来路文本随行显示。 -->
-    <section class="hero">
+    <section class="hero" aria-label="方向台状态与操作">
       <div class="hero-acts">
         <!-- ★V3.9.7：项目塔 / 项目全景的选择已移到下方项目模块。页头只保留全页级别操作。 -->
         <span v-if="fromProjName" class="hero-from">来自项目「{{ fromProjName }}」</span>
@@ -1127,10 +1167,10 @@ onUnmounted(() => {
           <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone"
             title="与方向台页头同一开关（同一偏好，一处切换全台生效）"><Icon name="eye" :size="13"/> 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
         </div>
-      </div>
-      <!-- ★V3.8.20：健康度徽章移到读数行首位（原左栏 .hero-health，N13 意图"状态不参与动作区竞争"随迁）。
-           ★不在这里重复断链条目数：骨架条的断链行已经有一份更全的清单，两处都写数字就会有两个真相。 -->
-      <div class="hero-stats">
+        <!-- ★V3.9.15（用户 2026-10-23 拍板）：读数并入动作行，页头只占一条状态带。
+           健康度与八项计数仍在原位置语义上（方向台第一眼判断现状），但不再另起一行，
+           把省下的 40px 留给下方项目塔。 -->
+        <div class="hero-stats">
         <!-- ★C1（V3.8.28）：每个读数都要能悬停看到口径 —— 镜面不评价，但必须说清这个数字怎么来的
              （A2 同一口径：数值 + 单位 + 口径 tooltip）。 -->
         <span class="dhi-badge" :class="dhiStatus.cls"
@@ -1147,6 +1187,7 @@ onUnmounted(() => {
         <span title="停滞 = 近 14 天无任务推进、且已有任务的可见项目数"><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span><i class="hs-sep" aria-hidden="true"></i>
         <span title="指标 = 第 5 层成功指标数 · 与「项目」同口径，只统计当前可见项目下的指标">指标 {{ treeStats.metrics }}</span><i class="hs-sep" aria-hidden="true"></i>
         <span title="任务 = 第 6 层任务数 · 全库未删除任务都算（含尚未挂到项目的）">任务 {{ treeStats.tasks }}</span>
+        </div>
       </div>
     </section>
 
@@ -1360,6 +1401,7 @@ onUnmounted(() => {
               @toggle-task="toggleTask"
               @task-grade="showTaskGrade"
               @open-detail="openTaskDetail"
+              @delete-task="deleteTaskDirect"
               @open-metric="openMetricDetail"
               @add-task="(mid, pid) => openTaskAdd(mid, pid)"
               @add-metric="addMetric"
@@ -1468,6 +1510,7 @@ onUnmounted(() => {
                   @toggle-task="toggleTask"
                   @task-grade="showTaskGrade"
                   @open-detail="openTaskDetail"
+                  @delete-task="deleteTaskDirect"
                   @open-metric="openMetricDetail"
                   @add-task="(mid) => { const r = findMetric(mid); if (r) openTaskAdd(mid, r.proj.id) }"
                   @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
@@ -1594,12 +1637,15 @@ onUnmounted(() => {
    ★.hero-crumb 的消失意味着「三页页头统一 16px」在方向台侧不再有活体载体：
    R51-6 / R123-10 随翻转为「工作台/项目详情两页守 16px + 方向台侧负锚」（翻转理由在判据正文）。 */
 .hero {
-  display: flex; flex-direction: column; align-items: stretch; gap: 10px;
-  margin-bottom: 30px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px;
 }
-.hero-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hero-acts {
+  display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap;
+  flex: 1 1 auto; min-width: 0;
+}
 .hero-from { font-size: var(--fs-micro); color: var(--text-3); }
-.hero-tools { position: relative; margin-left: auto; }
+.hero-tools { position: relative; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 /* ★F6 二次翻转（2026-10-16）：.hero-tools-menu / .menu-item 下拉壳随「⚙ 工具」整壳退役，
    两枚开关回 .hero-tools 内常驻（回流下拉形态即 dead-css + 判据红）。 */
 
@@ -1632,7 +1678,7 @@ onUnmounted(() => {
 /* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
    .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
    .spine（带自己的边框/圆角/阴影）—— 容器不接管卡片样式，避免两处各画一半边框。 */
-.spine-bar { margin-bottom: 26px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.spine-bar { margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .spine-bar .spine { margin-bottom: 0; }
 
 /* ══ 视觉聚焦条（方向台优化）：一条摘要承担"我在哪、推进到哪、下一步" ══
@@ -1641,7 +1687,7 @@ onUnmounted(() => {
    所以用 3px accent 实轨 + 与页面同底色，焦点由位置和那条轨承担，不靠阴影。 */
 .focus-strip {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 11px 0 11px 14px; margin-bottom: 20px;
+  padding: 8px 0 8px 12px; margin-bottom: 14px;
   border-left: 3px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
@@ -1704,6 +1750,7 @@ onUnmounted(() => {
    视线要横跨整行才读到；健康度是这行的第一个判断，应该在视线落点上。 */
 .hero-stats {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-start;
+  min-width: 0; flex: 1 1 640px;
   font-size: var(--fs-micro); color: var(--text-4);
   font-variant-numeric: tabular-nums;
 }
@@ -1725,13 +1772,11 @@ onUnmounted(() => {
 /* V3.9.12 项目全景工作态：保留页头与战略骨架，但把两者从“两张连续说明牌”
    压成一条状态尺。全景的主角是当前项目摘要与泳道，先验层不应先吃掉半屏。 */
 .compass-layout.is-pano .hero {
-  display: grid; grid-template-columns: auto minmax(0, 1fr);
-  align-items: center; gap: 18px; margin-bottom: 14px;
+  align-items: center; gap: 12px; margin-bottom: 10px;
 }
-.compass-layout.is-pano .hero-acts { min-width: 0; }
-.compass-layout.is-pano .hero-tools { margin-left: 0; }
+.compass-layout.is-pano .hero-acts { flex: 0 1 auto; }
 .compass-layout.is-pano .spine-bar {
-  margin-bottom: 14px; padding-bottom: 0; border-bottom: 0;
+  margin-bottom: 10px; padding-bottom: 0; border-bottom: 0;
 }
 .compass-layout.is-pano :deep(.spine-h) { padding: 7px 12px 6px; }
 .compass-layout.is-pano :deep(.spine-hint) { display: none; }
@@ -1820,7 +1865,7 @@ onUnmounted(() => {
 @media (max-width: 1100px) {
   .compass-layout { padding-left: 24px; padding-right: 24px; }
   .compass-layout.is-pano .hero {
-    display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+    align-items: flex-start; gap: 8px;
   }
   .tree-layout { gap: 24px; }
   .navside { width: 160px; }
@@ -1846,9 +1891,9 @@ onUnmounted(() => {
 }
 @media (max-width: 480px) {
   .compass-layout { padding: 12px 10px 40px; }
-  .hero { gap: 8px; margin-bottom: 22px; }
+  .hero { align-items: flex-start; gap: 8px; margin-bottom: 12px; }
   .hero-acts { gap: 7px; }
-  .hero-stats { gap: 6px; }
+  .hero-stats { flex-basis: 100%; gap: 6px; }
   .hs-sep { display: none; }
   .view-seg { width: 100%; }
   .vs-b { flex: 1; padding-left: 8px; padding-right: 8px; }

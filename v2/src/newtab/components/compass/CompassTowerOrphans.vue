@@ -7,7 +7,7 @@ defineProps<{
   projId: string
 }>()
 
-const emit = defineEmits<{ bind: [taskId: string] }>()
+const emit = defineEmits<{ bind: [taskId: string]; deleteTask: [taskId: string] }>()
 </script>
 
 <template>
@@ -21,6 +21,7 @@ const emit = defineEmits<{ bind: [taskId: string] }>()
       <li v-for="task in tasks" :key="task.id" class="to-item">
         <span class="toi-t">{{ task.title }}</span>
         <button class="toi-bind" title="为它选一个成功指标" @click="emit('bind', task.id)">＋ 挂指标</button>
+        <button class="toi-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="emit('deleteTask', task.id)"><Icon name="trash" :size="13"/></button>
       </li>
     </ul>
   </div>
@@ -45,4 +46,10 @@ const emit = defineEmits<{ bind: [taskId: string] }>()
   font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
   background: var(--accent-light); padding: 2px 8px; border-radius: 999px; cursor: pointer; flex: none;
 }
+.toi-del {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 1px solid transparent; border-radius: 4px; background: transparent;
+  color: var(--text-2); cursor: pointer; flex: none; opacity: .55; transition: all var(--dur);
+}
+.toi-del:hover, .toi-del:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); }
 </style>

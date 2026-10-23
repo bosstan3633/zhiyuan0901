@@ -11,14 +11,11 @@
  * 形态决策（D3 已拍板）：做成**方向台内的第二视图**（viewMode: 'tower' | 'pano'），
  * 不新建路由、不新建页面文件 —— 它是同一份 compassMeta 的另一种投影，不是另一个实体世界。
  *
- * ★组件边界：本组件只管「选谁 / 主体是谁」（选择条 + 项目头 + 层级带 + 收容道），
+ * ★组件边界：本组件只管「选谁 / 主体是谁」（选择条 + 项目头 + 泳道轨道 + 收容道），
  * 一根根泳道交给 CompassPanoLane。两块各自独立可判 —— 改导航样式不会把内容判据一起拖红。
  *
- * ★V3.9.12 项目全景视觉收口（用户 2026-10-23 反馈「项目全景看起来有点乱」）：
- *   保留「选择项目 → 项目摘要 → 横向泳道」这套已有架构，只收口视觉层级与动作密度：
- *   ① 项目切换从一排常驻卡降为一行紧凑下拉，只有当前项占位；
- *   ② 项目头只留「下一步 + 一个主行动 + 更多」三个发声点，低频动作全部进「⋯」；
- *   ③ 「第 4/5/6 层」从第二块水平带降为项目头脚注，不再与项目名争夺行高。
+ * V3.9.15：保留「选择项目 → 项目摘要 → 横向泳道」架构；轨道 1 铺满、2–4 等分、
+ * 5+ 以 280px 下限滚动。项目头只留下一步与主行动，低频动作进「⋯」。
  *
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 项目名 --fs-title(15px)，主角感由横向铺开与留白承担。
@@ -49,6 +46,8 @@ const emit = defineEmits<{
   /** ★W12-C 补接线：全景泳道任务标题单击开任务详情抽屉（泳道 → 全景 → 树本体 openTaskDetail 两跳透传）。
    *  这条链路此前从未存在——泳道里任务标题只是个 div，点了没反应，W11-10 断言本轮重指时暴露。 */
   (e: 'openDetail', taskId: string): void
+  /** V3.9.15：任务软删进回收站（泳道 → 全景 → 树本体） */
+  (e: 'deleteTask', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
   (e: 'openMetric', metricId: string): void
   (e: 'addMetric', projId: string): void
@@ -105,11 +104,10 @@ const current = computed<PickRow | null>(() => {
 const bandStats = computed(() => {
   const pm = current.value?.pm
   if (!pm) return null
-  const withTasks = pm.metrics.filter(m => m.total > 0).length
-  const zero = pm.metrics.filter(m => m.orphanMetric).length
-  const allTasks = pm.metrics.reduce((s, m) => s + m.total, 0)
-  const doneTasks = pm.metrics.reduce((s, m) => s + m.done, 0)
-  return { metrics: pm.metrics.length, withTasks, zero, allTasks, doneTasks, pending: allTasks - doneTasks }
+  return {
+    metrics: pm.metrics.length,
+    allTasks: pm.metrics.reduce((s, m) => s + m.total, 0),
+  }
 })
 
 const riskLabel = computed(() => {
@@ -117,7 +115,7 @@ const riskLabel = computed(() => {
   return n > 0 ? `断链 ${n}` : '链路完整'
 })
 
-/** 单指标时泳道铺满画布；有收容道或第二根指标时仍按可横向滚动的泳道列排布。 */
+/** 泳道总数 = 成功指标 + 可选收容道；收容道也吃同一套轨道宽度规则。 */
 const laneCount = computed(() => {
   const c = current.value
   return c ? c.pm.metrics.length + (c.pm.orphanTasks.length ? 1 : 0) : 0
@@ -154,12 +152,7 @@ const laneCount = computed(() => {
           </div>
         </div>
         <div class="ph-r">
-          <CompassPanoSwitch
-            :rows="pickRows"
-            :active-id="current.proj.id"
-            @pick="emit('pick', $event)"
-            @back="emit('toTower', current.proj.id)"
-          />
+          <CompassPanoSwitch :rows="pickRows" :active-id="current.proj.id" @pick="emit('pick', $event)" @back="emit('toTower', current.proj.id)" />
           <div class="ph-prog" :title="`项目级完成度 ${current.pm.pct}%（跨全部指标聚合）`">
             <span class="ph-prog-v">{{ current.pm.pct }}%</span>
             <span class="ph-prog-c">{{ current.pm.done }} / {{ current.pm.total }} 任务</span>
@@ -175,13 +168,8 @@ const laneCount = computed(() => {
                 <button class="ph-mi" role="menuitem" @click="moreOpen = false; emit('aiMetric', current.proj.id)">
                   <Icon name="sparkle" :size="13"/> AI 建议指标
                 </button>
-                <CompassTowerStatus
-                  class="ph-diag"
-                  :proj-id="current.proj.id"
-                  :hue="current.hue"
-                  :meta="current.pm"
-                  :diag="diag"
-                  :stale="diagStale"
+                <CompassTowerStatus class="ph-diag" :proj-id="current.proj.id" :hue="current.hue"
+                  :meta="current.pm" :diag="diag" :stale="diagStale"
                   @diag-run="(id) => { moreOpen = false; emit('diagRun', id) }"
                   @diag-report="(id) => { moreOpen = false; emit('diagReport', id) }"
                 />
@@ -192,41 +180,60 @@ const laneCount = computed(() => {
       </section>
 
       <!-- ④ 横向泳道区：一根泳道 = 一条成功指标（组件化，见 CompassPanoLane） -->
-      <div class="lanes">
-        <CompassPanoLane
-          v-for="(m, mi) in current.pm.metrics"
-          :key="m.id"
-          :m="m"
-          :idx="mi + 1"
-          :proj-id="current.proj.id"
-          :single="laneCount === 1"
-          @toggle-task="emit('toggleTask', $event)"
-          @task-grade="emit('taskGrade', $event)"
-          @open-detail="emit('openDetail', $event)"
-          @open-metric="emit('openMetric', $event)"
-          @add-task="(mid, pid) => emit('addTask', mid, pid)"
-          @del-metric="(mid) => emit('delMetric', mid)"
-        />
+      <div class="lanes-shell">
+        <div
+          class="lanes"
+          :class="{
+            'lanes-single': laneCount === 1,
+            'lanes-multi': laneCount > 1 && laneCount <= 4,
+            'lanes-scroll': laneCount > 4,
+          }"
+          :data-lane-count="laneCount"
+          aria-label="项目指标泳道"
+        >
+          <CompassPanoLane v-for="(m, mi) in current.pm.metrics" :key="m.id"
+            :m="m" :idx="mi + 1" :proj-id="current.proj.id"
+            :single="laneCount === 1" :dense="laneCount > 1"
+            @toggle-task="emit('toggleTask', $event)"
+            @task-grade="emit('taskGrade', $event)"
+            @open-detail="emit('openDetail', $event)"
+            @delete-task="emit('deleteTask', $event)"
+            @open-metric="emit('openMetric', $event)"
+            @add-task="(mid, pid) => emit('addTask', mid, pid)"
+            @del-metric="(mid) => emit('delMetric', mid)"
+          />
 
-        <!-- ★无归属收容泳道：在项目内但没挂任何成功指标的任务（判据 W11-8 钉它在泳道区最右侧） -->
-        <section v-if="current.pm.orphanTasks.length" class="lane-orphan" aria-label="无归属任务收容">
-          <header class="lo-head">
-            <div class="lo-top">
-              <span class="lo-i">!</span>
-              <span class="lo-n">无归属任务</span>
-            </div>
-            <div class="lo-note">在项目内，但<b class="bad">没挂任何成功指标</b></div>
-          </header>
-          <div class="lo-body">
-            <div v-for="t in current.pm.orphanTasks" :key="t.id" class="lo-task">
-              <div class="lo-task-t">{{ t.title }}</div>
-              <div class="lo-task-b">
-                <span class="lo-tag lo-tag-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>
-                <button class="lo-tag lo-tag-bind" @click="emit('bindOrphan', t.id, current.proj.id)">＋ 挂指标</button>
+          <!-- ★无归属收容泳道：在项目内但没挂任何成功指标的任务（判据 W11-8 钉它在泳道区最右侧） -->
+          <section
+            v-if="current.pm.orphanTasks.length"
+            class="lane-orphan"
+            :class="{ dense: laneCount > 1 }"
+            aria-label="无归属任务收容"
+          >
+            <header class="lo-head">
+              <div class="lo-top">
+                <span class="lo-i">!</span>
+                <span class="lo-n">无归属任务</span>
+              </div>
+              <div class="lo-note">在项目内，但<b class="bad">没挂任何成功指标</b></div>
+            </header>
+            <div class="lo-body">
+              <div v-for="t in current.pm.orphanTasks" :key="t.id" class="lo-task">
+                <div class="lo-task-t">{{ t.title }}</div>
+                <div class="lo-task-b">
+                  <span class="lo-tag lo-tag-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>
+                  <button class="lo-tag lo-tag-bind" @click="emit('bindOrphan', t.id, current.proj.id)">＋ 挂指标</button>
+                  <button class="lo-del-task" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="emit('deleteTask', t.id)"><Icon name="trash" :size="13"/></button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
+        <span v-if="laneCount > 4" class="lanes-edge lanes-edge-r" aria-hidden="true"></span>
+      </div>
+      <div v-if="laneCount > 4" class="lanes-hint" role="note">
+        <span class="lh-arrow" aria-hidden="true">↔</span>
+        共 {{ laneCount }} 条泳道，横向滚动查看全部{{ current.pm.orphanTasks.length ? '；收容道固定在最后' : '' }}
       </div>
     </template>
   </div>
@@ -236,8 +243,7 @@ const laneCount = computed(() => {
 /* V3.9.12：项目头是一个“摘要段落”，不是又一张卡。
    标题 → 下一步 → 脚注 → 进度/动作 四层只用留白与发丝线分隔。 */
 .pano-h {
-  display: flex; align-items: flex-start; gap: 20px;
-  padding: 2px 0 14px; margin-bottom: 14px;
+  display: flex; align-items: flex-start; gap: 20px; padding: 2px 0 14px; margin-bottom: 14px;
   border-bottom: 1px solid var(--border-strong); flex-wrap: wrap;
 }
 .ph-b { flex: 1; min-width: 240px; }
@@ -249,8 +255,7 @@ const laneCount = computed(() => {
 .ph-badge.focus { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .ph-badge.stall { color: var(--warning); background: var(--warning-bg-soft); }
 .ph-next {
-  display: flex; align-items: baseline; gap: 8px; min-width: 0;
-  margin-top: 7px; padding-left: 9px;
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 7px; padding-left: 9px;
   border-left: 2px solid color-mix(in srgb, var(--hue) 55%, transparent);
 }
 .ph-next-l { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: .04em; }
@@ -261,8 +266,8 @@ const laneCount = computed(() => {
 .ph-next.src-empty .ph-next-v { color: var(--text-3); font-weight: 500; }
 .ph-next-src { flex: none; font-size: var(--fs-tiny); color: var(--text-4); padding: 1px 6px; border-radius: 999px; background: var(--surface-2); }
 .ph-foot {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: 7px; font-size: var(--fs-micro); color: var(--text-4);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 7px;
+  font-size: var(--fs-micro); color: var(--text-4);
 }
 .ph-foot .bad { color: var(--danger); font-weight: 600; }
 .ph-sep { opacity: .55; }
@@ -288,31 +293,58 @@ const laneCount = computed(() => {
 }
 .ph-more:hover, .ph-more.on { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .ph-menu {
-  position: absolute; right: 0; top: calc(100% + 5px); z-index: 30;
-  width: 230px; padding: 5px; display: flex; flex-direction: column; gap: 2px;
-  background: var(--surface); border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  position: absolute; right: 0; top: calc(100% + 5px); z-index: 30; width: 230px; padding: 5px;
+  display: flex; flex-direction: column; gap: 2px; background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
 }
 .ph-mi {
-  display: flex; align-items: center; gap: 7px; width: 100%;
-  min-height: 30px; padding: 6px 8px; border: 0; border-radius: var(--radius-xs);
-  background: transparent; color: var(--text-2); font-family: inherit;
-  font-size: var(--fs-sub); text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 7px; width: 100%; min-height: 30px; padding: 6px 8px;
+  border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-2);
+  font-family: inherit; font-size: var(--fs-sub); text-align: left; cursor: pointer;
 }
 .ph-mi:hover { background: var(--surface-2); color: var(--text); }
 .ph-diag { padding: 4px 3px; border-top: 1px solid var(--border); margin-top: 2px; }
 
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
 .lanes {
-  display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 16px;
-  align-items: stretch; min-height: 0;
+  padding: 2px 2px 16px; display: flex; gap: 12px; align-items: stretch;
+  min-height: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
 }
+.lanes-shell { position: relative; }
+/* 右侧边缘渐隐只在 5+ 泳道时出现，提示还有未展示的轨道。 */
+.lanes-edge {
+  position: absolute; top: 0; bottom: 16px; right: 2px; width: 28px;
+  pointer-events: none; z-index: 2;
+}
+.lanes-edge-r { background: linear-gradient(270deg, var(--surface), transparent); }
+/* 2–4 条时所有轨道（含收容道）严格等分；泳道本体与收容道都只吃轨道宽度，
+   不再各自用 flex-grow 抢剩余空间。 */
+.lanes-multi > .lane,
+.lanes-multi > .lane-orphan {
+  flex: 1 1 0; width: 0; min-width: 0;
+}
+/* 5 条以上：每根泳道保留 280px 可读下限，由容器统一横向滚动。 */
+.lanes-scroll > .lane,
+.lanes-scroll > .lane-orphan {
+  flex: 0 0 280px; width: 280px; min-width: 280px;
+}
+.lanes-single > .lane,
+.lanes-single > .lane-orphan {
+  flex: 1 1 0; width: 100%; min-width: 0;
+}
+/* 滚动提示是结构提示，不是装饰：只有当轨道数超过 4 时才出现。
+   使用非 sticky 的独立行，避免覆盖泳道底部操作。 */
+.lanes-hint {
+  display: flex; align-items: center; gap: 6px; margin-top: -6px; padding: 0 2px 2px;
+  font-size: var(--fs-micro); color: var(--text-3);
+}
+.lh-arrow { color: var(--accent-ink); font-weight: 700; letter-spacing: -.08em; }
 
 /* ── 收容泳道（留在本组件：它不属于任何指标，是项目级的第三态）──
    使用独立命名空间，不能复用 .lane：Vue 会把父组件的 scope id 透传到子组件根节点，
    父级 .lane 的固定宽度会覆盖 CompassPanoLane 的弹性宽度。 */
 .lane-orphan {
-  flex: 1 1 0; min-width: 280px; max-width: none; display: flex; flex-direction: column;
+  display: flex; flex-direction: column; min-width: 0;
   /* ★视觉聚焦：泳道去掉底色与阴影，但保留与板/舱同族的 lg 圆角（判据 C4-1） */
   background: transparent; border-radius: var(--radius-lg); overflow: hidden; max-height: 64vh;
   border: 1px solid var(--danger-border); border-left: 2px solid var(--danger);
@@ -321,8 +353,7 @@ const laneCount = computed(() => {
 .lo-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
 .lo-i {
   width: 17px; height: 17px; border-radius: 6px; display: grid; place-items: center;
-  font-size: var(--fs-micro); font-weight: 700; flex: none;
-  background: var(--danger-bg-soft); color: var(--danger);
+  font-size: var(--fs-micro); font-weight: 700; flex: none; background: var(--danger-bg-soft); color: var(--danger);
 }
 .lo-n { font-size: var(--fs-sub); font-weight: 700; line-height: 1.45; flex: 1; min-width: 0; color: var(--text); }
 .lo-note { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px; }
@@ -330,18 +361,24 @@ const laneCount = computed(() => {
 .lo-note .bad { color: var(--danger); }
 .lo-body { padding: 9px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 74px; }
 .lo-task {
-  position: relative; padding: 9px 10px 9px 11px; border-radius: 0;
-  background: transparent; transition: all var(--dur); border-left: 2px solid var(--danger);
+  position: relative; padding: 9px 10px 9px 11px; border-radius: 0; background: transparent;
+  transition: all var(--dur); border-left: 2px solid var(--danger);
   border-bottom: 1px solid var(--border);
 }
-.lo-task-t { font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; color: var(--text); }
+.lo-task-t {
+  font-size: var(--fs-micro); font-weight: 500; line-height: 1.6; color: var(--text);
+  min-width: 0; overflow-wrap: anywhere;
+}
 .lo-task-b { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
 .lo-tag { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
 .lo-tag-clue { color: var(--warning); background: var(--warning-bg-soft); }
-.lo-tag-bind {
-  min-height: 28px; padding: 4px 7px; border: 0; font-family: inherit;
-  color: var(--accent-ink); background: var(--accent-light); cursor: pointer;
+.lo-tag-bind { min-height: 28px; padding: 4px 7px; border: 0; font-family: inherit; color: var(--accent-ink); background: var(--accent-light); cursor: pointer; }
+.lo-del-task {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 1px solid transparent; border-radius: 4px; background: transparent;
+  color: var(--text-2); cursor: pointer; flex: none; opacity: .55; transition: all var(--dur);
 }
+.lo-del-task:hover, .lo-del-task:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); }
 
 @media (max-width: 800px) {
   .pano-h { gap: 12px; }
@@ -353,6 +390,11 @@ const laneCount = computed(() => {
   .ph-b { min-width: 0; width: 100%; }
   .ph-next { align-items: flex-start; }
   .ph-next-src { display: none; }
-  .lane-orphan { flex-basis: min(86vw, 320px); max-width: none; }
+  .lanes-scroll > .lane,
+  .lanes-scroll > .lane-orphan {
+    flex-basis: min(86vw, 320px);
+    width: min(86vw, 320px);
+    min-width: min(86vw, 320px);
+  }
 }
 </style>

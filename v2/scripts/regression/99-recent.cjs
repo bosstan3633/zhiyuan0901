@@ -105,7 +105,7 @@ check('R168-2（V3.9.8 随迁）台面零“常驻浮层”：Workspace 原生 m
     && !w.includes('bookmarkModalOpen') && !w.includes('moveModalOpen') && !w.includes('moveOneOpen')
     && w.includes('<Drawer :open="drawerOpen" width="520px"') && !w.includes('class="drawer" :class="{open: drawerOpen}"')
     && w.includes('<LinkCardsModal') && m.includes('<section v-if="open"')
-    && d.includes('<aside v-if="open" class="drawer"') && d.includes('.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }')
+    && /<aside v-if="open"[^>]*class="drawer"/.test(d) && d.includes('.drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }')
     && d.includes('prefers-reduced-motion: reduce') && !css.includes('.drawer.open { transform: translateX(0); }')
 });
 check('R168-3（V3.9.8 随迁）资源池首屏有渲染上限：PAGE=60、rendered 切片、显式“加载更多”与 IntersectionObserver 滚动续载；旧四视图 RENDER_STEP/看板续载接线零残留', () => {
@@ -753,4 +753,79 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && pop.includes("tcForm.title = prefill?.title || ''") && pop.includes('tcSaved.value = false');
 });
 
-check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(12, minmax(0, 1fr))') /* R173-4：一行 12 月块 */ && css.includes('@media (max-width: 1279px) { .dz-wk { display: none; } }') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
+check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(4, minmax(0, 1fr))') /* V3.9.15：月块 4×3，为 28px 日期热区腾出宽度 */ && css.includes('@media (max-width: 1279px)') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
+
+/* V3.9.15 · 方向台聚焦与调度闭环：用户反馈直接钉成静态合同。
+   这一组只守“入口存在、语义不混、两个视图都接通”，不重测 E2E 已覆盖的点击路径。 */
+check('R175-1 ★方向台任务行三处直接软删：项目塔 / 项目全景泳道 / 无归属收容区都给出 28px 删除钮，解绑钮不冒充删除；任务行删除只上抛 taskId', () => {
+  const lane = codeOnly(read('/newtab/components/compass/CompassLane.vue'))
+  const panoLane = codeOnly(read('/newtab/components/compass/CompassPanoLane.vue'))
+  const orphans = codeOnly(read('/newtab/components/compass/CompassTowerOrphans.vue'))
+  const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
+  return lane.includes("(e: 'deleteTask', taskId: string): void") && lane.includes('class="tk-del"')
+    && lane.includes("@click.stop=\"emit('deleteTask', t.id)\"") && lane.includes("title=\"从本指标移除")
+    && panoLane.includes("(e: 'deleteTask', taskId: string): void") && panoLane.includes('class="lb-del"')
+    && panoLane.includes("@click.stop=\"emit('deleteTask', t.id)\"")
+    && orphans.includes('deleteTask: [taskId: string]') && orphans.includes('class="toi-del"')
+    && orphans.includes("@click=\"emit('deleteTask', task.id)\"")
+    && pano.includes("(e: 'deleteTask', taskId: string): void") && pano.includes('class="lo-del-task"')
+    && pano.includes("@delete-task=\"emit('deleteTask', $event)\"")
+    && [lane, panoLane, orphans, pano].every(s => s.includes('28px') && s.includes('trash'));
+});
+check('R175-2 ★删除、解绑、完成三种语义分离：CompassTower / CompassPano 都透传 deleteTask；CompassTree 只把 deleteTask 接到 softDeleteTaskToTrash，解绑仍走 unbindTaskFromMetric，删除钮不进任务详情', () => {
+  const tower = codeOnly(read('/newtab/components/compass/CompassTower.vue'))
+  const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
+  const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
+  const del = segOf(tree, 'function deleteTaskDirect', '\n}')
+  return tower.includes("@delete-task=\"emit('deleteTask', $event)\"")
+    && pano.includes("@delete-task=\"emit('deleteTask', $event)\"")
+    && tree.includes("import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'")
+    && (tree.match(/@delete-task="deleteTaskDirect"/g) || []).length === 2
+    && del.includes('softDeleteTaskToTrash(d.value, task)')
+    && del.includes('const linkedMetricIds = new Set<string>()')
+    && del.includes('if (metric.taskIds.includes(taskId)) linkedMetricIds.add(metric.id)')
+    && del.includes('const deletedAt = task.deletedAt')
+    && del.includes("label: '撤销'") && del.includes('current.deletedAt = undefined')
+    && del.includes('current.deletedAt !== deletedAt')
+    && del.includes('linkedMetricIds.has(metric.id)')
+    && tree.includes('function unbindTask(task: TaskCard)') && tree.includes('unbindTaskFromMetric(d.value, task)');
+});
+check('R175-3 ★项目全景轨道规则可证明：1 条铺满、2–4 条严格等分、5+ 保留 280px 可读下限并横向滚动；模板按 laneCount 三态挂 class，不靠宽度猜', () => {
+  const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
+  return pano.includes("'lanes-single': laneCount === 1")
+    && pano.includes("'lanes-multi': laneCount > 1 && laneCount <= 4")
+    && pano.includes("'lanes-scroll': laneCount > 4")
+    && pano.includes(':data-lane-count="laneCount"')
+    && pano.includes('.lanes-multi > .lane') && pano.includes('flex: 1 1 0; width: 0; min-width: 0;')
+    && pano.includes('.lanes-scroll > .lane') && pano.includes('flex: 0 0 280px; width: 280px; min-width: 280px;')
+    && pano.includes('.lanes-single > .lane') && pano.includes('width: 100%');
+});
+check('R175-4 ★调度台三件事恒三槽：focusCells 从 FOCUS_LIMIT 补齐空位，模板与“为什么这样排”都消费同一数组；失效槽不靠过滤下标，idx 仍是原始槽位', () => {
+  const home = codeOnly(read('/newtab/views/CompassHome.vue'))
+  const cells = segOf(home, 'const focusCells = computed', '\n})')
+  return home.includes('const FOCUS_LIMIT = 3')
+    && cells.includes('slice(0, FOCUS_LIMIT)')
+    && cells.includes('for (let i = cells.length; i < FOCUS_LIMIT; i++) cells.push({ idx: i })')
+    && home.includes('v-for="c in focusCells" :key="c.idx"')
+    && (home.match(/v-for="c in focusCells"/g) || []).length >= 2
+    && home.includes('计划位 {{ todayFocusList.length }}/3');
+});
+check('R175-5 ★主攻只读详情：主攻 1 / 主攻 2 都调用 openFocusProject，宿主挂 CompassProjectReadonlyModal；只读详情不是路由跳转，不抢方向台编辑入口', () => {
+  const home = codeOnly(read('/newtab/views/CompassHome.vue'))
+  return home.includes('function openFocusProject(p: Project)')
+    && home.includes('readonlyProjectId.value = p.id')
+    && home.includes('readonlyProjectOpen.value = true')
+    && (home.match(/@click="openFocusProject\(/g) || []).length >= 2
+    && home.includes('<CompassProjectReadonlyModal :open="readonlyProjectOpen"')
+    && home.includes('@close="readonlyProjectOpen = false"')
+    && !home.includes("router.push('/compass/projects')");
+});
+check('R175-6 ★战略骨架默认折叠：CompassSpine 初始 expanded=false，折叠态仍保留六层摘要与展开入口；方向台首屏焦点回到项目塔', () => {
+  const spine = codeOnly(read('/newtab/components/compass/CompassSpine.vue'))
+  const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
+  return spine.includes('const expanded = ref(false)')
+    && spine.includes('class="spine-toggle"')
+    && tree.includes('<CompassSpine')
+    && tree.includes('@locate=')
+    && tree.includes('spine-bar');
+});

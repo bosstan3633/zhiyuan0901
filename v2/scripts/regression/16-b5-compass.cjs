@@ -42,14 +42,15 @@ check('C2-2 左栏退为支撑：navside 收窄到 ≤180px，且吸顶三件套
 
 check('C2-3 骨架条与树区之间有一条全宽发丝线：spine-bar 带 border-bottom，且不再是"两块之间纯靠留白"', () => {
   const rule = (CT.match(/^\.spine-bar \{[^}]*\}/m) || [''])[0];
-  return !!rule && rule.includes('border-bottom: 1px solid var(--border)') && rule.includes('padding-bottom');
+  return !!rule && rule.includes('border-bottom: 1px solid var(--border)') && rule.includes('padding-bottom')
+    && rule.includes('margin-bottom: 16px'); /* V3.9.15：顶部压缩后仍保留分节线与呼吸 */
 });
 
 /* ★B5-c（V3.8.33）：C2 的最后一件 —— 过滤条并入 hero 工具行。
    病根：它横在引导条与项目舱之间，把树区拦腰切成两段；而它表达的是"当前视图被什么收窄"，属页头状态。
    判据钉**位置**（在 hero 动作行内、且在画布之前）与**形态**（单行胶囊），不钉观感。 */
 check('C2-4 筛选态提示条在 hero 动作行内，且在树画布之前 —— 不再横在引导条与项目舱之间', () => {
-  const heroStart = CT.indexOf('<section class="hero">');
+  const heroStart = CT.search(/<section class="hero"(?:\s|>)/);
   const heroEnd = CT.indexOf('</section>', heroStart);
   if (heroStart < 0 || heroEnd < 0) { console.log('     hero 区切片失败'); return false; }
   const heroBlock = CT.slice(heroStart, heroEnd);

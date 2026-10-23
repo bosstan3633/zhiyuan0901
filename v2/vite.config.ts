@@ -39,6 +39,12 @@ function fixContentDynamicImports() {
 
 export default defineConfig({
   plugins: [vue(), crx({ manifest }), UnoCSS(), fixContentDynamicImports()],
+  // 全项目均为 <script setup> / 组合式 API，Options API 合并与运行时代理分支
+  // 可以安全裁掉；这是 Vue 官方支持的编译期能力开关，不改变业务行为。
+  define: {
+    __VUE_OPTIONS_API__: false,
+    __VUE_PROD_DEVTOOLS__: false
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -46,6 +52,32 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    // 发布包预算以磁盘字节为准。esbuild 的最小化已接近下限，
+    // 改用 Terser 做一次更彻底的符号/表达式折叠，换取稳定的 2 MiB 余量。
+    minify: 'terser',
+    // Lightning CSS 对 Vue scoped 选择器与自定义属性做更紧的序列化；
+    // 不改变选择器层级或运行时样式语义。
+    cssMinify: 'lightningcss',
+    // MV3 只面向现代 Chromium；显式声明目标，避免为旧浏览器保留无用的兼容降级。
+    cssTarget: 'chrome120',
+    terserOptions: {
+      compress: {
+        passes: 4,
+        drop_console: false,
+        toplevel: true,
+        drop_debugger: true,
+        // 保留 error/warn：线上排障与失败提示仍依赖它们；只去掉纯开发日志。
+        pure_funcs: ['console.log', 'console.info', 'console.debug']
+      },
+      mangle: {
+        toplevel: true
+      },
+      format: {
+        comments: false,
+        // Terser 会按 ASI 规则保留必要分号；去掉可选尾分号不改变语句边界。
+        semicolons: false
+      }
+    },
     // R114-59：禁用 modulePreload——其依赖链接以 document base 解析，在 content script 隔离世界
     // 会打到「宿主页 origin」（https://目标站/assets/chunk-*.js → 404 + MIME 报错），
     // 每次 Ctrl+K 白吃 2~3 个跨域 404 往返（全局搜索慢的元凶之一）；扩展场景本地磁盘加载，preload 无收益。

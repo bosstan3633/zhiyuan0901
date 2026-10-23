@@ -15,8 +15,9 @@
  *  ③ 尺寸走 CSS 变量（`--md-w` / `--md-mh`）而非内联 width/height —— 内联样式会压过窄屏媒体查询，
  *     那样 <768 的全屏化就永远不生效。
  */
-import { nextTick, onUnmounted, ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
+import { useFocusTrap } from '@/shared/utils/focusTrap'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -36,8 +37,6 @@ const emit = defineEmits<{ close: [] }>()
 const overlayTarget = useOverlayTarget()
 const panelRef = ref<HTMLElement | null>(null)
 /** 打开前的焦点元素：关闭后还给它（键盘用户不丢锚点，R161 任务 6） */
-let restoreTo: HTMLElement | null = null
-
 function onKey(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
   e.stopPropagation()
@@ -50,18 +49,14 @@ function onKey(e: KeyboardEvent) {
  *   那次变化 ⇒ Esc 监听不注册、面板不聚焦（现象：点遮罩能关、按 Esc 毫无反应）。
  *   Drawer.vue 是同一写法、同一坑（它那边宿主也大量 v-if 挂载），本轮按"一字不动"未改它。
  */
-watch(() => props.open, async (v) => {
+watch(() => props.open, (v) => {
   if (v) {
-    restoreTo = (document.activeElement as HTMLElement | null)
     document.addEventListener('keydown', onKey, true)
-    await nextTick()
-    panelRef.value?.focus()
   } else {
     document.removeEventListener('keydown', onKey, true)
-    if (restoreTo && document.contains(restoreTo)) restoreTo.focus()
-    restoreTo = null
   }
 }, { immediate: true })
+useFocusTrap(panelRef, () => props.open)
 onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 </script>
 

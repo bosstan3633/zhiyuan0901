@@ -53,7 +53,7 @@
 .dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
 @media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
-.dz-months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--sp-3) 6px; }
+.dz-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3) 12px; }
 .dz-mb-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
 .dz-mb-h .m { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
 .dz-mb-h .s { font-size: var(--fs-micro); color: var(--text-4); }
@@ -63,12 +63,20 @@
 /* R173-4：星期行需要「7×9px 汉字 + 6×2px 缝」= 75px，月块窄于 75px 时每块横向溢出（1100 档实测热区 +15px）。
    实测 1280 档月块 75.5px 是能装下的最小档 ⇒ 以下整行隐去：这一档格子本身只剩 8px、字母已不可读，
    日期信息仍完整保留在每格的 tooltip 与「点格子看那一天」里。 */
-@media (max-width: 1279px) { .dz-wk { display: none; } }
+@media (max-width: 1279px) {
+  .dz-months { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dz-wk { display: none; }
+}
+@media (max-width: 800px) { .dz-months { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .dz-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.dz-cell { aspect-ratio: 1; border-radius: 2px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast); border: 0; padding: 0; }
-.dz-cell:hover { transform: scale(1.6); z-index: 2; position: relative; }
+/* V3.9.15：日期格是触控目标，不只是色块。实际按钮至少 28×28，
+   内部视觉色块仍保持紧凑，避免为了热区把热力图放大成日历。 */
+.dz-cell { position: relative; min-width: 28px; min-height: 28px; border-radius: 3px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast); border: 0; padding: 0; }
+.dz-cell::after { content: ''; position: absolute; inset: 8px; border-radius: 2px; background: inherit; pointer-events: none; }
+.dz-cell:hover { transform: scale(1.25); z-index: 2; }
 /* R172-T13：月首偏移改由 `grid-column-start` 承担 ⇒ 不再渲染 .void 占位格（少 38 个"看着能点其实不能点"的假控件与 38 个节点） */
-.dz-cell.future { background: transparent; border: 1px dashed var(--border); cursor: default; }
+.dz-cell.future { background: transparent; cursor: default; }
+.dz-cell.future::after { border: 1px dashed var(--border); background: transparent; }
 .dz-cell.future:hover { transform: none; }
 .dz-cell.l1 { background: var(--heat-1); }
 .dz-cell.l2 { background: var(--heat-2); }
@@ -78,10 +86,10 @@
 /* ★V3.8.7 补丁三：当日格子必须**看得见**。原样式在位但只有 1.5px text-2 描边，
    在纸墨白（notion）底上 heat 色阶本身也浅 ⇒ 等于没有。改为 accent 2px 实环 + 轻微提亮，
    且与「选中」态拉开距离（sel 是 offset 2px + accent-light 填充）。 */
-.dz-cell.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dz-cell.today::after { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dz-cell.today.l0 { background: var(--surface-3); }
 /* 选中态：环 + 淡底，与 today 的「只有环」可区分（同在位时叠加也不糊） */
-.dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 2px; background-color: var(--accent-light); }
+.dz-cell.sel::after { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--accent-light); }
 /* ★V3.8.7 焦点契约 #4：调度台首屏的「近 26 周」概览条。
    条形高度编码周强度（6+lv*4px，内联），色阶走 heat 令牌 ⇒ 六主题自动适配。
    ★空档可见性：lv=0 原用 heat-0，在纸墨白/苹果亮底上等于隐形（真机截图实证），

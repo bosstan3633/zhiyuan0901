@@ -30,6 +30,7 @@ check('G6-1 ★方向台 F6 读数行与工具常驻（用户拍板 2026-10-16�
   const m = t.match(/\.hero-stats \{[^}]*justify-content: ([^;]+);/)
   return !!m && m[1].trim() === 'flex-start'
     && t.includes('.hero-stats {')                          /* 规则本体在位（防整段被删的假绿） */
+    && /^\.hero-stats \{[^}]*flex: 1 1 640px/m.test(t)       /* V3.9.15：并入动作行后仍占满剩余宽度，不缩成小字尾巴 */
     && !/\.hero-stats \{[^}]*justify-content:\s*flex-end/.test(t)
     && !t.includes('class="hero-tools-menu"')
 });

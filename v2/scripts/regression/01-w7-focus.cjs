@@ -102,11 +102,11 @@ check('W7-4 ★展开态不许被四枚指标抢焦点（用户 2026-10-12 真�
 check('W7-5 ★当日格子必须**看得见**且可被一眼认出：.dz-cell.today 用 accent 2px 实环（真机实证原1.5px text-2 描边在纸墨白底上等于没有）+ 选中态改 accent-light 填充 + offset 2px 与 today 可区分 + 图例补「今天」说明那一圈是什么（高亮若没说明，用户不知道该看哪格）', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
-  return css.includes('.dz-cell.today { outline: 2px solid var(--accent); outline-offset: 1px; }')
+  return css.includes('.dz-cell.today::after { outline: 2px solid var(--accent); outline-offset: 1px; }')
     /* 负锚：原来那条弱描边不许复活 */
     && !css.includes('.dz-cell.today { outline: 1.5px solid var(--text-2);')
     /* today 与 sel 必须可区分（同在位时不糊）：sel 多一层 accent-light 填充 + offset 2px */
-    && css.includes('.dz-cell.sel { outline: 2px solid var(--accent); outline-offset: 2px; background-color: var(--accent-light); }')
+    && css.includes('.dz-cell.sel::after { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--accent-light); }')
     /* 模板侧：today 类名确实由 months 计算产出并落到格子 class 上 */
     && hm.includes("if (k === today.value) cls.push('today')")
     /* 图例项在位（正锚吃 codeOnly：模板原文） */

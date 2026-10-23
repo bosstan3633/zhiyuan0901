@@ -10,8 +10,9 @@
      ② 只算"点击入口" —— `@click` / `v-on:click`（含 .stop/.prevent 等修饰符）。
      ③ 原生可聚焦元素豁免 —— button / a[href] / input / select / textarea / summary / details /
         label / option / audio[controls] / video[controls]。`<a>` 无 href 不算豁免。
-     ④ 有 `tabindex`（任意值）或 `role=` 即视为"作者已声明"，不计入候选 —— 但 `tabindex="-1"`
-        单独列一栏：它只把元素移出 Tab 序列，若没有配套的键盘处理就是**假修复**。
+     ④ 只有 `v-pressable`（统一键盘桥）或**同时**具备可聚焦声明与真实键盘处理，才视为已修复。
+        裸 `role=` / 裸 `tabindex=` 不再算修复——它们只改变语义或 Tab 顺序，不保证 Enter/Space 可用。
+        `tabindex="-1"` 仍单独列一栏：它只把元素移出 Tab 序列，若没有配套的键盘处理就是**假修复**。
      ⑤ 先剥注释 —— 注释里举例的 `<div @click>` 不能算数。
 
    用法：
@@ -49,14 +50,16 @@ function lineOf(src, idx) {
   return n
 }
 
-/** 解析一个开标签的属性串，返回 { hasClick, tabindex, role, href } */
+/** 解析一个开标签的属性串，返回 { hasClick, tabindex, role, href, pressable, keydown } */
 function readAttrs(attrs) {
   const hasClick = /(^|\s)(@click|v-on:click)(\.|\s|=|$)/.test(attrs)
   const ti = /\stabindex\s*=\s*("([^"]*)"|'([^']*)')/.exec(attrs)
   const tabindex = ti ? (ti[2] !== undefined ? ti[2] : ti[3]) : null
   const role = /\srole\s*=/.test(attrs)
   const href = /\shref\s*=/.test(attrs)
-  return { hasClick, tabindex, role, href }
+  const pressable = /(^|\s)v-pressable(?:\s|=|$)/.test(attrs)
+  const keydown = /(^|\s)(@keydown|v-on:keydown)(\.|\s|=|$)/.test(attrs)
+  return { hasClick, tabindex, role, href, pressable, keydown }
 }
 
 function audit() {
@@ -83,8 +86,10 @@ function audit() {
         }
         continue
       }
-      if (a.tabindex !== null && a.tabindex !== '-1') continue
-      if (a.role) continue
+      if (a.pressable) continue
+      // A focus target only counts when the author also handles the keyboard.
+      // A role alone is semantic sugar, not a working interaction.
+      if (a.tabindex !== null && a.tabindex !== '-1' && a.keydown) continue
       // 遮罩层（overlay/scrim/mask/backdrop）是"点空白关闭"的惯例，键盘通道是 ESC —— 单独计数、不算缺口
       // （若某天 ESC 被删，e2e 的浮层用例会先红，不靠这条静态规则兜）。
       if (/(overlay|scrim|mask|backdrop)/i.test(attrs)) { backdrops.push({ file, line: lineOf(raw, i0 + m.index), tag }); continue }

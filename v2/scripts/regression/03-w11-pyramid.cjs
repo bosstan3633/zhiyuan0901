@@ -247,7 +247,7 @@ check('W11-11 ★方向台焦点契约：**愿景是唯一的主体**。D1 已�
 });
 
 check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。R164-2 单片 ≤900 行的增长闸只管回归分片，源码侧同样要防 —— 本条把方向台**每个组件**都钉在 400 行内（超了就是它承担了两件事，该拆），取数层钉在 260 行内。★本条在 2026-10-13 真的拦下了一次：CompassPano 初版 440 行 ⇒ 拆出 CompassPanoLane。这是"上限靠拆件而不是放宽"的第三次执行（V3.8.7 拆回归分片、W11 一批拆六层组件、本条拆全景泳道）', () => {
-  const lines = (p) => read(p).split('\n').length;
+  const lines = (p) => read(p).trimEnd().split('\n').length;
   const comps = {
     'CompassSpine': lines('/newtab/components/compass/CompassSpine.vue'),
     'CompassLayerPanel': lines('/newtab/components/compass/CompassLayerPanel.vue'),
@@ -366,7 +366,7 @@ check('W11-17 ★指标详情入口不改变既有改名习惯：指标标题单
 check('W11-18 ★项目 → 指标 → 任务连续下钻的 Esc 边界：共享 Drawer 必须维护全局栈，只有栈顶处理 Escape；后开抽屉层级高于先开；stopPropagation 只能挡住别的节点、挡不住 document 同节点更早注册的监听，所以不能靠它替代栈；弹窗在场时任务详情仍以 closeOnEscape=false 让位', () => {
   const dr = codeOnly(read('/shared/components/Drawer.vue'));
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
-  return dr.includes('const drawerStack = ref<number[]>([])')
+  return dr.includes('const drawerStack = vueRef<number[]>([])')
     && dr.includes('if (drawerStack.value[drawerStack.value.length - 1] !== drawerId) return')
     && dr.includes('drawerStack.value.push(drawerId)')
     && dr.includes('drawerStack.value.splice(at, 1)')
@@ -383,9 +383,9 @@ check('W11-19 ★抽屉栈必须位于 SFC 模块作用域，不能写回 <scrip
   const moduleScript = /<script lang="ts">([\s\S]*?)<\/script>/.exec(raw)?.[1] || '';
   const setupScript = /<script setup lang="ts">([\s\S]*?)<\/script>/.exec(raw)?.[1] || '';
   return moduleScript.includes('let drawerSeq = 0')
-    && moduleScript.includes('const drawerStack = ref<number[]>([])')
+    && moduleScript.includes('const drawerStack = vueRef<number[]>([])')
     && !setupScript.includes('let drawerSeq = 0')
-    && !setupScript.includes('const drawerStack = ref<number[]>([])');
+    && !setupScript.includes('const drawerStack = vueRef<number[]>([])');
 });
 
 check('W11-20 ★窄屏项目条不能把全部项目压进一行：800px 下左栏改横向后，项目项必须固定为可滚动宽度（flex-basis + width），否则 flex 子项收缩后每项只剩几十像素。390px 下同一条固定宽策略必须继续成立', () => {

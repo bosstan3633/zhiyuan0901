@@ -3,9 +3,9 @@
  *
  * 为什么换实现：
  *   pinyin-pro 全量字典 317KB（压缩后约 142KB，ZIP 占比 22%）——分几层都仍随包分发。
- *   R160 改为**生成物两层表**（`pinyinTable.ts`，共约 54KB 源文本）：
+ *   R160 改为**生成物两层表**（`pinyinTable.ts`，共约 28KB 源文本）：
  *   - 第一层·首字母表：U+4E00..U+9FFF 全表（每字 1 字符，约 21KB）——零依赖、即时可用；
- *   - 第二层·全拼表：常用字区（约 6.6K 字，约 33KB）——懒解析为 Map，未收录字仅支持首字母。
+ *   - 第二层·全拼表：常用字区音节字典 + 单字符索引（约 6.6K 字）——懒解析为 Map，未收录字仅支持首字母。
  *   词典不再进包 → ZIP 回 ≤600KB（04-63·R160 验收）。
  *
  * 降级契约（保持兼容）：
@@ -29,13 +29,20 @@ export function onPinyinReady(cb: () => void): void {
   Promise.resolve().then(cb)
 }
 
-/** 全拼表懒解析（"字拼|字拼|…" → Map；首用一次，约 6.6K 条） */
+/** 全拼表懒解析（"音节|…~索引串" → Map；首用一次，约 6.6K 条） */
 let fullMap: Map<string, string> | null = null
 function ensureFullMap(): Map<string, string> {
   if (fullMap) return fullMap
   const m = new Map<string, string>()
-  for (const pair of FULLS.split('|')) {
-    if (pair.length >= 3) m.set(pair[0], pair.slice(1))
+  const [dict, packed = ''] = FULLS.split('~')
+  const syllables = dict ? dict.split('|') : []
+  let offset = 0
+  for (const code of packed) {
+    const idx = (code.codePointAt(0) || 0) - 0x101
+    if (idx >= 0 && idx < syllables.length) {
+      m.set(String.fromCharCode(PINYIN_RANGE_START + offset), syllables[idx])
+    }
+    offset++
   }
   fullMap = m
   return m

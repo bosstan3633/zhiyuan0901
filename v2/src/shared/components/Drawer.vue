@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ref } from 'vue'
+import { ref as vueRef } from 'vue'
 
 /*
  * 全局抽屉栈必须声明在普通 <script> 的模块作用域。
@@ -7,15 +7,16 @@ import { ref } from 'vue'
  * 三层下钻时每个 Drawer 各持一份栈，Esc 就无法只关最上层。
  */
 let drawerSeq = 0
-const drawerStack = ref<number[]>([])
+const drawerStack = vueRef<number[]>([])
 </script>
 
 <script setup lang="ts">
-import { computed, onUnmounted, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import Icon from '@/shared/components/Icon.vue'
 import { useOverlayTarget } from '@/shared/utils/overlayHost'
+import { useFocusTrap } from '@/shared/utils/focusTrap'
 
 // R113-N5：Teleport 目标动态化——金字塔真全屏期间浮层挂进全屏元素（否则不可见）
 const overlayTarget = useOverlayTarget()
@@ -56,6 +57,7 @@ const drawerId = ++drawerSeq
 const stackDepth = computed(() => Math.max(0, drawerStack.value.indexOf(drawerId)))
 const overlayZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2})`)
 const drawerZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2 + 1})`)
+const panelRef = ref<HTMLElement | null>(null)
 
 // R170-②：详情抽屉全局统一拖宽（拍板：所有卡片详情页可左右拖拽 + 记忆）。
 // 落点选共享壳 = 一处改、7 处宿主（资源/项目/好奇/指标下钻/添加任务/策展钻取/北极星）同时生效。
@@ -124,6 +126,7 @@ watch(() => props.open, (v) => {
   if (v) document.addEventListener('keydown', onKey, true)
   else document.removeEventListener('keydown', onKey, true)
 }, { immediate: true })
+useFocusTrap(panelRef, () => props.open)
 onUnmounted(() => {
   syncStack(false)
   document.removeEventListener('keydown', onKey, true)
@@ -136,7 +139,8 @@ onUnmounted(() => {
       <div v-if="open" class="drawer-overlay" :style="{ zIndex: overlayZ }" @click="emit('close')"></div>
     </Transition>
     <Transition name="drawer">
-      <aside v-if="open" class="drawer" :class="{ dragging }" :style="{ width: w + 'px', zIndex: drawerZ }">
+      <aside v-if="open" ref="panelRef" class="drawer" :class="{ dragging }" :style="{ width: w + 'px', zIndex: drawerZ }"
+        tabindex="-1" role="dialog" aria-modal="true" :aria-label="title || '详情'">
         <!-- R170-②：左缘拖宽把手（双击复位默认宽） -->
         <div class="drawer-resize" title="拖拽调宽 · 双击复位" @mousedown="startResize" @dblclick="resetWidth" />
         <header class="drawer-header">
@@ -146,7 +150,7 @@ onUnmounted(() => {
           <div class="drawer-title"><Icon v-if="icon" :name="icon" :size="14" class="drawer-title-icon"/><slot name="title">{{ title }}</slot></div>
           <!-- 第卌一轮 REQ-054：标题右侧扩展区（附件徽章等） -->
           <div v-if="$slots['title-extra']" class="drawer-title-extra"><slot name="title-extra" /></div>
-          <button class="drawer-close" @click="emit('close')">×</button>
+          <button class="drawer-close" type="button" aria-label="关闭" title="关闭（Esc）" @click="emit('close')">×</button>
         </header>
         <div class="drawer-body" :class="bodyClass">
           <slot />

@@ -32,6 +32,7 @@
 /* 任务行：标题（打开任务详情抽屉）/ 成熟度 */
 .tk-title { min-height: 28px; }
 .tk-grade { min-height: 28px; }
+.tk-del { width: 28px; height: 28px; }
 
 /* 「当前主攻」条：项目名（定位入口）/ 继续推进 ↓ */
 .fs-name { min-height: 28px; }

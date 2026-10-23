@@ -47,10 +47,10 @@ check('R161-6 Cmd/Ctrl+Enter = 采纳选中：仅当可采纳（canApply）才�
 });
 check('R161-⑦ ★Esc 真能关掉中央弹窗：watch 必带 immediate —— 宿主是 `<AiSuggestionDrawer v-if="aiJob">` 而 open = computed(() => !!props.job)，弹窗**出生即 open=true**，缺 immediate 则 keydown 监听从不注册（现象：点遮罩能关、× 能关、按 Esc 毫无反应；本轮实测抓到，E2E-23 已补「真关掉」断言；同源缺陷也吞掉了 Cmd/Ctrl+Enter）', () => {
   const m = read('/shared/components/Modal.vue')
-  return /watch\(\(\) => props\.open, async \(v\) => \{[\s\S]*?\}, \{ immediate: true \}\)/.test(m)
+  return /watch\(\(\) => props\.open, \(v\) => \{[\s\S]*?\}, \{ immediate: true \}\)/.test(m)
     && m.includes("document.addEventListener('keydown', onKey, true)")
-    && m.includes('panelRef.value?.focus()')   /* 打开即聚焦面板（键盘用户不丢锚点） */
-    && m.includes('restoreTo.focus()')         /* 关闭归还焦点 */
+    && m.includes('useFocusTrap(panelRef, () => props.open)')
+    && read('/shared/utils/focusTrap.ts').includes('panel.focus()')
     && m.includes('onUnmounted(');             /* 卸载兜底：条件挂载的宿主销毁时不留野监听 */
 });
 check('R161-7 ★令牌三新增（四主题各一份，动 tokens.css 必跑 theme-contrast）：--radius-xl 外框圆角 / --scrim-modal 统一遮罩 / --shadow-modal 四份（中央弹窗的悬浮感不进 shadow-lg 复用）', () => {

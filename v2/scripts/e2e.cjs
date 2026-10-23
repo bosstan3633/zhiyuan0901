@@ -322,8 +322,8 @@ async function main() {
     && rowCount >= 0 && clickableRows === 0 && closedByEsc && focusBack,
     `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" modal=${statusModalOn} url不变=${urlUnchanged} 明细行=${rowCount} 可点行=${clickableRows} Esc关=${closedByEsc} 焦点回归=${focusBack}`)
 
-  // E2E-49（V3.9.14）：状态明细不再止于只读——主攻行必须能进入只读项目详情。
-  //   判据同时守「先关明细再开详情」，避免两层遮罩叠放。
+  // E2E-49（V3.9.15）：主攻行点击直达完整只读项目详情。
+  //   V3.9.14 曾要求“先开明细再点查看项目”；V3.9.15 用户改为直达，因此断言同步到新交互。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -355,17 +355,12 @@ async function main() {
   await page.waitForTimeout(1800)
   const focusStatusRow = page.locator('.side-rail .stat-focus-item').filter({ hasText: 'E2E 状态主攻项目' }).first()
   await focusStatusRow.click().catch(() => {})
-  await page.waitForTimeout(800)
-  const focusStatusModal = page.locator('.md-panel').filter({ hasText: '主攻项目明细' }).first()
-  const focusAction = focusStatusModal.locator('.sd-action').first()
-  const focusActionText = ((await focusAction.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
-  await focusAction.click().catch(() => {})
   await page.waitForTimeout(1000)
+  const focusStatusModalOn = await page.locator('.md-panel').filter({ hasText: '主攻项目明细' }).first().isVisible().catch(() => false)
   const readonlyProjectOn = await page.locator('.md-panel').filter({ hasText: '主攻项目 · 只读' }).filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
-  const focusModalGone = !(await focusStatusModal.isVisible().catch(() => false))
-  report('E2E-49 V3.9.14 状态明细「继续处理」：主攻明细动作进入只读项目详情，原明细先关闭',
-    focusActionText.includes('查看项目') && readonlyProjectOn && focusModalGone,
-    `动作="${focusActionText}" 项目详情=${readonlyProjectOn} 明细已关=${focusModalGone}`)
+  report('E2E-49 V3.9.15 主攻项目直达：点击「今天的状态」主攻行直接打开完整只读项目详情，不先经过明细弹窗',
+    !focusStatusModalOn && readonlyProjectOn,
+    `直达项目详情=${readonlyProjectOn} 明细弹窗=${focusStatusModalOn}`)
 
   // E2E-5 PDF 双击 file:// 打开：走策展画布上的资源 chip（现役入口）
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })

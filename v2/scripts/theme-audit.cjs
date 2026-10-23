@@ -223,10 +223,15 @@ const DASH_SCENES = [
       const todayOk = legend[6] === '今天'
       const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
       const sum = document.querySelectorAll('.dz-sum .c').length
-      const tops = [...document.querySelectorAll('.dz-mb-h')].map(h => Math.round(h.getBoundingClientRect().top))
-      const oneRow = tops.length === 12 && new Set(tops).size === 1
+        const tops = [...document.querySelectorAll('.dz-mb-h')].map(h => Math.round(h.getBoundingClientRect().top))
+        /* V3.9.15：12 月块从单行压成 4×3；不能再拿“12 块同顶”当判据，
+           改钉 12 块都在、按 4 列整齐换行（最多 3 行）。 */
+        const rows = new Set(tops).size
+        const gridOk = tops.length === 12 && rows >= 1 && rows <= 3
+        const minCell = Math.min(...[...document.querySelectorAll('.dz-cell:not(.future)')]
+          .map(el => Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height)))
       const overflow = Math.round(document.documentElement.scrollWidth - window.innerWidth)
-      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && oneRow && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 月块同行=${oneRow} 溢出=${overflow}px` }
+      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && gridOk && minCell >= 28 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 月块=${tops.length}/12·${rows}行 日期热区=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
     })
   },
   {
@@ -309,6 +314,47 @@ const DASH_SCENES = [
           && size(hero) + size(spine) <= 250
           && (metrics > 1 || !laneRect || !lanesRect || laneRect.width >= Math.min(820, lanesRect.width * .78)),
         txt: `切换器=${!!switcher} 当前项目=${!!current} 摘要=${!!summary} 下一步=${!!next} 骨架默认收起=${spineCollapsedDefault} 泳道=${lanes.length}(指标${metrics}) 等分铺满=${laneSpread} 首泳道宽=${laneRect ? Math.round(laneRect.width) : 0}px 页首高=${size(hero) + size(spine)}px 横向滚动=${laneScroll}px 页面溢出=${overflowX}px 最小热区=${Math.round(hot)}px`
+      }
+    })
+  },
+  {
+    /* V3.9.15：项目全景的多指标真实渲染夹具。
+       与 compass-pano 分开：原场景继续守“默认数据下的单/多泳道兼容”，
+       本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题两行与滚动边界。 */
+    id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.tl-head-row',
+    act: async (page) => {
+      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 }).catch(() => {})
+      await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
+      await page.locator('.pano-switch .ps-current').first().click({ timeout: 5000 }).catch(() => {})
+      await page.waitForTimeout(250)
+      await page.locator('.pano-switch .ps-opt', { hasText: '多指标阅读节奏审计' }).first()
+        .click({ timeout: 5000 }).catch(() => {})
+      await page.waitForTimeout(900)
+    },
+    judge: async (page) => page.evaluate(() => {
+      const lanesBox = document.querySelector('.lanes')
+      const lanes = lanesBox ? [...lanesBox.children].filter(el => el.classList.contains('lane')) : []
+      const orphan = lanesBox ? [...lanesBox.children].find(el => el.classList.contains('lane-orphan')) : null
+      const titles = lanes.map(l => l.querySelector('.lane-n')).filter(Boolean)
+      const taskTitles = [...(lanesBox ? lanesBox.querySelectorAll('.ltask-t') : [])]
+      const hint = document.querySelector('.lanes-hint')
+      const rects = lanes.map(l => l.getBoundingClientRect())
+      const widths = rects.map(r => Math.round(r.width))
+      const equal = widths.length === 4 && Math.max(...widths) - Math.min(...widths) <= 2
+      const orphanLast = !!orphan && !!lanesBox
+        && orphan === lanesBox.lastElementChild
+      const titleClamp = titles.length === 4 && titles.every(t => {
+        const cs = getComputedStyle(t)
+        return cs.overflow === 'hidden' && (t.getAttribute('title') || '').length > 0
+          && t.getBoundingClientRect().height <= 36
+      })
+      const taskWrap = taskTitles.every(t => t.scrollWidth <= t.clientWidth + 1)
+      const overflowX = Math.round(document.documentElement.scrollWidth - window.innerWidth)
+      const laneScroll = lanesBox ? Math.round(lanesBox.scrollWidth - lanesBox.clientWidth) : 0
+      return {
+        ok: !!lanesBox && widths.length === 4 && equal && orphanLast && titleClamp && taskWrap
+          && !!hint && overflowX <= 1 && laneScroll > 4,
+        txt: `泳道=${widths.length}(应4) 宽度=${widths.join('/')} 等分=${equal} 收容最后=${orphanLast} 标题两行=${titleClamp} 长任务不溢出=${taskWrap} 滚动提示=${!!hint} 横向滚动=${laneScroll}px 页面溢出=${overflowX}px`,
       }
     })
   },
@@ -947,6 +993,109 @@ if (argv.scenes) {
       updatedAt: at,
     })
   }
+  /* V3.9.15：项目全景多指标阅读节奏夹具。
+     不复用“空库才补”的方向树夹具——真实库通常已有方向与项目，空库分支不会执行；
+     这里单独注入一个审计专用项目，保证 compass-pano-multi 每次都能在真实渲染里
+     覆盖 4 指标、长标题与收容任务。只写本次 Chromium storage，不修改备份文件。 */
+  const PANO_AUDIT_PROJECT_ID = 'audit-pano-multi-proj'
+  const PANO_AUDIT_DIR_ID = 'audit-pano-multi-dir'
+  const panoAt = FREEZE_AT + 14 * 60 * 60 * 1000
+  data.compass = data.compass || {
+    vision: { content: '', updatedAt: 0 },
+    mission: { content: '', updatedAt: 0 },
+    directions: [],
+  }
+  if (!Array.isArray(data.compass.directions)) data.compass.directions = []
+  data.compass.directions = data.compass.directions.filter(d => d && d.id !== PANO_AUDIT_DIR_ID)
+  data.compass.directions.push({
+    id: PANO_AUDIT_DIR_ID,
+    name: '认知调度产品化',
+    status: 'active',
+    term: 'mid',
+    projects: [{
+      id: PANO_AUDIT_PROJECT_ID,
+      name: '多指标阅读节奏审计',
+      nextStep: '验证四条指标泳道在长标题下仍能保持稳定阅读节奏。',
+      isFocused: true,
+      progress: 0,
+      status: 'active',
+      order: 0,
+      metrics: [
+        {
+          id: 'audit-pano-metric-1',
+          title: '把分散在浏览器标签页里的判断，整理成可复用的证据链',
+          target: '证据链可被第三人复核',
+          acceptance: '每个核心判断都能追到来源、反例与适用边界',
+          taskIds: ['audit-pano-task-1', 'audit-pano-task-2'],
+        },
+        {
+          id: 'audit-pano-metric-2',
+          title: '建立面向真实业务问题的资源调用路径',
+          target: '高频问题可在 30 秒内调回材料',
+          acceptance: '检索结果能直接进入当前任务上下文',
+          taskIds: ['audit-pano-task-3'],
+        },
+        {
+          id: 'audit-pano-metric-3',
+          title: '让一次解决过程沉淀为可分享的结构化方案',
+          target: '形成可交付的策展成果',
+          acceptance: '分享页保留层级关系与资源链接',
+          taskIds: [],
+        },
+        {
+          id: 'audit-pano-metric-4',
+          title: '验证方向树与每日行动之间的闭环是否真正减少漂移',
+          target: '连续四周主攻不偏移',
+          acceptance: '今日三件事均可追溯到项目与成功指标',
+          taskIds: ['audit-pano-task-4'],
+        },
+      ],
+    }],
+  })
+  data.tasks = (data.tasks || []).filter(t => t && !String(t.id).startsWith('audit-pano-task-'))
+  data.tasks.push(
+    {
+      id: 'audit-pano-task-1', kind: 'task',
+      title: '整理浏览器现场里的判断与证据',
+      description: '覆盖长任务标题在窄泳道中的换行行为。',
+      projectId: PANO_AUDIT_PROJECT_ID, metricId: 'audit-pano-metric-1',
+      status: 'doing', priority: 'high', customFields: {}, tags: ['视觉验收'],
+      pinned: false, createdAt: panoAt, updatedAt: panoAt,
+    },
+    {
+      id: 'audit-pano-task-2', kind: 'task',
+      title: '为关键判断补齐反例与适用边界',
+      description: '同一指标下的第二条任务。',
+      projectId: PANO_AUDIT_PROJECT_ID, metricId: 'audit-pano-metric-1',
+      status: 'todo', priority: 'medium', customFields: {}, tags: ['视觉验收'],
+      pinned: false, createdAt: panoAt + 1, updatedAt: panoAt + 1,
+    },
+    {
+      id: 'audit-pano-task-3', kind: 'task',
+      title: '把高频问题与对应资源建立可召回索引',
+      description: '第二指标任务。',
+      projectId: PANO_AUDIT_PROJECT_ID, metricId: 'audit-pano-metric-2',
+      status: 'todo', priority: 'high', customFields: {}, tags: ['视觉验收'],
+      pinned: false, createdAt: panoAt + 2, updatedAt: panoAt + 2,
+    },
+    {
+      id: 'audit-pano-task-4', kind: 'task',
+      title: '复盘本周三件事与项目指标的对齐情况',
+      description: '第四指标任务。',
+      projectId: PANO_AUDIT_PROJECT_ID, metricId: 'audit-pano-metric-4',
+      status: 'doing', priority: 'medium', customFields: {}, tags: ['视觉验收'],
+      pinned: false, createdAt: panoAt + 3, updatedAt: panoAt + 3,
+    },
+    {
+      id: 'audit-pano-task-orphan', kind: 'task',
+      title: '尚未归入任何成功指标、需要重新判断归属的长标题任务',
+      description: '用于验证收容泳道固定在最后。',
+      projectId: PANO_AUDIT_PROJECT_ID,
+      status: 'todo', priority: 'low', customFields: {}, tags: ['视觉验收'],
+      pinned: false, createdAt: panoAt + 4, updatedAt: panoAt + 4,
+    },
+  )
+  console.log(`项目全景夹具：${PANO_AUDIT_PROJECT_ID} · 4 指标 + 1 收容道`)
   /* ★B5-a：折叠判据的数据前置——方向树里至少得有一个项目舱，否则 .tw-head 恒为 0，
      "每舱都有卡头 / 折叠真的摘节点"这两条无从判起（见 treeSkip 处注释）。
      ★V3.9.6 修（2026-10-21）：探针原来读 `data.directions`，但真库的形状是

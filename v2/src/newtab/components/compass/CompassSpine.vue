@@ -179,11 +179,11 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 /* ── 头部行（原型 .spine-h）：名称 + 定位语 + 右侧提示 ── */
 .spine-h {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 11px 18px 10px;
+  padding: 7px 14px 6px;
   border-bottom: 1px solid var(--border);
 }
 .spine-ico {
-  width: 24px; height: 24px; border-radius: 8px; flex: none;
+  width: 22px; height: 22px; border-radius: 7px; flex: none;
   display: flex; align-items: center; justify-content: center;
   background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-sub);
 }
@@ -219,7 +219,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-toggle:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .spine-toggle-caret { color: var(--text-3); font-size: 9px; }
 
-.spine-b { padding: 12px 18px 13px; display: flex; flex-direction: column; gap: 11px; }
+.spine-b { padding: 10px 14px 11px; display: flex; flex-direction: column; gap: 9px; }
 
 /* 六层横向流：上层窄、下层宽，把"逐层收窄"直接做成宽度 */
 .spine-chain { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }

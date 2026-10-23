@@ -124,8 +124,9 @@ check('G4-1 焦点环成令牌：--focus-ring / --focus-ring-offset 单一来源
   const s = read('/shared/styles/tokens.css');
   return s.includes('--focus-ring: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);')
     && s.includes('--focus-ring-offset: 1px;')
-    && s.includes('outline: var(--focus-ring);')
-    && s.includes('outline-offset: var(--focus-ring-offset);');
+    && s.includes('body :focus-visible {')
+    && s.includes('outline: var(--focus-ring) !important;')
+    && s.includes('outline-offset: var(--focus-ring-offset) !important;');
 });
 
 check('G4-2 键盘可达棘轮：可点击不可聚焦处 ≤ 352（V3.8.27 基线；只许降，涨一处即红）', () => {

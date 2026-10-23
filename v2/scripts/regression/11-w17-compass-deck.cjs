@@ -35,7 +35,8 @@ console.log('【W17 · 调度台侧栏 + 三卡池体验（V3.9.4 / V3.9.5 批�
 
 check('W17-1 ★侧栏主攻行开主攻明细，再由行内「查看项目」进入只读项目详情；未归档 / 本周复用两行开明细清单；全部零 router.push', () => {
   return PI.includes("function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }")
-    && PI.includes("@click=\"openStatusDetail('focus')\"")
+    && PI.includes('@click="openFocusProject(mainFocus)"')
+    && PI.includes('@click="openFocusProject(extraFocus)"')
     && PI.includes("action: '查看项目'")
     && PI.includes("actionKind: 'project'")
     && PI.includes('readonlyProjectOpen.value = true')

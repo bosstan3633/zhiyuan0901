@@ -2,12 +2,7 @@
 /**
  * W11 · 攻坚项目舱（第 4 层）。
  *
- * 存在的理由：原型要解决的第一件事是**项目之间的区隔要明细**。
- * 旧版三列并排（.tree-columns-grid），项目之间只靠列边界，扫视时容易串行，
- * 归属靠"在哪一列"推断。这里改成纵向舱列：每舱独占容器 + 左侧 4px 色条 + 舱间大间距。
- *
- * 舱内是**归属轨道**（判据 W11-2）：项目色条 → 竖轨 → 各指标卡 → 各任务分叉，
- * 全程用线连起来，让"任务属于这个项目的这个指标"成为视觉事实。
+ * 项目舱：左侧 4px 色条 + 舱内归属轨道（项目 → 指标 → 任务），让归属成为视觉事实。
  */
 import Icon from '@/shared/components/Icon.vue'
 import './hotzone.css'
@@ -58,6 +53,7 @@ const emit = defineEmits<{
   (e: 'addMetric', projId: string): void
   /** ★R141 透传：解绑（不删本体） */
   (e: 'unbind', taskId: string): void
+  (e: 'deleteTask', taskId: string): void
   /** ★R135-4 透传：指标层 AI 拆解任务 */
   (e: 'aiTask', metricId: string): void
   /** 指标名就地改名三件套 */
@@ -107,8 +103,7 @@ const shownMetrics = computed(() =>
   props.riskOnly ? props.meta.metrics.filter(m => m.orphanMetric || m.tasks.some(t => hasClue(t))) : props.meta.metrics
 )
 const shownOrphans = computed(() => props.meta.orphanTasks)
-/* ★N2 诊断标签组已整块拆进 CompassDiagBadge.vue（W11-12：方向台单组件 ≤400 行，
-   舱头本来就挤，再塞标签组 + 过期态 + 两态入口必越线——拆件不放宽上限）。 */
+/* N2 诊断标签组已拆进 CompassDiagBadge.vue，守住单组件 400 行上限。 */
 const hideWhole = computed(() => props.riskOnly && shownMetrics.value.length === 0 && shownOrphans.value.length === 0)
 
 /**
@@ -221,6 +216,7 @@ function hasClue(t: TaskCard): boolean {
           @open-detail="emit('openDetail', $event)"
           @add-task="emit('addTask', $event)"
           @unbind="emit('unbind', $event)"
+          @delete-task="emit('deleteTask', $event)"
           @ai-task="emit('aiTask', $event)"
           @edit-title="(mid, ev) => emit('editTitle', mid, ev)"
           @save-title="(mid, ev) => emit('saveTitle', mid, ev)"
@@ -230,7 +226,9 @@ function hasClue(t: TaskCard): boolean {
         />
       </div>
 
-      <CompassTowerOrphans :tasks="shownOrphans" :proj-id="proj.id" @bind="(taskId) => emit('bindOrphan', taskId, proj.id)" />
+      <CompassTowerOrphans :tasks="shownOrphans" :proj-id="proj.id"
+        @bind="(taskId) => emit('bindOrphan', taskId, proj.id)"
+        @delete-task="emit('deleteTask', $event)" />
 
       <div v-if="!shownMetrics.length && !shownOrphans.length" class="tw-empty">
         <span class="twe-t">暂无成功指标</span>

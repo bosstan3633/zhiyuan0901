@@ -1000,19 +1000,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             </div>
           </header>
 
-          <div v-if="!todayFocusList.length" class="focus-empty-state">
-            <div class="fes-icon"><Icon name="inbox" :size="24" /></div>
-            <div class="fes-copy">
-              <b>今天还没有安排</b>
-              <span>从任务库挑一件真正要推进的事，或者让系统先推荐一轮。</span>
-            </div>
-            <div class="fes-actions">
-              <button class="primary-btn" type="button" @click="openPicker(0)"><Icon name="plus" :size="13" /> 从任务库选取</button>
-              <button class="quiet-btn" type="button" @click="reshuffleFocus">自动推荐</button>
-            </div>
-          </div>
-
-          <div v-else class="focus-list">
+          <div class="focus-list">
             <template v-for="c in focusCells" :key="c.idx">
               <div v-if="c.task" class="focus-row" :class="{ done: c.slot?.done }" role="button" tabindex="0"
                 @click="openCellTask(c)" @keydown.enter.prevent="openCellTask(c)" @keydown.space.prevent="openCellTask(c)">
@@ -1176,7 +1164,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <div v-if="hasFocusProject" class="stat-focus-block">
               <div class="stat-focus-label">当前主攻</div>
               <button v-if="mainFocus" class="stat-focus-item" type="button"
-                :title="mainFocus.name + ' · 查看主攻项目明细'" @click="openStatusDetail('focus')">
+                :title="mainFocus.name + ' · 查看完整项目详情'" @click="openFocusProject(mainFocus)">
                 <span class="sf-index">01</span>
                 <span class="sf-copy">
                   <span class="sf-name">{{ mainFocus.name }}</span>
@@ -1185,7 +1173,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
                 <Icon name="arrowright" :size="12" />
               </button>
               <button v-if="extraFocus" class="stat-focus-item" type="button"
-                :title="extraFocus.name + ' · 查看主攻项目明细'" @click="openStatusDetail('focus')">
+                :title="extraFocus.name + ' · 查看完整项目详情'" @click="openFocusProject(extraFocus)">
                 <span class="sf-index">02</span>
                 <span class="sf-copy">
                   <span class="sf-name">{{ extraFocus.name }}</span>
@@ -1557,28 +1545,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   cursor: pointer;
 }
 .focus-more-menu button:hover { background: var(--surface-2); color: var(--text); }
-
-.focus-empty-state {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 20px;
-  border-bottom: 1px solid var(--border);
-}
-.fes-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
-  border-radius: var(--radius-md);
-  color: var(--accent-ink);
-}
-.fes-copy { min-width: 0; flex: 1; }
-.fes-copy b { display: block; color: var(--text); font-size: var(--fs-body); }
-.fes-copy span { display: block; margin-top: 3px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.6; }
-.fes-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 .focus-list { display: flex; flex-direction: column; }
 .focus-row {
@@ -2267,8 +2233,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   .focus-row .row-side { display: none; }
   .focus-row .row-remove { grid-column: 3; }
   .stale-action { grid-column: 2; justify-self: start; }
-  .fes-actions { width: 100%; padding-left: 58px; }
-  .focus-empty-state { flex-wrap: wrap; }
   .board-foot { align-items: flex-start; flex-direction: column; }
   .board-foot-spacer { display: none; }
   .side-rail { grid-template-columns: minmax(0, 1fr); }

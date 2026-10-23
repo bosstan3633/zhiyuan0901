@@ -18,11 +18,12 @@ const {
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
 
-check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。V3.9.7 再重指：视图切换迁到下方项目层行，页头只留全页级别动作；项目塔/全景仍双向可达。★负锚：.tree-page-head、退役的 .hero-l/.hero-r、.hero-tools-menu 下拉壳不许回流', () => {
+check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。V3.9.7 再重指：视图切换迁到下方项目层行，页头只留全页级别动作；项目塔/全景仍双向可达。V3.9.15 再随迁：读数并入动作行，HERO 不再纵向堆两层，但仍是一个独立状态带。★负锚：.tree-page-head、退役的 .hero-l/.hero-r、.hero-tools-menu 下拉壳不许回流', () => {
   const t = codeOnly(CT_W11);
-  const hero = t.slice(t.indexOf('<section class="hero">'), t.indexOf('class="hero-stats"'))
+  const heroStart = t.search(/<section class="hero"(?:\s|>)/)
+  const hero = heroStart >= 0 ? t.slice(heroStart, t.indexOf('class="hero-stats"')) : ''
   const row = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<CompassLayerList'))
-  return t.includes('<section class="hero">')
+  return heroStart >= 0
     && t.includes('class="hero-acts"') && t.includes('class="hero-stats"')
     && t.includes('class="hero-tools"')
     && !hero.includes('class="view-seg"')
@@ -32,7 +33,7 @@ check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条�
     && !t.includes('hero-tools-menu') && !t.includes('toolsOpen') /* ★F6 负锚：下拉壳与开关 state 零残留 */
     && t.includes('class="dhi-badge"')
     && /^\.hero \{[^}]*display: flex/m.test(t)
-    && /\.hero \{[^}]*flex-direction: column/m.test(t)
+    && /\.hero \{[^}]*flex-wrap: wrap/m.test(t)
     && !t.includes('class="hero-l"') && !t.includes('class="hero-r"')
     && !t.includes('class="tree-page-head"');
 });
@@ -107,10 +108,11 @@ check('W12-6 ★指标头的操作钮必须让位给读 —— 常驻按钮会�
   return hasBtns && hoverOnly && a11y && noIndependent;
 });
 
-check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许覆盖。★本轮实战：曾把 .compass-layout 的 padding 从 `20px 36px 64px` 改成原型 .page 的 `26px 32px 64px`，结果 R21-3 / R123-3 / R125-1 三条同时红 —— R125「骨架 1440+36」把四页页边距拍成一条纪律，方向台侧的内缩就落在这条规则上。★所以本条把这条纪律显式钉住：容器 padding 必须保持原值，HERO 区的呼吸由 .hero 自身的 margin 承担，不许拿原型的数值去动它。★V3.8.20 值同步（用户拍板「间隙温和 +8」）：.hero 与 .spine-bar 的 margin-bottom 由 22px 提到 30px（左文案栏退役后纵向堆叠变薄，温和补回呼吸；容器 padding 仍一字不动）', () => {
+check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许覆盖。★本轮实战：曾把 .compass-layout 的 padding 从 `20px 36px 64px` 改成原型 .page 的 `26px 32px 64px`，结果 R21-3 / R123-3 / R125-1 三条同时红 —— R125「骨架 1440+36」把四页页边距拍成一条纪律，方向台侧的内缩就落在这条规则上。★所以本条把这条纪律显式钉住：容器 padding 必须保持原值，HERO 区的呼吸由 .hero 自身的 margin 承担，不许拿原型的数值去动它。★V3.9.15 值同步（用户 2026-10-23 拍板「顶部更紧凑，焦点给项目塔」）：HERO 与骨架间距收至 14/16px，容器 padding 仍一字不动', () => {
   const t = codeOnly(CT_W11);
   return t.includes('.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }')
-    && /^\.hero \{[^}]*margin-bottom: 30px/m.test(t);
+    && /^\.hero \{[^}]*margin-bottom: 14px/m.test(t)
+    && /^\.spine-bar \{[^}]*margin-bottom: 16px/m.test(t);
 });
 
 check('W12-8 ★拆版式不许顺手删能力：HERO 重构后页头原有的八个出口必须逐项在位。★这条是本项目的核心教训「少做了门禁抓不到」的对冲 —— 一次结构调整最容易丢的不是样式而是入口（按钮被并进菜单、返回钮被省掉、统计从模板里消失）。★逐项点名：返回项目详情 / 已完成显隐 / 健康度 / 视图切换双向 / 展开 / 收起 / ＋战略目标 / AI 建议目标 / 项目详情', () => {

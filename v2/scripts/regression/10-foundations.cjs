@@ -63,7 +63,7 @@ check('N4 标签重命名级联卡片', () => read('/newtab/views/GlobalSettings
 check('H1 策展台快捷键映射+五修饰键', () => read('/newtab/views/GlobalSettings.vue').includes('modLabel') && read('/newtab/App.vue').includes('switchToIndex'));
 
 console.log('【第五轮】');
-check('B17 方向树目录入 tree-layout 左栏 ★W12(V3.8.12)随迁备案：.tree-page-head 密排页头被 HERO 区（.hero）取代，承重锚改钉 .hero 在 .tree-layout 之前 —— 本条守的是"页头在左栏之前、不在内容流里"这条布局关系，不是某个类名', () => CT_ALL.indexOf('<section class="hero">') < CT_ALL.indexOf('class="tree-layout"') && CT_ALL.includes('class="tree-layout"'));
+check('B17 方向树目录入 tree-layout 左栏 ★W12(V3.8.12)随迁备案：.tree-page-head 密排页头被 HERO 区（.hero）取代，承重锚改钉 .hero 在 .tree-layout 之前 —— 本条守的是"页头在左栏之前、不在内容流里"这条布局关系，不是某个类名', () => { const heroAt = CT_ALL.search(/<section class="hero"(?:\s|>)/); const layoutAt = CT_ALL.indexOf('class="tree-layout"'); return heroAt >= 0 && layoutAt > heroAt; });
 check('B17 目录与策展目录样式统一(200px sticky) ★W12 随迁备案：左栏宽度由 200px 调整为 210px（对齐原型 .split 的 grid-template-columns:210px 1fr）· ★C2（V3.8.31）二次备案：方向台树区升为主角面后，左栏 210 → 176px（大板接管视觉重量，目录退为支撑层）。本条守的仍是「左栏定宽 + sticky」这两条布局纪律，宽度值随设计决策走并留痕', () => CT_ALL.includes('width: 176px; flex-shrink: 0;') && CT_ALL.includes('position: sticky'));
 check('B18 字段行样式迁入子组件', () => count('/newtab/views/FieldEditor.vue', 'gs-fr-action') >= 2);
 check('B22 状态三选 chips · ★R4-Ev 随迁备案：原锚 ts-status-chip 只剩一条死样式在撑着——模板早在 R167 换成 ds-status-chip2 + STATUS_UI[...].cls，而 CSS 里那份 .ts-status-chip.active 是旧实现留下的孤儿（R4-Et 删了基规则，本轮删了 .active 这条），所以这条判据一直在核一件不再存在的事。改钉现役三件：钮在位 + 状态类由 STATUS_UI 映射 + 三档 st-* 各有规则；并负锚旧类名不许回流', () => {

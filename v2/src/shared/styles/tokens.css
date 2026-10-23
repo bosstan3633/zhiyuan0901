@@ -469,9 +469,12 @@ body .fds-value {
   --focus-ring: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
   --focus-ring-offset: 1px;
 }
-:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+/* G4/V3.9.15：局部组件曾用更高特异性把 outline 归零。键盘焦点是全站契约，
+   不是某个组件的局部偏好，因此这一层必须压过局部归零，同时仍只对
+   :focus-visible 生效，鼠标点击不会多出焦点环。 */
+body :focus-visible {
+  outline: var(--focus-ring) !important;
+  outline-offset: var(--focus-ring-offset) !important;
 }
 
 /* 滚动条 · 更隐蔽（A6） */

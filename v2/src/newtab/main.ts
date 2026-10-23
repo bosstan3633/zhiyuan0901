@@ -12,6 +12,7 @@ import { HOT_KEY } from '@/shared/storage/hotStats'
 import { useAppStore } from './stores/app'
 // R156：主题「跟随系统」——ui.theme 可为 'auto'，落 data-theme 前统一经 resolveTheme 解析
 import { resolveTheme } from '@/shared/utils/theme'
+import { vPressable } from '@/shared/directives/pressable'
 // R48-A1：错误留痕必须最先注册——TDZ 崩溃多发于模块初始化期，晚注册接不住
 import { installRuntimeErrorCapture } from '@/shared/utils/runtimeError'
 
@@ -51,6 +52,7 @@ async function bootstrap() {
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
+  app.directive('pressable', vPressable)
 
   // R160（P6）：boot 单次批量读——UI 偏好随主数据同批取回（原 Promise.all 各读各键 = 2 次往返）
   const boot = await ensureBootData()

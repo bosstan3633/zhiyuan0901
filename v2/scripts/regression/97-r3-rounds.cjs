@@ -122,7 +122,8 @@ check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议
         注释里复述了 addDirection()（教训 R71-4：注释复述字面量会让负判据假红）。
      守的仍是同一条纪律：这两个入口在页头区、不在层内。 */
   const t = codeOnly(CT_ALL)
-  const head = t.slice(t.indexOf('<section class="hero">'), t.indexOf('class="tree-layout"'))
+  const heroStart = t.search(/<section class="hero"(?:\s|>)/)
+  const head = heroStart >= 0 ? t.slice(heroStart, t.indexOf('class="tree-layout"')) : ''
   const iRow = t.indexOf('<div class="tl-head-row">')
   const iTower = t.indexOf('class="tower-list"')
   const layer = iRow >= 0 && iTower > iRow ? t.slice(iRow, iTower) : ''

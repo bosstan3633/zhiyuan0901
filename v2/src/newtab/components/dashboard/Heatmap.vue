@@ -7,7 +7,7 @@
  * 性能：整年格子一次性取数（`Object.keys(days)` 一次遍历），切年仅换 `year` 重算 —— 不重扫全库。
  */
 import './dashboard.css'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import {
   LV_NAME, LV_DESC, LV_RANGE, levelOf, actsOf,
@@ -110,6 +110,53 @@ const months = computed(() => {
 function pickCell(c: { k: string; cls: string }) {
   if (!c.k || c.cls.includes('future')) return
   emit('update:selDay', props.selDay === c.k ? null : c.k)
+}
+
+/** 整年网格是一个日历控件：只保留一个 Tab 停点，其余日期用方向键移动。 */
+const gridStop = ref<string | null>(null)
+const dayStop = computed(() => {
+  if (gridStop.value) {
+    const hit = months.value.flatMap(mo => mo.cells).find(c => c.k === gridStop.value && !c.cls.includes('future'))
+    if (hit) return hit.k
+  }
+  const all = months.value.flatMap(mo => mo.cells).filter(c => !c.cls.includes('future'))
+  return all.find(c => c.k === props.selDay)?.k || all.find(c => c.k === today.value)?.k || all[0]?.k || null
+})
+
+function moveDay(from: string, delta: number): void {
+  const all = months.value.flatMap(mo => mo.cells).filter(c => !c.cls.includes('future'))
+  const at = all.findIndex(c => c.k === from)
+  if (at < 0) return
+  const next = all[Math.max(0, Math.min(all.length - 1, at + delta))]
+  if (!next) return
+  gridStop.value = next.k
+  void nextTick(() => {
+    document.querySelector<HTMLElement>(`.dz-cell[data-day="${next.k}"]`)?.focus()
+  })
+}
+
+function onDayKey(c: { k: string; cls: string }, event: KeyboardEvent): void {
+  if (c.cls.includes('future')) return
+  const moves: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
+  if (event.key in moves) {
+    event.preventDefault()
+    moveDay(c.k, moves[event.key])
+    return
+  }
+  if (event.key === 'Home' || event.key === 'End') {
+    event.preventDefault()
+    const all = months.value.flatMap(mo => mo.cells).filter(x => !x.cls.includes('future'))
+    const target = event.key === 'Home' ? all[0] : all[all.length - 1]
+    if (target) {
+      gridStop.value = target.k
+      void nextTick(() => document.querySelector<HTMLElement>(`.dz-cell[data-day="${target.k}"]`)?.focus())
+    }
+    return
+  }
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    pickCell(c)
+  }
 }
 
 /* ★V3.8.7 焦点契约 #4：调度台首屏不再让回看型内容占最大连续面积。
@@ -255,10 +302,21 @@ function onExport(fmt: ExportFmt): void {
             <div class="dz-mb-h"><span class="m">{{ mo.m }} 月</span><span class="s">{{ mo.w }} 分</span></div>
             <div class="dz-wk"><span v-for="w in WD" :key="w">{{ w }}</span></div>
             <div class="dz-g">
-              <button v-for="(c, i) in mo.cells" :key="mo.m + '-' + i" class="dz-cell" :class="c.cls"
-                :disabled="c.cls.includes('future')" :style="i === 0 && mo.start > 1 ? 'grid-column-start:' + mo.start : undefined"
+              <button
+                v-for="(c, i) in mo.cells"
+                :key="mo.m + '-' + i"
+                class="dz-cell"
+                :class="c.cls"
+                :data-day="c.k"
+                :disabled="c.cls.includes('future')"
+                :tabindex="c.k === dayStop ? 0 : -1"
+                :aria-label="c.k ? `${c.k} · ${LV_NAME[c.lv]}` : undefined"
+                :style="i === 0 && mo.start > 1 ? 'grid-column-start:' + mo.start : undefined"
                 :title="c.k ? `${c.k} · ${LV_NAME[c.lv]}（${LV_RANGE[c.lv]}）` : ''"
-                @click="pickCell(c)" />
+                @focus="gridStop = c.k"
+                @keydown="onDayKey(c, $event)"
+                @click="pickCell(c)"
+              />
             </div>
           </div>
         </div>
