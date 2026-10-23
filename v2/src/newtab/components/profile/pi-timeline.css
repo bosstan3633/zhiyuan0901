@@ -40,12 +40,7 @@
    （.pi-ov-insight / .pi-ov-lines / .pi-ov-line / .pi-ov-check / .pi-ov-foot / .pi-ov-progress / .pi-ov-link）
    同批删除——排三件事的能力唯一归调度台。四格读数样式（.pi-ov-kpis / .pi-ov-kpi）保留。 */
 /* ===== 时间尺度页签 + 单段时间轴（V3.9.3） ===== */
-/* ★W17-C09：时间轴退役后这里只是周期区标题带（原锚点类名同步改名） */
-.pi-period-head { scroll-margin-top: 72px; }
-.pi-tl-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
-.pi-tl-bar > div:first-child { flex: 1; min-width: 260px; }
-.pi-tl-kicker { font-size: var(--fs-micro); font-weight: 700; letter-spacing: .12em; color: var(--accent-ink); }
-.pi-tl-bar p { margin: 4px 0 0; font-size: var(--fs-caption); line-height: 1.6; color: var(--text-3); }
+/* V3.9.13：周期带并入 PiHero；独立标题带退役，页签仍由同一组件承载。 */
 .pi-range-tabs {
   display: flex; align-items: center; gap: 2px; padding: 3px; max-width: 100%;
   overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -186,11 +181,11 @@
    四格核心读数整体迁入 PiOverview，Hero 不再渲染同一组指标。
    ★退役带备案：`.hero-data-row/.hero-kpis-grid/.hero-kpi` 随四格归位概览而清零。 */
 .pi-hero.hero-card {
-  display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: 8px 14px; box-shadow: none;
+  display: flex; flex-direction: column; gap: 0; margin-bottom: 0;
+  background: transparent; border: 0;
+  border-radius: 0; padding: 0; box-shadow: none;
 }
-.hero-row-top { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.hero-row-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; min-height: 38px; }
 .hero-head { flex: 1; min-width: 320px; }
 /* ★W14-T2：眉标降为标题前的一枚小字（不再独占一行），字号降到 micro；`.pi-hero-sub` 随副标题退役。 */
 .pi-hero-eyebrow {
@@ -208,6 +203,8 @@
    随「使命 + 主攻胶囊」迁入 PiOverview 方向状态面板而退役（胶囊 24ch 截断问题同批消解）。
    方向状态面板的样式在 PiOverview.vue scoped 内，不再共享到这里。 */
 .pi-hero-acts { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+.pi-hero-range { flex: none; display: flex; align-items: center; }
+.pi-hero-range:empty { display: none; }
 
 /* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====
    原 `.pi-insight`（今日均线洞察，且 todayAdd===0 时整块消失）与今日三件事 mini 卡
@@ -369,7 +366,8 @@
   .pi-ov-kpi:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
   .pi-ov-head { flex-wrap: wrap; }
   .pi-ov-head .meta { width: 100%; padding-top: 0; }
-  .pi-tl-bar { align-items: stretch; }
+  .hero-row-top { align-items: flex-start; }
+  .pi-hero-range { order: 3; width: 100%; overflow-x: auto; }
   .pi-range-tabs { width: 100%; }
   .pi-range-tab { flex: 1; justify-content: center; }
   .strip4 { grid-template-columns: repeat(2, 1fr); }

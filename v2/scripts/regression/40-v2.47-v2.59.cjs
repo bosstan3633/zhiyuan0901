@@ -462,8 +462,10 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
     && !WS84.includes('wsHeadDescFallback')
     && body.includes('workspace.value?.desc');
 });
-check('R84-3 W1 页头 ≤40px', () => {
-  return read('/newtab/views/workspace.css').includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-height: 30px; max-height: 36px;');
+check('R84-3 W1 页头 ≤56px（V3.9.13 重指：台身份与论点卡合并成同一上下文带，仍不许退回两条大横条）', () => {
+  const c = read('/newtab/views/workspace.css');
+  return c.includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 52px; max-height: 56px;')
+    && c.includes('.ws-hero { display: grid; grid-template-columns: minmax(280px, .78fr) minmax(0, 1.35fr);');
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')

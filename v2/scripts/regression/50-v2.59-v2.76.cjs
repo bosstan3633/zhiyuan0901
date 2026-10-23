@@ -82,23 +82,25 @@ check('R91-1（V3.9.1 重指）调度台消费 focusedProjects：首页主攻胶
     && CH91.includes('useCompass()') && CH91.includes('const mainFocus = computed<Project | null>')
     && CH91.includes('const extraFocus = computed<Project | null>');
 });
-check('R91-2（V3.9.1 重指）主攻摘要收进页头：主胶囊展示第一个主攻，第二个以 +1 展开，不占工作区首屏', () => { const h = read('/newtab/views/CompassHome.vue'); const seg = h.slice(h.indexOf('<div class="desk-actions">'), h.indexOf('</header>')); return seg.includes('class="focus-pill"') && seg.includes('class="extra-pill"') && seg.includes('class="extra-focus-pop"') && !h.includes('<MetricBar>'); });
+check('R91-2（V3.9.13 重指）主攻摘要进入右栏：主攻 1 / 主攻 2 分两行常驻，不再把第二个藏在 +1 弹层里；页头只保留无项目时的入口', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="stat-focus-block"') && (h.match(/class="stat-focus-item"/g) || []).length >= 2 && h.includes('主攻 1') && h.includes('主攻 2') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"') && !h.includes('<MetricBar>'); });
 check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
   return CH91.includes('const focusMeta = computed(')
     && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')
     && !STRIP91_C.includes('projectTasksOf(')
-    && STRIP91_C.includes('focusMeta.get(mainFocus.id)')
-    && STRIP91_C.includes('focusMeta.get(extraFocus.id)');
+    && CH91.includes('<aside class="side-rail"')
+    && CH91.includes('focusMeta.get(mainFocus.id)')
+    && CH91.includes('focusMeta.get(extraFocus.id)');
 });
 check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（停滞取既有 isProjectStalled 口径）', () => {
   return stripComments(FOCUS_FN91).includes('isProjectStalled(p)')
     && CH91.includes('stall: isProjectStalled(p)')
     && CH91.includes('focusMeta');
 });
-check('R91-5 ★W12-E 退役重指带备案，V3.9.7 再重指：方向树 ▾ 菜单「进入项目详情页」与调度台主攻的“跳整页再找项目”都退役；主攻改为就地打开 ProjectDetailDrawer，方向树侧仍零 projects 跳转（codeOnly），整页与 ⌘K 项目搜索仍可达', () => {
+check('R91-5 ★V3.9.13 重指：调度台主攻就地打开只读详情弹窗（可复制），不再打开可编辑项目抽屉；方向树侧仍零 projects 跳转，整页与 ⌘K 项目搜索可达', () => {
   const t = CT_W11;
-  return CH91.includes('const focusProjectOpen = ref(false)')
-    && CH91.includes('<ProjectDetailDrawer :open="focusProjectOpen"')
+  return CH91.includes('const readonlyProjectOpen = ref(false)')
+    && CH91.includes('<CompassProjectReadonlyModal :open="readonlyProjectOpen"')
+    && read('/newtab/components/compass/CompassProjectReadonlyModal.vue').includes('内容可选中复制')
     && !CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
     && !/path: '\/compass\/projects', query: \{ p: [\w.]+, from: 'tree' \}/.test(codeOnly(t))
     && !t.includes('@goto-detail=')

@@ -277,12 +277,13 @@ check('C101-G01-3 共享渲染树守卫循环与上限：节点 5000 / 资源 50
     && !SHARE_IMAGE.includes('Math.max(0.5');
 });
 
-check('C101-16 画布视觉契约：金字塔向下、树状向右；金字塔同层横向连接线在位；窄屏无页面级溢出', () => {
+check('C101-16 画布视觉契约：金字塔向下、树状向右；连接线按首末子节点中心生成、随子节点数伸缩；窄屏无页面级溢出', () => {
   return CSS.includes('.mindmap-canvas[data-layout="pyramid"]')
     && CSS.includes('.mindmap-canvas[data-layout="tree"]')
-    && CSS.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children::before')
-    && CSS.includes('left: calc(25% - 6.5px)')
-    && CSS.includes('right: calc(25% - 6.5px)')
+    && CSS.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::after')
+    && CSS.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:first-child::after { left: 50%; }')
+    && CSS.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:last-child::after { right: 50%; }')
+    && !CSS.includes('left: calc(25% - 6.5px)')
     && CSS.includes('@media (max-width: 900px)')
     && CSS.includes('.mindmap-canvas { min-height: 520px;')
     && CSS.includes('overflow: auto');

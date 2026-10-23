@@ -283,7 +283,7 @@ check('R151-6（V3.9.8 随迁备案）★AI 入口按“卡种 × 现役视图�
     && ce.includes('class="rc-action ai"') && !ce.includes('dr-footer-btn') && w.includes('<template #title>')
     && curioEntries === 3 && cp.includes('aiTriage(detailItem)') && cp.includes('@click="aiTriage()"') && cp.includes('one.status !== \'todo\'')
     && bg.includes("pool.length < (single ? 1 : 3)") && bg.includes("'triage:' + pool[0].id")
-    && m.includes('三种视图的每张真身卡') && m.includes('镜像卡不给入口') && m.includes('是同一条通道') && m.includes('换一张卡再点就是另起一轮')
+    && m.includes('镜像卡不给入口') && m.includes('资源卡的补全与关联从资源卡池或卡详情进入') && m.includes('是同一条通道') && m.includes('换一张卡再点就是另起一轮')
 });
 
 /* ===== R151-C1/C2 · 门禁与归因工具收口 ===== */
@@ -353,9 +353,10 @@ check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（
   return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
 });
 
-check('R153-4（V3.9.1 重指）主攻百分比与指标条分母保持中性小字可读：fp-pct / mb-denom 走 --text-2，列数钮 24px；旧 cf-pct 随主攻项精简退役', () => {
+check('R153-4（V3.9.13 重指）主攻百分比与指标条分母保持中性小字可读：sf-meta / mb-denom 走 --text-2，列数钮 24px；旧 fp-pct / cf-pct 随主攻项精简退役', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
-  return ch.includes('.fp-pct { color: var(--accent-ink); font-weight: 700;')
+  return ch.includes('.sf-meta { color: var(--text-3);')
+    && !ch.includes('.fp-pct')
     && !ch.includes('.cf-pct')
     && mb.includes('.mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')
 });
@@ -528,7 +529,8 @@ check('R155-① ★容器宽度统一 1440：顶栏三档 + 设置页容器 + �
     && app.includes('.topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
     && app.includes('.topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
     && !app.includes('max-width: 1200px') && !app.includes('max-width: 1120px')
-    && gs.includes('.gs-page { display: flex; max-width: 1440px;') && gs.includes('max-width: 1100px') /* 内容列限宽：容器放宽后防单行过长 */
+    && gs.includes('.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: 24px 36px 64px;')
+    && gs.includes('.gs-content { flex: 1; min-width: 0; padding: 0; overflow: visible;') /* V3.9.13：设置页与其它台面共用 1440 + 36px */
     && mn.includes('max-width: 1440px');
 });
 

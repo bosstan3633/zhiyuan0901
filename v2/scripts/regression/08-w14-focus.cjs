@@ -46,12 +46,17 @@ check('W14-2 ★V3.9.3 Hero 必须"薄"：页头 + 使命带两层，容器内�
   const kpi = CSS.match(/\.pi-ov-kpi \{[^}]*\}/)?.[0] || '';
   const pad = (s) => {
     const m = s.match(/padding:\s*([\d.]+)px\s+([\d.]+)px(?:\s+([\d.]+)px\s+([\d.]+)px)?/)
-    return m ? m.slice(1).map(x => parseFloat(x || '0')) : []
+    if (m) return m.slice(1).map(x => parseFloat(x || '0'))
+    /* V3.9.13：透明的零内距写作 padding: 0，旧四值解析器读不到——按等价零值处理。 */
+    return /padding:\s*0(?:;|\s)/.test(s) ? [0, 0, 0, 0] : []
   };
   const [pt, pr, pb, pl] = pad(hero)
-  const gapRow = parseFloat((hero.match(/gap:\s*([\d.]+)px/) || [0, '99'])[1])
-  return pt <= 14 && pr <= 18 && pb <= 14 && pl <= 18            /* 容器内距上限（原 20/22/18/22） */
+  const gapRow = parseFloat((hero.match(/gap:\s*([\d.]+)px/) || [0, '0'])[1])
+  /* V3.9.13 重指：页头彻底去卡片壳后内距与层距都是 0；保留上限判据，同时负锚钉住卡片壳不回流。 */
+  return pt === 0 && pr === 0 && pb === 0 && pl === 0
     && gapRow <= 10
+    && hero.includes('background: transparent; border: 0;')
+    && hero.includes('box-shadow: none;')
     && !/transform:\s*translateY/.test(kpi)                       /* ★负锚：hover 不许再抬升（常驻区要静） */
     && grid.includes('repeat(4, minmax(0, 1fr))')
     && (OVERVIEW.match(/<button class="pi-ov-kpi(?:\s|")/g) || []).length === 4

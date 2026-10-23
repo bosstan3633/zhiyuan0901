@@ -1561,7 +1561,7 @@ const activeManualSec = ref('quick-1')
 <style src="./settings/base.css"></style>
 
 <style scoped>
-.gs-page { display: flex; max-width: 1440px; margin: 0 auto; }
+.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: 24px 36px 64px; gap: 24px; }
 
 /* 返回按钮 */
 .gs-back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all var(--dur); margin-bottom: 16px; text-decoration: none; width: fit-content; }
@@ -1569,7 +1569,7 @@ const activeManualSec = ref('quick-1')
 
 /* 左侧导航 */
 /* R178（原型 settings-nav-sidebar）：浮动卡片轨（radius-lg + 卡影 + sticky 66px），边线分栏退役 */
-.gs-nav { width: 210px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px; background: var(--surface); box-shadow: var(--shadow-sm); position: sticky; top: 66px; height: fit-content; align-self: flex-start; display: flex; flex-direction: column; gap: 3px; }
+.gs-nav { width: 214px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 11px; background: var(--surface); box-shadow: var(--shadow-sm); position: sticky; top: 66px; max-height: calc(100vh - 90px); overflow-y: auto; align-self: flex-start; display: flex; flex-direction: column; gap: 3px; }
 /* R178（原型 sns-group-title）：组标题 11px/700 三级字
    ★V3.8.30：字距改走 --tracking-sm（同值 0.04em 的令牌，不再写字面量）——
    与卡片分区名共用同一套「小字号 + 正字距 + 700」标签排印，两处只差颜色（导航侧 text-3，分区名 text）。 */
@@ -1589,7 +1589,7 @@ const activeManualSec = ref('quick-1')
 .gs-nav-icon { font-size: 14px; width: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 /* 右侧内容 */
-.gs-content { flex: 1; min-width: 0; max-width: 1100px; padding: 24px 32px; overflow-y: auto; } /* R155-①：容器放到 1440 后右栏会到 1230px，表单强行拉满则单行过长 → 内容列限宽 1100 */
+.gs-content { flex: 1; min-width: 0; padding: 0; overflow: visible; } /* V3.9.13：与调度台/方向台共用 1440px + 36px 页轴；具体阅读行宽由各内容块自控 */
 
 
 
@@ -1714,6 +1714,11 @@ const activeManualSec = ref('quick-1')
 .gs-pd-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
 .gs-pd-actions { display: flex; gap: 8px; margin-top: 14px; }
 @media (max-width: 1100px) { .tt-wrap { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .gs-page { flex-direction: column; padding: 18px 18px 56px; gap: 16px; }
+  .gs-nav { position: static; width: 100%; max-height: none; }
+  .gs-content { width: 100%; }
+}
 
 /* ===== R134-F · AI 助手页 ===== */
 

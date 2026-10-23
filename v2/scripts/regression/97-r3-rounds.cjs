@@ -486,7 +486,7 @@ check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台�
   const m = read('/newtab/manual-data.ts');
   return m.includes('资源卡没有台面') && m.includes('唯一管理面是调度台底部「资源卡」tab')
     && m.includes('一级就是完整方向树') && m.includes('这块面板已退役')
-    && m.includes('已整体退役，调度台现在') && m.includes('三格辅助条')
+    && m.includes('已整体退役，调度台现在') && m.includes('论据卡片总数') && m.includes('佐证附件数量')
     && !m.includes('资源台：资源卡真身的唯一居所') && !m.includes('主航线（R52 全量呈现）')
     && !m.includes('项目总览</b>：满宽三列卡') && !m.includes('5 指标条')
     && !m.includes('🏛 策展主题（R67 起');

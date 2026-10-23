@@ -9,8 +9,8 @@
  * 四格核心读数仍在 PiOverview；连续打卡等时间指标在 PiYear。
  * 本组件零计算、零取 store。
  *
- * W12-B 页头三件套（刷新 · 导出 · 全部记录）与 E2E-21 选择器（.pi-hero）保持不变——
- *   本组件以 `class="pi-hero hero-card"` 双类共存，E2E 零修改直过。
+ * W12-B 页头三件套（刷新 · 导出 · 全部记录）与 E2E-21 选择器（.pi-hero）保持不变。
+ * V3.9.13：周期切换并入同一工具行，删掉独立 PERIOD 提示带，首屏直接进入双面板。
  */
 import Icon from '@/shared/components/Icon.vue'
 import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
@@ -32,11 +32,12 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
 
 <template>
   <section class="pi-hero hero-card">
-    <!-- ① 首行两端对齐（F1）：1280px 视口下按钮组稳居右上，绝不掉行。 -->
+    <!-- 一行完成身份、周期与导出：标题不再另起一块。 -->
     <div class="hero-row-top">
       <div class="hero-head">
         <div class="pi-hero-t"><span class="pi-hero-eyebrow"><span class="dot"></span>画像洞察</span>你的知源使用画像<span class="en">PROFILE INSIGHTS</span></div>
       </div>
+      <div class="pi-hero-range"><slot name="range" /></div>
       <div class="pi-hero-acts">
         <button class="pi-btn line" title="重读事件日志刷新统计" @click="emit('refresh')">⟳ 刷新</button>
         <ExportMenu @pick="onPick" />

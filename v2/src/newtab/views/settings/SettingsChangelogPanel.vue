@@ -40,21 +40,25 @@
           <article v-for="e in orderedChangelog" :id="anchorOf(e.version)" :key="e.version" class="gs-cl-item"
             :class="{ current: e.version === runtimeVersion, active: activeVersion === e.version }"
             :data-version="e.version">
-            <div class="gs-cl-meta">
-              <span class="gs-cl-ver">V{{ e.version }}</span>
-              <span class="gs-cl-date">{{ e.date }}</span>
-              <span v-if="e.version === runtimeVersion" class="gs-cl-now">当前版本</span>
-            </div>
-            <div class="gs-cl-title">{{ e.title }}</div>
-            <!-- S5：三段式（新增 / 修复 / 优化）。kindGroupsOf 返回 null 的版本
-                 （v2 时代单要点、标注缺失或脱节）走平铺列表，不硬造空段。 -->
-            <template v-if="kindGroupsOf(e)">
-              <div v-for="g in kindGroupsOf(e)" :key="g.kind" class="gs-cl-group">
-                <div class="gs-cl-group-h"><span class="gs-cl-group-k">{{ g.label }}</span><span class="gs-cl-group-n">{{ g.items.length }}</span></div>
-                <ul class="gs-cl-points"><li v-for="(p, i) in g.items" :key="i"><RichText :text="p" /></li></ul>
+            <header class="gs-cl-entry-head">
+              <div class="gs-cl-meta">
+                <span class="gs-cl-ver">V{{ e.version }}</span>
+                <span class="gs-cl-date">{{ e.date }}</span>
+                <span v-if="e.version === runtimeVersion" class="gs-cl-now">当前版本</span>
               </div>
-            </template>
-            <ul v-else class="gs-cl-points"><li v-for="(p, i) in e.points" :key="i"><RichText :text="p" /></li></ul>
+              <div class="gs-cl-title">{{ e.title }}</div>
+            </header>
+            <!-- V3.9.13：版本内部分组改为自适应双列，消掉正文右侧长期空白；
+                 阅读行宽仍由每列约束，长段落不会横跨整个人眼舒适区。 -->
+            <div class="gs-cl-entry-body">
+              <template v-if="kindGroupsOf(e)">
+                <div v-for="g in kindGroupsOf(e)" :key="g.kind" class="gs-cl-group">
+                  <div class="gs-cl-group-h"><span class="gs-cl-group-k">{{ g.label }}</span><span class="gs-cl-group-n">{{ g.items.length }}</span></div>
+                  <ul class="gs-cl-points"><li v-for="(p, i) in g.items" :key="i"><RichText :text="p" /></li></ul>
+                </div>
+              </template>
+              <ul v-else class="gs-cl-points gs-cl-points-flat"><li v-for="(p, i) in e.points" :key="i"><RichText :text="p" /></li></ul>
+            </div>
           </article>
           </div>
         </div>
@@ -144,8 +148,8 @@ onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
    `.gs-cl-*` 全族经 grep 确认只被本子域使用，随迁不影响其他子域。 */
 /* 产品更新日志（W5 / V3.8.5 · V3.8.38 S5 结构化 · V3.9.11 目录化）
    左侧是版本线与可点击目录，右侧是内容区；左侧随内容高亮，右侧独立滚动，长历史不把页面拉成一条线。 */
-.gs-cl-shell { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 28px; align-items: start; }
-.gs-cl-dir { position: sticky; top: 12px; max-height: min(68vh, 640px); display: flex; flex-direction: column; min-height: 0; }
+.gs-cl-shell { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 32px; align-items: start; }
+.gs-cl-dir { position: sticky; top: 12px; max-height: min(72vh, 720px); display: flex; flex-direction: column; min-height: 0; }
 .gs-cl-dir-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 10px 9px; border-bottom: 1px solid var(--border); }
 .gs-cl-dir-h b { color: var(--text); font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); }
 .gs-cl-dir-h span { color: var(--text-3); font-size: var(--fs-micro); white-space: nowrap; }
@@ -163,12 +167,13 @@ onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
 .gs-cl-dir-text small { font-size: var(--fs-micro); color: var(--text-3); }
 .gs-cl-dir-item.active .gs-cl-dir-text b { color: var(--accent-ink); }
 .gs-cl-dir-now { margin-left: auto; flex: none; padding: 1px 5px; border-radius: 99px; background: var(--surface); color: var(--accent-ink); font-size: var(--fs-micro); }
-.gs-cl-list { position: relative; min-width: 0; max-height: min(68vh, 640px); overflow: auto; scroll-behavior: smooth; padding: 2px 4px 8px 18px; scrollbar-gutter: stable; }
-.gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 22px 18px; position: relative; scroll-margin-top: 16px; }
+.gs-cl-list { position: relative; min-width: 0; max-height: min(72vh, 720px); overflow: auto; scroll-behavior: smooth; padding: 2px 10px 8px 18px; scrollbar-gutter: stable; }
+.gs-cl-item { border-left: 2px solid var(--border); padding: 0 0 24px 18px; position: relative; scroll-margin-top: 16px; }
 .gs-cl-item:last-child { border-left-color: transparent; padding-bottom: 6px; }
 .gs-cl-item::before { content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface-3); border: 2px solid var(--border-strong); }
 .gs-cl-item.current { border-left-color: var(--accent); }
 .gs-cl-item.current::before { background: var(--accent); border-color: var(--accent); }
+.gs-cl-entry-head { min-width: 0; margin-bottom: 10px; }
 .gs-cl-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 /* S5：版本号走等宽字体。版本号是一串要被逐位比对的字符（3.8.37 / 3.8.4 谁新谁旧），
    等宽下 8 与 3 的宽度一致、竖排时小数点自然对齐；比例字体下这些数字宽窄不一，
@@ -178,20 +183,20 @@ onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
    日期是"这个版本什么时候发的"这一层事实，不该弱到读不出来。降噪只动字号与间距，不动对比度。 */
 .gs-cl-date { font-size: var(--fs-caption); color: var(--text-3); }
 .gs-cl-now { font-size: var(--fs-micro); background: var(--accent-light); color: var(--accent-ink); border-radius: 99px; padding: 1px 8px; font-weight: 600; }
-.gs-cl-title { font-size: var(--fs-body); font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.gs-cl-title { max-width: 62ch; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.gs-cl-entry-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; align-items: start; }
 /* S5：正文行宽 ≤68ch。设置页内容列宽 1100px，12px 正文铺满一行有近 90 个汉字，
    眼睛从行尾扫回行首会迷路；限宽后一行约 34 个汉字（中文按半角折算），落在可读区间。
    只限正文与标题，左轨继续通到卡片右缘——轨是时间轴的脊，不该被行宽截断。 */
-.gs-cl-title, .gs-cl-points { max-width: 68ch; }
-.gs-cl-points { margin: 0; padding-left: 18px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.75; }
+.gs-cl-points { min-width: 0; max-width: 58ch; margin: 0; padding-left: 17px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.72; }
+.gs-cl-points-flat { grid-column: 1 / -1; max-width: 68ch; }
 .gs-cl-points li { margin-bottom: 6px; }
 .gs-cl-points li:last-child { margin-bottom: 0; }
 /* S5：要点里的 `**加粗**` 由 RichText 渲染成真加粗（此前星号原样显示给用户） */
 .gs-cl-points b { color: var(--text); font-weight: 600; }
 /* S5：变更分组（新增 / 修复 / 优化）。段头弱而不隐——它是扫读时的路标，
    用 caption 字号 + --text-2，不靠加粗抢眼（内容本身才是主角）。 */
-.gs-cl-group { margin-top: 10px; }
-.gs-cl-group:first-of-type { margin-top: 6px; }
+.gs-cl-group { min-width: 0; margin: 0; }
 .gs-cl-group-h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .gs-cl-group-k { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); letter-spacing: var(--tracking-sm); }
 .gs-cl-group-n { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 6px; line-height: var(--lh-micro); }
@@ -200,5 +205,6 @@ onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
   .gs-cl-dir { position: static; max-height: none; }
   .gs-cl-dir-list { max-height: 190px; }
   .gs-cl-list { max-height: none; overflow: visible; padding-left: 14px; }
+  .gs-cl-entry-body { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

@@ -25,8 +25,8 @@ import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
-import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
+import CompassProjectReadonlyModal from '../components/compass/CompassProjectReadonlyModal.vue'
 import { useEqualHeight } from '@/newtab/composables/useEqualHeight'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
@@ -224,7 +224,6 @@ function onDocClickCloseWhy(e: MouseEvent): void {
   const t = e.target as HTMLElement | null
   if (whyOpen.value && !t?.closest?.('.focus-why, .why-trigger')) closeWhy()
   if (focusMoreOpen.value && !t?.closest?.('.focus-more-wrap')) focusMoreOpen.value = false
-  if (extraFocusOpen.value && !t?.closest?.('.focus-summary')) extraFocusOpen.value = false
 }
 /** 换一批：在本地候选池里换下一组三件（仍带荐标），不碰任务卡 */
 async function reshuffleFocus(): Promise<void> {
@@ -687,11 +686,11 @@ const focusMeta = computed(() => {
  * ★V3.9.7：主攻摘要点击改为就地打开项目详情抽屉。
  * 原先跳 /compass/projects 说 A 给 B：用户在调度台看主攻，下一页却是整棵方向树，还要再找项目。
  */
-const focusProjectOpen = ref(false)
-const focusProjectId = ref<string | null>(null)
+const readonlyProjectOpen = ref(false)
+const readonlyProjectId = ref<string | null>(null)
 function openFocusProject(p: Project) {
-  focusProjectId.value = p.id
-  focusProjectOpen.value = true
+  readonlyProjectId.value = p.id
+  readonlyProjectOpen.value = true
 }
 
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
@@ -706,7 +705,7 @@ function openReview(): void { battleHost.value?.openToday() }
 const focusDoneCount = computed(() => todayFocusList.value.filter(s => s.done).length)
 const mainFocus = computed<Project | null>(() => focusedProjects.value[0] || null)
 const extraFocus = computed<Project | null>(() => focusedProjects.value[1] || null)
-const extraFocusOpen = ref(false)
+const hasFocusProject = computed(() => !!mainFocus.value || !!extraFocus.value)
 /* ★W17-C03（2026-10-20 用户拍板 · 方案 C）：右栏与左栏等高 + 最近调出按可用高度多显示。
  * 病根：右栏两块面板按内容自然伸缩，左栏卡片随数据变高，1440 下右下留大片空白、顶/底边都不齐。
  * 口径：ResizeObserver 测左侧两张卡实测高度 → CSS 变量（--rail-top-h / --rail-bottom-h）→ 右栏读取；
@@ -895,22 +894,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
         <p>把注意力放在真正要推进的事上。其余的卡，留在手边，随时可取。</p>
       </div>
       <div class="desk-actions">
-        <div v-if="mainFocus" class="focus-summary">
-          <button class="focus-pill" type="button" :title="mainFocus.name + ' · 进入项目详情'" @click="openFocusProject(mainFocus)">
-            <Icon name="main-focus" :size="13" />
-            <span class="fp-name">{{ mainFocus.name }}</span>
-            <span class="fp-pct">{{ focusMeta.get(mainFocus.id)?.pct || 0 }}%</span>
-          </button>
-          <button v-if="extraFocus" class="extra-pill" type="button" :aria-expanded="extraFocusOpen" title="展开第二个主攻" @click="extraFocusOpen = !extraFocusOpen">+1</button>
-          <div v-if="extraFocus && extraFocusOpen" class="extra-focus-pop">
-            <div class="efp-kicker">第二个主攻</div>
-            <button class="efp-row" type="button" @click="openFocusProject(extraFocus)">
-              <span>{{ extraFocus.name }}</span>
-              <b>{{ focusMeta.get(extraFocus.id)?.pct || 0 }}%</b>
-            </button>
-          </div>
-        </div>
-        <button v-else class="no-focus" type="button" @click="router.push('/compass')">
+        <button v-if="!mainFocus" class="no-focus" type="button" @click="router.push('/compass')">
           <Icon name="main-focus" :size="13" /> 去方向台指定主攻
         </button>
         <button class="why-trigger" :class="{ on: whyOpen }" data-testid="focus-why-ico" type="button" @click.stop="toggleWhy">
@@ -1152,10 +1136,31 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <button type="button" @click="openReview">战报</button>
           </header>
           <div class="stat-list">
-            <button class="stat-row" type="button" :disabled="!mainFocus" @click="openStatusDetail('focus')">
+            <div v-if="hasFocusProject" class="stat-focus-block">
+              <div class="stat-focus-label">当前主攻</div>
+              <button v-if="mainFocus" class="stat-focus-item" type="button"
+                :title="mainFocus.name + ' · 打开只读项目详情'" @click="openFocusProject(mainFocus)">
+                <span class="sf-index">01</span>
+                <span class="sf-copy">
+                  <span class="sf-name">{{ mainFocus.name }}</span>
+                  <span class="sf-meta">主攻 1 · {{ focusMeta.get(mainFocus.id)?.pct || 0 }}% 完成</span>
+                </span>
+                <Icon name="arrowright" :size="12" />
+              </button>
+              <button v-if="extraFocus" class="stat-focus-item" type="button"
+                :title="extraFocus.name + ' · 打开只读项目详情'" @click="openFocusProject(extraFocus)">
+                <span class="sf-index">02</span>
+                <span class="sf-copy">
+                  <span class="sf-name">{{ extraFocus.name }}</span>
+                  <span class="sf-meta">主攻 2 · {{ focusMeta.get(extraFocus.id)?.pct || 0 }}% 完成</span>
+                </span>
+                <Icon name="arrowright" :size="12" />
+              </button>
+            </div>
+            <button v-else class="stat-row stat-row-empty" type="button" @click="router.push('/compass')">
               <span class="sk">主攻</span>
-              <span class="sv">{{ mainFocus ? mainFocus.name : '尚未指定' }}</span>
-              <span class="se accent">{{ mainFocus ? (focusMeta.get(mainFocus.id)?.pct || 0) + '%' : '去设置' }}</span>
+              <span class="sv">尚未指定</span>
+              <span class="se">去方向台</span>
             </button>
             <button class="stat-row" type="button" @click="openStatusDetail('unarchived')">
               <span class="sk">未归档</span>
@@ -1189,7 +1194,8 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
     </div>
 
     <TodayBattleHost ref="battleHost" />
-    <ProjectDetailDrawer :open="focusProjectOpen" :project-id="focusProjectId" enable-metric-drill @close="focusProjectOpen = false" />
+    <CompassProjectReadonlyModal :open="readonlyProjectOpen" :project-id="readonlyProjectId"
+      @close="readonlyProjectOpen = false" />
 
     <!-- ★W17-C01：三行状态明细（中央只读弹窗，不跳路由） -->
     <CompassStatusModal :open="!!statusDetail" :kind="statusDetail || 'focus'"
@@ -1325,9 +1331,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   flex-wrap: wrap;
   flex-shrink: 0;
 }
-.focus-summary { position: relative; display: flex; align-items: center; gap: 6px; }
-.focus-pill,
-.extra-pill,
 .no-focus,
 .why-trigger {
   display: inline-flex;
@@ -1344,57 +1347,12 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   cursor: pointer;
   transition: border-color var(--dur), background var(--dur), color var(--dur);
 }
-.focus-pill:hover,
-.extra-pill:hover,
 .no-focus:hover,
 .why-trigger:hover {
   border-color: var(--border-strong);
   background: var(--surface-2);
   color: var(--text);
 }
-.focus-pill { max-width: 300px; }
-.focus-pill > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fp-name { color: var(--text); font-weight: 600; }
-.fp-pct { color: var(--accent-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
-.extra-pill { min-width: 32px; justify-content: center; padding: 0 8px; color: var(--text-3); font-weight: 700; }
-.extra-focus-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: var(--z-popover);
-  width: 260px;
-  padding: 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-}
-.efp-kicker {
-  padding: 2px 4px 7px;
-  color: var(--text-3);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  letter-spacing: .08em;
-}
-.efp-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  min-height: 34px;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--fs-sub);
-  text-align: left;
-  cursor: pointer;
-}
-.efp-row:hover { background: var(--accent-light); color: var(--accent-ink); }
-.efp-row b { flex-shrink: 0; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
 .no-focus { color: var(--text-3); border-style: dashed; }
 .why-trigger { color: var(--text-3); }
 .why-trigger.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
@@ -1925,7 +1883,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
    量不到时回退 auto —— 右栏绝不被压成 0 高，也不会强行拉伸内部元素。
    1200px 以下降级单列（见下方媒体查询），不强制等高。 */
 .rail-panel:not(.rail-panel-recent) { height: var(--rail-top-h, auto); display: flex; flex-direction: column; }
-.rail-panel:not(.rail-panel-recent) .stat-list { flex: 1; min-height: 0; }
+.rail-panel:not(.rail-panel-recent) .stat-list { min-height: 0; }
 .rail-panel-recent { height: var(--rail-bottom-h, auto); display: flex; flex-direction: column; }
 .recent-list { flex: 1; min-height: 0; overflow-y: auto; }
 .rail-panel .rail-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
@@ -1951,6 +1909,30 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   font-size: var(--fs-micro);
 }
 .stat-list { display: flex; flex-direction: column; }
+.stat-focus-block { display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
+.stat-focus-label { padding: 7px 12px 4px; color: var(--text-3); font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--tracking-sm); }
+.stat-focus-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stat-focus-item:hover { background: var(--surface-2); }
+.stat-focus-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sf-index { color: var(--text-4); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
+.sf-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sf-name { overflow: hidden; color: var(--text); font-size: var(--fs-caption); font-weight: 600; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.sf-meta { color: var(--text-3); font-size: var(--fs-micro); }
+.stat-focus-item > :last-child { color: var(--text-3); }
 .stat-row {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
@@ -2253,7 +2235,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   .page { padding: 14px 16px 48px; }
   .desk-head { align-items: flex-start; flex-direction: column; gap: 14px; }
   .desk-actions { justify-content: flex-start; width: 100%; }
-  .focus-pill { max-width: min(240px, calc(100vw - 112px)); }
   .board-head { align-items: flex-start; flex-direction: column; gap: 9px; padding: 13px 15px; }
   .board-tools { width: 100%; flex-wrap: wrap; }
   .focus-row { grid-template-columns: 28px minmax(0, 1fr) 28px; gap: 9px; padding: 12px 12px 12px 15px; }
@@ -2274,7 +2255,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   .focus-row,
   .mini-item,
   .primary-btn,
-  .focus-pill,
   .why-trigger,
   .modal-enter-active,
   .modal-leave-active { transition: none; }

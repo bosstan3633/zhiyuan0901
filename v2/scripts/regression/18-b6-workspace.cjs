@@ -31,6 +31,12 @@ function rule(src, sel) {
   const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return (src.match(new RegExp('^' + esc + ' \\{[^}]*\\}', 'm')) || [''])[0];
 }
+/** 同名规则允许在文件后段做层叠覆盖时，取最后一条（例如 .mind-desc 的基础控件规则与语义规则）。 */
+function lastRule(src, sel) {
+  const esc = sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const all = [...src.matchAll(new RegExp('^' + esc + ' \\{[^}]*\\}', 'gm'))];
+  return all.length ? all[all.length - 1][0] : '';
+}
 
 console.log('【B6 · V3.8.34：项目详情（P1 / P2）与策展台（W1 / W2 / W3 / W5）】');
 
@@ -94,12 +100,18 @@ check('W1-1（V3.9.8 随迁）树区是主角面：现役策展画布用 surface
     && shell.includes('box-shadow: var(--shadow-sm)');
 });
 
-check('W1-2（V3.9.8 随迁）中轴与层级连接线随内容走：金字塔在 .mind-children 上画同层横线、在分支上画竖线，滚动域是 .mindmap-canvas', () => {
+check('W1-2（V3.9.13 重指）中轴与层级连接线随内容走：金字塔按首/末子节点中心生成同层总线，父节点下引线与子节点上引线可见，滚动域是 .mindmap-canvas', () => {
   const axis = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children::before');
   const vertical = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
+  const row = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::after');
+  const rowFirst = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:first-child::after');
+  const rowLast = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:last-child::after');
   if (!axis) { console.log('     中轴规则缺失'); return false; }
-  return axis.includes('height: 2px') && axis.includes('background: color-mix(in srgb, var(--accent) 55%, var(--border-strong))')
-    && !!vertical && vertical.includes('width: 2px') && vertical.includes('background: color-mix(in srgb, var(--accent) 55%, var(--border-strong))')
+  return axis.includes('height: 16px') && axis.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
+    && !!vertical && vertical.includes('width: 2px') && vertical.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
+    && !!row && row.includes('left: 0') && row.includes('right: 0') && row.includes('height: 2px')
+    && !!rowFirst && rowFirst.includes('left: 50%')
+    && !!rowLast && rowLast.includes('right: 50%')
     && rule(MIND_CSS, '.mindmap-canvas').includes('overflow: auto');
 });
 
@@ -180,14 +192,22 @@ check('W3-1 计数行降 caption：分类数/镜像数/更新流水一行可忽�
 });
 
 /* ============ W5 · 中心论点层级 ============ */
-check('W5-1 论点卡是题眼：标题 headline 17 + accent 左竖条作身份标识；竖条用 inset box-shadow 内画，不与已有 accent 描边叠成双线', () => {
+check('W5-1（V3.9.13 重指）论点卡仍是题眼：顶部论点标题保持 headline 档与 accent 左竖条；画布 L1 节点标题高于说明一档，标题与说明分行且由发丝线分隔', () => {
   const banner = rule(CSS, '.thesis-banner');
   const tbt = rule(CSS, '.tb-title');
   const root = rule(MIND_CSS, '.mind-node.mind-root');
   const rtitle = rule(MIND_CSS, '.mind-root .mind-title');
+  const nodeTitle = rule(MIND_CSS, '.mind-title');
+  /* V3.9.13：.mind-desc 先有共用输入控件基础规则，后有说明行语义规则；判据按层叠后的最后一条取证。 */
+  const nodeDesc = lastRule(MIND_CSS, '.mind-desc');
   if (!banner || !tbt || !root || !rtitle) { console.log('     规则缺失'); return false; }
   return tbt.includes('var(--fs-headline)')
-    && rtitle.includes('var(--fs-sub)')
+    && rtitle.includes('calc(var(--fs-body) + 1px)')
+    && nodeTitle.includes('display: block')
+    && nodeTitle.includes('var(--fs-body)')
+    && nodeDesc.includes('display: block')
+    && nodeDesc.includes('border-top: 1px solid')
+    && nodeDesc.includes('var(--fs-caption)')
     && banner.includes('inset 3px 0 0 var(--accent)')
     && root.includes('inset 3px 0 0 var(--accent)')
     && !root.includes('border-left')

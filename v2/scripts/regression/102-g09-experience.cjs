@@ -160,7 +160,9 @@ check('G102-11 更新日志双栏结构：gs-cl-shell 左目录 button + data-ve
     && CHANGELOG.includes("{ current: e.version === runtimeVersion, active: activeVersion === e.version }")
     && CHANGELOG.includes('ref="contentRef" class="gs-cl-list"')
     && CHANGELOG.includes('overflow: auto')
-    && CHANGELOG.includes('max-height: min(68vh, 640px)');
+    && CHANGELOG.includes('max-height: min(72vh, 720px)')
+    && CHANGELOG.includes('class="gs-cl-entry-body"')
+    && CHANGELOG.includes('grid-template-columns: repeat(2, minmax(0, 1fr))');
 });
 
 check('G102-12 更新日志目录可定位且同步高亮：点击 scrollTo 对应 data-version，滚动只走同一套位置口径更新 active（不得再用 IntersectionObserver 抢选中）；目录项 44px 键盘可达', () => {

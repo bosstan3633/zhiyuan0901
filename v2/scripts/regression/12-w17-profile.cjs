@@ -58,8 +58,10 @@ check('W17-20 ★时间线退役：宿主零挂载 PiRail，样式零命中，�
     /* ★W18（2026-10-20 用户拍板）重指：默认范围改为「本年」——先看长期状态，再按需下钻。 */
     && PI_C.includes("const activeRange = ref<PiRange>('year')")
     && !PI_C.includes('onRailJump') && !PI_C.includes('railActive')
-    /* 段头文案不再用 TIMELINE 叙事 */
-    && PI.includes('PERIOD ·');
+    /* V3.9.13：周期带并入 Hero，独立 PERIOD 提示带退役；页签仍是唯一导航。 */
+    && PI.includes('<template #range>')
+    && !PI.includes('PERIOD ·')
+    && !PI.includes('class="pi-period-head"');
 });
 
 check('W17-21 ★今日对账段退役：PiToday 无 f3-compact，画像页不再发勾选/归位/填入事件', () => {
@@ -150,7 +152,7 @@ check('V3.9.6-2 ★双口径不许被悄悄合并：「今日入台」计数仍�
 console.log('【V3.9.7 · 画像台布局、卡片直达、标签解释】');
 
 check('V3.9.7-1 ★页头压缩：标题和操作按钮保留，去掉外层阴影并降低标题字号', () => {
-  return /\.pi-hero\.hero-card \{[\s\S]*?padding: 8px 14px; box-shadow: none;/.test(CSS)
+  return /\.pi-hero\.hero-card \{[\s\S]*?background: transparent; border: 0;[\s\S]*?padding: 0; box-shadow: none;/.test(CSS)
     && /\.pi-hero-t \{[\s\S]*?font-size: var\(--fs-title\);/.test(CSS)
     && HERO.includes('⟳ 刷新')
     && HERO.includes('<ExportMenu')

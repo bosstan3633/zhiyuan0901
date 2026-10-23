@@ -7,30 +7,33 @@
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
-    <div class="ws-id-head">
-      <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
-      <b class="wsh-name">{{ wsDisplayNameOf(workspace) }}</b>
-      <!-- V3.7.0（R179）：资源台页头分支退役——策展台两态描述 + 摘要 + 更新流水入口为唯一形态 -->
-      <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
-      <span class="wsh-spacer" />
-      <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
-    </div>
-    <!-- R126（原型还原）：中心论点横幅上移常驻——所有视图可见（原在卡片视图内、切视图即消失） -->
-    <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
-      :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
-      @click="thesisCard ? openThesisCard() : openThesisCreate()"
-      @keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"
-      @keydown.space.prevent="thesisCard ? openThesisCard() : openThesisCreate()">
-      <template v-if="thesisCard">
-        <span class="tb-badge"><Icon name="landmark" :size="13"/> 中心论点</span>
-        <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
-        <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击打开论点卡详情' }}</span>
-        <span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span>
-        <ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
-      </template>
-      <template v-else>
-        <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
-      </template>
+    <!-- V3.9.13：台身份与中心论点合成同一条上下文带；论点不再独占整行，工具条紧接其后。 -->
+    <div class="ws-hero">
+      <div class="ws-id-head">
+        <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
+        <b class="wsh-name">{{ wsDisplayNameOf(workspace) }}</b>
+        <!-- V3.7.0（R179）：资源台页头分支退役——策展台两态描述 + 摘要 + 更新流水入口为唯一形态 -->
+        <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
+        <span class="wsh-spacer" />
+        <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
+      </div>
+      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.13 起与台身份并排，保留原入口与键盘语义。 -->
+      <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
+        :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
+        @click="thesisCard ? openThesisCard() : openThesisCreate()"
+        @keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"
+        @keydown.space.prevent="thesisCard ? openThesisCard() : openThesisCreate()">
+        <template v-if="thesisCard">
+          <span class="tb-badge"><Icon name="landmark" :size="13"/> 中心论点</span>
+          <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
+          <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击打开论点卡详情' }}</span>
+          <span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span>
+          <ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
+        </template>
+        <template v-else>
+          <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
+        </template>
+      </div>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
     <Teleport to="body">

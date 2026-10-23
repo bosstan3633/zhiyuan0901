@@ -977,10 +977,14 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 </script>
 <template>
   <div class="pi-page">
-    <!-- ===== §0 Hero 页头（★W17-C09：只留标题 + 三件套；方向带迁入方向状态面板） ===== -->
+    <!-- ===== §0 Hero 页头（V3.9.13：周期切换并入同一工具行，不再单占一屏行） ===== -->
     <PiHero :error-count="errorLogCount"
       @refresh="onHeroRefresh" @export="onHeroExport"
-      @export-error="exportErrorLog" @open-log="openLog('log')" />
+      @export-error="exportErrorLog" @open-log="openLog('log')">
+      <template #range>
+        <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
+      </template>
+    </PiHero>
 
     <!-- ===== §1 首屏双面板：产品使用状态 + 个人方向状态 ===== -->
     <PiOverview
@@ -991,14 +995,8 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
       @kpi-drill="onHeroDrill" @goto-compass="gotoCompass"
       @open-project="openProjectDetail" />
 
-    <!-- ===== §2 按周期观察：页签是唯一导航（★W17-C09：时间线与节点已退役） ===== -->
-    <div class="pi-period-head">
-      <div class="pi-tl-bar">
-        <div><span class="pi-tl-kicker">PERIOD · 一次只看一个时间范围，切页签即可</span></div>
-        <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
-      </div>
-    </div>
-      <div class="pi-rmods pi-rmods-single">
+    <!-- ===== §2 按周期观察：页签已是唯一导航，直接进入当前周期 ===== -->
+    <div class="pi-rmods pi-rmods-single">
         <PiToday v-if="activeRange === 'today'"
           :today-add="todayAdd" :today-called="todayCalled"
           :today-import="todayImportCount"

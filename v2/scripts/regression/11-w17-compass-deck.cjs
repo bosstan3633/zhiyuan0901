@@ -33,17 +33,18 @@ console.log('【W17 · 调度台侧栏 + 三卡池体验（V3.9.4 / V3.9.5 批�
 
 /* ══════════════ C01 · 三行状态 → 中央只读明细弹窗 ══════════════ */
 
-check('W17-1 ★三行不跳页：主攻 / 未归档 / 本周复用三行都只开中央弹窗，零 router.push（说 A 给 B 的病灶）', () => {
+check('W17-1 ★侧栏主攻行开只读项目详情，未归档 / 本周复用两行开只读清单；全部零 router.push', () => {
   return PI.includes("function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }")
-    && PI.includes("@click=\"openStatusDetail('focus')\"")
+    && PI.includes('@click="openFocusProject(mainFocus)"')
+    && PI.includes('@click="openFocusProject(extraFocus)"')
     && PI.includes("@click=\"openStatusDetail('unarchived')\"")
     && PI.includes("@click=\"openStatusDetail('reuse')\"")
     && PI.includes('<CompassStatusModal')
     /* 负锚：退役的跳转函数不许回来 */
     && !PI_C.includes('function openUnarchived(')
     && !PI_C.includes('function openWeeklyReuse(')
-    /* 三行（stat-row）内不再出现任何 router.push 形态的跳转；页头主攻 pill 的 openFocusProject 是另一处入口，不在本条范围 */
-    && !/class="stat-row"[\s\S]{0,260}?openFocusProject\(/.test(PI);
+    /* 侧栏入口只切本地状态，不产生路由跳转。 */
+    && !/class="stat-(?:row|focus-item)"[\s\S]{0,260}?router\.push\(/.test(PI);
 });
 
 check('W17-2 ★只读：明细弹窗里没有任何下钻/勾选交互，标题可选中复制', () => {
@@ -216,11 +217,12 @@ check('V3.9.7-1 ★手边的卡三类各 5 行；右栏最近调出按可用高�
     && PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
 });
 
-check('V3.9.7-2 ★主攻项目点击打开项目详情抽屉，不再跳方向树', () => {
+check('V3.9.13-2 ★主攻项目点击打开只读详情弹窗，不再跳方向树，也不再进入可编辑抽屉', () => {
   const fn = PI.slice(PI.indexOf('function openFocusProject'), PI.indexOf('// ================= 底部专区'));
-  return PI.includes("import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'")
-    && PI.includes('<ProjectDetailDrawer :open="focusProjectOpen"')
-    && fn.includes('focusProjectOpen.value = true')
+  return PI.includes("import CompassProjectReadonlyModal from '../components/compass/CompassProjectReadonlyModal.vue'")
+    && PI.includes('<CompassProjectReadonlyModal :open="readonlyProjectOpen"')
+    && fn.includes('readonlyProjectOpen.value = true')
+    && fn.includes('readonlyProjectId.value = p.id')
     && !fn.includes('router.push');
 });
 

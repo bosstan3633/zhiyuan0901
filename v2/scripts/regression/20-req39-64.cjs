@@ -345,7 +345,7 @@ check('R50-10（V3.7.0 重指）资源台路由退役：/curation redirect 回�
 check('R50-11 F3 投射入口（V3.7.0 重指）：镜像推送入口退役（宿主零 openMirrorCard/openMirrorCat）+ hub.ts 服务层保留 + 旧方向入口已拆', () => { const a = read('/newtab/App.vue'); const c = codeOnly(read('/newtab/views/Workspace.vue')); const h = read('/shared/storage/hub.ts'); return !a.includes('projectWorkspaceToCuration') && !c.includes('openMirrorCard') && !c.includes('openMirrorCat') && h.includes('projectCardToBoard') && h.includes('mirrorCategoryToBoard'); });
 check('R50-12 F8 open-tree 快捷键：manifest 命令名保留（用户可能已绑自定义键位）+ background 分发 /compass（★R3-B1：树即一级，目的地随合并改投）+ 设置页文案仍点名完整方向树', () => { const mf = read('/manifest.ts'); const b = read('/background/index.ts'); const g = read('/newtab/views/GlobalSettings.vue'); return mf.includes("'open-tree': {") && b.includes("case 'open-tree'") && b.includes("route: '/compass'") && !b.includes("route: '/compass/tree'") && g.includes('完整方向树'); });
 check('R50-13 F9 Splash 镂空「知」：index.html .dot 内 i 知 + 占位 logo 注释', () => { const h = read('/newtab/index.html'); return h.includes('<i>知</i>') && h.includes('R50-F9'); });
-check('R63-15 手册重写（R63 口径）：资源台/策展台术语切换（无策展中心/用户工作台旧词）+ 金字塔/指标卡/中心论点 + Airtable 同步章节 + sync-airtable 快捷键（★R4-Df 再重指带备案：本条原先把两句已失效的事实钉成了逐字锚——① 「资源台：资源卡真身的唯一居所」是旧台面时代的章标题，V3.7.0 之后资源卡没有台面；② 「5 指标卡」，策展台辅助条自 R98 起 5→3、R123 又退役主题格（来源构成那格随之消失）。断言钉住错句子比没有断言更坏：它让每次试图改对的人先撞一次红，久了就没人改。现按当下真形状重钉：池卡管理面 = 调度台底部 tab + 三格实名（论据卡片总数 / 佐证附件数量 / 金字塔论证深度），并把两句旧话转成不许回流的负判据。其余锚点（策展台标题、金字塔、设为中心论点、Airtable 两键、最多 4 级、两个禁词）一字未动）（★W1.1 再随迁：V3.8.1 Tab 改名改序，「资源卡池（调度台底部默认 tab）」→「资源卡（调度台底部 tab）」——默认档已由池切到任务卡，锚句随之改指）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('资源卡（调度台底部 tab）') && m.includes('V3.7.0 起所有资源卡真身统一住进') && m.includes('策展台：为一次策展而生的专题空间') && !m.includes('策展中心') && !m.includes('用户工作台') && m.includes('三格辅助条') && m.includes('论据卡片总数') && m.includes('佐证附件数量') && m.includes('金字塔论证深度') && !m.includes('5 指标卡') && !m.includes('来源构成') && m.includes('金字塔') && m.includes('设为中心论点') && m.includes('Airtable 同步（进阶）') && m.includes('同步到 Airtable') && m.includes('最多 4 级'); });
+check('R63-15（V3.9.13 重指）手册策展口径：单一策展画布、金字塔 / 树状同树、论据卡片总数 / 佐证附件数量两项读数、键盘建支与拖拽移动整棵子树；已退役的论证深度与来源覆盖不许回流', () => { const m = read('/newtab/manual-data.ts'); return m.includes('资源卡（调度台底部 tab）') && m.includes('V3.7.0 起所有资源卡真身统一住进') && m.includes('策展台：为一次策展而生的专题空间') && !m.includes('策展中心') && !m.includes('用户工作台') && m.includes('单一策展画布') && m.includes('论据卡片总数') && m.includes('佐证附件数量') && !m.includes('金字塔论证深度') && !m.includes('来源覆盖') && !m.includes('四档视图') && m.includes('金字塔 / 树状') && m.includes('移动整棵子树') && m.includes('设为中心论点') && m.includes('Airtable 同步（进阶）') && m.includes('同步到 Airtable') && m.includes('最多 4 级'); });
 
 // ============== 第五十一轮 · V2.24.0：刷新回首页 + 详情抽屉回归 + 上下联动 + 下钻右侧抽屉 + 主航线投射口径 ==============
 console.log('【第五十一轮 · V2.24.0：下钻右侧抽屉 + 上下联动 + 详情页回归】');
@@ -533,7 +533,7 @@ check('R63-16 手册同步口径更新（替代 R54-14 策展段）：快速采�
 console.log('【第五十五轮 · V2.28.0：八包迭代】');
 check('R55-1 E 分栏拖拽根因修复', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('curColsStyle') && !h.includes('curSplit');  });
 check('R55-2 E ★R2-② 退役重写带备案（R2-⑥ 二次随迁：curSplit/spotSplit 两键也删，不再「字段与模型保留」）：cur-split 分隔条随项目调度卡退役（无后继分栏面）', () => { const h = read('/newtab/views/CompassHome.vue'); const m = read('/shared/models/index.ts'); return !h.includes('cur-split') && !h.includes('startCurSplitDrag') && !codeOnly(m).includes('curSplit') && !codeOnly(m).includes('spotSplit'); });
-check('R55-3/R66（V3.9.1 重指）方向状态迁调度台：首页页头主攻摘要 + 右栏「今天的状态」承担方向读数，方向台（树）不再引用 MetricBar', () => { const h = read('/newtab/views/CompassHome.vue'); const t = CT_ALL; return h.includes('class="desk-actions"') && h.includes('class="focus-summary"') && h.includes('class="side-rail"') && h.includes('今天的状态') && !h.includes('<MetricBar>') && !t.includes('MetricBar'); });
+check('R55-3/R66（V3.9.13 重指）方向状态迁调度台：主攻 1 / 主攻 2 两行常驻右栏「今天的状态」，页头不再塞主攻摘要，方向台（树）不再引用 MetricBar', () => { const h = read('/newtab/views/CompassHome.vue'); const t = CT_ALL; return h.includes('class="desk-actions"') && h.includes('class="side-rail"') && h.includes('class="stat-focus-block"') && h.includes('主攻 1') && h.includes('主攻 2') && h.includes('今天的状态') && !h.includes('class="focus-summary"') && !h.includes('<MetricBar>') && !t.includes('MetricBar'); });
 check('R55-4 D2（R56-P1 修订）项目调度 4 指标恢复左列', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('cur-stats-v2') && !h.includes('cur-stat-strip') && pc.includes('class="pb-stats"');  });
 check('R55-5（R64 修订）MetricBar 主数字=战略目标数（dhi.goals 直读）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('m.value.dhi.goals'); });
 check('R55-6（R64 修订）MetricDrillDrawer dhiRows=项目数/推进中项目数（每目标行）', () => { const md = read('/newtab/components/compass/MetricDrillDrawer.vue'); return md.includes('const pushing = projs.filter') && md.includes('<Icon name="package" :size="13"/> 项目 {{ row.pinned }} · 推进中 {{ row.active }}'); });
@@ -866,12 +866,13 @@ check('R64-15（V3.9.8 随迁备案）画布连线：旧 SVG drawPyLinks 随四�
     && c.includes('.mindmap-canvas[data-layout="tree"] .mind-children > .mind-branch::before')
     && c.includes('.mindmap-canvas[data-layout="tree"] .mind-branch:has(> .mind-children) > .mind-node::after');
 });
-check('R64-16（V3.9.8 随迁备案）中心论点创建：空画布 CTA 发 open-create-thesis，宿主 openThesisCreate 打开新建抽屉并预置 isThesis；旧“点击设立中心论点”文案与 ws-hero 均零命中', () => {
+check('R64-16（V3.9.13 重指）中心论点创建：空画布 CTA 发 open-create-thesis，宿主 openThesisCreate 打开新建抽屉并预置 isThesis；论点由紧凑上下文带与画布 L1 双入口承担，旧“点击设立中心论点”文案零命中', () => {
   const w = read('/newtab/views/Workspace.vue');
   const m = read('/newtab/components/curation/CurationMindMap.vue');
   return m.includes("emit('open-create-thesis')") && m.includes('action-label="＋ 写下中心论点"')
     && w.includes('function openThesisCreate()') && w.includes('editingResource.isThesis = true')
-    && !w.includes('点击设立中心论点') && !w.includes('ws-hero')
+    && !w.includes('点击设立中心论点') && w.includes('class="ws-hero"')
+    && w.includes('中心论点') && w.includes('论点卡详情')
     && w.includes('<Icon name="palette" :size="13"/> 更换图标');
 });
 
