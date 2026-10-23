@@ -1734,8 +1734,11 @@ onUnmounted(() => {
   margin-bottom: 14px; padding-bottom: 0; border-bottom: 0;
 }
 .compass-layout.is-pano :deep(.spine-h) { padding: 7px 12px 6px; }
-.compass-layout.is-pano :deep(.spine-hint),
-.compass-layout.is-pano :deep(.spine-badge) { display: none; }
+.compass-layout.is-pano :deep(.spine-hint) { display: none; }
+/* V3.9.14：收起态那枚 badge 是“六层仍在”的唯一可见凭据，不能被一起藏掉。
+   全景页只隐藏展开态的定位语，保留 1 愿景 · … · 6 任务的压缩摘要。 */
+.compass-layout.is-pano :deep(.spine-badge:not(.compact)) { display: none; }
+.compass-layout.is-pano :deep(.spine-toggle) { min-height: 28px; }
 .compass-layout.is-pano :deep(.spine-b) { padding: 7px 12px 9px; gap: 7px; }
 .compass-layout.is-pano :deep(.spine-lv) { min-height: 30px; padding: 5px 10px; }
 .compass-layout.is-pano :deep(.spine-risk.zero) { display: none; }
@@ -1825,6 +1828,8 @@ onUnmounted(() => {
 /* 项目全景已有自己的项目切换器；左栏项目清单只服务项目塔，继续常驻会多出一套重复导航。 */
 .tree-layout.is-pano { display: block; }
 .tree-layout.is-pano .navside { display: none; }
+/* 全景没有左栏，画布应吃满 1440 页轴；沿用项目塔的 1180px 上限会在右侧留下整片空板。 */
+.tree-layout.is-pano .canvas-inner { width: 100%; max-width: none; }
 @media (max-width: 800px) {
   .compass-layout { padding: 16px 16px 48px; }
   .tree-layout { display: block; }

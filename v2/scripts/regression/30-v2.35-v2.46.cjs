@@ -50,11 +50,11 @@ check('R65-3（V3.9.8 重指）资源池批量栏：全选 / 反选 / 打标签 
     && bar.includes("emit('apply-tag', t)");
 });
 check('R65-4（R73 修订；R100 拆入 useWorkspaceImport；R2-⑧ 本地文件宿主迁「资源卡池」面板；★R4-Db 再重指带备案：书签链路的持有者从 Workspace 改为 useBookmarkImport——Workspace 那枚 bookmarkInput 是全站零 .click() 的 parked input（入口早收在设置页），本轮连它和它的文件夹勾选弹窗一并删除；makeHubResource 随建树死链退役（hub 是已废弃旧称，它又硬编码池 id），书签卡构造式改名 makeBookmarkCard 且不再指向池）导入链路一条口径：书签=useBookmarkImport 持有 bookmarkInput + handleBookmarkImport + parseBookmarksHtml 且构造式不落池 id，本地文件=PoolCardsPanel 持有 fileImportInput + handleFileImport 且 workspaceId 钉成池 id', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = read('/newtab/composables/useWorkspaceImport.ts'); const w = codeOnly(read('/newtab/views/Workspace.vue')); const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return bk.includes('bookmarkInput') && bk.includes('handleBookmarkImport') && bk.includes('parseBookmarksHtml') && bk.includes('function makeBookmarkCard') && imp.includes('handleFileImport') && !imp.includes('bookmarkInput') && !w.includes('bookmarkInput') && !w.includes('handleBookmarkImport') && !codeOnly(w).includes('fileImportInput') && pool.includes('fileImportInput') && pool.includes('handleFileImport') && pool.includes('workspaceId: computed(() => CURATION_WS_ID)'); });
-check('R65-5/R66（V3.9.8 随迁备案）金字塔居中树布局：旧 CSS Grid 的 pyLayout/placeCat 随四视图退役；现役画布以 .mind-stage 居中、.mind-children 横排子组、每个父分支纵向居中，树状布局则整体向右展开', () => {
+check('R65-5/R66（V3.9.14 重指）金字塔居中树布局：旧 CSS Grid 的 pyLayout/placeCat 随四视图退役；现役画布以相对定位的 .mind-stage 承载节点与 SVG 连线层、.mind-children 横排子组、每个父分支纵向居中，树状布局则整体向右展开', () => {
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   const c = read('/newtab/components/curation/curation.css');
   return !host.includes('pyLayout') && !host.includes('placeCat')
-    && c.includes('.mind-stage { width: max-content; min-width: 100%; display: flex; justify-content: center;')
+    && c.includes('.mind-stage { position: relative; width: max-content; min-width: 100%; display: flex; justify-content: center;')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-branch { display: flex; flex-direction: column; align-items: center; }')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children { display: flex; align-items: flex-start; justify-content: center;')
     && c.includes('.mindmap-canvas[data-layout="tree"] .mind-stage { justify-content: flex-start; }')

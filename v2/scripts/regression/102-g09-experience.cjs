@@ -151,7 +151,7 @@ check('G102-10 四段 AI 事实白名单：事实全部由 profileRangeFacts 产
     && PROFILE.includes('facts: range => profileRangeFacts(range, {');
 });
 
-check('G102-11 更新日志双栏结构：gs-cl-shell 左目录 button + data-version 内容 + active/current 双态 + 右侧独立滚动', () => {
+check('G102-11 V3.9.14 更新日志单列结构：左侧版本目录 + 右侧单列正文 + active/current 双态 + 内容独立滚动', () => {
   return CHANGELOG.includes('class="gs-cl-shell"')
     && CHANGELOG.includes('<nav class="gs-cl-dir" aria-label="更新日志版本目录">')
     && CHANGELOG.includes('<button v-for="e in orderedChangelog"')
@@ -162,7 +162,7 @@ check('G102-11 更新日志双栏结构：gs-cl-shell 左目录 button + data-ve
     && CHANGELOG.includes('overflow: auto')
     && CHANGELOG.includes('max-height: min(72vh, 720px)')
     && CHANGELOG.includes('class="gs-cl-entry-body"')
-    && CHANGELOG.includes('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    && CHANGELOG.includes('display: flex; flex-direction: column; gap: 12px; align-items: stretch; width: 100%;');
 });
 
 check('G102-12 更新日志目录可定位且同步高亮：点击 scrollTo 对应 data-version，滚动只走同一套位置口径更新 active（不得再用 IntersectionObserver 抢选中）；目录项 44px 键盘可达', () => {

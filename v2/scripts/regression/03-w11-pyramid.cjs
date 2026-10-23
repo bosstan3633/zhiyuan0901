@@ -124,10 +124,12 @@ check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的
   const L = PANO_LANE;
   return PANO.includes('class="lanes"')
     && /\.lanes \{[^}]*display: flex[^}]*overflow-x: auto/.test(PANO)
-    /* 泳道本体：一根固定宽、列向堆叠 */
-    /* 宽度随指标数量弹性铺开；基础最小宽仍 ≥280px，多泳道时容器横向滚动。
-       不再钉死 262px：只有一条指标时该值会让右侧留下整片空画布。 */
-    && /\.lane \{[^}]*flex: 1 0 280px[^}]*flex-direction: column/.test(L)
+    /* 泳道本体：一根泳道一条指标，列向堆叠。
+       V3.9.14：由固定 280px 改为 flex 等分；1~4 条指标吃满画布，
+       5 条以上保留 280px 下限并横向滚动。车道容器必须 stretch，
+       否则各泳道高度仍会被内容截断，视觉上回到长短不齐的纵向列表。 */
+    && /\.lane \{[^}]*flex: 1 1 0[^}]*min-width: 280px[^}]*flex-direction: column/.test(L)
+    && /\.lanes \{[^}]*align-items: stretch/.test(PANO)
     /* 项目摘要脚注里仍逐层点名：第 4 层路径 + 第 5/6 层计数 */
     && PANO.includes('class="ph-foot"')
     && PANO.includes('第 4 层') && PANO.includes('第 5 层') && PANO.includes('第 6 层')

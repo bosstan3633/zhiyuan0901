@@ -67,6 +67,17 @@ const canvasRef = ref<HTMLElement | null>(null)
 const shellRef = ref<HTMLElement | null>(null)
 const localFallback = ref(false)
 
+/* V3.9.14：树状连线改用真实节点坐标生成 SVG 正交折线。
+   父子分支在 DOM 里是横向 flex，但父节点与子节点并非天然同高；用伪元素固定
+   top: 50% 只能得到“差不多”，多级之后会出现断线或把隶属关系指错。这里在布局
+   完成后读取父节点右缘与每个直接子节点左缘，画「父右 → 中线 → 子左」的 elbow，
+   因此 L1–L4、节点高度变化、资源 chip 增减都会重新对齐。 */
+interface Connector { d: string }
+const connectors = ref<Connector[]>([])
+const connectorSize = ref({ width: 0, height: 0 })
+let connectorRaf = 0
+let connectorObserver: ResizeObserver | null = null
+
 function childrenOf(id: string): Category[] {
   return props.nodes.filter(n => (n.parentId || '') === id).sort((a, b) => a.order - b.order)
 }
@@ -185,6 +196,57 @@ function onCanvasKeydown(e: KeyboardEvent): void {
   }
 }
 
+function scheduleTreeConnectors(): void {
+  cancelAnimationFrame(connectorRaf)
+  connectorRaf = requestAnimationFrame(syncTreeConnectors)
+}
+
+function syncTreeConnectors(): void {
+  if (props.layout !== 'tree') {
+    connectors.value = []
+    connectorSize.value = { width: 0, height: 0 }
+    connectorObserver?.disconnect()
+    connectorObserver = null
+    return
+  }
+  const stage = canvasRef.value?.querySelector<HTMLElement>('.mind-stage')
+  if (!stage) return
+  const sr = stage.getBoundingClientRect()
+  const next: Connector[] = []
+  const branches = [...stage.querySelectorAll<HTMLElement>('[data-mind-branch]')]
+
+  for (const branch of branches) {
+    const parent = branch.querySelector<HTMLElement>(':scope > .mind-node')
+    const children = branch.querySelector<HTMLElement>(':scope > .mind-children')
+    if (!parent || !children) continue
+    const pr = parent.getBoundingClientRect()
+    const px = pr.right - sr.left
+    const py = pr.top - sr.top + pr.height / 2
+    for (const child of children.querySelectorAll<HTMLElement>(':scope > .mind-branch')) {
+      const childNode = child.querySelector<HTMLElement>(':scope > .mind-node')
+      if (!childNode) continue
+      const cr = childNode.getBoundingClientRect()
+      const cx = cr.left - sr.left
+      const cy = cr.top - sr.top + cr.height / 2
+      const mx = px + Math.max(18, (cx - px) / 2)
+      next.push({ d: `M ${px} ${py} H ${mx} V ${cy} H ${cx}` })
+    }
+  }
+
+  connectors.value = next
+  connectorSize.value = { width: Math.ceil(sr.width), height: Math.ceil(sr.height) }
+  if (!connectorObserver) {
+    connectorObserver = new ResizeObserver(scheduleTreeConnectors)
+    connectorObserver.observe(stage)
+  }
+}
+
+watch(
+  () => [props.layout, props.nodes, props.cardsByCat, props.searchQuery, props.selectedId, props.editRequestSeq],
+  () => nextTick(scheduleTreeConnectors),
+  { deep: true }
+)
+
 function syncOverlayHost(): void {
   setOverlayFsHost(props.fullscreen ? shellRef.value : null)
 }
@@ -245,9 +307,13 @@ watch(() => props.fullscreen, () => nextTick(syncOverlayHost))
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
   document.addEventListener('keydown', onFallbackKeydown)
+  nextTick(scheduleTreeConnectors)
 })
 
 onBeforeUnmount(() => {
+  cancelAnimationFrame(connectorRaf)
+  connectorObserver?.disconnect()
+  connectorObserver = null
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onFallbackKeydown)
   setOverlayFsHost(null)
@@ -300,6 +366,11 @@ onBeforeUnmount(() => {
     </div>
     <div ref="canvasRef" class="mindmap-canvas" :data-layout="layout" tabindex="-1" @dragend="clearDrag">
       <div class="mind-stage">
+        <svg v-if="layout === 'tree'" class="mind-connectors" :width="connectorSize.width"
+          :height="connectorSize.height" :viewBox="`0 0 ${connectorSize.width} ${connectorSize.height}`"
+          aria-hidden="true" focusable="false">
+          <path v-for="(line, i) in connectors" :key="i" :d="line.d" />
+        </svg>
         <div class="mind-branch mind-root-branch" data-mind-branch="root">
           <article class="mind-node mind-root" :class="{ selected: selectedId === 'root' }" data-mind-node="root"
             tabindex="0" aria-label="L1 中心论点" @click="emit('select', 'root')"

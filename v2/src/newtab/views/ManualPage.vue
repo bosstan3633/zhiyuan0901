@@ -5,7 +5,7 @@
  * 入口：设置 → 使用手册（新标签页打开）。
  *
  * B7-e（H1 排版基线 / H2 目录锚点）：
- *   H1 —— 正文行宽 ≤68ch、标题走字阶令牌、代码与快捷键等宽；详见下方样式块内逐条备案。
+ *   H1 —— 正文铺满阅读列、标题走字阶令牌、代码与快捷键等宽；详见下方样式块内逐条备案。
  *   H2 —— 规范原文写「长文页**右缘** sticky 目录（或顶部折叠章目）」。本页目录本来就在**左缘**
  *        且已是 sticky + smooth ⇒ 方案已落地一半；真正缺的是另两件：
  *        ① **滚动联动**：原来只在「点目录」时点亮，鼠标滚轮翻页时目录不跟——长文里"定位靠滚动"
@@ -85,7 +85,7 @@ onBeforeUnmount(() => { io?.disconnect(); io = null; visibleSecs.clear() })
   <div class="mn-page">
     <header class="mn-head">
       <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" class="mn-back-ico" />返回设置</button>
-<div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.9.13</span></div>
+<div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.9.14</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare"><Icon name="download" :size="13"/> 下载分享版</button>
     </header>
@@ -136,7 +136,7 @@ onBeforeUnmount(() => { io?.disconnect(); io = null; visibleSecs.clear() })
 .mn-item:hover { background: var(--surface-3); color: var(--text); }
 .mn-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mn-item.active { color: var(--accent-ink); background: var(--accent-light); border-left-color: var(--accent); font-weight: 600; }
-.mn-main { flex: 1; min-width: 0; max-width: 880px; }
+.mn-main { flex: 1; min-width: 0; max-width: none; }
 /* H1：发丝线分隔章节。原先各节是彼此独立的卡片盒（各自 border + 圆角 + 24px 间距），
    五篇读下来每节都"另起一个容器"，长文的连贯感被切碎。改为通栏发丝线 + 纯留白分隔：
    一条 1px 的线已经把层级说清楚了，盒子的重量是多余的。 */
@@ -150,10 +150,17 @@ onBeforeUnmount(() => { io?.disconnect(); io = null; visibleSecs.clear() })
 .mn-foot { text-align: center; font-size: var(--fs-caption); color: var(--text-3); padding: 28px 0 8px; border-top: 1px solid var(--border); }
 
 /* —— 内容富文本（v-html）—— */
-/* H1：正文行宽 ≤68ch（与设置页更新日志 S5 同一口径）。880px 通栏下 14px 正文一行约 60 个汉字，
-   眼睛从行尾扫回行首会迷路；限宽后落在每行约 34 字的舒适区。
-   只限正文块，标题与分隔线继续通栏——它们是路标，不该被正文行宽截断。 */
-.mn-content { font-size: var(--fs-body); color: var(--text-2); line-height: 1.8; max-width: 68ch; }
+/* H1：正文铺满右侧阅读列。V3.9.14 用户反馈原 68ch 在 1440 页轴下留下大片空白；
+   行宽不再硬截，改由 28px 目录间距与 1.8 行高控制阅读节奏。 */
+.mn-content { font-size: var(--fs-body); color: var(--text-2); line-height: 1.8; max-width: none; }
+.mn-content p,
+.mn-content li { max-width: none; }
+.mn-content .mc-table,
+.mn-content .mc-flow,
+.mn-content .mc-steps,
+.mn-content .mc-tip,
+.mn-content .mc-warn,
+.mn-content .mc-quote { max-width: none; }
 .mn-content p { margin: 8px 0; }
 /* H1：段内小标题由 --fs-body(13) 提到 --fs-title(15)。原值与正文同号，只靠左边框区分——
    扫读时分不清"这是一段的标题"还是"这是一段的正文"。 */

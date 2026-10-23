@@ -159,7 +159,8 @@ function priOf(t: TaskCard): string {
 .lane {
   /* 少量指标时把泳道铺开，多指标时才横向滚动：避免单泳道只剩 262px、右侧整片空。
      基础宽度仍保证每根泳道能容纳标题 + 验收 + 任务动作。 */
-  flex: 1 0 280px; max-width: 620px; display: flex; flex-direction: column;
+  /* 1 条指标独占；2~4 条等分吃满；5 条以上保留 280px 下限并横向滚动。 */
+  flex: 1 1 0; min-width: 280px; max-width: none; display: flex; flex-direction: column;
   background: transparent;
   /* 圆角与板/舱/列表同族（判据 C4-1）：去的是底色与阴影，不是形状语言 */
   border-radius: var(--radius-lg);
@@ -168,7 +169,7 @@ function priOf(t: TaskCard): string {
 }
 /* 单指标是项目全景最常见的第一屏：泳道承担整条推进链，不该只占画布左侧 52%。
    920px 上限仍给任务标题留出可读行宽，不为了铺满而把每行拉成超长文本。 */
-.lane.single { flex: 1 1 100%; max-width: 920px; }
+.lane.single { flex: 1 1 0; width: 100%; max-width: none; }
 .lane-h {
   position: relative; padding: 12px 13px 11px 15px;
   border-bottom: 1px solid var(--border); background: transparent; flex: none;

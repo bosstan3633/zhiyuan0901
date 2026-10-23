@@ -73,7 +73,11 @@ const VIEWS = [
   //   浮层形式出现，于是**页面本身的四主题走查从来没有证据**。A2 那批改的是 KPI 数值与环比徽标的颜色，
   //   正好落在这个盲区里；补进来后 `--scenes=profile` 可单独取。
   { id: 'profile', hash: '#/profile', name: '画像洞察' },
-  { id: 'settings', hash: '#/settings', name: '设置页' }
+  { id: 'settings', hash: '#/settings', name: '设置页' },
+  /* V3.9.14：设置页本轮改的是更新日志正文排布，必须拍它自己的子页而不是只拍默认资源卡字段；
+     使用手册同步取消右侧留白，也从“只有 M6 窄屏量过”升为四主题逐屏走查。 */
+  { id: 'settings-changelog', hash: '#/settings?page=changelog', name: '设置页·更新日志' },
+  { id: 'manual', hash: '#/manual', name: '使用手册' }
 ]
 /** R161：AI 评审已是**中央弹窗**（不再是右侧抽屉），只抓四个台面默认态等于没抓本轮主交付面。
  *  故按 04-63 §R161 的验收口径补 **4 主题 × 2 档 = 8 张**：档 1 双栏（1440）、档 2 窄屏降单栏（1000，
@@ -277,6 +281,10 @@ const DASH_SCENES = [
       const metrics = document.querySelectorAll('.lanes > .lane:not(.orph)').length
       const hero = document.querySelector('.hero')
       const spine = document.querySelector('.spine')
+      const spineToggle = document.querySelector('.spine-toggle')
+      const spineBody = document.querySelector('.spine-b')
+      const spineCollapsedDefault = !!spineToggle && spineToggle.getAttribute('aria-expanded') === 'false'
+        && !!spineBody && getComputedStyle(spineBody).display === 'none'
       const x = document.querySelector('.lanes')
       const laneRect = lanes[0] ? lanes[0].getBoundingClientRect() : null
       const lanesRect = x ? x.getBoundingClientRect() : null
@@ -287,13 +295,20 @@ const DASH_SCENES = [
       const minHot = [...document.querySelectorAll('.pano-h button, .pano-switch button, .lane-detail, .lane-add, .le-add')]
         .map(el => el.getBoundingClientRect().height).filter(h => h > 0)
       const hot = minHot.length ? Math.min(...minHot) : 0
+      /* V3.9.14：多泳道必须等分铺满，右侧不留整片空画布。只核单泳道宽度会漏掉
+         “单道已铺满、多道仍挤在左侧”的半修状态，因此这里两种数据形态都量。 */
+      const laneSpread = lanes.length < 2 || !lanesRect
+        || (laneScroll > 4
+          ? lanes.every(lane => lane.getBoundingClientRect().width >= 280)
+          : lanesRect.width - lanes.reduce((sum, lane) => sum + lane.getBoundingClientRect().width, 0) <= 4)
       return {
         /* 单泳道时宽度必须铺开：262px 的旧值会在右侧留下整片空画布；
            多泳道时允许横向滚动，不要求铺满。 */
-        ok: !!switcher && !!current && !!summary && !!next && metrics > 0 && overflowX <= 1 && hot >= 28
+        ok: !!switcher && !!current && !!summary && !!next && metrics > 0 && overflowX <= 1 && hot >= 28 && laneSpread
+          && spineCollapsedDefault
           && size(hero) + size(spine) <= 250
           && (metrics > 1 || !laneRect || !lanesRect || laneRect.width >= Math.min(820, lanesRect.width * .78)),
-        txt: `切换器=${!!switcher} 当前项目=${!!current} 摘要=${!!summary} 下一步=${!!next} 泳道=${lanes.length}(指标${metrics}) 首泳道宽=${laneRect ? Math.round(laneRect.width) : 0}px 页首高=${size(hero) + size(spine)}px 横向滚动=${laneScroll}px 页面溢出=${overflowX}px 最小热区=${Math.round(hot)}px`
+        txt: `切换器=${!!switcher} 当前项目=${!!current} 摘要=${!!summary} 下一步=${!!next} 骨架默认收起=${spineCollapsedDefault} 泳道=${lanes.length}(指标${metrics}) 等分铺满=${laneSpread} 首泳道宽=${laneRect ? Math.round(laneRect.width) : 0}px 页首高=${size(hero) + size(spine)}px 横向滚动=${laneScroll}px 页面溢出=${overflowX}px 最小热区=${Math.round(hot)}px`
       }
     })
   },
@@ -1127,6 +1142,45 @@ if (argv.scenes) {
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
       let extra = ''
+      if (v.id === 'settings-changelog') {
+        const j = await page.evaluate(() => {
+          const groups = [...document.querySelectorAll('.gs-cl-item.current .gs-cl-group')]
+          const columns = groups[0] ? getComputedStyle(groups[0].parentElement).gridTemplateColumns.trim().split(/\s+/).length : 0
+          const points = document.querySelector('.gs-cl-item.current .gs-cl-points')
+          const ps = points ? getComputedStyle(points) : null
+          const item = document.querySelector('.gs-cl-item.current')
+          const list = document.querySelector('.gs-cl-list')
+          const ir = item?.getBoundingClientRect(), lr = list?.getBoundingClientRect()
+          return {
+            groups: groups.length,
+            columns,
+            justify: ps?.textAlign || '',
+            maxWidth: ps?.maxWidth || '',
+            spread: !!(ir && lr && (lr.right - ir.right) < 44),
+          }
+        })
+        const ok = j.groups > 0 && j.columns === 1 && j.justify === 'justify'
+          && j.maxWidth === 'none' && j.spread
+        if (!ok) dashFail.push(`${theme}/${v.id}：更新日志正文不是单列铺满（分组=${j.groups} 列=${j.columns} 对齐=${j.justify} 最大宽=${j.maxWidth} 右侧余量=${j.spread}）`)
+        extra = ` 分组=${j.groups} 列=${j.columns} 两端对齐=${j.justify === 'justify'} 铺满=${j.spread}`
+      }
+      if (v.id === 'manual') {
+        const j = await page.evaluate(() => {
+          const main = document.querySelector('.mn-main')
+          const content = document.querySelector('.mn-content')
+          const body = document.querySelector('.mn-body')
+          const mr = main?.getBoundingClientRect(), br = body?.getBoundingClientRect()
+          return {
+            main: !!main && !!content,
+            contentWidth: content ? Math.round(content.getBoundingClientRect().width) : 0,
+            contentMax: content ? getComputedStyle(content).maxWidth : '',
+            fill: !!(mr && br && (br.right - mr.right) < 42),
+          }
+        })
+        const ok = j.main && j.contentMax === 'none' && j.contentWidth >= 760 && j.fill
+        if (!ok) dashFail.push(`${theme}/${v.id}：手册正文仍有右侧空白（宽=${j.contentWidth}px 最大宽=${j.contentMax} 铺满=${j.fill}）`)
+        extra = ` 正文宽=${j.contentWidth}px 最大宽=${j.contentMax} 铺满=${j.fill}`
+      }
       /* R3-B′/B1：方向台两条镜头共用同一套活体判据——静态断言只证明代码在，不证明渲染对。
          ① 卡头数 == 分支数 == caret 数（每张卡头都有开合把手）
          ② 折叠卡里 **一个指标分支都没有**（v-if 真摘节点，不是 v-show 藏起来）

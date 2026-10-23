@@ -803,6 +803,9 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
  * ★口径同源：明细清单与行内数字共用同一份取数（项目看 focusMeta / 未归档看 taskArchiveIssue /
  * 本周复用看 wrr 周戳 + lastVisits），数字与条数不许各说各话。 */
 const statusDetail = ref<StatusDetailKey | ''>('')
+/** V3.9.14：明细行可在中央弹窗 / 右侧任务或资源详情之间切换；
+ *  先关明细再开详情，避免两层遮罩叠在一起、Esc 只关到上层。 */
+function closeStatusDetail(): void { statusDetail.value = '' }
 const statusDetailTitle = computed(() => ({
   focus: '主攻项目明细', unarchived: '未归档任务明细', reuse: '本周复用明细', '': ''
 }[statusDetail.value]))
@@ -814,7 +817,10 @@ const statusDetailItems = computed<StatusDetailItem[]>(() => {
       return {
         title: p.name,
         meta: m ? `${m.finished ? '已完成' : m.stall ? '停滞' : '推进中'} · 未完成任务 ${m.open} 项` : '推进中',
-        extra: `${m?.pct ?? 0}%`
+        extra: `${m?.pct ?? 0}%`,
+        action: '查看项目',
+        actionKind: 'project',
+        actionId: p.id
       }
     })
   }
@@ -824,7 +830,10 @@ const statusDetailItems = computed<StatusDetailItem[]>(() => {
       .map(x => ({
         title: x.title || '（无标题）',
         meta: taskArchiveIssue(x),
-        extra: projectName(x.projectId) || '未挂项目'
+        extra: projectName(x.projectId) || '未挂项目',
+        action: '打开任务',
+        actionKind: 'task',
+        actionId: x.id
       }))
   }
   if (k === 'reuse') {
@@ -841,7 +850,10 @@ const statusDetailItems = computed<StatusDetailItem[]>(() => {
     return start ? list.map(r => ({
       title: r.title || '（无标题）',
       meta: `本周调用 ${visits[r.id] || 0} 次`,
-      extra: new Date(r.lastCalledAt || 0).toLocaleDateString('zh-CN')
+      extra: new Date(r.lastCalledAt || 0).toLocaleDateString('zh-CN'),
+      action: '打开资源',
+      actionKind: 'resource',
+      actionId: r.id
     })) : []
   }
   return []
@@ -867,6 +879,28 @@ function weekStartKeyOf(ts: number): string {
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
 }
 function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }
+/** V3.9.14：状态明细不再止于“看一眼”。行内动作复用既有详情出口，
+ *  不新增第二套编辑面：项目 → 只读项目详情；任务 → 任务抽屉；资源 → 资源详情。 */
+function onStatusItemAction(item: StatusDetailItem): void {
+  closeStatusDetail()
+  if (!item.actionId) return
+  if (item.actionKind === 'project') {
+    readonlyProjectId.value = item.actionId
+    readonlyProjectOpen.value = true
+    return
+  }
+  if (item.actionKind === 'task') {
+    const task = (d.value.tasks || []).find(t => t.id === item.actionId && !t.deletedAt)
+    if (task) openTaskPreview(task)
+    else showToast('这张任务已不在任务池中')
+    return
+  }
+  if (item.actionKind === 'resource') {
+    const resource = (d.value.resources || []).find(r => r.id === item.actionId && !r.deletedAt)
+    if (resource) openResourcePreview(resource)
+    else showToast('这张资源卡已不在资源池中')
+  }
+}
 function curioStatusLabel(c: CuriosityCard): string {
   return c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索'
 }
@@ -896,6 +930,10 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
       <div class="desk-actions">
         <button v-if="!mainFocus" class="no-focus" type="button" @click="router.push('/compass')">
           <Icon name="main-focus" :size="13" /> 去方向台指定主攻
+        </button>
+        <button class="why-trigger battle-trigger" type="button" @click="openReview">
+          <Icon name="trendup" :size="13" />
+          <span>今日战报</span>
         </button>
         <button class="why-trigger" :class="{ on: whyOpen }" data-testid="focus-why-ico" type="button" @click.stop="toggleWhy">
           <Icon name="sparkles" :size="13" />
@@ -1125,7 +1163,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
           </span>
           <span class="foot-spacer" />
-          <button class="foot-link" type="button" @click="openReview"><Icon name="trendup" :size="13" /> 今日战报</button>
         </footer>
       </main>
 
@@ -1139,7 +1176,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <div v-if="hasFocusProject" class="stat-focus-block">
               <div class="stat-focus-label">当前主攻</div>
               <button v-if="mainFocus" class="stat-focus-item" type="button"
-                :title="mainFocus.name + ' · 打开只读项目详情'" @click="openFocusProject(mainFocus)">
+                :title="mainFocus.name + ' · 查看主攻项目明细'" @click="openStatusDetail('focus')">
                 <span class="sf-index">01</span>
                 <span class="sf-copy">
                   <span class="sf-name">{{ mainFocus.name }}</span>
@@ -1148,7 +1185,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
                 <Icon name="arrowright" :size="12" />
               </button>
               <button v-if="extraFocus" class="stat-focus-item" type="button"
-                :title="extraFocus.name + ' · 打开只读项目详情'" @click="openFocusProject(extraFocus)">
+                :title="extraFocus.name + ' · 查看主攻项目明细'" @click="openStatusDetail('focus')">
                 <span class="sf-index">02</span>
                 <span class="sf-copy">
                   <span class="sf-name">{{ extraFocus.name }}</span>
@@ -1200,7 +1237,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
     <!-- ★W17-C01：三行状态明细（中央只读弹窗，不跳路由） -->
     <CompassStatusModal :open="!!statusDetail" :kind="statusDetail || 'focus'"
       :title="statusDetailTitle" :note="statusDetailNote" :items="statusDetailItems"
-      :empty-text="statusDetailEmpty" @close="statusDetail = ''" />
+      :empty-text="statusDetailEmpty" @close="closeStatusDetail" @item-action="onStatusItemAction" />
 
     <!-- ★W17-C02：useResourceOpen 的图片附件就地预览（zy-asset:// 图片卡，与 Workspace 同一壳） -->
     <AssetPreview :open="previewOpen" :url="previewUrl" :name="previewName" @close="closePreview" />
@@ -1347,6 +1384,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   cursor: pointer;
   transition: border-color var(--dur), background var(--dur), color var(--dur);
 }
+.desk-actions .battle-trigger { margin-left: auto; }
 .no-focus:hover,
 .why-trigger:hover {
   border-color: var(--border-strong);
@@ -1435,7 +1473,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 .quiet-btn,
 .primary-btn,
 .hand-link,
-.foot-link,
 .foot-status,
 .rail-head button,
 .row-remove {
@@ -1456,7 +1493,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 .icon-btn:hover,
 .quiet-btn:hover,
 .hand-link:hover,
-.foot-link:hover,
 .rail-head button:hover {
   border-color: var(--border);
   background: var(--surface-2);
@@ -1858,16 +1894,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 }
 .foot-gear:hover { background: var(--surface-3); color: var(--text); }
 .foot-spacer { flex: 1; }
-.foot-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 28px;
-  padding: 3px 7px;
-  border-radius: var(--radius-xs);
-  color: var(--text-3);
-  font-size: var(--fs-caption);
-}
 
 /* ── 右侧案头栏 ── */
 .side-rail {

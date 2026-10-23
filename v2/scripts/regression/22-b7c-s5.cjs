@@ -107,11 +107,13 @@ check(NAME(
 /* ────────── 呈现层：mono / caption / 三段 / 置顶 / 68ch ────────── */
 
 check(NAME(
-  'S5-4 原文四条验收：版本号等宽 + 日期 caption + 三段式分组 + 行宽 ≤68ch。'), () => {
+  'S5-4 四条验收（V3.9.14 重指）：版本号等宽 + 日期 caption + 三段式分组 + 单列正文铺满并两端对齐。'), () => {
   const ver = /\.gs-cl-ver \{[^}]*font-family:\s*ui-monospace/.exec(GS)
   if (!ver) { console.log('版本号未走等宽字体'); return false }
   if (!/\.gs-cl-date \{[^}]*font-size:\s*var\(--fs-caption\)/.test(GS)) { console.log('日期非 caption'); return false }
-  if (!/max-width:\s*68ch/.test(GSO)) { console.log('缺 68ch 行宽上限'); return false }
+  if (!/\.gs-cl-points \{[^}]*max-width:\s*none/.test(GSO)) { console.log('正文未取消固定 68ch 行宽'); return false }
+  if (!/\.gs-cl-points \{[^}]*text-align:\s*justify/.test(GSO)) { console.log('单列正文未两端对齐'); return false }
+  if (/grid-template-columns:\s*repeat\(2/.test(GSO)) { console.log('版本正文回流成双列'); return false }
   if (!GSO.includes('v-for="g in kindGroupsOf(e)"')) { console.log('模板未按三段分组渲染'); return false }
   return true;
 });

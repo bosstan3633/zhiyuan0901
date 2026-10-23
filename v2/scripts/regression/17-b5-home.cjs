@@ -48,8 +48,8 @@ check('M3-2 ★V3.9.1 随迁备案：三件事工作单只保留一个主行动�
 });
 
 /* ============ M4 · 战报折叠 ============ */
-check('M4-1 ★V3.9.1 随迁备案：战报仍是 tool 级单入口。入口收进页脚与右栏，不带 accent 实底，点击仍走 battleHost.openToday', () => {
-  if (!HOME.includes('class="foot-link"') || !HOME.includes('@click="openReview"')) return false;
+check('M4-1 ★V3.9.14 重指：战报仍是 tool 级单入口。入口移到页头动作区、与「为什么这样排」并排，不带 accent 实底，点击仍走 battleHost.openToday', () => {
+  if (!HOME.includes('class="why-trigger battle-trigger"') || !HOME.includes('@click="openReview"')) return false;
   const fn = (HOME.match(/function openReview\(\)[^\n]*/) || [''])[0];
   if (!fn.includes('battleHost.value?.openToday()')) { console.log('     openReview 未指向 openToday：' + fn); return false; }
   /* 负锚：accent 软底那一条规则与类名都不许回来（先剥注释，避免注释里提一嘴就假红） */

@@ -33,10 +33,12 @@ console.log('【W17 · 调度台侧栏 + 三卡池体验（V3.9.4 / V3.9.5 批�
 
 /* ══════════════ C01 · 三行状态 → 中央只读明细弹窗 ══════════════ */
 
-check('W17-1 ★侧栏主攻行开只读项目详情，未归档 / 本周复用两行开只读清单；全部零 router.push', () => {
+check('W17-1 ★侧栏主攻行开主攻明细，再由行内「查看项目」进入只读项目详情；未归档 / 本周复用两行开明细清单；全部零 router.push', () => {
   return PI.includes("function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }")
-    && PI.includes('@click="openFocusProject(mainFocus)"')
-    && PI.includes('@click="openFocusProject(extraFocus)"')
+    && PI.includes("@click=\"openStatusDetail('focus')\"")
+    && PI.includes("action: '查看项目'")
+    && PI.includes("actionKind: 'project'")
+    && PI.includes('readonlyProjectOpen.value = true')
     && PI.includes("@click=\"openStatusDetail('unarchived')\"")
     && PI.includes("@click=\"openStatusDetail('reuse')\"")
     && PI.includes('<CompassStatusModal')
@@ -47,14 +49,16 @@ check('W17-1 ★侧栏主攻行开只读项目详情，未归档 / 本周复用�
     && !/class="stat-(?:row|focus-item)"[\s\S]{0,260}?router\.push\(/.test(PI);
 });
 
-check('W17-2 ★只读：明细弹窗里没有任何下钻/勾选交互，标题可选中复制', () => {
+check('W17-2 ★明细默认只读、可复制；V3.9.14 允许显式「继续处理」动作（用户拍板：状态明细要能走下一步），但不复用带下钻语义的 DrillCardList', () => {
+  const row = (STATUS.match(/<div v-for="\(it, i\) in props\.items"[\s\S]*?<\/div>\s*<\/div>/) || [''])[0];
   return STATUS.includes('<Modal')                     /* 复用 R161 中央弹窗壳，不新造 */
-    && !STATUS_C.includes('DrillCardList')             /* 负锚：它自带下钻，与只读冲突 */
-    && !/@click/.test((STATUS.match(/<div v-for="\(it, i\) in props\.items"[\s\S]*?<\/div>\s*<\/div>/) || [''])[0])
-    && !STATUS_C.includes('role="button"')
-    && !STATUS_C.includes('tabindex="0"')
+    && !STATUS_C.includes('DrillCardList')             /* 负锚：它自带下钻，与明细的只读浏览不同 */
+    && !!row && !/role="button"/.test(row)
+    && !!row && (row.match(/@click/g) || []).length === 1
+    && row.includes("@click=\"emit('item-action', it)\"")
+    && row.includes('v-if="it.action"')
     && /user-select:\s*text/.test(STATUS)
-    && STATUS.includes('文本可选中复制');
+    && STATUS.includes('需要继续处理时使用行内动作');
 });
 
 check('W17-3 ★本周复用同源：清单按 wrr 周戳过滤，跨周后与行内 0 一致（不许把上周调用当本周）', () => {

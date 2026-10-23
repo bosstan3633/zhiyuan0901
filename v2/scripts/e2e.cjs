@@ -28,7 +28,7 @@
  *   E2E-18 策展卡可拖真值（draggable="true"）+ 区域级落卡（R57-F1）
  *   E2E-19 删除策展台软删（deletedAt）+ 回收站可见可恢复（R58-B1）
  *   E2E-20 项目详情左树：空指标节点接收任务拖拽（R59-T5）
- *   E2E-21 调度台页脚「今日战报」就地开弹窗并可关闭
+ *   E2E-21 调度台页头「今日战报」就地开弹窗并可关闭
  *   E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）
  *   E2E-25 R174-3 按日快照落盘（画像页年度段读合并 + 写链路保存→pagehide→today）
  *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
@@ -317,10 +317,55 @@ async function main() {
     const el = document.activeElement
     return !!(el && el.classList && el.classList.contains('stat-row'))
   })
-  report('E2E-4 ★W17-C01 右栏「未归档」→ 中央只读明细弹窗（原地不改路由 · 只读 · Esc 可关 · 焦点回归）',
+  report('E2E-4 ★W17-C01 / V3.9.14 右栏「未归档」→ 中央明细弹窗（原地不改路由 · 文本可选 · 显式动作 · Esc 可关 · 焦点回归）',
     sideRailOn && unarchivedText.includes('未归档') && statusModalOn && urlUnchanged
     && rowCount >= 0 && clickableRows === 0 && closedByEsc && focusBack,
     `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" modal=${statusModalOn} url不变=${urlUnchanged} 明细行=${rowCount} 可点行=${clickableRows} Esc关=${closedByEsc} 焦点回归=${focusBack}`)
+
+  // E2E-49（V3.9.14）：状态明细不再止于只读——主攻行必须能进入只读项目详情。
+  //   判据同时守「先关明细再开详情」，避免两层遮罩叠放。
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2200)
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const data = cur['zy_data_v2']
+    if (!data) return
+    const now = Date.now()
+    data.compass = data.compass || { vision: { content: '', updatedAt: now }, mission: { content: '', updatedAt: now }, directions: [] }
+    data.compass.directions = (data.compass.directions || []).filter(dir => dir.id !== 'e2e-dir-status-focus')
+    data.compass.directions.push({
+      id: 'e2e-dir-status-focus', name: 'E2E 状态明细方向', status: 'active', term: 'short',
+      projects: [{
+        id: 'e2e-proj-status-focus', name: 'E2E 状态主攻项目', isFocused: true, progress: 0, status: 'active',
+        metrics: [{
+          id: 'e2e-metric-status-focus', title: 'E2E 状态成功指标', target: '1', acceptance: '',
+          taskIds: ['e2e-task-status-focus']
+        }]
+      }]
+    })
+    data.tasks = (data.tasks || []).filter(task => task.id !== 'e2e-task-status-focus')
+    data.tasks.push({
+      id: 'e2e-task-status-focus', kind: 'task', title: 'E2E 状态明细任务',
+      projectId: 'e2e-proj-status-focus', metricId: 'e2e-metric-status-focus',
+      status: 'doing', priority: 'medium', mountedResourceIds: [], mountedCuriosityIds: [],
+      customFields: {}, tags: [], subtasks: [], pinned: false, createdAt: now, updatedAt: now
+    })
+    return chrome.storage.local.set({ zy_data_v2: data })
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1800)
+  const focusStatusRow = page.locator('.side-rail .stat-focus-item').filter({ hasText: 'E2E 状态主攻项目' }).first()
+  await focusStatusRow.click().catch(() => {})
+  await page.waitForTimeout(800)
+  const focusStatusModal = page.locator('.md-panel').filter({ hasText: '主攻项目明细' }).first()
+  const focusAction = focusStatusModal.locator('.sd-action').first()
+  const focusActionText = ((await focusAction.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  await focusAction.click().catch(() => {})
+  await page.waitForTimeout(1000)
+  const readonlyProjectOn = await page.locator('.md-panel').filter({ hasText: '主攻项目 · 只读' }).filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
+  const focusModalGone = !(await focusStatusModal.isVisible().catch(() => false))
+  report('E2E-49 V3.9.14 状态明细「继续处理」：主攻明细动作进入只读项目详情，原明细先关闭',
+    focusActionText.includes('查看项目') && readonlyProjectOn && focusModalGone,
+    `动作="${focusActionText}" 项目详情=${readonlyProjectOn} 明细已关=${focusModalGone}`)
 
   // E2E-5 PDF 双击 file:// 打开：走策展画布上的资源 chip（现役入口）
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -1026,6 +1071,29 @@ async function main() {
     keySeed && keyTree.l2 && keyTree.l3 && keyTree.l4 && keyTree.l4s && keyTree.labels.includes('L4'),
     JSON.stringify(keyTree))
 
+  // E2E-50（V3.9.14）：树状布局的连线不是装饰伪元素，而是按真实父子节点盒
+  //   生成的正交 SVG。每条有子节点的分支，每个直接子节点都必须对应一条非空路径。
+  await page.evaluate(() => document.querySelectorAll('.mindmap-layout button')[1]?.click())
+  await page.waitForTimeout(900)
+  const connectorContract = await page.evaluate(() => {
+    const svg = document.querySelector('.mind-connectors')
+    const paths = [...document.querySelectorAll('.mind-connectors path')]
+    const branches = [...document.querySelectorAll('.mind-stage [data-mind-branch]')]
+    const expected = branches.reduce((n, branch) => {
+      const children = branch.querySelector(':scope > .mind-children')
+      return n + (children ? children.querySelectorAll(':scope > .mind-branch').length : 0)
+    }, 0)
+    const nonEmpty = paths.filter(p => (p.getAttribute('d') || '').trim().length > 0).length
+    const stage = document.querySelector('.mind-stage')
+    return {
+      ok: !!svg && expected > 0 && paths.length === expected && nonEmpty === expected
+        && !!stage && getComputedStyle(stage).position === 'relative',
+      txt: `SVG=${!!svg} 期望=${expected} 路径=${paths.length} 非空=${nonEmpty} 舞台定位=${stage ? getComputedStyle(stage).position : '无'}`,
+    }
+  })
+  report('E2E-50 V3.9.14 树状画布的 SVG 正交连线按真实父子分支数量生成',
+    connectorContract.ok, connectorContract.txt)
+
   // E2E-46（V3.9.10）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
   //   预览按真实 Category 树递归平铺到 L4，且画布工具栏在 1440 宽保持单行、分享在行尾。
   await page.locator('.share-action').first().click()
@@ -1343,11 +1411,18 @@ async function main() {
     'drag=' + dropResult + ' metricId=' + moved.metricId + ' taskIds双写=' + moved.inTaskIds)
 
 
-  // E2E-21（V3.9.1 重指）：调度台页脚「今日战报」不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。
-  // 本用例守「入口真的连到组件」这件事：点页脚入口 → 战报弹窗出现 → 关闭钮收起。
+  // E2E-21（V3.9.14 重指）：调度台「今日战报」已从页脚移到页头动作区，与「为什么这样排」并排；
+  //   行为不变：不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。
+  // 本用例守「入口真的连到组件」与「位置符合本轮拍板」两件事。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
-  const battleBtn = page.locator('.page-foot .foot-link').first()
+  const battleBtn = page.locator('.desk-actions .battle-trigger').first()
+  const battleBesideWhy = await battleBtn.evaluate((el) => {
+    const why = el.parentElement?.querySelector('.why-trigger:not(.battle-trigger)')
+    if (!why) return false
+    const a = el.getBoundingClientRect(), b = why.getBoundingClientRect()
+    return Math.abs(a.top - b.top) <= 2 && a.left < b.left
+  }).catch(() => false)
   const battleBtnText = ((await battleBtn.innerText().catch(() => '')) || '').replace(/\s+/g, '')
   await battleBtn.click()
   await page.waitForTimeout(1400)
@@ -1359,9 +1434,9 @@ async function main() {
   await battleCloseBtn.click().catch(() => {})
   await page.waitForTimeout(700)
   const battleClosed = !(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))
-  report('E2E-21 V3.9.1 调度台页脚「今日战报」就地开弹窗并可关闭',
-    battleBtnText.includes('今日战报') && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
-    `btn="${battleBtnText}" modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
+  report('E2E-21 V3.9.14 调度台页头「今日战报」与「为什么这样排」并排，就地开弹窗并可关闭',
+    battleBtnText.includes('今日战报') && battleBesideWhy && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
+    `btn="${battleBtnText}" 并排=${battleBesideWhy} modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
 
   // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。
   // 走「设置 › AI 助手 › 本周回顾」：它已接左栏（投料原文）与指令框，且不依赖真网关——

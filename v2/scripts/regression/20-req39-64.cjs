@@ -562,7 +562,7 @@ check('R55-19/R121 归属链 → 单行面包屑（愿景 › 使命 › 目标 
 console.log('【第五十六轮 · V2.29.0：九包迭代】');
 check('R56-1 P1 ★R2-② 退役重写带备案：项目调度卡退役，四事实指标随面包屑同排单行落方向台展板 pb-stats（R177 对齐原型标签）', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('cur-stats-v2') && !h.includes('cur-stat-strip') && pc.includes('成功指标') && pc.includes('关联任务') && pc.includes('已推进完成') && pc.includes('正在进行中');  });
 check('R56-2 P1 两级下钻链路', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('openCurDrill') && pc.includes('class="metric-sec"') && pc.includes('task-rows');  });
-check('R56-3/R66（V3.9.1 重指）首页不再有今日记录四格；存储/同步状态收进工作区页脚，战报仍为单一动作入口，右栏不重复记录入口', () => { const h = read('/newtab/views/CompassHome.vue'); const foot = h.slice(h.indexOf('<footer class="page-foot">'), h.indexOf('</footer>', h.indexOf('<footer class="page-foot">'))); return foot.includes('class="foot-status"') && foot.includes('onSyncChipClick') && foot.includes('openReview') && foot.includes('今日战报') && !foot.includes('rec-mini') && !h.includes('rec-mini') && !h.includes('openRec('); });
+check('R56-3/R66（V3.9.14 重指）首页不再有今日记录四格；存储/同步状态收进工作区页脚，战报移到页头与「为什么这样排」并排，右栏不重复记录入口', () => { const h = read('/newtab/views/CompassHome.vue'); const foot = h.slice(h.indexOf('<footer class="page-foot">'), h.indexOf('</footer>', h.indexOf('<footer class="page-foot">'))); const head = h.slice(h.indexOf('<div class="desk-actions">'), h.indexOf('</header>', h.indexOf('<div class="desk-actions">'))); return foot.includes('class="foot-status"') && foot.includes('onSyncChipClick') && !foot.includes('今日战报') && head.includes('class="why-trigger battle-trigger"') && head.includes('openReview') && head.includes('今日战报') && !foot.includes('rec-mini') && !h.includes('rec-mini') && !h.includes('openRec('); });
 check('R56-4 P2（R172-T8/T9 重指带备案）明细收进抽屉：四类记录（入台/移出/调出/写入记录）在画像洞察页内四格入口 + 全量抽屉保留（★W9 退役重指带备案：四格入口与 openLog 四枚 preset 随仪表盘迁 ProfileInsights，四个调用点一字未减）（★W15-T1 再随迁带备案 2026-10-16 用户拍板：入台/调出两格由**事件流水**改**卡片清单**——「入台 N 张」承诺的是卡不是流水；移出与写入记录仍走事件抽屉（软删卡没有"清单"语义、全量流水全页仍唯一在页头）。四类入口一项未减：in→today-in 清单 / out→openLog out / call→today-call 清单 / log→全量抽屉）', () => { const h = read('/newtab/views/CompassHome.vue'); const gs = read('/newtab/views/ProfileInsights.vue'); const d = read('/newtab/components/dashboard/DashboardLogDrawer.vue'); return !h.includes('recOpen') && gs.includes("openStatDrawer('today-in')") && gs.includes("openStatDrawer('today-call')") && gs.includes("openLog('out')") && gs.includes("openLog('log')") && d.includes('<Drawer :open="open"') && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('openLog('); });
 check('R56-5（R120-TB1 修订 · R155 令牌化备案 · R176 重指带备案：主数字 --fs-body→--fs-sub 对齐原型 12px 紧凑指标行 · ★M2/V3.8.28 再降一档带备案：主数字 --fs-sub→--fs-caption，指标条整体退为支撑层、让位下方三件事）MetricBar = 合流方向条（单行 ≤40px：mb-row 5px 14px + 主数字走 caption 阶 + 左右插槽）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('.mb-row { display: flex') && mb.includes('padding: 5px 14px') && mb.includes('max-height: 38px') && mb.includes('.mb-v { font-size: var(--fs-caption)') && !mb.includes('.mb-v { font-size: var(--fs-sub)') && mb.includes('<slot name="left"') && mb.includes('<slot name="right"') && !mb.includes('mb-cells'); });
 check('R56-6（V3.9.1 重指）三件事从卡片盒收成一张工作单：三行等距、行内信息列可缩、28px 行首热区、旧 lock-bar 零残留', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.focus-list { display: flex; flex-direction: column; }') && h.includes('grid-template-columns: 28px minmax(0, 1fr) auto 28px;') && h.includes('min-height: 74px;') && !h.includes('lock-bar'); });
@@ -856,15 +856,22 @@ check('R64-13（V3.9.8 随迁）树状递归呈现由画布承担：子分类按
     && n.includes('props.cardsByCat.get(props.node.id)');
 });
 /* V3.7.0（R179）退役 R64-14：同 R34-8——卡面分类路径徽标随 hub 分类退役。 */
-check('R64-15（V3.9.8 随迁备案）画布连线：旧 SVG drawPyLinks 随四视图退役；现役金字塔由 .mind-children::before / .mind-branch::before / :has(... )::after 生成同层横线、父到子竖线与父节点下探线，树状布局另有向右连线', () => {
+check('R64-15（V3.9.14 重指）画布连线：金字塔继续由伪元素生成同层横线与父到子竖线；树状不再猜测固定中线，改由 CurationMindMap 读取真实父子节点盒坐标生成 SVG 正交 elbow，L1–L4 每段都要从父节点右缘连到子节点左缘', () => {
   const c = read('/newtab/components/curation/curation.css');
+  const m = read('/newtab/components/curation/CurationMindMap.vue');
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   return !host.includes('py-links-svg') && !host.includes('drawPyLinks')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children::before')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-branch:has(> .mind-children) > .mind-node::after')
-    && c.includes('.mindmap-canvas[data-layout="tree"] .mind-children > .mind-branch::before')
-    && c.includes('.mindmap-canvas[data-layout="tree"] .mind-branch:has(> .mind-children) > .mind-node::after');
+    && c.includes('.mind-connectors path')
+    && m.includes("stage.querySelectorAll<HTMLElement>('[data-mind-branch]')")
+    && m.includes("branch.querySelector<HTMLElement>(':scope > .mind-node')")
+    && m.includes("children.querySelectorAll<HTMLElement>(':scope > .mind-branch')")
+    && m.includes('const px = pr.right - sr.left')
+    && m.includes('const cx = cr.left - sr.left')
+    && m.includes('M ${px} ${py} H ${mx} V ${cy} H ${cx}')
+    && m.includes('new ResizeObserver(scheduleTreeConnectors)');
 });
 check('R64-16（V3.9.13 重指）中心论点创建：空画布 CTA 发 open-create-thesis，宿主 openThesisCreate 打开新建抽屉并预置 isThesis；论点由紧凑上下文带与画布 L1 双入口承担，旧“点击设立中心论点”文案零命中', () => {
   const w = read('/newtab/views/Workspace.vue');

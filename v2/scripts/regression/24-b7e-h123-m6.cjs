@@ -142,9 +142,9 @@ check(NAME(
 /* ══════════════ H1 · 手册正文排版基线 ══════════════ */
 
 check(NAME(
-  'H1-1 ★正文排版走令牌而非字面量：正文 --fs-body / 行高 1.8（长文备案）/ 行宽 ≤68ch / 段内 h4 升 --fs-title'), () => {
+  'H1-1 ★V3.9.14 重指：正文排版走令牌而非字面量：正文 --fs-body / 行高 1.8（长文备案）/ 铺满阅读列 / 段内 h4 升 --fs-title'), () => {
   const content = MPC.slice(MPC.indexOf('.mn-content {'), MPC.indexOf('.mn-content p {'))
-  if (!/max-width: 68ch/.test(content)) { console.log('正文未限行宽 68ch'); return false }
+  if (!/max-width: none/.test(content)) { console.log('正文未按 V3.9.14 铺满阅读列'); return false }
   if (/font-size: 14px/.test(content)) { console.log('正文写死 14px（不在字阶内，会变成下一个散点）'); return false }
   if (!/font-size: var\(--fs-body\)/.test(content)) { console.log('正文未走 --fs-body'); return false }
   if (!/line-height: 1\.8/.test(content)) { console.log('正文行高不是 1.8'); return false }
@@ -268,7 +268,7 @@ check(NAME(
   const targets = [
     ['App.vue 顶栏', APPC, /\.brand-chip, \.nav-shortcut-tip \{ min-height: 28px/, '顶栏 chip'],
     ['CompassHome 存储状态', CHC, /\.foot-status \{[^}]*min-height: 28px/, 'foot-status'],
-    ['CompassHome 战报钮', CHC, /\.foot-link \{[^}]*min-height: 28px/, 'foot-link'],
+    ['CompassHome 战报钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
     ['CompassHome 页脚齿轮', CHC, /\.foot-gear \{[^}]*width: 28px;[\s\S]*?height: 28px/, 'foot-gear'],
     ['CompassHome 右栏文字钮', CHC, /\.rail-head button \{[^}]*min-height: 28px/, 'rail-head button'],
     ['CompassHome 推荐依据钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],

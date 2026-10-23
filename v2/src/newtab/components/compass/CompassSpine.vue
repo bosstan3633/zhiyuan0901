@@ -10,7 +10,7 @@
  * 层级标题最高只到 --fs-title，主角感由版式与留白承担。
  */
 import Icon from '@/shared/components/Icon.vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { CompassMeta } from '../../views/compassMeta'
 
 const props = defineProps<{
@@ -34,6 +34,10 @@ const emit = defineEmits<{
   (e: 'orphan'): void
   (e: 'riskBar'): void
 }>()
+
+/** V3.9.14：战略骨架是地图不是主角，默认折叠成一条状态带。
+ *  KeepAlive 下展开态随页面会话保留；重新进入方向台默认仍回到紧凑首屏。 */
+const expanded = ref(false)
 
 /** 推导链的当前所在层（面板 1/2 与专属列表 3/5/6 联合高亮；点 4 定位不占高亮——定位是动作不是驻留态） */
 const chainAt = computed<1 | 2 | 3 | 5 | 6 | null>(() => props.layerOpen ?? props.layerView)
@@ -72,7 +76,10 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
     <header class="spine-h">
       <span class="spine-ico" aria-hidden="true">◈</span>
       <span class="spine-t">战略骨架<span class="spine-en">SPINE</span></span>
-      <span class="spine-badge">上层定方向 · 下层见动作</span>
+      <span class="spine-badge" :class="{ compact: !expanded }">
+        <template v-if="expanded">上层定方向 · 下层见动作</template>
+        <template v-else>1 愿景 · 2 使命 · 3 目标 · 4 项目 · 5 指标 · 6 任务</template>
+      </span>
       <div class="spine-hint">
         <span>六层数字与下方项目舱同源 · 点 1/2 展开该层 · 点 4 定位项目舱 · 点 3/5/6 切换层级列表</span>
       </div>
@@ -80,10 +87,18 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
            病根＝「＋战略目标」「建议目标」是第 3 层的操作，却摆在一堆全局按钮里，
            用户的视线要先跨过"视图切换/展开收起/已完成显示"才够得到它。
            用插槽而非硬编码：按钮的文案/图标/是否启用归父级（CompassTree）管，子组件只负责摆位。 -->
-      <div class="spine-actions"><slot name="actions" /></div>
+      <div class="spine-actions">
+        <slot name="actions" />
+        <button class="spine-toggle" type="button" :aria-expanded="expanded"
+          :title="expanded ? '收起战略骨架，为项目留出更多空间' : '展开完整战略骨架'"
+          @click="expanded = !expanded">
+          {{ expanded ? '收起' : '展开' }}
+          <span class="spine-toggle-caret" aria-hidden="true">{{ expanded ? '▴' : '▾' }}</span>
+        </button>
+      </div>
     </header>
 
-    <div class="spine-b">
+    <div v-show="expanded" class="spine-b">
       <div class="spine-chain" role="tablist">
         <template v-for="(lv, i) in LV" :key="lv.n">
           <span v-if="i" class="spine-arrow" aria-hidden="true">›</span>
@@ -194,6 +209,15 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-actions {
   margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none;
 }
+.spine-badge.compact { background: transparent; padding-left: 0; color: var(--text-4); }
+.spine-toggle {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 28px;
+  padding: 3px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-2); font-family: inherit;
+  font-size: var(--fs-micro); font-weight: 600; cursor: pointer;
+}
+.spine-toggle:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.spine-toggle-caret { color: var(--text-3); font-size: 9px; }
 
 .spine-b { padding: 12px 18px 13px; display: flex; flex-direction: column; gap: 11px; }
 

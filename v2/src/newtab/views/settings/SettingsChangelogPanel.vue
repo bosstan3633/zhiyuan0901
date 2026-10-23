@@ -48,8 +48,9 @@
               </div>
               <div class="gs-cl-title">{{ e.title }}</div>
             </header>
-            <!-- V3.9.13：版本内部分组改为自适应双列，消掉正文右侧长期空白；
-                 阅读行宽仍由每列约束，长段落不会横跨整个人眼舒适区。 -->
+            <!-- V3.9.14：版本内分组回到单列并两端对齐。
+                 上版双列在短文本下反而把右侧掏空；单列铺满正文列，长段落用两端对齐
+                 维持稳定阅读边界，不再留下整列空白。 -->
             <div class="gs-cl-entry-body">
               <template v-if="kindGroupsOf(e)">
                 <div v-for="g in kindGroupsOf(e)" :key="g.kind" class="gs-cl-group">
@@ -183,20 +184,19 @@ onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
    日期是"这个版本什么时候发的"这一层事实，不该弱到读不出来。降噪只动字号与间距，不动对比度。 */
 .gs-cl-date { font-size: var(--fs-caption); color: var(--text-3); }
 .gs-cl-now { font-size: var(--fs-micro); background: var(--accent-light); color: var(--accent-ink); border-radius: 99px; padding: 1px 8px; font-weight: 600; }
-.gs-cl-title { max-width: 62ch; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
-.gs-cl-entry-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; align-items: start; }
-/* S5：正文行宽 ≤68ch。设置页内容列宽 1100px，12px 正文铺满一行有近 90 个汉字，
-   眼睛从行尾扫回行首会迷路；限宽后一行约 34 个汉字（中文按半角折算），落在可读区间。
-   只限正文与标题，左轨继续通到卡片右缘——轨是时间轴的脊，不该被行宽截断。 */
-.gs-cl-points { min-width: 0; max-width: 58ch; margin: 0; padding-left: 17px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.72; }
-.gs-cl-points-flat { grid-column: 1 / -1; max-width: 68ch; }
+.gs-cl-title { max-width: none; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.gs-cl-entry-body { display: flex; flex-direction: column; gap: 12px; align-items: stretch; width: 100%; }
+/* V3.9.14：版本正文跟内容列同宽，靠两端对齐与 1.72 行高维持阅读节奏。
+   左轨继续通到卡片右缘——轨是时间轴的脊，不该被行宽截断。 */
+.gs-cl-points { min-width: 0; max-width: none; margin: 0; padding-left: 17px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.72; text-align: justify; }
+.gs-cl-points-flat { max-width: none; }
 .gs-cl-points li { margin-bottom: 6px; }
 .gs-cl-points li:last-child { margin-bottom: 0; }
 /* S5：要点里的 `**加粗**` 由 RichText 渲染成真加粗（此前星号原样显示给用户） */
 .gs-cl-points b { color: var(--text); font-weight: 600; }
 /* S5：变更分组（新增 / 修复 / 优化）。段头弱而不隐——它是扫读时的路标，
    用 caption 字号 + --text-2，不靠加粗抢眼（内容本身才是主角）。 */
-.gs-cl-group { min-width: 0; margin: 0; }
+.gs-cl-group { min-width: 0; width: 100%; margin: 0; }
 .gs-cl-group-h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .gs-cl-group-k { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); letter-spacing: var(--tracking-sm); }
 .gs-cl-group-n { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); border-radius: 99px; padding: 0 6px; line-height: var(--lh-micro); }
@@ -205,6 +205,5 @@ onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
   .gs-cl-dir { position: static; max-height: none; }
   .gs-cl-dir-list { max-height: 190px; }
   .gs-cl-list { max-height: none; overflow: visible; padding-left: 14px; }
-  .gs-cl-entry-body { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

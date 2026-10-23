@@ -156,10 +156,11 @@
 }
 .mindmap-canvas::-webkit-scrollbar { width: 9px; height: 9px; }
 .mindmap-canvas::-webkit-scrollbar-thumb { border-radius: 9px; background: var(--surface-3); }
-.mind-stage { width: max-content; min-width: 100%; display: flex; justify-content: center; align-items: flex-start; }
+.mind-stage { position: relative; width: max-content; min-width: 100%; display: flex; justify-content: center; align-items: flex-start; }
 .mind-branch { position: relative; }
 .mind-node {
   position: relative;
+  z-index: 2;
   width: 230px;
   padding: 10px 10px 9px;
   border: 1px solid var(--border);
@@ -415,37 +416,27 @@
   background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
 }
 .mindmap-canvas[data-layout="tree"] .mind-stage { justify-content: flex-start; }
-.mindmap-canvas[data-layout="tree"] .mind-branch { display: flex; align-items: flex-start; position: relative; gap: 44px; }
-.mindmap-canvas[data-layout="tree"] .mind-children { position: relative; display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; padding-left: 24px; }
-.mindmap-canvas[data-layout="tree"] .mind-children > .mind-branch { padding-left: 20px; }
-.mindmap-canvas[data-layout="tree"] .mind-children::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 20px;
-  width: 2px;
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+.mindmap-canvas[data-layout="tree"] .mind-branch { display: flex; align-items: flex-start; position: relative; gap: 52px; }
+.mindmap-canvas[data-layout="tree"] .mind-children {
+  position: relative; display: flex; flex-direction: column;
+  justify-content: flex-start; gap: 12px; padding-left: 28px;
 }
-.mindmap-canvas[data-layout="tree"] .mind-children > .mind-branch::before {
-  content: "";
+.mindmap-canvas[data-layout="tree"] .mind-children > .mind-branch { padding-left: 24px; }
+/* 连线由 CurationMindMap 按真实节点盒生成；SVG 只负责绘制，不参与布局。 */
+.mind-connectors {
   position: absolute;
-  left: -24px;
-  top: 50%;
-  width: 44px;
-  height: 2px;
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+  inset: 0;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
 }
-.mindmap-canvas[data-layout="tree"] .mind-branch:has(> .mind-children) > .mind-node::after {
-  content: "";
-  position: absolute;
-  right: -64px;
-  top: 50%;
-  width: 64px;
-  height: 2px;
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+.mind-connectors path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 76%, var(--border-strong));
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 .mindmap-canvas[data-layout="tree"] .mind-node { width: 250px; }
 .mindmap-canvas[data-layout="tree"] .mind-root { width: 340px; }

@@ -305,14 +305,14 @@ const laneCount = computed(() => {
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
 .lanes {
   display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 16px;
-  align-items: flex-start; min-height: 0;
+  align-items: stretch; min-height: 0;
 }
 
 /* ── 收容泳道（留在本组件：它不属于任何指标，是项目级的第三态）──
    使用独立命名空间，不能复用 .lane：Vue 会把父组件的 scope id 透传到子组件根节点，
    父级 .lane 的固定宽度会覆盖 CompassPanoLane 的弹性宽度。 */
 .lane-orphan {
-  flex: 0 0 262px; display: flex; flex-direction: column;
+  flex: 1 1 0; min-width: 280px; max-width: none; display: flex; flex-direction: column;
   /* ★视觉聚焦：泳道去掉底色与阴影，但保留与板/舱同族的 lg 圆角（判据 C4-1） */
   background: transparent; border-radius: var(--radius-lg); overflow: hidden; max-height: 64vh;
   border: 1px solid var(--danger-border); border-left: 2px solid var(--danger);

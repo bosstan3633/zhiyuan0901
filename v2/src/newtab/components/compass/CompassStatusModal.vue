@@ -21,6 +21,10 @@ export interface StatusDetailItem {
   meta?: string
   /** 第三列时间或计数 */
   extra?: string
+  /** V3.9.14：可选的下一步动作。没有动作的条目保持纯只读。 */
+  action?: string
+  actionKind?: 'project' | 'task' | 'resource' | 'log'
+  actionId?: string
 }
 
 const props = defineProps<{
@@ -33,7 +37,10 @@ const props = defineProps<{
   /** 空态文案（不同的入口空态不同） */
   emptyText: string
 }>()
-const emit = defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'item-action', item: StatusDetailItem): void
+}>()
 </script>
 
 <template>
@@ -46,12 +53,15 @@ const emit = defineEmits<{ (e: 'close'): void }>()
         <span class="sd-title" :title="it.title">{{ it.title }}</span>
         <span v-if="it.meta" class="sd-meta" :title="it.meta">{{ it.meta }}</span>
         <span v-if="it.extra" class="sd-extra">{{ it.extra }}</span>
+        <button v-if="it.action" class="sd-action" type="button" @click="emit('item-action', it)">
+          {{ it.action }} <span aria-hidden="true">›</span>
+        </button>
       </div>
     </div>
     <div v-else class="sd-empty">{{ props.emptyText }}</div>
 
     <template #footer>
-      <span class="sd-foot">只读明细 · 文本可选中复制 · 需要改动请去对应页面</span>
+      <span class="sd-foot">明细数字可核对 · 需要继续处理时使用行内动作</span>
       <button class="sd-btn" @click="emit('close')">关闭</button>
     </template>
   </Modal>
@@ -70,6 +80,13 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 .sd-title { flex: 1; min-width: 0; color: var(--text); overflow-wrap: anywhere; }
 .sd-meta { flex: none; max-width: 42%; font-size: var(--fs-caption); color: var(--text-3); overflow-wrap: anywhere; }
 .sd-extra { flex: none; font-size: var(--fs-caption); color: var(--text-4); font-variant-numeric: tabular-nums; }
+.sd-action {
+  flex: none; min-height: 28px; padding: 2px 7px;
+  border: 1px solid var(--border); border-radius: var(--radius-xs);
+  background: var(--surface); color: var(--text-3);
+  font-family: inherit; font-size: var(--fs-micro); font-weight: 600; cursor: pointer;
+}
+.sd-action:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .sd-empty { padding: 18px 2px; font-size: var(--fs-caption); color: var(--text-4); line-height: 1.7; }
 .sd-foot { flex: 1; min-width: 0; font-size: var(--fs-micro); color: var(--text-4); }
 .sd-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 5px 14px; font-size: var(--fs-sub); font-weight: 600; font-family: inherit; cursor: pointer; }
