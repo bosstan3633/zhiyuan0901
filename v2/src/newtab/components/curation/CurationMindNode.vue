@@ -41,6 +41,7 @@ const emit = defineEmits<{
   'keyboard-drag-target': [dir: -1 | 1]
   'keyboard-drag-confirm': []
   'keyboard-drag-cancel': []
+  'focus-node': [key: string, id: string]
   cut: [id: string]
   paste: [id: string]
   'remove-node': [id: string]
@@ -164,6 +165,11 @@ function onNodeKeydown(e: KeyboardEvent): void {
   if (e.key === 'F2') {
     e.preventDefault()
     beginEdit('title')
+    return
+  }
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    e.preventDefault()
+    emit('focus-node', e.key, props.node.id)
     return
   }
   if (e.key === 'Tab') {
@@ -353,6 +359,7 @@ onBeforeUnmount(() => {
         @keyboard-drag-target="emit('keyboard-drag-target', $event)"
         @keyboard-drag-confirm="emit('keyboard-drag-confirm')"
         @keyboard-drag-cancel="emit('keyboard-drag-cancel')"
+        @focus-node="(key, id) => emit('focus-node', key, id)"
         @cut="emit('cut', $event)" @paste="emit('paste', $event)"
         @remove-node="emit('remove-node', $event)" />
     </div>

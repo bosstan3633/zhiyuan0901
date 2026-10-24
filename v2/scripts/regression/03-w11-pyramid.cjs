@@ -270,6 +270,25 @@ check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。R164-2
     && CT_W11.includes("viewMode === 'pano'") && CT_W11.includes('<CompassPano');
 });
 
+check('W11-21 ★项目全景必须只有一条阅读路径（V3.9.17）：项目切换 → 项目摘要 → 指标泳道。切换器、进度与项目动作在 .ph-toolbar，项目名/下一步/层级脚注在 .ph-b；负锚：.ph-r 与「切换器 + 摘要左右并列」不许回流。任务行统一为账本三列：完成热区 / 标题与线索 / 优先级、成熟度、删除固定在行尾', () => {
+  const pano = read('/newtab/components/compass/CompassPano.vue');
+  const lane = read('/newtab/components/compass/CompassPanoLane.vue');
+  const tb = pano.indexOf('<div class="ph-toolbar">');
+  const summary = pano.indexOf('<div class="ph-b">');
+  const lanes = pano.indexOf('<div class="lanes-shell">');
+  if (tb < 0 || summary < 0 || lanes < 0 || !(tb < summary && summary < lanes)) return false;
+  if (!pano.includes('class="ph-toolbar-spacer"')) return false;
+  if (pano.includes('class="ph-r"')) return false;
+  if (!pano.includes('<CompassPanoSwitch') || !pano.includes('@back="emit(\'toTower\', current.proj.id)"')) return false;
+  if (!pano.includes('第 4 层') || !pano.includes('第 5 层') || !pano.includes('第 6 层')) return false;
+  if (!lane.includes('class="ltask-main"') || !lane.includes('class="ltask-ops"')) return false;
+  const task = (lane.match(/\.ltask \{[\s\S]*?\n\}/) || [''])[0];
+  if (!task.includes('grid-template-columns: 28px minmax(0, 1fr) auto')) return false;
+  const title = (lane.match(/\.ltask-t \{[\s\S]*?\n\}/) || [''])[0];
+  if (!title.includes('font-size: var(--fs-body)')) return false;
+  return !lane.includes('transform: translateX(2px)');
+});
+
 check('W11-13 ★舱色六档必须**从 --accent 派生**而不是新增色系令牌（D2 已拍板：N = 88/70/52/38/26/16 的 color-mix）。理由：四主题各有一套原生色系，新增令牌就要在四个主题里各调一次，且调完没人验证；派生档位天然随主题走。★同时钉住"六档循环"（超过六个项目时档位复用而不是无限降 alpha —— 无限降会让第七个项目的舱几乎透明）。★负锚查的是**硬编码背景色**（原型阶段直接写 vio/amb/ok 的十六进制），纯白前景 `color: #fff` 是合法用法不能误伤', () => {
   const A = [88, 70, 52, 38, 26, 16];
   const okSpine = SPINE.includes('const HUES = [88, 70, 52, 38, 26, 16]') && SPINE.includes('% HUES.length]}');

@@ -665,7 +665,9 @@ check('R36-23 两份 README 的相对文档链接无死链（防止文档导航�
   let total = 0;
   for (const [rel, dir] of pairs) {
     const src = read(rel);
-    const links = [...src.matchAll(/\]\((\.\/[^)]+?\.md)\)/g)].map((m) => m[1].replace(/^\.\//, ''));
+    const links = [...src.matchAll(/\]\((\.\/[^()]+?)\)/g)]
+      .map((m) => m[1].replace(/^\.\//, ''))
+      .filter((l) => /\.md$/.test(l) || /^docs\/$/.test(l));
     for (const l of links) { total++; if (!fs.existsSync(path.resolve(dir, l))) return false; }
   }
   return total >= 5;

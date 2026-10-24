@@ -10,7 +10,7 @@
  *  泳道钉"空位可见 / 收容道在最后 / 任务出口齐全"，不会因为改了导航样式就把内容判据一起拖红。
  *
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
- * 层级：指标名 --fs-sub(12px)、任务 --fs-micro，与项目名 --fs-title(15px) 严格拉开。
+ * 层级：指标名 --fs-sub(12px)、任务 --fs-body，与项目名 --fs-title(15px) 严格拉开。
  */
 import Icon from '@/shared/components/Icon.vue'
 import { ref } from 'vue'
@@ -132,9 +132,13 @@ function priOf(t: TaskCard): string {
             :title="t.status === 'done' ? '点一下取消完成' : '点一下勾选完成'"
             @click="emit('toggleTask', t.id)"
           />
-          <button class="ltask-t" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
-          <div class="ltask-b">
-            <span v-if="hasClue(t)" class="lb lb-clue" :title="clueOf(t)"><Icon name="warn" :size="13"/> {{ clueOf(t) }}</span>
+          <div class="ltask-main">
+            <button class="ltask-t" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
+            <div v-if="hasClue(t)" class="ltask-clue" :title="clueOf(t)">
+              <Icon name="warn" :size="12"/> {{ clueOf(t) }}
+            </div>
+          </div>
+          <div class="ltask-ops">
             <span class="lb lb-pri">{{ priOf(t) }}</span>
             <button class="lb lb-g" :style="{ color: gradeColorVar(gradeOf(t)) }" :title="`成熟度等级 ${gradeOf(t)} · 点击看详情`" @click="emit('taskGrade', t.id)">{{ gradeOf(t) }}</button>
             <button class="lb-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click.stop="emit('deleteTask', t.id)"><Icon name="trash" :size="12"/></button>
@@ -280,28 +284,34 @@ function priOf(t: TaskCard): string {
   background: var(--surface); border: 1.6px solid color-mix(in srgb, var(--hue) 75%, transparent);
 }
 .ltask {
-  position: relative; padding: 6px 8px 6px 28px; border-radius: 0;
+  position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 5px 6px;
+  align-items: center; padding: 5px 6px 5px 28px; border-radius: 0;
   /* 任务行从"小卡"退成"行"：保留左侧状态色与连接轨分支点，去掉底色与外边距 */
   background: transparent; transition: all var(--dur); border-left: 2px solid var(--hue);
   border-bottom: 1px solid var(--border);
 }
-.ltask:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); transform: translateX(2px); }
+.ltask:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
 .ltask.done { border-left-color: var(--success); }
 .ltask.doing { border-left-color: var(--warning); }
-/* ★W12-C：div 改 button（单击开抽屉 + 键盘可达）。显式归零浏览器默认按钮外观，
-   字号字色与 line-height / padding 一字未动；只加交互态反馈。 */
+/* ★V3.9.17 任务账本：完成 / 标题与线索 / 优先级、成熟度、删除固定三列。
+   标题和线索占同一可读列，操作固定在行尾，扫读不再在每一行里寻找按钮。 */
+.ltask-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .ltask-t {
-  font-size: var(--fs-micro); font-weight: 500; line-height: 1.55; padding-right: 18px; color: var(--text);
+  width: 100%; font-size: var(--fs-body); font-weight: 500; line-height: 1.5; color: var(--text);
   background: none; border: 0; margin: 0; font-family: inherit; text-align: left; cursor: pointer;
-  border-radius: var(--radius-sm); min-height: 28px;
-  min-width: 0; max-width: 100%; overflow-wrap: anywhere;
+  border-radius: var(--radius-sm); min-height: 28px; min-width: 0;
+  overflow-wrap: anywhere;
 }
 .ltask-t:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
 .ltask-t:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ltask.done .ltask-t { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .ltask.doing .ltask-t { font-weight: 700; }
+.ltask-clue {
+  max-width: 100%; margin-top: -2px; color: var(--warning); font-size: var(--fs-tiny);
+  line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .ltask-box {
-  position: absolute; right: 1px; top: 1px; width: 28px; height: 28px;
+  grid-column: 1; grid-row: 1; position: relative; width: 28px; height: 28px;
   cursor: pointer; background: transparent; border: 0; padding: 0;
 }
 .ltask-box::before {
@@ -316,17 +326,16 @@ function priOf(t: TaskCard): string {
   border-left: 1.8px solid var(--surface); border-bottom: 1.8px solid var(--surface);
   transform: rotate(-45deg);
 }
-.ltask-b { display: flex; align-items: center; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.ltask-ops { grid-column: 3; grid-row: 1; display: flex; align-items: center; gap: 3px; flex: none; }
 .lb { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
 .lb-pri { color: var(--text-3); background: var(--surface-3); }
-.lb-clue { color: var(--warning); background: var(--warning-bg-soft); }
 .lb-g {
   background: var(--surface-3); border: 0; font-family: inherit; letter-spacing: .04em;
-  cursor: pointer; min-height: 28px; padding: 5px 5px; margin: -5px -1px;
+  cursor: pointer; min-height: 28px; min-width: 28px; padding: 4px 6px;
 }
 .lb-del {
   display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
-  margin: -5px 0 -5px 1px; border: 1px solid transparent; border-radius: 4px;
+  border: 1px solid transparent; border-radius: 4px;
   background: transparent; color: var(--text-2); cursor: pointer;
   opacity: .55; transition: all var(--dur);
 }

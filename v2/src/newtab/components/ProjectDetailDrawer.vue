@@ -12,7 +12,7 @@ import type { Direction, Project, TaskCard } from '@/shared/models'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
-import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
@@ -175,6 +175,11 @@ function unbindTask(taskId: string) {
   store.persist()
   showToast(`已从本指标移除：「${t.title.slice(0, 16)}」回到任务调度模块`)
 }
+function deleteTask(task: TaskCard) {
+  softDeleteTaskToTrash(d.value, task)
+  store.persist()
+  showToast(`已移入回收站：「${task.title.slice(0, 16)}」`)
+}
 /* R166 定案 1：子任务改成卡内嵌 `subtasks`，不再是"独立卡 + parentId"——
    因此指标下的任务行是一维列表，R144 的 flattenTaskTree 展平与 ⤴ 升顶层随之退役。 */
 function metricTaskRows(metricId: string) { return tasksForMetric(metricId) }
@@ -288,8 +293,10 @@ function chainStatus(): { broken: boolean; text: string } {
             <div v-for="task in metricTaskRows(m.id)" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
               <div class="pd-check" v-pressable :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
               <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
+              <span class="pd-task-pri" :class="task.priority">{{ task.priority === 'high' ? '高' : task.priority === 'low' ? '低' : '中' }}</span>
               <MaturityBadge :m="taskMaturity(task)" />
-              <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）"><Icon name="x" :size="13"/></button>
+              <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（任务保留在调度台）"><Icon name="x" :size="13"/></button>
+              <button class="pd-mini danger pd-task-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="deleteTask(task)"><Icon name="trash" :size="13"/></button>
             </div>
             <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>
           </div>
@@ -305,8 +312,10 @@ function chainStatus(): { broken: boolean; text: string } {
           <div v-for="task in allProjectTasks()" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
             <div class="pd-check" v-pressable :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
             <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
+            <span class="pd-task-pri" :class="task.priority">{{ task.priority === 'high' ? '高' : task.priority === 'low' ? '低' : '中' }}</span>
             <MaturityBadge :m="taskMaturity(task)" />
             <span class="pd-task-state">{{ task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始' }}</span>
+            <button class="pd-mini danger pd-task-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="deleteTask(task)"><Icon name="trash" :size="13"/></button>
           </div>
         </div>
       </div>
@@ -361,6 +370,10 @@ function chainStatus(): { broken: boolean; text: string } {
 .pd-task-open:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
 .pd-task-flat { display: flex; flex-direction: column; gap: 4px; }
 .pd-task-state { flex: none; font-size: var(--fs-tiny); color: var(--text-3); }
+.pd-task-pri {
+  flex: none; font-size: var(--fs-tiny); font-weight: 600; color: var(--text-3);
+  background: var(--surface-3); padding: 0 5px; border-radius: 3px;
+}
 
 .pd-label { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 7px; }
 .pd-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; }
@@ -371,17 +384,22 @@ function chainStatus(): { broken: boolean; text: string } {
 .pd-metric-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: var(--fs-body); font-weight: 600; color: var(--text); font-family: inherit; padding: 3px 5px; margin: -3px -5px; border-radius: 5px; }
 .pd-metric-name:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .pd-metric-count { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
-.pd-mini { width: 22px; height: 22px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-sub); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: inherit; }
+.pd-mini { width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-sub); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: inherit; }
 .pd-mini.pd-detail { width: auto; padding: 0 7px; font-size: var(--fs-tiny); font-weight: 600; }
 .pd-mini:hover { background: var(--surface-3); color: var(--text); }
 .pd-mini.danger:hover { color: var(--danger); }
+.pd-task-del { opacity: .6; }
+.pd-task:hover .pd-task-del, .pd-task-del:focus-visible { opacity: 1; }
 .pd-tasks { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
-.pd-task { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; }
+.pd-task { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 3px 5px; border-radius: 6px; }
 .pd-task:hover { background: var(--surface); }
 .pd-task.done .pd-task-name { text-decoration: line-through; color: var(--text-3); }
-.pd-check { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-micro); color: #fff; }
+.pd-check { width: 28px; height: 28px; border-radius: 6px; border: 0; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-micro); color: #fff; position: relative; }
+.pd-check::before { content: ''; position: absolute; inset: 6px; border-radius: 4px; border: 1.5px solid var(--border-strong); }
 .pd-check:hover { border-color: var(--accent); }
-.pd-check.done { background: var(--success); border-color: var(--success); }
+.pd-check:hover::before { border-color: var(--accent); }
+.pd-check.done::before { background: var(--success); border-color: var(--success); }
+.pd-check :deep(svg) { position: relative; z-index: 1; }
 .pd-task-name { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: var(--fs-sub); color: var(--text); font-family: inherit; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; }
 .pd-task-name:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .pd-task-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 4px 6px; }

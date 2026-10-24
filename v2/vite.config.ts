@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { crx } from '@crxjs/vite-plugin'
 import UnoCSS from 'unocss/vite'
+import { transform as transformCss } from 'lightningcss'
 import { fileURLToPath, URL } from 'node:url'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -37,8 +38,50 @@ function fixContentDynamicImports() {
   }
 }
 
+/**
+ * 发布包体积预算只计算 dist 内最终落盘字节，而 Vite 生成的 manifest 和 HTML
+ * 仍会保留人类可读的缩进、换行与内联样式注释。这里只做格式压缩：
+ * manifest 仍是合法 JSON，HTML 的标签结构、脚本和文本内容不变。
+ */
+function compactBuildArtifacts() {
+  return {
+    name: 'compact-build-artifacts',
+    closeBundle() {
+      const dist = fileURLToPath(new URL('./dist', import.meta.url))
+      const manifestPath = path.join(dist, 'manifest.json')
+      if (fs.existsSync(manifestPath)) {
+        const data = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+        fs.writeFileSync(manifestPath, JSON.stringify(data))
+      }
+
+      for (const rel of ['src/newtab/index.html', 'src/options/index.html']) {
+        const file = path.join(dist, rel)
+        if (!fs.existsSync(file)) continue
+        let html = fs.readFileSync(file, 'utf8')
+        html = html.replace(/<!--[\s\S]*?-->/g, '')
+        html = html.replace(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/gi, (_m, css: string) => {
+          try {
+            const minified = transformCss({
+              filename: 'inline.css',
+              code: Buffer.from(css),
+              minify: true,
+              targets: { chrome: 120 << 16 }
+            }).code.toString()
+            return `<style>${minified}</style>`
+          } catch {
+            // 内联样式异常时保留原内容，构建不应因压缩失败而破坏启动页。
+            return _m
+          }
+        })
+        html = html.replace(/>\s+</g, '><').trim()
+        fs.writeFileSync(file, html)
+      }
+    }
+  }
+}
+
 export default defineConfig({
-  plugins: [vue(), crx({ manifest }), UnoCSS(), fixContentDynamicImports()],
+  plugins: [vue(), crx({ manifest }), UnoCSS(), fixContentDynamicImports(), compactBuildArtifacts()],
   // 全项目均为 <script setup> / 组合式 API，Options API 合并与运行时代理分支
   // 可以安全裁掉；这是 Vue 官方支持的编译期能力开关，不改变业务行为。
   define: {

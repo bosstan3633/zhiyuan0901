@@ -584,9 +584,10 @@ check('W12-F2 ★全景泳道的任务标题必须能开任务详情抽屉——
   for (const n of ['background: none', 'border: 0', 'font-family: inherit', 'text-align: left', 'cursor: pointer']) {
     if (!b.includes(n)) return false;
   }
-  if (!b.includes('font-size: var(--fs-micro)')) return false;
+  if (!b.includes('font-size: var(--fs-body)')) return false;
   if (!b.includes('color: var(--text)')) return false;
   if (!/\.ltask-t:hover \{/.test(lane)) return false;
+  if (!lane.includes('class="ltask-main"') || !lane.includes('class="ltask-ops"')) return false;
   return true;
 });
 

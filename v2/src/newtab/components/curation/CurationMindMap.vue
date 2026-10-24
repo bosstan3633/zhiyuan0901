@@ -158,9 +158,64 @@ function onRootKeydown(e: KeyboardEvent): void {
   const target = e.target as HTMLElement | null
   const tag = target?.tagName || ''
   if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag) || target?.isContentEditable) return
+  if (['ArrowUp', 'ArrowDown', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    e.preventDefault()
+    navigateMindNode(e.key, 'root')
+    return
+  }
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    return
+  }
   if (e.key !== 'Tab' && e.key !== 'Enter') return
   e.preventDefault()
   emit('create-child', 'root')
+}
+
+/** 空间树导航只移动焦点，不改变 Tab/Enter 的建支语义。 */
+function visibleMindNodes(): HTMLElement[] {
+  return [...(canvasRef.value?.querySelectorAll<HTMLElement>('[data-mind-node]') || [])]
+}
+
+function focusMindNode(id: string): void {
+  const node = canvasRef.value?.querySelector<HTMLElement>(`[data-mind-node="${CSS.escape(id)}"]`)
+  if (!node) return
+  node.focus({ preventScroll: true })
+  node.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
+function navigateMindNode(key: string, currentId: string): void {
+  const nodes = visibleMindNodes()
+  const current = nodes.findIndex(node => node.dataset.mindNode === currentId)
+  if (current < 0) return
+  if (key === 'Home') {
+    focusMindNode(nodes[0]?.dataset.mindNode || 'root')
+    return
+  }
+  if (key === 'End') {
+    const last = nodes[nodes.length - 1]?.dataset.mindNode
+    if (last) focusMindNode(last)
+    return
+  }
+  if (key === 'ArrowUp' || key === 'ArrowDown') {
+    const next = nodes[current + (key === 'ArrowUp' ? -1 : 1)]?.dataset.mindNode
+    if (next) focusMindNode(next)
+    return
+  }
+  if (currentId === 'root') {
+    const firstChild = props.roots[0]?.id
+    if (firstChild) focusMindNode(firstChild)
+    return
+  }
+  const node = props.nodes.find(n => n.id === currentId)
+  if (!node) return
+  const firstChild = childrenOf(currentId)[0]?.id
+  const target = key === 'ArrowRight' ? firstChild : (node.parentId || 'root')
+  if (target) focusMindNode(target)
+}
+
+function onNodeFocusRequest(key: string, id: string): void {
+  navigateMindNode(key, id)
 }
 
 watch(() => props.layout, () => {
@@ -356,6 +411,7 @@ onBeforeUnmount(() => {
       <span><kbd>拖拽</kbd> 移动整棵子树</span>
       <span><kbd>⌘/Ctrl+X</kbd> 剪切</span>
       <span><kbd>⌘/Ctrl+V</kbd> 粘贴为子级</span>
+      <span><kbd>↑↓←→</kbd> 节点导航</span>
       <span><kbd>双击</kbd> 就地编辑</span>
       <span><kbd>↑↓ + M</kbd> 键盘移动</span>
       <span class="mindmap-help-spacer"></span>
@@ -425,6 +481,7 @@ onBeforeUnmount(() => {
               @keyboard-drag-target="emit('keyboard-drag-target', $event)"
               @keyboard-drag-confirm="emit('keyboard-drag-confirm')"
               @keyboard-drag-cancel="emit('keyboard-drag-cancel')"
+              @focus-node="onNodeFocusRequest"
               @cut="emit('cut', $event)" @paste="emit('paste', $event)"
               @remove-node="emit('remove-node', $event)" />
           </div>

@@ -14,8 +14,8 @@
  * ★组件边界：本组件只管「选谁 / 主体是谁」（选择条 + 项目头 + 泳道轨道 + 收容道），
  * 一根根泳道交给 CompassPanoLane。两块各自独立可判 —— 改导航样式不会把内容判据一起拖红。
  *
- * V3.9.15：保留「选择项目 → 项目摘要 → 横向泳道」架构；轨道 1 铺满、2–4 等分、
- * 5+ 以 280px 下限滚动。项目头只留下一步与主行动，低频动作进「⋯」。
+ * V3.9.17：阅读顺序固定为「项目切换 → 项目摘要 → 指标泳道」。
+ * 轨道 1 铺满、2–4 等分、5+ 以 280px 下限滚动。
  *
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 项目名 --fs-title(15px)，主角感由横向铺开与留白承担。
@@ -125,34 +125,10 @@ const laneCount = computed(() => {
 <template>
   <div class="pano" :style="{ '--hue': current?.hue || 'var(--accent)' }">
     <template v-if="current">
-      <!-- 项目摘要同时承担“我在哪个项目”和“接下来做什么”：项目切换收进右侧动作区，
-           避免切换条与摘要各写一遍项目名。 -->
       <section class="pano-h" aria-label="当前项目摘要">
-        <div class="ph-b">
-          <h3 class="ph-n">
-            {{ current.proj.name }}
-            <span v-if="current.proj.isFocused" class="ph-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
-            <span v-if="current.proj.pinned" class="ph-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
-            <span v-if="current.pm.stall" class="ph-badge stall" title="近 14 天无推进/完成活动"><Icon name="warn" :size="13"/> 停滞 14 天+</span>
-          </h3>
-          <!-- 下一步是这一屏的主句；路径与层数降为脚注，不和项目名并列争夺行高。 -->
-          <div class="ph-next" :class="current.pm.nextStepSource === 'empty' ? 'src-empty' : `src-${current.pm.nextStepSource}`">
-            <span class="ph-next-l">下一步</span>
-            <span class="ph-next-v" :title="current.pm.nextStep">{{ current.pm.nextStep }}</span>
-            <span v-if="current.pm.nextStepSource === 'task'" class="ph-next-src">按任务推导</span>
-          </div>
-          <div class="ph-foot">
-            <span>{{ current.dir.name }} › 第 4 层 攻坚项目</span>
-            <span class="ph-sep" aria-hidden="true">/</span>
-            <span>第 5 层 {{ bandStats?.metrics }} 指标</span>
-            <span class="ph-sep" aria-hidden="true">/</span>
-            <span>第 6 层 {{ bandStats?.allTasks }} 任务</span>
-            <span class="ph-sep" aria-hidden="true">/</span>
-            <span :class="{ bad: !!current.pm.risk }">{{ riskLabel }}</span>
-          </div>
-        </div>
-        <div class="ph-r">
+        <div class="ph-toolbar">
           <CompassPanoSwitch :rows="pickRows" :active-id="current.proj.id" @pick="emit('pick', $event)" @back="emit('toTower', current.proj.id)" />
+          <div class="ph-toolbar-spacer"></div>
           <div class="ph-prog" :title="`项目级完成度 ${current.pm.pct}%（跨全部指标聚合）`">
             <span class="ph-prog-v">{{ current.pm.pct }}%</span>
             <span class="ph-prog-c">{{ current.pm.done }} / {{ current.pm.total }} 任务</span>
@@ -175,6 +151,29 @@ const laneCount = computed(() => {
                 />
               </div>
             </div>
+          </div>
+        </div>
+        <div class="ph-b">
+          <h3 class="ph-n">
+            {{ current.proj.name }}
+            <span v-if="current.proj.isFocused" class="ph-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
+            <span v-if="current.proj.pinned" class="ph-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
+            <span v-if="current.pm.stall" class="ph-badge stall" title="近 14 天无推进/完成活动"><Icon name="warn" :size="13"/> 停滞 14 天+</span>
+          </h3>
+          <!-- 下一步是这一屏的主句；路径与层数降为脚注，不和项目名并列争夺行高。 -->
+          <div class="ph-next" :class="current.pm.nextStepSource === 'empty' ? 'src-empty' : `src-${current.pm.nextStepSource}`">
+            <span class="ph-next-l">下一步</span>
+            <span class="ph-next-v" :title="current.pm.nextStep">{{ current.pm.nextStep }}</span>
+            <span v-if="current.pm.nextStepSource === 'task'" class="ph-next-src">按任务推导</span>
+          </div>
+          <div class="ph-foot">
+            <span>{{ current.dir.name }} › 第 4 层 攻坚项目</span>
+            <span class="ph-sep" aria-hidden="true">/</span>
+            <span>第 5 层 {{ bandStats?.metrics }} 指标</span>
+            <span class="ph-sep" aria-hidden="true">/</span>
+            <span>第 6 层 {{ bandStats?.allTasks }} 任务</span>
+            <span class="ph-sep" aria-hidden="true">/</span>
+            <span :class="{ bad: !!current.pm.risk }">{{ riskLabel }}</span>
           </div>
         </div>
       </section>
@@ -240,13 +239,14 @@ const laneCount = computed(() => {
 </template>
 
 <style scoped>
-/* V3.9.12：项目头是一个“摘要段落”，不是又一张卡。
-   标题 → 下一步 → 脚注 → 进度/动作 四层只用留白与发丝线分隔。 */
+/* V3.9.17：一条工具带 + 一段项目摘要，动作不抢标题行。 */
 .pano-h {
-  display: flex; align-items: flex-start; gap: 16px; padding: 0 0 12px; margin-bottom: 12px;
-  border-bottom: 1px solid var(--border-strong); flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 10px; padding: 0 0 12px; margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-strong);
 }
-.ph-b { flex: 1; min-width: 240px; }
+.ph-toolbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ph-toolbar-spacer { flex: 1; min-width: 8px; }
+.ph-b { min-width: 0; }
 .ph-n {
   margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -.015em;
   display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; color: var(--text);
@@ -271,7 +271,6 @@ const laneCount = computed(() => {
 }
 .ph-foot .bad { color: var(--danger); font-weight: 600; }
 .ph-sep { opacity: .55; }
-.ph-r { display: flex; align-items: center; gap: 8px; flex: none; }
 .ph-prog { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .ph-prog-v { font-size: var(--fs-sub); font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ph-prog-c { font-size: var(--fs-tiny); color: var(--text-3); white-space: nowrap; }
@@ -381,13 +380,14 @@ const laneCount = computed(() => {
 .lo-del-task:hover, .lo-del-task:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); }
 
 @media (max-width: 800px) {
-  .pano-h { gap: 12px; }
-  .ph-r { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+  .pano-h { gap: 9px; }
+  .ph-toolbar { flex-wrap: wrap; }
+  .ph-toolbar-spacer { flex-basis: 100%; }
   .ph-acts { flex-wrap: wrap; }
 }
 @media (max-width: 480px) {
   .pano-h { padding-bottom: 12px; }
-  .ph-b { min-width: 0; width: 100%; }
+  .ph-b { width: 100%; }
   .ph-next { align-items: flex-start; }
   .ph-next-src { display: none; }
   .lanes-scroll > .lane,

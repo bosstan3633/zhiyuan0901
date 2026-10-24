@@ -107,6 +107,24 @@ check('C101-6 节点键位合同：标题输入中 Tab=提交并建子级、Ente
     && node.includes("emit('create-sibling', props.node.id)");
 });
 
+check('C101-6b ★树画布空间导航（V3.9.17）：↑↓ 按可见节点顺序移动，← 回父级，→ 进第一个子级，Home/End 到首尾；导航只移焦点，不改变 Tab/Enter 建支语义。子节点把自身 id 一并上抛，避免选中态与焦点态不同步时导航跳到别处', () => {
+  const map = MAP.slice(MAP.indexOf('function onRootKeydown'), MAP.indexOf('watch(() => props.layout'));
+  const nav = MAP.slice(MAP.indexOf('function visibleMindNodes'), MAP.indexOf('function onSchedule') > 0 ? MAP.indexOf('function onSchedule') : MAP.indexOf('function scheduleTreeConnectors'));
+  const node = NODE.slice(NODE.indexOf('function onNodeKeydown'), NODE.indexOf('function focusCard'));
+  return map.includes("['ArrowUp', 'ArrowDown', 'ArrowRight', 'Home', 'End']")
+    && map.includes("e.key === 'ArrowLeft'")
+    && nav.includes("querySelectorAll<HTMLElement>('[data-mind-node]')")
+    && nav.includes("key === 'Home'") && nav.includes("key === 'End'")
+    && nav.includes("key === 'ArrowUp' ? -1 : 1")
+    && nav.includes("key === 'ArrowRight' ? firstChild : (node.parentId || 'root')")
+    && node.includes("['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']")
+    && node.includes("emit('focus-node', e.key, props.node.id)")
+    && NODE.includes("'focus-node': [key: string, id: string]")
+    && MAP.includes('@focus-node="onNodeFocusRequest"')
+    && MAP.includes('function onNodeFocusRequest(key: string, id: string)')
+    && MAP.includes('<kbd>↑↓←→</kbd> 节点导航');
+});
+
 check('C101-7 新建 / 同级写入同一份 Category 树并立即进入标题编辑；新建同级插入当前节点之后', () => {
   return HOOK.includes('const cat: Category = {')
     && HOOK.includes('workspaceId: workspaceId.value')

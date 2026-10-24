@@ -1089,6 +1089,57 @@ async function main() {
   report('E2E-50 V3.9.14 树状画布的 SVG 正交连线按真实父子分支数量生成',
     connectorContract.ok, connectorContract.txt)
 
+  // E2E-51（V3.9.17）：空间树导航只移动焦点，不改变 Tab / Enter 的建支语义。
+  //   从 L1 出发验证右进首子、左回父级、上下按可见顺序移动、Home/End 到首尾；
+  //   全程分支数必须不变，避免方向键误触建支或进入编辑态。
+  const navBefore = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const cats = ((r['zy_data_v2'] || {}).categories || [])
+    return {
+      count: cats.filter(c => c.workspaceId === 'e2e-main-board').length,
+      visible: [...document.querySelectorAll('.mindmap-canvas [data-mind-node]')].map(x => x.getAttribute('data-mind-node')),
+      firstChild: document.querySelector('.mind-root-branch > .mind-children > .mind-branch > .mind-node')?.getAttribute('data-mind-node') || '',
+    }
+  }))
+  await page.locator('[data-mind-node="root"]').focus()
+  await page.keyboard.press('ArrowRight')
+  const rightToChild = await pollUntil(async () => page.evaluate((id) => {
+    return document.activeElement?.getAttribute('data-mind-node') === id
+  }, navBefore.firstChild), { timeout: 3000, label: '方向键进入首个子节点' })
+  await page.keyboard.press('ArrowLeft')
+  const leftToRoot = await pollUntil(async () => page.evaluate(() => {
+    return document.activeElement?.getAttribute('data-mind-node') === 'root'
+  }), { timeout: 3000, label: '方向键返回父节点' })
+  await page.keyboard.press('ArrowDown')
+  const downToSecond = await pollUntil(async () => page.evaluate((id) => {
+    return document.activeElement?.getAttribute('data-mind-node') === id
+  }, navBefore.visible[1] || ''), { timeout: 3000, label: '方向键按可见顺序下移' })
+  await page.keyboard.press('ArrowUp')
+  const upToRoot = await pollUntil(async () => page.evaluate(() => {
+    return document.activeElement?.getAttribute('data-mind-node') === 'root'
+  }), { timeout: 3000, label: '方向键按可见顺序上移' })
+  await page.keyboard.press('End')
+  const endToLast = await pollUntil(async () => page.evaluate((id) => {
+    return document.activeElement?.getAttribute('data-mind-node') === id
+  }, navBefore.visible[navBefore.visible.length - 1] || ''), { timeout: 3000, label: 'End 到末节点' })
+  await page.keyboard.press('Home')
+  const homeToFirst = await pollUntil(async () => page.evaluate(() => {
+    return document.activeElement?.getAttribute('data-mind-node') === 'root'
+  }), { timeout: 3000, label: 'Home 到首节点' })
+  const navAfter = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+    const cats = ((r['zy_data_v2'] || {}).categories || [])
+    return {
+      count: cats.filter(c => c.workspaceId === 'e2e-main-board').length,
+      editing: !!document.querySelector('.mind-edit-title, .mind-edit-desc'),
+    }
+  }))
+  report('E2E-51 V3.9.17 树画布空间导航：→ 首子 / ← 父级 / ↑↓ 顺序 / Home·End 首尾；方向键零建支',
+    navBefore.firstChild && navBefore.visible.length >= 2
+      && rightToChild && leftToRoot && downToSecond && upToRoot && endToLast && homeToFirst
+      && navAfter.count === navBefore.count && !navAfter.editing,
+    `nodes=${navBefore.visible.length} first=${navBefore.firstChild} `
+      + `right=${rightToChild} left=${leftToRoot} down=${downToSecond} up=${upToRoot} `
+      + `end=${endToLast} home=${homeToFirst} count=${navBefore.count}→${navAfter.count} editing=${navAfter.editing}`)
+
   // E2E-46（V3.9.10）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
   //   预览按真实 Category 树递归平铺到 L4，且画布工具栏在 1440 宽保持单行、分享在行尾。
   await page.locator('.share-action').first().click()
