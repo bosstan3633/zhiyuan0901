@@ -44,7 +44,7 @@ const tagTitle = (t: { tag: string; dim: string }) =>
 </script>
 
 <template>
-  <div class="tw-status" @click.stop>
+  <div class="tw-status" data-a11y-container @click.stop>
     <div class="tw-ring" :title="`项目级完成度 ${meta.pct}%（跨全部指标聚合）`">
       <svg viewBox="0 0 42 42" width="42" height="42" aria-hidden="true">
         <circle cx="21" cy="21" :r="ringR" fill="none" stroke="var(--surface-3)" stroke-width="3" />
@@ -79,18 +79,18 @@ const tagTitle = (t: { tag: string; dim: string }) =>
 </template>
 
 <style scoped>
-.tw-status { display: flex; align-items: center; gap: 14px; flex: none; }
+.tw-status { display: flex; align-items: center; gap: 10px; flex: none; }
 /* 原型 .ring 42px + 环上数字；24px 时光环细到看不出进度 */
-.tw-ring { position: relative; width: 42px; height: 42px; flex: none; }
-.tw-ring svg { transform: rotate(-90deg); }
+.tw-ring { position: relative; width: 36px; height: 36px; flex: none; }
+.tw-ring svg { width: 36px; height: 36px; transform: rotate(-90deg); }
 .tw-ring-v {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: var(--fs-micro); font-weight: 700; color: var(--text-2);
 }
 /* 原型 .tw-num 是两行块：完成数一行（--fs-sub）、"任务完成"一行（--fs-micro）。
    之前挤成一行 "0 / 5 任务完成"，与舱头 15px 标题同排就糊了。 */
-.tw-num { font-size: var(--fs-micro); color: var(--text-3); line-height: 1.5; white-space: nowrap; }
-.tw-num b { display: block; font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tw-num { font-size: var(--fs-tiny); color: var(--text-3); line-height: 1.4; white-space: nowrap; }
+.tw-num b { display: block; font-size: var(--fs-micro); color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 /* 诊断标签组：过期只降亮（opacity）不撤标签 */
 .tw-diag { display: flex; align-items: center; gap: 5px; flex: none; max-width: 340px; flex-wrap: wrap; }

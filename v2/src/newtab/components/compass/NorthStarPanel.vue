@@ -221,32 +221,32 @@ function changeTaskMetric(taskId: string, e: Event) {
 
     <div class="ns-body">
       <div class="ns-matrix">
-        <div class="ns-card top" @click="openDrawer('dhi')">
+        <div class="ns-card top" v-pressable @click="openDrawer('dhi')">
           <div class="ns-label"><Icon name="compass" :size="13"/> 方向状态 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ metrics.dhi.goals }} 战略目标</div>
           <div class="ns-sub">{{ metrics.dhi.pushing }} 项目推进中</div>
         </div>
-        <div class="ns-card top" @click="openDrawer('wce')">
+        <div class="ns-card top" v-pressable @click="openDrawer('wce')">
           <div class="ns-label"><Icon name="bulb" :size="13"/> WCE <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ metrics.wce.label }}</div>
           <div class="ns-sub">{{ metrics.wce.sub }}</div>
         </div>
-        <div class="ns-card top" @click="openDrawer('wrr')">
+        <div class="ns-card top" v-pressable @click="openDrawer('wrr')">
           <div class="ns-label"><Icon name="dot" :size="9" class="zy-dot zy-dot-lo"/> WRR <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ metrics.wrr.label }}</div>
           <div class="ns-sub">{{ metrics.wrr.sub }}</div>
         </div>
-        <div class="ns-card bottom" @click="openDrawer('today-add')">
+        <div class="ns-card bottom" v-pressable @click="openDrawer('today-add')">
           <div class="ns-label"><Icon name="trendup" :size="13"/> 新增卡片 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ todayAddList.length }}</div>
           <div class="ns-sub">{{ todayAddSub }} · {{ periodLabel }}</div>
         </div>
-        <div class="ns-card bottom" @click="openDrawer('today-del')">
+        <div class="ns-card bottom" v-pressable @click="openDrawer('today-del')">
           <div class="ns-label"><Icon name="trenddown" :size="13"/> 删除卡片 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ todayDelList.length }}</div>
           <div class="ns-sub">{{ todayDelSub }} · {{ periodLabel }}</div>
         </div>
-        <div class="ns-card bottom" @click="openDrawer('tasks')">
+        <div class="ns-card bottom" v-pressable @click="openDrawer('tasks')">
           <div class="ns-label"><Icon name="inbox" :size="13"/> 未归档任务 <span class="ns-hint"><Icon name="external" :size="13"/></span></div>
           <div class="ns-value">{{ unarchivedTasks.length }}/{{ totalTasks }}</div>
           <div class="ns-sub">未挂指标 · 不分期</div>
@@ -261,7 +261,7 @@ function changeTaskMetric(taskId: string, e: Event) {
       <!-- 战略目标 / 推进项目 -->
       <template v-if="drawerType === 'dhi'">
         <div class="dhi-list">
-          <div v-for="item in dhiList" :key="item.project.id" class="nd-item clickable" @click="openProject(item.project)">
+          <div v-for="item in dhiList" :key="item.project.id" class="nd-item clickable" v-pressable @click="openProject(item.project)">
             <div class="nd-name">{{ item.project.name }}</div>
             <div v-if="item.stagnant" class="nd-tag warn"><Icon name="warn" :size="13"/> 停滞</div>
             <div v-else class="nd-meta">{{ item.done }}/{{ item.total }}</div>
@@ -291,7 +291,7 @@ function changeTaskMetric(taskId: string, e: Event) {
           <div class="nd-stat"><b>{{ metrics.wrr.sub }}</b><span>{{ periodLabel }}</span></div>
         </div>
         <div class="dhi-list">
-          <div v-for="r in wrrTop" :key="r.id" class="nd-item clickable" @click="openResLink(r)">
+          <div v-for="r in wrrTop" :key="r.id" class="nd-item clickable" v-pressable @click="openResLink(r)">
             <div class="nd-name text">{{ r.title }}</div>
             <div class="nd-meta"><Icon name="flame" :size="13"/>{{ r.callCount }}次</div>
             <span class="nd-edit-hint"><Icon name="external" :size="13"/></span>

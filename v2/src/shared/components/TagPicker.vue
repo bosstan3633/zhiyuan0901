@@ -79,14 +79,14 @@ function goTagManage() {
 </script>
 
 <template>
-  <div class="tp" @click.stop>
+  <div class="tp" data-a11y-container @click.stop>
     <div class="tp-chips">
-      <span v-for="t in tags" :key="t" class="tp-chip">#{{ t }} <span class="tp-x" @click="removeTag(t)">×</span></span>
-      <span class="tp-add" @click.stop="openPop">＋ 标签</span>
+      <span v-for="t in tags" :key="t" class="tp-chip">#{{ t }} <span class="tp-x" v-pressable @click="removeTag(t)">×</span></span>
+      <span class="tp-add" v-pressable @click.stop="openPop">＋ 标签</span>
     </div>
     <Teleport :to="overlayTarget">
       <div v-if="open" class="tp-mask" @click="open = false" />
-      <div v-if="open" class="tp-pop" :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
+      <div v-if="open" class="tp-pop" data-a11y-container :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
         <div class="tp-head"><Icon name="tag" :size="13"/> 选择标签 <span class="tp-sub">来自标签管理体系（设置 › 标签管理）</span></div>
         <input v-model="q" class="tp-search" placeholder="搜索标签，或输入名称后新建…">
         <div class="tp-list">
@@ -96,7 +96,7 @@ function goTagManage() {
             <div class="tp-guide-title">标签体系还未创建</div>
             <div class="tp-guide-desc">标签统一在「设置 › 标签管理」中搭建（支持两级），创建后会自动出现在这里供勾选。</div>
             <button class="tp-guide-btn" @click="goTagManage"><Icon name="tag" :size="13"/> 去标签管理创建</button>
-            <div class="tp-new" @click="createNew">或输入「{{ q.trim() || '标签名' }}」快速新建根标签</div>
+            <div class="tp-new" v-pressable @click="createNew">或输入「{{ q.trim() || '标签名' }}」快速新建根标签</div>
           </div>
           <template v-else>
             <label v-for="t in visible" :key="t.id" class="tp-item" :style="{ paddingLeft: 10 + t.depth * 16 + 'px' }"
@@ -104,7 +104,7 @@ function goTagManage() {
               <span class="tp-name">{{ t.name }}</span>
               <span v-if="t.depth > 0" class="tp-pathtext">{{ t.path }}</span>
             </label>
-            <div v-if="!visible.length" class="tp-new" @click="createNew">
+            <div v-if="!visible.length" class="tp-new" v-pressable @click="createNew">
               {{ q.trim() ? `＋ 新建标签「${q.trim()}」并选中` : '没有标签' }}
             </div>
           </template>

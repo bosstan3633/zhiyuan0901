@@ -55,7 +55,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
 <template>
   <Teleport :to="overlayTarget">
     <Transition name="fade">
-      <div v-if="open" class="ap-viewer" @click.self="emit('close')">
+    <div v-if="open" class="ap-viewer" data-a11y-container @click.self="emit('close')">
         <div class="ap-viewer-box">
           <div class="ap-viewer-head">
             <span class="ap-viewer-name" :title="name">{{ name }}</span>

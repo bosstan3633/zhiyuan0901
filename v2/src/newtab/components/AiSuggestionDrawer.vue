@@ -623,7 +623,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
                         @click.stop @blur="commitEdit(r, ($event.target as HTMLTextAreaElement).value)"
                         @keydown.esc.stop="editing = null" />
                       <template v-else>
-                        <span :class="{ 'ai-clickable': canEdit(r) }" :title="canEdit(r) ? '点击编辑（编辑即视为要采纳这一项）' : ''"
+                        <span v-pressable :aria-disabled="!canEdit(r)" :class="{ 'ai-clickable': canEdit(r) }" :title="canEdit(r) ? '点击编辑（编辑即视为要采纳这一项）' : ''"
                           @click.stop="startEdit(r)">{{ r.main }}</span>
                         <span v-if="drafts.has(r.key)" class="ai-edited-mark" title="你改过这条"><Icon name="edit" :size="13"/></span>
                       </template>

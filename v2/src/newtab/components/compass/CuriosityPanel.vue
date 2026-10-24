@@ -610,7 +610,7 @@ function srcShort(url: string): string {
       </Transition>
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
-      <div v-if="archivedHintCount" class="cz-archived-hint" @click="router.push('/profile#lifecycle')">
+      <div v-if="archivedHintCount" class="cz-archived-hint" v-pressable @click="router.push('/profile#lifecycle')">
         <Icon name="package" :size="13"/> 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 设置 › 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
@@ -627,14 +627,14 @@ function srcShort(url: string): string {
           </div>
           <div v-if="!isGroupCollapsed(g.id)" class="cz-grid" :style="{ '--grid-cols': String(curioCols) }">
           <template v-for="c in g.items" :key="c.id">
-          <div class="cz-card"
+          <div class="cz-card" v-pressable
             :class="{selected: selected.has(c.id), pinned: c.pinned, flash: highlightId===c.id, 'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}"
             :data-czid="c.id" draggable="true"
             @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
             @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
             @dragover.prevent="markDrop($event, c.id, 'x')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
             @contextmenu.prevent="openCurioCtx($event, c)">
-            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)"><Icon v-if="selected.has(c.id)" name="checksquare" :size="13"/><Icon v-else name="square" :size="13"/></span>
+            <span v-if="batchMode" class="cz-check" v-pressable @click.stop="toggleSelect(c.id)"><Icon v-if="selected.has(c.id)" name="checksquare" :size="13"/><Icon v-else name="square" :size="13"/></span>
             <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态下仍让位给勾选框） -->
             <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }} {{ STATUS_MAP[c.status].label }}</span>
             <button class="cz-pin-corner" :class="{on: c.pinned}" @click.stop="togglePin(c.id)" title="置顶"><Icon name="pin" :size="13"/></button>
@@ -652,7 +652,7 @@ function srcShort(url: string): string {
                 <a v-else-if="f.key === 'sourceUrl' && toOpenableRawLink(c.sourceUrl)" class="cz-ext-src" :href="toOpenableRawLink(c.sourceUrl)"
                   target="_blank" rel="noreferrer" :title="c.sourceUrl" @click.stop><Icon name="link" :size="13"/> {{ srcShort(c.sourceUrl || '') }}</a>
                 <!-- R129-B5：协议不在白名单（含只有文件名的本地路径）→ 不再渲染可点链接，降级为纯文本 -->
-                <span v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" :title="c.sourceUrl" @click.stop><Icon name="link" :size="13"/> {{ srcShort(c.sourceUrl) }}</span>
+                <span v-else-if="f.key === 'sourceUrl' && c.sourceUrl" class="cz-ext-src" data-a11y-container :title="c.sourceUrl" @click.stop><Icon name="link" :size="13"/> {{ srcShort(c.sourceUrl) }}</span>
                 <span v-else-if="f.key.startsWith('custom_') && curioExtVal(c, f)" class="cz-ext-custom">
                   <span class="cz-ext-lbl">{{ f.label }}:</span>{{ curioExtVal(c, f) }}
                 </span>
@@ -690,13 +690,13 @@ function srcShort(url: string): string {
           </div>
           <template v-if="!isGroupCollapsed(g.id)">
         <template v-for="c in g.items" :key="c.id">
-          <div class="cz-list-item" draggable="true"
+          <div class="cz-list-item" v-pressable draggable="true"
             @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
             @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
             @dragover.prevent="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
             @contextmenu.prevent="openCurioCtx($event, c)"
             :class="dropMark===c.id+'-t' ? 'drop-line-t' : dropMark===c.id+'-b' ? 'drop-line-b' : ''">
-            <span v-if="batchMode" class="cz-check" @click.stop="toggleSelect(c.id)"><Icon v-if="selected.has(c.id)" name="checksquare" :size="13"/><Icon v-else name="square" :size="13"/></span>
+            <span v-if="batchMode" class="cz-check" v-pressable @click.stop="toggleSelect(c.id)"><Icon v-if="selected.has(c.id)" name="checksquare" :size="13"/><Icon v-else name="square" :size="13"/></span>
             <span v-else-if="c.pinned" class="cz-pin-flag"><Icon name="pin" :size="13"/></span>
             <span v-else-if="c.starred" class="cz-star-flag"><Icon name="star" :size="13"/></span>
             <span v-if="cShow('status')" class="cz-status" :class="STATUS_MAP[c.status].cls">{{ STATUS_MAP[c.status].icon }}</span>
@@ -732,7 +732,7 @@ function srcShort(url: string): string {
             <span class="cz-kanban-count">{{ col.items.length }}</span>
           </div>
           <div class="cz-kanban-body">
-            <div v-for="c in col.items" :key="c.id" class="cz-kanban-card" :class="{'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}" draggable="true"
+            <div v-for="c in col.items" :key="c.id" class="cz-kanban-card" v-pressable :class="{'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}" draggable="true"
               @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
               @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
               @dragover.prevent.stop="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop.stop="onCzDrop($event, c.id, col.status)">
@@ -768,10 +768,10 @@ function srcShort(url: string): string {
         <div class="cz-h1q">{{ detailItem ? detailItem.question.split('\n')[0].slice(0, 28) + (detailItem.question.split('\n')[0].length > 28 ? '…' : '') : '' }}</div>
       </template>
       <template #title-extra>
-        <div v-if="detailItem" class="ds-status-wrap" @click.stop>
+        <div v-if="detailItem" class="ds-status-wrap" data-a11y-container @click.stop>
           <button class="ds-status-chip2" :class="STATUS_MAP[detailItem.status].cls" @click.stop="curioStatusMenuOpen = !curioStatusMenuOpen">{{ STATUS_MAP[detailItem.status].icon }} {{ STATUS_MAP[detailItem.status].label }}</button>
           <div v-if="curioStatusMenuOpen" class="ds-status-menu">
-            <div v-for="(s, key) in STATUS_MAP" :key="key" class="mi" :class="{on: detailItem.status === key}"
+            <div v-for="(s, key) in STATUS_MAP" :key="key" class="mi" v-pressable :class="{on: detailItem.status === key}"
               @click.stop="setStatus(detailItem.id, key as CuriStatus); curioStatusMenuOpen = false">{{ s.icon }} {{ s.label }}</div>
           </div>
         </div>
@@ -833,8 +833,8 @@ function srcShort(url: string): string {
 
         <section class="ds-pnl">
           <div class="ds-pnl-h"><b>流转与凭证</b><i>都有后果，不静默</i></div>
-          <div class="ds-kv clk" @click="openConvert(detailItem, 'task')"><span class="k">转任务</span><span class="v">建 1 张任务卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
-          <div class="ds-kv clk" @click="openConvert(detailItem, 'res')"><span class="k">归档资源</span><span class="v">建 1 张资源卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
+          <div class="ds-kv clk" v-pressable @click="openConvert(detailItem, 'task')"><span class="k">转任务</span><span class="v">建 1 张任务卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
+          <div class="ds-kv clk" v-pressable @click="openConvert(detailItem, 'res')"><span class="k">归档资源</span><span class="v">建 1 张资源卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
           <details class="ds-details">
             <summary>附件 · 时间 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span></summary>
             <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />

@@ -59,7 +59,7 @@ async function pick(kind: 'breakdown' | 'detail') {
   <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：拆解成子任务 / 打开详情（勾选采纳才写库，可换执笔专家）'" @click.stop="toggle"><AiEntryButton :spin="busy" /></button>
   <Teleport to="body">
     <div v-if="shown" class="tam-mask" @click="shown = false" />
-    <div v-if="shown" class="tam-menu" :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @click.stop>
+    <div v-if="shown" class="tam-menu" data-a11y-container :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @click.stop>
       <button class="tam-item" @click="pick('breakdown')"><AiEntryButton variant="inline" label="拆解成子任务" /></button>
       <button class="tam-item" @click="pick('detail')"><Icon name="filetext" :size="13"/> 打开任务详情</button>
     </div>

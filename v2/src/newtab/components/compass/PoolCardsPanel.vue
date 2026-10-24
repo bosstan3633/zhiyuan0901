@@ -457,7 +457,7 @@ function deleteSelected() {
     <!-- 新建单卡浮层：v-if 不开即零节点（全站浮层纪律） -->
     <div v-if="!secondaryMode && newOpen" class="pcp-mask" @click.self="newOpen = false">
       <div class="pcp-pop">
-        <div class="pcp-pop-h">＋ 新建资源卡<span class="pcp-pop-x" @click="newOpen = false">×</span></div>
+        <div class="pcp-pop-h">＋ 新建资源卡<button class="pcp-pop-x" type="button" aria-label="关闭" @click="newOpen = false">×</button></div>
         <label>标题<input v-model="newDraft.title" placeholder="这张卡叫什么" @keydown.enter="createCard"></label>
         <label>链接<input v-model="newDraft.link" placeholder="https://…（可留空，之后在详情里补）"></label>
         <label>标签<input v-model="newDraft.tags" placeholder="逗号分隔，如 AI工具/知识库,写作"></label>
@@ -490,7 +490,7 @@ function deleteSelected() {
             <span class="c">{{ sec.cards.length }} 张</span>
           </div>
           <template v-if="!isGroupCollapsed(sec.id)">
-          <div v-for="r in sec.cards" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }"
+          <div v-for="r in sec.cards" :key="r.id" class="pcp-row" v-pressable :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }"
             :data-rid="r.id" :title="r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'"
             @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
             <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
@@ -524,7 +524,7 @@ function deleteSelected() {
         </div>
       </template>
       <template v-else>
-      <div v-for="r in rendered" :key="r.id" class="pcp-row" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
+      <div v-for="r in rendered" :key="r.id" class="pcp-row" v-pressable :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
         :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
         <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
         <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶"><Icon name="pin" :size="13"/></span>{{ r.title }}
@@ -557,7 +557,7 @@ function deleteSelected() {
     </div>
 
     <div v-else class="pcp-grid">
-      <div v-for="r in rendered" :key="r.id" class="pcp-card" :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
+      <div v-for="r in rendered" :key="r.id" class="pcp-card" v-pressable :class="{ flash: highlightId === r.id, picked: selected.has(r.id) }" :data-rid="r.id"
         :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
         <div class="pcp-top">
           <div class="pcp-title">
@@ -595,7 +595,7 @@ function deleteSelected() {
     <Teleport to="body">
       <div v-if="batchMirrorOpen" class="pcp-mask" @click.self="batchMirrorOpen = false">
         <div class="pcp-pop" role="dialog" aria-modal="true" aria-label="批量投射到策展台">
-          <div class="pcp-pop-h">投射 {{ selSize }} 张卡到策展台<span class="pcp-pop-x" @click="batchMirrorOpen = false">×</span></div>
+          <div class="pcp-pop-h">投射 {{ selSize }} 张卡到策展台<button class="pcp-pop-x" type="button" aria-label="关闭" @click="batchMirrorOpen = false">×</button></div>
           <p class="pcp-pop-desc">源卡仍留在资源卡池；目标台只是新增引用。已存在同一张卡的台会自动跳过。</p>
           <div v-if="batchBoards.length" class="pcp-target-list">
             <label v-for="w in batchBoards" :key="w.id" class="pcp-target-row">
@@ -614,7 +614,7 @@ function deleteSelected() {
       </div>
     </Teleport>
 
-    <div v-if="hasMore" :ref="setSentinel" class="render-more" @click="renderMore">
+    <div v-if="hasMore" :ref="setSentinel" class="render-more" v-pressable @click="renderMore">
       ↓ 已显示 {{ rendered.length }} / {{ poolCards.length }} 张 —— 点此加载更多
     </div>
     <input ref="fileImportInput" type="file" multiple accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.avif,.ico,.html,.htm,.pdf,application/pdf,text/html" class="pci-file" @change="handleFileImport">
@@ -636,7 +636,7 @@ function deleteSelected() {
 .pcp-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 60; }
 .pcp-pop { width: min(420px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; box-shadow: var(--shadow-lg); }
 .pcp-pop-h { font-size: var(--fs-body); font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; }
-.pcp-pop-x { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: var(--fs-body); padding: 0 6px; }
+.pcp-pop-x { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: var(--fs-body); padding: 0 6px; background: transparent; border: 0; font-family: inherit; }
 .pcp-pop label { display: block; font-size: var(--fs-caption); color: var(--text-3); margin-bottom: 10px; }
 .pcp-pop input { display: block; width: 100%; margin-top: 4px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: var(--radius-sm); padding: 6px 9px; font-size: var(--fs-sub); font-family: inherit; outline: none; }
 .pcp-pop input:focus { border-color: var(--accent); }

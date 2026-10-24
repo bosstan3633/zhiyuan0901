@@ -7,7 +7,7 @@
       <div class="itm-head">
         <span class="itm-title"><Icon name="filetext" :size="13"/> {{ modeTitle }}</span>
         <span class="itm-target">导入目标：{{ mode === 'project' ? '攻坚项目「' + targetName + '」' : mode === 'goal' ? '战略目标「' + targetName + '」' : '策展台「' + targetName + '」（金字塔视图）' }}</span>
-        <span class="itm-close" @click="emit('close')">×</span>
+        <button class="itm-close" type="button" aria-label="关闭" @click="emit('close')">×</button>
       </div>
       <div class="itm-head-ops">
         <button class="itm-rule-btn" @click="ruleOpen = !ruleOpen"><Icon name="book" :size="13"/> AI 整理规则{{ ruleOpen ? ' ▴' : ' ▾' }}</button>
@@ -209,7 +209,7 @@ watch(() => props.open, (v) => { if (v) src.value = '' })
 .itm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .itm-title { font-size: var(--fs-title); font-weight: 700; }
 .itm-target { font-size: var(--fs-sub); color: var(--text-3); }
-.itm-close { margin-left: auto; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); }
+.itm-close { margin-left: auto; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); border: 0; background: transparent; font-family: inherit; }
 .itm-close:hover { background: var(--surface-3); color: var(--text); }
 .itm-head-ops { display: flex; gap: 8px; padding: 10px 18px 0; }
 .itm-rule-btn { font-size: var(--fs-sub); color: var(--accent-ink); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 99px; padding: 3px 12px; cursor: pointer; font-family: inherit; }

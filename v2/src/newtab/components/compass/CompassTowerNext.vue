@@ -18,17 +18,17 @@ defineProps<{
 
 <style scoped>
 .tw-next {
-  display: flex; align-items: center; gap: 7px; min-width: 0;
-  margin-top: 8px; padding-left: 8px;
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  margin-top: 5px; padding-left: 7px;
   border-left: 2px solid color-mix(in srgb, var(--hue) 52%, transparent);
 }
 .tw-next-l {
-  flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3);
+  flex: none; font-size: var(--fs-tiny); font-weight: 700; color: var(--text-3);
   letter-spacing: .04em;
 }
 .tw-next-v {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--fs-caption); font-weight: 600; color: var(--text-2);
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
 }
 .tw-next.src-empty .tw-next-v { color: var(--text-3); font-weight: 500; }
 .tw-next-src {

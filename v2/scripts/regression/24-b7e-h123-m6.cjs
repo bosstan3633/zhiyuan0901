@@ -408,6 +408,20 @@ check(NAME(
   return true;
 });
 
+check(
+  'M6-8 ★顶栏保存状态点与骨架条「建议目标」必须实测达到 28px（V3.9.16 M6 实拍抓到 7px / 22px 两族）：保存点视觉仍为 7px，命中盒用透明 28px 本体 + ::before 画点；建议目标为文字型按钮，min-height 撑到 28px。两者都不得靠放大视觉尺寸换热区',
+  () => {
+    const app = codeOnly(read('/newtab/App.vue'));
+    const tree = codeOnly(read('/newtab/views/CompassTree.vue'));
+    const dotOk = /\.save-dot \{[^}]*width: 28px;[^}]*height: 28px;/.test(app.replace(/\\n/g, '\n'))
+      && /\.save-dot::before \{[^}]*width: 7px;[^}]*height: 7px;/.test(app)
+    const aiOk = /\.ai-chain-act \{[^}]*min-height: 28px;/.test(tree)
+    if (!dotOk) console.log('保存状态点未做到 28px 热区 + 7px 视觉');
+    if (!aiOk) console.log('建议目标文字钮未达到 28px 热区');
+    return dotOk && aiOk;
+  }
+);
+
 check(NAME(
   'M6-7 ★画像洞察首屏热区必须全部达到 28px：概览空态「前往方向台」与热力图「收起 / 导出」两类小按钮用 min-height 撑盒，字号与密度不变',
   '★V3.9.8 四主题实拍后，M6 复跑在 1440/1024 各量到 5 处、800 量到 1 处 <28px；',

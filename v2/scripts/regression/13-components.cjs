@@ -129,19 +129,23 @@ check('G4-1 焦点环成令牌：--focus-ring / --focus-ring-offset 单一来源
     && s.includes('outline-offset: var(--focus-ring-offset) !important;');
 });
 
-check('G4-2 键盘可达棘轮：可点击不可聚焦处 ≤ 352（V3.8.27 基线；只许降，涨一处即红）', () => {
+check('G4-2 键盘可达棘轮：可点击不可聚焦处 = 0（V3.9.16 归零；任何回流即红）', () => {
   const r = runGateSync(path.join(SCRIPTS_DIR, 'a11y-tab-audit.cjs'), ['--count'], 60000);
   const n = parseInt(String(r.stdout || '').trim(), 10);
   if (!Number.isFinite(n)) { console.log('     读不到审计数：' + (r.stdout || r.stderr || '').slice(0, 120)); return false; }
-  if (n > 352) console.log('     当前 ' + n + ' 处 > 基线 352');
-  return n <= 352;
+  if (n !== 0) console.log('     当前 ' + n + ' 处 ≠ 0');
+  return n === 0;
 });
 
-check('G4-3 审计报告在位且写明口径（不是一张光秃秃的数字）', () => {
+check('G4-3 审计报告在位且写明当前口径（缺口归零、假修复、outline 与遮罩残余）', () => {
   const p = path.join(ROOT, 'docs', '审计_键盘可达_G4_V3.8.27.md');
   if (!fs.existsSync(p)) return false;
   const s = fs.readFileSync(p, 'utf8');
-  return s.includes('352 处 / 44 文件') && s.includes('遮罩层') && s.includes('假修复');
+  return s.includes('0 处 / 0 文件')
+    && s.includes('遮罩层 32 处')
+    && s.includes('假修复 0 处')
+    && s.includes('outline: none/0')
+    && s.includes('54 处');
 });
 
 /* ============ G6 · 四主题走查常驻 ============ */

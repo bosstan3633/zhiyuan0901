@@ -348,14 +348,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
     <template v-if="selectedTask" #title>
         <div class="ts-title-wrap">
           <div class="ts-title-row">
-            <div class="check-lg" :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
+            <div class="check-lg" v-pressable :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
             <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..." @blur="saveTaskTitle" />
           </div>
           <div class="ts-head-row2">
-            <div class="ds-status-wrap" @click.stop>
+            <div class="ds-status-wrap" data-a11y-container @click.stop>
               <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
-              <div v-if="statusMenuOpen" class="ds-status-menu">
-                <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
+              <div v-if="statusMenuOpen" class="ds-status-menu" data-a11y-container>
+                <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" v-pressable :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
               </div>
             </div>
             <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
@@ -399,10 +399,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <div class="ds-hero-label"><Icon name="compass" :size="13"/> 资源支持 <span class="hint">— 点行打开链接 · 解绑只删记录，不动两张卡</span></div>
           <div v-if="supportRows.length" class="ts-sup">
             <div v-for="row in supportRows" :key="row.link.id" class="ts-sup-row" :title="row.link.why || '点击打开资源链接'">
-              <span class="ts-sup-nm" @click="openSupportResource(row.resource)">{{ row.resource.title.slice(0, 40) }}</span>
+              <span class="ts-sup-nm" v-pressable @click="openSupportResource(row.resource)">{{ row.resource.title.slice(0, 40) }}</span>
               <span v-if="row.link.why" class="ts-sup-why">{{ row.link.why }}</span>
               <span v-if="row.link.from === 'ai'" class="ts-sup-tag">AI</span>
-              <span class="ts-sup-x" title="解除关联（只删这条记录；资源卡与任务卡都不动）" @click.stop="unlinkSupport(row.link.id)">×</span>
+              <span class="ts-sup-x" v-pressable title="解除关联（只删这条记录；资源卡与任务卡都不动）" @click.stop="unlinkSupport(row.link.id)">×</span>
             </div>
           </div>
           <div v-else class="ts-sup-empty">还没有关联的资源——点上方「找资源支持」让 AI 从资源台里挑，或在下面手动挂。</div>
@@ -454,7 +454,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <div class="ts-section ds-meta">
           <span>创建 {{ fmtTaskTs(selectedTask.createdAt) }}</span>
           <span>更新 {{ fmtTaskTs(selectedTask.updatedAt) }}</span>
-          <span class="ts-goto ds-goto-inline" @click="router.push('/compass')"><Icon name="compass" :size="13"/> 没有合适的项目/指标？去方向台创建 ›</span>
+          <span class="ts-goto ds-goto-inline" v-pressable @click="router.push('/compass')"><Icon name="compass" :size="13"/> 没有合适的项目/指标？去方向台创建 ›</span>
         </div>
         <!-- R48：附属区折叠（附件）；R165：挂载区随卡间挂载退役 -->
         <details class="ds-details ds-details-sep">

@@ -349,7 +349,7 @@ check('R98-1（V3.9.8 随迁）层级密度控制换轨：旧 pyFold 三档退�
 check('R98-2 W8 策展台指标条（V3.9.10 重指）：旧 5/3 格条退役，来源构成零命中；读数收进单行工具条，最近更新仍保留页头流水下钻', () => {
   return read('/newtab/views/workspace.css').includes('.cur-metrics {')
     && !WS98.includes('🔀 来源构成')
-    && WS98.includes("class=\"wsh-upd\" title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
+    && WS98.includes("class=\"wsh-upd\" v-pressable title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
     && WS98.includes('· 更新 {{ lastUpdateText }}');
 });
 check('R98-3（V3.9.8 随迁）子分类数从分组标题迁到节点原位：每个节点直接显示直属资源数，子节点由递归结构呈现', () => {

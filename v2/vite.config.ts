@@ -89,12 +89,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         chunkFileNames: 'assets/chunk-[hash].js',
-        // R70：把 pinyin-pro（约 296KB 字典）隔离为独立 chunk——它只在打开搜索浮层时才动态 import，
-        // 隔离后可确保不被卷进共享 chunk 拖累首屏，也便于长期缓存。
-        manualChunks(id: string) {
-          if (id.includes('pinyin-pro')) return 'pinyin'
-          return undefined
-        }
+        // V3.9.16：pinyin-pro 已退出运行时（两层内联表），旧的 manualChunks 规则只剩死配置，清掉。
       }
     }
   },

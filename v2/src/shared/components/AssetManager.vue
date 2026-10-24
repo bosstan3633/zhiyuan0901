@@ -212,10 +212,10 @@ async function openAsset(meta: AssetMeta) {
     <div v-if="list.length" class="am-list">
       <div v-for="a in list" :key="a.id" class="am-item" :title="`${a.name}（${fmtSize(a.size)}）`">
         <span class="am-ico"><Icon v-if="a.kind === 'image'" name="image" :size="13"/><Icon v-else-if="a.kind === 'pdf'" name="book" :size="13"/><Icon v-else name="filetext" :size="13"/></span>
-        <span class="am-name" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)">{{ a.name }}</span>
+        <span class="am-name" v-pressable @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)">{{ a.name }}</span>
         <span class="am-size">{{ fmtSize(a.size) }}</span>
-        <span class="am-open" @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)" :title="a.kind === 'image' ? '弹窗预览' : '双击在浏览器中打开（先下载本地副本）'"><Icon v-if="a.kind === 'image'" name="eye" :size="13"/><Icon v-else name="external" :size="13"/></span>
-        <span class="am-del" @click="removeAsset(a)" title="移除附件">×</span>
+        <span class="am-open" v-pressable @click="openAssetOnce(a)" @dblclick="openAssetOnce(a)" :title="a.kind === 'image' ? '弹窗预览' : '双击在浏览器中打开（先下载本地副本）'"><Icon v-if="a.kind === 'image'" name="eye" :size="13"/><Icon v-else name="external" :size="13"/></span>
+        <span class="am-del" v-pressable @click="removeAsset(a)" title="移除附件">×</span>
       </div>
     </div>
     <button class="am-add" :class="{ busy }" :disabled="busy" @click="onPick">

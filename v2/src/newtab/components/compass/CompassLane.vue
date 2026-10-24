@@ -88,6 +88,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
            不用 prompt —— prompt 会打断「连续改名」的手感，且四层节点的改名口径必须一致。 -->
       <h4
         class="mc-title editable"
+        v-pressable
         :class="{ editing: editing }"
         :data-edit="'metric-' + m.id"
         :contenteditable="editing"
@@ -118,10 +119,10 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       <button class="mc-add" title="在本成功指标下添加支撑任务" @click="emit('addTask', m.id)">＋任务</button>
       <!-- ★F1：hover 🗑 + 「⋯」菜单 —— 与「＋任务」「✦」同一套 hover 显形。
            删除走真源 removeMetricWithConfirm（报数确认→任务转未关联→撤销），这里只上抛。 -->
-      <span class="mc-ops" @click.stop>
+      <span class="mc-ops" data-a11y-container @click.stop>
         <button class="mc-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
         <button class="mc-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
-        <span v-if="menuFor === m.id" class="mc-menu" @click.stop>
+        <span v-if="menuFor === m.id" class="mc-menu" data-a11y-container @click.stop>
           <button class="mcm-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
         </span>
       </span>
@@ -179,12 +180,12 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   background: transparent;
   border-radius: 0;
   border-top: 1px solid var(--border);
-  padding: 13px 4px 14px 16px;
+  padding: 10px 4px 11px 14px;
   position: relative;
   transition: background var(--dur);
 }
 .metric-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
-.mc-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .mc-dot {
   color: var(--text-4); font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -265,8 +266,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mcm-item.danger { color: var(--danger); }
 .mcm-item.danger:hover { background: var(--danger-bg-soft); }
 .mc-acc {
-  font-size: var(--fs-micro); color: var(--text-3); line-height: 1.7;
-  margin-top: 7px; padding-left: 26px;
+  font-size: var(--fs-tiny); color: var(--text-3); line-height: 1.55;
+  margin-top: 4px; padding-left: 24px;
 }
 .mc-acc-l {
   color: var(--text-4); font-weight: 700; margin-right: 5px;
@@ -275,7 +276,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 
 /* ★归属竖轨：指标卡从项目色条分出的那条线——无内容容器，别删 */
 .metric-list {
-  list-style: none; margin: 11px 0 0; padding: 0 0 0 26px; position: relative;
+  list-style: none; margin: 7px 0 0; padding: 0 0 0 24px; position: relative;
 }
 .metric-list::before {
   content: ''; position: absolute; left: 9px; top: -4px; bottom: 14px;
@@ -286,16 +287,16 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
    圆角 + 外边距会让每一行都像一张独立小卡，一屏十几条就是十几张卡；
    改成"表格行"形态后，任务读起来是同一个列表里的连续条目。 */
 .tk-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: 0; margin-bottom: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 0; margin-bottom: 0;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   position: relative; transition: all var(--dur); cursor: default;
 }
 .tk-row:last-child { margin-bottom: 0; border-bottom: 0; }
 .tk-row:hover {
-  background: color-mix(in srgb, var(--surface) 70%, var(--bg));
-  transform: translateX(2px);
+  background: color-mix(in srgb, var(--surface) 66%, var(--bg));
+  transform: none;
 }
 /* ★分叉臂：任务从指标轨道分出的横线——同样是无内容容器 */
 .tk-row::before {
@@ -316,10 +317,10 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-box.done { color: #fff; }
 /* 触控：任务标题是下钻入口，窄屏给整行最小热区，避免只能点中文字。 */
 @media (max-width: 800px) {
-  .mc-head { gap: 7px; }
+  .mc-head { gap: 6px; }
   .mc-bar { margin-left: 0; }
   .mc-detail { order: 8; }
-  .tk-row { min-height: 42px; padding: 9px 10px; }
+  .tk-row { min-height: 40px; padding: 8px 9px; }
   .tk-title { min-height: 24px; }
 }
 @media (max-width: 480px) {
@@ -332,7 +333,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 /* ★W12-C：任务标题从 <span> 改成 <button>（单击开任务详情抽屉）。
    补齐按钮态归零——只给交互态（hover / focus）加反馈，不改变任何既有字号字色。 */
 .tk-title {
-  font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.55;
+  font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.5;
   background: none; border: 0; padding: 0; margin: 0; font-family: inherit; text-align: left;
   cursor: pointer; border-radius: var(--radius-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -340,7 +341,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .tk-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 归属路径：默认藏，hover 浮现 */
 .tk-crumb {
-  font-size: var(--fs-micro); color: var(--text-4);
+  font-size: var(--fs-tiny); color: var(--text-4);
   opacity: 0; transition: opacity var(--dur);
   max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none;
 }

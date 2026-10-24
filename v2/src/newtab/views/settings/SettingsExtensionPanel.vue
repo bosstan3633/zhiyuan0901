@@ -29,11 +29,11 @@
         <!-- R1.5：「默认存入台面」选择器随资源台退役删除——采集单形态落「🗂 资源卡池」，defaultWsId 零消费方 -->
         <div class="gs-setting-row">
           <span class="gs-sr-label">自动取文件夹名</span>
-          <div class="gs-sr-control"><div class="gs-toggle" :class="{ on: capturePref.autoFolderName }" @click="capturePref.autoFolderName = !capturePref.autoFolderName; persistCapturePref()"></div></div>
+          <div class="gs-sr-control"><div class="gs-toggle" v-pressable role="switch" :aria-checked="capturePref.autoFolderName" :class="{ on: capturePref.autoFolderName }" @click="capturePref.autoFolderName = !capturePref.autoFolderName; persistCapturePref()"></div></div>
         </div>
         <div class="gs-setting-row">
           <span class="gs-sr-label">抓取后确认弹窗</span>
-          <div class="gs-sr-control"><div class="gs-toggle on" @click="showToast('快捷键采集始终显示确认弹窗')"></div></div>
+          <div class="gs-sr-control"><div class="gs-toggle on" v-pressable role="switch" aria-checked="true" @click="showToast('快捷键采集始终显示确认弹窗')"></div></div>
         </div>
         <div class="gs-setting-row">
           <span class="gs-sr-label">全局快捷键配置</span>

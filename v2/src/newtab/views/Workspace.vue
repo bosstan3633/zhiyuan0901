@@ -15,7 +15,7 @@
         <!-- V3.7.0（R179）：资源台页头分支退役——策展台两态描述 + 摘要 + 更新流水入口为唯一形态 -->
         <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
         <span class="wsh-spacer" />
-        <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
+        <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
       </div>
       <!-- R126（原型还原）：中心论点横幅常驻；V3.9.13 起与台身份并排，保留原入口与键盘语义。 -->
       <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
@@ -38,10 +38,10 @@
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
     <Teleport to="body">
       <div v-if="iconPickOpen" class="icon-pick-mask" @click="iconPickOpen = false" />
-      <div v-if="iconPickOpen" class="icon-pick" :style="{ left: iconPickPos.left + 'px', top: iconPickPos.top + 'px' }" @click.stop>
+      <div v-if="iconPickOpen" class="icon-pick" data-a11y-container :style="{ left: iconPickPos.left + 'px', top: iconPickPos.top + 'px' }" @click.stop>
         <div class="ip-title"><Icon name="palette" :size="13"/> 策展台图标</div>
         <div class="ip-grid">
-          <span v-for="e in WS_ICONS" :key="e" class="ip-cell" :class="{on: workspace.icon === e}" @click="setWsIcon(e)">{{ e }}</span>
+          <span v-for="e in WS_ICONS" :key="e" class="ip-cell" v-pressable :class="{on: workspace.icon === e}" @click="setWsIcon(e)">{{ e }}</span>
         </div>
         <div class="ip-custom">
           <input v-model="iconCustom" class="ip-input" maxlength="4" placeholder="自定义 emoji" @keydown.enter.prevent="setWsIcon(iconCustom.trim())">
@@ -70,23 +70,23 @@
     />
 
     <!-- 设置下拉菜单（固定定位，避免被 hero 圆角裁剪） -->
-    <div class="settings-menu" :class="{open: settingsMenuOpen}" @click.stop>
+    <div class="settings-menu" :class="{open: settingsMenuOpen}" data-a11y-container @click.stop>
       <!-- R88（W6）：「⬇ 导入」自工具条收进此处，并**按台身份改名**消歧义（资源台=导入资源，策展台=导入策展台数据包）。
            V3.7.0（R179）：资源台退役——「导入」只剩数据包一种，消歧义前提消失，名称不再按台分支。 -->
-      <div class="sm-item" @click="openImport"><Icon name="download" :size="13"/> 导入 JSON 备份</div>
+      <div class="sm-item" v-pressable @click="openImport"><Icon name="download" :size="13"/> 导入 JSON 备份</div>
       <!-- V3.9.8：策展画布不再提供卡片批量栏。池卡的批量动作统一在调度台「资源卡池」，
            本页设置菜单不再保留无落点的“批量管理”入口。 -->
       <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源卡池） -->
-      <div class="sm-item" @click="cleanAllMirrors"><Icon name="broom" :size="13"/> 清理本台镜像卡</div>
+      <div class="sm-item" v-pressable @click="cleanAllMirrors"><Icon name="broom" :size="13"/> 清理本台镜像卡</div>
       <!-- R108（T3）：金字塔 Markdown 模板导入 —— R113-N4 已提到一级工具条（见「📋 导入模板」按钮），此处移除 -->
       <div class="sm-divider"></div>
-      <div class="sm-item" @click="renameWs"><Icon name="edit" :size="13"/> 重命名</div>
-      <div class="sm-item" @click="editDesc"><Icon name="filetext" :size="13"/> 编辑描述</div>
-      <div class="sm-item" @click="toggleIconPick($event)"><Icon name="palette" :size="13"/> 更换图标</div>
+      <div class="sm-item" v-pressable @click="renameWs"><Icon name="edit" :size="13"/> 重命名</div>
+      <div class="sm-item" v-pressable @click="editDesc"><Icon name="filetext" :size="13"/> 编辑描述</div>
+      <div class="sm-item" v-pressable @click="toggleIconPick($event)"><Icon name="palette" :size="13"/> 更换图标</div>
       <div class="sm-divider"></div>
-      <div class="sm-item" @click="exportWorkspace"><Icon name="package" :size="13"/> 导出 JSON 备份</div>
+      <div class="sm-item" v-pressable @click="exportWorkspace"><Icon name="package" :size="13"/> 导出 JSON 备份</div>
       <div class="sm-divider"></div>
-      <div class="sm-item danger" @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
+      <div class="sm-item danger" v-pressable @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
     </div>
 
     <!-- V3.9.10：指标与工具合并为单行，分享固定在最右侧；为画布腾出纵向空间。 -->
@@ -128,7 +128,7 @@
       @locate-asset="onDrillLocateAsset" @cleanup-asset="onDrillCleanupAsset" @cleanup-orphans="onDrillCleanupOrphans" />
 
     <!-- R110-LC（T3）：归档卡已从默认视图隐藏——底部一行降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
-    <div v-if="archivedHintCount" class="ws-archived-hint" @click="router.push('/profile#lifecycle')">
+    <div v-if="archivedHintCount" class="ws-archived-hint" v-pressable @click="router.push('/profile#lifecycle')">
       <Icon name="package" :size="13"/> 另有 {{ archivedHintCount }} 张已归档卡片未显示（点此在 设置 › 总览 · 资源生命周期 中查看 / 恢复）
     </div>
 
@@ -209,7 +209,7 @@
       </template>
       <!-- 第卅九轮 #61 / R106（F4）：镜像卡只读——表单禁交互（pointer-events），footer 换「定位回资源台编辑」 -->
       <div v-if="drawerReadonly" class="dr-readonly-banner">
-        <Icon name="satellite" :size="13"/> 镜像卡为引用（只读）——编辑请到资源卡池；<span class="dr-ro-link" @click="locateMirrorSourceCard">定位到源卡 ›</span>
+        <Icon name="satellite" :size="13"/> 镜像卡为引用（只读）——编辑请到资源卡池；<span class="dr-ro-link" v-pressable @click="locateMirrorSourceCard">定位到源卡 ›</span>
       </div>
       <ResourceAiStrip v-if="!drawerReadonly" :card="editingResource" :on-adopted="syncEditingFromStore" />
       <ResourceEditForm
@@ -249,7 +249,7 @@
         <div class="modal-header">
           <span class="mh-ico"><Icon name="download" :size="13"/></span>
           <span class="mh-title">导入策展台数据包</span>
-          <div class="modal-close" @click="importModalOpen=false">×</div>
+          <button class="modal-close" type="button" aria-label="关闭" @click="importModalOpen=false">×</button>
         </div>
         <div class="modal-body">
           <!-- 旧 JSON 备份降级为高级恢复通道；一级工具条的「导入成果 HTML」才是策展成果回导主场。 -->
@@ -258,7 +258,7 @@
                ★R2-⑧：本地文件导入入口已按 R179 的既定去向重落到 调度台「资源卡池」控制行
                （PoolCardsPanel 复用 useWorkspaceImport 同一条链路，workspaceId 钉成池 id），
                本页不再保留 fileImportInput。★R4-Db：parked 的 bookmarkInput 与其文件夹弹窗已删除（书签导入唯一路线在设置页）。 -->
-          <div class="modal-option" @click="boardImportInput?.click()">
+          <div class="modal-option" v-pressable @click="boardImportInput?.click()">
             <span class="mo-icon"><Icon name="puzzle" :size="13"/></span>
             <div>
               <div class="mo-name">导入策展台数据包（JSON）</div>
@@ -293,7 +293,7 @@
         <div class="modal-header">
           <span class="mh-ico"><Icon name="satellite" :size="13"/></span>
           <span class="mh-title">镜像「{{ mirrorTarget?.title.slice(0, 20) }}…」到策展台</span>
-          <div class="modal-close" @click="mirrorOpen=false">×</div>
+          <button class="modal-close" type="button" aria-label="关闭" @click="mirrorOpen=false">×</button>
         </div>
         <div class="modal-body">
           <div class="dr-section">
@@ -317,7 +317,7 @@
         <div class="modal-header">
           <span class="mh-ico"><Icon name="upload" :size="13"/></span>
           <span class="mh-title">导入策展成果 HTML</span>
-          <div class="modal-close" @click="closeShareHtmlImport">×</div>
+          <button class="modal-close" type="button" aria-label="关闭" @click="closeShareHtmlImport">×</button>
         </div>
         <div class="modal-body">
           <div>
@@ -327,11 +327,11 @@
           </div>
           <div class="share-import-mode">
             <div class="mb-label">导入方式</div>
-            <div class="share-import-option" @click="confirmNewShareImport">
+            <div class="share-import-option" v-pressable @click="confirmNewShareImport">
               <span class="mo-icon"><Icon name="folderopen" :size="13"/></span>
               <span><b>新建一个策展台</b><small>保留成果的 L1–L4 结构，并切换到新台。</small></span>
             </div>
-            <div class="share-import-option" @click="confirmMergeShareImport">
+            <div class="share-import-option" v-pressable @click="confirmMergeShareImport">
               <span class="mo-icon"><Icon name="branch" :size="13"/></span>
               <span><b>合并到当前策展台</b><small>同路径同标题的节点更新，不同则追加；重名自动加序号。</small></span>
             </div>
@@ -351,7 +351,7 @@
         <div class="modal-header">
           <span class="mh-ico"><Icon name="edit" :size="13"/></span>
           <span class="mh-title">{{ inputModal.title }}</span>
-          <div class="modal-close" @click="inputModal.open=false">×</div>
+          <button class="modal-close" type="button" aria-label="关闭" @click="inputModal.open=false">×</button>
         </div>
         <div class="modal-body">
           <input type="text" class="ws-modal-input" v-model="inputModal.value" placeholder="输入内容…"

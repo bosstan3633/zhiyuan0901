@@ -150,10 +150,10 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
         <span v-else class="gs-fr-name" :class="{ 'locked-title': isLocked(f) }"
           :title="canEdit(f) ? '双击重命名' : '系统字段不可重命名'" @dblclick="startRename(f)">{{ f.label }}</span>
         <span class="gs-fr-type" :class="fieldCat(f)">{{ typeLabel(f) }} · {{ catLabel(f) }}</span>
-        <span class="gs-fr-visibility" :class="[f.visible ? 'shown' : 'hidden', { disabled: isLocked(f) }]"
+        <span class="gs-fr-visibility" v-pressable :aria-disabled="isLocked(f)" :class="[f.visible ? 'shown' : 'hidden', { disabled: isLocked(f) }]"
           :title="f.visible ? '点击隐藏' : '点击显示'" @click="toggleVisibility(f)"><Icon v-if="f.visible" name="eye" :size="13"/><Icon v-else name="eyeoff" :size="13"/></span>
-        <span class="gs-fr-action" :class="{ disabled: !canEdit(f) }" title="重命名" @click="startRename(f)"><Icon name="edit" :size="13"/></span>
-        <span class="gs-fr-action delete" :class="{ disabled: !canDelete(f) }" title="删除" @click="deleteField(f)"><Icon name="trash" :size="13"/></span>
+        <span class="gs-fr-action" v-pressable :aria-disabled="!canEdit(f)" :class="{ disabled: !canEdit(f) }" title="重命名" @click="startRename(f)"><Icon name="edit" :size="13"/></span>
+        <span class="gs-fr-action delete" v-pressable :aria-disabled="!canDelete(f)" :class="{ disabled: !canDelete(f) }" title="删除" @click="deleteField(f)"><Icon name="trash" :size="13"/></span>
       </div>
       <!-- 行内新增 -->
       <div v-if="adding" class="gs-field-row adding">
@@ -170,7 +170,7 @@ const vFocus = { mounted: (el: HTMLInputElement) => el.focus() }
         <button class="gs-fr-btn confirm" @click="confirmAdd"><Icon name="check" :size="13"/> 确认</button>
         <button class="gs-fr-btn cancel" @click="adding = false">取消</button>
       </div>
-      <div v-else class="gs-field-add" @click="startAdd">＋ 添加自定义字段</div>
+      <div v-else class="gs-field-add" v-pressable @click="startAdd">＋ 添加自定义字段</div>
     </div>
     <div class="gs-field-hint"><Icon name="bulb" :size="13"/> {{ hintText }}</div>
   </div>

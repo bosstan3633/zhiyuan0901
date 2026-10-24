@@ -9,7 +9,7 @@
         <div class="gp-search-input-wrap">
           <span v-if="currentType !== 'all'" class="gp-search-chip">
             <span>{{ filterLabel }}</span>
-            <span class="gp-chip-x" @click="clearFilter">×</span>
+            <span class="gp-chip-x" v-pressable aria-label="清除筛选" @click="clearFilter">×</span>
           </span>
           <input ref="searchInput" type="text" class="gp-search-input" v-model="searchQueryRaw"
             placeholder="搜索全部卡片…" autocomplete="off" spellcheck="false"
@@ -24,16 +24,16 @@
           :title="`用过 ${h.n} 次 · 点击放回检索框`" @click="useHistory(h.q)">{{ h.q }}</button>
       </div>
       <!-- R146-d：tab 去 emoji 图标（实测带图标在窄屏逐字换行成两行）+ nowrap 锁死 -->
-      <div class="gp-type-tabs">
-        <div class="gp-type-tab" :class="{active: currentType==='all'}" @click="setType('all')">搜全部 <span class="gp-tt-count">{{ counts.all }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='res'}" @click="setType('res')">资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='task'}" @click="setType('task')">任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='curio'}" @click="setType('curio')">好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
+      <div class="gp-type-tabs" role="tablist" aria-label="搜索类型">
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='all'" :class="{active: currentType==='all'}" @click="setType('all')">搜全部 <span class="gp-tt-count">{{ counts.all }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='res'" :class="{active: currentType==='res'}" @click="setType('res')">资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='task'" :class="{active: currentType==='task'}" @click="setType('task')">任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='curio'" :class="{active: currentType==='curio'}" @click="setType('curio')">好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
         <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
-        <div class="gp-type-tab" :class="{active: currentType==='ws'}" @click="setType('ws')">策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
-        <div class="gp-type-tab" :class="{active: currentType==='proj'}" @click="setType('proj')">项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='ws'" :class="{active: currentType==='ws'}" @click="setType('ws')">策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='proj'" :class="{active: currentType==='proj'}" @click="setType('proj')">项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
         <!-- R150：AI 检索（自然语言 → 三类卡语义召回，只读；跑动中再点=取消；键入路径零 AI） -->
-        <div class="gp-type-tab gp-ai-tab" :class="{active: !!aiSearch, busy: aiBusy}" @click="aiSearchRun(false)"
+        <div class="gp-type-tab gp-ai-tab" role="tab" v-pressable :aria-selected="!!aiSearch" :class="{active: !!aiSearch, busy: aiBusy}" @click="aiSearchRun(false)"
           :title="aiBusy ? '点击取消本次 AI 检索（不写任何数据）' : 'AI 读懂你这句话，从库内资源卡/任务/好奇卡里按相关度取一批投料，挑出真正贴合的（只读不改数据；结果出来后会写明扫了多少张/库内共多少张；再点=清除）'">
           <AiEntryButton variant="inline" :spin="aiBusy" :label="aiBusy ? aiProgress : 'AI 检索'" />
         </div>
@@ -65,7 +65,7 @@
           <template v-if="browseTab==='ai'">
             <template v-if="aiPanelRows.proactive.length">
               <div class="gp-group-title">AI 动作 <span class="gp-group-cnt">主动 · 到台面使用</span></div>
-              <div v-for="(ai, i) in aiPanelRows.proactive" :key="'aip' + ai.id"
+              <div v-for="(ai, i) in aiPanelRows.proactive" :key="'aip' + ai.id" v-pressable
                 class="gp-result-item" :class="{selected: selIndex===i}" @click="runFlat(i)" @mouseenter="selIndex=i"
                 :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
                 <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
@@ -76,7 +76,7 @@
             </template>
             <template v-if="aiPanelRows.passive.length">
               <div class="gp-group-title">AI 建议 <span class="gp-group-cnt">被动 · AI 建议我看</span></div>
-              <div v-for="(ai, j) in aiPanelRows.passive" :key="'aiv' + ai.id"
+              <div v-for="(ai, j) in aiPanelRows.passive" :key="'aiv' + ai.id" v-pressable
                 class="gp-result-item" :class="{selected: selIndex===aiProLen+j}" @click="runFlat(aiProLen+j)" @mouseenter="selIndex=aiProLen+j"
                 :title="ai.panel.hint ? `${ai.title} —— ${ai.panel.hint}` : ai.title">
                 <div class="gp-ri-icon res"><Icon :name="ai.panel.icon" :size="15" /></div>
@@ -90,7 +90,7 @@
           <template v-if="browseTab==='common'">
             <template v-if="recentResources.length">
               <div class="gp-group-title"><Icon name="flame" :size="13"/> 近期最常用 · 按调用次数</div>
-              <div v-for="(r, j) in recentResources" :key="r.id"
+              <div v-for="(r, j) in recentResources" :key="r.id" v-pressable
                 class="gp-result-item" :class="{selected: selIndex===j}"
                 @click="runFlat(j)" @mouseenter="selIndex=j"
                 :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+Enter → 定位到卡片所在处'">
@@ -102,7 +102,7 @@
               </div>
             </template>
             <div class="gp-group-title">快捷操作</div>
-            <div v-for="(qa, i) in QUICK_ACTIONS" :key="'qa' + i"
+            <div v-for="(qa, i) in QUICK_ACTIONS" :key="'qa' + i" v-pressable
               class="gp-result-item" :class="{selected: selIndex===recentResources.length+i}" @click="runFlat(recentResources.length+i)" @mouseenter="selIndex=recentResources.length+i">
               <div class="gp-ri-icon res"><Icon :name="qa.icon" :size="15" /></div>
               <div class="gp-ri-main"><div class="gp-ri-title">{{ qa.label }}</div></div>
@@ -111,7 +111,7 @@
             <!-- R171-C1：快速开关（04-63 任务书「全部开关收进去」的收口）——行内明示当前态，点了立即生效 -->
             <template v-if="PALETTE_TOGGLES.length">
               <div class="gp-group-title">快速开关</div>
-              <div v-for="(tg, i) in PALETTE_TOGGLES" :key="'tg' + i"
+              <div v-for="(tg, i) in PALETTE_TOGGLES" :key="'tg' + i" v-pressable
                 class="gp-result-item" :class="{selected: selIndex===recentResources.length+QUICK_ACTIONS.length+i}" @click="runFlat(recentResources.length+QUICK_ACTIONS.length+i)" @mouseenter="selIndex=recentResources.length+QUICK_ACTIONS.length+i"
                 :title="tg.hint">
                 <div class="gp-ri-icon res"><Icon :name="tg.icon" :size="15" /></div>
@@ -131,7 +131,7 @@
           </div>
           <template v-for="wsn in wsTree" :key="wsn.id">
             <div class="gp-group-title"><Icon name="folder" :size="13"/> {{ wsNameOf(wsn.id) }} <span class="gp-group-cnt">{{ wsn.cards }} 张卡</span></div>
-            <div v-for="cn in wsn.cats" :key="wsn.id + '-' + cn.id"
+            <div v-for="cn in wsn.cats" :key="wsn.id + '-' + cn.id" v-pressable
               class="gp-result-item" @click="locateCat(wsn.id, cn)"
               title="单击 → 定位到该分类（有卡高亮第一张，无卡高亮分类行）">
               <div class="gp-ri-icon ws"><Icon name="folder" :size="13"/></div>
@@ -158,7 +158,7 @@
         </div>
         <template v-for="grp in groupedResults" :key="grp.label">
           <div class="gp-group-title">{{ grp.label }} <span class="gp-group-cnt">{{ grp.total }}</span></div>
-          <div v-for="item in grp.items" :key="item.id"
+          <div v-for="item in grp.items" :key="item.id" v-pressable
             class="gp-result-item" :class="{selected: item.id===selectedId}"
             @click="pickRow(item, $event)" @mouseenter="selectHover(item)"
             :title="'单击/Enter → 打开链接（无链接则定位） · Ctrl+单击 或 Ctrl+Enter → 定位到卡片所在处'">
@@ -192,10 +192,10 @@
               <template v-else-if="item.type==='curio'">
                 <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
                 <div class="gp-ri-act convert" title="转化为...">
-                  <span @click.stop="toggleConvertMenu(item.id)"><Icon name="refresh" :size="13"/>▾</span>
-                  <div class="gp-convert-menu" :class="{open: convertMenuId===item.id}" @click.stop>
-                    <div class="gp-convert-menu-item" @click="convertCurio(item, 'res')"><Icon name="filetext" :size="13"/> 转化为资源卡</div>
-                    <div class="gp-convert-menu-item" @click="convertCurio(item, 'task')"><Icon name="check" :size="13"/> 转化为任务卡</div>
+                  <span v-pressable aria-label="转换卡片类型" @click.stop="toggleConvertMenu(item.id)"><Icon name="refresh" :size="13"/>▾</span>
+                  <div class="gp-convert-menu" :class="{open: convertMenuId===item.id}" data-a11y-container @click.stop>
+                    <div class="gp-convert-menu-item" role="menuitem" v-pressable @click="convertCurio(item, 'res')"><Icon name="filetext" :size="13"/> 转化为资源卡</div>
+                    <div class="gp-convert-menu-item" role="menuitem" v-pressable @click="convertCurio(item, 'task')"><Icon name="check" :size="13"/> 转化为任务卡</div>
                   </div>
                 </div>
                 <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>

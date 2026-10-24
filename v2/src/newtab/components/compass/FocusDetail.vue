@@ -111,6 +111,7 @@ function onSplit() {
       <div v-else class="sr-mid">
         <div
           v-for="st in visibleSubs" :key="st.id"
+          v-pressable
           class="sitem" :class="{ done: st.done }"
           :title="st.title + (st.done ? '（已完成，单击取消）' : '（单击标记完成）')"
           @click="onToggleSub(st.id)"

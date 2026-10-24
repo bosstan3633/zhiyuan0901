@@ -286,7 +286,7 @@ function chainStatus(): { broken: boolean; text: string } {
           </div>
           <div class="pd-tasks">
             <div v-for="task in metricTaskRows(m.id)" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
-              <div class="pd-check" :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
+              <div class="pd-check" v-pressable :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
               <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
               <MaturityBadge :m="taskMaturity(task)" />
               <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）"><Icon name="x" :size="13"/></button>
@@ -303,7 +303,7 @@ function chainStatus(): { broken: boolean; text: string } {
         <div v-if="!allProjectTasks().length" class="pd-empty">这个项目还没有任务。先到指标页拆一条。</div>
         <div v-else class="pd-task-flat">
           <div v-for="task in allProjectTasks()" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
-            <div class="pd-check" :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
+            <div class="pd-check" v-pressable :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
             <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
             <MaturityBadge :m="taskMaturity(task)" />
             <span class="pd-task-state">{{ task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始' }}</span>

@@ -30,7 +30,7 @@ const rows = computed(() => {
 <template>
   <div v-if="rows.length" class="stp">
     <div class="stp-label"><Icon name="compass" :size="13"/> 支持的任务 <span class="stp-hint">— 只读：这些任务把它当支撑材料；解绑请到任务侧</span></div>
-    <div v-for="row in rows" :key="row.l.id" class="stp-row" :title="row.l.why || '点击打开该任务'" @click="emit('openTask', row.t)">
+    <div v-for="row in rows" :key="row.l.id" class="stp-row" v-pressable :title="row.l.why || '点击打开该任务'" @click="emit('openTask', row.t)">
       <span class="stp-nm">{{ row.sub ? '↳ ' + row.sub.title : row.t.title }}</span>
       <span v-if="row.sub" class="stp-parent">{{ row.t.title.slice(0, 14) }}</span>
       <span v-if="row.l.from === 'ai'" class="stp-tag">AI</span>

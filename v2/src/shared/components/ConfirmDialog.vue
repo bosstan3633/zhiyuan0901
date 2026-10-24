@@ -19,7 +19,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey, true))
   <Teleport :to="overlayTarget">
     <Transition name="cdf">
       <div v-if="confirmState.open" class="cdf-mask" @click="resolveConfirm(false)">
-        <div class="cdf-box" @click.stop>
+    <div class="cdf-box" data-a11y-container @click.stop>
           <div class="cdf-icon" :class="{ danger: confirmState.danger }"><Icon v-if="confirmState.danger" name="trash" :size="20"/><Icon v-else name="question" :size="20"/></div>
           <div class="cdf-title">{{ confirmState.title }}</div>
           <div class="cdf-msg">{{ confirmState.message }}</div>

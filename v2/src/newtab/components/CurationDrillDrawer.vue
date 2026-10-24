@@ -207,7 +207,7 @@ async function onCleanupAll() {
     <!-- 总数 · 资源卡明细 + 分类汇总 -->
     <div v-if="mode === 'total'" class="dd-list">
       <div class="dd-scope">本台全部论据资源卡 · 含台内卡与资源卡池镜像</div>
-      <div v-for="c in cardRows" :key="'card-' + c.id" class="dd-row clickable" @click="rowClick(c.id, c.mirrored)">
+          <div v-for="c in cardRows" :key="'card-' + c.id" class="dd-row clickable" v-pressable @click="rowClick(c.id, c.mirrored)">
         <span class="dd-ico"><Icon :name="c.mirrored ? 'satellite' : 'filetext'" :size="13"/></span>
         <span class="dd-name">
           <span class="dd-asset-name">{{ c.title }}</span>
@@ -217,7 +217,7 @@ async function onCleanupAll() {
       </div>
       <div v-if="!cardRows.length" class="dd-empty">本台还没有论据资源卡</div>
       <div class="dd-group-title dd-group-sep"><Icon name="folder" :size="13"/> 按论证节点汇总</div>
-      <div v-for="c in catRows" :key="c.id" class="dd-row clickable" :style="{ paddingLeft: (8 + c.depth * 16) + 'px' }" @click="emit('jump-cat', c.id)">
+          <div v-for="c in catRows" :key="c.id" class="dd-row clickable" v-pressable :style="{ paddingLeft: (8 + c.depth * 16) + 'px' }" @click="emit('jump-cat', c.id)">
         <span class="dd-ico"><template v-if="c.depth">↳</template><Icon v-else name="folder" :size="13"/></span>
         <span class="dd-name">{{ c.name }}</span>
         <span class="dd-count">{{ c.count }}</span>
@@ -228,12 +228,12 @@ async function onCleanupAll() {
     <!-- 来源构成 -->
     <div v-else-if="mode === 'source'" class="dd-list">
       <div class="dd-group-title"><Icon name="monitor" :size="13"/> 台内新建（{{ nativeCards.length }}）</div>
-      <div v-for="c in nativeCards" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, false)">
+          <div v-for="c in nativeCards" :key="c.id" class="dd-row clickable" v-pressable @click="rowClick(c.id, false)">
         <span class="dd-ico"><Icon name="monitor" :size="13"/></span><span class="dd-name">{{ c.title }}</span><span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
       </div>
       <div v-if="!nativeCards.length" class="dd-empty">暂无台内卡</div>
       <div class="dd-group-title dd-group-sep"><Icon name="satellite" :size="13"/> 资源台镜像（{{ mirrorCards.length }}）</div>
-      <div v-for="c in mirrorCards" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, true)">
+          <div v-for="c in mirrorCards" :key="c.id" class="dd-row clickable" v-pressable @click="rowClick(c.id, true)">
         <span class="dd-ico"><Icon name="satellite" :size="13"/></span><span class="dd-name">{{ c.title }}</span><span class="dd-hint">定位源卡 ›</span>
       </div>
       <div v-if="!mirrorCards.length" class="dd-empty">暂无镜像卡</div>
@@ -245,7 +245,7 @@ async function onCleanupAll() {
         <span class="dd-orphan-txt"><Icon name="broom" :size="13"/> 检测到 {{ orphanCount }} 个孤儿附件（未被任何卡片引用）</span>
         <button class="dd-orphan-btn" @click="onCleanupAll">清理全部</button>
       </div>
-      <div v-for="(a, i) in assetRowsView" :key="a.assetId + i" class="dd-row clickable" :class="{ 'dd-row-warn': a.st !== 'ok' }" @click="onAssetRowClick(a)">
+          <div v-for="(a, i) in assetRowsView" :key="a.assetId + i" class="dd-row clickable" v-pressable :class="{ 'dd-row-warn': a.st !== 'ok' }" @click="onAssetRowClick(a)">
         <span class="dd-ico"><Icon v-if="a.kind === 'image'" name="image" :size="13"/><Icon v-else-if="a.kind === 'pdf'" name="book" :size="13"/><Icon v-else name="filetext" :size="13"/></span>
         <span class="dd-name" :title="a.cardTitle">
           <span class="dd-asset-name">{{ a.name }}</span>
@@ -274,7 +274,7 @@ async function onCleanupAll() {
     <!-- 最近更新流水（R169-T1：事件 + 卡时间归并，一卡一行带动词，翻页不硬砍 Top 30） -->
     <div v-else class="dd-list">
       <div class="dd-scope">本台可见资源卡 · 按最后一次动作排序（已删除的卡请到回收站或调度台「写入记录」看）</div>
-      <div v-for="c in recentShown" :key="c.id" class="dd-row clickable" @click="rowClick(c.id, mirrorIds.has(c.id))">
+          <div v-for="c in recentShown" :key="c.id" class="dd-row clickable" v-pressable @click="rowClick(c.id, mirrorIds.has(c.id))">
         <span class="dd-ico"><Icon v-if="mirrorIds.has(c.id)" name="satellite" :size="13"/><Icon v-else name="monitor" :size="13"/></span>
         <span class="dd-verb">{{ c.verb || '更新' }}</span>
         <span class="dd-name">{{ c.title }}</span>
@@ -287,7 +287,7 @@ async function onCleanupAll() {
     </div>
 
     <!-- 图片预览覆盖层 -->
-    <div v-if="previewUrl" class="dd-preview" @click="closePreview">
+        <div v-if="previewUrl" class="dd-preview" v-pressable @click="closePreview">
       <div class="dd-preview-name">{{ previewName }} <span>（点击任意处关闭）</span></div>
       <img :src="previewUrl" alt="附件预览" />
     </div>

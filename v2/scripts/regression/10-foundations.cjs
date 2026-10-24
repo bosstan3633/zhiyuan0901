@@ -76,10 +76,10 @@ check('B23 文档级 Ctrl+Enter/Esc', () => read('/newtab/components/compass/Tas
 check('O19/R121 主航线项目行卡 ★R3-B1 退役重指带备案：行卡（proj-row/mini-bar/双击）随 LighthousePanel 整面退役，能力去向=方向树项目卡头（tp-head 名称 + tp-pct 进度 + 停滞读数在页头 + ▾ 菜单「进入项目详情页」取代双击）', () => { const t = CT_ALL; return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="tw-head"') && t.includes('class="tw-ring-v"') && t.includes('📄 进入项目详情页') && t.includes('function openProjectDrawer('); });
 check('O20（R126 重指）标签最多两级守卫 + 缩进兜底', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 check('O21 分组列表跨组拖拽改归属', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('onListGroupDrop'));
-check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 margin-right: 52px 挂在 .goal-node .expand-icon 上，而 .goal-node/.expand-icon 是主航线时代留下的死选择器（模板零引用 + 104 场景 DOM census 零命中 + 全站字符串/classList 零出现，本轮随孤儿 CSS 一并清）。当年按钮是绝对定位、要给箭头留 52px 才不叠；今天的形状是卡头走 flex（标题 flex:1 + min-width:0 可缩）、动作组作为**流内兄弟**占自己的槽——重叠在新形状里结构上不可能，判据改钉这个形状，并钉住旧的魔数预留不许回流。★W11 随迁：动作组从 display:none（hover 才占槽）改为常驻 flex。★W12(V3.8.12)再随迁：`.tw-head` 从 align-items:flex-start + gap:10px 改为 align-items:center + gap:14px，`.tw-id` 加 min-width:200px，`.tw-right` 从 gap:10 改为 gap:14 —— 起因是实际截图里舱头右侧（进度环 / 完成数 / 六个按钮）在窄栏下挤成两行。判据本轮起改钉**右区固定一块不换行**这条承重：.tw-right 必须 flex:none，且 .tw-head 的 wrap 只能在 tw-id 那一层发生，不能发生在 tw-right 内部', () => {
+check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 margin-right: 52px 挂在 .goal-node .expand-icon 上，而 .goal-node/.expand-icon 是主航线时代留下的死选择器（模板零引用 + 104 场景 DOM census 零命中 + 全站字符串/classList 零出现，本轮随孤儿 CSS 一并清）。当年按钮是绝对定位、要给箭头留 52px 才不叠；今天的形状是卡头走 flex（标题 flex:1 + min-width:0 可缩）、动作组作为**流内兄弟**占自己的槽——重叠在新形状里结构上不可能，判据改钉这个形状，并钉住旧的魔数预留不许回流。★W11 随迁：动作组从 display:none（hover 才占槽）改为常驻 flex。★W12(V3.8.12)再随迁：`.tw-head` 从 align-items:flex-start + gap:10px 改为 align-items:center + gap:14px，`.tw-id` 加 min-width:200px，`.tw-right` 从 gap:10 改为 gap:14 —— 起因是实际截图里舱头右侧（进度环 / 完成数 / 六个按钮）在窄栏下挤成两行。判据本轮起改钉**右区固定一块不换行**这条承重：.tw-right 必须 flex:none，且 .tw-head 的 wrap 只能在 tw-id 那一层发生，不能发生在 tw-right 内部。★V3.9.16 密度收口：舱头 gap 12px、右区 gap 10px、指标头 gap 7px，仍守住“右区不换行 + 标题可缩 + 动作组独立占槽”三条行为', () => {
   const t = CT_ALL;
   return t.includes('.tw-head {')
-    && /\.tw-head \{[^}]*display: flex[^}]*align-items: center[^}]*gap: 14px/.test(t)
+    && /\.tw-head \{[^}]*display: flex[^}]*align-items: center[^}]*gap: 12px/.test(t)
     /* ★标题可缩是「不重叠」的结构前提：flex:1 + min-width 让长标题收缩而不是把动作组挤出卡头 */
     && /\.tw-id \{ flex: 1; min-width: 200px; \}/.test(t)
     /* ★V3.8.18（N5）随迁备案：本条原逐字钉 `.dh-acts { ... gap: 4px; ... }` 的整行字面量。
@@ -92,8 +92,8 @@ check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 ma
   && /\.dh-acts \{[^}]*display: flex[^}]*align-items: center[^}]*flex: none/.test(t)
     /* ★右区必须 flex:none —— 舱头唯一的换行点是 .tw-head 本身（右区一旦参与换行，
        进度环/完成数/按钮组就会叠成两行，正是 W12 要修的失真） */
-    && t.includes('.tw-right { display: flex; align-items: center; gap: 14px; flex: none; }')
-    && t.includes('.mc-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }')
+    && t.includes('.tw-right { display: flex; align-items: center; gap: 10px; flex: none; }')
+    && t.includes('.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }')
     && !t.includes('margin-right: 52px') && !t.includes('padding-right: 58px');
 });
 check('Bug2 标签缩进 !important 兜底', () => read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
@@ -313,7 +313,7 @@ console.log('【第十九~二十轮 · 拼音搜索/拖拽修复/手册白皮书
 check('R19（R160 重指）拼音/首字母搜索（两端）：两层表实现（INITIALS/FULLS）+ 两入口 matchPinyin', () => read('/shared/utils/pinyin.ts').includes('INITIALS') && read('/shared/utils/pinyin.ts').includes('FULLS') && read('/shared/utils/pinyin.ts').includes('export function matchPinyin') && read('/newtab/components/GlobalPopups.vue').includes('matchPinyin') && read('/content/search-overlay.ts').includes('matchPinyin'));
 check('R20a 拖拽失效修复（去虚拟置顶排序；物理置顶已于第卅三轮 R33-1 改为独立分区）', () => !read('/newtab/views/CompassHome.vue').includes('置顶任务优先（稳定排序') && !read('/newtab/components/compass/CuriosityPanel.vue').includes('第十七轮：置顶优先'));
 // 第卅三轮 R33-1：BUG-D 修复 —— 物理 unshift 会破坏手动拖拽排序，置顶改独立分区（R20a 旧断言随行为变更同步更新）
-check('R33-1 BUG-D 任务置顶独立分区（不再物理 unshift 源数组）', () => !read('/newtab/components/compass/TaskManagerPanel.vue').includes('置顶动作物理移到列表顶部') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('pinnedTasks') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('normalTasks') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('<Icon name="pin" :size="13"/> 置顶 · {{ pinnedTasks.length }}'));
+check('R33-1 BUG-D 任务置顶独立分区（不再物理 unshift 源数组）', () => !read('/newtab/components/compass/TaskManagerPanel.vue').includes('置顶动作物理移到列表顶部') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('pinnedTasks') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('normalTasks') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('<Icon name="pin" :size="13"/> 已置顶 · {{ pinnedTasks.length }}'));
 check('R20b 使用手册五篇重写（外置数据源）', () => read('/newtab/manual-data.ts').includes('速览 · 一页上手') && read('/newtab/manual-data.ts').includes('理念篇 · 知源哲学') && read('/newtab/views/GlobalSettings.vue').includes('openManualTab') && read('/newtab/views/ManualPage.vue').includes("from '../manual-data'") && read('/newtab/router.ts').includes("'/manual'"));
 
 console.log('【第十八轮 · 交互视觉全面优化】');

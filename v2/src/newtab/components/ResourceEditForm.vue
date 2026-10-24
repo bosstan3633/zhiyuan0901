@@ -115,7 +115,7 @@ function fmtTs(ts?: number): string {
       <div class="ds-pnl-h"><b>链接与归档</b><i>双击卡片即打开 · Ctrl+<Icon name="arrowleft" :size="13"/> 保存</i></div>
       <div class="ds-kv"><span class="k">链接</span><span class="v">
         <div class="ds-seg">
-          <span v-for="tb in LINK_SLOT_TABS" :key="tb.t" :class="{ on: model.linkType === tb.t }"
+          <span v-for="tb in LINK_SLOT_TABS" :key="tb.t" v-pressable :class="{ on: model.linkType === tb.t }"
             :title="tb.label + ' 槽：' + (slotFill[tb.t] || '空')" @click="switchLinkSlot(model, tb.t)">
             {{ tb.label }}<i class="ds-seg-dot">{{ slotFill[tb.t] ? '●' : '○' }}</i>
           </span>

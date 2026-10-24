@@ -51,12 +51,12 @@ const total = () => (props.subtasks || []).length
 <template>
   <div class="st">
     <div v-for="s in subtasks" :key="s.id" class="st-row">
-      <span class="st-dot" :class="{ done: s.done }" :title="s.done ? '标记未完成' : '标记完成（不进成熟度与周报）'" @click="toggle(s)"><Icon v-if="s.done" name="check" :size="11"/></span>
+      <span class="st-dot" v-pressable :class="{ done: s.done }" :title="s.done ? '标记未完成' : '标记完成（不进成熟度与周报）'" @click="toggle(s)"><Icon v-if="s.done" name="check" :size="11"/></span>
       <input class="st-t" :class="{ done: s.done }" :value="s.title" spellcheck="false" @change="rename(s, $event)" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()">
-      <span v-if="supCount && supCount(s.id)" class="st-sup" title="这条子任务已挂资源支持，点开看" @click="emit('sup', s)"><Icon name="compass" :size="13"/> {{ supCount(s.id) }}</span>
-      <span class="st-x" title="删除这一行（清单行不是卡，无回收站）" @click="remove(s)">×</span>
+      <span v-if="supCount && supCount(s.id)" class="st-sup" v-pressable title="这条子任务已挂资源支持，点开看" @click="emit('sup', s)"><Icon name="compass" :size="13"/> {{ supCount(s.id) }}</span>
+      <span class="st-x" v-pressable title="删除这一行（清单行不是卡，无回收站）" @click="remove(s)">×</span>
     </div>
-    <div class="st-add" @click="draft && ($event.target as HTMLElement).querySelector('input')?.focus()">
+    <div class="st-add" data-a11y-container @click="draft && ($event.target as HTMLElement).querySelector('input')?.focus()">
       <span class="st-plus">＋</span>
       <input v-model="draft" ref="addInput" placeholder="加一条子任务，回车确认（也可让 AI 拆解批量写入）" @keydown.enter.prevent="add" @blur="add">
       <span v-if="total()" class="st-cnt">{{ done() }}/{{ total() }}</span>

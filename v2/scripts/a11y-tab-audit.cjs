@@ -56,7 +56,8 @@ function readAttrs(attrs) {
   const ti = /\stabindex\s*=\s*("([^"]*)"|'([^']*)')/.exec(attrs)
   const tabindex = ti ? (ti[2] !== undefined ? ti[2] : ti[3]) : null
   const role = /\srole\s*=/.test(attrs)
-  const href = /\shref\s*=/.test(attrs)
+  // 动态 :href / v-bind:href 同样是真链接；旧口径只认静态 href，会把可打开的资源卡误报成缺口。
+  const href = /(^|\s)(?::href|v-bind:href|href)\s*=/.test(attrs)
   const pressable = /(^|\s)v-pressable(?:\s|=|$)/.test(attrs)
   const keydown = /(^|\s)(@keydown|v-on:keydown)(\.|\s|=|$)/.test(attrs)
   return { hasClick, tabindex, role, href, pressable, keydown }
@@ -79,6 +80,8 @@ function audit() {
       const attrs = m[2] || ''
       const a = readAttrs(attrs)
       if (!a.hasClick) continue
+      // 纯容器只负责阻止冒泡 / 关闭浮层，没有自身动作。给它们加按钮语义会制造空 Tab 停靠点。
+      if (/(^|\s)data-a11y-container(?:\s|=|$)/.test(attrs)) continue
       if (NATIVE.has(tag)) {
         // <a> 无 href 不可聚焦；其余原生控件天然可达
         if (tag === 'a' && !a.href && a.tabindex === null) {
@@ -123,6 +126,24 @@ const killers = outlineKillers()
 
 if (process.argv.includes('--count')) {
   console.log(out.length)
+  process.exit(0)
+}
+
+if (process.argv.includes('--json')) {
+  const rows = out.map(r => ({
+    file: rel(r.file),
+    line: r.line,
+    tag: r.tag,
+    snippet: r.snippet.replace(/\s+/g, ' '),
+  }))
+  console.log(JSON.stringify({
+    total: rows.length,
+    files: new Set(rows.map(r => r.file)).size,
+    fakeFix: fakeFix.length,
+    outlineKillers: killers.length,
+    backdrops: backdrops.length,
+    rows,
+  }, null, 2))
   process.exit(0)
 }
 

@@ -43,11 +43,11 @@
             <span class="gs-save-error-kind">{{ saveErrorLabel(saveError.kind) }}</span>
             · {{ saveError.message }}
             <span v-if="saveError.bytesInUse != null">（当前 {{ formatBytes(saveError.bytesInUse) }}）</span>
-            <span class="gs-link gs-link--spaced" @click="$emit('dismiss-save-error')">已处理 ›</span>
+            <span class="gs-link gs-link--spaced" v-pressable @click="$emit('dismiss-save-error')">已处理 ›</span>
           </span>
         </div>
-        <div class="gs-about-row"><span class="label">检查更新</span><span class="value gs-link" @click="$emit('toast', '当前已是最新版本')">检查更新 ›</span></div>
-        <div class="gs-about-row"><span class="label">开源致谢</span><span class="value gs-link" @click="$emit('toast', 'Vue 3 · TypeScript · Vite · Pinia · @crxjs')">查看 ›</span></div>
+        <div class="gs-about-row"><span class="label">检查更新</span><span class="value gs-link" v-pressable @click="$emit('toast', '当前已是最新版本')">检查更新 ›</span></div>
+        <div class="gs-about-row"><span class="label">开源致谢</span><span class="value gs-link" v-pressable @click="$emit('toast', 'Vue 3 · TypeScript · Vite · Pinia · @crxjs')">查看 ›</span></div>
       </div>
     </div>
   </div>

@@ -243,7 +243,7 @@ const laneCount = computed(() => {
 /* V3.9.12：项目头是一个“摘要段落”，不是又一张卡。
    标题 → 下一步 → 脚注 → 进度/动作 四层只用留白与发丝线分隔。 */
 .pano-h {
-  display: flex; align-items: flex-start; gap: 20px; padding: 2px 0 14px; margin-bottom: 14px;
+  display: flex; align-items: flex-start; gap: 16px; padding: 0 0 12px; margin-bottom: 12px;
   border-bottom: 1px solid var(--border-strong); flex-wrap: wrap;
 }
 .ph-b { flex: 1; min-width: 240px; }
@@ -255,26 +255,26 @@ const laneCount = computed(() => {
 .ph-badge.focus { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .ph-badge.stall { color: var(--warning); background: var(--warning-bg-soft); }
 .ph-next {
-  display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 7px; padding-left: 9px;
+  display: flex; align-items: baseline; gap: 7px; min-width: 0; margin-top: 6px; padding-left: 8px;
   border-left: 2px solid color-mix(in srgb, var(--hue) 55%, transparent);
 }
 .ph-next-l { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); letter-spacing: .04em; }
 .ph-next-v {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--fs-body); font-weight: 600; color: var(--text);
+  font-size: var(--fs-sub); font-weight: 600; color: var(--text);
 }
 .ph-next.src-empty .ph-next-v { color: var(--text-3); font-weight: 500; }
 .ph-next-src { flex: none; font-size: var(--fs-tiny); color: var(--text-4); padding: 1px 6px; border-radius: 999px; background: var(--surface-2); }
 .ph-foot {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 7px;
-  font-size: var(--fs-micro); color: var(--text-4);
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px;
+  font-size: var(--fs-tiny); color: var(--text-4);
 }
 .ph-foot .bad { color: var(--danger); font-weight: 600; }
 .ph-sep { opacity: .55; }
-.ph-r { display: flex; align-items: center; gap: 10px; flex: none; }
-.ph-prog { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; min-width: 62px; }
-.ph-prog-v { font-size: var(--fs-title); font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.ph-prog-c { font-size: var(--fs-micro); color: var(--text-3); white-space: nowrap; }
+.ph-r { display: flex; align-items: center; gap: 8px; flex: none; }
+.ph-prog { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.ph-prog-v { font-size: var(--fs-sub); font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.ph-prog-c { font-size: var(--fs-tiny); color: var(--text-3); white-space: nowrap; }
 .ph-acts { display: flex; align-items: center; gap: 5px; }
 .ph-act {
   min-height: 28px;
@@ -307,7 +307,7 @@ const laneCount = computed(() => {
 
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
 .lanes {
-  padding: 2px 2px 16px; display: flex; gap: 12px; align-items: stretch;
+  padding: 0 2px 12px; display: flex; gap: 10px; align-items: stretch;
   min-height: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
 }
 .lanes-shell { position: relative; }

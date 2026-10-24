@@ -1218,7 +1218,7 @@ onUnmounted(() => {
              它们本来就是第 3 层的操作，此前摆在一排全局按钮里，用户得先跨过视图切换才够得到。 -->
         <template #actions>
           <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 战略目标</button>
-          <span class="node-action ai-chain-act" title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
+          <span class="node-action ai-chain-act" v-pressable title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
         </template>
       </CompassSpine>
     </div>
@@ -1304,28 +1304,28 @@ onUnmounted(() => {
                 <template v-if="layerOpen === 1">
                   <span class="tl-badge">1 愿景 · 终极方向</span>
                   <div class="tl-text">
-                    <span class="node-title editable" :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
+                    <span class="node-title editable" v-pressable :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
                       @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
                   </div>
                   <div class="tl-links">
-                    <span class="proj-toggle" @click.stop="toggleLinkPop('vision')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
+                    <span class="proj-toggle" v-pressable @click.stop="toggleLinkPop('vision')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
                     <template v-if="linkCount('vision')">
-                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
                     </template>
                   </div>
                 </template>
                 <template v-else>
                   <span class="tl-badge ghost" id="layer-2">2 使命 · 行动准则</span>
                   <div class="tl-text sub">
-                    <span class="node-title editable" :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
+                    <span class="node-title editable" v-pressable :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
                       @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
                   </div>
                   <div class="tl-links">
-                    <span class="proj-toggle" @click.stop="toggleLinkPop('mission')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
+                    <span class="proj-toggle" v-pressable @click.stop="toggleLinkPop('mission')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
                     <template v-if="linkCount('mission')">
-                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
+                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
                     </template>
                   </div>
                 </template>
@@ -1451,7 +1451,7 @@ onUnmounted(() => {
                       {{ dg.i + 1 }} 战略目标
                     </button>
                     <span class="dh-i">{{ dg.i + 1 }}</span>
-                    <span class="node-title editable dh-n" :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
+                    <span class="node-title editable dh-n" v-pressable :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
                       @click="startEdit('dir-' + dg.dir.id, $event)" @blur="saveEdit('dir-' + dg.dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dg.dir.id, $event)" @keydown.esc="cancelEdit">{{ dg.dir.name }}</span>
                     <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>
                     <MaturityBadge :m="directionMaturity(d, dg.dir)" />
@@ -1459,7 +1459,7 @@ onUnmounted(() => {
                     <!-- ★发丝线（原型 .dir-line）：把一行读数在右侧收口，别让按钮组孤零零吊在行尾 -->
                     <span class="dh-line" />
                   </div>
-                  <div class="dh-acts" @click.stop>
+                  <div class="dh-acts" data-a11y-container @click.stop>
                     <!-- ★V3.8.18（N5）动作**三级分层**：
                          病根＝五枚按钮共用 .node-action 的固定 22×22 方块，字号/底色/字重完全一样，
                          于是「只看我」这个**文字型**按钮被硬塞进 22px 方块里，文字逐字折行变成竖排一列
@@ -1468,12 +1468,12 @@ onUnmounted(() => {
                            t1 主操作 —— 往这个目标里加东西，最常见意图
                            t2 次操作 —— 图标化能力（AI / 导入），方块形态成立
                            t3 文字型 —— 状态开关（只看我），本质是"我在哪个视图"而不是"做什么" -->
-                    <span class="node-action t1" @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
-                    <span class="node-action t2" @click="aiChain('projects', dg.dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
-                    <span class="node-action t2" @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）"><Icon name="filetext" :size="13"/></span>
-                    <span class="node-action t3" :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
+                    <span class="node-action t1" v-pressable @click="addProject(dg.dir.id)" title="添加攻坚项目">＋</span>
+                    <span class="node-action t2" v-pressable @click="aiChain('projects', dg.dir.id)" title="AI 建议攻坚项目（补路径依赖，查重后采纳才创建）"><AiEntryButton /></span>
+                    <span class="node-action t2" v-pressable @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）"><Icon name="filetext" :size="13"/></span>
+                    <span class="node-action t3" v-pressable :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
                       :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'"><Icon v-if="dirFilter === dg.dir.id" name="eye" :size="13"/>{{ dirFilter === dg.dir.id ? '正在只看' : '只看我' }}</span>
-                    <span class="node-action t3 danger" @click="deleteNode('dir', dg.dir.id)" title="删除目标"><Icon name="trash" :size="13"/></span>
+                    <span class="node-action t3 danger" v-pressable @click="deleteNode('dir', dg.dir.id)" title="删除目标"><Icon name="trash" :size="13"/></span>
                   </div>
                 </div>
 
@@ -1547,7 +1547,7 @@ onUnmounted(() => {
             <div class="lm-head">
               <span><Icon name="link" :size="13"/> 关联卡片 · {{ linkModal.node === 'vision' ? '愿景' : '使命' }}</span>
               <span class="lm-count">已选 {{ linkCount(linkModal.node) }}</span>
-              <div class="pm-close" @click="closeLinkModal">×</div>
+      <button class="pm-close" type="button" aria-label="关闭" @click="closeLinkModal">×</button>
             </div>
             <div class="lm-body">
               <input v-model="linkQ" class="lm-search" placeholder="关键词或拼音首字母过滤（如 sj）…" v-focus @keydown.esc.stop="closeLinkModal">
@@ -1795,7 +1795,7 @@ onUnmounted(() => {
 .lm-box { width: 520px; max-width: 94vw; max-height: 82vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
 .lm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; font-size: 14px; font-weight: 700; color: var(--text); }
 .lm-count { font-size: var(--fs-caption); font-weight: 500; color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 2px 10px; }
-.lm-head .pm-close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 4px; }
+.lm-head .pm-close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 4px; background: transparent; border: none; }
 .lm-head .pm-close:hover { color: var(--text); }
 .lm-body { padding: 0 18px 8px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .lm-search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: var(--fs-body); outline: none; font-family: inherit; background: var(--surface-2); color: var(--text); margin-bottom: 6px; }
@@ -1985,7 +1985,7 @@ onUnmounted(() => {
 /* R68-F4：操作按钮主题感知——原硬编码不透明白底 + 浅灰图标，深色主题（近黑画布）下对比度崩坏看不到入口 */
 .node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }
 /* R135：文字型 AI 入口（骨架条上的「知 建议目标」）—— 与 .t3 同一套文字型规则 */
-.ai-chain-act { width: auto; padding: 0 8px; gap: 3px; font-size: var(--fs-caption); white-space: nowrap; }
+.ai-chain-act { width: auto; min-height: 28px; padding: 0 8px; gap: 3px; font-size: var(--fs-caption); white-space: nowrap; }
 .node-action:hover { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
 .node-action.danger:hover { color: var(--danger); }
 /* ★V3.8.18（N5）三级分层。t1/t2 的差异只在底色与描边；t3 解除固定方块。

@@ -93,10 +93,10 @@ function priOf(t: TaskCard): string {
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
         <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
-        <span ref="menuRoot" class="lane-ops" @click.stop @focusout="onMenuFocusout">
+        <span ref="menuRoot" class="lane-ops" data-a11y-container @click.stop @focusout="onMenuFocusout">
           <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
           <button class="lo-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
-          <span v-if="menuFor === m.id" class="lo-menu" @click.stop>
+          <span v-if="menuFor === m.id" class="lo-menu" data-a11y-container @click.stop>
             <button class="lom-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
           </span>
         </span>
@@ -173,7 +173,7 @@ function priOf(t: TaskCard): string {
 /* 单指标宽度同样由父级轨道规则承担；保留类名作为语义钩子。 */
 .lane.single { max-width: none; }
 .lane-h {
-  position: relative; padding: 12px 13px 11px 15px;
+  position: relative; padding: 10px 11px 9px 13px;
   border-bottom: 1px solid var(--border); background: transparent; flex: none;
 }
 .lane-h::before {
@@ -239,7 +239,7 @@ function priOf(t: TaskCard): string {
 .lom-item.danger:hover { background: var(--danger-bg-soft); }
 .lane-acc {
   display: flex; align-items: baseline; gap: 5px; min-width: 0;
-  font-size: var(--fs-micro); color: var(--text-3); line-height: 1.65; margin-top: 5px;
+  font-size: var(--fs-tiny); color: var(--text-3); line-height: 1.55; margin-top: 4px;
 }
 .lane-acc-k {
   flex: none; font-size: var(--fs-tiny); font-weight: 700; letter-spacing: .04em;
@@ -256,14 +256,14 @@ function priOf(t: TaskCard): string {
   color: var(--text-3); font-family: inherit; font-size: var(--fs-tiny); cursor: pointer;
 }
 .lane-acc-toggle:hover { color: var(--accent-ink); }
-.lane-bar { display: flex; align-items: center; gap: 7px; margin-top: 9px; }
+.lane-bar { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
 /* ★W12-F：任务区是连接轨的定位上下文 */
 .lane-b { position: relative; }
 .lane-bar .track { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
 .lane-bar .fill { display: block; height: 4px; border-radius: 2px; background: var(--hue); }
 .lane-bar .v { font-size: var(--fs-micro); font-weight: 700; color: var(--text-2); flex: none; }
 
-.lane-b { padding: 9px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 74px; }
+.lane-b { padding: 7px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; flex: 1; min-height: 70px; }
 /* ★W12-F 贯穿连接轨：一条从指标头垂到最后一个任务行的竖轨 + 每行一个分支点。
    轨道颜色取泳道主色 --hue，与进度条、序号牌同源 ⇒ "这条泳道属于这个指标"三处同一色。 */
 .lane-spine {
@@ -280,7 +280,7 @@ function priOf(t: TaskCard): string {
   background: var(--surface); border: 1.6px solid color-mix(in srgb, var(--hue) 75%, transparent);
 }
 .ltask {
-  position: relative; padding: 7px 10px 7px 30px; border-radius: 0;
+  position: relative; padding: 6px 8px 6px 28px; border-radius: 0;
   /* 任务行从"小卡"退成"行"：保留左侧状态色与连接轨分支点，去掉底色与外边距 */
   background: transparent; transition: all var(--dur); border-left: 2px solid var(--hue);
   border-bottom: 1px solid var(--border);

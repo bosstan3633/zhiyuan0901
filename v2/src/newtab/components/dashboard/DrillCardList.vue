@@ -69,7 +69,7 @@ function open(r: Row) {
       <span class="dz-drill-hint">{{ hint || '单击看详情 · 双击直达链接' }}</span>
     </div>
     <div v-if="!rows.length" class="dz-drill-empty">该维度无记录</div>
-    <div v-for="(r, i) in rows" :key="r.kind + '|' + r.id + '|' + i" class="dz-row"
+    <div v-for="(r, i) in rows" :key="r.kind + '|' + r.id + '|' + i" class="dz-row" v-pressable
       :title="`单击 → 定位「${r.title}」· 双击 → 直达链接 / 打开文件`"
       @click="pick(r)" @dblclick="open(r)">
       <span class="dz-row-i">{{ r.icon }}</span>

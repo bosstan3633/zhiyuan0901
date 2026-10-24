@@ -297,7 +297,7 @@ onBeforeUnmount(() => {
         {{ node.description || '双击补充分支说明' }}
       </span>
       <div class="mind-resources">
-        <span v-for="card in cards().slice(0, 2)" :key="card.id" class="mind-resource"
+        <span v-for="card in cards().slice(0, 2)" :key="card.id" class="mind-resource" v-pressable
           :class="{ 'search-hit': cardMatches(card) }"
           :data-rid="card.id"
           :title="card.title + '；单击打开详情，双击打开链接，右键打开卡片菜单'"

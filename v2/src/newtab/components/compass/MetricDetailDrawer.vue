@@ -158,7 +158,7 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
         </div>
         <textarea v-if="edit === 'acceptance'" v-model="draft" class="md-edit md-edit-area" autofocus
           placeholder="写成可判断的完成条件：谁在什么时间看到什么结果…" @blur="saveEdit" @keydown.esc="cancelEdit" />
-        <p v-else class="md-copy" :class="{ empty: !metric.acceptance }" @click="startEdit('acceptance')">
+        <p v-else class="md-copy" v-pressable :class="{ empty: !metric.acceptance }" @click="startEdit('acceptance')">
           {{ metric.acceptance || '还没有验收标准。先写清楚“做到什么算成功”，再拆任务。' }}
         </p>
       </section>
@@ -171,7 +171,7 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
         <input v-if="edit === 'target'" v-model="draft" class="md-edit" autofocus
           placeholder="例：10 篇 / 30% / 2026-12-31 前达成" @blur="saveEdit"
           @keydown.enter.prevent="saveEdit" @keydown.esc="cancelEdit">
-        <p v-else class="md-copy" :class="{ empty: !metric.target }" @click="startEdit('target')">
+        <p v-else class="md-copy" v-pressable :class="{ empty: !metric.target }" @click="startEdit('target')">
           {{ metric.target || '还没有目标值。可以是数量、比例或截止日期。' }}
         </p>
       </section>

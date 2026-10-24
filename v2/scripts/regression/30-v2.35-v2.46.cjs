@@ -317,9 +317,9 @@ check('R70-17 P2 悬空投射清理（启动期 + 回收站硬删；R128-A3 起�
   const h = read('/shared/storage/hub.ts'); const r = read('/shared/storage/repository.ts'); const p = read('/shared/storage/purge.ts');
   return h.includes('export function pruneDanglingProjections') && r.includes('pruneDanglingProjections(data)') && p.includes('pruneDanglingProjections(d)');
 });
-check('R70-18 P2 构建配置（sourcemap + pinyin 独立 chunk）', () => {
+check('R70-18 P2 构建配置（sourcemap + 不再保留无效 pinyin chunk 规则）', () => {
   const v = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'vite.config.ts'), 'utf8');
-  return v.includes("sourcemap: 'hidden'") && v.includes("if (id.includes('pinyin-pro')) return 'pinyin'");
+  return v.includes("sourcemap: 'hidden'") && !v.includes("if (id.includes('pinyin-pro')) return 'pinyin'");
 });
 check('R70-19 P2 内容脚本失败可感知（重试 + 页面提示）', () => {
   const s = read('/content/search-overlay.ts');

@@ -692,6 +692,9 @@ function onTaskNavKey(e: KeyboardEvent) {
   const el = e.target as HTMLElement
   if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
   if (el?.isContentEditable) return
+  // 任务行本身已有 v-pressable 的 Enter/Space 通道；文档级导航只在行外接管，
+  // 否则一次按键会同时“打开当前行”和“执行行内动作”。
+  if (el?.closest?.('[data-tid]') && (e.key === 'Enter' || e.key === ' ')) return
   if (mountModalOpen.value) return
   if (viewMode.value !== 'list') return
   // R129-B9：taskNavIndex 必须随 filteredTasks 收缩钳制——搜索/过滤把列表变短后，
@@ -739,11 +742,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           :title="allGroupsCollapsed ? '展开全部组' : '收起全部组，只看组头'" @click="toggleAllGroups">
           {{ allGroupsCollapsed ? '▾ 全部展开' : '▸ 全部折叠' }}
         </button>
-        <template #count><span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" :class="{ act: filterBy !== 'all' || searchQuery.trim() }" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span></template>
+        <template #count><span class="mgr-count"><span class="cur">{{ filteredTasks.length }} 条</span><span class="total" v-pressable :class="{ act: filterBy !== 'all' || searchQuery.trim() }" @click="clearTaskFilter" :title="filterBy !== 'all' || searchQuery.trim() ? '点击查看全部任务' : '全部任务数'">/ 全部 {{ totalTaskCount }}</span></span></template>
       </DeckControls>
 
       <!-- R110-LC（T3）：归档卡已从默认视图隐藏——降级提示（R113-N2 起点击跳 设置→总览·资源生命周期） -->
-      <div v-if="archivedHintCount" class="tm-archived-hint" @click="router.push('/profile#lifecycle')">
+      <div v-if="archivedHintCount" class="tm-archived-hint" v-pressable @click="router.push('/profile#lifecycle')">
         <Icon name="package" :size="13"/> 另有 {{ archivedHintCount }} 张已归档任务未显示（点此在 设置 › 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
@@ -771,13 +774,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
         <template v-if="pinnedTasks.length">
           <div class="tm-group-label"><Icon name="pin" :size="13"/> 已置顶 · {{ pinnedTasks.length }}</div>
           <div class="tm-grid-inner">
-            <div v-for="task in pinnedTasks" :key="task.id" class="tm-card"
+            <div v-for="task in pinnedTasks" :key="task.id" class="tm-card" v-pressable
               :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}"
               :data-tid="task.id"
               draggable="true"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.prevent.stop="onTaskDrop(task)"
               @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <span v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></span>
+              <span v-if="batchMode" class="batch-check" v-pressable :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></span>
               <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态仍让位给勾选框） -->
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status"><Icon :name="task.status==='done'?'check':task.status==='doing'?'half':'circle'" :size="12"/>{{ task.status==='done'?'已完成':task.status==='doing'?'进行中':'待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
@@ -806,13 +809,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           </div>
           <div class="tm-group-label">全部任务 · {{ normalTasks.length }}</div>
           <div class="tm-grid-inner">
-            <div v-for="task in normalTasks" :key="task.id" class="tm-card"
+            <div v-for="task in normalTasks" :key="task.id" class="tm-card" v-pressable
               :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}"
               :data-tid="task.id"
               draggable="true"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.prevent.stop="onTaskDrop(task)"
               @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-              <span v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></span>
+              <span v-if="batchMode" class="batch-check" v-pressable :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></span>
               <!-- R117（04-61 D）：状态胶囊受「状态」字段显隐控制（批量态仍让位给勾选框） -->
               <span v-else-if="tShow('status')" class="tm-status" :class="'st-'+task.status"><Icon :name="task.status==='done'?'check':task.status==='doing'?'half':'circle'" :size="12"/>{{ task.status==='done'?'已完成':task.status==='doing'?'进行中':'待开始' }}</span>
               <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
@@ -841,13 +844,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           </div>
         </template>
         <div v-else class="tm-grid-inner">
-          <div v-for="task in normalTasks" :key="task.id" class="tm-card"
+          <div v-for="task in normalTasks" :key="task.id" class="tm-card" v-pressable
             :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}"
             :data-tid="task.id"
             draggable="true"
             @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.prevent.stop="onTaskDrop(task)"
             @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
-            <span v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></span>
+            <span v-if="batchMode" class="batch-check" v-pressable :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></span>
             <span v-else class="tm-status" :class="'st-'+task.status"><Icon :name="task.status==='done'?'check':task.status==='doing'?'half':'circle'" :size="12"/>{{ task.status==='done'?'已完成':task.status==='doing'?'进行中':'待开始' }}</span>
             <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
             <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
@@ -885,13 +888,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <span class="tg-count">{{ grp.tasks.length }} 任务</span>
           </div>
           <template v-if="!isGroupCollapsed(grp.key)">
-          <div v-for="task in grp.tasks" :key="task.id" class="trow" :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id}"
+          <div v-for="task in grp.tasks" :key="task.id" class="trow" v-pressable :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id}"
             :data-tid="task.id"
             draggable="true" @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop="onTaskDrop(task, true)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
-            <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></div>
+            <div v-if="batchMode" class="batch-check" v-pressable :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></div>
             <span v-else class="t-drag">⋮⋮</span>
-            <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)"><Icon v-if="task.status==='done'" name="check" :size="11"/><template v-else>{{ task.status==='doing'?'◐':'' }}</template></div>
-            <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub exp" :title="'子任务 ' + subProgress(task) + ' · 点开就地勾选（不跳详情）'" @click.stop="toggleSubExpand(task.id)"><Icon name="corner" :size="13"/> {{ subProgress(task) }} {{ subExpanded.has(task.id) ? '▴' : '▾' }}</span>{{ task.title }}</span>
+            <div class="check-sm" v-pressable :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)"><Icon v-if="task.status==='done'" name="check" :size="11"/><template v-else>{{ task.status==='doing'?'◐':'' }}</template></div>
+            <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub exp" v-pressable :title="'子任务 ' + subProgress(task) + ' · 点开就地勾选（不跳详情）'" @click.stop="toggleSubExpand(task.id)"><Icon name="corner" :size="13"/> {{ subProgress(task) }} {{ subExpanded.has(task.id) ? '▴' : '▾' }}</span>{{ task.title }}</span>
             <!-- F2：就地展开的子任务清单（浮层定位，不挤行高；勾选即写回本卡） -->
           <div v-if="subExpanded.has(task.id)" class="trow-subs">
             <SubtaskList :subtasks="task.subtasks || []" @update="writeSubtasks(task, $event)" />
@@ -915,56 +918,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
           :action-label="secondaryMode ? '清空筛选' : ''" @action="clearTaskFilter" />
       </div>
 
-      <!-- 列表视图（旧平铺分支已由 R127 统一分组取代） -->
-      <div v-else-if="false" class="task-list">
-        <template v-if="pinnedTasks.length">
-          <div class="section-label"><Icon name="pin" :size="13"/> 置顶 · {{ pinnedTasks.length }}</div>
-          <div v-for="task in pinnedTasks" :key="task.id" class="trow pinned" :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id}"
-            :data-tid="task.id"
-            draggable="true" @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop="onTaskDrop(task)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
-            <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></div>
-            <span v-else class="t-drag">⋮⋮</span>
-            <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)"><Icon v-if="task.status==='done'" name="check" :size="11"/><template v-else>{{ task.status==='doing'?'◐':'' }}</template></div>
-            <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub exp" :title="'子任务 ' + subProgress(task) + ' · 点开就地勾选（不跳详情）'" @click.stop="toggleSubExpand(task.id)"><Icon name="corner" :size="13"/> {{ subProgress(task) }} {{ subExpanded.has(task.id) ? '▴' : '▾' }}</span>{{ task.title }}</span>
-            <!-- F2：就地展开的子任务清单（浮层定位，不挤行高；勾选即写回本卡） -->
-          <div v-if="subExpanded.has(task.id)" class="trow-subs">
-            <SubtaskList :subtasks="task.subtasks || []" @update="writeSubtasks(task, $event)" />
-          </div>
-          <div class="row-tags">
-              <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
-              <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
-            </div>
-            <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
-            <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
-            <TaskAiMenu :task="task" @detail="openTaskFromAi" />
-            <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="13"/></button>
-          </div>
-        </template>
-        <div v-for="task in normalTasks" :key="task.id" class="trow" :class="{done: task.status==='done', selected: selectedTaskIds.has(task.id), flash: highlightId===task.id}"
-          :data-tid="task.id"
-          draggable="true" @dragstart="onTaskDragStart($event, task)" @dragover.prevent="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop="onTaskDrop(task)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)">
-          <div v-if="batchMode" class="batch-check" :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></div>
-          <span v-else class="t-drag">⋮⋮</span>
-          <div class="check-sm" :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)"><Icon v-if="task.status==='done'" name="check" :size="11"/><template v-else>{{ task.status==='doing'?'◐':'' }}</template></div>
-          <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub exp" :title="'子任务 ' + subProgress(task) + ' · 点开就地勾选（不跳详情）'" @click.stop="toggleSubExpand(task.id)"><Icon name="corner" :size="13"/> {{ subProgress(task) }} {{ subExpanded.has(task.id) ? '▴' : '▾' }}</span>{{ task.title }}</span>
-          <!-- F2：就地展开的子任务清单（浮层定位，不挤行高；勾选即写回本卡） -->
-          <div v-if="subExpanded.has(task.id)" class="trow-subs">
-            <SubtaskList :subtasks="task.subtasks || []" @update="writeSubtasks(task, $event)" />
-          </div>
-          <div class="row-tags">
-            <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
-          </div>
-          <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
-          <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
-          <TaskAiMenu :task="task" @detail="openTaskFromAi" />
-          <button class="t-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="13"/></button>
-        </div>
-        <EmptyState v-if="!filteredTasks.length" icon="clipboard" title="没有匹配的任务"
-          :hint="secondaryMode ? '当前搜索或筛选没有结果。清空筛选后可继续浏览全部任务。' : '新建统一走扩展快捷键；也可在方向树的成功指标下添加任务。'"
-          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearTaskFilter" />
-      </div>
-
       <!-- 看板视图（跨列改状态 · 列内按项目分组 · 拖拽改归属 O17） -->
       <div v-else class="kanban-board">
         <div class="kcol" @dragover.prevent @drop="onKanbanDrop('todo')">
@@ -979,7 +932,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span class="kg-name"><Icon name="package" :size="13"/> {{ grp.name }}</span>
                 <span class="kg-count">{{ grp.tasks.length }}</span>
               </div>
-              <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
+              <div v-for="task in grp.tasks" :key="task.id" class="kcard" v-pressable :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
@@ -991,7 +944,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="!kanbanGroups('todo').length" class="kg-empty kg-empty-pad">暂无任务</div>
           </template>
           <template v-else>
-            <div v-for="task in todoTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
+            <div v-for="task in todoTasks" :key="task.id" class="kcard" v-pressable :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
@@ -1012,7 +965,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span class="kg-name"><Icon name="package" :size="13"/> {{ grp.name }}</span>
                 <span class="kg-count">{{ grp.tasks.length }}</span>
               </div>
-              <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
+              <div v-for="task in grp.tasks" :key="task.id" class="kcard" v-pressable :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
@@ -1024,7 +977,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="!kanbanGroups('doing').length" class="kg-empty kg-empty-pad">暂无任务</div>
           </template>
           <template v-else>
-            <div v-for="task in doingTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
+            <div v-for="task in doingTasks" :key="task.id" class="kcard" v-pressable :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
@@ -1045,7 +998,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
                 <span class="kg-name"><Icon name="package" :size="13"/> {{ grp.name }}</span>
                 <span class="kg-count">{{ grp.tasks.length }}</span>
               </div>
-              <div v-for="task in grp.tasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
+              <div v-for="task in grp.tasks" :key="task.id" class="kcard" v-pressable :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
@@ -1057,7 +1010,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
             <div v-if="!kanbanGroups('done').length" class="kg-empty kg-empty-pad">暂无任务</div>
           </template>
           <template v-else>
-            <div v-for="task in doneTasks" :key="task.id" class="kcard" :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
+            <div v-for="task in doneTasks" :key="task.id" class="kcard" v-pressable :class="{done: task.status==='done', flash: highlightId===task.id, 'drop-line-t': taskDropKey===task.id+'-t', 'drop-line-b': taskDropKey===task.id+'-b'}" draggable="true" :data-tid="task.id"
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
@@ -1077,7 +1030,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
       <div v-if="mountModalOpen" class="picker-modal tm-modal-mount">
         <div class="pm-head">
           <span><Icon name="package" :size="13"/> 挂载 {{ selectedTaskIds.size }} 个任务到项目›指标</span>
-          <div class="pm-close" @click="mountModalOpen=false">×</div>
+          <button class="pm-close" type="button" aria-label="关闭" @click="mountModalOpen=false">×</button>
         </div>
         <div class="pm-body">
           <div class="ts-label-pm"><Icon name="package" :size="13"/> 所属项目</div>
@@ -1175,7 +1128,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 
 /* ===== 列表 / 看板（自 CompassActions 原样迁入） ===== */
 .task-list { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.section-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 9px 16px 0; }
 .trow { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); transition: background .1s; }
 /* F2：就地展开清单——绝对定位浮在行下，不改行高（改行高会让整列在展开瞬间重排，点击点会跳走） */
 .trow-subs { position: absolute; left: 14px; right: 14px; top: calc(100% - 2px); z-index: var(--z-dropdown, 30); background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 4px; }
@@ -1256,7 +1208,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .picker-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92vw; max-height: 70vh; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: calc(var(--z-overlay) + 1); display: flex; flex-direction: column; overflow: hidden; }
 .pm-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
 .pm-head span:first-child { flex: 1; }
-.pm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); }
+.pm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); background: transparent; border: none; }
 .pm-close:hover { background: var(--surface-3); color: var(--text); }
 .pm-body { flex: 1; overflow-y: auto; padding: 14px 20px; }
 .ts-label-pm { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }

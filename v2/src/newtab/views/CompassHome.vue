@@ -940,7 +940,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           <span>为什么这样排</span>
           <span v-if="whyBadge && focusHasRec" class="why-dot" />
         </button>
-        <div v-if="whyOpen" class="focus-why" data-testid="focus-why" role="presentation" @click.stop>
+        <div v-if="whyOpen" class="focus-why" data-testid="focus-why" role="presentation" data-a11y-container @click.stop>
           <div class="fw-h">为什么是这三件<span class="hint">{{ focusAiBusy ? ' · AI 复核中…' : '' }}</span></div>
           <div v-for="c in focusCells" :key="'w' + c.idx" class="fw-row">
             <span class="n">{{ String(c.idx + 1).padStart(2, '0') }}</span>
@@ -990,7 +990,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
               <button class="quiet-btn" type="button" title="把昨天的三件事复制到今天" @click="copyYesterday"><Icon name="copy" :size="13" /> 复制昨日</button>
               <div class="focus-more-wrap">
                 <button class="icon-btn" type="button" title="更多" aria-label="更多" :aria-expanded="focusMoreOpen" @click.stop="focusMoreOpen = !focusMoreOpen"><Icon name="menu" :size="14" /></button>
-                <div v-if="focusMoreOpen" class="focus-more-menu" role="presentation" @click.stop>
+                <div v-if="focusMoreOpen" class="focus-more-menu" role="presentation" data-a11y-container @click.stop>
                   <button type="button" @click="reshuffleFocus(); focusMoreOpen = false"><Icon name="shuffle" :size="13" /> 换一批</button>
                   <button type="button" @click="openFocusReview(); focusMoreOpen = false"><Icon name="sparkles" :size="13" /> AI 复核顺序</button>
                   <button type="button" @click="openExportModal(); focusMoreOpen = false"><Icon name="download" :size="13" /> 导出 CSV</button>

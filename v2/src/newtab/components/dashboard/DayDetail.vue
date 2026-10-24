@@ -273,7 +273,7 @@ function onExport(fmt: ExportFmt): void {
       <div v-if="!flowGroups.length" class="dz-row"><span class="ti dz-day-note">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</span></div>
       <template v-for="g in flowGroups" :key="g.label">
         <div class="dz-tl-grp">{{ g.label }}</div>
-        <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row"
+        <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row" v-pressable
           :title="`单击 → 定位「${e.title}」· 双击 → 直达链接 / 打开文件`"
           @click="locateRow(e)" @dblclick="openRow(e)">
           <span class="tm">{{ tm }}</span>

@@ -66,20 +66,20 @@ function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="cp" @click.stop>
+  <div class="cp" data-a11y-container @click.stop>
     <button ref="btnRef" type="button" class="cp-btn" :title="'选择分类（点开才展开，不再常驻 option）'" @click="openPop">
       <span class="cp-cur" :class="{ unset: !modelValue }">{{ labelOf }}</span>
       <span class="cp-caret">▾</span>
     </button>
     <Teleport :to="overlayTarget">
       <div v-if="open" class="cp-mask" @click="open = false" />
-      <div v-if="open" class="cp-pop" :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
+      <div v-if="open" class="cp-pop" data-a11y-container :style="{ left: popLeft + 'px', top: popTop + 'px' }" @click.stop>
         <div class="cp-head"><Icon name="folderopen" :size="13"/> 选择分类 <span class="cp-sub">共 {{ options.length }} 个候选</span></div>
         <input ref="filterRef" v-model="q" class="cp-search" placeholder="搜索分类…" @keydown="onKey">
         <div class="cp-list" @keydown="onKey">
-          <div class="cp-item" :class="{ on: !modelValue, act: activeIdx === -1 && !q.trim() }" @click="pick('')"
+          <div class="cp-item" v-pressable :class="{ on: !modelValue, act: activeIdx === -1 && !q.trim() }" @click="pick('')"
             @mousemove="activeIdx = -1">待分类（不归入任何分类）</div>
-          <div v-for="(o, i) in visible" :key="o.id" class="cp-item" :class="{ on: o.id === modelValue, act: i === activeIdx }"
+          <div v-for="(o, i) in visible" :key="o.id" class="cp-item" v-pressable :class="{ on: o.id === modelValue, act: i === activeIdx }"
             @click="pick(o.id)" @mousemove="activeIdx = i">{{ o.label }}</div>
           <div v-if="!visible.length" class="cp-empty">没有匹配「{{ q.trim() }}」的分类</div>
         </div>

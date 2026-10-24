@@ -116,7 +116,7 @@ ${dims}${advice}
 
 <template>
   <Teleport to="body">
-    <div v-if="open && report" class="ovl" @click.self="emit('close')">
+    <div v-if="open && report" class="ovl" data-a11y-container @click.self="emit('close')">
       <div class="pd-modal" role="dialog" aria-modal="true" :aria-label="report.projName + ' AI 诊断'">
         <!-- 头 -->
         <div class="pd-h">
@@ -143,8 +143,8 @@ ${dims}${advice}
         <div class="pd-bar">
           <span class="pd-lb">导出</span>
           <div class="pd-seg">
-            <i @click="exportHtml"><Icon name="globe" :size="13"/> HTML</i>
-            <i @click="exportMd"><Icon name="filetext" :size="13"/> Markdown</i>
+            <button type="button" class="pd-seg-btn" @click="exportHtml"><Icon name="globe" :size="13"/> HTML</button>
+            <button type="button" class="pd-seg-btn" @click="exportMd"><Icon name="filetext" :size="13"/> Markdown</button>
           </div>
           <span class="pd-rt">PNG 二批再做</span>
         </div>
@@ -219,9 +219,9 @@ ${dims}${advice}
 .pd-bar { padding: 11px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
 .pd-lb { font-size: 11px; color: var(--text-3); }
 .pd-seg { display: flex; background: var(--surface-3); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.pd-seg i { font-style: normal; font-size: var(--fs-caption); padding: 5px 11px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
-.pd-seg i + i { border-left: 1px solid var(--border); }
-.pd-seg i:hover { background: var(--surface-2); color: var(--text); }
+.pd-seg-btn { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; font: inherit; font-size: var(--fs-caption); padding: 5px 11px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.pd-seg-btn + .pd-seg-btn { border-left: 1px solid var(--border); }
+.pd-seg-btn:hover { background: var(--surface-2); color: var(--text); }
 .pd-rt { margin-left: auto; font-size: var(--fs-tiny); color: var(--text-3); }
 
 .pd-b { padding: 16px 20px; overflow: auto; }

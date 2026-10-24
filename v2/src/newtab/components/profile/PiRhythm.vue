@@ -159,7 +159,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
         <div class="lbox">
           <div class="lbox-h"><b>能量密度</b><span>加权分 · 点柱 › 该日战报</span></div>
           <div class="pi-bars">
-            <div v-for="b in bars" :key="b.key" class="b" :class="'l' + b.lv"
+            <div v-for="b in bars" :key="b.key" class="b" v-pressable :class="'l' + b.lv"
               :style="{ height: Math.max(4, b.w / barMax * 100) + '%', background: b.lv > 0 ? 'var(--heat-' + b.lv + ')' : 'var(--surface-3)' }"
               :title="b.label + ' · 加权 ' + b.w + ' 分'" @click="emit('open-battle', b.key)"></div>
           </div>

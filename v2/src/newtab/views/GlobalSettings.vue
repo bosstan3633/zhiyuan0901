@@ -8,6 +8,7 @@
           v-for="item in grp.items"
           :key="item.key"
           class="gs-nav-item"
+          v-pressable
           :class="{ active: activePage === item.key }"
           @click="onNavClick(item)"
         >
@@ -19,7 +20,7 @@
     <!-- 右侧内容 -->
     <main class="gs-content">
       <!-- 返回按钮 -->
-      <div class="gs-back-btn" @click="router.push('/compass')">← 返回</div>
+      <div class="gs-back-btn" v-pressable @click="router.push('/compass')">← 返回</div>
 
       <!-- ===== V3.8.9（W9）：知源仪表盘面板退役 —— 概览带 + 复盘段 + 操作记录 + 全量抽屉 + 两个下钻抽屉
            整体迁至画像洞察页（/profile · ProfileInsights.vue）。热力图此前已随 W2 迁调度台 HeatmapModule。
@@ -40,7 +41,7 @@
         <div class="gs-preview-section">
           <div class="gs-preview-title"><Icon name="eye" :size="13"/> 实时预览 · {{ previewModeLabel }}视图</div>
           <div class="gs-preview-tabs">
-            <div v-for="m in previewModes" :key="m.key" class="gs-preview-tab" :class="{ active: previewMode === m.key }" @click="previewMode = m.key">{{ m.label }}</div>
+            <div v-for="m in previewModes" :key="m.key" class="gs-preview-tab" v-pressable :class="{ active: previewMode === m.key }" @click="previewMode = m.key">{{ m.label }}</div>
           </div>
           <div class="gs-preview-card" v-html="resourcePreviewHtml"></div>
         </div>
@@ -109,19 +110,19 @@
                   @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
               </div>
               <template v-for="root in tagTree" :key="root.id">
-                <div class="gs-tt-row" :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id, active: ttActiveTag === root.name, drop: ttDropTarget === root.id}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
+                <div class="gs-tt-row" v-pressable :class="{editing: ttEditing?.id === root.id, flash: ttFlashId === root.id, active: ttActiveTag === root.name, drop: ttDropTarget === root.id}" :data-depth="tagDepth(root.id)" :style="{ paddingLeft: 8 + tagDepth(root.id) * 18 + 'px' }" draggable="true"
                   @dragstart="ttDragStart($event, root.id)" @dragend="ttDragEnd"
                   @dragover.prevent="ttDropTarget = root.id" @dragleave="ttDropTarget === root.id && (ttDropTarget = '')" @drop.prevent="ttDrop($event, root.id)" @click="selectTtTag(root.name)" @dblclick="ttRename(root.id)">
-                  <span class="gs-tt-toggle" :class="{leaf: !safeChildren(root).length}" @click="ttToggle(root.id)">{{ ttCollapsed.has(root.id) ? '▸' : '▾' }}</span>
+                  <span class="gs-tt-toggle" v-pressable :class="{leaf: !safeChildren(root).length}" @click="ttToggle(root.id)">{{ ttCollapsed.has(root.id) ? '▸' : '▾' }}</span>
                   <input v-if="ttEditing?.id === root.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                   <template v-else>
                     <span class="gs-tt-name">#{{ root.name || '未命名标签' }}</span>
                     <span class="gs-tt-count">{{ tagUsage(root.name) }} 卡</span>
                     <span class="gs-tt-actions">
-                      <span class="gs-tt-act" title="添加子标签" @click="ttAddChild(root.id)">＋</span>
-                      <span class="gs-tt-act" title="重命名" @click="ttRename(root.id)"><Icon name="edit" :size="13"/></span>
-                      <span class="gs-tt-act del" title="删除" @click="ttRemove(root.id)"><Icon name="trash" :size="13"/></span>
+                      <span class="gs-tt-act" v-pressable title="添加子标签" @click="ttAddChild(root.id)">＋</span>
+                      <span class="gs-tt-act" v-pressable title="重命名" @click="ttRename(root.id)"><Icon name="edit" :size="13"/></span>
+                      <span class="gs-tt-act del" v-pressable title="删除" @click="ttRemove(root.id)"><Icon name="trash" :size="13"/></span>
                     </span>
                   </template>
                 </div>
@@ -133,7 +134,7 @@
                     @keydown.enter.prevent="ttConfirm" @keydown.esc="ttCancel" @blur="ttConfirm">
                 </div>
                 <template v-if="!ttCollapsed.has(root.id)">
-                  <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id, active: ttActiveTag === root.name + '/' + child.name, drop: ttDropTarget === child.id}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
+                  <div v-for="child in safeChildren(root)" :key="child.id" class="gs-tt-row subrow" v-pressable :class="{editing: ttEditing?.id === child.id, flash: ttFlashId === child.id, active: ttActiveTag === root.name + '/' + child.name, drop: ttDropTarget === child.id}" :data-depth="tagDepth(child.id)" :style="{ paddingLeft: 8 + tagDepth(child.id) * 18 + 'px' }" draggable="true"
                     @dragstart="ttDragStart($event, child.id)" @dragend="ttDragEnd"
                     @dragover.prevent="ttDropTarget = child.id" @dragleave="ttDropTarget === child.id && (ttDropTarget = '')" @drop.prevent="ttDrop($event, child.id)" @click="selectTtTag(root.name + '/' + child.name)" @dblclick="ttRename(child.id)">
                     <input v-if="ttEditing?.id === child.id" v-model="ttEditing.value" class="gs-tt-input" v-focus
@@ -142,9 +143,9 @@
                       <span class="gs-tt-name sub">#{{ child.name || '未命名标签' }}</span>
                                             <span class="gs-tt-count">{{ tagUsage(root.name + '/' + child.name) }} 卡</span>
                       <span class="gs-tt-actions">
-                                                <span class="gs-tt-act" title="提升为根标签" @click="ttUnnest(root.id, child.id)"><Icon name="upload" :size="13"/></span>
-                        <span class="gs-tt-act" title="重命名" @click="ttRename(child.id)"><Icon name="edit" :size="13"/></span>
-                        <span class="gs-tt-act del" title="删除" @click="ttRemove(child.id)"><Icon name="trash" :size="13"/></span>
+                        <span class="gs-tt-act" v-pressable title="提升为根标签" @click="ttUnnest(root.id, child.id)"><Icon name="upload" :size="13"/></span>
+                        <span class="gs-tt-act" v-pressable title="重命名" @click="ttRename(child.id)"><Icon name="edit" :size="13"/></span>
+                        <span class="gs-tt-act del" v-pressable title="删除" @click="ttRemove(child.id)"><Icon name="trash" :size="13"/></span>
                       </span>
                     </template>
                   </div>
@@ -181,7 +182,7 @@
                   <span v-if="ttPicked.size" class="tt-picked">已选 {{ ttPicked.size }} 张 · 拖到左侧标签即可移动</span>
                 </div>
                 <div class="tt-list">
-                  <div v-for="row in ttRows" :key="row.id" class="tt-card" :class="{ selected: ttPicked.has(row.id), dragging: ttCardDragging && ttPicked.has(row.id) }" draggable="true"
+                  <div v-for="row in ttRows" :key="row.id" class="tt-card" v-pressable :class="{ selected: ttPicked.has(row.id), dragging: ttCardDragging && ttPicked.has(row.id) }" draggable="true"
                     @click="onTtRowClick(row)" @dblclick="onTtRowDblClick(row)" @dragstart="onTtRowDragStart($event, row)" @dragend="onTtRowDragEnd">
                     <input type="checkbox" class="tt-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
                     <div class="tt-card-main">

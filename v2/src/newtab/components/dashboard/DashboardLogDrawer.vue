@@ -189,7 +189,7 @@ function exportCsv() {
 
       <div class="dz-log-list">
         <template v-for="e in filtered.slice(0, 200)" :key="e.id">
-          <div class="dz-log-row" @click="expanded = expanded === e.id ? '' : e.id">
+          <div class="dz-log-row" v-pressable @click="expanded = expanded === e.id ? '' : e.id">
             <span class="tm">{{ fmtTime(e.ts) }}</span>
             <span class="bd" :class="e.action">{{ ACT_BADGE[e.action] }}</span>
             <span class="kd">{{ KIND_LABEL[e.kind] }}</span>

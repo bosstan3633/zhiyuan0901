@@ -33,6 +33,10 @@ function onKeydown(el: PressableElement, event: KeyboardEvent): void {
   const state = el.__zyPressable
   if (!state || state.disabled) return
   if (event.key !== 'Enter' && event.key !== ' ') return
+  if (event.repeat) return
+  // 编辑态优先保留文本输入：contenteditable 内的 Enter/Space 属于内容，不是按钮激活。
+  if (el.isContentEditable) return
+  if (event.target instanceof Element && event.target.closest('[contenteditable="true"]')) return
   if (isNestedInteractive(event.target, el)) return
   event.preventDefault()
   el.click()

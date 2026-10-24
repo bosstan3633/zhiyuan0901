@@ -276,17 +276,17 @@ function aiImportEnrichNow() {
 <div class="gs-card">
   <div class="gs-card-header"><span class="gs-card-title">导入方式</span></div>
   <div class="gs-card-body">
-    <div class="gs-import-option" @click="triggerFileImport">
+    <div class="gs-import-option" v-pressable @click="triggerFileImport">
       <div class="gs-io-icon"><Icon name="package" :size="13"/></div>
       <div><div class="gs-io-name">导入知源调度台数据</div><div class="gs-io-desc">选择 JSON 文件，与现有数据取并集（同 ID 更新，不同 ID 新增）；全量包附带界面偏好（主题/密度）时自动应用。<b>导入前会先自动下载一份当前数据备份</b>（防误合并，不含 Airtable 凭证）</div></div>
       <button class="gs-btn gs-btn-primary gs-io-btn">选择文件</button>
     </div>
-    <div class="gs-import-option" @click="assetPackInput?.click()">
+    <div class="gs-import-option" v-pressable @click="assetPackInput?.click()">
       <div class="gs-io-icon"><Icon name="folder" :size="13"/></div>
       <div><div class="gs-io-name">导入附件包</div><div class="gs-io-desc">选择「导出附件包」生成的 zip，附件本体按 assetId 写回（同 ID 覆盖）；先导 JSON 再导附件包 = 完整迁移</div></div>
       <button class="gs-btn gs-io-btn">选择文件</button>
     </div>
-    <div class="gs-import-option" @click="bookmarkImport()">
+    <div class="gs-import-option" v-pressable @click="bookmarkImport()">
       <div class="gs-io-icon"><Icon name="bookmark" :size="13"/></div>
       <div><div class="gs-io-name">导入书签文件</div><div class="gs-io-desc">选择浏览器导出的书签 HTML：<b>本页只把文件夹层级写成标签</b>，链接 + 标题进资源卡；文件夹›分类的建树导入已随资源台退役。</div></div>
       <button class="gs-btn gs-io-btn">选择文件</button>

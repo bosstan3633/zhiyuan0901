@@ -53,7 +53,7 @@ async function run() {
 </script>
 
 <template>
-  <div class="ev-item" :class="{ busy }" @click.stop="run"><AiEntryButton variant="inline" label="找佐证（全库推荐）" :spin="busy" /></div>
+  <div class="ev-item" v-pressable :aria-disabled="busy" :class="{ busy }" @click.stop="run"><AiEntryButton variant="inline" label="找佐证（全库推荐）" :spin="busy" /></div>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>
 

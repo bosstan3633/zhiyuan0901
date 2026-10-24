@@ -142,7 +142,7 @@ function locateTask(id: string) {
     <!-- 战略目标行明细（R70：原 DHI 口径已于 R64 退役） -->
     <template v-if="cell === 'dhi'">
       <div class="md-list">
-        <div v-for="row in dhiRows" :key="row.id" class="md-row clickable" title="点击定位到主航线对应行" @click="locateGoal(row.id)">
+        <div v-for="row in dhiRows" :key="row.id" class="md-row clickable" v-pressable title="点击定位到主航线对应行" @click="locateGoal(row.id)">
           <div class="md-main">
             <span class="md-title"><Icon name="target" :size="13"/> {{ row.name }}</span>
             <span class="md-sub"><Icon name="package" :size="13"/> 项目 {{ row.pinned }} · 推进中 {{ row.active }}</span>
@@ -161,7 +161,7 @@ function locateTask(id: string) {
     <template v-else-if="cell === 'wce'">
       <div class="md-head-count">{{ wceRows.list.length }} 项激活 · {{ periodLabel }}新增 {{ wceRows.newInPeriod }}</div>
       <div class="md-list">
-        <div v-for="c in wceRows.list" :key="c.id" class="md-row clickable" title="点击定位到调度台好奇心培育卡" @click="locateCurio(c.id)">
+        <div v-for="c in wceRows.list" :key="c.id" class="md-row clickable" v-pressable title="点击定位到调度台好奇心培育卡" @click="locateCurio(c.id)">
           <div class="md-main">
             <span class="md-title"><Icon v-if="c.status === 'done'" name="checksquare" :size="14"/><Icon v-else name="search" :size="14"/> {{ c.question || '（无标题）' }}</span>
             <span class="md-sub">捕获 {{ fmtDay(c.createdAt) }}</span>
@@ -177,7 +177,7 @@ function locateTask(id: string) {
     <template v-else-if="cell === 'wrr'">
       <div class="md-head-count">{{ wrrRows.length }} 张资源被打开</div>
       <div class="md-list">
-        <div v-for="r in wrrRows" :key="r.id" class="md-row clickable" title="点击定位到资源卡所在策展台" @click="locateRes(r.id)">
+        <div v-for="r in wrrRows" :key="r.id" class="md-row clickable" v-pressable title="点击定位到资源卡所在策展台" @click="locateRes(r.id)">
           <div class="md-main">
             <span class="md-title"><Icon name="link" :size="13"/> {{ r.title }}</span>
             <span class="md-sub">最近打开 {{ fmtDay(r.lastCalledAt) }} · 累计 {{ r.callCount || 0 }} 次</span>
@@ -195,7 +195,7 @@ function locateTask(id: string) {
         <div v-for="t in unarchRows" :key="t.id" class="md-task">
           <div class="md-row">
             <div class="md-main">
-              <span class="md-title clickable" title="点击定位到调度台任务调度" @click="locateTask(t.id)"><Icon name="filetext" :size="13"/> {{ t.title }}</span>
+              <span class="md-title clickable" v-pressable title="点击定位到调度台任务调度" @click="locateTask(t.id)"><Icon name="filetext" :size="13"/> {{ t.title }}</span>
               <span class="md-sub warn">{{ taskArchiveIssue(t) }}</span>
             </div>
           </div>

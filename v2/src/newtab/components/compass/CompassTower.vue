@@ -114,7 +114,6 @@ const hideWhole = computed(() => props.riskOnly && shownMetrics.value.length ===
 function hasClue(t: TaskCard): boolean {
   return !!(t as TaskCard & { w?: string }).w
 }
-
 </script>
 
 <template>
@@ -128,6 +127,7 @@ function hasClue(t: TaskCard): boolean {
   >
     <header
       class="tw-head"
+      v-pressable
       draggable="true"
       title="拖动可排序（仅同一战略目标内）；点击进入全景"
       @click="emit('openPano', proj.id)"
@@ -140,15 +140,17 @@ function hasClue(t: TaskCard): boolean {
       <span class="tw-idx">{{ idx }}</span>
       <div class="tw-id">
         <h3 class="tw-name">
-          <span class="tw-name-t editable" @click.stop="emit('editProject')">{{ proj.name }}</span>
-          <span v-if="proj.isFocused" class="tw-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
-          <span v-if="proj.pinned" class="tw-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
-          <span v-if="meta.stall" class="tw-badge stall" title="近 14 天无推进/完成活动"><Icon name="stall" :size="13"/> 停滞</span>
-          <span v-if="meta.risk > 0" class="tw-badge risk">{{ meta.risk }} 处断链</span>
+          <span class="tw-name-t editable" v-pressable @click.stop="emit('editProject')">{{ proj.name }}</span>
+          <span class="tw-signals">
+            <span v-if="proj.isFocused" class="tw-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
+            <span v-if="proj.pinned" class="tw-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
+            <span v-if="meta.stall" class="tw-badge stall" title="近 14 天无推进/完成活动"><Icon name="stall" :size="13"/> 停滞</span>
+            <span v-if="meta.risk > 0" class="tw-badge risk">{{ meta.risk }} 处断链</span>
+          </span>
         </h3>
         <!-- 归属面包屑：点任一段可跳回该层 -->
-        <nav class="tw-crumb">
-          <span class="tw-cr" @click.stop="emit('openPano', proj.id)">战略目标 · {{ dir.name }}</span>
+        <nav class="tw-crumb" aria-label="项目归属">
+          <span class="tw-cr" v-pressable @click.stop="emit('openPano', proj.id)">战略目标 · {{ dir.name }}</span>
           <span class="tw-cr-sep">›</span>
           <span class="tw-cr on">攻坚项目 · {{ proj.name }}</span>
           <span class="tw-cr-sep">›</span>
@@ -157,7 +159,7 @@ function hasClue(t: TaskCard): boolean {
         <CompassTowerNext :step="meta.nextStep" :source="meta.nextStepSource" />
       </div>
 
-      <div class="tw-right" @click.stop>
+      <div class="tw-right" data-a11y-container @click.stop>
         <!-- ★舱头只读侧整块外移：进度环 + 完成数 + N2 诊断标签组（W11-12 单组件 ≤400 行） -->
         <CompassTowerStatus
           :proj-id="proj.id"
@@ -168,18 +170,15 @@ function hasClue(t: TaskCard): boolean {
           @diag-run="(id) => emit('diagRun', id)"
           @diag-report="(id) => emit('diagReport', id)"
         />
-        <div class="tw-acts" @click.stop>
-          <!-- ★F5 瘦身（用户 2026-10-15 拍板「激进版」）：舱头常驻只留三控件 —— ＋指标 / ⋯ / 折叠。
-               原「⠿ 拖拽手柄 + ✦ AI建议 + 📌 置顶 + ▾ 菜单」四枚低频/难懂的图标全部退场：
-               拖拽改为整块舱头可拖（见 onHeadDragStart）；✦/📌 收进「⋯」菜单；
-               菜单钮由 ▾ 改「⋯」，与折叠箭头不再打架（此前两个 ▾ 并排，语义全靠 title 撑）。 -->
-          <button class="tw-act" title="在本项目下添加成功指标" @click="emit('addMetric', proj.id)">＋指标</button>
+        <div class="tw-acts" data-a11y-container @click.stop>
+          <!-- 舱头常驻三控件：＋指标 / ⋯ / 折叠；低频动作收进菜单。 -->
+          <button class="tw-act tw-act-label" title="在本项目下添加成功指标" @click="emit('addMetric', proj.id)">＋指标</button>
           <button class="tw-act menu" :class="{ on: menuOn }" title="更多操作（主攻 / 置顶 / AI 建议指标 / 导入模板 / 删除项目）" @click="emit('menu', proj.id)">⋯</button>
           <!-- ★折叠必须双向：开与合都能点到（判据 W11-3） -->
           <button class="tw-fold" :aria-expanded="open" :title="open ? '收起本项目' : '展开本项目'" @click="emit('fold', proj.id)">
             {{ open ? '▾' : '▸' }}
           </button>
-          <div v-if="menuOn" class="tw-menu" @click.stop>
+          <div v-if="menuOn" class="tw-menu" data-a11y-container @click.stop>
             <button class="twm-item" @click="emit('menu', proj.id); emit('focus', proj.id)">
               <Icon v-if="!proj.isFocused" name="main-focus" :size="13"/>{{ proj.isFocused ? '☆ 取消主攻' : '设为主攻' }}
             </button>
@@ -264,27 +263,29 @@ function hasClue(t: TaskCard): boolean {
 }
 
 .tw-head {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 18px 22px 16px 24px;
-  /* ★F5：整块舱头可拖（原独立 ⠿ 手柄退役）。grab 表达"能拖"，点击行为不变（仍进全景）。 */
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 20px 13px 22px;
+  /* F5：整块舱头可拖；按钮/改名区在 dragstart 拦截。 */
   cursor: grab; transition: background var(--dur);
 }
 .tw-head:active { cursor: grabbing; }
 .tw-head:hover { background: color-mix(in srgb, var(--hue) 6%, transparent); }
-/* ★序号牌 34px：原型 .tw-idx 是舱的"身份印章"，22px 时与 12px 指标序号同量级、层级拉不开 */
+/* 序号牌：与指标序号拉开层级，但不与项目名争色。 */
 .tw-idx {
-  width: 34px; height: 34px; border-radius: 11px; flex: none;
-  /* ★视觉聚焦：序号从"彩色印章"退成"刻度"——淡底 + text-3。
-     舱的身份已由左侧色条承担，序号只需回答"第几个"，不该与项目名争色。 */
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
   background: var(--surface-2);
   color: var(--text-3); font-size: var(--fs-sub); font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
 .tw-id { flex: 1; min-width: 200px; }
-.tw-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.tw-name {
+  display: flex; align-items: center; gap: 7px 10px; flex-wrap: wrap;
+  margin: 0; line-height: 1.35;
+}
 /* ★项目名 --fs-title(15px)：与指标 --fs-sub(12px) 拉开一档，不许抢焦点（愿景才是 display） */
 .tw-name-t { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
 .tw-name-t.editable:hover { text-decoration: underline; text-decoration-style: dotted; }
+.tw-signals { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .tw-badge {
   font-size: var(--fs-micro); color: var(--text-3);
   background: var(--surface-3); padding: 1px 7px; border-radius: 999px; white-space: nowrap;
@@ -294,14 +295,14 @@ function hasClue(t: TaskCard): boolean {
 .tw-badge.risk { color: var(--danger); background: var(--danger-bg-soft); font-weight: 600; }
 
 /* 归属面包屑 */
-.tw-crumb { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
-.tw-cr { font-size: var(--fs-micro); color: var(--text-2); cursor: pointer; transition: color var(--dur); }
+.tw-crumb { display: flex; align-items: center; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
+.tw-cr { font-size: var(--fs-tiny); color: var(--text-3); cursor: pointer; transition: color var(--dur); }
 .tw-cr:hover { color: var(--accent-ink); }
 .tw-cr.on { color: var(--text-3); cursor: default; }
 .tw-cr.on:hover { color: var(--text-3); }
-.tw-cr-sep { font-size: var(--fs-micro); color: var(--text-4); opacity: .6; }
+.tw-cr-sep { font-size: var(--fs-tiny); color: var(--text-4); opacity: .55; }
 /* ★右侧区固定一块不换行：窄舱时按钮挤成两行是最刺眼的失真，flex-wrap 的容器里给 nowrap + min-width:0 */
-.tw-right { display: flex; align-items: center; gap: 14px; flex: none; }
+.tw-right { display: flex; align-items: center; gap: 10px; flex: none; }
 .tw-acts { display: flex; align-items: center; gap: 6px; position: relative; }
 .tower.is-dragging { opacity: .5; }
 /* ★落位指示用 inset box-shadow，绝不挤动版面（R3-B2 明令） */
@@ -327,7 +328,7 @@ function hasClue(t: TaskCard): boolean {
 .twm-item.danger:hover { background: var(--danger-bg-soft); }
 .tw-act {
   font-size: var(--fs-micro); color: var(--text-3);
-  padding: 3px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur); white-space: nowrap;
+  min-height: 28px; padding: 3px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur); white-space: nowrap;
 /* ★W12(V3.8.12)真缺陷（theme-audit 100 图实跑抓到）：这条只给了 color/padding，
    没给 background 与 border ⇒ 浏览器默认 buttonface 白底透出来，深色主题下就是一排白块。
    修法：显式给 transparent 底 + 透明边框，把 hover 态的 accent 底留给 hover。 */
@@ -336,7 +337,7 @@ function hasClue(t: TaskCard): boolean {
 .tw-act:hover { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }
 /* ★折叠必须双向：这里给的是"当前收起时显示展开箭头"，展开时显示收起箭头 */
 .tw-fold {
-  width: 20px; height: 20px; border-radius: 6px; flex: none;
+  width: 28px; height: 28px; border-radius: 6px; flex: none;
   background: var(--surface-2); color: var(--text-3);
   font-size: 9px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all var(--dur);
@@ -345,31 +346,32 @@ function hasClue(t: TaskCard): boolean {
 
 /* 窄屏：舱头从“左右两端对齐”切为上下两段，操作区换行但不压住项目名。 */
 @media (max-width: 800px) {
-  .tw-head { gap: 10px; padding: 14px 14px 12px 18px; }
+  .tw-head { gap: 9px; padding: 12px 13px 11px 16px; }
   .tw-idx { width: 30px; height: 30px; }
   .tw-id { min-width: 0; }
   .tw-right { width: 100%; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   .tw-acts { margin-left: auto; }
-  .tw-body { padding: 2px 14px 16px 18px; }
+  .tw-body { padding: 2px 13px 14px 16px; }
 }
 @media (max-width: 480px) {
   .tw-name-t { font-size: var(--fs-body); }
   .tw-crumb { gap: 4px; }
+  .tw-act-label { display: none; }
   .tw-right :deep(.tw-status) { flex-wrap: wrap; }
   .tw-rail { padding-left: 14px; }
   .tw-rail > :deep(section)::before { left: -12px; width: 12px; }
 }
 
 /* ── 舱身：内边距与轨道缩进对齐原型 .tw-b / .mgrid ── */
-.tw-body { padding: 2px 22px 22px 24px; }
-.tw-rail { position: relative; padding-left: 22px; }
+.tw-body { padding: 1px 20px 16px 22px; }
+.tw-rail { position: relative; padding-left: 20px; }
 /* ★归属竖轨：从舱色条分下来的一条线，串起本舱所有指标 */
 .tw-rail::before {
   content: ''; position: absolute; left: 7px; top: -10px; bottom: 20px;
   width: 2px; border-radius: 2px;
   background: linear-gradient(180deg, var(--hue), color-mix(in srgb, var(--hue) 22%, transparent));
 }
-.tw-rail > :deep(section) { margin-bottom: 12px; }
+.tw-rail > :deep(section) { margin-bottom: 4px; }
 .tw-rail > :deep(section:last-child) { margin-bottom: 0; }
 /* ★每张指标卡从竖轨分出一条横臂 —— 判据 W11-2 要求这条不许丢 */
 .tw-rail > :deep(section)::before {

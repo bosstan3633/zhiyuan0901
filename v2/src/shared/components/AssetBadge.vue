@@ -120,7 +120,7 @@ async function openAsset(meta: AssetMeta) {
 </script>
 
 <template>
-  <span v-if="has" class="ab" :title="badgeTitle" @click.stop="onBadgeClick" @dblclick.stop>
+  <span v-if="has" class="ab" v-pressable :title="badgeTitle" @click.stop="onBadgeClick" @dblclick.stop>
     <span v-if="imgCount" class="ab-chip ab-img"><Icon name="image" :size="13"/> {{ imgCount }}</span>
     <span v-if="pdfCount" class="ab-chip ab-pdf"><Icon name="book" :size="13"/> {{ pdfCount }}</span>
     <span v-if="htmlCount" class="ab-chip ab-html"><Icon name="receipt" :size="13"/> {{ htmlCount }}</span>
@@ -129,14 +129,14 @@ async function openAsset(meta: AssetMeta) {
   <!-- 文件列表浮层 -->
   <Teleport :to="overlayTarget">
     <Transition name="fade">
-      <div v-if="listOpen" class="ab-pop" @click.self="closeList">
+      <div v-if="listOpen" class="ab-pop" data-a11y-container @click.self="closeList">
         <div class="ab-pop-box">
           <div class="ab-pop-head">
             <span class="ab-pop-title"><Icon name="paperclip" :size="13"/> 附件（{{ list.length }}）</span>
             <button class="ab-pop-close" @click="closeList">×</button>
           </div>
           <div class="ab-pop-body">
-            <div v-for="a in list" :key="a.id" class="ab-item" :title="`${a.name}（${fmtSize(a.size)}）`" @click="openAsset(a)" @dblclick="openAsset(a)">
+            <div v-for="a in list" :key="a.id" class="ab-item" v-pressable :title="`${a.name}（${fmtSize(a.size)}）`" @click="openAsset(a)" @dblclick="openAsset(a)">
               <span class="ab-ico"><Icon v-if="a.kind === 'image'" name="image" :size="13"/><Icon v-else-if="a.kind === 'pdf'" name="book" :size="13"/><Icon v-else name="filetext" :size="13"/></span>
               <span class="ab-name">{{ a.name }}</span>
               <span class="ab-size">{{ fmtSize(a.size) }}</span>

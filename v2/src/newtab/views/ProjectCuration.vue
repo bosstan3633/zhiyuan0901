@@ -602,7 +602,7 @@ function addTaskFromHeader() {
     <!-- 聚焦态深链（/compass/projects）页头；R117 起本视图主要是方向台一级的内嵌体，
          内嵌态由宿主页头（方向台 · 主航线与项目详情）代替，不再重复一层面包屑与返回按钮 -->
     <div v-if="!embedded" class="page-head">
-      <div class="crumb"><span class="crumb-up" title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>项目详情</b><span v-if="currentProject"> · {{ currentProject.name }}</span></div>
+      <div class="crumb"><span class="crumb-up" v-pressable title="返回方向台" @click="router.push('/compass')">方向台</span><span class="crumb-sep"> / </span><b>项目详情</b><span v-if="currentProject"> · {{ currentProject.name }}</span></div>
       <div class="spacer" />
       <!-- R59-T1：返回按钮恒为方向台（旧来源感知分支已退役） -->
       <button class="mini-btn" @click="goBack">← 返回方向台</button>
@@ -622,11 +622,11 @@ function addTaskFromHeader() {
     <!-- ===== 单项目展板（R131-N2：独立态恢复左侧项目目录，可拖拽调宽；内嵌态维持单列满宽） ===== -->
     <div v-else class="board-layout" :class="{ 'with-dir': !embedded }">
     <aside v-if="!embedded" class="pd-dir" :style="{ width: projDirW + 'px' }">
-      <div class="pd-dir-title pd-pan-head" @click="projPanOpen = !projPanOpen"><Icon name="map" :size="13"/> 项目全景<span class="pd-caret">{{ projPanOpen ? '▾' : '▸' }}</span></div>
+      <div class="pd-dir-title pd-pan-head" v-pressable :aria-expanded="projPanOpen" @click="projPanOpen = !projPanOpen"><Icon name="map" :size="13"/> 项目全景<span class="pd-caret">{{ projPanOpen ? '▾' : '▸' }}</span></div>
       <div v-show="projPanOpen" class="pd-pan">
         <div v-for="g in projDirGroups" :key="g.dir.id" class="pd-group">
           <div class="pd-goal" :title="g.dir.name"><Icon name="target" :size="13"/> {{ g.dir.name }}<span v-if="dirTermLabel(g.dir)" class="pd-term">{{ dirTermLabel(g.dir) }}</span></div>
-          <div v-for="p in g.projects" :key="p.id" class="pd-item" :class="{ active: p.id === currentProject?.id }" :title="p.name" @click="openProject(p)">
+          <div v-for="p in g.projects" :key="p.id" class="pd-item" v-pressable :class="{ active: p.id === currentProject?.id }" :title="p.name" @click="openProject(p)">
             <span class="pd-dot" :class="{ focus: p.isFocused }" />
             <span class="pd-name">{{ p.name }}</span>
             <span class="pd-pct">{{ projectProgress(p).pct }}%</span>
@@ -635,7 +635,7 @@ function addTaskFromHeader() {
         <div v-if="!projDirGroups.length" class="pd-empty">还没有项目</div>
       </div>
       <div class="pd-dir-title"><Icon name="folder" :size="13"/> 项目目录</div>
-      <div v-for="it in projToc" :key="it.id" class="pd-item toc-item" :class="{ active: tocActive === it.id }" :title="it.label" @click="scrollToSec(it.id)">
+      <div v-for="it in projToc" :key="it.id" class="pd-item toc-item" v-pressable :class="{ active: tocActive === it.id }" :title="it.label" @click="scrollToSec(it.id)">
         <span class="pd-name">{{ it.icon }} {{ it.label }}</span>
         <span v-if="it.pct !== null" class="pd-pct">{{ it.pct }}%</span>
       </div>
@@ -645,11 +645,11 @@ function addTaskFromHeader() {
       <!-- R121：单行面包屑 + 操作区（原型：面包屑 + 添加按钮；⋯ 收敛 主攻 / 树定位 / 删除项目） -->
       <div class="pb-head-row" id="pd-sec-overview">
         <div class="pb-crumb">
-          <span class="pc-seg" title="在完整方向树中查看" @click="goTreeLocated">愿景</span>
+          <span class="pc-seg" v-pressable title="在完整方向树中查看" @click="goTreeLocated">愿景</span>
           <span class="pc-sep">›</span>
-          <span class="pc-seg" title="在完整方向树中查看" @click="goTreeLocated">使命</span>
+          <span class="pc-seg" v-pressable title="在完整方向树中查看" @click="goTreeLocated">使命</span>
           <span class="pc-sep">›</span>
-          <span class="pc-seg" title="在完整方向树中定位此战略目标" @click="goTreeLocated">{{ goalOf(currentProject)?.name || '—' }}<template v-if="goalTerm">（{{ goalTerm }}）</template></span>
+          <span class="pc-seg" v-pressable title="在完整方向树中定位此战略目标" @click="goTreeLocated">{{ goalOf(currentProject)?.name || '—' }}<template v-if="goalTerm">（{{ goalTerm }}）</template></span>
           <span class="pc-sep">›</span>
           <b class="pc-current">{{ currentProject.name }}</b>
         </div>
@@ -706,10 +706,10 @@ function addTaskFromHeader() {
           <button class="mini-btn primary" @click="addTaskFromHeader">＋ 添加任务</button>
           <span class="pb-more-wrap">
             <button class="mini-btn icon" title="更多：主攻 / 方向树定位 / 删除项目" @click.stop="projMenuOpen = !projMenuOpen">⋯</button>
-            <div v-if="projMenuOpen" class="pb-menu" @click.stop>
-              <div class="pm-item" @click="toggleFocus(currentProject); projMenuOpen = false"><Icon name="main-focus" :size="13"/> {{ currentProject.isFocused ? '取消主攻' : '设为主攻' }}</div>
-              <div class="pm-item" @click="goTreeLocated(); projMenuOpen = false"><Icon name="tree" :size="13"/> 在完整方向树中定位</div>
-              <div class="pm-item danger" @click="removeProject(currentProject); projMenuOpen = false"><Icon name="trash" :size="13"/> 删除项目</div>
+            <div v-if="projMenuOpen" class="pb-menu" data-a11y-container @click.stop>
+              <div class="pm-item" v-pressable @click="toggleFocus(currentProject); projMenuOpen = false"><Icon name="main-focus" :size="13"/> {{ currentProject.isFocused ? '取消主攻' : '设为主攻' }}</div>
+              <div class="pm-item" v-pressable @click="goTreeLocated(); projMenuOpen = false"><Icon name="tree" :size="13"/> 在完整方向树中定位</div>
+              <div class="pm-item danger" v-pressable @click="removeProject(currentProject); projMenuOpen = false"><Icon name="trash" :size="13"/> 删除项目</div>
             </div>
           </span>
         </div>
@@ -739,15 +739,15 @@ function addTaskFromHeader() {
             @dragstart="onTaskDragStart($event, task, m.id)" @dragend="onTaskDragEnd"
             @dragover.prevent.stop @drop.stop="onTaskDrop($event, task)">
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
-            <span class="bcheck" :class="{done: task.status==='done'}" @click="toggleTaskDone(task)"><Icon v-if="task.status==='done'" name="check" :size="12"/></span>
-            <span class="bt" @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
+            <span class="bcheck" v-pressable :class="{done: task.status==='done'}" @click="toggleTaskDone(task)"><Icon v-if="task.status==='done'" name="check" :size="12"/></span>
+            <span class="bt" v-pressable @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <MaturityBadge :m="taskMaturity(task)" />
             <TaskAiMenu :task="task" @detail="openTaskDetail" />
             <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)"><Icon name="x" :size="13"/></button>
           </div>
-          <div class="task-add" @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
+          <div class="task-add" v-pressable @click="openTaskAdd(m)">＋ 添加任务（新建 / 关联）</div>
         </div>
       </div>
       <EmptyState v-if="!currentProject.metrics.length" size="section" icon="target"
@@ -775,8 +775,8 @@ function addTaskFromHeader() {
             :data-task-id="t.id"
             @dragstart="onTaskDragStart($event, t, '__orphan__')" @dragend="onTaskDragEnd" @dragover.prevent @drop="onTaskDrop($event, t)">
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
-            <span class="bcheck" :class="{done: t.status==='done'}" @click="toggleTaskDone(t)"><Icon v-if="t.status==='done'" name="check" :size="13"/></span>
-            <span class="bt" @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
+            <span class="bcheck" v-pressable :class="{done: t.status==='done'}" @click="toggleTaskDone(t)"><Icon v-if="t.status==='done'" name="check" :size="13"/></span>
+            <span class="bt" v-pressable @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
             <MaturityBadge :m="taskMaturity(t)" />
             <TaskAiMenu :task="t" @detail="openTaskDetail" />
@@ -793,7 +793,7 @@ function addTaskFromHeader() {
           <span class="mname">按任务聚合 · <Icon name="image" :size="13"/> 图片弹窗预览 / <Icon name="globe" :size="13"/> HTML / <Icon name="book" :size="13"/> PDF 新标签打开</span>
         </div>
         <div class="task-rows">
-          <div v-for="t in tasksWithAssets" :key="t.id" class="btask asset-row" @click="openTaskDetail(t)">
+          <div v-for="t in tasksWithAssets" :key="t.id" class="btask asset-row" v-pressable @click="openTaskDetail(t)">
             <span class="bt">{{ t.title }}</span>
             <span class="tag">{{ taskAssetCount(t) }} 个 · {{ taskAssetSize(t) }}</span>
             <AssetBadge :assets="t.assets || []" />
@@ -813,10 +813,10 @@ function addTaskFromHeader() {
       <div v-if="createOpen" class="drawer-overlay" @click="createOpen=false" />
     </Transition>
     <Transition name="modal">
-      <div v-if="createOpen" class="create-modal" @click.stop>
+      <div v-if="createOpen" class="create-modal" data-a11y-container @click.stop>
         <div class="cm-head">
           <span><Icon name="package" :size="13"/> 新建 / 规划项目</span>
-          <div class="cm-close" @click="createOpen=false">×</div>
+          <button class="cm-close" type="button" aria-label="关闭" @click="createOpen=false">×</button>
         </div>
         <div class="cm-body">
           <!-- 愿景 → 使命 → 战略目标 视觉链 -->

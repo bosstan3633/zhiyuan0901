@@ -464,7 +464,7 @@ const backupReminderDot = computed(() => {
 </script>
 
 <template>
-  <div class="app-shell" @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
+  <div class="app-shell" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
     <!-- R168：AI 徽标的图形定义，全站只挂这一份（各入口走 `<use href="#zy-ai-mark">`）——
          见 AiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
     <AiMarkSymbol />
@@ -480,8 +480,8 @@ const backupReminderDot = computed(() => {
           <span class="brand-en">Ownway</span>
         </div>
         <!-- 固定页：调度台 / 方向台（V3.7.0 R179：资源台退役，资源卡管理收敛到调度台「3张卡」） -->
-        <div class="tab" :class="{active: activeTab === 'home'}" @click="navigate('/')">调度台</div>
-        <div class="tab" :class="{active: activeTab === 'compass'}" @click="openCompass">
+        <div class="tab" v-pressable :class="{active: activeTab === 'home'}" @click="navigate('/')">调度台</div>
+        <div class="tab" v-pressable :class="{active: activeTab === 'compass'}" @click="openCompass">
           <Icon name="compass" :size="15" />方向台
         </div>
 
@@ -490,7 +490,7 @@ const backupReminderDot = computed(() => {
         <!-- 策展台列表（第廿九轮：Tab 拖拽排序，仅策展台区间内换位，固定页锚点不变） -->
         <div
           v-for="ws in visibleWorkspaces" :key="ws.id"
-          class="tab" :class="{active: activeTab === ws.id, 'drop-line-l': wsDropMark === ws.id + '-l', 'drop-line-r': wsDropMark === ws.id + '-r'}"
+          class="tab" v-pressable :class="{active: activeTab === ws.id, 'drop-line-l': wsDropMark === ws.id + '-l', 'drop-line-r': wsDropMark === ws.id + '-r'}"
           :draggable="renamingWs !== ws.id"
           @click="navigate(`/workspace/${ws.id}`)"
           @contextmenu="onTabContextMenu($event, ws)"
@@ -515,6 +515,7 @@ const backupReminderDot = computed(() => {
 
         <!-- R105（E2）：溢出指示——hover 展开（离开顶栏自动收起），点击亦可保持展开 -->
         <div v-if="hiddenWsCount > 0" class="tab tab-overflow"
+          v-pressable
           :title="`其余 ${hiddenWsCount} 个策展台`"
           @mouseenter="wsOverflowOpen = true" @click.stop="wsOverflowOpen = !wsOverflowOpen">
           ≪ {{ hiddenWsCount }}
@@ -532,10 +533,11 @@ const backupReminderDot = computed(() => {
             @blur="confirmAddWs"
           />
         </div>
-        <div v-else class="tab tab-add" title="新增策展台" @click="addWorkspace">＋</div>
+        <div v-else class="tab tab-add" v-pressable title="新增策展台" @click="addWorkspace">＋</div>
 
         <!-- 折叠/展开 -->
         <div v-if="store.workspaces.length > 1" class="tab tab-collapse"
+          v-pressable
           :title="workspacesCollapsed ? '展开策展台' : '收起策展台'"
           @click="workspacesCollapsed = !workspacesCollapsed">
           {{ workspacesCollapsed ? '»' : '«' }}
@@ -546,7 +548,7 @@ const backupReminderDot = computed(() => {
         <!-- R176（原型 nav-shortcut-tip）：⌘K 快捷键提示 chip（点击即呼出全局搜索） -->
         <button class="nav-shortcut-tip" title="全局搜索" @click="gpOpen('search')">调出 Ctrl+K</button>
         <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
-        <span class="save-dot" :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
+        <span class="save-dot" v-pressable :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="theme-select">
           <button class="theme-btn" @click="toggleTheme">
             <span class="theme-dot" :style="{ background: themes.find(t => t.id === store.theme)?.dot }"></span>
@@ -568,8 +570,8 @@ const backupReminderDot = computed(() => {
             </div>
           </Transition>
         </div>
-        <div class="icon-btn" title="全局搜索 (Ctrl+K)" @click="gpOpen('search')"><Icon name="search" :size="16" /></div>
-        <div class="icon-btn icon-btn-bell" :class="{ 'has-dot': backupReminderDot }" title="设置" @click="navigate('/settings')">
+        <div class="icon-btn" v-pressable title="全局搜索 (Ctrl+K)" @click="gpOpen('search')"><Icon name="search" :size="16" /></div>
+        <div class="icon-btn icon-btn-bell" v-pressable :class="{ 'has-dot': backupReminderDot }" title="设置" @click="navigate('/settings')">
           <Icon name="settings" :size="16" />
           <span v-if="backupReminderDot" class="bell-dot" title="建议导出备份" />
         </div>
@@ -606,9 +608,9 @@ const backupReminderDot = computed(() => {
 
     <!-- 右键菜单 -->
     <Teleport to="body">
-      <div v-if="menuWs" class="ctx-menu" :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
-        <div class="ctx-item" @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
-        <div class="ctx-item" @click="archiveDeck"><Icon name="package" :size="13"/> 归档此台（卡移至待分类）</div>
+      <div v-if="menuWs" class="ctx-menu" data-a11y-container :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
+        <div class="ctx-item" v-pressable @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
+        <div class="ctx-item" v-pressable @click="archiveDeck"><Icon name="package" :size="13"/> 归档此台（卡移至待分类）</div>
       </div>
     </Teleport>
 
@@ -682,10 +684,14 @@ const backupReminderDot = computed(() => {
 
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 /* R159（T3）：落盘状态点 */
-.save-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--text-4); opacity: .6; transition: background .2s, opacity .2s; cursor: default; }
-.save-dot.saving { background: var(--accent); opacity: .9; animation: savePulse .9s ease-in-out infinite; }
-.save-dot.saved { background: var(--success); opacity: .9; }
-.save-dot.error { background: var(--danger); opacity: 1; cursor: pointer; }
+/* 保存状态点：视觉仍是 7px，命中盒 28px；错误态可点进设置，不能让 7px 圆点成为唯一入口。 */
+.save-dot { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; background: transparent; cursor: default; }
+.save-dot::before { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); opacity: .6; transform: translate(-50%, -50%); transition: background .2s, opacity .2s; }
+.save-dot.saving { background: transparent; }
+.save-dot.saving::before { background: var(--accent); opacity: .9; animation: savePulse .9s ease-in-out infinite; }
+.save-dot.saved::before { background: var(--success); opacity: .9; }
+.save-dot.error { cursor: pointer; }
+.save-dot.error::before { background: var(--danger); opacity: 1; }
 @keyframes savePulse { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
 .theme-select { position: relative; }
 .theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; background: var(--surface); transition: all var(--dur); font-family: inherit; }

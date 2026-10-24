@@ -700,7 +700,7 @@ check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角�
   const m = codeOnly(read('/newtab/manual-data.ts'));
   return tm.includes("ref<'card' | 'list' | 'kanban'>('list')")
     && (tm.match(/<TaskAiCorner :task=/g) || []).length === 3
-    && (tm.match(/<TaskAiMenu :task=/g) || []).length === 9
+    && (tm.match(/<TaskAiMenu :task=/g) || []).length === 7
     && tm.includes("import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'")
     && ca.includes('buildTaskEnrichJob') && ca.includes("import('@/shared/ai/taskEnrich')")
     && ca.includes('class="taic-btn"') && ca.includes("import { AiDrawer } from './lazyAiDrawer'")

@@ -940,59 +940,59 @@ if (argv.scenes) {
       card('audit-r4', '把一次解决变成可交付方案', 'audit-cat-evidence', 'own-work', '结构化成果让经验可以分享，也可以被检验。'),
     ]
   }
-  /* ★G-09（V3.9.11）：方向树折叠判据的数据前置。
-     只补空样本，不改备份里已有的方向与项目；判据要测的是真实 DOM 的折叠行为，
-     不能因为备份恰好在方向树为空而长期把 8 项报成“跳过”。 */
-  const directionHasProjects = (directions) => Array.isArray(directions)
-    && directions.some(d => Array.isArray(d.projects) && d.projects.length > 0)
-  if (!directionHasProjects(data.compass?.directions) && !directionHasProjects(data.directions)) {
-    const at = FREEZE_AT + 13 * 60 * 60 * 1000
-    data.compass = data.compass || {
-      vision: { content: '', updatedAt: 0 },
-      mission: { content: '', updatedAt: 0 },
-      directions: [],
-    }
-    if (!Array.isArray(data.compass.directions)) data.compass.directions = []
-    data.compass.directions = data.compass.directions.filter(d => d && d.id !== 'audit-dir-1')
-    data.compass.directions.push({
-      id: 'audit-dir-1',
-      name: '认知调度研究',
-      status: 'active',
-      term: 'mid',
-      projects: [{
-        id: 'audit-proj-1',
-        name: '认知调度产品化',
-        nextStep: '把方向树折叠判据从跳过改成真判。',
-        isFocused: true,
-        progress: 0,
-        status: 'active',
-        order: 0,
-        metrics: [{
-          id: 'audit-metric-1',
-          title: '视觉验收覆盖完整',
-          target: '8 项真判',
-          acceptance: '四主题实拍不再跳过方向树折叠',
-          taskIds: ['audit-task-1'],
-        }],
-      }],
-    })
-    data.tasks = (data.tasks || []).filter(t => t && t.id !== 'audit-task-1')
-    data.tasks.push({
-      id: 'audit-task-1',
-      kind: 'task',
-      title: '补齐方向树实拍夹具',
-      description: '让折叠判据在真实渲染上有数据可判。',
-      projectId: 'audit-proj-1',
-      metricId: 'audit-metric-1',
-      status: 'doing',
-      priority: 'high',
-      customFields: {},
-      tags: ['视觉验收'],
-      pinned: false,
-      createdAt: at,
-      updatedAt: at,
-    })
+  /* ★V3.9.16：方向树折叠判据改为**独立夹具**。
+     旧逻辑只在备份完全没有项目时才补，真实库有项目时这条分支不会执行，
+     实测因此仍会因备份夹具 `directions[].projects` 为空而跳过。
+     这里无条件注入一个专用方向/项目/指标/任务，只影响本次 Chromium storage，不改备份文件。 */
+  const TREE_AUDIT_DIR_ID = 'audit-tree-fold-dir'
+  const TREE_AUDIT_PROJECT_ID = 'audit-tree-fold-proj'
+  const treeAt = FREEZE_AT + 13 * 60 * 60 * 1000
+  data.compass = data.compass || {
+    vision: { content: '', updatedAt: 0 },
+    mission: { content: '', updatedAt: 0 },
+    directions: [],
   }
+  if (!Array.isArray(data.compass.directions)) data.compass.directions = []
+  data.compass.directions = data.compass.directions.filter(d => d && d.id !== TREE_AUDIT_DIR_ID)
+  data.compass.directions.push({
+    id: TREE_AUDIT_DIR_ID,
+    name: '认知调度研究',
+    status: 'active',
+    term: 'mid',
+    projects: [{
+      id: TREE_AUDIT_PROJECT_ID,
+      name: '认知调度产品化',
+      nextStep: '让方向树折叠判据在四主题实拍中真实可判。',
+      isFocused: false,
+      progress: 0,
+      status: 'active',
+      order: 0,
+      metrics: [{
+        id: 'audit-tree-fold-metric',
+        title: '视觉验收覆盖完整',
+        target: '四主题真判',
+        acceptance: '四主题实拍不再跳过方向树折叠',
+        taskIds: ['audit-tree-fold-task'],
+      }],
+    }],
+  })
+  data.tasks = (data.tasks || []).filter(t => t && t.id !== 'audit-tree-fold-task')
+  data.tasks.push({
+    id: 'audit-tree-fold-task',
+    kind: 'task',
+    title: '补齐方向树实拍夹具',
+    description: '让折叠判据在真实渲染上有数据可判。',
+    projectId: TREE_AUDIT_PROJECT_ID,
+    metricId: 'audit-tree-fold-metric',
+    status: 'doing',
+    priority: 'high',
+    customFields: {},
+    tags: ['视觉验收'],
+    pinned: false,
+    createdAt: treeAt,
+    updatedAt: treeAt,
+  })
+  console.log(`方向树折叠夹具：${TREE_AUDIT_DIR_ID}/${TREE_AUDIT_PROJECT_ID}`)
   /* V3.9.15：项目全景多指标阅读节奏夹具。
      不复用“空库才补”的方向树夹具——真实库通常已有方向与项目，空库分支不会执行；
      这里单独注入一个审计专用项目，保证 compass-pano-multi 每次都能在真实渲染里
@@ -1105,7 +1105,8 @@ if (argv.scenes) {
   const compassDirs = (data.compass && Array.isArray(data.compass.directions))
     ? data.compass.directions
     : (Array.isArray(data.directions) ? data.directions : [])
-  const dataHasProjects = compassDirs.some(d => Array.isArray(d.projects) && d.projects.length > 0)
+  const dataHasProjects = compassDirs.some(d => d && d.id === TREE_AUDIT_DIR_ID
+    && Array.isArray(d.projects) && d.projects.some(p => p && p.id === TREE_AUDIT_PROJECT_ID))
   console.log(`方向树数据前置：方向 ${compassDirs.length} 个 · 含项目舱 ${compassDirs.filter(d => Array.isArray(d.projects) && d.projects.length > 0).length} 个`)
   const alive = (data.resources || []).filter(r => !r.deletedAt).length
   console.log(`数据源：${path.basename(dataFile)}（资源 ${(data.resources || []).length} / 活 ${alive} · 分类 ${(data.categories || []).length} · 策展台 ${(data.workspaces || []).length}）`)
@@ -1375,9 +1376,10 @@ if (argv.scenes) {
           }
         })
         extra = ` 舱=${j.branches} 卡头=${j.heads} 开合把手=${j.carets} 收起=${j.folded} 指标卡=${j.metrics} 收起舱内DOM残留=${j.domInFolded}`
-        if (!j.heads && !dataHasProjects) treeSkip.push(`${theme}/${v.id}：数据里没有项目舱（备份的 directions[].projects 全空）⇒ 折叠判据**跳过**`)
+        if (!j.heads && !dataHasProjects) treeSkip.push(`${theme}/${v.id}：独立方向树夹具没有种上项目舱 ⇒ 折叠判据**跳过**`)
         else if (!j.heads) treeFail.push(`${theme}/${v.id}：一张项目舱卡头都没有（数据没种上或视图没渲染）——判据空转`)
         else if (j.bad) treeFail.push(`${theme}/${v.id}：${j.bad} 个收起的舱里指标卡**仍然可见** ⇒ 折叠是假折叠`)
+        else if (j.folded === 0) treeFail.push(`${theme}/${v.id}：没有任何收起舱（夹具未覆盖默认折叠态）⇒ 折叠判据空转`)
         else if (j.carets !== j.heads) treeFail.push(`${theme}/${v.id}：开合把手 ${j.carets} != 卡头 ${j.heads} ⇒ 有卡头没有开合把手`)
         if (v.id === 'compass-tree') {
           extra += ` 落点=${j.hash}`

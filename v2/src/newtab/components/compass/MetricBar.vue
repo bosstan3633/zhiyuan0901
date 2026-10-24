@@ -52,28 +52,28 @@ function openCell(c: 'dhi' | 'wce' | 'wrr' | 'unarch') { drillCell.value = c }
       <div class="mb-group mb-nav">
         <slot name="left" />
         <div class="mb-period" title="统计口径：日 / 周 / 累计">
-          <span :class="{ on: period === 'day' }" @click="setPeriod('day')">日</span>
-          <span :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
-          <span :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
+          <span v-pressable :class="{ on: period === 'day' }" @click="setPeriod('day')">日</span>
+          <span v-pressable :class="{ on: period === 'week' }" @click="setPeriod('week')">周</span>
+          <span v-pressable :class="{ on: period === 'all' }" @click="setPeriod('all')">累计</span>
         </div>
       </div>
       <div class="mb-group mb-metrics">
-        <div class="mb-cell clickable" title="战略目标 = 使命下拆解的方向数 · 点击下钻各目标明细" @click="openCell('dhi')">
+        <div class="mb-cell clickable" v-pressable title="战略目标 = 使命下拆解的方向数 · 点击下钻各目标明细" @click="openCell('dhi')">
           <span class="mb-k">战略目标</span><span class="mb-v">{{ dhiMain }}</span>
         </div>
-        <div class="mb-cell clickable" title="推进项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
+        <div class="mb-cell clickable" v-pressable title="推进项目 = 挂有任务（任务数≠0）的项目数 · 点击下钻各目标明细" @click="openCell('dhi')">
           <span class="mb-k">推进项目</span><span class="mb-v">{{ pushingMain }}</span>
         </div>
-        <div class="mb-cell clickable" title="WCE 好奇探索 = 好奇卡「创建 + 状态变更 + 删除」的事件数（{{ m.wce.label }}）· 点击下钻明细" @click="openCell('wce')">
+        <div class="mb-cell clickable" v-pressable title="WCE 好奇探索 = 好奇卡「创建 + 状态变更 + 删除」的事件数（{{ m.wce.label }}）· 点击下钻明细" @click="openCell('wce')">
           <span class="mb-k">WCE 探索</span><span class="mb-v">{{ m.wce.count ?? 0 }}</span>
         </div>
-        <div class="mb-cell clickable" title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">
+        <div class="mb-cell clickable" v-pressable title="WRR 资源复用 = 资源卡被打开次数（{{ m.wrr.sub }}）· 点击下钻调出资源清单" @click="openCell('wrr')">
           <span class="mb-k">WRR 复用</span><span class="mb-v">{{ wrrMain }}</span>
         </div>
         <!-- ★M1（V3.8.28）：读数去琥珀。原实现在读数 > 0 时给这一格挂警示类、把数字染成琥珀，
              于是「还有多少没做完」被读成催促；镜面口径下它只是一个事实读数，颜色不参与评价。
              琥珀只留给真正的停滞细节（14 天无推进一类），不留给"你还没做完"。 -->
-        <div class="mb-cell clickable" title="未归档任务 = 未挂项目/指标、或引用已失效的任务，尚未归位到方向 · 分母为全部未删任务 · 口径同明细 · 点击下钻归档" @click="openCell('unarch')">
+        <div class="mb-cell clickable" v-pressable title="未归档任务 = 未挂项目/指标、或引用已失效的任务，尚未归位到方向 · 分母为全部未删任务 · 口径同明细 · 点击下钻归档" @click="openCell('unarch')">
           <span class="mb-k">未归档</span><span class="mb-v">{{ unarchived }}<i class="mb-denom">/{{ totalTasks }}</i></span>
         </div>
       </div>

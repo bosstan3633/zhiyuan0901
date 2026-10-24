@@ -164,14 +164,14 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
         <text x="46" y="50" text-anchor="middle" class="lc-dn-num">{{ stats.total }}</text>
       </svg>
       <div class="lc-stats">
-        <div class="lc-stat clickable" :class="{ on: filter === 'active' }" @click="setFilter('active')">
+        <div class="lc-stat clickable" v-pressable :class="{ on: filter === 'active' }" @click="setFilter('active')">
           <div class="lc-stat-num"><Icon name="flame" :size="13"/> {{ stats.active }}</div><div class="lc-stat-lab">活跃</div>
         </div>
-        <div class="lc-stat clickable" :class="{ on: filter === 'cooling' }" @click="setFilter('cooling')">
+        <div class="lc-stat clickable" v-pressable :class="{ on: filter === 'cooling' }" @click="setFilter('cooling')">
           <div class="lc-stat-num"><Icon name="snowflake" :size="13"/> {{ stats.cooling }}</div>
           <div class="lc-stat-lab">冷却<template v-if="stats.highCooling">（含 {{ stats.highCooling }} 核心）</template></div>
         </div>
-        <div class="lc-stat clickable" :class="{ on: filter === 'archived' }" @click="setFilter('archived')">
+        <div class="lc-stat clickable" v-pressable :class="{ on: filter === 'archived' }" @click="setFilter('archived')">
           <div class="lc-stat-num"><Icon name="package" :size="13"/> {{ stats.archived }}</div><div class="lc-stat-lab">归档</div>
         </div>
       </div>
@@ -180,7 +180,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
 
     <!-- 列表（当前过滤态） -->
     <div class="lc-list">
-      <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" :class="{ hv: isHigh(e) }" @click="onLocate(e)">
+      <div v-for="e in visible" :key="e.card.id" class="lc-row clickable" v-pressable :class="{ hv: isHigh(e) }" @click="onLocate(e)">
         <div class="lc-row-main">
           <!-- W13-F23④：callCount ≥ 3 的高价值核心证据卡冠 🔥，冷却态置顶（visible 排序保证） -->
           <div class="lc-row-title" :class="{ done: isDone(e.card) }"><span v-if="isHigh(e)" class="lc-hv" title="历史调用 ≥ 3 次的高价值核心证据卡"><Icon name="flame" :size="13"/></span>{{ titleOf(e.card) }}</div>
@@ -192,7 +192,7 @@ const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任�
             <span v-if="hasCustom(e.card)" class="lc-custom-badge" :title="`自定义冷却 ${daysOf(e.card)} 天 · 归档 ${archiveDaysOf(e.card)} 天（自动推算）`">自定义 {{ daysOf(e.card) }}d</span>
           </div>
         </div>
-        <div class="lc-row-ops" @click.stop>
+        <div class="lc-row-ops" data-a11y-container @click.stop>
           <!-- R117（04-61 E）：每张卡的自定义阈值入口——填一个冷却天数，归档由系统自动推算 -->
           <template v-if="editingDaysId === e.card.id">
             <input v-model="daysDraft" class="lc-days-input" type="number" :min="COOLING_DAYS_MIN" :max="COOLING_DAYS_MAX" placeholder="天数"
