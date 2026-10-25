@@ -251,7 +251,7 @@ const laneCount = computed(() => {
   margin: 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -.015em;
   display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; color: var(--text);
 }
-.ph-badge { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-2); padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.ph-badge { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-2); padding: 1px 7px; border-radius: var(--radius-full); white-space: nowrap; }
 .ph-badge.focus { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .ph-badge.stall { color: var(--warning); background: var(--warning-bg-soft); }
 .ph-next {
@@ -264,7 +264,7 @@ const laneCount = computed(() => {
   font-size: var(--fs-sub); font-weight: 600; color: var(--text);
 }
 .ph-next.src-empty .ph-next-v { color: var(--text-3); font-weight: 500; }
-.ph-next-src { flex: none; font-size: var(--fs-tiny); color: var(--text-4); padding: 1px 6px; border-radius: 999px; background: var(--surface-2); }
+.ph-next-src { flex: none; font-size: var(--fs-tiny); color: var(--text-4); padding: 1px 6px; border-radius: var(--radius-full); background: var(--surface-2); }
 .ph-foot {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px;
   font-size: var(--fs-tiny); color: var(--text-4);
@@ -294,8 +294,7 @@ const laneCount = computed(() => {
 .ph-menu {
   position: absolute; right: 0; top: calc(100% + 5px); z-index: 30; width: 230px; padding: 5px;
   display: flex; flex-direction: column; gap: 2px; background: var(--surface);
-  border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
-}
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
 .ph-mi {
   display: flex; align-items: center; gap: 7px; width: 100%; min-height: 30px; padding: 6px 8px;
   border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-2);
@@ -306,7 +305,8 @@ const laneCount = computed(() => {
 
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
 .lanes {
-  padding: 0 2px 12px; display: flex; gap: 10px; align-items: stretch;
+  /* ★V3.9.19（04-73 D-1(a) 密度接通）：泳道间距读 --card-gap（原 10px 字面量），紧凑档同步收拢；分档规则不动。 */
+  padding: 0 2px 12px; display: flex; gap: var(--card-gap); align-items: stretch;
   min-height: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
 }
 .lanes-shell { position: relative; }

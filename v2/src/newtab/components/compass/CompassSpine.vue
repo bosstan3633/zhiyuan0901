@@ -39,6 +39,23 @@ const emit = defineEmits<{
  *  KeepAlive 下展开态随页面会话保留；重新进入方向台默认仍回到紧凑首屏。 */
 const expanded = ref(false)
 
+/* ★V3.9.19（04-73 一处不两说 · 用户拍板 2026-10-24）：hero 读数去重后，
+ *   六层结构计数的**唯一账本**搬进骨架条——折叠态徽章从「只报名」升级为「名 + 数」，
+ *   计数不再藏在展开之后；层位按钮补口径 tooltip（R03 镜子不鞭子：数字必须说清怎么来的）。
+ *   口径注意：counts 是**全量账**（不过滤已完成项目）；hero 里保留的主攻/停滞走
+ *   treeStats 的**可见口径**——两处各说各话、各在各位，tooltip 都写明白，不冒充同源。 */
+const LV_TIP: Record<number, string> = {
+  1: '愿景 = 终极方向（第 1 层），全库至多一条 · 点击展开本层正文',
+  2: '使命 = 行动准则（第 2 层），由愿景派生 · 点击展开本层正文',
+  3: '战略目标 = 第 3 层方向数（全量账，不受已完成显隐影响）· 点击切到目标列表',
+  4: '攻坚项目 = 第 4 层项目数（全量账，含已隐藏的已完成项目）· 点击定位项目舱',
+  5: '成功指标 = 第 5 层指标数（与「攻坚项目」同口径的全量账）· 点击切到指标列表',
+  6: '任务 = 第 6 层任务数 · 全库未删除任务都算（含尚未挂到项目的）· 点击切到任务列表'
+}
+
+/** V3.9.19：hero「六层计数」下钻入口要能从外部展开骨架条（KeepAlive 同一实例上直呼） */
+defineExpose({ expandSpine: () => { expanded.value = true } })
+
 /** 推导链的当前所在层（面板 1/2 与专属列表 3/5/6 联合高亮；点 4 定位不占高亮——定位是动作不是驻留态） */
 const chainAt = computed<1 | 2 | 3 | 5 | 6 | null>(() => props.layerOpen ?? props.layerView)
 
@@ -76,9 +93,10 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
     <header class="spine-h">
       <span class="spine-ico" aria-hidden="true">◈</span>
       <span class="spine-t">战略骨架<span class="spine-en">SPINE</span></span>
-      <span class="spine-badge" :class="{ compact: !expanded }">
+      <span class="spine-badge" :class="{ compact: !expanded }"
+        :title="expanded ? '上层定方向 · 下层见动作' : '六层结构计数的唯一账本（hero 只报状态不重复报数）· 展开后每层可看口径'">
         <template v-if="expanded">上层定方向 · 下层见动作</template>
-        <template v-else>1 愿景 · 2 使命 · 3 目标 · 4 项目 · 5 指标 · 6 任务</template>
+        <template v-else>1 愿景 {{ meta.counts.vision }} · 2 使命 {{ meta.counts.mission }} · 3 目标 {{ meta.counts.dirs }} · 4 项目 {{ meta.counts.projects }} · 5 指标 {{ meta.counts.metrics }} · 6 任务 {{ meta.counts.tasks }}</template>
       </span>
       <div class="spine-hint">
         <span>六层数字与下方项目舱同源 · 点 1/2 展开该层 · 点 4 定位项目舱 · 点 3/5/6 切换层级列表</span>
@@ -106,6 +124,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
             class="spine-lv"
             :class="[`lv${lv.n}`, { on: chainAt === lv.n }]"
             :aria-selected="chainAt === lv.n"
+            :title="LV_TIP[lv.n]"
             role="tab"
             @click="onLv(lv.n)"
           >
@@ -198,7 +217,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-badge {
   font-size: var(--fs-micro); font-weight: 600;
   color: var(--text-3); background: var(--surface-2);
-  padding: 2px 9px; border-radius: 999px;
+  padding: 2px 9px; border-radius: var(--radius-full);
 }
 .spine-hint {
   display: flex; align-items: center; gap: 8px;
@@ -262,7 +281,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .dchip {
   display: inline-flex; align-items: center; gap: 6px;
   min-height: 28px;
-  padding: 4px 10px; border-radius: 999px;
+  padding: 4px 10px; border-radius: var(--radius-full);
   background: var(--surface-2);
   border: 1px solid var(--border);
   cursor: pointer; transition: all var(--dur);
@@ -297,13 +316,14 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
   background: var(--surface-2); border: 1px solid transparent;
-  min-height: 28px; padding: 3px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+  min-height: 28px; padding: 3px 9px; border-radius: var(--radius-full); cursor: pointer; transition: all var(--dur);
 }
 .sr-btn:hover { color: var(--text); background: var(--surface-3); }
 .sr-btn.on { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-/* ── 窄屏：六层改成两行三列，别挤成一条细缝 ── */
-@media (max-width: 900px) {
+/* ── 窄屏：六层改成两行三列，别挤成一条细缝 ──
+   ★V3.9.19（04-73 D-2 断点收敛）：900 → 800，与方向台另两档（1024/800）同阶。 */
+@media (max-width: 800px) {
   .spine-chain { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .spine-arrow { display: none; }
   .spine-lv { min-width: 0; }

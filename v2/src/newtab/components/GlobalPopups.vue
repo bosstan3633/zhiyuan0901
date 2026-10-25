@@ -288,100 +288,11 @@
   </div>
 
   <!-- R55-C：快速采集任务（四字段全非必填，直存全域任务） -->
-  <div class="gp-overlay" :class="{open: activePanel==='taskcapture'}" @click.self="closeAll">
-    <div class="gp-panel gp-panel-narrow">
-      <template v-if="!tcSaved">
-        <div class="gp-cap-head">
-          <div class="gp-cap-icon res"><Icon name="zap" :size="13"/></div>
-          <div class="gp-cap-titles">
-            <div class="gp-cap-title">快速采集任务</div>
-            <div class="gp-cap-sub">四项皆可留空 · 存入全域任务统一管理</div>
-          </div>
-          <button class="gp-cap-close" @click="closeAll">×</button>
-        </div>
-        <div class="gp-cap-body">
-          <div class="gp-field">
-            <label class="gp-field-label">任务名称</label>
-            <input ref="tcTitleInput" type="text" class="gp-field-input" v-model="tcForm.title" placeholder="要做什么（可留空）"
-              @keydown.ctrl.enter.prevent="saveTaskCapture" @keydown.meta.enter.prevent="saveTaskCapture">
-          </div>
-          <div class="gp-field">
-            <label class="gp-field-label">任务内容</label>
-            <textarea class="gp-field-input gp-cap-desc" v-model="tcForm.description"
-              placeholder="补充说明、上下文、验收标准（可留空）"
-              @keydown.ctrl.enter.prevent="saveTaskCapture" @keydown.meta.enter.prevent="saveTaskCapture"></textarea>
-          </div>
-          <div class="gp-field-row">
-            <div class="gp-field">
-              <label class="gp-field-label">所属项目（可留空）</label>
-              <select class="gp-status-select" v-model="tcForm.projectId">
-                <option value="">未关联项目</option>
-                <option v-for="p in tcProjects" :key="p.id" :value="p.id"><Icon name="package" :size="13"/> {{ p.name }}</option>
-              </select>
-            </div>
-            <div class="gp-field">
-              <label class="gp-field-label">所属指标（可留空）</label>
-              <select class="gp-status-select" v-model="tcForm.metricId" :disabled="!tcForm.projectId">
-                <option value="">暂不归属</option>
-                <option v-for="m in tcMetrics" :key="m.id" :value="m.id"><Icon name="target" :size="13"/> {{ m.title }}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="gp-cap-foot">
-          <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
-          <button class="gp-btn gp-btn-primary" @click="saveTaskCapture"><Icon name="zap" :size="13"/> 保存任务（Ctrl+Enter）</button>
-        </div>
-      </template>
-      <template v-else>
-        <div class="gp-saved">
-          <div class="gp-saved-icon"><Icon name="zap" :size="13"/></div>
-          <div class="gp-saved-title">任务已保存</div>
-          <div class="gp-saved-sub">{{ tcForm.projectId ? '已挂项目/指标 · 全域任务统一管理' : '暂为未归档任务 · 可随时在方向台归档' }}</div>
-          <div class="gp-saved-hint">按 <kbd>Enter</kbd> 打开任务管理</div>
-          <div class="gp-saved-sub">按 <kbd>Esc</kbd> 关闭 · 5 秒后自动关闭</div>
-          <div class="gp-saved-actions">
-            <button class="gp-btn gp-btn-ghost" @click="resetTcForm(); closeAll()">关闭</button>
-            <button class="gp-btn gp-btn-primary" @click="tcOpenBoard">打开任务管理（Enter）</button>
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
-
-  <!-- 采集好奇心 -->
-  <div class="gp-overlay" :class="{open: activePanel==='curio'}" @click.self="closeAll">
-    <div class="gp-panel gp-panel-curio">
-      <div class="gp-cap-head">
-        <div class="gp-cap-icon curio"><Icon name="bulb" :size="13"/></div>
-        <div class="gp-cap-titles">
-          <div class="gp-cap-title">采集好奇心</div>
-          <div class="gp-cap-sub">从好奇出发，向源头求证</div>
-        </div>
-        <button class="gp-cap-close" @click="closeAll">×</button>
-      </div>
-      <div class="gp-cap-body">
-        <div class="gp-field">
-          <label class="gp-field-label">你的问题或想法</label>
-          <textarea ref="curioInput" class="gp-field-input gp-curio-text" v-model="curioForm.text"
-            placeholder="看到什么、想到什么、想探索什么？&#10;按 Enter 换行，Ctrl+Enter 保存"
-            @keydown.ctrl.enter.prevent="saveCurio"></textarea>
-          <div class="gp-field gp-field-sep">
-            <label class="gp-field-label"><Icon name="link" :size="13"/> 来源链接{{ curioForm.sourceUrl ? '（已自动捕获，可编辑）' : '（可选，留空即无来源）' }}</label>
-            <input type="text" class="gp-field-input" v-model="curioForm.sourceUrl" placeholder="https://…">
-          </div>
-          <div class="gp-field">
-            <label class="gp-field-label"><Icon name="filetext" :size="13"/> 来源标题</label>
-            <input type="text" class="gp-field-input" v-model="curioForm.sourceTitle" placeholder="来源页面标题（可选）">
-          </div>
-        </div>
-      </div>
-      <div class="gp-cap-foot">
-        <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
-        <button class="gp-btn gp-btn-primary" @click="saveCurio"><Icon name="save" :size="13"/> 保存到罗盘</button>
-      </div>
-    </div>
-  </div>
+  <!-- ★V3.9.20 第二梯队拆分 · 第二块：快速添加家族（任务速记 + 好奇采集）拆出为
+       GlobalPopupsQuickAdd.vue（第一块是 V3.9.6 的 Shortcuts）。交互、类名与 DOM 结构一字未改；
+       开面板初始化（预填/选中文本/来源捕获）与 saved 态键盘随面板迁入，宿主只管开关与转发。 -->
+  <GlobalPopupsQuickAdd ref="quickAddRef" :task-active="activePanel==='taskcapture'" :curio-active="activePanel==='curio'"
+    :prefill="panelPrefill" @close="closeAll" />
 
   <!-- B3：快捷键速查面板（? 呼出）—— ★V3.9.6 拆出为 GlobalPopupsShortcuts.vue
        （GlobalPopups 第二梯队拆分 · 第一块：按弹窗家族切，一轮一块不打包）。
@@ -462,9 +373,13 @@ import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCar
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { saveUIPrefs } from '@/shared/storage/repository'
+// ★V3.9.20：getRecentWebTab 升为共享工具（采集预填与好奇来源捕获两个消费方分家后不再私有）
+import { getRecentWebTab } from '@/shared/utils/recentWebTab'
 // ★V3.9.6：快捷键速查面板已拆出为 `GlobalPopupsShortcuts.vue`，
 //   清单真源（shared/utils/shortcuts.ts，与设置页、手册同源）随之搬进那个组件。
 import GlobalPopupsShortcuts from './GlobalPopupsShortcuts.vue'
+// ★V3.9.20 拆分第二块：快速添加家族（任务速记 + 好奇采集）
+import GlobalPopupsQuickAdd from './GlobalPopupsQuickAdd.vue'
 // R158：命令面板 AI 分组数据源——只引注册表**纯声明**（零 import 红线：registry.ts 不拉任何工厂，
 // 入口 chunk 触达的只是静态常量，启动零 AI 不变；真正的 AI 栈仍由各宿主懒加载）
 import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
@@ -477,15 +392,17 @@ const d = computed(() => store.data!)
 // 弹窗状态
 type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | 'taskcapture' | 'ai-advice' | null
 const activePanel = ref<PanelType>(null)
+const quickAddRef = ref<InstanceType<typeof GlobalPopupsQuickAdd> | null>(null)
+/** openPanel 时的预填（R172-T11：复盘「生成任务」→ 任务速记；随面板拆分改经 props 传递） */
+const panelPrefill = ref<{ title?: string; description?: string } | undefined>()
 const searchInput = ref<HTMLInputElement | null>(null)
 const capTitleInput = ref<HTMLInputElement | null>(null)
-const curioInput = ref<HTMLTextAreaElement | null>(null)
-const tcTitleInput = ref<HTMLInputElement | null>(null)
 const resultsEl = ref<HTMLDivElement | null>(null)
 
 let lastFocused: HTMLElement | null = null
 function openPanel(p: PanelType, prefill?: { title?: string; description?: string }) {
   lastFocused = document.activeElement as HTMLElement | null
+  panelPrefill.value = prefill
   activePanel.value = p
   if (p === 'capture') {
     capSaved.value = false
@@ -496,30 +413,8 @@ function openPanel(p: PanelType, prefill?: { title?: string; description?: strin
   // R47-A4：每次唤起清空上次查询词，恢复浏览态（无输入=近期热度排序）
   // R60-2：selectedId 与 searchQuery 必须同时清空，否则下次唤起会锚定到上一次选中的卡
   if (p === 'search') { currentType.value = 'all'; setSearchQuery(''); selectedId.value = ''; void ensurePinyin() }
-  if (p === 'taskcapture') {
-    // R55-C：快速采集任务——四字段全非必填，直存全域任务
-    // R172-T11：复盘报告的「生成任务」把建议预填进来——**仍要用户点保存才入库**（AI 不替决策）
-    tcSaved.value = false
-    tcForm.title = prefill?.title || ''
-    tcForm.description = prefill?.description || ''
-    tcForm.projectId = ''
-    tcForm.metricId = ''
-  }
-  if (p === 'curio') {
-    // 第十七轮：仅当选中文本时附带来源；无选中 → 链接为空，不预设默认值
-    curioForm.sourceTitle = ''
-    curioForm.sourceUrl = ''
-    const sel = window.getSelection?.()?.toString().trim()
-    if (sel) {
-      if (!curioForm.text.trim()) curioForm.text = sel
-      getRecentWebTab().then(t => {
-        if (t && activePanel.value === 'curio') {
-          curioForm.sourceTitle = t.title || ''
-          curioForm.sourceUrl = t.url || ''
-        }
-      })
-    }
-  }
+  /* ★V3.9.20：taskcapture / curio 的开面板初始化（预填、选中文本捕获、来源补全、聚焦）
+     随面板拆进 GlobalPopupsQuickAdd 的 active watcher——宿主不再触达面板内部状态。 */
   nextTick(() => {
     if (p === 'search') { searchInput.value?.focus(); runSearch() }
     if (p === 'capture') {
@@ -527,8 +422,6 @@ function openPanel(p: PanelType, prefill?: { title?: string; description?: strin
       if (capSaved.value) return
       capTitleInput.value?.focus(); capTitleInput.value?.select()
     }
-    if (p === 'curio') { curioInput.value?.focus() }
-    if (p === 'taskcapture') { tcTitleInput.value?.focus() }
   })
 }
 function closeAll() {
@@ -552,11 +445,8 @@ function openSavedBoard() {
 }
 
 function onSavedKeydown(e: KeyboardEvent) {
-  if (activePanel.value === 'taskcapture' && tcSaved.value) {
-    if (e.key === 'Enter') { e.preventDefault(); tcOpenBoard() }
-    else if (e.key === 'Escape') { e.preventDefault(); resetTcForm(); closeAll() }
-    return
-  }
+  /* ★V3.9.20：taskcapture 的 saved 态键盘随面板拆走，经 defineExpose 转发（消费即返回） */
+  if (quickAddRef.value?.savedKey(e)) return
   if (activePanel.value !== 'capture' || !capSaved.value) return
   if (e.key === 'Enter') { e.preventDefault(); openSavedBoard() }
   else if (e.key === 'Escape') { e.preventDefault(); closeAll() }
@@ -564,16 +454,6 @@ function onSavedKeydown(e: KeyboardEvent) {
 
 // 暴露给外部
 defineExpose({ openPanel, closeAll, activePanel })
-async function getRecentWebTab(): Promise<chrome.tabs.Tab | null> {
-  try {
-    const [active] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (active?.url && /^https?:\/\//.test(active.url)) return active
-    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })
-    if (!tabs.length) return null
-    return [...tabs].sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || tabs[0]
-  } catch { return null }
-}
-
 /** 打开采集弹窗时自动预填最近网页的标题与链接 */
 async function prefillCapture() {
   if (capForm.title || capForm.link) return
@@ -1603,46 +1483,8 @@ const savedResourceId = ref('')
 const savedWsId = ref('')
 let savedTimer: ReturnType<typeof setTimeout> | null = null
 
-// ===== R55-C：快速采集任务（四字段全非必填，直存全域任务；未挂项目=未归档） =====
-const tcForm = reactive({ title: '', description: '', projectId: '', metricId: '' })
-const tcSaved = ref(false)
-let tcSavedTimer: ReturnType<typeof setTimeout> | null = null
-const tcProjects = computed(() => d.value.compass.directions.flatMap(dir => dir.projects).filter(p => showDoneProjects.value || !isProjectDone(p)))
-const tcMetrics = computed(() => tcProjects.value.find(p => p.id === tcForm.projectId)?.metrics || [])
-watch(() => tcForm.projectId, () => { tcForm.metricId = '' })
-function saveTaskCapture() {
-  const now = Date.now()
-  const task = {
-    id: uid('tk'), kind: 'task' as const,
-    title: tcForm.title.trim() || '快速任务',
-    description: tcForm.description.trim(),
-    status: 'todo' as const, priority: 'medium' as const,
-    projectId: tcForm.projectId || undefined,
-    metricId: tcForm.metricId || undefined,
-    customFields: {}, tags: [] as string[], pinned: false,
-    createdAt: now, updatedAt: now
-  }
-  d.value.tasks.unshift(task)
-  if (task.metricId) {
-    for (const dir of d.value.compass.directions) for (const p of dir.projects) for (const m of p.metrics)
-      if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
-  }
-  store.persist()
-  tcSaved.value = true
-  if (tcSavedTimer) clearTimeout(tcSavedTimer)
-  tcSavedTimer = setTimeout(() => { closeAll(); tcSaved.value = false }, 5000)
-}
-function tcOpenBoard() {
-  resetTcForm()
-  closeAll()
-  // R117（04-61 C1）：任务调度面板已迁调度台底部 tab ⇒ 改走 ?bottom=task（原 /compass?zone=task 失效）
-  router.push({ path: '/deck/task' })
-}
-function resetTcForm() {
-  tcForm.title = ''; tcForm.description = ''; tcForm.projectId = ''; tcForm.metricId = ''
-  if (tcSavedTimer) { clearTimeout(tcSavedTimer); tcSavedTimer = null }
-  tcSaved.value = false
-}
+/* ★V3.9.20：快速采集任务段（tcForm/tcProjects/tcMetrics/saveTaskCapture/tcOpenBoard/resetTcForm）
+   随面板拆入 GlobalPopupsQuickAdd.vue——R55-9 / R172-T11 判据锚已随迁备案。 */
 
 // R169-T2：占位符与详情抽屉同源（LINK_SLOT_TABS），不再各写一份分支
 const capLinkPlaceholder = computed(() => linkPlaceholderFor(capForm.linkType))
@@ -1793,22 +1635,7 @@ async function aiAdviceRun(entryId: 'cross-deck' | 'thesis-drift' | 'dormant-sca
 }
 
 // ===== 采集好奇心 =====
-const curioForm = reactive({ text: '', sourceTitle: '', sourceUrl: '' })
-
-function saveCurio() {
-  if (!curioForm.text.trim()) { showToast('请输入内容'); return }
-  const c: CuriosityCard = {
-    id: uid('cur'), kind: 'curiosity', question: curioForm.text.trim(),
-    sourceUrl: curioForm.sourceUrl || undefined, sourceTitle: curioForm.sourceTitle || undefined,
-    status: 'todo', pinned: false, customFields: {},
-    createdAt: Date.now(), updatedAt: Date.now()
-  }
-  d.value.curiosities.unshift(c)
-  store.persist()
-  curioForm.text = ''
-  closeAll()
-  showToast('好奇心+1')
-}
+/* ★V3.9.20：好奇心采集段（curioForm/saveCurio）随面板拆入 GlobalPopupsQuickAdd.vue（R23-4 锚随迁）。 */
 
 // ===== 工具函数 =====
 function linkShort(link: string) {

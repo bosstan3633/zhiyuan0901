@@ -288,7 +288,7 @@ function hasClue(t: TaskCard): boolean {
 .tw-signals { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .tw-badge {
   font-size: var(--fs-micro); color: var(--text-3);
-  background: var(--surface-3); padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  background: var(--surface-3); padding: 1px 7px; border-radius: var(--radius-full); white-space: nowrap;
 }
 .tw-badge.focus { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }
 .tw-badge.stall { color: var(--warning); background: var(--warning-bg-soft); }
@@ -344,22 +344,19 @@ function hasClue(t: TaskCard): boolean {
 }
 .tw-fold:hover { color: var(--text); background: var(--surface-3); }
 
-/* 窄屏：舱头从“左右两端对齐”切为上下两段，操作区换行但不压住项目名。 */
+/* 窄屏：舱头从“左右两端对齐”切为上下两段，操作区换行但不压住项目名。
+   ★V3.9.19（04-73 D-2 断点收敛）：480 档并入 800——项目名降一档/面包屑收紧/诊断标签
+   允许换行三条窄屏细化升入本档；「＋指标」文字隐藏与轨道缩进细化（148 档专属）退役。 */
 @media (max-width: 800px) {
   .tw-head { gap: 9px; padding: 12px 13px 11px 16px; }
   .tw-idx { width: 30px; height: 30px; }
   .tw-id { min-width: 0; }
-  .tw-right { width: 100%; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .tw-acts { margin-left: auto; }
-  .tw-body { padding: 2px 13px 14px 16px; }
-}
-@media (max-width: 480px) {
   .tw-name-t { font-size: var(--fs-body); }
   .tw-crumb { gap: 4px; }
-  .tw-act-label { display: none; }
+  .tw-right { width: 100%; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
   .tw-right :deep(.tw-status) { flex-wrap: wrap; }
-  .tw-rail { padding-left: 14px; }
-  .tw-rail > :deep(section)::before { left: -12px; width: 12px; }
+  .tw-acts { margin-left: auto; }
+  .tw-body { padding: 2px 13px 14px 16px; }
 }
 
 /* ── 舱身：内边距与轨道缩进对齐原型 .tw-b / .mgrid ── */
@@ -371,7 +368,9 @@ function hasClue(t: TaskCard): boolean {
   width: 2px; border-radius: 2px;
   background: linear-gradient(180deg, var(--hue), color-mix(in srgb, var(--hue) 22%, transparent));
 }
-.tw-rail > :deep(section) { margin-bottom: 4px; }
+/* ★V3.9.19（04-73 D-1(a) 密度接通）：指标卡之间的行距读 --card-gap（舒适 12 · 紧凑 8），
+   原先 4px 字面量把密度档挡在舱外；轨/臂/铆钉的结构线全部不动。 */
+.tw-rail > :deep(section) { margin-bottom: var(--card-gap); }
 .tw-rail > :deep(section:last-child) { margin-bottom: 0; }
 /* ★每张指标卡从竖轨分出一条横臂 —— 判据 W11-2 要求这条不许丢 */
 .tw-rail > :deep(section)::before {
@@ -394,6 +393,6 @@ function hasClue(t: TaskCard): boolean {
 .twe-t { font-size: var(--fs-micro); color: var(--text-4); }
 .twe-add {
   font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
-  background: var(--accent-light); padding: 3px 10px; border-radius: 999px; cursor: pointer;
+  background: var(--accent-light); padding: 3px 10px; border-radius: var(--radius-full); cursor: pointer;
 }
 </style>

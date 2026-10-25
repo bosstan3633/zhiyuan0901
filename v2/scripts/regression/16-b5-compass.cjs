@@ -67,10 +67,10 @@ check('C2-4 筛选态提示条在 hero 动作行内，且在树画布之前 —�
   return true;
 });
 
-check('C2-5 它是动作行里的一枚胶囊（inline-flex + 999px，宽度由内容决定），不是整宽横幅：不带 margin-bottom 撑行', () => {
+check('C2-5 它是动作行里的一枚胶囊（inline-flex + 全圆角令牌，宽度由内容决定），不是整宽横幅：不带 margin-bottom 撑行。★V3.9.19 随迁备案（04-73 C-6）：999px 字面量升为 var(--radius-full) 令牌——胶囊形态判据不变，圆角表达从散写字面量收敛为唯一令牌', () => {
   const rule = (CT.match(/^\.hero-filter \{[^}]*\}/m) || [''])[0];
   if (!rule) { console.log('     规则缺失'); return false; }
-  const pill = rule.includes('display: inline-flex') && rule.includes('border-radius: 999px');
+  const pill = rule.includes('display: inline-flex') && rule.includes('border-radius: var(--radius-full)');
   const noBlockGap = !rule.includes('margin-bottom');
   if (!pill || !noBlockGap) console.log('     胶囊=' + pill + ' / 无块级下边距=' + noBlockGap);
   return pill && noBlockGap;

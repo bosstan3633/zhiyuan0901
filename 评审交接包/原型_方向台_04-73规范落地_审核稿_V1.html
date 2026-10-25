@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知源调度台 · 方向台 04-73 规范落地原型 · 审核稿 V1</title>
+<!--
+  ============================================================
+  知源调度台（Ownway）· 方向台规范落地原型 · 审核稿 V1
+  ------------------------------------------------------------
+  · 依据：《文档中心/04_产品与设计/04-73_产品价值锚定的UI设计规范与优化方案_V3.9.16.md》
+  · 现状基线：V3.9.17 CompassTree（hero 状态带 / 全宽战略骨架 / 主攻聚焦条 /
+    左栏项目导航 / 项目塔 / 项目全景 / 收容道）—— 在现役结构上做 UI 层优化，
+    不推翻信息架构与六层模型。
+  · 本轮优化点（对照 04-73）：
+    ① 主攻聚焦条补「下一步」主句（与调度台 V3.9.18 主攻面板同一取数口径）；
+    ② 筛选/状态胶囊走 --radius-full 令牌（S-3 裁定）；按钮收敛为四阶；
+    ③ 密度令牌接通舱行（D-1(a)，紧凑档真实生效）；
+    ④ 断点收敛 1024 / 800 两档（D-2）；字号全走九级字阶，六层字阶契约
+       （愿景 22 唯一 display › 使命 17 › 项目 17 › 目标 15 › 指标/任务 13）；
+    ⑤ 全部读数挂口径 tooltip（R03 镜子不鞭子）；热区 ≥28px、键盘全可达（A-1/A-2）。
+  · 令牌：全部取自 v2/src/shared/styles/tokens.css（V3.9.16 实测），未编造。
+  · 审核：右下角「审核」开模块巡检（10 模块四栏 + 规范对照 + 判定导出）。
+  ============================================================
+-->
+<style>
+/* ===================== 令牌层（摘自 tokens.css，未改值） ===================== */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --fs-micro: 9px; --fs-tiny: 10px; --fs-caption: 11px; --fs-sub: 12px;
+  --fs-body: 13px; --fs-title: 15px; --fs-headline: 17px; --fs-display: 22px;
+  --lh-micro: 1.4; --lh-tiny: 1.45; --lh-caption: 1.5; --lh-sub: 1.5;
+  --lh-body: 1.55; --lh-title: 1.35; --lh-headline: 1.3; --lh-display: 1.2;
+  --tracking-sm: 0.04em;
+  --dur-fast: 120ms; --dur: 150ms; --dur-slow: 250ms;
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --radius-xl: 18px; --radius-lg: 14px; --radius: 12px; --radius-md: 10px;
+  --radius-sm: 8px; --radius-xs: 4px;
+  --radius-full: 999px; /* 04-73 S-3：胶囊令牌，仅限筛选胶囊 / 状态 chip / 页签 */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --icon-sm: 12px; --icon-md: 14px; --icon-lg: 16px;
+  --hit: 28px; /* A-2 热区下限 */
+  --card-pad-vert: var(--sp-3); --card-pad-horz: var(--sp-4); --card-gap: var(--sp-3);
+  --z-sticky: 100; --z-overlay: 200; --z-modal: 300; --z-menu: 400;
+  --z-global: 1000; --z-toast: 9999;
+}
+[data-density='compact'] { --card-pad-vert: var(--sp-2); --card-pad-horz: var(--sp-3); --card-gap: var(--sp-2); }
+:root, [data-theme='linear'] {
+  --bg: #0D0E11; --surface: #14161B; --surface-2: #1A1D24; --surface-3: #1C1F26;
+  --border: rgba(255, 255, 255, 0.08); --border-strong: rgba(255, 255, 255, 0.14);
+  --text: rgba(255, 255, 255, 0.92); --text-2: rgba(255, 255, 255, 0.70);
+  --text-3: rgba(255, 255, 255, 0.50); --text-4: rgba(255, 255, 255, 0.32);
+  --accent: #5E6AD2; --accent-2: #7A85E0; --accent-light: rgba(94, 106, 210, 0.16);
+  --accent-hover: #828FFF; --accent-ink: #828FFF;
+  --success: #27A644; --warning: #D9A03C; --danger: #E5484D;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15); --tag-ok-text: #6FCE8B;
+  --tag-warn-bg: rgba(217, 160, 60, 0.14); --tag-warn-text: #EFBE66;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.06); --tag-neutral-text: rgba(255, 255, 255, 0.50);
+  --overlay-bg: rgba(0, 0, 0, 0.6); --scrim-modal: rgba(0, 0, 0, 0.45);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.35), 0 28px 72px rgba(0, 0, 0, 0.60);
+  --toast-bg: #1A1D23; --toast-fg: #F2F3F5; --toast-action: #8FC4A3;
+}
+[data-theme='raycast'] {
+  --bg: #08080A; --surface: #101014; --surface-2: #16161B; --surface-3: #1B1B21;
+  --border: rgba(255, 255, 255, 0.12); --border-strong: rgba(255, 255, 255, 0.18);
+  --text: rgba(255, 255, 255, 0.95); --text-2: rgba(255, 255, 255, 0.72);
+  --text-3: rgba(255, 255, 255, 0.52); --text-4: rgba(255, 255, 255, 0.34);
+  --accent: #1E6FD9; --accent-2: #3D8BEA; --accent-light: rgba(30, 111, 217, 0.16);
+  --accent-hover: #3E86E0; --accent-ink: #3D8BEA;
+  --success: #27A644; --warning: #D9A03C; --danger: #E5484D;
+  --tag-ok-bg: rgba(39, 166, 68, 0.15); --tag-ok-text: #6FCE8B;
+  --tag-warn-bg: rgba(217, 160, 60, 0.14); --tag-warn-text: #EFBE66;
+  --tag-neutral-bg: rgba(255, 255, 255, 0.08); --tag-neutral-text: rgba(255, 255, 255, 0.52);
+  --overlay-bg: rgba(0, 0, 0, 0.7); --scrim-modal: rgba(0, 0, 0, 0.45);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.40), 0 28px 72px rgba(0, 0, 0, 0.70);
+  --toast-bg: #0B0B0E; --toast-fg: #F2F3F5; --toast-action: #5AA9FF;
+}
+[data-theme='apple'] {
+  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #EFEFF2; --surface-3: #EAEAEF;
+  --border: rgba(0, 0, 0, 0.09); --border-strong: rgba(0, 0, 0, 0.15);
+  --text: rgba(0, 0, 0, 0.90); --text-2: rgba(0, 0, 0, 0.62);
+  --text-3: rgba(0, 0, 0, 0.46); --text-4: rgba(0, 0, 0, 0.28);
+  --accent: #8452E0; --accent-2: #9E8FEC; --accent-light: #EFEBFB;
+  --accent-hover: #6C3FC8; --accent-ink: #6C3FC8;
+  --success: #27A644; --warning: #A66A00; --danger: #D0342C;
+  --tag-ok-bg: #E4F2E8; --tag-ok-text: #2E7D42;
+  --tag-warn-bg: #FBF1DE; --tag-warn-text: #8A5A00;
+  --tag-neutral-bg: #EFEFF2; --tag-neutral-text: rgba(0, 0, 0, 0.46);
+  --overlay-bg: rgba(0, 0, 0, 0.32); --scrim-modal: rgba(0, 0, 0, 0.45);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.06), 0 28px 72px rgba(0, 0, 0, 0.16);
+  --toast-bg: #FFFFFF; --toast-fg: #1D1D1F; --toast-action: #1E7A34;
+}
+[data-theme='notion'] {
+  --bg: #F7F6F3; --surface: #FFFFFF; --surface-2: #F2F0EB; --surface-3: #EEEAE3;
+  --border: rgba(40, 34, 24, 0.11); --border-strong: rgba(40, 34, 24, 0.18);
+  --text: rgba(35, 31, 25, 0.90); --text-2: rgba(35, 31, 25, 0.64);
+  --text-3: rgba(35, 31, 25, 0.52); --text-4: rgba(35, 31, 25, 0.30);
+  --accent: #9E3FAF; --accent-2: #B76BC6; --accent-light: #F6EDF8;
+  --accent-hover: #85349A; --accent-ink: #85349A;
+  --success: #448361; --warning: #C08A2D; --danger: #E03E3E;
+  --tag-ok-bg: #E4EFE7; --tag-ok-text: #3F7355;
+  --tag-warn-bg: #F5E9D3; --tag-warn-text: #8A5F1E;
+  --tag-neutral-bg: #F2F0EB; --tag-neutral-text: rgba(35, 31, 25, 0.52);
+  --overlay-bg: rgba(15, 15, 15, 0.35); --scrim-modal: rgba(0, 0, 0, 0.45);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15, 15, 15, 0.04);
+  --shadow-modal: 0 2px 10px rgba(15, 15, 15, 0.06), 0 28px 72px rgba(15, 15, 15, 0.16);
+  --toast-bg: #FBFAF8; --toast-fg: #2B2A27; --toast-action: #3A6B4C;
+}
+
+/* ===================== 全局契约 ===================== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  font-family: var(--font-sans); background: var(--bg); color: var(--text);
+  font-size: var(--fs-body); line-height: var(--lh-body);
+  font-feature-settings: "tnum"; font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+::selection { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text); }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent) !important; outline-offset: 1px !important; }
+button { font-family: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* ===================== 通用元件（04-73 §3.4） ===================== */
+.icon { width: var(--icon-md); height: var(--icon-md); stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.icon.sm { width: var(--icon-sm); height: var(--icon-sm); }
+.btn { display: inline-flex; align-items: center; gap: var(--sp-1); justify-content: center;
+  min-height: var(--hit); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-sm);
+  font-size: var(--fs-sub); line-height: var(--lh-sub); font-weight: 500;
+  transition: background var(--dur) var(--ease-out-soft), border-color var(--dur) var(--ease-out-soft), color var(--dur) var(--ease-out-soft); }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.secondary { background: var(--surface-2); border: 1px solid var(--border); }
+.btn.secondary:hover { border-color: var(--border-strong); background: var(--surface-3); }
+.btn.ghost { color: var(--text-2); }
+.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center;
+  width: var(--hit); height: var(--hit); border-radius: var(--radius-sm); color: var(--text-2);
+  transition: background var(--dur) var(--ease-out-soft), color var(--dur) var(--ease-out-soft); }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.chip { display: inline-flex; align-items: center; gap: var(--sp-1); border-radius: var(--radius-xs);
+  padding: 2px 6px; font-size: var(--fs-caption); font-weight: 500; line-height: var(--lh-caption);
+  letter-spacing: var(--tracking-sm); background: var(--tag-neutral-bg); color: var(--tag-neutral-text); white-space: nowrap; }
+.chip.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.chip.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.chip.accent { background: var(--accent-light); color: var(--accent-ink); }
+.pill { border-radius: var(--radius-full); } /* S-3：胶囊形态类，只用于页签 / 筛选 / 状态 chip */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + var(--sp-1));
+  transform: translateX(-50%); background: var(--surface-3); border: 1px solid var(--border);
+  color: var(--text-2); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 400;
+  letter-spacing: 0; padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm);
+  white-space: nowrap; opacity: 0; pointer-events: none; z-index: var(--z-menu);
+  transition: opacity var(--dur) var(--ease-out-soft); box-shadow: var(--shadow-hover); }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; }
+
+/* ===================== 审核稿头 / 顶栏 ===================== */
+.proto-banner { display: flex; align-items: center; gap: var(--sp-3); justify-content: space-between;
+  padding: var(--sp-1) var(--sp-6); border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg)); font-size: var(--fs-caption);
+  color: var(--text-3); line-height: var(--lh-caption); }
+.proto-banner b { color: var(--text-2); font-weight: 600; }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center;
+  gap: var(--sp-4); height: 48px; padding: 0 var(--sp-6); border-bottom: 1px solid var(--border); background: var(--surface); }
+.topbar-inner { display: flex; align-items: center; gap: var(--sp-4); width: 100%; max-width: 1440px; margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; }
+.brand-mark { width: var(--icon-lg); height: var(--icon-lg); border-radius: var(--radius-sm);
+  background: var(--accent); display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: var(--fs-tiny); font-weight: 700; }
+.deck-tabs { display: flex; align-items: center; gap: var(--sp-1); }
+.deck-tab { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--hit);
+  padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); font-size: var(--fs-sub);
+  line-height: var(--lh-sub); color: var(--text-2);
+  transition: background var(--dur) var(--ease-out-soft), color var(--dur) var(--ease-out-soft); }
+.deck-tab:hover { background: var(--surface-2); color: var(--text); }
+.deck-tab.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 500; }
+.grow { flex: 1; }
+.save-state { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--hit);
+  padding: 0 var(--sp-2); border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-3); line-height: var(--lh-caption); }
+.save-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); opacity: 0.75; }
+.save-state.saving .save-dot { background: var(--warning); animation: pulse 0.6s infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+.kbd { font-family: var(--font-mono); font-size: var(--fs-tiny); padding: 1px 5px; border-radius: var(--radius-xs);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-3); }
+.menu-anchor { position: relative; }
+.menu { position: absolute; right: 0; top: calc(100% + var(--sp-1)); min-width: 148px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-hover); padding: var(--sp-1); z-index: var(--z-menu); display: none; }
+.menu.open { display: block; animation: fade-in var(--dur) var(--ease-emphasis); }
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.menu-item { display: flex; align-items: center; gap: var(--sp-2); width: 100%; min-height: var(--hit);
+  padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm); font-size: var(--fs-sub); color: var(--text-2); text-align: left; }
+.menu-item:hover { background: var(--surface-2); color: var(--text); }
+.menu-item .sw { width: 10px; height: 10px; border-radius: var(--radius-xs); border: 1px solid var(--border-strong); }
+.menu-item.on { color: var(--accent-ink); background: var(--accent-light); }
+
+/* ===================== 方向台正文 ===================== */
+.compass { max-width: 1440px; margin: 0 auto; padding: var(--sp-4) var(--sp-6) calc(var(--sp-7) + 28px); }
+
+/* ── ① hero 状态带：只报状态（健康度/主攻/停滞），结构计数归战略骨架条（一处不两说） ── */
+.hero { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); }
+.dhi-badge { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--hit);
+  padding: 0 var(--sp-2); border-radius: var(--radius-full); font-size: var(--fs-caption); font-weight: 500;
+  line-height: var(--lh-caption); background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.hero-stat { display: inline-flex; align-items: center; gap: 3px; min-height: var(--hit); padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-3); line-height: var(--lh-caption);
+  font-variant-numeric: tabular-nums; }
+.hero-stat b { color: var(--text-2); font-weight: 600; }
+.hero-stat:hover { background: var(--surface-2); }
+.hero-note { display: inline-flex; align-items: center; gap: 2px; min-height: var(--hit); padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+.hero-note svg { width: 12px; height: 12px; }
+.hero-note:hover { color: var(--accent-ink); background: var(--surface-2); }
+.hs-sep { width: 1px; height: 12px; background: var(--border); }
+.hero-tools { display: inline-flex; gap: var(--sp-1); margin-left: auto; }
+.tool { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--hit); padding: 0 var(--sp-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--fs-caption);
+  line-height: var(--lh-caption); color: var(--text-2);
+  transition: border-color var(--dur) var(--ease-out-soft), color var(--dur) var(--ease-out-soft); }
+.tool:hover { border-color: var(--border-strong); color: var(--text); }
+.tool.off { color: var(--text-4); border-style: dashed; }
+
+/* ── ② 战略骨架条（地图不是主角：默认一条状态带，点层展开） ── */
+.spine { margin-top: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.spine-h { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-4); min-height: 44px; }
+.spine-ico { color: var(--accent-ink); font-size: var(--fs-body); }
+.spine-t { font-size: var(--fs-sub); font-weight: 600; letter-spacing: var(--tracking-sm); color: var(--text-2); }
+.spine-chain { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+.sp-node { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--hit);
+  padding: 0 var(--sp-2); border-radius: var(--radius-sm); font-size: var(--fs-caption); line-height: var(--lh-caption);
+  color: var(--text-2); transition: background var(--dur) var(--ease-out-soft), color var(--dur) var(--ease-out-soft); }
+.sp-node i { font-style: normal; font-family: var(--font-mono); font-size: var(--fs-tiny); color: var(--text-4);
+  width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-xs); }
+.sp-node b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.sp-node:hover { background: var(--surface-2); color: var(--text); }
+.sp-node.warn b { color: var(--warning); }
+.sp-arrow { color: var(--text-4); font-size: var(--fs-tiny); }
+.spine-acts { display: inline-flex; gap: var(--sp-1); margin-left: auto; }
+.spine-panel { max-height: 0; overflow: hidden; transition: max-height var(--dur-slow) var(--ease-emphasis); }
+.spine.open .spine-panel { max-height: 320px; }
+.spine-body { display: flex; gap: var(--sp-5); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border); }
+.layer-card { flex: 1; min-width: 280px; padding: var(--sp-4); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); background: var(--surface-2); }
+.layer-card .lc-badge { display: inline-block; margin-bottom: var(--sp-2); }
+.lc-badge { font-size: var(--fs-caption); font-weight: 600; letter-spacing: var(--tracking-sm);
+  color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-xs); padding: 2px 6px; }
+.lc-badge.ghost { color: var(--text-3); background: var(--tag-neutral-bg); }
+/* 六层字阶契约：愿景 22 唯一 display › 使命 17（项目 17 / 目标 15 见舱区） */
+.vision-text { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 600; letter-spacing: -0.01em; }
+.mission-text { font-size: var(--fs-headline); line-height: var(--lh-headline); font-weight: 600; letter-spacing: -0.01em; color: var(--text-2); }
+.lc-links { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap; }
+.lc-link { display: inline-flex; align-items: center; gap: 3px; min-height: var(--hit); padding: 0 var(--sp-2);
+  border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--fs-caption);
+  line-height: var(--lh-caption); color: var(--text-3); }
+.lc-link:hover { border-color: var(--accent); color: var(--accent-ink); }
+.lc-chip { display: inline-flex; align-items: center; gap: 3px; max-width: 22ch; overflow: hidden;
+  padding: 2px 8px; border-radius: var(--radius-full); background: var(--surface-3);
+  font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-3);
+  white-space: nowrap; text-overflow: ellipsis; }
+.lc-chip .icon { color: var(--text-4); }
+
+/* ── ③ 主攻聚焦条（本轮优化：补「下一步」主句，与调度台 V3.9.18 同源） ── */
+.focus-strip { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-4); min-height: 44px;
+  border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--radius-sm);
+  background: var(--surface); }
+.fs-label { font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--tracking-sm); color: var(--text-3); }
+.fs-name { min-height: var(--hit); padding: 0 var(--sp-1); border-radius: var(--radius-sm);
+  font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; }
+.fs-name:hover { background: var(--surface-2); }
+.fs-detail { font-size: var(--fs-caption); color: var(--text-3); line-height: var(--lh-caption); }
+.fs-progress { width: 120px; height: 3px; border-radius: var(--radius-xs); background: var(--tag-neutral-bg); overflow: hidden; }
+.fs-progress i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-xs); }
+.fs-count { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.fs-next { max-width: 44ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 8px; border-radius: var(--radius-xs); background: var(--accent-light); color: var(--accent-ink);
+  font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.fs-go { min-height: var(--hit); padding: 0 var(--sp-2); margin-left: auto; border-radius: var(--radius-sm);
+  font-size: var(--fs-caption); color: var(--accent-ink); }
+.fs-go:hover { background: var(--accent-light); }
+
+/* ── ④ 画布：左栏项目导航 + 项目塔 / 全景 ── */
+.tree-layout { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: var(--sp-4);
+  margin-top: var(--sp-4); align-items: start; }
+.navside { position: sticky; top: calc(48px + var(--sp-2)); border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface); padding: var(--sp-2); }
+.ns-t { font-size: var(--fs-caption); font-weight: 600; letter-spacing: var(--tracking-sm);
+  color: var(--text-3); padding: var(--sp-2) var(--sp-2) var(--sp-1); }
+.ns-item { display: flex; align-items: center; gap: var(--sp-2); width: 100%; text-align: left;
+  min-height: var(--hit); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm);
+  border-left: 2px solid transparent; }
+.ns-item:hover { background: var(--surface-2); }
+.ns-item.on { background: var(--accent-light); border-left-color: var(--accent); }
+.ns-idx { font-family: var(--font-mono); font-size: var(--fs-tiny); color: var(--text-4); flex-shrink: 0; }
+.ns-body { min-width: 0; flex: 1; overflow: hidden; }
+.ns-n { display: flex; align-items: center; gap: 3px; min-width: 0; font-size: var(--fs-sub); line-height: var(--lh-sub);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ns-n > * { flex-shrink: 0; }
+.ns-n .icon { color: var(--accent-ink); }
+.ns-m { font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+.ns-item.on .ns-n { color: var(--accent-ink); font-weight: 500; }
+.ns-hint { padding: var(--sp-2); font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+
+.canvas { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+/* 极窄引导条：路牌不是招牌（V3.8.18 N3 口径延续） */
+.tl-head-row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-4); border-bottom: 1px solid var(--border); }
+.view-seg { display: inline-flex; gap: var(--sp-1); padding: 2px; background: var(--surface-2); border-radius: var(--radius-full); }
+.vs-b { min-height: calc(var(--hit) - 8px); padding: 0 var(--sp-3); border-radius: var(--radius-full);
+  font-size: var(--fs-sub); line-height: var(--lh-sub); color: var(--text-2); }
+.vs-b:hover { color: var(--text); }
+.vs-b.on { background: var(--surface); color: var(--text); font-weight: 500; border: 1px solid var(--border); }
+.gs-i { display: inline-flex; align-items: baseline; gap: 3px; font-size: var(--fs-caption); color: var(--text-3); line-height: var(--lh-caption); }
+.gs-i i { font-style: normal; font-family: var(--font-mono); font-size: var(--fs-tiny); color: var(--text-4);
+  border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 0 3px; }
+.gs-i b { font-variant-numeric: tabular-nums; }
+.gs-d { font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+.gs-sep { width: 1px; height: 12px; background: var(--border); }
+
+/* ── 项目塔：目标分组 → 项目舱 ── */
+.tower { padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+.tg-head { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--hit); }
+.tg-name { font-size: var(--fs-title); font-weight: 600; letter-spacing: -0.01em; } /* 目标 15（项目 17 › 目标 15 有意取舍） */
+.tg-count { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.tg-locate { margin-left: auto; min-height: var(--hit); padding: 0 var(--sp-2); border-radius: var(--radius-sm);
+  font-size: var(--fs-caption); color: var(--text-3); }
+.tg-locate:hover { background: var(--surface-2); color: var(--text); }
+.tower-body { display: flex; flex-direction: column; gap: var(--card-gap); }
+.tw { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+.tw.locate-flash { animation: flash 1.2s var(--ease-out-soft); }
+@keyframes flash { 0%, 60% { border-color: var(--accent); } 100% { border-color: var(--border); } }
+.tw-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--card-pad-vert) var(--card-pad-horz); }
+.tw-idx { font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--text-4); flex-shrink: 0; }
+.tw-name { display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-headline); font-weight: 600; letter-spacing: -0.01em; } /* 项目 17 */
+.tw-right { display: flex; align-items: center; gap: var(--sp-2); flex: none; margin-left: auto; }
+.tw-pct { font-size: var(--fs-sub); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tw-bar { width: 88px; height: 3px; border-radius: var(--radius-xs); background: var(--tag-neutral-bg); overflow: hidden; }
+.tw-bar i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-xs); }
+.tw-fold { width: var(--hit); height: var(--hit); border-radius: var(--radius-sm); color: var(--text-3);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform var(--dur) var(--ease-out-soft), background var(--dur) var(--ease-out-soft); }
+.tw-fold:hover { background: var(--surface-2); color: var(--text); }
+.tw.folded .tw-fold { transform: rotate(-90deg); }
+.tw-fold svg { transition: transform var(--dur) var(--ease-out-soft); }
+.tw-body { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.tw.folded .tw-body { display: none; }
+/* 指标行：真进度条（W12-5） */
+.mc { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--hit);
+  padding: var(--sp-1) var(--sp-3); border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.mc-name { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 500; line-height: var(--lh-body);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-name:hover { color: var(--accent-ink); }
+.mc-count { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.mc-bar { width: 72px; height: 3px; border-radius: var(--radius-xs); background: var(--surface-3); overflow: hidden; flex-shrink: 0; }
+.mc-bar i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-xs); }
+.mc-acts { display: inline-flex; gap: 2px; opacity: 0; transition: opacity var(--dur) var(--ease-out-soft); }
+.mc:hover .mc-acts, .mc:focus-within .mc-acts { opacity: 1; }
+.mc-act { min-width: var(--hit); height: var(--hit); padding: 0 var(--sp-1); border-radius: var(--radius-sm);
+  color: var(--text-3); font-size: var(--fs-caption); }
+.mc-act:hover { background: var(--surface-3); color: var(--text); }
+.mc-act.danger:hover { color: var(--danger); }
+/* 任务行：白底 + 缩进分叉臂 + 账本三列（完成热区 / 标题与线索 / 行尾） */
+.tks { padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+.tk { position: relative; display: grid; grid-template-columns: var(--hit) minmax(0, 1fr) auto;
+  align-items: center; gap: var(--sp-2); min-height: 36px; margin-left: var(--sp-4);
+  padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm); background: var(--surface-2); }
+.tk + .tk { margin-top: var(--sp-1); }
+/* 分叉臂：从指标行垂下的缩进臂（W12-5 ③） */
+.tk::before { content: ""; position: absolute; left: calc(-1 * var(--sp-3)); top: -50%;
+  width: var(--sp-3); height: 100%; border-left: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong); border-bottom-left-radius: var(--radius-xs); pointer-events: none; }
+.tk:first-child::before { height: 50%; top: 0; }
+.tk:last-child::before { height: 50%; }
+.tk:first-child:last-child::before { height: 50%; }
+.tk-check { width: var(--hit); height: var(--hit); border-radius: var(--radius-sm); position: relative; }
+.tk-check::before { content: ""; position: absolute; left: 5px; top: 50%; width: 16px; height: 16px;
+  transform: translateY(-50%); border: 1.5px solid var(--text-4); border-radius: 4px;
+  transition: all var(--dur) var(--ease-out-soft); }
+.tk-check.done::before { background: var(--success); border-color: var(--success); }
+.tk-check:hover::before { border-color: var(--accent); }
+.tk-title { min-width: 0; font-size: var(--fs-sub); line-height: var(--lh-sub);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.tk.done .tk-title { text-decoration: line-through; color: var(--text-3); }
+.tk-meta { font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); white-space: nowrap; }
+.tk-side { display: inline-flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
+.tk-pri { font-size: var(--fs-tiny); font-weight: 600; color: var(--text-3); background: var(--surface-3);
+  padding: 0 5px; border-radius: var(--radius-xs); }
+.tk-del { min-width: var(--hit); height: var(--hit); border-radius: var(--radius-sm); color: var(--text-4);
+  opacity: 0; transition: opacity var(--dur) var(--ease-out-soft), color var(--dur); }
+.tk:hover .tk-del, .tk-del:focus-visible { opacity: 1; }
+.tk-del:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.hide-done .tk.done { display: none; }
+/* 无归属收容区 */
+.orph { margin-top: var(--sp-2); display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+.orph .icon { color: var(--warning); }
+.orph-t { flex: 1; font-size: var(--fs-sub); color: var(--text-2); line-height: var(--lh-sub); }
+
+/* ── 项目全景：切换 → 摘要 → 泳道（V3.9.17 一条阅读路径） ── */
+.pano { display: none; }
+.pano.on { display: block; }
+.tower-view:not(.on) { display: none; }
+.ph-toolbar { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-4); border-bottom: 1px solid var(--border); }
+.ph-select { min-height: var(--hit); padding: 0 var(--sp-2); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
+  font-size: var(--fs-sub); line-height: var(--lh-sub); }
+.ph-note { font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+.ph-b { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.ph-name { font-size: var(--fs-headline); font-weight: 600; letter-spacing: -0.01em; }
+.ph-next { font-size: var(--fs-body); color: var(--text-2); }
+.ph-next b { color: var(--text); font-weight: 500; }
+.ph-foot { font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); margin-left: auto; }
+.lanes-wrap { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+.lanes { display: flex; gap: var(--card-gap); align-items: stretch; }
+.lanes.scrollable { overflow-x: auto; padding-bottom: var(--sp-2); }
+.lanes.scrollable .lane { flex: 0 0 280px; } /* 5+ 指标：保 280px 可读下限横向滚动 */
+.lane { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--surface); display: flex; flex-direction: column; }
+.lane-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.lane-name { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: 600; line-height: var(--lh-body);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lane-count { font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.lane-bar { height: 3px; background: var(--surface-3); }
+.lane-bar i { display: block; height: 100%; background: var(--accent); }
+.lane-tasks { padding: var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-1); }
+.lane-tk { display: grid; grid-template-columns: var(--hit) minmax(0, 1fr); align-items: center; gap: var(--sp-1);
+  min-height: 36px; padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm); background: var(--surface-2); }
+.lane-tk .tk-title { font-size: var(--fs-sub); }
+.lane.orphan-lane { border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
+.lane.orphan-lane .lane-head { background: var(--tag-warn-bg); }
+.lane.orphan-lane .lane-name { color: var(--tag-warn-text); }
+.lane-empty { padding: var(--sp-3); font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+
+/* ── 底部任务调度入口 ── */
+.foot-note { margin-top: var(--sp-4); display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+.foot-note .icon { color: var(--text-4); }
+
+/* ── 断点（D-2：1024 / 800 两档） ── */
+@media (max-width: 1024px) {
+  .tree-layout { grid-template-columns: minmax(0, 1fr); }
+  .navside { position: static; }
+  .ns-list { display: flex; gap: var(--sp-1); overflow-x: auto; }
+  .ns-item { flex: 0 0 auto; border-left: 0; border: 1px solid var(--border); border-radius: var(--radius-full); padding: 0 var(--sp-2); }
+  .ns-item.on { border-color: var(--accent); }
+  .ns-hint { display: none; }
+}
+@media (max-width: 800px) {
+  .compass { padding: var(--sp-3) var(--sp-4) var(--sp-5); }
+  .proto-banner, .topbar { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .topbar-inner { flex-wrap: wrap; height: auto; min-height: 48px; }
+  .hero { font-size: var(--fs-caption); }
+  .lanes { flex-direction: column; }
+  .lanes.scrollable .lane { flex: 1 1 auto; }
+}
+
+/* ===================== 抽屉 / Toast / 审核巡检（与调度台原型同构） ===================== */
+.scrim { position: fixed; inset: 0; background: var(--overlay-bg); z-index: var(--z-overlay);
+  opacity: 0; pointer-events: none; transition: opacity var(--dur-slow) var(--ease-out-soft); }
+.scrim.show { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); z-index: calc(var(--z-overlay) + 1);
+  background: var(--surface); border-left: 1px solid var(--border); box-shadow: var(--shadow-modal);
+  transform: translateX(100%); transition: transform var(--dur-slow) var(--ease-emphasis);
+  display: flex; flex-direction: column; }
+.drawer.show { transform: translateX(0); }
+.dw-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+.dw-crumb { display: flex; align-items: center; gap: var(--sp-1); min-height: var(--hit); padding: 0 var(--sp-1);
+  font-size: var(--fs-caption); color: var(--text-3); line-height: var(--lh-caption); border-radius: var(--radius-sm); }
+.dw-body { flex: 1; overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
+.dw-body h3 { font-size: var(--fs-headline); line-height: var(--lh-headline); font-weight: 600; letter-spacing: -0.01em; }
+.dw-body .desc { font-size: var(--fs-body); color: var(--text-2); line-height: var(--lh-body); }
+.dw-sec { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); }
+.dw-foot { display: flex; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); }
+.res-row { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--hit); padding: var(--sp-1);
+  border-bottom: 1px solid var(--border); border-radius: var(--radius-sm); }
+.res-row:hover { background: var(--surface-2); }
+.res-row .t { flex: 1; min-width: 0; font-size: var(--fs-body); line-height: var(--lh-body);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-row .m { font-size: var(--fs-caption); color: var(--text-3); }
+.mount-note { font-size: var(--fs-caption); color: var(--text-4); line-height: var(--lh-caption); }
+.toast-zone { position: fixed; top: calc(48px + var(--sp-2)); right: var(--sp-4); z-index: var(--z-toast);
+  display: flex; flex-direction: column; gap: var(--sp-2); width: 320px; }
+.toast { display: flex; align-items: center; gap: var(--sp-3); background: var(--toast-bg); color: var(--toast-fg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-modal);
+  padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sub); line-height: var(--lh-sub);
+  animation: toast-in var(--dur-slow) var(--ease-spring); }
+.toast.out { opacity: 0; transform: translateX(8px); transition: all var(--dur) var(--ease-out-soft); }
+.toast .tx { flex: 1; min-width: 0; }
+.toast .ta { color: var(--toast-action); font-weight: 600; min-height: var(--hit); padding: 0 var(--sp-1);
+  display: inline-flex; align-items: center; border-radius: var(--radius-sm); }
+.toast .ta:hover { background: color-mix(in srgb, var(--toast-action) 12%, transparent); }
+@keyframes toast-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+.rv-fab { position: fixed; right: var(--sp-4); bottom: var(--sp-5); z-index: var(--z-global);
+  display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--hit); padding: 0 var(--sp-3);
+  background: var(--accent); color: #fff; border-radius: var(--radius-md); font-size: var(--fs-sub);
+  font-weight: 500; line-height: var(--lh-sub); box-shadow: var(--shadow-modal); }
+.rv-fab:hover { background: var(--accent-hover); }
+.rv-fab .n { background: rgba(255, 255, 255, 0.22); border-radius: var(--radius-xs); padding: 0 6px; font-size: var(--fs-caption); }
+.rv-rail { position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 100vw); z-index: calc(var(--z-global) + 1);
+  background: var(--surface); border-left: 1px solid var(--border); box-shadow: var(--shadow-modal);
+  transform: translateX(100%); transition: transform var(--dur-slow) var(--ease-emphasis);
+  display: flex; flex-direction: column; }
+.rv-rail.show { transform: translateX(0); }
+.rv-head { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+.rv-head h3 { font-size: var(--fs-title); line-height: var(--lh-title); font-weight: 600; }
+.rv-head .rv-prog { font-size: var(--fs-caption); color: var(--text-3); line-height: var(--lh-caption); margin-top: 2px; }
+.rv-body { flex: 1; overflow-y: auto; padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+.rv-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-3); }
+.rv-card.accept .rv-name::before { content: "✓ "; color: var(--success); }
+.rv-card.reject { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.rv-name { font-size: var(--fs-sub); font-weight: 600; line-height: var(--lh-sub); }
+.rv-specs { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-2); }
+.rv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-top: var(--sp-2); }
+.rv-cell b { display: block; font-size: var(--fs-micro); color: var(--text-4); letter-spacing: var(--tracking-sm); line-height: var(--lh-micro); margin-bottom: 2px; font-weight: 600; }
+.rv-cell span { font-size: var(--fs-caption); color: var(--text-2); line-height: var(--lh-caption); display: block; }
+.rv-verdict { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
+.rv-verdict button { min-height: var(--hit); padding: 0 var(--sp-3); border-radius: var(--radius-sm);
+  font-size: var(--fs-caption); border: 1px solid var(--border); color: var(--text-2); line-height: var(--lh-caption); }
+.rv-verdict button.on-ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); border-color: transparent; }
+.rv-verdict button.on-no { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); border-color: transparent; }
+.rv-notes { width: 100%; margin-top: var(--sp-2); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: var(--fs-caption); line-height: var(--lh-caption);
+  padding: var(--sp-2); min-height: 48px; resize: vertical; font-family: inherit; }
+.rv-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); display: flex; gap: var(--sp-2); }
+.rv-demo { border: 1px dashed var(--border-strong); border-radius: var(--radius-md); padding: var(--sp-3); }
+.rv-demo h4 { font-size: var(--fs-caption); color: var(--text-3); letter-spacing: var(--tracking-sm); line-height: var(--lh-caption); margin-bottom: var(--sp-2); font-weight: 600; }
+.rv-demo ol { padding-left: 20px; font-size: var(--fs-caption); color: var(--text-2); line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  <span><b>审核稿 V1</b> · 方向台按 04-73 规范做 UI 层优化 · 基线 V3.9.17 结构（骨架条 / 项目塔 / 全景不推翻） · 色值/字号/间距/圆角取自 tokens.css · 演示数据虚构</span>
+  <span style="display:flex;gap:8px">
+    <button class="btn ghost" id="btnHowReview">怎么审</button>
+    <button class="btn ghost" id="btnThemeNext">换主题</button>
+  </span>
+</div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="brand-mark">知</span>知源<span style="font-size:var(--fs-caption);color:var(--text-4);font-weight:400">Ownway</span></div>
+    <nav class="deck-tabs" aria-label="台面切换">
+      <button class="deck-tab">调度台</button>
+      <button class="deck-tab active">方向台</button>
+      <button class="deck-tab">策展台 <span style="font-size:var(--fs-caption);opacity:.7">1</span></button>
+      <button class="deck-tab">画像洞察</button>
+    </nav>
+    <span class="grow"></span>
+    <span class="save-state" id="saveState" role="status" data-tip="本地保存状态 · 数据只存在这台电脑">
+      <span class="save-dot"></span><span id="saveText">已保存 09:12</span>
+    </span>
+    <div class="menu-anchor">
+      <button class="icon-btn" id="btnTheme" aria-label="主题与密度" data-tip="主题 × 密度"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 2-1 2-2s-.7-1.6 0-2.4c.8-.9 2.5-.3 3.6-1.2 1.6-1.3.6-4.4-1-6.4C15.6 6.6 13 3 12 3Z"/></svg></button>
+      <div class="menu" id="themeMenu" role="menu">
+        <button class="menu-item on" data-theme="linear"><span class="sw" style="background:#0D0E11"></span>深空薰衣草</button>
+        <button class="menu-item" data-theme="raycast"><span class="sw" style="background:#08080A"></span>光速黑</button>
+        <button class="menu-item" data-theme="apple"><span class="sw" style="background:#F5F5F7"></span>极简白</button>
+        <button class="menu-item" data-theme="notion"><span class="sw" style="background:#F7F6F3"></span>纸墨白</button>
+        <div style="height:1px;background:var(--border);margin:4px 0"></div>
+        <button class="menu-item" id="mDensity"><span class="sw" style="background:var(--text-3)"></span>密度：舒适</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="compass" id="compassTop">
+
+  <!-- ① hero 状态带：只报「状态」（健康度/主攻/停滞）。六层结构计数归下方战略骨架条——一处账本，页头不重复报数 -->
+  <section class="hero" aria-label="方向台状态与操作">
+    <span class="dhi-badge" data-tip="方向健康度 = 未停滞的战略目标数 ÷ 目标总数（某目标下最近一次任务更新距今超 14 天记为停滞）· 只描述现状，不是评分"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7Z"/></svg>方向健康度：稳健</span>
+    <i class="hs-sep"></i>
+    <button class="hero-stat" data-tip="主攻 = 标记为战略重心的可见项目数（上限 2 个）">主攻 <b>2</b></button><i class="hs-sep"></i>
+    <button class="hero-stat" data-tip="停滞 = 近 14 天无任务推进、且已有任务的可见项目数 · 中性读数，不催办">停滞 <b>1</b></button>
+    <button class="hero-note" id="heroToSpine" data-tip="愿景→任务六层计数只在战略骨架条读一处；点击展开第 1 层（愿景原文）">六层计数 · 战略骨架<svg class="icon sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="hero-tools">
+      <button class="tool" id="btnExpandAll" data-tip="反向开关：点一次展开全部目标与指标，再点收起"><svg class="icon sm" viewBox="0 0 24 24"><path d="M8 7 4 12l4 5M16 7l4 5-4 5"/></svg> 全部展开</button>
+      <button class="tool" id="btnShowDone" data-tip="与调度台同一开关：一处切换，全台生效"><svg class="icon sm" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg> 已完成项目：显示</button>
+    </div>
+  </section>
+
+  <!-- ② 战略骨架条：地图不是主角，默认状态带；点层位展开（愿景 22 唯一 display） -->
+  <section class="spine" id="spine" aria-label="战略骨架控制条">
+    <div class="spine-h">
+      <span class="spine-ico" aria-hidden="true">◈</span>
+      <span class="spine-t">战略骨架</span>
+      <span class="chip" data-tip="上层定方向 · 下层见动作；默认收起，点层位展开">已收起</span>
+      <div class="spine-chain" role="tablist" aria-label="六层链">
+        <button class="sp-node" data-layer="1" data-tip="愿景 = 终极方向（全库一条）。点击展开第 1 层"><i>1</i>愿景 <b>1</b></button>
+        <span class="sp-arrow">›</span>
+        <button class="sp-node" data-layer="2" data-tip="使命 = 行动准则，由愿景派生。点击展开第 2 层"><i>2</i>使命 <b>1</b></button>
+        <span class="sp-arrow">›</span>
+        <button class="sp-node" data-layer="3" data-tip="战略目标（方向）。点击定位到分组头"><i>3</i>目标 <b>3</b></button>
+        <span class="sp-arrow">›</span>
+        <button class="sp-node" data-layer="4" data-tip="攻坚项目。点击定位到项目塔顶部"><i>4</i>项目 <b>5</b></button>
+        <span class="sp-arrow">›</span>
+        <button class="sp-node" data-layer="5" data-tip="成功指标。点击定位到第一条指标行"><i>5</i>指标 <b>8</b></button>
+        <span class="sp-arrow">›</span>
+        <button class="sp-node warn" data-layer="6" data-tip="任务。点击定位到无归属收容区：缺任务指标 1 · 无归属任务 2"><i>6</i>任务 <b>23</b></button>
+      </div>
+      <div class="spine-acts">
+        <button class="btn ghost" id="btnRisk" data-tip="只看断链：缺任务的指标 + 无归属任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18v.5"/></svg> 只看断链</button>
+        <button class="btn secondary" id="btnAddDir">＋ 战略目标</button>
+        <button class="btn ghost" id="spToggle" aria-expanded="false"><svg class="icon sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> 展开</button>
+      </div>
+    </div>
+    <div class="spine-panel">
+      <div class="spine-body">
+        <div class="layer-card" id="layer1">
+          <span class="lc-badge">1 愿景 · 终极方向</span>
+          <p class="vision-text" title="点击就地编辑（Ctrl+Enter 保存 · Esc 取消）">做省域政策研究里最懂「落地差距」的独立顾问</p>
+          <div class="lc-links">
+            <button class="lc-link"><svg class="icon sm" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7L12.5 19"/></svg> 关联卡片 2</button>
+            <span class="lc-chip"><svg class="icon sm" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg>品牌定位手册 2026.pdf</span>
+            <span class="lc-chip"><svg class="icon sm" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 4 10.5c-.8.7-1 1.5-1 2.5h-6c0-1-.2-1.8-1-2.5A6 6 0 0 1 12 3Z"/></svg>顾问定位如何差异化？</span>
+          </div>
+        </div>
+        <div class="layer-card" id="layer2">
+          <span class="lc-badge ghost">2 使命 · 行动准则</span>
+          <p class="mission-text" title="点击就地编辑">以好奇过滤信息，以调度致用于己——每个判断都有出处，每次调用都在轨道上</p>
+          <div class="lc-links">
+            <button class="lc-link"><svg class="icon sm" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7L12.5 19"/></svg> 关联卡片 1</button>
+            <span class="lc-chip"><svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg>欧盟 AI Act 对省际政策的外溢分析</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ 主攻聚焦条（本轮优化：补「下一步」主句，与调度台 V3.9.18 主攻面板同源） -->
+  <section class="focus-strip" aria-label="当前主攻">
+    <span class="fs-label">当前主攻</span>
+    <button class="fs-name" id="fsName" data-tip="定位到项目舱">省级科创政策对比研究</button>
+    <span class="fs-detail">政策研究主线 · 3 指标 · 8 任务</span>
+    <span class="fs-progress" aria-hidden="true"><i style="width:62%"></i></span>
+    <span class="fs-count">5 / 8 项任务</span>
+    <span class="fs-next" data-tip="下一步为项目一等公民：你填写的优先，清空后按任务自动推导（与项目详情同源）">下一步 · 补齐浙江 2026 版政策原文，核对新版差异条款</span>
+    <button class="fs-go" id="fsGo">继续推进 ↓</button>
+  </section>
+
+  <!-- ④ 画布：左栏项目导航 + 项目塔 / 项目全景 -->
+  <div class="tree-layout">
+    <aside class="navside" aria-label="项目导航">
+      <div class="ns-t">项目塔 · 5 个舱</div>
+      <div class="ns-list" id="nsList"></div>
+      <div class="ns-hint">点任意舱直达；滚动时左侧自动跟随当前视野所在舱</div>
+    </aside>
+
+    <div class="canvas">
+      <div class="tl-head-row">
+        <div class="view-seg" role="tablist" aria-label="项目视图形态">
+          <button class="vs-b on" id="segTower" role="tab" aria-selected="true" data-tip="纵向项目舱列 · 看我在哪个位置">项目塔</button>
+          <button class="vs-b" id="segPano" role="tab" aria-selected="false" data-tip="横向泳道全景 · 看一个项目的完整链路">项目全景</button>
+        </div>
+        <span class="gs-i"><i>3</i>战略目标 <b>3</b></span><span class="gs-d">方向要往哪走</span>
+        <span class="gs-sep"></span>
+        <span class="gs-i"><i>4</i>攻坚项目 <b>5</b></span><span class="gs-d">落地靠哪些舱</span>
+        <span class="gs-sep"></span>
+        <span class="gs-i"><i>5</i>成功指标 <b>8</b></span><span class="gs-d">怎么算做成</span>
+        <span class="gs-sep"></span>
+        <span class="gs-i"><i>6</i>任务 <b>23</b></span><span class="gs-d">今天动哪一件</span>
+      </div>
+
+      <!-- 项目塔 -->
+      <div class="tower tower-view on" id="towerView"></div>
+
+      <!-- 项目全景：切换 → 摘要 → 泳道（V3.9.17 单一阅读路径；泳道分档演示） -->
+      <div class="pano" id="panoView">
+        <div class="ph-toolbar">
+          <select class="ph-select" id="phSelect" aria-label="切换项目"></select>
+          <button class="btn ghost" id="phBack">‹ 回项目塔</button>
+          <span class="ph-note" id="phNote"></span>
+          <span style="flex:1"></span>
+          <button class="btn ghost" data-tip="导入模板 / AI 建议指标 / AI 诊断（演示）">⋯</button>
+        </div>
+        <div class="ph-b">
+          <span class="ph-name" id="phName"></span>
+          <span class="chip accent" id="phFocus" data-tip="主攻 = 战略重心项目，全库上限 2 个">主攻</span>
+          <span class="ph-next">下一步：<b id="phNext"></b></span>
+          <span class="ph-foot">第 4 层 项目 › 第 5 层 成功指标 › 第 6 层 任务</span>
+        </div>
+        <div class="lanes-wrap">
+          <div class="lanes" id="lanes"></div>
+        </div>
+      </div>
+
+      <div class="foot-note">
+        <svg class="icon sm" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        任务调度面板（底部）：未挂项目的任务在此归位 · Alt+2 快速回方向台 · 六层模型与三卡数据关系不变
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 任务详情抽屉（只挂资源 · 单向呈现） -->
+<div class="scrim" id="dwScrim"></div>
+<aside class="drawer" id="taskDrawer" role="dialog" aria-modal="true" aria-label="任务详情">
+  <div class="dw-head">
+    <button class="dw-crumb" id="dwCrumb">政策对比研究 › 覆盖省份数</button>
+    <span style="flex:1"></span>
+    <button class="icon-btn" data-close aria-label="关闭"><svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="dw-body">
+    <h3 id="dwTitle">整理长三角三省科创政策差异表</h3>
+    <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap">
+      <span class="chip warn">今天到期</span><span class="chip accent">主攻关联</span><span class="chip">进行中</span>
+    </div>
+    <p class="desc">把沪苏浙三份 2026 版政策文本按「资金 / 人才 / 平台 / 成果转化」四栏对齐，标出省际差异条款，差异表进策展台《省际对比》节点。</p>
+    <p class="dw-sec">挂载资源 · 2</p>
+    <div>
+      <div class="res-row"><svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg><span class="t">浙江省科技厅 2026 年一号文件</span><span class="m">网页</span></div>
+      <div class="res-row"><svg class="icon sm" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg><span class="t">长三角一体化纲要 · 政策附录.pdf</span><span class="m">文件</span></div>
+    </div>
+    <p class="mount-note">挂载是单向的：只有任务挂资源，且只在任务侧呈现——资源卡那边不回显，好奇心卡与资源卡互不挂载。</p>
+  </div>
+  <div class="dw-foot">
+    <button class="btn secondary" id="dwDone">标记完成</button>
+    <button class="btn ghost" id="dwSched">排进今天</button>
+    <button class="btn ghost" id="dwAddMetric" style="margin-left:auto" data-tip="无归属任务从任务侧挂指标，写入口径唯一">挂到指标</button>
+  </div>
+</aside>
+
+<div class="toast-zone" id="toastZone" aria-live="polite"></div>
+<button class="rv-fab" id="rvFab">审核 <span class="n" id="rvN">0/10</span></button>
+
+<aside class="rv-rail" id="rvRail" aria-label="审核巡检">
+  <div class="rv-head">
+    <h3>方向台 · 模块巡检</h3>
+    <p class="rv-prog" id="rvProg">已判定 0 / 10 · 逐块给「可接受 / 需改」与备注，最后导出</p>
+    <div class="rv-demo">
+      <h4>演示脚本（按序体验）</h4>
+      <ol>
+        <li>页首只报状态（健康度 / 主攻 / 停滞），六层计数点「战略骨架」下钻（一处账本不重复报数）；「全部展开 / 已完成」两枚开关真实反向</li>
+        <li>骨架条点「1 愿景」→ 展开面板：愿景 22 全页唯一 display；点 3–6 层位看定位反馈</li>
+        <li>主攻聚焦条：新「下一步」chip 悬停看口径；「继续推进 ↓」闪定位主攻舱</li>
+        <li>左栏点舱直达 + 闪定位；舱头开合把手折叠指标；任务行勾选 / 删除（软删撤销）</li>
+        <li>切「项目全景」：切三个项目看<b>泳道分档</b>——1 指标铺满、2–4 等分、6 指标保 280px 横向滚动 + 红色收容道</li>
+        <li>泳道任务行点开任务抽屉（只挂资源）；顶栏换四主题、密度切「紧凑」看舱行收口</li>
+      </ol>
+    </div>
+  </div>
+  <div class="rv-body" id="rvBody"></div>
+  <div class="rv-foot">
+    <button class="btn primary" id="rvExport">导出审核结果</button>
+    <button class="btn secondary" id="rvCopy">复制摘要</button>
+    <button class="btn ghost" id="rvClose">收起</button>
+  </div>
+</aside>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+function toast(msg, opt = {}) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="tx">${msg}</span>` + (opt.action ? `<button class="ta">${opt.action}</button>` : '');
+  $('#toastZone').appendChild(el);
+  const kill = () => { el.classList.add('out'); setTimeout(() => el.remove(), 200); };
+  const t = setTimeout(kill, opt.action ? 6000 : 2400);
+  if (opt.action) el.querySelector('.ta').onclick = () => { clearTimeout(t); kill(); opt.onAction && opt.onAction(); };
+}
+let saveTimer;
+function touchSave() {
+  const s = $('#saveState');
+  s.classList.add('saving'); $('#saveText').textContent = '保存中…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    s.classList.remove('saving');
+    const d = new Date();
+    $('#saveText').textContent = `已保存 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }, 700);
+}
+
+/* ───────── 数据（演示虚构；口径与调度台原型同库同账） ───────── */
+const VISION = '做省域政策研究里最懂「落地差距」的独立顾问';
+const GROUPS = [
+  { name: '政策研究主线', projs: [
+    { idx: '1.1', name: '省级科创政策对比研究', focused: true, pct: 62, done: 5, total: 8, next: '补齐浙江 2026 版政策原文，核对新版差异条款',
+      metrics: [
+        { name: '覆盖省份数', done: 3, total: 6, tasks: [
+          { t: '整理长三角三省科创政策差异表', pri: '高', st: 'doing', due: '今天', clue: '沪苏浙 2026 版四栏对齐' },
+          { t: '补齐浙江 2026 版政策原文', pri: '高', st: 'todo', due: '今天', clue: '科技厅一号文 + 附件三' },
+          { t: '归纳苏北三市人才政策共性', pri: '中', st: 'todo', due: '后天', clue: '' },
+          { t: '汇总安徽补充条款', pri: '中', st: 'done', due: '', clue: '' },
+          { t: '下载山东三十条原文', pri: '低', st: 'done', due: '', clue: '' },
+          { t: '沪苏浙三地初筛对比', pri: '中', st: 'done', due: '', clue: '' } ] },
+        { name: '差异条款收录', done: 1, total: 1, tasks: [ { t: '差异条款表迁移进策展台', pri: '中', st: 'done', due: '', clue: '' } ] },
+        { name: '策展节点更新', done: 1, total: 1, tasks: [ { t: '《省际对比》证据节点补链', pri: '低', st: 'done', due: '', clue: '' } ] } ] },
+    { idx: '1.2', name: '长三角一体化跟踪', focused: false, pct: 25, done: 1, total: 4, next: '本周政策周报补苏浙皖三地科技条线',
+      metrics: [ { name: '政策周报连续输出', done: 1, total: 4, tasks: [
+        { t: '本周政策周报（科技条线）', pri: '中', st: 'todo', due: '周五', clue: '' },
+        { t: '苏浙皖三地动态清单更新', pri: '低', st: 'todo', due: '', clue: '' },
+        { t: '第 42 期周报归档进策展台', pri: '低', st: 'done', due: '', clue: '' },
+        { t: '建立周报模板库', pri: '低', st: 'todo', due: '', clue: '' } ] } ] } ] },
+  { name: '交付与增长', projs: [
+    { idx: '2.1', name: '年度咨询交付 · 制造业数字化', focused: true, pct: 60, done: 3, total: 5, next: '初稿第二节图表重制，周五前给合伙人过目',
+      metrics: [
+        { name: '交付里程碑', done: 2, total: 3, tasks: [
+          { t: '访谈纪要复核与标注', pri: '高', st: 'done', due: '', clue: '' },
+          { t: '起草客户简报初稿第二节', pri: '高', st: 'doing', due: '周五', clue: '黑灯工厂案例 · 图表重制' },
+          { t: '图表数据源核对', pri: '中', st: 'todo', due: '', clue: '' } ] },
+        { name: '客户证据库', done: 2, total: 2, tasks: [
+          { t: '黑灯工厂案例出处核对', pri: '中', st: 'done', due: '', clue: '' },
+          { t: '三家标杆企业年报摘录', pri: '低', st: 'done', due: '', clue: '' } ] } ] },
+    { idx: '2.2', name: '客户线索培育', focused: false, pct: 0, done: 0, total: 2, stalled: true, next: '把上次咨询复盘写成公开案例',
+      metrics: [ { name: '线索转化', done: 0, total: 2, tasks: [
+        { t: '整理往期客户复盘为案例稿', pri: '中', st: 'todo', due: '', clue: '停滞 · 最近 21 天无推进' },
+        { t: '周更一篇行业观察', pri: '低', st: 'todo', due: '', clue: '' } ] } ] } ] },
+  { name: '能力基建', projs: [
+    { idx: '3.1', name: '知源调度台深度使用', focused: false, pct: 50, done: 1, total: 2, next: '把六层链跑成周节奏',
+      metrics: [ { name: '工作流固化', done: 1, total: 2, tasks: [
+        { t: '每周五用「为什么这样排」复盘三件事', pri: '中', st: 'doing', due: '每周', clue: '' },
+        { t: '策展台节点周更一次', pri: '低', st: 'done', due: '', clue: '' } ] } ] } ] },
+];
+const ORPHANS = [
+  { t: '广东科技厅答复函要点摘录', pri: '低' },
+  { t: '会议速记 1018 整理', pri: '中' },
+];
+
+/* 全景演示项目（第三个故意 6 指标演示分档 + 收容道） */
+const PANO = [
+  { name: '省级科创政策对比研究', focus: true, next: '补齐浙江 2026 版政策原文', note: '1–4 条指标：泳道等分铺满', metrics: [
+    { name: '覆盖省份数', done: 3, total: 6, tasks: [ ['整理长三角三省科创政策差异表','高','doing','今天'], ['补齐浙江 2026 版政策原文','高','todo','今天'], ['归纳苏北三市人才政策共性','中','todo','后天'], ['汇总安徽补充条款','中','done',''] ] },
+    { name: '差异条款收录', done: 1, total: 1, tasks: [ ['差异条款表迁移进策展台','中','done',''] ] },
+    { name: '策展节点更新', done: 1, total: 1, tasks: [ ['《省际对比》证据节点补链','低','done',''] ] } ] },
+  { name: '年度咨询交付 · 制造业数字化', focus: true, next: '初稿第二节图表重制', note: '2 条指标：泳道等分铺满', metrics: [
+    { name: '交付里程碑', done: 2, total: 3, tasks: [ ['起草客户简报初稿第二节','高','doing','周五'], ['图表数据源核对','中','todo',''] ] },
+    { name: '客户证据库', done: 2, total: 2, tasks: [ ['黑灯工厂案例出处核对','中','done',''], ['三家标杆企业年报摘录','低','done',''] ] } ] },
+  { name: '长三角政策周报库', focus: false, next: '把周报固定成周五节奏', note: '5 条以上指标：保 280px 可读下限横向滚动 · 最右为收容道', metrics: [
+    { name: '上海科技条线', done: 2, total: 4, tasks: [ ['上海科委本周动态','中','todo','周五'] ] },
+    { name: '江苏科技条线', done: 1, total: 4, tasks: [ ['江苏科技厅本周动态','中','todo','周五'] ] },
+    { name: '浙江科技条线', done: 1, total: 4, tasks: [ ['浙江科技厅本周动态','中','todo','周五'] ] },
+    { name: '安徽科技条线', done: 0, total: 4, tasks: [ ['安徽科技厅本周动态','低','todo',''] ] },
+    { name: '跨省对比注记', done: 0, total: 2, tasks: [ ['三省同题政策对照注记','低','todo',''] ] },
+    { name: '读者反馈', done: 0, total: 2, tasks: [ ['订阅回复收集','低','todo',''] ] } ],
+    orphans: [ ['广东科技厅答复函要点摘录','低'], ['会议速记 1018 整理','中'] ] },
+];
+
+/* ───────── 渲染：左栏 / 项目塔 ───────── */
+function renderNav() {
+  $('#nsList').innerHTML = GROUPS.flatMap(g => g.projs).map((p, i) => `
+    <button class="ns-item ${i === 0 ? 'on' : ''}" data-i="${i}">
+      <span class="ns-idx">${p.idx}</span>
+      <span class="ns-body">
+        <span class="ns-n">${p.name}${p.focused ? '<svg class="icon sm" viewBox="0 0 24 24"><path d="M12 2 4.5 20.3l.7.7L12 18l6.8 3 .7-.7Z"/></svg>' : ''}${p.stalled ? '<span class="chip warn" style="padding:0 4px">停</span>' : ''}</span>
+        <span class="ns-m">${p.metrics.length} 指标 · ${p.total} 任务</span>
+      </span>
+    </button>`).join('');
+  $$('.ns-item').forEach(b => b.onclick = () => {
+    $$('.ns-item').forEach(x => x.classList.toggle('on', x === b));
+    const tw = $$('.tw')[+b.dataset.i];
+    tw && tw.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    tw && tw.classList.add('locate-flash');
+    setTimeout(() => tw && tw.classList.remove('locate-flash'), 1300);
+  });
+}
+function taskRow(t, metric) {
+  const st = t.st;
+  return `<div class="tk ${st === 'done' ? 'done' : ''}" data-task="${t.t}">
+    <button class="tk-check ${st === 'done' ? 'done' : ''}" aria-label="完成：${t.t}"></button>
+    <span class="tk-title" tabindex="0" role="button" title="单击打开任务详情">${t.t}${t.clue ? ` <span class="tk-meta">· ${t.clue}</span>` : ''}${t.due ? ` <span class="tk-meta" style="color:var(--warning)">· ${t.due}</span>` : ''}</span>
+    <span class="tk-side"><span class="tk-pri">${t.pri}</span><button class="tk-del" title="删除任务（进回收站，可恢复）" aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13h10l1-13"/></svg></button></span>
+  </div>`;
+}
+function metricRow(m) {
+  return `<div class="mc">
+    <span class="mc-name" tabindex="0" role="button" title="打开指标详情（连续下钻）">${m.name}</span>
+    <span class="mc-count">${m.done}/${m.total}</span>
+    <span class="mc-bar" data-tip="口径：该指标下已完成任务 / 共任务"><i style="width:${m.total ? Math.round(m.done / m.total * 100) : 0}%"></i></span>
+    <span class="mc-acts">
+      <button class="mc-act" data-act="mdetail" title="指标详情">详情 ›</button>
+      <button class="mc-act" data-act="madd" title="添加任务（新建 / 关联）">＋</button>
+      <button class="mc-act danger" data-act="mdel" title="删除指标（报数确认 + 撤销）">⌫</button>
+    </span>
+  </div>
+  <div class="tks">${m.tasks.map(t => taskRow(t, m)).join('')}</div>`;
+}
+function renderTower() {
+  $('#towerView').innerHTML = GROUPS.map(g => `
+    <section class="tg">
+      <div class="tg-head">
+        <span class="tg-name">${g.name}</span>
+        <span class="tg-count">${g.projs.length} 个项目舱 · ${g.projs.reduce((s, p) => s + p.metrics.length, 0)} 指标</span>
+        <button class="tg-locate" data-g="${g.name}">定位 ›</button>
+      </div>
+      <div class="tower-body">
+        ${g.projs.map(p => `
+        <div class="tw" data-proj="${p.name}">
+          <div class="tw-head">
+            <span class="tw-idx">${p.idx}</span>
+            <span class="tw-name">${p.name}
+              ${p.focused ? '<span class="chip accent">主攻</span>' : ''}
+              ${p.stalled ? '<span class="chip warn" data-tip="近 14 天无任务推进 · 中性读数，不催办">停滞</span>' : ''}
+            </span>
+            <span class="tw-right">
+              <span class="tw-pct" data-tip="口径：项目任务完成率（已完成 / 共任务）">${p.pct}%</span>
+              <span class="tw-bar"><i style="width:${p.pct}%"></i></span>
+              <button class="btn ghost" style="min-height:28px;padding:0 8px;font-size:var(--fs-caption)" data-act="pdetail" title="打开项目详情抽屉（概览 / 指标 / 任务）">详情 ›</button>
+              <button class="tw-fold" aria-label="折叠 / 展开指标与任务"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+            </span>
+          </div>
+          <div class="tw-body">${p.metrics.map(metricRow).join('')}
+            <div class="orph" data-tip="口径：本项目内、未挂任何成功指标的任务 · 从任务侧挂指标，写入口径唯一">
+              <svg class="icon sm" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18v.5"/></svg>
+              <span class="orph-t">${p.idx === '2.2' ? '本组无断链' : '无归属收容区 · 2 条任务未挂指标'}</span>
+              <button class="btn ghost" style="min-height:28px;padding:0 8px;font-size:var(--fs-caption)" data-act="orph">去归位</button>
+            </div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </section>`).join('');
+  wireTower();
+}
+
+/* ───────── 渲染：项目全景（泳道分档） ───────── */
+let panoIdx = 0;
+function renderPano() {
+  const p = PANO[panoIdx];
+  $('#phSelect').innerHTML = PANO.map((x, i) => `<option value="${i}" ${i === panoIdx ? 'selected' : ''}>${x.name}${x.focus ? ' · 主攻' : ''}</option>`).join('');
+  $('#phName').textContent = p.name;
+  $('#phFocus').style.display = p.focus ? '' : 'none';
+  $('#phNext').textContent = p.next;
+  $('#phNote').textContent = p.note;
+  const lanes = p.metrics.map(m => `
+    <div class="lane">
+      <div class="lane-head"><span class="lane-name">${m.name}</span><span class="lane-count">${m.done}/${m.total}</span></div>
+      <div class="lane-bar"><i style="width:${m.total ? Math.round(m.done / m.total * 100) : 0}%"></i></div>
+      <div class="lane-tasks">${m.tasks.map(([t, pri, st, due]) => `
+        <div class="lane-tk">
+          <button class="tk-check ${st === 'done' ? 'done' : ''}" aria-label="完成：${t}"></button>
+          <span class="tk-title" tabindex="0" role="button">${t}${due ? ` <span class="tk-meta" style="color:var(--warning)">· ${due}</span>` : ''}</span>
+        </div>`).join('') || '<div class="lane-empty">暂无任务 · 点「＋」从池里关联</div>'}
+      </div>
+    </div>`).join('') + (p.orphans ? `
+    <div class="lane orphan-lane" data-tip="收容道：本项目内未挂任何指标的任务 · 红色仅作区分，不催办">
+      <div class="lane-head"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18v.5"/></svg><span class="lane-name">无归属收容道</span><span class="lane-count">${p.orphans.length}</span></div>
+      <div class="lane-tasks">${p.orphans.map(([t, pri]) => `
+        <div class="lane-tk"><button class="tk-check" aria-label="完成：${t}"></button><span class="tk-title" tabindex="0" role="button">${t} <span class="tk-meta">· 从任务侧挂指标</span></span></div>`).join('')}</div>
+    </div>` : '');
+  const scrollable = (p.metrics.length + (p.orphans ? 1 : 0)) >= 5;
+  $('#lanes').className = 'lanes' + (scrollable ? ' scrollable' : '');
+  $('#lanes').innerHTML = lanes;
+  wireTasks($('#panoView'));
+}
+
+/* ───────── 交互接线 ───────── */
+function openDrawer(title) { $('#dwTitle').textContent = title; openLayer($('#taskDrawer')); }
+function wireTasks(root) {
+  $$('.tk-check:not([data-wired])', root).forEach(ck => {
+    ck.dataset.wired = '1';
+    ck.onclick = e => {
+      e.stopPropagation();
+      const row = ck.closest('.tk, .lane-tk');
+      const was = ck.classList.contains('done');
+      ck.classList.toggle('done'); row.classList.toggle('done');
+      if (!was) toast(`已完成 · ${row.dataset.task || row.querySelector('.tk-title').textContent.split('·')[0].trim()}`, { action: '撤销', onAction: () => { ck.classList.remove('done'); row.classList.remove('done'); } });
+      touchSave();
+    };
+  });
+  $$('.tk .tk-title, .lane-tk .tk-title', root).forEach(t => {
+    if (t.dataset.wired) return; t.dataset.wired = '1';
+    const open = () => openDrawer((t.textContent.split('·')[0] || '').trim());
+    t.onclick = open;
+    t.onkeydown = e => { if (e.key === 'Enter') open(); };
+  });
+  $$('.tk-del', root).forEach(d => { if (d.dataset.wired) return; d.dataset.wired = '1';
+    d.onclick = e => { e.stopPropagation();
+      const row = d.closest('.tk');
+      toast(`已移入回收站 · ${row.dataset.task}（软删可恢复）`, { action: '撤销', onAction: () => row.style.display = '' });
+      row.style.display = 'none'; touchSave();
+    };
+  });
+}
+function wireTower() {
+  $$('.tw-fold').forEach(f => f.onclick = () => f.closest('.tw').classList.toggle('folded'));
+  $$('.tg-locate').forEach(b => b.onclick = () => toast(`定位：战略目标「${b.dataset.g}」分组（滚动高亮，演示）`));
+  $$('.mc-name').forEach(m => { m.onclick = () => toast('演示：打开指标详情抽屉（项目 → 指标 → 任务连续下钻）'); m.onkeydown = e => { if (e.key === 'Enter') m.click(); }; });
+  $$('.mc-act').forEach(a => a.onclick = e => { e.stopPropagation();
+    const act = a.dataset.act;
+    if (act === 'mdetail') toast('演示：指标详情抽屉');
+    else if (act === 'madd') toast('演示：添加任务双模式（新建 / 关联池内）');
+    else if (act === 'mdel') toast('已删除指标「覆盖省份数」· 3 秒内可撤销（演示）', { action: '撤销' });
+  });
+  $$('[data-act="pdetail"]').forEach(b => b.onclick = () => toast('演示：项目详情抽屉（概览 / 指标 / 任务三页签，与代码一致）'));
+  $$('[data-act="orph"]').forEach(b => b.onclick = () => toast('演示：无归属任务从任务侧挂指标（写入口径唯一）'));
+  wireTasks($('#towerView'));
+}
+
+/* hero 工具：全部展开 / 已完成（反向开关，正反都可达） */
+let allExpanded = false;
+$('#btnExpandAll').onclick = () => {
+  allExpanded = !allExpanded;
+  $('#btnExpandAll').innerHTML = `<svg class="icon sm" viewBox="0 0 24 24"><path d="M8 7 4 12l4 5M16 7l4 5-4 5"/></svg> ${allExpanded ? '全部收起' : '全部展开'}`;
+  $$('.tw').forEach(tw => tw.classList.toggle('folded', !allExpanded && tw.dataset.proj !== '省级科创政策对比研究'));
+  $$('.spine').forEach(() => {});
+  toast(allExpanded ? '已展开全部战略目标与指标' : '已收起到默认（主攻舱保持展开）');
+};
+let showDone = true;
+$('#btnShowDone').onclick = () => {
+  showDone = !showDone;
+  $('#btnShowDone').innerHTML = `<svg class="icon sm" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg> 已完成项目：${showDone ? '显示' : '隐藏'}`;
+  $('#btnShowDone').classList.toggle('off', !showDone);
+  $('#compassTop').classList.toggle('hide-done', !showDone);
+  toast(showDone ? '已完成内容已显示' : '已完成内容已隐藏（与调度台同一开关口径）');
+};
+
+/* 骨架条：层位与展开 */
+function setSpine(open, layer) {
+  $('#spine').classList.toggle('open', open);
+  $('#spToggle').setAttribute('aria-expanded', open);
+  $('#spToggle').innerHTML = `<svg class="icon sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> ${open ? '收起' : '展开'}`;
+  $('.spine .chip').textContent = open ? `第 ${layer} 层展开中` : '已收起';
+}
+$('#spToggle').onclick = () => setSpine(!$('#spine').classList.contains('open'), 1);
+$('#heroToSpine').onclick = () => {
+  setSpine(true, 1);
+  $('#spine').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  toast('六层结构计数都在这条骨架上 · 已展开第 1 层（愿景原文）');
+};
+$$('.sp-node').forEach(n => n.onclick = () => {
+  const l = n.dataset.layer;
+  if (l <= '2') { setSpine(true, l); const el = $('#layer' + l); el && el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  else if (l === '3') { segTo('tower'); toast('定位：战略目标分组头（第 3 层）'); }
+  else if (l === '4') { segTo('tower'); $('#towerView').scrollIntoView({ behavior: 'smooth' }); toast('定位：项目塔顶部（第 4 层）'); }
+  else if (l === '5') { segTo('tower'); const mc = $('.mc'); mc && mc.scrollIntoView({ behavior: 'smooth', block: 'center' }); toast('定位：第一条成功指标（第 5 层）'); }
+  else { segTo('pano'); panoIdx = 2; renderPano(); toast('定位：无归属收容道 · 缺任务指标 1 · 无归属任务 2（第 6 层）'); }
+});
+$('#btnAddDir').onclick = () => toast('演示：新建战略目标（名称 + 备注，进第 3 层）');
+$('#btnRisk').onclick = () => toast('只看断链：缺任务指标 1 · 无归属任务 2（命中 2 个目标 · 演示）');
+
+/* 主攻聚焦条 */
+$('#fsGo').onclick = $('#fsName').onclick = () => {
+  const tw = $('.tw[data-proj="省级科创政策对比研究"]');
+  tw.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  tw.classList.add('locate-flash'); setTimeout(() => tw.classList.remove('locate-flash'), 1300);
+};
+
+/* 塔 / 全景切换 */
+function segTo(which) {
+  const tower = which === 'tower';
+  $('#segTower').classList.toggle('on', tower); $('#segTower').setAttribute('aria-selected', tower);
+  $('#segPano').classList.toggle('on', !tower); $('#segPano').setAttribute('aria-selected', !tower);
+  $('#towerView').classList.toggle('on', tower);
+  $('#panoView').classList.toggle('on', !tower);
+}
+$('#segTower').onclick = () => segTo('tower');
+$('#segPano').onclick = () => segTo('pano');
+$('#phBack').onclick = () => segTo('tower');
+$('#phSelect').onchange = e => { panoIdx = +e.target.value; renderPano(); };
+
+/* 抽屉 / Toast 按钮 */
+$('#dwDone').onclick = () => { closeLayer($('#taskDrawer')); toast('已完成 · 整理长三角三省科创政策差异表', { action: '撤销' }); };
+$('#dwSched').onclick = () => { closeLayer($('#taskDrawer')); toast('已排进今天（调度台三件事 · 演示）', { action: '撤销' }); };
+$('#dwAddMetric').onclick = () => { closeLayer($('#taskDrawer')); toast('演示：在任务详情里挂到指标（写入口径唯一在任务侧）'); };
+
+/* 弹层栈 */
+const layers = [];
+function openLayer(el) {
+  el._trigger = document.activeElement;
+  if (el.classList.contains('drawer')) { $('#dwScrim').classList.add('show'); el.classList.add('show'); }
+  layers.push(el);
+  const f = el.querySelector('button, [tabindex]'); f && f.focus();
+}
+function closeLayer(el) {
+  if (el.classList.contains('drawer')) { $('#dwScrim').classList.remove('show'); el.classList.remove('show'); }
+  const i = layers.indexOf(el); if (i > -1) layers.splice(i, 1);
+  el._trigger && el._trigger.focus && el._trigger.focus();
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const menu = $('#themeMenu');
+    if (menu.classList.contains('open')) return menu.classList.remove('open');
+    if (layers.length) { e.preventDefault(); closeLayer(layers[layers.length - 1]); }
+  }
+  if (e.key === 'Tab' && layers.length) {
+    const top = layers[layers.length - 1];
+    const F = $$('button,input,textarea,[tabindex]:not([tabindex="-1"])', top).filter(x => x.offsetParent !== null);
+    if (!F.length) return;
+    const first = F[0], last = F[F.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+$('#dwScrim').onclick = () => layers.slice().forEach(closeLayer);
+$$('[data-close]').forEach(b => b.onclick = () => { const m = b.closest('.drawer'); m && closeLayer(m); });
+$('#dwCrumb').onclick = () => toast('演示：打开项目详情抽屉（概览 / 指标 / 任务）');
+
+/* 主题与密度 */
+$('#btnTheme').onclick = e => { e.stopPropagation(); $('#themeMenu').classList.toggle('open'); };
+document.addEventListener('click', e => { if (!e.target.closest('.menu-anchor')) $('#themeMenu').classList.remove('open'); });
+$$('#themeMenu [data-theme]').forEach(b => b.onclick = () => {
+  document.documentElement.dataset.theme = b.dataset.theme;
+  $$('#themeMenu [data-theme]').forEach(x => x.classList.toggle('on', x === b));
+  $('#themeMenu').classList.remove('open'); touchSave();
+});
+$('#btnThemeNext').onclick = () => {
+  const order = ['linear', 'raycast', 'apple', 'notion'];
+  const next = order[(order.indexOf(document.documentElement.dataset.theme) + 1) % 4];
+  document.documentElement.dataset.theme = next;
+  $$('#themeMenu [data-theme]').forEach(x => x.classList.toggle('on', x.dataset.theme === next));
+  toast(`主题已切换 · ${$(`#themeMenu [data-theme="${next}"]`).textContent.trim()}`);
+};
+let compact = false;
+$('#mDensity').onclick = () => {
+  compact = !compact;
+  document.documentElement.dataset.density = compact ? 'compact' : '';
+  $('#mDensity').innerHTML = `<span class="sw" style="background:var(--text-3)"></span>密度：${compact ? '紧凑' : '舒适'}`;
+  toast(`密度 · ${compact ? '紧凑（舱行与任务行收口，04-73 D-1 接通演示）' : '舒适'}`);
+};
+
+/* ───────── 审核巡检 ───────── */
+const modules = [
+  { id: 'm1', name: '应用壳 · 顶栏与台签', spec: ['C-2 accent 当前态', 'S-3 胶囊页签', 'A-2 热区'],
+    see: '品牌位 / 台签（方向台为当前态）/ 保存点 / 主题与密度', do: '主题四选一；密度紧凑切换；台签切换（演示为静态）', fb: '保存点保存中→已保存；主题即时生效', not: '不做通知红点；台签不超四个；不放账号位' },
+  { id: 'm2', name: '页首状态带 · 去重后', spec: ['一处不两说', 'R03 口径 tooltip', '反向开关'],
+    see: '健康度 + 主攻 + 停滞三项状态读数；六层结构计数只在下方战略骨架条', do: '读数悬停看口径；点「六层计数 · 战略骨架」展开第 1 层；两枚反向开关', fb: '下钻按钮直达骨架条并有 toast 确认；开关状态写在按钮上', not: '页头与骨架条不重复报同一笔账（审核意见落地）；读数不做红绿催办' },
+  { id: 'm3', name: '战略骨架条 · 层级面板', spec: ['T-1 display 唯一', 'T-2 六层字阶', '地图不是主角'],
+    see: '一条状态带（六层链 + 计数）；点 1/2 层展开愿景 / 使命面板；愿景 22 全页唯一 display，使命 17', do: '层位点击：1/2 展开、3–6 定位；＋战略目标 / 只看断链', fb: '展开滑出 250ms；定位 toast 说明去向', not: '骨架不常驻展开抢首屏；愿景大字只出现一处；不做第 7 层' },
+  { id: 'm4', name: '主攻聚焦条（本轮新增下一步）', spec: ['与调度台 V3.9.18 同源', 'V3 主线可见'],
+    see: '主攻名 · 所属目标 · 指标任务数 · 进度条 · 完成读数 ·「下一步」chip', do: '点项目名或「继续推进 ↓」闪定位到主攻舱', fb: '定位高亮 1.2s 后退去', not: '下一步口径与项目详情同一解析源，不另写回退；聚焦条只有一条' },
+  { id: 'm5', name: '左栏项目导航', spec: ['W12 项目清单口径', '1024 横滑'],
+    see: '全局舱序号 + 项目名 + 指标任务数 + 主攻标 + 停滞标', do: '点舱直达 + 闪定位；滚动跟随（演示为点击态）', fb: '当前舱高亮 accent 左边线', not: '不用「目标·项目」复合号挤掉项目名；不做六层数字目录（骨架条已承担）' },
+  { id: 'm6', name: '项目塔 · 分组与舱头', spec: ['T-2 项目 17 › 目标 15', 'W12-5 右区不换行', '密度令牌'],
+    see: '目标分组头（15px）+ 舱头：序号 + 项目名（17px）+ 主攻 / 停滞 chip + %与进度条 + 详情 + 开合把手', do: '把手折叠指标与任务；详情开抽屉；定位分组', fb: '折叠 150ms；% 口径挂 tooltip', not: '舱头右区不换行；不把停滞做成红色警告（中性 warn）；不用悬停位移' },
+  { id: 'm7', name: '项目塔 · 指标与任务行', spec: ['W12-5 真进度条', '账本三列', '软删撤销'],
+    see: '指标行（名 + done/total + 真进度条 + 行尾动作）；任务行白底 + 缩进分叉臂 + 完成热区 / 标题线索 / 优先级·删除', do: '勾选完成（撤销）；标题开任务抽屉；删除软删；指标详情 / 加任务 / 删指标', fb: '完成划线降噪；删除进回收站可撤销', not: '任务行不做卡面堆叠（账本语言）；删除无二次确认弹窗（用撤销）；行尾动作不常驻抢读' },
+  { id: 'm8', name: '项目全景 · 阅读秩序与泳道分档', spec: ['V3.9.17 单一路径', '280px 下限', '收容道'],
+    see: '工具带（切换 + 回塔 + 说明）→ 摘要（项目名 + 主攻 + 下一步 + 层级脚注）→ 泳道；1 指标铺满 / 2–4 等分 / 5+ 保 280px 横滚 + 红色收容道', do: '切换三个项目看分档；泳道任务勾选 / 开抽屉；收容道任务去归位', fb: '分档切换无布局跳动；滚动不裁任务行', not: '不出现第二条阅读路径（旧左右争抢结构不回流）；收容道红色只作区分不催办' },
+  { id: 'm9', name: '弹层与反馈', spec: ['抽屉栈 Esc', 'A-4 焦点圈定', 'Toast 契约'],
+    see: '任务抽屉 520px（只挂资源 + 单向说明）', do: 'Esc 关抽屉且焦点回归；标记完成 / 排进今天 / 挂到指标', fb: 'Toast 默认 2.4s、撤销 6s', not: '任务抽屉不出现「关联好奇」；不在舱菜单放指标删除（菜单只管项目级）' },
+  { id: 'm10', name: '规范落地 · 主题 / 密度 / 令牌', spec: ['S-3 胶囊令牌', 'D-1(a) 密度', 'D-2 断点'],
+    see: '四主题同构异色；胶囊只用于页签 / 筛选 / chip；断点 1024 / 800 两档', do: '换主题；切紧凑看舱行与任务行收口；缩窗看左栏横滑与单栏', fb: '紧凑档密度令牌真实生效', not: '胶囊不进按钮 / 卡面；字号全走九级字阶；断点不新增第三档' },
+];
+const verdicts = {};
+function renderRv() {
+  $('#rvBody').innerHTML = modules.map(m => `
+    <div class="rv-card ${verdicts[m.id] === 'ok' ? 'accept' : verdicts[m.id] === 'no' ? 'reject' : ''}" id="rv-${m.id}">
+      <div class="rv-name">${m.name}</div>
+      <div class="rv-specs">${m.spec.map(s => `<span class="chip">${s}</span>`).join('')}</div>
+      <div class="rv-grid">
+        <div class="rv-cell"><b>看见什么</b><span>${m.see}</span></div>
+        <div class="rv-cell"><b>能做什么</b><span>${m.do}</span></div>
+        <div class="rv-cell"><b>反馈什么</b><span>${m.fb}</span></div>
+        <div class="rv-cell"><b>不做什么</b><span>${m.not}</span></div>
+      </div>
+      <div class="rv-verdict">
+        <button data-v="ok" class="${verdicts[m.id] === 'ok' ? 'on-ok' : ''}">可接受</button>
+        <button data-v="no" class="${verdicts[m.id] === 'no' ? 'on-no' : ''}">需改</button>
+      </div>
+      <textarea class="rv-notes" placeholder="备注：问题 / 建议 / 拍板…" data-notes="${m.id}">${verdicts[m.id + '_notes'] || ''}</textarea>
+    </div>`).join('');
+  $$('#rvBody .rv-verdict button').forEach(b => b.onclick = () => {
+    const id = b.closest('.rv-card').id.replace('rv-', '');
+    verdicts[id] = b.dataset.v;
+    renderRv(); updateRvN();
+  });
+  $$('#rvBody .rv-notes').forEach(t => t.addEventListener('input', () => { verdicts[t.dataset.notes + '_notes'] = t.value; }));
+}
+function updateRvN() {
+  const n = modules.filter(m => verdicts[m.id]).length;
+  $('#rvN').textContent = `${n}/10`;
+  $('#rvProg').textContent = `已判定 ${n} / 10 · ${n === 10 ? '可以导出了' : '逐块给「可接受 / 需改」与备注'}`;
+}
+$('#rvFab').onclick = () => $('#rvRail').classList.add('show');
+$('#rvClose').onclick = () => $('#rvRail').classList.remove('show');
+$('#btnHowReview').onclick = () => $('#rvRail').classList.add('show');
+function rvSummary() {
+  return modules.map(m => `### ${m.name}\n- 判定：${verdicts[m.id] === 'ok' ? '✅ 可接受' : verdicts[m.id] === 'no' ? '❌ 需改' : '— 未判定'}\n${verdicts[m.id + '_notes'] ? `- 备注：${verdicts[m.id + '_notes']}\n` : ''}`).join('\n');
+}
+$('#rvExport').onclick = () => {
+  const blob = new Blob([JSON.stringify({ proto: '方向台 04-73 规范落地 · 审核稿 V1', at: new Date().toISOString(), verdicts }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '方向台_规范落地_审核结果.json'; a.click();
+  toast('审核结果已导出 · JSON');
+};
+$('#rvCopy').onclick = () => {
+  navigator.clipboard && navigator.clipboard.writeText(`# 方向台 04-73 规范落地 · 审核摘要\n\n${rvSummary()}`);
+  toast('Markdown 摘要已复制');
+};
+renderRv(); updateRvN();
+renderNav(); renderTower(); renderPano(); touchSave();
+</script>
+</body>
+</html>

@@ -91,6 +91,8 @@
   --radius-md: 10px; /* R130-T5：全站 14 处引用（metric-box/today-card/tm-card/thesis-banner…）此前无定义 → 圆角静默失效渲染成直角，现补上 */
   --radius-sm: 8px;  /* 卡片 / 按钮 / 输入 */
   --radius-xs: 4px;  /* 标签 / 小按钮 / 行内元素 */
+  --radius-full: 999px; /* 04-73 C-6 新裁定（V3.9.19）：全圆角只给页签/筛选/chip 等胶囊形态，
+                            胶囊一律引用本令牌，不再散写 999px/99px 字面量 */
 
   /* 发丝线（共享） */
   --hairline: 1px;

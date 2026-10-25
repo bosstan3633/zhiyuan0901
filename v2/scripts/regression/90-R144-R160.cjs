@@ -353,9 +353,9 @@ check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（
   return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
 });
 
-check('R153-4（V3.9.13 重指）主攻百分比与指标条分母保持中性小字可读：sf-meta / mb-denom 走 --text-2，列数钮 24px；旧 fp-pct / cf-pct 随主攻项精简退役', () => {
+check('R153-4（V3.9.13 重指 · ★V3.9.18 再重指带备案：sf-meta 随右栏主攻行迁主栏退役，主攻百分比中性可读由主栏面板 .fp-num 承担；.fp-pct 负锚原样保持）主攻百分比与指标条分母保持中性小字可读：fp-num / mb-denom 走中性可读色阶，列数钮 24px；旧 fp-pct / cf-pct 保持退役', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
-  return ch.includes('.sf-meta { color: var(--text-3);')
+  return ch.includes('.fp-num {')
     && !ch.includes('.fp-pct')
     && !ch.includes('.cf-pct')
     && mb.includes('.mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')
@@ -415,9 +415,9 @@ check('R148-6 报告型自动落卡只新增不改既有：withReport 只把带�
     && !rp.includes('d.resources =') && !rp.includes('splice(') && j.includes('autoReport?: {')
     && g.includes("withReport({") && g.includes("key: 'diag'") && g.includes("['深度诊断'])")
 });
-check('R148-7 ★本轮不做的要说出来：面板增量渲染经实测判停（M1 冷启动 433ms 已含 400 任务面板挂载、单次切台阻塞仅 70ms），改数据结构与渲染层的收益不再覆盖风险 · R149 备案：本条原写"jobKey 后台化本轮只接设置页，其余入口沿用旧绑法"，R149 已把绑法收口进抽屉 keyOf（见 R149-3），全站入口一并后台化', () => {
+check('R148-7 ★本轮不做的要说出来：面板增量渲染经实测判停（M1 冷启动 433ms 已含 400 任务面板挂载、单次切台阻塞仅 70ms），改数据结构与渲染层的收益不再覆盖风险 · ★V3.9.19 随迁备案：M11 锚随资源台退役改指退役记账行 · R149 备案：本条原写"jobKey 后台化本轮只接设置页，其余入口沿用旧绑法"，R149 已把绑法收口进抽屉 keyOf（见 R149-3），全站入口一并后台化', () => {
   const perf = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'scripts/perf.cjs'), 'utf8')
-  return perf.includes('window.__clickCost') && perf.includes('window.__hashTo') && perf.includes('M11_切到资源台_首帧(ms)') && perf.includes('M7_主键重写次数')
+  return perf.includes('window.__clickCost') && perf.includes('window.__hashTo') && perf.includes('退役：M11 切到资源台') && perf.includes('M7_主键重写次数')  /* ★V3.9.19 随迁备案：M11 随资源台退役，锚改退役记账行（判停决策与 perf 台活锚所守不变） */
     && !read('/newtab/components/compass/TaskManagerPanel.vue').includes('RENDER_STEP')
 });
 

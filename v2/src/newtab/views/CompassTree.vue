@@ -523,6 +523,16 @@ function onLocateLayer(lv: 4) {
     showToast('第 4 层 · 每个项目一个独立舱，色条即项目身份')
   })
 }
+
+/* ★V3.9.19（04-73 一处不两说 · 用户拍板 2026-10-24）：hero 六层读数去重后的下钻入口 ——
+ *  展开骨架条（六层计数的唯一账本，含折叠徽章计数与六层口径 tooltip）并打开第 1 层面板。
+ *  复用 onLayerOpen(1)（自带与列表互斥、滚动到位）；骨架条展开走子组件暴露的 expandSpine。 */
+const spineRef = ref<InstanceType<typeof CompassSpine> | null>(null)
+function heroToSpine() {
+  spineRef.value?.expandSpine()
+  onLayerOpen(1)
+  showToast('六层结构计数都在这条骨架上 · 已展开第 1 层（愿景原文）')
+}
 /** ★F7 列表行「定位」：关列表回项目塔，定位到该行所属项目舱（与左栏项目导航同一入口 gotoTower） */
 function onListLocate(projId: string, label: string) {
   layerView.value = null
@@ -1154,6 +1164,25 @@ onUnmounted(() => {
           <span class="hf-n">命中 {{ towerGroups.length }} 个目标 · {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个项目舱</span>
           <button class="hf-clear" title="清除全部筛选，恢复完整视图" @click="clearFilters"><Icon name="x" :size="12"/> 清除筛选</button>
         </div>
+        <!-- ★V3.9.15（用户 2026-10-23 拍板）：读数并入动作行，页头只占一条状态带。
+           ★V3.9.19（用户 2026-10-24 拍板，一处不两说）：六层结构读数（愿景/使命/战略目标/项目/指标/任务）
+           整体迁出页头 —— 它们与紧贴其下的战略骨架条是同一笔账，报两处就是两份真相
+           （且两处口径不同：hero 走可见项目、骨架条走全量账，数字还会打架）。
+           页头只留骨架条不说的「状态」：健康度 + 主攻 + 停滞（可见口径）；六层计数走下方下钻入口。
+           ★顺序与原型一致：读数先行（状态是这页的第一个判断，视线落点上），两枚工具钮靠右收尾。 -->
+        <div class="hero-stats">
+        <!-- ★C1（V3.8.28）：每个读数都要能悬停看到口径 —— 镜面不评价，但必须说清这个数字怎么来的
+             （A2 同一口径：数值 + 单位 + 口径 tooltip）。 -->
+        <span class="dhi-badge" :class="dhiStatus.cls"
+          title="方向健康度 = 未停滞的战略目标数 ÷ 战略目标总数（某个目标下最近一次任务更新距今超过 14 天，记为停滞）· 只描述现状，不是评分">
+          <span aria-hidden="true"><Icon name="compass" :size="13"/></span>
+          <span>方向健康度：{{ dhiStatus.label }}</span>
+        </span>
+        <i class="hs-sep" aria-hidden="true"></i>
+        <span title="主攻 = 标记为战略重心的可见项目数（上限 2 个）· 骨架条计数是全量账，此处是可见口径，两者各说各话不冒充同源"><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="停滞 = 近 14 天无任务推进、且已有任务的可见项目数 · 中性读数，不催办"><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span>
+        <button class="hs-spine" type="button" title="六层结构计数（愿景→任务）只在战略骨架条读一处，页头不重复报数 · 点击展开骨架条并打开第 1 层（愿景原文）" @click="heroToSpine">六层计数 · 战略骨架 <span aria-hidden="true">▾</span></button>
+        </div>
         <div class="hero-tools">
           <!-- ★F6 翻转（用户拍板 2026-10-16，二次翻转 V3.8.20 N11 收纳决策）：「↕ 展开/收起」「👁 已完成」
                从 ⚙ 工具下拉恢复为动作行常驻按钮——高频操作变两跳 + 状态开关藏菜单后当前状态不可见。
@@ -1166,27 +1195,6 @@ onUnmounted(() => {
             :title="allExpanded ? '当前：全部展开。点击收起全部战略目标与指标' : '当前：默认收起。点击展开全部层级'" @click="toggleAllNodes"><Icon name="arrowupdown" :size="13"/> {{ allExpanded ? '全部收起' : '全部展开' }}</button>
           <button class="tree-tool" :class="{ off: !showDone }" @click="toggleShowDone"
             title="与方向台页头同一开关（同一偏好，一处切换全台生效）"><Icon name="eye" :size="13"/> 已完成项目：{{ showDone ? '显示' : '隐藏' }}</button>
-        </div>
-        <!-- ★V3.9.15（用户 2026-10-23 拍板）：读数并入动作行，页头只占一条状态带。
-           健康度与八项计数仍在原位置语义上（方向台第一眼判断现状），但不再另起一行，
-           把省下的 40px 留给下方项目塔。 -->
-        <div class="hero-stats">
-        <!-- ★C1（V3.8.28）：每个读数都要能悬停看到口径 —— 镜面不评价，但必须说清这个数字怎么来的
-             （A2 同一口径：数值 + 单位 + 口径 tooltip）。 -->
-        <span class="dhi-badge" :class="dhiStatus.cls"
-          title="方向健康度 = 未停滞的战略目标数 ÷ 战略目标总数（某个目标下最近一次任务更新距今超过 14 天，记为停滞）· 只描述现状，不是评分">
-          <span aria-hidden="true"><Icon name="compass" :size="13"/></span>
-          <span>方向健康度：{{ dhiStatus.label }}</span>
-        </span>
-        <i class="hs-sep" aria-hidden="true"></i>
-        <span title="愿景 = 终极方向（第 1 层），全库一条">愿景 {{ compassMeta.counts.vision }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="使命 = 行动准则（第 2 层），由愿景派生">使命 {{ compassMeta.counts.mission }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="战略目标 = 第 3 层方向数（使命下拆解出的推进方向）">战略目标 {{ treeStats.dirs }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="项目 = 第 4 层攻坚项目数 · 仅统计当前可见项目（受「已完成项目：显示/隐藏」影响）">项目 {{ treeStats.projects }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="主攻 = 标记为战略重心的可见项目数（上限 2 个）"><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="停滞 = 近 14 天无任务推进、且已有任务的可见项目数"><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="指标 = 第 5 层成功指标数 · 与「项目」同口径，只统计当前可见项目下的指标">指标 {{ treeStats.metrics }}</span><i class="hs-sep" aria-hidden="true"></i>
-        <span title="任务 = 第 6 层任务数 · 全库未删除任务都算（含尚未挂到项目的）">任务 {{ treeStats.tasks }}</span>
         </div>
       </div>
     </section>
@@ -1201,6 +1209,7 @@ onUnmounted(() => {
          ★W12-2 判据「骨架条在层级面板之前」依然成立（全宽条仍在 .canvas-inner 之前）。 -->
     <div class="spine-bar">
       <CompassSpine
+        ref="spineRef"
         :meta="compassMeta"
         :dir-filter="dirFilter"
         :layer-open="layerOpen"
@@ -1233,6 +1242,10 @@ onUnmounted(() => {
       <span class="fs-detail">{{ focusTower.dir.name }} · {{ focusTower.meta.metrics.length }} 指标 · {{ focusTower.meta.total }} 任务</span>
       <span class="fs-progress" aria-hidden="true"><i :style="{ width: focusTower.meta.pct + '%' }" /></span>
       <span class="fs-count">{{ focusTower.meta.done }} / {{ focusTower.meta.total }} 项任务</span>
+      <!-- ★V3.9.19（原型同款 · 与调度台 V3.9.18 主攻面板同源）：聚焦条补「下一步」主句 ——
+           方向台首屏此前只有进度没有去向。数据吃 compassMeta 的 nextStep（用户填写 → 进行中任务 →
+           空态兜底），与项目详情/项目舱 CompassTowerNext 同一解析源，不另写回退。 -->
+      <span class="fs-next" :title="`下一步为项目一等公民：你填写的优先，清空后按任务自动推导（与项目详情同源）· 当前来源：${focusTower.meta.nextStepSource === 'manual' ? '手动填写' : focusTower.meta.nextStepSource === 'task' ? '由最优先任务推导' : '空态兜底'}`">下一步 · {{ focusTower.meta.nextStep }}</span>
       <button class="fs-go" @click="gotoFocusTower">继续推进 ↓</button>
     </section>
 
@@ -1245,6 +1258,13 @@ onUnmounted(() => {
            左栏只是把同一件事重复了一遍。滚动联动从"层高亮"改为"舱高亮"。 -->
       <aside class="navside">
         <div class="ns-t">项目塔 {{ towerGroups.reduce((s, g) => s + g.projs.length, 0) }} 个舱</div>
+        <!-- ★V3.9.19：视图切换随引导条退役从画布顶迁到左栏首行（原型 .navside 顶部）。
+             仍是这一页的第一个决策：左栏是「我在哪」的入口列，项目塔/全景都从这里出发；
+             全景模式下左栏隐藏，返回走全景自己的「⇅ 回项目塔」（不新增第二条路）。 -->
+        <div class="view-seg" role="tablist" aria-label="项目视图形态">
+          <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'; layerView = null">项目塔</button>
+          <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
+        </div>
         <!-- ★序号用**全局舱序号**（原型 .ns-idx 是 1~N 连号），不用「目标·项目」复合号：
              复合号在左栏只有 210px 宽时会挤掉项目名，而项目名才是这一栏唯一要读的东西。
              全局号还能与舱头的 tw-idx 对上，两处是同一把尺子。 -->
@@ -1336,30 +1356,11 @@ onUnmounted(() => {
           <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：项目塔与项目全景两个视图已能就地
          纵览一个项目的全貌，这枚「📄 项目详情」直达入口由此退役。/compass/projects 整页与其余
          消费方（⌘K 项目搜索、ProjectDetailDrawer 等）本轮不动，只是不再从方向台把用户引过去。 -->
-          <!-- ★V3.8.18（N3）：三层引导带从「一排带底色的小徽章」缩成一条**极窄引导条**。
-     病根＝它原来用 .tl-badge（accent 底色 + 加粗 + 圆角），和下方项目舱头是同一套视觉件，
-     权重几乎一样高 —— 于是一句"3战略目标→4攻坚项目→5成功指标→6任务"的导航提示，
-     抢走了本该属于"战略目标 → 项目舱"的注意力。**它是路牌，不是招牌。**
-     现在只保留「层号 + 层名 + 计数 + 一句灰字说明」：字号降一档、去底色、发丝分隔，默认安静。
-     ★保留 .tl-head-row 容器类名（R3-B′ 判据靠它切片定位层内区域）。 -->
-<div class="tl-head-row">
-            <!-- ★V3.9.7：紧贴它实际改变的项目画布，不再占页头首屏焦点。 -->
-            <div class="view-seg" role="tablist" aria-label="项目视图形态">
-              <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'; layerView = null">项目塔</button>
-              <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
-            </div>
-            <span class="gs-i"><i class="gs-n">3</i>战略目标 <b>{{ treeStats.dirs }}</b></span>
-            <span class="gs-d">方向要往哪走</span>
-            <span class="gs-sep" aria-hidden="true" />
-            <span class="gs-i"><i class="gs-n">4</i>攻坚项目 <b>{{ treeStats.projects }}</b></span>
-            <span class="gs-d">落地靠哪些舱</span>
-            <span class="gs-sep" aria-hidden="true" />
-            <span class="gs-i"><i class="gs-n">5</i>成功指标 <b>{{ treeStats.metrics }}</b></span>
-            <span class="gs-d">怎么算做成</span>
-            <span class="gs-sep" aria-hidden="true" />
-            <span class="gs-i"><i class="gs-n">6</i>任务 <b>{{ treeStats.tasks }}</b></span>
-            <span class="gs-d">今天动哪一件</span>
-          </div>
+            <!-- ★V3.8.18（N3）：三层引导带曾在此处（.tl-head-row）。
+     ★V3.9.19（04-73 一处不两说，随 hero 去重同批）整体退役 ——
+     它的 3/4/5/6 计数与战略骨架条账本重复（第三处报同一笔账）；
+     视图切换（项目塔/全景）随原型迁入左栏项目导航顶部（.navside），
+     层号导航语义本就由骨架条 1~6 按钮承担。判据 W12-1 / R3-B′ 随迁备案。 -->
 
             <!-- ★C2（V3.8.33 B5-c）：筛选态提示条已上提到 hero 动作行（页头状态，不是树内容），
                  这里不再有横幅占位 —— 树区从引导条到舱列连续，不再被拦腰截断。 -->
@@ -1655,7 +1656,7 @@ onUnmounted(() => {
    树区不再被横向色块切断。三件事仍就地可见：被什么收窄（.hf-t）、命中多少（.hf-n）、怎么退出（.hf-clear）。 */
 .hero-filter {
   display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 3px 4px 3px 10px; border-radius: 999px;
+  padding: 3px 4px 3px 10px; border-radius: var(--radius-full);
   background: var(--accent-light);
   border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
 }
@@ -1670,7 +1671,7 @@ onUnmounted(() => {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
   background: var(--surface); border: 1px solid var(--border);
-  padding: 2px 9px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+  padding: 2px 9px; border-radius: var(--radius-full); cursor: pointer; transition: all var(--dur);
 }
 .hf-clear:hover { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
 
@@ -1708,43 +1709,23 @@ onUnmounted(() => {
 }
 .fs-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width var(--dur); }
 .fs-count { flex: none; font-size: var(--fs-micro); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* ★V3.9.19（原型同款）：聚焦条「下一步」chip —— 44ch 截断胶囊（radius-xs 非 full：
+   它是内容 chip 不是筛选胶囊），accent 浅底与 fs-label 同语言。 */
+.fs-next {
+  flex: 1; min-width: 0; max-width: 44ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 8px; border-radius: var(--radius-xs); background: var(--accent-light); color: var(--accent-ink);
+  font-size: var(--fs-caption); line-height: var(--lh-caption);
+}
 .fs-go {
   flex: none; font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 4px 9px; cursor: pointer; font-family: inherit; transition: all var(--dur);
 }
 .fs-go:hover { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
-@media (max-width: 800px) {
-  .focus-strip { gap: 8px; padding-left: 11px; }
-  .fs-progress { width: 64px; }
-}
-@media (max-width: 480px) {
-  .focus-strip { align-items: flex-start; }
-  .fs-detail { flex-basis: 100%; }
-  .fs-progress { margin-left: 0; }
-}
 
-/* ══ ★V3.8.18（N3）三层引导条：极窄路牌 ══ */
-.tl-head-row {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin-bottom: 14px; padding: 5px 4px;
-  border-bottom: 1px solid var(--border);
-}
-.gs-i {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
-}
-.gs-i .gs-n {
-  width: 15px; height: 15px; border-radius: 5px; flex: none;
-  background: var(--surface-2); color: var(--text-4);
-  font-size: 9px; font-weight: 700; font-style: normal;
-  display: flex; align-items: center; justify-content: center;
-}
-.gs-i b { color: var(--text-2); font-weight: 700; font-variant-numeric: tabular-nums; }
-.gs-d { font-size: var(--fs-micro); color: var(--text-4); }
-.gs-sep { width: 1px; height: 11px; background: var(--border); margin: 0 3px; }
-.tl-head-row:hover .gs-i { color: var(--text-2); }
-.tl-head-row:hover .gs-i .gs-n { background: var(--accent-light); color: var(--accent-ink); }
+/* ══ ★V3.9.19：三层引导条（.tl-head-row + .gs-* 全族）随计数去重整体退役 ══
+   死样式不删会被 dead-css-scan 判孤儿。层号导航由骨架条 1~6 按钮承担（本就同源），
+   视图切换迁 .navside 首行；退役理由与判据随迁见模板同名注释。 */
 /* ★V3.8.20：.hero-r / .hero-meta 随左文案栏一并退役（hero 改纵向单列：acts 行 + stats 行）。
    ★F6（2026-10-16）：读数行由右对齐改**左对齐**——右对齐时健康度徽章（行首元素）被推到最右，
    视线要横跨整行才读到；健康度是这行的第一个判断，应该在视线落点上。 */
@@ -1757,6 +1738,16 @@ onUnmounted(() => {
 /* ★C1（V3.8.28）：分隔符由「·」中点改 1px 发丝线 —— 中点夹在 9px 读数之间像正文标点，
    发丝线才是刻度（沿用骨架条 .gs-sep 的既有语言）；gap 同时收上 8px 网格。 */
 .hs-sep { width: 1px; height: 10px; background: var(--border); flex: none; }
+/* ★V3.9.19（一处不两说）：六层计数下钻入口——文字链形态（text-4，hover 才提 accent），
+   与读数同基线但低一档，视线先读状态、再顺这枚下钻。热区 ≥28px（A-1）。 */
+.hs-spine {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 28px; padding: 0 var(--sp-1);
+  border: 0; background: transparent; border-radius: var(--radius-sm);
+  /* W12-G：交互控件不吃最淡档（notion 下 ≈2:1 真机隐形）——基态 --text-3 与读数同级，弱化交给 hover 提 accent */
+  font-size: var(--fs-micro); color: var(--text-3); line-height: var(--lh-micro);
+  font-family: inherit; cursor: pointer; transition: all var(--dur);
+}
+.hs-spine:hover { color: var(--accent-ink); background: var(--surface-2); }
 /* 健康度徽章在读数行首位：★C1（V3.8.28）镜面口径 —— 健康度是「这页现在什么状况」，不是评分。
    原 accent 实底药丸让它在 9px 计数行里像一枚按钮/徽章，视线先落颜色再读数字；改中性浅底 +
    text-2，字号落 caption，只比计数重一档。warning 态不再用琥珀催促色：语义由「关注 / 需聚焦」
@@ -1789,12 +1780,12 @@ onUnmounted(() => {
 .compass-layout.is-pano :deep(.spine-risk.zero) { display: none; }
 .compass-layout.is-pano :deep(.spine-dirs) { gap: 5px; }
 .tree-layout { display: flex; gap: 36px; align-items: flex-start; }
-.link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: 99px; font-weight: 600; }
+.link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: var(--radius-full); font-weight: 600; }
 /* R59-T4：关联卡片选择器（居中弹窗） */
 .lm-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: var(--z-mask-lg); display: flex; align-items: center; justify-content: center; }
 .lm-box { width: 520px; max-width: 94vw; max-height: 82vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
 .lm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; font-size: 14px; font-weight: 700; color: var(--text); }
-.lm-count { font-size: var(--fs-caption); font-weight: 500; color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 2px 10px; }
+.lm-count { font-size: var(--fs-caption); font-weight: 500; color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-full); padding: 2px 10px; }
 .lm-head .pm-close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 4px; background: transparent; border: none; }
 .lm-head .pm-close:hover { color: var(--text); }
 .lm-body { padding: 0 18px 8px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; flex: 1; }
@@ -1820,13 +1811,13 @@ onUnmounted(() => {
 .peek-val { flex: 1; min-width: 0; font-size: var(--fs-body); color: var(--text); line-height: 1.6; word-break: break-all; }
 .peek-val.strong { font-weight: 700; font-size: var(--fs-title); }
 .peek-val.link { color: var(--accent); }
-.peek-tag { display: inline-block; font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; margin: 0 4px 4px 0; }
+.peek-tag { display: inline-block; font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: var(--radius-full); margin: 0 4px 4px 0; }
 .peek-open { width: 100%; margin-top: 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; }
 .peek-open:hover { background: var(--accent-hover); }
 .topbar { height: 48px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
 /* ★C1（V3.8.28）：健康度徽章退成药丸形"读数"——中性浅底 + text-2 字，不再用强调色实底；
    warning 态只加深一档表面，不换色相（琥珀是催促，镜面不催促）。 */
-.dhi-badge { display: flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 99px; background: var(--surface-2); font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
+.dhi-badge { display: flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: var(--radius-full); background: var(--surface-2); font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
 .dhi-badge.warning { background: var(--surface-3); color: var(--text); }
 
 /* 画布（左侧为项目导航预留空间） */
@@ -1860,9 +1851,11 @@ onUnmounted(() => {
 }
 
 /* 响应式：保留“左项目导航 + 右方向画布”的架构，只按可用宽度逐级压缩。
-   1024 先收页边距和列间距；800 以下左栏改为横向项目条，避免 176px 常驻把主画布挤窄；
-   390 下所有工具与读数允许换行，不出现横向滚动。 */
-@media (max-width: 1100px) {
+   ★V3.9.19（04-73 D-2 断点收敛）：1100 → 1024，480 档并入 800 —— 方向台收敛为
+   1024 / 800 两档（骨架条 900 也随批并到 800）。1024 收页边距与列距；800 起
+   左栏改横向项目条、页头允许换行，原 480 的窄屏细化（更紧的页边距、工具等分）
+   就地并入本档，148px 项目卡细化档退役（统一 164px 可滚动固定宽，W11-20 随迁备案）。 */
+@media (max-width: 1024px) {
   .compass-layout { padding-left: 24px; padding-right: 24px; }
   .compass-layout.is-pano .hero {
     align-items: flex-start; gap: 8px;
@@ -1876,7 +1869,16 @@ onUnmounted(() => {
 /* 全景没有左栏，画布应吃满 1440 页轴；沿用项目塔的 1180px 上限会在右侧留下整片空板。 */
 .tree-layout.is-pano .canvas-inner { width: 100%; max-width: none; }
 @media (max-width: 800px) {
-  .compass-layout { padding: 16px 16px 48px; }
+  .focus-strip { gap: 8px; padding-left: 11px; align-items: flex-start; }
+  .fs-progress { width: 64px; margin-left: 0; }
+  .fs-detail { flex-basis: 100%; }
+  .compass-layout { padding: 12px 10px 40px; }
+  .hero { align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+  .hero-acts { gap: 7px; }
+  .hero-stats { flex-basis: 100%; gap: 6px; }
+  .hs-sep { display: none; }
+  .hero-tools { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; margin-left: 0; }
+  .tree-tool { flex: 1; text-align: center; }
   .tree-layout { display: block; }
   .navside {
     position: static; width: 100%; max-height: none;
@@ -1885,22 +1887,11 @@ onUnmounted(() => {
     scroll-snap-type: x proximity;
   }
   .navside .ns-t, .navside .ns-hint { display: none; }
+  /* 左栏转横条后，view-seg 回到内容宽（不再等分整行），随条横向滚动 */
+  .navside .view-seg { width: auto; flex: 0 0 auto; }
+  .navside .vs-b { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; }
   .ns-item { flex: 0 0 164px; width: 164px; scroll-snap-align: start; }
-  .canvas-inner { padding: 14px 14px 16px; }
-  .hero-tools { margin-left: 0; }
-}
-@media (max-width: 480px) {
-  .compass-layout { padding: 12px 10px 40px; }
-  .hero { align-items: flex-start; gap: 8px; margin-bottom: 12px; }
-  .hero-acts { gap: 7px; }
-  .hero-stats { flex-basis: 100%; gap: 6px; }
-  .hs-sep { display: none; }
-  .view-seg { width: 100%; }
-  .vs-b { flex: 1; padding-left: 8px; padding-right: 8px; }
-  .hero-tools { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
-  .tree-tool { flex: 1; text-align: center; }
   .canvas-inner { padding: 12px 10px 14px; border-radius: var(--radius-lg); }
-  .ns-item { flex-basis: 148px; width: 148px; }
   .footer-hint { margin-top: 20px; padding: 12px 8px; }
 }
 .ns-t {
@@ -2000,7 +1991,7 @@ onUnmounted(() => {
 }
 .node-action.t3:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
 .node-action.t3.on { color: var(--accent-ink); background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
-.stagnant-tag { background: var(--tag-danger-bg); color: var(--danger); font-size: var(--fs-micro); padding: 2px 7px; border-radius: 99px; font-weight: 500; }
+.stagnant-tag { background: var(--tag-danger-bg); color: var(--danger); font-size: var(--fs-micro); padding: 2px 7px; border-radius: var(--radius-full); font-weight: 500; }
 .status-active { color: var(--success); }
 .status-paused { color: var(--warning); }
 /* R59-T3 的「主攻项目强调」（.project-node.primary / .project-node.primary .node-title）随旧树节点类族一并退役
@@ -2020,7 +2011,7 @@ onUnmounted(() => {
 
 /* 节点链接弹窗开关（愿景/使命关联资源） */
 .proj-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-.toggle { position: relative; width: 30px; height: 16px; border-radius: 99px; background: var(--border-strong); cursor: pointer; transition: background .2s; flex-shrink: 0; }
+.toggle { position: relative; width: 30px; height: 16px; border-radius: var(--radius-full); background: var(--border-strong); cursor: pointer; transition: background .2s; flex-shrink: 0; }
 .toggle.on { background: var(--accent); }
 .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 .toggle.on::after { transform: translateX(14px); }
@@ -2046,8 +2037,10 @@ onUnmounted(() => {
 /* ② 使命降一档到 headline（它是准则不是方向本身） */
 .tl-text.sub { font-size: var(--fs-headline); font-weight: 500; color: var(--text-2); line-height: 1.4; }
 .tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
-.tl-head-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.tl-head-row > .view-seg { order: 99; margin-left: auto; }
+/* ★V3.9.19：view-seg 迁入左栏后的列内形态——两枚等分、字号降一档（左栏 176px 里
+   「项目全景」四字 + 默认 padding 放不下 fs-sub，压到 caption 保单行不折）。 */
+.navside .view-seg { width: 100%; }
+.navside .vs-b { flex: 1; min-width: 0; padding-left: 6px; padding-right: 6px; font-size: var(--fs-caption); }
 /* ★V3.8.41（B8）：本行下方原有一条辅助提示样式判死——全库仅此一处字面量、无模板挂载点、
    判据零命中。同族的愿景正文与其副形态、链接行、头行四段仍在用，未连坐。
    ★备案：这是"删样式"与"删掉一个提示"是两回事——那条提示连同它的语义早已在层级重构里被更好的
@@ -2062,13 +2055,13 @@ onUnmounted(() => {
 .view-seg {
   display: inline-flex; align-items: center; gap: 2px;
   background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 999px; padding: 3px;
+  border-radius: var(--radius-full); padding: 3px;
   box-shadow: none;
 }
 .vs-b {
   font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);
   background: transparent; border: none; cursor: pointer;
-  padding: 5px 14px; border-radius: 999px; transition: all var(--dur); white-space: nowrap;
+  padding: 5px 14px; border-radius: var(--radius-full); transition: all var(--dur); white-space: nowrap;
   /* M6（B7-e · V3.8.40）：热区下限 28px（实测 26.5px）——只撑盒子，胶囊形态与字号不变 */
   min-height: 28px;
 }
@@ -2108,7 +2101,7 @@ onUnmounted(() => {
 .dir-badge {
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em;
   color: var(--text-4); background: transparent;
-  border: 1px solid var(--border-strong); border-radius: 999px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
   padding: 3px 11px; cursor: pointer; transition: all var(--dur);
   font-family: inherit; white-space: nowrap;
 }

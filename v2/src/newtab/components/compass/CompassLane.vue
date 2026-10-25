@@ -180,7 +180,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   background: transparent;
   border-radius: 0;
   border-top: 1px solid var(--border);
-  padding: 10px 4px 11px 14px;
+  /* ★V3.9.19（04-73 D-1(a) 密度接通）：纵向内边距读密度令牌；左 14px 是归属竖轨缩进、右 4px 对齐任务行，均非密度。 */
+  padding: var(--card-pad-vert) 4px var(--card-pad-vert) 14px;
   position: relative;
   transition: background var(--dur);
 }
@@ -203,7 +204,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mc-title.editing { border-bottom-color: var(--accent); outline: none; }
 .mc-flag {
   font-size: var(--fs-micro); color: var(--text-3);
-  background: var(--surface-3); padding: 2px 8px; border-radius: 999px;
+  background: var(--surface-3); padding: 2px 8px; border-radius: var(--radius-full);
   max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .mc-flag.warn { color: var(--warning); background: var(--warning-bg-soft); font-weight: 600; }
@@ -288,7 +289,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
    改成"表格行"形态后，任务读起来是同一个列表里的连续条目。 */
 .tk-row {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: 0; margin-bottom: 0;
+  /* ★V3.9.19（04-73 D-1(a) 密度接通 · W12-5 随迁备案）：7px 10px 字面量升密度令牌（舒适 8/12 · 紧凑同步收紧），白底与 hover 位移不动。 */
+  padding: var(--card-pad-vert) var(--card-pad-horz); border-radius: 0; margin-bottom: 0;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   position: relative; transition: all var(--dur); cursor: default;
@@ -315,20 +317,17 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   transition: all var(--dur);
 }
 .tk-box.done { color: #fff; }
-/* 触控：任务标题是下钻入口，窄屏给整行最小热区，避免只能点中文字。 */
+/* 触控：任务标题是下钻入口，窄屏给整行最小热区，避免只能点中文字。
+   ★V3.9.19（04-73 D-2 断点收敛）：480 档并入 800；.tk-row 窄屏 padding 覆盖撤掉——密度令牌已接通，再写字面量等于把紧凑档挡在窄屏之外。 */
 @media (max-width: 800px) {
   .mc-head { gap: 6px; }
-  .mc-bar { margin-left: 0; }
-  .mc-detail { order: 8; }
-  .tk-row { min-height: 40px; padding: 8px 9px; }
-  .tk-title { min-height: 24px; }
-}
-@media (max-width: 480px) {
-  .metric-card { padding: 12px 12px 12px 14px; }
   .mc-title { flex-basis: calc(100% - 26px); }
-  .mc-bar { width: 100%; margin-top: 2px; }
+  .mc-bar { width: 100%; margin-left: 0; margin-top: 2px; }
   .mc-track { flex: 1; width: auto; }
+  .mc-detail { order: 8; }
   .mc-toggle, .mc-detail { min-height: 30px; }
+  .tk-row { min-height: 40px; }
+  .tk-title { min-height: 24px; }
 }
 /* ★W12-C：任务标题从 <span> 改成 <button>（单击开任务详情抽屉）。
    补齐按钮态归零——只给交互态（hover / focus）加反馈，不改变任何既有字号字色。 */
@@ -347,7 +346,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 }
 .tk-row:hover .tk-crumb { opacity: 1; }
 .tk-tags { display: flex; align-items: center; gap: 5px; flex: none; }
-.tk-pri { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); padding: 1px 6px; border-radius: 999px; }
+.tk-pri { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); padding: 1px 6px; border-radius: var(--radius-full); }
 /* ★W12-G 可读性（用户 2026-10-13 反馈 6「不同主题下按钮看不清」）：
    原来用最淡的 --text-4（notion 主题下是 30% 不透明度的深色，对 surface-2 约 2:1，远低于 4.5），
    这枚带文字标签的按钮在极简白主题下基本隐形。提到 --text-2（可读档），弱化交给 hover。 */
@@ -389,7 +388,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mo-t { font-size: var(--fs-micro); color: var(--text-2); flex: 1; min-width: 0; }
 .mo-add {
   font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
-  background: var(--accent-light); padding: 2px 8px; border-radius: 999px; cursor: pointer; flex: none;
+  background: var(--accent-light); padding: 2px 8px; border-radius: var(--radius-full); cursor: pointer; flex: none;
 }
 .mc-collapsed {
   margin: 9px 0 0 26px; padding: 7px 12px;

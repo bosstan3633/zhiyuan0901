@@ -276,7 +276,7 @@ check('R4-Eq ★退役台面名「资源台」只许活在带理由的四处：�
     'shared/storage/curationMigration.ts': 2,   // R61 迁移给 hub 实体写的 name，用户库实测仍叫「资源台」；显示一律走 wsNameById（R4-Dg），这里不许被当文案改
     'newtab/manual-data.ts': 4,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废"等），R4-De 明确保留这一形态
     'newtab/components/MigrateReportCard.vue': 1, // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
-    'newtab/changelog-data.ts': 12              // ★W5 扩表：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见。★2026-10-12 随V3.8.6 增补由 3 改 12：用户拍板「完整呈现全部 128 个版本」，v2 时代 88 版标题里的旧台名（"资源台 UI 迭代"/"资源台检索"等）随之进表，仍属历史叙述同一形态；改表随 diff 备案，判据体与口径一字未动
+    'newtab/changelog-data.ts': 13              // ★W5 扩表（★V3.9.20 由 12 改 13：新增版本条目的性能叙述「资源台族指标随 R179 退役记账」——退役事实的历史陈述，与既有版本条目同形态，随 diff 备案）：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见。★2026-10-12 随V3.8.6 增补由 3 改 12：用户拍板「完整呈现全部 128 个版本」，v2 时代 88 版标题里的旧台名（"资源台 UI 迭代"/"资源台检索"等）随之进表，仍属历史叙述同一形态；改表随 diff 备案，判据体与口径一字未动
   };
   const found = retiredNameHits(root);
   return Object.keys(found).sort().join('|') === Object.keys(REG).sort().join('|')
@@ -352,7 +352,7 @@ check('R4-Es ★#119 修完要留下现场锚：旧 codeOnly 是三条整段正�
   return m.includes("host_permissions: ['<all_urls>', 'file:///*']")
     && m.includes('chrome_url_overrides: {') && m.includes("newtab: 'src/newtab/index.html'")
     && m.includes('background: {') && m.includes('default_title:')
-    && g.includes("chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })");
+    && read('/shared/utils/recentWebTab.ts').includes("chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] })")  /* ★V3.9.20 随迁备案：getRecentWebTab 升为共享工具，现场锚随之 */;
 });
 check('R4-Es ★Vue 的 template 区不能按 JS 字符串语义剥（HTML 文本里的引号不是定界符）：第一版状态机保留了这条限制没做，结果一个带反引号的行尾注释让 Workspace.vue 后半段的 HTML 注释全不剥、把注释里的 bookmarkInput 露给 R4-Db 的负锚（假红）。现在要求：整段标记（以 < 开头，含判据常切的 <template>…</template> 片段）走旧口径，注释一律剥干净', () => {
   const gs = read('/newtab/views/GlobalSettings.vue');
@@ -418,7 +418,7 @@ const ET_RETIRE = {
   '/newtab/components/compass/TaskDetailDrawer.vue': ['.ts-label', '.ts-select', '.ts-input', '.ts-note', '.ts-field', '.ts-rel-up', '.ts-status-chip', '.ts-time-text', '.ts-status-chip.active',],
   '/newtab/components/compass/TaskManagerPanel.vue': ['.batch-tagin'],
   '/newtab/views/CompassHome.vue': ['.cf-go', '.pager', '.pg-num', '.cur-tree-caret', '.picker-item.sys', '.pi-check.pi-ghost',],
-  '/newtab/views/CompassTree.vue': ['.node', '.sidebar', '.breadcrumb', '.main-area', '.goals-row', '.goal-col', '.goal-node', '.project-node', '.project-branch', '.vision-node', '.mission-node', '.metric-item', '.metric-name', '.metric-status', '.metrics-wrap', '.tasks-wrap', '.tasks-header', '.sub-tree', '.tree-connector', '.guide-line', '.branch-connector', '.progress-bar', '.progress-fill', '.focus-btn', '.linked-chips', '.add-btn-inline', '.sidebar-item.active', '.sidebar-item .tip', '.breadcrumb .root', '.breadcrumb .sep', '.project-node.primary', '.focus-btn.on', '.vision-node .node-title', '.tk-row:hover .tml-up',],
+  '/newtab/views/CompassTree.vue': ['.tl-head-row', '.gs-i', '.gs-d', '.gs-sep', '.gs-n', '.node', '.sidebar', '.breadcrumb', '.main-area', '.goals-row', '.goal-col', '.goal-node', '.project-node', '.project-branch', '.vision-node', '.mission-node', '.metric-item', '.metric-name', '.metric-status', '.metrics-wrap', '.tasks-wrap', '.tasks-header', '.sub-tree', '.tree-connector', '.guide-line', '.branch-connector', '.progress-bar', '.progress-fill', '.focus-btn', '.linked-chips', '.add-btn-inline', '.sidebar-item.active', '.sidebar-item .tip', '.breadcrumb .root', '.breadcrumb .sep', '.project-node.primary', '.focus-btn.on', '.vision-node .node-title', '.tk-row:hover .tml-up',],
   '/newtab/views/FieldEditor.vue': ['.gs-fr-actions'],
   '/newtab/views/GlobalSettings.vue': ['.gs-manual', '.gs-manual-nav', '.gs-manual-body', '.gs-mc-section', '.gs-mc-content', '.gs-mc-title', '.gs-mn-part', '.gs-dd-seg', '.gs-dash-stats', '.gs-dash-stat', '.ai-days', '.gs-mn-item.active', '.gs-mc-content .mc-flow', '.gs-mc-content .mc-table', '.gs-dd-seg b.up',],
   '/newtab/views/workspace.css': ['.rc-action.mount.on'],
@@ -537,14 +537,14 @@ check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模�
     && mb.includes('.mb-metrics {') && !!gapM && Number(gapM[1]) <= 8
     && !mb.includes('.mb-divider');
 });
-check('W5-2（V3.9.1 重指）标题形态统一「图标 + 英文副标」：今日三件事与手边的卡都用 board-ico + kicker，旧 decks-title / 底部三卡 tab 退役', () => {
+check('W5-2（V3.9.1 重指 · ★V3.9.18 再重指带备案：英文全大写副标按 04-73 T-5「禁全大写 eyebrow」治理，kicker 改中文「三池 · 只预览最近在用的」；board-ico + kicker 的形态契约不变）标题形态统一「图标 + kicker 副标」：今日三件事与手边的卡都用 board-ico + kicker，旧 decks-title / 底部三卡 tab 退役', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   return hm.includes('dz-n dz-ico') && hm.includes('<svg viewBox="0 0 24 24"')
     && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
     && ch.includes('class="board-ico"') && ch.includes('class="board-title"')
-    && ch.includes('class="hand-heading"') && ch.includes('THREE DECKS')
+    && ch.includes('class="hand-heading"') && ch.includes('三池 · 只预览最近在用的')
     && !ch.includes('decks-title') && !ch.includes('bottom-tabs')
     && css.includes('.dz-n.dz-ico') && css.includes('.dz-sec-h .dz-t');
 });
@@ -686,12 +686,12 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
 });
-check('W6-2（V3.9.1 重指）手边三卡入一张框：任务 / 好奇心 / 资源三列共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
+check('W6-2（V3.9.1 重指 · ★V3.9.18 再重指带备案：V3.9.18 原型迭代把手边的卡改三池页签（hand-tabs，v-show 切换），hand-grid/hand-col/mini-list×3 与 goDeck 字符串锚全保留；kicker 同 W5-2 改中文；负锚 bt-tab 保持——页签类名用 hand-tab，不与旧底部 tab 混淆）手边三卡入一张框：任务 / 好奇心 / 资源三池共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   return ch.includes('class="hand-board"') && ch.includes('class="hand-head"')
     && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
     && (ch.match(/class="mini-list"/g) || []).length === 3
-    && ch.includes('THREE DECKS')
+    && ch.includes('三池 · 只预览最近在用的')
     && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');
 });
 check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角直跑补全（用户拍板：点图标直接跑补全，不弹菜单）：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner（列表/看板/项目页保留 TaskAiMenu）；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskEnrich + buildTaskEnrichJob + AiDrawer 懒栈）；手册默认视图文案同步；R147-5 判据按 9+3 拆分', () => {

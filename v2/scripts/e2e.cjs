@@ -353,12 +353,14 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1800)
-  const focusStatusRow = page.locator('.side-rail .stat-focus-item').filter({ hasText: 'E2E 状态主攻项目' }).first()
+  /* ★V3.9.18 重指带备案：主攻行自右栏「今天的状态」迁主栏「主攻项目」面板（fp-row），
+     行为契约不变——点击直达完整只读项目详情，不先经过明细弹窗。 */
+  const focusStatusRow = page.locator('.focus-projects .fp-row').filter({ hasText: 'E2E 状态主攻项目' }).first()
   await focusStatusRow.click().catch(() => {})
   await page.waitForTimeout(1000)
   const focusStatusModalOn = await page.locator('.md-panel').filter({ hasText: '主攻项目明细' }).first().isVisible().catch(() => false)
   const readonlyProjectOn = await page.locator('.md-panel').filter({ hasText: '主攻项目 · 只读' }).filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
-  report('E2E-49 V3.9.15 主攻项目直达：点击「今天的状态」主攻行直接打开完整只读项目详情，不先经过明细弹窗',
+  report('E2E-49（V3.9.18 重指）主攻项目直达：点击主栏「主攻项目」面板行（V3.9.15 时在右栏「今天的状态」）直接打开完整只读项目详情，不先经过明细弹窗',
     !focusStatusModalOn && readonlyProjectOn,
     `直达项目详情=${readonlyProjectOn} 明细弹窗=${focusStatusModalOn}`)
 

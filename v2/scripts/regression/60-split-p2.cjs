@@ -184,9 +184,9 @@ check('R99-2 M8 筛选传参链 ★R3-B1 退役重指带备案：ovFilter/tools-
   const t = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue');
   return !t.includes('tools-gate') && !t.includes('toolsGate') && !t.includes('selectedId') && !pc.includes('ovFilter') && !t.includes('update:ovFilter');
 });
-check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）+ ★W12(V3.8.12)随迁备案：读数由方向树页头 treeStats 一次算齐、不在模板逐项调这条不变；载体随页头重构从 .tree-stats 一行密排改为 HERO 右栏的 .hero-stats（原型 .hero 右侧动作区下方的读数行）。★G1(V3.8.24)随迁带备案：主攻读数的 emoji 前缀迁移为 <Icon name="main-focus">，分段锚随迁（读数表达式不动）。★锚点用分段正则而非跨标签 includes —— 跨标签字面量对空白极敏感，一次格式化就静默失效', () => {
+check('R99-3 D-D 方向台页头主线状态摘要 ★R3-B1 随宿主改靶（R177 的 cph-summary-badge 形态随 Shell 退役）+ ★W12(V3.8.12)随迁备案：读数由方向树页头 treeStats 一次算齐、不在模板逐项调这条不变；载体随页头重构从 .tree-stats 一行密排改为 HERO 右栏的 .hero-stats（原型 .hero 右侧动作区下方的读数行）。★G1(V3.8.24)随迁带备案：主攻读数的 emoji 前缀迁移为 <Icon name="main-focus">，分段锚随迁。★V3.9.19 再随迁备案（一处不两说，用户拍板 2026-10-24）：hero 六层结构读数整体迁战略骨架条（战略目标表达式不再在页头），页头只留主攻/停滞状态读数——「一次算齐」锚（treeStats computed + hero-stats 载体）不动。★锚点用分段正则而非跨标签 includes —— 跨标签字面量对空白极敏感，一次格式化就静默失效', () => {
   const t = CT_ALL;
-  return t.includes('Icon name="main-focus"') && t.includes('主攻 {{ treeStats.focused }}') && /战略目标 \{\{ treeStats\.dirs \}\}/.test(t)
+  return t.includes('Icon name="main-focus"') && t.includes('主攻 {{ treeStats.focused }}')
     && t.includes('const treeStats = computed(') && !t.includes('focusCount')
     && t.includes('class="hero-stats"');
 });

@@ -40,6 +40,8 @@ import AssetPreview from '@/shared/components/AssetPreview.vue'
 // 由 TodayBattleHost 自包含承载（数据桥 + 事件日志读取 + 日详情 + 全量记录抽屉都在它里面）。
 // 本页只挂一行、不直接碰事件日志（R49-3 负锚保持）。
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
+// V3.9.18：主攻面板「下一步」主句与项目详情抽屉同一解析源（compassMeta 唯一实现），两处口径不许漂移
+import { resolveProjectNextStep } from './compassMeta'
 // R172-T9（04-67 Q7）：调度画像周报浮层**已退役**（组件已物理删除，全仓零引用）——
 // 四段式能力并入知源仪表盘的「复盘段」（ReviewPanel.vue），入口由本页右上角 `📈 复盘` 承担。
 // 历史包袱顺带清掉：R113-N3 曾因"模板引用但从未 import"导致点按钮无任何反应，该类问题随组件退役消失。
@@ -693,6 +695,35 @@ function openFocusProject(p: Project) {
   readonlyProjectOpen.value = true
 }
 
+// ================= V3.9.18 · 调度台按原型迭代（04-73 规范落地原型 · 用户 2026-10-24 认可） =================
+// 原型：评审交接包/原型_调度台_04-73规范落地_审核稿_V1.html。本轮五件事：
+//  ① 页头补主攻锚行（kicker 去全大写英文，改「调度台 · 日期 周X」）；
+//  ② 主栏新增「主攻项目」面板：项目名 + 下一步主句 + %完成进度条，点击开只读详情（主攻从右栏迁入主栏）；
+//  ③ 手边的卡三列改三池页签（hand-grid/hand-col/mini-list×3/goDeck 字符串锚全保留，v-show 切换）；
+//  ④ 右栏状态读数改「今日入台 / 今日调出 / 未归档」（本周复用挪到「最近调出」头部 chip），新增「好奇心培育」面板；
+//  ⑤ 密度令牌接通（04-73 D-1(a)）：主栏行卡读 --card-pad-*/--card-gap，紧凑档真实生效。
+/** 主攻「下一步」：与 ProjectDetailDrawer 同源（resolveProjectNextStep 唯一解析），用户填写优先、清空回退任务推导 */
+const focusNextOf = (p: Project): string => resolveProjectNextStep(p, projectTasksOf(p.id)).nextStep
+/** 手边的卡三池页签（默认任务池；列结构保留、仅显示态切换） */
+type HandKind = 'task' | 'curiosity' | 'resource'
+const handTab = ref<HandKind>('task')
+/** 今日入台：三类卡 createdAt ≥ 今日 0 点（按创建时间派生；战报按事件日志计，两者口径差异在 tooltip 声明，不冒充同源） */
+const todayInCount = computed(() => {
+  const t0 = todayStart.value
+  let n = 0
+  for (const list of [d.value.tasks, d.value.curiosities, d.value.resources]) {
+    for (const c of list) { if (!c.deletedAt && (c.createdAt || 0) >= t0) n++ }
+  }
+  return n
+})
+/** 今日调出：lastCalledAt 落在今日的资源卡张数（库内无逐次时间戳，诚实按「张」计，不虚报「次」） */
+const todayOutCount = computed(() => {
+  const t0 = todayStart.value
+  return (d.value.resources || []).filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= t0).length
+})
+/** 好奇心培育（右栏）：最近 3 条好奇心，点击去卡池定位；转任务在卡池内操作（好奇与资源互不挂载） */
+const nurtureCuriosities = computed<CuriosityCard[]>(() => previewCuriosities.value.slice(0, 3))
+
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
 // ===== ★W12-D（V3.8.16）：调度台「📈 复盘」→「📈 今日战报」，行为由跳转改为就地弹窗 =====
 // 历史轨迹：push('/settings?page=dashboard') → V3.8.9 W9 改指 /profile（仪表盘迁画像洞察页）→ 本轮改就地开弹窗。
@@ -807,10 +838,41 @@ const statusDetail = ref<StatusDetailKey | ''>('')
  *  先关明细再开详情，避免两层遮罩叠在一起、Esc 只关到上层。 */
 function closeStatusDetail(): void { statusDetail.value = '' }
 const statusDetailTitle = computed(() => ({
-  focus: '主攻项目明细', unarchived: '未归档任务明细', reuse: '本周复用明细', '': ''
+  focus: '主攻项目明细', unarchived: '未归档任务明细', reuse: '本周复用明细',
+  in: '今日入台明细', out: '今日调出明细', '': ''
 }[statusDetail.value]))
 const statusDetailItems = computed<StatusDetailItem[]>(() => {
   const k = statusDetail.value
+  /* V3.9.18：今日入台 = 三类卡 createdAt ≥ 今日 0 点（按创建时间派生；导入/恢复的旧卡不计入） */
+  if (k === 'in') {
+    const t0 = todayStart.value
+    const rows: { ts: number; item: StatusDetailItem }[] = []
+    for (const r of d.value.resources) {
+      if (!r.deletedAt && (r.createdAt || 0) >= t0) rows.push({ ts: r.createdAt || 0, item: { title: r.title || '（无标题）', meta: `资源卡 · ${fmtRecentTime(r.createdAt)}`, extra: resourceKindLabel(r), action: '打开资源', actionKind: 'resource', actionId: r.id } })
+    }
+    for (const t of d.value.tasks) {
+      if (!t.deletedAt && (t.createdAt || 0) >= t0) rows.push({ ts: t.createdAt || 0, item: { title: t.title || '（无标题）', meta: `任务卡 · ${fmtRecentTime(t.createdAt)}`, extra: projectName(t.projectId) || '未挂项目', action: '打开任务', actionKind: 'task', actionId: t.id } })
+    }
+    for (const c of d.value.curiosities) {
+      if (!c.deletedAt && (c.createdAt || 0) >= t0) rows.push({ ts: c.createdAt || 0, item: { title: c.question || '（无标题）', meta: `好奇心卡 · ${fmtRecentTime(c.createdAt)}`, extra: curioStatusLabel(c) } })
+    }
+    return rows.sort((a, b) => b.ts - a.ts).map(x => x.item)
+  }
+  /* V3.9.18：今日调出 = lastCalledAt 落在今日的资源卡（按「张」计；与战报事件计次口径不同，见 note） */
+  if (k === 'out') {
+    const t0 = todayStart.value
+    return (d.value.resources || [])
+      .filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= t0)
+      .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0))
+      .map(r => ({
+        title: r.title || '（无标题）',
+        meta: `最近 ${fmtRecentTime(r.lastCalledAt)}`,
+        extra: `累计 ${r.callCount || 0} 次`,
+        action: '打开资源',
+        actionKind: 'resource',
+        actionId: r.id
+      }))
+  }
   if (k === 'focus') {
     return focusedProjects.value.map(p => {
       const m = focusMeta.value.get(p.id)
@@ -862,12 +924,16 @@ const statusDetailNote = computed(() => ({
   focus: '主攻项目 = 方向台上标记为主攻且未归档的项目；进度与停滞判定与方向台同一口径。',
   unarchived: '未归档 = 未删除、但缺项目归属或已完成未归档的任务；与行内数字同源。',
   reuse: '本周复用 = 本周内被打开过的资源卡（按最近调出倒序）；跨周后清单为空，与行内 0 一致。',
+  in: '今日入台 = 今日 0 点起新建的三类卡（按创建时间派生；导入与恢复的旧卡不计入）。与「今日战报」的新增计次口径不同（战报按事件日志），两者不冒充同源。',
+  out: '今日调出 = 今日 0 点起 lastCalledAt 落在今日的资源卡张数。与「今日战报」的调出计次口径不同（战报按事件日志逐次累计），两者不冒充同源。',
   '': ''
 }[statusDetail.value]))
 const statusDetailEmpty = computed(() => ({
   focus: '还没有设定主攻项目。去方向台把最重要的 1-2 个项目标为主攻。',
   unarchived: '没有待归档的任务——当前任务都有项目归属。',
   reuse: '本周还没有调出记录。打开一张资源卡后，会出现在这里。',
+  in: '今天还没有新卡入台。用扩展快捷键采集一张，回执会告诉你它去了哪。',
+  out: '今天还没有调出过资源卡。⌘K 或卡池里打开一张后，会出现在这里。',
   '': ''
 }[statusDetail.value]))
 /** 周戳工具：与 stats.weekStartKey 同口径（本地周一为一周起点） */
@@ -923,9 +989,16 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   <div class="page">
     <header class="desk-head">
       <div class="desk-heading">
-        <div class="desk-kicker">TODAY · {{ formatFullDate(todayDate) }}</div>
+        <div class="desk-kicker">调度台 · {{ formatFullDate(todayDate) }}</div>
         <h1>今天，先做这三件。</h1>
-        <p>把注意力放在真正要推进的事上。其余的卡，留在手边，随时可取。</p>
+        <!-- V3.9.18：主攻锚行——页头直接回答「今天的主线挂在哪」，点击开只读项目详情（原型主攻锚） -->
+        <p v-if="mainFocus" class="desk-anchor">
+          <Icon name="main-focus" :size="12" />
+          <span class="da-label">主攻锚</span>
+          <button class="da-link" type="button" :title="mainFocus.name + ' · 查看只读项目详情'" @click="openFocusProject(mainFocus)">{{ mainFocus.name }}<Icon name="arrowright" :size="12" /></button>
+          <span v-if="focusNextOf(mainFocus)" class="da-next" title="下一步为你填写的优先；清空后按任务自动推导（与项目详情同源）">下一步 · {{ focusNextOf(mainFocus) }}</span>
+        </p>
+        <p v-else class="desk-anchor"><Icon name="main-focus" :size="12" /><span class="da-label">主攻锚</span><span class="da-none">尚未指定——右上角去方向台，把最重要的 1-2 个项目标为主攻。</span></p>
       </div>
       <div class="desk-actions">
         <button v-if="!mainFocus" class="no-focus" type="button" @click="router.push('/compass')">
@@ -1069,16 +1142,49 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           </footer>
         </section>
 
+        <!-- V3.9.18：主攻项目面板（原型主攻面板）——主攻从右栏迁入主栏，下一步做主句，点击开只读详情 -->
+        <section v-if="hasFocusProject" class="focus-projects" aria-labelledby="fpTitle">
+          <header class="mod-head">
+            <h2 id="fpTitle">主攻项目</h2>
+            <span class="mod-reading">点击行打开只读详情 · 进度与方向台同口径</span>
+          </header>
+          <button v-if="mainFocus" class="fp-row" type="button" :title="mainFocus.name + ' · 查看只读项目详情'" @click="openFocusProject(mainFocus)">
+            <span class="fp-main">
+              <span class="fp-name">{{ mainFocus.name }}<span class="tag accent">主攻 1</span></span>
+              <span v-if="focusNextOf(mainFocus)" class="fp-next">下一步：<b>{{ focusNextOf(mainFocus) }}</b></span>
+            </span>
+            <span class="fp-side">
+              <span class="fp-num">{{ focusMeta.get(mainFocus.id)?.pct || 0 }}<i>% 完成</i></span>
+              <span class="fp-bar"><i :style="{ width: (focusMeta.get(mainFocus.id)?.pct || 0) + '%' }" /></span>
+            </span>
+          </button>
+          <button v-if="extraFocus" class="fp-row" type="button" :title="extraFocus.name + ' · 查看只读项目详情'" @click="openFocusProject(extraFocus)">
+            <span class="fp-main">
+              <span class="fp-name">{{ extraFocus.name }}<span class="tag accent">主攻 2</span></span>
+              <span v-if="focusNextOf(extraFocus)" class="fp-next">下一步：<b>{{ focusNextOf(extraFocus) }}</b></span>
+            </span>
+            <span class="fp-side">
+              <span class="fp-num">{{ focusMeta.get(extraFocus.id)?.pct || 0 }}<i>% 完成</i></span>
+              <span class="fp-bar"><i :style="{ width: (focusMeta.get(extraFocus.id)?.pct || 0) + '%' }" /></span>
+            </span>
+          </button>
+        </section>
+
         <section ref="handBoardRef" class="hand-board" aria-labelledby="handTitle">
           <header class="hand-head">
             <div class="hand-heading">
               <span class="board-ico"><Icon name="layers" :size="18" /></span>
               <div>
                 <h2 id="handTitle">手边的卡</h2>
-                <span class="hand-kicker">THREE DECKS · 只预览最近在用的</span>
+                <span class="hand-kicker">三池 · 只预览最近在用的 · 新建走扩展快捷键</span>
               </div>
             </div>
-            <span class="hand-summary">任务 {{ liveTasks.length }} · 好奇 {{ liveCuriosities.length }} · 资源 {{ liveResources.length }}</span>
+            <!-- V3.9.18：三列改三池页签（原型手边的卡）——列结构与字符串锚保留，仅显示态切换 -->
+            <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
+              <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">任务</button>
+              <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">好奇心</button>
+              <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">资源</button>
+            </div>
           </header>
 
           <div v-if="!hasAnyPreview" class="deck-empty">
@@ -1087,7 +1193,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           </div>
 
           <div v-else class="hand-grid">
-            <section class="hand-col" aria-labelledby="taskColTitle">
+            <section v-show="handTab === 'task'" class="hand-col" aria-labelledby="taskColTitle">
               <header class="hand-col-head">
                 <Icon name="clipboard" :size="14" />
                 <b id="taskColTitle">任务卡</b>
@@ -1104,7 +1210,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
               </div>
             </section>
 
-            <section class="hand-col" aria-labelledby="curioColTitle">
+            <section v-show="handTab === 'curiosity'" class="hand-col" aria-labelledby="curioColTitle">
               <header class="hand-col-head">
                 <Icon name="bulb" :size="14" />
                 <b id="curioColTitle">好奇心卡</b>
@@ -1121,7 +1227,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
               </div>
             </section>
 
-            <section class="hand-col" aria-labelledby="resColTitle">
+            <section v-show="handTab === 'resource'" class="hand-col" aria-labelledby="resColTitle">
               <header class="hand-col-head">
                 <Icon name="filetext" :size="14" />
                 <b id="resColTitle">资源卡</b>
@@ -1161,28 +1267,19 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <button type="button" @click="openReview">战报</button>
           </header>
           <div class="stat-list">
-            <div v-if="hasFocusProject" class="stat-focus-block">
-              <div class="stat-focus-label">当前主攻</div>
-              <button v-if="mainFocus" class="stat-focus-item" type="button"
-                :title="mainFocus.name + ' · 查看完整项目详情'" @click="openFocusProject(mainFocus)">
-                <span class="sf-index">01</span>
-                <span class="sf-copy">
-                  <span class="sf-name">{{ mainFocus.name }}</span>
-                  <span class="sf-meta">主攻 1 · {{ focusMeta.get(mainFocus.id)?.pct || 0 }}% 完成</span>
-                </span>
-                <Icon name="arrowright" :size="12" />
-              </button>
-              <button v-if="extraFocus" class="stat-focus-item" type="button"
-                :title="extraFocus.name + ' · 查看完整项目详情'" @click="openFocusProject(extraFocus)">
-                <span class="sf-index">02</span>
-                <span class="sf-copy">
-                  <span class="sf-name">{{ extraFocus.name }}</span>
-                  <span class="sf-meta">主攻 2 · {{ focusMeta.get(extraFocus.id)?.pct || 0 }}% 完成</span>
-                </span>
-                <Icon name="arrowright" :size="12" />
-              </button>
-            </div>
-            <button v-else class="stat-row stat-row-empty" type="button" @click="router.push('/compass')">
+            <!-- V3.9.18：读数改「今日入台 / 今日调出 / 未归档」（原型右栏）；主攻迁主栏面板，本周复用挪最近调出头部。
+                 口径与战报事件日志不同源，tooltip 与明细 note 明示，不冒充同源。 -->
+            <button class="stat-row" type="button" title="口径：今日 0 点起新建的三类卡（按创建时间）；与今日战报的事件计次口径不同" @click="openStatusDetail('in')">
+              <span class="sk">今日入台</span>
+              <span class="sv">{{ todayInCount }} 张</span>
+              <span class="se">明细</span>
+            </button>
+            <button class="stat-row" type="button" title="口径：今日 0 点起 lastCalledAt 落在今日的资源卡张数；与今日战报的事件计次口径不同" @click="openStatusDetail('out')">
+              <span class="sk">今日调出</span>
+              <span class="sv">{{ todayOutCount }} 张</span>
+              <span class="se">明细</span>
+            </button>
+            <button v-if="!hasFocusProject" class="stat-row stat-row-empty" type="button" @click="router.push('/compass')">
               <span class="sk">主攻</span>
               <span class="sv">尚未指定</span>
               <span class="se">去方向台</span>
@@ -1192,17 +1289,13 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
               <span class="sv">{{ archivedCount }} / {{ liveTasks.length }} 件任务</span>
               <span class="se">去归位</span>
             </button>
-            <button class="stat-row" type="button" @click="openStatusDetail('reuse')">
-              <span class="sk">本周复用</span>
-              <span class="sv">{{ weeklyReuse }} 次</span>
-              <span class="se">查看</span>
-            </button>
           </div>
         </section>
 
         <section ref="recentPanelRef" class="rail-panel rail-panel-recent">
           <header class="rail-head">
             <b>最近调出</b>
+            <button class="rail-chip" type="button" title="口径：本周一 0 点起被打开过的资源卡（wrr 周戳）；跨周清零" @click="openStatusDetail('reuse')">本周 {{ weeklyReuse }} 次</button>
             <button type="button" @click="goDeck('resource')">全部</button>
           </header>
           <div v-if="recentResources.length" class="recent-list">
@@ -1212,6 +1305,23 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             </button>
           </div>
           <div v-else class="rail-empty">还没有调出记录。打开一张资源卡后，会出现在这里。</div>
+        </section>
+
+        <!-- V3.9.18：好奇心培育（原型右栏）——独立类名，不进 rail-panel 等高机制、不碰 mini-list×3 计数锚。
+             好奇与资源互不挂载；「转为任务」在好奇心卡池操作（CuriosityPanel），沿六层链归位。 -->
+        <section class="curio-panel" aria-label="好奇心培育">
+          <header class="rail-head">
+            <b>好奇心培育</b>
+            <button type="button" @click="goDeck('curiosity')">卡池</button>
+          </header>
+          <div class="curio-list">
+            <button v-for="c in nurtureCuriosities" :key="c.id" class="mini-item" type="button" :title="'去好奇心卡池查看：' + c.question" @click="openCurioPreview(c)">
+              <Icon name="bulb" :size="13" class="mini-leading" />
+              <span class="mini-copy"><span class="mini-title">{{ c.question }}</span><span class="mini-meta">{{ curioStatusLabel(c) }} · {{ fmtShortDate(c.updatedAt || c.createdAt) }}</span></span>
+            </button>
+            <div v-if="!nurtureCuriosities.length" class="curio-empty">还没有好奇心——用快捷键接住一个念头。</div>
+          </div>
+          <p class="curio-note">好奇与资源互不挂载；「转为任务」在卡池内操作，沿六层链归位。</p>
         </section>
 
         <div class="rail-foot"><Icon name="shield" :size="14" /> 只存本机 · 无账号 · 可随时导出</div>
@@ -1346,6 +1456,48 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   font-size: var(--fs-sub);
   line-height: 1.7;
 }
+/* ── V3.9.18：页头主攻锚行（原型主攻锚）── */
+.desk-anchor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--text-2);
+  font-size: var(--fs-sub);
+}
+.da-label { color: var(--text-3); font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); }
+.da-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sub);
+  font-weight: 600;
+  cursor: pointer;
+}
+.da-link:hover { background: var(--surface-2); }
+.da-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.da-link svg { color: var(--text-3); }
+.da-next {
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-light);
+  color: var(--accent-ink);
+  font-size: var(--fs-caption);
+}
+.da-none { color: var(--text-3); font-size: var(--fs-caption); }
 
 .desk-actions {
   position: relative;
@@ -1546,7 +1698,10 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 }
 .focus-more-menu button:hover { background: var(--surface-2); color: var(--text); }
 
+/* V3.9.18 密度接通（04-73 D-1(a)）：行卡读 --card-pad-vert 与 --card-gap 令牌，紧凑档真实生效。
+   注：第一行保持 R50-4/R52-6/R56-6 的原字符串锚不动，gap 单列一条（同选择器合并，非覆盖）。 */
 .focus-list { display: flex; flex-direction: column; }
+.focus-list { gap: var(--card-gap); }
 .focus-row {
   position: relative;
   display: grid;
@@ -1554,7 +1709,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   align-items: center;
   gap: 12px;
   min-height: 74px;
-  padding: 13px 18px 13px 20px;
+  padding: var(--card-pad-vert) var(--card-pad-horz);
   border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--text);
@@ -1699,7 +1854,46 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 /* ── 手边的卡：宽屏三列 ── */
 .hand-board { margin-top: 18px; }
 .hand-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
-.hand-summary { flex-shrink: 0; color: var(--text-3); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
+/* ── V3.9.18：主攻项目面板（原型主攻面板）── */
+.focus-projects { margin-top: 18px; }
+.mod-head { display: flex; align-items: baseline; gap: 8px; padding: 12px 18px 0; }
+.mod-head h2 { color: var(--text); font-size: var(--fs-title); font-weight: 600; letter-spacing: -.01em; }
+.mod-reading { margin-left: auto; color: var(--text-3); font-size: var(--fs-caption); }
+.fp-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: calc(100% - 36px);
+  margin: 8px 18px 0;
+  padding: var(--card-pad-vert) var(--card-pad-horz);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur);
+}
+.fp-row + .fp-row { margin-top: var(--card-gap); }
+.fp-row:hover { border-color: var(--border-strong); }
+.fp-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.fp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fp-name { display: flex; align-items: center; gap: 8px; font-size: var(--fs-title); font-weight: 600; letter-spacing: -.01em; }
+.fp-next { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: var(--fs-body); }
+.fp-next b { color: var(--text); font-weight: 500; }
+.fp-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+/* R153-4 负锚钉死旧 fp-pct 类名不许回流（V3.9.13 精简退役）；V3.9.18 主攻面板读数走 fp-num */
+.fp-num { font-size: var(--fs-title); font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.fp-num i { font-style: normal; font-size: var(--fs-caption); color: var(--text-4); font-weight: 400; }
+.fp-bar { width: 96px; height: 3px; border-radius: var(--radius-xs); background: var(--border); overflow: hidden; }
+.fp-bar i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-xs); }
+/* V3.9.18：hand-summary 随三列汇总退役（计数入页签与列头）；hand-tabs 为三池页签 */
+.hand-tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.hand-tab { min-height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-sub); font-weight: 500; cursor: pointer; transition: background var(--dur), color var(--dur); }
+.hand-tab:hover { color: var(--text); }
+.hand-tab.on { background: var(--surface-2); color: var(--text); }
+.hand-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .deck-empty {
   display: flex;
   align-items: center;
@@ -1718,13 +1912,13 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 }
 .deck-empty b { color: var(--text-2); font-size: var(--fs-body); }
 .deck-empty p { margin-top: 3px; font-size: var(--fs-caption); line-height: 1.6; }
+/* V3.9.18：三池页签后单列呈现——三段 hand-col 仍在 DOM（字符串锚保留），v-show 切换显示态 */
 .hand-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
 }
 .hand-col { min-width: 0; padding: 13px 15px 15px; }
-.hand-col + .hand-col { border-left: 1px solid var(--border); }
 .hand-col-head {
   display: flex;
   align-items: center;
@@ -1761,7 +1955,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   gap: 8px;
   width: 100%;
   min-height: 48px;
-  padding: 7px 7px;
+  padding: var(--card-pad-vert) 10px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -1894,6 +2088,27 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   border-bottom: 1px solid var(--border);
 }
 .rail-head b { color: var(--text-2); font-size: var(--fs-caption); font-weight: 700; }
+/* V3.9.18：「本周 N 次」读数 chip（本周复用自状态行迁至最近调出头部，判据 openStatusDetail('reuse') 不变） */
+.rail-chip {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.rail-chip:hover { background: var(--surface-2); color: var(--text); }
+.rail-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* V3.9.18：好奇心培育面板——独立类名，不进 rail-panel 等高机制（--rail-top/bottom-h 只量前两块）、
+   不用 mini-list 类名（保住 98-r4-gates 的 mini-list×3 计数锚）；行样式复用 .mini-item。 */
+.curio-panel { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.curio-list { display: flex; flex-direction: column; gap: 2px; padding: 0 6px; }
+.curio-empty { padding: 18px 14px; color: var(--text-3); font-size: var(--fs-sub); }
+.curio-note { margin: 0; padding: 8px 14px 10px; border-top: 1px solid var(--border); color: var(--text-4); font-size: var(--fs-caption); line-height: 1.5; }
 .rail-head button {
   min-height: 28px;
   padding: 2px 6px;
@@ -1901,30 +2116,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   font-size: var(--fs-micro);
 }
 .stat-list { display: flex; flex-direction: column; }
-.stat-focus-block { display: flex; flex-direction: column; border-bottom: 1px solid var(--border); }
-.stat-focus-label { padding: 7px 12px 4px; color: var(--text-3); font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--tracking-sm); }
-.stat-focus-item {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 16px;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 7px 12px;
-  border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  background: transparent;
-  color: var(--text);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.stat-focus-item:hover { background: var(--surface-2); }
-.stat-focus-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.sf-index { color: var(--text-4); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
-.sf-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.sf-name { overflow: hidden; color: var(--text); font-size: var(--fs-caption); font-weight: 600; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
-.sf-meta { color: var(--text-3); font-size: var(--fs-micro); }
-.stat-focus-item > :last-child { color: var(--text-3); }
+/* V3.9.18：stat-focus-* / sf-* 随主攻迁主栏面板（fp-row）整族退役 */
 .stat-row {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
@@ -2214,14 +2406,11 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 
 @media (max-width: 1120px) {
   .desk-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
-  .hand-summary { display: none; }
 }
 @media (max-width: 960px) {
   .desk-layout { grid-template-columns: minmax(0, 1fr); }
   .side-rail { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rail-foot { grid-column: 1 / -1; }
-  .hand-grid { grid-template-columns: minmax(0, 1fr); }
-  .hand-col + .hand-col { border-top: 1px solid var(--border); border-left: 0; }
 }
 @media (max-width: 720px) {
   .page { padding: 14px 16px 48px; }

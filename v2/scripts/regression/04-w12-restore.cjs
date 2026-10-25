@@ -18,24 +18,26 @@ const {
 
 console.log('【W12 · 方向台 1:1 还原（版面归属）】');
 
-check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。V3.9.7 再重指：视图切换迁到下方项目层行，页头只留全页级别动作；项目塔/全景仍双向可达。V3.9.15 再随迁：读数并入动作行，HERO 不再纵向堆两层，但仍是一个独立状态带。★负锚：.tree-page-head、退役的 .hero-l/.hero-r、.hero-tools-menu 下拉壳不许回流', () => {
+check('W12-1 ★HERO 区必须是**独立结构**而不是把工具挤成一条横排。V3.9.7 再重指：视图切换迁到下方项目层行，页头只留全页级别动作；项目塔/全景仍双向可达。V3.9.15 再随迁：读数并入动作行，HERO 不再纵向堆两层，但仍是一个独立状态带。★V3.9.19 再随迁备案（一处不两说，用户拍板 2026-10-24）：三层引导条随计数去重整体退役，视图切换迁左栏项目导航首行（原型 .navside 顶部）——守的纪律不变：视图切换不在页头、双向可达。★负锚：.tree-page-head、退役的 .hero-l/.hero-r、.hero-tools-menu 下拉壳、引导条全族（tl-head-row / gs-i）不许回流', () => {
   const t = codeOnly(CT_W11);
   const heroStart = t.search(/<section class="hero"(?:\s|>)/)
   const hero = heroStart >= 0 ? t.slice(heroStart, t.indexOf('class="hero-stats"')) : ''
-  const row = t.slice(t.indexOf('<div class="tl-head-row">'), t.indexOf('<CompassLayerList'))
+  const navStart = t.indexOf('<aside class="navside"')
+  const nav = navStart >= 0 ? t.slice(navStart, t.indexOf('</aside>')) : ''
   return heroStart >= 0
     && t.includes('class="hero-acts"') && t.includes('class="hero-stats"')
     && t.includes('class="hero-tools"')
     && !hero.includes('class="view-seg"')
-    && row.includes('class="view-seg"')
-    && row.includes('项目塔') && row.includes('项目全景')
+    && nav.includes('class="view-seg"')
+    && nav.includes('项目塔') && nav.includes('项目全景')
     && t.includes('↕ ') && t.includes('<Icon name="eye" :size="13"/> 已完成项目')   /* ★F6 ④ 两枚常驻（在 .hero-acts 链上的 .hero-tools 内；G1 迁移后 Icon eye） */
     && !t.includes('hero-tools-menu') && !t.includes('toolsOpen') /* ★F6 负锚：下拉壳与开关 state 零残留 */
     && t.includes('class="dhi-badge"')
     && /^\.hero \{[^}]*display: flex/m.test(t)
     && /\.hero \{[^}]*flex-wrap: wrap/m.test(t)
     && !t.includes('class="hero-l"') && !t.includes('class="hero-r"')
-    && !t.includes('class="tree-page-head"');
+    && !t.includes('class="tree-page-head"')
+    && !t.includes('tl-head-row') && !t.includes('class="gs-');   /* ★V3.9.19 负锚：引导条整条退役（模板与样式都不许回流；codeOnly 已剥注释） */
 });
 
 check('W12-2 ★第 1/2 层正文必须住在**层级面板里**而不是在骨架条上方另开一块。★这是本轮最关键的一处归位：原型是 spine → lvpanel → towers 三段，第 1/2 层内容只在 lvpanel 里出现；而实际实现把愿景 22px 大卡摆在 spine **之上**，等于在六层链条之外另起一个平级区块，首屏被它吃掉、"逐层收窄"在版面上断掉。★本条钉「位置」而非「存在」：愿景块必须落在 <template #entity> 插槽内（由 CompassLayerPanel 渲染在骨架条之下），且该插槽必须真的被 CompassTree 提供。★切片锚点踩坑：插槽内是嵌套 <template v-if>，所以收尾必须锚 `</CompassLayerPanel>` 而不是首个 `</template>` —— 后者早于插槽起点，切出来是空串，正锚恒假而负锚恒绿（判据自己骗自己）。★同时钉住**双份文本**这条负锚：面板里不得再写一份只读的愿景/使命（同一句话出现两次会各自漂移，且用户分不清哪份能改）', () => {
@@ -87,8 +89,10 @@ check('W12-5 ★舱 / 指标 / 任务三层的**阅读层级**必须成立。★
     && /\.tw-num b \{[^}]*display: block/.test(w)             /* 完成数两行块，不再与舱头标题同排糊成一行 */
     /* 指标级进度条 */
     && /class="mc-bar"/.test(l) && /\.mc-track \{[^}]*width: 56px/.test(l) && /\.mc-fill \{/.test(l)
-    /* 任务行独立白底 + 可读内边距；hover 不再位移 */
-    && /\.tk-row \{[^}]*padding: 7px 10px[^}]*background: var\(--surface\)/.test(l)
+    /* 任务行独立白底 + 可读内边距；hover 不再位移。★V3.9.19 随迁备案（04-73 D-1(a) 密度接通）：
+       7px 10px 字面量升为 var(--card-pad-vert 与 --card-pad-horz) 密度令牌（舒适 8/12 · 紧凑同步收紧），
+       「可读内边距」由令牌保证——白底/无位移/分叉臂三承重锚不动 */
+    && /\.tk-row \{[^}]*padding: var\(--card-pad-vert\) var\(--card-pad-horz\)[^{]*background: var\(--surface\)/.test(l)
     && /\.tk-row:hover \{[^}]*transform: none/.test(l)
     /* 任务轨内缩 + 分叉臂仍是“归属”的视觉证据 */
     && /\.metric-list \{[^}]*padding: 0 0 0 24px/.test(l)

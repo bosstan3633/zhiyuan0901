@@ -410,6 +410,7 @@ check('W11-19 ★抽屉栈必须位于 SFC 模块作用域，不能写回 <scrip
 check('W11-20 ★窄屏项目条不能把全部项目压进一行：800px 下左栏改横向后，项目项必须固定为可滚动宽度（flex-basis + width），否则 flex 子项收缩后每项只剩几十像素。390px 下同一条固定宽策略必须继续成立', () => {
   const css = read('/newtab/views/CompassTree.vue').replace(/\r\n/g, '\n');
   const at800 = /@media \(max-width: 800px\) \{[\s\S]*?\.ns-item \{ flex: 0 0 164px; width: 164px; scroll-snap-align: start; \}/.test(css);
-  const at480 = /@media \(max-width: 480px\) \{[\s\S]*?\.ns-item \{ flex-basis: 148px; width: 148px; \}/.test(css);
-  return at800 && at480;
+  /* ★V3.9.19 随迁备案（04-73 D-2 断点收敛）：480 档并入 800——148px 细化档退役，两档下固定可滚动宽统一 164px；负锚守住 480 媒询不回流 */
+  const no480 = !css.includes('@media (max-width: 480px)');
+  return at800 && no480;
 });

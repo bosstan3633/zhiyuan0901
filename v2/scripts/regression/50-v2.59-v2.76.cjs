@@ -82,7 +82,7 @@ check('R91-1（V3.9.1 重指）调度台消费 focusedProjects：首页主攻胶
     && CH91.includes('useCompass()') && CH91.includes('const mainFocus = computed<Project | null>')
     && CH91.includes('const extraFocus = computed<Project | null>');
 });
-check('R91-2（V3.9.13 重指）主攻摘要进入右栏：主攻 1 / 主攻 2 分两行常驻，不再把第二个藏在 +1 弹层里；页头只保留无项目时的入口', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="stat-focus-block"') && (h.match(/class="stat-focus-item"/g) || []).length >= 2 && h.includes('主攻 1') && h.includes('主攻 2') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"') && !h.includes('<MetricBar>'); });
+check('R91-2（V3.9.13 重指 · ★V3.9.18 再重指带备案：主攻 1 / 主攻 2 两行常驻随原型迭代迁主栏「主攻项目」面板，行形态 stat-focus-item → fp-row，右栏不再放主攻）主攻摘要：主攻 1 / 主攻 2 分两行常驻，不再把第二个藏在 +1 弹层里；页头只保留无项目时的入口', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="focus-projects"') && (h.match(/class="fp-row"/g) || []).length >= 2 && h.includes('主攻 1') && h.includes('主攻 2') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"') && !h.includes('<MetricBar>'); });
 check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
   return CH91.includes('const focusMeta = computed(')
     && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')

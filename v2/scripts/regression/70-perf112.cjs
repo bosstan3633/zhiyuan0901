@@ -77,8 +77,9 @@ check('R112-10 ★ 切台热度落盘节流（R173-T2 重指备案：4s 后由 p
 check('R112-11 ★ perf 脚本漂移修复：tab-overflow 过滤 + 策展台切台改用 PERF0 定位（原「策展台」前缀误命中溢出指示「≪ N」，打满 15s 超时被误读为「慢」）', () => {
   const p = read('/../scripts/perf.cjs');
   return p.includes('|tab-overflow/')
-    && p.includes("window.__navTo('PERF0', '.res-card')")
-    && !p.includes("window.__navTo('策展台', '.res-card')");
+    && p.includes("window.__navTo('PERF0', '.ws-page')")   /* ★V3.9.19 随迁备案：.res-card 随策展四视图退役（V3.9.8 成果态），首帧锚改工作区根 .ws-page；所守纪律（PERF0 定位不误命中溢出指示）一字未变 */
+    && !p.includes("window.__navTo('策展台', '.ws-page')")
+    && !p.includes("window.__navTo('PERF0', '.res-card')");
 });
 
 check('R112-12 ★ 冷启动单次读取：ensureBootData 会话内幂等 + 首次 raw 快照复用给 loadData（原 STORAGE_KEY 被串行读 3 次，medium 实测 219+197+229ms）', () => {

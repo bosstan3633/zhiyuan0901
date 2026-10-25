@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知源调度台 · 画像洞察 04-73 规范落地原型 · 审核稿 V1</title>
+<style>
+/* ═══ 令牌层：与 v2/src/shared/styles/tokens.css 同源（四主题 + 密度 + radius-full） ═══ */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Consolas, monospace;
+  /* 字阶 9 级 */
+  --fs-tiny: 10px; --fs-micro: 11px; --fs-caption: 12px; --fs-sub: 13px; --fs-body: 14px;
+  --fs-title: 15px; --fs-headline: 17px; --fs-subhero: 20px; --fs-display: 22px;
+  --lh-tiny: 1.45; --lh-micro: 1.4; --lh-caption: 1.5; --lh-sub: 1.5; --lh-body: 1.55; --lh-title: 1.35;
+  /* 间距阶 */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  /* 圆角 6 档 + full（04-73 C-6：full 只给页签/筛选/chip） */
+  --radius-xs: 4px; --radius-sm: 8px; --radius-md: 10px; --radius: 12px; --radius-lg: 14px; --radius-xl: 18px;
+  --radius-full: 999px;
+  /* 动效 */
+  --dur-fast: 120ms; --dur: 150ms; --dur-slow: 250ms;
+  --ease-out-soft: cubic-bezier(.25, .46, .45, .94); --ease-emphasis: cubic-bezier(.2, .8, .2, 1);
+  /* 密度（04-73 D-1(a)）：行卡接令牌，紧凑档真实生效 */
+  --card-pad-vert: var(--sp-3); --card-pad-horz: var(--sp-4); --card-gap: var(--sp-3);
+  --hit: 28px;
+}
+[data-density='compact'] { --card-pad-vert: var(--sp-2); --card-pad-horz: var(--sp-3); --card-gap: var(--sp-2); }
+
+[data-theme='linear'] {
+  --bg: #0D0E11; --surface: #14161B; --surface-2: #1B1E26; --surface-3: #242833;
+  --border: #262A35; --border-strong: #3A4050;
+  --text: #E8EAF0; --text-2: #B4B9C6; --text-3: #8A90A0; --text-4: #5B6170;
+  --accent: #5E6AD2; --accent-hover: #6E79DD; --accent-ink: #A5ACE8; --accent-light: rgba(94,106,210,.14); --accent-glow: rgba(94,106,210,.25);
+  --heat-0:#171A21; --heat-1:#2B3060; --heat-2:#3D4694; --heat-3:#5E6AD2; --heat-4:#8A94E8; --heat-5:#C3C9F7;
+  --ok:#4CB782; --warn:#E5B454; --danger:#E5615C;
+  --tag-ok-bg: rgba(76,183,130,.13); --tag-ok-text:#7DD3A8;
+  --tag-warn-bg: rgba(229,180,84,.13); --tag-warn-text:#EFCB8A;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3); --shadow-md: 0 6px 20px rgba(0,0,0,.35); --shadow-lg: 0 18px 50px rgba(0,0,0,.5);
+}
+[data-theme='raycast'] {
+  --bg: #08080A; --surface: #101014; --surface-2: #17181D; --surface-3: #20222A;
+  --border: #1F2129; --border-strong: #33363F;
+  --text: #F2F3F5; --text-2: #B9BCC4; --text-3: #868A95; --text-4: #585C68;
+  --accent: #1E6FD9; --accent-hover: #3480E6; --accent-ink: #7FB4F2; --accent-light: rgba(30,111,217,.15); --accent-glow: rgba(30,111,217,.28);
+  --heat-0:#101216; --heat-1:#132B4E; --heat-2:#1B4A85; --heat-3:#1E6FD9; --heat-4:#6FA8EF; --heat-5:#BBD8FA;
+  --ok:#3FCF8E; --warn:#F5A623; --danger:#FF5F57;
+  --tag-ok-bg: rgba(63,207,142,.13); --tag-ok-text:#8AE2BB;
+  --tag-warn-bg: rgba(245,166,35,.13); --tag-warn-text:#F7C56D;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.4); --shadow-md: 0 6px 20px rgba(0,0,0,.45); --shadow-lg: 0 18px 50px rgba(0,0,0,.6);
+}
+[data-theme='apple'] {
+  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #F2F2F5; --surface-3: #E8E8EC;
+  --border: #E3E3E8; --border-strong: #C9C9D0;
+  --text: #1D1D1F; --text-2: #48484D; --text-3: #6E6E73; --text-4: #A1A1A6;
+  --accent: #8452E0; --accent-hover: #9A6BE8; --accent-ink: #6E3FD1; --accent-light: rgba(132,82,224,.10); --accent-glow: rgba(132,82,224,.20);
+  --heat-0:#EFEFF2; --heat-1:#DCCBF6; --heat-2:#C2A3F0; --heat-3:#9D6EE8; --heat-4:#7B4BD6; --heat-5:#5C2FB8;
+  --ok:#34A853; --warn:#B8860B; --danger:#D93025;
+  --tag-ok-bg: rgba(52,168,83,.10); --tag-ok-text:#2E7D46;
+  --tag-warn-bg: rgba(184,134,11,.10); --tag-warn-text:#8A6508;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06); --shadow-md: 0 6px 18px rgba(0,0,0,.08); --shadow-lg: 0 18px 50px rgba(0,0,0,.14);
+}
+[data-theme='notion'] {
+  --bg: #F7F6F3; --surface: #FFFFFF; --surface-2: #F1F0EC; --surface-3: #E7E5DF;
+  --border: #E6E4DD; --border-strong: #CFCCC2;
+  --text: #37352F; --text-2: #5F5E58; --text-3: #8A887F; --text-4: #B4B2A8;
+  --accent: #9E3FAF; --accent-hover: #B254C2; --accent-ink: #8432A0; --accent-light: rgba(158,63,175,.09); --accent-glow: rgba(158,63,175,.18);
+  --heat-0:#EFEEEA; --heat-1:#E9D6ED; --heat-2:#D4AEDC; --heat-3:#B87CC6; --heat-4:#9E3FAF; --heat-5:#772C86;
+  --ok:#2F9E6E; --warn:#B7791F; --danger:#C74440;
+  --tag-ok-bg: rgba(47,158,110,.10); --tag-ok-text:#257A54;
+  --tag-warn-bg: rgba(183,121,31,.10); --tag-warn-text:#8C5C17;
+  --shadow-sm: 0 1px 3px rgba(55,53,47,.06); --shadow-md: 0 6px 18px rgba(55,53,47,.08); --shadow-lg: 0 18px 50px rgba(55,53,47,.16);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { font-family: var(--font-sans); background: var(--bg); color: var(--text); font-size: var(--fs-body); line-height: var(--lh-body); transition: background var(--dur), color var(--dur); }
+button { font-family: inherit; }
+::selection { background: var(--accent-glow); }
+
+/* ═══ 顶栏（全站统一） ═══ */
+.topbar { height: 48px; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-5); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 40; }
+.brand { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: var(--fs-sub); cursor: pointer; }
+.brand-ico { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+.nav { display: flex; gap: 2px; margin-left: var(--sp-4); }
+.nav a { padding: 5px 12px; border-radius: var(--radius-full); font-size: var(--fs-sub); color: var(--text-3); text-decoration: none; transition: all var(--dur); }
+.nav a:hover { color: var(--text); background: var(--surface-2); }
+.nav a.on { color: var(--accent-ink); background: var(--accent-light); }
+.top-acts { margin-left: auto; display: flex; gap: var(--sp-1); }
+.icon-btn { min-width: var(--hit); min-height: var(--hit); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-3); cursor: pointer; display: grid; place-items: center; font-size: 13px; transition: all var(--dur); }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.menu { position: relative; }
+.menu-pop { position: absolute; right: 0; top: calc(100% + var(--sp-1)); min-width: 150px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--sp-1); z-index: 60; }
+.menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; text-align: left; }
+.menu-item:hover { background: var(--surface-2); color: var(--text); }
+.menu-item.on { color: var(--accent-ink); background: var(--accent-light); }
+.menu-item .sw { width: 10px; height: 10px; border-radius: var(--radius-xs); border: 1px solid var(--border-strong); }
+.hairline { height: 1px; background: var(--border); margin: var(--sp-1) 4px; }
+
+/* ═══ 原型说明条 ═══ */
+.proto-note { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) var(--sp-5); font-size: var(--fs-micro); color: var(--text-4); background: var(--surface); border-bottom: 1px solid var(--border); }
+.proto-note b { color: var(--text-2); font-weight: 600; }
+.proto-note .grow { flex: 1; }
+.note-btn { min-height: 24px; padding: 2px 10px; border-radius: var(--radius-full); border: 1px solid var(--border); background: transparent; color: var(--text-3); font-size: var(--fs-micro); cursor: pointer; }
+.note-btn:hover { color: var(--accent-ink); border-color: var(--accent); }
+
+/* ═══ P1·页头：中文 kicker + 三组呼吸（04-73 T-2 / D-1；对齐调度台 V3.9.18） ═══ */
+.pi-page { max-width: 1440px; margin: 0 auto; padding: var(--sp-4) var(--sp-6) calc(var(--sp-7) + 24px); display: flex; flex-direction: column; gap: var(--sp-4); }
+.pi-hero { display: flex; align-items: center; gap: var(--sp-3) var(--sp-5); flex-wrap: wrap; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+/* ① 身份组：中文 kicker（全大写英文退役——中英基线错位随之消失） */
+.pi-hero-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pi-kicker { font-size: var(--fs-micro); color: var(--text-4); letter-spacing: .04em; }
+.pi-kicker b { color: var(--text-3); font-weight: 600; }
+.pi-title { font-size: var(--fs-headline); font-weight: 700; letter-spacing: -.015em; line-height: var(--lh-title); }
+/* ② 页签组：只留中文（TODAY/WEEK/MONTH/YEAR 退役），组内间距收紧 */
+.pi-tabs { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-full); }
+.pi-tab { min-height: calc(var(--hit) - 4px); padding: 3px 14px; border: 0; border-radius: var(--radius-full); background: transparent; color: var(--text-3); font-size: var(--fs-sub); font-weight: 600; cursor: pointer; transition: all var(--dur); }
+.pi-tab:hover { color: var(--text); background: var(--surface); }
+.pi-tab.on { color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow-sm); }
+/* ③ 工具组：恒靠右，与页签之间隔开一组 sp-5 */
+.pi-acts { display: inline-flex; gap: var(--sp-1); }
+.pi-btn { display: inline-flex; align-items: center; gap: 5px; min-height: var(--hit); padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); font-weight: 600; cursor: pointer; transition: all var(--dur); white-space: nowrap; }
+.pi-btn:hover { color: var(--accent-ink); border-color: var(--accent); }
+.pi-btn.sm { padding: 0 9px; font-size: var(--fs-micro); min-height: calc(var(--hit) - 2px); }
+
+/* ═══ P2·首屏双面板 ═══ */
+.pi-ov { display: grid; grid-template-columns: 3fr 2fr; gap: var(--sp-4); }
+.pi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+.card-head { display: flex; align-items: baseline; gap: var(--sp-2); }
+.card-eyebrow { font-size: var(--fs-micro); font-weight: 600; color: var(--text-4); letter-spacing: .06em; }
+.card-title { font-size: var(--fs-title); font-weight: 700; letter-spacing: -.01em; }
+.card-sub { font-size: var(--fs-micro); color: var(--text-4); margin-left: auto; }
+/* KPI 四格：数字 15px title 档（画像页不设 display 主角——镜子页，V4），全部可点下钻 + 口径 tooltip */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--card-gap); }
+.kpi { display: flex; flex-direction: column; gap: 2px; padding: var(--card-pad-vert) var(--card-pad-horz); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; text-align: left; transition: all var(--dur); min-width: 0; }
+.kpi:hover { border-color: var(--accent); background: var(--accent-light); }
+.kpi .v { font-size: var(--fs-title); font-weight: 700; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--text); }
+.kpi .v small { margin-left: 2px; font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); }
+.kpi .l { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .d { font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .track { margin-top: 4px; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.kpi .fill { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+/* 在库构成条 */
+.mix { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-micro); color: var(--text-4); }
+.mix-bar { flex: 1; height: 8px; border-radius: var(--radius-full); overflow: hidden; display: flex; background: var(--surface-3); }
+.mix-bar i { height: 100%; }
+.m-res { background: color-mix(in srgb, var(--accent) 62%, var(--surface)); }
+.m-task { background: color-mix(in srgb, var(--accent) 34%, var(--surface)); }
+.m-curio { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+/* 方向状态面板 */
+.mission { display: flex; flex-direction: column; gap: 3px; padding: var(--card-pad-vert) var(--card-pad-horz); border-left: 2px solid var(--accent); }
+.mission .k { font-size: var(--fs-micro); font-weight: 600; color: var(--text-4); }
+.mission .t { font-size: var(--fs-sub); color: var(--text-2); line-height: var(--lh-sub); }
+.fps { display: flex; flex-direction: column; gap: var(--card-gap); }
+.fp-row { display: flex; align-items: center; gap: var(--sp-2); padding: var(--card-pad-vert) var(--card-pad-horz); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; transition: all var(--dur); }
+.fp-row:hover { border-color: var(--accent); }
+.fp-name { font-size: var(--fs-sub); font-weight: 700; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-st { font-size: var(--fs-micro); padding: 1px 8px; border-radius: var(--radius-full); font-weight: 600; flex: none; }
+.fp-st.active { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.fp-st.stalled { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.fp-track { width: 64px; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; flex: none; }
+.fp-fill { display: block; height: 100%; background: var(--accent); }
+.fp-pct { font-size: var(--fs-micro); color: var(--text-3); font-variant-numeric: tabular-nums; flex: none; }
+
+/* ═══ P3·周期段壳 ═══ */
+.pi-mod { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+.mod-head { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.mod-ico { width: 30px; height: 30px; border-radius: var(--radius-sm); background: var(--accent-light); color: var(--accent-ink); display: grid; place-items: center; font-size: 14px; flex: none; }
+.mod-title { font-size: var(--fs-headline); font-weight: 700; letter-spacing: -.015em; }
+.mod-sub { font-size: var(--fs-micro); color: var(--text-4); flex-basis: 100%; margin-top: -2px; }
+.mod-badge { margin-left: auto; font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); background: var(--surface-2); padding: 2px 10px; border-radius: var(--radius-full); }
+/* 诊断条（V4 镜子：warn 只换图标不换催促色） */
+.insight { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: var(--fs-sub); color: var(--text-2); }
+.insight .ic { flex: none; color: var(--accent-ink); }
+.insight.warn .ic { color: var(--warn); }
+.insight .cta { margin-left: auto; flex: none; min-height: var(--hit); padding: 2px 12px; border-radius: var(--radius-full); border: 1px solid var(--accent); background: transparent; color: var(--accent-ink); font-size: var(--fs-caption); font-weight: 600; cursor: pointer; white-space: nowrap; }
+.insight .cta:hover { background: var(--accent-light); }
+/* strip 读数带 */
+.strip { display: flex; align-items: center; gap: var(--card-gap); flex-wrap: wrap; }
+.strip-lab { font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .04em; flex: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--sp-3); border-radius: var(--radius-full); border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-caption); color: var(--text-3); }
+.chip .v { font-size: var(--fs-title); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1; }
+.chip .v small { font-size: var(--fs-micro); font-weight: 600; color: var(--text-3); margin-left: 1px; }
+.chip.acc { border-color: color-mix(in srgb, var(--accent) 36%, var(--border)); background: var(--accent-light); }
+.chip.warn { border-color: color-mix(in srgb, var(--warn) 30%, var(--border)); }
+.chip .ar { font-size: 9px; color: var(--text-4); }
+button.chip { cursor: pointer; transition: all var(--dur); }
+button.chip:hover { border-color: var(--accent); }
+/* 段内小节 */
+.sect { display: flex; align-items: center; gap: var(--sp-2); border-top: 1px solid var(--border); padding-top: var(--sp-3); }
+.sect .n { width: 18px; height: 18px; border-radius: 6px; background: var(--surface-3); color: var(--text-3); font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+.sect .t { font-size: var(--fs-sub); font-weight: 700; }
+.sect .m { font-size: var(--fs-micro); color: var(--text-4); margin-left: auto; }
+
+/* ═══ P4·年度热力图（53 周 × 7 天，6 档；点格 = 当日战报） ═══ */
+.hm-wrap { padding: var(--card-pad-vert) var(--card-pad-horz); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.hm-scroll { overflow-x: auto; scrollbar-width: thin; }
+.hm { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); gap: 3px; }
+.hm-cell { width: 13px; height: 13px; border-radius: 3px; border: 0; padding: 0; cursor: pointer; transition: transform var(--dur-fast); }
+.hm-cell:hover { transform: scale(1.3); outline: 1.5px solid var(--accent); z-index: 2; position: relative; }
+.hm-cell.l0 { background: var(--heat-0); } .hm-cell.l1 { background: var(--heat-1); }
+.hm-cell.l2 { background: var(--heat-2); } .hm-cell.l3 { background: var(--heat-3); }
+.hm-cell.l4 { background: var(--heat-4); } .hm-cell.l5 { background: var(--heat-5); }
+.hm-cell.today { outline: 1.5px solid var(--accent-ink); }
+.hm-months { display: flex; margin-top: 5px; min-width: max-content; }
+.hm-months span { font-size: 9px; color: var(--text-4); }
+.hm-legend { display: flex; align-items: center; gap: 4px; margin-top: var(--sp-2); font-size: var(--fs-micro); color: var(--text-4); }
+.hm-legend .s { width: 11px; height: 11px; border-radius: 3px; }
+.hm-legend b { color: var(--text-3); }
+.hm-legend .stat { margin-left: auto; }
+
+/* ═══ P4·生命周期（活跃/冷却/归档 三态行卡，密度令牌接通） ═══ */
+.lc-group { display: flex; flex-direction: column; gap: var(--card-gap); }
+.lc-row { display: flex; align-items: center; gap: var(--sp-2); padding: var(--card-pad-vert) var(--card-pad-horz); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.lc-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.lc-dot.active { background: var(--ok); } .lc-dot.cooling { background: var(--warn); } .lc-dot.archived { background: var(--text-4); }
+.lc-title { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-row:hover .lc-title { color: var(--text); }
+.lc-kind { font-size: var(--fs-micro); color: var(--text-4); flex: none; }
+.lc-meta { font-size: var(--fs-micro); color: var(--text-4); font-variant-numeric: tabular-nums; flex: none; }
+.lc-flame { font-size: var(--fs-micro); padding: 1px 7px; border-radius: var(--radius-full); background: var(--tag-warn-bg); color: var(--tag-warn-text); font-weight: 600; flex: none; }
+.lc-acts { display: flex; gap: 4px; flex: none; }
+.lc-act { min-width: calc(var(--hit) - 4px); min-height: calc(var(--hit) - 4px); border: 1px solid var(--border); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: var(--fs-micro); cursor: pointer; opacity: 0; transition: all var(--dur); }
+.lc-row:hover .lc-act, .lc-act:focus-visible { opacity: 1; }
+.lc-act:hover { color: var(--accent-ink); border-color: var(--accent); }
+.lc-tabs { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-full); }
+.lc-tab { min-height: calc(var(--hit) - 4px); padding: 2px 12px; border: 0; border-radius: var(--radius-full); background: transparent; color: var(--text-3); font-size: var(--fs-micro); font-weight: 600; cursor: pointer; }
+.lc-tab.on { background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); }
+
+/* ═══ 弹层 ═══ */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn var(--dur) var(--ease-out-soft); }
+.drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 100; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 440px; max-width: 92vw; background: var(--surface); border-left: 1px solid var(--border-strong); box-shadow: var(--shadow-lg); z-index: 101; display: flex; flex-direction: column; animation: slideInRight var(--dur) var(--ease-emphasis); }
+.drawer-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+.drawer-title { font-size: var(--fs-sub); font-weight: 700; }
+.drawer-x { margin-left: auto; min-width: var(--hit); min-height: var(--hit); border: 0; background: transparent; color: var(--text-3); font-size: 16px; cursor: pointer; border-radius: var(--radius-sm); }
+.drawer-x:hover { background: var(--surface-2); color: var(--text); }
+/* 对账条（V4：次数与张数两套口径并排，不是 bug 是两件事） */
+.recon { display: flex; gap: var(--sp-2); flex-wrap: wrap; padding: var(--sp-2) var(--sp-4); border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.recon-cell { display: flex; align-items: baseline; gap: 4px; font-size: var(--fs-micro); color: var(--text-4); }
+.recon-cell b { font-size: var(--fs-sub); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.recon-cell.warn b { color: var(--warn); }
+.recon-note { padding: var(--sp-1) var(--sp-4) var(--sp-2); font-size: var(--fs-micro); color: var(--text-4); border-bottom: 1px solid var(--border); }
+.drawer-tools { display: flex; gap: var(--sp-1); padding: var(--sp-2) var(--sp-4); border-bottom: 1px solid var(--border); }
+.drawer-search { flex: 1; min-height: var(--hit); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: var(--fs-sub); padding: 0 10px; font-family: inherit; outline: none; }
+.drawer-search:focus { border-color: var(--accent); }
+.drawer-body { flex: 1; overflow-y: auto; padding: var(--sp-2) var(--sp-4) var(--sp-4); display: flex; flex-direction: column; gap: var(--card-gap); }
+.st-row { display: flex; align-items: center; gap: var(--sp-2); padding: var(--card-pad-vert) var(--card-pad-horz); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; transition: all var(--dur); }
+.st-row:hover { border-color: var(--accent); }
+.st-kind { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-size: 10px; flex: none; background: var(--surface-3); color: var(--text-3); }
+.st-title { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-owner { font-size: var(--fs-micro); color: var(--text-4); flex: none; }
+.drawer-foot { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); }
+.pager { margin-left: auto; display: flex; gap: 4px; }
+.pg-btn { min-width: var(--hit); min-height: calc(var(--hit) - 4px); border: 1px solid var(--border); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: var(--fs-micro); cursor: pointer; }
+.pg-btn:hover { color: var(--accent-ink); border-color: var(--accent); }
+
+/* 战报弹窗（DayDetail 同构：头/摘要/四格/热力带/分时段时间线/导出） */
+.day-modal { width: min(720px, 92vw); max-height: 86vh; background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+.day-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-5); border-bottom: 1px solid var(--border); }
+.day-title { font-size: var(--fs-headline); font-weight: 700; }
+.day-sub { font-size: var(--fs-micro); color: var(--text-4); }
+.day-body { overflow-y: auto; padding: var(--sp-4) var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4); }
+.day-sum { font-size: var(--fs-sub); color: var(--text-2); line-height: var(--lh-sub); }
+.day-quad { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--card-gap); }
+.day-q { padding: var(--card-pad-vert) var(--card-pad-horz); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; }
+.day-q:hover { border-color: var(--accent); }
+.day-q .v { font-size: var(--fs-title); font-weight: 700; font-variant-numeric: tabular-nums; }
+.day-q .v small { font-size: var(--fs-caption); color: var(--text-3); font-weight: 500; }
+.day-q .l { font-size: var(--fs-micro); color: var(--text-3); margin-top: 2px; }
+.day-band { display: flex; gap: 2px; }
+.day-band i { flex: 1; height: 10px; border-radius: 2px; }
+.day-band i.l0 { background: var(--heat-0); } .day-band i.l1 { background: var(--heat-1); }
+.day-band i.l2 { background: var(--heat-2); } .day-band i.l3 { background: var(--heat-3); }
+.day-band i.l4 { background: var(--heat-4); } .day-band i.l5 { background: var(--heat-5); }
+.tl { display: flex; flex-direction: column; }
+.tl-row { display: flex; gap: var(--sp-2); padding: var(--card-pad-vert) var(--card-pad-horz); border-bottom: 1px solid var(--border); align-items: baseline; }
+.tl-row:last-child { border-bottom: 0; }
+.tl-time { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--text-4); width: 44px; flex: none; }
+.tl-act { font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink); width: 52px; flex: none; }
+.tl-title { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-sec { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-micro); font-weight: 700; color: var(--text-3); padding: var(--sp-2) var(--card-pad-horz) var(--sp-1); }
+.day-foot { display: flex; gap: var(--sp-1); padding: var(--sp-2) var(--sp-5); border-top: 1px solid var(--border); }
+
+/* ═══ 审核工具列 ═══ */
+.rv-fab { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: var(--radius-full); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); font-weight: 600; cursor: pointer; box-shadow: var(--shadow-md); }
+.rv-fab:hover { color: var(--accent-ink); border-color: var(--accent); }
+.rv-rail { position: fixed; right: 20px; bottom: 64px; width: 360px; max-height: min(72vh, 640px); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); z-index: 91; display: none; flex-direction: column; overflow: hidden; }
+.rv-rail.show { display: flex; }
+.rv-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+.rv-title { font-size: var(--fs-sub); font-weight: 700; }
+.rv-list { flex: 1; overflow-y: auto; padding: var(--sp-2); }
+.rv-item { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); background: var(--surface); }
+.rv-item h4 { font-size: var(--fs-sub); display: flex; align-items: center; gap: 6px; }
+.rv-item h4 .rv-id { font-family: var(--font-mono); font-size: 9px; color: var(--text-4); }
+.rv-spec { font-size: var(--fs-micro); color: var(--accent-ink); margin-top: 2px; }
+.rv-item p { font-size: var(--fs-micro); color: var(--text-3); margin-top: 4px; line-height: 1.6; }
+.rv-item .rv-btns { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.rv-judge { min-height: 24px; padding: 1px 9px; border-radius: var(--radius-full); border: 1px solid var(--border); background: transparent; color: var(--text-3); font-size: var(--fs-micro); cursor: pointer; }
+.rv-judge.on-yes { background: var(--tag-ok-bg); color: var(--tag-ok-text); border-color: transparent; }
+.rv-judge.on-no { background: var(--tag-warn-bg); color: var(--tag-warn-text); border-color: transparent; }
+.rv-see { min-height: 24px; padding: 1px 9px; border-radius: var(--radius-full); border: 1px dashed var(--border-strong); background: transparent; color: var(--text-4); font-size: var(--fs-micro); cursor: pointer; }
+.rv-see:hover { color: var(--accent-ink); border-color: var(--accent); }
+.rv-foot { display: flex; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--border); }
+.rv-export { flex: 1; min-height: var(--hit); border-radius: var(--radius-sm); border: 1px solid var(--accent); background: transparent; color: var(--accent-ink); font-size: var(--fs-caption); font-weight: 600; cursor: pointer; }
+.rv-export:hover { background: var(--accent-light); }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 200; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-full); padding: 7px 18px; font-size: var(--fs-caption); color: var(--text-2); box-shadow: var(--shadow-lg); animation: fadeIn var(--dur) var(--ease-out-soft); }
+
+/* Tooltip（口径：镜子不鞭子 R03） */
+[data-tip] { position: relative; }
+[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 7px); transform: translateX(-50%); max-width: 340px; white-space: normal; background: var(--surface-3); color: var(--text-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 6px 10px; font-size: var(--fs-micro); line-height: 1.6; box-shadow: var(--shadow-md); z-index: 80; pointer-events: none; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* ═══ P5·断点收敛 1024/800（04-73 D-2，与方向台同阶） ═══ */
+@media (max-width: 1024px) {
+  .pi-page { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .pi-ov { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 800px) {
+  .pi-tabs { margin-left: 0; }
+  .pi-acts { margin-left: auto; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .day-quad { grid-template-columns: repeat(2, 1fr); }
+  .rv-rail { right: 8px; width: min(360px, calc(100vw - 16px)); }
+  .mix-bar { order: 3; flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand" data-tip="点品牌区进入画像洞察（本页）——与生产入口一致"><span class="brand-ico">知</span>知源 · Ownway</span>
+  <nav class="nav">
+    <a href="#">调度台</a><a href="#" class="on">画像洞察</a><a href="#">方向台</a><a href="#">策展台</a>
+  </nav>
+  <div class="top-acts">
+    <div class="menu">
+      <button class="icon-btn" id="themeBtn" title="切换主题（四主题取自 tokens.css）">◐</button>
+      <div class="menu-pop" id="themeMenu" style="display:none">
+        <button class="menu-item on" data-t="linear"><span class="sw" style="background:#5E6AD2"></span>深空薰衣草 · linear</button>
+        <button class="menu-item" data-t="raycast"><span class="sw" style="background:#1E6FD9"></span>曜石蓝 · raycast</button>
+        <button class="menu-item" data-t="apple"><span class="sw" style="background:#8452E0"></span>纸白紫 · apple</button>
+        <button class="menu-item" data-t="notion"><span class="sw" style="background:#9E3FAF"></span>暖纸紫 · notion</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="icon-btn" id="densityBtn" title="行卡密度（04-73 D-1(a)：紧凑档真实生效）">≡</button>
+      <div class="menu-pop" id="densityMenu" style="display:none">
+        <button class="menu-item on" data-d="">舒适（默认）</button>
+        <button class="menu-item" data-d="compact">紧凑（--card-gap 8px）</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="proto-note">
+  <span><b>审核稿 V1</b> · 画像洞察按 04-73 规范做 UI 层优化 · 基线 V3.9.19 结构（双面板 + 四时段 + 战报/抽屉不推翻） · 色值/字号/间距/圆角取自 tokens.css · 演示数据虚构</span>
+  <span class="grow"></span>
+  <button class="note-btn" id="rvOpen2">怎么审 · 10 模块</button>
+</div>
+
+<div class="pi-page" id="piTop">
+
+  <!-- ═══ P1 页头：中文 kicker（PROFILE INSIGHTS 退役）+ 四页签（只留中文）+ 工具组，三组间 sp-5 呼吸 ═══ -->
+  <section class="pi-hero" aria-label="画像洞察页头">
+    <div class="pi-hero-id">
+      <span class="pi-kicker">画像洞察 · <b>2026-10-24 周六</b></span>
+      <span class="pi-title">你的知源使用画像</span>
+    </div>
+    <div class="pi-tabs" role="tablist" aria-label="时间范围">
+      <button class="pi-tab" role="tab" data-range="today" data-tip="今日尺度：入台 / 调出 / 焦点 / 弹药四格 + 一句话诊断">今天</button>
+      <button class="pi-tab" role="tab" data-range="week" data-tip="本周尺度：有效动作 / 战略目标产出 / 节奏">本周</button>
+      <button class="pi-tab" role="tab" data-range="month" data-tip="本月尺度：入池 / 转化 / 沉淀漏斗 / 主题">本月</button>
+      <button class="pi-tab on" role="tab" data-range="year" data-tip="全年尺度：诊断 / 热力 / 生命周期 · 默认落本年（先看长期再下钻）">本年</button>
+    </div>
+    <div class="pi-acts">
+      <button class="pi-btn" data-tip="重读事件日志刷新统计（本页所有读数只读，不写库）">⟳ 刷新</button>
+      <button class="pi-btn" data-tip="导出画像摘要：使命主线 + 四项底盘指标 + 四尺度诊断（MD / CSV）">⤓ 导出</button>
+      <button class="pi-btn" id="openLogBtn" data-tip="全量操作记录：类型 × 动作 × 时间三维筛选（全页唯一入口）">▤ 全部记录</button>
+    </div>
+  </section>
+
+  <!-- ═══ P2 首屏双面板：使用状态（左 3fr）+ 方向状态（右 2fr）═══ -->
+  <div class="pi-ov">
+    <section class="pi-card" aria-label="知源产品使用状态">
+      <div class="card-head">
+        <span class="card-eyebrow">使用状态</span>
+        <span class="card-title">知源产品使用状态</span>
+        <span class="card-sub">只呈现状态，不作评价</span>
+      </div>
+      <div class="kpis">
+        <button class="kpi" data-tip="全库净资产 = 三类未删卡合计（回收站不计）· 资源 128 · 任务 46 · 好奇 22 —— 点击看明细" data-drill="all">
+          <span class="v">196<small>张</small></span>
+          <span class="l">在库卡片</span>
+          <span class="d">资源 128 · 任务 46 · 好奇 22</span>
+        </button>
+        <button class="kpi" data-tip="知识熵 4.2 bit = 卡片标签分布的离散度（越高铺得越散）· 高频标签：科创政策 · 长三角 · 咨询交付 —— 点击看分布" data-drill="entropy">
+          <span class="v">4.2<small>bit</small></span>
+          <span class="l">标签分布</span>
+          <span class="d">越低越集中</span>
+        </button>
+        <button class="kpi" data-tip="任务有证据支撑 62% = 有 ≥1 张支撑资源卡关联的未删任务 ÷ 未删任务总数 —— 点击看支撑明细" data-drill="support">
+          <span class="v">62<small>%</small></span>
+          <span class="l">任务有资源支撑</span>
+          <span class="d">显式关联，不是标签相似</span>
+        </button>
+        <button class="kpi" data-tip="近 30 天精力落主攻 58% = 归属主攻项目任务的有效动作 ÷ 近 30 天总有效动作 —— 点击看主攻动作流水" data-drill="focus">
+          <span class="v">58<small>%</small></span>
+          <span class="l">近 30 天精力落主攻</span>
+          <span class="d">主攻由方向台设定</span>
+          <span class="track"><span class="fill" style="width:58%"></span></span>
+        </button>
+      </div>
+      <div class="mix" data-tip="在库构成 = 三类存活卡占比（诚实近似：按当前在库，非历史时点回放）">
+        <span>在库构成</span>
+        <span class="mix-bar"><i class="m-res" style="width:65%"></i><i class="m-task" style="width:24%"></i><i class="m-curio" style="width:11%"></i></span>
+        <span>资源 65% · 任务 24% · 好奇 11%</span>
+      </div>
+    </section>
+
+    <section class="pi-card" aria-label="你的方向状态">
+      <div class="card-head">
+        <span class="card-eyebrow">方向状态</span>
+        <span class="card-title">你的方向状态</span>
+      </div>
+      <div class="mission" data-tip="使命主线 = 方向台第 2 层使命原文（空则回落愿景；点击去方向台设定）">
+        <span class="k">使命主线</span>
+        <span class="t">以好奇过滤信息，以调度致用于己——每个判断都有出处，每次调用都在轨道上</span>
+      </div>
+      <div class="fps">
+        <div class="fp-row" data-tip="主攻 1 · 点击打开项目详情抽屉（方向台/策展台同一枚）">
+          <span class="fp-name">省级科创政策对比研究</span>
+          <span class="fp-st active">推进中</span>
+          <span class="fp-track"><span class="fp-fill" style="width:62%"></span></span>
+          <span class="fp-pct">62%</span>
+        </div>
+        <div class="fp-row" data-tip="主攻 2 · 停滞 = 近 14 天无任务推进（中性读数，不催办）">
+          <span class="fp-name">年度咨询交付 · 制造业</span>
+          <span class="fp-st stalled">停滞</span>
+          <span class="fp-track"><span class="fp-fill" style="width:40%"></span></span>
+          <span class="fp-pct">40%</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ═══ P3 周期段：四选一（默认本年）═══ -->
+  <section class="pi-mod" id="modBox">
+    <div class="mod-head">
+      <span class="mod-ico" id="modIco">▤</span>
+      <span class="mod-title" id="modTitle">这一年，你走过什么</span>
+      <span class="mod-badge" id="modBadge" data-tip="本年活跃天数 = 有加权动作的天数（与热力图同口径）">本年活跃 187 天</span>
+    </div>
+    <div class="mod-sub" id="modSub">全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 › 该日战报。</div>
+
+    <!-- 诊断条（V4：warn 只换图标，不换催促色） -->
+    <div class="insight" id="insBar">
+      <span class="ic">◈</span>
+      <span id="insText">近 30 天 58% 的有效动作落在主攻项目上——主轴在轨；有 6 张高价值卡在冷却期沉睡，可唤醒复温。</span>
+      <button class="cta" id="insCta" data-act="wake">唤醒冷却卡 ›</button>
+    </div>
+
+    <!-- strip 读数带（随页签切换） -->
+    <div class="strip" id="stripBox">
+      <span class="strip-lab" id="stripLab">本年</span>
+      <span class="chip" data-tip="本年活跃天数 = 有加权动作的天数（热力图同口径）"><span class="v">187<small>天</small></span> 本年活跃</span>
+      <span class="chip" data-tip="最长连续天数 = 连续有动作的最长跨度"><span class="v">23<small>天</small></span> 最长连续</span>
+      <button class="chip acc" data-tip="活跃期资产 = 生命周期三态中处于活跃期的存活卡片 —— 点击看全部卡片明细" data-drill="all"><span class="v">142<small>张</small></span> 活跃期资产 <span class="ar">▸</span></button>
+      <button class="chip warn" data-tip="高价值冷却卡 = 冷却期中历史调用 ≥ 3 次的核心证据卡 —— 点击唤醒（滚到生命周期段）" id="coolChip"><span class="v">6<small>张</small></span> 高价值冷却卡 <span class="ar">▸</span></button>
+    </div>
+
+    <!-- ═══ P4 年度热力图 ═══ -->
+    <div>
+      <div class="sect">
+        <span class="n">1</span><span class="t">年度热力图</span>
+        <span class="m">全年 53 周 · 点任意日期 › 直接打开当日战报</span>
+      </div>
+      <div class="hm-wrap">
+        <div class="hm-scroll"><div class="hm" id="heatmap"></div><div class="hm-months" id="hmMonths"></div></div>
+        <div class="hm-legend">
+          <span>少</span>
+          <span class="s" style="background:var(--heat-0)"></span><span class="s" style="background:var(--heat-1)"></span>
+          <span class="s" style="background:var(--heat-2)"></span><span class="s" style="background:var(--heat-3)"></span>
+          <span class="s" style="background:var(--heat-4)"></span><span class="s" style="background:var(--heat-5)"></span>
+          <span>多</span>
+          <span class="stat">活跃 <b>187</b> 天 · 最长连续 <b>23</b> 天 · 单日峰值 <b>86</b> 分（09-18）</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ P4 生命周期段 ═══ -->
+    <div id="lc-sec">
+      <div class="sect">
+        <span class="n">2</span><span class="t">资源生命周期与高价值沉睡证据唤醒</span>
+        <span class="m">活跃 / 冷却 / 归档 · 冷却态 🔥 核心卡置顶</span>
+        <button class="pi-btn sm" style="margin-left:8px" data-tip="默认冷却 30 天 · 归档 90 天（可逐卡自定义）">阈值设置</button>
+      </div>
+      <div class="lc-tabs" role="tablist" style="margin-bottom:10px">
+        <button class="lc-tab on" data-lc="active">活跃 142</button>
+        <button class="lc-tab" data-lc="cooling">冷却 38</button>
+        <button class="lc-tab" data-lc="archived">归档 16</button>
+      </div>
+      <div class="lc-group" id="lcGroup"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══ 明细抽屉（卡片清单 + 对账条）═══ -->
+<div id="statDrawer" style="display:none">
+  <div class="drawer-mask" data-close="stat"></div>
+  <div class="drawer" role="dialog" aria-label="指标明细">
+    <div class="drawer-head"><span class="drawer-title" id="sdTitle">全部卡片明细（196）</span><button class="drawer-x" data-close="stat" aria-label="关闭">×</button></div>
+    <div class="recon" id="sdRecon"></div>
+    <div class="recon-note" id="sdNote"></div>
+    <div class="drawer-tools"><input class="drawer-search" id="sdSearch" placeholder="按标题或说明过滤…" aria-label="过滤"></div>
+    <div class="drawer-body" id="sdBody"></div>
+    <div class="drawer-foot"><span id="sdCount">共 20 行 / 196</span><span class="pager"><button class="pg-btn" data-pg="-1">‹</button><button class="pg-btn" data-pg="1">›</button></span></div>
+  </div>
+</div>
+
+<!-- ═══ 全量记录抽屉（三维筛选示意）═══ -->
+<div id="logDrawer" style="display:none">
+  <div class="drawer-mask" data-close="log"></div>
+  <div class="drawer" role="dialog" aria-label="全部记录">
+    <div class="drawer-head"><span class="drawer-title">全部记录 · 全量时间线</span><button class="drawer-x" data-close="log" aria-label="关闭">×</button></div>
+    <div class="drawer-tools">
+      <select class="drawer-search" aria-label="类型"><option>全部类型</option><option>资源</option><option>任务</option><option>好奇</option></select>
+      <select class="drawer-search" aria-label="动作"><option>全部动作</option><option>新增</option><option>调出</option><option>改状态</option><option>移出</option></select>
+    </div>
+    <div class="drawer-body">
+      <div class="tl-sec">今天 · 10-24（周六）</div>
+      <div class="tl-row"><span class="tl-time">21:40</span><span class="tl-act">调出</span><span class="st-title">浙江 2026 版科创政策原文（PDF）</span></div>
+      <div class="tl-row"><span class="tl-time">20:15</span><span class="tl-act">改状态</span><span class="st-title">整理长三角三省科创政策差异表 → 进行中</span></div>
+      <div class="tl-row"><span class="tl-time">16:02</span><span class="tl-act">新增</span><span class="st-title">苏州工业园区产业扶持政策要点</span></div>
+      <div class="tl-sec">昨天 · 10-23（周五）</div>
+      <div class="tl-row"><span class="tl-time">22:31</span><span class="tl-act">调出</span><span class="st-title">江苏省科创政策汇编 2025</span></div>
+      <div class="tl-row"><span class="tl-time">09:12</span><span class="tl-act">新增</span><span class="st-title">顾问定位如何差异化？（好奇卡）</span></div>
+    </div>
+    <div class="drawer-foot"><span>类型 × 动作 × 时间三维可筛 · 支持 CSV 导出</span><span class="pager"><button class="pg-btn">‹</button><button class="pg-btn">›</button></span></div>
+  </div>
+</div>
+
+<!-- ═══ 今日战报弹窗（DayDetail 同构）═══ -->
+<div id="dayModal" style="display:none">
+  <div class="overlay" data-close="day">
+    <div class="day-modal" role="dialog" aria-modal="true" aria-label="当日战报">
+      <div class="day-head">
+        <span class="day-title" id="dayTitle">10-24 周六 · 当日战报</span>
+        <span class="day-sub" id="daySub">写入 12 · 调出 5 · 加权 68 分 · 排本年 Top 8%</span>
+        <button class="drawer-x" data-close="day" aria-label="关闭" style="margin-left:auto">×</button>
+      </div>
+      <div class="day-body">
+        <p class="day-sum">这一天以「省级科创政策对比研究」为主线推进：上午补齐浙江两份原文并整理差异表，下午调出江苏汇编做交叉核对，晚间把三条线索挂到「覆盖省份数」指标下。好奇侧新采了一条顾问定位问题。</p>
+        <div class="day-quad">
+          <button class="day-q" data-tip="新增 = 今日新建 + 本地导入的卡片（含好奇）" data-drill="today-in"><span class="v">12<small>张</small></span><div class="l">今日入台 ↗</div></button>
+          <button class="day-q" data-tip="调出 = 今日被打开的卡片（按张去重；次数口径见对账条）" data-drill="today-call"><span class="v">5<small>张</small></span><div class="l">今日调出 ◐</div></button>
+          <button class="day-q" data-tip="移出 = 今日软删的卡片（回收站可恢复）"><span class="v">2<small>张</small></span><div class="l">今日移出 ⌫</div></button>
+          <button class="day-q" data-tip="加权分 = 调出 ×3 + 新增 ×2 + 完成 ×5 的当日合计（热力图色档同口径）"><span class="v">68<small>分</small></span><div class="l">当日加权</div></button>
+        </div>
+        <div>
+          <div class="tl-sec">分时段时间线（降序）</div>
+          <div class="tl">
+            <div class="tl-row"><span class="tl-time">21:40</span><span class="tl-act">调出</span><span class="tl-title">浙江 2026 版科创政策原文（PDF）· 第 2 次打开</span></div>
+            <div class="tl-row"><span class="tl-time">20:15</span><span class="tl-act">改状态</span><span class="tl-title">整理长三角三省科创政策差异表 → 进行中</span></div>
+            <div class="tl-row"><span class="tl-time">16:02</span><span class="tl-act">新增</span><span class="tl-title">苏州工业园区产业扶持政策要点 · 采集入池</span></div>
+            <div class="tl-row"><span class="tl-time">11:24</span><span class="tl-act">调出</span><span class="tl-title">江苏省科创政策汇编 2025</span></div>
+            <div class="tl-row"><span class="tl-time">09:12</span><span class="tl-act">新增</span><span class="tl-title">顾问定位如何差异化？（好奇卡）</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="day-foot">
+        <button class="pi-btn sm" data-tip="按本日预筛打开全量记录抽屉">▤ 本日全部记录</button>
+        <button class="pi-btn sm" data-tip="导出当日战报（PNG / HTML / MD）">⤓ 导出战报</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 审核工具列（10 模块巡检 + 判定导出）═══ -->
+<button class="rv-fab" id="rvFab">☑ 审核 · 10 模块</button>
+<div class="rv-rail" id="rvRail" aria-label="审核巡检">
+  <div class="rv-head"><span class="rv-title">画像洞察原型 · 逐模块审核</span><button class="drawer-x" id="rvClose" style="margin-left:auto" aria-label="收起">×</button></div>
+  <div class="rv-list" id="rvList"></div>
+  <div class="rv-foot"><button class="rv-export" id="rvExport">⤓ 导出判定 JSON（回贴给 AI 继续迭代）</button></div>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ═══ 数据（虚构演示；口径标注与生产一致） ═══ */
+const CARDS = {
+  all: [
+    ['资', '江苏省科创政策汇编 2025', '在库 · 2025-03-14'],
+    ['资', '浙江 2026 版科创政策原文（PDF）', '在库 · 2026-09-02'],
+    ['资', '上海科技成果转化新政摘要', '在库 · 2026-08-11'],
+    ['任', '整理长三角三省科创政策差异表', '进行中 · 主攻 1'],
+    ['任', '补齐浙江 2026 版政策原文', '已完成 · 10-24'],
+    ['奇', '顾问定位如何差异化？', '探索中 · 10-24 入池'],
+    ['资', '苏州工业园区产业扶持政策要点', '在库 · 10-24 采集'],
+    ['任', '客户线索清单 10 月复盘', '待办 · 主攻 2'],
+  ],
+  entropy: [
+    ['标', '科创政策 · 34 张', '资源为主 · 高频'],
+    ['标', '长三角 · 21 张', '资源 + 任务'],
+    ['标', '咨询交付 · 15 张', '任务为主'],
+    ['标', '制造业 · 9 张', '任务为主'],
+    ['标', '政策外溢 · 6 张', '资源'],
+    ['标', '（未打标 · 11 张）', '知识熵的主要来源之一'],
+  ],
+  support: [
+    ['任', '整理长三角三省科创政策差异表', '已支撑 · 3 张'],
+    ['任', '补齐浙江 2026 版政策原文', '已支撑 · 2 张'],
+    ['任', '客户线索清单 10 月复盘', '未支撑'],
+    ['任', '年度咨询方案初稿', '未支撑'],
+  ],
+  'today-in': [
+    ['资', '苏州工业园区产业扶持政策要点', '采集入池'],
+    ['奇', '顾问定位如何差异化？', '本地新建'],
+    ['资', '安徽 2026 科创若干措施', '本地导入'],
+  ],
+  'today-call': [
+    ['资', '浙江 2026 版科创政策原文（PDF）', '↗ 今日已调出 · 2 次'],
+    ['资', '江苏省科创政策汇编 2025', '↗ 今日已调出 · 1 次'],
+  ],
+};
+const RECON = {
+  all: [['存活卡片', '196', '张'], ['资源', '128', '张'], ['任务', '46', '张'], ['好奇', '22', '张']],
+  'today-call': [['调出动作', '7', '次', 1], ['涉及卡片', '5', '张'], ['其中重复打开', '2', '次']],
+  'today-in': [['今日入台', '12', '张'], ['清单行数', '12', '张'], ['本地导入', '3', '张'], ['采集入池', '6', '张']],
+  entropy: [['知识熵', '4.2', 'bit'], ['带标卡片', '185', '张'], ['未打标', '11', '张', 1]],
+  support: [['支撑率', '62', '%'], ['已支撑', '29', '个'], ['未支撑', '17', '个', 1]],
+};
+const RECON_NOTE = {
+  all: '本清单是卡片维度；想看"谁在什么时候做了什么"，去页头「全部记录」。',
+  'today-call': '「次数」= 打开动作总数（含同一张卡多次打开）；「张数」= 去重后的卡片数。两者不同不是 bug，是两件事。',
+  'today-in': '今日入台按卡字段 createdAt 计（与四格读数同源）；事件只用来标注来源。',
+  entropy: '知识熵 = 标签分布离散度；未打标卡片不参与熵计算，但单列提醒补标。',
+  support: '支撑 = 任务到资源卡的一条显式关联，不是"标签相同就算支撑"。',
+};
+const DRAWER_TITLE = {
+  all: '全部卡片明细（196）', entropy: '标签分布明细（Top + 未打标）',
+  support: '任务证据支撑明细（46）', 'today-in': '今日入台的卡（12 张）', 'today-call': '↗ 今日调出的卡（5 张）',
+};
+
+/* ═══ 生命周期数据 ═══ */
+const LC = {
+  active: [
+    ['江苏省科创政策汇编 2025', '资源', '调用 23 次 · 3 天前'],
+    ['省级科创政策对比研究 · 任务集', '任务', '调用 15 次 · 今天'],
+    ['长三角一体化跟踪 · 线索池', '资源', '调用 9 次 · 昨天'],
+  ],
+  cooling: [
+    ['制造业咨询交付 SOP', '资源', '冷却 41 天 · 阈值 30 天'],
+    ['客户访谈纪要模板', '资源', '冷却 63 天 · 阈值 30 天'],
+    ['欧盟 AI Act 外溢分析', '资源', '冷却 22 天 · 阈值 14 天（自定义）'],
+  ],
+  archived: [
+    ['2025 春季政策快报合集', '资源', '归档 128 天'],
+    ['旧版客户分级标准', '资源', '归档 96 天'],
+  ],
+};
+function renderLc(tab) {
+  $('#lcGroup').innerHTML = LC[tab].map(([t, k, m], i) => `
+    <div class="lc-row" data-tip="${t} · ${m}${tab === 'cooling' ? ' · 冷却判定逐卡走 lifecycleState（与生命周期面板同一真源）' : ''}">
+      <span class="lc-dot ${tab}"></span>
+      <span class="lc-title">${t}</span>
+      ${tab === 'cooling' && i === 0 ? '<span class="lc-flame">🔥 历史高频 23 次</span>' : ''}
+      <span class="lc-kind">${k}</span>
+      <span class="lc-meta">${m}</span>
+      <span class="lc-acts">
+        ${tab === 'cooling' ? '<button class="lc-act" data-tip="唤醒复温：回到活跃期">复温</button><button class="lc-act" data-tip="延后一个冷却周期">延后</button>' : ''}
+        ${tab === 'archived' ? '<button class="lc-act" data-tip="唤醒复温：回到活跃期">复温</button>' : ''}
+        ${tab === 'active' ? '<button class="lc-act" data-tip="定位到卡片所在台面">定位</button>' : ''}
+      </span>
+    </div>`).join('');
+}
+renderLc('active');
+$$('.lc-tab').forEach(b => b.onclick = () => {
+  $$('.lc-tab').forEach(x => x.classList.toggle('on', x === b));
+  renderLc(b.dataset.lc);
+  toast(`生命周期 · ${b.textContent}`);
+});
+
+/* ═══ 年度热力图（53 周 × 7 天，虚构但口径同生产：加权分 6 档） ═══ */
+(function buildHeatmap() {
+  const hm = $('#heatmap'), months = $('#hmMonths');
+  let seed = 42; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const today = new Date(2026, 9, 24); // 10-24
+  let html = '', cur = new Date(2026, 0, 5); // 从 1 月第一周周一开始
+  for (let w = 0; w < 44; w++) {
+    for (let d = 0; d < 7; d++) {
+      if (cur > today) { html += '<span style="width:13px;height:13px"></span>'; cur.setDate(cur.getDate() + 1); continue; }
+      const r = rnd();
+      const wk = cur.getDay();
+      let lvl = 0;
+      if (r > .82) lvl = wk === 0 || wk === 6 ? 2 : 5;
+      else if (r > .68) lvl = 4; else if (r > .5) lvl = 3;
+      else if (r > .3) lvl = 2; else if (r > .14) lvl = 1;
+      const isToday = cur.getMonth() === 9 && cur.getDate() === 24;
+      const label = `${cur.getMonth() + 1}-${String(cur.getDate()).padStart(2, '0')}`;
+      html += `<button class="hm-cell l${lvl}${isToday ? ' today' : ''}" data-day="${label}" data-tip="${label} · 加权 ${lvl === 5 ? '70-99' : lvl === 4 ? '50-69' : lvl === 3 ? '30-49' : lvl === 2 ? '10-29' : lvl === 1 ? '1-9' : '0'} 分 —— 点击打开当日战报" aria-label="${label} 战报"></button>`;
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+  hm.innerHTML = html;
+  hm.style.gridAutoFlow = 'column';
+  months.innerHTML = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+    .map(m => `<span style="width:97px">${m}</span>`).join('');
+})();
+$$('#heatmap').forEach(hm => hm.addEventListener('click', e => {
+  const cell = e.target.closest('.hm-cell'); if (!cell) return;
+  openDay(cell.dataset.day);
+}));
+
+/* ═══ 战报弹窗 ═══ */
+function openDay(day) {
+  $('#dayTitle').textContent = `${day} · 当日战报`;
+  $('#daySub').textContent = '写入 12 · 调出 5 · 加权 68 分 · 排本年 Top 8%';
+  show('day');
+}
+$$('#dayModal [data-drill]').forEach(b => b.onclick = () => { hide('day'); openStat(b.dataset.drill); });
+$$('#dayModal .pi-btn').forEach(b => b.onclick = () => { hide('day'); show('log'); });
+
+/* ═══ 明细抽屉 ═══ */
+let sdPage = 1, sdKey = 'all';
+function openStat(k) {
+  sdKey = k in CARDS ? k : 'all'; sdPage = 1;
+  $('#sdTitle').textContent = DRAWER_TITLE[sdKey];
+  $('#sdRecon').innerHTML = (RECON[sdKey] || []).map(([k2, n, u, w]) =>
+    `<span class="recon-cell${w ? ' warn' : ''}"><b>${n}</b>${u ? ' ' + u : ''} · ${k2}</span>`).join('');
+  $('#sdNote').textContent = RECON_NOTE[sdKey] || '';
+  $('#sdSearch').value = '';
+  renderSd();
+  show('stat');
+}
+function renderSd() {
+  const q = $('#sdSearch').value.trim().toLowerCase();
+  const rows = CARDS[sdKey].filter(r => !q || r[1].toLowerCase().includes(q) || (r[2] || '').toLowerCase().includes(q));
+  $('#sdBody').innerHTML = rows.map(([k, t, o]) => `
+    <div class="st-row" data-tip="${t} —— 点击按类型分流打开（资源开链接/详情 · 任务开任务详情 · 好奇开好奇详情）">
+      <span class="st-kind">${k}</span><span class="st-title">${t}</span><span class="st-owner">${o}</span>
+    </div>`).join('') || '<div style="padding:24px;text-align:center;color:var(--text-4);font-size:12px">无匹配行</div>';
+  $('#sdCount').textContent = `共 ${rows.length} 行`;
+}
+$('#sdSearch').addEventListener('input', renderSd);
+$$('#statDrawer [data-pg]').forEach(b => b.onclick = () => { sdPage += +b.dataset.pg; toast('分页示意 · 第 ' + Math.max(1, sdPage) + ' 页'); });
+$$('#piPage [data-drill], #piTop [data-drill]').forEach(b => b.onclick = () => openStat(b.dataset.drill));
+function wakeCool() {
+  $$('.lc-tab').forEach(x => x.classList.toggle('on', x.dataset.lc === 'cooling'));
+  renderLc('cooling');
+  $('#lc-sec').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast('已定位冷却区 · 🔥 高价值卡置顶');
+}
+$('#coolChip').onclick = wakeCool;
+$('#openLogBtn').onclick = () => show('log');
+
+/* ═══ 周期页签（键盘 ← → 可达） ═══ */
+const RANGES = {
+  today: { ico: '◐', title: '今天，你动了什么', badge: '今日加权 68 分', sub: '今日尺度：入台 / 调出 / 焦点 / 弹药 · 一句话诊断 + 当日战报直达。',
+    lab: '今天', chips: '<span class="chip" data-tip="今日入台 = 今日新建 + 本地导入的卡片"><span class="v">12<small>张</small></span> 今日入台</span><span class="chip" data-tip="今日调出 = 今日被打开的卡片（按张）"><span class="v">5<small>张</small></span> 今日调出</span><button class="chip acc" data-tip="已备弹药 = 三件事支撑卡的存活资源卡" data-drill="all"><span class="v">6<small>张</small></span> 已备弹药 <span class="ar">▸</span></button>' },
+  week: { ico: '▤', title: '这一周，你的节奏', badge: '本周有效动作 41 次', sub: '本周尺度：有效动作 / 加权 / 调出 / 节奏 · 战略目标产出可下钻。',
+    lab: '本周', chips: '<span class="chip" data-tip="有效动作 = 新增 + 调出 + 完成（固定周窗口）"><span class="v">41<small>次</small></span> 有效动作</span><span class="chip" data-tip="本周加权总分"><span class="v">312<small>分</small></span> 本周加权</span><span class="chip" data-tip="战略目标产出 Top：政策研究主线 58%"><span class="v">58<small>%</small></span> 头号目标产出</span>' },
+  month: { ico: '▦', title: '这个月，沉淀了什么', badge: '本月入池 48 张', sub: '本月尺度：入池 / 转化 / 沉淀漏斗 / 新增主题 · 知识熵变化环比。',
+    lab: '本月', chips: '<span class="chip" data-tip="本月入池 = 本月新增（含导入）"><span class="v">48<small>张</small></span> 本月入池</span><span class="chip" data-tip="好奇转化率 = 本月转化离场 ÷ 本月入池"><span class="v">31<small>%</small></span> 好奇转化</span><span class="chip" data-tip="沉淀率 = 新论点卡 ÷ 入池总张"><span class="v">8<small>%</small></span> 沉淀进策展</span>' },
+  year: { ico: '▤', title: '这一年，你走过什么', badge: '本年活跃 187 天', sub: '全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 › 该日战报。',
+    lab: '本年', chips: '<span class="chip" data-tip="本年活跃天数（热力图同口径）"><span class="v">187<small>天</small></span> 本年活跃</span><span class="chip" data-tip="最长连续天数"><span class="v">23<small>天</small></span> 最长连续</span><button class="chip acc" data-tip="活跃期资产 —— 点击看明细" data-drill="all"><span class="v">142<small>张</small></span> 活跃期资产 <span class="ar">▸</span></button><button class="chip warn" data-tip="高价值冷却卡 —— 点击唤醒" id="coolChip2"><span class="v">6<small>张</small></span> 高价值冷却卡 <span class="ar">▸</span></button>' },
+};
+$$('.pi-tab').forEach((b, i, arr) => b.onclick = () => {
+  $$('.pi-tab').forEach(x => x.classList.toggle('on', x === b));
+  const r = RANGES[b.dataset.range];
+  $('#modIco').textContent = r.ico; $('#modTitle').textContent = r.title;
+  $('#modBadge').textContent = r.badge; $('#modSub').textContent = r.sub;
+  $('#stripBox').innerHTML = `<span class="strip-lab">${r.lab}</span>` + r.chips;
+  const cc = $('#coolChip2'); if (cc) cc.onclick = wakeCool;
+  $$('#stripBox [data-drill]').forEach(d => d.onclick = () => openStat(d.dataset.drill));
+  toast(`时间范围 · ${b.textContent}（页签是唯一导航，不滚动到隐藏段落）`);
+});
+$$('.pi-tab').forEach((b, i, arr) => b.addEventListener('keydown', e => {
+  let n = i;
+  if (e.key === 'ArrowRight') n = (i + 1) % arr.length;
+  else if (e.key === 'ArrowLeft') n = (i - 1 + arr.length) % arr.length;
+  else return;
+  e.preventDefault(); arr[n].focus(); arr[n].click();
+}));
+
+/* ═══ 主题 / 密度 / 弹层 / Esc 链 ═══ */
+function bindMenu(btn, menu) {
+  $(btn).onclick = e => { e.stopPropagation(); const m = $(menu); m.style.display = m.style.display === 'none' ? 'block' : 'none'; };
+}
+bindMenu('#themeBtn', '#themeMenu'); bindMenu('#densityBtn', '#densityMenu');
+document.addEventListener('click', e => {
+  $('#themeMenu').style.display = 'none'; $('#densityMenu').style.display = 'none';
+});
+$$('#themeMenu .menu-item').forEach(b => b.onclick = () => {
+  document.documentElement.dataset.theme = b.dataset.t;
+  $$('#themeMenu .menu-item').forEach(x => x.classList.toggle('on', x === b));
+  toast(`主题 · ${b.textContent.trim()}`);
+});
+$$('#densityMenu .menu-item').forEach(b => b.onclick = () => {
+  if (b.dataset.d) document.documentElement.dataset.density = b.dataset.d;
+  else delete document.documentElement.dataset.density;
+  $$('#densityMenu .menu-item').forEach(x => x.classList.toggle('on', x === b));
+  const gap = getComputedStyle(document.documentElement).getPropertyValue('--card-gap');
+  toast(`密度 · ${b.textContent.trim()}（--card-gap = ${gap.trim()}，行卡真实生效）`);
+});
+function show(k) { $({ stat: '#statDrawer', log: '#logDrawer', day: '#dayModal' }[k]).style.display = 'block'; }
+function hide(k) { $({ stat: '#statDrawer', log: '#logDrawer', day: '#dayModal' }[k]).style.display = 'none'; }
+$$('[data-close]').forEach(el => el.onclick = () => hide(el.dataset.close));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if ($('#dayModal').style.display !== 'none') return hide('day');
+  if ($('#statDrawer').style.display !== 'none') return hide('stat');
+  if ($('#logDrawer').style.display !== 'none') return hide('log');
+  const rv = $('#rvRail'); if (rv.classList.contains('show')) rv.classList.remove('show');
+});
+
+/* ═══ 审核列（10 模块 · 判定 + 演示脚本 + 导出） ═══ */
+const MODULES = [
+  { id: 'm1', name: '页头 · 中文 kicker 与三组呼吸', spec: ['T-2 英文眉标退役', 'D-1 组间距', '工具恒靠右'],
+    see: '「画像洞察 · 2026-10-24 周六」+ 四页签（只留中文）+ 刷新/导出/全部记录；PROFILE INSIGHTS / TODAY 等全大写英文全数退役', do: '看三组之间留白是否比生产版松一档；页签 ← → 键盘切换', fb: '中英基线错位（实拍基线 A/B 项）随之消失', not: '不再出现任何全大写英文眉标（与调度台/方向台已定版语言一致）' },
+  { id: 'm2', name: '使用状态 · 四格 KPI', spec: ['T-1 数字 15px', '口径 tooltip', '全部可下钻'],
+    see: '在库 196 / 熵 4.2bit / 支撑 62% / 主攻 58%（带进度轨）+ 在库构成条', do: '四格逐个悬停看口径；点任意格开明细抽屉', fb: '镜子不鞭子：四格全中性色，warn 只出现在诊断条图标', not: 'KPI 数字不加红绿催办；画像页不设 display 级主角' },
+  { id: 'm3', name: '方向状态 · 使命与主攻', spec: ['与方向台同源', '完整项目名', '停滞中性标'],
+    see: '使命主线（accent 竖条）+ 两枚主攻行卡：全名/状态/进度/百分比', do: '悬停主攻行看停滞口径（近 14 天无推进 · 中性读数不催办）', fb: '项目名不截断（生产 PiOverview 已定版，原型延续）', not: '不在此页提供排三件事/归位——那是调度台的事（W17-C09）' },
+  { id: 'm4', name: '周期页签 · 四尺度切换', spec: ['页签唯一导航', '默认本年', 'strip 随页签换'],
+    see: '今天/本周/本月/本年四枚中文页签；切到任意档，段头/诊断/strip 同步换', do: '点四个页签看 strip 读数带变化；← → 键盘切换', fb: '切换不滚动到隐藏段落（单段展示纪律）', not: '不出现第二套导航（左轨时间线已随 W17-C09 退役）' },
+  { id: 'm5', name: '年度热力图', spec: ['6 档令牌色', '53 周横滚', '点格=战报'],
+    see: '全年格子（虚构数据）+ 月份刻度 + 图例（活跃 187 天 · 峰值 09-18）', do: '点任意格子打开当日战报；今天有 accent 描边；横向滚动看全年', fb: 'hover 放大 1.3 + 描边，格子 13px', not: '热力色只走 --heat-0..5 令牌（四主题自动切换）' },
+  { id: 'm6', name: '生命周期 · 三态行卡', spec: ['密度令牌接通', '🔥 高价值置顶', 'hover 动作'],
+    see: '活跃/冷却/归档三页签；行卡：态点/标题/🔥 徽标/元数据/hover 动作（复温·延后·定位）', do: '切到「冷却」看 🔥 置顶与复温/延后按钮（hover 显形）；点 strip 的「高价值冷却卡」直达', fb: '行卡 padding 读 --card-pad-*（切紧凑档真实收紧）', not: '阈值 30/90 是默认值，逐卡可自定义（设置入口在段头）' },
+  { id: 'm7', name: '当日战报弹窗', spec: ['DayDetail 同构', '四格可下钻', '分时段时间线'],
+    see: '头（日期+一句话摘要）/ 四格（入台↗ 调出◐ 移出⌫ 加权）/ 分时段时间线 / 导出', do: '点热力格打开；四格点开明细抽屉（战报自动关）；Esc 关闭', fb: '与调度台 V3.9.18 战报同一形态（一处定版处处同构）', not: '战报只读——编辑回各台面' },
+  { id: 'm8', name: '明细抽屉 · 对账条', spec: ['次数 vs 张数并排', '清单可搜', '点击分流'],
+    see: '标题计数 + 对账条（如调出动作 7 次 / 涉及 5 张 / 重复 2 次）+ 脚注 + 搜索 + 行卡', do: '从 KPI「在库卡片」或战报四格打开；看对账条把两套口径并排说清', fb: 'V4 诚实账本：两套口径不是 bug 是两件事，脚注一句话交代', not: '抽屉行点击按卡型分流打开，不再"去卡片池再看一次"' },
+  { id: 'm9', name: '主题 × 密度', spec: ['四主题令牌', '紧凑真实生效', 'radius-full 收口'],
+    see: '右上 ◐ 换四主题；≡ 切紧凑档', do: '切 notion（暖纸紫）看对比度；切紧凑看 KPI/生命周期行卡间距收紧', fb: '热力/胶囊/进度全部令牌派生，四主题零手调', not: '无 999px 字面量散写（全部 var(--radius-full)）' },
+  { id: 'm10', name: '断点 1024/800', spec: ['D-2 两档', '双面板并转纵', '战报四格 2×2'],
+    see: '拖窄窗口：1024 双面板转单列、KPI 2×2；800 页签换行、战报四格 2×2', do: '拖窗口宽度验证两档行为', fb: '与调度台/方向台同阶（前两轮已收敛 1024/800）', not: '不再有 900/640 两套独有断点' },
+];
+$('#rvList').innerHTML = MODULES.map(m => `
+  <div class="rv-item" id="${m.id}">
+    <h4>${m.name}<span class="rv-id">${m.id}</span></h4>
+    <div class="rv-spec">${m.spec.map(s => '· ' + s).join(' ')}</div>
+    <p><b>看什么：</b>${m.see}</p>
+    <p><b>怎么验：</b>${m.do}</p>
+    <p><b>反馈点：</b>${m.fb}</p>
+    <p><b>边界：</b>${m.not}</p>
+    <div class="rv-btns">
+      <button class="rv-judge" data-v="yes">✓ 通过</button>
+      <button class="rv-judge" data-v="no">✗ 有问题</button>
+      <button class="rv-see" data-demo="${m.id}">▶ 演示脚本</button>
+    </div>
+  </div>`).join('');
+$('#rvFab').onclick = () => $('#rvRail').classList.toggle('show');
+$('#rvOpen2').onclick = () => { $('#rvRail').classList.add('show'); window.scrollTo({ top: 0 }); };
+$('#rvClose').onclick = () => $('#rvRail').classList.remove('show');
+$$('.rv-judge').forEach(b => b.onclick = () => {
+  const g = b.closest('.rv-btns');
+  g.querySelectorAll('.rv-judge').forEach(x => x.classList.remove('on-yes', 'on-no'));
+  b.classList.add(b.dataset.v === 'yes' ? 'on-yes' : 'on-no');
+});
+const DEMO = {
+  m1: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+  m2: () => openStat('all'),
+  m3: () => $('#piTop .mission').scrollIntoView({ behavior: 'smooth', block: 'center' }),
+  m4: () => $$('.pi-tab')[0].click(),
+  m5: () => $('#heatmap').scrollIntoView({ behavior: 'smooth', block: 'center' }),
+  m6: () => $('#coolChip').click(),
+  m7: () => openDay('10-24'),
+  m8: () => openStat('today-call'),
+  m9: () => { $('#themeBtn').click(); $('#themeMenu').style.display = 'block'; },
+  m10: () => toast('拖窄浏览器窗口到 1024 / 800 验证两档行为'),
+};
+$$('.rv-see').forEach(b => b.onclick = () => { $('#rvRail').classList.remove('show'); (DEMO[b.dataset.demo] || (() => {}))(); });
+$('#rvExport').onclick = () => {
+  const out = { proto: '画像洞察 04-73 规范落地 审核稿 V1', date: '2026-10-24', verdicts: {} };
+  $$('.rv-item').forEach(it => {
+    const y = it.querySelector('.on-yes'), n = it.querySelector('.on-no');
+    out.verdicts[it.id] = y ? '通过' : n ? '有问题：' + (it.querySelector('p b:last-of-type') ? '' : '') + '（请在本条批注）' : '未判定';
+  });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '画像洞察原型_V1_判定.json'; a.click();
+  URL.revokeObjectURL(a.href);
+  toast('已导出判定 JSON');
+};
+
+/* Toast */
+let toastTimer = null;
+function toast(msg) {
+  let el = $('.toast');
+  if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2600);
+}
+/* 初始：首屏四格下钻接线（含战报外的主页面） */
+$$('#piTop [data-drill]').forEach(b => b.onclick = () => openStat(b.dataset.drill));
+</script>
+</body>
+</html>

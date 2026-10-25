@@ -124,7 +124,10 @@ check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议
   const t = codeOnly(CT_ALL)
   const heroStart = t.search(/<section class="hero"(?:\s|>)/)
   const head = heroStart >= 0 ? t.slice(heroStart, t.indexOf('class="tree-layout"')) : ''
-  const iRow = t.indexOf('<div class="tl-head-row">')
+  /* ★V3.9.19 随迁备案（一处不两说）：引导条（tl-head-row）随计数去重整体退役，
+     层内切片下界改锚层级面板起点 <CompassLayerPanel（仍在 tree-layout 之前、tower-list 之后闭合，
+     守的同一条纪律：＋战略目标 / 建议目标在页头区、不在层内）。 */
+  const iRow = t.indexOf('<CompassLayerPanel')
   const iTower = t.indexOf('class="tower-list"')
   const layer = iRow >= 0 && iTower > iRow ? t.slice(iRow, iTower) : ''
   return head.includes('addDirection') && head.includes("aiChain('directions'") && !!layer && !layer.includes('addDirection')

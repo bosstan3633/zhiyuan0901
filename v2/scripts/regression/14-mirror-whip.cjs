@@ -73,10 +73,10 @@ check('M2-2 读数行落 caption 网格：key/value 同为 caption 档，间距�
 });
 
 /* ============ C1 · 方向台计数行收敛 ============ */
-check('C1-1 分隔符是刻度不是标点：hero-stats 不再用「·」中点，改 1px 发丝线（与骨架条 gs-sep 同一语言）', () => {
+check('C1-1 分隔符是刻度不是标点：hero-stats 不再用「·」中点，改 1px 发丝线。★V3.9.19 随迁备案（一处不两说，用户拍板 2026-10-24）：hero 六层结构读数整体迁战略骨架条，发丝线数量随读数缩到 2 条——刻度语言（规则原文 + 中点负锚）不动', () => {
   return !TREE.includes('<i>·</i>')
     && TREE.includes('.hs-sep { width: 1px; height: 10px; background: var(--border); flex: none; }')
-    && (TREE.match(/class="hs-sep"/g) || []).length >= 8;
+    && (TREE.match(/class="hs-sep"/g) || []).length >= 2;
 });
 
 check('C1-2 健康度是镜面不是评分：徽章去强调实底与药丸高亮，改中性浅底 + text-2；warning 态不换色相', () => {
@@ -91,13 +91,16 @@ check('C1-2 健康度是镜面不是评分：徽章去强调实底与药丸高�
     && warn.includes('background: var(--surface-3)');
 });
 
-check('C1-3 八项读数都能悬停看口径：hero-stats 切片内 title 至少 8 条（愿景/使命/战略目标/项目/主攻/停滞/指标/任务）', () => {
+check('C1-3 ★V3.9.19 随迁备案（一处不两说，用户拍板 2026-10-24）：口径 tooltip 换了驻地——hero 只留状态读数（健康度/主攻/停滞，切片内 title ≥3），六层计数的口径随计数一起迁战略骨架条层位按钮（CompassSpine LV_TIP 六条经 :title 挂载）；hero 切片不得再报六层结构计数', () => {
   const i = TREE.indexOf('<div class="hero-stats">');
   const j = TREE.indexOf('</div>', i);
   const seg = i >= 0 && j > i ? TREE.slice(i, j) : '';
   const n = (seg.match(/title="/g) || []).length;
-  if (n < 8) console.log('     当前 ' + n + ' 条 title');
-  return n >= 8;
+  const SPINE = read('/newtab/components/compass/CompassSpine.vue');
+  const lvTips = (SPINE.match(/^  \d: '/gm) || []).length;
+  const noStruct = !['愿景 {{', '使命 {{', '战略目标 {{', '项目 {{', '指标 {{', '任务 {{'].some(s => seg.includes(s));
+  if (n < 3 || lvTips < 6 || !noStruct) console.log('     hero title=' + n + ' / LV_TIP=' + lvTips + ' / hero无六层计数=' + noStruct);
+  return n >= 3 && lvTips >= 6 && SPINE.includes(':title="LV_TIP[lv.n]"') && noStruct;
 });
 
 check('C1-4 项目与指标同一把尺子：treeStats 的 metrics 按可见项目累加（原先含已隐藏项目 →「项目 3 · 指标 20」两份真相）', () => {

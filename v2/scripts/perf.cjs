@@ -13,6 +13,14 @@
  *
  * 指标：
  *   M1  冷启动到首屏可用（ms，自 document start 起算）
+ *   ★V3.9.19（2026-10-24）度量随迁备案（产品面退役后的锚点大修，同回归备案仪式）：
+ *     · M1 探针锚 .storage-chip 已随页脚状态栏退役 ⇒ 恒 0ms 假指标，改锚 .page .desk-head（调度台真实首屏根，与 perf-slo 同锚）；
+ *     · 策展台首帧锚 .res-card / .view-tab 已随 V3.9.8 策展成果态（四视图+左树退役、单一画布）⇒ 15s 超时被当耗时，
+ *       改锚 .ws-page（工作区根）；调度台腿 .mb-cell 改锚 .page .desk-head；
+ *     · 退役指标（产品面已不存在，不留假数）：M4 全家（资源台 R179 退役：左树/搜索/视图切换）、
+ *       M2b 侧栏重渲染（左树退役）、M2d 视图切换（四视图退役）、M11 切到资源台；
+ *     · M14 真库首屏从资源台改在策展画布量（.mind-stage / .mind-node，真库最重表面）；
+ *     · M2c 策展台搜索键入保留（.toolbar-search input 现役）。
  *   M2  策展台：视图切换 / 侧栏分类树重渲染 / 搜索键入  （卡片+镜像混排的主战场）
  *   M4  资源台：视图切换 / 左树节点计数重渲染 / 搜索键入（nodeCount 类 O(n²) 重灾区）
  *   M3  长任务总计 / 最大单任务（ms）——交互序列（启动→M2b 窗口）的主线程阻塞量
@@ -132,7 +140,7 @@ function __armProbes() {
     document.addEventListener('DOMContentLoaded', () => { window.__marks.dcl = Math.round(performance.now()) })
     window.addEventListener('load', () => { window.__marks.load = Math.round(performance.now()) })
     // 冷启动 = 调度台首页可交互（顶栏 + 首页状态 chip 同时在位）
-    const home = () => document.querySelector('.tabs') && document.querySelector('.storage-chip')
+    const home = () => document.querySelector('.page .desk-head')  /* ★V3.9.19：原 .storage-chip 已退役（恒 0 假指标）；desk-head = 调度台真实首屏根 */
     const mo = new MutationObserver(() => { if (window.__ready == null && home()) window.__ready = performance.now() })
     mo.observe(document.documentElement, { childList: true, subtree: true })
     if (home()) window.__ready = performance.now()
@@ -507,13 +515,18 @@ async function main() {
     const r2 = await page.evaluate(async () => {
       const cap = window.__ltCap()
       const t0 = performance.now()
-      const tab = [...document.querySelectorAll('.tabs .tab')].find(e => ((e.getAttribute('title') || '') + (e.textContent || '')).includes('资源台'))
+      /* ★V3.9.19：资源台退役，冷挂目标改第一个策展台 Tab（真库最重表面） */
+      const tab = [...document.querySelectorAll('.tabs .tab')].find(e => {
+        const txt = ((e.getAttribute('title') || '') + (e.textContent || '')).trim()
+        return txt && !/调度台|方向台|设置|手册|画像|回收/.test(txt)
+      })
       if (tab) tab.click()
-      const vr = await window.__waitViewRoot(12000)
-      const it = await window.__waitItems(vr.mode, 2500)
+      const rootOk = (await window.__waitFor(() => document.querySelector('.ws-page'), 12000)) >= 0
+      const itemsOk2 = (await window.__waitFor(() => document.querySelector('.mind-node'), 2500)) >= 0
+      const items = document.querySelectorAll('.mind-node').length
       const wall = Math.round(performance.now() - t0)
       const w = window.__ltSince(cap)
-      return { wall, block: w.block, maxlt: w.max, ltN: w.n, view: vr.mode, rootMs: vr.ms, rootOk: vr.ok, items: it.n, itemMs: it.ms }
+      return { wall, block: w.block, maxlt: w.max, ltN: w.n, view: '策展画布', rootMs: 0, rootOk, items, itemMs: 0, itemsOk: itemsOk2 }
     })
     push('R2_冷挂资源台_墙钟(ms)', r2.wall, { 'R2_冷挂资源台_阻塞ms': r2.block, 'R2_冷挂资源台_最大单任务ms': r2.maxlt, 'R2_冷挂资源台_长任务数': r2.ltN, 'R2_冷挂资源台_视图': r2.view, 'R2_冷挂资源台_视图就绪ms': r2.rootMs, 'R2_冷挂资源台_项数': r2.items })
     await page.waitForTimeout(400)
@@ -575,19 +588,22 @@ async function main() {
       const gaps = []; let last = performance.now(); let raf = 0
       const tick = () => { const n = performance.now(); gaps.push(n - last); last = n; raf = requestAnimationFrame(tick) }
       raf = requestAnimationFrame(tick)
-      const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /资源台/.test(e.innerText || ''))
+      /* ★V3.9.19：资源台退役，真库首屏改在策展画布量（真库最重表面：节点 + 连线 + 镜像卡） */
+      const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /PERF0/.test(e.innerText || ''))
       if (t) t.click()
-      const vr = await window.__waitViewRoot(12000)
-      const it = await window.__waitItems(vr.mode, 2500)
+      const t0v = performance.now()
+      const viewOk = (await window.__waitFor(() => document.querySelector('.mind-stage'), 12000)) >= 0
+      const viewMs = Math.round(performance.now() - t0v)
+      const itemsOk = (await window.__waitFor(() => document.querySelector('.mind-node'), 2500)) >= 0
       await new Promise(r => setTimeout(r, 500))
       cancelAnimationFrame(raf)
       const vis = e => e.offsetParent !== null
-      const cards = [...document.querySelectorAll(window.__cardSelOf(vr.mode))].filter(vis).length
+      const cards = [...document.querySelectorAll('.mind-node')].filter(vis).length
       const all = [...document.querySelectorAll('body *')].filter(vis).length
       const svgs = [...document.querySelectorAll('svg')].filter(vis).length
       const marks = [...document.querySelectorAll('.ai-mark, .ai-entry')].filter(vis).length
       const g = gaps.slice(1).sort((x, y) => y - x)
-      return { view: vr.mode, viewOk: vr.ok, viewMs: vr.ms, itemsOk: it.ok, cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
+      return { view: '策展画布', viewOk, viewMs, itemsOk, cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
     })
     out.metrics['R6_真库首屏可见节点'] = m14.all; out.metrics['R6_真库首屏卡片数'] = m14.cards
     out.metrics['R6_真库视图'] = m14.view || '未知'
@@ -817,14 +833,16 @@ async function main() {
     const gaps = []; let last = performance.now(); let raf = 0
     const tick = () => { const n = performance.now(); gaps.push(n - last); last = n; raf = requestAnimationFrame(tick) }
     raf = requestAnimationFrame(tick)
-    const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /资源台|PERF/.test(e.innerText || ''))
+    /* ★V3.9.19：资源台退役，改在策展画布量（真库最重表面）；键名保留「资源台」字样仅为报告消费方兼容 */
+    const t = [...document.querySelectorAll('.tab')].find(e => e.offsetParent && /PERF/.test(e.innerText || ''))
     if (t) t.click()
-    const vr = await window.__waitViewRoot(12000)
-    const it = await window.__waitItems(vr.mode, 2500)
+    const t0v = performance.now()
+    const viewOk = (await window.__waitFor(() => document.querySelector('.mind-stage'), 12000)) >= 0
+    const itemsOk = (await window.__waitFor(() => document.querySelector('.mind-node'), 2500)) >= 0
     await new Promise(r => setTimeout(r, 500))
     cancelAnimationFrame(raf)
     const vis = e => e.offsetParent !== null
-    const cards = [...document.querySelectorAll(window.__cardSelOf(vr.mode))].filter(vis).length
+    const cards = [...document.querySelectorAll('.mind-node')].filter(vis).length
     const all = [...document.querySelectorAll('body *')].filter(vis).length
     // R155：节点数是"总账"，不足以归因。徽标从 emoji（1 个 span）换成 SVG（svg + 6 个子元素）
     // 后每张卡 +6 节点——这是**有意的结构代价**，不是渲染劣化。把它单列成计量，
@@ -832,7 +850,7 @@ async function main() {
     const svgs = [...document.querySelectorAll('svg')].filter(vis).length
     const marks = [...document.querySelectorAll('.ai-mark, .ai-entry')].filter(vis).length
     const g = gaps.slice(1).sort((x, y) => y - x)
-    return { view: vr.mode, viewOk: vr.ok, itemsOk: it.ok, cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
+    return { view: '策展画布', viewOk, itemsOk, cards, all, svgs, marks, worst: Math.round(g[0] || 0), dropped: gaps.filter(x => x > 34).length, frames: gaps.length }
   })
   out.metrics['M14_资源台首屏可见节点'] = m14.all; out.metrics['M14_首屏卡片数'] = m14.cards
   out.metrics['M14_视图'] = m14.view || '未知'
@@ -842,41 +860,21 @@ async function main() {
   // R112 修脚本漂移：原用前缀 '策展台'，但顶栏策展台 Tab 文本已被剥成「📘PERF0」，
   // 唯一含「策展台」三字的可匹配项是溢出指示（见 __navTo 内注释）→ 打满 15000ms 超时。
   // R109/R111 记录的 15006/15019ms 即此超时值，非真实耗时。改用与下方一致的 PERF0 定位。
-  const navWS = await page.evaluate(() => window.__navTo('PERF0', '.res-card'))
+  const navWS = await page.evaluate(() => window.__navTo('PERF0', '.ws-page'))  /* ★V3.9.19：.res-card 随策展四视图退役，改锚工作区根 */
   if (navWS >= 0) push('M2b_切到策展台(ms)', navWS)
 
-  // ══════════ 资源台 ══════════
-  await page.evaluate(() => window.__navTo('资源台', '.view-tab'))
-  const ccTree = await page.evaluate(() => window.__treeRerender())
-  if (ccTree >= 0) push('M4a_资源台左树重渲染(ms)', ccTree)
-  out.metrics.ccCatRows = await page.locator('.cat-item').count()
-  log(`  （资源台左树节点数 ${out.metrics.ccCatRows}）`)
+  /* ★V3.9.19 退役记账（度量随迁备案，见文件头）：M4 全家（资源台 R179 退役）、
+     M2b 侧栏重渲染与 M2d 视图切换（V3.9.8 策展成果态：左树与四视图退役、单一画布）
+     ——产品面不存在了，继续跑只会产出「打满超时 / 在错误页面上测」的假数。 */
+  log('  退役：M4a/M4b/M4c（资源台）· M2b 侧栏重渲染 · M2d 视图切换（产品面已不存在，见文件头 V3.9.19 备案）')
 
-  const ccSearch = await page.evaluate(() => window.__searchType('.toolbar-search input', '资源条目'))
-  if (ccSearch >= 0) push('M4b_资源台搜索键入6字(ms)', ccSearch)
-
-  const ccViews = await page.evaluate(() => window.__switchViews('.view-tab'))
-  log('  资源台视图切换：' + JSON.stringify(ccViews))
-  out.raw.push({ target: '资源台视图切换', data: ccViews })
-  pushViews('M4c_资源台视图切换_', ccViews)
-
-  // ══════════ 策展台（原生+镜像混排）══════════
-  await page.evaluate(() => window.__navTo('PERF0', '.res-card'))
+  // ══════════ 策展台（V3.9.8 起为单一画布：检索框现役）══════════
+  await page.evaluate(() => window.__navTo('PERF0', '.ws-page'))
   await page.evaluate(() => window.__flush())
   log('  实际路由：' + await page.evaluate(() => location.hash))
 
-  const wsTree = await page.evaluate(() => window.__treeRerender())
-  if (wsTree >= 0) push('M2b_策展台侧栏重渲染(ms)', wsTree)
-  out.metrics.wsCatRows = await page.locator('.ws-sidebar .cat-item').count()
-  log(`  （策展台左树节点数 ${out.metrics.wsCatRows}）`)
-
   const wsSearch = await page.evaluate(() => window.__searchType('.toolbar-search input', '资源条目'))
   if (wsSearch >= 0) push('M2c_策展台搜索键入6字(ms)', wsSearch)
-
-  const wsViews = await page.evaluate(() => window.__switchViews('.ws-toolbar .view-tab'))
-  log('  策展台视图切换：' + JSON.stringify(wsViews))
-  out.raw.push({ target: '策展台视图切换', data: wsViews })
-  pushViews('M2d_策展台视图切换_', wsViews)
 
   // ══════════ M3 长任务汇总（交互期，不含启动期）══════════
   const lt = await page.evaluate(() => {
@@ -987,15 +985,15 @@ async function main() {
     const t0 = performance.now()
     const el = pick(); if (!el) return null
     el.click()
-    const first = await window.__waitFor(() => document.querySelector('.view-tab, .res-card'), 12000)
+    const first = await window.__waitFor(() => document.querySelector('.ws-page'), 12000)  /* ★V3.9.19：.view-tab/.res-card 随策展四视图退役 */
     const fms = Math.round(performance.now() - t0)
     await new Promise(r => setTimeout(r, settle))
     const lts = (window.__lt || []).slice(lt0).map(x => x.d)
     return { first: fms, block: lts.reduce((s, x) => s + x, 0), n: lts.length, max: lts.length ? Math.max.apply(null, lts) : 0 }
   }, [tabText, settleMs])
 
-  const m11 = await switchBill('资源台', 3000)
-  if (m11) { push('M11_切到资源台_首帧(ms)', m11.first, { 'M11_后3s阻塞ms': m11.block, 'M11_长任务次数': m11.n, 'M11_最大单任务ms': m11.max }); log(`  M11 明细：${JSON.stringify(m11)}`) }
+  /* ★V3.9.19 退役记账：M11（切到资源台）随资源台 R179 退役——pick 找不到 Tab 恒返回 null 静默跳过。 */
+  log('  退役：M11 切到资源台（资源台 R179 退役）')
   const m12 = await switchBill('PERF0', 3000)
   if (m12) { push('M12_切到策展台_首帧(ms)', m12.first, { 'M12_后3s阻塞ms': m12.block, 'M12_长任务次数': m12.n, 'M12_最大单任务ms': m12.max }); log(`  M12 明细：${JSON.stringify(m12)}`) }
 
@@ -1010,19 +1008,19 @@ async function main() {
     const per = []
     for (let k = 0; k < 4; k++) {
       const a = performance.now()
-      pick('资源台')?.click(); await window.__waitFor(() => document.querySelector('.view-tab, .res-card'), 8000); await new Promise(r => setTimeout(r, 250))
+      pick('PERF0')?.click(); await window.__waitFor(() => document.querySelector('.ws-page'), 8000); await new Promise(r => setTimeout(r, 250))  /* ★V3.9.19：资源台退役，此腿改策展台——原写法 pick 落空后 ws-page 永不出现，每轮白等 8s */
       const b = performance.now()
-      pick('调度台')?.click(); await window.__waitFor(() => document.querySelector('.mb-cell'), 8000); await new Promise(r => setTimeout(r, 250))
+      pick('调度台')?.click(); await window.__waitFor(() => document.querySelector('.page .desk-head'), 8000)  /* ★V3.9.19：.mb-cell 已退役，改锚调度台首屏根 */; await new Promise(r => setTimeout(r, 250))
       per.push([Math.round(b - a), Math.round(performance.now() - b)])
     }
     const lts = (window.__lt || []).slice(lt0).map(x => x.d)
     return { wall: Math.round(performance.now() - t0), block: lts.reduce((s2, x) => s2 + x, 0), n: lts.length, max: lts.length ? Math.max.apply(null, lts) : 0, per }
   })
   push('M13_来回切台4次_墙钟(ms)', m13.wall, { 'M13_阻塞ms': m13.block, 'M13_长任务次数': m13.n, 'M13_最大单任务ms': m13.max })
-  log(`  M13 每轮 [去资源台, 回调度台] = ${JSON.stringify(m13.per)} · 阻塞 ${m13.block}ms/${m13.n} 次 · 最大 ${m13.max}ms`)
+  log(`  M13 每轮 [去策展台, 回调度台] = ${JSON.stringify(m13.per)} · 阻塞 ${m13.block}ms/${m13.n} 次 · 最大 ${m13.max}ms`)
 
   // ══════════ M2c 回调度台（R114-59：用户反馈「回到调度台慢」，此前无度量）══════════
-  const navBack = await page.evaluate(() => window.__navTo('调度台', '.mb-cell')) // R145 修漂移：.wr-entry（周报入口）早已改名，15s 超时被当成耗时
+  const navBack = await page.evaluate(() => window.__navTo('调度台', '.page .desk-head')) // R145 修漂移 + ★V3.9.19：.mb-cell 再随调度台改版退役，改锚 .page .desk-head
   if (navBack >= 0) push('M2c_回到调度台(ms)', navBack)
 
   // ══════════ M5 全局搜索浮层（content 脚本，http 宿主页；R114-59 重写假 M6）══════════

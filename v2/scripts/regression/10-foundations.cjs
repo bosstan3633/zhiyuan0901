@@ -22,7 +22,7 @@ check('四端 zy-locate-workspace 单例定位 ★R4-Fb 重指带备案：第四
 check('B14 网页浮层 corner 模式 display:flex', () => read('/content/search-overlay.ts').includes('.corner{display:flex'));
 check('B12 应用内采集弹窗右上角', () => read('/newtab/components/GlobalPopups.vue').includes('.gp-overlay.corner { align-items: flex-start; justify-content: flex-end'));
 check('B5 采集去重（应用内+网页端）', () => count('/newtab/components/GlobalPopups.vue', 'normalizeUrl') >= 1 && count('/content/search-overlay.ts', 'normalizeUrl') >= 1);
-check('好奇心反馈 好奇心+1', () => read('/content/overlay-impl.ts').includes('好奇心+1') && read('/newtab/components/GlobalPopups.vue').includes('好奇心+1'));
+check('好奇心反馈 好奇心+1（★V3.9.20 随迁备案：应用内一侧随快速添加家族拆入 GlobalPopupsQuickAdd.vue）', () => read('/content/overlay-impl.ts').includes('好奇心+1') && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('好奇心+1'));
 check('B9 已保存态 Enter 监听', () => read('/content/search-overlay.ts').includes("document.addEventListener('keydown', onSavedKeydown, true)"));
 
 console.log('【B组 修复】');
@@ -236,7 +236,7 @@ check('B37a findTagNode 遍历原始数组（根级删除/拖拽落库）', () =
 check('B37b/c 删除/新增反馈（带名 toast + 高亮闪烁）', () => read('/newtab/views/GlobalSettings.vue').includes('ttFlash') && read('/newtab/views/GlobalSettings.vue').includes('已删除 ${names.join'));
 check('B37d 树形隶属引导线 + 折叠箭头按需显示', () => read('/newtab/views/GlobalSettings.vue').includes("background: linear-gradient(to bottom, var(--accent), var(--accent-light))") && read('/newtab/views/GlobalSettings.vue').includes('tt-toggle'));
 check('O23 北极星未归档任务（第卌四轮升级：项目+指标双重有效性校验，见 R44-3）', () => read('/newtab/components/compass/NorthStarPanel.vue').includes('未归档任务') && read('/newtab/components/compass/NorthStarPanel.vue').includes('taskArchiveIssue(t) !==') && !read('/newtab/components/compass/NorthStarPanel.vue').includes('pendingTasks'));
-check('O24 好奇心采集带来源（两端+模型+详情）', () => read('/shared/models/index.ts').includes('sourceTitle') && read('/content/search-overlay.ts').includes('sourceTitle: srcTitleInput') && read('/newtab/components/GlobalPopups.vue').includes('v-model="curioForm.sourceTitle"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="cz-ext-src"') && read('/newtab/components/compass/CuriosityPanel.vue').includes("f.key === 'sourceUrl'")) /* ★R4-Dj 随迁备案（收紧不是放宽）：原判据只核 Curio 里出现 "detail-src" 字样——那是 R117 详情重设计后只剩在 CSS 里的死类名（模板零引用，删规则才暴露）。现改核现役两件事：来源行真的按 fieldConfig 的 sourceUrl 渲染 + 用的是 cz-ext-src 这个真类名 */;
+check('O24 好奇心采集带来源（两端+模型+详情）', () => read('/shared/models/index.ts').includes('sourceTitle') && read('/content/search-overlay.ts').includes('sourceTitle: srcTitleInput') && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('v-model="curioForm.sourceTitle"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="cz-ext-src"') && read('/newtab/components/compass/CuriosityPanel.vue').includes("f.key === 'sourceUrl'")) /* ★R4-Dj 随迁备案（收紧不是放宽）：原判据只核 Curio 里出现 "detail-src" 字样——那是 R117 详情重设计后只剩在 CSS 里的死类名（模板零引用，删规则才暴露）。现改核现役两件事：来源行真的按 fieldConfig 的 sourceUrl 渲染 + 用的是 cz-ext-src 这个真类名 */;
 
 console.log('【第十四轮 · Linear 视觉重构】');
 check('P1 六主题 Linear 体系（深空薰衣草默认）', () => read('/shared/styles/tokens.css').includes("[data-theme='linear']") && read('/shared/styles/tokens.css').includes('#0D0E11') && read('/shared/styles/tokens.css').includes('#5E6AD2'));
@@ -281,7 +281,7 @@ check('R25-2 手册下载分享（独立 HTML）', () => read('/newtab/views/Man
 check('R25-3 一封信全文（donge 哥署名）+ 下载分享', () => read('/newtab/letter-data.ts').includes('buildLetterStandaloneHtml') && read('/newtab/letter-data.ts').includes('donge') && read('/newtab/views/GlobalSettings.vue').includes('downloadLetter') && !read('/newtab/views/GlobalSettings.vue').includes('信件全文即将送达'));
 
 console.log('【第廿四轮 · 选采可见字段】');
-check('R24-1 采集弹窗可见来源字段（链接+标题，可编辑）', () => read('/content/search-overlay.ts').includes('__zy_cur_url__') && read('/content/search-overlay.ts').includes('__zy_cur_srctitle__') && read('/newtab/components/GlobalPopups.vue').includes('v-model="curioForm.sourceUrl"'));
+check('R24-1 采集弹窗可见来源字段（链接+标题，可编辑）（★V3.9.20 随迁备案：curioForm 模板锚随快速添加家族拆入 GlobalPopupsQuickAdd.vue）', () => read('/content/search-overlay.ts').includes('__zy_cur_url__') && read('/content/search-overlay.ts').includes('__zy_cur_srctitle__') && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('v-model="curioForm.sourceUrl"'));
 check('R24-2 多选区兜底读取', () => read('/content/search-overlay.ts').includes('sel.rangeCount') && read('/content/search-overlay.ts').includes('getRangeAt(i).toString()'));
 check('R24-3 保存从弹窗字段读取来源', () => read('/content/search-overlay.ts').includes('srcUrlInput') && read('/content/search-overlay.ts').includes('sourceTitle: srcTitleInput'));
 
@@ -289,7 +289,7 @@ console.log('【第廿三轮 · 选采加固】');
 check('R23-1 all_frames + file 匹配（iframe 选区覆盖）', () => read('/manifest.ts').includes('all_frames: true') && read('/manifest.ts').includes("'file://*/*'"));
 check('R23-2 子框选区转发 + 顶层汇聚 + 顶层守卫', () => read('/content/search-overlay.ts').includes('__zy_sel') && read('/content/search-overlay.ts').includes('IS_TOP') && read('/content/search-overlay.ts').includes('if (!IS_TOP) return'));
 check('R23-3 缓存优先选区 + mouseup/keyup 立即捕获', () => read('/content/search-overlay.ts').includes('return selCache.text || getSelectionText()') && read('/content/search-overlay.ts').includes("document.addEventListener('mouseup', captureSel, true"));
-check('R23-4 好奇心面板接来源 prefill ★R4-Fb 重指带备案：原锚在 popup/App.vue 的 curioSource 上，popup 端已随降级路径退役；这条性质现在的家是应用内好奇面板——开面板先清空来源，只有存在选中文本时才从最近的网页标签补 title/url', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes("curioForm.sourceTitle = ''") && g.includes('getRecentWebTab') && g.includes('curioForm.sourceUrl = t.url'); });
+check('R23-4 好奇心面板接来源 prefill ★R4-Fb 重指带备案 + ★V3.9.20 随迁备案：好奇面板随快速添加家族拆入 GlobalPopupsQuickAdd.vue（getRecentWebTab 同批升为 shared/utils/recentWebTab.ts）——开面板先清空来源，只有存在选中文本时才从最近的网页标签补 title/url', () => { const g = read('/newtab/components/GlobalPopupsQuickAdd.vue'); return g.includes("curioForm.sourceTitle = ''") && g.includes('getRecentWebTab') && g.includes('curioForm.sourceUrl = t.url'); });
 
 console.log('【第廿二轮 · 拖拽根修二段】');
 check('R22 好奇 store 去虚拟排序（拖拽根修二段）', () => !read('/newtab/stores/curiosity.ts').includes('sort((a, b) => (b.createdAt'));
@@ -333,7 +333,7 @@ check('B8/B10/B11 焦点返还/列头sticky/加载态', () => read('/newtab/comp
 
 console.log('【第十七轮 · 修复与功能补全】');
 check('R17-1 三件事导出弹窗（时间范围+6字段 CSV）', () => read('/newtab/views/CompassHome.vue').includes('openExportModal') && read('/newtab/views/CompassHome.vue').includes('任务内容,所属项目,项目→成功指标,任务状态,安排时间,创建时间') && read('/newtab/views/CompassHome.vue').includes('doExport'));
-check('R17-2 好奇心来源仅选中时附带（两端，可为空）', () => read('/newtab/components/GlobalPopups.vue').includes("if (sel) {") && read('/content/search-overlay.ts').includes('const hasSel = !!selection'));
+check('R17-2 好奇心来源仅选中时附带（两端，可为空）（★V3.9.20 随迁备案：锚随好奇面板拆入 GlobalPopupsQuickAdd.vue）', () => read('/newtab/components/GlobalPopupsQuickAdd.vue').includes("if (sel) {") && read('/content/search-overlay.ts').includes('const hasSel = !!selection'));
 check('R17-3 项目策展创建项目（视觉链+选战略目标+直接进展板）', () => read('/newtab/views/ProjectCuration.vue').includes('openCreateProject') && read('/newtab/views/ProjectCuration.vue').includes('confirmCreateProject') && read('/newtab/views/ProjectCuration.vue').includes('createDirId') && read('/newtab/views/ProjectCuration.vue').includes('cm-chain'));
 check('R17-4/R49 工具组右上角 ★R3-B1 重指带备案 + ★V3.8.20 翻转带备案（用户拍板 2026-10-15）+ ★F6 二次翻转带备案（用户拍板 2026-10-16）：主航线 #actions 插槽退役后工具组曾落在方向台页头一行；V3.8.20 收进「⚙ 工具」下拉（视图切换成为动作行唯一主焦点）；本轮 F6 二次翻转恢复常驻并排——下拉让高频操作变两跳，且「👁 已完成项目：显示/隐藏」状态开关藏菜单后当前状态不可见。翻转不删断言：「↕ 反向开关 + 👁 已完成 + dhi-badge 读数行首位」三项锚贯穿三代形态不变，形态锚改回常驻（两枚 tree-tool 并排于 .hero-tools，右上角定位 margin-left:auto）+ 负锚钉下拉壳零残留；面板级 footer 负锚保留', () => { const t = codeOnly(CT_ALL); return !exists('/newtab/components/compass/LighthousePanel.vue') && t.includes('class="hero-tools"') && !t.includes('hero-tools-menu') && t.includes('↕ ') && t.includes('已完成项目') && t.includes('dhi-badge') && !t.includes('lh-footer">'); });
 check('R17-5 置顶右上角统一（好奇三视图）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('cz-pin-corner') && read('/newtab/components/compass/CuriosityPanel.vue').includes('置顶优先'));

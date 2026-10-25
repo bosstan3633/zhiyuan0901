@@ -13,7 +13,9 @@
  */
 import Modal from '@/shared/components/Modal.vue'
 
-export type StatusDetailKey = 'focus' | 'unarchived' | 'reuse'
+/** V3.9.18：新增 'in'（今日入台明细）与 'out'（今日调出明细）两键——
+ *  口径按创建时间 / lastCalledAt 派生（宿主自算传入），与战报的事件日志口径不同源，note 里明示。 */
+export type StatusDetailKey = 'focus' | 'unarchived' | 'reuse' | 'in' | 'out'
 
 export interface StatusDetailItem {
   title: string

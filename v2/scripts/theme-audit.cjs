@@ -271,7 +271,7 @@ const DASH_SCENES = [
   {
     /* V3.9.12：项目全景是方向台的第二投影，此前只在静态回归里验结构，
        从未进过四主题实拍。场景必须真点「项目全景」，否则拍到的仍是默认项目塔。 */
-    id: 'compass-pano', name: '项目全景', hash: '#/compass', host: '.tl-head-row',
+    id: 'compass-pano', name: '项目全景', hash: '#/compass', host: '.navside .view-seg',
     act: async (page) => {
       await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 }).catch(() => {})
       await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
@@ -321,7 +321,7 @@ const DASH_SCENES = [
     /* V3.9.15：项目全景的多指标真实渲染夹具。
        与 compass-pano 分开：原场景继续守“默认数据下的单/多泳道兼容”，
        本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题两行与滚动边界。 */
-    id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.tl-head-row',
+    id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.navside .view-seg',
     act: async (page) => {
       await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 }).catch(() => {})
       await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
@@ -1281,7 +1281,11 @@ if (argv.scenes) {
          下一主题再拍“方向台”时，若不复位，取到的仍是项目全景（全量首跑实测 3 主题 × 2 张）。
          这里显式切回项目塔，再等真实卡头出现；超时仍继续，由下方 treeFail 如实记账。 */
       if ((v.id === 'compass' || v.id === 'compass-tree') && dataHasProjects) {
-        await page.locator('.view-seg .vs-b', { hasText: '项目塔' }).first().click({ timeout: 3000 }).catch(() => {})
+        await page.locator('.view-seg .vs-b', { hasText: '项目塔' }).first().click({ timeout: 1500 }).catch(() => {})
+        /* ★V3.9.19：view-seg 随引导条退役迁入左栏，而左栏在全景态隐藏（display:none 点不到）——
+           上一主题的 pano 场景残留全景态时，先点全景自己的「回项目塔」（.ps-back）复位再兜底等卡头；
+           本轮全量实跑 raycast/apple/notion 三主题曾因此全舱=0（判据空转被如实记账）。 */
+        await page.locator('.pano-switch .ps-back').first().click({ timeout: 2500 }).catch(() => {})
         await page.waitForTimeout(500)
         await page.locator('.tw-head').first().waitFor({ state: 'attached', timeout: 10000 }).catch(() => {})
       }
