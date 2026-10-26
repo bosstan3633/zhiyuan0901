@@ -270,6 +270,11 @@ export function zyCardHtml(spec: ZyCardSpec): string {
         .map(r => `<div class="row">${r.time ? `<span class="tm">${esc(r.time)}</span>` : ''}<span class="lb">${esc(r.label)}</span><span class="ti">${esc(r.title)}</span></div>`)
         .join('')}</section>`
     : ''
+  const grid = spec.grid
+    ? `<div class="grid-wrap"><div class="grid" style="grid-template-columns:repeat(${spec.grid.cols},minmax(0,1fr));grid-template-rows:repeat(${spec.grid.rows},10px)">${spec.grid.cells
+        .map(cell => `<i style="grid-column:${cell.c + 1};grid-row:${cell.r + 1};background:${c.heat[Math.max(0, Math.min(5, cell.lv))]}"></i>`)
+        .join('')}</div></div>`
+    : ''
   return `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -292,6 +297,9 @@ h1{margin:8px 0 6px;font-size:26px;line-height:1.35}
 .rows h2{margin:16px 0 8px;font-size:13px;color:${c.fg2}}
 .row{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid ${c.line};font-size:13px}
 .row:first-of-type{border-top:0}
+.grid-wrap{margin:18px 0;padding:14px 0;border-top:1px solid ${c.line};border-bottom:1px solid ${c.line};overflow-x:auto}
+.grid{display:grid;gap:4px;min-width:0}
+.grid i{display:block;min-width:0;border-radius:2px}
 .tm{color:${c.fg2};font-family:ui-monospace,Consolas,monospace;font-size:12px;width:46px;flex:none}
 .lb{color:${c.accent};font-weight:600;font-size:12px;width:52px;flex:none}
 .ti{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -303,6 +311,7 @@ h1{margin:8px 0 6px;font-size:26px;line-height:1.35}
   <p class="sub">${esc(spec.sub)}</p>
   <div class="ro-wrap">${readouts}</div>
   ${kinds}
+  ${grid}
   ${rows}
   <p class="foot"><span>${esc(spec.footer || '知源调度台 · 数据只在本机')}</span><span>知源调度台 · 生成于 ${stampDay()}</span></p>
 </div></body></html>`

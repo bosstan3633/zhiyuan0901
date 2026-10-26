@@ -575,14 +575,19 @@ check('R172-5 ★W10 退役重指带备案：概览带 UI 随时间轴三段式�
     && pi.includes('const dashStats = dash.stats')
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('useDashboardStats');
 });
-check('R172-6 ★T6 年度热力图（04-67 F7~F11）：12 月块 × 366 格（周一~周日 + future/today/sel 三态；★R172-T13 重指带备案：月首偏移改走 `grid-column-start`，不再渲染 void 占位格 ⇒ 一年多 38 个不可点的假控件 button 与 38 个节点被消掉）+ 六档语义图例（LV_NAME 单一真源；不出现分档裸代号）+ 4 张摘要卡（活跃天数/有效动作/最长连续/最猛的一天「MM-DD · 档名」）+ P90 由实际数据算出（非硬编码）+ 切年', () => {
+check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格（周一~周日 + future/today/sel 三态）+ 六档语义图例（LV_NAME 单一真源；不出现分档裸代号）+ 4 张摘要卡（活跃天数/有效动作/最长连续/最猛的一天「MM-DD · 档名」）+ P90 由实际数据算出（非硬编码）+ 切年。★V3.9.21 重指带备案：呈现从「12 月块 × 366 格」改为「单行全年 53 周列 × 7 天行」（用户拍板切回单行全年）——所守行为一字未改（仍是 366 个日格 + 三态 + 六档图例 + 四摘要 + P90 + 切年），只换承重锚：月首偏移由 `grid-column-start` 改为 `coordOf()` 算列/行后落 `gridColumnStart`/`gridRowStart`，占位格依旧零渲染（这条纪律不随形态退役）', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
   return h.includes('LV_NAME') && h.includes('LV_DESC') && h.includes('LV_RANGE')
     && h.includes('longestStreak(') && h.includes('yearAgg(')
     && h.includes("shiftYear(-1)") && h.includes('emit(\'update:year\'')
     && h.includes('agg.p90')                    // P90 实算
     && h.includes('今年第 1') && h.includes('· ${LV_NAME[lv]}')  // 「MM-DD · 满格」带分隔
-    && h.includes("'future'") && h.includes('start: firstDow + 1') && h.includes('grid-column-start:')
+    && h.includes("'future'")
+    /* ★V3.9.21 重指：单行全年的落位由 coordOf 算出的列/行承担，
+       占位格仍是零渲染（不再是月块里的 grid-column-start: 首日偏移）。 */
+    && h.includes('function coordOf(') && h.includes('gridColumnStart: c.col + 2')
+    && h.includes('gridRowStart: c.row + 2')
+    && !h.includes('grid-column-start:')
     // ★ F8 可读性硬判据：图例区不得出现分档裸代号（大写 L+数字）
     && !/L[0-5]/.test(h);
 });
@@ -753,7 +758,7 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes("tcForm.title = props.prefill?.title || ''") && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('tcSaved.value = false');  /* ★V3.9.20 随迁备案：任务速记面板拆入 QuickAdd，prefill 改经 props 读取 */
 });
 
-check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('repeat(4, minmax(0, 1fr))') /* V3.9.15：月块 4×3，为 28px 日期热区腾出宽度 */ && css.includes('@media (max-width: 1279px)') /* R173-4b 带备案：星期行 7×9px 汉字 + 6×2px 缝 = 75px，月块窄于 75px 时每块横向溢出（1100 档实测 +15px）；1280 档月块 75.5px 是实测最小装得下的档 ⇒ 以下隐去（该档格子只剩 8px，日期仍在 tooltip 里） */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
+check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）。★V3.9.21 重指带备案：热力图呈现从「12 月块 4×3 网格（28px 热区）」改为「单行全年 53 周列」，故原锁 `repeat(4, minmax(0, 1fr))` + `@media (max-width: 1279px)` 两条月块专属形态锚改锁单行全年的承重件（`.dz-year` 列模板 / 横向滚动容器 / 12px 格子）；导出能力与「热力图只开 PNG/HTML」口径一字未改', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('grid-auto-rows: 12px') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-year .dz-cell {') && !css.includes('@media (max-width: 1279px)') /* V3.9.21：月块形态退役后该断点随之删除；单行全年窄屏改为横滚，不再缩格子 */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
 
 /* V3.9.15 · 方向台聚焦与调度闭环：用户反馈直接钉成静态合同。
    这一组只守“入口存在、语义不混、两个视图都接通”，不重测 E2E 已覆盖的点击路径。 */
@@ -820,12 +825,36 @@ check('R175-5 ★主攻只读详情：主攻 1 / 主攻 2 都调用 openFocusPro
     && home.includes('@close="readonlyProjectOpen = false"')
     && !home.includes("router.push('/compass/projects')");
 });
-check('R175-6 ★战略骨架默认折叠：CompassSpine 初始 expanded=false，折叠态仍保留六层摘要与展开入口；方向台首屏焦点回到项目塔', () => {
-  const spine = codeOnly(read('/newtab/components/compass/CompassSpine.vue'))
+check('R175-7 ★V3.9.21 任务 3 覆盖 V3.9.7 旧「只读弹窗」口径：调度台主攻点击打开的是**项目全景 · 只读**——弹窗标题明确全景，且同一份 compassMeta 关系按方向 → 项目 → 指标 → 任务铺开，并给出下一步 / 断链 / 停滞 / 进度；仍不跳路由', () => {
+  const home = codeOnly(read('/newtab/views/CompassHome.vue'))
+  const modal = codeOnly(read('/newtab/components/compass/CompassProjectReadonlyModal.vue'))
+  return home.includes('点击行打开项目全景')
+    && (home.match(/查看项目全景只读详情/g) || []).length >= 3
+    && modal.includes('项目全景 · 只读')
+    && modal.includes('resolveProjectNextStep(')
+    && modal.includes('tasksOfProject(')
+    && modal.includes('tasksOfMetric(')
+    && modal.includes('const riskCount = computed(')
+    && modal.includes('const stalled = computed(')
+    && modal.includes('cpr-facts')
+    && modal.includes('条待推进')
+    && !home.includes("router.push('/compass/projects')");
+});
+check('R175-8 ★V3.9.21 任务 1：新建战略目标 / 层级列表行内编辑都必须先切回 tower 再聚焦——目标标题的 contenteditable 只在项目塔渲染，停留在全景时 focusEditField 会静默落空；第 3 层行本体为 div+role，编辑/删除是真 button（不嵌套非法按钮）', () => {
   const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
-  return spine.includes('const expanded = ref(false)')
-    && spine.includes('class="spine-toggle"')
-    && tree.includes('<CompassSpine')
-    && tree.includes('@locate=')
-    && tree.includes('spine-bar');
+  const list = codeOnly(read('/newtab/components/compass/CompassLayerList.vue'))
+  const add = segOf(tree, 'function addDirection()', '\n}')
+  const edit = segOf(tree, 'function onListEditDir(id: string)', '\n}')
+  return add.includes("viewMode.value = 'tower'")
+    && add.includes("editingField.value = 'dir-' + dir.id")
+    && add.includes("focusEditField('dir-' + dir.id")
+    && edit.includes("viewMode.value = 'tower'")
+    && edit.includes("editingField.value = 'dir-' + id")
+    && edit.includes("focusEditField('dir-' + id")
+    && list.includes("(e: 'editDir', id: string): void")
+    && list.includes("(e: 'delDir', id: string): void")
+    && list.includes('role="button" tabindex="0"')
+    && list.includes('@click.stop="emit(\'editDir\', r.id)"')
+    && list.includes('@click.stop="emit(\'delDir\', r.id)"')
+    && !list.includes('<button v-for="r in rows3"');
 });

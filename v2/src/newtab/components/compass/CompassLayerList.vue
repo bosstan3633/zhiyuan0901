@@ -34,10 +34,14 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'dir', id: string): void
   (e: 'locate', projId: string, label: string): void
+  /** ★第 3 层行内编辑：关列表回项目塔，就地进入该目标标题编辑（与「新建即编辑」同一链路） */
+  (e: 'editDir', id: string): void
+  /** ★第 3 层行内删除：走真源 removeCompassNode（报数确认 + 3 秒撤销），由宿主 deleteNode 承担 */
+  (e: 'delDir', id: string): void
 }>()
 
 const LAYER_META = {
-  3: { n: 3, t: '战略目标', en: 'DIRECTION', ic: '', tip: '点任一行 → 过滤下方项目塔（再点取消）' },
+  3: { n: 3, t: '战略目标', en: 'DIRECTION', ic: '', tip: '点任一行过滤项目塔 · 行尾可编辑 / 删除' },
   5: { n: 5, t: '成功指标', en: 'METRIC', ic: '◎', tip: '全部指标平铺 · 行内「定位」回项目塔' },
   6: { n: 6, t: '任务', en: 'TASK', ic: '', tip: '全部任务平铺（未删除即算，与骨架条同口径）· 行内「定位」回项目塔' }
 } as const
@@ -62,10 +66,16 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
     <div class="lvl-rows">
       <!-- ★第 3 层：目标行（原层面板横卡迁移，能力一项不少：进度/停滞/下挂/点行过滤） -->
       <template v-if="layer === 3">
-        <button
+        <!-- 行本体用 div + role=button：行尾要放两个真 button（编辑 / 删除），
+             而 <button> 里再嵌 <button> 是非法结构，浏览器会把内层按钮拆出来。 -->
+        <div
           v-for="r in rows3" :key="r.id" class="lvl-row r3"
           :class="{ on: dirFilter === r.id }"
+          role="button" tabindex="0"
+          :aria-pressed="dirFilter === r.id"
           @click="emit('dir', r.id)"
+          @keydown.enter.prevent="emit('dir', r.id)"
+          @keydown.space.prevent="emit('dir', r.id)"
         >
           <span class="lr-i">{{ r.i + 1 }}</span>
           <span class="lr-n">{{ r.name }}</span>
@@ -78,8 +88,12 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
           <span class="lr-sub">
             <span v-for="(p, pi) in r.projs" :key="pi" class="lr-proj">{{ p.t }} 任务<Icon v-if="p.risk" name="warn" :size="12"/></span>
           </span>
+          <!-- ★行内编辑/删除：真 button（键盘可达），编辑走宿主「关列表 → 就地改名」，
+               删除走真源报数确认（报数 + 3 秒撤销）。 -->
+          <button class="lr-act" title="编辑目标名称（回列表所属项目塔就地改名）" @click.stop="emit('editDir', r.id)"><Icon name="edit" :size="13"/></button>
+          <button class="lr-act danger" title="删除该战略目标（先报数确认，删后 3 秒可撤销）" @click.stop="emit('delDir', r.id)"><Icon name="trash" :size="13"/></button>
           <span class="lr-go">{{ dirFilter === r.id ? '正在只看这个 · 再点取消' : '▸ 只看这个目标' }}</span>
-        </button>
+        </div>
         <div v-if="!rows3.length" class="lvl-empty">还没有战略目标 · 点上方「＋ 战略目标」开始</div>
       </template>
 
@@ -189,6 +203,17 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
 .lr-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 .lr-sub { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .lr-proj { font-size: var(--fs-micro); color: var(--text-4); background: var(--surface-2); padding: 1px 7px; border-radius: 999px; }
+/* ★第 3 层行内编辑/删除：行本体是 div + role=button（内部不能再嵌 button），
+   热区 24px（与 .lvl-x 同档），hover 才显形以免 4 个目标挤成一片图标墙。 */
+.lr-act {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px; color: var(--text-2);
+  background: none; border: 0; padding: 0; font-family: inherit;
+  cursor: pointer; opacity: 0; transition: opacity var(--dur), color var(--dur), background var(--dur);
+}
+.lvl-row:hover .lr-act, .lvl-row:focus-within .lr-act { opacity: 1; }
+.lr-act:hover { color: var(--text); background: var(--surface-3); }
+.lr-act.danger:hover { color: var(--danger); background: var(--danger-bg-soft, var(--surface-3)); }
 .lr-go { flex: none; font-size: var(--fs-micro); font-weight: 600; color: var(--accent); white-space: nowrap; }
 .lr-go.dim { color: var(--text-4); }
 .lvl-empty { padding: 26px 16px; text-align: center; color: var(--text-4); font-size: var(--fs-caption); }

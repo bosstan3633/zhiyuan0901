@@ -129,8 +129,8 @@ function hasClue(t: TaskCard): boolean {
       class="tw-head"
       v-pressable
       draggable="true"
-      title="拖动可排序（仅同一战略目标内）；点击进入全景"
-      @click="emit('openPano', proj.id)"
+      title="拖动可排序（仅同一战略目标内）；点击展开/收起本项目内容"
+      @click="emit('fold', proj.id)"
       @dragstart="onHeadDragStart(dir.id, proj.id, $event)"
       @dragover.prevent="emit('dragover', dir.id, proj.id)"
       @dragleave="emit('dragleave', proj.id)"
@@ -171,8 +171,9 @@ function hasClue(t: TaskCard): boolean {
           @diag-report="(id) => emit('diagReport', id)"
         />
         <div class="tw-acts" data-a11y-container @click.stop>
-          <!-- 舱头常驻三控件：＋指标 / ⋯ / 折叠；低频动作收进菜单。 -->
+          <!-- 舱头整块点击=展开/折叠后，「全景」落位为显式按钮（路由不丢，三处入口同走 openPano）。 -->
           <button class="tw-act tw-act-label" title="在本项目下添加成功指标" @click="emit('addMetric', proj.id)">＋指标</button>
+          <button class="tw-act tw-act-label" title="横向泳道看这个项目的完整链路（指标 → 任务）" @click="emit('openPano', proj.id)">全景</button>
           <button class="tw-act menu" :class="{ on: menuOn }" title="更多操作（主攻 / 置顶 / AI 建议指标 / 导入模板 / 删除项目）" @click="emit('menu', proj.id)">⋯</button>
           <!-- ★折叠必须双向：开与合都能点到（判据 W11-3） -->
           <button class="tw-fold" :aria-expanded="open" :title="open ? '收起本项目' : '展开本项目'" @click="emit('fold', proj.id)">

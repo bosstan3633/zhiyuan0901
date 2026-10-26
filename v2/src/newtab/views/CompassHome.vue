@@ -687,6 +687,9 @@ const focusMeta = computed(() => {
 /**
  * ★V3.9.7：主攻摘要点击改为就地打开项目详情抽屉。
  * 原先跳 /compass/projects 说 A 给 B：用户在调度台看主攻，下一页却是整棵方向树，还要再找项目。
+ * ★V3.9.21（用户任务 3）：口径升级为「项目全景 · 只读」——弹窗内按
+ *   方向 → 项目 → 指标 → 任务完整铺开，并显式给出下一步 / 断链 / 停滞 / 进度。
+ *   仍然不跳路由、不抢方向台编辑入口。
  */
 const readonlyProjectOpen = ref(false)
 const readonlyProjectId = ref<string | null>(null)
@@ -991,11 +994,11 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
       <div class="desk-heading">
         <div class="desk-kicker">调度台 · {{ formatFullDate(todayDate) }}</div>
         <h1>今天，先做这三件。</h1>
-        <!-- V3.9.18：主攻锚行——页头直接回答「今天的主线挂在哪」，点击开只读项目详情（原型主攻锚） -->
+        <!-- V3.9.18：主攻锚行——页头直接回答「今天的主线挂在哪」，点击开项目全景只读详情（原型主攻锚） -->
         <p v-if="mainFocus" class="desk-anchor">
           <Icon name="main-focus" :size="12" />
           <span class="da-label">主攻锚</span>
-          <button class="da-link" type="button" :title="mainFocus.name + ' · 查看只读项目详情'" @click="openFocusProject(mainFocus)">{{ mainFocus.name }}<Icon name="arrowright" :size="12" /></button>
+          <button class="da-link" type="button" :title="mainFocus.name + ' · 查看项目全景只读详情'" @click="openFocusProject(mainFocus)">{{ mainFocus.name }}<Icon name="arrowright" :size="12" /></button>
           <span v-if="focusNextOf(mainFocus)" class="da-next" title="下一步为你填写的优先；清空后按任务自动推导（与项目详情同源）">下一步 · {{ focusNextOf(mainFocus) }}</span>
         </p>
         <p v-else class="desk-anchor"><Icon name="main-focus" :size="12" /><span class="da-label">主攻锚</span><span class="da-none">尚未指定——右上角去方向台，把最重要的 1-2 个项目标为主攻。</span></p>
@@ -1142,13 +1145,13 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           </footer>
         </section>
 
-        <!-- V3.9.18：主攻项目面板（原型主攻面板）——主攻从右栏迁入主栏，下一步做主句，点击开只读详情 -->
+        <!-- V3.9.18：主攻项目面板（原型主攻面板）——主攻从右栏迁入主栏，下一步做主句，点击开项目全景只读详情 -->
         <section v-if="hasFocusProject" class="focus-projects" aria-labelledby="fpTitle">
           <header class="mod-head">
             <h2 id="fpTitle">主攻项目</h2>
-            <span class="mod-reading">点击行打开只读详情 · 进度与方向台同口径</span>
+            <span class="mod-reading">点击行打开项目全景 · 进度与方向台同口径</span>
           </header>
-          <button v-if="mainFocus" class="fp-row" type="button" :title="mainFocus.name + ' · 查看只读项目详情'" @click="openFocusProject(mainFocus)">
+          <button v-if="mainFocus" class="fp-row" type="button" :title="mainFocus.name + ' · 查看项目全景只读详情'" @click="openFocusProject(mainFocus)">
             <span class="fp-main">
               <span class="fp-name">{{ mainFocus.name }}<span class="tag accent">主攻 1</span></span>
               <span v-if="focusNextOf(mainFocus)" class="fp-next">下一步：<b>{{ focusNextOf(mainFocus) }}</b></span>
@@ -1158,7 +1161,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
               <span class="fp-bar"><i :style="{ width: (focusMeta.get(mainFocus.id)?.pct || 0) + '%' }" /></span>
             </span>
           </button>
-          <button v-if="extraFocus" class="fp-row" type="button" :title="extraFocus.name + ' · 查看只读项目详情'" @click="openFocusProject(extraFocus)">
+          <button v-if="extraFocus" class="fp-row" type="button" :title="extraFocus.name + ' · 查看项目全景只读详情'" @click="openFocusProject(extraFocus)">
             <span class="fp-main">
               <span class="fp-name">{{ extraFocus.name }}<span class="tag accent">主攻 2</span></span>
               <span v-if="focusNextOf(extraFocus)" class="fp-next">下一步：<b>{{ focusNextOf(extraFocus) }}</b></span>

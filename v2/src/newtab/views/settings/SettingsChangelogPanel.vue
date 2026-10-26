@@ -80,26 +80,78 @@ const contentRef = ref<HTMLElement | null>(null)
 const activeVersion = ref(props.runtimeVersion)
 let scrollRaf = 0
 let jumpLock = 0
+let jumpTimer: ReturnType<typeof setTimeout> | undefined
+let pendingJumpVersion = ''
+let pendingJumpTop = 0
+let jumpSettled = false
 
 const anchorOf = (version: string): string => `cl-v-${version.replace(/\./g, '-')}`
+function isPendingJumpAligned(): boolean {
+  const root = contentRef.value
+  if (!root || !pendingJumpVersion) return false
+  return Math.abs(root.scrollTop - pendingJumpTop) <= 3
+}
+/**
+ * V3.9.21：平滑滚动可能超过 900ms（184 个版本时尤其明显）。
+ * 锁过期后最后一个中间帧会把高亮改回旧版本，而目标已对齐、后续没有滚动事件纠正。
+ * 用 scrollend 作为主信号，再加一个超时兜底；两者都只释放一次。
+ */
+function settleJump(): void {
+  if (jumpTimer !== undefined) {
+    clearTimeout(jumpTimer)
+    jumpTimer = undefined
+  }
+  contentRef.value?.removeEventListener('scrollend', settleJump)
+  jumpLock = 0
+  jumpSettled = true
+  /* ★V3.9.21：scrollend 后先等一帧再按位置同步。Chrome 在平滑滚动结束时
+     会再落一个 scroll 事件；若这里立刻 sync，下一帧仍可能把 active 改回
+     动画起点。锁定释放与位置同步分两帧，才是“落定后”的真实顺序。
+     目标仍对齐时保留点击版本：短条目的下一版本可能已经进入探针线，
+     单纯按位置同步会把用户刚点的版本抢走。 */
+  requestAnimationFrame(() => {
+    if (pendingJumpVersion && isPendingJumpAligned()) {
+      activeVersion.value = pendingJumpVersion
+      return
+    }
+    pendingJumpVersion = ''
+    syncActiveFromScroll()
+  })
+}
 function jumpTo(version: string): void {
   const root = contentRef.value
   const target = root?.querySelector<HTMLElement>(`[data-version="${version}"]`)
   if (!root || !target) return
+  if (jumpTimer !== undefined) {
+    clearTimeout(jumpTimer)
+    jumpTimer = undefined
+  }
+  root.removeEventListener('scrollend', settleJump)
   activeVersion.value = version
+  pendingJumpVersion = version
+  pendingJumpTop = Math.max(0, target.offsetTop - 12)
+  jumpSettled = false
   // Smooth scrolling emits many intermediate positions. Keep the clicked
   // version selected until the target settles instead of letting the
   // previous article reclaim the highlight mid-flight.
   jumpLock = Date.now() + 900
   // `.gs-cl-list` is the scroll container and `position: relative`; article offsetTop
   // is already relative to it. Subtracting root.offsetTop double-counts the offset.
-  const top = target.offsetTop - 12
-  root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+  root.scrollTo({ top: pendingJumpTop, behavior: 'smooth' })
+  root.addEventListener('scrollend', settleJump, { once: true })
+  jumpTimer = setTimeout(settleJump, 1800)
 }
 function syncActiveFromScroll(): void {
   const root = contentRef.value
   if (!root) return
   if (Date.now() < jumpLock) return
+  if (pendingJumpVersion && jumpSettled) {
+    if (isPendingJumpAligned()) {
+      activeVersion.value = pendingJumpVersion
+      return
+    }
+    pendingJumpVersion = ''
+  }
   // The oldest entry is often shorter than the viewport. At the physical
   // bottom there may be no article crossing the probe line, so treat the
   // bottom position as an explicit selection of the last entry.
@@ -128,6 +180,7 @@ function onScroll(): void {
     // extend the lock from scroll itself: a fast user scroll during the
     // smooth animation would otherwise suppress highlight updates forever.
     if (Date.now() < jumpLock) return
+    if (pendingJumpVersion && !jumpSettled) return
     syncActiveFromScroll()
   })
 }
@@ -136,7 +189,15 @@ watch(() => props.runtimeVersion, v => { activeVersion.value = v })
 // tall article "visible" while the clicked target is aligned at the top, which
 // overwrites the user's selection with a different version.
 onMounted(() => { void nextTick(syncActiveFromScroll) })
-onUnmounted(() => { cancelAnimationFrame(scrollRaf) })
+onUnmounted(() => {
+  cancelAnimationFrame(scrollRaf)
+  if (jumpTimer !== undefined) {
+    clearTimeout(jumpTimer)
+    jumpTimer = undefined
+  }
+  contentRef.value?.removeEventListener('scrollend', settleJump)
+  pendingJumpVersion = ''
+})
 </script>
 
 <style src="./base.css"></style>

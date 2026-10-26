@@ -53,22 +53,28 @@
 .dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
 @media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
-.dz-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3) 12px; }
-.dz-mb-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
-.dz-mb-h .m { font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
-.dz-mb-h .s { font-size: var(--fs-micro); color: var(--text-4); }
-.dz-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
-.dz-wk span:nth-child(2), .dz-wk span:nth-child(3), .dz-wk span:nth-child(5) { visibility: hidden; } /* 一行 12 块后星期位太挤：只留 一/四/日 定位，格序不变 */
-.dz-wk span { font-size: var(--fs-micro); color: var(--text-4); text-align: center; }
-/* R173-4：星期行需要「7×9px 汉字 + 6×2px 缝」= 75px，月块窄于 75px 时每块横向溢出（1100 档实测热区 +15px）。
-   实测 1280 档月块 75.5px 是能装下的最小档 ⇒ 以下整行隐去：这一档格子本身只剩 8px、字母已不可读，
-   日期信息仍完整保留在每格的 tooltip 与「点格子看那一天」里。 */
-@media (max-width: 1279px) {
-  .dz-months { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .dz-wk { display: none; }
+/* ★V3.9.21 单行全年：53 列周 × 7 行天（GitHub 贡献图口径）。
+   12 个月块退役——它把同一年的分布切成 12 个互不相邻的小日历，
+   跨月趋势要眼睛在 12 块之间来回跳；单行网格让「一年」真的是一行。
+   容器名 .dz-months 保留（全年网格的语义锚，W7-2/W12-12 认这个名字）。 */
+.dz-months { display: flex; flex-direction: column; gap: 6px; }
+/* 第 1 行留给月份刻度，第 2..8 行才是 7 天。星期标签跨这 7 行，与日格逐行对齐。 */
+.dz-wk { grid-column: 1; grid-row: 2 / span 7; display: grid; grid-template-rows: repeat(7, 12px); gap: 3px; }
+.dz-wk span { font-size: var(--fs-micro); color: var(--text-4); line-height: 12px; text-align: left; }
+/* 只显示 一/四/日 三行标签（索引 1/4/7），其余隐藏但保留网格行（隐藏不会让日格错位） */
+.dz-wk span:nth-child(2), .dz-wk span:nth-child(3), .dz-wk span:nth-child(5), .dz-wk span:nth-child(6) { visibility: hidden; }
+.dz-year-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: thin; }
+.dz-year { display: grid; grid-auto-rows: 12px; row-gap: 3px; column-gap: 3px; width: max-content; }
+.dz-month-tick {
+  grid-row: 1; align-self: end; justify-self: start;
+  font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap;
+  padding-bottom: 2px; pointer-events: none;
 }
-@media (max-width: 800px) { .dz-months { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.dz-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+/* 单行全年里格子本体是 12px 视觉块，但**热区**仍是 12×12 网格单元；
+   V3.9.15 的 28px 触控目标只适用于月块形态，单行全年由键盘遍历 + tooltip 兜住精度。 */
+.dz-year .dz-cell { width: 12px; height: 12px; min-width: 0; min-height: 0; border-radius: 2px; }
+.dz-year .dz-cell::after { inset: 0; border-radius: 2px; }
+.dz-year .dz-cell:hover { transform: scale(1.6); z-index: 3; }
 /* V3.9.15：日期格是触控目标，不只是色块。实际按钮至少 28×28，
    内部视觉色块仍保持紧凑，避免为了热区把热力图放大成日历。 */
 .dz-cell { position: relative; min-width: 28px; min-height: 28px; border-radius: 3px; background: var(--heat-0); cursor: pointer; transition: transform var(--dur-fast); border: 0; padding: 0; }

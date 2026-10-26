@@ -79,9 +79,17 @@ const summary = computed(() => {
 })
 
 /**
- * 12 个月块（F7）：按自然月分块 + 每块 7 列（周一~周日）。
- * ★月首偏移走 CSS `grid-column-start`，**不渲染占位格**：占位若也做成 button，一年多出 38 个
- *   "看着是格子、点了没反应"的假控件，还白占 38 个节点（04-67 §8.3 的「366 格 ≤400 节点」本意即此）。
+ * 全年网格：**单行全年**（V3.9.21 用户拍板「热力图切回单行全年」）。
+ *
+ * 呈现口径 = GitHub 贡献图：横向 53 周 × 纵向 7 天（周一在上、周日在下），
+ * 一年在一屏内横着看完，不再切成 12 个自然月块（那版把同一年的分布拆成 12 个
+ * 互不相邻的小日历，跨月趋势反而要眼睛在 12 块之间来回跳）。
+ *
+ * ★数据结构仍是「月 → 日」：`months` 同时供给近 26 周概览条与键盘遍历，
+ *   改的是**渲染形态**不是数据口径；下方的 `weeks` 只是把它按自然周重排一次。
+ * ★不渲染占位格：周首空缺由 CSS `grid-row-start` 承担 —— 一年多出 38 个
+ *   "看着是格子、点了没反应"的假控件，还白占 38 个节点（04-67 §8.3 的
+ *   「366 格 ≤400 节点」本意即此）。
  */
 const months = computed(() => {
   const y = props.year
@@ -106,6 +114,41 @@ const months = computed(() => {
   }
   return out
 })
+
+/**
+ * 单行全年的坐标：把某一天映射成「第几周列 / 第几行（星期）」。
+ * 以 1 月 1 日所在周为第 0 列，周一=0 … 周日=6。
+ * 首列若不是周一（1 月 1 日不一定是周一）也照常渲染，
+ * CSS 的 grid-row-start 会把它放到正确行，不需要占位格。
+ */
+function coordOf(k: string): { col: number; row: number } {
+  const d = new Date(k + 'T00:00:00')
+  const jan1 = new Date(props.year, 0, 1)
+  const jan1Dow = (jan1.getDay() + 6) % 7
+  const dayOfYear = Math.floor((d.getTime() - jan1.getTime()) / 86400000)
+  return { col: Math.floor((dayOfYear + jan1Dow) / 7), row: (d.getDay() + 6) % 7 }
+}
+/** 全年总列数：末日的列号 + 1（闰年 366 天 ⇒ 53 列） */
+const weekCount = computed(() => {
+  const all = months.value.flatMap(mo => mo.cells)
+  if (!all.length) return 53
+  return coordOf(all[all.length - 1].k).col + 1
+})
+
+/** 单行全年顶部的月份刻度：取每月 1 日所在列，避免 12 个标签挤在一起 */
+const monthTicks = computed(() => {
+  const out: { m: number; col: number }[] = []
+  for (const mo of months.value) {
+    const first = mo.cells[0]
+    if (first) out.push({ m: mo.m, col: coordOf(first.k).col })
+  }
+  return out
+})
+
+/** 单行全年要铺的日格（按日期升序，坐标由 coordOf 决定落位） */
+const yearCells = computed(() =>
+  months.value.flatMap(mo => mo.cells.map(c => ({ ...c, ...coordOf(c.k) })))
+)
 
 function pickCell(c: { k: string; cls: string }) {
   if (!c.k || c.cls.includes('future')) return
@@ -201,31 +244,23 @@ function shiftYear(n: number) {
 const fmtW = (n: number): string => (n >= 1000 ? n.toLocaleString() : String(n))
 
 /* ---------- W2（V3.8.2）：热力图段导出收为「PNG 下载 + HTML 分享」两项 ---------- */
-/** 格子坐标（12 月块 4×3 布局）—— PNG 与 HTML 共用同一份坐标，导出即所见 */
+/** 单行全年坐标——与屏上 yearCells 共用同一份坐标，PNG 与 HTML 导出即所见 */
 function gridCells(): { c: number; r: number; lv: number }[] {
-  const cells: { c: number; r: number; lv: number }[] = []
-  months.value.forEach((mo, bi) => {
-    const bx = bi % 4
-    const by = Math.floor(bi / 4)
-    mo.cells.forEach((x, i) => {
-      if (!x.k || x.cls.includes('future')) return
-      const n = i + mo.start - 1
-      cells.push({ c: bx * 8 + (n % 7), r: by * 8 + Math.floor(n / 7), lv: x.lv })
-    })
-  })
-  return cells
+  return yearCells.value
+    .filter(c => !c.cls.includes('future'))
+    .map(c => ({ c: c.col, r: c.row, lv: c.lv }))
 }
 const kpiSpec = () => summary.value.map(s => ({ label: s.k, value: `${typeof s.v === 'number' ? fmtW(s.v) : s.v}${s.u}`, note: s.d }))
 const footerText = '知源调度台 · 档位由加权分映射 · 数据只在本机'
 
-/** ★W18（统一卡片模板）：年度热力图也走「知源卡片」——骨相与日战报一致，只是把明细区换成 12 个月格子图。 */
+/** ★W18（统一卡片模板）：年度热力图也走「知源卡片」——骨相与日战报一致，只是把明细区换成单行全年格子图。 */
 function buildZyCard() {
   return {
     kicker: '年度热力',
     title: `${props.year} 年调度热力图`,
     sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · P90 = ${agg.value.p90} 分 · 最长连续 ${streak.value} 天`,
     readouts: kpiSpec(),
-    grid: { cells: gridCells(), cols: 32, rows: 24 },
+    grid: { cells: gridCells(), cols: weekCount.value, rows: 7 },
     footer: '知源调度台 · 档位由加权分映射 · 数据只在本机'
   }
 }
@@ -297,21 +332,31 @@ function onExport(fmt: ExportFmt): void {
 
       <div v-if="!agg.act" class="dz-empty">这一年还没有行为记录 —— 采集第一张卡，这里就会亮起来。</div>
       <template v-else>
-        <div class="dz-months">
-          <div v-for="mo in months" :key="mo.m" class="mb">
-            <div class="dz-mb-h"><span class="m">{{ mo.m }} 月</span><span class="s">{{ mo.w }} 分</span></div>
-            <div class="dz-wk"><span v-for="w in WD" :key="w">{{ w }}</span></div>
-            <div class="dz-g">
+        <!-- ★单行全年（V3.9.21）：53 列周 × 7 行天，GitHub 贡献图口径。
+             外框 .dz-months 保留为语义锚（它是「全年网格」这个整体的容器，
+             W7-2/W12-12 都按这个名字认它），里面换成一张单行网格。 -->
+        <div class="dz-months" role="grid" :aria-label="`${year} 年全年热力图 · ${agg.act} 天有记录`">
+          <div class="dz-year-scroll">
+            <div class="dz-year" :style="{ gridTemplateColumns: `16px repeat(${weekCount}, 12px)` }">
+              <!-- 星期标签占第 1 列、跨 7 行：与右侧日格的行一一对齐 -->
+              <div class="dz-wk" aria-hidden="true"><span v-for="w in WD" :key="w">{{ w }}</span></div>
+              <span
+                v-for="t in monthTicks"
+                :key="'t' + t.m"
+                class="dz-month-tick"
+                :style="{ gridColumnStart: t.col + 2 }"
+              >{{ t.m }} 月</span>
               <button
-                v-for="(c, i) in mo.cells"
-                :key="mo.m + '-' + i"
+                v-for="c in yearCells"
+                :key="c.k"
                 class="dz-cell"
                 :class="c.cls"
+                role="gridcell"
                 :data-day="c.k"
                 :disabled="c.cls.includes('future')"
                 :tabindex="c.k === dayStop ? 0 : -1"
                 :aria-label="c.k ? `${c.k} · ${LV_NAME[c.lv]}` : undefined"
-                :style="i === 0 && mo.start > 1 ? 'grid-column-start:' + mo.start : undefined"
+                :style="{ gridColumnStart: c.col + 2, gridRowStart: c.row + 2 }"
                 :title="c.k ? `${c.k} · ${LV_NAME[c.lv]}（${LV_RANGE[c.lv]}）` : ''"
                 @focus="gridStop = c.k"
                 @keydown="onDayKey(c, $event)"

@@ -207,7 +207,10 @@ async function main() {
     const targetTop = target.getBoundingClientRect().top
     return root.scrollTop > 100 && targetTop >= rootTop - 2 && targetTop <= rootTop + 36
   }, clOldVersion), { timeout: 8000, label: '更新日志目录定位' })
-  await pollUntil(async () => clPage.evaluate((version) => {
+  /* ★V3.9.21：这里原来不读 pollUntil 的返回值，只轮询 5s 后立刻另采一次；
+     若最后一帧恰被 scroll 同步覆盖，日志里 active 三项会全是 false。
+     改为把轮询结果作为判据本身，避免「轮询明明收敛了、采样又读回旧帧」。 */
+  const clActiveOk = await pollUntil(async () => clPage.evaluate((version) => {
     const root = document.querySelector('.gs-cl-list')
     const dir = [...document.querySelectorAll('.gs-cl-dir-item')]
       .find(el => el.querySelector('b')?.textContent?.replace(/^V/, '') === version)
@@ -260,7 +263,7 @@ async function main() {
   await clPage.close()
   report('E2E-48 V3.9.11 更新日志目录工作台：点击旧版本定位正文、滚动同步高亮、700px 单列且无页面横向溢出',
     clDesktop.columns === 2 && clDesktop.navItems === clDesktop.articles && clDesktop.articles >= 100
-      && clJumpOk === true && clActive.dir && clActive.article && clActive.ariaCurrent === 'true' && clScrollSync === true
+      && clJumpOk === true && clActiveOk === true && clActive.dir && clActive.article && clActive.ariaCurrent === 'true' && clScrollSync === true
       && clNarrow.columns === 1 && clNarrow.stacked && clNarrow.listOverflow === 'visible'
       && clNarrow.bodyOverflow <= 1,
     `desktop=${JSON.stringify(clDesktop)} target=${clOldVersion} jump=${clJumpOk} active=${JSON.stringify(clActive)} scrollSync=${clLastVersion}:${clScrollSync} narrow=${JSON.stringify(clNarrow)}`)
@@ -332,6 +335,11 @@ async function main() {
     const now = Date.now()
     data.compass = data.compass || { vision: { content: '', updatedAt: now }, mission: { content: '', updatedAt: now }, directions: [] }
     data.compass.directions = (data.compass.directions || []).filter(dir => dir.id !== 'e2e-dir-status-focus')
+    /* V3.9.21：主攻项目按 isFocused 排序；若夹具里还有旧主攻，目标项目会被挤到
+       第 3 行之外，`.fp-row` 自然找不到它。先清掉所有旧主攻，再种本轮目标。 */
+    for (const dir of data.compass.directions || []) {
+      for (const p of dir.projects || []) p.isFocused = false
+    }
     data.compass.directions.push({
       id: 'e2e-dir-status-focus', name: 'E2E 状态明细方向', status: 'active', term: 'short',
       projects: [{
@@ -359,7 +367,7 @@ async function main() {
   await focusStatusRow.click().catch(() => {})
   await page.waitForTimeout(1000)
   const focusStatusModalOn = await page.locator('.md-panel').filter({ hasText: '主攻项目明细' }).first().isVisible().catch(() => false)
-  const readonlyProjectOn = await page.locator('.md-panel').filter({ hasText: '主攻项目 · 只读' }).filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
+  const readonlyProjectOn = await page.locator('.md-panel').filter({ hasText: '项目全景 · 只读' }).filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
   report('E2E-49（V3.9.18 重指）主攻项目直达：点击主栏「主攻项目」面板行（V3.9.15 时在右栏「今天的状态」）直接打开完整只读项目详情，不先经过明细弹窗',
     !focusStatusModalOn && readonlyProjectOn,
     `直达项目详情=${readonlyProjectOn} 明细弹窗=${focusStatusModalOn}`)
@@ -702,8 +710,9 @@ async function main() {
   })
   await page.locator('.pi-day-modal .dz-btn.ghost.sm').filter({ hasText: '收起' }).click().catch(() => {})
   await page.waitForTimeout(300)
-  const dsExpanded = await page.locator('.dz-months .mb').count()
-  const dsAugL2 = await page.locator('.dz-months .mb').nth(7).locator('.dz-cell.l2').count()
+  const dsYearOn = await page.locator('.dz-months .dz-year').count()
+  const dsAugL2 = await page.locator('.dz-year .dz-cell[data-day="2026-08-15"]')
+    .evaluate(el => el.classList.contains('l2') ? 1 : 0).catch(() => 0)
   // fullSince 徽章真实落点在网格下方的 .note 区（文案「调出维度自 X 起完整」），不在 .dz-sec-h 里
   const dsBadge = await page.locator('#mod-year .dz-sec-b .note').first().innerText().catch(() => '')
   // 写链路：进资源卡池 → 单击开 App 级详情 → 改标题 → 保存 → pagehide → 读回
@@ -742,7 +751,7 @@ async function main() {
   report('E2E-25 R174-3 按日快照落盘（画像页年度段读合并 + 保存→pagehide→今日写链路）',
     yearModuleOn && heatBattle.open && heatBattle.sub.includes(heatTargetDay)
       && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWrittenOk && dsWritten.has && dsWritten.add >= 1,
-    `年度段=${yearModuleOn} 战报=${heatBattle.open} 战报日=${heatBattle.sub} 点格日=${heatTargetDay} 月块=${dsExpanded} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 种卡=${dsSeeded.card} 种子写戳=${!!dsSeeded.wid} 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
+    `年度段=${yearModuleOn} 战报=${heatBattle.open} 战报日=${heatBattle.sub} 点格日=${heatTargetDay} 单行全年=${dsYearOn} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 种卡=${dsSeeded.card} 种子写戳=${!!dsSeeded.wid} 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
   // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {

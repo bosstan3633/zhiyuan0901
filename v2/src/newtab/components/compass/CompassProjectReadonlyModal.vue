@@ -1,11 +1,14 @@
 <script setup lang="ts">
 /**
- * 调度台主攻项目的只读详情。
+ * 调度台主攻项目的「项目全景 · 只读」。
  * - 只读：不改项目、指标或任务；文本可选中复制。
+ * - 全景：同一份 compassMeta 关系按「方向 → 项目 → 指标 → 任务」完整铺开，
+ *   同时显式呈现下一步、断链、停滞与进度，回答“这个主攻项目现在长什么样”。
  * - 单源：项目、指标和任务的归属关系统一从 compassMeta 与 store 现算。
  */
 import { computed } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
+import { useCompass } from '@/newtab/stores/compass'
 import Modal from '@/shared/components/Modal.vue'
 import type { Direction, Metric, Project, TaskCard } from '@/shared/models'
 import { resolveProjectNextStep, tasksOfMetric, tasksOfProject } from '../../views/compassMeta'
@@ -17,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const store = useAppStore()
+const { isProjectStalled } = useCompass()
 const d = computed(() => store.data!)
 
 const found = computed<{ dir: Direction; project: Project } | null>(() => {
@@ -42,6 +46,17 @@ const metricTaskIds = computed(() => new Set(
   (project.value?.metrics || []).flatMap(metric => metricTasks(metric).map(task => task.id)),
 ))
 const looseTasks = computed(() => tasks.value.filter(task => !metricTaskIds.value.has(task.id)))
+const openTasks = computed(() => tasks.value.filter(task => task.status !== 'done'))
+const riskCount = computed(() => {
+  const p = project.value
+  if (!p) return 0
+  const emptyMetrics = (p.metrics || []).filter(metric => !metricTasks(metric).length).length
+  return looseTasks.value.length + emptyMetrics + (p.metrics?.length ? 0 : 1)
+})
+const stalled = computed(() => {
+  const p = project.value
+  return p ? isProjectStalled(p) : false
+})
 const stateText = computed(() => {
   const p = project.value
   if (!p) return ''
@@ -59,10 +74,10 @@ function metricTasks(metric: Metric): TaskCard[] {
 <template>
   <Modal :open="open" width="min(760px, 94vw)" max-height="86vh" @close="emit('close')">
     <template #title>
-      <span class="cpr-title"><span class="cpr-kicker">主攻项目 · 只读</span>{{ project?.name || '项目详情' }}</span>
+      <span class="cpr-title"><span class="cpr-kicker">项目全景 · 只读</span>{{ project?.name || '项目详情' }}</span>
     </template>
     <template #sub>
-      <span class="cpr-note">内容可选中复制；修改项目、指标或任务请前往方向台。</span>
+      <span class="cpr-note">方向 → 项目 → 指标 → 任务全链路；内容可选中复制，修改请前往方向台。</span>
     </template>
 
     <div v-if="project" class="cpr-body">
@@ -72,6 +87,13 @@ function metricTasks(metric: Metric): TaskCard[] {
           <strong>{{ found?.dir.name || '未归入方向' }}</strong>
           <p v-if="project.nextStep || nextStep.nextStep">{{ nextStep.nextStep || project.nextStep }}</p>
           <p v-else class="cpr-muted">尚未填写下一步，任务中也暂无进行中的动作。</p>
+          <div class="cpr-facts">
+            <span>{{ project.metrics.length }} 条指标</span>
+            <span>{{ tasks.length }} 条任务</span>
+            <span>{{ openTasks.length }} 条待推进</span>
+            <span :class="{ bad: riskCount > 0 }">{{ riskCount > 0 ? `断链 ${riskCount}` : '链路完整' }}</span>
+            <span v-if="stalled" class="warn">停滞 14 天+</span>
+          </div>
         </div>
         <div class="cpr-progress">
           <b>{{ progress }}%</b>
@@ -129,6 +151,9 @@ function metricTasks(metric: Metric): TaskCard[] {
 .cpr-label { color: var(--text-3); font-size: var(--fs-micro); }
 .cpr-summary-main strong { color: var(--text); font-size: var(--fs-body); overflow-wrap: anywhere; }
 .cpr-summary-main p { margin: 1px 0 0; color: var(--text-2); font-size: var(--fs-sub); line-height: 1.65; overflow-wrap: anywhere; }
+.cpr-facts { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 3px; color: var(--text-3); font-size: var(--fs-micro); }
+.cpr-facts .bad { color: var(--danger); }
+.cpr-facts .warn { color: var(--warning); }
 .cpr-muted { color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
 .cpr-progress { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .cpr-progress b { color: var(--text); font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }

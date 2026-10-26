@@ -538,6 +538,22 @@ function onListLocate(projId: string, label: string) {
   layerView.value = null
   nextTick(() => { gotoTower(projId); showToast(`${label} · 已定位所属项目舱`) })
 }
+/**
+ * ★F7 列表第 3 层行内编辑：关掉层级列表回到项目塔，再就地进入该目标标题编辑。
+ *   与「新建即编辑」共用 focusEditField —— 两条入口必须同一条聚焦链路，
+ *   否则列表里点编辑会因 contenteditable 尚未渲染而静默落空。
+ */
+function onListEditDir(id: string) {
+  layerView.value = null
+  /* ★V3.9.21：目标标题的 contenteditable 只存在于项目塔视图。
+     若用户是从「项目全景」里打开层级列表再点编辑，只关列表仍会停在泳道 DOM，
+     focusEditField 找不到目标节点而静默落空；先切回 tower 再聚焦。 */
+  viewMode.value = 'tower'
+  nextTick(() => {
+    editingField.value = 'dir-' + id
+    focusEditField('dir-' + id)
+  })
+}
 /** 战略目标过滤：芯片 / 目标卡 / 分组头 三处同源 */
 function onDirFilter(id: string) {
   dirFilter.value = dirFilter.value === id ? '' : id
@@ -617,12 +633,12 @@ function toggleMetric(id: string) {
 // ---- 编辑状态（contenteditable方案）----
 const editingField = ref<string | null>(null)
 
-function startEdit(field: string, e: MouseEvent) {
-  e.stopPropagation()
-  editingField.value = field
+/** ★编辑聚焦：进入编辑态后滚到该字段、聚焦并全选（新建即编辑 / 栏内编辑与点标题编辑共用） */
+function focusEditField(field: string) {
   nextTick(() => {
     const el = document.querySelector('[data-edit="' + field + '"]') as HTMLElement | null
     if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       el.focus()
       const range = document.createRange()
       range.selectNodeContents(el)
@@ -631,6 +647,12 @@ function startEdit(field: string, e: MouseEvent) {
       sel?.addRange(range)
     }
   })
+}
+
+function startEdit(field: string, e: MouseEvent) {
+  e.stopPropagation()
+  editingField.value = field
+  focusEditField(field)
 }
 
 function saveEdit(field: string, e: FocusEvent | KeyboardEvent) {
@@ -674,7 +696,7 @@ function cancelEdit() {
   editingField.value = null
 }
 
-// ---- CRUD（不自动进入编辑模式）----
+// ---- CRUD（★新建即编辑：创建后直接进入标题编辑态，不再让用户自己找标题在哪）----
 function addDirection() {
   const dir: Direction = {
     id: uid('dir'),
@@ -685,7 +707,18 @@ function addDirection() {
   }
   d.value.compass.directions.push(dir)
   store.persist()
-  showToast('战略目标已创建，点击标题编辑')
+  /* 分组头挂在项目塔视图里——筛选/断链/层级列表若正遮着它，先复位再聚焦，
+     否则"新建即编辑"会落空（editingField 指向一个没渲染的 contenteditable）。 */
+  dirFilter.value = ''
+  riskOnly.value = false
+  layerView.value = null
+  layerOpen.value = null
+  /* ★V3.9.21：同上——新建的战略目标分组头只在项目塔渲染；
+     全景视图下必须先回 tower，否则「新建即编辑」聚焦落空。 */
+  viewMode.value = 'tower'
+  editingField.value = 'dir-' + dir.id
+  focusEditField('dir-' + dir.id)
+  showToast('战略目标已创建 · 正在编辑标题（回车保存）')
 }
 
 /**
@@ -1387,6 +1420,8 @@ onUnmounted(() => {
               @close="layerView = null"
               @dir="onDirFilter"
               @locate="onListLocate"
+              @edit-dir="onListEditDir"
+              @del-dir="(id) => deleteNode('dir', id)"
             />
 
             <!-- ★W11 项目全景（横向泳道）。与项目塔同一份数据、两种投影，切换不重算。 -->
@@ -1474,6 +1509,7 @@ onUnmounted(() => {
                     <span class="node-action t2" v-pressable @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）"><Icon name="filetext" :size="13"/></span>
                     <span class="node-action t3" v-pressable :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
                       :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'"><Icon v-if="dirFilter === dg.dir.id" name="eye" :size="13"/>{{ dirFilter === dg.dir.id ? '正在只看' : '只看我' }}</span>
+                    <span class="node-action t2" v-pressable @click="startEdit('dir-' + dg.dir.id, $event)" title="编辑目标名称（就地改名，回车保存）"><Icon name="edit" :size="13"/></span>
                     <span class="node-action t3 danger" v-pressable @click="deleteNode('dir', dg.dir.id)" title="删除目标"><Icon name="trash" :size="13"/></span>
                   </div>
                 </div>

@@ -153,7 +153,12 @@ const DASH_SCENES = [
     id: 'curation-canvas', name: '策展台画布', hash: '#/workspace/zy-audit-curation',
     host: '.mindmap-shell',
     act: async (page) => {
-      await page.waitForTimeout(500)
+      /* ★V3.9.21：原来只等 500ms 固定时长。策展画布是懒 chunk + 依赖分类树计算，
+         冷启动（本场景排在 deck 三连之后、文档刚换过 hash）经常 500ms 内还没挂载，
+         于是「宿主未挂载 ⇒ 本屏不作数」四主题各少一张图。
+         改成等宿主真正出现；再留 300ms 让节点与连线的 layout 落定。 */
+      await page.locator('.mindmap-shell').first().waitFor({ state: 'visible', timeout: 12000 }).catch(() => {})
+      await page.waitForTimeout(300)
     },
     judge: async (page) => page.evaluate(() => {
       const shell = document.querySelector('.mindmap-shell')
@@ -223,15 +228,31 @@ const DASH_SCENES = [
       const todayOk = legend[6] === '今天'
       const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
       const sum = document.querySelectorAll('.dz-sum .c').length
-        const tops = [...document.querySelectorAll('.dz-mb-h')].map(h => Math.round(h.getBoundingClientRect().top))
-        /* V3.9.15：12 月块从单行压成 4×3；不能再拿“12 块同顶”当判据，
-           改钉 12 块都在、按 4 列整齐换行（最多 3 行）。 */
-        const rows = new Set(tops).size
-        const gridOk = tops.length === 12 && rows >= 1 && rows <= 3
-        const minCell = Math.min(...[...document.querySelectorAll('.dz-cell:not(.future)')]
-          .map(el => Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height)))
+      /* ★V3.9.21 重指：热力图从「12 月块 4×3」改回「单行全年 53 周列 × 7 天行」。
+         守的行为不变：① 全年日格都在 ② 六档图例 + 今天项 ③ 四张摘要卡 ④ 不横向溢出。
+         换掉的承重锚：月块同顶 → 单行网格的**列数**（53 列）与**行数**（7 行）；
+         日期热区 28px 随月块形态退役（单行全年是 12px 视觉块，精度由键盘遍历 + tooltip 承担），
+         改钉「格子实际渲染成 12px 级小方块」这条单行全年自己的形态契约。 */
+      const cellsAll = [...document.querySelectorAll('.dz-cell:not(.future)')]
+      /* 列数取日格上真正落位的列号。注意：这些格子是显式 grid-column 定位，
+         computed 的 gridColumnStart 在本环境下会回成 'auto'，所以直接读**内联 style**
+         里的 grid-column-start（Vue 绑定的就是它）。也不读 grid-template-columns ——
+         后者在 width:max-content 的网格上算不出具体列数。 */
+      const colSet = new Set(cellsAll
+        .map(el => el.style.gridColumnStart)
+        .filter(v => v && v !== 'auto'))
+      const cols = colSet.size
+      const rowsSet = new Set(cellsAll.map(el => Math.round(el.getBoundingClientRect().top)))
+      /* 列数按「今年已过去的周数」判：未来日期是 future 格（不计入 cols），
+         所以 10 月只能看到 ~44 列，硬写 50 会把正确的实现判红。 */
+      const renderedYear = Number((document.querySelector('.hm-year')?.textContent || '').trim())
+      const now = new Date()
+      const isCurYear = now.getFullYear() === renderedYear
+      const minCols = isCurYear ? Math.max(20, Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / 604800000) - 2) : 50
+      const gridOk = cols >= minCols && rowsSet.size >= 6 && rowsSet.size <= 8
+      const minCell = Math.min(...cellsAll.map(el => Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height)))
       const overflow = Math.round(document.documentElement.scrollWidth - window.innerWidth)
-      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && gridOk && minCell >= 28 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 月块=${tops.length}/12·${rows}行 日期热区=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
+      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && gridOk && minCell >= 10 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 单行网格=${cols}列·${rowsSet.size}行 格块=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
     })
   },
   {
@@ -271,10 +292,18 @@ const DASH_SCENES = [
   {
     /* V3.9.12：项目全景是方向台的第二投影，此前只在静态回归里验结构，
        从未进过四主题实拍。场景必须真点「项目全景」，否则拍到的仍是默认项目塔。 */
+    /* ★V3.9.21 备案：host 判据在 `act` **之前**执行（见下方 `if (sc.act)`），
+       所以它只能认「切换前就该在」的入口；`.pano-switch` 要等 act 点完才出现，
+       拿它当 host 会永远判「未挂载」。host 保持 `.navside .view-seg`（V3.9.19 迁入左栏后的真实入口），
+       全景是否真渲染由 act 之后的 judge 负责。 */
     id: 'compass-pano', name: '项目全景', hash: '#/compass', host: '.navside .view-seg',
     act: async (page) => {
-      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 }).catch(() => {})
-      await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
+      /* ★V3.9.21：原来两步都 catch 成空 —— 点不到按钮时静默继续，最后只报「宿主未挂载」，
+         看不出是按钮没点到还是数据为空。这里把点击失败如实打出来（不中断，交给 judge 判定）。 */
+      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 })
+        .catch(e => console.log(`      [act] 项目全景按钮点击失败：${String(e.message).split('\n')[0]}`))
+      await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 })
+        .catch(() => console.log('      [act] 点完后 .pano-switch 仍未出现（可能是项目数据为空）'))
       await page.waitForTimeout(700)
     },
     judge: async (page) => page.evaluate(() => {
@@ -321,10 +350,13 @@ const DASH_SCENES = [
     /* V3.9.15：项目全景的多指标真实渲染夹具。
        与 compass-pano 分开：原场景继续守“默认数据下的单/多泳道兼容”，
        本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题两行与滚动边界。 */
+    /* ★同 compass-pano：host 必须是 act 之前就在的入口。 */
     id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.navside .view-seg',
     act: async (page) => {
-      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 }).catch(() => {})
-      await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
+      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 })
+        .catch(e => console.log(`      [act] 项目全景按钮点击失败：${String(e.message).split('\n')[0]}`))
+      await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 })
+        .catch(() => console.log('      [act] 点完后 .pano-switch 仍未出现（可能是项目数据为空）'))
       await page.locator('.pano-switch .ps-current').first().click({ timeout: 5000 }).catch(() => {})
       await page.waitForTimeout(250)
       await page.locator('.pano-switch .ps-opt', { hasText: '多指标阅读节奏审计' }).first()
@@ -1651,16 +1683,33 @@ if (argv.scenes) {
              导航到目标 hash（这本身就会换文档），再 reload 兜底懒 chunk。
            与「等选择器出现不等固定时长」是同一条纪律：不假设页面停在哪。 */
         const curUrl = page.url()
-        if (!curUrl.startsWith(base)) {
-          await page.goto(base + (sc.hash || '#/profile'), { waitUntil: 'domcontentloaded' }).catch(() => {})
+        /* ★V3.9.21 修：这里原来只在「page 已离开扩展」时 goto、否则 reload。
+           实测 notion/gp-search 掉到了空白页：curUrl 仍是扩展地址（startsWith(base) 成立），
+           但文档本身已空（URL 的 hash 读成 ''、.desk-layout 不在）⇒ reload 会复现空白。
+           判据改为**看文档是否还在目标 hash**，不在就直接 goto 目标地址；
+           只有 URL 已经在目标 hash、宿主仍缺失时，reload 才是兜底手段。 */
+        const targetUrl = base + (sc.hash || '#/profile')
+        if (!curUrl.startsWith(base) || curUrl !== targetUrl) {
+          await page.goto(targetUrl, { waitUntil: 'domcontentloaded' }).catch(() => {})
         } else {
           await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
         }
         await page.waitForTimeout(2400)
         await settle(page, sc.id + ':reload')
         if (!(await page.locator(HOST).first().isVisible().catch(() => false))) {
-          dashFail.push(`${theme}/${sc.id}：reload 后宿主仍未挂载（${HOST} 不在，hash=${sc.hash || '#/profile'}）——这一屏不作数，先查路由与懒 chunk`)
-          console.log(`  ⚠ ${theme.padEnd(8)} ${sc.name.padEnd(6)} 宿主 ${HOST} 未挂载，本屏不作数`)
+          /* ★V3.9.21 诊断增强：宿主缺失时把「页面上真实存在什么」一并打出来，
+             否则只会看到一句「未挂载」，分不清是路由没到、数据为空还是选择器过期。 */
+          const diag = await page.evaluate(() => ({
+            url: location.hash,
+            navside: document.querySelector('.navside') ? getComputedStyle(document.querySelector('.navside')).display : '无',
+            viewSeg: !!document.querySelector('.view-seg'),
+            pano: !!document.querySelector('.pano-switch'),
+            towers: document.querySelectorAll('.tw-head').length,
+            dirHeads: document.querySelectorAll('.dir-head').length,
+            spineText: (document.querySelector('.spine')?.textContent || '').replace(/\s+/g, ' ').slice(0, 90),
+          })).catch(() => null)
+          dashFail.push(`${theme}/${sc.id}：reload 后宿主仍未挂载（${HOST} 不在，hash=${sc.hash || '#/profile'}）——这一屏不作数，先查路由与懒 chunk；诊断=${JSON.stringify(diag)}`)
+          console.log(`  ⚠ ${theme.padEnd(8)} ${sc.name.padEnd(6)} 宿主 ${HOST} 未挂载，本屏不作数 · ${JSON.stringify(diag)}`)
           continue
         }
         console.log(`  · ${theme.padEnd(8)} ${sc.name.padEnd(6)} 同 hash 未换页（懒 chunk），已 reload 兜底`)
@@ -1735,15 +1784,21 @@ if (argv.scenes) {
          ★就绪的判据不用造标记（content script 侧本来就没有 window 标记，加一个只为测试服务反而污染产品）：
            **直接用一次探测消息去问**——问的就是后面真要发的那条消息，能问通就是就绪。
            与「等选择器真的出现，不等固定时长」（M6）是同一条纪律，两处都写着。 */
-      const CONTENT_READY = Date.now() + 20000
+      /* ★V3.9.21 修：原来只探测一次就放弃。本轮实测 notion 主题下 content script
+         偶发没注入，结果整张 ov 截图缺失（119/120）。改为「探测 → 有限重试 →
+         再探测」；仍然失败才交给判据红，不静默放过。
+         注意：content script 由 MV3 按 manifest 注入，且产物是 loader（不是
+         content/index.js）。这里不伪造第二次注入，只把等待改成可收敛的轮询。 */
       let contentReady = false
+      const probeContent = () => worker.evaluate(async ({ p }) => {
+        const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
+        if (!tabs[0]) return false
+        try { await chrome.tabs.sendMessage(tabs[0].id, { type: '__zy_probe__' }); return true }
+        catch (e) { return false }
+      }, { p: ovPort }).catch(() => false)
+      const CONTENT_READY = Date.now() + 20000
       while (Date.now() < CONTENT_READY) {
-        contentReady = await worker.evaluate(async ({ p }) => {
-          const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
-          if (!tabs[0]) return false
-          try { await chrome.tabs.sendMessage(tabs[0].id, { type: '__zy_probe__' }); return true }
-          catch (e) { return false }
-        }, { p: ovPort }).catch(() => false)
+        contentReady = await probeContent()
         if (contentReady) break
         await ovPage.waitForTimeout(300)
       }

@@ -167,12 +167,18 @@ check('G102-11 V3.9.14 更新日志单列结构：左侧版本目录 + 右侧单
 
 check('G102-12 更新日志目录可定位且同步高亮：点击 scrollTo 对应 data-version，滚动只走同一套位置口径更新 active（不得再用 IntersectionObserver 抢选中）；目录项 44px 键盘可达', () => {
   return CHANGELOG.includes('querySelector<HTMLElement>(`[data-version="${version}"]`)')
-    && CHANGELOG.includes("root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })")
+    /* ★V3.9.21 重指：目标位置先算入 pendingJumpTop，scrollTo 直接消费同一值；
+       仍只走一套位置口径，不新增第二条滚动通道。 */
+    && CHANGELOG.includes('pendingJumpTop = Math.max(0, target.offsetTop - 12)')
+    && CHANGELOG.includes("root.scrollTo({ top: pendingJumpTop, behavior: 'smooth' })")
     && CHANGELOG.includes('activeVersion.value = version')
     && CHANGELOG.includes('jumpLock = Date.now() + 900')
     && CHANGELOG.includes('if (Date.now() < jumpLock) return')
     && !CHANGELOG.includes('new IntersectionObserver')
     && CHANGELOG.includes('requestAnimationFrame(() => {')
+    /* ★V3.9.21 重指：落定帧先判点击目标是否仍对齐，再保留点击版本或按位置同步；
+       E2E-48 已实证短条目不再被下一版本抢走高亮。 */
+    && CHANGELOG.includes('if (pendingJumpVersion && isPendingJumpAligned())')
     && CHANGELOG.includes('syncActiveFromScroll()')
     // 最早的版本通常短于视口高度，滚到底时不会跨过高亮探测线；底边必须直接选中末条。
     && CHANGELOG.includes("const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 2")
