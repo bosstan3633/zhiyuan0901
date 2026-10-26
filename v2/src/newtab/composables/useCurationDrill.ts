@@ -15,6 +15,8 @@ import type { CatIndex } from '@/shared/utils/catIndex'
 import { isMirrorView } from '@/shared/storage/hub'
 import { readEventLog, EVENT_ACT_LABEL, type CardEvent } from '@/shared/utils/eventLog'
 import type { DrillCatRow, DrillCardRow, DrillDetailRow } from '@/newtab/components/CurationDrillDrawer.vue'
+import { toOpenableUrl } from '@/shared/utils/link'
+import { safeExportLink } from '@/shared/utils/cardExport'
 
 export interface CurationDrillCtx {
   allResources: ComputedRef<ResourceCard[]>
@@ -66,6 +68,10 @@ export function useCurationDrill(ctx: CurationDrillCtx) {
       sourceType: r.sourceType,
       mirrored: isMirrorView(r),
       updatedAt: r.updatedAt || r.createdAt,
+      href: (() => {
+        const link = safeExportLink(toOpenableUrl(r.linkType, r.link))
+        return link.clickable ? link.href : ''
+      })(),
     })).sort((a, b) => b.updatedAt - a.updatedAt)
   })
 

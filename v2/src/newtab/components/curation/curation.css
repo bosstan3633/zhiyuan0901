@@ -259,9 +259,8 @@
   line-height: 1.5;
 }
 .mind-edit-desc { min-height: 58px; resize: vertical; font-size: var(--fs-caption); }
-.mind-resources { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 7px; }
+.mind-resources { display: flex; align-items: flex-start; gap: 4px; flex-wrap: wrap; margin-top: 7px; }
 .mind-resource,
-.mind-resource-more,
 .evidence-gap {
   min-height: 28px;
   display: inline-flex;
@@ -278,8 +277,11 @@
 }
 .mind-resource {
   position: relative;
-  padding-right: 18px;
+  width: 100%;
+  padding-right: 22px;
+  align-items: flex-start;
 }
+.mind-resource-title { flex: 1; min-width: 0; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; }
 .mind-resource-remove {
   position: absolute;
   top: 50%;
@@ -306,7 +308,7 @@
 .mind-resource-remove:focus-visible { opacity: 1; }
 .mind-resource-remove:hover { background: var(--danger-bg-soft); color: var(--danger); }
 .mind-resource:hover,
-.mind-resource-more:hover { border-color: var(--accent); color: var(--accent); }
+.mind-resource:hover { border-color: var(--accent); color: var(--accent); }
 .mind-resource.search-hit { border-color: var(--warning); background: var(--warning-bg-soft); color: var(--warning); }
 .mind-resource-dot { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--text-3); }
 .mind-resource-dot[data-source="official"] { background: var(--info-blue); }
@@ -371,18 +373,18 @@
   top: 0;
   left: 50%;
   width: 2px;
-  height: 16px;
+  height: 32px;
   transform: translateX(-1px);
   background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
 }
-/* V3.9.13：不再按四等分画整条横线。每个子分支从自身中心画半段，
+/* 不再按四等分画整条横线。每个子分支从自身中心画半段，
    首个子项只画右半、末个子项只画左半，中间项跨过整个槽宽；
-   因此 1~N 个子节点都共享首/末中心之间的真实总线，不会因节点数量改变而断裂。 */
-.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch { flex: 0 0 auto; width: max-content; padding-top: 24px; }
+   总线与垂直落线共用同一 Y 坐标，节点高度或数量变化后仍连续。 */
+.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch { flex: 0 0 auto; width: max-content; padding-top: 32px; }
 .mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::after {
   content: "";
   position: absolute;
-  top: -16px;
+  top: 0;
   left: 0;
   right: 0;
   height: 2px;
@@ -397,10 +399,10 @@
   content: "";
   position: absolute;
   left: 50%;
-  top: -16px;
+  top: 0;
   z-index: 1;
   width: 2px;
-  height: 40px;
+  height: 32px;
   transform: translateX(-1px);
   background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
 }
@@ -408,10 +410,10 @@
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -16px;
+  bottom: -32px;
   z-index: 1;
   width: 2px;
-  height: 16px;
+  height: 32px;
   transform: translateX(-1px);
   background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
 }

@@ -18,6 +18,9 @@ import { buildSupportIndex, listBySub, listByTask, addSupportLink, removeSupport
 // R152 口径：评审抽屉用模块作用域单例，不在 setup 里现造（此处原为 defineAsyncComponent 自建一份）
 import { AiDrawer } from '../lazyAiDrawer'
 import { showToast } from '@/shared/components/toast'
+import { downloadText } from '@/shared/utils/download'
+import { buildTaskExportDocument, taskExportHtml, taskExportMarkdown } from '@/shared/utils/taskExport'
+import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
@@ -273,6 +276,17 @@ function saveTaskTitleAndClose() {
   close()
 }
 
+/** 导出当前任务卡。附件只写元数据，绝不读取 IndexedDB 中的 Blob。 */
+function exportTask(fmt: ExportFmt): void {
+  const current = selectedTask.value
+  if (!current || (fmt !== 'md' && fmt !== 'html')) return
+  const snapshot = { ...current, title: taskTitleDraft.value.trim() || current.title }
+  const doc = buildTaskExportDocument(d.value, snapshot)
+  if (fmt === 'md') downloadText(`${doc.filenameBase}.md`, taskExportMarkdown(doc), 'md')
+  else downloadText(`${doc.filenameBase}.html`, taskExportHtml(doc), 'html')
+  showToast(`已导出任务卡 ${fmt === 'md' ? 'Markdown' : 'HTML'}（不含附件本体）`)
+}
+
 // B1：级联选择项目 → 指标
 const sidebarProjects = computed(() => allProjects())
 const sidebarMetrics = computed(() =>
@@ -350,6 +364,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <div class="ts-title-row">
             <div class="check-lg" v-pressable :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
             <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..." @blur="saveTaskTitle" />
+            <ExportMenu class="ts-export" :formats="['md', 'html']" align="end" @pick="exportTask" />
           </div>
           <div class="ts-head-row2">
             <div class="ds-status-wrap" data-a11y-container @click.stop>
@@ -519,6 +534,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
+.ts-export { flex: none; align-self: flex-start; }
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
 .ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }

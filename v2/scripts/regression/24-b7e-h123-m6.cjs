@@ -266,7 +266,7 @@ check(NAME(
   '★为什么用 min-height 而不是加 padding：padding 会把 48px 顶栏顶高、把左右 chip 间距撑散，',
   '那是对"窄窗不破版"这条验收的净损失。min-height 不改变任何相邻元素的排布。'), () => {
   const targets = [
-    ['App.vue 顶栏', APPC, /\.brand-chip, \.nav-shortcut-tip \{ min-height: 28px/, '顶栏 chip'],
+    ['App.vue 顶栏', APPC, /\.brand-chip \{ min-height: 28px;/, '顶栏 chip'],
     ['CompassHome 存储状态', CHC, /\.foot-status \{[^}]*min-height: 28px/, 'foot-status'],
     ['CompassHome 战报钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
     ['CompassHome 页脚齿轮', CHC, /\.foot-gear \{[^}]*width: 28px;[\s\S]*?height: 28px/, 'foot-gear'],

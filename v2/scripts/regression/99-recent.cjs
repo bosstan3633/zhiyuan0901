@@ -226,14 +226,16 @@ check('R169-15 ★R2-② 重指带备案（2026-10-16 P5 翻转）：原「槽�
 check('R169-16 ★有意偏离原型并备案', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('展开关联任务树') && pc.includes('metric-head2') && pc.includes('openTaskAdd') && pc.includes('removeMetric');  });
 check('R169-17 ★设置页导入导出文案（V3.7.0 重指：资源台「按文件夹建分类」括注随退役下线，书签导入单路径说清）：模板可见文字零轮次号（注释里的轮次号是开发者账，不算失真）；"导入前自动备份"与"附件要两步迁"写进界面而不是只存在于代码里', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
-  const tplRaw = gs.slice(gs.indexOf('<template>'), gs.indexOf('</template>'))
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue')
+  const tplRaw = dm.slice(dm.indexOf('<template>'), dm.lastIndexOf('</template>'))
   const tpl = codeOnly(tplRaw) /* 只判模板：注释里的轮次号是开发者账（且本文件 script 在 template 之后，整段切会连脚本一起判） */
   const ws = read('/newtab/views/Workspace.vue'); const man = read('/newtab/manual-data.ts')
   return !/第[卌卅卄一二三四五六七八九十]{1,4}轮/.test(tpl)
-    && gs.includes('本页只把文件夹层级写成标签') && !gs.includes('前 2 级文件夹建成分类')
-    && gs.includes('导入前会先自动下载一份当前数据备份')
+    && dm.includes('不读取浏览器标签页；文件夹层级写入标签') && !dm.includes('前 2 级文件夹建成分类')
+    && dm.includes('导入前会自动下载当前数据备份')
     && !ws.includes('文件夹结构生成为分类（最多 2 级）')
     && man.includes('两步') && man.includes('不在 JSON 里')
+    && gs.includes('runtimeVersion');
 });
 check('R169-19 ★AI 徽标换骨第二轮（② 渐变实心脸）：图形仍只有一份、轮廓语义未动（头+双眼+天线，6 个形状），呈现改走两个可覆写口子 --ai-mark-fill / --ai-mark-eye；渐变两端一律取 accent 令牌，symbol 内零硬编码色（白眼睛除外——它是"头上的洞"，与宿主底色无关）', () => {
   const sym = read('/shared/components/AiMarkSymbol.vue'); const zm = read('/shared/components/AiMark.vue')
@@ -302,7 +304,7 @@ check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退
     && css.includes('.dr-readonly .ref-form') && css.includes('.dr-footer-btn {');
 });
 check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 27 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针；★G4/G6(V3.8.27)：a11y-tab-audit.cjs（键盘可达审计）与 install-hooks.cjs（pre-commit 安装器）登记入册；★B7-e(V3.8.40)：m6-responsive-audit.cjs 登记入册（响应式实拍量具——量的是运行时盒子，静态扫描读不出横向溢出，与 theme-audit 同类）；★B8(V3.8.41)：orphan-check.cjs 登记入册（import 图孤立检测——"grep 文件名"数不出引用数，注释/备案句/字符串里都有文件名而真 import 只有两种形态）；★P0-3(V3.8.42)：shoot-settings-prototype.cjs 登记入册（设置页高保真实拍量具——**原型审核件必须来自真实构建产物而非手绘**，手绘等于引入与代码无关的第二个真相源；与 theme-audit 同类但不同用途：不更新权威 census，只出审核图，故不进回归链）；★P0-3 第三批(V3.8.42)：probe-gs-baseline.cjs 登记入册（**样式作用域探针**——直接读 computed style 与 data-v，用来证明「父组件 scoped 样式命中不了子组件内部元素」。它的价值在于：像素 A/B 报过假绿（跳过 0 张），而这类 bug 用**计算样式**一读就穿帮；本批的基类外提就是靠它证伪的）；★G-02/G-05(V3.9.11)：curation-pressure.cjs（策展导出压力与边界门禁）与 perf-slo.cjs（六类真实浏览器性能 SLO 采样）登记入册', () => {
-  const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'curation-pressure.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'orphan-check.cjs', 'pack.cjs', 'perf-census.cjs', 'perf-slo.cjs', 'perf.cjs', 'probe-f.cjs', 'probe-gs-baseline.cjs', 'regression-eb.cjs', 'regression.cjs', 'shoot-settings-prototype.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs', '.gate-cache.json'];
+  const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'curation-pressure.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'orphan-check.cjs', 'pack.cjs', 'perf-census.cjs', 'perf-slo.cjs', 'perf.cjs', 'probe-f.cjs', 'probe-gs-baseline.cjs', 'regression-eb.cjs', 'regression.cjs', 'shoot-settings-prototype.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs'];
   const actual = fs.readdirSync(SCRIPTS_DIR).filter(f => f !== 'archive' && f !== 'regression' && !f.endsWith('.log'));
   return actual.length === ALLOW.length && actual.every(f => ALLOW.includes(f)) && fs.existsSync(path.join(SCRIPTS_DIR, 'archive', 'test-perf.cjs')) && fs.existsSync(path.join(SCRIPTS_DIR, 'regression', 'helpers.cjs'));
 });
@@ -394,9 +396,12 @@ check('R170-2 详情抽屉全局统一拖宽：共享 Drawer.vue 壳左缘 .draw
 });
 
 check('R170-3 导入页「选择文件」按钮防挤压：.gs-io-btn 加 flex-shrink:0 + nowrap + align-self:center（描述文字一长按钮被压到换行，用户截图反馈）', () => {
-  const gs = read('/newtab/views/GlobalSettings.vue');
-  return gs.includes('.gs-io-btn { margin-left: auto; flex-shrink: 0; white-space: nowrap; align-self: center; }')
-    && (gs.match(/class="gs-btn[^"]*gs-io-btn"/g) || []).length === 3;
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
+  return dm.includes('.dm-tools { display: flex; flex-wrap: wrap;')
+    && dm.includes('<button class="gs-btn" @click="triggerPackageImport">选择文件</button>')
+    && dm.includes(':disabled="assetPacking || !assetIndexCount" @click="packAssets"')
+    && dm.includes(':disabled="bookmarkBusy" @click="bookmarkInput?.click()"')
+    && dm.includes('<button class="gs-btn" @click="assetPackInput?.click()">导入附件包</button>');
 });
 
 check('R170-4 ★视觉走查工具注入时序修复：theme-audit 注入 zy_data/zy_ui 后必须整页重载一次——后注入的 uiPrefs 到不了运行中的 store.ui（mergeExternalUIPrefs 替换 uiCache 对象而 store.ui 持旧引用），真库有脏 isThesis 卡时资源台回落默认金字塔 ⇒ 资源卡详情镜头 .res-card 恒命中 0（v3.6.1 基线同现，纯工具盲区）；reload 丢 hash 坑以「记下→重载→写回」闭环', () => {
@@ -414,9 +419,11 @@ check('R171-1 ★中心论点重复双函数真源：hub.ts 出 countThesisDupli
 
 check('R171-2 ★两条导入链即净化：策展台数据包导入（useWorkspaceImport.handleBoardImport）与设置页全量导入（GlobalSettings.mergeImport）合并后都跑 sanitizeThesisDuplicates，且 toast 明示清理张数——导入不再制造幽灵论点', () => {
   const im = read('/newtab/composables/useWorkspaceImport.ts');
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const dp = read('/newtab/views/settings/dataPackage.ts');
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   return im.includes('sanitizeThesisDuplicates(d.value)') && im.includes('中心论点重复已净化')
-    && gs.includes('const thesisFix = sanitizeThesisDuplicates(d)') && gs.includes('n.thesisClear');
+    && dp.includes('const thesisFix = sanitizeThesisDuplicates(d)')
+    && dm.includes('r.thesisClear') && dm.includes('中心论点净化 ${r.thesisClear}');
 });
 
 /* ★V3.8.42 P0-3 第四批重指（纪律 11「承重锚换了就重指」）：
@@ -429,12 +436,13 @@ check('R171-2 ★两条导入链即净化：策展台数据包导入（useWorksp
    重指后仍钉两件事：卡片真挂在导出子域里 + 该子域真被宿主的 export 显隐门控。 */
 check('R171-3 ★数据体检卡（设置→导出数据页）：中心论点重复检测（纯盘点 countThesisDuplicates，挂载即刷新）+ 一键修复按钮（useConfirm 确认 → sanitizeThesisDuplicates → persist → 复扫）——真库脏卡有了不进 AI 链的修复入口（R171 重指：R164-2 增长门禁，卡片实现抽独立组件 DataCheckupCard.vue，宿主一行挂载；V3.8.42 P0-3 第四批再随导出子域迁入 SettingsExportPanel.vue，显隐门控上移到宿主接线上）', () => {
   const dc = read('/newtab/components/DataCheckupCard.vue');
-  const ep = read('/newtab/views/settings/SettingsExportPanel.vue');
+  const ep = read('/newtab/views/settings/SettingsDataManagement.vue');
   const gs = read('/newtab/views/GlobalSettings.vue');
   return dc.includes('<Icon name="stethoscope"') && dc.includes('数据体检') && dc.includes('refreshThesisScan') && dc.includes('fixThesisDuplicates')
     && dc.includes("countThesisDuplicates(store.data!)") && dc.includes('onMounted(refreshThesisScan)')
     /* 卡片真挂在导出子域里，且是恒真挂载（显隐交给宿主那一层） */
     && ep.includes('<DataCheckupCard />') && !/<DataCheckupCard[^>]*v-if/.test(ep)
+    && /<!-- 数据包 -->\s*\n\s*<template v-if="tab === 'package'">[\s\S]*?<DataCheckupCard \/>[\s\S]*?<\/template>/.test(ep)
     /* ★负锚的写法踩过一次坑（纪律 18「负锚在聚合下会放大」的镜像形态）：
        `gs` 是**聚合读**（宿主 + settings/ 全目录），拿它判「宿主内不得残留裸挂载」必然假红——
        子域里那份挂载自己就把这个字符串喂进来了。正解不是改去读宿主本体，而是把语义写准：
@@ -443,7 +451,7 @@ check('R171-3 ★数据体检卡（设置→导出数据页）：中心论点重
        与注释里的提及都不算挂载点——否则这条会随注释改字而假红（纪律 15）。 */
     && (gs.match(/<DataCheckupCard[\s/>]/g) || []).length === 1
     /* 子域真被宿主的 export 显隐门控 —— 这才是「只在导出数据页」这条语义现在的承重锚 */
-    && gs.includes('<SettingsExportPanel v-if="activePage === \'export\'"');
+    && gs.includes('<SettingsDataManagement v-if="activePage === \'data\'"');
 });
 
 check('R171-4 ★命令面板「快速开关」组（04-63「全部开关收进去」收口；★W3 随迁：常用内容 Tab 内快速开关索引基=近期最常用+快捷操作）：GlobalPopups 出 PALETTE_TOGGLES（暗色主题/紧凑密度/已完成项目/备份提醒，computed 行内明示当前态）、模板渲染序同步插组、runFlat/runFlatLocator 两键位都认 tgl；store.ui 手改与 saveUIPrefs 双写（R170 uiCache/store.ui 两份引用教训）', () => {

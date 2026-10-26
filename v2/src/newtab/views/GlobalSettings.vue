@@ -322,13 +322,13 @@
 
 
 
-      <!-- ===== 导出数据 =====（V3.8.42 P0-3 第四批：已拆为 settings/SettingsExportPanel.vue，
-           连带附件统计 / 孤儿清理 / 附件包 zip / 备份提醒 / 导出四路 与 export-row、er-* 样式随迁。
-           downloadFile 与 dateStr 的真源随之迁入本子域，import 子域改为 props 取同一份引用。
-           判据锚：R42-15/16 附件包、R39-12 附件存储入口、R46-5 存量归属修复、R95-1 uiPrefs 并段、
-           R110-B2-2 csvWsId 软删过滤、R171-3 数据体检卡挂载 —— 均走 read() 聚合层可命中） -->
-      <SettingsExportPanel v-if="activePage === 'export'" ref="exportRef"
-        :format-bytes="formatBytes" :ws-display-name-of="wsDisplayNameOf" />
+      <!-- ===== 数据管理 ===== 原导入/导出/Airtable 三页合并为一个子域；内部用分段切换。 -->
+      <SettingsDataManagement v-if="activePage === 'data'"
+        :format-bytes="formatBytes" :ai-ready="aiReady" :ai-enrich-ids="aiEnrichIds"
+        :initial-tab="dataManagementTab" />
+
+      <!-- 回收站：取消独立二级页，直接在设置页右侧内容区呈现。 -->
+      <RecycleBin v-else-if="activePage === 'recycle'" embedded @navigate="router.push($event)" />
 
       <!-- ===== 快捷键设置 =====（V3.8.42 P0-3 第五批：已拆为 settings/SettingsShortcutsPanel.vue，
            含「快捷键设置」与「策展台快捷键」两个 gs-panel、chrome.commands 动态拉取、
@@ -340,120 +340,6 @@
         :shortcuts-url="shortcutsUrl"
         :ws-display-name-of="wsDisplayNameOf" />
 
-
-      <!-- ===== Airtable 同步（R63-4：单向推送，手动为主） ===== -->
-      <div v-if="activePage === 'airtable'" class="gs-panel">
-        <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="refresh" :size="13"/> Airtable 同步</div>
-          <div class="gs-page-desc">单向：知源 › Airtable，绝不回写本地 · 缺失字段自动创建（已存在列不改名不改类型，计算列不碰）· 软删卡置「已删除」勾选不物理删 · 手动触发为主</div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header">
-            <span class="gs-card-title">连接配置</span>
-            <span class="gs-status-badge" :class="atBadge.cls" :title="atBadge.tip"><span class="gs-status-dot"></span>{{ atBadge.label }}</span>
-            <span class="gs-card-desc">PAT 明文仅存本机 chrome.storage.local，随设备不跨端</span>
-          </div>
-          <div class="gs-card-body">
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">Personal Access Token</span>
-              <div class="gs-sr-control gs-sr-control-wrap">
-                <input class="gs-input gs-input--pat" :class="{ 'is-invalid': atFieldErr.pat }" type="password" v-model="atPat" :placeholder="atPatPlaceholder" />
-                <span v-if="atFieldErr.pat" class="gs-field-err">{{ atFieldErr.pat }}</span>
-                <span v-else-if="atPatSaved && !atPat" class="gs-sr-hint">已保存，替换需重填（原值不回显，避免凭据被复制）</span>
-              </div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">Base ID</span>
-              <div class="gs-sr-control gs-sr-control-wrap">
-                <input class="gs-input gs-input--ident" :class="{ 'is-invalid': atFieldErr.base }" v-model="atBaseId" placeholder="app 开头" />
-                <span v-if="atFieldErr.base" class="gs-field-err">{{ atFieldErr.base }}</span>
-              </div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">Table ID</span>
-              <div class="gs-sr-control gs-sr-control-wrap">
-                <input class="gs-input gs-input--ident" :class="{ 'is-invalid': atFieldErr.tbl }" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" />
-                <span v-if="atFieldErr.tbl" class="gs-field-err">{{ atFieldErr.tbl }}</span>
-              </div>
-            </div>
-            <!-- R4-Dd：标签列名可指到自己表里已有的列。★只存列名、不存列类型——
-                 类型每次同步时读远端真值；存下来必然与 Airtable 漂移，而漂移的代价是把一批 422 当成成功。 -->
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">标签列名</span>
-              <div class="gs-sr-control gs-sr-control-wrap">
-                <input class="gs-input gs-input--ident" v-model="atTagColumn" :placeholder="atTagColumnDefault" @change="applyTagColumn" />
-                <span class="gs-sr-hint">留空即「{{ atTagColumnDefault }}」；该列若是多选（multipleSelects）会自动按数组写入，否则用分号分隔</span>
-              </div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">连接测试</span>
-              <div class="gs-sr-control gs-sr-control--inline">
-                <button class="gs-btn" :disabled="atBusy || !atCredReady || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button>
-                <!-- ★V3.8.25（B1-a）：原写 `var(--ok, var(--info-green, #3A6B4C))`——两个令牌**都不存在**
-                     （tokens.css 真名是 `--success`），于是四主题里一律渲染兜底的硬编码 #3A6B4C，
-                     深色主题下对比度不足。改用 `--success`，跟随主题。 -->
-                <span v-if="atTableName" class="gs-sr-ok"><Icon name="check" :size="13"/> 已连上「{{ atTableName }}」</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">同步范围与触发</span></div>
-          <div class="gs-card-body">
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">同步范围</span>
-              <div class="gs-sr-control gs-sr-note gs-sr-note--wrap">调度台好奇心卡 · 方向台任务卡 · 资源卡池资源卡 · 各策展台镜像卡（每条镜像为独立记录，带各自所属工作台标识）· 主题卡以「是否中心论点」列体现</div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">增量游标</span>
-              <div class="gs-sr-control gs-sr-note">只推上次同步后有更新的卡（updatedAt 游标）</div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">3 小时自动轮询</span>
-              <div class="gs-sr-control">
-                <label class="gs-switch">
-                  <input type="checkbox" :checked="atPoll" @change="toggleAtPoll" />
-                  <span class="gs-switch-slider"></span>
-                </label>
-              </div>
-            </div>
-            <div class="gs-setting-row">
-              <span class="gs-sr-label">立即同步</span>
-              <div class="gs-sr-control gs-sr-control--inline">
-                <button class="gs-btn gs-btn-primary" :disabled="atBusy || !atCredReady || !atBaseId || !atTableId" @click="runAtSync">{{ atBusy ? '同步中…' : '立即同步' }}</button>
-                <span v-if="quotaText" class="gs-sr-note gs-sr-note--muted">{{ quotaText }}</span>
-              </div>
-            </div>
-            <div class="gs-setting-row" v-if="atStatusText">
-              <span class="gs-sr-label">上次同步</span>
-              <div class="gs-sr-control gs-sr-note">{{ atStatusText }}</div>
-            </div>
-            <div class="gs-setting-row" v-if="atErrorText">
-              <span class="gs-sr-label">上次错误</span>
-              <div class="gs-sr-control gs-sr-note gs-sr-note--danger">{{ atErrorText }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="gs-card">
-          <div class="gs-card-header"><span class="gs-card-title">同步日志</span><span class="gs-card-desc">最近 {{ atLog.length }} 条（最多保留 40 条）</span></div>
-          <div class="gs-card-body">
-            <EmptyState v-if="!atLog.length" size="inline" icon="refresh" title="暂无同步记录" hint="配好连接后点「立即同步」，每次推送都会留一行日志" />
-            <div v-for="(l, i) in atLog" :key="i" class="gs-setting-row gs-setting-row--top">
-              <span class="gs-sr-label gs-sr-label--nowrap">{{ new Date(l.at).toLocaleString('zh-CN') }}</span>
-              <!-- ★V3.8.25（B1-a）：原为 `l.kind === 'error' ? ' ' : l.kind === 'ok' ? ' ' : '· '`
-                   —— 三支里两支返回同一个空格，是 G1 把 `⚠ / ✓ / ·` 剥成 emoji 后留下的死三元：
-                   同步成功与失败两种日志在视觉上完全一样，只能靠读文字分辨。改为图标 + 只留正常行的小圆点。 -->
-              <div class="gs-sr-control gs-sr-note gs-sr-note--log">
-                <Icon v-if="l.kind === 'ok'" name="check" :size="12" class="gs-log-ico ok" />
-                <Icon v-else-if="l.kind === 'error'" name="warn" :size="12" class="gs-log-ico err" />
-                <span v-else class="gs-log-dot">·</span>
-                <span>{{ l.msg }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- V3.8.42 P0-3 第二批：「使用手册」子域已搬至 settings/SettingsManualPanel.vue -->
       <SettingsManualPanel v-if="activePage === 'manual'" />
 
@@ -464,14 +350,6 @@
 
 
       <!-- V3.8.42 P0-3 第三批：「重置与回滚」子域（含回滚确认弹窗）已搬至 settings/SettingsResetPanel.vue -->
-      <!-- ===== 导入数据 =====（V3.8.42 P0-3 第四批：已拆为 settings/SettingsImportPanel.vue，
-           连带 import-option / io-* / file-hidden 五条专属样式随迁。判据锚：R42-16 assetPackInput、
-           R110-B2-3 useBookmarkImport 握手、P0-2-1b 归一化位置、R170-3 gs-io-btn 三处按钮、
-           R138-5 pendingImportEnrich 回执 —— 全部走 read() 聚合层，正文在 settings/ 下仍可命中） -->
-      <SettingsImportPanel v-if="activePage === 'import'"
-        :ai-ready="aiReady" :ai-enrich-ids="aiEnrichIds"
-        :ws-display-name-of="wsDisplayNameOf"
-        @asset-pack="onAssetPack" />
       <SettingsResetPanel v-if="activePage === 'reset'" />
 
 
@@ -504,21 +382,17 @@ defineOptions({ name: 'GlobalSettingsView' })
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 
-import { ref, reactive, computed, watch, watchEffect, onMounted, shallowRef } from 'vue'
+import { ref, reactive, computed, watch, onMounted, shallowRef } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
 // B7-e H3：快捷键与速查面板 / 使用手册共用一份真源
 import { shortcutsOf, modLabelOf } from '@/shared/utils/shortcuts'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys, normalizeLegacyCards } from '@/shared/storage/repository'
-import { K, EXPORT_MARKERS } from '@/shared/storage/keys'
+import { getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage } from '@/shared/storage/repository'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
 import FieldEditor from './FieldEditor.vue'
 const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
-import { createDefaultData, defaultThesisFieldDefs } from '@/shared/storage/defaults'
-// R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
-import { testConnection, runSync, quotaHint, catPathOf, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 // V3.8.42 P0-3：「一封信」子域随迁（letter-data 仍留在原处，仅模板与下载函数搬出）
 import { CHANGELOG, kindGroupsOf } from '../changelog-data'
 // V3.8.42 P0-3：已搬出的子域组件（判据锚点由 helpers 的设置页聚合读取层接住，214 处读设置页正文的判据零改动）
@@ -528,22 +402,17 @@ import SettingsChangelogPanel from './settings/SettingsChangelogPanel.vue'
 import SettingsAboutPanel from './settings/SettingsAboutPanel.vue'
 import SettingsResetPanel from './settings/SettingsResetPanel.vue'
 import SettingsExtensionPanel from './settings/SettingsExtensionPanel.vue'
-import SettingsImportPanel from './settings/SettingsImportPanel.vue'
-import SettingsExportPanel from './settings/SettingsExportPanel.vue'
+import SettingsDataManagement from './settings/SettingsDataManagement.vue'
+import RecycleBin from './RecycleBin.vue'
 import SettingsShortcutsPanel from './settings/SettingsShortcutsPanel.vue'
 import RichText from '../components/RichText.vue'
-import { uid, dateKey, weekStartKey } from '@/shared/utils'
-import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
-import { getAssetStats, cleanupOrphanAssetsOf, collectReferencedAssetIds, listOrphanAssetIds, getAllAssets, putAssets } from '@/shared/storage/assets'
+import { uid } from '@/shared/utils'
 import { purgeCardsCompletely, recycledCardsOf } from '@/shared/storage/purge'
 import { clearHot } from '@/shared/storage/hotStats'
 import { getMutationSeq } from '@/shared/storage/repository'
 import { freshTagsOf, knownTagSet, canonicalTagsOf } from '@/shared/utils/tags'
-import { buildZip, readZip, type ZipEntry } from '@/shared/utils/zip'
-import { visibleFields, allFields } from '@/shared/utils/fields'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
 import { sanitizeWsView } from '@/shared/utils/wsView'
-import { assetSummary } from '@/shared/utils/assetKind'
 import type { FieldDef, AppData, ResourceCard, TaskCard, CuriosityCard, Workspace, Category, TagNode, ID } from '@/shared/models'
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
 import { isHubWs, boardCardsOf, isMirrorView, sanitizeThesisDuplicates } from '@/shared/storage/hub'
@@ -582,21 +451,29 @@ const shortcutsUrl = 'chrome://extensions/shortcuts'
 interface NavItem { key: string; icon?: string; label: string; route?: string; mark?: boolean }
 function onNavClick(item: NavItem) {
   if (item.route) { router.push(item.route); return }
+  if (item.key === 'data') dataManagementTab.value = 'package'
   activePage.value = item.key
 }
 // V3.8.9（W9）：默认首屏改为「资源卡」——原「知源仪表盘」退役迁至画像洞察页（/profile），
 // 「资源生命周期」面板同步迁出；R44-6 门禁带退役重指备案改写。
-/** 附件包导入的**中转**：实现随「导出数据」子域搬走了（连附件统计刷新一起），
- *  而驱动它的是导入页那枚 zip input。两个子域不能互相引用（会成环），
- *  所以由宿主当一次转发点：import emit → 这里 → export 的 expose。 */
-const exportRef = ref<{ handleAssetPackImport?: (e: Event) => void } | null>(null)
-function onAssetPack(e: Event) { exportRef.value?.handleAssetPackImport?.(e) }
-
 const activePage = ref('resource')
+type DataManagementTab = 'package' | 'bookmark' | 'assets' | 'airtable'
+const dataManagementTab = ref<DataManagementTab>('package')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
   const p = route.query.page
   if (typeof p !== 'string') return null
+  // 旧版三个一级导航的深链统一落到「数据管理」的对应分段。
+  if (p === 'import' || p === 'export' || p === 'airtable') {
+    dataManagementTab.value = p === 'airtable' ? 'airtable' : 'package'
+    return 'data'
+  }
+  if (p === 'data') {
+    const rawTab = route.query.tab
+    dataManagementTab.value = rawTab === 'bookmark' || rawTab === 'assets' || rawTab === 'airtable'
+      ? rawTab
+      : 'package'
+  }
   return navGroups.some(g => g.items.some(i => i.key === p && !i.route)) ? p : null
 }
 onMounted(() => {
@@ -672,17 +549,14 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     { key: 'ai', mark: true, label: 'AI 助手' },
   ]},
   { title: '数据与信任', items: [
-    { key: 'import', icon: 'download', label: '导入数据' },
-    { key: 'export', icon: 'upload', label: '导出数据' },
+    { key: 'data', icon: 'database', label: '数据管理' },
     // R146-⑨：删除有两条路（回收站可反悔 / 永久删除不可逆），入口必须常驻左栏而不是埋在危险区里
-    { key: 'recycle', icon: 'trash', label: '回收站', route: '/recycle' },
+    { key: 'recycle', icon: 'trash', label: '回收站' },
     { key: 'reset', icon: 'rotateccw', label: '重置与回滚' },
   ]},
   { title: '系统信息', items: [
     { key: 'extension', icon: 'settings', label: '扩展设置' },
     { key: 'shortcuts', icon: 'zap', label: '快捷键设置' },
-    // R178：Airtable 归入「数据与信任」语义组（原型口径；同键不动，仅分组位置）
-    { key: 'airtable', icon: 'refresh', label: 'Airtable 同步' },
     { key: 'manual', icon: 'book', label: '使用手册' },
     { key: 'letter', icon: 'mail', label: '一封信' },
     // W5（V3.8.5）：产品更新日志——时间线看版本演变
@@ -710,12 +584,9 @@ function onFieldNotify(msg: string) { showToast(msg) }
 // 整体迁至画像洞察页 /profile。R44/R46/R48/R51/R172-T6 系列门禁带退役重指备案改写。
 // 保留：gWsName/gCatName（导出页复用）、readErrorLog 相关（关于页/导出页仍用）。
 // ============================================================
-import { useBookmarkImport } from '@/newtab/composables/useBookmarkImport'
 // V3.8.9（W9）：readEventLog/readErrorLog/subscribeErrorLog/curioCumulativeSince/countCurioCumulative/
 // EVENT_LOG_CAP/CardEvent 随仪表盘退役迁至 ProfileInsights.vue（错误日志徽标+导出也迁走）。
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-// R156：主题「跟随系统」——导入界面偏好包时 ui.theme 可为 'auto'，落 data-theme 前统一解析
-import { resolveTheme } from '@/shared/utils/theme'
 import { recordResourceOpen } from '../stores/compass'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 
@@ -796,131 +667,6 @@ const resourcePreviewHtml = computed(() => {
 /** R47-A2：全量并集合并——罗盘（愿景/使命/方向→项目→指标）+ 引擎数据 + 全部关系字段
  *  原则：卡片/指标按 id 去重合并；「关系列表」（taskIds/linkedResourceIds 等）一律取并集；
  *        计数类（stats.wrr）取最大值；标量以导入方覆盖（无 updatedAt 的层级按导入值合并）。 */
-
-
-
-
-
-
-// ---- Airtable 同步（R63-4） ----
-const atBusy = ref(false)
-const atTableName = ref('')
-const atPat = ref('')
-const atBaseId = ref('')
-const atTableId = ref('')
-const atTagColumn = ref('')
-const atTagColumnDefault = DEFAULT_TAG_COLUMN
-/* ★标签列名是改完即写的，与 PAT/Base/Table 三条不同：那三条是半成品凭据，存一半会污染连接测试；
-   列名不存在「半截」这件事，且同步只在点「立即同步」时发生，失焦即写是唯一不丢改动的做法。 */
-let atTagTouched = false
-function applyTagColumn() {
-  const st = store.data?.airtableSync
-  atTagTouched = true
-  if (!st) return
-  st.tagColumn = atTagColumn.value.trim()
-  store.persist()
-}
-// 配置回填（不在模板直接 v-model 到 storage——「改完即写」会把半截 PAT 存库；失焦/操作时统一写回）
-/* ★S3（V3.8.29）：PAT 不再回填进输入框。原先那段回填把存储里的明文塞回 DOM，
-   `type=password` 只是把它画成圆点——value 仍是明文，选中即可复制，开发者工具里也直接可见。
-   规范要求「不显示密钥明文 + 已保存替换需重填」，因此改为：storage 里有凭据时只置 atPatSaved，
-   输入框留空并以提示说明「已保存，替换请重填」；syncAtConfig 遇空不回写，避免把旧密钥清掉。 */
-const atPatSaved = ref(false)
-watchEffect(() => {
-  const s = store.data?.airtableSync
-  if (!s) return
-  if (s.pat) atPatSaved.value = true
-  if (!atBaseId.value) atBaseId.value = s.baseId
-  if (!atTableId.value) atTableId.value = s.tableId
-  if (s.tableName && !atTableName.value) atTableName.value = s.tableName
-  /* ★只在用户没碰过这一栏时回填。加了「改完即写」之后这条必须带 touched 门，否则：
-     用户把列名清空的那一刻，watchEffect 看见空值就把 storage 里的旧列名灌回输入框，
-     清空这个动作被静默撤销（E2E-34 首轮就是这么抓到的）。 */
-  if (!atTagTouched && s.tagColumn) atTagColumn.value = s.tagColumn
-})
-function syncAtConfig() {
-  const s = store.data!.airtableSync!
-  // 空 = 用户没填新密钥（沿用已保存的），不是「要清空」
-  const typedPat = atPat.value.trim()
-  if (typedPat) s.pat = typedPat
-  s.baseId = atBaseId.value.trim()
-  s.tableId = atTableId.value.trim()
-  store.persist()
-}
-/** 连接凭据是否可用：已存过 PAT，或本次填了新的 */
-const atCredReady = computed(() => !!atPat.value.trim() || atPatSaved.value)
-const atPatPlaceholder = computed(() => atPatSaved.value
-  ? '已保存（不回显）· 替换请直接重填'
-  : 'pat…（需 data.records 读写 + schema.bases 写权限）')
-/** 字段级内联校验：只在「填了东西但格式不对」时报，未填交给三态徽章说「未连接」 */
-const atFieldErr = computed<Record<string, string>>(() => {
-  const e: Record<string, string> = {}
-  const pat = atPat.value.trim(), base = atBaseId.value.trim(), tbl = atTableId.value.trim()
-  if (pat && !pat.startsWith('pat')) e.pat = 'PAT 以 pat 开头——请从 Airtable 账户页「创建令牌」后整段复制'
-  if (base && !base.startsWith('app')) e.base = 'Base ID 以 app 开头——在表 URL 的 /appXXXX/ 段里'
-  if (tbl && !tbl.startsWith('tbl')) e.tbl = 'Table ID 以 tbl 开头——在表 URL 的 /tblXXXX/ 段里'
-  return e
-})
-const atState = computed(() => store.data!.airtableSync!)
-const atPoll = computed(() => !!atState.value.pollEnabled)
-const atLog = computed(() => atState.value.log || [])
-const quotaText = computed(() => quotaHint(atState.value))
-const atStatusText = computed(() => {
-  const s = atState.value
-  if (!s.lastSyncAt) return ''
-  const parts = [new Date(s.lastSyncAt).toLocaleString('zh-CN')]
-  if (s.lastSyncedCount != null) parts.push(`推送 ${s.lastSyncedCount} 条`)
-  if (s.lastSyncMs != null) parts.push(`耗时 ${(s.lastSyncMs / 1000).toFixed(1)}s`)
-  if (s.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
-  return parts.join('· ')
-})
-const atErrorText = computed(() => atState.value.lastError || '')
-/* ★S3（V3.8.29）：三态徽章。优先级 异常 > 已连接 > 未连接 —— 一次推送失败比"上次连通过"更该先说。
-   绿只给"已连接"、琥珀只给"推送异常"，这两个是状态而非评价（同 B3 的镜子口径）。 */
-const atBadge = computed(() => {
-  if (atErrorText.value) return { cls: 'error', label: '推送异常', tip: atErrorText.value }
-  if (atTableName.value) return { cls: 'connected', label: '已连接', tip: `已连上「${atTableName.value}」` }
-  return { cls: 'idle', label: '未连接', tip: '填好 PAT / Base ID / Table ID 后点「测试连接」' }
-})
-
-async function testAtConnection() {
-  if (atBusy.value) return
-  atBusy.value = true
-  try {
-    syncAtConfig()
-    const name = await testConnection(atState.value)
-    atTableName.value = name
-    atState.value.tableName = name
-    store.persist()
-    showToast('连接成功：' + name)
-  } catch (e) {
-    showToast('' + (e instanceof Error ? e.message : String(e)))
-  } finally { atBusy.value = false }
-}
-
-async function runAtSync() {
-  if (atBusy.value) return
-  if (!atCredReady.value || !atBaseId.value.trim() || !atTableId.value.trim()) { showToast('请先填写完整连接配置'); return }
-  atBusy.value = true
-  try {
-    syncAtConfig()
-    const r = await runSync(store.data!)
-    store.persist()
-    showToast(`同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
-  } catch (e) {
-    store.persist()
-    showToast('同步失败：' + (e instanceof Error ? e.message : String(e)))
-  } finally { atBusy.value = false }
-}
-
-function toggleAtPoll() {
-  const s = atState.value
-  s.pollEnabled = !s.pollEnabled
-  store.persist()
-  // 轮询注册由 background 监听 storage 变化自管（63-10）
-  showToast(s.pollEnabled ? '已开启 3 小时自动轮询' : '已关闭自动轮询')
-}
-
 
 // ---- N4 标签管理 ----
 interface TagNodeLite { id: string; name: string; children?: TagNodeLite[] }

@@ -100,18 +100,17 @@ check('W12-5 ★舱 / 指标 / 任务三层的**阅读层级**必须成立。★
     && /\.tk-row::before/.test(l);
 });
 
-check('W12-6 ★指标头的操作钮必须让位给读 —— 常驻按钮会把指标名挤到换行。★这条钉的是「hover 才显形」这个交互决策本身，防止后续轮次为了"让入口更好找"把它改回常驻（那正是实际截图里"指标名后面跟一排小方块"的成因）。★同时钉住**能力没丢**：按钮仍在模板里（R32-14 加任务 / R135-4 任务层 AI 是六入口之二），只是不再常驻可见。★F1 随迁带备案（2026-10-15）：删除成功指标（.mc-del）与指标「⋯」菜单（.mc-more）并入**同一套 hover 门**——新增入口不新开显形规则，指标头仍只 hover 出一排（选择器锚由两枚扩为四枚，所守决策一字未改；.mc-more.on 常驻显形是菜单展开态，属可见性兜底不算常驻位）', () => {
+check('W12-6（V3.9.23 随迁）指标头的操作钮必须让位给读：常驻操作会把指标名挤到换行。删除入口收进「⋯」菜单，收起/展开固定在指标行最右；加任务、AI、更多三枚仍同属 hover/focus 门，能力没有丢', () => {
   const l = codeOnly(LANE);
   const hasBtns = l.includes('@click="emit(\'addTask\', m.id)"') && l.includes('@click="emit(\'aiTask\', m.id)"')
-    && l.includes('@click="emit(\'delMetric\', m.id)"');
-  const hoverOnly = /\.mc-add, \.mc-ai, \.mc-del, \.mc-more \{[^}]*opacity: 0/.test(l)
+    && l.includes('@click="toggleMenu(m.id)"') && l.includes('emit(\'delMetric\', m.id)');
+  const hoverOnly = /\.mc-add, \.mc-ai, \.mc-more \{[^}]*opacity: 0/.test(l)
     && /\.metric-card:hover \.mc-add, \.metric-card:hover \.mc-ai/.test(l)
-    && /\.metric-card:hover \.mc-del, \.metric-card:hover \.mc-more/.test(l);
+    && /\.metric-card:hover \.mc-more/.test(l);
   /* 键盘可达：focus-visible 必须也显形，否则 hover 化会把无鼠标用户彻底挡在门外 */
-  const a11y = l.includes('mc-add:focus-visible') || l.includes('mc-ai:focus-visible');
-  /* ★F1 负锚：删除/更多两枚不许自己另开一条常驻显形（opacity: 0 是同一段声明里的基线） */
-  const noIndependent = !/\.mc-del \{[^}]*opacity: 1/.test(l) && !/\.mc-more \{[^}]*opacity: 1/.test(l);
-  return hasBtns && hoverOnly && a11y && noIndependent;
+  const a11y = l.includes('mc-add:focus-visible') && l.includes('mc-ai:focus-visible') && l.includes('mc-more:focus-visible');
+  return hasBtns && hoverOnly && a11y
+    && l.indexOf('class="mc-toggle"') > l.indexOf('class="mc-ops"');
 });
 
 check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许覆盖。★本轮实战：曾把 .compass-layout 的 padding 从 `20px 36px 64px` 改成原型 .page 的 `26px 32px 64px`，结果 R21-3 / R123-3 / R125-1 三条同时红 —— R125「骨架 1440+36」把四页页边距拍成一条纪律，方向台侧的内缩就落在这条规则上。★所以本条把这条纪律显式钉住：容器 padding 必须保持原值，HERO 区的呼吸由 .hero 自身的 margin 承担，不许拿原型的数值去动它。★V3.9.15 值同步（用户 2026-10-23 拍板「顶部更紧凑，焦点给项目塔」）：HERO 与骨架间距收至 14/16px，容器 padding 仍一字不动', () => {

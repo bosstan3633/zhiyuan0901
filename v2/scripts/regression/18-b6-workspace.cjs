@@ -100,16 +100,16 @@ check('W1-1（V3.9.8 随迁）树区是主角面：现役策展画布用 surface
     && shell.includes('box-shadow: var(--shadow-sm)');
 });
 
-check('W1-2（V3.9.13 重指）中轴与层级连接线随内容走：金字塔按首/末子节点中心生成同层总线，父节点下引线与子节点上引线可见，滚动域是 .mindmap-canvas', () => {
+check('W1-2（V3.9.23 随迁）中轴与层级连接线随内容走：总线、父下引线与子上引线共用同一条 32px 连接槽，首末节点各只画半段以保持连续，滚动域仍是 .mindmap-canvas', () => {
   const axis = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children::before');
   const vertical = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
   const row = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::after');
   const rowFirst = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:first-child::after');
   const rowLast = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:last-child::after');
   if (!axis) { console.log('     中轴规则缺失'); return false; }
-  return axis.includes('height: 16px') && axis.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
+  return axis.includes('height: 32px') && axis.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
     && !!vertical && vertical.includes('width: 2px') && vertical.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
-    && !!row && row.includes('left: 0') && row.includes('right: 0') && row.includes('height: 2px')
+    && !!row && row.includes('top: 0') && row.includes('left: 0') && row.includes('right: 0') && row.includes('height: 2px')
     && !!rowFirst && rowFirst.includes('left: 50%')
     && !!rowLast && rowLast.includes('right: 50%')
     && rule(MIND_CSS, '.mindmap-canvas').includes('overflow: auto');

@@ -103,7 +103,9 @@ check('R146-7 检索浮层类型 tab 版式（实测 emoji 把「搜全部」劈
 check('R146-8 设置页左栏与清缓存真回执（回退契约⑧⑨）：回收站作路由出口常驻「数据」组（深链不接受路由项）、导航项支持「知」徽标；清除缓存点名清了什么（网页正文 + 抽读缓存计数），不再空报', () => {
   const gs = read('/newtab/views/GlobalSettings.vue'); const lf = read('/shared/ai/linkFetch.ts')
   return gs.includes("interface NavItem { key: string; icon?: string; label: string; route?: string; mark?: boolean }") && gs.includes("function onNavClick(item: NavItem)")
-    && gs.includes("{ key: 'recycle', icon: 'trash', label: '回收站', route: '/recycle' }") && gs.includes('i.key === p && !i.route') /* ★G1(V3.8.25)随迁带备案：🗑 迁 Icon 名 'trash'（导航图标统一走 <Icon :name>），路由出口与深链纪律不变 */
+    && gs.includes("{ key: 'recycle', icon: 'trash', label: '回收站' }") /* 回收站现为设置页内嵌面板，不再占独立路由出口 */
+    && gs.includes('i.key === p && !i.route')
+    && gs.includes('<RecycleBin v-else-if="activePage === \'recycle\'" embedded @navigate="router.push($event)" />')
     && gs.includes('clearLinkCache()') && gs.includes('reviseSnips.size') && gs.includes('卡片数据与附件本体不动') && lf.includes('export function clearLinkCache')
 });
 check('R146-9（R155-⑤ 备案：入口组件化，末尾锚点 AiMark → AiEntryButton）项目页 AI 入口补位（用户点名需求）：每个指标行有「按本指标建议近两周任务」、每个任务行（含未归类区）有 AI 辅助菜单（拆解/推荐卡/详情）· R147 备案：菜单搬进 TaskAiMenu 共享组件，页面只留引用', () => {
@@ -184,8 +186,8 @@ check('R148-3 标签用量一次建表（原按树节点各扫全库 = O(标签�
 check('R148-4 KeepAlive 扩到设置页/回收站/项目详情/方向树（四页都是重计算首屏，此前每次进全量重挂）+ 显式实例名 ★R3-B1：方向台两级从 Shell 内层 keep-alive 上收到 App 级 include', () => {
   const a = read('/newtab/App.vue');
   const inc = (a.match(/keep-alive include="([^"]+)"/) || [, ''])[1].split(',')
-  return inc.includes('GlobalSettingsView') && inc.includes('RecycleBinView') && inc.includes('CompassTreeView') && inc.includes('ProjectCurationView')
-    && read('/newtab/views/GlobalSettings.vue').includes("defineOptions({ name: 'GlobalSettingsView' })") && read('/newtab/views/RecycleBin.vue').includes("defineOptions({ name: 'RecycleBinView' })")
+  return inc.includes('GlobalSettingsView') && !inc.includes('RecycleBinView') && inc.includes('CompassTreeView') && inc.includes('ProjectCurationView')
+    && read('/newtab/views/GlobalSettings.vue').includes("defineOptions({ name: 'GlobalSettingsView' })")
     && read('/newtab/views/ProjectCuration.vue').includes("defineOptions({ name: 'ProjectCurationView' })") && CT_ALL.includes("defineOptions({ name: 'CompassTreeView' })")
 });
 check('R148-5 ★AI 任务与抽屉解绑：runner 按 jobKey 幂等（在跑 attach / 跑完看结果 + 重新运行）、关抽屉不杀任务、并发上限 2 超出排队、投料账随任务走 · R149 备案两处：① 绑 key 的活从"宿主各传 job-key"改成抽屉自己认 job.key（见 R149-3），close 判据锚随之由 props.jobKey 换成 keyOf；② 中止后不再 drop 整条任务而是记 stopped（见 R149-7），AbortError 分支字面量随之改写', () => {

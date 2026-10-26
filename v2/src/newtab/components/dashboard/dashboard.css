@@ -142,13 +142,12 @@
 .dz-day-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.32); display: flex; align-items: center; justify-content: center; padding: 4vh 16px; }
 .dz-day-modal { width: min(720px, 92vw); max-height: 86vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 18px; box-shadow: var(--shadow); }
 .dz-day { margin: 0; border: 0; border-radius: 18px; }
-/* 原型 md-head：36px 图标方块 + 标题/日期双行 + 关闭 */
-.dz-day-head { display: flex; align-items: center; gap: 10px; padding: 18px 22px 0; }
-/* ★W18：战报头部「保存为图片」独立入口（下载方式卡片化，与导出菜单并列但更显眼） */
-.dz-save-card { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
-.dz-save-card + .dz-btn { margin-left: 0; }
+/* 原型 md-head：36px 图标方块 + 标题/日期双行 + 左上操作区 + 关闭 */
+.dz-day-head { display: flex; align-items: center; gap: 10px; padding: 18px 22px 0; flex-wrap: wrap; }
+.dz-day-actions { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.dz-day-close { margin-left: auto; }
 .dz-day-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-light); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.dz-day-txt { flex: 1; min-width: 0; }
+.dz-day-txt { flex: 0 1 auto; min-width: 0; }
 .dz-day-title { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
 .dz-day-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .dz-tl { padding: 0 var(--sp-4) var(--sp-4); }
@@ -366,9 +365,10 @@
 @media (prefers-reduced-motion: reduce) { .dz-rpt-run .spin { animation: none; } }
 @keyframes dz-spin { to { transform: rotate(360deg); } }
 
-/* R172-T12：导出三件套菜单（右锚定，1440/1280/1100 三档均不溢出视口右缘） */
+/* R172-T12：导出菜单。默认右锚定；左上入口显式使用 start 向左下展开。 */
 .dz-exp-wrap { position: relative; display: inline-flex; }
 .dz-exp { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; display: flex; flex-direction: column; gap: 2px; min-width: 208px; padding: 6px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+.dz-exp.align-start { left: 0; right: auto; }
 .dz-exp button { display: flex; align-items: center; gap: var(--sp-2); text-align: left; border: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); padding: 7px 9px; border-radius: var(--radius-xs); cursor: pointer; }
 .dz-exp button:hover { background: var(--surface-2); color: var(--accent-ink); }
 .dz-exp button .hint { margin-left: auto; font-size: var(--fs-caption); color: var(--text-4); }

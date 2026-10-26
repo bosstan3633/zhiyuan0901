@@ -5,7 +5,7 @@
 const { fs, path, base, check, read } = require('./helpers.cjs');
 
 const REPO = read('/shared/storage/repository.ts');
-const GS = read('/newtab/views/GlobalSettings.vue');
+const PKG = read('/newtab/views/settings/dataPackage.ts');
 
 /* ★纪律：判据自建的提取器必须先验证能截到多少字符（B8 同源教训）。
    这里切 normalizeLegacyCards 的函数体，拿到它先打印长度、非空才拿去判红。 */
@@ -26,9 +26,11 @@ check('P0-2-1a ★normalizeLegacyCards 从 loadData 的内联私有步骤提为*
     && loadSeg.includes('const fixEncoded =')   /* 备案：这条在，证明白名单口径没写死成"零个 fix*" */
     && !loadSeg.includes('const fixTags =');
 });
-check('P0-2-1b ★设置页「导入数据」这条路必须接同一套归一化（mergeImport 从不经过 loadData）。★这是本批改动的**真正理由**：归一化写在 loadData 里只治得了"启动读老库"，治不了"导入老库"，而导入恰恰是老库的主要来源。判据点名调用位置在 mergeImport 的合并三行之后', () => {
-  const seg = GS.slice(GS.indexOf('function mergeImport'), GS.indexOf('return { cards: cardsAdded'));
-  return GS.includes('normalizeLegacyCards } from \'@/shared/storage/repository\'')
+check('P0-2-1b ★随迁备案：设置页「数据包导入」必须接同一套归一化（mergeDataPackage 从不经过 loadData）。归一化写在 loadData 里只治得了"启动读老库"，治不了"导入老库"，而导入恰恰是老库的主要来源。判据点名 dataPackage.ts 的合并三行之后', () => {
+  const start = PKG.indexOf('export async function mergeDataPackage')
+  const seg = start >= 0 ? PKG.slice(start, PKG.indexOf('const cardsAdded', start)) : ''
+  return seg.length > 0
+    && PKG.includes('normalizeLegacyCards, stripRetiredCardKeys')
     && seg.includes('normalizeLegacyCards(d)')
     && seg.indexOf('d.curiosities = mergeById') < seg.indexOf('normalizeLegacyCards(d)')
     && !seg.includes('const fix');

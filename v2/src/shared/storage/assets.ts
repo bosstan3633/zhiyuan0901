@@ -182,6 +182,24 @@ export async function getAllAssets(): Promise<{ id: string; blob: Blob }[]> {
   return out
 }
 
+/** 只读取附件索引（不把 Blob 读进内存），供设置页附件列表 / 打包前校验使用 */
+export async function getAllAssetIndex(): Promise<{ id: string; size: number; mime: string }[]> {
+  const out: { id: string; size: number; mime: string }[] = []
+  await forEachAsset((id, blob) => out.push({ id, size: blob.size || 0, mime: blob.type || '' }))
+  return out
+}
+
+/** 顺序读取一批附件 Blob——打包时逐项处理，避免 getAllAssets() 一次性持有全部二进制 */
+export async function getAssetBlobs(ids: string[]): Promise<{ id: string; blob: Blob | null }[]> {
+  const out: { id: string; blob: Blob | null }[] = []
+  for (const id of ids) {
+    let blob: Blob | null = null
+    try { blob = await getAssetBlob(id) } catch { blob = null }
+    out.push({ id, blob })
+  }
+  return out
+}
+
 /** 第卌二轮 REQ-059：批量写入附件（附件包导入用；同 ID 覆盖，q-3 拍板） */
 export async function putAssets(items: { id: string; blob: Blob }[]): Promise<void> {
   const db = await openDb()

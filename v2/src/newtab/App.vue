@@ -471,13 +471,13 @@ const backupReminderDot = computed(() => {
     <header class="topbar">
       <div class="topbar-inner" :class="topbarAlign">
       <nav class="tabs" @mouseleave="wsOverflowOpen = false">
-        <!-- R176（原型 nav-brand-chip）：品牌位 = logo + 知源调度台 + Ownway。
+        <!-- 品牌位 = logo + 知源 ownway。
              W5（V3.8.5）#6：点击 = 打开今日战报（脉冲动画 + HeatmapModule 消费请求） -->
         <div class="brand-chip" :class="{ pulsing: brandPulse, active: activeTab === 'profile' }" title="画像洞察 · 点击查看我的画像与洞察"
           role="button" tabindex="0" @click="onBrandClick" @keydown.enter.prevent="onBrandClick" @keydown.space.prevent="onBrandClick">
-          <img :src="logoUrl" class="brand-logo" alt="知源调度台" />
-          <span class="brand-name">知源调度台</span>
-          <span class="brand-en">Ownway</span>
+          <img :src="logoUrl" class="brand-logo" alt="知源 ownway" />
+          <span class="brand-name">知源</span>
+          <span class="brand-en">ownway</span>
         </div>
         <!-- 固定页：调度台 / 方向台（V3.7.0 R179：资源台退役，资源卡管理收敛到调度台「3张卡」） -->
         <div class="tab" v-pressable :class="{active: activeTab === 'home'}" @click="navigate('/')">调度台</div>
@@ -545,8 +545,7 @@ const backupReminderDot = computed(() => {
       </nav>
 
       <div class="topbar-right">
-        <!-- R176（原型 nav-shortcut-tip）：⌘K 快捷键提示 chip（点击即呼出全局搜索） -->
-        <button class="nav-shortcut-tip" title="全局搜索" @click="gpOpen('search')">调出 Ctrl+K</button>
+        <!-- 全局调出快捷键在设置页维护；顶部不重复展示提示入口。 -->
         <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
         <span class="save-dot" v-pressable :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="theme-select">
@@ -588,7 +587,7 @@ const backupReminderDot = computed(() => {
              R148-P1a：设置页与回收站纳入缓存——设置页 3500+ 行、挂载即算 lcCards/gFlat/tagUsage，
              每次进都全量重挂是"切模块卡"的主要来源之一（实测冷挂 190ms / 二挂 101ms） -->
         <router-view v-slot="{ Component }">
-          <keep-alive include="CompassHomeView,CompassDeckView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,RecycleBinView,ProfileInsightsView">
+          <keep-alive include="CompassHomeView,CompassDeckView,WorkspaceView,CompassTreeView,ProjectCurationView,GlobalSettingsView,ProfileInsightsView">
             <component :is="Component" />
           </keep-alive>
         </router-view>
@@ -634,14 +633,14 @@ const backupReminderDot = computed(() => {
 .topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
-/* R176（原型 nav-brand-chip）：品牌位（logo 16px + 知源调度台 13px/700 + Ownway 11px 次要字） */
+/* 品牌位（logo 16px + 知源 13px/700 + ownway 11px 次要字） */
 .brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
 /* M6（B7-e · V3.8.40）：热区下限 28px。顶栏三处点击目标实测只有 20.8 / 23px——
    规范 M6 写「热区保持 ≥28px」。用 min-height 撑**盒子**而不改内部字号与 padding：
    视觉密度一字未变（内容仍居中、字号仍 11~13px），只是可点区域够手指/触控板落点。
    ★为什么不用 padding 撑：padding 会把顶栏 48px 顶高、把左右 chip 的间距撑散，
      那是对"窄窗不破版"这条验收的净损失；min-height 不改变任何相邻元素的排布。 */
-.brand-chip, .nav-shortcut-tip { min-height: 28px; }
+.brand-chip { min-height: 28px; }
 /* V3.8.9（W9）：画像洞察页为当前页时品牌区高亮（accent-light 底 + accent 边）。
    ★修溢出：去掉 margin-left: -6px 负边距——topbar-inner.align-page 的左 padding 仅 36px，
    负边距 + pulsing 光晕会把高亮推到顶栏容器外，窄窗口下视觉上溢出屏幕左缘。 */
@@ -652,9 +651,6 @@ const backupReminderDot = computed(() => {
 .brand-chip .brand-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 .brand-chip .brand-name { font-size: var(--fs-body); font-weight: 700; letter-spacing: -.01em; color: var(--text); white-space: nowrap; }
 .brand-chip .brand-en { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); letter-spacing: .02em; white-space: nowrap; }
-/* R176（原型 nav-shortcut-tip）：⌘K 提示 chip（surface-2 底 + hairline 边，点击呼出全局搜索） */
-.nav-shortcut-tip { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); padding: 3px 8px; border-radius: var(--radius-xs); border: 1px solid var(--border); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all var(--dur); }
-.nav-shortcut-tip:hover { color: var(--text); border-color: var(--border-strong); }
 /* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役
    R175（原型 nav-tab-item）：padding 6×12→5×11、圆角 xs→sm，其余口径不变 */
 .tab { padding: 5px 11px; border-radius: var(--radius-sm); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }

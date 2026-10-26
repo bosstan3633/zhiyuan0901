@@ -1,11 +1,14 @@
 <script setup lang="ts">
-// R148-P1a：显式实例名——纳入 KeepAlive（切模块免重挂载与免重算首屏）
-defineOptions({ name: 'RecycleBinView' })
+/**
+ * 回收站 · 可嵌入内容组件。
+ *
+ * 设置页直接把它渲染在右侧内容区；路由页只保留一层薄壳，避免恢复/撤销/永久删除两套实现。
+ * embedded=true 时隐藏返回键并收敛页宽，其余业务逻辑与独立页完全一致。
+ */
 import Icon from '@/shared/components/Icon.vue'
 
 import { ref, computed } from 'vue'
 import { wsDisplayNameOf, wsNameById } from '@/shared/utils/wsName'
-import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
@@ -21,6 +24,9 @@ import type { AiJob } from '@/shared/ai/job'
 import { aiConfig, loadAiConfig, aiReady } from '@/shared/ai/config'
 import { buildTrashRescueJob } from '@/shared/ai/govern'
 
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+const emit = defineEmits<{ (e: 'navigate', path: string): void }>()
+
 const aiJob = ref<AiJob | null>(null)
 async function aiRescue() {
   await loadAiConfig()
@@ -30,10 +36,6 @@ async function aiRescue() {
   aiJob.value = job
 }
 
-/** 第卅三轮 REQ-018：回收站页面（三类卡软删数据直接复用：models 的 deletedAt）
- *  列表 + 恢复 + 永久删除 + 清空；入口在全局设置危险操作区
- */
-const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
 
@@ -389,9 +391,9 @@ const argRows = computed(() => withLeaving(args.value))
 </script>
 
 <template>
-  <div class="rb-page">
+  <div class="rb-page" :class="{ embedded: props.embedded }">
     <div class="rb-head">
-      <button class="rb-back" @click="router.push('/settings')">← 返回设置</button>
+      <button v-if="!props.embedded" class="rb-back" @click="emit('navigate', '/settings')">← 返回设置</button>
       <div class="rb-title"><Icon name="trash" :size="13"/> 回收站</div>
       <div class="rb-desc">删除的卡片软删除移入此处，可恢复；永久删除不可撤销</div>
       <div class="rb-actions">
@@ -438,7 +440,7 @@ const argRows = computed(() => withLeaving(args.value))
 <EmptyState v-if="!res.length" class="rb-empty" size="page" icon="trash"
 title="这台删除过的资源卡会停在这里"
         hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
-        secondary-label="回到调度台" @secondary="router.push('/')" />
+        secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
     </div>
 
     <!-- 任务卡 -->
@@ -456,7 +458,7 @@ title="这台删除过的资源卡会停在这里"
       <EmptyState v-if="!tasks.length" class="rb-empty" size="page" icon="trash"
 title="这台删除过的任务卡会停在这里"
         hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
-        secondary-label="回到调度台" @secondary="router.push('/')" />
+        secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
     </div>
 
     <!-- 好奇心卡 -->
@@ -477,7 +479,7 @@ title="这台删除过的任务卡会停在这里"
       <EmptyState v-if="!curios.length" class="rb-empty" size="page" icon="trash"
 title="这台删除过的好奇心卡会停在这里"
         hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
-        secondary-label="回到调度台" @secondary="router.push('/')" />
+        secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
     </div>
 
     <!-- R109（F12-b）：分类分区（删除分类/删除策展台/合并重复 均走软删；恢复=清 deletedAt） -->
@@ -495,7 +497,7 @@ title="这台删除过的好奇心卡会停在这里"
       <EmptyState v-if="!cats.length" class="rb-empty" size="page" icon="trash"
 title="这台删除过的分类会停在这里"
         hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
-        secondary-label="回到调度台" @secondary="router.push('/')" />
+        secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
     </div>
 
     <!-- R2-⑤：论证卡分区（台内原生第 4 种卡，软删后与三卡同一条恢复/永久删除通道） -->
@@ -513,7 +515,7 @@ title="这台删除过的分类会停在这里"
       <EmptyState v-if="!args.length" class="rb-empty" size="page" icon="trash"
 title="这台删除过的论证卡会停在这里"
         hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
-        secondary-label="回到调度台" @secondary="router.push('/')" />
+        secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
     </div>
 
     
@@ -522,6 +524,8 @@ title="这台删除过的论证卡会停在这里"
 
 <style scoped>
 .rb-page { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+.rb-page.embedded { max-width: none; padding: 0; }
+.rb-page.embedded .rb-head { margin-bottom: 16px; }
 .rb-head { margin-bottom: 20px; }
 .rb-back { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; padding: 6px 14px; font-size: var(--fs-sub); cursor: pointer; font-family: inherit; margin-bottom: 14px; transition: all var(--dur); }
 .rb-back:hover { border-color: var(--accent); color: var(--accent); }

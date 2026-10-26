@@ -204,11 +204,14 @@ check('R113-9（V3.9.8 随迁）画布真全屏：全屏壳由 CurationMindMap �
 check('R114-1 技术债59-⑤ 静默 catch 清零：overlay-impl 路由消息收敛 safeSend（双通道吞错+注释），App/GlobalSettings 三处可感知告警', () => {
   const o = read('/content/overlay-impl.ts');
   const app = read('/newtab/App.vue');
-  const g = read('/newtab/views/GlobalSettings.vue');
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
+  const dp = read('/newtab/views/settings/dataPackage.ts');
   return !new RegExp('catch\s*\{\s*\}').test(o)
     && (o.match(/safeSend\(/g) || []).length >= 11 && o.includes('function safeSend')
     && app.includes('storage.onChanged 监听注册失败')
-    && g.includes('导入前自动备份失败') && g.includes('读取 UI 偏好失败');
+    && dm.includes('导入前自动备份失败')
+    && dp.includes('applyDataPackageUIPrefs')
+    && dm.includes('界面偏好已应用');
 });
 check('R114-2 技术债59-B 构建期修复：modulePreload 禁用（content 隔离世界 preload 链接误解析宿主页 origin → 每次 Ctrl+K 白吃 404）+ 相对动态 import 改写插件', () => {
   const v = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'vite.config.ts'), 'utf8');

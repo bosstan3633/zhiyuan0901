@@ -189,7 +189,7 @@ function onNodeKeydown(e: KeyboardEvent): void {
 
 function focusCard(e: MouseEvent): void {
   const target = e.target as HTMLElement | null
-  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-resource-more,.mind-drag,.mind-resource-remove')) return
+  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-drag,.mind-resource-remove')) return
   ;(e.currentTarget as HTMLElement).focus({ preventScroll: true })
   emit('select', props.node.id)
 }
@@ -303,7 +303,7 @@ onBeforeUnmount(() => {
         {{ node.description || '双击补充分支说明' }}
       </span>
       <div class="mind-resources">
-        <span v-for="card in cards().slice(0, 2)" :key="card.id" class="mind-resource" v-pressable
+        <span v-for="card in cards()" :key="card.id" class="mind-resource" v-pressable
           :class="{ 'search-hit': cardMatches(card) }"
           :data-rid="card.id"
           :title="card.title + '；单击打开详情，双击打开链接，右键打开卡片菜单'"
@@ -311,12 +311,10 @@ onBeforeUnmount(() => {
           @dblclick.stop="onResourceDblClick(card)"
           @contextmenu.prevent.stop="emit('open-resource-context', $event, card)">
           <span class="mind-resource-dot" :data-source="card.sourceType || 'personal'"></span>
-          {{ card.title.length > 13 ? card.title.slice(0, 13) + '…' : card.title }}
+          <span class="mind-resource-title">{{ card.title }}</span>
           <button class="mind-resource-remove" type="button" title="解除与当前节点的关联（资源卡池源卡保留）"
             aria-label="解除关联" @click="onResourceRemove($event, card)">×</button>
         </span>
-        <button v-if="cards().length > 2" class="mind-resource-more" type="button"
-          @click.stop="emit('link-resource', node)">+{{ cards().length - 2 }}</button>
         <button v-if="!children().length && !cards().length" class="evidence-gap"
           type="button" @click.stop="emit('link-resource', node)">
           <Icon name="alert" :size="12"/> 缺证据 · 关联

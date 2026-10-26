@@ -96,7 +96,7 @@ check('D19-8 ★断点收敛 1024/800 两档（04-73 D-2）：CompassTree 媒询
   const qs = (src) => [...src.matchAll(/@media \(max-width: (\d+)px\)/g)].map(m => m[1]);
   const ct = qs(CT), sp = qs(SPINE), ln = qs(LANE), tw = qs(TOWER);
   const ok = ct.length === 2 && ct.every(q => ['1024', '800'].includes(q))
-    && sp.join() === '800' && ln.join() === '800' && tw.join() === '800';
+    && sp.every(q => q === '800') && ln.join() === '800' && tw.join() === '800';
   if (!ok) console.log('     Tree=' + ct + ' / Spine=' + sp + ' / Lane=' + ln + ' / Tower=' + tw);
   return ok
     && /@media \(max-width: 800px\) \{[\s\S]*?\.ns-item \{ flex: 0 0 164px; width: 164px; scroll-snap-align: start; \}/.test(CT);

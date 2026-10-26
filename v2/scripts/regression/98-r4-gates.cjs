@@ -588,14 +588,16 @@ check('W5-6 ★今日战报双入口 + 合并弹窗（用户拍板#6 合并方�
     && dd.includes('dlSum') && dd.includes('flowGroups')
     && dd.includes("emit('open-log', day)");
 });
-check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格式（#4a + #6 · ★W6 #1 再随迁：flowGroups 改降序对齐原型、分析段锚随裁剪退役改认新结构 · ★W6.1 再随迁带备案：四格统计可点击下钻，DrillCardList 与 groupEventRows 在日详情**重新在位**（W6 裁剪期退役、W6.1 用户拍板加回），故这两条负锚改为正锚；裁剪真正退役的是分析段的库容变化条与 hintline）：DayDetail dlSum + flowGroups 分组 + ACT_SYM/ACT_CLS 字面量表（dead-css-scan token 可见）+ 底部 ExportMenu formats=[png,html,md] + 四格统计 dz-stats + 热力带 dz-heat-band + exportView DailyReportShareSpec/dailyReportShareHtml/PngSpec.rows', () => {
+check('W5-7（V3.9.23 随迁）★战报层：摘要行 + 分时段叙事时间线 + Markdown / HTML 双导出（#4a + #6 · ★W6 #1 flowGroups 降序对齐原型 · ★W6.1 四格统计与下钻重新在位 · ★V3.9.23 战报 PNG 长图链退役）：DayDetail dlSum + flowGroups 分组 + ACT_SYM/ACT_CLS 字面量表 + 头部 ExportMenu formats=[md,html] + 四格 dz-stats + 热力带 dz-heat-band + 现役 exportKpis/exportRows 交给 dailyReportShareHtml 与 sectionsToMd', () => {
   const dd = codeOnly(read('/newtab/components/dashboard/DayDetail.vue'));
   const ev = codeOnly(read('/shared/utils/exportView.ts'));
   return dd.includes('dlSum') && dd.includes('flowGroups')
     && dd.includes('ACT_SYM') && dd.includes("create: 'act-create'")
     && dd.includes("purge: 'act-purge'")
-    && dd.includes("formats=\"['png', 'html', 'md']\"")
-    && dd.includes('exportPng') && dd.includes('exportHtml') && dd.includes('exportMd')
+    && dd.includes(":formats=\"['md', 'html']\"")
+    && !dd.includes('exportPng') && dd.includes('exportHtml') && dd.includes('exportMd')
+    && dd.includes('const exportKpis = () =>') && dd.includes('function exportRows()')
+    && dd.includes('dailyReportShareHtml({') && dd.includes('sectionsToMd(')
     && dd.includes("from '@/shared/utils/drillRows'")
     && dd.includes('EVENT_ACT_LABEL[e.action]')
     && dd.includes('b.ts - a.ts') /* W6：降序对齐原型 */
@@ -605,7 +607,7 @@ check('W5-7 ★战报层：摘要行 + 分时段叙事时间线 + 导出三格�
     && dd.includes('groupEventRows(filtered') && dd.includes('<DrillCardList v-if="drillRows"')
     /* 裁剪期真正退役的三件仍守负锚：库容变化条 / hintline / 四列下钻容器 */
     && !dd.includes('deltaOf(') && !dd.includes('stockAt(') && !dd.includes('该日库容变化')
-    && ev.includes('PngSpec') && ev.includes('rows?')
+    && !dd.includes('buildZyCard()') && !dd.includes('exportSections') && !dd.includes('zyCard')
     && ev.includes('DailyReportShareSpec') && ev.includes('dailyReportShareHtml');
 });
 check('W5-8 ★三卡交互统一「单击详情 / 双击开链接」（V3.9.8 随迁）：资源卡池与同步入口同款 260ms 去重（pcpClickTimer），双击统一走 useResourceOpen.openResourceLink —— 该通道覆盖普通 URL、obsidian、本地文件以及 zy-asset:// 的 PDF / HTML / 图片附件，并统一记账；列表/网格两视图均绑 @dblclick，title 提示含「双击打开链接」。任务卡与好奇卡既有实现不动', () => {

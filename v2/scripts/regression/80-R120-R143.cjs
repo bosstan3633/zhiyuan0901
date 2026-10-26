@@ -424,7 +424,13 @@ check('R130-6 T4 三台左缘对齐线不变量：ws-page 1440 居中 + ws-conte
 
 // ============== R131 · V2.99.0：N1 三台对齐 + N2 项目目录侧栏 + 批次 C 性能 ==============
 console.log('【R131 · V2.99.0：N1/N2 体验修复 + 批次 C 性能】');
-check('R131-1 ★N1 策展台页头与论点带同轴（V3.9.13 重指：不再让论点独占一行；页头仍与 ws-content 的 36px 页轴对齐）', () => { const c = read('/newtab/views/workspace.css'); return c.includes('.ws-hero { display: grid; grid-template-columns: minmax(280px, .78fr) minmax(0, 1.35fr);') && c.includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 52px; max-height: 56px;') && c.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }') && !c.includes('padding: 4px 0 6px 22px'); });
+check('R131-1 ★N1 策展台页头与论点带同轴（V3.9.13 重指：不再让论点独占一行；页头仍与 ws-content 的 36px 页轴对齐）', () => {
+  const c = read('/newtab/views/workspace.css');
+  return /\.ws-hero \{[^}]*display: flex;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c)
+    && /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 220px;[^}]*max-width: 38%;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+    && c.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }')
+    && !c.includes('padding: 4px 0 6px 22px');
+});
 check('R131-2 N2 项目详情页左侧目录：pd-dir 侧栏 + pd-split 拖拽把手（mousedown 拖宽 / dblclick 复位）+ 内容列 with-dir flex 撑满', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('<aside v-if="!embedded" class="pd-dir"') && p.includes('class="pd-split"') && p.includes('@mousedown.prevent="startDirResize"') && p.includes('@dblclick="resetDirWidth"') && p.includes('.board-layout.with-dir { display: flex;') && p.includes('.board-layout.with-dir .board { flex: 1; min-width: 0; }'); });
 check('R131-3 N2 目录宽度持久化：DIR_W 三常量钳制 + UIPrefs.projRailW 落盘 + onUnmounted 摘除文档级监听', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('const DIR_W_MIN = 180') && p.includes('const DIR_W_MAX = 420') && p.includes('store.ui?.projRailW as number | undefined') && p.includes("saveUIPrefs({ projRailW: projDirW.value })") && p.includes("document.removeEventListener('mousemove', onDirResizeMove)") && p.includes("document.removeEventListener('mouseup', onDirResizeUp)"); });
 check('R131-4 ★C1a isSelfWrite 载荷 __wid O(1)（内容指纹整串比对退役；跨上下文随机前缀防撞、无 __wid 存量判外部=保守正确）', () => { const r = read('/shared/storage/repository.ts'); return r.includes("const SELF_CTX_ID = Math.random().toString(36).slice(2, 8)") && (r.match(/__wid: wid/g) || []).length >= 2 && !r.includes('lastSelfWriteJson'); });

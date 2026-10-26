@@ -163,6 +163,8 @@ let treeDragMetric: Metric | null = null
 let treeDragTask: TaskCard | null = null
 const taskFlashId = ref('')
 const metricFlashId = ref('')
+/** 指标行「更多」菜单：删除入口只在这里出现，不占成功指标主行。 */
+const metricMenuId = ref('')
 function treeMetricDragStart(e: DragEvent, m: Metric) {
   treeDragMetric = m
   treeDragTask = null
@@ -730,7 +732,12 @@ function addTaskFromHeader() {
           <span class="mh-acts">
             <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><AiEntryButton /></button>
             <button class="icon-btn-sm" title="添加任务（新建 / 关联）" @click="openTaskAdd(m)">＋</button>
-            <button class="icon-btn-sm del" title="删除指标" @click="removeMetric(m)"><Icon name="trash" :size="13"/></button>
+            <span class="mh-more-wrap" data-a11y-container @click.stop>
+              <button class="icon-btn-sm" title="更多指标操作" @click="metricMenuId = metricMenuId === m.id ? '' : m.id">⋯</button>
+              <span v-if="metricMenuId === m.id" class="mh-more-menu">
+                <button class="mh-more-item danger" @click="metricMenuId = ''; removeMetric(m)"><Icon name="trash" :size="13"/> 删除指标</button>
+              </span>
+            </span>
           </span>
         </div>
         <div class="task-rows">
@@ -947,7 +954,7 @@ function addTaskFromHeader() {
 .btask.task-flash { background: var(--accent-light); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .btask.task-flash .bt { color: var(--accent); }
 .metric-sec.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.metric-head2 { display: flex; align-items: center; gap: 10px; }
+.metric-head2 { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: nowrap; }
 .metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; flex: 1; min-width: 0; }
 .metric-head2 .pct { font-size: var(--fs-sub); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .icon-btn-sm { width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-sub); display: flex; align-items: center; justify-content: center; font-family: inherit; flex-shrink: 0; }
@@ -1020,10 +1027,16 @@ function addTaskFromHeader() {
 .metric-sec { padding: 0; overflow: hidden; }
 .metric-head2 { background: var(--surface-2); padding: 9px 14px; border-bottom: 1px solid var(--border); }
 .mh-idx { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; }
-.mh-meta { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.mh-acts { display: none; gap: 2px; margin-left: auto; }
+.mh-meta { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mh-acts { display: none; gap: 2px; margin-left: auto; flex: none; align-items: center; }
 .metric-sec:hover .mh-acts { display: inline-flex; }
-.metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; }
+.metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mh-more-wrap { position: relative; display: inline-flex; align-items: center; }
+.mh-more-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 132px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); }
+.mh-more-item { width: 100%; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-caption); cursor: pointer; white-space: nowrap; }
+.mh-more-item:hover { background: var(--surface-3); }
+.mh-more-item.danger { color: var(--danger); }
+.mh-more-item.danger:hover { background: var(--danger-bg-soft); }
 .task-rows { margin-top: 0; border-top: none; padding-top: 0; gap: 0; }
 .btask { border-radius: 0; border-bottom: 1px solid var(--hairline); padding: 9px 14px; }
 .btask:last-of-type { border-bottom: none; }

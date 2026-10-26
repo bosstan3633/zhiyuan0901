@@ -61,6 +61,7 @@ const SHARDS = [
   '106-v3922-profile',
   '107-v3922-desk',
   '108-v3922-compass',
+  '109-shared-export',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

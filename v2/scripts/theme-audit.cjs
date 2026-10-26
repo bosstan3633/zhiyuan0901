@@ -124,7 +124,8 @@ const DRAWER_VIEWS = [
   },
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
-    card: '.cz-card', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 1, foot: '.drawer-footer button',
+    /* 二级页默认列表视图；卡片视图只是用户可选形态，巡检必须点默认态真实存在的列表行。 */
+    card: '.cz-list-item', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 1, foot: '.drawer-footer button',
   },
 ]
 
@@ -165,6 +166,7 @@ const DASH_SCENES = [
       const root = document.querySelector('.mind-root')
       const nodes = document.querySelectorAll('.mind-node:not(.mind-root)').length
       const resources = document.querySelectorAll('.mind-resource').length
+      /* 节点内资源必须穷尽展示，「+N」入口已按产品要求退役。 */
       const more = document.querySelector('.mind-resource-more')
       const gap = document.querySelector('.evidence-gap')
       const layouts = document.querySelectorAll('.mindmap-layout button').length
@@ -173,8 +175,8 @@ const DASH_SCENES = [
         .map(el => el.getBoundingClientRect().height)
       const minHot = hot.length ? Math.min(...hot) : 0
       return {
-        ok: !!shell && !!root && nodes >= 5 && resources >= 2 && !!more && !!gap && layouts === 2 && minHot >= 28,
-        txt: `画布=${!!shell} 根=${!!root} 分支=${nodes}(应≥5) 资源=${resources}(应≥2) 更多=${!!more} 缺证据=${!!gap} 布局=${layouts}/2 证据热区=${hot.length ? Math.round(minHot) : '无'}px`
+        ok: !!shell && !!root && nodes >= 5 && resources >= 2 && !more && !!gap && layouts === 2 && minHot >= 28,
+        txt: `画布=${!!shell} 根=${!!root} 分支=${nodes}(应≥5) 资源=${resources}(应≥2) 更多=${!!more}(应无) 缺证据=${!!gap} 布局=${layouts}/2 证据热区=${hot.length ? Math.round(minHot) : '无'}px`
       }
     })
   },

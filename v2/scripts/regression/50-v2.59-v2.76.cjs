@@ -269,9 +269,12 @@ console.log('【第九十五轮 · V2.64.0：P1 收官审计与清单坏账清�
 /** R95：G7（cardCols 纳入界面偏好包）此前分散在 R66-3（导出整段）与 R72-9（导入归一）两条历史断言里，
  *  没有一条从"列数偏好"角度把往返串起来；清单却长期标"G7 待排期"。本轮补守门 + 文档清偿。 */
 check('R95-1 ★ G7 往返闭环：导出侧 exportAll 并入 loadUIPrefs 整段 uiPrefs，导入侧 sanitizeCardCols 归一后落库', () => {
-  return GS.includes('async function exportAll') && GS.includes('loadUIPrefs')
-    && GS.includes('{ ...safeData, uiPrefs }')
-    && GS.includes('sanitizeCardCols(ui.cardCols)') && GS.includes('saveUIPrefs({ cardCols: cols })')
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
+  const dp = read('/newtab/views/settings/dataPackage.ts');
+  return dm.includes('async function currentPackage()') && dm.includes('loadUIPrefs()')
+    && dm.includes('buildDataPackage(store.data!, log, ui)')
+    && dp.includes('uiPrefs?: Record<string, unknown>')
+    && dp.includes('sanitizeCardCols(ui.cardCols)') && dp.includes('saveUIPrefs({ cardCols: cols })')
     && CC95_C.includes('export function sanitizeCardCols');
 });
 check('R95-2 G7 三模块键同源：sanitizeCardCols 的键集合取自 CARD_COLS_DEFAULT（新增模块键自动跟随，不会漏归一）', () => {
@@ -358,12 +361,13 @@ check('R98-2 W8 策展台指标条（V3.9.10 重指）：旧 5/3 格条退役，
     && WS98.includes("class=\"wsh-upd\" v-pressable title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
     && WS98.includes('· 更新 {{ lastUpdateText }}');
 });
-check('R98-3（V3.9.8 随迁）子分类数从分组标题迁到节点原位：每个节点直接显示直属资源数，子节点由递归结构呈现', () => {
+check('R98-3（V3.9.23 随迁）子分类数从分组标题迁到节点原位：每个节点直接显示直属资源数，节点内资源卡全量穷尽呈现，子节点由递归结构呈现', () => {
   const n = read('/newtab/components/curation/CurationMindNode.vue');
   const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
   return n.includes('return props.cardsByCat.get(props.node.id) || []')
-    && n.includes('cards().slice(0, 2)')
-    && n.includes('cards().length - 2')
+    && n.includes('v-for="card in cards()"')
+    && !n.includes('cards().slice(0, 2)')
+    && !n.includes('mind-resource-more')
     && n.includes('v-for="child in children()"')
     && !host.includes('groupChildCount');
 });

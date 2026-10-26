@@ -4,7 +4,16 @@ export interface DrillCatRow { id: string; name: string; count: number; depth: n
 /** R169-T1：`verb` = 这一行的动作（新增/删除/恢复/清理/改状态/更新），由事件的卡时间归并派生 */
 export interface DrillCardRow { id: string; title: string; updatedAt: number; verb?: string }
 /** V3.9.8：论据卡片明细行——所属节点、来源与镜像标记直接给到抽屉，避免再做一次全树查找。 */
-export interface DrillDetailRow { id: string; title: string; nodeName: string; sourceType?: string; mirrored: boolean; updatedAt: number }
+export interface DrillDetailRow {
+  id: string
+  title: string
+  nodeName: string
+  sourceType?: string
+  mirrored: boolean
+  updatedAt: number
+  /** 资源卡原始链接；无有效 URL 时为空串，行不可点击。 */
+  href: string
+}
 export interface DrillAssetRow { cardId: string; cardTitle: string; assetId: string; name: string; kind: string; size: number; createdAt: number }
 </script>
 
@@ -24,6 +33,7 @@ import { getAssetBlob, getAllAssetIds } from '@/shared/storage/assets'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
+import { openExternalLink } from '@/shared/utils/link'
 import type { AssetMeta } from '@/shared/models'
 
 const props = defineProps<{
@@ -95,6 +105,11 @@ function fmtSize(n: number): string {
 function rowClick(id: string, isMirror: boolean) {
   if (isMirror) emit('locate', id)
   else emit('open-card', id)
+}
+/** 论据总数里每行都是资源卡：有原始链接就直达，无链接保持纯展示。 */
+function openResourceRow(row: DrillDetailRow): void {
+  if (!row.href) return
+  openExternalLink(row.href)
 }
 
 // ---- R110-BUG2：附件存在性索引（IndexedDB 只读扫描，抽屉打开且为附件模式时才做） ----
@@ -207,11 +222,11 @@ async function onCleanupAll() {
     <!-- 总数 · 资源卡明细 + 分类汇总 -->
     <div v-if="mode === 'total'" class="dd-list">
       <div class="dd-scope">本台全部论据资源卡 · 含台内卡与资源卡池镜像</div>
-          <div v-for="c in cardRows" :key="'card-' + c.id" class="dd-row clickable" v-pressable @click="rowClick(c.id, c.mirrored)">
-        <span class="dd-ico"><Icon :name="c.mirrored ? 'satellite' : 'filetext'" :size="13"/></span>
+          <div v-for="c in cardRows" :key="'card-' + c.id" class="dd-row" :class="{ clickable: !!c.href }" v-pressable @click="openResourceRow(c)">
+        <span class="dd-ico"><Icon v-if="c.href" name="external" :size="13"/><Icon v-else :name="c.mirrored ? 'satellite' : 'filetext'" :size="13"/></span>
         <span class="dd-name">
-          <span class="dd-asset-name">{{ c.title }}</span>
-          <span class="dd-sub">{{ c.nodeName }} · {{ sourceLabel(c.sourceType) }}<template v-if="c.mirrored"> · 镜像</template></span>
+          <span class="dd-asset-name" :class="{ 'dd-link-name': c.href }">{{ c.title }}</span>
+          <span class="dd-sub">{{ c.nodeName }} · {{ sourceLabel(c.sourceType) }}<template v-if="c.mirrored"> · 镜像</template><template v-if="!c.href"> · 无可用链接</template></span>
         </span>
         <span class="dd-time">{{ fmtTs(c.updatedAt) }}</span>
       </div>
@@ -305,6 +320,8 @@ async function onCleanupAll() {
 .dd-ico { flex-shrink: 0; font-size: var(--fs-sub); }
 .dd-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; flex-direction: column; gap: 1px; }
 .dd-asset-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-link-name { color: var(--accent-ink); }
+.dd-row.clickable:hover .dd-link-name { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .dd-sub { font-size: var(--fs-tiny); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dd-count { font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: 99px; font-weight: 600; flex-shrink: 0; }
 .dd-time { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }

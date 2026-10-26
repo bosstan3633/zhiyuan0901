@@ -301,10 +301,10 @@ check('R4-Db ★合一不是"留下活的那份"就完事：死链身上三处�
     && !bk.includes('CURATION_WS_ID') && bk.includes('assets: []') && bk.includes('return ids');
 });
 check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着够不着的 parked input 与其弹窗样式', () => {
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   const wc = codeOnly(read('/newtab/views/Workspace.vue'));
   const css = codeOnly(read('/newtab/views/workspace.css'));
-  return gs.includes('ref="bookmarkInput"') && gs.includes('@click="bookmarkImport()"') && gs.includes('@change="onBookmarkFile"')
+  return dm.includes('ref="bookmarkInput"') && dm.includes('bookmarkInput?.click()') && dm.includes('@change="handleBookmarkFile"')
     && !wc.includes('bookmarkInput') && !wc.includes('accept=".html,.htm"')
     && !css.includes('.bk-hint') && !css.includes('.bk-item');
 });
@@ -313,24 +313,24 @@ check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着
 console.log('【R4-Dc · 数据体检与附件卫生合流】');
 check('R4-Dc ★keepIds 只有一个算式：两个清理入口共用一份实现，宿主不得再手写 keep 集合', () => {
   const bk = codeOnly(read('/newtab/composables/useWsAssetHygiene.ts'));
-  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
   return bk.includes('collectReferencedAssetIds(d.value)') && bk.includes('cleanupOrphanAssetsOf(d.value)')
-    && gs.includes('collectReferencedAssetIds(all)') && gs.includes('cleanupOrphanAssetsOf(all)')
-    && !bk.includes('new Set(referencedAssetIds.value)') && !gs.includes('cleanupOrphanAssets(keep)');
+    && dm.includes('collectReferencedAssetIds(gd.value)') && dm.includes('cleanupOrphanAssetsOf(gd.value)')
+    && !bk.includes('new Set(referencedAssetIds.value)') && !dm.includes('cleanupOrphanAssets(keep)');
 });
 check('R4-Dc ★不可恢复的物理删除必须先数清再确认：设置页那枚「清理」钮此前单击即删（与 R146 给清空回收站补门同一条理由——同一张卡上「导出附件包」被写成完整备份，两个相邻动作给出相反的风险信号）', () => {
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   /* ★V3.8.42（P0-3 第四批）承重锚重指：终点原为 `watch(activePage, (p) => { if (p === 'export')`。
      那不是这条判据的语义边界，只是**当时恰好排在该函数后面的下一条语句**——
      它属于导航生命周期，与「清理孤儿附件」无关。设置页拆子域后两个函数分居两处，
      `slice(start, end)` 会因 end < start 取到空串 ⇒ 假红。
      正解是取**本函数到下一个同域导出函数**（exportAssetPack，两者同属附件存储域），
      语义边界与判据一致，且不会随文件拆分漂移。旧切片长 835 / 新切片长 1040，守的六条锚全在。 */
-  const seg = fnBody(gs, 'async function cleanupOrphanAssetsAction', 'async function exportAssetPack');
-  return seg.includes('listOrphanAssetIds(') && seg.includes('await useConfirm({')
-    && seg.includes('清理 ${orphans.length} 个') && seg.includes('if (!ok) return')
-    && seg.indexOf('listOrphanAssetIds(') < seg.indexOf('cleanupOrphanAssetsOf(')
-    && seg.includes('导出附件包');
+  const seg = fnBody(dm, 'async function cleanupOrphans()', '// ---- Airtable ----');
+  return seg.includes('getAllAssetIndex()') && seg.includes('await useConfirm({')
+    && seg.includes('清理 ${orphans.length} 个') && seg.includes('if (!(await useConfirm(')
+    && seg.indexOf('getAllAssetIndex()') < seg.indexOf('cleanupOrphanAssetsOf(')
+    && seg.includes('refreshAssetRows()');
 });
 check('R4-Dc ★只删 IndexedDB 本体的那条动作不许多写一遍主 JSON（AppData 一个字节没变 ⇒ persist 是纯开销）', () => {
   const seg = segOf(read('/newtab/composables/useWsAssetHygiene.ts'), 'async function onDrillCleanupOrphans', '\n  return {');
@@ -546,20 +546,18 @@ check('R4-Dg ★十一个消费点不许再各自把 workspaceId 翻成台名：
 });
 check('R4-Dg ★导出 Markdown 必须按**卡**分组，不许再按 workspace 实体 + 该台分类两层枚举：池卡在新库里没有实体、且 categoryId 恒空（R179 起标签独任组织），旧两层 for 会把用户的全部资源卡静默漏出导出物（★这不是命名问题，是数据缺失——而它此前只有源码文本可见，E2E-36 真点一次导出并读导出物本体）', () => {
   const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
-  /* ★V3.8.42（P0-3 第四批）承重锚重指，且**这一条原本是坏的**：
-     原终点 `function dateStr` 写在 exportMarkdown **之前**（dateStr 在下载小工具段，
-     exportMarkdown 在导出段末尾），所以 `indexOf('function dateStr', iFn)` 恒为 -1，
-     `slice(iFn, -1)` 静默退化成「从 exportMarkdown 一直取到全文末尾」——
-     实测切片长 81,821 字符，覆盖了后面所有设置页脚本。
-     它当时是绿的，纯粹因为两条负锚恰好都落在 exportMarkdown **之前**：
-     `r.workspaceId === ws.id` 在 1383 行（exportWorkspace 里），而 exportMarkdown 在 1394 行。
-     ⇒ 这条判据从来没有真的在守 exportMarkdown，它在守「1394 行往后不许出现旧写法」，
-       而这个约束会随任何一次追加导出功能而失效。改用同域的下一个函数 `csvEscape` 收口，
-       切片收到 1,256 字符，两条负锚仍不命中——**这次是真的在守函数体**。 */
-  const seg = fnBody(gs, 'function exportMarkdown', 'function csvEscape');
-  return seg.includes('byWs.get(r.workspaceId)') && seg.includes('for (const [wsId, cards] of byWs)')
-    && seg.includes("catMap.get(catId) || '待分类'") && seg.includes('wsNameById(d.workspaces, wsId)')
-    && !seg.includes('for (const ws of d.workspaces)') && !seg.includes('r.workspaceId === ws.id');
+  const dp = codeOnly(read('/newtab/views/settings/dataPackage.ts'));
+  const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
+  /*
+   * 旧的按卡分组 Markdown 导出已随 CSV/分台导出一起退役。现役唯一通用导出是完整数据包，
+   * 不再按 workspace/category 枚举卡片，因此旧漏池卡问题从数据模型上消失。
+   */
+  return dp.includes('export function buildDataPackage(')
+    && dp.includes('...(safe as unknown as DataPackage)')
+    && dm.includes('buildDataPackage(store.data!, log, ui)')
+    && dm.includes('exportPackage')
+    && !gs.includes('function exportMarkdown')
+    && !gs.includes('for (const [wsId, cards] of byWs)');
 });
 
 // ============== R4-Dh · 设置页输入框补齐（.gs-input 是一条全站无定义的死类名） ==============

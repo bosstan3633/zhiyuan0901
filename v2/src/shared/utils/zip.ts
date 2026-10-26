@@ -28,6 +28,18 @@ function crc32(data: Uint8Array): number {
 }
 
 export interface ZipEntry { name: string; data: Uint8Array<ArrayBuffer> }
+export interface ZipBlobEntry { name: string; data: Blob }
+
+/** 大文件不在内存里一次转成 ArrayBuffer：按 4MB 切片累计 CRC，随后直接把原 Blob 交给 zip。 */
+async function crc32Blob(blob: Blob): Promise<number> {
+  const chunkSize = 4 * 1024 * 1024
+  let c = 0xffffffff
+  for (let offset = 0; offset < blob.size; offset += chunkSize) {
+    const bytes = new Uint8Array(await blob.slice(offset, offset + chunkSize).arrayBuffer())
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8)
+  }
+  return (c ^ 0xffffffff) >>> 0
+}
 
 /** 打包 zip（STORE 模式）；entry.name 用正斜杠相对路径（UTF-8） */
 export function buildZip(entries: ZipEntry[]): Blob {
@@ -40,6 +52,7 @@ export function buildZip(entries: ZipEntry[]): Blob {
   const u32 = (v: number) => new Uint8Array([v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff])
 
   for (const e of entries) {
+    if (e.data.length > 0xffffffff) throw new Error(`zip 条目超过 4GB：${e.name}`)
     const nameBytes = enc.encode(e.name)
     const crc = crc32(e.data)
     // Local File Header
@@ -51,6 +64,34 @@ export function buildZip(entries: ZipEntry[]): Blob {
   }
   const cdSize = central.reduce((s, c) => s + c.length, 0)
   // EOCD
+  const eocd = [...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(entries.length), ...u16(entries.length), ...u32(cdSize), ...u32(offset), ...u16(0)]
+  return new Blob([...chunks, ...central, new Uint8Array(eocd)], { type: 'application/zip' })
+}
+
+/**
+ * 流式友好的 STORE zip：只保留各附件 Blob 引用，不把全部附件转成 ArrayBuffer。
+ * 适用于设置页「全部附件整体打包下载」这类可能包含大量图片/PDF 的场景。
+ */
+export async function buildZipFromBlobs(entries: ZipBlobEntry[]): Promise<Blob> {
+  const enc = new TextEncoder()
+  const chunks: BlobPart[] = []
+  const central: Uint8Array<ArrayBuffer>[] = []
+  let offset = 0
+
+  const u16 = (v: number) => new Uint8Array([v & 0xff, (v >>> 8) & 0xff])
+  const u32 = (v: number) => new Uint8Array([v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff])
+
+  for (const e of entries) {
+    if (e.data.size > 0xffffffff) throw new Error(`zip 条目超过 4GB：${e.name}`)
+    const nameBytes = enc.encode(e.name)
+    const crc = await crc32Blob(e.data)
+    chunks.push(u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(0), u16(0), u32(crc), u32(e.data.size), u32(e.data.size), u16(nameBytes.length), u16(0), nameBytes)
+    chunks.push(e.data)
+    central.push(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0), u32(crc), u32(e.data.size), u32(e.data.size), u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), nameBytes)
+    offset += 30 + nameBytes.length + e.data.size
+    if (offset > 0xffffffff) throw new Error('附件包超过 4GB，暂不支持生成 zip')
+  }
+  const cdSize = central.reduce((s, c) => s + c.length, 0)
   const eocd = [...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(entries.length), ...u16(entries.length), ...u32(cdSize), ...u32(offset), ...u16(0)]
   return new Blob([...chunks, ...central, new Uint8Array(eocd)], { type: 'application/zip' })
 }

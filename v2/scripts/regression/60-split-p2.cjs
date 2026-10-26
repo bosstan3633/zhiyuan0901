@@ -159,15 +159,19 @@ console.log('【第一百轮 · V2.69.0：Workspace.vue 纯拆分第一批（导
 check('R100-1 ★ 导入域拆分不变量（★R4-Db 重指带备案：书签那条自本模块搬出，唯一实现住在 useBookmarkImport.ts——拆分不变量本身一字未松，只是"实现在 composable、宿主只解构绑定、宿主零重复实现"这条管辖范围从三链路同文件变成两文件三链路，故判据按新落点点名，并把"宿主不得自带解析器"的负判据从 Workspace 扩到 GlobalSettings（它原先真有一份副本））：三链路实现在 composable + 宿主经解构绑定 + 宿主零重复实现', () => {
   const BK100 = read('/newtab/composables/useBookmarkImport.ts');
   const GS100 = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const DM100 = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
   return IMP100.includes('export function useWorkspaceImport(')
     && IMP100.includes('function handleBoardImport(') && IMP100.includes('async function handleFileImport(')
     && BK100.includes('export function useBookmarkImport(') && BK100.includes('function parseBookmarksHtml(')
     && WSP100.includes('useWorkspaceImport({ d, workspaceId, newCardCatId, persist: () => store.persist() })')
     && WSP100.includes('handleBoardImport')
-    && GS100.includes('useBookmarkImport({') && GS100.includes('await handleBookmarkImport(e, bookmarkTargetWs.value)')
+    && DM100.includes("await import('@/newtab/composables/useBookmarkImport')")
+    && DM100.includes('useBookmarkImport({ d: gd, persist: () => store.persist() })')
+    && DM100.includes('await api.handleBookmarkImport(fakeEvent, bookmarkTargetWs.value)')
     && !WSP100.includes('function parseBookmarksHtml') && !WSP100.includes('function ensureBookmarkCategory')
     && !WSP100.includes('async function handleFileImport(')
-    && !GS100.includes('function parseBookmarksHtml') && !GS100.includes('interface BkNode');
+    && !GS100.includes('function parseBookmarksHtml') && !GS100.includes('interface BkNode')
+    && !DM100.includes('function parseBookmarksHtml') && !DM100.includes('interface BkNode');
 });
 
 console.log('【第九十九轮 · V2.68.0：方向台组四件（M6 + M8 + D-D + D-E）】');
@@ -276,7 +280,7 @@ check('R109-4 ★ F12-a workspaceId 收紧（★R4-Da 退役重指带备案：�
     && ws.includes('boardCardsOf(d.value, workspaceId.value)')
     && ws.includes('const resBucket = computed(() => buildBucketIndex(allResources.value')
     && ws.includes('directCount: (resBucket.value.get(c.id) || []).length')
-    && g.includes('!r.deletedAt && r.workspaceId === csvWsId.value');
+    && !g.includes('csvWsId');
 });
 check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并重复/删除策展台三链路统一软删 + 回收站分类分区（恢复=清 deletedAt）（★R4-Da 退役重指带备案：原判据里 GS 那一处 !c.parentId && !c.deletedAt 是全景根分类的过滤，随整页退役删除——同一条「软删分类不参与组织与回填」纪律在设置页仍有一处活落点：AI 建议采纳回填 categoryId 前先确认该分类未软删，判据改指它，并对全景旧过滤做 codeOnly 零命中防回流；models / 策展台 / 回收站三侧判据一字未动）', () => {
   return read('/shared/models/index.ts').includes('deletedAt?: number')

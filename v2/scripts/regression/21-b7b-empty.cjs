@@ -219,7 +219,9 @@ check(NAME(
   '★判据按「恰好五处」写死，多一处说明有新分区没跟上，少一处说明有分区漏给出口。'), () => {
   const n = (codeOnly(RB).match(/secondary-label="回到调度台"/g) || []).length
   if (n !== 5) { console.log('     幽灵按钮数 = ' + n + '（应为 5）'); return false }
-  if (!/router\.push\('\/'\)/.test(codeOnly(RB))) { console.log('     未跳转到调度台'); return false }
+  if ((codeOnly(RB).match(/@secondary="emit\('navigate', '\/'\)"/g) || []).length !== 5) {
+    console.log('     未把五处空态出口接到宿主导航'); return false
+  }
   return true
 })
 

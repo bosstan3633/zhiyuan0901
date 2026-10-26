@@ -79,9 +79,7 @@ check('W17-21 ★今日对账段退役：PiToday 无 f3-compact，画像页不�
 
 /* ══════════════ W18 · 画像洞察顶部等高 + 卡片化导出（2026-10-20 用户拍板） ══════════════ */
 
-const ZY = read('/shared/utils/zyCard.ts');
 const DAY = read('/newtab/components/dashboard/DayDetail.vue');
-const HEAT = read('/newtab/components/dashboard/Heatmap.vue');
 
 check('V3.9.7 ★顶部两块面板自然等高、左右严格等宽：负锚钉死固定 440px 与 1.35fr/1fr 的宽窄列', () => {
   return /\.pi-overview \{ align-items: stretch; \}/.test(OV)
@@ -99,28 +97,36 @@ check('W18-2 ★周期区默认「本年」：进入画像洞察先给全年状�
     && !PI.includes("const activeRange = ref<PiRange>('today')");
 });
 
-check('W18-3 ★战报弹窗头部有独立「保存为图片」入口（不必再进导出菜单）', () => {
-  return DAY.includes('saveCardImage')
-    && DAY.includes('保存为图片')
-    && DAY.includes('class="dz-btn ghost sm dz-save-card"')
-    /* 下载的是卡片图片，文件名带「战报卡」 */
-    && DAY.includes("exportName('战报卡', 'png'")
-    /* 头部按钮在「收起」之前 */
-    && DAY.indexOf('保存为图片') < DAY.indexOf('收起 ×');
+check('W18-3（V3.9.23 随迁）战报头部只保留查看全部记录与 Markdown / HTML 双导出：PNG 独立入口和菜单项退役，操作区位于标题左侧、关闭仍在最右', () => {
+  return DAY.includes('class="dz-day-actions"')
+    && DAY.includes("emit('open-log', day)")
+    && DAY.includes(':formats="[\'md\', \'html\']"')
+    && DAY.includes('查看全部记录')
+    && DAY.includes('收起 ×')
+    && DAY.indexOf('dz-day-actions') < DAY.indexOf('dz-day-close')
+    && !DAY.includes('saveCardImage')
+    && !DAY.includes('保存为图片')
+    && !DAY.includes("formats=\"['png'");
 });
 
-check('W18-4 ★L3 统一卡片模板：战报 / 热力图同一份卡骨相（眉标 + 读数 + 三类卡带 + 明细 + 品牌页脚）', () => {
-  return ZY.includes('export function zyCardBlob(') && ZY.includes('export function zyCardHtml(')
-    /* 三类卡是知源「卡」世界观的最小可视单位 */
-    && ZY.includes('task: number') && ZY.includes('curio: number') && ZY.includes('res: number')
-    && ZY.includes('任务卡') && ZY.includes('好奇心卡') && ZY.includes('资源卡')
-    && ZY.includes('kicker') && ZY.includes('readouts') && ZY.includes('rowsTitle')
-    /* 两个导出点都改走同一模板，不再各写一套版式 */
-    && DAY.includes('zyCardBlob(buildZyCard())') && DAY.includes('zyCardHtml(buildZyCard())')
-    && HEAT.includes('zyCardBlob(buildZyCard())') && HEAT.includes('zyCardHtml(buildZyCard())')
-    /* 负锚：日战报 PNG 不再走旧的 pngBlobFromSpec 版式 */
-    && !DAY.includes('pngBlobFromSpec({')
-    && !HEAT.includes('pngBlobFromSpec({');
+check('W18-4（V3.9.23 随迁）共享导出继续复用统一 HTML 文档壳：战报输出摘要、KPI、流水与品牌页脚；资源卡是唯一可点击对象，不再迁回 PNG 长图链', () => {
+  const day = codeOnly(DAY);
+  const ev = read('/shared/utils/exportView.ts');
+  return day.includes('dailyReportShareHtml({')
+    && day.includes('kpis: exportKpis()')
+    && day.includes('rows: exportRows()')
+    && day.includes("footer: '知源 ownway · 每日战报 · 数据只在本机'")
+    && day.includes('sectionsToMd(')
+    && day.includes("h: '当前下钻'")
+    && ev.includes('export interface DailyReportShareSpec')
+    && ev.includes('export function dailyReportShareHtml(')
+    && ev.includes('escHtml(spec.summary)')
+    && ev.includes('r.href ? `<a href=')
+    && !day.includes('buildZyCard()')
+    && !day.includes('exportSections')
+    && !day.includes('zyCard')
+    && !day.includes('exportPng')
+    && !day.includes("formats=\"['png'");
 });
 
 /* ============ V3.9.6 · 双口径「导 N」界面欠账收口 ============ */

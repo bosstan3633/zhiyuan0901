@@ -306,11 +306,13 @@ check('R81-5 R15 出口二 · 卡片字段值改调共享 assetSummary（不再�
     && seg.includes('return assetSummary(')
     && !stripComments(seg).includes('length - imgs');
 });
-check('R81-6 R15 出口三 · CSV 导出改调共享 assetSummary（三出口同源）', () => {
-  const seg = segOf(GS, "case 'assets':", 'default: {');
-  return GS.includes("import { assetSummary } from '@/shared/utils/assetKind'")
-    && seg.includes('return assetSummary(r.assets)')
-    && !stripComments(seg).includes('length - imgs');
+check('R81-6 R15 附件摘要单源：CSV 出口退役后，共享 assetSummary 仍由字段值承接，且旧“总数减图片数”算法零残留', () => {
+  const seg = segOf(FIELDS, "case 'assets':", "case 'workspaceId':");
+  return FIELDS.includes("import { assetSummary } from './assetKind'")
+    && seg.includes('return assetSummary(')
+    && !stripComments(seg).includes('length - imgs')
+    && !stripComments(GS).includes('resCsvValue')
+    && !stripComments(GS).includes('exportWorkspace');
 });
 check('R81-7 R15 口径错误零残留：三出口正文均无「总数减图片数」写法', () => {
   return !stripComments(BADGE).includes('length - img')
@@ -464,8 +466,8 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
 });
 check('R84-3 W1 页头 ≤56px（V3.9.13 重指：台身份与论点卡合并成同一上下文带，仍不许退回两条大横条）', () => {
   const c = read('/newtab/views/workspace.css');
-  return c.includes('.ws-id-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 52px; max-height: 56px;')
-    && c.includes('.ws-hero { display: grid; grid-template-columns: minmax(280px, .78fr) minmax(0, 1.35fr);');
+  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 220px;[^}]*max-width: 38%;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+    && /\.ws-hero \{[^}]*display: flex;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c);
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')

@@ -77,7 +77,7 @@ async function main() {
 
   // 清空当前主数据（模拟全新 V2.22.0 安装），再从设置页走 UI 导入
   await page.evaluate(() => chrome.storage.local.set({ zy_data_v2: null }))
-  await page.goto(base + '#/settings?page=import', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/settings?page=data', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   const input = page.locator('input[type="file"][accept=".json"]')
   await input.setInputFiles(importPath)

@@ -8,7 +8,7 @@
  *   ③ md-stats    —— 四格统计（新增 / 调出 / 推进 / 清理），彩色大数，零值压淡，可点击下钻
  *   ③.5 热力带     —— 该日加权分 / 等级 / 强度（用户拍板：四格统计下方一条热力带）
  *   ④ md-scroll   —— 分时段叙事时间线（**降序**：下午在前），行可点击（单击定位 / 双击开链接）
- *   ⑤ md-foot     —— 页脚注 + 查看全部记录 + 导出三件套
+ *   ⑤ md-foot     —— 页脚数据来源；查看全部记录与导出收在头部左侧
  *
  * ★ W6.1 用户拍板（2026-10-12）：
  *   · 四格统计指标卡可点击下钻 → DrillCardList（与全库统一：单击定位 / 双击开链接）
@@ -31,9 +31,9 @@ import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import DrillCardList from './DrillCardList.vue'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
-import { pngBlobFromSpec, dailyReportShareHtml, sectionsToMd, exportName } from '@/shared/utils/exportView'
-import { zyCardBlob, zyCardHtml } from '@/shared/utils/zyCard'
-import { downloadBlob, downloadText } from '@/shared/utils/download'
+import { dailyReportShareHtml, sectionsToMd, exportName } from '@/shared/utils/exportView'
+import { downloadText } from '@/shared/utils/download'
+import { escapeMarkdown, safeExportLink } from '@/shared/utils/cardExport'
 import { showToast } from '@/shared/components/toast'
 
 const props = defineProps<{
@@ -152,7 +152,7 @@ function openRow(e: CardEvent) {
   locateRow(e)
 }
 
-/* ---- 导出三件套（PNG / HTML / Markdown）：导出的是弹窗当前算出来的东西，不另跑一套算法 ---- */
+/* ---- Markdown / HTML 导出：导出弹窗当前算出来的内容，不另跑一套统计 ---- */
 const exportKpis = () => {
   const c = statCells.value
   return [
@@ -162,74 +162,73 @@ const exportKpis = () => {
     { label: '清理', value: String(c[3].n), note: '删除 / 清理' }
   ]
 }
-/** 图片与屏上同一阅读顺序：降序分时段 → 可选当前下钻；不使用正序流水。 */
-const exportSections = () => {
-  const sections = flowGroups.value.map(group => ({
-    title: group.label,
-    rows: group.rows.map(({ tm, e }) => ({ time: tm, label: EVENT_ACT_LABEL[e.action], title: e.title }))
-  }))
-  if (drillRows.value) {
-    sections.push({
-      title: drillRows.value.label,
-      rows: drillRows.value.rows.map(row => ({
-        time: row.time || '',
-        label: `${row.tag}${(row.n || 1) > 1 ? ` ×${row.n}` : ''}`,
-        title: row.title
-      }))
+/** 只有资源卡能拿原始链接；任务 / 系统 / 好奇卡与无效 URL 一律保持纯文本。 */
+function resourceHref(e: CardEvent): string {
+  if (e.kind !== 'resource' || !e.cardId) return ''
+  const card = store.data?.resources.find(x => x.id === e.cardId)
+  if (!card) return ''
+  const safe = safeExportLink(toOpenableUrl(card.linkType, card.link))
+  return safe.clickable ? safe.href : ''
+}
+/** 下钻行与主流水共用“资源卡才可点击”的判据，不回退到按标题猜卡。 */
+function drillResourceHref(row: DrillRow): string {
+  return row.kind === 'resource'
+    ? resourceHref({
+      id: `drill-${row.id}`,
+      ts: 0,
+      action: 'call',
+      kind: 'resource',
+      title: row.title,
+      cardId: row.id,
     })
-  }
-  return sections
+    : ''
+}
+function exportRows() {
+  const timeline = flowGroups.value.flatMap(group => group.rows.map(({ tm, e }) => ({
+    time: tm,
+    label: EVENT_ACT_LABEL[e.action],
+    title: e.title,
+    href: resourceHref(e),
+  })))
+  const drill = drillRows.value?.rows.map(row => ({
+    time: row.time || '',
+    label: `${row.tag}${(row.n || 1) > 1 ? ` ×${row.n}` : ''}`,
+    title: row.title,
+    href: drillResourceHref(row),
+  })) || []
+  return [...timeline, ...drill]
 }
 const summaryText = computed(() => dlSum.value.n
   ? `当天完成 ${dlSum.value.n} 项操作，涉及 ${dlSum.value.cards} 张卡片${dlSum.value.last ? `，最近一次 ${hm(dlSum.value.last)}`: ''}`
   : '这一天没有操作记录。')
 
-/** ★W18（统一卡片模板）：战报图片改走「知源卡片」模板——眉标 / 读数 / 三类卡带 / 流水 / 品牌页脚，
- *  与热力图、月度导出同一张卡的骨相，便于阅读与传播。 */
-function buildZyCard() {
-  const c = statCells.value
-  const kinds = props.kinds || null
-  return {
-    kicker: '每日战报',
-    title: `每日战报 ${props.day}`,
-    sub: `周${wd.value} · 加权 ${rec.value.w} 分 · ${lv.value} · ${summaryText.value}`.slice(0, 96),
-    readouts: [
-      { label: '新增', value: String(c[0].n), note: '采集入卡' },
-      { label: '调出', value: String(c[1].n), note: '打开卡片' },
-      { label: '推进', value: String(c[2].n), note: '状态变更' },
-      { label: '清理', value: String(c[3].n), note: '删除 / 清理' }
-    ],
-    kinds,
-    /** ★V3.9.22：段落与弹窗当前屏上分组一致；当前展开了哪个下钻，就带哪个下钻。 */
-    sections: exportSections(),
-    bands: [{
-      value: `加权 ${rec.value.w} 分 · 强度 ${intensity.value}%`,
-      label: lv.value,
-      note: `${levelRange(rec.value.w)} · 有效动作 ${actsOf(rec.value)} 件`
-    }],
-    footer: '知源调度台 · 每日战报 · 数据只在本机'
-  }
-}
-/** 弹窗头部的独立入口：一键保存当日战报图片（不用再进导出菜单） */
-async function saveCardImage(): Promise<void> {
-  const blob = await zyCardBlob(buildZyCard())
-  downloadBlob(exportName('战报卡', 'png', props.day), blob)
-  showToast('已保存战报卡图片（当前主题配色）')
-}
-async function exportPng(): Promise<void> {
-  await saveCardImage()
-}
 function exportHtml(): void {
-  downloadText(exportName('战报卡', 'html', props.day), zyCardHtml(buildZyCard()), 'html')
-  showToast('已导出 HTML 卡片（任何人浏览器打开即看）')
+  const html = dailyReportShareHtml({
+    title: `每日战报 ${props.day}`,
+    sub: `周${wd.value} · 加权 ${rec.value.w} 分 · ${lv.value} · 强度 ${intensity.value}%`,
+    summary: summaryText.value,
+    kpis: exportKpis(),
+    rows: exportRows(),
+    footer: '知源 ownway · 每日战报 · 数据只在本机',
+  })
+  downloadText(exportName('战报', 'html', props.day), html, 'html')
+  showToast('已导出 HTML（资源卡名称可直达原始链接）')
 }
 function exportMd(): void {
   const timelineLines = flowGroups.value.flatMap(group => [
     `- **${group.label}**`,
-    ...group.rows.map(({ tm, e }) => `  - ${tm}　${EVENT_ACT_LABEL[e.action]}　${e.title}`)
+    ...group.rows.map(({ tm, e }) => {
+      const href = resourceHref(e)
+      const title = href ? `[${escapeMarkdown(e.title)}](${href})` : escapeMarkdown(e.title)
+      return `  - ${tm}　${EVENT_ACT_LABEL[e.action]}　${title}`
+    })
   ])
   const drillLines = drillRows.value
-    ? [`- **${drillRows.value.label}**`, ...drillRows.value.rows.map(r => `  - ${r.time || ''}　${r.tag}${(r.n || 1) > 1 ? ` ×${r.n}` : ''}　${r.title}`)]
+    ? [`- **${drillRows.value.label}**`, ...drillRows.value.rows.map(r => {
+      const href = drillResourceHref(r)
+      const title = href ? `[${escapeMarkdown(r.title)}](${href})` : escapeMarkdown(r.title)
+      return `  - ${r.time || ''}　${r.tag}${(r.n || 1) > 1 ? ` ×${r.n}` : ''}　${title}`
+    })]
     : []
   const md = sectionsToMd(`每日战报 ${props.day}`, `周${wd.value} · ${summaryText.value}`, [
     { h: '统计', lines: exportKpis().map(k => `- ${k.label}：${k.value}（${k.note}）`) },
@@ -241,8 +240,7 @@ function exportMd(): void {
   showToast('已导出 Markdown（贴进笔记即成形）')
 }
 function onExport(fmt: ExportFmt): void {
-  if (fmt === 'png') void exportPng()
-  else if (fmt === 'html') exportHtml()
+  if (fmt === 'html') exportHtml()
   else if (fmt === 'md') exportMd()
 }
 </script>
@@ -258,10 +256,11 @@ function onExport(fmt: ExportFmt): void {
         <div class="dz-day-title">今日战报</div>
         <div class="dz-day-sub">{{ day }} 周{{ wd }}</div>
       </div>
-      <!-- ★W18：当日战报图片的独立入口（下载方式也要卡片化，便于阅读与传播） -->
-      <button class="dz-btn ghost sm dz-save-card" title="把这一天存成一张知源卡片图片"
-        aria-label="保存为图片" @click="saveCardImage"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 21h16"/></svg> 保存为图片</button>
-      <button class="dz-btn ghost sm" aria-label="关闭" @click="emit('close')">收起 ×</button>
+      <div class="dz-day-actions">
+        <button class="dz-btn ghost sm" @click="emit('open-log', day)">查看全部记录 ›</button>
+        <ExportMenu :formats="['md', 'html']" align="start" @pick="onExport" />
+      </div>
+      <button class="dz-btn ghost sm dz-day-close" aria-label="关闭" @click="emit('close')">收起 ×</button>
     </div>
 
     <!-- ② 摘要行（原型 md-summary） -->
@@ -316,11 +315,9 @@ function onExport(fmt: ExportFmt): void {
       </template>
     </div>
 
-    <!-- ⑤ 页脚（原型 md-foot：注 + 查看全部记录 + 导出三件套） -->
+    <!-- ⑤ 页脚只保留数据来源说明；操作入口统一在头部左侧 -->
     <div class="dz-dl-foot">
       <span class="note">数据来源：本机事件日志 · 仅当日 · 自然日口径</span>
-      <button class="dz-btn sm" @click="emit('open-log', day)">查看全部记录 ›</button>
-      <ExportMenu :formats="['png', 'html', 'md']" @pick="onExport" />
     </div>
   </div>
 </template>

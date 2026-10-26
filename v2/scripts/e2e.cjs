@@ -1884,9 +1884,10 @@ async function main() {
   ].join('\n')
   const bkBefore = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
     .then(r => (r['zy_data_v2'].resources || []).filter(x => !x.deletedAt).length))
-  await page.goto(base + '#/settings?page=import', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/settings?page=data&tab=bookmark', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2600)
+  const bookmarkPanel = await page.getByText('浏览器书签 HTML').first().isVisible().catch(() => false)
   await page.locator('input[accept=".html,.htm"]').first()
     .setInputFiles({ name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(bkHtml, 'utf8') })
   await page.waitForTimeout(2000)
@@ -1913,8 +1914,8 @@ async function main() {
   report('E2E-32 ★R4-Db 书签导入唯一路线：落库张数=解析张数 / 层级进标签且根栏名排除 / 编码标题解码 / 不落池 + 回执在位',
     bk.added === 3 && bkCount === bkBefore + 3 && JSON.stringify(bk.tags) === '["AI工具"]'
     && bk.decoded === '习惯养成' && JSON.stringify(bk.linkTypes) === '["obsidian","url"]'
-    && bk.wsName.startsWith('🔖 书签导入') && !bk.inPool && bk.catUncat && bkReceipt,
-    `落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 台="${bk.wsName}" 落池=${bk.inPool} 回执=${bkReceipt}`)
+    && bk.wsName.startsWith('🔖 书签导入') && !bk.inPool && bk.catUncat && bookmarkPanel && bkReceipt,
+    `页签=${bookmarkPanel} 落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 台="${bk.wsName}" 落池=${bk.inPool} 回执=${bkReceipt}`)
 
   // E2E-33 ★R4-Dc 附件 keepIds 单源：真跑一次设置页「清理孤儿附件」，核四类本体的生死。
   //   这条守的是**不可恢复的物理删除**判错一次的代价：
@@ -1953,10 +1954,10 @@ async function main() {
     d.argCards.push({ id: 'e2e-hy-arg-card', kind: 'argument', statement: 'E2E 论证卡带附件', workspaceId: wsId, assets: [meta('e2e-hy-arg')], createdAt: Date.now(), updatedAt: Date.now() })
     await chrome.storage.local.set({ zy_data_v2: d })
   })
-  await page.goto(base + '#/settings?page=export', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/settings?page=data&tab=assets', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2600)
-  const hyBtn = page.locator('.gs-export-row').filter({ hasText: '清理孤儿附件' }).locator('button')
+  const hyBtn = page.locator('.gs-setting-row').filter({ hasText: '孤儿附件' }).locator('button', { hasText: '清理' }).first()
   await hyBtn.click()
   await page.waitForTimeout(900)
   /* 确认门必须在：弹窗没点掉之前一个字节都不许动（本轮补的就是这道门） */
@@ -2071,11 +2072,12 @@ async function main() {
     !de.hash.includes('/workspace/') && !de.dead && de.row && de.flash,
     `落点=${de.hash.slice(0, 46)} 非工作区死链=${!de.hash.includes('/workspace/')} 死页=${de.dead} 卡上屏=${de.row} 高亮=${de.flash}`)
 
-  // E2E-36 ★R4-Dg 池的显示名单源 + 导出 Markdown 不许漏池卡。
+  // E2E-36 ★R4-Dg 池的显示名单源 + 唯一通用导出不许漏池卡。
   //   改前的两层漏：① 台名取 workspace 实体的 name ⇒ 存量库印「资源台」（R61 留下的历史名）、新库印「未知」（根本没有那枚实体）；
   //   ② 导出按 `for (const ws of d.workspaces)` 再按「该台的分类」分组 ⇒ 池卡在新库里没有实体、
   //      而且池卡 categoryId 恒空（R179 起标签独任组织），两层 for 都接不住它们——整批池卡从导出物里静默消失。
-  //   判据：真点一次「导出MD」，读导出物本体（不是读界面）。
+  //   V3.9.23 起旧 CSV / 指定台 / Markdown 三路退役，唯一通用出口是完整数据包；
+  //   判据随之改为真点一次「导出知源调度台数据包」，读包内 resources，而不是读界面。
   const dgTitles = ['E2E-Dg 池卡甲', 'E2E-Dg 池卡乙']
   await page.evaluate((titles) => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']
@@ -2087,7 +2089,7 @@ async function main() {
     }))
     return chrome.storage.local.set({ zy_data_v2: d })
   }), dgTitles)
-  await page.goto(base + '#/settings?page=export', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/settings?page=data', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   /* 抓 Blob 而不是抓下载文件：downloadFile 走 createObjectURL + a.click()，headless 里落盘路径不可控，
@@ -2097,17 +2099,21 @@ async function main() {
     window.__dgBlob = null
     URL.createObjectURL = (b) => { window.__dgBlob = b; return orig(b) }
   })
-  const dgBtn = page.locator('button.gs-btn', { hasText: '导出MD' }).first()
+  const dgBtn = page.locator('button.gs-btn', { hasText: '导出知源调度台数据包' }).first()
   const dgClicked = (await dgBtn.count()) ? await dgBtn.click().then(() => true).catch(() => false) : false
   await page.waitForTimeout(1200)
-  const dgMd = await page.evaluate(async () => (window.__dgBlob ? await window.__dgBlob.text() : ''))
-  const dgPoolH2 = /^##\s*资源卡池\s*$/m.test(dgMd)
-  const dgTitlesIn = dgTitles.filter(t => dgMd.includes(t)).length
-  const dgOldName = dgMd.includes('资源台')
-  const dgNoCat = /^###\s*待分类\s*$/m.test(dgMd)
-  report('E2E-36 ★R4-Dg 导出 Markdown 含池卡且台名走单源（「资源卡池」，无分类的池卡落「待分类」段）',
-    dgClicked && dgPoolH2 && dgTitlesIn === dgTitles.length && !dgOldName && dgNoCat,
-    `点击=${dgClicked} 导出物长度=${dgMd.length} 资源卡池段=${dgPoolH2} 池卡入列=${dgTitlesIn}/${dgTitles.length} 待分类段=${dgNoCat} 旧名残留=${dgOldName}`)
+  const dgText = await page.evaluate(async () => (window.__dgBlob ? await window.__dgBlob.text() : ''))
+  let dgPkg
+  try { dgPkg = JSON.parse(dgText) } catch { dgPkg = null }
+  const dgRows = (dgPkg && Array.isArray(dgPkg.resources)) ? dgPkg.resources : []
+  const dgTitlesIn = dgTitles.filter(t => dgRows.some(r => r.title === t && r.workspaceId === 'zy-curation')).length
+  const dgNoAssets = dgRows.every(r => !Array.isArray(r.assets) || !r.assets.some(a => a && a.blob))
+  const dgNoAirtableSecrets = dgPkg && !Object.prototype.hasOwnProperty.call(dgPkg, 'airtableSync') && !Object.prototype.hasOwnProperty.call(dgPkg, 'airtableMap')
+  const dgEventLog = Array.isArray(dgPkg && dgPkg.eventLog) && dgPkg.eventLog.length <= 5000
+  report('E2E-36 ★R4-Dg 唯一通用导出＝知源调度台数据包：池卡全量入包 · 不含附件本体与 Airtable 凭证 · 事件上限 5000',
+    dgClicked && !!dgPkg && dgPkg.packageType === 'zhiyuan_data' && dgTitlesIn === dgTitles.length
+    && dgNoAssets && dgNoAirtableSecrets && dgEventLog,
+    `点击=${dgClicked} 包字节=${dgText.length} 类型=${dgPkg && dgPkg.packageType} 池卡入列=${dgTitlesIn}/${dgTitles.length} 无附件本体=${dgNoAssets} 无凭证=${dgNoAirtableSecrets} 事件≤5000=${dgEventLog}`)
 
   // E2E-37（R4-Pa）★应用内 ⌘K 检索面板的真跑覆盖 + 召回逐条核。
   //   ★为什么这一条必须存在：GlobalPopups.vue 那条链（allResults → blobOf/normKey → hitRank →

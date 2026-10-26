@@ -93,7 +93,9 @@ check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 ma
     /* ★右区必须 flex:none —— 舱头唯一的换行点是 .tw-head 本身（右区一旦参与换行，
        进度环/完成数/按钮组就会叠成两行，正是 W12 要修的失真） */
     && t.includes('.tw-right { display: flex; align-items: center; gap: 10px; flex: none; }')
-    && t.includes('.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }')
+    && t.includes('.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; min-width: 0; }')
+    && /<span class="mc-ops"[^>]*>[\s\S]{0,500}删除本指标[\s\S]{0,500}<button class="mc-toggle"/.test(t)
+    && !t.includes('class="mc-del"')
     && !t.includes('margin-right: 52px') && !t.includes('padding-right: 58px');
 });
 check('Bug2 标签缩进 !important 兜底', () => read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
@@ -403,15 +405,18 @@ console.log('【第卅轮 · 信件模块化/书签导入分类树 · V2.10.0】
 check('R30-1 信件节头+停顿+信念行（应用内样式）', () => read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-h') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-turn') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-creed'));
 check('R30-2 信件 HTML 模块化结构（两处渲染共享）', () => read('/newtab/letter-data.ts').includes('<p class="lp-h">') && read('/newtab/letter-data.ts').includes('<p class="lp-turn">') && read('/newtab/letter-data.ts').includes('<p class="lp-creed">'));
 check('R30-3 分享版分节样式同构', () => read('/newtab/letter-data.ts').includes('.lp-body p.lp-h'));
-check('R30-4（R73 修订；R100 拆入 composable；★R4-Db 退役重指带备案：本条守的「书签文件夹前 2 级建分类 + 同名同级复用」**整条能力按设计删除**，不是搬家——它建的分类挂在隐藏池 CURATION_WS_ID 下，而 models 明令「池卡 categoryId 恒空、hub 分类实体已由迁移器移除」，清理器又被 catsMigratedAt 幂等戳挡住不会重跑 ⇒ 触发一次就留下金字塔仍在枚举的永久残留；且它的触发钮自 V3.7.0 起全站零 .click()，是一条够不着的死链。判据转退役三条腿：① 两份实现（旧 composable 与唯一实现）剥注释后一律零命中那套建树符号；② 存活口径点名=书签层级**只进标签**（BK_ROOT_NAMES 过滤后整条 path 进 tags）+ 台内单「待分类」承接归属；③ 设置页文案照旧写明"建树导入已随资源台退役"（R169-17 同锚，两处不许互相打架）', () => {
+check('R30-4（R73 修订；R100 拆入 composable；V3.9.23 数据管理随迁）书签导入现役口径：浏览器导出的 HTML → 资源卡，文件夹层级只进标签，目标台内单「待分类」承接；旧「前 2 级建分类」与文件夹勾选弹窗继续零回流', () => {
   const bk = codeOnly(read('/newtab/composables/useBookmarkImport.ts'));
   const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
-  const gs = read('/newtab/views/GlobalSettings.vue');
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   const retired = ['function ensureBookmarkCategory', 'cat.parentId = parentId', 'segs.slice(0, 2)', 'bkFolders', 'bookmarkModalOpen'];
   return retired.every(k => !bk.includes(k) && !imp.includes(k))
     && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))') && bk.includes("name: '待分类'")
     && !bk.includes('CURATION_WS_ID') && !imp.includes('CURATION_WS_ID')
-    && gs.includes('建树导入已随资源台退役');
+    && bk.includes('parseBookmarksHtml') && bk.includes('浏览器导出的书签 HTML')
+    && dm.includes("await import('@/newtab/composables/useBookmarkImport')")
+    && dm.includes('useBookmarkImport({ d: gd, persist: () => store.persist() })')
+    && dm.includes('不读取浏览器标签页；文件夹层级写入标签');
 });
 check('R30-5（R73 修订；R100 拆入 composable；★R4-Db 重指带备案：口径由「第 3 级+转标签（前 2 级已建分类）」改成「整条路径全部转标签」——建树那条已随上一条退役，层级不再有第二处去处；本条原先那条负判据禁的正是旧设置页那枚只排 书签栏 的公式，本轮唯一实现用的就是它当初要求的那一侧：按 BK_ROOT_NAMES 八枚排净，中英文与移动端栏名都不漏进标签）书签层级→标签唯一口径', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts')); const gs = codeOnly(read('/newtab/views/GlobalSettings.vue')); return bk.includes('!BK_ROOT_NAMES.has(p)') && bk.includes("const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签'") && !bk.includes('segs.slice(2)') && !bk.includes("p !== '书签栏'") && !imp.includes("p !== '书签栏'") && !gs.includes("p !== '书签栏'") && !gs.includes('function parseBookmarksHtml'); });
 
@@ -432,7 +437,13 @@ check('R32-3 REQ-004 资源详情抽屉所属工作台字段+迁移反馈（R165
 // V3.7.0（R179）随迁重写：hub 分类退役后「分类随工作台联动」失去控件载体——分类行（CatPicker/catOptions）
 // 整体下线，卡的组织机制由「标签」（TagPicker）独任；本断言转为守退役边界（负向须先剥注释，R166 纪律）。
 check('R32-4 REQ-005 分类随工作台联动重置（V3.7.0 重指）：分类控件整体下线——表单零 select/CatPicker/catOptions，标签独任组织', () => { const f = codeOnly(read('/newtab/components/ResourceEditForm.vue')); return !f.includes('catOptions') && !f.includes('CatPicker') && !f.includes('<select') && f.includes('<TagPicker') && f.includes('model.tags'); });
-check('R32-5 REQ-006 CSV 导出含更新时间列（第卌一轮 REQ-055 起改动态列：更新时间以固定管理尾列导出）', () => { const s = read('/newtab/views/GlobalSettings.vue'); return s.includes("{ label: '更新时间', get: r => (r.updatedAt ? new Date(r.updatedAt).toISOString().slice(0, 10) : '') }"); });
+check('R32-5 ★随迁备案：REQ-006 的更新时间读数仍在卡片详情；设置页 CSV 已退役（唯一通用导出=数据包）', () => {
+  const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
+  return dm.includes('唯一通用导出') && dm.includes('不含附件本体与 Airtable 凭证')
+    && !dm.includes('更新时间') && !dm.includes('导出 CSV') && !dm.includes('resCsvValue')
+    && read('/newtab/components/ResourceEditForm.vue').includes('fmtTs')
+    && !exists('/newtab/views/settings/SettingsExportPanel.vue');
+});
 check('R32-5b REQ-006 三卡详情面板时间戳可见（R48 起好奇心 meta 精简为「捕获/更新」双行）', () => read('/newtab/components/ResourceEditForm.vue').includes('fmtTs') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('fmtTaskTs') && read('/newtab/components/compass/CuriosityPanel.vue').includes('捕获') && read('/newtab/components/compass/CuriosityPanel.vue').includes('更新 '));
 check('R32-6 REQ-007 排序偏好记忆（res/task/curio 三键）', () => read('/newtab/views/Workspace.vue').includes('sortPrefs?.res?.by') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('sortPrefs?.task?.by') && read('/newtab/components/compass/CuriosityPanel.vue').includes('sortPrefs?.curio?.dir'));
 check('R32-6b REQ-007+bug 任务排序下拉此前未生效，已补排序逻辑', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes("if (sortBy.value !== 'manual')") && read('/newtab/components/compass/TaskManagerPanel.vue').includes("sortDir.value === 'asc' ? 1 : -1"));
@@ -452,7 +463,15 @@ check('R32-17 REQ-008 工作台实体进入搜索类型 Tab 与分组计数（�
 
 console.log('【第卅三轮 · V2.12 需求包第一批：模型/Bug · REQ-023 + BUG-A~D】');
 check('R33-2 REQ-023 星标字段 starred（CardBase 一份 + 卡 extends，零迁移；V3.7.0 备案：三卡 → 四卡，+论证节点卡 ArgumentCard）', () => read('/shared/models/index.ts').split('export interface CardBase').length - 1 >= 1 && read('/shared/models/index.ts').split('extends CardBase').length - 1 === 4 && read('/shared/models/index.ts').includes('starred?: boolean'));
-check('R33-2b REQ-023 导出 CSV 补置顶/星标两列（第卌一轮 REQ-055 资源改固定管理尾列；任务 CSV 仍含两列）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const t = read('/newtab/views/CompassHome.vue'); return g.includes("{ label: '置顶', get: r => (r.pinned ? '是' : '') }") && g.includes("{ label: '星标', get: r => (r.starred ? '是' : '') }") && t.includes("t?.pinned ? '是' : ''") && t.includes("t?.starred ? '是' : ''"); });
+check('R33-2b ★随迁备案：REQ-023 的置顶/星标字段与卡面能力仍在；依赖旧设置页/任务列表 CSV 的两列导出随数据包收敛退役', () => {
+  const model = read('/shared/models/index.ts');
+  const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
+  const t = read('/newtab/views/CompassHome.vue');
+  return model.includes('pinned?: boolean') && model.includes('starred?: boolean')
+    && t.includes('t?.pinned') && t.includes('t?.starred')
+    && dm.includes('唯一通用导出') && !dm.includes('导出 CSV')
+    && !exists('/newtab/views/settings/SettingsExportPanel.vue');
+});
 check('R33-3 BUG-A 好奇置顶分组错位修复（置顶卡前置 + 组内 sortOrder/时间序）', () => read('/newtab/components/compass/CuriosityPanel.vue').includes('markRank(b) - markRank(a)') && read('/newtab/components/compass/CuriosityPanel.vue').includes("from '@/shared/utils/marksort'"));
 check('R33-4 BUG-B Ctrl+Enter 口径统一（采集浮层标题/链接去除裸 Enter 保存）', () => !read('/newtab/components/GlobalPopups.vue').includes('@keydown.enter.prevent="saveCapture"') && read('/newtab/components/GlobalPopups.vue').includes('<Icon name="save" :size="13"/> 保存（Ctrl+Enter）'));
 check('R33-5（V3.9.9 随迁）新建子分类死链退役：建支只由节点 Tab / Enter 触发，父级 id 直接写入 Category.parentId，旧侧栏弹窗与节点建支按钮零回流', () => {
@@ -640,7 +659,16 @@ check('R36-3 REQ-038-③ 容量水位显示（getBytesInUse + UI bytesInUse）',
 check('R36-4 REQ-038-③ unlimitedStorage 运行时检测 hasUnlimitedStorage', () => { const a = read('/shared/storage/repository.ts'); return a.includes('hasUnlimitedStorage') && a.includes('getManifest'); });
 check('R36-5 REQ-038-④ 备份提醒 UI 偏好字段已建模（backupReminderEnabled / lastBackupAt）', () => { const src = read('/shared/models/index.ts'); return src.includes('backupReminderEnabled?') && src.includes('lastBackupAt?') && src.includes('backupReminderSnoozedAt?'); });
 check('R36-6 REQ-038-④ 顶栏备份提醒红点（30 天未导出 或 容量 > 50MB[第卅八轮自 5MB 上调]，显示 .bell-dot）', () => { const src = read('/newtab/App.vue'); return src.includes('backupReminderDot') && src.includes('BACKUP_REMIND_DAYS = 30') && src.includes('BACKUP_REMIND_BYTES = 50 * 1024 * 1024') && src.includes('bell-dot'); });
-check('R36-7 REQ-038-④ 导出动作写入 lastBackupAt（markBackupNow 在四个 export 函数内）', () => { const src = read('/newtab/views/GlobalSettings.vue'); return src.includes('function markBackupNow') && (src.match(/markBackupNow\(\)/g) || []).length >= 4; });
+check('R36-7 REQ-038-④ 导出动作写入 lastBackupAt（数据管理收口：唯一通用导出成功后落时间戳）', () => {
+  const src = read('/newtab/views/settings/SettingsDataManagement.vue');
+  const start = src.indexOf('async function exportPackage()');
+  const end = src.indexOf('\nfunction ', start + 1);
+  const body = start >= 0 && end > start ? src.slice(start, end) : '';
+  return body.includes('const exportedAt = Date.now()')
+    && body.includes('lastBackupAt.value = exportedAt')
+    && body.includes('saveUIPrefs({ lastBackupAt: exportedAt })')
+    && body.includes('知源数据包已导出');
+});
 check('R36-8 REQ-038-② App.vue 订阅保存错误转发 Toast（R159：错误态带下一步动作）', () => { const src = read('/newtab/App.vue'); return src.includes('subscribeSaveError') && src.includes('数据保存失败'); });
 
 console.log('【第卅六轮 · V2.14.1 第二批：REQ-039 全局搜索交互统一（P1 方案）】');

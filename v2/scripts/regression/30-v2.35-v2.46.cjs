@@ -118,7 +118,12 @@ check('R66-2（V3.9.8 随迁备案）金字塔直角连线：旧 SVG 路径字�
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children::before')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
 });
-check('R66-3（R156 解析改写）全量导出附 uiPrefs + 导入自动应用：exportAll 载入 UI 偏好并入包，导入侧落 data-theme（经 resolveTheme 解析 auto）/data-density', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('async function exportAll') && g.includes('loadUIPrefs') && g.includes('{ ...safeData, uiPrefs }') && g.includes("document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))") && g.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })") && g.includes('界面偏好已应用'); });
+check('R66-3（R156 解析改写 · G2 随迁）全量数据包附 uiPrefs + 导入自动应用：设置页载入 UI 偏好并入包，导入侧落 data-theme（经 resolveTheme 解析 auto）/data-density', () => {
+  const dm = read('/newtab/views/settings/SettingsDataManagement.vue'); const dp = read('/newtab/views/settings/dataPackage.ts');
+  return dm.includes('async function currentPackage()') && dm.includes('buildDataPackage(store.data!, log, ui)') && dm.includes('loadUIPrefs()')
+    && dp.includes('uiPrefs?: Record<string, unknown>') && dp.includes('applyDataPackageUIPrefs')
+    && dp.includes("document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))") && dp.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })");
+});
 check('R66-4 ★R4-Da 退役重指带备案：原守「资源台全景递归 N 级：panTree 的 toNode 递归 + flattenPanCats 扁平行渲染（折叠沿祖先链）+ row.depth * 14 缩进」——🗺 全景整页随资源台退役删除。四件事（多级递归 / 扁平序列 / 折叠沿祖先链 / 按层缩进）在两个存活管理面都还在，判据按它们点名：① 策展台分类树 useCatSidebar（sidebarCats 递归 pushTree depth+1 + seenSide 防环 = 扁平序列；selectSidebarCat 沿 parentId 上行走链展开祖先；卡片/列表视图按 g.depth * 16 缩进）② 设置页标签树按 tagDepth 缩进；panTree/toNode/flattenPanCats/panCollapsed 在 GS 按 codeOnly 零命中', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
   const ws = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
@@ -265,9 +270,11 @@ check('R70-4 P0 策展台递归防护 + 金字塔环内节点不再静默丢失'
     && m.includes('if (descendants.has(child.id)) continue');
 });
 check('R70-5 P1 导出与自动备份剥离 Airtable 凭证', () => {
-  const gs = read('/newtab/views/GlobalSettings.vue'); const w = read('/newtab/views/Workspace.vue');
-  const n = (gs.match(/delete \w+\.airtableSync/g) || []).length + (w.match(/delete \w+\.airtableSync/g) || []).length;
-  return n >= 4;
+  const dp = read('/newtab/views/settings/dataPackage.ts');
+  return dp.includes('export function buildDataPackage(')
+    && dp.includes('delete safe.airtableSync')
+    && dp.includes('delete safe.airtableMap')
+    && dp.includes('export function buildSafeBackup(');
 });
 check('R70-6 P1 全局搜索结果集排除资源台本体', () => {
   return read('/newtab/components/GlobalPopups.vue').includes('d.value.workspaces.filter(w => !w.archived && w.id !== CURATION_WS_ID)');
@@ -633,7 +640,8 @@ check('R74-7（V3.9.8 重指）镜像卡同树呈现：boardCardsOf 先并入 al
     && hook.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>(() => {')
     && hook.includes('for (const r of allResources.value)')
     && node.includes('return props.cardsByCat.get(props.node.id) || []')
-    && node.includes('<span v-for="card in cards().slice(0, 2)"');
+    && node.includes('<span v-for="card in cards()"')
+    && !node.includes('mind-resource-more');
 });
 // V3.7.0（R179）退役：hub 镜像推送入口（卡面 📡 / 分类 ⋯ 📤 / 目标台弹窗）随资源台退役整体下线——
 // 宿主 Workspace.vue 与 useWorkspaceMirror.ts 双清；策展台内镜像**引用侧**（📡 徽标 / 定位 / 移出）仍在。
@@ -803,7 +811,7 @@ check('R76-3（V3.9.8 重指）分类计数不再聚合/直属三元混用：画
   return !w.includes('{{ sc.directCount }}')
     && !w.includes('sc.hasChildren ? sc.aggCount : sc.directCount')
     && node.includes('return props.cardsByCat.get(props.node.id) || []')
-    && node.includes('<span v-for="card in cards().slice(0, 2)"')
+    && node.includes('<span v-for="card in cards()"')
     && pool.includes('{{ sec.cards.length }} 张');
 });
 check('R76-4（V3.9.8 重指）分页只影响渲染集，不影响计数：列表/网格均渲染 rendered，头部仍显示 poolCards.length / poolTotal', () => {
@@ -823,8 +831,9 @@ check('R76-5（V3.9.8 重指）画布节点计数不再并列三套口径：节�
     && !w.includes('共 {{ g.total }}')
     && node.includes('{{ children().length ? `${children().length} 个子分支` : \'论证节点\' }}')
     && node.includes('return props.cardsByCat.get(props.node.id) || []')
-    && node.includes('v-if="cards().length > 2"')
-    && node.includes('{{ cards().length - 2 }}');
+    && node.includes('v-for="card in cards()"')
+    && !node.includes('mind-resource-more')
+    && !node.includes('cards().length - 2');
 });
 check('R76-6（V3.9.8 重指）计数入口保留口径说明：资源池筛选胶囊带 title（全部/待打标/已调出/从未调出），下钻待分类行走统一 isUncat 口径', () => {
   const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));

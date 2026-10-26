@@ -218,17 +218,22 @@ check(NAME(
 /* ══════════════ D1-6 · 断点行为（否决不存在的"筛选/收藏"） ══════════════ */
 
 check(NAME(
-  'D1-6 ★断点行为守真实现：RecycleBinView 在 KeepAlive 白名单里（切走再回来 tab 状态不丢）；且**不得**凭空长出收藏/时间筛选',
+  'D1-6（V3.9.23 随迁）★回收站取消独立路由与二级页面，直接内嵌设置页右侧；旧 /recycle 深链重定向到设置页，组件仍不得凭空长出收藏/时间筛选',
   '规范原文写「筛选（类型/时间）保持收藏的断点行为」，但回收站**既没有收藏也没有时间筛选**——',
   '核过源码：favorite / dateFrom / sortBy / filter 零命中，只有五个分区 tab。',
   '★照抄会给用户一个不存在的承诺。故本条改为守真正存在的断点：KeepAlive 白名单（那是 tab 跨路由不丢的地基，',
   '★名字被移出白名单就静默失效），并对"收藏/时间筛选"立负锚，防止有人照着规范真去造一个。'), () => {
   const APP = read('/newtab/App.vue')
-  if (!/keep-alive[^>]*include="[^"]*RecycleBinView/.test(APP)) {
-    console.log('RecycleBinView 不在 KeepAlive 白名单（切走回来 tab 会丢）'); return false
+  const GS = read('/newtab/views/GlobalSettings.vue')
+  const ROUTER = read('/newtab/router.ts')
+  if (!GS.includes('<RecycleBin v-else-if="activePage === \'recycle\'" embedded')) {
+    console.log('回收站未内嵌到设置页右侧内容区'); return false
   }
-  if (!RB.includes("defineOptions({ name: 'RecycleBinView' })")) {
-    console.log('组件名与 KeepAlive 白名单不一致（include 按名匹配，对不上等于没缓存）'); return false
+  if (!ROUTER.includes("path: '/recycle'") || !ROUTER.includes("redirect: { path: '/settings', query: { page: 'recycle' } }")) {
+    console.log('旧 /recycle 深链未重定向到设置页内嵌回收站'); return false
+  }
+  if (!APP.includes('GlobalSettingsView')) {
+    console.log('设置页宿主不在 KeepAlive 白名单'); return false
   }
   if (/\b(favorite|favorited|dateFrom|sortBy|filterBy)\b/.test(RBC)) {
     console.log('回收站长出了收藏/时间筛选——规范原文指向的功能并不存在，别照抄'); return false

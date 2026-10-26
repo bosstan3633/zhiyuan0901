@@ -61,7 +61,14 @@ const searchQuery = ref('')
 
 // 高亮定位（B4：搜索好奇卡结果跳转；R51：声明顺序修复——viewMode/statusFilter 须先于 immediate watcher）
 const highlightId = ref<string | null>(null)
-const viewMode = ref<'card' | 'list' | 'kanban'>('card')
+const viewMode = ref<'card' | 'list' | 'kanban'>(
+  store.ui?.curioViewMode || (props.secondaryMode ? 'list' : 'card')
+)
+function setViewMode(next: 'card' | 'list' | 'kanban'): void {
+  viewMode.value = next
+  if (store.ui) store.ui.curioViewMode = next
+  saveUIPrefs({ curioViewMode: next })
+}
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.curio；网格模板由 --grid-cols 驱动）
 const curioCols = useCardCols('curio', store.ui)
 /** R3-Cc2：控制行值域配置（视图三档 + 状态胶囊带计数由 statusCounts 现算） */
@@ -79,7 +86,6 @@ watch(() => route.query.hl, (hl) => {
   if (hk && hk !== 'curio') return
   highlightId.value = hl
   statusFilter.value = 'all'
-  viewMode.value = 'card'
   setTimeout(() => {
     const el = document.querySelector(`[data-czid="${hl}"]`)
     if (el) {
@@ -590,7 +596,7 @@ function srcShort(url: string): string {
       <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->
       <DeckControls panel="curio" search search-ph="搜索好奇心..." :query="searchQuery" @search="searchQuery = $event"
         :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
-        :views="CURIO_VIEWS" :view="viewMode" @view="viewMode = $event as 'card' | 'list' | 'kanban'"
+        :views="CURIO_VIEWS" :view="viewMode" @view="setViewMode($event as 'card' | 'list' | 'kanban')"
         :sort-dir="sortDir" :sort-dir-titles="['捕获时间倒序（新→旧），点击切换正序', '捕获时间正序（旧→新），点击切换倒序']" @sort-dir="toggleSortDir"
         :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
         <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
@@ -614,8 +620,14 @@ function srcShort(url: string): string {
         <Icon name="package" :size="13"/> 另有 {{ archivedHintCount }} 张已归档好奇卡未显示（点此在 设置 › 总览 · 资源生命周期 中查看 / 恢复）
       </div>
 
+      <!-- 零结果空态独立于视图链，避免打断 v-if / v-else-if 导致卡片与看板同时渲染。 -->
+      <EmptyState v-if="!filtered.length" class="cz-empty" size="section" icon="bulb"
+        :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
+        :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。'"
+        :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
+
       <!-- 卡片视图 -->
-      <div v-if="viewMode === 'card'" class="cz-groups">
+      <div v-else-if="viewMode === 'card'" class="cz-groups">
         <section v-for="g in curioGroups" :key="g.id" class="cz-group">
           <div class="cz-group-head">
             <button class="cz-group-label cz-group-toggle" :aria-expanded="!isGroupCollapsed(g.id)"
@@ -671,12 +683,6 @@ function srcShort(url: string): string {
           </div>
         </section>
       </div>
-        <!-- G3（V3.8.27）：好奇心池零结果改走 EmptyState；class 保留为网格跨列锚点 -->
-        <EmptyState v-if="!filtered.length" class="cz-empty" size="section" icon="bulb"
-          :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
-          :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。'"
-          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
-
       <!-- 列表视图 -->
       <div v-else-if="viewMode === 'list'" class="cz-list">
         <section v-for="g in curioGroups" :key="g.id" class="cz-group">
@@ -691,6 +697,7 @@ function srcShort(url: string): string {
           <template v-if="!isGroupCollapsed(g.id)">
         <template v-for="c in g.items" :key="c.id">
           <div class="cz-list-item" v-pressable draggable="true"
+            :data-czid="c.id"
             @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
             @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
             @dragover.prevent="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop="onCzDrop($event, c.id)"
@@ -715,10 +722,6 @@ function srcShort(url: string): string {
             </div>
           </div>
         </template>
-        <EmptyState v-if="!filtered.length" icon="bulb"
-          :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
-          :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集（支持先选中网页文字）。'"
-          :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
           </template>
         </section>
       </div>
@@ -733,6 +736,7 @@ function srcShort(url: string): string {
           </div>
           <div class="cz-kanban-body">
             <div v-for="c in col.items" :key="c.id" class="cz-kanban-card" v-pressable :class="{'drop-line-t': dropMark===c.id+'-t', 'drop-line-b': dropMark===c.id+'-b'}" draggable="true"
+              :data-czid="c.id"
               @click="onCardClick(c.id)" @dblclick="onCardDblClick(c)"
               @dragstart="onCzDragStart($event, c.id)" @dragend="onCzDragEnd"
               @dragover.prevent.stop="markDrop($event, c.id, 'y')" @dragleave="clearDropMark" @drop.stop="onCzDrop($event, c.id, col.status)">

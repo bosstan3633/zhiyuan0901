@@ -609,6 +609,8 @@ export interface ActivityLog {
 export interface UIPrefs {
   theme: string
   viewMode: 'list' | 'kanban' | 'card'
+  /** 好奇心卡二级页视图；未写入 = 尚未手动选择（首次默认列表）。 */
+  curioViewMode?: 'card' | 'list' | 'kanban'
   tcSplitRatio: number
   /* R2-⑥：curSplit / spotSplit 两键随「项目调度卡」退役（R2-②）失去全部消费方后删除。
      老库里残留的这两个键不影响读取（UIPrefs 是宽松对象，多余键随写盘原样带回，无人读它）。 */

@@ -9,35 +9,43 @@ const { fs, path, base, check, read, codeOnly, exists, LANE, TOWER, PANO, PANO_L
 console.log('【V3.8.21 · 方向台 F1–F5 + 调度台 P4】');
 
 // ────────────────────────── F1 指标删除入口下沉 ──────────────────────────
-check('F1-1 ★删除成功指标的真源只有一个（compassCrud.removeMetricWithConfirm），指标卡 hover 🗑 与指标行「⋯」菜单只是**上抛入口**：项目塔与全景泳道两套卡头都要（用户拍板"两处都做"），项目舱「⋯」菜单不放指标删除（那是项目级菜单，删指标是指标级动作，混进去会把删除链藏深一层）。判据钉：① 两个卡头组件各两处 emit(\'delMetric\'（hover 钮 + 菜单项）② 项目舱菜单零 delMetric ③ 宿主 delMetricById 真调 removeMetricWithConfirm（确认报数 + 撤销是这条真源的两条腿，丢了就等于绕过防呆）', () => {
+check('F1-1（V3.9.23 随迁）删除成功指标的真源只有一个（compassCrud.removeMetricWithConfirm），项目塔与项目全景两处都只从「⋯」菜单上抛 delMetric，主行不再露删除钮；项目舱菜单不放指标删除，宿主仍走确认与撤销', () => {
   const lane = codeOnly(LANE)
   const pl = codeOnly(PANO_LANE)
   const tw = codeOnly(TOWER)
   const tr = codeOnly(CT_W11)
-  /* ① 两套卡头：hover 钮 + 「⋯」菜单项各一次 emit */
+  /* ① 两套卡头：删除只从「⋯」菜单上抛，主行不再露删除钮 */
   const laneDel = (lane.match(/emit\('delMetric'/g) || []).length
   const plDel = (pl.match(/emit\('delMetric'/g) || []).length
   /* ② 项目舱菜单（项目级）零指标删除 */
   const menu = tw.slice(tw.indexOf('class="tw-menu"'), tw.indexOf('class="tw-body"'))
   /* ③ 宿主真源 */
-  return laneDel === 2 && plDel === 2
+  return laneDel === 1 && plDel === 2
+    && !/class="mc-del"/.test(lane)
+    && lane.includes('class="mc-menu"')
+    && pl.includes('class="lo-del"') && pl.includes('class="lo-menu"')
     && !menu.includes('delMetric') && !menu.includes('删除本指标')
     && tr.includes('function delMetricById(')
     && tr.includes('removeMetricWithConfirm(d.value, metricId, () => store.persist())')
     && (tr.match(/@del-metric="delMetricById"/g) || []).length === 2
     && tr.includes("import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm");
 });
-check('F1-2 ★删除入口必须 hover/focus 才显形（两套卡头同一条交互决策，不是"某一版做了另一版忘了"）：指标卡 .mc-del 与泳道头 .lo-del 都进 opacity:0 基线 + :hover/:focus-visible 显形组 —— 且都并进**原有**的 hover 组（不新开一条常驻规则，否则指标名又会被挤到换行）。判据钉两组件各自的基线声明与 hover 选择器组都在', () => {
+check('F1-2（V3.9.23 随迁）成功指标操作区 hover/focus 才显形，收起/展开固定在最右；删除只藏在「更多」内，不再作为主行常驻钮', () => {
   const lane = codeOnly(LANE)
   const pl = codeOnly(PANO_LANE)
-  const laneBase = /\.mc-add, \.mc-ai, \.mc-del, \.mc-more \{[^}]*opacity: 0/.test(lane)
-    && /\.metric-card:hover \.mc-add, \.metric-card:hover \.mc-ai, \.metric-card:hover \.mc-del, \.metric-card:hover \.mc-more/.test(lane)
+  const laneBase = /\.mc-add, \.mc-ai, \.mc-more \{[^}]*opacity: 0/.test(lane)
+    && /\.metric-card:hover \.mc-add, \.metric-card:hover \.mc-ai, \.metric-card:hover \.mc-more/.test(lane)
   const plBase = /\.lo-del, \.lo-more \{[^}]*opacity: 0/.test(pl)
     && /\.lane:hover \.lo-del, \.lane:hover \.lo-more/.test(pl)
   /* 键盘可达：hover 化不能把无鼠标用户挡在门外（两套卡头各钉一次） */
-  const a11y = (lane.includes('mc-del:focus-visible') || lane.includes('mc-add:focus-visible'))
-    && pl.includes('lo-del:focus-visible')
-  return laneBase && plBase && a11y;
+  const a11y = lane.includes('mc-more:focus-visible')
+    && pl.includes('lo-del:focus-visible') && pl.includes('lo-more:focus-visible')
+  return laneBase && plBase && a11y
+    && lane.includes('class="mc-more"')
+    && lane.includes('class="mc-menu"')
+    && lane.includes('class="mc-toggle"')
+    && !lane.includes('class="mc-del"')
+    && lane.indexOf('class="mc-menu"') < lane.indexOf('class="mc-toggle"');
 });
 
 // ────────────────────────── F2 项目模板导入（解析粒度下移一级） ──────────────────────────

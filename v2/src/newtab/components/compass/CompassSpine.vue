@@ -207,7 +207,8 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-sub);
 }
 .spine-t {
-  font-size: var(--fs-sub); font-weight: 700; color: var(--text);
+  /* 与下方主攻项目标题（CompassTower .tw-name-t）保持同一字阶与字重。 */
+  font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em;
   display: flex; align-items: baseline; gap: 7px;
 }
 .spine-en {
@@ -237,6 +238,11 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 }
 .spine-toggle:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .spine-toggle-caret { color: var(--text-3); font-size: 9px; }
+
+@media (max-width: 800px) {
+  /* CompassTower 在同断点把项目名降到 body 档；骨架标题同步跟随。 */
+  .spine-t { font-size: var(--fs-body); }
+}
 
 .spine-b { padding: 10px 14px 11px; display: flex; flex-direction: column; gap: 9px; }
 

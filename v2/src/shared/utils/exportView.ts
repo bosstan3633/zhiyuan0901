@@ -255,7 +255,8 @@ export interface DailyReportShareSpec {
   sub: string
   summary: string
   kpis: { label: string; value: string; note?: string }[]
-  rows: { time: string; label: string; title: string }[]
+  /** href 仅在调用方确认是资源卡原始链接时传入；任务/系统行保持纯文本。 */
+  rows: { time: string; label: string; title: string; href?: string }[]
   footer: string
 }
 
@@ -266,7 +267,9 @@ export function dailyReportShareHtml(spec: DailyReportShareSpec): string {
       k.note ? `<div class="kn">${escHtml(k.note)}</div>` : ''}</div>`).join('')
   const rowHtml = spec.rows.length
     ? spec.rows.map(r =>
-      `<div class="row"><span class="tm">${escHtml(r.time)}</span><span class="lb">${escHtml(r.label)}</span><span class="ti">${escHtml(r.title)}</span></div>`).join('')
+      `<div class="row"><span class="tm">${escHtml(r.time)}</span><span class="lb">${escHtml(r.label)}</span><span class="ti">${
+        r.href ? `<a href="${escHtml(r.href)}" target="_blank" rel="noopener noreferrer">${escHtml(r.title)}</a>` : escHtml(r.title)
+      }</span></div>`).join('')
     : '<p class="empty">这一天没有操作记录。</p>'
   const now = new Date()
   const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -296,7 +299,9 @@ h1{font-size:22px;font-weight:700;margin:0 0 6px}
 .row:first-of-type{border-top:0}
 .tm{color:${c.fg2};font-family:ui-monospace,Consolas,monospace;font-size:12px;width:46px;flex:none}
 .lb{font-weight:600;font-size:12px;width:52px;flex:none}
-.ti{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ti{font-size:13px;min-width:0;overflow-wrap:anywhere}
+a{color:${c.acc};text-decoration:underline;text-underline-offset:2px}
+a:hover{color:${c.fg}}
 .empty{color:${c.fg2};font-size:13px;margin:0}
 .foot{color:${c.fg2};font-size:11px;margin:22px 0 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 </style>
@@ -305,7 +310,7 @@ h1{font-size:22px;font-weight:700;margin:0 0 6px}
 <div class="wrap">
   <h1>${escHtml(spec.title)}</h1>
   <p class="sub">${escHtml(spec.sub)}</p>
-  <p class="summary">${spec.summary}</p>
+  <p class="summary">${escHtml(spec.summary)}</p>
   <div class="kpis">${kpiHtml}</div>
   <div class="panel">
     <p class="ptitle">当日操作流水</p>

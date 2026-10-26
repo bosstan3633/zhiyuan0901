@@ -21,6 +21,7 @@ const { check, read } = require('./helpers.cjs');
 const GS = read('/newtab/views/GlobalSettings.vue');
 const APP = read('/newtab/App.vue');
 const RB = read('/newtab/views/RecycleBin.vue');
+const DM = read('/newtab/views/settings/SettingsDataManagement.vue');
 
 console.log('【B4 · V3.8.29：设置与破坏性（S1 / S2 / S3 / S4 / D2）】');
 
@@ -66,10 +67,11 @@ check('S2-2 错误字段级内联：有 is-invalid 与 gs-field-err 两条规则
 });
 
 check('S2-3 字段级校验有真规则：PAT 以 pat / Base 以 app / Table 以 tbl 三条前缀判据都在脚本里（且只在「填了但格式错」时触发）', () => {
-  return GS.includes("!pat.startsWith('pat')")
-    && GS.includes("!base.startsWith('app')")
-    && GS.includes("!tbl.startsWith('tbl')")
-    && GS.includes('if (pat && !pat.startsWith');
+  return DM.includes("!pat.startsWith('pat')")
+    && DM.includes("!base.startsWith('app')")
+    && DM.includes("!tbl.startsWith('tbl')")
+    && DM.includes('if (pat && !pat.startsWith')
+    && DM.includes('gs-field-err');
 });
 
 check('S2-4 主行动唯一 accent：八区的主按钮一律 gs-btn-primary（危险区走 gs-btn-danger），不存在第二种主行动样式', () => {
@@ -142,9 +144,9 @@ check('S3-3 凭据不回显：不再把 storage 里的 PAT 灌回输入框（typ
 });
 
 check('S3-4 已保存要说得出来：输入框 placeholder 在已存过凭据时改为「不回显 · 替换请重填」，并有一行说明为什么', () => {
-  return GS.includes('已保存（不回显）· 替换请直接重填')
-    && GS.includes('已保存，替换需重填（原值不回显，避免凭据被复制）')
-    && GS.includes('type="password"');
+  return DM.includes('已保存（不回显）· 替换请直接重填')
+    && DM.includes('已保存，替换需重填（原值不回显，避免凭据被复制）')
+    && DM.includes('type="password"');
 });
 
 check('S3-5 按钮可用性跟着凭据走：测试与同步在「已存过 PAT」时也可点（不能要求每次重填才能测），未填且未存才禁用', () => {

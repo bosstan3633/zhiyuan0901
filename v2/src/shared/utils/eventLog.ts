@@ -114,6 +114,23 @@ export function initEventLog(raw: unknown): void {
   if (!dirty && Array.isArray(raw)) logCache = raw as CardEvent[]
 }
 
+/**
+ * 数据包合并用：把导入包中的事件与本地日志按事件 ID 并集，按时间保留最近 5000 条。
+ * 这里直接更新内存缓存并立即落盘，避免导入完成后的 next save 又用旧缓存覆盖导入结果。
+ */
+export async function mergeImportedEventLog(incoming: unknown): Promise<{ imported: number; kept: number }> {
+  const incomingList = Array.isArray(incoming) ? incoming as CardEvent[] : []
+  const cur = await readEventLog()
+  const byId = new Map<string, CardEvent>()
+  for (const e of cur) if (e && typeof e.id === 'string') byId.set(e.id, e)
+  for (const e of incomingList) if (e && typeof e.id === 'string') byId.set(e.id, e)
+  const merged = trimLog([...byId.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0)))
+  logCache = merged
+  dirty = true
+  await flushEventLogNow()
+  return { imported: incomingList.length, kept: merged.length }
+}
+
 /** 事件入队：热路径纯内存追加（随下次整库 set）；冷路径串行读改写后立即落盘并建缓存 */
 function enqueue(events: CardEvent[]): void {
   if (!events.length) return

@@ -73,10 +73,9 @@ const router = createRouter({
       meta: { title: '全局设置' }
     },
     {
+      // 独立回收站入口退役：旧链接统一落到设置页右侧内嵌回收站。
       path: '/recycle',
-      name: 'recycle',
-      component: () => import('./views/RecycleBin.vue'),
-      meta: { title: '回收站' }
+      redirect: { path: '/settings', query: { page: 'recycle' } }
     },
     {
       path: '/manual',

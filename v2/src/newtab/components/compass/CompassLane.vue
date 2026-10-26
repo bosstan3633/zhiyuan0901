@@ -103,9 +103,6 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         <span class="mc-track"><i class="mc-fill" :style="{ width: m.pct + '%' }" /></span>
         <b class="mc-pct" :class="{ full: m.pct === 100 }">{{ m.done }}/{{ m.total }} · {{ m.pct }}%</b>
       </span>
-      <button class="mc-toggle" :aria-expanded="open" @click="emit('toggle', m.id)">
-        {{ open ? '收起 ▾' : '展开 ▸' }}
-      </button>
       <button class="mc-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
       <!-- ★R135-4（能力保留）：任务层 AI 入口 —— 六入口之一，删了判据红就是能力丢不是判据的问题 -->
       <button class="mc-ai" title="AI 依本成功指标拆解支撑步骤（查重后采纳才创建）" @click="emit('aiTask', m.id)"><Icon name="sparkle" :size="13"/></button>
@@ -118,12 +115,15 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       <!-- ★F1：hover 🗑 + 「⋯」菜单 —— 与「＋任务」「✦」同一套 hover 显形。
            删除走真源 removeMetricWithConfirm（报数确认→任务转未关联→撤销），这里只上抛。 -->
       <span class="mc-ops" data-a11y-container @click.stop>
-        <button class="mc-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
         <button class="mc-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
         <span v-if="menuFor === m.id" class="mc-menu" data-a11y-container @click.stop>
           <button class="mcm-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
         </span>
       </span>
+      <!-- 收起 / 展开固定在指标行最右侧；删除收在「更多」里，不占主行。 -->
+      <button class="mc-toggle" :aria-expanded="open" @click="emit('toggle', m.id)">
+        {{ open ? '收起 ▾' : '展开 ▸' }}
+      </button>
     </header>
 
     <p v-if="m.acceptance" class="mc-acc">
@@ -183,7 +183,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   transition: background var(--dur);
 }
 .metric-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
-.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; min-width: 0; }
 .mc-dot {
   color: var(--text-4); font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -194,6 +194,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mc-title {
   font-size: var(--fs-sub); font-weight: 700; color: var(--text);
   flex: 1; min-width: 0; line-height: 1.45;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* ★就地改名态：与树内 .node-title.editable 同一视觉（虚线下划 + 光标），四层节点改名手感一致 */
 .mc-title.editable { cursor: text; border-bottom: 1px dashed transparent; }
@@ -237,17 +238,17 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mc-detail:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 /* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释）
    ★F1：删除 🗑 与「⋯」并入同一套 hover 显形 —— 不新增常驻位，指标头不因删除入口变挤 */
-.mc-add, .mc-ai, .mc-del, .mc-more {
+.mc-add, .mc-ai, .mc-more {
   font-size: var(--fs-micro); color: var(--text-3);
   padding: 2px 7px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
-  opacity: 0; border: 1px solid transparent; background: transparent;
+  opacity: 0; border: 1px solid transparent; background: transparent; white-space: nowrap;
 }
 .mc-add { border: 1px solid var(--border); background: var(--surface); }
-.metric-card:hover .mc-add, .metric-card:hover .mc-ai, .metric-card:hover .mc-del, .metric-card:hover .mc-more,
-.mc-add:focus-visible, .mc-ai:focus-visible, .mc-del:focus-visible, .mc-more:focus-visible { opacity: 1; }
+.metric-card:hover .mc-add, .metric-card:hover .mc-ai, .metric-card:hover .mc-more,
+.mc-add:focus-visible, .mc-ai:focus-visible, .mc-more:focus-visible { opacity: 1; }
 .mc-add:hover { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent-light); }
 .mc-ai:hover { color: var(--accent-ink); background: var(--accent-light); }
-.mc-del:hover, .mc-more:hover { color: var(--danger); background: var(--danger-bg-soft); }
+.mc-more:hover { color: var(--accent-ink); background: var(--accent-light); }
 .mc-more.on { opacity: 1; color: var(--accent-ink); background: var(--accent-light); }
 /* ★F1 指标「⋯」菜单：与项目舱菜单同一套下拉语言（绝对定位 + surface 卡） */
 .mc-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
@@ -318,8 +319,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
    ★V3.9.19（04-73 D-2 断点收敛）：480 档并入 800；.tk-row 窄屏 padding 覆盖撤掉——密度令牌已接通，再写字面量等于把紧凑档挡在窄屏之外。 */
 @media (max-width: 800px) {
   .mc-head { gap: 6px; }
-  .mc-title { flex-basis: calc(100% - 26px); }
-  .mc-bar { width: 100%; margin-left: 0; margin-top: 2px; }
+  .mc-title { flex-basis: auto; }
+  .mc-bar { width: auto; margin-left: auto; margin-top: 0; }
   .mc-track { flex: 1; width: auto; }
   .mc-detail { order: 8; }
   .mc-toggle, .mc-detail { min-height: 30px; }
