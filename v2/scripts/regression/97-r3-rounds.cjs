@@ -130,7 +130,8 @@ check('R3-B′ ★目标级入口上收页头：＋添加战略目标 与 建议
   const iRow = t.indexOf('<CompassLayerPanel')
   const iTower = t.indexOf('class="tower-list"')
   const layer = iRow >= 0 && iTower > iRow ? t.slice(iRow, iTower) : ''
-  return head.includes('addDirection') && head.includes("aiChain('directions'") && !!layer && !layer.includes('addDirection')
+  return head.includes('openDirectionCreate') && head.includes("aiChain('directions'")
+    && !!layer && !layer.includes('openDirectionCreate')
 });
 function pc0() { return read('/newtab/views/ProjectCuration.vue') }
 

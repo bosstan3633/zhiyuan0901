@@ -37,8 +37,8 @@ const emit = defineEmits<{
    *  这条此前**从未接上**——泳道里任务标题只是个 div，点了没反应（W11-10 断言本轮重指时暴露）。
    *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
   (e: 'openDetail', taskId: string): void
-  /** V3.9.15：任务行直接软删进回收站，无需二次确认。 */
-  (e: 'deleteTask', taskId: string): void
+  /** V3.9.22：方向台任务行只解绑，不删除任务本体。 */
+  (e: 'unbindTask', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
   /** 打开指标详情（与项目塔指标卡同一出口） */
   (e: 'openMetric', metricId: string): void
@@ -124,7 +124,7 @@ function priOf(t: TaskCard): string {
              推断——层级是排列出来的，不是连出来的。现给任务区加一条左轨 + 每行一个分支点，
              让归属成为视觉事实（与项目塔 W11 已有的「归属轨道」同一套语言）。 -->
         <div class="lane-spine" aria-hidden="true"></div>
-        <div v-for="t in m.tasks" :key="t.id" class="ltask" :class="statusOf(t)">
+        <div v-for="t in m.tasks" :key="t.id" class="ltask" :class="statusOf(t)" :data-task="t.id">
           <span class="ltask-node" aria-hidden="true"></span>
           <button
             class="ltask-box" :class="statusOf(t)"
@@ -141,7 +141,7 @@ function priOf(t: TaskCard): string {
           <div class="ltask-ops">
             <span class="lb lb-pri">{{ priOf(t) }}</span>
             <button class="lb lb-g" :style="{ color: gradeColorVar(gradeOf(t)) }" :title="`成熟度等级 ${gradeOf(t)} · 点击看详情`" @click="emit('taskGrade', t.id)">{{ gradeOf(t) }}</button>
-            <button class="lb-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click.stop="emit('deleteTask', t.id)"><Icon name="trash" :size="12"/></button>
+            <button class="lb-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click.stop="emit('unbindTask', t.id)"><Icon name="x" :size="12"/></button>
           </div>
         </div>
       </template>
@@ -333,14 +333,7 @@ function priOf(t: TaskCard): string {
   background: var(--surface-3); border: 0; font-family: inherit; letter-spacing: .04em;
   cursor: pointer; min-height: 28px; min-width: 28px; padding: 4px 6px;
 }
-.lb-del {
-  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
-  border: 1px solid transparent; border-radius: 4px;
-  background: transparent; color: var(--text-2); cursor: pointer;
-  opacity: .55; transition: all var(--dur);
-}
-.ltask:hover .lb-del, .lb-del:focus-visible { opacity: 1; }
-.lb-del:hover { color: var(--danger); background: var(--danger-bg-soft); }
+/* V3.9.22: task rows only expose unbind; .lb-unbind above owns that action. */
 
 /* ★空泳道：缺任务也占位，"缺"必须在全景里同样可见。
    ★视觉聚焦：从"虚线告警框"改为"带色轨的行动提示"——虚线圈+圆角+底色叠起来像一块出错的卡，

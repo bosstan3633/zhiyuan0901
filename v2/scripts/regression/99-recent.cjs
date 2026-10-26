@@ -81,7 +81,11 @@ check('R167-9 ★抽屉宽度与视觉走查判据同频：两代资源详情与
   const drawer = read('/shared/components/Drawer.vue'); const g = read('/../scripts/theme-audit.cjs')
   return r.includes('width="520px"') && c.includes('width="520px"')
     && drawer.includes("parseInt(props.width || '', 10) || 440")
-    && drawer.includes(':style="{ width: w + \'px\', zIndex: drawerZ }"')
+    && drawer.includes('const panelStyle = computed(')
+    && drawer.includes("? { width: 'min(960px, 94vw)'")
+    && drawer.includes(": { width: `${w.value}px`, zIndex: drawerZ.value })")
+    && drawer.includes(':style="panelStyle"')
+    && drawer.includes("mode?: 'drawer' | 'modal'")
     && g.includes("h1: '.ds-h1'") && g.includes('aiCount: 2') && g.includes('aiCount: 1') && g.includes('aiCount: 3')
     && g.includes("class=\"ai-dir\"") === false && g.includes('.ai-dir') && g.includes('.ai-drag') && g.includes('if (modalFail.length)')
     && g.includes('const wantDrag = m.width >= 1200') /* 窄屏已降单栏 ⇒ 把手"不该在"也是判据（单栏挂一根拖宽把手=能拖一个不存在的分界） */
@@ -758,42 +762,46 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes("tcForm.title = props.prefill?.title || ''") && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('tcSaved.value = false');  /* ★V3.9.20 随迁备案：任务速记面板拆入 QuickAdd，prefill 改经 props 读取 */
 });
 
-check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）。★V3.9.21 重指带备案：热力图呈现从「12 月块 4×3 网格（28px 热区）」改为「单行全年 53 周列」，故原锁 `repeat(4, minmax(0, 1fr))` + `@media (max-width: 1279px)` 两条月块专属形态锚改锁单行全年的承重件（`.dz-year` 列模板 / 横向滚动容器 / 12px 格子）；导出能力与「热力图只开 PNG/HTML」口径一字未改', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('grid-auto-rows: 12px') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-year .dz-cell {') && !css.includes('@media (max-width: 1279px)') /* V3.9.21：月块形态退役后该断点随之删除；单行全年窄屏改为横滚，不再缩格子 */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
+check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）。★V3.9.21 重指带备案：热力图呈现从「12 月块 4×3 网格（28px 热区）」改为「单行全年 53 周列」，故原锁 `repeat(4, minmax(0, 1fr))` + `@media (max-width: 1279px)` 两条月块专属形态锚改锁单行全年的承重件（`.dz-year` 列模板 / 横向滚动容器 / 12px 格子）；导出能力与「热力图只开 PNG/HTML」口径一字未改', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('grid-auto-rows: auto') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-year .dz-cell {') && !css.includes('@media (max-width: 1279px)') /* V3.9.21：月块形态退役后该断点随之删除；单行全年窄屏改为横滚，不再缩格子 */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ["gridTemplateColumns: `16px repeat(${weekCount}, minmax(0, 1fr))`", '<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
 
 /* V3.9.15 · 方向台聚焦与调度闭环：用户反馈直接钉成静态合同。
    这一组只守“入口存在、语义不混、两个视图都接通”，不重测 E2E 已覆盖的点击路径。 */
-check('R175-1 ★方向台任务行三处直接软删：项目塔 / 项目全景泳道 / 无归属收容区都给出 28px 删除钮，解绑钮不冒充删除；任务行删除只上抛 taskId', () => {
+check('R175-1 ★V3.9.22 重指：方向台任务行不再直接软删；项目塔 / 项目全景 / 无归属收容区都只保留解绑，任务本体回任务池', () => {
   const lane = codeOnly(read('/newtab/components/compass/CompassLane.vue'))
   const panoLane = codeOnly(read('/newtab/components/compass/CompassPanoLane.vue'))
   const orphans = codeOnly(read('/newtab/components/compass/CompassTowerOrphans.vue'))
   const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
-  return lane.includes("(e: 'deleteTask', taskId: string): void") && lane.includes('class="tk-del"')
-    && lane.includes("@click.stop=\"emit('deleteTask', t.id)\"") && lane.includes("title=\"从本指标移除")
-    && panoLane.includes("(e: 'deleteTask', taskId: string): void") && panoLane.includes('class="lb-del"')
-    && panoLane.includes("@click.stop=\"emit('deleteTask', t.id)\"")
-    && orphans.includes('deleteTask: [taskId: string]') && orphans.includes('class="toi-del"')
-    && orphans.includes("@click=\"emit('deleteTask', task.id)\"")
-    && pano.includes("(e: 'deleteTask', taskId: string): void") && pano.includes('class="lo-del-task"')
-    && pano.includes("@delete-task=\"emit('deleteTask', $event)\"")
-    && [lane, panoLane, orphans, pano].every(s => s.includes('28px') && s.includes('trash'));
+  return lane.includes("(e: 'unbind', taskId: string): void") && lane.includes('class="tk-unbind"')
+    && lane.includes("@click=\"emit('unbind', t.id)\"")
+    && panoLane.includes("(e: 'unbindTask', taskId: string): void") && panoLane.includes('class="lb-unbind"')
+    && panoLane.includes("@click.stop=\"emit('unbindTask', t.id)\"")
+    && orphans.includes('unbind: [taskId: string]') && orphans.includes('class="toi-unbind"')
+    && orphans.includes("@click=\"emit('unbind', task.id)\"")
+    && pano.includes("(e: 'unbindTask', taskId: string): void") && pano.includes('class="lo-unbind-task"')
+    && pano.includes("@click=\"emit('unbindTask', t.id)\"")
+    /* Metric deletion still legitimately uses the trash icon. This assertion only
+       guards task deletion, so scope it to the task action markup. */
+    && [lane, panoLane, orphans, pano].every(s => !s.includes("emit('deleteTask'"))
+    && !lane.match(/class="tk-[^"]*"[^>]*>\s*<Icon name="trash"/)
+    && !panoLane.match(/class="lb-[^"]*"[^>]*>\s*<Icon name="trash"/)
+    && !orphans.match(/class="toi-[^"]*"[^>]*>\s*<Icon name="trash"/)
+    && !pano.match(/class="lo-task[^"]*"[^>]*>\s*<Icon name="trash"/);
 });
-check('R175-2 ★删除、解绑、完成三种语义分离：CompassTower / CompassPano 都透传 deleteTask；CompassTree 只把 deleteTask 接到 softDeleteTaskToTrash，解绑仍走 unbindTaskFromMetric，删除钮不进任务详情', () => {
+check('R175-2 ★V3.9.22 重指：方向台四入口统一解绑；CompassTree 不再导入软删，任务真删除只在任务详情/任务卡池', () => {
   const tower = codeOnly(read('/newtab/components/compass/CompassTower.vue'))
   const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
   const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
-  const del = segOf(tree, 'function deleteTaskDirect', '\n}')
-  return tower.includes("@delete-task=\"emit('deleteTask', $event)\"")
-    && pano.includes("@delete-task=\"emit('deleteTask', $event)\"")
-    && tree.includes("import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'")
-    && (tree.match(/@delete-task="deleteTaskDirect"/g) || []).length === 2
-    && del.includes('softDeleteTaskToTrash(d.value, task)')
-    && del.includes('const linkedMetricIds = new Set<string>()')
-    && del.includes('if (metric.taskIds.includes(taskId)) linkedMetricIds.add(metric.id)')
-    && del.includes('const deletedAt = task.deletedAt')
-    && del.includes("label: '撤销'") && del.includes('current.deletedAt = undefined')
-    && del.includes('current.deletedAt !== deletedAt')
-    && del.includes('linkedMetricIds.has(metric.id)')
-    && tree.includes('function unbindTask(task: TaskCard)') && tree.includes('unbindTaskFromMetric(d.value, task)');
+  const detail = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
+  return tower.includes("@unbind=\"emit('unbind', $event)\"")
+    && pano.includes("@unbind-task=\"emit('unbindTask', $event)\"")
+    && tree.includes("import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'")
+    && !tree.includes('softDeleteTaskToTrash')
+    && !tree.includes('delete-task')
+    && tree.includes('function unbindTaskById(taskId: string)')
+    && tree.includes('function unbindTask(task: TaskCard)')
+    && tree.includes('unbindTaskFromMetric(d.value, task)')
+    && detail.includes('softDeleteTaskToTrash(d.value, t)')
+    && detail.includes('<ArmDeleteButton @confirm="deleteTask(selectedTask.id)" />');
 });
 check('R175-3 ★项目全景轨道规则可证明：1 条铺满、2–4 条严格等分、5+ 保留 280px 可读下限并横向滚动；模板按 laneCount 三态挂 class，不靠宽度猜', () => {
   const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
@@ -815,42 +823,47 @@ check('R175-4 ★调度台三件事恒三槽：focusCells 从 FOCUS_LIMIT 补齐
     && (home.match(/v-for="c in focusCells"/g) || []).length >= 2
     && home.includes('计划位 {{ todayFocusList.length }}/3');
 });
-check('R175-5 ★主攻只读详情：主攻 1 / 主攻 2 都调用 openFocusProject，宿主挂 CompassProjectReadonlyModal；只读详情不是路由跳转，不抢方向台编辑入口', () => {
+check('R175-5 ★V3.9.22 重指：主攻 1 / 主攻 2 都调用 openFocusProject，宿主挂可编辑 ProjectDetailDrawer central modal；不跳路由', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
   return home.includes('function openFocusProject(p: Project)')
     && home.includes('readonlyProjectId.value = p.id')
     && home.includes('readonlyProjectOpen.value = true')
     && (home.match(/@click="openFocusProject\(/g) || []).length >= 2
-    && home.includes('<CompassProjectReadonlyModal :open="readonlyProjectOpen"')
+    && home.includes('<ProjectDetailDrawer :open="readonlyProjectOpen"')
+    && home.includes('mode="modal"')
     && home.includes('@close="readonlyProjectOpen = false"')
     && !home.includes("router.push('/compass/projects')");
 });
 check('R175-7 ★V3.9.21 任务 3 覆盖 V3.9.7 旧「只读弹窗」口径：调度台主攻点击打开的是**项目全景 · 只读**——弹窗标题明确全景，且同一份 compassMeta 关系按方向 → 项目 → 指标 → 任务铺开，并给出下一步 / 断链 / 停滞 / 进度；仍不跳路由', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
-  const modal = codeOnly(read('/newtab/components/compass/CompassProjectReadonlyModal.vue'))
-  return home.includes('点击行打开项目全景')
-    && (home.match(/查看项目全景只读详情/g) || []).length >= 3
-    && modal.includes('项目全景 · 只读')
-    && modal.includes('resolveProjectNextStep(')
-    && modal.includes('tasksOfProject(')
-    && modal.includes('tasksOfMetric(')
-    && modal.includes('const riskCount = computed(')
-    && modal.includes('const stalled = computed(')
-    && modal.includes('cpr-facts')
-    && modal.includes('条待推进')
+  return home.includes('class="stat-focus-links"')
+    && home.includes('class="stat-focus-link"')
+    && home.includes('打开可编辑项目详情')
+    && home.includes('<ProjectDetailDrawer :open="readonlyProjectOpen"')
+    && home.includes('mode="modal"')
+    && !home.includes('class="focus-projects"')
     && !home.includes("router.push('/compass/projects')");
 });
-check('R175-8 ★V3.9.21 任务 1：新建战略目标 / 层级列表行内编辑都必须先切回 tower 再聚焦——目标标题的 contenteditable 只在项目塔渲染，停留在全景时 focusEditField 会静默落空；第 3 层行本体为 div+role，编辑/删除是真 button（不嵌套非法按钮）', () => {
+check('R175-8 ★V3.9.22 重指：新建 / 编辑战略目标都走同一弹窗，包含名称、期限、状态；保存后保持当前视图', () => {
   const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
+  const form = codeOnly(read('/newtab/components/compass/DirectionFormModal.vue'))
   const list = codeOnly(read('/newtab/components/compass/CompassLayerList.vue'))
-  const add = segOf(tree, 'function addDirection()', '\n}')
-  const edit = segOf(tree, 'function onListEditDir(id: string)', '\n}')
-  return add.includes("viewMode.value = 'tower'")
-    && add.includes("editingField.value = 'dir-' + dir.id")
-    && add.includes("focusEditField('dir-' + dir.id")
-    && edit.includes("viewMode.value = 'tower'")
-    && edit.includes("editingField.value = 'dir-' + id")
-    && edit.includes("focusEditField('dir-' + id")
+  const create = segOf(tree, 'function openDirectionCreate()', '\n}')
+  const edit = segOf(tree, 'function openDirectionEdit(id: string)', '\n}')
+  const save = segOf(tree, 'function saveDirectionForm(', '\n}')
+  return create.includes('directionForm.value = { open: true, direction: null }')
+    && edit.includes('directionForm.value = { open: true, direction }')
+    && save.includes('direction.name = value.name')
+    && save.includes('direction.term = value.term')
+    && save.includes('direction.status = value.status')
+    && !tree.includes('function addDirection()')
+    && form.includes('名称')
+    && form.includes('远期')
+    && form.includes('中期')
+    && form.includes('近期')
+    && form.includes('进行中')
+    && form.includes('暂停')
+    && form.includes('归档')
     && list.includes("(e: 'editDir', id: string): void")
     && list.includes("(e: 'delDir', id: string): void")
     && list.includes('role="button" tabindex="0"')

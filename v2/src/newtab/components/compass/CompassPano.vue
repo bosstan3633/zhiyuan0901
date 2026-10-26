@@ -46,8 +46,8 @@ const emit = defineEmits<{
   /** ★W12-C 补接线：全景泳道任务标题单击开任务详情抽屉（泳道 → 全景 → 树本体 openTaskDetail 两跳透传）。
    *  这条链路此前从未存在——泳道里任务标题只是个 div，点了没反应，W11-10 断言本轮重指时暴露。 */
   (e: 'openDetail', taskId: string): void
-  /** V3.9.15：任务软删进回收站（泳道 → 全景 → 树本体） */
-  (e: 'deleteTask', taskId: string): void
+  /** V3.9.22：解除任务的项目/指标归属，任务本体回任务池。 */
+  (e: 'unbindTask', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
   (e: 'openMetric', metricId: string): void
   (e: 'addMetric', projId: string): void
@@ -196,7 +196,7 @@ const laneCount = computed(() => {
             @toggle-task="emit('toggleTask', $event)"
             @task-grade="emit('taskGrade', $event)"
             @open-detail="emit('openDetail', $event)"
-            @delete-task="emit('deleteTask', $event)"
+            @unbind-task="emit('unbindTask', $event)"
             @open-metric="emit('openMetric', $event)"
             @add-task="(mid, pid) => emit('addTask', mid, pid)"
             @del-metric="(mid) => emit('delMetric', mid)"
@@ -222,7 +222,7 @@ const laneCount = computed(() => {
                 <div class="lo-task-b">
                   <span class="lo-tag lo-tag-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>
                   <button class="lo-tag lo-tag-bind" @click="emit('bindOrphan', t.id, current.proj.id)">＋ 挂指标</button>
-                  <button class="lo-del-task" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="emit('deleteTask', t.id)"><Icon name="trash" :size="13"/></button>
+                  <button class="lo-unbind-task" title="解除关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click="emit('unbindTask', t.id)"><Icon name="x" :size="13"/></button>
                 </div>
               </div>
             </div>
@@ -372,12 +372,12 @@ const laneCount = computed(() => {
 .lo-tag { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
 .lo-tag-clue { color: var(--warning); background: var(--warning-bg-soft); }
 .lo-tag-bind { min-height: 28px; padding: 4px 7px; border: 0; font-family: inherit; color: var(--accent-ink); background: var(--accent-light); cursor: pointer; }
-.lo-del-task {
+.lo-unbind-task {
   display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
   border: 1px solid transparent; border-radius: 4px; background: transparent;
   color: var(--text-2); cursor: pointer; flex: none; opacity: .55; transition: all var(--dur);
 }
-.lo-del-task:hover, .lo-del-task:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); }
+.lo-unbind-task:hover, .lo-unbind-task:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); }
 
 @media (max-width: 800px) {
   .pano-h { gap: 9px; }

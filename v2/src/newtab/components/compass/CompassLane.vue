@@ -43,8 +43,6 @@ const emit = defineEmits<{
   (e: 'addTask', metricId: string): void
   /** ★R141：任务行 ✕ = 解绑回任务调度模块（不删本体）—— 模板挂载点，删了能力就丢 */
   (e: 'unbind', taskId: string): void
-  /** V3.9.15：任务行直接软删进回收站，无需二次确认；解绑与删除保持两种语义。 */
-  (e: 'deleteTask', taskId: string): void
   /** ★R135-4：任务层 AI 拆解入口 */
   (e: 'aiTask', metricId: string): void
   /** 指标名就地改名三件套（与树内 contenteditable 机制同源，事件冒泡给父组件统一处理） */
@@ -75,7 +73,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 </script>
 
 <template>
-  <section class="metric-card" :style="{ '--hue': hue }">
+  <section class="metric-card" :style="{ '--hue': hue }" :data-metric="m.id">
     <header class="mc-head">
       <button
         class="mc-dot"
@@ -134,7 +132,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 
     <!-- 任务列表：内嵌 + 分叉连线；★容器不可省（见文件头陷阱说明） -->
     <ul v-if="open && m.tasks.length" class="metric-list">
-      <li v-for="t in m.tasks" :key="t.id" class="tk-row" :class="t.status" :title="`归属：${crumb}`">
+      <li v-for="t in m.tasks" :key="t.id" class="tk-row" :class="t.status" :data-task="t.id" :title="`归属：${crumb}`">
         <button
           class="tk-box"
           :class="t.status"
@@ -150,9 +148,8 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
                从来不是任务详情抽屉；叫「详情」会把人引到错的去处（用户 2026-10-13 报 bug 的另一半）。
                改叫「成熟度」并补 title，真正的详情入口是左侧任务标题。 -->
           <button class="tk-grade" title="看这条任务的优先级成熟度依据" @click="emit('grade', t.id)">成熟度</button>
-          <!-- ★R141 保留：✕ 只解绑（摘挂载），删本体走任务详情 —— 两语义不许混 -->
-          <button class="tk-unbind" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="emit('unbind', t.id)"><Icon name="x" :size="13"/></button>
-          <button class="tk-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click.stop="emit('deleteTask', t.id)"><Icon name="trash" :size="13"/></button>
+          <!-- V3.9.22：方向台只保留解绑；真删除只在任务详情与任务卡池行末常驻入口。 -->
+          <button class="tk-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click="emit('unbind', t.id)"><Icon name="x" :size="13"/></button>
         </span>
       </li>
     </ul>
@@ -367,15 +364,6 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 }
 .tk-row:hover .tk-unbind { opacity: 1; }
 .tk-unbind:hover { color: var(--danger); background: var(--danger-bg-soft); }
-.tk-del {
-  display: flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: 4px;
-  background: transparent; color: var(--text-2); cursor: pointer;
-  opacity: .55; transition: all var(--dur);
-}
-.tk-row:hover .tk-del, .tk-del:focus-visible { opacity: 1; }
-.tk-del:hover { color: var(--danger); background: var(--danger-bg-soft); }
-
 /* 断链空位：★视觉聚焦 —— 从"虚线告警框"改为"带色轨的行动提示"。
    虚线圈 + 圆角 + 底色三者叠加时，它看起来像一块"出错的卡"；而它真正要说的只有一句：
    标准已定、缺一条动作，右边就是建任务的入口。 */

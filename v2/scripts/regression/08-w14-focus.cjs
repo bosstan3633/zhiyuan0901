@@ -27,7 +27,7 @@ check('W14-1 ★主攻项目的点击必须落在"那个项目"上，不能两�
     && OVERVIEW.includes('点击项目可查看阶段目标与任务')
     && PI.includes("import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'")
     && PI.includes('function openProjectDetail(projectId: string)')
-    && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId"')
+    && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"')
     /* 计数 3 → 1：Hero 不再发项目点击、今日三件事行退役；只剩方向状态面板这一个入口。 */
     && (PI.match(/@open-project="openProjectDetail"/g) || []).length === 1
     && TODAY.includes('slotCount')

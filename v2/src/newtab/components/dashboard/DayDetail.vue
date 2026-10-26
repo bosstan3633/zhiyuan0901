@@ -162,7 +162,24 @@ const exportKpis = () => {
     { label: '清理', value: String(c[3].n), note: '删除 / 清理' }
   ]
 }
-const exportRows = () => [...dayEvents.value].sort((a, b) => a.ts - b.ts).map(e => ({ time: hm(e.ts), label: EVENT_ACT_LABEL[e.action], title: e.title }))
+/** 图片与屏上同一阅读顺序：降序分时段 → 可选当前下钻；不使用正序流水。 */
+const exportSections = () => {
+  const sections = flowGroups.value.map(group => ({
+    title: group.label,
+    rows: group.rows.map(({ tm, e }) => ({ time: tm, label: EVENT_ACT_LABEL[e.action], title: e.title }))
+  }))
+  if (drillRows.value) {
+    sections.push({
+      title: drillRows.value.label,
+      rows: drillRows.value.rows.map(row => ({
+        time: row.time || '',
+        label: `${row.tag}${(row.n || 1) > 1 ? ` ×${row.n}` : ''}`,
+        title: row.title
+      }))
+    })
+  }
+  return sections
+}
 const summaryText = computed(() => dlSum.value.n
   ? `当天完成 ${dlSum.value.n} 项操作，涉及 ${dlSum.value.cards} 张卡片${dlSum.value.last ? `，最近一次 ${hm(dlSum.value.last)}`: ''}`
   : '这一天没有操作记录。')
@@ -183,8 +200,13 @@ function buildZyCard() {
       { label: '清理', value: String(c[3].n), note: '删除 / 清理' }
     ],
     kinds,
-    rows: exportRows(),
-    rowsTitle: '当日操作流水',
+    /** ★V3.9.22：段落与弹窗当前屏上分组一致；当前展开了哪个下钻，就带哪个下钻。 */
+    sections: exportSections(),
+    bands: [{
+      value: `加权 ${rec.value.w} 分 · 强度 ${intensity.value}%`,
+      label: lv.value,
+      note: `${levelRange(rec.value.w)} · 有效动作 ${actsOf(rec.value)} 件`
+    }],
     footer: '知源调度台 · 每日战报 · 数据只在本机'
   }
 }
@@ -202,10 +224,18 @@ function exportHtml(): void {
   showToast('已导出 HTML 卡片（任何人浏览器打开即看）')
 }
 function exportMd(): void {
+  const timelineLines = flowGroups.value.flatMap(group => [
+    `- **${group.label}**`,
+    ...group.rows.map(({ tm, e }) => `  - ${tm}　${EVENT_ACT_LABEL[e.action]}　${e.title}`)
+  ])
+  const drillLines = drillRows.value
+    ? [`- **${drillRows.value.label}**`, ...drillRows.value.rows.map(r => `  - ${r.time || ''}　${r.tag}${(r.n || 1) > 1 ? ` ×${r.n}` : ''}　${r.title}`)]
+    : []
   const md = sectionsToMd(`每日战报 ${props.day}`, `周${wd.value} · ${summaryText.value}`, [
     { h: '统计', lines: exportKpis().map(k => `- ${k.label}：${k.value}（${k.note}）`) },
     { h: '当日热度', lines: [`- 加权 ${rec.value.w} 分 · ${lv.value} · 强度 ${intensity.value}%（${levelRange(rec.value.w)}）`] },
-    { h: '操作流水（正序）', lines: exportRows().map(r => `- ${r.time}　${r.label}　${r.title}`) }
+    { h: '操作流水（屏上顺序）', lines: timelineLines },
+    ...(drillLines.length ? [{ h: '当前下钻', lines: drillLines }] : [])
   ])
   downloadText(exportName('战报', 'md', props.day), md, 'md')
   showToast('已导出 Markdown（贴进笔记即成形）')

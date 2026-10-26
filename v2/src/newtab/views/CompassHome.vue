@@ -5,7 +5,7 @@ defineOptions({ name: 'CompassHomeView' })
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
 // - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
 // - 底部专区：好奇心培育单区直呈（R55-B2：任务调度迁方向台）
-import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount, nextTick, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount, onDeactivated, nextTick, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -26,7 +26,7 @@ import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
-import CompassProjectReadonlyModal from '../components/compass/CompassProjectReadonlyModal.vue'
+import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import { useEqualHeight } from '@/newtab/composables/useEqualHeight'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
@@ -40,8 +40,6 @@ import AssetPreview from '@/shared/components/AssetPreview.vue'
 // 由 TodayBattleHost 自包含承载（数据桥 + 事件日志读取 + 日详情 + 全量记录抽屉都在它里面）。
 // 本页只挂一行、不直接碰事件日志（R49-3 负锚保持）。
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
-// V3.9.18：主攻面板「下一步」主句与项目详情抽屉同一解析源（compassMeta 唯一实现），两处口径不许漂移
-import { resolveProjectNextStep } from './compassMeta'
 // R172-T9（04-67 Q7）：调度画像周报浮层**已退役**（组件已物理删除，全仓零引用）——
 // 四段式能力并入知源仪表盘的「复盘段」（ReviewPanel.vue），入口由本页右上角 `📈 复盘` 承担。
 // 历史包袱顺带清掉：R113-N3 曾因"模板引用但从未 import"导致点按钮无任何反应，该类问题随组件退役消失。
@@ -684,29 +682,27 @@ const focusMeta = computed(() => {
   }
   return m
 })
-/**
- * ★V3.9.7：主攻摘要点击改为就地打开项目详情抽屉。
- * 原先跳 /compass/projects 说 A 给 B：用户在调度台看主攻，下一页却是整棵方向树，还要再找项目。
- * ★V3.9.21（用户任务 3）：口径升级为「项目全景 · 只读」——弹窗内按
- *   方向 → 项目 → 指标 → 任务完整铺开，并显式给出下一步 / 断链 / 停滞 / 进度。
- *   仍然不跳路由、不抢方向台编辑入口。
- */
+/** 主攻项目就地打开可编辑详情弹窗，不跳路由。 */
 const readonlyProjectOpen = ref(false)
 const readonlyProjectId = ref<string | null>(null)
 function openFocusProject(p: Project) {
   readonlyProjectId.value = p.id
   readonlyProjectOpen.value = true
 }
+/* KeepAlive 离开调度台时，Teleport 到 body 的详情层不会随视图一起隐藏，必须显式收口；
+   否则后续页面会被残留遮罩盖住，连池卡右键都落不到真实控件上。 */
+onDeactivated(() => {
+  readonlyProjectOpen.value = false
+  drawerRef.value?.close()
+})
 
 // ================= V3.9.18 · 调度台按原型迭代（04-73 规范落地原型 · 用户 2026-10-24 认可） =================
 // 原型：评审交接包/原型_调度台_04-73规范落地_审核稿_V1.html。本轮五件事：
-//  ① 页头补主攻锚行（kicker 去全大写英文，改「调度台 · 日期 周X」）；
-//  ② 主栏新增「主攻项目」面板：项目名 + 下一步主句 + %完成进度条，点击开只读详情（主攻从右栏迁入主栏）；
+//  ① kicker 去全大写英文，改「调度台 · 日期 周X」；
+//  ② 主攻只在「今天的状态」并列展示，点击打开可编辑详情弹窗；
 //  ③ 手边的卡三列改三池页签（hand-grid/hand-col/mini-list×3/goDeck 字符串锚全保留，v-show 切换）；
 //  ④ 右栏状态读数改「今日入台 / 今日调出 / 未归档」（本周复用挪到「最近调出」头部 chip），新增「好奇心培育」面板；
 //  ⑤ 密度令牌接通（04-73 D-1(a)）：主栏行卡读 --card-pad-*/--card-gap，紧凑档真实生效。
-/** 主攻「下一步」：与 ProjectDetailDrawer 同源（resolveProjectNextStep 唯一解析），用户填写优先、清空回退任务推导 */
-const focusNextOf = (p: Project): string => resolveProjectNextStep(p, projectTasksOf(p.id)).nextStep
 /** 手边的卡三池页签（默认任务池；列结构保留、仅显示态切换） */
 type HandKind = 'task' | 'curiosity' | 'resource'
 const handTab = ref<HandKind>('task')
@@ -739,7 +735,6 @@ function openReview(): void { battleHost.value?.openToday() }
 const focusDoneCount = computed(() => todayFocusList.value.filter(s => s.done).length)
 const mainFocus = computed<Project | null>(() => focusedProjects.value[0] || null)
 const extraFocus = computed<Project | null>(() => focusedProjects.value[1] || null)
-const hasFocusProject = computed(() => !!mainFocus.value || !!extraFocus.value)
 /* ★W17-C03（2026-10-20 用户拍板 · 方案 C）：右栏与左栏等高 + 最近调出按可用高度多显示。
  * 病根：右栏两块面板按内容自然伸缩，左栏卡片随数据变高，1440 下右下留大片空白、顶/底边都不齐。
  * 口径：ResizeObserver 测左侧两张卡实测高度 → CSS 变量（--rail-top-h / --rail-bottom-h）→ 右栏读取；
@@ -994,19 +989,8 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
       <div class="desk-heading">
         <div class="desk-kicker">调度台 · {{ formatFullDate(todayDate) }}</div>
         <h1>今天，先做这三件。</h1>
-        <!-- V3.9.18：主攻锚行——页头直接回答「今天的主线挂在哪」，点击开项目全景只读详情（原型主攻锚） -->
-        <p v-if="mainFocus" class="desk-anchor">
-          <Icon name="main-focus" :size="12" />
-          <span class="da-label">主攻锚</span>
-          <button class="da-link" type="button" :title="mainFocus.name + ' · 查看项目全景只读详情'" @click="openFocusProject(mainFocus)">{{ mainFocus.name }}<Icon name="arrowright" :size="12" /></button>
-          <span v-if="focusNextOf(mainFocus)" class="da-next" title="下一步为你填写的优先；清空后按任务自动推导（与项目详情同源）">下一步 · {{ focusNextOf(mainFocus) }}</span>
-        </p>
-        <p v-else class="desk-anchor"><Icon name="main-focus" :size="12" /><span class="da-label">主攻锚</span><span class="da-none">尚未指定——右上角去方向台，把最重要的 1-2 个项目标为主攻。</span></p>
       </div>
       <div class="desk-actions">
-        <button v-if="!mainFocus" class="no-focus" type="button" @click="router.push('/compass')">
-          <Icon name="main-focus" :size="13" /> 去方向台指定主攻
-        </button>
         <button class="why-trigger battle-trigger" type="button" @click="openReview">
           <Icon name="trendup" :size="13" />
           <span>今日战报</span>
@@ -1145,34 +1129,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
           </footer>
         </section>
 
-        <!-- V3.9.18：主攻项目面板（原型主攻面板）——主攻从右栏迁入主栏，下一步做主句，点击开项目全景只读详情 -->
-        <section v-if="hasFocusProject" class="focus-projects" aria-labelledby="fpTitle">
-          <header class="mod-head">
-            <h2 id="fpTitle">主攻项目</h2>
-            <span class="mod-reading">点击行打开项目全景 · 进度与方向台同口径</span>
-          </header>
-          <button v-if="mainFocus" class="fp-row" type="button" :title="mainFocus.name + ' · 查看项目全景只读详情'" @click="openFocusProject(mainFocus)">
-            <span class="fp-main">
-              <span class="fp-name">{{ mainFocus.name }}<span class="tag accent">主攻 1</span></span>
-              <span v-if="focusNextOf(mainFocus)" class="fp-next">下一步：<b>{{ focusNextOf(mainFocus) }}</b></span>
-            </span>
-            <span class="fp-side">
-              <span class="fp-num">{{ focusMeta.get(mainFocus.id)?.pct || 0 }}<i>% 完成</i></span>
-              <span class="fp-bar"><i :style="{ width: (focusMeta.get(mainFocus.id)?.pct || 0) + '%' }" /></span>
-            </span>
-          </button>
-          <button v-if="extraFocus" class="fp-row" type="button" :title="extraFocus.name + ' · 查看项目全景只读详情'" @click="openFocusProject(extraFocus)">
-            <span class="fp-main">
-              <span class="fp-name">{{ extraFocus.name }}<span class="tag accent">主攻 2</span></span>
-              <span v-if="focusNextOf(extraFocus)" class="fp-next">下一步：<b>{{ focusNextOf(extraFocus) }}</b></span>
-            </span>
-            <span class="fp-side">
-              <span class="fp-num">{{ focusMeta.get(extraFocus.id)?.pct || 0 }}<i>% 完成</i></span>
-              <span class="fp-bar"><i :style="{ width: (focusMeta.get(extraFocus.id)?.pct || 0) + '%' }" /></span>
-            </span>
-          </button>
-        </section>
-
         <section ref="handBoardRef" class="hand-board" aria-labelledby="handTitle">
           <header class="hand-head">
             <div class="hand-heading">
@@ -1270,7 +1226,8 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
             <button type="button" @click="openReview">战报</button>
           </header>
           <div class="stat-list">
-            <!-- V3.9.18：读数改「今日入台 / 今日调出 / 未归档」（原型右栏）；主攻迁主栏面板，本周复用挪最近调出头部。
+            <!-- V3.9.18：读数改「今日入台 / 今日调出 / 未归档」（原型右栏）；本周复用挪最近调出头部。
+                 V3.9.22：主攻只在这里保留——页头锚行与主栏面板都已退役。
                  口径与战报事件日志不同源，tooltip 与明细 note 明示，不冒充同源。 -->
             <button class="stat-row" type="button" title="口径：今日 0 点起新建的三类卡（按创建时间）；与今日战报的事件计次口径不同" @click="openStatusDetail('in')">
               <span class="sk">今日入台</span>
@@ -1282,7 +1239,18 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
               <span class="sv">{{ todayOutCount }} 张</span>
               <span class="se">明细</span>
             </button>
-            <button v-if="!hasFocusProject" class="stat-row stat-row-empty" type="button" @click="router.push('/compass')">
+            <!-- V3.9.22：主攻最多两个，同一行并列。项目名各自可点并打开可编辑项目详情；
+                 不展示「下一步 / 完成度」，也不再恢复主攻卡片面板。 -->
+            <div v-if="mainFocus || extraFocus" class="stat-row stat-row-focus">
+              <span class="sk">主攻</span>
+              <span class="stat-focus-links">
+                <button v-if="mainFocus" class="stat-focus-link" type="button"
+                  :title="`${mainFocus.name} · 打开可编辑项目详情`" @click="openFocusProject(mainFocus)">{{ mainFocus.name }}</button>
+                <button v-if="extraFocus" class="stat-focus-link" type="button"
+                  :title="`${extraFocus.name} · 打开可编辑项目详情`" @click="openFocusProject(extraFocus)">{{ extraFocus.name }}</button>
+              </span>
+            </div>
+            <button v-else class="stat-row stat-row-empty" type="button" @click="router.push('/compass')">
               <span class="sk">主攻</span>
               <span class="sv">尚未指定</span>
               <span class="se">去方向台</span>
@@ -1332,7 +1300,7 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
     </div>
 
     <TodayBattleHost ref="battleHost" />
-    <CompassProjectReadonlyModal :open="readonlyProjectOpen" :project-id="readonlyProjectId"
+    <ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="modal"
       @close="readonlyProjectOpen = false" />
 
     <!-- ★W17-C01：三行状态明细（中央只读弹窗，不跳路由） -->
@@ -1452,56 +1420,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   line-height: 1.14;
   letter-spacing: -.035em;
 }
-.desk-heading p {
-  max-width: 640px;
-  margin-top: 7px;
-  color: var(--text-3);
-  font-size: var(--fs-sub);
-  line-height: 1.7;
-}
-/* ── V3.9.18：页头主攻锚行（原型主攻锚）── */
-.desk-anchor {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  color: var(--text-2);
-  font-size: var(--fs-sub);
-}
-.da-label { color: var(--text-3); font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); }
-.da-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 28px;
-  padding: 0 8px;
-  margin-left: -8px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--fs-sub);
-  font-weight: 600;
-  cursor: pointer;
-}
-.da-link:hover { background: var(--surface-2); }
-.da-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.da-link svg { color: var(--text-3); }
-.da-next {
-  max-width: 46ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 2px 8px;
-  border-radius: var(--radius-xs);
-  background: var(--accent-light);
-  color: var(--accent-ink);
-  font-size: var(--fs-caption);
-}
-.da-none { color: var(--text-3); font-size: var(--fs-caption); }
-
 .desk-actions {
   position: relative;
   display: flex;
@@ -1511,7 +1429,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   flex-wrap: wrap;
   flex-shrink: 0;
 }
-.no-focus,
 .why-trigger {
   display: inline-flex;
   align-items: center;
@@ -1528,13 +1445,11 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   transition: border-color var(--dur), background var(--dur), color var(--dur);
 }
 .desk-actions .battle-trigger { margin-left: auto; }
-.no-focus:hover,
 .why-trigger:hover {
   border-color: var(--border-strong);
   background: var(--surface-2);
   color: var(--text);
 }
-.no-focus { color: var(--text-3); border-style: dashed; }
 .why-trigger { color: var(--text-3); }
 .why-trigger.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .why-dot {
@@ -1857,40 +1772,6 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
 /* ── 手边的卡：宽屏三列 ── */
 .hand-board { margin-top: 18px; }
 .hand-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
-/* ── V3.9.18：主攻项目面板（原型主攻面板）── */
-.focus-projects { margin-top: 18px; }
-.mod-head { display: flex; align-items: baseline; gap: 8px; padding: 12px 18px 0; }
-.mod-head h2 { color: var(--text); font-size: var(--fs-title); font-weight: 600; letter-spacing: -.01em; }
-.mod-reading { margin-left: auto; color: var(--text-3); font-size: var(--fs-caption); }
-.fp-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: calc(100% - 36px);
-  margin: 8px 18px 0;
-  padding: var(--card-pad-vert) var(--card-pad-horz);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--dur);
-}
-.fp-row + .fp-row { margin-top: var(--card-gap); }
-.fp-row:hover { border-color: var(--border-strong); }
-.fp-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.fp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.fp-name { display: flex; align-items: center; gap: 8px; font-size: var(--fs-title); font-weight: 600; letter-spacing: -.01em; }
-.fp-next { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: var(--fs-body); }
-.fp-next b { color: var(--text); font-weight: 500; }
-.fp-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-/* R153-4 负锚钉死旧 fp-pct 类名不许回流（V3.9.13 精简退役）；V3.9.18 主攻面板读数走 fp-num */
-.fp-num { font-size: var(--fs-title); font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.fp-num i { font-style: normal; font-size: var(--fs-caption); color: var(--text-4); font-weight: 400; }
-.fp-bar { width: 96px; height: 3px; border-radius: var(--radius-xs); background: var(--border); overflow: hidden; }
-.fp-bar i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-xs); }
 /* V3.9.18：hand-summary 随三列汇总退役（计数入页签与列头）；hand-tabs 为三池页签 */
 .hand-tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .hand-tab { min-height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-sub); font-weight: 500; cursor: pointer; transition: background var(--dur), color var(--dur); }
@@ -2119,14 +2000,14 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   font-size: var(--fs-micro);
 }
 .stat-list { display: flex; flex-direction: column; }
-/* V3.9.18：stat-focus-* / sf-* 随主攻迁主栏面板（fp-row）整族退役 */
+/* V3.9.22：主攻回到「今天的状态」；同一行并列最多两个项目名，名称各自可点。 */
 .stat-row {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 48px;
-  padding: 8px 12px;
+  padding: var(--card-pad-vert) var(--card-pad-horz);
   border: 0;
   border-bottom: 1px solid var(--border);
   background: transparent;
@@ -2135,6 +2016,28 @@ function focusSlotSourceLabel(slot: FocusSlot): string {
   text-align: left;
   cursor: pointer;
 }
+.stat-row-focus { cursor: default; }
+.stat-row-focus:hover { background: transparent; }
+.stat-focus-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; }
+.stat-focus-link {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sub);
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.stat-focus-link:hover { color: var(--accent-ink); background: var(--surface-2); }
+.stat-focus-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .stat-row:last-child { border-bottom: 0; }
 .stat-row:hover { background: var(--surface-2); }
 .stat-row:disabled { cursor: default; opacity: .72; }

@@ -337,7 +337,9 @@ function onExport(fmt: ExportFmt): void {
              W7-2/W12-12 都按这个名字认它），里面换成一张单行网格。 -->
         <div class="dz-months" role="grid" :aria-label="`${year} 年全年热力图 · ${agg.act} 天有记录`">
           <div class="dz-year-scroll">
-            <div class="dz-year" :style="{ gridTemplateColumns: `16px repeat(${weekCount}, 12px)` }">
+            <!-- V3.9.22：格子随内容宽度铺满。星期列固定，其余周列等分剩余宽度；
+                 每格 aspect-ratio:1 由列宽决定行高，1440 下约 21px/格，不再在右侧留白。 -->
+            <div class="dz-year" :style="{ gridTemplateColumns: `16px repeat(${weekCount}, minmax(0, 1fr))` }">
               <!-- 星期标签占第 1 列、跨 7 行：与右侧日格的行一一对齐 -->
               <div class="dz-wk" aria-hidden="true"><span v-for="w in WD" :key="w">{{ w }}</span></div>
               <span

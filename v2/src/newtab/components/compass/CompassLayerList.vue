@@ -27,13 +27,13 @@ const props = defineProps<{
   /** 第 5 层行：全部成功指标（与骨架条 counts.metrics 同口径遍历） */
   rows5: { id: string; title: string; dirName: string; projName: string; projId: string; total: number; done: number; pct: number; orphan: boolean }[]
   /** 第 6 层行：全部任务（与骨架条 counts.tasks 同口径：未删除即算，含无归属） */
-  rows6: { id: string; title: string; status: string; metricTitle: string | null; projName: string | null; projId: string; dirName: string | null; orphan: boolean }[]
+  rows6: { id: string; title: string; status: string; metricId: string | null; metricTitle: string | null; projName: string | null; projId: string; dirName: string | null; orphan: boolean }[]
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'dir', id: string): void
-  (e: 'locate', projId: string, label: string): void
+  (e: 'locate', target: { projId: string; metricId?: string; taskId?: string }): void
   /** ★第 3 层行内编辑：关列表回项目塔，就地进入该目标标题编辑（与「新建即编辑」同一链路） */
   (e: 'editDir', id: string): void
   /** ★第 3 层行内删除：走真源 removeCompassNode（报数确认 + 3 秒撤销），由宿主 deleteNode 承担 */
@@ -102,7 +102,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
         <button
           v-for="r in rows5" :key="r.id" class="lvl-row r5"
           :title="`${r.dirName} › ${r.projName}`"
-          @click="emit('locate', r.projId, `指标 · ${r.title}`)"
+          @click="emit('locate', { projId: r.projId, metricId: r.id })"
         >
           <span class="lr-dot" :class="{ done: r.pct === 100 && r.total, doing: r.pct > 0 && r.pct < 100 }"><Icon v-if="r.total && r.pct === 100" name="check" :size="12"/><template v-else>{{ r.total ? '◐' : '○' }}</template></span>
           <span class="lr-n">{{ r.title }}</span>
@@ -123,14 +123,14 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
         <button
           v-for="r in rows6" :key="r.id" class="lvl-row r6"
           :title="r.metricTitle ? `${r.dirName} › ${r.projName} › ${r.metricTitle}` : '无归属任务'"
-          @click="r.projId ? emit('locate', r.projId, `任务 · ${r.title}`) : undefined"
+          @click="emit('locate', { projId: r.projId, metricId: r.metricId || undefined, taskId: r.id })"
           :class="{ orphan: r.orphan }"
         >
           <span class="lr-dot" :class="{ done: r.status === 'done', doing: r.status === 'doing' }"><Icon v-if="r.status === 'done'" name="check" :size="11"/><template v-else>{{ statusDot(r.status) }}</template></span>
           <span class="lr-n" :class="{ done: r.status === 'done' }">{{ r.title }}</span>
           <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 未归属</span>
           <span class="lr-path">{{ r.metricTitle ? `${r.projName} › ${r.metricTitle}` : (r.projName || '未挂项目') }}</span>
-          <span class="lr-go" v-if="r.projId">▸ 定位</span>
+          <span class="lr-go" v-if="r.projId || r.metricId">▸ 定位</span>
           <span class="lr-go dim" v-else>不可定位</span>
         </button>
         <div v-if="!rows6.length" class="lvl-empty">还没有任务 · 进项目舱给指标加任务</div>

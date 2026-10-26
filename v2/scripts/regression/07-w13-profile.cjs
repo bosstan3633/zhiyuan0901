@@ -61,8 +61,10 @@ check('W13-4 ★今天与本月视觉块差异化（★W17-C09 · 2026-10-20 重
     && mo.includes('class="light-split"') && rh.includes('class="light-split"');
 });
 
-check('W13-5 ★五段式今日战报（DayDetail）完整在位、零简化：宿主挂载 DayDetail 弹窗 + openTodayBattle 单一宿主，今日段按钮 / 周度 7 日柱点击 / 年度热力格点击三处 open-battle 出口全部接到它 —— 三处都在就说明弹窗不是"只有一条路能打开"', () => {
-  return PI.includes('<DayDetail') && PI.includes('function openTodayBattle') && PI.includes('function openDayBattle')
+check('W13-5 ★五段式今日战报（DayDetail）完整在位、零简化：V3.9.22 起宿主挂载 TodayBattleHost，内部承载 DayDetail；今日段 / 周度 7 日柱 / 年度热力格三处出口都调到同一宿主', () => {
+  return PI.includes('<TodayBattleHost ref="battleHost" />') && PI.includes('function openTodayBattle') && PI.includes('function openDayBattle')
+    && PI.includes('battleHost.value?.openToday()') && PI.includes('battleHost.value?.openDay(day)')
+    && read('/newtab/components/dashboard/TodayBattleHost.vue').includes('<DayDetail')
     && (PI.match(/@open-battle=/g) || []).length >= 3
     && TODAY.includes("emit('open-battle')") && RHY.includes("'open-battle'") && YEAR.includes("'open-battle'")
     && YEAR.includes("if (day) emit('open-battle', day)")

@@ -82,25 +82,31 @@ check('R91-1（V3.9.1 重指）调度台消费 focusedProjects：首页主攻胶
     && CH91.includes('useCompass()') && CH91.includes('const mainFocus = computed<Project | null>')
     && CH91.includes('const extraFocus = computed<Project | null>');
 });
-check('R91-2（V3.9.13 重指 · ★V3.9.18 再重指带备案：主攻 1 / 主攻 2 两行常驻随原型迭代迁主栏「主攻项目」面板，行形态 stat-focus-item → fp-row，右栏不再放主攻）主攻摘要：主攻 1 / 主攻 2 分两行常驻，不再把第二个藏在 +1 弹层里；页头只保留无项目时的入口', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="focus-projects"') && (h.match(/class="fp-row"/g) || []).length >= 2 && h.includes('主攻 1') && h.includes('主攻 2') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"') && !h.includes('<MetricBar>'); });
+check('R91-2（★V3.9.22 再重指带备案：主栏主攻面板退役，两个主攻回到「今天的状态」同一行并列）主攻摘要：两个项目名都常驻可见、各自可点，不藏进 +1 弹层', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="stat-focus-links"') && (h.match(/class="stat-focus-link"/g) || []).length >= 2 && h.includes('openFocusProject(mainFocus)') && h.includes('openFocusProject(extraFocus)') && !h.includes('class="focus-projects"') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"'); });
 check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
+  const focusRow = segOf(CH91, 'const focusMeta = computed(', '\n})')
+  const focusStatus = segOf(CH91, 'if (k === \'focus\') {', '\n  }')
   return CH91.includes('const focusMeta = computed(')
     && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')
     && !STRIP91_C.includes('projectTasksOf(')
     && CH91.includes('<aside class="side-rail"')
-    && CH91.includes('focusMeta.get(mainFocus.id)')
-    && CH91.includes('focusMeta.get(extraFocus.id)');
+    && focusRow.includes('for (const p of focusedProjects.value)')
+    && focusStatus.includes('focusMeta.value.get(p.id)')
+    && !focusStatus.includes('projectProgress(')
+    && !focusStatus.includes('isProjectStalled(')
+    && !focusStatus.includes('projectTasksOf(');
 });
 check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（停滞取既有 isProjectStalled 口径）', () => {
   return stripComments(FOCUS_FN91).includes('isProjectStalled(p)')
     && CH91.includes('stall: isProjectStalled(p)')
     && CH91.includes('focusMeta');
 });
-check('R91-5 ★V3.9.13 重指：调度台主攻就地打开只读详情弹窗（可复制），不再打开可编辑项目抽屉；方向树侧仍零 projects 跳转，整页与 ⌘K 项目搜索可达', () => {
+check('R91-5 ★V3.9.22 重指：调度台主攻就地打开可编辑项目详情中央弹窗，不再跳方向树；方向树侧仍零 projects 跳转', () => {
   const t = CT_W11;
   return CH91.includes('const readonlyProjectOpen = ref(false)')
-    && CH91.includes('<CompassProjectReadonlyModal :open="readonlyProjectOpen"')
-    && read('/newtab/components/compass/CompassProjectReadonlyModal.vue').includes('内容可选中复制')
+    && CH91.includes('<ProjectDetailDrawer :open="readonlyProjectOpen"')
+    && CH91.includes('mode="modal"')
+    && CH91.includes('打开可编辑项目详情')
     && !CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
     && !/path: '\/compass\/projects', query: \{ p: [\w.]+, from: 'tree' \}/.test(codeOnly(t))
     && !t.includes('@goto-detail=')
@@ -108,8 +114,8 @@ check('R91-5 ★V3.9.13 重指：调度台主攻就地打开只读详情弹窗�
     && read('/newtab/components/GlobalPopups.vue').includes('/compass/projects');
 });
 check('R91-6 无主攻时给轻引导，且**可点去方向台**（不是一句死文案）', () => {
-  return STRIP91_C.includes('class="no-focus"') && STRIP91_C.includes("router.push('/compass')")
-    && STRIP91_C.includes('去方向台指定主攻');
+  return CH91.includes('class="stat-row stat-row-empty"') && CH91.includes("router.push('/compass')")
+    && CH91.includes('去方向台');
 });
 check('R91-7 models 注释不再把主攻指向已退役的「任务中心顶部」（R49 已删 /tasks 路由）', () => {
   const mi = read('/shared/models/index.ts');

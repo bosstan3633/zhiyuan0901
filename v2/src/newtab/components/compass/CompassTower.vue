@@ -53,7 +53,6 @@ const emit = defineEmits<{
   (e: 'addMetric', projId: string): void
   /** ★R141 透传：解绑（不删本体） */
   (e: 'unbind', taskId: string): void
-  (e: 'deleteTask', taskId: string): void
   /** ★R135-4 透传：指标层 AI 拆解任务 */
   (e: 'aiTask', metricId: string): void
   /** 指标名就地改名三件套 */
@@ -177,7 +176,6 @@ function hasClue(t: TaskCard): boolean {
           <button class="tw-act menu" :class="{ on: menuOn }" title="更多操作（主攻 / 置顶 / AI 建议指标 / 导入模板 / 删除项目）" @click="emit('menu', proj.id)">⋯</button>
           <!-- ★折叠必须双向：开与合都能点到（判据 W11-3） -->
           <button class="tw-fold" :aria-expanded="open" :title="open ? '收起本项目' : '展开本项目'" @click="emit('fold', proj.id)">
-            {{ open ? '▾' : '▸' }}
           </button>
           <div v-if="menuOn" class="tw-menu" data-a11y-container @click.stop>
             <button class="twm-item" @click="emit('menu', proj.id); emit('focus', proj.id)">
@@ -216,7 +214,6 @@ function hasClue(t: TaskCard): boolean {
           @open-detail="emit('openDetail', $event)"
           @add-task="emit('addTask', $event)"
           @unbind="emit('unbind', $event)"
-          @delete-task="emit('deleteTask', $event)"
           @ai-task="emit('aiTask', $event)"
           @edit-title="(mid, ev) => emit('editTitle', mid, ev)"
           @save-title="(mid, ev) => emit('saveTitle', mid, ev)"
@@ -228,7 +225,7 @@ function hasClue(t: TaskCard): boolean {
 
       <CompassTowerOrphans :tasks="shownOrphans" :proj-id="proj.id"
         @bind="(taskId) => emit('bindOrphan', taskId, proj.id)"
-        @delete-task="emit('deleteTask', $event)" />
+        @unbind="emit('unbind', $event)" />
 
       <div v-if="!shownMetrics.length && !shownOrphans.length" class="tw-empty">
         <span class="twe-t">暂无成功指标</span>
@@ -247,13 +244,9 @@ function hasClue(t: TaskCard): boolean {
      原先 surface 底 + 边框，指标卡又是 surface-2、任务行再是 surface —— 三层容器叠加后读者先数框。
      改为无底色、只留发丝分隔线，区隔由左侧色条与舱间间距承担（判据 W11-1 的 gap 不变）。
      层级由色条、发丝线与间距承担；阴影只留给 hover/拖拽这类临时状态。 */
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: none;
-  position: relative;
-  overflow: hidden;
+  background: transparent; border: 0; border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: none;
+  position: relative; overflow: hidden;
   transition: border-color var(--dur), box-shadow var(--dur);
 }
 .tower:hover { border-top-color: color-mix(in srgb, var(--hue) 30%, var(--border)); }
@@ -339,11 +332,18 @@ function hasClue(t: TaskCard): boolean {
 /* ★折叠必须双向：这里给的是"当前收起时显示展开箭头"，展开时显示收起箭头 */
 .tw-fold {
   width: 28px; height: 28px; border-radius: 6px; flex: none;
-  background: var(--surface-2); color: var(--text-3);
-  font-size: 9px; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all var(--dur);
+  border: 1px solid transparent; background: transparent; color: var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background var(--dur), border-color var(--dur), color var(--dur);
 }
-.tw-fold:hover { color: var(--text); background: var(--surface-3); }
+.tw-fold::before {
+  content: ''; width: 7px; height: 7px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg); transition: transform var(--dur);
+}
+.tw-fold[aria-expanded="true"]::before { transform: translateY(-2px) rotate(225deg); }
+.tw-fold:hover { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+.tw-fold:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* 窄屏：舱头从“左右两端对齐”切为上下两段，操作区换行但不压住项目名。
    ★V3.9.19（04-73 D-2 断点收敛）：480 档并入 800——项目名降一档/面包屑收紧/诊断标签

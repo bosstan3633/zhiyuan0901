@@ -21,12 +21,7 @@ const kind = computed<DeckKind>(() => {
   return raw === 'curiosity' || raw === 'resource' ? raw : 'task'
 })
 const title = computed(() => kind.value === 'task' ? '任务卡 · 全部' : kind.value === 'curiosity' ? '好奇心卡 · 全部' : '资源卡 · 全部')
-const kicker = computed(() => kind.value === 'task' ? 'TASK CARDS' : kind.value === 'curiosity' ? 'CURIOSITY CARDS' : 'RESOURCE CARDS')
-const description = computed(() => kind.value === 'task'
-  ? '先看今天真正要推进的任务，再按项目与状态收窄。打开任意一行，右侧会展开完整任务详情，不需要离开当前列表。'
-  : kind.value === 'curiosity'
-    ? '好奇心不是待办。这里按求证阶段浏览问题，并看清每个问题已经积累了多少材料。'
-    : '资源卡按最近调用与所属主题浏览。打开一行进入阅读与关联，不在这里重复采集入口。')
+/** V3.9.22：可见标题块退役；保留一份读屏标题，tab 成为页头唯一导航。 */
 const DECK_TABS: { kind: DeckKind; label: string }[] = [
   { kind: 'task', label: '任务卡' },
   { kind: 'curiosity', label: '好奇心卡' },
@@ -68,18 +63,10 @@ watch(
 
 <template>
   <div class="deck-page">
-    <!-- ★W17-C04（2026-10-20 用户拍板）：返回按钮独立成首行、左对齐；
-         标题块另起一块，左缘与下方筛选栏 / 列表严格一致（原先三列 flex 把标题整体右推约 130px）。 -->
+    <!-- V3.9.22：二级页只留返回 + 卡片类型 tab；标题保留为不可见读屏语义。 -->
     <header class="deck-head">
-      <div class="deck-head-top">
-        <button class="deck-back" type="button" @click="goBack"><Icon name="arrowleft" :size="14"/> 返回调度台</button>
-        <span class="deck-hint"><Icon name="bulb" :size="13"/> 新建统一走扩展快捷键</span>
-      </div>
-      <div class="deck-head-copy">
-        <div class="deck-kicker">{{ kicker }}</div>
-        <h1>{{ title }}</h1>
-        <p>{{ description }}</p>
-      </div>
+      <h1 class="deck-sr-title">{{ title }}</h1>
+      <button class="deck-back" type="button" @click="goBack"><Icon name="arrowleft" :size="14"/> 返回调度台</button>
       <div class="deck-kind-seg" role="tablist" aria-label="卡片类型">
         <button v-for="tab in DECK_TABS" :key="tab.kind" type="button" role="tab"
           :class="{ on: kind === tab.kind }" :aria-selected="kind === tab.kind"
@@ -97,25 +84,20 @@ watch(
 
 <style scoped>
 .deck-page { max-width: 1440px; margin: 0 auto; padding: 18px 36px 72px; }
-/* ★W17-C04：页头改单列为两行——首行返回 + 右侧提示，第二行标题块（左缘与列表对齐） */
-.deck-head { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 18px; }
-.deck-head-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* V3.9.22：返回与 tab 同排，页头不再被重复标题块占高。 */
+.deck-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 4px 0 16px; }
+.deck-sr-title {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 .deck-back {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; min-height: 30px;
   padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); font-family: inherit; cursor: pointer;
 }
 .deck-back:hover { border-color: var(--border-strong); color: var(--text); }
-.deck-head-copy { min-width: 0; }
-.deck-kicker { font-size: var(--fs-micro); color: var(--text-3); letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 4px; }
-.deck-head h1 { font-size: var(--fs-display); line-height: 1.2; letter-spacing: -.02em; color: var(--text); }
-.deck-head p {
-  max-width: 760px; margin: 6px 0 0; font-size: var(--fs-sub); line-height: 1.7; color: var(--text-3);
-  /* 三页标题区高度固定：描述固定单行，超出省略（原为两行自由折行，切页内容起始位置会跳） */
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: calc(var(--fs-sub) * 1.7);
-}
 .deck-kind-seg {
-  display: inline-flex; align-self: flex-start; align-items: center; gap: 2px;
+  display: inline-flex; align-items: center; gap: 2px;
   padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-md);
   background: var(--surface-2);
 }
@@ -126,13 +108,13 @@ watch(
 }
 .deck-kind-seg button:hover { color: var(--text); background: var(--surface); }
 .deck-kind-seg button.on { color: var(--accent-ink); background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--border)); }
-.deck-hint { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); font-size: var(--fs-caption); color: var(--text-3); }
 .deck-body { min-height: 320px; }
 .deck-body :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
 .deck-body :deep(.module-title) { display: none; }
 .deck-body :deep(.module-body) { padding: 0; }
 @media (max-width: 760px) {
   .deck-page { padding: 14px 16px 48px; }
-  .deck-head { flex-wrap: wrap; }
+  .deck-head { align-items: flex-start; gap: 10px; }
+  .deck-kind-seg { max-width: 100%; overflow-x: auto; }
 }
 </style>

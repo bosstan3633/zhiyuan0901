@@ -47,7 +47,7 @@ check('W17-19 ★主攻完整呈现：项目名不截断 + 状态 + 进度条，
     /* 项目名容器允许换行完整显示 */
     && /\.pi-dir-name \{[^}]*overflow-wrap: anywhere/.test(OV)
     /* 宿主仍唯一挂项目抽屉 */
-    && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId"');
+    && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"');
 });
 
 check('W17-20 ★时间线退役：宿主零挂载 PiRail，样式零命中，周期区单列、页签是唯一导航', () => {

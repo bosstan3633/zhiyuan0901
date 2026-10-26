@@ -617,13 +617,15 @@ check('R140-6 手册 AI 章节（ai-1 入口地图+硬纪律+认知协作者定�
 
 // ============== R141 · V2.109.0：行为修正刀（解绑语义 + AI 抽屉上下文 + 就地改名） ==============
 console.log('【R141 · V2.109.0：行为修正刀】');
-check('R141-1 ★解绑/删除两语义统一真源 shared/utils/taskLinks.ts：挂载行只有 unbindTaskFromMetric（摘 projectId/metricId+detach 引用不删本体），本体软删 softDeleteTaskToTrash（deletedAt+摘引用保留 t.metricId 作恢复锚）；CompassTree/项目详情抽屉/策展页三处指标行钮全部换 ✕ 解绑、方向树 deleteNode 不再有 task 分支（★G1(V3.8.24)随迁带备案：✕ 字符迁 <Icon name="x">，锚点随迁）', () => { const tl = read('/shared/utils/taskLinks.ts'); const ct = CT_ALL; const pdd = read('/newtab/components/ProjectDetailDrawer.vue'); return tl.includes('export function unbindTaskFromMetric') && tl.includes('export function softDeleteTaskToTrash')
+check('R141-1 ★解绑/删除两语义统一真源 shared/utils/taskLinks.ts：挂载行只有 unbindTaskFromMetric（摘归属+detach 引用不删本体），本体软删只走 softDeleteTaskToTrash；CompassTree / 项目详情 / 项目全景 / 收容区均只解绑（★V3.9.22 重指：当前文案「解除指标关联，任务回任务池（真删除请进任务详情）」取代旧“从本指标移除”）', () => { const tl = read('/shared/utils/taskLinks.ts'); const ct = CT_ALL; const pdd = read('/newtab/components/ProjectDetailDrawer.vue'); return tl.includes('export function unbindTaskFromMetric') && tl.includes('export function softDeleteTaskToTrash')
     /* ★W11(V3.8.11)随迁带备案：解绑钮模板挂载点随任务行迁进 CompassLane，跨两层组件到父组件才拿到 task 对象，
        故承重处选父组件的 @unbind 接线 + 舱/指标卡的 emit 透传链（三段都在位才算能力未丢），
        不再是同文件内 @click.stop 直调。删掉任一段都会让 unbindTask 变成死代码——能力真丢。 */
     && ct.includes('@unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"')
     && ct.includes("emit('unbind', t.id)") && ct.includes("emit('unbind', $event)")
-    && !ct.includes("deleteNode('task'") && pdd.includes('title="从本指标移除（任务保留在调度台）"><Icon name="x" :size="13"/>'); });
+    && !ct.includes("deleteNode('task'")
+    && pdd.includes('title="解除指标关联，任务回任务池（真删除请进任务详情）"')
+    && !pdd.includes('softDeleteTaskToTrash'); });
 check('R141-2 ★软删引用闭环', () => { const tl = read('/shared/utils/taskLinks.ts'); const tm = read('/newtab/components/compass/TaskManagerPanel.vue'); return tl.includes('export function softDeleteTaskToTrash') && tm.includes('softDeleteTaskToTrash');  });
 check('R141-3 统计口径防脏：AI 投影三处指标任务统计滤 deletedAt（罗盘链×2+周台账），删指标不再悬挂子任务（CompassTree deleteNode metric 分支清 metricId 回落未关联）', () => { const p = read('/shared/ai/project.ts'); const ct = CT_ALL; return (p.match(/t\.id === id && !t\.deletedAt/g) || []).length === 3 && ct.includes('removeCompassNode') && read('/shared/utils/compassCrud.ts').includes('if (!t.deletedAt && t.metricId === id)') && read('/shared/utils/compassCrud.ts').includes('t.metricId = undefined; t.updatedAt = Date.now()'); });
 check('R141-4 AI 抽屉上下文三件套：AiJob.subject 处理对象标头（拆解/推荐/录入/回顾/洞察/优化全带）；AiRow.advisory 参谋行不进勾选（picked 初始化与全选剔除、计数走 adoptableN · R167 加剔 `optIn`——"AI 没把握"与"不替你改主意"是两件事，后者默认不勾但不该被叫低置信）；verdict.recommend=detail 时「写入详情」自动升主按钮（recDetail 互换 primary）', () => { const j = read('/shared/ai/job.ts'); const w = read('/newtab/components/AiSuggestionDrawer.vue'); const c = read('/shared/ai/chain.ts'); const s = read('/shared/ai/select.ts'); return j.includes('subject?: string') && j.includes('advisory?: boolean') && j.includes('optIn?: boolean') && w.includes("class=\"ai-subject\"") && w.includes("out.filter(r => !r.advisory && !r.weak && !r.optIn && r.changeType !== 'same')") && w.includes('adoptableN') && w.includes('{ primary: recDetail }') && c.includes("key: 'breakdown:verdict', badge: '参谋', advisory: true") && s.includes("key: 'verdict', badge: '参谋', advisory: true"); });

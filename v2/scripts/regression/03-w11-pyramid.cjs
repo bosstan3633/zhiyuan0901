@@ -59,7 +59,8 @@ check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、�
     && CT_W11.includes('layerView.value === lv ? null : lv')              /* ①★F7 列表同层再点收起 */
     && CT_W11.includes('@close="layerView = null"')                       /* ①★F7 列表 ✕ 返回（第二出口） */
     && TOWER.includes(':aria-expanded="open"')
-    && TOWER.includes("{{ open ? '▾' : '▸' }}")                          /* ② 舱折叠双向 */
+    && TOWER.includes('class="tw-fold"')                                  /* ② 舱折叠双向：CSS chevron 随 aria-expanded 换向 */
+    && TOWER.includes('.tw-fold[aria-expanded="true"]::before')
     && LANE.includes("{{ open ? '收起 ▾' : '展开 ▸' }}")                  /* ③ 指标双向 */
     && CT_W11.includes("viewMode === 'tower'") && CT_W11.includes("viewMode === 'pano'")
     && (CT_W11.match(/class="vs-b"/g) || []).length === 2                /* ④ 两个按钮都在 */
@@ -161,12 +162,16 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
   return PANO.includes('meta: CompassMeta')
     && !/buildCompassMeta\(/.test(PANO)                                 /* 组件内不重复聚合 */
     && CT_W11.includes("const viewMode = ref<'tower' | 'pano'>('tower')")
-    /* 形态切换不清筛选 */
-    && !/viewMode\.value = .*\n?[^\n]*dirFilter\.value = ''/.test(CT_W11)
-    /* ★定位必须先 ensureTower：左侧项目导航、onLocateLayer、gotoOrphans 三处都要走它 */
+    /* 形态切换本身不清筛选；定位动作按 V3.9.22 口径允许先收窄筛选再落点。 */
+    && !/function setViewMode\([\s\S]{0,200}dirFilter\.value = ''/.test(CT_W11)
+    /* ★定位必须先 ensureTower：项目导航 / 骨架条 / 层级列表 / 断链弹窗都走同一条定位链 */
     && CT_W11.includes('function ensureTower(')
     && CT_W11.includes("ensureTower('定位项目舱')")
     && CT_W11.includes('ensureTower(`定位第 ${lv} 层`)')
+    && CT_W11.includes('function locateCompassTarget(')
+    && /function locateCompassTarget\([\s\S]{0,800}viewMode\.value = 'tower'/.test(CT_W11)
+    && /function locateCompassTarget\([\s\S]{0,1000}ensureTower\('定位任务'\)/.test(CT_W11)
+    && /function gotoTower\([\s\S]{0,500}ensureTower\('定位项目舱'\)/.test(CT_W11)
     /* ★F7：骨架条定位收窄为第 4 层 + 第 5/6 层走列表行内定位（同一条 ensureTower/gotoTower 通道） */
     && CT_W11.includes('function onLocateLayer(lv: 4)')
     && CT_W11.includes('function onListLocate(')

@@ -353,9 +353,13 @@ check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（
   return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
 });
 
-check('R153-4（V3.9.13 重指 · ★V3.9.18 再重指带备案：sf-meta 随右栏主攻行迁主栏退役，主攻百分比中性可读由主栏面板 .fp-num 承担；.fp-pct 负锚原样保持）主攻百分比与指标条分母保持中性小字可读：fp-num / mb-denom 走中性可读色阶，列数钮 24px；旧 fp-pct / cf-pct 保持退役', () => {
+check('R153-4（★V3.9.22 再重指带备案：主栏主攻面板退役后不再展示完成度百分比；「今天的状态」只保留并列项目名。指标条分母仍须中性可读，列数钮 24px）', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
-  return ch.includes('.fp-num {')
+  return ch.includes('.stat-focus-links {')
+    && ch.includes('.stat-focus-link {')
+    && !ch.includes('class="fp-num"')
+    && !ch.includes('.fp-num {')
+    && !ch.includes('class="fp-bar"')
     && !ch.includes('.fp-pct')
     && !ch.includes('.cf-pct')
     && mb.includes('.mb-denom { font-size: var(--fs-caption); font-weight: 500; color: var(--text-2)') && cp.includes('width: 24px; min-width: 24px; height: 24px')

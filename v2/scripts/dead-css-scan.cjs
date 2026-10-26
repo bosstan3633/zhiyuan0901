@@ -160,7 +160,13 @@ function harvest(txt) {
     // （R4-Ev 的第一批假阳性就是这么来的——dz-hl 只在设置页"高亮可交互"打开时渲染，census 也看不见它）
     for (const t of mm[1].trim().split(/[\s'":]+/)) if (t) attr.add(t)
   }
-  for (const mm of txt.matchAll(/<\s*(?:Transition|transition)[^>]*\bname\s*=\s*"([^"]+)"/g)) transitionNames.add(mm[1])
+  /* Static name plus the literal branches of a dynamic :name expression.
+     Drawer switches between `drawer` and `drawer-modal`; both are real Vue
+     transition classes even though neither appears in a class attribute. */
+  for (const mm of txt.matchAll(/<\s*(?:Transition|TransitionGroup|transition|transition-group)\b[^>]*\bname\s*=\s*"([^"]+)"/g)) transitionNames.add(mm[1])
+  for (const mm of txt.matchAll(/<\s*(?:Transition|TransitionGroup|transition|transition-group)\b[^>]*:name\s*=\s*"([^"]+)"/g)) {
+    for (const lit of mm[1].matchAll(/(['"])([A-Za-z_][\w-]*)\1/g)) transitionNames.add(lit[2])
+  }
   return { attr, strings }
 }
 for (const f of sfc) {

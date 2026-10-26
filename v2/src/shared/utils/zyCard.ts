@@ -41,6 +41,19 @@ export interface ZyCardRow {
   title: string
 }
 
+/** 多段明细：日战报需要「全量时间线 + 当前下钻」，不能把两段拼成一段。 */
+export interface ZyCardRowSection {
+  title?: string
+  rows: ZyCardRow[]
+}
+
+/** 卡片上的说明带：热力带、口径注等不属于读数/明细的独立内容。 */
+export interface ZyCardBand {
+  label?: string
+  value: string
+  note?: string
+}
+
 export interface ZyCardSpec {
   /** 眉标：如「每日战报」「年度热力」「本月沉淀」 */
   kicker: string
@@ -53,6 +66,10 @@ export interface ZyCardSpec {
   rows?: ZyCardRow[]
   /** 明细区标题（有 rows 才用） */
   rowsTitle?: string
+  /** V3.9.22：多段明细；与单段 rows/rowsTitle 兼容，日战报用它与当前下钻并列导出 */
+  sections?: ZyCardRowSection[]
+  /** V3.9.22：独立说明带（日战报热力带等），按顺序绘制在读数/卡带之后 */
+  bands?: ZyCardBand[]
   footer?: string
   /** 画格子图（热力图卡用）：坐标 + 档位，版式由本模块决定 */
   grid?: { cells: { c: number; r: number; lv: number }[]; cols: number; rows: number } | null
@@ -90,10 +107,18 @@ export function zyCardBlob(spec: ZyCardSpec): Promise<Blob> {
   const rows = spec.grid?.rows || 0
   const cell = spec.grid ? Math.floor((inner - (cols - 1) * 5) / cols) : 0
   const gridH = spec.grid ? rows * (cell + 5) + 14 : 0
-  const rowH = spec.rows?.length ? spec.rows.length * 26 + 34 : 0
+  const sections = spec.sections?.length
+    ? spec.sections
+    : spec.rows?.length
+      ? [{ title: spec.rowsTitle, rows: spec.rows }]
+      : []
+  const bands = spec.bands || []
+  const bandH = bands.length * 46
+  const rowH = sections.reduce((sum, section) => sum + (section.rows.length ? section.rows.length * 26 + 34 : 0), 0)
 
   const headH = 116
-  const H = pad + headH + readoutRows * readoutH + (kindsH ? kindsH + 14 : 0) + (gridH ? gridH + 14 : 0) + rowH + 62
+  const H = pad + headH + readoutRows * readoutH + (kindsH ? kindsH + 14 : 0) + (gridH ? gridH + 14 : 0)
+    + bandH + rowH + 62
 
   const cv = document.createElement('canvas')
   const dpr = 2
@@ -197,21 +222,42 @@ export function zyCardBlob(spec: ZyCardSpec): Promise<Blob> {
     y += gridH
   }
 
-  // ⑤ 明细区
-  if (spec.rows?.length) {
+  // ⑤ 说明带（热力带等）：独立色阶底，与屏上顺序一致
+  for (const band of bands) {
+    g.fillStyle = c.heat[0]
+    g.fillRect(pad, y + 8, inner, 36)
+    g.fillStyle = c.fg
+    g.font = `700 13px ${FONT}`
+    g.fillText(band.value.slice(0, 80), pad + 12, y + 30)
+    if (band.label) {
+      g.fillStyle = c.fg2
+      g.font = `600 11px ${FONT}`
+      g.fillText(band.label.slice(0, 16), pad + inner - 12 - Math.min(90, band.label.length * 11), y + 30)
+    }
+    if (band.note) {
+      g.fillStyle = c.fg2
+      g.font = `400 11px ${FONT}`
+      g.fillText(band.note.slice(0, 42), pad + 12, y + 44)
+    }
+    y += 46
+  }
+
+  // ⑥ 多段明细区（与屏上分组、顺序一致；不截断）
+  for (const section of sections) {
+    if (!section.rows.length) continue
     g.strokeStyle = c.line
     g.beginPath()
     g.moveTo(pad, y + 8)
     g.lineTo(W - pad, y + 8)
     g.stroke()
     y += 26
-    if (spec.rowsTitle) {
+    if (section.title) {
       g.fillStyle = c.fg2
       g.font = `600 12px ${FONT}`
-      g.fillText(spec.rowsTitle, pad, y)
+      g.fillText(section.title, pad, y)
       y += 18
     }
-    for (const r of spec.rows) {
+    for (const r of section.rows) {
       if (r.time) {
         g.fillStyle = c.fg2
         g.font = `400 12px ${FONT}`
@@ -231,7 +277,7 @@ export function zyCardBlob(spec: ZyCardSpec): Promise<Blob> {
     }
   }
 
-  // ⑥ 品牌页脚
+  // ⑦ 品牌页脚
   const fy = H - 34
   g.strokeStyle = c.line
   g.beginPath()
@@ -265,11 +311,20 @@ export function zyCardHtml(spec: ZyCardSpec): string {
         <em>${esc(spec.kinds.label || '')}</em>
       </div>`
     : ''
-  const rows = spec.rows?.length
-    ? `<section class="rows">${spec.rowsTitle ? `<h2>${esc(spec.rowsTitle)}</h2>` : ''}${spec.rows
-        .map(r => `<div class="row">${r.time ? `<span class="tm">${esc(r.time)}</span>` : ''}<span class="lb">${esc(r.label)}</span><span class="ti">${esc(r.title)}</span></div>`)
-        .join('')}</section>`
-    : ''
+  const sections = spec.sections?.length
+    ? spec.sections
+    : spec.rows?.length
+      ? [{ title: spec.rowsTitle, rows: spec.rows }]
+      : []
+  const rows = sections
+    .filter(section => section.rows.length)
+    .map(section => `<section class="rows">${section.title ? `<h2>${esc(section.title)}</h2>` : ''}${section.rows
+      .map(r => `<div class="row">${r.time ? `<span class="tm">${esc(r.time)}</span>` : ''}<span class="lb">${esc(r.label)}</span><span class="ti" title="${esc(r.title)}">${esc(r.title)}</span></div>`)
+      .join('')}</section>`)
+    .join('')
+  const bands = (spec.bands || [])
+    .map(band => `<div class="band"><b>${esc(band.value)}</b>${band.label ? `<span>${esc(band.label)}</span>` : ''}${band.note ? `<em>${esc(band.note)}</em>` : ''}</div>`)
+    .join('')
   const grid = spec.grid
     ? `<div class="grid-wrap"><div class="grid" style="grid-template-columns:repeat(${spec.grid.cols},minmax(0,1fr));grid-template-rows:repeat(${spec.grid.rows},10px)">${spec.grid.cells
         .map(cell => `<i style="grid-column:${cell.c + 1};grid-row:${cell.r + 1};background:${c.heat[Math.max(0, Math.min(5, cell.lv))]}"></i>`)
@@ -297,6 +352,10 @@ h1{margin:8px 0 6px;font-size:26px;line-height:1.35}
 .rows h2{margin:16px 0 8px;font-size:13px;color:${c.fg2}}
 .row{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid ${c.line};font-size:13px}
 .row:first-of-type{border-top:0}
+.band{display:flex;align-items:baseline;gap:10px;margin:10px 0;padding:9px 12px;background:${c.heat[0]};border-radius:6px;color:${c.fg};font-size:13px}
+.band b{font-weight:700}
+.band span{color:${c.fg2};font-size:11px;font-weight:600}
+.band em{margin-left:auto;color:${c.fg2};font-size:11px;font-style:normal}
 .grid-wrap{margin:18px 0;padding:14px 0;border-top:1px solid ${c.line};border-bottom:1px solid ${c.line};overflow-x:auto}
 .grid{display:grid;gap:4px;min-width:0}
 .grid i{display:block;min-width:0;border-radius:2px}
@@ -312,6 +371,7 @@ h1{margin:8px 0 6px;font-size:26px;line-height:1.35}
   <div class="ro-wrap">${readouts}</div>
   ${kinds}
   ${grid}
+  ${bands}
   ${rows}
   <p class="foot"><span>${esc(spec.footer || '知源调度台 · 数据只在本机')}</span><span>知源调度台 · 生成于 ${stampDay()}</span></p>
 </div></body></html>`

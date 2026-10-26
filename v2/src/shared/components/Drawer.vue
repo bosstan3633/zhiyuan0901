@@ -46,10 +46,17 @@ const props = withDefaults(defineProps<{
   closeOnEscape?: boolean
   /** 可选的独立宽度记忆键；不传则沿用全站共用的 drawerWs.shared。 */
   widthStorageKey?: string
+  /**
+   * V3.9.22：同一套详情内容支持中央弹窗呈现。
+   * drawer = 原右侧抽屉（默认，零行为变化）；modal = 居中面板，仍复用本壳的
+   * 焦点陷阱、遮罩、Esc 栈与嵌套层级，避免 Modal / Drawer 两套监听同时关层。
+   */
+  mode?: 'drawer' | 'modal'
 }>(), {
   /* Boolean prop 缺省为 false。不显式给 true，会让所有没传该 prop 的抽屉
      默认失去 Esc；只有 AI 弹窗在场时，任务详情才传 false 让位。 */
-  closeOnEscape: true
+  closeOnEscape: true,
+  mode: 'drawer'
 })
 const emit = defineEmits<{ close: [] }>()
 const drawerId = ++drawerSeq
@@ -57,6 +64,9 @@ const drawerId = ++drawerSeq
 const stackDepth = computed(() => Math.max(0, drawerStack.value.indexOf(drawerId)))
 const overlayZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2})`)
 const drawerZ = computed(() => `calc(var(--z-overlay) + ${stackDepth.value * 2 + 1})`)
+const panelStyle = computed(() => props.mode === 'modal'
+  ? { width: 'min(960px, 94vw)', height: 'min(88vh, 900px)', zIndex: drawerZ.value }
+  : { width: `${w.value}px`, zIndex: drawerZ.value })
 const panelRef = ref<HTMLElement | null>(null)
 
 // R170-②：详情抽屉全局统一拖宽（拍板：所有卡片详情页可左右拖拽 + 记忆）。
@@ -94,6 +104,7 @@ function resetWidth() { w.value = defaultW.value; endResize() }
 watch(() => props.widthStorageKey, () => {
   w.value = savedWidth.value || defaultW.value
 })
+watch(() => props.mode, () => { dragging.value = false })
 
 // 第卅一轮修复：Esc 关闭抽屉（open 期间 document 级捕获监听，任何焦点下生效——此前抽屉不响应 Esc）
 function onKey(e: KeyboardEvent) {
@@ -138,11 +149,11 @@ onUnmounted(() => {
     <Transition name="overlay">
       <div v-if="open" class="drawer-overlay" :style="{ zIndex: overlayZ }" @click="emit('close')"></div>
     </Transition>
-    <Transition name="drawer">
-      <aside v-if="open" ref="panelRef" class="drawer" :class="{ dragging }" :style="{ width: w + 'px', zIndex: drawerZ }"
+    <Transition :name="mode === 'modal' ? 'drawer-modal' : 'drawer'">
+      <aside v-if="open" ref="panelRef" class="drawer" :class="{ dragging, 'drawer-mode-modal': mode === 'modal' }" :style="panelStyle"
         tabindex="-1" role="dialog" aria-modal="true" :aria-label="title || '详情'">
         <!-- R170-②：左缘拖宽把手（双击复位默认宽） -->
-        <div class="drawer-resize" title="拖拽调宽 · 双击复位" @mousedown="startResize" @dblclick="resetWidth" />
+        <div v-if="mode === 'drawer'" class="drawer-resize" title="拖拽调宽 · 双击复位" @mousedown="startResize" @dblclick="resetWidth" />
         <header class="drawer-header">
           <!-- R167：可选 title 插槽——把"就地可编辑主标题 + kicker"放进头部，
                正文里就不再重复一份标题（现状是头部一份只读、正文一份 textarea，同屏两处且头部那份长标题被截断）。
@@ -200,11 +211,31 @@ onUnmounted(() => {
 .drawer-resize:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .drawer.dragging { transition: none; user-select: none; }
 .drawer.dragging .drawer-body { pointer-events: none; }
+/* V3.9.22：同一详情内容切中央弹窗——位置与尺寸由 panelStyle 提供，这里只负责面板外观。
+   父层遮罩仍是 .drawer-overlay，层级沿用 drawerStack，故嵌套详情 Esc 只关最上层。 */
+.drawer.drawer-mode-modal {
+  top: 50%; right: auto; bottom: auto; left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 96vw;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+.drawer.drawer-mode-modal .drawer-header { padding: var(--sp-4) var(--sp-5); }
+.drawer.drawer-mode-modal .drawer-body { padding: var(--sp-5); }
 
 .overlay-enter-active, .overlay-leave-active { transition: opacity var(--dur-slow); }
 .overlay-enter-from, .overlay-leave-to { opacity: 0; }
 .drawer-enter-active, .drawer-leave-active { transition: transform .3s var(--ease-emphasis); }
 .drawer-enter-from, .drawer-leave-to { transform: translateX(100%); }
+.drawer-modal-enter-active, .drawer-modal-leave-active {
+  transition: opacity var(--dur) var(--ease-emphasis), transform var(--dur) var(--ease-emphasis);
+}
+.drawer-modal-enter-from, .drawer-modal-leave-to { opacity: 0; transform: translate(-50%, -48%) scale(.985); }
 /* R169-老账③：reduced-motion 随合并统一到壳上（原 Workspace 自绘 dr-* 过渡在 workspace.css 有同款守卫） */
-@media (prefers-reduced-motion: reduce) { .drawer-enter-active, .drawer-leave-active { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-enter-active, .drawer-leave-active,
+  .drawer-modal-enter-active, .drawer-modal-leave-active { transition: none; }
+}
 </style>

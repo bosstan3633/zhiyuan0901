@@ -72,7 +72,10 @@ function applyDay(day: string): void {
   if (y >= 2000 && y <= 2100 && y !== dashYear.value) dashYear.value = y
   dashSelDay.value = day
 }
-const openToday = () => applyDay(todayKey())
+async function openToday(): Promise<void> {
+  await refreshEventLog()
+  applyDay(todayKey())
+}
 
 /* useDailyLogRequest 是模块级单例：品牌区 / ⌘K 等外部入口发起的「今日战报」请求由此消费。
    ★打开前必须重读事件日志——本组件走 keep-alive 只挂载一次，否则快照冻结在首次挂载那一刻。 */
@@ -98,7 +101,13 @@ onMounted(() => {
   if (d) applyDay(d)
 })
 
-defineExpose({ openToday })
+/** 外部按具体日期打开（画像页热力格 / 周节奏共用）；与 openToday 走同一个 applyDay 真源。 */
+async function openDay(day: string): Promise<void> {
+  await refreshEventLog()
+  applyDay(day)
+}
+
+defineExpose({ openToday, openDay })
 </script>
 
 <template>

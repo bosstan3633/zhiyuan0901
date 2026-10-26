@@ -27,7 +27,7 @@
 import Icon from '@/shared/components/Icon.vue'
 import '@/newtab/components/dashboard/dashboard.css'
 import '@/newtab/components/profile/pi-timeline.css'
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import type { AppData, TaskCard, ResourceCard } from '@/shared/models'
@@ -67,7 +67,7 @@ import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboar
 import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
 import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
-import DayDetail from '@/newtab/components/dashboard/DayDetail.vue'
+import TodayBattleHost from '@/newtab/components/dashboard/TodayBattleHost.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { emitOpenDrawer } from '@/shared/utils/bus'
@@ -81,6 +81,7 @@ const router = useRouter()
 const store = useAppStore()
 const gd = computed(() => store.data!)
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+const battleHost = ref<InstanceType<typeof TodayBattleHost> | null>(null)
 const { openResourceLink } = useResourceOpen({ store, d: gd })
 /* ★W17-C09：方向状态面板要「停滞 / 已完成 / 未完成数」——与方向台同一口径，故直接用 compass store */
 const { focusedProjects, projectProgress, projectTasksOf, isProjectStalled, isProjectDone } = useCompass()
@@ -355,8 +356,7 @@ function onConciseAction(action: string) {
   if (action === 'wakeCooling' || action === 'openLifecycle') wakeCooling()
 }
 
-/** ★W14-T1 · 主攻项目详情抽屉（用户拍板 2026-10-16）：Hero 主攻胶囊与今日三件事行的 🚀 主攻标签
-    共用这一个出口，抽屉本体沿用方向台/策展台同一枚 ProjectDetailDrawer（零新建组件、可编辑）。 */
+/** 主攻项目详情：Hero 胶囊与今日三件事行共用这一出口，中央弹窗复用 ProjectDetailDrawer。 */
 const projDetailOpen = ref(false)
 const projDetailId = ref<string | null>(null)
 function openProjectDetail(projectId: string) {
@@ -764,27 +764,13 @@ function onYearDrill(k: 'yr-assets' | 'yr-high') {
   else wakeCooling()
 }
 
-/* ===== 今日战报弹窗（DayDetail） ===== */
-const dayOpen = ref(false)
+/* ===== 今日战报弹窗：与调度台共用 TodayBattleHost 同一壳与同一导出数据源 ===== */
 function openTodayBattle() {
-  const today = fmtDayKey(Date.now())
-  if (dashStats.value.days[today]) {
-    dashSelDay.value = today
-  } else {
-    const keys = Object.keys(dashStats.value.days).filter(k => dashStats.value.days[k].w > 0).sort().reverse()
-    dashSelDay.value = keys[0] || today
-  }
-  dayOpen.value = true
+  battleHost.value?.openToday()
 }
 function openDayBattle(day: string) {
-  if (!day) { openTodayBattle(); return }
-  dashSelDay.value = day
-  dayOpen.value = true
-}
-function onDayOpenLog(day: string) {
-  dayOpen.value = false
-  logPreset.value = { kind: 'all', action: 'all', from: day, to: day, note: `来源：日详情——已按 ${day} 预筛。` }
-  logOpen.value = true
+  if (!day) { battleHost.value?.openToday(); return }
+  battleHost.value?.openDay(day)
 }
 
 /* ===== Hero 动作（W13-T2 · F4 四张底盘卡各自有下钻出口） ===== */
@@ -972,8 +958,6 @@ onMounted(() => {
   }
 })
 onUnmounted(() => { offErrLog() })
-// 战报打开前重读事件日志（keep-alive 场景数据不冻结；复盘弹窗 watch 随 D5 退役）
-watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
 </script>
 <template>
   <div class="pi-page">
@@ -1045,13 +1029,11 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
       @close="lcSetOpen = false" @save-default="saveLcDefault"
       @update:default-draft="lcDefaultDraft = $event" @set-days="onLcSetDays" />
 
-    <!-- ===== 全量记录抽屉 ===== -->
+    <!-- ===== 全量记录抽屉（页面自身下钻用；战报自己的「查看全部记录」由 TodayBattleHost 承接） ===== -->
     <DashboardLogDrawer :open="logOpen" :events="timelineEvents" :data="gd" :preset="logPreset" @close="logOpen = false" />
 
-    <!-- ===== ★W14-T1 主攻项目详情抽屉（用户拍板 2026-10-16）：点 Hero 主攻胶囊或今日三件事行的
-         🚀 主攻标签 → 右侧滑出**那个项目**的详情（沿用方向台/策展台同一枚 ProjectDetailDrawer，
-         可编辑项目名·指标·任务，编辑实时写回 store） ===== -->
-    <ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" @close="projDetailOpen = false" />
+    <!-- 主攻项目详情：中央弹窗，沿用可编辑 ProjectDetailDrawer。 -->
+    <ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal" @close="projDetailOpen = false" />
     <TaskDetailDrawer ref="taskDetailRef" />
 
     <PiTagDistributionDrawer
@@ -1073,25 +1055,13 @@ watch(dayOpen, async (v) => { if (v) await refreshEventLog() })
     <!-- ★W13-D5/F28：「动态条明细抽屉」（dynDrawer）已退役——事件时间窗下钻统一走
      DashboardLogDrawer（month-add → openLog('month-in')；主攻动作 → openLogFocus()）。 -->
 
-    <!-- ===== 今日战报弹窗（DayDetail） ===== -->
-    <Teleport to="body">
-      <div v-if="dayOpen && dashSelDay" class="pi-day-overlay" @click.self="dayOpen = false">
-        <div class="pi-day-modal" role="dialog" aria-modal="true" aria-label="今日战报">
-          <DayDetail
-            :stats="dashStats" :day="dashSelDay" :events="timelineEvents" :live-link="linkCardCount"
-            :kinds="{ ...heroKindCounts, label: '在库' }"
-            @close="dayOpen = false" @open-log="onDayOpenLog" />
-        </div>
-      </div>
-    </Teleport>
+    <!-- ===== 今日战报：与调度台共用同一宿主（事件桥 / 日详情 / 全量记录 / 导出均为单源） ===== -->
+    <TodayBattleHost ref="battleHost" />
   </div>
 </template>
 
 <style scoped>
 /* ===== 页面容器 ===== */
 .pi-page { max-width: 1440px; margin: 0 auto; padding: 24px 36px 64px; display: flex; flex-direction: column; gap: 24px; }
-/* ===== 今日战报弹窗壳 ===== */
-.pi-day-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
-.pi-day-modal { width: min(720px, 92vw); max-height: 86vh; background: var(--surface); border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.25); overflow: hidden; display: flex; flex-direction: column; }
 
 </style>

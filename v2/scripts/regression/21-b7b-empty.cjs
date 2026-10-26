@@ -26,7 +26,7 @@ const NAME = (...parts) => parts.join('')
 /* ══════════════ C5 · 方向台空态引导 ══════════════ */
 
 check(NAME(
-  'C5-1 ★空态有主行动（原文验收）：方向台零战略目标时给一个能点的按钮，且调的是同一个 addDirection ——',
+  'C5-1 ★V3.9.22 重指：方向台零战略目标时，空态主行动打开同一个新建战略目标弹窗 ——',
   '不是页头按钮的复制品。★为什么允许它进层内（推翻 V3.8.27「空态只指路」的裁定）：',
   'R3-B′ 反对的是「两个入口并列让用户不知道点哪个」，这在非空态成立；',
   '但零方向时页头那个按钮挂在骨架条第 3 层、既不在视野内也无参照，等于有入口却够不到。',
@@ -37,7 +37,7 @@ check(NAME(
   if (!cell) { console.log('     未找到方向台空态'); return false }
   if (!/icon="compass"/.test(cell)) { console.log('     图标非 compass（原文点名 Icon compass）'); return false }
   if (!/action-label="[^"]+"/.test(cell)) { console.log('     缺主行动按钮'); return false }
-  if (!/@action="addDirection"/.test(cell)) { console.log('     主行动未调 addDirection'); return false }
+  if (!/@action="openDirectionCreate"/.test(cell)) { console.log('     主行动未打开新建弹窗'); return false }
   if (!/action-label="＋ 写下第一个战略目标"/.test(cell)) { console.log('     主行动文案须按原文口径'); return false }
   return true
 })

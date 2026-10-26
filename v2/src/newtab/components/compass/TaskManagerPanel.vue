@@ -1197,8 +1197,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
 .t-pin { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
 /* M6（B7-e · V3.8.40）：热区下限 28px（实测 24px）——只撑点击盒子，图标尺寸不变 */
 .t-star { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
-.t-del { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
-.trow:hover .t-pin, .trow:hover .t-star, .trow:hover .t-del { opacity: .6; }
+.t-del { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; opacity: .72; transition: all var(--dur) ease; flex-shrink: 0; }
+.trow:hover .t-pin, .trow:hover .t-star { opacity: .6; }
+.trow:hover .t-del { opacity: .9; }
 .t-pin:hover, .t-star:hover { opacity: 1 !important; background: var(--surface-3); }
 .t-pin.on, .t-star.on { opacity: 1; }
 .t-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); color: var(--danger, #e74c3c); }

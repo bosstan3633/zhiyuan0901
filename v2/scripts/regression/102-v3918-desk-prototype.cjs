@@ -21,27 +21,27 @@ const SM = read('/newtab/components/compass/CompassStatusModal.vue');
 
 console.log('【V3.9.18 · 调度台按原型迭代（主攻面板 / 三池页签 / 右栏读数 / 密度接通）】');
 
-check('D18-1 ★页头：kicker 去全大写英文改「调度台 · 日期」；主攻锚行常驻（项目名点击开只读详情 + 下一步 chip）；旧副标语随原型退役', () => {
+check('D18-1 ★V3.9.22 重指：页头主攻锚行退役；主攻只在「今天的状态」保留，名称各自打开可编辑项目详情', () => {
   return CH.includes('调度台 · {{ formatFullDate(todayDate) }}')
     && !CH.includes('TODAY ·')
     && !CH.includes('THREE DECKS')
-    && CH.includes('class="desk-anchor"')
-    && CH.includes('class="da-link"')
-    && CH.includes('class="da-next"')
-    && CH_C.includes('主攻锚')
-    && !CH.includes('把注意力放在真正要推进的事上');
+    && !CH.includes('class="desk-anchor"')
+    && !CH.includes('class="da-link"')
+    && !CH.includes('class="da-next"')
+    && CH.includes('class="stat-row stat-row-focus"')
+    && CH.includes('打开可编辑项目详情');
 });
 
-check('D18-2 ★主攻项目面板：主攻 1 / 主攻 2 两行卡面行（项目名 + 下一步主句 + %完成 + 进度条），点击开只读项目详情；下一步与项目详情抽屉同源（resolveProjectNextStep 唯一解析，不许另写回退）', () => {
-  return CH.includes("import { resolveProjectNextStep } from './compassMeta'")
-    && CH_C.includes('const focusNextOf = (p: Project): string => resolveProjectNextStep(p, projectTasksOf(p.id)).nextStep')
-    && CH.includes('class="focus-projects"')
-    && (CH.match(/class="fp-row"/g) || []).length >= 2
-    && CH.includes('class="fp-next"')
-    && CH.includes('class="fp-num"')
-    && CH.includes('class="fp-bar"')
+check('D18-2 ★V3.9.22 重指：主栏主攻面板退役；「今天的状态」同一行并列最多两个主攻名，不显示下一步 / 完成度', () => {
+  return CH.includes('class="stat-row stat-row-focus"')
+    && CH.includes('class="stat-focus-links"')
+    && CH.includes('class="stat-focus-link"')
     && CH.includes('@click="openFocusProject(mainFocus)"')
-    && CH.includes('@click="openFocusProject(extraFocus)"');
+    && CH.includes('@click="openFocusProject(extraFocus)"')
+    && !CH.includes('class="focus-projects"')
+    && !CH.includes('class="fp-row"')
+    && !CH_C.includes('const focusNextOf')
+    && !CH_C.includes('focusMeta.get(');
 });
 
 check('D18-3 ★手边的卡三池页签：任务 / 好奇心 / 资源三枚 hand-tab（role=tablist + aria-selected），三段 hand-col 以 v-show 切换显示态；三列字符串锚（hand-grid / hand-col / mini-list×3 / goDeck 三连 / 查看全部）全数保留，旧底部 tab 类名零回流', () => {
@@ -87,10 +87,12 @@ check('D18-5 ★好奇心培育面板（右栏第三块）：最近 3 条好奇�
 });
 
 check('D18-6 ★密度令牌接通（04-73 D-1(a)）：主栏行卡内距读 --card-pad-vert / --card-pad-horz、行距读 --card-gap——紧凑密度开关在调度台真实生效；R50-4/R52-6/R56-6 的原字符串锚原样保留（保护性双锚，gap 单列一条不覆盖首行）', () => {
+  const stateRow = CH.slice(CH.indexOf('.stat-row {'), CH.indexOf('.stat-row-focus'));
   return CH.includes('.focus-list { display: flex; flex-direction: column; }')
     && CH.includes('.focus-list { gap: var(--card-gap); }')
     && CH.includes('padding: var(--card-pad-vert) var(--card-pad-horz);')
-    && CH.includes('.fp-row + .fp-row { margin-top: var(--card-gap); }')
+    && stateRow.includes('padding: var(--card-pad-vert) var(--card-pad-horz);')
+    && CH.includes('.focus-row {') && CH.includes('.stat-row {')
     && CH.includes('.mini-item') && CH.includes('padding: var(--card-pad-vert) 10px;');
 });
 

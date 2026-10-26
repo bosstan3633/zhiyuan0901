@@ -58,6 +58,9 @@ const SHARDS = [
   '103-v3919-compass-prototype',
   '104-v3920-gp-split',
   '105-v3921-compass-round2',
+  '106-v3922-profile',
+  '107-v3922-desk',
+  '108-v3922-compass',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

@@ -121,10 +121,10 @@ check('W12-7 ★容器内边距属**跨页一致性**纪律，原型的值不许
     && /^\.spine-bar \{[^}]*margin-bottom: 16px/m.test(t);
 });
 
-check('W12-8 ★拆版式不许顺手删能力：HERO 重构后页头原有的八个出口必须逐项在位。★这条是本项目的核心教训「少做了门禁抓不到」的对冲 —— 一次结构调整最容易丢的不是样式而是入口（按钮被并进菜单、返回钮被省掉、统计从模板里消失）。★逐项点名：返回项目详情 / 已完成显隐 / 健康度 / 视图切换双向 / 展开 / 收起 / ＋战略目标 / AI 建议目标 / 项目详情', () => {
+check('W12-8 ★拆版式不许顺手删能力：★V3.9.22 重指：＋战略目标改走新建弹窗，其余页头出口逐项保留；历史项目详情入口按既有退役口径单独核', () => {
   const t = codeOnly(CT_W11);
   return ['goBack', 'toggleShowDone', 'dhiStatus', 'viewMode === \'tower\'', 'viewMode === \'pano\'',
-    'expandAllNodes', 'collapseAllNodes', 'addDirection', "aiChain('directions'", '/compass/projects']
+    'expandAllNodes', 'collapseAllNodes', 'openDirectionCreate', "aiChain('directions'", '/compass/projects']
     .every(k => t.includes(k));
 });
 
@@ -239,11 +239,9 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必�
     && !/\.dz-calib \.cb \.r/.test(audit)
     && !/pi-hero-sum \.pi-hchip/.test(audit) && !/hero-kpis-grid > \.hero-kpi/.test(audit)
     && !/\.dz-calib/.test(DASH_CSS) && !/\.dz-ov-say/.test(DASH_CSS) && !/\.dz-recentry/.test(DASH_CSS)
-  // ④ ★V3.9.3 重指：热力格恢复为当日战报的直接入口（PiYear 的 onHeatmapSel 先保留
-  //    selDay 再 emit open-battle）。dz-day 场景走 PiToday 的「打开战报」，
-  //    两条入口都必须落到同一枚 .pi-day-modal；判据仍要求 ≥4 格 + 热力带 + 时间线。
+  // ④ ★V3.9.22 重指：画像页与调度台共用 TodayBattleHost，弹层真实类名是 .dz-day-modal。
   const dayOk = /打开战报/.test(audit)
-    && /\.pi-day-modal/.test(audit)
+    && /\.dz-day-modal/.test(audit)
     && /onHeatmapSel/.test(read('/newtab/components/profile/PiYear.vue'))
     && /emit\('open-battle', day\)/.test(read('/newtab/components/profile/PiYear.vue'))
   // ⑤ ★B7-e 重指：⑧ 之后 `openReviewModal` 已随四条场景一起下线（原为恰好 3 处），
@@ -440,14 +438,13 @@ check('W12-D2 ★今日战报宿主必须是「自包含」的：数据桥 useDa
   return true;
 });
 
-check('W12-D3 ★开战报前必须重读事件日志（keep-alive 陷阱的备案）。本组件走 keep-alive 全会话只挂载一次，refreshEventLog 仅在 onMounted 跑；此后新增/删除/调出只进 zy_event_log 缓存，UI 侧 eventLog 快照会冻结在首次挂载那一刻 ⇒ 战报统计过时。判据：watch(pendingDay) 里先 await refreshEventLog() 再消费，onMounted 里也 refresh 一次', () => {
+check('W12-D3 ★开战报前必须重读事件日志：外部 pendingDay、openToday、openDay 三条入口都先刷新再消费；onMounted 仍保底刷新一次', () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   if (!/watch\(pendingDay,[\s\S]{0,400}await refreshEventLog\(\)/.test(tbh)) return false;
   if (!/onMounted\(\(\) => \{[\s\S]{0,120}void refreshEventLog\(\)/.test(tbh)) return false;
-  // openToday 走今天
-if (!/openToday\s*=\s*\(\)\s*=>/.test(tbh) || !tbh.includes('todayKey()')) return false;
-  if (!tbh.includes('defineExpose({ openToday })')) return false;
-  return true;
+  const openToday = /async function openToday\(\): Promise<void> \{[\s\S]{0,200}await refreshEventLog\(\)[\s\S]{0,120}applyDay\(todayKey\(\)\)/.test(tbh);
+  const openDay = /async function openDay\(day: string\): Promise<void> \{[\s\S]{0,200}await refreshEventLog\(\)[\s\S]{0,80}applyDay\(day\)/.test(tbh);
+  return openToday && openDay && tbh.includes('defineExpose({ openToday, openDay })');
 });
 
 check('W12-D4 ★V3.9.1 随迁备案：热力图仍不得回调度台；原「全貌」槽位已被两栏工作台吸收，今日三件事整行直接打开右侧任务详情。Heatmap 本体仍留在画像洞察页，能力与位置约束继续成立', () => {

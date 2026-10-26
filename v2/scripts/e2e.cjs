@@ -325,8 +325,7 @@ async function main() {
     && rowCount >= 0 && clickableRows === 0 && closedByEsc && focusBack,
     `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" modal=${statusModalOn} url不变=${urlUnchanged} 明细行=${rowCount} 可点行=${clickableRows} Esc关=${closedByEsc} 焦点回归=${focusBack}`)
 
-  // E2E-49（V3.9.15）：主攻行点击直达完整只读项目详情。
-  //   V3.9.14 曾要求“先开明细再点查看项目”；V3.9.15 用户改为直达，因此断言同步到新交互。
+  // E2E-49（V3.9.22）：主攻行点击直接打开可编辑项目详情中央弹窗。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -361,16 +360,23 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1800)
-  /* ★V3.9.18 重指带备案：主攻行自右栏「今天的状态」迁主栏「主攻项目」面板（fp-row），
-     行为契约不变——点击直达完整只读项目详情，不先经过明细弹窗。 */
-  const focusStatusRow = page.locator('.focus-projects .fp-row').filter({ hasText: 'E2E 状态主攻项目' }).first()
+  /* ★V3.9.22：主攻名回到右栏「今天的状态」同一行常驻；页头锚行和主栏主攻面板均已退役。
+     点击项目名仍直接打开项目详情，但容器改为中央弹窗，且详情可编辑。 */
+  const focusStatusRow = page.locator('.stat-focus-links .stat-focus-link').filter({ hasText: 'E2E 状态主攻项目' }).first()
   await focusStatusRow.click().catch(() => {})
   await page.waitForTimeout(1000)
-  const focusStatusModalOn = await page.locator('.md-panel').filter({ hasText: '主攻项目明细' }).first().isVisible().catch(() => false)
-  const readonlyProjectOn = await page.locator('.md-panel').filter({ hasText: '项目全景 · 只读' }).filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
-  report('E2E-49（V3.9.18 重指）主攻项目直达：点击主栏「主攻项目」面板行（V3.9.15 时在右栏「今天的状态」）直接打开完整只读项目详情，不先经过明细弹窗',
-    !focusStatusModalOn && readonlyProjectOn,
-    `直达项目详情=${readonlyProjectOn} 明细弹窗=${focusStatusModalOn}`)
+  const focusDetail = page.locator('.drawer.drawer-mode-modal').filter({ hasText: 'E2E 状态主攻项目' }).first()
+  const focusDetailOn = await focusDetail.isVisible().catch(() => false)
+  const focusDetailEditable = await focusDetail.locator('.pd-name[contenteditable="true"]').first().isVisible().catch(() => false)
+  const focusSideDrawerOn = await page.locator('.drawer:not(.drawer-mode-modal)').filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
+  const oldFocusPanelGone = (await page.locator('.focus-projects').count().catch(() => -1)) === 0
+  const focusCentered = await focusDetail.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 40
+  }).catch(() => false)
+  report('E2E-49（V3.9.22 重指）主攻项目直达：右栏「今天的状态」项目名打开可编辑项目详情中央弹窗；主栏旧面板与右侧滑出均不回流',
+    focusDetailOn && focusDetailEditable && !focusSideDrawerOn && oldFocusPanelGone && focusCentered,
+    `中央弹窗=${focusDetailOn} 可编辑=${focusDetailEditable} 右侧抽屉=${focusSideDrawerOn} 旧面板归零=${oldFocusPanelGone} 居中=${focusCentered}`)
 
   // E2E-5 PDF 双击 file:// 打开：走策展画布上的资源 chip（现役入口）
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -426,20 +432,37 @@ async function main() {
   const poolRow = page.locator('.pcp-row[data-rid="e2e-res-1"]').first()
   await waitForLocator(page, '.pcp-row[data-rid="e2e-res-1"]', { visible: true, timeout: 8000 })
   const poolRowVisible = await poolRow.isVisible().catch(() => false)
+  let poolMenuVisible = false
+  let poolDeleteHit = false
   if (poolRowVisible) {
     await poolRow.click({ button: 'right' }).catch(() => {})
     await waitForLocator(page, '.ctx-menu-box .cx-item', { timeout: 5000 })
+    poolMenuVisible = await page.locator('.ctx-menu-box').first().isVisible().catch(() => false)
   }
   const delItem = page.locator('.ctx-menu-box .cx-item', { hasText: '删除' }).first()
   if (await delItem.count()) {
     await delItem.click().catch(() => {})
-    await page.waitForTimeout(1800) // 300ms 防抖 + 落盘
+    poolDeleteHit = true
   }
-  const evRaw = await page.evaluate(() => chrome.storage.local.get('zy_event_log'))
-  const ev = evRaw && evRaw['zy_event_log']
+  // 不只等固定时长：先等软删真正落库，再核同一张卡的事件已随整库 set 写入。
+  await waitForStorage(page, 'zy_data_v2', (raw) => {
+    const card = ((raw.zy_data_v2 || {}).resources || []).find(x => x.id === 'e2e-res-1')
+    return !!(card && card.deletedAt)
+  }, { timeout: 8000 })
+  await waitForStorage(page, 'zy_event_log', (raw) =>
+    Array.isArray(raw.zy_event_log)
+    && raw.zy_event_log.some(x => x && x.action === 'delete' && x.cardId === 'e2e-res-1'),
+  { timeout: 8000 })
+  const poolAfter = await page.evaluate(() => chrome.storage.local.get(['zy_data_v2', 'zy_event_log']).then((raw) => {
+    const card = ((raw.zy_data_v2 || {}).resources || []).find(x => x.id === 'e2e-res-1')
+    const ev = raw.zy_event_log || []
+    return { softDeleted: !!(card && card.deletedAt), ev }
+  }))
+  const ev = poolAfter.ev
   report('E2E-6 事件日志 zy_event_log 落盘（资源池软删产生 delete 事件）',
-    poolRowVisible && Array.isArray(ev) && ev.some(x => x && x.action === 'delete' && x.cardId === 'e2e-res-1'),
-    ev ? `${ev.length} 条，最新=${ev[ev.length - 1] && (ev[ev.length - 1].kind + '/' + ev[ev.length - 1].action)} 池行=${poolRowVisible}` : `无日志 池行=${poolRowVisible}`)
+    poolRowVisible && poolMenuVisible && poolDeleteHit && poolAfter.softDeleted
+    && Array.isArray(ev) && ev.some(x => x && x.action === 'delete' && x.cardId === 'e2e-res-1'),
+    ev ? `${ev.length} 条，最新=${ev[ev.length - 1] && (ev[ev.length - 1].kind + '/' + ev[ev.length - 1].action)} 池行=${poolRowVisible} 菜单=${poolMenuVisible} 点删除=${poolDeleteHit} 软删落库=${poolAfter.softDeleted}` : `无日志 池行=${poolRowVisible} 菜单=${poolMenuVisible} 点删除=${poolDeleteHit}`)
 
   // ---- 第卌五轮 R45：罗盘种子数据（战略目标→项目→成功指标→任务→今日三件事） ----
   await page.evaluate(() => {
@@ -704,11 +727,11 @@ async function main() {
   await heatTarget.click({ timeout: 6000 }).catch(() => {})
   await page.waitForTimeout(700)
   const heatBattle = await page.evaluate(() => {
-    const modal = document.querySelector('.pi-day-modal')
-    const sub = (document.querySelector('.pi-day-modal .dz-day-sub')?.textContent || '').trim()
+    const modal = document.querySelector('.dz-day-modal')
+    const sub = (document.querySelector('.dz-day-modal .dz-day-sub')?.textContent || '').trim()
     return { open: !!modal, sub }
   })
-  await page.locator('.pi-day-modal .dz-btn.ghost.sm').filter({ hasText: '收起' }).click().catch(() => {})
+  await page.locator('.dz-day-modal .dz-btn.ghost.sm').filter({ hasText: '收起' }).click().catch(() => {})
   await page.waitForTimeout(300)
   const dsYearOn = await page.locator('.dz-months .dz-year').count()
   const dsAugL2 = await page.locator('.dz-year .dz-cell[data-day="2026-08-15"]')

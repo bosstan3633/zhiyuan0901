@@ -200,13 +200,16 @@ check('W17-16 ★全局开关：三页都有「全部折叠 / 全部展开」按
 
 /* ══════════════ C04 · 二级页页头对齐 ══════════════ */
 
-check('W17-17 ★页头左缘单锚：返回按钮独立成行，标题块与列表左缘对齐，描述单行省略', () => {
-  return DECK.includes('class="deck-head-top"')
-    && DECK.includes('class="deck-head-copy"')
-    && DECK_C.includes('<div class="deck-head-top">')
-    && DECK_C.indexOf('<div class="deck-head-top">') < DECK_C.indexOf('<div class="deck-head-copy">')
-    && /\.deck-head \{ display: flex; flex-direction: column;/.test(DECK)
-    && /white-space: nowrap; overflow: hidden; text-overflow: ellipsis/.test(DECK);
+check('W17-17 ★V3.9.22 重指：二级页页头只保留返回 + 类型 tab；可见标题三件与提示条退役，读屏标题保留', () => {
+  return DECK.includes('class="deck-back"')
+    && DECK.includes('class="deck-kind-seg"')
+    && DECK.includes('class="deck-sr-title"')
+    && DECK_C.includes('aria-label="卡片类型"')
+    && !DECK.includes('class="deck-head-copy"')
+    && !DECK.includes('class="deck-kicker"')
+    && !DECK.includes('class="deck-hint"')
+    && /\.deck-head \{ display: flex; align-items: center;/.test(DECK)
+    && /\.deck-sr-title \{/.test(DECK);
 });
 
 /* ══════════════ V3.9.7 · 调度台与卡池收口 ══════════════ */
@@ -222,10 +225,10 @@ check('V3.9.7-1 ★手边的卡三类各 5 行；右栏最近调出按可用高�
     && PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
 });
 
-check('V3.9.13-2 ★主攻项目点击打开只读详情弹窗，不再跳方向树，也不再进入可编辑抽屉', () => {
+check('V3.9.13-2 ★V3.9.22 重指：主攻项目点击打开可编辑详情中央弹窗，不再跳方向树，也不使用右侧抽屉形态', () => {
   const fn = PI.slice(PI.indexOf('function openFocusProject'), PI.indexOf('// ================= 底部专区'));
-  return PI.includes("import CompassProjectReadonlyModal from '../components/compass/CompassProjectReadonlyModal.vue'")
-    && PI.includes('<CompassProjectReadonlyModal :open="readonlyProjectOpen"')
+  return PI.includes("import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'")
+    && PI.includes('<ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="modal"')
     && fn.includes('readonlyProjectOpen.value = true')
     && fn.includes('readonlyProjectId.value = p.id')
     && !fn.includes('router.push');

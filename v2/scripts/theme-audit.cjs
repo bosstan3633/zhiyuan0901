@@ -276,7 +276,7 @@ const DASH_SCENES = [
       const btn = page.locator('button', { hasText: '打开战报' }).first()
       await btn.click({ timeout: 8000 }).catch(() => {})
       await page.waitForTimeout(1200)
-      if (!(await page.locator('.pi-day-modal').first().isVisible().catch(() => false))) {
+      if (!(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))) {
         await page.locator('.pi-today-battle, .pi-mod-acts button').first().click().catch(() => {})
         await page.waitForTimeout(1400)
       }

@@ -13,7 +13,7 @@ import { uid } from '@/shared/utils'
 import { K } from '@/shared/storage/keys'
 import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
 import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
-import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 // R146（回退契约）：罗盘节点删除走真源（确认报数 + 3 秒撤销），与策展台/项目抽屉同一口径
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm, type CompassNodeKind } from '@/shared/utils/compassCrud'
 import { useConfirm } from '@/shared/components/confirm'
@@ -38,6 +38,8 @@ import CompassPano from '../components/compass/CompassPano.vue'
 import { buildCompassMeta } from './compassMeta'
 import type { ProjectMeta } from './compassMeta'
 import ImportTemplateModal from '../components/ImportTemplateModal.vue'
+import DirectionFormModal from '../components/compass/DirectionFormModal.vue'
+import CompassRiskModal, { type RiskProjectGroup } from '../components/compass/CompassRiskModal.vue'
 import type { GoalParseResult } from '@/shared/utils/mdImport'
 import { useProjectDiag } from '../composables/useProjectDiag'
 
@@ -476,15 +478,16 @@ const layerRows5 = computed(() => {
 const layerRows6 = computed(() => {
   const meta = compassMeta.value
   /* metricId → 归属路径（dirs 一次遍历建表，行内不再各自 find） */
-  const path = new Map<string, { dirName: string; projName: string; projId: string; metricTitle: string }>()
+  const path = new Map<string, { dirName: string; projName: string; projId: string; metricId: string; metricTitle: string }>()
   for (const g of meta.dirs) for (const pm of g.projects) {
     const proj = findProject(pm.id)
-    for (const m of pm.metrics) path.set(m.id, { dirName: g.dir.name, projName: proj?.name || pm.id, projId: pm.id, metricTitle: m.title })
+    for (const m of pm.metrics) path.set(m.id, { dirName: g.dir.name, projName: proj?.name || pm.id, projId: pm.id, metricId: m.id, metricTitle: m.title })
   }
   return d.value.tasks.filter(t => !t.deletedAt).map(t => {
     const p = t.metricId ? path.get(t.metricId) : undefined
     return {
       id: t.id, title: t.title, status: t.status,
+      metricId: p?.metricId || null,
       metricTitle: p?.metricTitle || null,
       projName: p?.projName || null,
       projId: p?.projId || t.projectId || '',
@@ -533,10 +536,70 @@ function heroToSpine() {
   onLayerOpen(1)
   showToast('六层结构计数都在这条骨架上 · 已展开第 1 层（愿景原文）')
 }
-/** ★F7 列表行「定位」：关列表回项目塔，定位到该行所属项目舱（与左栏项目导航同一入口 gotoTower） */
-function onListLocate(projId: string, label: string) {
+/** 定位到项目 / 指标 / 任务三级中的最具体一级。 */
+function locateCompassTarget(target: { projId: string; metricId?: string; taskId?: string }) {
+  const { projId, metricId, taskId } = target
+  if (!projId) {
+    if (taskId) locationTaskPool()
+    else showToast('该目标没有可定位的项目')
+    return
+  }
   layerView.value = null
-  nextTick(() => { gotoTower(projId); showToast(`${label} · 已定位所属项目舱`) })
+  layerOpen.value = null
+  riskOpen.value = false
+  const proj = findProject(projId)
+  if (!proj) {
+    if (taskId) locationTaskPool()
+    else showToast('项目已不在')
+    return
+  }
+  projFoldOverride.value[projId] = true
+  writeProjFold()
+  if (metricId) expandedMetrics.value.add(metricId)
+  viewMode.value = 'tower'
+  dirFilter.value = ''
+  riskOnly.value = false
+  nextTick(() => {
+    ensureTower('定位任务').then(() => {
+      const selector = metricId && taskId
+        ? `[data-tower="${projId}"] [data-metric="${metricId}"] [data-task="${taskId}"]`
+        : taskId
+          ? `[data-tower="${projId}"] [data-task="${taskId}"]`
+          : metricId
+            ? `[data-tower="${projId}"] [data-metric="${metricId}"]`
+            : `[data-tower="${projId}"]`
+      nextTick(() => {
+        const el = document.querySelector(selector) as HTMLElement | null
+        if (!el) {
+          if (taskId && !metricId) {
+            const orphan = document.querySelector(`[data-tower="${projId}"] .tw-orphans [data-task="${taskId}"]`) as HTMLElement | null
+            if (orphan) flashLocated(orphan)
+            else showToast('任务已不在该项目')
+          } else {
+            const fallback = document.querySelector(`[data-tower="${projId}"]`) as HTMLElement | null
+            if (fallback) flashLocated(fallback)
+            else showToast('定位目标已不在')
+          }
+          return
+        }
+        flashLocated(el)
+      })
+    })
+  })
+}
+function flashLocated(el: HTMLElement) {
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('w11-flash')
+  setTimeout(() => el.classList.remove('w11-flash'), 1400)
+}
+function locationTaskPool() {
+  showToast('该任务未归项目，正在打开任务池', {
+    label: '去任务池',
+    cb: () => void router.push('/deck/task')
+  })
+}
+function onListLocate(target: { projId: string; metricId?: string; taskId?: string }) {
+  locateCompassTarget(target)
 }
 /**
  * ★F7 列表第 3 层行内编辑：关掉层级列表回到项目塔，再就地进入该目标标题编辑。
@@ -544,15 +607,7 @@ function onListLocate(projId: string, label: string) {
  *   否则列表里点编辑会因 contenteditable 尚未渲染而静默落空。
  */
 function onListEditDir(id: string) {
-  layerView.value = null
-  /* ★V3.9.21：目标标题的 contenteditable 只存在于项目塔视图。
-     若用户是从「项目全景」里打开层级列表再点编辑，只关列表仍会停在泳道 DOM，
-     focusEditField 找不到目标节点而静默落空；先切回 tower 再聚焦。 */
-  viewMode.value = 'tower'
-  nextTick(() => {
-    editingField.value = 'dir-' + id
-    focusEditField('dir-' + id)
-  })
+  openDirectionEdit(id)
 }
 /** 战略目标过滤：芯片 / 目标卡 / 分组头 三处同源 */
 function onDirFilter(id: string) {
@@ -588,28 +643,30 @@ function gotoOrphans() {
     showToast(`${hit.orphanTasks.length} 条任务在本项目内但没挂任何成功指标 · 泳道区最右侧的红色收容道`)
   })
 }
-/** 断链清单：报数 + 导出（口径来自集中取数，与骨架条同源） */
-function showRiskReport() {
-  const lines: string[] = ['# 方向台断链清单（W11）', '']
+/** 断链清单：只读弹窗，行可定位；不提供下载。 */
+const riskOpen = ref(false)
+const riskGroups = computed<RiskProjectGroup[]>(() => {
+  const groups: RiskProjectGroup[] = []
   for (const g of compassMeta.value.dirs) {
     for (const pm of g.projects) {
-      if (!pm.risk) continue
-      const p = findProject(pm.id)
-      lines.push(`## ${g.dir.name} › ${p?.name || pm.id}`)
-      for (const m of pm.metrics) {
-        if (m.orphanMetric) lines.push(`-  指标「${m.title}」零任务（验收：${m.acceptance || '未写'}）`)
-      }
-      for (const t of pm.orphanTasks) lines.push(`-  任务「${t.title}」未挂任何成功指标`)
+      const proj = findProject(pm.id)
+      const metrics = pm.metrics.filter(m => m.orphanMetric).map(m => ({
+        id: m.id, title: m.title, acceptance: m.acceptance, projId: pm.id
+      }))
+      const tasks = pm.orphanTasks.map(t => ({ id: t.id, title: t.title, projId: pm.id }))
+      if (!metrics.length && !tasks.length) continue
+      groups.push({
+        id: pm.id, projId: pm.id,
+        dirName: g.dir.name, projName: proj?.name || pm.id,
+        metrics, tasks
+      })
     }
   }
-  if (lines.length === 2) { showToast('当前无断链'); return }
-  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `方向台断链清单_${new Date().toISOString().slice(0, 10)}.md`
-  a.click()
-  URL.revokeObjectURL(a.href)
-  showToast(`已导出断链清单（${compassMeta.value.counts.risk} 处）`)
+  return groups
+})
+function showRiskReport() {
+  if (!compassMeta.value.counts.risk) { showToast('当前无断链'); return }
+  riskOpen.value = true
 }
 /** 任务成熟度详情（从任务行的小徽标点进来） */
 function showTaskGrade(taskId: string) {
@@ -696,29 +753,55 @@ function cancelEdit() {
   editingField.value = null
 }
 
-// ---- CRUD（★新建即编辑：创建后直接进入标题编辑态，不再让用户自己找标题在哪）----
-function addDirection() {
-  const dir: Direction = {
+// ---- CRUD：战略目标新建 / 编辑共用中央表单（V3.9.22）----
+const directionForm = ref<{ open: boolean; direction: Direction | null }>({ open: false, direction: null })
+
+function openDirectionCreate() {
+  directionForm.value = { open: true, direction: null }
+}
+
+function openDirectionEdit(id: string) {
+  const direction = d.value.compass.directions.find(x => x.id === id)
+  if (!direction) { showToast('战略目标已不在'); return }
+  directionForm.value = { open: true, direction }
+}
+
+function saveDirectionForm(value: { name: string; term: 'long' | 'mid' | 'short'; status: Direction['status'] }) {
+  if (directionForm.value.direction) {
+    const direction = directionForm.value.direction
+    direction.name = value.name
+    direction.term = value.term
+    direction.status = value.status
+    store.persist()
+    directionForm.value = { open: false, direction: null }
+    showToast(`已更新战略目标「${value.name}」`)
+    return
+  }
+
+  const direction: Direction = {
     id: uid('dir'),
-    name: '新战略目标',
-    status: 'active',
-    term: 'mid',
+    name: value.name,
+    status: value.status,
+    term: value.term,
     projects: []
   }
-  d.value.compass.directions.push(dir)
+  d.value.compass.directions.push(direction)
   store.persist()
-  /* 分组头挂在项目塔视图里——筛选/断链/层级列表若正遮着它，先复位再聚焦，
-     否则"新建即编辑"会落空（editingField 指向一个没渲染的 contenteditable）。 */
+  directionForm.value = { open: false, direction: null }
+
   dirFilter.value = ''
   riskOnly.value = false
   layerView.value = null
   layerOpen.value = null
-  /* ★V3.9.21：同上——新建的战略目标分组头只在项目塔渲染；
-     全景视图下必须先回 tower，否则「新建即编辑」聚焦落空。 */
   viewMode.value = 'tower'
-  editingField.value = 'dir-' + dir.id
-  focusEditField('dir-' + dir.id)
-  showToast('战略目标已创建 · 正在编辑标题（回车保存）')
+  nextTick(() => {
+    const el = document.querySelector(`[data-dir-id="${direction.id}"]`) as HTMLElement | null
+    if (!el) { showToast(`已创建「${value.name}」`); return }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('goal-flash')
+    setTimeout(() => el.classList.remove('goal-flash'), 1500)
+    showToast(`已创建战略目标「${value.name}」`)
+  })
 }
 
 /**
@@ -923,47 +1006,14 @@ async function deleteNode(type: string, id: string) {
 function unbindTask(task: TaskCard) {
   unbindTaskFromMetric(d.value, task)
   store.persist()
-  showToast(`已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
+  showToast(`已解除关联：「${task.title.slice(0, 16)}」已回任务池`)
 }
 
-/** V3.9.15：方向台任务行直接软删进回收站；软删无需二次确认，回执保留撤销。 */
-function deleteTaskDirect(taskId: string) {
+/** V3.9.22：方向台只解绑，不删除任务本体；真删除只在任务详情/任务卡池。 */
+function unbindTaskById(taskId: string) {
   const task = d.value.tasks.find(t => t.id === taskId)
   if (!task || task.deletedAt) return
-  const projectId = task.projectId
-  const metricId = task.metricId
-  const linkedMetricIds = new Set<string>()
-  for (const dir of d.value.compass.directions) {
-    for (const project of dir.projects) {
-      for (const metric of project.metrics) {
-        if (metric.taskIds.includes(taskId)) linkedMetricIds.add(metric.id)
-      }
-    }
-  }
-  if (metricId) linkedMetricIds.add(metricId)
-  softDeleteTaskToTrash(d.value, task)
-  const deletedAt = task.deletedAt
-  store.persist()
-  showToast(`已删除「${task.title.slice(0, 18)}」· 可在回收站恢复`, {
-    label: '撤销',
-    cb: () => {
-      const current = d.value.tasks.find(t => t.id === taskId)
-      // 只撤销这一次删除；若任务已在回收站被恢复或再次删除，回执不应改写后来的状态。
-      if (!current || !current.deletedAt || current.deletedAt !== deletedAt) return
-      current.deletedAt = undefined
-      current.updatedAt = Date.now()
-      for (const dir of d.value.compass.directions) {
-        for (const project of dir.projects) {
-          for (const metric of project.metrics) {
-            if (linkedMetricIds.has(metric.id) && !metric.taskIds.includes(current.id)) metric.taskIds.push(current.id)
-          }
-        }
-      }
-      if (projectId && !current.projectId) current.projectId = projectId
-      if (metricId && !current.metricId) current.metricId = metricId
-      store.persist()
-    },
-  })
+  unbindTask(task)
 }
 
 /* ★W11 二批清账：tasksForMetric() / metricTaskRows() 已退役。
@@ -1259,7 +1309,7 @@ onUnmounted(() => {
         <!-- ★V3.8.18（N12）：「＋战略目标」「建议目标」落到骨架条第 3 层旁边。
              它们本来就是第 3 层的操作，此前摆在一排全局按钮里，用户得先跨过视图切换才够得到。 -->
         <template #actions>
-          <button class="tree-tool accent" @click="addDirection" title="添加战略目标">＋ 战略目标</button>
+          <button class="tree-tool accent" @click="openDirectionCreate" title="添加战略目标">＋ 战略目标</button>
           <span class="node-action ai-chain-act" v-pressable title="AI 依愿景/使命建议本阶段战略目标（同层查重后采纳才创建）" @click="aiChain('directions', '')"><AiEntryButton variant="inline" label="建议目标" /></span>
         </template>
       </CompassSpine>
@@ -1437,7 +1487,7 @@ onUnmounted(() => {
               @toggle-task="toggleTask"
               @task-grade="showTaskGrade"
               @open-detail="openTaskDetail"
-              @delete-task="deleteTaskDirect"
+              @unbind-task="unbindTaskById"
               @open-metric="openMetricDetail"
               @add-task="(mid, pid) => openTaskAdd(mid, pid)"
               @add-metric="addMetric"
@@ -1473,7 +1523,7 @@ onUnmounted(() => {
                 title="方向台还空着"
                 desc="战略目标是你真正想推进的那件事——它下面会长出项目、指标与任务。"
                 hint="写下第一个战略目标，方向树就从这里长出来；想先看整体骨架，先写愿景与使命也行。"
-                action-label="＋ 写下第一个战略目标" @action="addDirection" />
+                action-label="＋ 写下第一个战略目标" @action="openDirectionCreate" />
 
               <template v-for="dg in towerGroups" :key="dg.dir.id">
                 <!-- 战略目标分组头：★与骨架条芯片、层级面板目标卡三处同源同色 -->
@@ -1487,8 +1537,8 @@ onUnmounted(() => {
                       {{ dg.i + 1 }} 战略目标
                     </button>
                     <span class="dh-i">{{ dg.i + 1 }}</span>
-                    <span class="node-title editable dh-n" v-pressable :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
-                      @click="startEdit('dir-' + dg.dir.id, $event)" @blur="saveEdit('dir-' + dg.dir.id, $event)" @keydown.enter.prevent="saveEdit('dir-' + dg.dir.id, $event)" @keydown.esc="cancelEdit">{{ dg.dir.name }}</span>
+                    <span class="node-title editable dh-n" v-pressable :data-edit="'dir-' + dg.dir.id"
+                      @click.stop="openDirectionEdit(dg.dir.id)">{{ dg.dir.name }}</span>
                     <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>
                     <MaturityBadge :m="directionMaturity(d, dg.dir)" />
                     <span class="dh-meta">{{ dg.projs.length }} 攻坚项目 · {{ dg.metaCount }} 成功指标 · {{ dg.taskCount }} 任务</span>
@@ -1509,7 +1559,7 @@ onUnmounted(() => {
                     <span class="node-action t2" v-pressable @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）"><Icon name="filetext" :size="13"/></span>
                     <span class="node-action t3" v-pressable :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
                       :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'"><Icon v-if="dirFilter === dg.dir.id" name="eye" :size="13"/>{{ dirFilter === dg.dir.id ? '正在只看' : '只看我' }}</span>
-                    <span class="node-action t2" v-pressable @click="startEdit('dir-' + dg.dir.id, $event)" title="编辑目标名称（就地改名，回车保存）"><Icon name="edit" :size="13"/></span>
+                    <span class="node-action t2" v-pressable @click="openDirectionEdit(dg.dir.id)" title="编辑战略目标（名称 / 期限 / 状态）"><Icon name="edit" :size="13"/></span>
                     <span class="node-action t3 danger" v-pressable @click="deleteNode('dir', dg.dir.id)" title="删除目标"><Icon name="trash" :size="13"/></span>
                   </div>
                 </div>
@@ -1547,10 +1597,9 @@ onUnmounted(() => {
                   @toggle-task="toggleTask"
                   @task-grade="showTaskGrade"
                   @open-detail="openTaskDetail"
-                  @delete-task="deleteTaskDirect"
+                  @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @open-metric="openMetricDetail"
                   @add-task="(mid) => { const r = findMetric(mid); if (r) openTaskAdd(mid, r.proj.id) }"
-                  @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @ai-task="(mid) => aiChain('tasks', mid)"
                   @add-metric="addMetric"
                   @del-metric="delMetricById"
@@ -1653,6 +1702,19 @@ onUnmounted(() => {
     :target-name="projImport.projName"
     @close="projImport.open = false"
     @confirm="confirmProjImport"
+  />
+  <DirectionFormModal
+    :open="directionForm.open"
+    :direction="directionForm.direction"
+    @close="directionForm = { open: false, direction: null }"
+    @save="saveDirectionForm"
+  />
+  <CompassRiskModal
+    :open="riskOpen"
+    :groups="riskGroups"
+    :total="compassMeta.counts.risk"
+    @close="riskOpen = false"
+    @locate="locateCompassTarget"
   />
   <!-- R135：罗盘链式生成评审抽屉（目标/项目/指标/任务四层建议共用） -->
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />

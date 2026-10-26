@@ -12,7 +12,7 @@ import type { Direction, Project, TaskCard } from '@/shared/models'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
-import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
+import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
@@ -26,6 +26,8 @@ const props = defineProps<{
   projectId: string | null
   /** 仅已接线指标详情的宿主开启下钻；共用宿主默认关闭，避免出现点了没反应的死按钮。 */
   enableMetricDrill?: boolean
+  /** drawer = 原右侧抽屉；modal = 中央弹窗（内容与编辑能力完全相同） */
+  mode?: 'drawer' | 'modal'
 }>()
 const emit = defineEmits<{ close: [] }>()
 
@@ -167,18 +169,13 @@ function openTaskAdd(metricId: string) { taskAddMetricId.value = metricId }
 /** R51-B6：创建成功后直接打开详情抽屉 */
 const detailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 function onTaskCreated(t: TaskCard) { detailRef.value?.open(t) }
-/** R141（反馈 #1）：指标下任务行只做解绑（✕ 回任务调度模块），删除本体收进任务详情 */
+/** R141 / V3.9.22：指标下任务行只做解绑（✕ 回任务池），删除本体收进任务详情。 */
 function unbindTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
   unbindTaskFromMetric(d.value, t)
   store.persist()
-  showToast(`已从本指标移除：「${t.title.slice(0, 16)}」回到任务调度模块`)
-}
-function deleteTask(task: TaskCard) {
-  softDeleteTaskToTrash(d.value, task)
-  store.persist()
-  showToast(`已移入回收站：「${task.title.slice(0, 16)}」`)
+  showToast(`已解除关联：「${t.title.slice(0, 16)}」已回任务池`)
 }
 /* R166 定案 1：子任务改成卡内嵌 `subtasks`，不再是"独立卡 + parentId"——
    因此指标下的任务行是一维列表，R144 的 flattenTaskTree 展平与 ⤴ 升顶层随之退役。 */
@@ -208,7 +205,7 @@ function chainStatus(): { broken: boolean; text: string } {
 </script>
 
 <template>
-  <Drawer :open="open && !!project" :title="project ? ` ${project.name}` : ''" width="480px" @close="emit('close')">
+  <Drawer :open="open && !!project" :title="project ? ` ${project.name}` : ''" width="480px" :mode="mode || 'drawer'" @close="emit('close')">
     <template v-if="project">
       <!-- 项目名 + 主攻标记 -->
       <div class="pd-head">
@@ -295,8 +292,7 @@ function chainStatus(): { broken: boolean; text: string } {
               <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
               <span class="pd-task-pri" :class="task.priority">{{ task.priority === 'high' ? '高' : task.priority === 'low' ? '低' : '中' }}</span>
               <MaturityBadge :m="taskMaturity(task)" />
-              <button class="pd-mini" @click="unbindTask(task.id)" title="从本指标移除（任务保留在调度台）"><Icon name="x" :size="13"/></button>
-              <button class="pd-mini danger pd-task-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="deleteTask(task)"><Icon name="trash" :size="13"/></button>
+              <button class="pd-mini" @click="unbindTask(task.id)" title="解除指标关联，任务回任务池（真删除请进任务详情）"><Icon name="x" :size="13"/></button>
             </div>
             <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>
           </div>
@@ -315,7 +311,7 @@ function chainStatus(): { broken: boolean; text: string } {
             <span class="pd-task-pri" :class="task.priority">{{ task.priority === 'high' ? '高' : task.priority === 'low' ? '低' : '中' }}</span>
             <MaturityBadge :m="taskMaturity(task)" />
             <span class="pd-task-state">{{ task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始' }}</span>
-            <button class="pd-mini danger pd-task-del" title="删除任务（进回收站，可在回收站恢复）" aria-label="删除任务" @click="deleteTask(task)"><Icon name="trash" :size="13"/></button>
+            <button class="pd-mini" @click="unbindTask(task.id)" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联"><Icon name="x" :size="13"/></button>
           </div>
         </div>
       </div>
@@ -388,8 +384,6 @@ function chainStatus(): { broken: boolean; text: string } {
 .pd-mini.pd-detail { width: auto; padding: 0 7px; font-size: var(--fs-tiny); font-weight: 600; }
 .pd-mini:hover { background: var(--surface-3); color: var(--text); }
 .pd-mini.danger:hover { color: var(--danger); }
-.pd-task-del { opacity: .6; }
-.pd-task:hover .pd-task-del, .pd-task-del:focus-visible { opacity: 1; }
 .pd-tasks { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .pd-task { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 3px 5px; border-radius: 6px; }
 .pd-task:hover { background: var(--surface); }
