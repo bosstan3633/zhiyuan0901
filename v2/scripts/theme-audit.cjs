@@ -120,7 +120,8 @@ const DRAWER_VIEWS = [
     /* V3.9.1：任务详情已统一到共享 Drawer 壳，旧的 `.task-sidebar` 只存在于历史选择器里。
        改用抽屉内的标题块作为打开判据，AI 入口仍在同一层，避免把真实可用的详情误判成“没打开”。 */
     card: '[data-tid]', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
-    invert: '.drawer .ts-ai-cell',
+    /* V3.9.23：AI 三入口改为浅色工具组，hover 只提 accent 边与浅底，不再翻实心 accent，
+       因此旧“白徽标 + accent 底”的反相判据在此退役；真实对比度由 theme-contrast 守。 */
   },
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
