@@ -7,7 +7,7 @@
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
-    <!-- V3.9.13：台身份与中心论点合成同一条上下文带；论点不再独占整行，工具条紧接其后。 -->
+    <!-- V3.9.24：台身份与中心论点拆成两层；中心论点使用整行宽度，避免标题与论点半排互相挤压。 -->
     <div class="ws-hero">
       <div class="ws-id-head">
         <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
@@ -17,7 +17,7 @@
         <span class="wsh-spacer" />
         <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
       </div>
-      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.13 起与台身份并排，保留原入口与键盘语义。 -->
+      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.24 起独占下一层整行，编辑与 AI 处理进入论点卡详情。 -->
       <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
         :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
         @click="thesisCard ? openThesisCard() : openThesisCreate()"
@@ -278,10 +278,10 @@
                        （宿主回到 ≤1500 行验收线 + 少一套私有 modal 实现的消费方） -->
     <LinkCardsModal
       :open="!!linkCardsModal" :cat-name="linkCardsModal?.catName || ''" :picked="linkCardsModal?.picked"
-      :q="linkCardsQ" :cat="linkCardsCat" :cat-options="linkCatOptions" :list="linkShowList"
+      :q="linkCardsQ" :list="linkShowList"
       :ai-busy="linkAiBusy" :ai-on="linkAiOn" :ai-hits="linkAiHits" :ai-fed="linkAiFed" :ai-took="linkAiTook"
       :ai-scope="linkAiScope" :ai-note="linkAiNote"
-      @update:q="linkCardsQ = $event" @update:cat="linkCardsCat = $event" @toggle-pick="toggleLinkPick"
+      @update:q="linkCardsQ = $event" @toggle-pick="toggleLinkPick"
       @confirm="confirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
 
     <!-- N8（V3.8.18）镜像到策展台——推送方向的选台弹窗（与上面的「移动分类」同款 modal 形态）。
@@ -695,7 +695,7 @@ const {
 // ===== 画布辅助域：模板导入 / 关联资源 / 全屏（旧金字塔视图已退出宿主）=====
 const {
   pyramidImportOpen, confirmPyramidImport,
-  linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, confirmLinkCards,
+  linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, confirmLinkCards,
   linkAiBusy, linkAiHits, linkAiFed, linkAiTook, linkAiOn, linkAiScope, linkAiNote, linkAiRun, linkShowList, linkAiHitOf,
 } = usePyramid({ store, d, workspaceId, thesisCard, mind })
 

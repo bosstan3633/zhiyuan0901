@@ -452,7 +452,9 @@ check('W12-D4 ★V3.9.1 随迁备案：热力图仍不得回调度台；原「�
   if (!ch.includes('@click="openCellTask(c)"')) return false;
   if (!ch.includes('drawerRef.value?.open(c.task)')) return false;
   /* 原热力图槽位现在由今日工作单本身承接：工作单必须在手边卡之前。 */
-  if (!(ch.indexOf('class="work-board"') < ch.indexOf('class="hand-board"'))) return false;
+  const iWork = ch.search(/class="[^"]*\bwork-board\b/);
+  const iHand = ch.search(/class="[^"]*\bhand-board\b/);
+  if (!(iWork >= 0 && iHand > iWork)) return false;
   // Heatmap 本体保留（画像洞察页在用）——基路径走 helpers 的 base，禁止硬编码盘符（原 D:/… 在非 Windows 环境恒 false）
   const exists = fs.existsSync(base + '/newtab/components/dashboard/Heatmap.vue');
   if (!exists) return false;

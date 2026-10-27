@@ -243,7 +243,7 @@ check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成�
   return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
 });
 check('R94-6（V3.9.1 重指）B3：完成态挂在 .work-board.all-done 上，整张工作单轻降饱和，仍低饱和 + 安静收束', () => {
-  return CH94.includes('class="work-board" :class="{ \'all-done\': focusAllDone }"')
+  return /class="work-board[^"]*"\s+:class="\{ 'all-done': focusAllDone \}"/.test(CH94)
     && /\.work-board\.all-done \{[^}]*background: color-mix/.test(CH94)
     && !CH94.includes('.today-cards { filter: saturate');
 });

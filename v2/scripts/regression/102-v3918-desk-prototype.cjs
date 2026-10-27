@@ -80,7 +80,7 @@ check('D18-5 ★V3.9.23 右栏收口：删除“好奇心培育”第三块；�
     && CH.includes('aria-label="手边的卡类型"')
     && CH.includes("handTab = 'curiosity'")
     && CH.includes('@click="goDeck(\'curiosity\')"')
-    && CH.includes('class="rail-panel rail-panel-recent"')
+    && CH.includes('rail-panel rail-panel-recent desk-row desk-row-secondary')
     && !CH.includes('useEqualHeight');
 });
 

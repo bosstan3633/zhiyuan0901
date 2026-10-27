@@ -313,25 +313,23 @@ check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着
 
 // ============== R4-Dc · 旧世界清账：附件卫生 keepIds 单源 + 破坏性入口必有门 ==============
 console.log('【R4-Dc · 数据体检与附件卫生合流】');
-check('R4-Dc ★keepIds 只有一个算式：两个清理入口共用一份实现，宿主不得再手写 keep 集合', () => {
+check('R4-Dc ★V3.9.24 重指：孤儿清理仍共用 keepIds 单源；设置页「清空全部附件」则必须走四类卡引用清空，不得伪装成孤儿清理', () => {
   const bk = codeOnly(read('/newtab/composables/useWsAssetHygiene.ts'));
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
   return bk.includes('collectReferencedAssetIds(d.value)') && bk.includes('cleanupOrphanAssetsOf(d.value)')
-    && dm.includes('collectReferencedAssetIds(gd.value)') && dm.includes('cleanupOrphanAssetsOf(gd.value)')
+    && dm.includes('clearAllAssetReferences(gd.value)')
+    && !dm.includes('cleanupOrphanAssetsOf(gd.value)')
     && !bk.includes('new Set(referencedAssetIds.value)') && !dm.includes('cleanupOrphanAssets(keep)');
 });
-check('R4-Dc ★不可恢复的物理删除必须先数清再确认：设置页那枚「清理」钮此前单击即删（与 R146 给清空回收站补门同一条理由——同一张卡上「导出附件包」被写成完整备份，两个相邻动作给出相反的风险信号）', () => {
+check('R4-Dc ★V3.9.24 重指：设置页「清理」= 清空全部附件。必须先盘点数量与体积、再二次确认，然后解除四类卡引用并删除全部 Blob', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
-  /* ★V3.8.42（P0-3 第四批）承重锚重指：终点原为 `watch(activePage, (p) => { if (p === 'export')`。
-     那不是这条判据的语义边界，只是**当时恰好排在该函数后面的下一条语句**——
-     它属于导航生命周期，与「清理孤儿附件」无关。设置页拆子域后两个函数分居两处，
-     `slice(start, end)` 会因 end < start 取到空串 ⇒ 假红。
-     正解是取**本函数到下一个同域导出函数**（exportAssetPack，两者同属附件存储域），
-     语义边界与判据一致，且不会随文件拆分漂移。旧切片长 835 / 新切片长 1040，守的六条锚全在。 */
-  const seg = fnBody(dm, 'async function cleanupOrphans()', '// ---- Airtable ----');
-  return seg.includes('getAllAssetIndex()') && seg.includes('await useConfirm({')
-    && seg.includes('清理 ${orphans.length} 个') && seg.includes('if (!(await useConfirm(')
-    && seg.indexOf('getAllAssetIndex()') < seg.indexOf('cleanupOrphanAssetsOf(')
+  const seg = fnBody(dm, 'async function clearAssetsEverywhere()', '// ---- Airtable ----');
+  return seg.includes('getAllAssetIndex()')
+    && seg.includes('await useConfirm({')
+    && seg.includes('永久清空 ${index.length} 个')
+    && seg.includes('clearAllAssetReferences(gd.value)')
+    && seg.includes('store.persist()')
+    && seg.indexOf('clearAllAssetReferences(gd.value)') < seg.indexOf('clearAllAssets()')
     && seg.includes('refreshAssetRows()');
 });
 check('R4-Dc ★只删 IndexedDB 本体的那条动作不许多写一遍主 JSON（AppData 一个字节没变 ⇒ persist 是纯开销）', () => {

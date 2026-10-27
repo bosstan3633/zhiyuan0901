@@ -10,7 +10,8 @@ import { CURATION_WS_ID, type Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
 // R160（P1）：GlobalPopups（99KB 源，入口最大应用模块）改按需挂载——首屏不加载，首次呼出（热键/顶栏/消息）时拉起
-const GlobalPopups = defineAsyncComponent(() => import('./components/GlobalPopups.vue'))
+const loadGlobalPopups = () => import('./components/GlobalPopups.vue')
+const GlobalPopups = defineAsyncComponent(loadGlobalPopups)
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import { useConfirm } from '@/shared/components/confirm'
 // R146（回退契约）：策展台「归档 / 删除」两语义真源
@@ -136,6 +137,26 @@ const hiddenWsCount = computed(() => (wsOverflow.value && !wsOverflowOpen.value)
   : 0)
 
 function navigate(path: string) { router.push(path) }
+
+/* V3.9.24：首屏稳定后再预取高频交互资源。全局检索与常用台面都是懒加载 chunk；
+   在浏览器空闲时提前取回，真实点击时不再等待下载。预取失败不影响主流程。 */
+let prefetchTimer: ReturnType<typeof setTimeout> | null = null
+let prefetchIdle: number | null = null
+function scheduleInteractionPrefetch(): void {
+  prefetchTimer = setTimeout(() => {
+    prefetchTimer = null
+    const run = () => {
+      prefetchIdle = null
+      void Promise.allSettled([
+        loadGlobalPopups(),
+        import('./views/CompassTree.vue'),
+        import('./views/Workspace.vue'),
+      ])
+    }
+    if ('requestIdleCallback' in window) prefetchIdle = window.requestIdleCallback(run, { timeout: 2000 })
+    else run()
+  }, 900)
+}
 
 // W5（V3.8.5）#6 → V3.8.9（W9）：品牌区点击 = 打开画像洞察页（独立路由 #/profile）。
 // 原「今日战报」链路（跳首页 + HeatmapModule 消费 requestDailyLog）退役——
@@ -346,6 +367,7 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
+  scheduleInteractionPrefetch()
   // R131-C6a：启动 idle 预热退役——每开一个新标签页都后台拉 ~312KB 拼音字典，与「按需加载」交付口径相悖；
   // 字典改由搜索面板打开时 ensurePinyin（GlobalPopups）/ 网页浮层唤起时（overlay-impl）加载，
   // pinyinReady 就绪后结果链自动补跑拼音命中（V2.21 既有机制），首屏与多标签页内存不再为该预热买单。
@@ -454,7 +476,14 @@ async function runAirtableSync(withToast: boolean): Promise<void> {
     if (withToast) showToast('Airtable 同步失败：' + (e instanceof Error ? e.message : String(e)))
   } finally { atSyncBusy = false }
 }
-onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
+onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKeydown, true)
+  if (prefetchTimer) { clearTimeout(prefetchTimer); prefetchTimer = null }
+  if (prefetchIdle != null && 'cancelIdleCallback' in window) {
+    window.cancelIdleCallback(prefetchIdle)
+    prefetchIdle = null
+  }
+})
 
 // R45-5（V2.20.0）：资源引擎 Tab 角标彻底移除——不做任务管理平台，去掉任务数催办感（理念对齐：项目驱动）
 

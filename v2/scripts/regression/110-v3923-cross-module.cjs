@@ -138,7 +138,7 @@ check('XM-06 ★策展连线：按真实节点坐标生成正交折线，父右�
     && mm.includes('父右 → 中线 → 子左');
 });
 
-check('XM-07 ★调度台右栏：好奇心培育已删；仅保留今天状态与最近调出；固定 6 条；左右只顶对齐与间距一致，不强制等高', () => {
+check('XM-07 ★V3.9.24 重指：调度台右栏只保留今天状态与最近调出；固定 6 条；左右模块边界、间距与底部收口对齐，不强制内容等高', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const logic = read('/newtab/views/useCompassHome.ts');
   const css = read('/newtab/views/CompassHome.css');
@@ -150,8 +150,10 @@ check('XM-07 ★调度台右栏：好奇心培育已删；仅保留今天状态�
     && logic.includes('const recentLimit = computed(() => 6)')
     && logic.includes('.slice(0, recentLimit.value)')
     && css.includes('.desk-layout {')
-    && css.includes('align-items: start;')
-    && css.includes('右栏只保留两块面板：顶部对齐、模块间距一致，但不强制与左栏等高')
+    && css.includes('grid-template-rows: auto minmax(0, 1fr);')
+    && css.includes('grid-template-rows: subgrid;')
+    && css.includes('左右模块的起点、间距与底部收口对齐')
+    && css.includes('不把卡片内容强行拉成等高')
     && !css.includes('.rail-panel-recent { height: 100%')
     && !css.includes('.side-rail { height: 100%')
     && !home.includes('useEqualHeight')
@@ -198,4 +200,15 @@ check('XM-10 ★数据管理信息架构：只保留数据包 / 附件管理 / A
     && !dm.includes('书签导入</button>')
     && !dm.includes('targetWorkspace')
     && !dm.includes('folderPicker');
+});
+
+check('XM-11 ★V3.9.24 高频交互预热：首屏稳定后空闲预取全局检索与常用台面；预取失败不阻塞主流程，卸载时清理计时器', () => {
+  const app = read('/newtab/App.vue');
+  return app.includes("const loadGlobalPopups = () => import('./components/GlobalPopups.vue')")
+    && app.includes('requestIdleCallback(run, { timeout: 2000 })')
+    && app.includes("import('./views/CompassTree.vue')")
+    && app.includes("import('./views/Workspace.vue')")
+    && app.includes('Promise.allSettled([')
+    && app.includes('clearTimeout(prefetchTimer)')
+    && app.includes('cancelIdleCallback(prefetchIdle)');
 });

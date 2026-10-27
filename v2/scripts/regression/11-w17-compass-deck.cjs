@@ -89,13 +89,16 @@ check('W17-5 ★回落不双计：openResourceLink 记账后置（确认可打�
     && fn.includes('openExternalLink(url)\n    return true');
 });
 
-check('W17-6 ★V3.9.23 版式收口：右栏只保留两块并顶部对齐；取消强制等高，最近调出列表仍可内部滚动', () => {
+check('W17-6 ★V3.9.24 版式收口：左右列共享行轨道，两行模块边界与间距对齐；不强制左右内容等高，最近调出列表仍可内部滚动', () => {
   return !PI.includes('curio-panel')
     && !PI.includes('useEqualHeight')
     && !PI.includes('--rail-top-h')
+    && PI.includes('grid-template-rows: subgrid')
+    && PI.includes('desk-row-primary')
+    && PI.includes('desk-row-secondary')
     && /\.rail-panel \{ display: flex; flex-direction: column; \}/.test(PI)
     && /\.recent-list \{ min-height: 0; overflow-y: auto/.test(PI)
-    && PI.includes('class="rail-panel rail-panel-recent"');
+    && PI.includes('rail-panel rail-panel-recent desk-row desk-row-secondary');
 });
 
 check('W17-7 ★条数不写死 3：最近调出使用稳定上限，不按强制等高测量', () => {

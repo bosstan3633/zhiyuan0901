@@ -33,7 +33,8 @@ check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录�
     && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
     && em.includes("import('@/shared/ai/batchG')") && gs.includes('成果文稿') /* ★G1(V3.8.25)随迁带备案：设置页卡片头 📄 前缀迁 <Icon name="compass">，「成果文稿」入口文案仍在 */
     && node.includes("emit('link-resource', node)") && mm.includes("@link-resource=\"emit('link-resource', $event)\"")
-    && w.includes('@link-resource="openLinkCards"') && w.includes('<LinkCardsModal') && lm.includes('全部分类（资源卡池）')
+    && w.includes('@link-resource="openLinkCards"') && w.includes('<LinkCardsModal')
+    && lm.includes('关键词过滤') && lm.includes('AI 检索') && !lm.includes('lc-cat')
     && !w.includes('<EvidenceMenuItem') && !w.includes('nodeMenu');
 });
 check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {

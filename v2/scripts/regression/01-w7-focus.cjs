@@ -9,7 +9,7 @@ const {
 
 // ============== W7（V3.8.7）调度台视觉焦点契约 ==============
 console.log('【W7 · 调度台焦点契约】');
-check('W7-1 ★V3.9.1 随迁备案：今日三件事仍是首屏唯一主体 —— 页面标题承担 display 级视觉焦点，工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。本条继续守「首屏只有一个主角」，只把锚点从旧三张卡迁到现役两栏工作台', () => {
+check('W7-1 ★V3.9.24 随迁备案：今日三件事仍是首屏唯一主体 —— 页面标题承担 display 级视觉焦点，工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。两列共享行轨道只对齐模块边界，不改变主次层级', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   /* 主角：唯一 display + 重框 */
@@ -21,7 +21,9 @@ check('W7-1 ★V3.9.1 随迁备案：今日三件事仍是首屏唯一主体 —
     && ch.includes('.row-check::before') && ch.includes('width: 20px;')
     /* 次级层：手边卡降为 shadow-sm，侧栏只做案头信息 */
     && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--shadow-sm);')
-    && ch.includes('.hand-board { margin-top: 18px; }')
+    && ch.includes('.desk-layout {\n  display: grid;')
+    && ch.includes('grid-template-rows: auto minmax(0, 1fr);')
+    && ch.includes('.hand-board { margin-top: 0; }')
     && css.includes('.dz-sec-h .dz-t { font-size: var(--fs-title);')
     /* ★负锚：旧三张卡不得把主角形态带回来，侧栏也不许用重框 */
     && !ch.includes('.card.focus {') && !ch.includes('.today-card {')

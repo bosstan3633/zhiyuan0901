@@ -309,7 +309,7 @@ check('R4-Eq ★界面指位类文案不许再指向已退役的台面：采集�
   const wm = codeOnly(read('/newtab/composables/useWsMeta.ts'));
   const at = codeOnly(read('/shared/storage/airtable.ts'));
   return iDup > 0 && segDup.includes('已经收过了（在「${POOL_DISPLAY_NAME}」里）') && !segDup.includes('已存在于资源台')
-    && link.includes('全部分类（资源卡池）') && link.includes('从资源卡池可镜像的卡') && !link.includes('从资源台可镜像的卡')
+    && !link.includes('全部分类（资源卡池）') && link.includes('从资源卡池可镜像的卡') && !link.includes('从资源台可镜像的卡')
     && pool.includes('源卡仍留在资源卡池；目标台只是新增引用') && !pool.includes('打包请在资源台操作')
     && wm.includes('「资源卡池」是系统空间，不在此删除') && !wm.includes('资源台为系统空间')
     && at.includes('调度台/方向台/资源卡池/策展台名') && !at.includes('调度台/方向台/资源台/策展台名');
@@ -318,7 +318,7 @@ check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：V3
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const link = codeOnly(read('/newtab/components/LinkCardsModal.vue'));
   const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
-  return link.includes('关联资源卡到「') && link.includes('全部分类（资源卡池）')
+  return link.includes('关联资源卡到「') && !link.includes('lc-cat') && !link.includes('全部分类（资源卡池）')
     && !link.includes('资源台可镜像')
     && w.includes('镜像卡为引用（只读）——编辑请到资源卡池') && !w.includes('编辑请到资源台')
     && pool.includes('源卡仍留在资源卡池') && !pool.includes('源卡仍留在资源台');
@@ -696,7 +696,7 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
 });
 check('W6-2（V3.9.1 重指 · ★V3.9.18 再重指带备案：V3.9.18 原型迭代把手边的卡改三池页签（hand-tabs，v-show 切换），hand-grid/hand-col/mini-list×3 与 goDeck 字符串锚全保留；kicker 同 W5-2 改中文；负锚 bt-tab 保持——页签类名用 hand-tab，不与旧底部 tab 混淆）手边三卡入一张框：任务 / 好奇心 / 资源三池共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
-  return ch.includes('class="hand-board"') && ch.includes('class="hand-head"')
+  return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
     && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
     && (ch.match(/class="mini-list"/g) || []).length === 3
     && ch.includes('三池 · 只预览最近在用的')

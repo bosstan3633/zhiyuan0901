@@ -68,13 +68,27 @@
   background: var(--accent);
 }
 
+/* V3.9.24：左右两列共用两条行轨道。左右模块的起点、间距与底部收口对齐，
+   但每个模块仍按自身内容决定高度，不把卡片内容强行拉成等高。 */
 .desk-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 292px;
-  align-items: start;
-  gap: 22px;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 18px 22px;
 }
-.desk-main { min-width: 0; }
+.desk-main,
+.side-rail {
+  display: grid;
+  grid-template-rows: subgrid;
+  min-width: 0;
+}
+.desk-main { grid-column: 1; grid-row: 1 / span 2; }
+.side-rail { grid-column: 2; grid-row: 1 / span 2; }
+.desk-main > .desk-row-primary,
+.side-rail > .desk-row-primary { grid-row: 1; }
+.desk-main > .desk-row-secondary,
+.side-rail > .desk-row-secondary { grid-row: 2; }
 
 /* ── 今日三件事：一张工作单里的三行 ── */
 .work-board,
@@ -379,7 +393,7 @@
 .board-foot-spacer { flex: 1; }
 
 /* ── 手边的卡：宽屏三列 ── */
-.hand-board { margin-top: 18px; }
+.hand-board { margin-top: 0; }
 .hand-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
 /* V3.9.18：hand-summary 随三列汇总退役（计数入页签与列头）；hand-tabs 为三池页签 */
 .hand-tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
@@ -549,15 +563,8 @@
 .foot-spacer { flex: 1; }
 
 /* ── 右侧案头栏 ── */
-.side-rail {
-  position: sticky;
-  top: 76px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-/* 右栏只保留两块面板：顶部对齐、模块间距一致，但不强制与左栏等高。 */
+.side-rail { position: sticky; top: 76px; }
+/* 右栏与左栏共享行轨道：第一行对齐今日三件事，第二行对齐手边的卡。 */
 .rail-panel { display: flex; flex-direction: column; }
 .recent-list { min-height: 0; overflow-y: auto; }
 .rail-panel .rail-empty { display: flex; align-items: center; justify-content: center; }

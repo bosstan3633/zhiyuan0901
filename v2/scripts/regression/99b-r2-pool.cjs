@@ -93,8 +93,8 @@ console.log('【W2 · 热力图迁调度台】');
 check('W2-1（V3.9.1 重指）热力图与 FocusDetail 均不常驻调度台：今日战报由 TodayBattleHost 自包含承载，首页只保留三件事工作单与手边卡预览，读日志仍只在宿主内', () => {
   const ch = read('/newtab/views/CompassHome.vue');
   const iH = ch.indexOf('<TodayBattleHost ref="battleHost" />');
-  const iF = ch.indexOf('class="work-board"');
-  const iC = ch.indexOf('class="hand-board"');
+  const iF = ch.search(/class="[^"]*\bwork-board\b/);
+  const iC = ch.search(/class="[^"]*\bhand-board\b/);
   return ch.includes("import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'")
     && !ch.includes('HeatmapModule') && !ch.includes('<FocusDetail')
     && iH > 0 && iF > 0 && iC > 0

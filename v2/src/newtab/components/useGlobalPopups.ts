@@ -157,15 +157,15 @@ async function prefillCapture() {
 }
 
 // ===== 全局搜索 =====
-// R131-C2：查询词防抖 120ms——输入框 v-model 绑 searchQueryRaw（即时回显），
-// 整链 computed（counts/wsTree/filteredResults/archivedMatchCount/热度）只读防抖后的 searchQuery，
-// 连续快打不再每键重算全库管线（原实现每击一键全链重跑）。
+// V3.9.24：查询词防抖改为自适应——短词 90ms、长词 60ms，给输入法留稳定窗口，
+// 同时缩短单次键入到结果更新的固定等待。整链 computed 仍只读防抖后的 searchQuery。
 const searchQueryRaw = ref('')
 const searchQuery = ref('')
 let qDebounce: ReturnType<typeof setTimeout> | null = null
 watch(searchQueryRaw, v => {
   if (qDebounce) clearTimeout(qDebounce)
-  qDebounce = setTimeout(() => { qDebounce = null; searchQuery.value = v }, 120)
+  const delay = v.length >= 8 ? 60 : 90
+  qDebounce = setTimeout(() => { qDebounce = null; searchQuery.value = v }, delay)
 })
 /** 程序化设置查询词（打开复位 / Tab 关键词消费）：raw 与防抖值同步落定，取消在途防抖 */
 function setSearchQuery(v: string) {

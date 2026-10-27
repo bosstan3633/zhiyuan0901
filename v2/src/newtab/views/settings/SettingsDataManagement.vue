@@ -12,7 +12,7 @@ import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { saveUIPrefs, loadUIPrefs } from '@/shared/storage/repository'
 import { testConnection, runSync, quotaHint, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
-import { getAllAssetIndex, cleanupOrphanAssetsOf } from '@/shared/storage/assets'
+import { getAllAssetIndex, clearAllAssets, clearAllAssetReferences } from '@/shared/storage/assets'
 import Icon from '@/shared/components/Icon.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -261,20 +261,30 @@ async function handleAssetPackImport(e: Event) {
   }
 }
 
-async function cleanupOrphans() {
-  const refs = new Set<string>()
-  const all = await getAllAssetIndex()
-  // 主数据里被引用的 id 才保留；回收站卡也还在 arrays 里，所以 collectReferenced 会算进去
-  const { collectReferencedAssetIds } = await import('@/shared/storage/assets')
-  collectReferencedAssetIds(gd.value).forEach(id => refs.add(id))
-  const orphans = all.filter(x => !refs.has(x.id))
-  if (!orphans.length) { showToast('无孤儿附件，一切干净'); return }
-  if (!(await useConfirm({ title: '清理孤儿附件', message: `共发现 ${orphans.length} 个未被任何卡片引用的附件本体。清理后不可恢复。`, confirmText: `清理 ${orphans.length} 个` }))) return
-  try {
-    const n = await cleanupOrphanAssetsOf(gd.value)
+async function clearAssetsEverywhere() {
+  const index = await getAllAssetIndex()
+  if (!index.length) {
+    const changed = clearAllAssetReferences(gd.value)
+    if (changed) store.persist()
     await refreshAssetRows()
-    showToast(n ? `已清理 ${n} 个孤儿附件` : '无孤儿附件，一切干净')
-  } catch (e) { showToast('清理失败：' + (e instanceof Error ? e.message : '未知错误')) }
+    showToast('没有可清理的附件')
+    return
+  }
+  if (!(await useConfirm({
+    title: '清空全部附件',
+    message: `当前共 ${index.length} 个附件、${props.formatBytes(index.reduce((sum, item) => sum + item.size, 0))}。清理会同时解除资源卡、任务卡、好奇心卡和论证卡上的附件关联，并永久删除附件本体；不可恢复。`,
+    confirmText: `永久清空 ${index.length} 个`,
+  }))) return
+  try {
+    const changedCards = clearAllAssetReferences(gd.value)
+    if (changedCards) store.persist()
+    const deleted = await clearAllAssets()
+    await refreshAssetRows()
+    showToast(`已清空 ${deleted} 个附件${changedCards ? `，更新 ${changedCards} 张卡片` : ''}`)
+  } catch (e) {
+    showToast('清理失败：' + (e instanceof Error ? e.message : '未知错误'))
+    await refreshAssetRows()
+  }
 }
 
 // ---- Airtable ----
@@ -493,8 +503,8 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
           <div><span class="dm-badge" :class="r.storage === 'ok' ? 'ok' : 'miss'">{{ r.storage === 'ok' ? '正常' : '本体缺失' }}</span></div>
         </button>
         <div class="gs-setting-row gs-setting-row--gap">
-          <span class="gs-sr-label">孤儿附件</span>
-          <div class="gs-sr-control"><span class="gs-sr-hint">删除未被任何卡片引用的残留本体（不可恢复）</span><button class="gs-btn" @click="cleanupOrphans">清理</button></div>
+          <span class="gs-sr-label">全部附件</span>
+          <div class="gs-sr-control"><span class="gs-sr-hint">清空所有卡片上的附件关联并永久删除本体（不可恢复）</span><button class="gs-btn" :disabled="!assetIndexCount && !assetRows.length" @click="clearAssetsEverywhere">清理</button></div>
         </div>
       </div>
     </div>

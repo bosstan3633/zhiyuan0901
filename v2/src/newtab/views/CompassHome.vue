@@ -3,8 +3,8 @@
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
-// - 左右分栏：左=今日三件事（硬上限 3，自 CompassActions 整体迁入，交互逐项一致）｜右=项目调度面板（单击三件事联动）
-// - 底部专区：好奇心培育单区直呈（R55-B2：任务调度迁方向台）
+// - 左右分栏：桌面端按行共用模块边界，左=今日三件事 / 手边的卡，右=今天的状态 / 最近调出
+// - 好奇心培育已退役；好奇心入口保留在「手边的卡」页签
 // ★W17-C02（2026-10-20）：本地那份「双击打开链接」小实现退役（不记调出、不分流三态、失败静默），
 // 全库统一走 useResourceOpen —— 同一个动作只允许一个实现，且它返回成败供单击分流。
 // ★W12-D（V3.8.16）：年度热力图从调度台退役（用户 2026-10-13 拍板——画像洞察页已全量覆盖，
@@ -132,7 +132,7 @@ const {
 
     <div ref="deskLayoutRef" class="desk-layout">
       <main class="desk-main">
-        <section id="zy-mod-tasks" ref="workBoardRef" class="work-board" :class="{ 'all-done': focusAllDone }" aria-labelledby="focusTitle">
+        <section id="zy-mod-tasks" ref="workBoardRef" class="work-board desk-row desk-row-primary" :class="{ 'all-done': focusAllDone }" aria-labelledby="focusTitle">
           <header class="board-head">
             <div class="board-title">
               <span class="board-ico"><Icon name="compass" :size="18" /></span>
@@ -228,7 +228,7 @@ const {
           </footer>
         </section>
 
-        <section ref="handBoardRef" class="hand-board" aria-labelledby="handTitle">
+        <section ref="handBoardRef" class="hand-board desk-row desk-row-secondary" aria-labelledby="handTitle">
           <header class="hand-head">
             <div class="hand-heading">
               <span class="board-ico"><Icon name="layers" :size="18" /></span>
@@ -319,7 +319,7 @@ const {
       </main>
 
       <aside class="side-rail" aria-label="案头侧栏">
-        <section class="rail-panel">
+        <section class="rail-panel desk-row desk-row-primary">
           <header class="rail-head">
             <b>今天的状态</b>
             <button type="button" @click="openReview">战报</button>
@@ -362,7 +362,7 @@ const {
           </div>
         </section>
 
-        <section class="rail-panel rail-panel-recent">
+        <section class="rail-panel rail-panel-recent desk-row desk-row-secondary">
           <header class="rail-head">
             <b>最近调出</b>
             <button class="rail-chip" type="button" title="口径：本周一 0 点起被打开过的资源卡（wrr 周戳）；跨周清零" @click="openStatusDetail('reuse')">本周 {{ weeklyReuse }} 次</button>
