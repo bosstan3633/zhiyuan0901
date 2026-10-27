@@ -204,7 +204,8 @@ check('R157-4 search 型豁免口径钉住（R154 拍板②「检索不属赋能
   const gs = REG_TXT.slice(REG_TXT.indexOf("id: 'global-search'"), REG_TXT.indexOf("id: 'mirror-search'"));
   const ms = REG_TXT.slice(REG_TXT.indexOf("id: 'mirror-search'"));
   return gs.includes('caps: {}') && ms.includes('caps: {}')
-    && gs.includes("hosts: ['newtab/components/GlobalPopups.vue']")
+    /* ★R181 随迁带备案：全局检索的 semanticSearch 锚点随检索域下沉到 useGlobalPopupsSearch.ts */
+    && gs.includes("hosts: ['newtab/components/useGlobalPopupsSearch.ts']")
     && ms.includes("hosts: ['newtab/composables/usePyramid.ts']");
 });
 
@@ -321,7 +322,9 @@ check('R160-9 ★P5 写盘合并：整库 set 同批带热度键与待写事件�
 console.log('【R162 · 挂载退役 · 附件修复 · AI 标签复用】');
 check('R162-1 ★任务↔资源挂载关系整体退役：模型零字段 + 全仓零业务引用（仅 models 注释/迁移读型/存储清理器允许）+ 详情两处区块退役', () => {
   const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = [];
-  const allow = ['shared/models/index.ts', 'shared/storage/migration.ts', 'shared/storage/repository.ts'];
+  /* ★R181 随迁带备案：repository.ts 的迁移读型（normalizeLegacyCards）整体拆到 legacy-normalize.ts，
+     它同属「迁移读型/存储清理」豁免类，判据体与口径一字未动。 */
+  const allow = ['shared/models/index.ts', 'shared/storage/migration.ts', 'shared/storage/repository.ts', 'shared/storage/legacy-normalize.ts'];
   const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { const s = fs2.readFileSync(p, 'utf8'); if (s.includes('mountedResourceIds') && !allow.some(a => p.replace(/\\/g, '/').endsWith(a))) hits.push(p); } } };
   walk(root);
   const m = read('/shared/models/index.ts');
@@ -363,7 +366,7 @@ check('R163-1 ★代码索引是生成物，不许漂：调 gen-code-index.cjs -
 // ============== R164 · 度量与刹车（CRLF 门禁修复 / 增长门禁 / 键边界 / 依赖纪律 / 生成物二期 / A1 触发） ==============
 console.log('【R164 · 度量与刹车】');
 check('R164-1 ★代码索引门禁 CRLF 双修：索引读取归一化 + 脚本体积按 LF 计算（Windows checkout 不再 171 项全量误报）', () => { const g = read('/../scripts/gen-code-index.cjs'); return g.includes('R164') && g.includes('Buffer.byteLength') && (g.match(/CRLF/g) || []).length >= 1 && (g.match(/replace\(\/\\r\\n\/g/g) || []).length >= 2; });
-check('R164-2 ★增长门禁（R172-T8/T9 重指并**收紧**：GlobalSettings 3,575→3,560 —— 记录条与筛选/明细实现整体迁入 `DashboardLogDrawer.vue`、复盘段抽 `ReviewPanel.vue`，宿主净减约 40 行却只回收 15 行余量，剩下的余量留给 T11 的 AI 报告挂载）+ regression 行数门禁随 R174-1 分片随迁带备案：原「单文件 ≤5,500 行（超限即红并提示分片评估）」在分片落地后改判**每个分片文件（含 runner）≤900 行**——分片是搬运不是重写，断言只增不减的纪律不变，刹车从「总量」改为「单片」（04-65 拍板 4 的分片处置到此兑现）', () => { const gs = read('/newtab/views/GlobalSettings.vue').split('\n').length; const regDir = path.join(ANCHOR_FILE, '..'); const files = fs.readdirSync(regDir).filter(f => f.endsWith('.cjs')).map(f => fs.readFileSync(path.join(regDir, f), 'utf8').split('\n').length); const runner = fs.readFileSync(path.resolve(ANCHOR_FILE, '..', '..', 'regression.cjs'), 'utf8').split('\n').length; const max = Math.max(...files, runner); if (max > 900) console.error('   ⚠ 回归分片单片破 900 行 → 评估再分片（R174-1 分片门禁）'); return gs <= 3560 && max <= 900; });
+check('R164-2 ★增长门禁（R172-T8/T9 重指并**收紧**：GlobalSettings 3,575→3,560 —— 记录条与筛选/明细实现整体迁入 `DashboardLogDrawer.vue`、复盘段抽 `ReviewPanel.vue`，宿主净减约 40 行却只回收 15 行余量，剩下的余量留给 T11 的 AI 报告挂载）+ regression 行数门禁随 R174-1 分片随迁带备案：原「单文件 ≤5,500 行（超限即红并提示分片评估）」在分片落地后改判**每个分片文件（含 runner）≤900 行**——分片是搬运不是重写，断言只增不减的纪律不变，刹车从「总量」改为「单片」（04-65 拍板 4 的分片处置到此兑现）。★R181 随迁带备案：本闸钉的是「宿主 GlobalSettings.vue 上限」，宿主拆分后 `read()` 聚合会把拆出成员算进来，故改读**物理宿主**行数（宿主现 605 行，远低于 3,560 上限；上限值不改，口径回到"宿主"字面）', () => { const gs = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'newtab', 'views', 'GlobalSettings.vue'), 'utf8').split('\n').length; const regDir = path.join(ANCHOR_FILE, '..'); const files = fs.readdirSync(regDir).filter(f => f.endsWith('.cjs')).map(f => fs.readFileSync(path.join(regDir, f), 'utf8').split('\n').length); const runner = fs.readFileSync(path.resolve(ANCHOR_FILE, '..', '..', 'regression.cjs'), 'utf8').split('\n').length; const max = Math.max(...files, runner); if (max > 900) console.error('   ⚠ 回归分片单片破 900 行 → 评估再分片（R174-1 分片门禁）'); return gs <= 3560 && max <= 900; });
 check('R164-3 配额文案括号配对：App.vue 保存失败 toast 补齐右括号 + 破文案（无右括号版）零残留', () => { const a = read('/newtab/App.vue'); return a.includes('），请清理或导出后重试') && !a.includes('${sz}，请清理或导出后重试'); });
 check('R164-4 ★键边界（A3）：K 只装 storage 键；IDB_NAMES / EXPORT_MARKERS 另立（非存储命名空间）', () => { const k = read('/shared/storage/keys.ts'); const a = read('/shared/storage/assets.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const kBody = k.slice(k.indexOf('export const K'), k.indexOf('export const IDB_NAMES')); return k.includes('export const IDB_NAMES') && k.includes('export const EXPORT_MARKERS') && k.includes("ASSETS: 'zy_assets'") && k.includes("ASSET_PACK: 'zy_asset_pack'") && !kBody.includes('ASSETS_DB') && !kBody.includes('ASSET_PACK') && a.includes('IDB_NAMES.ASSETS') && !a.includes('K.ASSETS_DB') && g.includes('EXPORT_MARKERS.ASSET_PACK') && !g.includes('K.ASSET_PACK'); });
 check('R164-5 ★依赖纪律：pinyin-pro 不进 dependencies（生成器专用 devDependency）+ 生成器仍可复现', () => { const pkg = JSON.parse(fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8')); const g = read('/../scripts/gen-pinyin-table.cjs'); return !(pkg.dependencies && pkg.dependencies['pinyin-pro']) && !!(pkg.devDependencies && pkg.devDependencies['pinyin-pro']) && g.includes("require('pinyin-pro')"); });

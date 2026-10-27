@@ -8,8 +8,11 @@ const { check, codeOnly, CT_W11, SPINE, PANEL, path, fs, SCRIPTS_DIR } = require
 const READ = (p) => codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, '..', p), 'utf8'));
 const RAW = (p) => fs.readFileSync(path.join(SCRIPTS_DIR, '..', p), 'utf8');
 const LIST = READ('src/newtab/components/compass/CompassLayerList.vue');
-const HOME = READ('src/newtab/views/CompassHome.vue');
-const HOME_RAW = RAW('src/newtab/views/CompassHome.vue');
+/* ★R181 随迁带备案：调度台首页的域逻辑下沉 useCompassHome.ts，判据读的"首页这一面"= 宿主 + 该 composable。
+   本片仍守 fs 直读纪律（READ 就是 codeOnly 直读）。负锚（tc-subs / sub* 残留）跨两文件一起扫，只会更严不会更松。 */
+const HOME = READ('src/newtab/views/CompassHome.vue') + '\n' + READ('src/newtab/views/useCompassHome.ts');
+/* ★R181 随迁带备案：备案注释（"tc-subs 模板块一并退役"）随域逻辑下沉 useCompassHome.ts，故 RAW 面同 HOME 一起含该 composable。 */
+const HOME_RAW = RAW('src/newtab/views/CompassHome.vue') + '\n' + RAW('src/newtab/views/useCompassHome.ts');
 
 console.log('【V3.8.22 · 批一 P5/F6/F7 三项界面调整】');
 

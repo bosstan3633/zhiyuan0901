@@ -32,19 +32,32 @@ import DeckControls from './DeckControls.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useCardCols } from '@/shared/utils/cardCols'
-import { markRank } from '@/shared/utils/marksort'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
-import { visibleFields } from '@/shared/utils/fields'
 import { recordCardOpen } from '@/shared/storage/stats'
 import {
   addCurioSupportLink,
-  buildSupportIndex,
-  listByCurio,
   removeCurioSupportLink,
 } from '@/shared/utils/supportLinks'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
+import {
+  archivedHintCount as archivedHintCountOf,
+  curioExtValue,
+  filterCuriosities,
+  flattenProjectOptions,
+  groupCuriosities,
+  isCurioFieldVisible,
+  kanbanColumnsOf,
+  shortDate,
+  shortSource,
+  statusCountsOf,
+  supportCandidatesOf,
+  supportRowsOf,
+  visibleCurioExtFields,
+} from './curiosityPanelCore'
+// R181 结构优化：转化弹窗 + 资源支撑闭环外提
+import { useCurioConvert, useCurioSupport } from './curiosityPanelBridges'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -123,26 +136,10 @@ function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'd
  *  第卅五轮 REQ-035：组内 sortOrder 优先、未拖拽的卡（无 sortOrder）回退捕获时间方向排序
  *  —— 拖拽写入的自定义顺序不再被时间排序覆盖 */
 const filtered = computed(() => {
-  // R110-LC（T3）：默认视图排除已归档好奇卡（只在 ⏳ 生命周期面板中查看 / 恢复）
-  const alive = curiosities.value.filter(c => !c.lifecycleArchived)
-  let list = statusFilter.value === 'all'
-    ? alive
-    : alive.filter(c => c.status === statusFilter.value)
-  const q = searchQuery.value.trim().toLowerCase()
-  if (q) list = list.filter(c => c.question.toLowerCase().includes(q))
-  const dirMul = sortDir.value === 'asc' ? 1 : -1
-  return [...list].sort((a, b) => {
-    const r = markRank(b) - markRank(a)
-    if (r !== 0) return r
-    if (a.sortOrder != null || b.sortOrder != null) {
-      return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
-    }
-    return dirMul * ((a.createdAt || 0) - (b.createdAt || 0))
-  })
+  return filterCuriosities(curiosities.value, statusFilter.value, searchQuery.value, sortDir.value)
 })
 /** R110-LC（T3）：当前筛选口径下的归档卡数——底部降级提示（≥1 才显示） */
-const archivedHintCount = computed(() => curiosities.value
-  .filter(c => c.lifecycleArchived && (statusFilter.value === 'all' || c.status === statusFilter.value)).length)
+const archivedHintCount = computed(() => archivedHintCountOf(curiosities.value, statusFilter.value))
 
 // R113-N2：生命周期入口收敛到 设置→总览（原 R110-LC 面板接线移除）
 const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
@@ -150,10 +147,7 @@ const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
 /* ★W17-C05（2026-10-20 用户拍板）：两段文字标签升级为可折叠组头——
  * 组 = 已置顶 / 全部好奇心（数据源仍是 pinnedCount 分区），折叠状态只存在组件内、不持久化。 */
 const curioGroups = computed(() => {
-  return [
-    { id: 'pin', name: '已置顶', items: filtered.value.filter(c => c.pinned) },
-    { id: 'rest', name: '全部好奇心', items: filtered.value.filter(c => !c.pinned) }
-  ].filter(g => g.items.length)
+  return groupCuriosities(filtered.value)
 })
 const collapsedGroups = ref<Set<string>>(new Set())
 const allGroupsCollapsed = computed(() => curioGroups.value.length > 0 && curioGroups.value.every(g => collapsedGroups.value.has(g.id)))
@@ -171,9 +165,7 @@ function toggleAllGroups(): void {
 }
 
 const statusCounts = computed(() => {
-  const counts: Record<string, number> = { all: curiosities.value.length }
-  for (const c of curiosities.value) counts[c.status] = (counts[c.status] || 0) + 1
-  return counts
+  return statusCountsOf(curiosities.value)
 })
 /**
  * R167：「已转化」计数——转化即出路的卡当场软删离场，池里（含四个状态 chip）再也数不到它，
@@ -188,20 +180,7 @@ function clearCurioFilter(): void {
 }
 
 const kanbanCols = computed(() => {
-  const statuses: CuriStatus[] = ['todo', 'doing', 'done', 'shelf']
-  return statuses.map(s => ({
-    status: s,
-    ...STATUS_MAP[s],
-    // REQ-035：列内 sortOrder 优先、无 sortOrder 回退时间（filter 新数组再 sort，不改原树）
-    items: curiosities.value
-      .filter(c => c.status === s && !c.lifecycleArchived)
-      .sort((a, b) => {
-        if (a.sortOrder != null || b.sortOrder != null) {
-          return (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
-        }
-        return (a.createdAt || 0) - (b.createdAt || 0)
-      })
-  }))
+  return kanbanColumnsOf(curiosities.value, STATUS_MAP)
 })
 
 const detailId = ref<string | null>(null)
@@ -210,6 +189,16 @@ const curioStatusMenuOpen = ref(false)
 /** 第卅三轮 REQ-024：详情文本框高度（默认 180px，拖拽记忆） */
 const { taH: detailH, startTaResize: startDetailResize } = useTaHeight('curio-detail', store.ui)
 const detailItem = computed(() => curiosities.value.find(c => c.id === detailId.value) || null)
+// R181 结构优化：转化弹窗 + 资源支撑闭环外提（历史字符串锚点随聚合表回读宿主）
+const {
+  convertOpen, convertTarget, convertItem, convertWsId, convertCatId, convertProjId, convertMetId,
+  convWorkspaces, convCategories, convProjects, convMetrics,
+  openConvert, onConvertProjChange, confirmConvert,
+} = useCurioConvert({ store, convertToResource, convertToTask, clearDetail: () => { detailId.value = null } })
+const {
+  curioSupportDraft, curioSupportRows, curioSupportCands,
+  addCurioSupport, removeCurioSupport, openCurioSupportResource,
+} = useCurioSupport({ store, d, detailItem })
 const editDraft = ref('')
 function openDetail(id: string) {
   detailId.value = id
@@ -304,67 +293,6 @@ function openSourceUrl(url: string) {
   if (t) openExternalLink(t)
 }
 
-/* G-03：好奇心 ↔ 资源卡的「资源支撑」闭环。
-   关联记录住在独立表 curioSupportLinks，好奇卡与资源卡本体都不持有对方 id；
-   解绑只删记录，资源池源卡状态不变。 */
-const curioSupportIdx = computed(() => buildSupportIndex(d.value))
-const curioSupportDraft = ref('')
-const curioSupportRows = computed(() => {
-  const curio = detailItem.value
-  if (!curio) return [] as { link: ReturnType<typeof listByCurio>[number]; resource: ResourceCard }[]
-  return listByCurio(curioSupportIdx.value, curio.id)
-    .map(link => ({
-      link,
-      resource: (d.value.resources || []).find(r => r.id === link.resourceId && !r.deletedAt),
-    }))
-    .filter((row): row is { link: ReturnType<typeof listByCurio>[number]; resource: ResourceCard } => !!row.resource)
-})
-const curioSupportCands = computed(() => {
-  const q = curioSupportDraft.value.trim().toLowerCase()
-  if (!q) return [] as ResourceCard[]
-  const linked = new Set(curioSupportRows.value.map(row => row.resource.id))
-  return (d.value.resources || [])
-    .filter(r => !r.deletedAt && !linked.has(r.id) && (r.title || '').toLowerCase().includes(q))
-    .slice(0, 8)
-})
-function addCurioSupport(): void {
-  const curio = detailItem.value
-  const q = curioSupportDraft.value.trim()
-  if (!curio || !q) return
-  const resource = (d.value.resources || []).find(r => !r.deletedAt && r.title === q)
-    || curioSupportCands.value[0]
-  if (!resource) {
-    showToast('没找到匹配的资源卡')
-    return
-  }
-  const out = addCurioSupportLink(d.value, {
-    curioId: curio.id,
-    resourceId: resource.id,
-    from: 'manual',
-  })
-  if (out.dup) {
-    showToast('这张资源卡已经在支撑列表里了')
-    return
-  }
-  curioSupportDraft.value = ''
-  store.persist()
-  showToast(`已关联「${resource.title.slice(0, 12)}」`)
-}
-function removeCurioSupport(linkId: string): void {
-  if (!removeCurioSupportLink(d.value, linkId)) return
-  store.persist()
-  showToast('已解除关联（资源卡本体未变动）')
-}
-function openCurioSupportResource(resource: ResourceCard): void {
-  recordCardOpen(d.value, resource)
-  store.persistHot()
-  const url = toOpenableRawLink(resource.link)
-  if (!url) {
-    showToast('这张资源卡还没有可打开的链接')
-    return
-  }
-  openExternalLink(url)
-}
 function onCardDblClick(c: CuriosityCard) {
   if (clickTimer) { clearTimeout(clickTimer); clickTimer = null }
   // 第十三轮：链接字段统一口径（sourceUrl 即好奇心的链接，支持 URL / 本地路径 / obsidian://）
@@ -440,68 +368,7 @@ function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   dragCzId = null
 }
 
-// ---- 转化（选策展台/分类 或 项目/指标）----
-const convertOpen = ref(false)
-const convertTarget = ref<'task' | 'res'>('task')
-const convertItem = ref<CuriosityCard | null>(null)
-const convertWsId = ref('')
-const convertCatId = ref('')
-const convertProjId = ref('')
-const convertMetId = ref('')
-
-const convWorkspaces = computed(() => selectableWsOptions(store.data!.workspaces))
-const convCategories = computed(() =>
-  store.data!.categories.filter(c => c.workspaceId === convertWsId.value)
-)
-/** 全部项目（跨方向扁平），带所属方向名 */
-const convProjects = computed(() => {
-  const list: { id: string; name: string; dir: string; metrics: { id: string; title: string }[] }[] = []
-  for (const dir of store.data!.compass.directions) {
-    for (const p of dir.projects) {
-      list.push({ id: p.id, name: p.name, dir: dir.name, metrics: p.metrics.map(m => ({ id: m.id, title: m.title })) })
-    }
-  }
-  return list
-})
-const convMetrics = computed(() =>
-  convProjects.value.find(p => p.id === convertProjId.value)?.metrics || []
-)
-
-function openConvert(c: CuriosityCard, target: 'task' | 'res') {
-  convertItem.value = c
-  convertTarget.value = target
-  // R4-Ep：默认落点显式写池——改前取 convWorkspaces[0]，而它来自原始 d.workspaces 数组，
-  // 存量库第一枚是 hub 实体（落池）、新库第一枚是策展台（落台），同一个动作默认落点随库形状漂移。
-  convertWsId.value = CURATION_WS_ID
-  convertCatId.value = ''
-  convertProjId.value = ''
-  convertMetId.value = ''
-  convertOpen.value = true
-}
-/** R70：项目下拉变更 → 无条件复位指标：
- *  - 项目清空后遗留的旧指标 → convertToTask(c, undefined, 'X') 会产出「有指标无项目」的非法任务（R49 起点名）；
- *  - 项目 A→B 切换后旧指标不在 B 的指标列表内，同属非法。
- *  convertToTask 内另有数据层兜底（双保险）。 */
-function onConvertProjChange() { convertMetId.value = '' }
-function confirmConvert() {
-  const c = convertItem.value
-  if (!c) return
-  if (convertTarget.value === 'res') {
-    if (!convertWsId.value) { showToast('请选择存入位置'); return }
-    convertToResource(c, convertWsId.value, convertCatId.value || undefined)
-    // 台名走 wsNameById 单源；改前硬拼 `「${ws.name}」资源台`，存量库实测印成「已归档至「🗂 资源台」资源台」
-    showToast(`已归档至「${wsNameById(store.data!.workspaces, convertWsId.value) || '未命名台'}」`)
-  } else {
-    const proj = convProjects.value.find(p => p.id === convertProjId.value)
-    const wasShelf = c.status === 'shelf'
-    convertToTask(c, convertProjId.value || undefined, convertMetId.value || undefined)
-    showToast(proj ? `已转为任务，归属「${proj.name}」` : '已转为任务，进入任务中心')
-    // 第卌轮 REQ-050：搁置 → 任务按「待开始」处理，显式提示
-    if (wasShelf) showToast('ℹ 已搁置的好奇心转为任务后按「待开始」处理')
-  }
-  convertOpen.value = false
-  detailId.value = null
-}
+// ---- 转化（选策展台/分类 或 项目/指标）---- 已外提见 curiosityPanelBridges.ts useCurioConvert
 
 /* ===== R144 · G2：转化研判（批量=当前筛选口径下的待探索池；R151 起同一通道支持单卡入口） ===== */
 const AiDrawer = defineAsyncComponent(() => import('../AiSuggestionDrawer.vue'))
@@ -561,31 +428,24 @@ function batchSetStatus(status: CuriStatus) {
 }
 
 function fmtDate(ts?: number) {
-  if (!ts) return ''
-  const dt = new Date(ts)
-  return `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  return shortDate(ts)
 }
 
 // 第卌轮 REQ-051：好奇心卡正面补充字段流（按 fieldConfig.curiosity 显隐/排序）
 // R117（04-61 D）：只有 question/status/createdAt 三个骨架 key 不进扩展行——**其余全部参与**，
 // 且状态胶囊 / 创建时间 / 来源链接也改为受字段设置控制（此前硬编码渲染 + sourceUrl 从不渲染，
 // 用户报「设置无效」）。字段设计一处开关即控卡片正面。
-const CZ_SKELETON_KEYS = ['question', 'status', 'createdAt']
 /** 该字段是否可见（骨架字段的显隐判定） */
-function cShow(key: string): boolean { return visibleFields(d.value.fieldConfig, 'curiosity').some(f => f.key === key) }
+function cShow(key: string): boolean { return isCurioFieldVisible(d.value.fieldConfig, key) }
 const curioExtFields = computed(() =>
-  visibleFields(d.value.fieldConfig, 'curiosity').filter(f => !CZ_SKELETON_KEYS.includes(f.key))
+  visibleCurioExtFields(d.value.fieldConfig)
 )
 function curioExtVal(c: CuriosityCard, f: FieldDef): string {
-  const v = c.customFields?.[f.key]
-  return v == null ? '' : String(v)
+  return curioExtValue(c, f)
 }
 /** R117（04-61 D）：来源链接短显示（域名 + 路径，超长截断） */
 function srcShort(url: string): string {
-  try {
-    const u = new URL(url)
-    return (u.hostname + u.pathname).replace(/^www\./, '').slice(0, 42)
-  } catch { return url.slice(0, 42) }
+  return shortSource(url)
 }
 </script>
 
@@ -907,154 +767,4 @@ function srcShort(url: string): string {
   </ModuleCard>
 </template>
 
-<style scoped>
-.cz-batch-btn { padding: 5px 12px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
-.cz-batch-btn:hover { border-color: var(--border-strong); }
-.cz-batch-btn.active { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }.mini-btn { padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); }
-.mini-btn:hover { border-color: var(--border-strong); color: var(--text); }
-.mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.mini-btn.primary:hover { background: var(--accent-hover); }
-.mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.mini-btn.danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); border-color: var(--danger); }.ds-status-wrap { margin-left: 8px; }
-.ds-status-chip2:active { transform: scale(.97); }
-/* R167：「已转化」是计数不是筛选器——非交互、弱化，但带边框与池内 chip 同形（同形不同色，读得出"这是另一本账"） */
-.cz-converted { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-caption); letter-spacing: var(--tracking-sm); color: var(--text-3); padding: 3px 9px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-2); cursor: default; }
-.cz-converted b { color: var(--text-2); font-weight: 600; }/* R110-LC（T3）：归档降级提示条 */
-.cz-archived-hint { margin: 6px 0 0; padding: 6px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
-.cz-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-
-.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.ds-sup-list { display: flex; flex-direction: column; gap: 6px; }
-.ds-sup-row { min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 5px 7px 5px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); }
-.ds-sup-name { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-sub); text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ds-sup-name:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.ds-sup-remove { flex: none; width: 28px; height: 28px; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-3); font: inherit; cursor: pointer; }
-.ds-sup-remove:hover, .ds-sup-remove:focus-visible { border-color: color-mix(in srgb, var(--danger) 38%, var(--border)); background: color-mix(in srgb, var(--danger) 8%, transparent); color: var(--danger); }
-.ds-sup-empty { padding: 10px; border: 1px dashed var(--border); border-radius: 7px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.55; }
-.ds-sup-add { display: flex; gap: 7px; margin-top: 8px; }
-.ds-sup-add input { flex: 1; min-width: 0; height: 32px; padding: 0 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-sub); }
-.ds-sup-add input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px var(--accent-glow); }
-/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 200px */
-.cz-grid { display: grid; /* R106（F3）：精确 N 列——选中 N 即渲染 N 列，卡片宽度自适应收缩（含看板外全部视图） */ grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr)); gap: 12px; }
-.cz-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.cz-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-/* ★M5（V3.8.32）：三张卡的卡内单元同构 —— 圆角统一 md(10)、内距统一 12px 14px。
-   原先好奇心卡是 sm(8)/四周 12，任务卡与资源卡是 md(10)/12px 14px；
-   三张卡在同一个框里轮播，差这一档圆角会让"同一族的卡片"看起来像两套东西。
-   底色仍保留 surface-2（比另两卡低一层）：它的悬停操作条要用同色 surface 叠上来，
-   底色若拉平，操作条就看不见了 —— 这是刻意保留的一处差异，不是漏改。 */
-.cz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all var(--dur); position: relative; overflow: hidden; min-width: 0; /* R107（F8） */ }
-.cz-card.flash { animation: cz-flash 2s ease-out; }
-@keyframes cz-flash { 0%,60% { background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent); } 100% { background: var(--surface-2); box-shadow: none; } }
-.cz-card.dragging { opacity: .4; }
-.cz-card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.cz-hover-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.cz-kanban-col.drag-over { box-shadow: 0 0 0 2px var(--accent-glow); }
-.cz-kanban-card.dragging { opacity: .4; }
-.cz-list-item.drop-line-t, .cz-kanban-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.cz-list-item.drop-line-b, .cz-kanban-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-/* ★W12-G 可读性：AI 采纳与删除两枚原用最淡的 --text-4（notion 主题下≈2:1，隐形）。
-   提到 --text-2；删除枚靠 hover 转 --danger 承担危险语义，不靠"淡到看不见"。 */
-.cz-kb-ai { border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; display: inline-flex; align-items: center; }
-.cz-kb-del { margin-left: auto; border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: var(--fs-caption); padding: 0 2px; font-family: inherit; }
-.cz-kb-del:hover { color: var(--danger); }
-.cz-card:hover { border-color: var(--accent); background: var(--surface); transform: translateY(-1px); box-shadow: var(--shadow); }
-.cz-card.selected { border-color: var(--accent); background: var(--accent-light); }
-.cz-check { position: absolute; top: 8px; right: 8px; font-size: 14px; z-index: 2; }
-.cz-status { display: inline-block; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; font-weight: 500; }
-.cz-status.pending { background: var(--accent-light); color: var(--accent-ink); }
-.cz-status.exploring { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.cz-status.verified { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
-.cz-status.shelved { background: var(--surface-3); color: var(--text-3); }
-.cz-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); line-height: 1.5; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.cz-meta { font-size: var(--fs-tiny); color: var(--text-3); }
-.cz-hover-bar { position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 10px; display: flex; gap: 6px; transform: translateY(100%); transition: transform .2s; }
-.cz-card:hover .cz-hover-bar { transform: translateY(0); }
-.cz-hover-btn { font-size: var(--fs-tiny); padding: 4px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); flex: 1; text-align: center; font-family: inherit; }
-.cz-hover-btn:hover { border-color: var(--accent); color: var(--accent); }
-.cz-hover-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-/* G3（V3.8.27）：cz-empty 只保留"作为网格子项跨满整行"这一条布局职责，视觉由 EmptyState 接管；
-   旧版的 36px 图标位样式随组件化退役（新组件用 72px 虚线图形）。 */
-.cz-empty { grid-column: 1/-1; }
-.cz-list { display: flex; flex-direction: column; gap: 4px; }
-.cz-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: background .1s; }
-.cz-list-item:hover { background: var(--surface-2); }
-.cz-list-text { flex: 1; font-size: var(--fs-body); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cz-list-date { font-size: var(--fs-caption); color: var(--text-3); }
-.cz-list-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur); }
-.cz-list-item:hover .cz-list-actions { opacity: 1; }
-.cz-kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.cz-kanban-col { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px; min-height: 200px; }
-.cz-kanban-head { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); padding: 4px 6px 10px; display: flex; align-items: center; justify-content: space-between; }
-.cz-kanban-count { font-size: var(--fs-tiny); background: var(--surface-3); color: var(--text-3); padding: 1px 7px; border-radius: 99px; }
-.cz-kanban-body { display: flex; flex-direction: column; gap: 8px; }
-.cz-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px; cursor: pointer; transition: all var(--dur); }
-.cz-kanban-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
-.cz-kanban-text { font-size: var(--fs-body); color: var(--text); line-height: 1.5; margin-bottom: 6px; }
-.cz-kanban-meta { font-size: var(--fs-tiny); color: var(--text-3); }
-.cz-kanban-empty { text-align: center; padding: 20px; font-size: var(--fs-caption); color: var(--text-4); border: 1px dashed var(--border); border-radius: var(--radius-xs); }/* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
-.ta-wrap { position: relative; }
-.ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
-.ta-resize:hover { opacity: .9; }/* R142（反馈 #4）：成熟度徽标行（卡面用） */
-.cz-matrow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-/* ===== R167（OPPO 质感 · 模块化）：详情抽屉的控件语言全部搬到 detail-sheet.css 的 ds-* 分组面板体系；
-   R165-A 那批头部钮（.cz-ai-btn / .cz-pin-btn / .cz-src-* / .cz-flow-*）随"AI 降正文一行 + 流转收进面板"退役。 ===== */
-.cz-h1q { font-size: var(--fs-title); font-weight: 600; line-height: var(--lh-title); color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cz-save { flex: 1; justify-content: center; }
-/* B1-c（V3.8.26）：详情抽屉 4 处模板内联样式收口，值逐字等价 */
-.cz-strong { color: var(--text); }
-.ds-meta.ds-meta-top { padding: 8px 0 4px; }
-.cz-enter-hint { font-size: var(--fs-tiny); opacity: .75; margin-left: 2px; }
-.expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
-.expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; }
-
-/* 置顶与分组 */
-.cz-card.pinned { border-left: 3px solid var(--accent); }
-.cz-pin-flag { position: absolute; top: 8px; right: 8px; font-size: var(--fs-sub); }
-.cz-star-flag { position: absolute; top: 8px; right: 8px; font-size: var(--fs-sub); }
-/* 第十七轮：置顶常驻右上角（默认半隐，hover 显现，置顶态常亮） */
-.cz-pin-corner { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
-/* 第卅三轮 REQ-020：星标角落按钮（与置顶并排左移） */
-.cz-star-corner { position: absolute; top: 8px; right: 36px; width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: .3; transition: all var(--dur) ease; z-index: 2; }
-.cz-card:hover .cz-pin-corner, .cz-kanban-card:hover .cz-pin-corner, .cz-card:hover .cz-star-corner, .cz-kanban-card:hover .cz-star-corner { opacity: .8; }
-.cz-pin-corner:hover, .cz-star-corner:hover { opacity: 1 !important; background: var(--surface-3); }
-.cz-pin-corner.on { opacity: 1; background: var(--accent-light); }
-.cz-star-corner.on { opacity: 1; background: color-mix(in srgb, #f5b942 18%, transparent); }
-.mini-btn.pinon { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-.cz-group-label { grid-column: 1 / -1; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); padding: 2px 2px 0; letter-spacing: .5px; }
-.cz-list .cz-group-label { padding: 6px 2px 2px; }
-.mini-btn.pinon { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
-.cz-hover-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-/* 转化弹窗 */
-.cz-modal-overlay { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 20vh; }
-.cz-modal { width: 400px; max-width: 92vw; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 18px 20px; }
-.cz-modal-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-/* G1（V3.8.25）：转化弹窗头原是 ✅/📄 裸 emoji，Icon 化后与文字同行需 flex 对齐 */
-.cz-modal-head > span { display: inline-flex; align-items: center; gap: 6px; }
-.cz-modal-sub { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.cz-modal-label { display: block; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); margin: 10px 0 5px; }
-.cz-modal-select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: var(--fs-body); color: var(--text); background: var(--surface); outline: none; font-family: inherit; cursor: pointer; }
-.cz-modal-select:focus { border-color: var(--accent); }
-.cz-modal-select:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.cz-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-/* 第卌轮 REQ-051：卡片正面补充字段流（附件徽章 / 标签 / 自定义） */
-.cz-ext { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 7px; }
-.cz-ext-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
-.cz-ext-tag { font-size: var(--fs-tiny); line-height: 1; padding: 2px 7px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
-.cz-ext-custom { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cz-ext-lbl { color: var(--text-3); }
-/* R117（04-61 D）：来源链接（字段设置开启后才渲染）——走链接蓝，长 URL 截断 */
-.cz-ext-src { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); color: var(--accent); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
-.cz-ext-src:hover { text-decoration: underline; }
-.cz-list-assets { margin: 0 2px; }
-/* ★W17-C05：好奇卡两段标签升级为可折叠组头（卡片 / 列表两视图同构） */
-.cz-groups { display: flex; flex-direction: column; gap: 12px; }
-.cz-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cz-group-toggle { grid-column: auto; border: 0; background: transparent; padding: 2px 2px 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
-.cz-group-ar { font-size: var(--fs-tiny); color: var(--text-4); }
-.cz-group-cnt { font-size: var(--fs-micro); color: var(--text-4); }
-</style>
+<style scoped src="./CuriosityPanel.css"></style>

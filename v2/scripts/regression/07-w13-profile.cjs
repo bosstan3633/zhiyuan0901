@@ -91,7 +91,9 @@ check('W13-7 ★孤儿 CSS 清零棘轮（本批专属）：实跑扫描器确�
 });
 
 check('W13-8 ★本批改动的反漂纪律：索引生成物由 R163-1 守、透视卡数字由 R4-Ey① 守，本条钉**债务不复发** —— 宿主 ProfileInsights.vue 净减到 1,011 行后不许再回涨（T7 三轮：复盘弹窗卸载 + 动态条抽屉整删 + 诊断统一注入），上限写死 1,100 行；同时 T7 三个退役物在宿主 codeOnly 里零命中，防"下轮当漏实现补回来"', () => {
-  const lineCount = PI.split(/\r?\n/).length;
+  /* ★R181 随迁带备案：本闸钉的是「**宿主** ProfileInsights.vue 不许再回涨」。宿主拆分（域逻辑与样式外提）后
+     `read()` 聚合读数会把拆出的成员一并算进来，故改读**物理宿主**行数 —— 与"宿主"二字字面一致，口径不变。 */
+  const lineCount = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'newtab', 'views', 'ProfileInsights.vue'), 'utf8').split(/\r?\n/).length;
   /* ★W16-T2/T3（2026-10-16）上限 1100 → 1250 并写明理由：本轮新增四类清单分支的取数修正
      （createdIds/calledIds 拆分 + 弹药同源 + 冷却语义）与抽屉对账条六分支，各有口径要写在代码里
      （口径注释比压行数重要）。真正要防的是"无节制地堆功能"，不是"这个文件不许长"。 */

@@ -70,17 +70,21 @@ check('G102-4 好奇心资源支撑索引软删过滤：任一端的卡软删后
 });
 
 check('G102-5 好奇详情“资源支撑”交互完整：搜索资源、显示当前关联、28px 可点解绑、打开原文；解绑文案明说源卡未变', () => {
+  /* ★R181 随迁带备案：索引/行数据计算随域逻辑下沉 curiosityPanelCore.ts（`d.value`→解构入参 `d`，
+     `curioSupportIdx`→`curioSupportRows` 直接消费 core 的 listByCurio(buildSupportIndex(d), curioId)）；
+     宿主 handler 改薄壳（addCurioSupport / removeCurioSupport 绑 core 的 add/removeCurioSupportLink）；
+     解绑文案新形态「解除关联（资源池源卡状态不变）/ 解绑只删关联记录」。判据意图（搜索/呈现/解绑/开原文/文案明说源卡未变）一字未改。 */
   return CURIO.includes('<b>资源支撑</b>')
-    && CURIO.includes('buildSupportIndex(d.value)')
-    && CURIO.includes('listByCurio(curioSupportIdx.value, curio.id)')
+    && CURIO.includes('buildSupportIndex(d)')
+    && CURIO.includes('listByCurio(buildSupportIndex(d), curioId)')
     && CURIO.includes('curioSupportDraft')
     && CURIO.includes('curioSupportCands')
-    && CURIO.includes('addCurioSupportLink(d.value')
-    && CURIO.includes('removeCurioSupportLink(d.value, linkId)')
+    && CURIO.includes('addCurioSupport')
+    && CURIO.includes('removeCurioSupport(row.link.id)')
     && CURIO.includes('class="ds-sup-remove"')
     && CURIO.includes('aria-label="解除资源关联"')
     && CURIO.includes('.ds-sup-remove { flex: none; width: 28px; height: 28px;')
-    && CURIO.includes('资源卡本体未变动')
+    && CURIO.includes('资源池源卡状态不变')
     && CURIO.includes('openCurioSupportResource(row.resource)');
 });
 

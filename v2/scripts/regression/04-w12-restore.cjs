@@ -604,7 +604,10 @@ check('W12-G1 ★组件级可读性门禁必须真的在 theme-contrast.cjs 里�
   const la = (pano.match(/\.lane-add \{[\s\S]*?\n\}/) || [''])[0];
   if (/var\(--text-4\)/.test(la)) return false;
   const cz = read('/newtab/components/compass/CuriosityPanel.vue');
-if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) return false;
+/* ★R181 随迁带备案：`.cz-kb-ai` 规则随样式外提到 CuriosityPanel.css（仍是单行规则）。旧写法 `\{[\s\S]*?\n\}`
+   要求"换行后紧跟 }"，对单行规则会一路吞到后面某个多行规则的收尾（吞进别的 text-4 规则造成假红）。
+   改 `[^}]*\}` 精确圈住该规则体（单行/多行都成立），判据意图（这枚控件不用最淡档 --text-4）一字未改。 */
+if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[^}]*\}/) || [''])[0])) return false;
   return true;
 });
 

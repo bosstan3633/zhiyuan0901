@@ -117,7 +117,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'deliver', title: '成果文稿', family: 'proactive', kind: 'job',
     factory: 'buildDeliverJob', factoryFile: 'shared/ai/batchG.ts',
-    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/ProfileInsights.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/ProfileInsights.vue', 'newtab/views/useGlobalSettingsPanels.ts'],
     caps: { apply: true, secondary: true, rawText: true, persona: true, autoReport: true, resave: true },
     panel: { icon: 'clipboard', mode: 'nav', route: '/settings', hint: '设置页 · AI 能力' },
     note: 'secondary=下载 .md；R154-D3：编辑后正文须同喂下载与落卡；withReport 自动落卡+存为卡',
@@ -130,6 +130,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
       'newtab/components/compass/TaskDetailDrawer.vue',
       'newtab/components/TaskAiMenu.vue',
       'newtab/views/CompassTree.vue',
+      'newtab/views/useCompassTree.ts',
       'newtab/views/ProjectCuration.vue',
     ],
     caps: { apply: true, persona: true },
@@ -140,21 +141,21 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'tag-govern', title: '标签体检', family: 'proactive', kind: 'job',
     factory: 'buildTagGovernJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/ProfileInsights.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/ProfileInsights.vue', 'newtab/views/useGlobalSettingsPanels.ts', 'newtab/views/useProfileInsightsTags.ts'],
     caps: { apply: true },
     panel: { icon: 'layers', mode: 'nav', route: '/settings', hint: '设置页 · 标签治理' },
   },
   {
     id: 'trash-rescue', title: '回收站捞回', family: 'proactive', kind: 'job',
     factory: 'buildTrashRescueJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/RecycleBin.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/RecycleBin.vue', 'newtab/views/useGlobalSettingsPanels.ts'],
     caps: { apply: true },
     panel: { icon: 'trash', mode: 'nav', route: '/recycle', hint: '回收站页内发起' },
   },
   {
     id: 'cross-deck', title: '跨台镜像发现', family: 'passive', kind: 'job',
     factory: 'buildCrossDeckJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/components/GlobalPopups.vue'],
+    hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/useGlobalPopupsCapture.ts'],
     caps: { apply: true },
     panel: { icon: 'share', mode: 'popup', popup: 'ai-advice', hint: 'AI 建议面板' },
     note: 'R158 定稿被动：产出是"建议你镜像什么"；物理入口已从设置页迁入 AI 建议面板（宿主随迁',
@@ -162,7 +163,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'thesis-drift', title: '主题漂移', family: 'passive', kind: 'job',
     factory: 'buildThesisJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/components/GlobalPopups.vue'],
+    hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/useGlobalPopupsCapture.ts'],
     caps: { apply: true },
     panel: { icon: 'radio', mode: 'popup', popup: 'ai-advice', hint: 'AI 建议面板' },
     note: 'R158 定稿被动 + 迁 AI 建议面板（宿主随迁）；R154 记账：adoptable:false 且无 autoReport，漂移结论无出口（归 R159）',
@@ -170,14 +171,14 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'tag-blueprint', title: '标签整体梳理·蓝图', family: 'proactive', kind: 'job',
     factory: 'buildTagBlueprintJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/useGlobalSettingsPanels.ts'],
     caps: { apply: true },
     panel: { icon: 'layout', mode: 'nav', route: '/settings', hint: '设置页 · 标签治理' },
   },
   {
     id: 'tag-assign', title: '标签整体梳理·归架', family: 'proactive', kind: 'job',
     factory: 'buildTagAssignJob', factoryFile: 'shared/ai/govern.ts',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/useGlobalSettingsPanels.ts'],
     caps: { apply: true },
     panel: { icon: 'folder', mode: 'nav', route: '/settings', hint: '蓝图采纳后自动接力（R143 两门）' },
     note: '蓝图采纳后 aiJobClosed 自动接力，非独立按钮（R143 两门）',
@@ -186,7 +187,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'card-enrich', title: 'AI 补全（资源卡）', family: 'proactive', kind: 'job',
     factory: 'buildResourceEnrichJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/ResourceAiStrip.vue', 'newtab/components/CardAiEntry.vue'],
+    hosts: ['newtab/components/GlobalPopups.vue', 'newtab/components/ResourceAiStrip.vue', 'newtab/components/CardAiEntry.vue', 'newtab/components/useGlobalPopupsCapture.ts'],
     caps: { apply: true, before: true, promptScope: 'enrich:card', persona: true },
     panel: { icon: 'copy', mode: 'nav', route: '/', hint: '选中卡后从卡面 AI 徽标 / 详情抽屉 AI 行 / 采集浮层发起' },
     note: '★ R167：原「单卡补全」与「全方位优化」并成一枚工厂——http(s) 链接点了才抓正文；空字段直接补，已填字段只给 optIn 建议（默认不勾）；R147-a 新词闸与分类消毒同装（合并入口不得再留下"没装闸的那条"）',
@@ -225,7 +226,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'weekly-review', title: '周回顾', family: 'proactive', kind: 'job',
     factory: 'buildReviewJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/useGlobalSettingsPanels.ts'],
     caps: { before: true, paneMode: 'context', promptScope: 'review', rawText: true, autoReport: true, resave: true },
     panel: { icon: 'calendar', mode: 'nav', route: '/', hint: '仪表盘复盘段内发起' },
     note: '纯报告型（withReport 且无 apply）：跑完自动落卡 + dirty 时「存为卡」同名复用，抽屉不出采纳按钮',
@@ -252,7 +253,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'batch-enrich', title: '批量补全', family: 'proactive', kind: 'inline',
     anchor: 'aiEnrichIds',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/useGlobalSettingsPanels.ts'],
     caps: { apply: true, before: true, promptScope: 'enrich:batch' },
     panel: { icon: 'download', mode: 'nav', route: '/settings', hint: '设置页 · AI 能力' },
     note: 'R154-C4：key 带选集 id 列表；书签导入完成后复用同一条 job',
@@ -260,7 +261,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'dormant-scan', title: '沉睡资源唤醒', family: 'passive', kind: 'inline',
     anchor: 'aiAdviceRun',
-    hosts: ['newtab/components/GlobalPopups.vue'],
+    hosts: ['newtab/components/useGlobalPopupsCapture.ts'],
     caps: { apply: true },
     panel: { icon: 'bulb', mode: 'popup', popup: 'ai-advice', hint: 'AI 建议面板' },
     note: 'R158 定稿被动：产出是逐卡处置建议（唤醒/归档/保留）；入口+job 构造已从设置页迁入 AI 建议面板（锚=aiAdviceRun）',
@@ -268,7 +269,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'diagnose', title: '深度诊断', family: 'proactive', kind: 'inline',
     anchor: 'aiDiagnose',
-    hosts: ['newtab/views/GlobalSettings.vue'],
+    hosts: ['newtab/views/useGlobalSettingsPanels.ts'],
     caps: { apply: true, autoReport: true, resave: true },
     panel: { icon: 'settings', mode: 'nav', route: '/settings', hint: '设置页 · AI 能力' },
     note: '多专家会诊；R154 记账"自带 run"经矩阵实证已不存在（多轮调用改由 llm 层承担），run:false',
@@ -277,7 +278,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'global-search', title: '全局 AI 检索', family: 'proactive', kind: 'search',
     anchor: 'semanticSearch',
-    hosts: ['newtab/components/GlobalPopups.vue'],
+    hosts: ['newtab/components/useGlobalPopupsSearch.ts'],
     caps: {},
     note: 'semanticSearch / semanticSearchAll；R161-③ 起全字段投料 + 定向收窄，绝不抓链接正文。R158：不进面板 AI 分组——它就是本面板的 AI 检索模式本身',
   },
@@ -291,7 +292,7 @@ export const AI_ENTRIES: AiEntryDecl[] = [
   {
     id: 'focus-rank', title: '今日三件事排序', family: 'proactive', kind: 'job',
     factory: 'buildFocusSuggestJob', factoryFile: 'shared/ai/focusSuggest.ts',
-    hosts: ['newtab/views/CompassHome.vue'],
+    hosts: ['newtab/views/CompassHome.vue', 'newtab/views/useCompassHome.ts'],
     caps: { apply: true, before: true, paneMode: 'context', promptScope: 'focus:rank' },
     panel: { icon: 'flame', mode: 'nav', route: '/compass', hint: '调度台「今日三件事」右上角 ✦ 浮层内发起（每日首次打开先本地写入，AI 只复核顺序）' },
     note: 'R169-T3：本地先按主攻项目/状态/顺延/到期出候选与事实句，模型只在候选里挑三件+一句判词（无判词或非 high 即不占格）；采纳只改 dailyFocus[这一天] 的计划位，任务卡本体与用户手工选的格子都不动。同文件的 rankFocus 是无界面复核通道，失败一律静默回落本地顺序',

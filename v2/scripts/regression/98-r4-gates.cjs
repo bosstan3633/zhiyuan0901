@@ -64,7 +64,10 @@ check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描
   const REG = {
     'shared/utils/locate.ts': 1,                    // 唯一算式本体（resourceLocateRoute 的 else 分支）
     'newtab/App.vue': 3,                            // 台签 / 新建台后跳转 / 数字快捷键跳台：来源都是 store.workspaces getter（已过滤池）
-    'newtab/components/GlobalPopups.vue': 3,        // locateOnly 的池分支之后、ws 类型行、分类树定位：三处都在 !== CURATION_WS_ID 过滤之后
+    // ★R181 随迁带备案：GlobalPopups 的 3 处随「检索域 / 行域」下沉——1 处随定位逻辑进 useGlobalPopups.ts，
+    //   2 处（ws 类型行、分类树定位）随行渲染进 useGlobalPopupsRows.ts；三处仍都在 !== CURATION_WS_ID 过滤之后。
+    'newtab/components/useGlobalPopups.ts': 1,
+    'newtab/components/useGlobalPopupsRows.ts': 2,
     'newtab/views/Workspace.vue': 1                 // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
   };
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
@@ -276,7 +279,10 @@ check('R4-Eq ★退役台面名「资源台」只许活在带理由的四处：�
     'shared/storage/curationMigration.ts': 2,   // R61 迁移给 hub 实体写的 name，用户库实测仍叫「资源台」；显示一律走 wsNameById（R4-Dg），这里不许被当文案改
     'newtab/manual-data.ts': 4,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废"等），R4-De 明确保留这一形态
     'newtab/components/MigrateReportCard.vue': 1, // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
-    'newtab/changelog-data.ts': 13              // ★W5 扩表（★V3.9.20 由 12 改 13：新增版本条目的性能叙述「资源台族指标随 R179 退役记账」——退役事实的历史陈述，与既有版本条目同形态，随 diff 备案）：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见。★2026-10-12 随V3.8.6 增补由 3 改 12：用户拍板「完整呈现全部 128 个版本」，v2 时代 88 版标题里的旧台名（"资源台 UI 迭代"/"资源台检索"等）随之进表，仍属历史叙述同一形态；改表随 diff 备案，判据体与口径一字未动
+    // ★R181 随迁带备案：`changelog-data.ts` 拆成 `changelog-data/{entries-v2,entries-v3}.ts`（宿主只管聚合与类型），
+    //   13 条历史叙述随内容分流为 v2 时代 10 条 + v3 时代 3 条，文本与口径一字未动，改表随 diff 备案。
+    'newtab/changelog-data/entries-v2.ts': 10,  // 产品更新日志 v2 时代的版本标题与要点（"资源台 UI 迭代"/"资源台检索"等 88 版里的旧台名，历史叙述形态）
+    'newtab/changelog-data/entries-v3.ts': 3    // v3 时代条目（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线，含 V3.9.20 由 12 改 13 的那条）
   };
   const found = retiredNameHits(root);
   return Object.keys(found).sort().join('|') === Object.keys(REG).sort().join('|')

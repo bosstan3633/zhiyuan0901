@@ -113,7 +113,7 @@ check('R4-Fb① ★不可注入页（chrome:// / 扩展页 / Web Store）的降�
     && bg.includes("type: 'zy-quick-panel', panel") && bg.includes('?zy-panel=${panel}')
     && ap.includes("msg?.type === 'zy-quick-panel'") && ap.includes("get('zy-panel')")
     && !bg.includes('openPopupWindow') && !bg.includes('src/popup') && !mf.includes('src/popup')
-    && !srcFileEntries().some(e => !e.rel.endsWith('changelog-data.ts') && codeOnly(e.text).includes('src/popup'));
+    && !srcFileEntries().some(e => !e.rel.includes('changelog-data') && codeOnly(e.text).includes('src/popup'));
 });
 check('R4-Fb② ★降级出口的两种入口各有一条真跑的 e2e（E2E-43），锚点取算 ok 的那个表达式里的片段：?zy-panel=curio 要真开出好奇面板（含"等不够就补等一次再判死"的形状）、background 复用已开新标签页发的 zy-quick-panel 要真开出采集面板并按标题文本认，两条都成立才算过——只测一条会放过"另一条其实接不上"的半拉子实现', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
