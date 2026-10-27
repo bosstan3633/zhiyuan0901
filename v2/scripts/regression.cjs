@@ -63,6 +63,7 @@ const SHARDS = [
   '108-v3922-compass',
   '109-shared-export',
   '110-v3923-cross-module',
+  '111-v3925-round',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

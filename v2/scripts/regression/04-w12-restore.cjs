@@ -421,7 +421,7 @@ check('W12-D1 ★DayDetail 必须**从 Heatmap 里解耦出去**、且解耦是�
   return true;
 });
 
-check('W12-D2 ★今日战报宿主必须是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在组件内，CompassHome 一行挂载且源码里不出现 readEventLog（R49-3 负锚）。这正是 HeatmapModule 当年被评为「自包含宿主」的同一套口径，TodayBattleHost 照搬不得缩水——否则 HeatmapModule 一退役，调度台就丢了读日志的通道', () => {
+check('W12-D2 ★今日战报宿主仍是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在 TodayBattleHost 内，调度台一行挂载。★V3.9.25：调度台状态读数另需读取同一事件日志核对操作次数，读取入口由 useCompassHome 承担；战报宿主自身的五件与刷新链不减', () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   const ch = read('/newtab/views/CompassHome.vue');
   for (const n of ['useDashboardStats', 'readEventLog', 'derivedEvents', 'DayDetail', 'DashboardLogDrawer', 'useDailyLogRequest']) {
@@ -430,9 +430,10 @@ check('W12-D2 ★今日战报宿主必须是「自包含」的：数据桥 useDa
   // 派生回退与刷新语义
   if (!tbh.includes('logEmpty.value ? derivedEvents.value : eventLog.value')) return false;
   if (!tbh.includes('await refreshEventLog()')) return false;
-  // 页面侧只挂一行、不碰事件日志
+  // 页面侧只挂一行；状态读数若要读日志必须集中在 useCompassHome，不得在视图模板另造解析。
   if (!ch.includes('<TodayBattleHost ref="battleHost" />')) return false;
-  if (/readEventLog/.test(ch)) return false;
+  const homeView = fs.readFileSync(path.resolve(base, 'newtab/views/CompassHome.vue'), 'utf8');
+  if (/readEventLog/.test(codeOnly(homeView))) return false;
   return true;
 });
 

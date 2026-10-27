@@ -69,7 +69,7 @@ const {
   onStorageClick, atSync, atConfigured, atSyncErr, atPending,
   atChipText, atChipTitle, atSyncing, onSyncChipClick, focusMeta,
   readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
-  todayOutCount, battleHost, openReview, focusDoneCount,
+  todayOutCount, todayOutOps, battleHost, openReview, focusDoneCount,
   mainFocus, extraFocus, recentLimit,
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks,
@@ -304,18 +304,6 @@ const {
           </div>
         </section>
 
-        <footer class="page-foot">
-          <button class="foot-status" :class="{ error: !storageOk }" type="button" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
-            <span class="save-dot" /><span>{{ storageText }}</span>
-          </button>
-          <span class="foot-sync">
-            <button class="foot-status" :class="{ error: !!atSyncErr }" type="button" :title="atChipTitle" @click="onSyncChipClick">
-              <span>{{ atChipText }}</span>
-            </button>
-            <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
-          </span>
-          <span class="foot-spacer" />
-        </footer>
       </main>
 
       <aside class="side-rail" aria-label="案头侧栏">
@@ -335,7 +323,7 @@ const {
             </button>
             <button class="stat-row" type="button" title="口径：今日 0 点起 lastCalledAt 落在今日的资源卡张数；与今日战报的事件计次口径不同" @click="openStatusDetail('out')">
               <span class="sk">今日调出</span>
-              <span class="sv">{{ todayOutCount }} 张</span>
+              <span class="sv">{{ todayOutOps }} 次操作 <small>/ {{ todayOutCount }} 张卡</small></span>
               <span class="se">明细</span>
             </button>
             <!-- V3.9.22：主攻最多两个，同一行并列。项目名各自可点并打开可编辑项目详情；
@@ -377,8 +365,23 @@ const {
           <div v-else class="rail-empty">还没有调出记录。打开一张资源卡后，会出现在这里。</div>
         </section>
 
-        <div class="rail-foot"><Icon name="shield" :size="14" /> 只存本机 · 无账号 · 可随时导出</div>
       </aside>
+
+      <!-- V3.9.25：存储 / 同步状态独占共享底轨，不再作为网格自动项挤进卡片区。 -->
+      <footer class="page-foot desk-status-rail" aria-label="本机存储与同步状态">
+        <div class="status-local">
+          <button class="foot-status" :class="{ error: !storageOk }" type="button" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
+            <span class="save-dot" /><span>{{ storageText }}</span>
+          </button>
+          <span class="local-note"><Icon name="shield" :size="12" /> 只存本机 · 无账号 · 可随时导出</span>
+        </div>
+        <span class="foot-sync">
+          <button class="foot-status" :class="{ error: !!atSyncErr }" type="button" :title="atChipTitle" @click="onSyncChipClick">
+            <span>{{ atChipText }}</span>
+          </button>
+          <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
+        </span>
+      </footer>
     </div>
 
     <TodayBattleHost ref="battleHost" />

@@ -574,6 +574,27 @@ function toggleLinked(node: 'vision' | 'mission', kind: 'res' | 'curio', id: str
   c[key] = arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id]
   store.persist()
 }
+/** V3.9.25：关联芯片上的取消入口只摘关系，不删来源卡；3 秒内可恢复。 */
+function unlinkChip(node: 'vision' | 'mission', kind: 'res' | 'curio', id: string) {
+  const c = d.value.compass[node]
+  if (!c) return
+  const key = kind === 'res' ? 'linkedResourceIds' : 'linkedCuriosityIds'
+  const arr: ID[] = c[key] || []
+  if (!arr.includes(id)) return
+  const next = arr.filter(x => x !== id)
+  c[key] = next
+  store.persist()
+  const title = kind === 'res' ? resTitle(id) : curioTitle(id)
+  showToast(`已取消关联「${title.slice(0, 18)}」`, { label: '撤销', cb: () => {
+    const current = d.value.compass[node]
+    if (!current) return
+    const currentIds: ID[] = current[key] || []
+    if (currentIds.includes(id)) return
+    current[key] = [...currentIds, id]
+    store.persist()
+    showToast('✓ 已恢复关联')
+  } }, { undoWindowMs: 3000 })
+}
 function resTitle(id: string): string {
   return d.value.resources.find(r => r.id === id && !r.deletedAt)?.title || '(已删除资源)'
 }
@@ -691,7 +712,7 @@ onUnmounted(() => {
     unbindTask, unbindTaskById, isStagnant, activeTowerId, gotoTower,
     activeLayer, canvasEl, ensureTower, onCanvasScroll, dhiStatus,
     pinyinOn, linkModal, linkQ, toggleLinkPop, closeLinkModal,
-    linkIds, linkCount, isLinked, toggleLinked, resTitle,
+  linkIds, linkCount, isLinked, toggleLinked, unlinkChip, resTitle,
     curioTitle, peek, openChipLink, peekData, openPeekLink,
     linkCandidates, projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
     scrollParent,

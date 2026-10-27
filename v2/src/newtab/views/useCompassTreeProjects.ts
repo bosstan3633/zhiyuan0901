@@ -180,7 +180,44 @@ function locationTaskPool() {
   })
 }
 function onListLocate(target: { projId: string; metricId?: string; taskId?: string }) {
-  locateCompassTarget(target)
+  const { projId, metricId, taskId } = target
+  if (!projId) {
+    if (taskId) locationTaskPool()
+    else showToast('该目标没有可定位的项目')
+    return
+  }
+  const pm = compassMeta.value.byProject.get(projId)
+  if (!pm) {
+    if (taskId) locationTaskPool()
+    else showToast('项目已不在')
+    return
+  }
+  layerView.value = null
+  layerOpen.value = null
+  riskOpen.value = false
+  dirFilter.value = ''
+  openPano(projId)
+  nextTick(() => {
+    const selector = taskId
+      ? `[data-metric="${metricId}"] [data-task="${taskId}"], [data-task="${taskId}"]`
+      : metricId
+        ? `[data-metric="${metricId}"]`
+        : '.pano'
+    nextTick(() => {
+      const el = document.querySelector(selector) as HTMLElement | null
+      if (el) {
+        flashLocated(el)
+        if (taskId) showToast('已切到项目全景并定位任务')
+        else if (metricId) showToast('已切到项目全景并定位指标')
+        return
+      }
+      if (taskId && !metricId) {
+        const orphan = document.querySelector(`[data-task="${taskId}"]`) as HTMLElement | null
+        if (orphan) { flashLocated(orphan); showToast('已切到项目全景并定位收容任务'); return }
+      }
+      showToast(taskId ? '任务已不在该项目' : '定位目标已不在')
+    })
+  })
 }
 /**
  * ★F7 列表第 3 层行内编辑：关掉层级列表回到项目塔，再就地进入该目标标题编辑。

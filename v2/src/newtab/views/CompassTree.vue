@@ -74,7 +74,7 @@ const {
   unbindTask, unbindTaskById, isStagnant, activeTowerId, gotoTower,
   activeLayer, canvasEl, ensureTower, onCanvasScroll, dhiStatus,
   pinyinOn, linkModal, linkQ, toggleLinkPop, closeLinkModal,
-  linkIds, linkCount, isLinked, toggleLinked, resTitle,
+  linkIds, linkCount, isLinked, toggleLinked, unlinkChip, resTitle,
   curioTitle, peek, openChipLink, peekData, openPeekLink,
   linkCandidates, projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
   scrollParent,
@@ -257,8 +257,8 @@ const {
                   <div class="tl-links">
                     <span class="proj-toggle" v-pressable @click.stop="toggleLinkPop('vision')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
                     <template v-if="linkCount('vision')">
-                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除资源卡）" aria-label="取消关联" @click.stop="unlinkChip('vision', 'res', rid)">×</button></span>
+                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除好奇心卡）" aria-label="取消关联" @click.stop="unlinkChip('vision', 'curio', cid)">×</button></span>
                     </template>
                   </div>
                 </template>
@@ -271,8 +271,8 @@ const {
                   <div class="tl-links">
                     <span class="proj-toggle" v-pressable @click.stop="toggleLinkPop('mission')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
                     <template v-if="linkCount('mission')">
-                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span></span>
-                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span></span>
+                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除资源卡）" aria-label="取消关联" @click.stop="unlinkChip('mission', 'res', rid)">×</button></span>
+                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除好奇心卡）" aria-label="取消关联" @click.stop="unlinkChip('mission', 'curio', cid)">×</button></span>
                     </template>
                   </div>
                 </template>
@@ -306,7 +306,7 @@ const {
               v-if="layerView"
               :key="'lv-' + layerView"
               :layer="layerView"
-              :back-label="viewMode === 'pano' ? '全景' : '项目塔'"
+              :back-label="viewMode === 'pano' ? '全景' : '上一视图'"
               :dir-filter="dirFilter"
               :rows3="layerRows3"
               :rows5="layerRows5"

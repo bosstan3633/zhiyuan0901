@@ -85,7 +85,7 @@ onBeforeUnmount(() => { io?.disconnect(); io = null; visibleSecs.clear() })
   <div class="mn-page">
     <header class="mn-head">
       <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" class="mn-back-ico" />返回设置</button>
-<div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.9.24</span></div>
+<div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.9.25</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare"><Icon name="download" :size="13"/> 下载分享版</button>
     </header>

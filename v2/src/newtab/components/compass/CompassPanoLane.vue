@@ -27,7 +27,7 @@ const props = defineProps<{
   projId: string
   /** 单指标时铺满画布，避免只占左侧一半并留下整片空画布。 */
   single?: boolean
-  /** 多泳道时标题最多两行，避免长指标名把整条泳道头撑高。 */
+  /** 多泳道时保留完整指标名；宽度加大后允许自然换行，不再两行截断。 */
   dense?: boolean
 }>()
 
@@ -91,7 +91,8 @@ function priOf(t: TaskCard): string {
       <div class="lane-top">
         <span class="lane-i">{{ idx }}</span>
         <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
-        <span class="lane-n" :title="m.title">{{ m.title }}</span>
+        <span class="lane-n">{{ m.title }}</span>
+        <span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
         <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
@@ -169,7 +170,7 @@ function priOf(t: TaskCard): string {
    层级由指标名、验收行、进度条和连接轨承担。 */
 .lane {
   /* 基础宽度给旧版静态锚点；父容器 .lanes-* 会按轨道数覆盖它。 */
-  flex: 1 1 0; min-width: 280px; flex-direction: column; display: flex;
+  flex: 1 1 0; min-width: 360px; flex-direction: column; display: flex;
   background: transparent;
   /* 圆角与板/舱/列表同族（判据 C4-1）：去的是底色与阴影，不是形状语言 */
   border-radius: var(--radius-lg);
@@ -198,14 +199,10 @@ function priOf(t: TaskCard): string {
   flex: 1; min-width: 0; color: var(--text);
   overflow-wrap: anywhere;
 }
-/* 多泳道时标题固定最多两行；完整文本留在 title，避免用省略号吞掉判断依据。 */
-.lane.dense .lane-n {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  min-height: calc(2 * 1.45em);
-  max-height: calc(2 * 1.45em);
+.lane.dense .lane-n { font-size: var(--fs-body); line-height: 1.55; }
+.lane-status {
+  flex: none; color: var(--text-4); font-size: var(--fs-tiny);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .lane-dot {
   width: 15px; height: 15px; border-radius: 999px; display: grid; place-items: center;

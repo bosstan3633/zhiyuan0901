@@ -308,7 +308,7 @@ check('R169-25 老账③ 抽屉两代容器合并：Workspace 自绘 .drawer 退
 });
 check('R169-26 老账④ 脚本归档白名单：scripts/ 根目录只允许 27 个登记脚本（门禁/量具/生成器）；一次性探针 9 个已归档 scripts/archive/（R164 提案 E4：门禁清单只列活的）——根目录出现未登记文件即红 ★R174-1 备案：regression/ 分片目录（helpers + 时代分片，见 R164-2 行数门禁）随分片落地加入白名单；★R4-Ea 备案：browser.cjs 是七个门禁脚本共用的浏览器解析实现，属门禁基建不是探针；★G4/G6(V3.8.27)：a11y-tab-audit.cjs（键盘可达审计）与 install-hooks.cjs（pre-commit 安装器）登记入册；★B7-e(V3.8.40)：m6-responsive-audit.cjs 登记入册（响应式实拍量具——量的是运行时盒子，静态扫描读不出横向溢出，与 theme-audit 同类）；★B8(V3.8.41)：orphan-check.cjs 登记入册（import 图孤立检测——"grep 文件名"数不出引用数，注释/备案句/字符串里都有文件名而真 import 只有两种形态）；★P0-3(V3.8.42)：shoot-settings-prototype.cjs 登记入册（设置页高保真实拍量具——**原型审核件必须来自真实构建产物而非手绘**，手绘等于引入与代码无关的第二个真相源；与 theme-audit 同类但不同用途：不更新权威 census，只出审核图，故不进回归链）；★P0-3 第三批(V3.8.42)：probe-gs-baseline.cjs 登记入册（**样式作用域探针**——直接读 computed style 与 data-v，用来证明「父组件 scoped 样式命中不了子组件内部元素」。它的价值在于：像素 A/B 报过假绿（跳过 0 张），而这类 bug 用**计算样式**一读就穿帮；本批的基类外提就是靠它证伪的）；★G-02/G-05(V3.9.11)：curation-pressure.cjs（策展导出压力与边界门禁）与 perf-slo.cjs（六类真实浏览器性能 SLO 采样）登记入册', () => {
   const ALLOW = ['a11y-tab-audit.cjs', 'install-hooks.cjs', 'browser.cjs', 'check-cycles.cjs', 'curation-pressure.cjs', 'dead-css-scan.cjs', 'e2e.cjs', 'entry-literals.cjs', 'entry-matrix.cjs', 'gen-code-index.cjs', 'gen-pinyin-table.cjs', 'img-diff.cjs', 'm6-responsive-audit.cjs', 'orphan-check.cjs', 'pack.cjs', 'perf-census.cjs', 'perf-slo.cjs', 'perf.cjs', 'probe-f.cjs', 'probe-gs-baseline.cjs', 'regression-eb.cjs', 'regression.cjs', 'shoot-settings-prototype.cjs', 'test-import-compat.cjs', 'theme-audit.cjs', 'theme-contrast.cjs'];
-  const actual = fs.readdirSync(SCRIPTS_DIR).filter(f => f !== 'archive' && f !== 'regression' && !f.endsWith('.log'));
+  const actual = fs.readdirSync(SCRIPTS_DIR).filter(f => f !== 'archive' && f !== 'regression' && !f.endsWith('.log') && !f.startsWith('.'));
   return actual.length === ALLOW.length && actual.every(f => ALLOW.includes(f)) && fs.existsSync(path.join(SCRIPTS_DIR, 'archive', 'test-perf.cjs')) && fs.existsSync(path.join(SCRIPTS_DIR, 'regression', 'helpers.cjs'));
 });
 check('R174-2 ZIP 减重（04-69 T0-b）：pack.cjs 发布包剥离 .vite/ 构建元数据（dist/.vite/manifest.json 29,010B 运行时零引用，与 *.map 同列剥出）+ logo 单源化（src/assets/logo.png 退役，见 10-foundations logo 断言备案）——两项合计原始 −47,641B；判据：pack.cjs 含 viteDir 剥离逻辑 + logo 双源不复存在', () => {
@@ -816,15 +816,20 @@ check('R175-2 ★V3.9.22 重指：方向台四入口统一解绑；CompassTree �
     && detail.includes('softDeleteTaskToTrash(d.value, t)')
     && detail.includes('<ArmDeleteButton @confirm="deleteTask(selectedTask.id)" />');
 });
-check('R175-3 ★项目全景轨道规则可证明：1 条铺满、2–4 条严格等分、5+ 保留 280px 可读下限并横向滚动；模板按 laneCount 三态挂 class，不靠宽度猜', () => {
+check('R175-3 ★项目全景轨道规则可证明（V3.9.25 重指）：1 条铺满、2–3 条严格等分、4+ 保留 360px 可读下限并横向滚动；指标名完整换行；模板按 laneCount 三态挂 class，不靠宽度猜', () => {
   const pano = codeOnly(read('/newtab/components/compass/CompassPano.vue'))
+  const lane = codeOnly(read('/newtab/components/compass/CompassPanoLane.vue'))
   return pano.includes("'lanes-single': laneCount === 1")
-    && pano.includes("'lanes-multi': laneCount > 1 && laneCount <= 4")
-    && pano.includes("'lanes-scroll': laneCount > 4")
+    && pano.includes("'lanes-multi': laneCount > 1 && laneCount <= 3")
+    && pano.includes("'lanes-scroll': laneCount > 3")
     && pano.includes(':data-lane-count="laneCount"')
     && pano.includes('.lanes-multi > .lane') && pano.includes('flex: 1 1 0; width: 0; min-width: 0;')
-    && pano.includes('.lanes-scroll > .lane') && pano.includes('flex: 0 0 280px; width: 280px; min-width: 280px;')
-    && pano.includes('.lanes-single > .lane') && pano.includes('width: 100%');
+    && pano.includes('.lanes-scroll > .lane') && pano.includes('flex: 0 0 360px; width: 360px; min-width: 360px;')
+    && pano.includes('.lanes-single > .lane') && pano.includes('width: 100%')
+    && lane.includes('min-width: 360px')
+    && lane.includes('<span class="lane-n">{{ m.title }}</span>')
+    && lane.includes('<span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>')
+    && !lane.includes('-webkit-line-clamp: 2');
 });
 check('R175-4 ★调度台三件事恒三槽：focusCells 从 FOCUS_LIMIT 补齐空位，模板与“为什么这样排”都消费同一数组；失效槽不靠过滤下标，idx 仍是原始槽位', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))

@@ -68,13 +68,15 @@ check('R180-C4 ★项目折叠控件：28px 热区、透明底、chevron 旋转�
     && !tower.includes('background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border)');
 });
 
-check('R180-C5 ★第 6 层任务定位：行数据带 metricId/taskId，定位会展开项目与指标并滚到具体 data-task 行', () => {
+check('R180-C5 ★第 6 层任务定位（V3.9.25 重指）：行数据带 metricId/taskId；点击后切到所属项目的项目全景，并滚动高亮对应 data-task 行，不再先回项目塔', () => {
   const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
   const list = codeOnly(read('/newtab/components/compass/CompassLayerList.vue'))
-  const locate = segOf(tree, 'function locateCompassTarget(', '\nfunction flashLocated(')
+  const projects = codeOnly(read('/newtab/views/useCompassTreeProjects.ts'))
+  const locate = segOf(projects, 'function onListLocate(', '\nfunction onListEditDir(')
   return tree.includes('metricId: p?.metricId || null')
     && tree.includes('projFoldOverride.value[projId] = true')
     && tree.includes('expandedMetrics.value.add(metricId)')
+    && locate.includes('openPano(projId)')
     && locate.includes('[data-metric="${metricId}"] [data-task="${taskId}"]')
     && locate.includes('flashLocated(el)')
     && locate.includes('locationTaskPool()')

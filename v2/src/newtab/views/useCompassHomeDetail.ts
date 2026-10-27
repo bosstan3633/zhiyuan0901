@@ -5,7 +5,7 @@ import { showToast } from '@/shared/components/toast'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import type { useCompassHome } from './useCompassHome'
 
-export function useCompassHomeDetail(deps: Pick<ReturnType<typeof useCompassHome>, 'todayStart' | 'd' | 'fmtRecentTime' | 'projectName' | 'focusedProjects' | 'focusMeta' | 'taskArchiveIssue' | 'readonlyProjectId' | 'readonlyProjectOpen' | 'openTaskPreview' | 'openResourcePreview'>): {
+export function useCompassHomeDetail(deps: Pick<ReturnType<typeof useCompassHome>, 'todayStart' | 'todayCallCounts' | 'refreshTodayOutOps' | 'd' | 'fmtRecentTime' | 'projectName' | 'focusedProjects' | 'focusMeta' | 'taskArchiveIssue' | 'readonlyProjectId' | 'readonlyProjectOpen' | 'openTaskPreview' | 'openResourcePreview' | 'openResourceLink'>): {
   statusDetail: Ref<StatusDetailKey | ''>
   closeStatusDetail: () => void
   statusDetailTitle: ComputedRef<string>
@@ -20,7 +20,7 @@ export function useCompassHomeDetail(deps: Pick<ReturnType<typeof useCompassHome
   taskDueLabel: (t: TaskCard) => string
   focusSlotSourceLabel: (slot: FocusSlot) => string
 } {
-  const { todayStart, d, fmtRecentTime, projectName, focusedProjects, focusMeta, taskArchiveIssue, readonlyProjectId, readonlyProjectOpen, openTaskPreview, openResourcePreview } = deps
+  const { todayStart, todayCallCounts, refreshTodayOutOps, d, fmtRecentTime, projectName, focusedProjects, focusMeta, taskArchiveIssue, readonlyProjectId, readonlyProjectOpen, openTaskPreview, openResourcePreview, openResourceLink } = deps
 const statusDetail = ref<StatusDetailKey | ''>('')
 /** V3.9.14：明细行可在中央弹窗 / 右侧任务或资源详情之间切换；
  *  先关明细再开详情，避免两层遮罩叠在一起、Esc 只关到上层。 */
@@ -54,7 +54,7 @@ const statusDetailItems = computed<StatusDetailItem[]>(() => {
       .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0))
       .map(r => ({
         title: r.title || '（无标题）',
-        meta: `最近 ${fmtRecentTime(r.lastCalledAt)}`,
+        meta: `最近 ${fmtRecentTime(r.lastCalledAt)} · 今日操作 ${todayCallCounts.value.get(r.id) || 0} 次`,
         extra: `累计 ${r.callCount || 0} 次`,
         action: '打开资源',
         actionKind: 'resource',
@@ -133,8 +133,8 @@ function weekStartKeyOf(ts: number): string {
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
 }
 function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }
-/** V3.9.14：状态明细不再止于“看一眼”。行内动作复用既有详情出口，
- *  不新增第二套编辑面：项目 → 只读项目详情；任务 → 任务抽屉；资源 → 资源详情。 */
+/** V3.9.25：整行都是下钻入口。资源卡先打开原始链接，失败才回落详情抽屉；
+ *  项目与任务继续复用既有详情出口，不新增第二套编辑面。 */
 function onStatusItemAction(item: StatusDetailItem): void {
   closeStatusDetail()
   if (!item.actionId) return
@@ -151,7 +151,10 @@ function onStatusItemAction(item: StatusDetailItem): void {
   }
   if (item.actionKind === 'resource') {
     const resource = (d.value.resources || []).find(r => r.id === item.actionId && !r.deletedAt)
-    if (resource) openResourcePreview(resource)
+    if (resource) {
+      if (openResourceLink(resource)) void refreshTodayOutOps()
+      else openResourcePreview(resource)
+    }
     else showToast('这张资源卡已不在资源池中')
   }
 }

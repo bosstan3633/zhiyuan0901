@@ -121,15 +121,12 @@ check('W11-6 ★成熟度等级色只做小圆点/小徽标，绝不许用在指
 
 // ============== 三、项目全景（横向第二视图） ==============
 
-check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的另一种写法：一根泳道 = 一条成功指标，泳道内竖排该指标的任务；第 4/5/6 层的从属必须仍能在全景里被读到。★V3.9.12 视觉收口（用户 2026-10-23「项目全景还是有点乱」）：单行层级带不再独占一条水平带，而是并入项目摘要脚注（第 4 层路径 / 第 5 层指标数 / 第 6 层任务数 / 断链）；守的是“层级从属可见”，不守它必须横成第二块招牌。★V3.8.21 退役负锚保留：三段等高色块与 clip-path 折角不许回流。★泳道本体仍在 CompassPanoLane', () => {
+check('W11-7 ★项目全景必须是**横向泳道**而不是纵向长列表的另一种写法：一根泳道 = 一条成功指标，泳道内竖排该指标的任务；第 4/5/6 层的从属必须仍能在全景里被读到。★V3.9.12 视觉收口：单行层级带并入项目摘要脚注。★V3.9.25：指标名完整换行，2–3 条等分、4+ 条以 360px 下限滚动；层级从属与泳道组件挂载不变', () => {
   const L = PANO_LANE;
   return PANO.includes('class="lanes"')
     && /\.lanes \{[^}]*display: flex[^}]*overflow-x: auto/.test(PANO)
-    /* 泳道本体：一根泳道一条指标，列向堆叠。
-       V3.9.14：由固定 280px 改为 flex 等分；1~4 条指标吃满画布，
-       5 条以上保留 280px 下限并横向滚动。车道容器必须 stretch，
-       否则各泳道高度仍会被内容截断，视觉上回到长短不齐的纵向列表。 */
-    && /\.lane \{[^}]*flex: 1 1 0[^}]*min-width: 280px[^}]*flex-direction: column/.test(L)
+    /* 泳道本体：一根泳道一条指标，列向堆叠。V3.9.25：阅读下限抬到 360px。 */
+    && /\.lane \{[^}]*flex: 1 1 0[^}]*min-width: 360px[^}]*flex-direction: column/.test(L)
     && /\.lanes \{[^}]*align-items: stretch/.test(PANO)
     /* 项目摘要脚注里仍逐层点名：第 4 层路径 + 第 5/6 层计数 */
     && PANO.includes('class="ph-foot"')
@@ -158,7 +155,7 @@ check('W11-8 ★全景视图的三态必须都在：① 零任务泳道占位可
     && CT_W11.includes('function backToTower(') && CT_W11.includes('dirFilter.value = owner.dir.id');
 });
 
-check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**，不是第二个实体世界：数据只来自 compassMeta 的 props，不得自行再聚合一次（两处聚合 = 两处口径，将来必然漂）。同时：形态切换不得丢筛选态（viewMode 与 dirFilter/riskOnly 互不相干），任何定位类动作（左侧项目导航 / 骨架条定位入口 / 断链行）在全景下都必须**先切回纵向再定位**——不切的话点在全景里会静默失灵，看着像坏了。★W12(V3.8.12)随迁备案：左栏由六层数字目录改为项目导航后，定位入口从 scrollToLayer(n) 改为 gotoTower(projId)，两条 ensureTower 调用点随之改钉 —— 本条守的是"任何定位都能抵达、不挑视图"，不是钉某个函数名。★F7 再随迁带备案（2026-10-16）：第 5/6 层的"定位到一条实体"由层级专属列表**行内「定位」**承担（onListLocate → 关列表 + gotoTower），骨架条第 4 层定位语义不变（onLocateLayer 收窄 lv:4，ensureTower 模板串锚与"先切回纵向"语义照旧）', () => {
+check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**，不是第二个实体世界：数据只来自 compassMeta 的 props，不得自行再聚合一次。形态切换不得丢筛选态。★V3.9.25：第 5/6 层列表行内定位改为直接在项目全景落点并高亮，不先回项目塔；项目导航、骨架第 4 层与断链定位仍走原定位链', () => {
   return PANO.includes('meta: CompassMeta')
     && !/buildCompassMeta\(/.test(PANO)                                 /* 组件内不重复聚合 */
     && CT_W11.includes("const viewMode = ref<'tower' | 'pano'>('tower')")
@@ -172,7 +169,7 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
     && /function locateCompassTarget\([\s\S]{0,800}viewMode\.value = 'tower'/.test(CT_W11)
     && /function locateCompassTarget\([\s\S]{0,1000}ensureTower\('定位任务'\)/.test(CT_W11)
     && /function gotoTower\([\s\S]{0,500}ensureTower\('定位项目舱'\)/.test(CT_W11)
-    /* ★F7：骨架条定位收窄为第 4 层 + 第 5/6 层走列表行内定位（同一条 ensureTower/gotoTower 通道） */
+    /* ★F7：骨架条第 4 层定位；第 5/6 层列表行进入项目全景并精确落点 */
     && CT_W11.includes('function onLocateLayer(lv: 4)')
     && CT_W11.includes('function onListLocate(')
     /* ★全景下滚动不得改左栏高亮（横向视图不产生纵向层级信号，否则会乱跳） */
@@ -225,11 +222,11 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
 
 // ============== 四、焦点与层级纪律 ==============
 
-check('W11-11 ★方向台焦点契约：**愿景是唯一的主体**。D1 已拍板（用户 2026-10-13 三选一）：愿景保持 --fs-display(22px)，**不新增 --fs-hero、不动 W8-5 判据**，主角感靠版式承担 —— 独占一行 + 上下大留白 + 强调框。配套：项目名 --fs-title(15px)、指标 --fs-sub(12px)、任务 --fs-micro，层级必须真的分层。★负锚必须走 `var(--fs-display)` / `var(--fs-hero)` 的**用法**而不是裸词：`--fs-hero` 在三个新组件的纪律注释里出现是**应该的**（那是判据自带的免责说明），裸词负锚会把自己的说明判成违规。判据钉用法（`font-size: var(--fs-display)` 计数），不钉词。★W12(V3.8.12)随迁备案：愿景正文随结构归位搬进层级面板（骨架条之下），"重边框"改为**左侧 2px accent 实轨 + 大留白** —— 面板自带卡面，块内再套卡会变成双层框把主角压下去；本条守的"主角感必须由版式承担、不许只降字号"没变，锚点随之改钉实轨', () => {
+check('W11-11 ★方向台焦点契约：**愿景仍是唯一的主体**。D1 已拍板：愿景保持 --fs-display(22px)，不新增 --fs-hero；主角感由独占结构、强调轨与相对层级承担。★V3.9.25：面板为压缩展开高度改为实体/摘要并排，留白锚同步从 14/16px 收到 10px/12px，字号、实轨与唯一性不变', () => {
   /* 愿景正锚：.tl-text 是愿景正文的承重选择器（--fs-display） */
   const visionDisplay = /\.tl-text \{[^}]*font-size: var\(--fs-display\)/.test(CT_W11);
   /* 版式补偿：独占一行 + 大留白 + accent 实轨（外框随 W12 由 shadow-lg 重框改为实轨，面板自带卡面） */
-  const heroPad = /\.tree-level-card\.hero \{[^}]*padding: 14px 0 16px 16px/.test(CT_W11);
+  const heroPad = /\.tree-level-card\.hero \{[^}]*padding: 5px 0 5px 14px/.test(CT_W11);
   const heroRail = /\.tree-level-card\.hero \{[^}]*border-left: 2px solid var\(--accent\)/.test(CT_W11);
   /* 层级纪律：使命降级，不得与愿景同规格 */
   const missionSub = /\.tl-text\.sub \{[^}]*font-size: var\(--fs-headline\)/.test(CT_W11);

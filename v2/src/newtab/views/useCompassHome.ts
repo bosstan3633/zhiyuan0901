@@ -14,8 +14,8 @@ import { showToast } from '@/shared/components/toast'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import { emitOpenDrawer } from '@/shared/utils/bus'
-import { recordCardOpen } from '@/shared/storage/stats'
-import { weekUsageOf } from '@/shared/storage/stats'
+import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
+import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 import { useCompassHomeStorage } from './useCompassHomeStorage'
@@ -553,6 +553,25 @@ const todayOutCount = computed(() => {
   const t0 = todayStart.value
   return (d.value.resources || []).filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= t0).length
 })
+/** V3.9.25：同时展示真实操作次数，避免「去重卡数」和战报「操作次数」被误读为同一读数。 */
+const todayOutOps = ref(0)
+const todayCallCounts = ref<Map<string, number>>(new Map())
+async function refreshTodayOutOps(): Promise<void> {
+  try {
+    const t0 = todayStart.value
+    const events = await readEventLog()
+    const calls = events.filter(e => e.action === 'call' && e.ts >= t0)
+    const counts = new Map<string, number>()
+    for (const e of calls) if (e.cardId) counts.set(e.cardId, (counts.get(e.cardId) || 0) + 1)
+    todayOutOps.value = calls.length
+    todayCallCounts.value = counts
+  } catch {
+    todayOutOps.value = 0
+    todayCallCounts.value = new Map()
+  }
+}
+onMounted(() => { void refreshTodayOutOps() })
+watch(todayStart, () => { void refreshTodayOutOps() })
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
 // ===== ★W12-D（V3.8.16）：调度台「📈 复盘」→「📈 今日战报」，行为由跳转改为就地弹窗 =====
 // 历史轨迹：push('/settings?page=dashboard') → V3.8.9 W9 改指 /profile（仪表盘迁画像洞察页）→ 本轮改就地开弹窗。
@@ -623,7 +642,10 @@ function openResourcePreview(r: ResourceCard): void {
  *  无链接 / 打不开 → 回落右侧滑出详情抽屉。回落路径**零提前记账**（C02.3 陷阱：
  *  ResourceDetailDrawer.openFromId 打开时自己记一次，两边都记 = 双计）。 */
 function openRecentResource(r: ResourceCard): void {
-  if (openResourceLink(r)) return
+  if (openResourceLink(r)) {
+    void refreshTodayOutOps()
+    return
+  }
   openResourcePreview(r)
 }
 function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
@@ -633,7 +655,7 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
  * 原行为是 router.push 跳到另一个页面（说 A 给 B）；现改为就地弹窗，不跳路由、不改 URL。
  * ★口径同源：明细清单与行内数字共用同一份取数（项目看 focusMeta / 未归档看 taskArchiveIssue /
  * 本周复用看 wrr 周戳 + lastVisits），数字与条数不许各说各话。 */
-  const { statusDetail, closeStatusDetail, statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf, openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel, focusSlotSourceLabel } = useCompassHomeDetail({ todayStart, d, fmtRecentTime, projectName, focusedProjects, focusMeta, taskArchiveIssue, readonlyProjectId, readonlyProjectOpen, openTaskPreview, openResourcePreview })
+  const { statusDetail, closeStatusDetail, statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf, openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel, focusSlotSourceLabel } = useCompassHomeDetail({ todayStart, todayCallCounts, refreshTodayOutOps, d, fmtRecentTime, projectName, focusedProjects, focusMeta, taskArchiveIssue, readonlyProjectId, readonlyProjectOpen, openTaskPreview, openResourcePreview, openResourceLink })
   return {
     router, route, store, d, allProjects,
     projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone,
@@ -658,7 +680,7 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
     onStorageClick, atSync, atConfigured, atSyncErr, atPending,
     atChipText, atChipTitle, atSyncing, onSyncChipClick, focusMeta,
     readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
-    todayOutCount, battleHost, openReview, focusDoneCount,
+    todayOutCount, todayOutOps, todayCallCounts, refreshTodayOutOps, battleHost, openReview, focusDoneCount,
     mainFocus, extraFocus, RECENT_ROW_H, recentLimit,
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,

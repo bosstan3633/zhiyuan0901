@@ -49,16 +49,22 @@ check('W17-1 ★侧栏主攻行开主攻明细，再由行内「查看项目」�
     && !/class="stat-(?:row|focus-item)"[\s\S]{0,260}?router\.push\(/.test(PI);
 });
 
-check('W17-2 ★明细默认只读、可复制；V3.9.14 允许显式「继续处理」动作（用户拍板：状态明细要能走下一步），但不复用带下钻语义的 DrillCardList', () => {
-  const row = (STATUS.match(/<div v-for="\(it, i\) in props\.items"[\s\S]*?<\/div>\s*<\/div>/) || [''])[0];
+check('W17-2 ★状态明细整行可下钻但不复用 DrillCardList：★V3.9.25 用户拍板，可操作行整行点击/回车/空格执行同一动作，内层动作退为视觉提示；纯说明行保留可选择文本', () => {
+  const start = STATUS.indexOf('v-for="(it, i) in props.items"');
+  const end = STATUS.indexOf('>', start);
+  const rowStart = STATUS.lastIndexOf('<div', start);
+  const row = start >= 0 && end >= 0 ? STATUS.slice(rowStart, end + 1) : '';
   return STATUS.includes('<Modal')                     /* 复用 R161 中央弹窗壳，不新造 */
     && !STATUS_C.includes('DrillCardList')             /* 负锚：它自带下钻，与明细的只读浏览不同 */
-    && !!row && !/role="button"/.test(row)
-    && !!row && (row.match(/@click/g) || []).length === 1
-    && row.includes("@click=\"emit('item-action', it)\"")
-    && row.includes('v-if="it.action"')
+    && !!row && /:role="it\.actionKind && it\.actionId \? 'button' : 'listitem'"/.test(row)
+    && STATUS.includes('tabindex="0"')
+    && (STATUS.match(/@click/g) || []).length >= 1
+    && STATUS.includes("@click=\"it.actionKind && it.actionId && emit('item-action', it)\"")
+    && STATUS.includes('@keydown.enter.prevent')
+    && STATUS.includes('@keydown.space.prevent')
+    && STATUS.includes('v-if="it.action"')
     && /user-select:\s*text/.test(STATUS)
-    && STATUS.includes('需要继续处理时使用行内动作');
+    && STATUS.includes('点击任一行继续查看');
 });
 
 check('W17-3 ★本周复用同源：清单按 wrr 周戳过滤，跨周后与行内 0 一致（不许把上周调用当本周）', () => {
@@ -74,7 +80,8 @@ check('W17-4 ★单一计数入口：CompassHome 不再定义本地 openResource
   return !PI_C.includes('function openResourceLink(r: ResourceCard): void {')
     && PI.includes('useResourceOpen({ store, d })')
     && PI.includes('function openRecentResource(r: ResourceCard): void {')
-    && PI.includes('if (openResourceLink(r)) return')
+    && PI.includes('if (openResourceLink(r)) {')
+    && PI.includes('void refreshTodayOutOps()')
     && PI.includes('openResourcePreview(r)')
     && PI.includes('@click="openRecentResource(r)"');
 });
@@ -89,11 +96,12 @@ check('W17-5 ★回落不双计：openResourceLink 记账后置（确认可打�
     && fn.includes('openExternalLink(url)\n    return true');
 });
 
-check('W17-6 ★V3.9.24 版式收口：左右列共享行轨道，两行模块边界与间距对齐；不强制左右内容等高，最近调出列表仍可内部滚动', () => {
+check('W17-6 ★V3.9.25 版式收口：左右列模块边界、18px 间距与底部收口对齐；存储/同步状态独占底轨，不贡献左右列高度；不强制左右内容等高，最近调出列表仍可内部滚动', () => {
   return !PI.includes('curio-panel')
     && !PI.includes('useEqualHeight')
     && !PI.includes('--rail-top-h')
-    && PI.includes('grid-template-rows: subgrid')
+    && PI.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
+    && PI.includes('class="page-foot desk-status-rail"')
     && PI.includes('desk-row-primary')
     && PI.includes('desk-row-secondary')
     && /\.rail-panel \{ display: flex; flex-direction: column; \}/.test(PI)

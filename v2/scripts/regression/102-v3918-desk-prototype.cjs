@@ -94,12 +94,12 @@ check('D18-6 ★密度令牌接通（04-73 D-1(a)）：主栏行卡内距读 --c
     && CH.includes('.mini-item') && CH.includes('padding: var(--card-pad-vert) 10px;');
 });
 
-check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'；入台明细按创建时间倒序列三类卡（好奇心行只读无动作），调出明细带最近时刻与累计次数；note 明示两套口径不冒充同源', () => {
+check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'；入台明细按创建时间倒序列三类卡（好奇心行只读无动作），调出明细带最近时刻、今日操作次数与累计次数；note 明示两套口径不冒充同源', () => {
   return SM.includes("export type StatusDetailKey = 'focus' | 'unarchived' | 'reuse' | 'in' | 'out'")
     && CH.includes("in: '今日入台明细', out: '今日调出明细'")
     && CH.includes('两者不冒充同源')
     && CH_C.includes('rows.sort((a, b) => b.ts - a.ts).map(x => x.item)')
-    && CH_C.includes('meta: `最近 ${fmtRecentTime(r.lastCalledAt)}`')
+    && CH_C.includes('meta: `最近 ${fmtRecentTime(r.lastCalledAt)} · 今日操作 ${todayCallCounts.value.get(r.id) || 0} 次`')
     && CH_C.includes('extra: `累计 ${r.callCount || 0} 次`');
 });
 

@@ -75,45 +75,47 @@ function onChain(n: number) {
            这里曾留过一份只读 fallback，理由是"插槽不传时面板也得有内容"—— 但那等于同一句愿景在页面上
            出现两次：一份能改、一份不能改，两份还会各自漂移。宁可空着（插槽始终会传）也不留影子文本。 -->
       <div class="lvp-main">
-        <slot name="entity">
+        <div class="lvp-entity">
+          <slot name="entity">
           <!-- ★F7 迁出带备案（2026-10-16）：第 3 层的兜底 hero 与下挂目标横卡（lvp-cards）
                随第 3 层迁出面板，移入 CompassLayerList 第 3 层专属列表——能力一项不少
                （目标进度条 / 下挂项目 / 点行过滤），形态从面板横卡改列表行。 -->
-        </slot>
-      </div>
-
-      <!-- 推导链：每段可点，1~3 切面板、4~6 定位 -->
-      <div class="lvp-sec">
-        <span class="lvp-lab">推导链 · 逐层收窄</span>
-        <div class="lvp-chain">
-          <template v-for="(s, i) in CHAIN" :key="s.n">
-            <span v-if="i" class="lvp-ar" aria-hidden="true">▸</span>
-            <button
-              class="cnode"
-              :class="{ self: s.n === layer }"
-              @click="onChain(s.n)"
-            >
-              <b>{{ c[s.key] }}</b><span>{{ s.label }}</span>
-            </button>
-          </template>
+          </slot>
         </div>
-      </div>
+        <!-- 推导链与下挂战略目标并排成为摘要栏，不再继续纵向堆高。 -->
+        <div class="lvp-summary">
+          <div class="lvp-sec">
+            <span class="lvp-lab">推导链 · 逐层收窄</span>
+            <div class="lvp-chain">
+              <template v-for="(s, i) in CHAIN" :key="s.n">
+                <span v-if="i" class="lvp-ar" aria-hidden="true">›</span>
+                <button
+                  class="cnode"
+                  :class="{ self: s.n === layer }"
+                  @click="onChain(s.n)"
+                >
+                  <b>{{ c[s.key] }}</b><span>{{ s.label }}</span>
+                </button>
+              </template>
+            </div>
+          </div>
 
-      <!-- 第 1 层下挂：战略目标芯片（与骨架条、舱体分组头三处同源） -->
-      <div v-if="layer === 1" class="lvp-sec">
-        <span class="lvp-lab">这条愿景下的 {{ c.dirs }} 个战略目标</span>
-        <div class="lvp-dirs">
-          <button
-            v-for="(g, i) in meta.dirs"
-            :key="g.dir.id"
-            class="dchip"
-            :class="{ on: dirFilter === g.dir.id }"
-            @click="emit('dir', g.dir.id)"
-          >
-            <i class="dc-dot" />
-            <span class="dc-n">{{ g.dir.name }}</span>
-            <span class="dc-m">{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, p) => s + p.total, 0) }} 任务</span>
-          </button>
+          <div v-if="layer === 1" class="lvp-sec">
+            <span class="lvp-lab">这条愿景下的 {{ c.dirs }} 个战略目标</span>
+            <div class="lvp-dirs">
+              <button
+                v-for="g in meta.dirs"
+                :key="g.dir.id"
+                class="dchip"
+                :class="{ on: dirFilter === g.dir.id }"
+                @click="emit('dir', g.dir.id)"
+              >
+                <i class="dc-dot" />
+                <span class="dc-n">{{ g.dir.name }}</span>
+                <span class="dc-m">{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, p) => s + p.total, 0) }} 任务</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -125,7 +127,7 @@ function onChain(n: number) {
 
 <style scoped>
 .lvp {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   animation: lvpIn 220ms var(--ease);
 }
 @keyframes lvpIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
@@ -135,8 +137,8 @@ function onChain(n: number) {
   border: 1px solid var(--accent);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  padding: 13px 16px 15px;
-  display: flex; flex-direction: column; gap: 12px;
+  padding: 10px 15px 11px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 .lvp-head { display: flex; align-items: center; gap: 8px; }
 .lvp-ic {
@@ -152,18 +154,25 @@ function onChain(n: number) {
 }
 .lvp-x:hover { color: var(--text); background: var(--surface-3); }
 
-.lvp-main { padding-left: 0; }
-.lvp-sec { padding-left: 0; display: flex; flex-direction: column; gap: 8px; }
+.lvp-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .9fr);
+  align-items: stretch;
+  gap: 14px;
+}
+.lvp-entity { min-width: 0; }
+.lvp-summary { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lvp-sec { padding-left: 0; display: flex; flex-direction: column; gap: 6px; }
 /* ★F7 迁出带备案（2026-10-16）：原 .lvp-hero / .lvp-desc（第 3 层兜底 hero）与
    .lvp-cards / .dcard / .dc-h / .dc-i / .dc-bar / .dc-p / .dc-go（第 3 层目标横卡）CSS
    随第 3 层迁入 CompassLayerList 第 3 层专属列表一并退役（样式在新组件内重写为列表行形态）。 */
 
-.lvp-sec { padding-left: 30px; display: flex; flex-direction: column; gap: 8px; }
+.lvp-sec { padding-left: 0; display: flex; flex-direction: column; gap: 6px; }
 .lvp-lab {
   font-size: var(--fs-micro); font-weight: 700; letter-spacing: .05em; color: var(--text-4);
 }
 .lvp-chain { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
-.lvp-ar { font-size: 9px; color: var(--text-4); padding: 0 2px; }
+.lvp-ar { font-size: var(--fs-caption); color: var(--text-4); padding: 0 1px; }
 .cnode {
   display: inline-flex; align-items: baseline; gap: 5px;
   padding: 3px 10px; border-radius: 999px;
@@ -194,6 +203,8 @@ function onChain(n: number) {
 /* ★F7 迁出带备案（2026-10-16）：第 3 层目标横卡整套样式（.lvp-cards / .dcard 系）随迁 CompassLayerList。 */
 
 @media (max-width: 900px) {
-  .lvp-main, .lvp-sec { padding-left: 0; }
+  .lvp-main { grid-template-columns: minmax(0, 1fr); }
+  .lvp-summary { flex-direction: row; flex-wrap: wrap; }
+  .lvp-summary .lvp-sec { flex: 1 1 260px; }
 }
 </style>

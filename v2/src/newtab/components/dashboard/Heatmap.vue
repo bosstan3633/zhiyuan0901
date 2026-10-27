@@ -111,8 +111,9 @@ const months = computed(() => {
   return out
 })
 
-const MONTH_GAP = 1
-/** 月份分组坐标：每月按自己的周列排布，月间插入一列空隙。 */
+const MONTH_GAP = 2
+/** 月份分组坐标：每月按自己的周列排布，月间插入两列空隙。
+ *  日期从左到右、星期从上到下；同一周内不会把日期排成纵向月份流。 */
 const yearLayout = computed(() => {
   const monthsOut: { m: number; col: number; cols: number; start: number; cells: { k: string; lv: number; cls: string; col: number; row: number }[] }[] = []
   let offset = 0
@@ -328,6 +329,13 @@ function onExport(fmt: ExportFmt): void {
                 class="dz-month-tick"
                 :style="{ gridColumnStart: t.col + 2 }"
               >{{ t.m }} 月</span>
+              <span
+                v-for="mo in yearLayout.months"
+                :key="'rule' + mo.m"
+                class="dz-month-rule"
+                aria-hidden="true"
+                :style="{ gridColumnStart: mo.col + 2 }"
+              />
               <button
                 v-for="c in yearCells"
                 :key="c.k"

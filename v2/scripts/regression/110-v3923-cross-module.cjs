@@ -76,7 +76,7 @@ check('XM-03 ★画像年度段：只撤年度诊断提示条；四格指标均�
     && drill.includes("mode: 'days' | 'streak' | 'cards'")
     && drill.includes("emit('open-day', row.day)") && drill.includes("emit('open-card', row)")
     && hm.includes('const yearLayout = computed')
-    && hm.includes('const MONTH_GAP = 1')
+    && hm.includes('const MONTH_GAP = 2')
     && hm.includes('offset += cols + MONTH_GAP')
     && hm.includes('gridColumnStart: t.col + 2')
     && hm.includes('gridColumnStart: c.col + 2')
@@ -138,7 +138,7 @@ check('XM-06 ★策展连线：按真实节点坐标生成正交折线，父右�
     && mm.includes('父右 → 中线 → 子左');
 });
 
-check('XM-07 ★V3.9.24 重指：调度台右栏只保留今天状态与最近调出；固定 6 条；左右模块边界、间距与底部收口对齐，不强制内容等高', () => {
+check('XM-07 ★V3.9.25 重指：调度台右栏只保留今天状态与最近调出；固定 6 条；左右模块边界、间距对齐，存储/同步状态独占全宽底轨，不强制内容等高', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const logic = read('/newtab/views/useCompassHome.ts');
   const css = read('/newtab/views/CompassHome.css');
@@ -150,8 +150,8 @@ check('XM-07 ★V3.9.24 重指：调度台右栏只保留今天状态与最近�
     && logic.includes('const recentLimit = computed(() => 6)')
     && logic.includes('.slice(0, recentLimit.value)')
     && css.includes('.desk-layout {')
-    && css.includes('grid-template-rows: auto minmax(0, 1fr);')
-    && css.includes('grid-template-rows: subgrid;')
+    && css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
+    && css.includes('.desk-status-rail { grid-column: 1 / -1; grid-row: 3; }')
     && css.includes('左右模块的起点、间距与底部收口对齐')
     && css.includes('不把卡片内容强行拉成等高')
     && !css.includes('.rail-panel-recent { height: 100%')

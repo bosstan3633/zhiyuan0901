@@ -90,8 +90,9 @@ check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底�
 
 // ============== W2 ★热力图迁调度台（V3.8.2） ==============
 console.log('【W2 · 热力图迁调度台】');
-check('W2-1（V3.9.1 重指）热力图与 FocusDetail 均不常驻调度台：今日战报由 TodayBattleHost 自包含承载，首页只保留三件事工作单与手边卡预览，读日志仍只在宿主内', () => {
+check('W2-1（V3.9.25 重指）热力图与 FocusDetail 均不常驻调度台：今日战报由 TodayBattleHost 自包含承载，首页只保留三件事工作单与手边卡预览；状态读数的操作次数由 useCompassHome 取数层读取，视图仍不直接解析日志', () => {
   const ch = read('/newtab/views/CompassHome.vue');
+  const homeView = fs.readFileSync(path.resolve(base, 'newtab/views/CompassHome.vue'), 'utf8');
   const iH = ch.indexOf('<TodayBattleHost ref="battleHost" />');
   const iF = ch.search(/class="[^"]*\bwork-board\b/);
   const iC = ch.search(/class="[^"]*\bhand-board\b/);
@@ -99,7 +100,7 @@ check('W2-1（V3.9.1 重指）热力图与 FocusDetail 均不常驻调度台：�
     && !ch.includes('HeatmapModule') && !ch.includes('<FocusDetail')
     && iH > 0 && iF > 0 && iC > 0
     && iH > iF && iH > iC
-    && !/readEventLog/.test(ch)
+    && !/readEventLog/.test(codeOnly(homeView))
 });
 check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog）——★W9 再随迁带备案：本条原还要求「概览带 + 复盘段 + 操作记录保留」在 GlobalSettings 里，而这三样已随 V3.8.7 整块迁画像洞察页；负锚三条继续钉在 GS 上（热力图与 onDashOpenLog 都不许搬回设置页），正锚改指新宿主 ProfileInsights（dashYear/dashSelDay/dashStats + <ReviewPanel> + openLog(），能力一项未减', () => {
   const gs = read('/newtab/views/GlobalSettings.vue');
