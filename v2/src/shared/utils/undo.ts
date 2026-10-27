@@ -13,12 +13,15 @@ export interface UndoEntry { label: string; cb: () => void; at: number }
  * **按钮还在 → 一定还能撤**，两者不再有两套时间。
  */
 export const UNDO_WINDOW_MS = 6000
+/** 整台删除是高风险动作，按动作显式使用更短的撤销窗口；不全局缩短其他撤销。 */
+export const DECK_DELETE_UNDO_WINDOW_MS = 3000
 export const UNDO_STACK_CAP = 30
 
-const stack: UndoEntry[] = []
+interface UndoEntryInternal extends UndoEntry { windowMs: number }
+const stack: UndoEntryInternal[] = []
 
-export function pushUndo(label: string, cb: () => void): void {
-  stack.push({ label, cb, at: Date.now() })
+export function pushUndo(label: string, cb: () => void, windowMs = UNDO_WINDOW_MS): void {
+  stack.push({ label, cb, at: Date.now(), windowMs })
   while (stack.length > UNDO_STACK_CAP) stack.shift()
 }
 
@@ -26,7 +29,7 @@ export function runLastUndo(): { ok: boolean; label?: string } {
   const now = Date.now()
   while (stack.length) {
     const e = stack.pop()!
-    if (now - e.at <= UNDO_WINDOW_MS) {
+    if (now - e.at <= e.windowMs) {
       try { e.cb(); return { ok: true, label: e.label } } catch { return { ok: false } }
     }
   }

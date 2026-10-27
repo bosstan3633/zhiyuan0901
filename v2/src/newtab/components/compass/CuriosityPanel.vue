@@ -68,7 +68,10 @@ const router = useRouter()
 const props = withDefaults(defineProps<{
   /** 独立二级页：隐藏新建入口（本面板本来无新建），空态主行动改为清空筛选。 */
   secondaryMode?: boolean
-}>(), { secondaryMode: false })
+  /** 设置页等旁路宿主只借用详情抽屉，不渲染整块好奇心卡列表。 */
+  detailsOnly?: boolean
+}>(), { secondaryMode: false, detailsOnly: false })
+const emit = defineEmits<{ closed: [] }>()
 
 const searchQuery = ref('')
 
@@ -194,7 +197,7 @@ const {
   convertOpen, convertTarget, convertItem, convertWsId, convertCatId, convertProjId, convertMetId,
   convWorkspaces, convCategories, convProjects, convMetrics,
   openConvert, onConvertProjChange, confirmConvert,
-} = useCurioConvert({ store, convertToResource, convertToTask, clearDetail: () => { detailId.value = null } })
+} = useCurioConvert({ store, convertToResource, convertToTask, clearDetail: () => closeDetail() })
 const {
   curioSupportDraft, curioSupportRows, curioSupportCands,
   addCurioSupport, removeCurioSupport, openCurioSupportResource,
@@ -211,11 +214,18 @@ function openDetail(id: string) {
   }
 }
 defineExpose({ openDetail })
+function closeDetail() {
+  if (!detailId.value) return
+  detailId.value = null
+  curioStatusMenuOpen.value = false
+  editDraft.value = ''
+  emit('closed')
+}
 function saveDetail() {
   if (detailId.value && editDraft.value.trim()) {
     update(detailId.value, { question: editDraft.value.trim() })
     showToast('已更新')
-    detailId.value = null // 第卅三轮 REQ-015：保存后关闭抽屉
+    closeDetail()
   }
 }
 /** REQ-048：好奇心附件变更即时持久化 */
@@ -307,7 +317,7 @@ function onCardDblClick(c: CuriosityCard) {
 // ---- O6：卡片删除（删除入口在卡片上，不在详情页） ----
 async function deleteCard(c: CuriosityCard) {
   remove(c.id)
-  if (detailId.value === c.id) detailId.value = null
+  if (detailId.value === c.id) closeDetail()
   // B2：撤销
   showToast(`已移入回收站「${c.question.slice(0, 20)}」`, { label: '撤销', cb: () => {
     const cur = d.value.curiosities.find(x => x.id === c.id)
@@ -450,9 +460,9 @@ function srcShort(url: string): string {
 </script>
 
 <template>
-  <ModuleCard icon-name="bulb" title="好奇心卡" en="CURIOSITY">
+  <ModuleCard icon-name="bulb" title="好奇心卡" en="CURIOSITY" :bare="detailsOnly">
 
-    <div class="cz-body">
+    <div v-if="!detailsOnly" class="cz-body">
       <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->
       <DeckControls panel="curio" search search-ph="搜索好奇心..." :query="searchQuery" @search="searchQuery = $event"
         :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
@@ -626,7 +636,7 @@ function srcShort(url: string): string {
          ③ 三块分组面板：来源与标签 / 问题原文（焦点，整块撑高）/ 流转与凭证。
          ④ ★转化即离场：转任务或归档资源后本条软删出池（回收站可撤），池头部新增「已转化」计数——
             卡一走池里就数不到它，"探索有没有产出"必须换个地方记账。 -->
-    <Drawer :open="!!detailItem" width="520px" @close="detailId = null; curioStatusMenuOpen = false">
+    <Drawer :open="!!detailItem" width="520px" @close="closeDetail">
       <template #title>
         <div class="ds-kicker">好奇心卡</div>
         <div class="cz-h1q">{{ detailItem ? detailItem.question.split('\n')[0].slice(0, 28) + (detailItem.question.split('\n')[0].length > 28 ? '…' : '') : '' }}</div>

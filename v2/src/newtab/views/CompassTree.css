@@ -48,47 +48,6 @@
 .spine-bar { margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .spine-bar .spine { margin-bottom: 0; }
 
-/* ══ 视觉聚焦条（方向台优化）：一条摘要承担"我在哪、推进到哪、下一步" ══
-   为什么用「左侧实轨 + 无底色」而不是再套一张卡：项目塔里已经有舱（卡）与指标（卡），
-   首屏再叠一张强调卡，等于让容器层级先于内容说话 —— 焦点条只承担一条信息，
-   所以用 3px accent 实轨 + 与页面同底色，焦点由位置和那条轨承担，不靠阴影。 */
-.focus-strip {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 8px 0 8px 12px; margin-bottom: 14px;
-  border-left: 3px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
-}
-.fs-label {
-  flex: none; font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
-  color: var(--accent-ink);
-}
-.fs-name {
-  font-size: var(--fs-title); font-weight: 700; color: var(--text);
-  background: transparent; border: 0; padding: 0; cursor: pointer;
-  font-family: inherit; text-align: left; letter-spacing: -.01em;
-}
-.fs-name:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
-.fs-detail { font-size: var(--fs-micro); color: var(--text-3); }
-.fs-progress {
-  margin-left: auto; flex: none; width: 96px; height: 4px; border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 16%, transparent); overflow: hidden;
-}
-.fs-progress i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width var(--dur); }
-.fs-count { flex: none; font-size: var(--fs-micro); color: var(--text-2); font-variant-numeric: tabular-nums; }
-/* ★V3.9.19（原型同款）：聚焦条「下一步」chip —— 44ch 截断胶囊（radius-xs 非 full：
-   它是内容 chip 不是筛选胶囊），accent 浅底与 fs-label 同语言。 */
-.fs-next {
-  flex: 1; min-width: 0; max-width: 44ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding: 2px 8px; border-radius: var(--radius-xs); background: var(--accent-light); color: var(--accent-ink);
-  font-size: var(--fs-caption); line-height: var(--lh-caption);
-}
-.fs-go {
-  flex: none; font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  padding: 4px 9px; cursor: pointer; font-family: inherit; transition: all var(--dur);
-}
-.fs-go:hover { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
-
 /* ══ ★V3.9.19：三层引导条（.tl-head-row + .gs-* 全族）随计数去重整体退役 ══
    死样式不删会被 dead-css-scan 判孤儿。层号导航由骨架条 1~6 按钮承担（本就同源），
    视图切换迁 .navside 首行；退役理由与判据随迁见模板同名注释。 */
@@ -235,9 +194,6 @@
 /* 全景没有左栏，画布应吃满 1440 页轴；沿用项目塔的 1180px 上限会在右侧留下整片空板。 */
 .tree-layout.is-pano .canvas-inner { width: 100%; max-width: none; }
 @media (max-width: 800px) {
-  .focus-strip { gap: 8px; padding-left: 11px; align-items: flex-start; }
-  .fs-progress { width: 64px; margin-left: 0; }
-  .fs-detail { flex-basis: 100%; }
   .compass-layout { padding: 12px 10px 40px; }
   .hero { align-items: flex-start; gap: 8px; margin-bottom: 12px; }
   .hero-acts { gap: 7px; }
@@ -462,28 +418,8 @@
 }
 .dir-head:first-of-type { margin-top: 0; }
 .dh-l { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
-/* ★W12：「N 战略目标」pill（原型 .dir-badge）—— 点即过滤，与骨架条芯片同源同色。
-   纯数字方块看不出"这是第几层"，pill 同时回答了"第 3 层"与"怎么过滤"两个问题。 */
-.dir-badge {
-  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em;
-  color: var(--text-4); background: transparent;
-  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
-  padding: 3px 11px; cursor: pointer; transition: all var(--dur);
-  font-family: inherit; white-space: nowrap;
-}
-.dir-badge:hover { color: var(--accent-ink); border-color: var(--accent); }
-.dir-badge.on {
-  color: var(--text); border-color: var(--accent);
-  background: var(--accent-light);
-}
 /* 发丝线：把行内读数在右侧收口，动作组因此不再孤零零吊在行尾（原型 .dir-line） */
 .dh-line { flex: 1; height: 1px; background: var(--border); min-width: 24px; }
-.dh-i {
-  width: 20px; height: 20px; border-radius: 7px; flex: none;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--text-2); font-size: var(--fs-micro); font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-}
 /* ★目标名 --fs-title(15px)：它是"分岔源头"，比项目重一档；使命/愿景仍是更高层（判据 W8-2 备案延续） */
 .dh-n { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
 .dh-meta { font-size: var(--fs-micro); color: var(--text-3); margin-left: 2px; }

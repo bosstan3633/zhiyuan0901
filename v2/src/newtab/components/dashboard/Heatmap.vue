@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * R172-T6（04-66 §五 / 04-67 F7~F11）：年度热力图 —— 12 月 × 366 格 + 六档语义图例 + 摘要卡 + 切年。
+ * R172-T6（04-66 §五 / 04-67 F7~F11）：年度热力图 —— 12 个自然月分组 × 366 格 + 六档语义图例 + 摘要卡 + 切年。
  *
  * 只做**镜子**不做**鞭子**（04-66 §十三）：不做打卡/连击成就，格子的唯一职责是"让你看见自己这一年怎么走的"。
  * 图例只出语义名（静默/轻触/常规/高负荷/冲刺/满格），分数区间降为 tooltip（F8 验收：不得出现分档裸代号）。
@@ -15,7 +15,7 @@ import {
 } from '@/shared/utils/dailyStats'
 import { yearAgg, longestStreak, todayKey } from '@/shared/utils/reviewReport'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
-import { pngBlobFromSpec, heatmapShareHtml, exportName } from '@/shared/utils/exportView'
+import { exportName } from '@/shared/utils/exportView'
 import { zyCardBlob, zyCardHtml } from '@/shared/utils/zyCard'
 import { downloadBlob, downloadText } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
@@ -79,17 +79,13 @@ const summary = computed(() => {
 })
 
 /**
- * 全年网格：**单行全年**（V3.9.21 用户拍板「热力图切回单行全年」）。
+ * 全年网格：**12 个自然月分组，桌面端仍在一行内呈现**。
  *
- * 呈现口径 = GitHub 贡献图：横向 53 周 × 纵向 7 天（周一在上、周日在下），
- * 一年在一屏内横着看完，不再切成 12 个自然月块（那版把同一年的分布拆成 12 个
- * 互不相邻的小日历，跨月趋势反而要眼睛在 12 块之间来回跳）。
+ * 每个自然月保留自己的星期行与月内列，月间留出明显间隔；这样既能看出全年的
+ * 连续分布，也能一眼分清每个月的起止。数据口径仍是 `stats.days` 的日记录，
+ * `months` 同时供给近 26 周概览条与键盘遍历。
  *
- * ★数据结构仍是「月 → 日」：`months` 同时供给近 26 周概览条与键盘遍历，
- *   改的是**渲染形态**不是数据口径；下方的 `weeks` 只是把它按自然周重排一次。
- * ★不渲染占位格：周首空缺由 CSS `grid-row-start` 承担 —— 一年多出 38 个
- *   "看着是格子、点了没反应"的假控件，还白占 38 个节点（04-67 §8.3 的
- *   「366 格 ≤400 节点」本意即此）。
+ * ★不渲染占位格：每月首日由 `grid-row-start` 落位，月与月之间只插空列。
  */
 const months = computed(() => {
   const y = props.year
@@ -115,40 +111,27 @@ const months = computed(() => {
   return out
 })
 
-/**
- * 单行全年的坐标：把某一天映射成「第几周列 / 第几行（星期）」。
- * 以 1 月 1 日所在周为第 0 列，周一=0 … 周日=6。
- * 首列若不是周一（1 月 1 日不一定是周一）也照常渲染，
- * CSS 的 grid-row-start 会把它放到正确行，不需要占位格。
- */
-function coordOf(k: string): { col: number; row: number } {
-  const d = new Date(k + 'T00:00:00')
-  const jan1 = new Date(props.year, 0, 1)
-  const jan1Dow = (jan1.getDay() + 6) % 7
-  const dayOfYear = Math.floor((d.getTime() - jan1.getTime()) / 86400000)
-  return { col: Math.floor((dayOfYear + jan1Dow) / 7), row: (d.getDay() + 6) % 7 }
-}
-/** 全年总列数：末日的列号 + 1（闰年 366 天 ⇒ 53 列） */
-const weekCount = computed(() => {
-  const all = months.value.flatMap(mo => mo.cells)
-  if (!all.length) return 53
-  return coordOf(all[all.length - 1].k).col + 1
-})
-
-/** 单行全年顶部的月份刻度：取每月 1 日所在列，避免 12 个标签挤在一起 */
-const monthTicks = computed(() => {
-  const out: { m: number; col: number }[] = []
+const MONTH_GAP = 1
+/** 月份分组坐标：每月按自己的周列排布，月间插入一列空隙。 */
+const yearLayout = computed(() => {
+  const monthsOut: { m: number; col: number; cols: number; start: number; cells: { k: string; lv: number; cls: string; col: number; row: number }[] }[] = []
+  let offset = 0
   for (const mo of months.value) {
     const first = mo.cells[0]
-    if (first) out.push({ m: mo.m, col: coordOf(first.k).col })
+    const firstDow = first ? (new Date(first.k + 'T00:00:00').getDay() + 6) % 7 : 0
+    const cells = mo.cells.map(cell => {
+      const date = new Date(cell.k + 'T00:00:00')
+      const localDay = date.getDate() - 1
+      const week = Math.floor((localDay + firstDow) / 7)
+      return { ...cell, col: offset + week, row: (date.getDay() + 6) % 7 }
+    })
+    const cols = cells.length ? Math.max(...cells.map(cell => cell.col)) - offset + 1 : 1
+    monthsOut.push({ m: mo.m, col: offset, cols, start: firstDow, cells })
+    offset += cols + MONTH_GAP
   }
-  return out
+  return { months: monthsOut, cols: Math.max(1, offset - MONTH_GAP) }
 })
-
-/** 单行全年要铺的日格（按日期升序，坐标由 coordOf 决定落位） */
-const yearCells = computed(() =>
-  months.value.flatMap(mo => mo.cells.map(c => ({ ...c, ...coordOf(c.k) })))
-)
+const yearCells = computed(() => yearLayout.value.months.flatMap(month => month.cells))
 
 function pickCell(c: { k: string; cls: string }) {
   if (!c.k || c.cls.includes('future')) return
@@ -260,7 +243,7 @@ function buildZyCard() {
     title: `${props.year} 年调度热力图`,
     sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · P90 = ${agg.value.p90} 分 · 最长连续 ${streak.value} 天`,
     readouts: kpiSpec(),
-    grid: { cells: gridCells(), cols: weekCount.value, rows: 7 },
+    grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: 7 },
     footer: '知源调度台 · 档位由加权分映射 · 数据只在本机'
   }
 }
@@ -332,18 +315,15 @@ function onExport(fmt: ExportFmt): void {
 
       <div v-if="!agg.act" class="dz-empty">这一年还没有行为记录 —— 采集第一张卡，这里就会亮起来。</div>
       <template v-else>
-        <!-- ★单行全年（V3.9.21）：53 列周 × 7 行天，GitHub 贡献图口径。
-             外框 .dz-months 保留为语义锚（它是「全年网格」这个整体的容器，
-             W7-2/W12-12 都按这个名字认它），里面换成一张单行网格。 -->
+        <!-- ★12 个自然月分组：桌面端仍是一行，月份之间用空列形成间隔。
+             外框 .dz-months 保留为语义锚（全年网格容器）。 -->
         <div class="dz-months" role="grid" :aria-label="`${year} 年全年热力图 · ${agg.act} 天有记录`">
           <div class="dz-year-scroll">
-            <!-- V3.9.22：格子随内容宽度铺满。星期列固定，其余周列等分剩余宽度；
-                 每格 aspect-ratio:1 由列宽决定行高，1440 下约 21px/格，不再在右侧留白。 -->
-            <div class="dz-year" :style="{ gridTemplateColumns: `16px repeat(${weekCount}, minmax(0, 1fr))` }">
+            <div class="dz-year" :style="{ gridTemplateColumns: `16px repeat(${yearLayout.cols}, minmax(5px, 1fr))` }">
               <!-- 星期标签占第 1 列、跨 7 行：与右侧日格的行一一对齐 -->
               <div class="dz-wk" aria-hidden="true"><span v-for="w in WD" :key="w">{{ w }}</span></div>
               <span
-                v-for="t in monthTicks"
+                v-for="t in yearLayout.months"
                 :key="'t' + t.m"
                 class="dz-month-tick"
                 :style="{ gridColumnStart: t.col + 2 }"

@@ -169,28 +169,89 @@ export function archiveWorkspace(d: AppData, ws: Workspace): { moved: number } {
   return { moved }
 }
 
-/** 删除台：台本体移除，其下卡与分类一律软删进回收站（可恢复）；返回快照供撤销 */
-export interface DeckSnapshot { ws: Workspace; index: number; cardIds: string[]; catIds: string[] }
+/** 删除台：台本体移除，台内卡与分类软删进回收站；镜像投射与镜像分类释放后可从快照恢复。 */
+export interface DeckSnapshot {
+  ws: Workspace
+  index: number
+  cardIds: string[]
+  catIds: string[]
+  argCardIds: string[]
+  projections: NonNullable<AppData['curationProjections']>
+  mirrorCategories: Category[]
+  mirrorResourceCategoryIds: { resourceId: string; categoryId?: string }[]
+  mirrorProjectionTargets: { projectionId: string; targetCatId?: string }[]
+  mirrorParentIds: { categoryId: string; parentId?: string }[]
+}
 export function deleteDeck(d: AppData, wsId: string): DeckSnapshot | null {
   if (wsId === CURATION_WS_ID) return null
   const index = (d.workspaces || []).findIndex(w => w.id === wsId)
   if (index < 0) return null
   const ws = (d.workspaces as Workspace[])[index]
   const now = Date.now()
-  const cardIds: string[] = []; const catIds: string[] = []
+  const cardIds: string[] = []; const catIds: string[] = []; const argCardIds: string[] = []
   for (const r of d.resources) if (r.workspaceId === wsId && !r.deletedAt) { r.deletedAt = now; cardIds.push(r.id) }
   for (const c of d.categories) if (c.workspaceId === wsId && !c.deletedAt) { c.deletedAt = now; catIds.push(c.id) }
+  for (const a of d.argCards || []) if (a.workspaceId === wsId && !a.deletedAt) { a.deletedAt = now; argCardIds.push(a.id) }
   d.workspaces.splice(index, 1)
-  if (d.curationProjections?.length) d.curationProjections = d.curationProjections.filter(p => !(p.kind === 'card' && p.targetWsId === wsId))
-  return { ws, index, cardIds, catIds }
+  const projections = (d.curationProjections || []).filter(p => p.kind === 'card' && p.targetWsId === wsId)
+  if (projections.length) {
+    const released = new Set(projections.map(p => p.id))
+    d.curationProjections = (d.curationProjections || []).filter(p => !released.has(p.id))
+  }
+  const mirrorIds = new Set((d.categories || []).filter(c => c.workspaceId === CURATION_WS_ID && c.curFrom?.wsId === wsId).map(c => c.id))
+  const mirrorCategories = (d.categories || []).filter(c => mirrorIds.has(c.id))
+  const mirrorResourceCategoryIds = (d.resources || [])
+    .filter(r => r.workspaceId === CURATION_WS_ID && mirrorIds.has(r.categoryId || ''))
+    .map(r => ({ resourceId: r.id, categoryId: r.categoryId }))
+  const mirrorProjectionTargets = (d.curationProjections || [])
+    .filter(p => p.kind === 'card' && !!p.targetCatId && mirrorIds.has(p.targetCatId))
+    .map(p => ({ projectionId: p.id, targetCatId: p.targetCatId }))
+  const mirrorParentIds = (d.categories || [])
+    .filter(c => !!c.parentId && mirrorIds.has(c.parentId))
+    .map(c => ({ categoryId: c.id, parentId: c.parentId }))
+  if (mirrorIds.size) {
+    for (const row of mirrorResourceCategoryIds) {
+      const r = d.resources.find(x => x.id === row.resourceId)
+      if (r) r.categoryId = ''
+    }
+    for (const row of mirrorProjectionTargets) {
+      const p = (d.curationProjections || []).find(x => x.id === row.projectionId)
+      if (p) p.targetCatId = undefined
+    }
+    for (const row of mirrorParentIds) {
+      const c = d.categories.find(x => x.id === row.categoryId)
+      if (c) c.parentId = undefined
+    }
+    d.categories = d.categories.filter(c => !mirrorIds.has(c.id))
+  }
+  return { ws, index, cardIds, catIds, argCardIds, projections, mirrorCategories, mirrorResourceCategoryIds, mirrorProjectionTargets, mirrorParentIds }
 }
 
-/** 撤销删除台：台插回原位，其下卡与分类清 deletedAt（只清本次被台带走的那些） */
+/** 撤销删除台：台、台内卡、分类、镜像投射与镜像分类全部恢复。 */
 export function restoreDeck(d: AppData, snap: DeckSnapshot): void {
   d.workspaces.splice(Math.min(snap.index, d.workspaces.length), 0, snap.ws)
   const cards = new Set(snap.cardIds); const cats = new Set(snap.catIds)
+  const argCards = new Set(snap.argCardIds)
   for (const r of d.resources) if (cards.has(r.id)) { r.deletedAt = undefined; r.updatedAt = Date.now() }
   for (const c of d.categories) if (cats.has(c.id)) c.deletedAt = undefined
+  for (const a of d.argCards || []) if (argCards.has(a.id)) { a.deletedAt = undefined; a.updatedAt = Date.now() }
+  for (const c of snap.mirrorCategories) if (!d.categories.some(x => x.id === c.id)) d.categories.push(c)
+  for (const row of snap.mirrorResourceCategoryIds) {
+    const r = d.resources.find(x => x.id === row.resourceId)
+    if (r) r.categoryId = row.categoryId
+  }
+  if (snap.projections.length) {
+    const existing = new Set((d.curationProjections || []).map(p => p.id))
+    d.curationProjections = [...(d.curationProjections || []), ...snap.projections.filter(p => !existing.has(p.id))]
+  }
+  for (const row of snap.mirrorProjectionTargets) {
+    const p = (d.curationProjections || []).find(x => x.id === row.projectionId)
+    if (p) p.targetCatId = row.targetCatId
+  }
+  for (const row of snap.mirrorParentIds) {
+    const c = d.categories.find(x => x.id === row.categoryId)
+    if (c) c.parentId = row.parentId
+  }
 }
 
 /** 该台在资源台留下的镜像分类级联清理（R53-A1 遗留口径，两个入口共用） */

@@ -53,9 +53,7 @@
 .dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
 @media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
-/* ★V3.9.21 单行全年：53 列周 × 7 行天（GitHub 贡献图口径）。
-   12 个月块退役——它把同一年的分布切成 12 个互不相邻的小日历，
-   跨月趋势要眼睛在 12 块之间来回跳；单行网格让「一年」真的是一行。
+/* ★12 个自然月分组：桌面端全年仍在一行内，月份之间保留一列间隔。
    容器名 .dz-months 保留（全年网格的语义锚，W7-2/W12-12 认这个名字）。 */
 .dz-months { display: flex; flex-direction: column; gap: 6px; }
 /* 第 1 行留给月份刻度，第 2..8 行才是 7 天。星期标签跨这 7 行，与日格逐行对齐。
@@ -65,13 +63,13 @@
 /* 只显示 一/四/日 三行标签（索引 1/4/7），其余隐藏但保留网格行（隐藏不会让日格错位） */
 .dz-wk span:nth-child(2), .dz-wk span:nth-child(3), .dz-wk span:nth-child(5), .dz-wk span:nth-child(6) { visibility: hidden; }
 .dz-year-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: thin; }
-.dz-year { display: grid; grid-auto-rows: auto; row-gap: 3px; column-gap: 3px; width: 100%; min-width: 0; }
+.dz-year { display: grid; grid-auto-rows: auto; row-gap: 3px; column-gap: 3px; width: 100%; min-width: 760px; }
 .dz-month-tick {
   grid-row: 1; align-self: end; justify-self: start;
   font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap;
   padding-bottom: 2px; pointer-events: none;
 }
-/* 单行全年：格子宽度跟随网格列宽，方形由 aspect-ratio 保证。
+/* 月份分组：格子宽度跟随网格列宽，方形由 aspect-ratio 保证。
    V3.9.22 用户拍板：格子随宽度放大铺满（1440 下约 21px/格，高约 170px）；
    窄屏保底 10px 并允许容器横滚，避免挤成不可点的小点。 */
 .dz-year .dz-cell { width: 100%; height: auto; aspect-ratio: 1; min-width: 0; min-height: 10px; border-radius: 2px; }

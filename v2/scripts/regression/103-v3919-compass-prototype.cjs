@@ -56,14 +56,31 @@ check('D19-3 ★六层计数唯一账本住进骨架条（全量口径）：折�
     && s.includes(':title="LV_TIP[lv.n]"');
 });
 
-check('D19-4 ★主攻聚焦条补「下一步」chip（与调度台 V3.9.18 / 项目详情同源）：吃 compassMeta 的 nextStep 与 nextStepSource，口径 tooltip 声明「一等公民：手动优先、清空自动推导」；不另写回退逻辑', () => {
-  const strip = CT_C.slice(CT_C.indexOf('class="focus-strip"'), CT_C.indexOf('class="tree-layout"'));
-  return strip.includes('class="fs-next"')
-    && strip.includes('{{ focusTower.meta.nextStep }}')
-    && strip.includes('focusTower.meta.nextStepSource')
-    && strip.includes('下一步为项目一等公民')
-    && !CT_C.includes('function focusNextOf')   /* 负锚：不许在视图里另造一份推导 */
-    && CT_C.includes('.fs-next {');
+check('D19-4 ★「当前主攻」独立聚焦条已按跨模块优化清单退役，但其数据与能力不得陪葬：主攻 computed / 定位入口 / 项目徽标 / 主攻统计仍保留；nextStep 继续由项目舱与详情消费，视图不另造推导；聚焦条模板与专属样式零残留', () => {
+  return !CT_C.includes('class="focus-strip"')
+    && !CT_C.includes('class="fs-next"')
+    && !CT_C.includes('.fs-next {')
+    && !CT_C.includes('function focusNextOf')
+    && CT_C.includes('focusTower')
+    && CT_C.includes('gotoFocusTower')
+    && CT_C.includes('treeStats.focused')
+    && codeOnly(TOWER).includes('proj.isFocused')
+    && codeOnly(TOWER).includes('CompassTowerNext');
+});
+
+check('D19-4b ★方向台三层标题统一层级签（跨模块优化 D-01～D-03）：战略目标 / 项目 / 指标都使用 CompassLevelTag，签面只含层级号 + 图标 + 类型；签本身 aria-hidden 且不可点击 / 不可聚焦；战略目标筛选仍由既有「只看我」承担', () => {
+  const TAG = read('/newtab/components/compass/CompassLevelTag.vue');
+  const tag = codeOnly(TAG);
+  const dir = CT_C.slice(CT_C.indexOf('class="dir-head"'), CT_C.indexOf('<!-- ★项目舱列 -->'));
+  return tag.includes('class="level-tag"')
+    && tag.includes('aria-hidden="true"')
+    && !tag.includes('<button')
+    && !tag.includes('tabindex')
+    && dir.includes('<CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />')
+    && dir.includes('class="node-action t3"')
+    && dir.includes("onDirFilter(dg.dir.id)")
+    && codeOnly(TOWER).includes('<CompassLevelTag :level="4" kind="project" icon="package" label="项目" />')
+    && codeOnly(LANE).includes('<CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />');
 });
 
 check('D19-5 ★引导条退役、视图切换迁左栏（原型 .navside 顶部）：tl-head-row 与 gs-* 全族在 CompassTree 零命中（codeOnly 后）；view-seg 在 navside 切片内且项目塔/全景双向按钮俱在', () => {

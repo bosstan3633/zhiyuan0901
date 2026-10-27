@@ -6,7 +6,7 @@ import { resourceLocateRoute } from '@/shared/utils/locate'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { uid } from '@/shared/utils'
-import { type Workspace } from '@/shared/models'
+import { CURATION_WS_ID, type Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
 // R160（P1）：GlobalPopups（99KB 源，入口最大应用模块）改按需挂载——首屏不加载，首次呼出（热键/顶栏/消息）时拉起
@@ -236,21 +236,34 @@ function confirmRename() {
   }
   renamingWs.value = null
 }
-/** R146（回退契约）：台签右键这项**不是删除而是归档**——原实现 archived=true + 卡搬走，
- *  却与 ⚙ 菜单里"卡进回收站"的真删除共用「删除策展台」同名，两入口两种数据命运。
- *  现改名并接真源 archiveWorkspace；原生 confirm 换应用内确认（四主题一致）。 */
-async function archiveDeck() {
+/** 台签右键与台内设置共用同一个删除真源：台内卡进回收站，镜像只释放引用。 */
+async function deleteDeckFromTab() {
   const ws = menuWs.value
   closeMenu()
   if (!ws || !store.data) return
-  // R160（P1）：策展台 CRUD（9.1KB 源）改动态加载——仅归档动作时入内存
-  const { deckCardCount, archiveWorkspace } = await import('@/shared/utils/compassCrud')
+  if (ws.id === CURATION_WS_ID) { showToast('ℹ 「资源卡池」是系统空间，不在此删除'); return }
+  const { deckCardCount, deleteDeck, restoreDeck } = await import('@/shared/utils/compassCrud')
+  const { DECK_DELETE_UNDO_WINDOW_MS } = await import('@/shared/utils/undo')
   const n = deckCardCount(store.data, ws.id)
-  if (!(await useConfirm({ title: '归档策展台', message: `确定归档「${wsDisplayNameOf(ws)}」？\n其下 ${n} 张卡将搬入资源卡池或其它策展台的「待分类」（卡片不删，论点标记随台摘除），此台从标签栏收起。`, confirmText: '归档' }))) return
-  const r = archiveWorkspace(store.data, ws)
+  const argCount = (store.data.argCards || []).filter(c => c.workspaceId === ws.id && !c.deletedAt).length
+  if (!(await useConfirm({
+    title: '删除策展台',
+    message: `确定删除策展台「${wsDisplayNameOf(ws)}」？\n其中 ${n} 张本台资源卡、${argCount} 张论证卡与全部分类将移入回收站；本台镜像引用会释放，资源卡池里的源卡、标签与附件不变。\n台内卡片不会迁入资源卡池，3 秒内可撤销。`,
+    confirmText: '删除策展台',
+  }))) return
+  const snap = deleteDeck(store.data, ws.id)
+  if (!snap) { showToast('⚠ 该策展台已不存在'); return }
   store.persist()
   if (activeWorkspaceId.value === ws.id) navigate('/')
-  showToast(`已归档「${wsDisplayNameOf(ws).slice(0, 14)}」· ${r.moved} 张卡移至待分类`)
+  showToast(`已删除策展台「${wsDisplayNameOf(ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡、${snap.argCardIds.length} 张论证卡进回收站`, {
+    label: '撤销',
+    cb: () => {
+      if (!store.data) return
+      restoreDeck(store.data, snap)
+      store.persist()
+      showToast(`已恢复策展台「${wsDisplayNameOf(ws).slice(0, 14)}」`)
+    },
+  }, { duration: DECK_DELETE_UNDO_WINDOW_MS, sticky: false, undoWindowMs: DECK_DELETE_UNDO_WINDOW_MS })
 }
 
 // ===== 全局快捷键 =====
@@ -609,7 +622,7 @@ const backupReminderDot = computed(() => {
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" data-a11y-container :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" v-pressable @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
-        <div class="ctx-item" v-pressable @click="archiveDeck"><Icon name="package" :size="13"/> 归档此台（卡移至待分类）</div>
+        <div class="ctx-item danger" v-pressable @click="deleteDeckFromTab"><Icon name="trash" :size="13"/> 删除策展台</div>
       </div>
     </Teleport>
 

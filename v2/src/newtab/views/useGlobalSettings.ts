@@ -22,7 +22,6 @@ import { buildReviewJob } from '@/shared/ai/select'
 import { withReport } from '@/shared/ai/reports'
 import { listJobStates, clearFinished, type JobState } from '@/shared/ai/runner'
 import { buildDeliverJob } from '@/shared/ai/batchG'
-import { useBookmarkImport } from '@/newtab/composables/useBookmarkImport'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '../stores/compass'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
@@ -69,7 +68,7 @@ const exportRef = ref<{ handleAssetPackImport?: (e: Event) => void } | null>(nul
 function onAssetPack(e: Event) { exportRef.value?.handleAssetPackImport?.(e) }
 
 const activePage = ref('resource')
-type DataManagementTab = 'package' | 'bookmark' | 'assets' | 'airtable'
+type DataManagementTab = 'package' | 'assets' | 'airtable'
 const dataManagementTab = ref<DataManagementTab>('package')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
@@ -82,7 +81,7 @@ function pageFromQuery(): string | null {
   }
   if (p === 'data') {
     const rawTab = route.query.tab
-    dataManagementTab.value = rawTab === 'bookmark' || rawTab === 'assets' || rawTab === 'airtable'
+    dataManagementTab.value = rawTab === 'assets' || rawTab === 'airtable'
       ? rawTab
       : 'package'
   }
@@ -205,7 +204,7 @@ const gd = computed(() => store.data!)
 // V3.8.9（W9）：仪表盘专属脚本已整体迁至 ProfileInsights.vue（概览带数据桥/复盘段依赖/
 // 操作记录/四类入口/全量抽屉/核心指标下钻/动态条下钻/错误日志徽标/dzHl 高亮）。
 // 本文件保留的通用能力：gWsName/gCatName（导出页）、readErrorLog（关于页）、
-// useBookmarkImport（导入页）、recordResourceOpen / toOpenableUrl / openHtmlAsset（卡片预览）。
+// recordResourceOpen / toOpenableUrl / openHtmlAsset（卡片预览）。
 
 // V3.8.9（W9）：仪表盘脚本（gFlat/todayAdd/weekAdd/事件日志/timelineEvents/dash 数据桥/
 // 复盘段依赖/报告出口/openLog/核心指标下钻/动态条下钻/错误日志徽标）已整体迁 ProfileInsights.vue。

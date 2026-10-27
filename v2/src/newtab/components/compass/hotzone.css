@@ -34,13 +34,6 @@
 .tk-grade { min-height: 28px; }
 .tk-unbind { width: 28px; height: 28px; }
 
-/* 「当前主攻」条：项目名（定位入口）/ 继续推进 ↓ */
-.fs-name { min-height: 28px; }
-.fs-go { min-height: 28px; }
-
-/* 方向层头的「N 战略目标」pill（点即过滤） */
-.dir-badge { min-height: 28px; }
-
 /* 舱头 AI 诊断入口（无报告 → 「🧠 AI 诊断」） */
 .dt.run { min-height: 28px; }
 

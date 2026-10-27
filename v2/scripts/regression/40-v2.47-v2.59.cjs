@@ -468,10 +468,12 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
     && !WS84.includes('wsHeadDescFallback')
     && body.includes('workspace.value?.desc');
 });
-check('R84-3 W1 页头 ≤56px（V3.9.13 重指：台身份与论点卡合并成同一上下文带，仍不许退回两条大横条）', () => {
+check('R84-3 W1 页头 ≤56px（V3.9.23 重指：台身份与论点卡在同一上下文中带内左右分栏，左栏可随宽度收缩，仍不许退回两条大横条）', () => {
   const c = read('/newtab/views/workspace.css');
-  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 220px;[^}]*max-width: 38%;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
-    && /\.ws-hero \{[^}]*display: flex;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c);
+  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+    && !/\.ws-id-head \{[^}]*min-width: 220px;/.test(c)
+    && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
+    && /\.ws-hero \{[^}]*display: grid;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c);
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')

@@ -3,12 +3,15 @@
 import { computed, ref, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import Icon from '@/shared/components/Icon.vue'
+import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'
 import type { Category, ResourceCard } from '@/shared/models'
 
 const props = defineProps<{
   open: boolean
   card: ResourceCard | null
   nodes: Category[]
+  wsId: string
+  wsName: string
   rootCount: number
   resourceCount: number
   attachmentCount: number
@@ -18,7 +21,6 @@ const emit = defineEmits<{
   close: []
   save: [patch: { title: string; description: string }]
   'open-create': []
-  share: []
 }>()
 
 const title = ref('')
@@ -75,9 +77,8 @@ function save(): void {
         </div>
       </div>
       <div v-else class="ct-empty">画布还没有一级分支。保存论点后按 Tab 创建第一个。</div>
-      <div class="ct-section-title">分享成果</div>
       <div class="ct-actions">
-        <button type="button" class="ct-btn" @click="emit('share')"><Icon name="share" :size="13"/> 分享这份成果</button>
+        <ThesisAiBtn :ws-id="wsId" :ws-name="wsName" />
       </div>
     </template>
     <div v-else class="ct-empty">

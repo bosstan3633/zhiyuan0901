@@ -11,6 +11,7 @@ import CompassLane from './CompassLane.vue'
 import CompassTowerNext from './CompassTowerNext.vue'
 import CompassTowerOrphans from './CompassTowerOrphans.vue'
 import CompassTowerStatus from './CompassTowerStatus.vue'
+import CompassLevelTag from './CompassLevelTag.vue'
 import type { Direction, Project, TaskCard } from '@/shared/models'
 import type { ProjectMeta } from '../../views/compassMeta'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
@@ -139,6 +140,7 @@ function hasClue(t: TaskCard): boolean {
       <span class="tw-idx">{{ idx }}</span>
       <div class="tw-id">
         <h3 class="tw-name">
+          <CompassLevelTag :level="4" kind="project" icon="package" label="项目" />
           <span class="tw-name-t editable" v-pressable @click.stop="emit('editProject')">{{ proj.name }}</span>
           <span class="tw-signals">
             <span v-if="proj.isFocused" class="tw-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
@@ -391,8 +393,7 @@ function hasClue(t: TaskCard): boolean {
   background: var(--surface-2); min-height: 76px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
 }
-.twe-t { font-size: var(--fs-micro); color: var(--text-4); }
-.twe-add {
+.twe-t { font-size: var(--fs-micro); color: var(--text-4); }.twe-add {
   font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
   background: var(--accent-light); padding: 3px 10px; border-radius: var(--radius-full); cursor: pointer;
 }

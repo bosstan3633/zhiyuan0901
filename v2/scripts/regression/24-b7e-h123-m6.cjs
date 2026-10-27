@@ -357,9 +357,6 @@ check(NAME(
     [HZ, '.mc-add/.mc-ai/.mc-del/.mc-more', /\.mc-add, \.mc-ai, \.mc-del, \.mc-more \{[^}]*min-height: 28px;/],
     [HZ, '.tk-title', /\.tk-title \{[^}]*min-height: 28px;/],
     [HZ, '.tk-grade', /\.tk-grade \{[^}]*min-height: 28px;/],
-    [HZ, '.fs-name', /\.fs-name \{[^}]*min-height: 28px;/],
-    [HZ, '.fs-go', /\.fs-go \{[^}]*min-height: 28px;/],
-    [HZ, '.dir-badge', /\.dir-badge \{[^}]*min-height: 28px;/],
     [HZ, '.dt.run', /\.dt\.run \{[^}]*min-height: 28px;/],
   ];
   for (const [src, who, re] of minH) {

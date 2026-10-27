@@ -135,7 +135,7 @@ check('G102-9 四段 AI 失败保留本地：配置缺失与工厂失败只 toas
     && PROFILE.includes(':insight="concise.today"')
     && PROFILE.includes(':insight="concise.week"')
     && PROFILE.includes(':insight="concise.month"')
-    && PROFILE.includes(':insight="concise.year"');
+    && !PROFILE.includes(':insight="concise.year"');
 });
 
 check('G102-10 四段 AI 事实白名单：事实全部由 profileRangeFacts 产出，函数只读已算好的本地读数，不新增统计口径', () => {

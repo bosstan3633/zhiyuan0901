@@ -33,6 +33,7 @@ import CompassLayerPanel from '../components/compass/CompassLayerPanel.vue'
 import CompassLayerList from '../components/compass/CompassLayerList.vue'
 import CompassTower from '../components/compass/CompassTower.vue'
 import CompassPano from '../components/compass/CompassPano.vue'
+import CompassLevelTag from '../components/compass/CompassLevelTag.vue'
 import { buildCompassMeta } from './compassMeta'
 import type { ProjectMeta } from './compassMeta'
 import ImportTemplateModal from '../components/ImportTemplateModal.vue'
@@ -174,23 +175,6 @@ const {
         </template>
       </CompassSpine>
     </div>
-
-    <!-- ══ 视觉聚焦条（方向台优化）：把"当前主攻 / 推进到哪 / 下一步"收成一条摘要 ══
-         为什么加：原首屏把注意力先给了页头读数与六层导航，真正要动手的项目要往下滚才看得见。
-         这条不是新模块，而是项目塔里那个主攻项目的一行投影 —— 数据全部取自 towerGroups，
-         点击直接定位到对应舱，与左栏项目导航是同一个 gotoTower 入口（不新增第二条路）。 -->
-    <section v-if="focusTower && viewMode === 'tower' && !layerView" class="focus-strip" aria-label="当前主攻">
-      <span class="fs-label">{{ focusTower.proj.isFocused ? '当前主攻' : '当前项目' }}</span>
-      <button class="fs-name" :title="`定位到项目舱：${focusTower.proj.name}`" @click="gotoFocusTower">{{ focusTower.proj.name }}</button>
-      <span class="fs-detail">{{ focusTower.dir.name }} · {{ focusTower.meta.metrics.length }} 指标 · {{ focusTower.meta.total }} 任务</span>
-      <span class="fs-progress" aria-hidden="true"><i :style="{ width: focusTower.meta.pct + '%' }" /></span>
-      <span class="fs-count">{{ focusTower.meta.done }} / {{ focusTower.meta.total }} 项任务</span>
-      <!-- ★V3.9.19（原型同款 · 与调度台 V3.9.18 主攻面板同源）：聚焦条补「下一步」主句 ——
-           方向台首屏此前只有进度没有去向。数据吃 compassMeta 的 nextStep（用户填写 → 进行中任务 →
-           空态兜底），与项目详情/项目舱 CompassTowerNext 同一解析源，不另写回退。 -->
-      <span class="fs-next" :title="`下一步为项目一等公民：你填写的优先，清空后按任务自动推导（与项目详情同源）· 当前来源：${focusTower.meta.nextStepSource === 'manual' ? '手动填写' : focusTower.meta.nextStepSource === 'task' ? '由最优先任务推导' : '空态兜底'}`">下一步 · {{ focusTower.meta.nextStep }}</span>
-      <button class="fs-go" @click="gotoFocusTower">继续推进 ↓</button>
-    </section>
 
     <!-- 画布：左栏 = 项目导航（原型 .navside，吸顶常驻），右侧 = 项目塔 -->
     <div class="tree-layout" :class="{ 'is-pano': viewMode === 'pano' }">
@@ -389,14 +373,7 @@ const {
                 <!-- 战略目标分组头：★与骨架条芯片、层级面板目标卡三处同源同色 -->
                 <div class="dir-head" :class="dg.hue" :data-dir-id="dg.dir.id">
                   <div class="dh-l">
-                    <!-- ★W12：原型的 .dh-i 是纯数字方块，但原型同时有一枚「N 战略目标」pill 承担
-                         "这是第几层、点它即过滤"的语义。数字方块看不出层，pill 能。
-                         两者合并：pill 收在左（点即过滤，与骨架条芯片同源同色），方块退为序号。 -->
-                    <button class="dir-badge" :class="{ on: dirFilter === dg.dir.id }" @click.stop="onDirFilter(dg.dir.id)"
-                      :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'">
-                      {{ dg.i + 1 }} 战略目标
-                    </button>
-                    <span class="dh-i">{{ dg.i + 1 }}</span>
+                    <CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />
                     <span class="node-title editable dh-n" v-pressable :data-edit="'dir-' + dg.dir.id"
                       @click.stop="openDirectionEdit(dg.dir.id)">{{ dg.dir.name }}</span>
                     <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>

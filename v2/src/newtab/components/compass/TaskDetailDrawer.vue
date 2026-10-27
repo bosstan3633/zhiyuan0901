@@ -364,7 +364,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <div class="ts-title-row">
             <div class="check-lg" v-pressable :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
             <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..." @blur="saveTaskTitle" />
-            <ExportMenu class="ts-export" :formats="['md', 'html']" align="end" @pick="exportTask" />
           </div>
           <div class="ts-head-row2">
             <div class="ds-status-wrap" data-a11y-container @click.stop>
@@ -380,21 +379,43 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           </div>
         </div>
     </template>
-    <template v-if="selectedTask" #title-extra>
-        <div class="ts-ai-row">
-          <button class="ts-ai-cell" :disabled="aiBusy" title="AI 对照本卡现状找缺项（验收标准 / 标签 / 归属 / 估时），已填的不覆盖；弹窗左右对照逐条采纳" @click="aiEnrich">
-            <AiEntryButton variant="inline" label="补全" :spin="aiBusy" />
-          </button>
-          <button class="ts-ai-cell" :disabled="aiBusy" title="AI 拆解本任务：采纳为子任务清单，或只把步骤写进详情（双通道）；可换执笔专家" @click="aiBreakdown">
-            <AiEntryButton variant="inline" label="拆解" :spin="aiBusy" />
-          </button>
-          <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源卡池，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
-            <AiEntryButton variant="inline" label="找支持" :spin="aiBusy" />
-          </button>
-        </div>
-    </template>
     <template v-if="selectedTask">
       <div class="ts-body">
+        <!-- 归属是任务的首屏上下文：项目 / 指标紧跟标题与状态读数，不沉到正文底部。 -->
+        <div class="ts-section ts-owner ds-props2">
+          <div class="ds-prop-field">
+            <label class="ds-prop-label"><Icon name="package" :size="13"/> 项目</label>
+            <select v-model="selProjectId" class="ds-prop-select" @change="onSelProjectChange">
+              <option value="">未关联项目</option>
+              <option v-for="p in sidebarProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div class="ds-prop-field">
+            <label class="ds-prop-label"><Icon name="target" :size="13"/> 指标</label>
+            <select v-model="selMetricId" class="ds-prop-select" :disabled="!selProjectId" @change="onSelMetricChange">
+              <option value="">暂不归属</option>
+              <option v-for="m in sidebarMetrics" :key="m.id" :value="m.id">{{ m.title }}</option>
+            </select>
+          </div>
+        </div>
+        <!-- AI 三入口是同一组工具，导出是独立的数据动作；桌面端分列两端，窄屏整组换行。 -->
+        <div class="ts-action-bar">
+          <div class="ts-ai-group" role="group" aria-label="AI 任务工具">
+            <span class="ts-tool-label"><Icon name="sparkles" :size="13"/> AI 工具</span>
+            <div class="ts-ai-row">
+              <button class="ts-ai-cell" :disabled="aiBusy" title="AI 对照本卡现状找缺项（验收标准 / 标签 / 归属 / 估时），已填的不覆盖；弹窗左右对照逐条采纳" @click="aiEnrich">
+                <AiEntryButton variant="inline" label="补全" :spin="aiBusy" />
+              </button>
+              <button class="ts-ai-cell" :disabled="aiBusy" title="AI 拆解本任务：采纳为子任务清单，或只把步骤写进详情（双通道）；可换执笔专家" @click="aiBreakdown">
+                <AiEntryButton variant="inline" label="拆解" :spin="aiBusy" />
+              </button>
+              <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源卡池，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
+                <AiEntryButton variant="inline" label="找支持" :spin="aiBusy" />
+              </button>
+            </div>
+          </div>
+          <ExportMenu class="ts-export" :formats="['md', 'html']" align="end" @pick="exportTask" />
+        </div>
         <!-- R48：说明区上移为 Hero（此前被四个大下拉挤到最底部） -->
         <div class="ts-section">
           <div class="ds-hero-label">说明 <span class="hint">— 补充上下文 · 验收标准</span></div>
@@ -427,23 +448,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <option v-for="r in supportDraftCands" :key="r.id" :value="r.title" />
             </datalist>
             <button class="ts-sup-btn" :disabled="!supportDraft.trim()" @click="addSupportManual">挂上</button>
-          </div>
-        </div>
-        <!-- R48：属性紧凑化——项目/指标双列一行，优先级/链接紧随 -->
-        <div class="ts-section ds-props2">
-          <div class="ds-prop-field">
-            <label class="ds-prop-label"><Icon name="package" :size="13"/> 项目</label>
-            <select v-model="selProjectId" class="ds-prop-select" @change="onSelProjectChange">
-              <option value="">未关联项目</option>
-              <option v-for="p in sidebarProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
-          </div>
-          <div class="ds-prop-field">
-            <label class="ds-prop-label"><Icon name="target" :size="13"/> 指标</label>
-            <select v-model="selMetricId" class="ds-prop-select" :disabled="!selProjectId" @change="onSelMetricChange">
-              <option value="">暂不归属</option>
-              <option v-for="m in sidebarMetrics" :key="m.id" :value="m.id">{{ m.title }}</option>
-            </select>
           </div>
         </div>
         <!-- R165-A：优先级 3 段 segment（单击直达，语义色 tint）；链接升整行 + 动作贴边 -->
@@ -504,15 +508,19 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-title-wrap { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .ts-title-row { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .ts-head-row2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* R166 定案 6：AI 三入口独立一行，等宽三格（丙版：不挤标题行，三件事并列说得清） */
-.ts-ai-row { display: flex; gap: 6px; flex-shrink: 0; }
+/* 任务详情首屏顺序：标题 / 读数 / 归属 / 工具 / 内容。AI 工具组与导出各占一端。 */
+.ts-owner { gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.ts-action-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.ts-ai-group { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.ts-tool-label { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px 0 3px; color: var(--text-3); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
+.ts-ai-row { display: flex; gap: 4px; flex: 1; min-width: 0; }
 .ts-ai-cell {
-  min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   min-height: 30px; padding: 4px 8px; border-radius: 8px; cursor: pointer;
-  font-size: var(--fs-sub); font-weight: 600; border: 1px solid var(--accent); color: var(--accent-ink); background: var(--accent-light);
+  font-size: var(--fs-sub); font-weight: 600; border: 1px solid transparent; color: var(--text-2); background: var(--surface);
   font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: hidden;
 }
-.ts-ai-cell:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); --ai-mark-fill: #fff; --ai-mark-eye: var(--accent); }
+.ts-ai-cell:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .ts-ai-cell:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
 /* R166 F4：资源支持区（点行打开、× 解绑只删记录） */
 .ts-sup { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); overflow: hidden; }
@@ -534,7 +542,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
-.ts-export { flex: none; align-self: flex-start; }
+.ts-export { flex: none; margin-left: auto; }
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
 .ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
@@ -575,4 +583,12 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ds-goto-inline { color: var(--accent); cursor: pointer; }
 .ds-goto-inline:hover { text-decoration: underline; }
 .ds-prop-select { margin-top: 1px; }
+
+@media (max-width: 560px) {
+  .ts-owner { grid-template-columns: 1fr; }
+  .ts-action-bar { align-items: stretch; flex-wrap: wrap; }
+  .ts-ai-group { width: 100%; align-items: flex-start; flex-direction: column; }
+  .ts-tool-label { padding: 1px 3px 3px; }
+  .ts-export { margin-left: 0; align-self: flex-end; }
+}
 </style>

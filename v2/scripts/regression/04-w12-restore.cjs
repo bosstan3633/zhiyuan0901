@@ -127,12 +127,11 @@ check('W12-8 ★拆版式不许顺手删能力：★V3.9.22 重指：＋战略�
     .every(k => t.includes(k));
 });
 
-check('W12-9 ★战略目标分组头必须补回原型 .dir-head 的两件承重：「N 战略目标」pill 与右侧发丝线。★病根：实际实现只有一个纯数字方块 + 一整条 border-bottom。数字方块回答不了"这是第几层"，整条下边框则把行内读数与动作组硬生生切成两块 —— 前者丢了第 3 层的语义，后者让按钮组孤零零吊在行尾。原型两件都在：pill 收在左且**点即过滤**（与骨架条芯片同源），发丝线在右收口', () => {
+check('W12-9 ★战略目标分组头保留层级语义、筛选能力与右侧发丝线（跨模块优化重指）：静态 CompassLevelTag 回答"这是第几层"且不抢筛选，筛选仍由「只看我」承担；发丝线继续把行内读数收口；下边框保持退役', () => {
   const t = codeOnly(CT_W11);
-  return t.includes('class="dir-badge"')
-    && /\{\{ dg\.i \+ 1 \}\} 战略目标/.test(t)
-    /* pill 必须真的接上过滤动作，不能只是个静态标签 */
-    && /class="dir-badge"[^>]*@click\.stop="onDirFilter\(dg\.dir\.id\)"/.test(t)
+  return t.includes('<CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />')
+    && t.includes('class="node-action t3"')
+    && t.includes("onDirFilter(dg.dir.id)")
     && t.includes('class="dh-line"')
     && /\.dh-line \{[^}]*flex: 1/.test(t)
     /* 下边框退役（发丝线取代它） */

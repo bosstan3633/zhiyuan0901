@@ -295,12 +295,12 @@ check('R4-Db ★书签导入唯一实现：全站只有一处书签解析器与�
     && dup.length === 0 && !imp.includes('BK_ROOT_NAMES') && !imp.includes('bookmarkInput')
     && imp.includes('export function useWorkspaceImport(') && imp.includes('function handleBoardImport(');
 });
-check('R4-Db ★合一不是"留下活的那份"就完事：死链身上三处硬化必须搬进唯一实现，且绝不写隐藏池（★本条一律走 codeOnly——唯一实现的头注释为了讲清退役缘由点了池 id 的字面量，用裸 read 会让这条负判据恒假：R166 那条纪律第四次咬人，这次咬的是我自己刚写的判据）', () => {
+check('R4-Db ★合一后的唯一实现保留三处硬化，并按 V3.9.23 直接写资源卡池：标题/文件夹解码、根栏白名单、卡池归属钉死；不创建目标策展台或台内分类', () => {
   const bk = codeOnly(read('/newtab/composables/useBookmarkImport.ts'));
   return bk.includes('safeDecodeText(h3.textContent') && bk.includes('safeDecodeText(a.textContent')
-    && bk.includes('find(c => !c.deletedAt && c.workspaceId === target.id')
     && bk.includes("'Bookmarks Toolbar'") && bk.includes("'移动书签'")
-    && !bk.includes('CURATION_WS_ID') && bk.includes('assets: []') && bk.includes('return ids');
+    && bk.includes('workspaceId: CURATION_WS_ID, categoryId: \'\'')
+    && !bk.includes("name: '待分类'") && bk.includes('assets: []') && bk.includes('return ids');
 });
 check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着够不着的 parked input 与其弹窗样式', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');

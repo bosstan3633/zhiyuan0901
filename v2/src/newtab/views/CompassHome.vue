@@ -38,7 +38,6 @@ import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
-import { useEqualHeight } from '@/newtab/composables/useEqualHeight'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { weekUsageOf } from '@/shared/storage/stats'
@@ -70,10 +69,10 @@ const {
   onStorageClick, atSync, atConfigured, atSyncErr, atPending,
   atChipText, atChipTitle, atSyncing, onSyncChipClick, focusMeta,
   readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
-  todayOutCount, nurtureCuriosities, battleHost, openReview, focusDoneCount,
-  mainFocus, extraFocus, RECENT_ROW_H, railAvailable, recentLimit,
-  recentResources, workBoardRef, handBoardRef, deskLayoutRef, recentPanelRef,
-  measureRail, railRO, observeRailPanel, onEqualHeightReady, liveTasks,
+  todayOutCount, battleHost, openReview, focusDoneCount,
+  mainFocus, extraFocus, recentLimit,
+  recentResources, workBoardRef, handBoardRef, deskLayoutRef,
+  liveTasks,
   previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
   hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
@@ -363,7 +362,7 @@ const {
           </div>
         </section>
 
-        <section ref="recentPanelRef" class="rail-panel rail-panel-recent">
+        <section class="rail-panel rail-panel-recent">
           <header class="rail-head">
             <b>最近调出</b>
             <button class="rail-chip" type="button" title="口径：本周一 0 点起被打开过的资源卡（wrr 周戳）；跨周清零" @click="openStatusDetail('reuse')">本周 {{ weeklyReuse }} 次</button>
@@ -376,23 +375,6 @@ const {
             </button>
           </div>
           <div v-else class="rail-empty">还没有调出记录。打开一张资源卡后，会出现在这里。</div>
-        </section>
-
-        <!-- V3.9.18：好奇心培育（原型右栏）——独立类名，不进 rail-panel 等高机制、不碰 mini-list×3 计数锚。
-             好奇与资源互不挂载；「转为任务」在好奇心卡池操作（CuriosityPanel），沿六层链归位。 -->
-        <section class="curio-panel" aria-label="好奇心培育">
-          <header class="rail-head">
-            <b>好奇心培育</b>
-            <button type="button" @click="goDeck('curiosity')">卡池</button>
-          </header>
-          <div class="curio-list">
-            <button v-for="c in nurtureCuriosities" :key="c.id" class="mini-item" type="button" :title="'去好奇心卡池查看：' + c.question" @click="openCurioPreview(c)">
-              <Icon name="bulb" :size="13" class="mini-leading" />
-              <span class="mini-copy"><span class="mini-title">{{ c.question }}</span><span class="mini-meta">{{ curioStatusLabel(c) }} · {{ fmtShortDate(c.updatedAt || c.createdAt) }}</span></span>
-            </button>
-            <div v-if="!nurtureCuriosities.length" class="curio-empty">还没有好奇心——用快捷键接住一个念头。</div>
-          </div>
-          <p class="curio-note">好奇与资源互不挂载；「转为任务」在卡池内操作，沿六层链归位。</p>
         </section>
 
         <div class="rail-foot"><Icon name="shield" :size="14" /> 只存本机 · 无账号 · 可随时导出</div>

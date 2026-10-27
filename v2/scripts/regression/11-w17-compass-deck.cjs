@@ -25,7 +25,6 @@ const CURIO = read('/newtab/components/compass/CuriosityPanel.vue');
 const CURIO_C = codeOnly(CURIO);
 const DECK = read('/newtab/views/CompassDeckView.vue');
 const DECK_C = codeOnly(DECK);
-const EQ = read('/newtab/composables/useEqualHeight.ts');
 const STATUS = read('/newtab/components/compass/CompassStatusModal.vue');
 const STATUS_C = codeOnly(STATUS);
 
@@ -90,15 +89,16 @@ check('W17-5 ★回落不双计：openResourceLink 记账后置（确认可打�
     && fn.includes('openExternalLink(url)\n    return true');
 });
 
-check('W17-6 ★等高有实现：页面根写 CSS 变量，右栏读变量；最近调出列表内部滚动', () => {
-  return EQ.includes('new ResizeObserver') && EQ.includes('--rail-top-h') && EQ.includes('--rail-bottom-h')
-    && /\.rail-panel:not\(\.rail-panel-recent\) \{ height: var\(--rail-top-h, auto\)/.test(PI)
-    && /\.rail-panel-recent \{ height: var\(--rail-bottom-h, auto\)/.test(PI)
-    && /\.recent-list \{ flex: 1; min-height: 0; overflow-y: auto/.test(PI)
-    && PI.includes('nextTick(() => onEqualHeightReady())');
+check('W17-6 ★V3.9.23 版式收口：右栏只保留两块并顶部对齐；取消强制等高，最近调出列表仍可内部滚动', () => {
+  return !PI.includes('curio-panel')
+    && !PI.includes('useEqualHeight')
+    && !PI.includes('--rail-top-h')
+    && /\.rail-panel \{ display: flex; flex-direction: column; \}/.test(PI)
+    && /\.recent-list \{ min-height: 0; overflow-y: auto/.test(PI)
+    && PI.includes('class="rail-panel rail-panel-recent"');
 });
 
-check('W17-7 ★条数不写死 3：最近调出条数按面板可用高度算', () => {
+check('W17-7 ★条数不写死 3：最近调出使用稳定上限，不按强制等高测量', () => {
   return PI.includes('const recentLimit = computed(() =>')
     && PI.includes('.slice(0, recentLimit.value)')
     && !/\.slice\(0, 3\)\s*\r?\n?\s*\)/.test(PI.split('const recentResources')[1]?.slice(0, 400) || '');
@@ -215,14 +215,16 @@ check('W17-17 ★V3.9.22 重指：二级页页头只保留返回 + 类型 tab；
 /* ══════════════ V3.9.7 · 调度台与卡池收口 ══════════════ */
 console.log('【V3.9.7 · 手边卡密度、项目详情、卡池切换】');
 
-check('V3.9.7-1 ★手边的卡三类各 5 行；右栏最近调出按可用高度给 5–7 条', () => {
+check('V3.9.7-1 ★手边的卡三类各 5 行；V3.9.23 右栏只保留今天的状态 / 最近调出，最近调出固定 6 条（不再按高度在 5–7 条间浮动）', () => {
   const tasks = PI.slice(PI.indexOf('const previewTasks'), PI.indexOf('const liveCuriosities'));
   const curios = PI.slice(PI.indexOf('const previewCuriosities'), PI.indexOf('const liveResources'));
   const resources = PI.slice(PI.indexOf('const previewResources'), PI.indexOf('const hasAnyPreview'));
   return /\.slice\(0, 5\)/.test(tasks)
     && /\.slice\(0, 5\)/.test(curios)
     && /\.slice\(0, 5\)/.test(resources)
-    && PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
+    && PI.includes('const recentLimit = computed(() => 6)')
+    && PI.includes('.slice(0, recentLimit.value)')
+    && !PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
 });
 
 check('V3.9.13-2 ★V3.9.22 重指：主攻项目点击打开可编辑详情中央弹窗，不再跳方向树，也不使用右侧抽屉形态', () => {

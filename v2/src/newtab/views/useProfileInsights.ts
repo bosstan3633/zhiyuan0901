@@ -23,13 +23,16 @@ import {
   buildConciseInsights, objectivesOf
 } from '@/shared/utils/reviewReport'
 import type { DirLike, TaskLike, ConciseCtx } from '@/shared/utils/reviewReport'
-import { aggregateRange } from '@/shared/utils/dailyStats'
+import { actsOf, aggregateRange, levelName, levelOf } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
 import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
 import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
-import PiYear from '@/newtab/components/profile/PiYear.vue'
+import type {
+  PiYearCardRow,
+  PiYearDayRow
+} from '@/newtab/components/profile/PiYearMetricDrawer.vue'
 import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
 import { useCompass } from '@/newtab/stores/compass'
 import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
@@ -646,7 +649,7 @@ function saveLcDefault() {
   showToast(`默认冷却天数已设为 ${v} 天（归档 ${v * 3} 天）`)
 }
 
-/* ===== PiYear 年度诊断条（W13-T6/F20~F23：方向归属占比 × 高价值冷却卡） ===== */
+/* ===== PiYear 年度四格下钻（日期型 + 真实卡片型） ===== */
 const lcFocus = ref<'active' | 'cooling' | 'archived' | undefined>(undefined)
 const yCoolHigh = computed(() => lcCards.value.filter(c => lifecycleState(c) === 'cooling' && (c.callCount || 0) >= 3).length)
 const yDirFit = computed(() => profileDirectionFitText(dashDirections.value, dashTasks.value))
@@ -654,9 +657,91 @@ function wakeCooling() {
   lcFocus.value = 'cooling'
   document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
-function onYearDrill(k: 'yr-assets' | 'yr-high') {
-  if (k === 'yr-assets') openStatDrawer('all')
-  else wakeCooling()
+type YearMetricDrawer = '' | 'active' | 'streak' | 'assets' | 'high'
+const yearMetricDrawer = ref<YearMetricDrawer>('')
+const yearDayRows = computed<PiYearDayRow[]>(() => {
+  const rows = Object.entries(dashStats.value.days)
+    .filter(([day, rec]) => day.startsWith(`${dashYear.value}-`) && rec.w > 0)
+    .map(([day, rec]) => ({
+      day,
+      level: levelOf(rec.w),
+      levelName: levelName(rec.w),
+      score: rec.w,
+      acts: actsOf(rec)
+    }))
+  return rows.sort((a, b) => b.day.localeCompare(a.day))
+})
+/** 最长连续的真实日期区间：用于向用户解释“2 天”到底连着哪两天。 */
+const longestStreakRows = computed<PiYearDayRow[]>(() => {
+  const byDay = new Map(yearDayRows.value.map(row => [row.day, row]))
+  let best: string[] = []
+  let current: string[] = []
+  const end = new Date(Number(dashYear.value), 11, 31)
+  for (let cursor = new Date(Number(dashYear.value), 0, 1); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    const day = fmtDayKey(cursor.getTime())
+    if (byDay.has(day)) {
+      current.push(day)
+      if (current.length > best.length) best = [...current]
+    } else {
+      current = []
+    }
+  }
+  return best.map(day => byDay.get(day)!).reverse()
+})
+const yearMetricCardRows = computed<PiYearCardRow[]>(() => {
+  const now = Date.now()
+  const selected = lcCards.value.filter(card => yearMetricDrawer.value === 'assets'
+    ? lifecycleState(card) === 'active'
+    : lifecycleState(card) === 'cooling' && (card.callCount || 0) >= 3)
+  return selected.map(card => {
+    const title = ('question' in card ? card.question : card.title) || '（无标题）'
+    const lastAt = card.lastCalledAt || (card as { completedAt?: number }).completedAt || card.updatedAt || card.createdAt || 0
+    const idleDays = lastAt ? Math.max(0, Math.floor((now - lastAt) / 86400000)) : 0
+    return {
+      kind: card.kind as PiYearCardRow['kind'],
+      id: card.id,
+      title,
+      callCount: card.callCount || 0,
+      idleDays,
+      note: yearMetricDrawer.value === 'assets'
+        ? `活跃 · ${idleDays} 天前有动作`
+        : `冷却 ${idleDays} 天 · 历史调用 ${card.callCount || 0} 次`
+    }
+  }).sort((a, b) => (b.callCount || 0) - (a.callCount || 0) || (a.idleDays || 0) - (b.idleDays || 0))
+})
+const yearMetricMode = computed<'days' | 'streak' | 'cards'>(() =>
+  yearMetricDrawer.value === 'assets' || yearMetricDrawer.value === 'high' ? 'cards' : 'days')
+const YEAR_METRIC_META: Record<Exclude<YearMetricDrawer, ''>, { title: string; note: string }> = {
+  active: { title: '活跃日明细', note: '只列有加权动作的日期；点日期打开当日战报。' },
+  streak: { title: '最长连续区间', note: '最长连续有动作区间；点日期打开当日战报。' },
+  assets: { title: '活跃期资产', note: '生命周期当前处于活跃期的存活卡片。' },
+  high: { title: '高价值冷却卡', note: '冷却期中历史调用 ≥ 3 次的核心证据卡。' }
+}
+const yearMetricMeta = computed(() =>
+  yearMetricDrawer.value ? YEAR_METRIC_META[yearMetricDrawer.value] : { title: '年度明细', note: '' })
+const yearMetricTitle = computed(() =>
+  yearMetricDrawer.value === 'active' || yearMetricDrawer.value === 'streak'
+    ? `${dashYear.value} 年${yearMetricMeta.value.title}`
+    : yearMetricMeta.value.title)
+const yearMetricNote = computed(() => yearMetricMeta.value.note)
+const yearMetricDays = computed(() =>
+  yearMetricDrawer.value === 'streak' ? longestStreakRows.value : yearDayRows.value)
+function openYearMetricDay(day: string) {
+  yearMetricDrawer.value = ''
+  openDayBattle(day)
+}
+function openYearMetricCard(row: PiYearCardRow) {
+  yearMetricDrawer.value = ''
+  openStatCard(row)
+}
+function onYearDrill(k: 'yr-active' | 'yr-streak' | 'yr-assets' | 'yr-high') {
+  const next: Record<typeof k, Exclude<YearMetricDrawer, ''>> = {
+    'yr-active': 'active',
+    'yr-streak': 'streak',
+    'yr-assets': 'assets',
+    'yr-high': 'high'
+  }
+  yearMetricDrawer.value = next[k]
 }
 
 /* ===== 今日战报弹窗：与调度台共用 TodayBattleHost 同一壳与同一导出数据源 ===== */
@@ -790,7 +875,9 @@ onUnmounted(() => { offErrLog() })
     openStatDrawer, statFiltered, statPageCount, statShown, statGo, openStatCard, openTagDistribution, runTagOptimizeAi, statDrawerTitle,
     statReconcile, statReconcileNote, gStartOfWeek, gStartOfMonth, todayImportCount, weekImportCount, lcCards, lcFind, onLcArchive,
     onLcSnooze, onLcReactivate, onLcSetDays, onLcLocate, lcSetOpen, lcDefaultDraft, saveLcDefault, lcFocus, yCoolHigh,
-    yDirFit, wakeCooling, onYearDrill, openTodayBattle, openDayBattle, onHeroDrill, onHeroRefresh, gotoCompass, onHeroExport,
+    yDirFit, wakeCooling, yearMetricDrawer, yearMetricMode, yearMetricTitle, yearMetricNote,
+    yearMetricDays, yearMetricCardRows, openYearMetricDay, openYearMetricCard, onYearDrill,
+    openTodayBattle, openDayBattle, onHeroDrill, onHeroRefresh, gotoCompass, onHeroExport,
     onTodayDrill, onRhythmDrill, mEntTrend, mTopics, mUntagged, mFunnel, mCurioConv, mProjected, curioApi,
     mMature, onMonthDrill, onMonthTopic, onGoalDrill, errorLogCount, refreshErrorCount, offErrLog, exportErrorLog, fmtDayKey,
     fmtDay,

@@ -143,13 +143,15 @@ check('W2-4 ★W12-D 退役重指带备案：日详情中央弹窗的 Teleport +
   return hm.includes('<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />')
     && !hm.includes('tablesToCsv') && !hm.includes('exportCsv') && !hm.includes('exportMd');
 });
-check('W2-5 ★HTML 分享导出真在位：exportView.heatmapShareHtml 生成自包含单文件 HTML（内联 CSS、tok() 现取 --heat-0..5、escHtml 转义），Heatmap.exportHtml 调用之；PNG 导出走 pngBlobFromSpec 现取主题令牌', () => {
-  const ev = codeOnly(read('/shared/utils/exportView.ts'));
+check('W2-5 ★HTML / PNG 分享导出真在位：Heatmap 已与日战报统一走知源卡片模板，exportHtml 调用 zyCardHtml、exportPng 调用 zyCardBlob；导出网格直接消费现役 yearCells 坐标，HTML 含真实格子图', () => {
+  const zy = codeOnly(read('/shared/utils/zyCard.ts'));
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
-  return ev.includes('heatmapShareHtml') && ev.includes('HeatmapShareSpec')
-    && ev.includes("'--heat-0'") && ev.includes('escHtml')
-    && hm.includes('exportHtml') && hm.includes('heatmapShareHtml')
-    && hm.includes('pngBlobFromSpec');
+  return zy.includes('export function zyCardHtml(') && zy.includes('export function zyCardBlob(')
+    && zy.includes('const grid = spec.grid') && zy.includes('grid-template-columns:repeat(${spec.grid.cols}')
+    && hm.includes('import { zyCardBlob, zyCardHtml }')
+    && hm.includes('zyCardBlob(buildZyCard())') && hm.includes('zyCardHtml(buildZyCard())')
+    && hm.includes('grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: 7 }')
+    && !hm.includes('heatmapShareHtml') && !hm.includes('pngBlobFromSpec');
 });
 check("W2-6 ★W12-D 退役重指带备案：日详情「查看全部记录 ›」的 open-log 出口随日详情一起迁到 TodayBattleHost —— 打开全量抽屉并按该日预筛、且先关日详情弹窗再开抽屉（遮罩不叠两层）这条语义一字未改，只是宿主从 HeatmapModule/Heatmap 换成 TodayBattleHost。判据：① 新宿主有 onOpenLog/logOpen/logPreset 且挂 DashboardLogDrawer ② 新宿主把 DayDetail 的 @open-log 接上（不再是 Heatmap emit，因为日详情已解耦出热力图）③ 预筛三字段（from/to = day）与「先关弹窗」那句动作都在", () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');

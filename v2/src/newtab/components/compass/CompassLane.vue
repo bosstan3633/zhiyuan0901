@@ -15,6 +15,7 @@
 import Icon from '@/shared/components/Icon.vue'
 import './hotzone.css'
 import { computed, ref } from 'vue'
+import CompassLevelTag from './CompassLevelTag.vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
 
@@ -82,6 +83,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         :aria-label="dotTitle"
         @click="emit('toggle', m.id)"
       >{{ dotGlyph }}</button>
+      <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
       <!-- ★指标名就地改名：与树里 战略目标/项目 同一套 contenteditable 机制（父组件 startEdit/saveEdit），
            不用 prompt —— prompt 会打断「连续改名」的手感，且四层节点的改名口径必须一致。 -->
       <h4

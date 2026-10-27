@@ -22,7 +22,7 @@ import ResourceEditForm from './ResourceEditForm.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../stores/app'
-import { onOpenDrawer, consumePendingDrawer, type DrawerPayload } from '@/shared/utils/bus'
+import { onOpenDrawer, consumePendingDrawer, emitDrawerClosed, type DrawerPayload } from '@/shared/utils/bus'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import { projectCardToBoard } from '@/shared/storage/hub'
 import { togglePinOf } from '@/newtab/composables/useResourcePin'
@@ -88,6 +88,7 @@ function openFromId(id: string) {
 }
 
 function close() {
+  if (resId.value) emitDrawerClosed({ kind: 'res', id: resId.value })
   open.value = false
   resId.value = null
   highlight.value = false

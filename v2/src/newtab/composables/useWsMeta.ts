@@ -11,6 +11,7 @@ import { CURATION_WS_ID, type AppData, type Workspace } from '@/shared/models'
 import { wsDisplayNameOf, wsNameWithIcon } from '@/shared/utils/wsName'
 // R146（回退契约）：删除策展台走真源（卡与分类软删 + 3 秒整台撤销）
 import { deckCardCount, deleteDeck, restoreDeck } from '@/shared/utils/compassCrud'
+import { DECK_DELETE_UNDO_WINDOW_MS } from '@/shared/utils/undo'
 
 export interface WsMetaCtx {
   store: { persist(): void }
@@ -122,11 +123,11 @@ export function useWsMeta(ctx: WsMetaCtx) {
     if (!snap) { showToast('⚠ 该策展台已不存在'); return }
     store.persist()
     router.push('/compass')
-    showToast(`已删除策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡进回收站，池卡未受影响`, { label: '撤销', cb: () => {
+    showToast(`已删除策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡、${snap.argCardIds.length} 张论证卡进回收站，池卡未受影响`, { label: '撤销', cb: () => {
       restoreDeck(d.value, snap)
       store.persist()
-      showToast(`✓ 已恢复策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」及其 ${snap.cardIds.length} 张卡`)
-    } })
+      showToast(`✓ 已恢复策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」及其 ${snap.cardIds.length} 张资源卡、${snap.argCardIds.length} 张论证卡`)
+    } }, { duration: DECK_DELETE_UNDO_WINDOW_MS, sticky: false, undoWindowMs: DECK_DELETE_UNDO_WINDOW_MS })
   }
 
   return {

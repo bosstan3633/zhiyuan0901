@@ -392,7 +392,14 @@ check('R129-7 B7 今日边界零点精确翻篇定时器（30s 心跳与 todayIn
 check('R129-8 ★ B8 批量移动只落 natives 源卡真写库（此前对镜像浅拷贝写字段不落库却谎报成功）+ 待分类解析排除软删', () => { const b = read('/newtab/composables/useWorkspaceBatch.ts'); const i = b.indexOf('natives.forEach(r => { r.workspaceId'); return i >= 0 && b.slice(i, i + 120).includes('r.categoryId = catId') && b.includes("find(c => !c.deletedAt && c.workspaceId === moveWsId.value && c.name === '待分类')"); });
 check('R129-9 B9 搜索收缩后键盘导航：空列表守卫（Enter 不再传 undefined）+ taskNavIndex 钳制回末尾', () => { const t = read('/newtab/components/compass/TaskManagerPanel.vue'); return t.includes('if (!list.length) { taskNavIndex.value = -1; return }') && t.includes('if (taskNavIndex.value > list.length - 1) taskNavIndex.value = list.length - 1'); });
 check('R129-10 ★ B10 周口径翻周：新周分支归零 thisWeekUsage + 读数统一走 weekUsageOf（跨周不再冒充累计）+ 周窗锚点按日期分量减（DST 安全，DAY 常量退役）· R172-T9 重指：周窗真源已并入 `reviewReport.ts`', () => { const s = read('/shared/storage/stats.ts'); const rr = read('/shared/utils/reviewReport.ts'); const m = read('/newtab/components/compass/MetricBar.vue'); return s.includes('export function weekUsageOf') && s.includes('data.stats.wrr.thisWeekUsage = 0') && s.includes('data.stats.wrr.thisWeekStart = wk') && m.includes('weekUsageOf(d.value)') && rr.includes('new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow - 7)') && rr.includes('const dow = (d.getDay() + 6) % 7') && !rr.includes('const DAY ='); });
-check('R129-11 B11 书签导入：目标分类解析必须排除软删分类（同名「待分类」在回收站时，导入的卡既不显示也不可恢复）（★R4-Db 重指带备案：判据跟着唯一实现搬到 useBookmarkImport，且本轮把它从「只有旧那一份有」变成「存活那一份也有」——旧设置页那份一直在裸查同名分类，正是本条当年修的同一个坑，合一后才带上 !c.deletedAt；前半条 bkBookmarks 改 ref 随文件夹勾选弹窗一并退役（弹窗没了就没有响应式计数问题），零命中判据防回流）', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const im = codeOnly(read('/newtab/composables/useWorkspaceImport.ts')); return bk.includes('find(c => !c.deletedAt && c.workspaceId === target.id') && bk.includes('c.name === \'待分类\'') && !bk.includes('const bkBookmarks') && !im.includes('const bkBookmarks') && !im.includes('bookmarkModalOpen'); });
+check('R129-11 B11 书签导入（V3.9.23 重指）：直接写资源卡池，不再解析目标分类，因此不存在同名「待分类」命中软删分类的问题；旧目标分类查询与文件夹勾选弹窗必须零回流', () => {
+  const bk = read('/newtab/composables/useBookmarkImport.ts');
+  const im = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
+  return bk.includes('workspaceId: CURATION_WS_ID, categoryId: \'\'')
+    && !bk.includes('find(c => !c.deletedAt && c.workspaceId === target.id')
+    && !bk.includes('c.name === \'待分类\'')
+    && !bk.includes('const bkBookmarks') && !im.includes('const bkBookmarks') && !im.includes('bookmarkModalOpen');
+});
 check('R129-12 ★ B12 台名剥图标全站唯一口径 wsName.ts 双 helper（setWsIcon("") 吃首词数据腐蚀 + CuriosityPanel 漏转义致图标重复 双双退役）', () => { const n = read('/shared/utils/wsName.ts'); const wm = read('/newtab/composables/useWsMeta.ts'); const c = read('/newtab/components/compass/CuriosityPanel.vue'); return n.includes('export function wsDisplayNameOf') && n.includes('export function wsNameWithIcon') && !wm.includes('replace(/^[^\\s]+\\s/') && !c.includes('replace(/^[^s]+s/'); });
 check('R129-13 B12 铺开面：台名去图标消费点收编（GlobalSettings 下拉/回收站/App/浮层/全局弹窗 均走 wsName.ts 口径；R165-A 备案：资源抽屉与 useResourceDrawer 随策展台字段退役不再显示台名，出列）· ★R4-Dg 随迁备案（收紧不是放宽）：原判据只要求五个文件里出现 wsDisplayNameOf 这个字面量；本轮把「workspaceId → 展示名」整条取法收进 wsName.ts 的 wsNameById（内部仍走 wsDisplayNameOf，剥图标口径一字未动），字面量因此搬到共用入口，原判据会因"文件里不再直接写这个名字"而误红。改成三条腿：① 五个消费文件必须从 @/shared/utils/wsName 导入口径；② 消费点不许再留 ad-hoc 取法（裸 .name 拼兜底、find(w => w.id === id)?.name）；③ 池卡展示名必须由 POOL_DISPLAY_NAME / wsNameById 给，不得再由 workspace 实体的历史名（「资源台」）供给', () => {
   const files = ['/newtab/views/GlobalSettings.vue', '/newtab/views/RecycleBin.vue', '/newtab/App.vue', '/content/overlay-impl.ts', '/newtab/components/GlobalPopups.vue'];
@@ -427,10 +434,11 @@ check('R130-6 T4 三台左缘对齐线不变量：ws-page 1440 居中 + ws-conte
 
 // ============== R131 · V2.99.0：N1 三台对齐 + N2 项目目录侧栏 + 批次 C 性能 ==============
 console.log('【R131 · V2.99.0：N1/N2 体验修复 + 批次 C 性能】');
-check('R131-1 ★N1 策展台页头与论点带同轴（V3.9.13 重指：不再让论点独占一行；页头仍与 ws-content 的 36px 页轴对齐）', () => {
+check('R131-1 ★N1 策展台页头与论点带同轴（V3.9.23 重指：两条上下文在同一带内左右分栏，页头仍与 ws-content 的 36px 页轴对齐）', () => {
   const c = read('/newtab/views/workspace.css');
-  return /\.ws-hero \{[^}]*display: flex;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c)
-    && /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 220px;[^}]*max-width: 38%;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+  return /\.ws-hero \{[^}]*display: grid;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c)
+    && /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+    && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
     && c.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }')
     && !c.includes('padding: 4px 0 6px 22px');
 });

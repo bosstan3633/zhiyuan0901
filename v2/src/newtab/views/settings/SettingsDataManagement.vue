@@ -3,10 +3,10 @@
  * 设置 · 数据管理（V3.9.23）
  *
  * 合并原「导入数据 / 导出数据 / Airtable 同步」三个一级导航，内部用分段切换：
- * 数据包 / 书签导入 / 附件管理 / Airtable。数据包导入导出共用 dataPackage.ts；
+ * 数据包 / 附件管理 / Airtable。书签导入并入数据包，导入后直接进入资源卡池；
  * 附件本体只在「附件管理」读取，普通数据包不碰 Blob。
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
@@ -14,6 +14,7 @@ import { saveUIPrefs, loadUIPrefs } from '@/shared/storage/repository'
 import { testConnection, runSync, quotaHint, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 import { getAllAssetIndex, cleanupOrphanAssetsOf } from '@/shared/storage/assets'
 import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import DataCheckupCard from '../../components/DataCheckupCard.vue'
 import { downloadFile, dateStr } from './io-utils'
@@ -35,18 +36,23 @@ import {
   type AssetOwnerKind,
   type AssetRow
 } from './assetPack'
-import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import type { AssetMeta } from '@/shared/models'
+import type { ArgumentCard, CuriosityCard, ResourceCard, TaskCard } from '@/shared/models'
+import { wsNameById } from '@/shared/utils/wsName'
+import { emitOpenDrawer, onDrawerClosed } from '@/shared/utils/bus'
+import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'
+import CuriosityPanel from '@/newtab/components/compass/CuriosityPanel.vue'
+import ArgumentDetailDrawer from '@/newtab/components/curation/ArgumentDetailDrawer.vue'
 
 const props = defineProps<{
   formatBytes: (n: number) => string
   aiReady: boolean
   aiEnrichIds: (ids: Set<string>) => void
-  initialTab?: 'package' | 'bookmark' | 'assets' | 'airtable'
+  initialTab?: 'package' | 'assets' | 'airtable'
 }>()
 
 const store = useAppStore()
-type DataTab = 'package' | 'bookmark' | 'assets' | 'airtable'
+type DataTab = 'package' | 'assets' | 'airtable'
 const tab = ref<DataTab>(props.initialTab || 'package')
 const gd = computed(() => store.data!)
 watch(() => props.initialTab, v => { if (v) tab.value = v })
@@ -55,7 +61,6 @@ watch(() => props.initialTab, v => { if (v) tab.value = v })
 const packageInput = ref<HTMLInputElement | null>(null)
 const assetPackInput = ref<HTMLInputElement | null>(null)
 const bookmarkInput = ref<HTMLInputElement | null>(null)
-const bookmarkTargetWs = ref('__new__')
 const pendingImportEnrich = ref<string[] | null>(null)
 const importReceipt = ref('')
 
@@ -116,7 +121,7 @@ async function handleBookmarkFile(e: Event) {
     const { useBookmarkImport } = await import('@/newtab/composables/useBookmarkImport')
     const api = useBookmarkImport({ d: gd, persist: () => store.persist() })
     const fakeEvent = { target: { files: [file], value: '' } } as unknown as Event
-    const ids = await api.handleBookmarkImport(fakeEvent, bookmarkTargetWs.value)
+    const ids = await api.handleBookmarkImport(fakeEvent)
     if (ids.length) pendingImportEnrich.value = ids
   } finally { bookmarkBusy.value = false }
 }
@@ -143,6 +148,52 @@ const assetOwnerKind = ref<'all' | AssetOwnerKind>('all')
 const filteredAssetRows = computed(() =>
   filterAssetRows(assetRows.value, assetQuery.value, assetKind.value, assetStorage.value, assetOwnerKind.value)
 )
+const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
+const curiosityPanelRef = ref<InstanceType<typeof CuriosityPanel> | null>(null)
+const argumentDrawerOpen = ref(false)
+const argumentDetailId = ref('')
+const argumentDetail = computed<ArgumentCard | null>(() =>
+  (gd.value.argCards || []).find(card => card.id === argumentDetailId.value && !card.deletedAt) || null)
+const argumentWorkspaceName = computed(() =>
+  argumentDetail.value ? wsNameById(gd.value.workspaces, argumentDetail.value.workspaceId) || '未知策展台' : '')
+
+async function openAssetOwner(row: AssetRow): Promise<void> {
+  if (!row.owner.cardId) return
+  const owner = row.owner
+  if (owner.kind === 'resource') {
+    emitOpenDrawer({ kind: 'res', id: owner.cardId })
+    return
+  }
+  if (owner.kind === 'task') {
+    const task = gd.value.tasks.find(card => card.id === owner.cardId && !card.deletedAt) as TaskCard | undefined
+    if (task) taskDetailRef.value?.open(task)
+    return
+  }
+  if (owner.kind === 'curiosity') {
+    const curiosity = gd.value.curiosities.find(card => card.id === owner.cardId && !card.deletedAt) as CuriosityCard | undefined
+    if (curiosity) {
+      await nextTick()
+      curiosityPanelRef.value?.openDetail(curiosity.id)
+    }
+    return
+  }
+  const argument = (gd.value.argCards || []).find(card => card.id === owner.cardId && !card.deletedAt)
+  if (argument) {
+    argumentDetailId.value = argument.id
+    argumentDrawerOpen.value = true
+  }
+}
+
+function saveArgumentDetail(patch: Pick<ArgumentCard, 'title' | 'content' | 'assets'>): void {
+  const card = argumentDetail.value
+  if (!card) return
+  Object.assign(card, patch, { updatedAt: Date.now() })
+  store.persist()
+  argumentDrawerOpen.value = false
+  void refreshAssetRows()
+  showToast('论证卡已保存')
+}
+
 async function refreshAssetRows() {
   assetLoading.value = true
   try {
@@ -156,6 +207,18 @@ async function refreshAssetRows() {
     showToast('附件列表读取失败，请重试')
   } finally { assetLoading.value = false }
 }
+
+let offResourceDrawerClosed: (() => void) | null = null
+onMounted(() => {
+  void refreshAssetRows()
+  offResourceDrawerClosed = onDrawerClosed((payload) => {
+    if (payload.kind === 'res') void refreshAssetRows()
+  })
+})
+onUnmounted(() => {
+  offResourceDrawerClosed?.()
+  offResourceDrawerClosed = null
+})
 
 async function packAssets() {
   if (!assetRows.value.length) { showToast('暂无附件可打包'); return }
@@ -324,7 +387,6 @@ function backupAgo(ts?: number) {
   return new Date(ts).toLocaleDateString('zh-CN')
 }
 
-onMounted(() => { void refreshAssetRows() })
 watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
 </script>
 
@@ -332,12 +394,11 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
 <div class="gs-panel">
   <div class="gs-page-header">
     <div class="gs-page-title"><Icon name="database" :size="13"/> 数据管理</div>
-    <div class="gs-page-desc">数据包备份迁移 · 书签导入 · 附件整体迁移 · Airtable 单向同步</div>
+    <div class="gs-page-desc">数据包备份迁移 · 书签直接入池 · 附件整体迁移 · Airtable 单向同步</div>
   </div>
 
   <div class="dm-tabs">
     <button class="dm-tab" :class="{ on: tab === 'package' }" @click="tab = 'package'">数据包</button>
-    <button class="dm-tab" :class="{ on: tab === 'bookmark' }" @click="tab = 'bookmark'">书签导入</button>
     <button class="dm-tab" :class="{ on: tab === 'assets' }" @click="tab = 'assets'">附件管理</button>
     <button class="dm-tab" :class="{ on: tab === 'airtable' }" @click="tab = 'airtable'">Airtable</button>
   </div>
@@ -377,38 +438,26 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
         </div>
       </div>
     </div>
-    <DataCheckupCard />
-  </template>
-
-  <!-- 书签导入 -->
-  <template v-else-if="tab === 'bookmark'">
     <div class="gs-card">
-      <div class="gs-card-header"><span class="gs-card-title">浏览器书签 HTML</span><span class="gs-card-desc">不读取浏览器标签页；文件夹层级写入标签</span></div>
+      <div class="gs-card-header"><span class="gs-card-title">浏览器书签</span><span class="gs-card-desc">解析后直接进入资源卡池；文件夹路径转为资源标签</span></div>
       <div class="gs-card-body">
         <div class="gs-setting-row">
           <span class="gs-sr-label">导入书签</span>
-          <div class="gs-sr-control">
+          <div class="gs-sr-control gs-sr-control-wrap">
+            <span class="gs-sr-hint">选择浏览器导出的书签 HTML。不会创建策展台，也不需要选择归属；有效链接会直接生成资源卡。</span>
             <button class="gs-btn gs-btn-primary" :disabled="bookmarkBusy" @click="bookmarkInput?.click()">{{ bookmarkBusy ? '导入中…' : '选择书签 HTML' }}</button>
           </div>
         </div>
-        <div class="gs-setting-row">
-          <span class="gs-sr-label">导入到</span>
-          <div class="gs-sr-control">
-            <select class="gs-select" v-model="bookmarkTargetWs">
-              <option value="__new__">新建「书签导入 &lt;今天日期&gt;」策展台</option>
-              <option v-for="w in store.workspaces" :key="w.id" :value="w.id">{{ w.icon }} {{ wsDisplayNameOf(w) }}</option>
-            </select>
-          </div>
-        </div>
         <div v-if="pendingImportEnrich?.length" class="gs-setting-row gs-setting-row--gap">
-          <span class="gs-sr-label">刚导入 {{ pendingImportEnrich.length }} 张卡</span>
+          <span class="gs-sr-label">刚导入 {{ pendingImportEnrich.length }} 张资源卡</span>
           <div class="gs-sr-control">
-            <button class="gs-btn" :disabled="!props.aiReady" @click="aiImportEnrichNow">{{ props.aiReady ? '归类并补全这批' : '先在 AI 助手完成接入' }}</button>
+            <button class="gs-btn" :disabled="!props.aiReady" @click="aiImportEnrichNow"><AiEntryButton variant="inline" :label="props.aiReady ? '可选：归类并补全' : '先在 AI 助手完成接入'" /></button>
             <button class="gs-btn" @click="pendingImportEnrich = null">这次不用</button>
           </div>
         </div>
       </div>
     </div>
+    <DataCheckupCard />
   </template>
 
   <!-- 附件管理 -->
@@ -430,7 +479,11 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
         </div>
         <div class="dm-asset-head"><span>附件</span><span>所属卡片</span><span>位置 / 链接</span><span>状态</span></div>
         <EmptyState v-if="!filteredAssetRows.length" size="inline" icon="paperclip" title="没有匹配的附件" hint="上传卡片附件后会在这里出现" />
-        <div v-for="r in filteredAssetRows" :key="r.assetId + r.owner.cardId" class="dm-asset-row">
+        <button v-for="r in filteredAssetRows" :key="r.assetId + r.owner.cardId" type="button" class="dm-asset-row"
+          :class="{ clickable: !!r.owner.cardId }" :disabled="!r.owner.cardId"
+          :aria-label="r.owner.cardId ? `打开所属卡片：${r.owner.cardTitle}` : undefined"
+          :title="r.owner.cardId ? '打开所属卡片详情' : ''"
+          @click="openAssetOwner(r)">
           <div class="dm-asset-main">
             <div class="dm-asset-name">{{ r.name }}</div>
             <div class="dm-asset-meta">{{ r.kind.toUpperCase() }} · {{ props.formatBytes(r.size) }} · {{ new Date(r.createdAt).toLocaleDateString('zh-CN') }}</div>
@@ -438,7 +491,7 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
           <div class="dm-asset-main"><div class="dm-asset-name">{{ r.owner.cardTitle }}</div><div class="dm-asset-meta">{{ r.owner.kind === 'resource' ? '资源卡' : r.owner.kind === 'task' ? '任务卡' : r.owner.kind === 'curiosity' ? '好奇心卡' : '论证卡' }}</div></div>
           <div class="dm-asset-main"><div class="dm-asset-meta">{{ r.owner.location }}</div><div class="dm-asset-link" :title="r.owner.originalLink || ''">{{ r.owner.originalLink || '—' }}</div></div>
           <div><span class="dm-badge" :class="r.storage === 'ok' ? 'ok' : 'miss'">{{ r.storage === 'ok' ? '正常' : '本体缺失' }}</span></div>
-        </div>
+        </button>
         <div class="gs-setting-row gs-setting-row--gap">
           <span class="gs-sr-label">孤儿附件</span>
           <div class="gs-sr-control"><span class="gs-sr-hint">删除未被任何卡片引用的残留本体（不可恢复）</span><button class="gs-btn" @click="cleanupOrphans">清理</button></div>
@@ -488,6 +541,11 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
   <input ref="packageInput" type="file" accept=".json" class="gs-file-hidden" @change="handlePackageImport" />
   <input ref="assetPackInput" type="file" accept=".zip" class="gs-file-hidden" @change="handleAssetPackImport" />
   <input ref="bookmarkInput" type="file" accept=".html,.htm" class="gs-file-hidden" @change="handleBookmarkFile" />
+
+  <TaskDetailDrawer ref="taskDetailRef" @closed="refreshAssetRows" />
+  <CuriosityPanel ref="curiosityPanelRef" details-only @closed="refreshAssetRows" />
+  <ArgumentDetailDrawer :open="argumentDrawerOpen" :card="argumentDetail" :workspace-name="argumentWorkspaceName"
+    @close="argumentDrawerOpen = false; refreshAssetRows()" @save="saveArgumentDetail" />
 </div>
 </template>
 
@@ -498,7 +556,11 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
 .dm-tab.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); font-weight: 600; }
 .dm-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
 .dm-search { flex: 1; min-width: 180px; }
-.dm-asset-head, .dm-asset-row { display: grid; grid-template-columns: 1.5fr 1.2fr 1.4fr 84px; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.dm-asset-head, .dm-asset-row { display: grid; grid-template-columns: 1.5fr 1.2fr 1.4fr 84px; gap: 12px; align-items: center; padding: 9px 8px; border-bottom: 1px solid var(--border); }
+.dm-asset-row { width: 100%; color: inherit; font: inherit; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--border); }
+.dm-asset-row.clickable { cursor: pointer; border-radius: 6px; }
+.dm-asset-row:disabled { cursor: default; }
+.dm-asset-row.clickable:hover, .dm-asset-row.clickable:focus-visible { background: var(--surface-2); }
 .dm-asset-head { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: var(--tracking-sm); }
 .dm-asset-main { min-width: 0; }
 .dm-asset-name { font-size: var(--fs-body); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

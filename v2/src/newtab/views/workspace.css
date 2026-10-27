@@ -9,8 +9,8 @@
 /* R123（要求 #4）：页头更紧凑——16px 标题 / 30~36px 高 */
 /* R131-N1：页头缩进 22px 对齐三台 .page-head 的 padding-left:22px——主界面标题在 36+22=58px，
    资源台此前贴 36px 渲染，标题比调度台/方向台偏左 22px（用户截图实证） */
-.ws-hero { display: flex; align-items: stretch; gap: 14px; padding-left: 22px; min-width: 0; }
-.ws-id-head { display: flex; align-items: center; gap: 8px; min-width: 220px; max-width: 38%; min-height: 52px; max-height: 56px; padding: 4px 2px 4px 0; overflow: hidden; }
+.ws-hero { display: grid; grid-template-columns: minmax(230px, 0.78fr) minmax(0, 1.55fr); align-items: stretch; gap: 14px; padding-left: 22px; min-width: 0; }
+.ws-id-head { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 52px; max-height: 56px; padding: 4px 2px 4px 0; overflow: hidden; }
 .wsh-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
 /* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
    不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */
@@ -26,11 +26,11 @@
 /* ★W5（V3.8.34）：论点横幅是默认视图就能看到的题眼（.py-root-card 只在金字塔视图出现），
    所以竖条与字阶两处都落：竖条 inset 3px 内画（同 .py-root-card，不与已有 accent 描边叠成双线），
    标题 14px → headline 档。徽标仍在前端留白处，竖条贴着卡内缘 3px 不与之抢位。 */
-.thesis-banner { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 10px; padding: 9px 13px; background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent) 4%, var(--surface)) 100%); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-md); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 6%, transparent), inset 3px 0 0 var(--accent); }
+.thesis-banner { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 9px 13px; background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent) 4%, var(--surface)) 100%); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-md); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 6%, transparent), inset 3px 0 0 var(--accent); }
 .thesis-banner.empty { background: var(--surface-2); border-color: var(--border); box-shadow: none; }
 .tb-badge { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; letter-spacing: .03em; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 4px; }
 .tb-badge.gray { color: var(--text-3); background: var(--surface-3); }
-.tb-title { flex: 0 1 auto; min-width: 96px; max-width: 42%; font-size: var(--fs-headline); font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; letter-spacing: -.01em; }
+.tb-title { flex: 0 1 auto; min-width: 96px; max-width: 54%; font-size: var(--fs-headline); font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; letter-spacing: -.01em; }
 .tb-title:hover { color: var(--accent); }
 .tb-desc { flex: 1 1 auto; min-width: 90px; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-open { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
@@ -206,7 +206,7 @@
 
 @media (max-width: 900px) {
   .ws-content { padding: 16px 18px 72px; }
-  .ws-hero { flex-direction: column; gap: 8px; padding-left: 0; }
+  .ws-hero { grid-template-columns: 1fr; gap: 8px; padding-left: 0; }
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
   .thesis-banner { align-items: flex-start; flex-wrap: wrap; gap: 7px 9px; }
   .tb-title, .tb-desc { flex-basis: 100%; }

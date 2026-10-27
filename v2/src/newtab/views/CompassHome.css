@@ -557,15 +557,10 @@
   gap: 12px;
   min-width: 0;
 }
-/* ★W17-C03（2026-10-20 用户拍板 · 方案 C）：右栏两块面板与左栏卡片等高。
-   高度由 useEqualHeight 用 ResizeObserver 量出来写进 --rail-top-h / --rail-bottom-h（页面根继承）；
-   量不到时回退 auto —— 右栏绝不被压成 0 高，也不会强行拉伸内部元素。
-   1200px 以下降级单列（见下方媒体查询），不强制等高。 */
-.rail-panel:not(.rail-panel-recent) { height: var(--rail-top-h, auto); display: flex; flex-direction: column; }
-.rail-panel:not(.rail-panel-recent) .stat-list { min-height: 0; }
-.rail-panel-recent { height: var(--rail-bottom-h, auto); display: flex; flex-direction: column; }
-.recent-list { flex: 1; min-height: 0; overflow-y: auto; }
-.rail-panel .rail-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
+/* 右栏只保留两块面板：顶部对齐、模块间距一致，但不强制与左栏等高。 */
+.rail-panel { display: flex; flex-direction: column; }
+.recent-list { min-height: 0; overflow-y: auto; }
+.rail-panel .rail-empty { display: flex; align-items: center; justify-content: center; }
 .rail-panel {
   overflow: hidden;
   border: 1px solid var(--border);
@@ -596,12 +591,6 @@
 }
 .rail-chip:hover { background: var(--surface-2); color: var(--text); }
 .rail-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-/* V3.9.18：好奇心培育面板——独立类名，不进 rail-panel 等高机制（--rail-top/bottom-h 只量前两块）、
-   不用 mini-list 类名（保住 98-r4-gates 的 mini-list×3 计数锚）；行样式复用 .mini-item。 */
-.curio-panel { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
-.curio-list { display: flex; flex-direction: column; gap: 2px; padding: 0 6px; }
-.curio-empty { padding: 18px 14px; color: var(--text-3); font-size: var(--fs-sub); }
-.curio-note { margin: 0; padding: 8px 14px 10px; border-top: 1px solid var(--border); color: var(--text-4); font-size: var(--fs-caption); line-height: 1.5; }
 .rail-head button {
   min-height: 28px;
   padding: 2px 6px;

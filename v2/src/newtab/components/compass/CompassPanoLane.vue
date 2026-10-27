@@ -14,6 +14,7 @@
  */
 import Icon from '@/shared/components/Icon.vue'
 import { ref } from 'vue'
+import CompassLevelTag from './CompassLevelTag.vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
@@ -89,6 +90,7 @@ function priOf(t: TaskCard): string {
     <header class="lane-h">
       <div class="lane-top">
         <span class="lane-i">{{ idx }}</span>
+        <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
         <span class="lane-n" :title="m.title">{{ m.title }}</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>

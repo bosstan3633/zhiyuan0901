@@ -32,13 +32,16 @@ check('W13-1 ★V3.9.3 首屏结构与全页指标零重复：Hero 只保留「�
     && PI_C.includes('heroStreak') === false && PI_C.includes('currentStreak') === false;
 });
 
-check('W13-2 ★四模块全部配备「一句人话诊断条」且零入台不失语：四组件各恰一枚 .one-insight（恒渲染），★W13-T7 起四条文本与 CTA 单一真源 = reviewReport.buildConciseInsights（宿主 conciseCtx → concise 注入，形状 ConciseInsight{html,warn,ctaLabel,ctaAction} 改 v-html）；宿主三段手写 insight（todayInsight/mInsight/yInsight）与 PiRhythm 组件内 weekInsight 全部退役（codeOnly 零命中）⇒ "同一页四条诊断四种写法"这个病灶不复现。负锚：PiToday 不许再有 todayAdd === 0 的静默隐藏分支', () => {
-  const c = [TODAY, RHY, MONTH, YEAR];
+check('W13-2 ★现役三段保留「一句人话诊断条」，年度段按 V3.9.23 拍板只删提示条并保留四格与热力图：今天 / 本周 / 本月各恰一枚 .one-insight（恒渲染），文本与 CTA 单一真源 = reviewReport.buildConciseInsights；宿主三段手写 insight 与 PiRhythm 组件内 weekInsight 继续零命中。负锚：PiToday 不许再有 todayAdd === 0 的静默隐藏分支', () => {
+  const c = [TODAY, RHY, MONTH];
   const oneEach = c.every(s => (s.match(/class="one-insight"/g) || []).length === 1);
-  const injected = c.every(s => s.includes('insight: ConciseInsight') && s.includes('v-html="insight.html"') || s.includes('v-html="props.insight.html"'));
+  const injected = c.every(s => (s.includes('insight: ConciseInsight') && s.includes('v-html="insight.html"')) || s.includes('v-html="props.insight.html"'));
   return oneEach && injected
+    && (YEAR.match(/class="one-insight"/g) || []).length === 0
+    && !YEAR.includes('insight: ConciseInsight') && !YEAR.includes('@insight-action')
     && PI.includes('buildConciseInsights(') && PI.includes('const conciseCtx') && PI.includes('const concise = computed')
-    && ['concise.today', 'concise.week', 'concise.month', 'concise.year'].every(k => PI.includes(k))
+    && ['concise.today', 'concise.week', 'concise.month'].every(k => PI.includes(k))
+    && !PI.includes(':insight="concise.year"')
     && !PI_C.includes('todayInsight') && !PI_C.includes('mInsight') && !PI_C.includes('yInsight')
     && !codeOnly(RHY).includes('weekInsight') && !codeOnly(TODAY).includes('TodayInsight')
     && !codeOnly(MONTH).includes('MonthInsight') && !codeOnly(YEAR).includes('YearInsight')
@@ -133,14 +136,13 @@ check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘�
     && RP.includes('objectivesOf(') && PI.includes("openStatDrawer('goal-week')");
 });
 
-check('W13-T7d ★四条诊断的 CTA 走同一个分发出口：八个 ctaAction 键（openFocusBoard / bindFocus / callSupport / openBattle / openObjectives / openLog / convertCurio / wakeCooling·openLifecycle）全部在宿主 onConciseAction 一处分派，四组件 @insight-action 全接它 —— 此前四段各写各的 onXxxInsightAction（bind:N / call / battle / focus / convert / lc / mo-add / goal:八套键），"改一个动作要改四个出口"是不可维护的形状。F5 导出补四条 strip-html 诊断行 ⇒ 导出与界面同源', () => {
-  /* ★W17-C09（2026-10-20）重指：首屏右栏「今天三件事」退役后，概览不再挂 week/today 两条诊断；
-     四个时间尺度模块仍各自接 @insight-action（4 处），所有诊断仍只有 onConciseAction 一个分发器。 */
+check('W13-T7d ★现役三段诊断的 CTA 走同一个分发出口：八个 ctaAction 键全部在宿主 onConciseAction 一处分派，三组件 @insight-action 全接它；V3.9.23 年度诊断提示条按用户拍板退役后，绑定数由 4 收敛为 3，但分发器和键集合不缩水。F5 导出补四条 strip-html 诊断行 ⇒ 导出与界面同源', () => {
+  /* ★V3.9.23：年度段只删提示条，四格与热力图保留；三条现役诊断仍只有一个分发器。 */
   const REPORT = read('/newtab/views/profileInsightsReport.ts')
   return PI.includes('function onConciseAction(action: string)')
     && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'convertCurio'", "'wakeCooling'", "'openLifecycle'"]
       .every(k => PI.includes(k))
-    && (PI.match(/@insight-action="onConciseAction"/g) || []).length === 4
+    && (PI.match(/@insight-action="onConciseAction"/g) || []).length === 3
     && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 0
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')
     && !PI_C.includes('onYearInsightAction') && !PI_C.includes('onRhythmInsight')

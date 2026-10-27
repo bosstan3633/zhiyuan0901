@@ -295,7 +295,7 @@ check('C101-G01-3 共享渲染树守卫循环与上限：节点 5000 / 资源 50
     && !SHARE_IMAGE.includes('Math.max(0.5');
 });
 
-check('C101-16 V3.9.14 画布视觉契约：金字塔向下、树状向右；树状连线按真实父子节点盒生成 SVG 折线；窄屏无页面级溢出', () => {
+check('C101-16 V3.9.23 连线连续性：金字塔向下、树状向右；树状按真实节点锚点生成 SVG 折线，节点/容器/字体/全屏/缩放变化均重算，端点咬合无发丝缝', () => {
   return CSS.includes('.mindmap-canvas[data-layout="pyramid"]')
     && CSS.includes('.mindmap-canvas[data-layout="tree"]')
     && CSS.includes('.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::after')
@@ -304,6 +304,11 @@ check('C101-16 V3.9.14 画布视觉契约：金字塔向下、树状向右；树
     && !CSS.includes('left: calc(25% - 6.5px)')
     && MAP.includes('class="mind-connectors"')
     && MAP.includes('M ${px} ${py} H ${mx} V ${cy} H ${cx}')
+    && MAP.includes("connectorObserver.observe(node)")
+    && MAP.includes("document.fonts.ready.then(scheduleTreeConnectors)")
+    && MAP.includes("window.addEventListener('resize', onViewportResize)")
+    && MAP.includes('const px = pr.right - sr.left - 1')
+    && MAP.includes('const cx = cr.left - sr.left + 1')
     && CSS.includes('.mind-connectors path')
     && CSS.includes('vector-effect: non-scaling-stroke')
     && CSS.includes('@media (max-width: 900px)')
@@ -362,19 +367,21 @@ check('C101-22 成果 HTML 回导：新建 / 合并双分支、按节点路径�
     && WS.includes('confirmMergeShareImport');
 });
 
-check('C101-23 删除策展台语义：本台原生卡软删进回收站，台内镜像投射仅移除引用，资源池源卡状态不变', () => {
+check('C101-23 删除策展台语义：资源卡、分类、论证卡软删进回收站；镜像投射与镜像分类释放且可随整台撤销恢复，资源池源卡不变', () => {
   const crud = read('/shared/utils/compassCrud.ts');
   const meta = read('/newtab/composables/useWsMeta.ts');
   const start = crud.indexOf('export function deleteDeck');
   const body = start >= 0 ? crud.slice(start, crud.indexOf('\n}', start) + 2) : '';
   return crud.includes("for (const r of d.resources) if (r.workspaceId === wsId && !r.deletedAt)")
-    && crud.includes("!(p.kind === 'card' && p.targetWsId === wsId)")
-    && body.includes('return { ws, index, cardIds, catIds }')
+    && crud.includes('for (const a of d.argCards || []) if (a.workspaceId === wsId && !a.deletedAt)')
+    && body.includes('argCardIds')
+    && crud.includes('mirrorResourceCategoryIds') && crud.includes('mirrorProjectionTargets')
+    && crud.includes('r.categoryId = row.categoryId')
     && !body.includes('pruneMirrorCats(d, wsId)')
-    && meta.includes('本台原生资源卡')
+    && meta.includes('本台原生资源卡') && meta.includes('张论证卡进回收站')
     && meta.includes('镜像引用会移除')
     && meta.includes('资源卡池里的源卡状态不变')
-    && meta.includes('池卡未受影响');
+    && meta.includes('池卡未受影响') && meta.includes('DECK_DELETE_UNDO_WINDOW_MS');
 });
 
 check('C101-18 全台检索覆盖节点与节点下资源卡，资源 chip 右键菜单从画布可达', () => {

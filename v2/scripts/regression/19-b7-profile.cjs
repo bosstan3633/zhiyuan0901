@@ -176,10 +176,11 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-6 ★四段内容能力零损失：三段式结构（诊断条 + strip4 + 内容）四段都在、',
-  '各段专属出口（今日=战报 / 本周=错误+柱+目标 / 本月=主题+漏斗 / 本年=热力+生命周期）一个不少，',
+  'A3-6 ★四段内容能力零损失：今天 / 本周 / 本月保留诊断条 + strip4 + 内容；年度段按 V3.9.23 拍板去掉诊断条，',
+  '但 strip4 四格与热力图 / 生命周期两个专属出口一个不少；',
   '本批新增的发丝线与徽标不许顶掉任何一个既有出口'), () => {
-  return [TODAY, RHY, MONTH, YEAR].every(s => (s.match(/class="one-insight"/g) || []).length === 1)
+  return [TODAY, RHY, MONTH].every(s => (s.match(/class="one-insight"/g) || []).length === 1)
+    && (YEAR.match(/class="one-insight"/g) || []).length === 0
     && [TODAY, RHY, MONTH, YEAR].every(s => s.includes('class="strip4"'))
     /* ★W17-C09 重指：今日段三行对账退役（bind/归位能力唯一归调度台），',
        改为守「打开战报 + 焦点格去调度台」两个专属出口。 */

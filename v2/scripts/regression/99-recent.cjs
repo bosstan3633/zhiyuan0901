@@ -224,14 +224,16 @@ check('R169-15 ★R2-② 重指带备案（2026-10-16 P5 翻转）：原「槽�
     && h.includes('openCellTask')
 });
 check('R169-16 ★有意偏离原型并备案', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('展开关联任务树') && pc.includes('metric-head2') && pc.includes('openTaskAdd') && pc.includes('removeMetric');  });
-check('R169-17 ★设置页导入导出文案（V3.7.0 重指：资源台「按文件夹建分类」括注随退役下线，书签导入单路径说清）：模板可见文字零轮次号（注释里的轮次号是开发者账，不算失真）；"导入前自动备份"与"附件要两步迁"写进界面而不是只存在于代码里', () => {
+check('R169-17 ★设置页导入导出文案（V3.9.23 重指：书签并入数据包并直接入池，不再创建策展台）：模板可见文字零轮次号；"导入前自动备份"、书签直入资源卡池与"附件要两步迁"都写进界面', () => {
   const gs = read('/newtab/views/GlobalSettings.vue')
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue')
   const tplRaw = dm.slice(dm.indexOf('<template>'), dm.lastIndexOf('</template>'))
   const tpl = codeOnly(tplRaw) /* 只判模板：注释里的轮次号是开发者账（且本文件 script 在 template 之后，整段切会连脚本一起判） */
   const ws = read('/newtab/views/Workspace.vue'); const man = read('/newtab/manual-data.ts')
   return !/第[卌卅卄一二三四五六七八九十]{1,4}轮/.test(tpl)
-    && dm.includes('不读取浏览器标签页；文件夹层级写入标签') && !dm.includes('前 2 级文件夹建成分类')
+    && dm.includes('解析后直接进入资源卡池；文件夹路径转为资源标签')
+    && dm.includes('不会创建策展台，也不需要选择归属')
+    && !dm.includes('前 2 级文件夹建成分类')
     && dm.includes('导入前会自动下载当前数据备份')
     && !ws.includes('文件夹结构生成为分类（最多 2 级）')
     && man.includes('两步') && man.includes('不在 JSON 里')
@@ -246,10 +248,11 @@ check('R169-19 ★AI 徽标换骨第二轮（② 渐变实心脸）：图形仍�
     && !/#[0-9a-fA-F]{3,6}/.test(css.replace(/#fff\)/g, ''))
     && !/<path|<circle|<rect/.test(zm) && zm.includes('<use href="#zy-ai-mark"')
 });
-check('R169-20 ★accent 底上的徽标必须反相（本轮最贵的视觉陷阱）：三处"底色翻 accent + 文字翻白"且直接挂着 AiEntryButton 的宿主各自声明 --ai-mark-fill:#fff / --ai-mark-eye:var(--accent)。★这里只做"点名核对"，不做全仓自动扫——扫过一版就要红一遍：文件里别处存在 .mini-btn.primary 这类 accent 规则会被误判成冲突（宿主类名相同但元素不是它）。真正的"糊没糊"由 theme-audit 在真 DOM 上 hover 后读计算 fill 来判（活体门禁），那条才是这类视觉问题的正确归属', () => {
+check('R169-20 ★accent 底上的徽标必须反相：仍直接翻 accent 底并挂 AiEntryButton 的论点 AI 钮保留 --ai-mark-fill:#fff / --ai-mark-eye:var(--accent)；任务详情 AI 组改为中性底 + accent-light hover，不再翻实心 accent，因此旧反相锚退役。真正的"糊没糊"由 theme-audit 在真 DOM 上 hover 后读计算 fill 来判', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const tdd = read('/newtab/components/compass/TaskDetailDrawer.vue'); const tab = read('/newtab/components/ThesisAiBtn.vue')
   const ov = '--ai-mark-fill: #fff; --ai-mark-eye: var(--accent)'
-  return tdd.includes('.ts-ai-cell:hover { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px var(--accent-glow); ' + ov + '; }')
+  return tdd.includes('.ts-ai-cell:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }')
+    && !tdd.includes('.ts-ai-cell:hover { background: var(--accent)')
     && tab.includes('.th-ai-btn:hover { background: var(--accent); color: #fff; ' + ov + '; }')
     && ch.includes('.why-trigger.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }')
     && !ch.includes('.focus-why-ico')
@@ -587,7 +590,7 @@ check('R172-5 ★W10 退役重指带备案：概览带 UI 随时间轴三段式�
     && pi.includes('const dashStats = dash.stats')
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('useDashboardStats');
 });
-check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格（周一~周日 + future/today/sel 三态）+ 六档语义图例（LV_NAME 单一真源；不出现分档裸代号）+ 4 张摘要卡（活跃天数/有效动作/最长连续/最猛的一天「MM-DD · 档名」）+ P90 由实际数据算出（非硬编码）+ 切年。★V3.9.21 重指带备案：呈现从「12 月块 × 366 格」改为「单行全年 53 周列 × 7 天行」（用户拍板切回单行全年）——所守行为一字未改（仍是 366 个日格 + 三态 + 六档图例 + 四摘要 + P90 + 切年），只换承重锚：月首偏移由 `grid-column-start` 改为 `coordOf()` 算列/行后落 `gridColumnStart`/`gridRowStart`，占位格依旧零渲染（这条纪律不随形态退役）', () => {
+check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格 + 三态 + 六档语义图例 + 4 张摘要卡 + P90 实算 + 切年。★V3.9.23 重指：按用户拍板改成 12 个自然月分组，月间留空列，但全年仍在一行内呈现；每天仍由 gridColumnStart / gridRowStart 落位，占位格零渲染', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
   return h.includes('LV_NAME') && h.includes('LV_DESC') && h.includes('LV_RANGE')
     && h.includes('longestStreak(') && h.includes('yearAgg(')
@@ -595,11 +598,13 @@ check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格（周一~周日 
     && h.includes('agg.p90')                    // P90 实算
     && h.includes('今年第 1') && h.includes('· ${LV_NAME[lv]}')  // 「MM-DD · 满格」带分隔
     && h.includes("'future'")
-    /* ★V3.9.21 重指：单行全年的落位由 coordOf 算出的列/行承担，
-       占位格仍是零渲染（不再是月块里的 grid-column-start: 首日偏移）。 */
-    && h.includes('function coordOf(') && h.includes('gridColumnStart: c.col + 2')
+    /* ★V3.9.23：12 个自然月分组，月间空列，全年仍单行。 */
+    && h.includes('const yearLayout = computed(() => {')
+    && h.includes('offset += cols + MONTH_GAP')
+    && h.includes('v-for="t in yearLayout.months"')
+    && h.includes('gridColumnStart: c.col + 2')
     && h.includes('gridRowStart: c.row + 2')
-    && !h.includes('grid-column-start:')
+    && !h.includes('function coordOf(')
     // ★ F8 可读性硬判据：图例区不得出现分档裸代号（大写 L+数字）
     && !/L[0-5]/.test(h);
 });
@@ -770,7 +775,7 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes("tcForm.title = props.prefill?.title || ''") && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('tcSaved.value = false');  /* ★V3.9.20 随迁备案：任务速记面板拆入 QuickAdd，prefill 改经 props 读取 */
 });
 
-check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项（★W2 重指带备案：热力图逐日 CSV/年度 MD 随迁取消，新增自包含 HTML 分享页）；PNG 走 canvas 自绘并现取当前主题令牌（不引 html2canvas：体积 + foreignObject 不吃外部样式表必然丢色）；CSV 出口全站并轨（抽屉那份不再自己 createObjectURL / 手写 BOM）。★V3.9.21 重指带备案：热力图呈现从「12 月块 4×3 网格（28px 热区）」改为「单行全年 53 周列」，故原锁 `repeat(4, minmax(0, 1fr))` + `@media (max-width: 1279px)` 两条月块专属形态锚改锁单行全年的承重件（`.dz-year` 列模板 / 横向滚动容器 / 12px 格子）；导出能力与「热力图只开 PNG/HTML」口径一字未改', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); const ev = codeOnly(read('/shared/utils/exportView.ts')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('grid-auto-rows: auto') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-year .dz-cell {') && !css.includes('@media (max-width: 1279px)') /* V3.9.21：月块形态退役后该断点随之删除；单行全年窄屏改为横滚，不再缩格子 */ && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ["gridTemplateColumns: `16px repeat(${weekCount}, minmax(0, 1fr))`", '<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'pngBlobFromSpec', 'heatmapShareHtml', 'exportHtml']) && !hm.includes('tablesToCsv') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL') && has(ev, ['getComputedStyle(document.documentElement)', "'--heat-5'", 'toBlob', 'heatmapShareHtml']); });
+check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项。★V3.9.23 重指：热力图按 12 个自然月分组但全年单行，导出与屏上共用 yearLayout 坐标；PNG/HTML 统一走知源卡片模板 zyCardBlob / zyCardHtml', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('grid-auto-rows: auto') && css.includes('min-width: 760px') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-year .dz-cell {') && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ["gridTemplateColumns: `16px repeat(${yearLayout.cols}, minmax(5px, 1fr))`", '<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'zyCardBlob(buildZyCard())', 'zyCardHtml(buildZyCard())', 'grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: 7 }']) && !hm.includes('tablesToCsv') && !hm.includes('heatmapShareHtml') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL'); });
 
 /* V3.9.15 · 方向台聚焦与调度闭环：用户反馈直接钉成静态合同。
    这一组只守“入口存在、语义不混、两个视图都接通”，不重测 E2E 已覆盖的点击路径。 */

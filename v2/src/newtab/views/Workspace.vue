@@ -28,10 +28,9 @@
           <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
           <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击打开论点卡详情' }}</span>
           <span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span>
-          <ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
         </template>
         <template v-else>
-          <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
+          <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click.stop="openThesisCreate">＋ 确立中心论点</button>
         </template>
       </div>
     </div>
@@ -179,11 +178,11 @@
       @update:fullscreen="mind.setFullscreenState($event.on, $event.fallback)" />
     </div>
 
-    <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats"
+    <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats" :ws-id="workspaceId" :ws-name="wsDisplayName"
       :root-count="mind.rootBranchCount.value" :resource-count="mind.linkedResourceCount.value"
       :attachment-count="metrics.attachmentCount"
       @close="thesisOpen = false" @save="saveThesisCard" @open-create="openThesisCreate"
-      @share="thesisOpen = false; shareOpen = true" />
+    />
 
     <CurationShareDrawer :open="shareOpen" :workspace-name="wsDisplayName" :thesis="thesisCard"
       :nodes="wsCats" :cards="shareCards" @close="shareOpen = false" />
@@ -388,7 +387,7 @@ import { useCompass } from '@/newtab/stores/compass'
 import { recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R161-④：关联资源卡（镜像）弹窗整体抽出（宿主回到 ≤1500 行验收线 + 换 R161 新壳 Modal.vue）
 import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'

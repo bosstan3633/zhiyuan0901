@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount, onDeactivated, nextTick, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onDeactivated, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -13,7 +13,6 @@ import type { TaskCard, Project, FocusSlot, CuriosityCard, ResourceCard } from '
 import { showToast } from '@/shared/components/toast'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
-import { useEqualHeight } from '@/newtab/composables/useEqualHeight'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { weekUsageOf } from '@/shared/storage/stats'
@@ -36,7 +35,6 @@ const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProj
 onMounted(() => {
   refreshWce?.()
   /* ★W17-C03：等高测量等首帧渲染完再量（DOM 未挂时量到的是 0） */
-  nextTick(() => onEqualHeightReady())
 })
 
 /* ★W17-C02（2026-10-20）：打开链接统一走 useResourceOpen（协议分流 + 附件校验 + 三态 toast +
@@ -555,9 +553,6 @@ const todayOutCount = computed(() => {
   const t0 = todayStart.value
   return (d.value.resources || []).filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= t0).length
 })
-/** 好奇心培育（右栏）：最近 3 条好奇心，点击去卡池定位；转任务在卡池内操作（好奇与资源互不挂载） */
-const nurtureCuriosities = computed<CuriosityCard[]>(() => previewCuriosities.value.slice(0, 3))
-
 // ================= 底部专区（R55-B2：任务调度已迁方向台，好奇心培育单区直呈） =================
 // ===== ★W12-D（V3.8.16）：调度台「📈 复盘」→「📈 今日战报」，行为由跳转改为就地弹窗 =====
 // 历史轨迹：push('/settings?page=dashboard') → V3.8.9 W9 改指 /profile（仪表盘迁画像洞察页）→ 本轮改就地开弹窗。
@@ -570,19 +565,10 @@ function openReview(): void { battleHost.value?.openToday() }
 const focusDoneCount = computed(() => todayFocusList.value.filter(s => s.done).length)
 const mainFocus = computed<Project | null>(() => focusedProjects.value[0] || null)
 const extraFocus = computed<Project | null>(() => focusedProjects.value[1] || null)
-/* ★W17-C03（2026-10-20 用户拍板 · 方案 C）：右栏与左栏等高 + 最近调出按可用高度多显示。
- * 病根：右栏两块面板按内容自然伸缩，左栏卡片随数据变高，1440 下右下留大片空白、顶/底边都不齐。
- * 口径：ResizeObserver 测左侧两张卡实测高度 → CSS 变量（--rail-top-h / --rail-bottom-h）→ 右栏读取；
- *      最近调出条数按「第二块面板可用高度 ÷ 单行高度」动态算（预期 5-6 条），超出时列表内部滚动。
- * ★负锚：条数不许写死 slice(0,3)。 */
+/* 右栏已收口为「今天的状态」「最近调出」两块。保留最近调出上限的稳定口径；
+ * 不再用等高测量把两块面板强行拉成左栏高度，左右列只保证顶部与模块间距一致。 */
 const RECENT_ROW_H = 44
-const railAvailable = ref(0)
-const recentLimit = computed(() => {
-  const h = railAvailable.value
-  if (!h) return 5
-  /* 面板头 40px + 底部呼吸 8px，其余全部给列表 */
-  return Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))
-})
+const recentLimit = computed(() => 6)
 const recentResources = computed<ResourceCard[]>(() =>
   (d.value.resources || [])
     .filter(r => !r.deletedAt && r.lastCalledAt)
@@ -592,25 +578,6 @@ const recentResources = computed<ResourceCard[]>(() =>
 const workBoardRef = ref<HTMLElement | null>(null)
 const handBoardRef = ref<HTMLElement | null>(null)
 const deskLayoutRef = ref<HTMLElement | null>(null)
-const recentPanelRef = ref<HTMLElement | null>(null)
-const { measure: measureRail } = useEqualHeight({
-  top: workBoardRef, bottom: handBoardRef, host: deskLayoutRef
-})
-/* 右栏「最近调出」面板的实测高度 → 条数（与等高测量同一帧，避免两套 layout 读数打架） */
-let railRO: ResizeObserver | null = null
-function observeRailPanel() {
-  const el = recentPanelRef.value
-  if (!el || typeof ResizeObserver === 'undefined') return
-  railRO?.disconnect()
-  railRO = new ResizeObserver(() => { railAvailable.value = el.getBoundingClientRect().height })
-  railRO.observe(el)
-  railAvailable.value = el.getBoundingClientRect().height
-}
-function onEqualHeightReady() {
-  measureRail()
-  observeRailPanel()
-}
-onBeforeUnmount(() => { railRO?.disconnect(); railRO = null })
 const liveTasks = computed<TaskCard[]>(() =>
   (d.value.tasks || []).filter(t => !t.deletedAt && !t.lifecycleArchived)
 )
@@ -691,10 +658,10 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
     onStorageClick, atSync, atConfigured, atSyncErr, atPending,
     atChipText, atChipTitle, atSyncing, onSyncChipClick, focusMeta,
     readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
-    todayOutCount, nurtureCuriosities, battleHost, openReview, focusDoneCount,
-    mainFocus, extraFocus, RECENT_ROW_H, railAvailable, recentLimit,
-    recentResources, workBoardRef, handBoardRef, deskLayoutRef, recentPanelRef,
-    measureRail, railRO, observeRailPanel, onEqualHeightReady, liveTasks,
+    todayOutCount, battleHost, openReview, focusDoneCount,
+    mainFocus, extraFocus, RECENT_ROW_H, recentLimit,
+    recentResources, workBoardRef, handBoardRef, deskLayoutRef,
+    liveTasks,
     previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
     hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,

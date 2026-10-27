@@ -61,6 +61,7 @@ import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
 import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
 import PiYear from '@/newtab/components/profile/PiYear.vue'
+import PiYearMetricDrawer from '@/newtab/components/profile/PiYearMetricDrawer.vue'
 import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
 import { useCompass } from '@/newtab/stores/compass'
 import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
@@ -102,7 +103,9 @@ const {
   weekImportCount, lcCards, lcFind, onLcArchive, onLcSnooze,
   onLcReactivate, onLcSetDays, onLcLocate, lcSetOpen, lcDefaultDraft,
   saveLcDefault, lcFocus, yCoolHigh, yDirFit, wakeCooling,
-  onYearDrill, openTodayBattle, openDayBattle, onHeroDrill, onHeroRefresh,
+  onYearDrill, yearMetricDrawer, yearMetricMode, yearMetricTitle, yearMetricNote,
+  yearMetricDays, yearMetricCardRows, openYearMetricDay, openYearMetricCard,
+  openTodayBattle, openDayBattle, onHeroDrill, onHeroRefresh,
   gotoCompass, onHeroExport, onTodayDrill, onRhythmDrill, mEntTrend,
   mTopics, mUntagged, mFunnel, mCurioConv, mProjected,
   curioApi, mMature, onMonthDrill, onMonthTopic, onGoalDrill,
@@ -158,10 +161,10 @@ const {
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
           :events="timelineEvents" :live-link="linkCardCount"
           :lc-cards="lcCards" :all-events="timelineEvents"
-          :insight="concise.year" :focus-filter="lcFocus"
+          :focus-filter="lcFocus"
           @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
           @open-battle="openDayBattle"
-          @drill="onYearDrill" @insight-action="onConciseAction"
+          @drill="onYearDrill"
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
           @lc-settings="lcSetOpen = true" @ai-insight="openRangeAi" />
@@ -202,6 +205,11 @@ const {
       :page-size="STAT_PAGE" :reconcile="statReconcile" :reconcile-note="statReconcileNote"
       @close="statDrawer = ''" @update:search="statSearch = $event"
       @page="statGo" @open-card="openStatCard" />
+
+    <PiYearMetricDrawer
+      :open="!!yearMetricDrawer" :mode="yearMetricMode" :title="yearMetricTitle" :note="yearMetricNote"
+      :days="yearMetricDays" :cards="yearMetricCardRows"
+      @close="yearMetricDrawer = ''" @open-day="openYearMetricDay" @open-card="openYearMetricCard" />
 
     <!-- ★W13-D5/F28：「动态条明细抽屉」（dynDrawer）已退役——事件时间窗下钻统一走
      DashboardLogDrawer（month-add → openLog('month-in')；主攻动作 → openLogFocus()）。 -->

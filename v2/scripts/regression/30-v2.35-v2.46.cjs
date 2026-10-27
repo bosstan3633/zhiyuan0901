@@ -5,7 +5,6 @@
 const {
   fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, srcFileEntries, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
 } = require('./helpers.cjs');
-
 console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
 check('R65-1（V3.9.9 重指）工具能力分宿主保留：策展画布留搜索/成果导入/分享/模板；资源池留搜索/列表·网格/四档筛选/批量/新建/本地导入。旧四视图与工具栏建支按钮退役', () => {
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
@@ -49,7 +48,7 @@ check('R65-3（V3.9.8 重指）资源池批量栏：全选 / 反选 / 打标签 
     && bar.includes("emit('select-all')") && bar.includes("emit('invert')")
     && bar.includes("emit('apply-tag', t)");
 });
-check('R65-4（R73 修订；R100 拆入 useWorkspaceImport；R2-⑧ 本地文件宿主迁「资源卡池」面板；★R4-Db 再重指带备案：书签链路的持有者从 Workspace 改为 useBookmarkImport——Workspace 那枚 bookmarkInput 是全站零 .click() 的 parked input（入口早收在设置页），本轮连它和它的文件夹勾选弹窗一并删除；makeHubResource 随建树死链退役（hub 是已废弃旧称，它又硬编码池 id），书签卡构造式改名 makeBookmarkCard 且不再指向池）导入链路一条口径：书签=useBookmarkImport 持有 bookmarkInput + handleBookmarkImport + parseBookmarksHtml 且构造式不落池 id，本地文件=PoolCardsPanel 持有 fileImportInput + handleFileImport 且 workspaceId 钉成池 id', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = read('/newtab/composables/useWorkspaceImport.ts'); const w = codeOnly(read('/newtab/views/Workspace.vue')); const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return bk.includes('bookmarkInput') && bk.includes('handleBookmarkImport') && bk.includes('parseBookmarksHtml') && bk.includes('function makeBookmarkCard') && imp.includes('handleFileImport') && !imp.includes('bookmarkInput') && !w.includes('bookmarkInput') && !w.includes('handleBookmarkImport') && !codeOnly(w).includes('fileImportInput') && pool.includes('fileImportInput') && pool.includes('handleFileImport') && pool.includes('workspaceId: computed(() => CURATION_WS_ID)'); });
+check('R65-4（R73 修订；R100 拆入 useWorkspaceImport；R2-⑧ 本地文件宿主迁「资源卡池」面板；V3.9.23 重指）导入链路一条口径：书签由 useBookmarkImport 持有 input + parser，并直接把卡写入资源卡池（workspaceId=CURATION_WS_ID、categoryId 空）；本地文件由 PoolCardsPanel 持有 fileImportInput + handleFileImport，二者都不在 Workspace 台面挂 parked input', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = read('/newtab/composables/useWorkspaceImport.ts'); const w = codeOnly(read('/newtab/views/Workspace.vue')); const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return bk.includes('bookmarkInput') && bk.includes('handleBookmarkImport') && bk.includes('parseBookmarksHtml') && bk.includes('function makeBookmarkCard') && bk.includes("workspaceId: CURATION_WS_ID, categoryId: ''") && imp.includes('handleFileImport') && !imp.includes('bookmarkInput') && !w.includes('bookmarkInput') && !w.includes('handleBookmarkImport') && !codeOnly(w).includes('fileImportInput') && pool.includes('fileImportInput') && pool.includes('handleFileImport') && pool.includes('workspaceId: computed(() => CURATION_WS_ID)'); });
 check('R65-5/R66（V3.9.14 重指）金字塔居中树布局：旧 CSS Grid 的 pyLayout/placeCat 随四视图退役；现役画布以相对定位的 .mind-stage 承载节点与 SVG 连线层、.mind-children 横排子组、每个父分支纵向居中，树状布局则整体向右展开', () => {
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
   const c = read('/newtab/components/curation/curation.css');
@@ -308,7 +307,6 @@ check('R70-13 P2 主数据只有一个写口 ★R4-Fb 重指带备案：原锚�
   const r = read('/shared/storage/repository.ts');
   return bare.length === 0 && r.includes('export async function saveDataNow') && r.includes('mergeExternalData');
 });
-
 check('R70-14 P2 链接协议黑名单（javascript/data/vbscript/blob）', () => {
   return read('/shared/utils/link.ts').includes('javascript|data|vbscript|blob');
 });
@@ -529,12 +527,15 @@ check('R73-5 导入弹窗单形态（V3.7.0 重指）：只收策展台数据包
   const w = read('/newtab/views/Workspace.vue');
   return !w.includes("isHub ? '导入资源到资源台' : '导入策展台数据包'") && w.includes('导入策展台数据包（JSON）') && w.includes('boardImportInput?.click()');
 });
-check('R73-6（R100 拆入 useWorkspaceImport；★R4-Db 再重指：书签导入唯一实现搬到 useBookmarkImport）书签导入全链路一条走完：解析→根文件夹白名单→层级转标签→建/复用目标台与「待分类」→落库→回执；★其中「前 2 级建分类 + 文件夹勾选弹窗」两项按设计退役（判据见 R30-4），本条改为点名存活四件 + 退役两件零命中', () => {
+check('R73-6（R100 拆入 useWorkspaceImport；V3.9.23 重指）书签导入全链路一条走完：解析→根文件夹白名单→层级转标签→直接写入资源卡池→回执；不创建/复用目标策展台，不建「待分类」，旧建树与文件夹勾选弹窗继续零命中', () => {
   const bk = read('/newtab/composables/useBookmarkImport.ts');
   const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
   return bk.includes('function parseBookmarksHtml') && bk.includes('const BK_ROOT_NAMES = new Set(')
-    && bk.includes('async function handleBookmarkImport(') && bk.includes("name: '待分类'")
-    && bk.includes("'🔖 书签导入 '") && bk.includes('data.resources.unshift(card)') && bk.includes('persist()')
+    && bk.includes('async function handleBookmarkImport(')
+    && bk.includes("workspaceId: CURATION_WS_ID, categoryId: ''")
+    && bk.includes('data.resources.unshift(card)') && bk.includes('persist()')
+    && bk.includes('已导入 ${items.length} 张资源卡到资源卡池')
+    && !bk.includes("name: '待分类'") && !bk.includes("'🔖 书签导入 '")
     && ['function ensureBookmarkCategory', 'function confirmBookmarkImport', 'bkFolders'].every(k => !bk.includes(k) && !imp.includes(k));
 });
 // V3.7.0（R179）退役：hub 镜像推送入口（右键菜单 📡 isHub 门控 / 分类 ⋯ 📤 canMirror 门控 / 目标台弹窗）
@@ -883,7 +884,7 @@ check('R76-9（V3.9.8 重指）「待分类」入口仍有真实消费：下钻�
     && w.includes("mind.selectNode('root')")
     && w.includes('待分类资源尚未挂到论证分支——可在资源卡池中打开卡片并关联到具体节点');
 });
-check('R76-10（V3.9.8 重指）卡面所属分类与分组归属同源：宿主唯一 isUncat 定义注入下钻，镜像卡经 cardsByCat 进入同一节点资源列表', () => {
+check('R76-10（V3.9.8 重指）卡面分类与分组同源：宿主 isUncat 注入下钻，镜像卡经 cardsByCat 进入节点资源列表', () => {
   const w = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
   const drill = read('/newtab/composables/useCurationDrill.ts');
   const hook = read('/newtab/composables/useCurationMindMap.ts');

@@ -405,18 +405,22 @@ console.log('【第卅轮 · 信件模块化/书签导入分类树 · V2.10.0】
 check('R30-1 信件节头+停顿+信念行（应用内样式）', () => read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-h') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-turn') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-creed'));
 check('R30-2 信件 HTML 模块化结构（两处渲染共享）', () => read('/newtab/letter-data.ts').includes('<p class="lp-h">') && read('/newtab/letter-data.ts').includes('<p class="lp-turn">') && read('/newtab/letter-data.ts').includes('<p class="lp-creed">'));
 check('R30-3 分享版分节样式同构', () => read('/newtab/letter-data.ts').includes('.lp-body p.lp-h'));
-check('R30-4（R73 修订；R100 拆入 composable；V3.9.23 数据管理随迁）书签导入现役口径：浏览器导出的 HTML → 资源卡，文件夹层级只进标签，目标台内单「待分类」承接；旧「前 2 级建分类」与文件夹勾选弹窗继续零回流', () => {
+check('R30-4（R73 修订；R100 拆入 composable；V3.9.23 数据管理随迁）书签导入现役口径：数据包内导入浏览器 HTML → 直接写资源卡池（workspaceId=CURATION_WS_ID、categoryId 空），文件夹层级只进标签；不建目标策展台、不建「待分类」分类，旧建树与文件夹勾选弹窗继续零回流', () => {
   const bk = codeOnly(read('/newtab/composables/useBookmarkImport.ts'));
   const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
-  const retired = ['function ensureBookmarkCategory', 'cat.parentId = parentId', 'segs.slice(0, 2)', 'bkFolders', 'bookmarkModalOpen'];
+  const retired = ['function ensureBookmarkCategory', 'cat.parentId = parentId', 'segs.slice(0, 2)', 'bkFolders', 'bookmarkModalOpen', "name: '待分类'"];
   return retired.every(k => !bk.includes(k) && !imp.includes(k))
-    && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))') && bk.includes("name: '待分类'")
-    && !bk.includes('CURATION_WS_ID') && !imp.includes('CURATION_WS_ID')
+    && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))')
+    && bk.includes('workspaceId: CURATION_WS_ID, categoryId: \'\'')
+    && bk.includes('data.resources.unshift(card)') && bk.includes('persist()')
+    && bk.includes('已导入 ${items.length} 张资源卡到资源卡池')
+    && !imp.includes('CURATION_WS_ID')
     && bk.includes('parseBookmarksHtml') && bk.includes('浏览器导出的书签 HTML')
     && dm.includes("await import('@/newtab/composables/useBookmarkImport')")
     && dm.includes('useBookmarkImport({ d: gd, persist: () => store.persist() })')
-    && dm.includes('不读取浏览器标签页；文件夹层级写入标签');
+    && dm.includes('解析后直接进入资源卡池；文件夹路径转为资源标签')
+    && dm.includes('不会创建策展台，也不需要选择归属');
 });
 check('R30-5（R73 修订；R100 拆入 composable；★R4-Db 重指带备案：口径由「第 3 级+转标签（前 2 级已建分类）」改成「整条路径全部转标签」——建树那条已随上一条退役，层级不再有第二处去处；本条原先那条负判据禁的正是旧设置页那枚只排 书签栏 的公式，本轮唯一实现用的就是它当初要求的那一侧：按 BK_ROOT_NAMES 八枚排净，中英文与移动端栏名都不漏进标签）书签层级→标签唯一口径', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts')); const gs = codeOnly(read('/newtab/views/GlobalSettings.vue')); return bk.includes('!BK_ROOT_NAMES.has(p)') && bk.includes("const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签'") && !bk.includes('segs.slice(2)') && !bk.includes("p !== '书签栏'") && !imp.includes("p !== '书签栏'") && !gs.includes("p !== '书签栏'") && !gs.includes('function parseBookmarksHtml'); });
 

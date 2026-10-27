@@ -14,7 +14,7 @@ import { pushUndo, UNDO_WINDOW_MS } from '../utils/undo'
 
 export interface ToastAction { label: string; cb: () => void }
 export interface ToastItem { id: number; msg: string; action: ToastAction | null; n: number; sticky?: boolean }
-export interface ToastOpts { duration?: number; sticky?: boolean }
+export interface ToastOpts { duration?: number; sticky?: boolean; undoWindowMs?: number }
 
 /** G5（V3.8.27）：默认驻留 3s → **2.4s**（回执是确认，不是阅读材料；2.4s 够扫一眼又不挡事） */
 const TOAST_DURATION = 2400
@@ -44,7 +44,7 @@ function isBatchMsg(msg: string): boolean {
 }
 export function showToast(msg: string, act?: ToastAction, opts?: ToastOpts) {
   // R159（T1）：带撤销动作 → 自动登记进全局撤销栈（Ctrl/Cmd+Z 可再触发，窗口 9s）
-  if (act) pushUndo(msg, act.cb)
+  if (act) pushUndo(msg, act.cb, opts?.undoWindowMs)
   const sticky = opts?.sticky ?? (!!act && isBatchMsg(msg))
   const duration = sticky ? 0 : (opts?.duration ?? (act ? UNDO_WINDOW_MS : TOAST_DURATION))
   const last = items.value[items.value.length - 1]

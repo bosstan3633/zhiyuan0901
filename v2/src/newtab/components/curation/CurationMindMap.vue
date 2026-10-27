@@ -77,6 +77,7 @@ const connectors = ref<Connector[]>([])
 const connectorSize = ref({ width: 0, height: 0 })
 let connectorRaf = 0
 let connectorObserver: ResizeObserver | null = null
+let connectorStage: HTMLElement | null = null
 
 function childrenOf(id: string): Category[] {
   return props.nodes.filter(n => (n.parentId || '') === id).sort((a, b) => a.order - b.order)
@@ -262,6 +263,7 @@ function syncTreeConnectors(): void {
     connectorSize.value = { width: 0, height: 0 }
     connectorObserver?.disconnect()
     connectorObserver = null
+    connectorStage = null
     return
   }
   const stage = canvasRef.value?.querySelector<HTMLElement>('.mind-stage')
@@ -275,13 +277,14 @@ function syncTreeConnectors(): void {
     const children = branch.querySelector<HTMLElement>(':scope > .mind-children')
     if (!parent || !children) continue
     const pr = parent.getBoundingClientRect()
-    const px = pr.right - sr.left
+    // 端点咬进节点 1px，抵消亚像素取整和抗锯齿造成的发丝缝。
+    const px = pr.right - sr.left - 1
     const py = pr.top - sr.top + pr.height / 2
     for (const child of children.querySelectorAll<HTMLElement>(':scope > .mind-branch')) {
       const childNode = child.querySelector<HTMLElement>(':scope > .mind-node')
       if (!childNode) continue
       const cr = childNode.getBoundingClientRect()
-      const cx = cr.left - sr.left
+      const cx = cr.left - sr.left + 1
       const cy = cr.top - sr.top + cr.height / 2
       const mx = px + Math.max(18, (cx - px) / 2)
       next.push({ d: `M ${px} ${py} H ${mx} V ${cy} H ${cx}` })
@@ -290,8 +293,13 @@ function syncTreeConnectors(): void {
 
   connectors.value = next
   connectorSize.value = { width: Math.ceil(sr.width), height: Math.ceil(sr.height) }
-  if (!connectorObserver) {
+  if (!connectorObserver || connectorStage !== stage) {
+    connectorObserver?.disconnect()
     connectorObserver = new ResizeObserver(scheduleTreeConnectors)
+    connectorStage = stage
+    // 容器与每个节点都观察：标题换行、资源 chip 增减、搜索高亮都不改容器尺寸。
+    for (const node of stage.querySelectorAll<HTMLElement>('.mind-node')) connectorObserver.observe(node)
+    for (const childGroup of stage.querySelectorAll<HTMLElement>('.mind-children')) connectorObserver.observe(childGroup)
     connectorObserver.observe(stage)
   }
 }
@@ -341,6 +349,7 @@ function toggleFullscreen(): void {
 }
 
 function onFullscreenChange(): void {
+  scheduleTreeConnectors()
   const on = !!document.fullscreenElement
   if (on) {
     localFallback.value = false
@@ -359,9 +368,13 @@ function onFallbackKeydown(e: KeyboardEvent): void {
 
 watch(() => props.fullscreen, () => nextTick(syncOverlayHost))
 
+function onViewportResize(): void { scheduleTreeConnectors() }
+
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
   document.addEventListener('keydown', onFallbackKeydown)
+  window.addEventListener('resize', onViewportResize)
+  if (document.fonts) void document.fonts.ready.then(scheduleTreeConnectors)
   nextTick(scheduleTreeConnectors)
 })
 
@@ -371,6 +384,8 @@ onBeforeUnmount(() => {
   connectorObserver = null
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onFallbackKeydown)
+  window.removeEventListener('resize', onViewportResize)
+  connectorStage = null
   setOverlayFsHost(null)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => { /* 卸载后浏览器可能已退出 */ })
 })
