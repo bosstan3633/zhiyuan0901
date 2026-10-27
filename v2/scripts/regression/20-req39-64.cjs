@@ -44,7 +44,10 @@ check('R40-7（V3.9.8 随迁）REQ-051 附件能力仍在：资源池列表/网�
     && t.includes('<AssetBadge v-if="taskAssetsOn && task.assets?.length"')
     && c.includes("import AssetBadge") && c.includes('curioExtFields');
 });
-check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（R117 重写：curioExtFields = 除骨架三 key 外全参与 + 附件/sourceUrl 字段流 + cShow 骨架显隐）', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes("visibleFields(d.value.fieldConfig, 'curiosity')") && s.includes('const curioExtFields = computed(') && s.includes("f.key === 'assets'") && s.includes('class="cz-ext-src"') && s.includes('function cShow'); });
+/* ★R181 随迁带备案：字段消费逻辑随域逻辑下沉 curiosityPanelCore.ts，`d.value.fieldConfig` 在 composable 里
+   以解构入参 `fieldConfig` 出现（`visibleFields(fieldConfig, 'curiosity')`）；判据意图（按 fieldConfig.curiosity 消费）
+   与其余锚点一字未动。 */
+check('R40-8 REQ-051 好奇面板按 fieldConfig.curiosity 消费（R117 重写：curioExtFields = 除骨架三 key 外全参与 + 附件/sourceUrl 字段流 + cShow 骨架显隐）', () => { const s = read('/newtab/components/compass/CuriosityPanel.vue'); return s.includes("visibleFields(fieldConfig, 'curiosity')") && s.includes('const curioExtFields = computed(') && s.includes("f.key === 'assets'") && s.includes('class="cz-ext-src"') && s.includes('function cShow'); });
 check('R40-9 REQ-049 附件兜底：defaults 各型 assets def（R62 起 thesis 组亦含，四组）+ repository 老数据迁移', () => { const def = read('/shared/storage/defaults.ts'); const rep = read('/shared/storage/repository.ts'); return (def.split("key: 'assets'").length - 1) >= 4 && rep.includes('REQ-049：老数据字段配置补 assets'); });
 console.log('【第卌轮 · V2.16.0 第四批：REQ-052 死代码清理 + 版本门禁】');
 check('R40-10 REQ-052 fieldViewCfg 死代码全库零引用', () => { return !fs.existsSync(base + '/shared/models/index.ts') ? false : !read('/shared/models/index.ts').includes('fieldViewCfg') && !read('/shared/storage/repository.ts').includes('fieldViewCfg'); });

@@ -417,7 +417,11 @@ check('R83-6/R121 M3 项目卡头三读数 ★W11(V3.8.11)随迁带备案：读�
 });
 
 check('R83-7 ★性能红线 ★W11(V3.8.11)随迁带备案：方向台模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务。W11 更进一步：全部取数收进 compassMeta.ts 一次聚合成 Map，模板只做 O(1) 取值——本条改钉这条更强的口径。★V3.9.1 再随迁：指标任务桶扩为 `task.metricId / metric.taskIds` 双路单次建桶，仍不得在每个指标里各扫全表', () => {
-  const tpl = CT_W11.slice(CT_W11.indexOf('<template>'));
+  /* ★R181 随迁带备案：需求原文是"**模板内**不得逐项调 / 不得 filter 任务"，旧写法从 `<template>` 切到串尾
+     是个近似（拆分前脚本+模板+样式同文件、且脚本在模板之前，切到串尾≈只切到模板+样式）。宿主拆分后
+     逻辑成员追加在 `</style>` 之后会落进这个切片造成假红，故改切到 `</template>` —— 这才是"模板内"的字面口径，
+     判据意图（模板零逐项现算）一字未改。 */
+  const tpl = CT_W11.slice(CT_W11.indexOf('<template>'), CT_W11.indexOf('</template>'));
   /* 模板内零逐项调 */
   const noInline = !/projectProgress\(/.test(tpl) && !/isProjectStalled\(/.test(tpl);
   /* 模板内零 filter 任务（集中取数后不该再有） */

@@ -121,7 +121,12 @@ check('P0-S5 ★G1 五类处置各留一条正锚（防"下轮当成漏实现又
   const iconSrc = fs.readFileSync(path.join(SRC, 'shared/components/Icon.vue'), 'utf8');
   const lane = fs.readFileSync(path.join(SRC, 'newtab/components/compass/CompassLane.vue'), 'utf8');
   const toast = fs.readFileSync(path.join(SRC, 'shared/components/Toast.vue'), 'utf8');
-  const gs = stripAll(fs.readFileSync(path.join(SRC, 'newtab/views/GlobalSettings.vue'), 'utf8'));
+  /* ★R181 随迁带备案：设置页导航（含 D 类 `icon: 'trash'` 回收站项）随域逻辑下沉 useGlobalSettings.ts /
+     useGlobalSettingsPanels.ts，故把宿主与两个 composable 一并直读，等价于"设置页这一面"；锚点与口径一字未动。 */
+  const gs = stripAll(
+    fs.readFileSync(path.join(SRC, 'newtab/views/GlobalSettings.vue'), 'utf8')
+    + '\n' + fs.readFileSync(path.join(SRC, 'newtab/views/useGlobalSettings.ts'), 'utf8')
+    + '\n' + fs.readFileSync(path.join(SRC, 'newtab/views/useGlobalSettingsPanels.ts'), 'utf8'));
   const ws = stripAll(fs.readFileSync(path.join(SRC, 'newtab/views/Workspace.vue'), 'utf8'));
   const deck = stripAll(fs.readFileSync(path.join(SRC, 'newtab/components/compass/DeckControls.vue'), 'utf8'));
   const tokens = fs.readFileSync(path.join(SRC, 'shared/styles/tokens.css'), 'utf8');

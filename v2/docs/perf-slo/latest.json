@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-24T13:17:45.082Z",
+  "generatedAt": "2026-10-26T19:58:10.222Z",
   "source": "real-local-browser",
   "dist": "/Users/beantan/Downloads/zhiyuan0904/v2/dist",
-  "manifestVersion": "3.9.19",
+  "manifestVersion": "3.9.22",
   "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1148/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
   "platform": "darwin-arm64",
   "node": "v22.23.1",
-  "host": "Macmini",
+  "host": "beandeMac-mini.local",
   "budgets": {
     "overlay_open": 800,
     "cmdk_first_open": 1500,
@@ -21,15 +21,15 @@
       "label": "网页浮层唤起",
       "unit": "ms",
       "samples": [
-        113,
-        7,
-        8,
+        110,
         10,
-        12
+        16,
+        15,
+        16
       ],
       "sampleCount": 5,
-      "p50": 10,
-      "p95": 113,
+      "p50": 16,
+      "p95": 110,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -42,15 +42,15 @@
       "label": "⌘K / Ctrl+K 首屏",
       "unit": "ms",
       "samples": [
-        102,
-        48,
-        45,
-        41,
-        38
+        123,
+        70,
+        43,
+        26,
+        41
       ],
       "sampleCount": 5,
-      "p50": 45,
-      "p95": 102,
+      "p50": 43,
+      "p95": 123,
       "budgetP95": 1500,
       "pass": true,
       "notes": [
@@ -63,15 +63,15 @@
       "label": "搜索键入到结果更新",
       "unit": "ms",
       "samples": [
-        143.5,
-        127.9,
-        126.4,
-        128,
-        132.6
+        146.1,
+        139.8,
+        145.1,
+        138.1,
+        138.3
       ],
       "sampleCount": 5,
-      "p50": 128,
-      "p95": 143.5,
+      "p50": 139.8,
+      "p95": 146.1,
       "budgetP95": 400,
       "pass": true,
       "notes": [
@@ -84,20 +84,20 @@
       "label": "调度台 / 方向台切换",
       "unit": "ms",
       "samples": [
-        77,
-        60,
-        47,
-        53,
-        47,
-        52,
+        86,
+        42,
+        46,
+        54,
+        41,
+        57,
+        49,
+        51,
         48,
-        52,
-        47,
         52
       ],
       "sampleCount": 10,
-      "p50": 52,
-      "p95": 77,
+      "p50": 49,
+      "p95": 86,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -110,15 +110,15 @@
       "label": "分享抽屉打开",
       "unit": "ms",
       "samples": [
-        198,
-        120,
-        131,
-        131,
-        114
+        178,
+        130,
+        123,
+        104,
+        123
       ],
       "sampleCount": 5,
-      "p50": 131,
-      "p95": 198,
+      "p50": 123,
+      "p95": 178,
       "budgetP95": 1000,
       "pass": true,
       "notes": [
@@ -131,13 +131,13 @@
       "label": "高清长图生成完成",
       "unit": "ms",
       "samples": [
-        173,
-        166,
-        177
+        154,
+        156,
+        160
       ],
       "sampleCount": 3,
-      "p50": 173,
-      "p95": 177,
+      "p50": 156,
+      "p95": 160,
       "budgetP95": 4000,
       "pass": true,
       "notes": [

@@ -7,7 +7,6 @@ import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent, sha
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
-import { saveUIPrefs } from '@/shared/storage/repository'
 import { uid } from '@/shared/utils'
 import { softDeleteTaskToTrash, unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { useConfirm } from '@/shared/components/confirm'
@@ -25,6 +24,20 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
+import {
+  directionTermLabel,
+  goalOfProject,
+  isProjectStalled,
+  metricProgress,
+  priorityLabel,
+  priorityTag,
+  taskAssetCount as taskAssetCountOf,
+  taskAssetSize as taskAssetSizeOf,
+  tasksForMetricId,
+} from './projectCurationUtils'
+import { useProjectCurationRail } from './useProjectCurationRail'
+// R181 结构优化：树拖拽 / 定位闪烁块外提（历史 R55-17 字符串锚点随聚合表回读）
+import { useProjectCurationDnd } from './useProjectCurationDnd'
 
 /**
  * R117（04-61 C）双态：
@@ -59,70 +72,28 @@ const projects = computed(() => {
 /** 原位改名（contenteditable blur 保存）进行中禁用该项拖拽，防「拖拽与编辑抢焦点」 */
 const editingProjId = ref<string | null>(null)
 function goalOf(p: Project): Direction | null {
-  for (const dir of d.value.compass.directions) {
-    if (dir.projects.some(x => x.id === p.id)) return dir
-  }
-  return null
+  return goalOfProject(d.value.compass.directions, p.id)
 }
 /** 14 天无任务更新视为停滞 */
 function isStalled(p: Project): boolean {
-  const tasks = d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
-  const recent = tasks.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0]
-  return recent ? Date.now() - (recent.updatedAt || 0) > 14 * 86400_000 : tasks.length > 0
+  return isProjectStalled(d.value.tasks, p)
 }
 
 /* ================= R131-N2：项目详情页左侧「项目目录」（独立态呈现；宽度拖拽记忆 UIPrefs.projRailW） =================
  * 目录 = 战略目标分组 → 项目条目，单击切换项目（走 openProject，深链 ?p 口径不变）；
  * 拖拽右缘分隔条调宽（180–420px），双击复位——沿用资源台分类树（useCatSidebar）同款交互。 */
-const DIR_W_MIN = 180
-const DIR_W_MAX = 420
-const DIR_W_DEF = 220
-const projDirW = ref<number>(Math.min(DIR_W_MAX, Math.max(DIR_W_MIN, (store.ui?.projRailW as number | undefined) || DIR_W_DEF)))
-const projDirGroups = computed(() => d.value.compass.directions
-  .map(dir => ({ dir, projects: [...dir.projects].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) }))
-  .filter(g => g.projects.length))
 function dirTermLabel(dir: Direction): string {
-  return dir.term === 'long' ? '远期' : dir.term === 'short' ? '近期' : dir.term === 'mid' ? '中期' : ''
+  return directionTermLabel(dir)
 }
-let dirDrag: { startX: number; startW: number } | null = null
-function onDirResizeMove(e: MouseEvent) {
-  if (!dirDrag) return
-  projDirW.value = Math.min(DIR_W_MAX, Math.max(DIR_W_MIN, dirDrag.startW + (e.clientX - dirDrag.startX)))
-}
-function onDirResizeUp() {
-  document.removeEventListener('mousemove', onDirResizeMove)
-  document.removeEventListener('mouseup', onDirResizeUp)
-  if (dirDrag) { saveUIPrefs({ projRailW: projDirW.value }); dirDrag = null }
-}
-function startDirResize(e: MouseEvent) {
-  dirDrag = { startX: e.clientX, startW: projDirW.value }
-  document.addEventListener('mousemove', onDirResizeMove)
-  document.addEventListener('mouseup', onDirResizeUp)
-}
-function resetDirWidth() {
-  projDirW.value = DIR_W_DEF
-  saveUIPrefs({ projRailW: DIR_W_DEF })
-}
-// R129-B6 同款兜底：拖拽中途组件卸载时摘除 document 监听
-onUnmounted(() => {
-  document.removeEventListener('mousemove', onDirResizeMove)
-  document.removeEventListener('mouseup', onDirResizeUp)
-  dirDrag = null
-})
+const { DIR_W_MIN, DIR_W_MAX, DIR_W_DEF, projDirW, projDirGroups, startDirResize, resetDirWidth } =
+  useProjectCurationRail(d, store.ui?.projRailW as number | undefined)
 
 /** 指标下的任务（真实任务卡） */
 function tasksForMetric(metricId: string): TaskCard[] {
-  // REQ-034：按 id 去重双保险
-  const seen = new Set<string>()
-  const order = new Map(d.value.tasks.map((t, i) => [t.id, i]))
-  return d.value.tasks
-    .filter(t => !t.deletedAt && t.metricId === metricId)
-    .filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true })
-    .sort((a, b) => (order.get(a.id)||0) - (order.get(b.id)||0))
+  return tasksForMetricId(d.value.tasks, metricId)
 }
 function metricPct(metricId: string): number {
-  const ts = tasksForMetric(metricId)
-  return ts.length ? Math.round(ts.filter(t => t.status === 'done').length / ts.length * 100) : 0
+  return metricProgress(d.value.tasks, metricId)
 }
 
 /** R146：删指标并到真源（确认报数 + 3 秒撤销），与项目抽屉/调度台/方向树同一口径 */
@@ -157,87 +128,6 @@ function renameMetric(m: Metric, e: FocusEvent) {
   const v = (e.target as HTMLElement).textContent?.trim()
   if (v && v !== m.title) { m.title = v; store.persist(); showToast('指标已更新，同步方向树') }
   else if (!v) { (e.target as HTMLElement).textContent = m.title }
-}
-const treeDrop = ref<{ id: string; mode: 't' | 'b' | 'in' } | null>(null)
-let treeDragMetric: Metric | null = null
-let treeDragTask: TaskCard | null = null
-const taskFlashId = ref('')
-const metricFlashId = ref('')
-function treeMetricDragStart(e: DragEvent, m: Metric) {
-  treeDragMetric = m
-  treeDragTask = null
-  e.dataTransfer?.setData('text/plain', 'metric:' + m.id)
-}
-function treeMetricDragOver(e: DragEvent, m: Metric) {
-  // R59-T5：任务拖拽悬停 = drop-into 高亮（整节点为落点，空指标同样可见）
-  if (treeDragTask) { treeDrop.value = { id: m.id, mode: 'in' }; return }
-  if (!treeDragMetric || treeDragMetric.id === m.id) return
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  treeDrop.value = { id: m.id, mode: (e.clientY - rect.top) / rect.height > 0.5 ? 'b' : 't' }
-}
-function treeMetricDrop(e: DragEvent, target: Metric) {
-  // R59-T5：任务拖到指标节点（含空指标）= 变更归属（此前任务拖拽在节点上被静默忽略，
-  // 只有拖到已有任务行上才生效——空指标因此无法接收）
-  if (treeDragTask) { treeTaskDropOnMetric(e, target); return }
-  const mode = treeDrop.value?.mode
-  const drag = treeDragMetric
-  treeDragMetric = null
-  treeDrop.value = null
-  if (!drag || drag.id === target.id || !currentProject.value) return
-  const arr = currentProject.value.metrics
-  const fi = arr.findIndex(x => x.id === drag.id)
-  const ti = arr.findIndex(x => x.id === target.id)
-  if (fi < 0 || ti < 0) return
-  const [moved] = arr.splice(fi, 1)
-  const tj = arr.findIndex(x => x.id === target.id)
-  arr.splice(mode === 'b' ? tj + 1 : tj, 0, moved)
-  store.persist()
-  showToast(`指标「${drag.title}」已排序（同步调度台项目调度）`)
-}
-function treeTaskDragStart(e: DragEvent, t: TaskCard) {
-  treeDragTask = t
-  treeDragMetric = null
-  e.dataTransfer?.setData('text/plain', 'task:' + t.id)
-}
-function treeTaskDropOnMetric(e: DragEvent, m: Metric | null) {
-  const t = treeDragTask
-  treeDragTask = null
-  if (!t || !currentProject.value) return
-  const oldMetric = t.metricId
-  if (m) {
-    if (t.metricId === m.id) return
-    t.metricId = m.id
-    t.projectId = currentProject.value.id
-  } else {
-    // 拖到「未归类」= 摘除指标（保留项目）
-    if (!t.metricId) return
-    t.metricId = undefined
-  }
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      for (const mt of proj.metrics) {
-        if (oldMetric && mt.id === oldMetric) mt.taskIds = mt.taskIds.filter(x => x !== t.id)
-        if (m && mt.id === m.id && !mt.taskIds.includes(t.id)) mt.taskIds.push(t.id)
-      }
-    }
-  }
-  t.updatedAt = Date.now()
-  store.persist()
-  showToast(m ? `任务已归属「${m.title}」` : '任务已转为未归类')
-}
-function scrollToMetric(id: string) {
-  const el = document.getElementById('metric-sec-' + id)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  metricFlashId.value = id
-  setTimeout(() => { metricFlashId.value = '' }, 1500)
-}
-function scrollToTask(id: string) {
-  const el = document.querySelector(`.btask[data-task-id="${id}"]`)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  taskFlashId.value = id
-  setTimeout(() => { taskFlashId.value = '' }, 1500)
 }
 /**
  * R85（T0-A）：本地那份「上限 2」校验**删除**，改调 store——方向树与主航线共用同一口径。
@@ -352,6 +242,8 @@ const goalTerm = computed(() => {
   return t === 'long' ? '远期' : t === 'short' ? '近期' : t === 'mid' ? '中期' : ''
 })
 const currentProject = ref<Project | null>(null)
+const { treeDrop, taskFlashId, metricFlashId, treeMetricDragStart, treeMetricDragOver, treeMetricDrop, treeTaskDragStart, treeTaskDropOnMetric, scrollToMetric, scrollToTask } =
+  useProjectCurationDnd({ currentProject, d, store })
 let currentDir: Direction | null = null
 function openProject(p: Project) {
   currentProject.value = p
@@ -563,10 +455,10 @@ function onMetricDragLeave(e: DragEvent) {
 }
 
 function prLabel(pr: string) {
-  return pr === 'high' ? '高优' : pr === 'mid' || pr === 'medium' ? '中优' : '低优'
+  return priorityLabel(pr)
 }
 function prTag(pr: string) {
-  return pr === 'high' ? 'danger' : 'plain'
+  return priorityTag(pr)
 }
 
 /* ================= R49-D4：任务附件区（按任务聚合，AssetBadge 复用现有打开逻辑） ================= */
@@ -575,13 +467,11 @@ const tasksWithAssets = computed(() => {
   if (!p) return []
   return d.value.tasks.filter(t => !t.deletedAt && t.projectId === p.id && t.assets && t.assets.length)
 })
-const assetSizeLabel = (n?: number) => !n ? '' : n > 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'
 function taskAssetCount(t: TaskCard): number {
-  return (t.assets || []).length
+  return taskAssetCountOf(t)
 }
 function taskAssetSize(t: TaskCard): string {
-  const total = (t.assets || []).reduce((s, a) => s + (a.size || 0), 0)
-  return assetSizeLabel(total)
+  return taskAssetSizeOf(t)
 }
 
 /** D1：头部级「＋添加任务」——有指标选第一个，无指标先建一个 */
@@ -867,202 +757,4 @@ function addTaskFromHeader() {
   </div>
 </template>
 
-<style scoped>
-/* B1-c（V3.8.26）：任务树两枚状态标签不参与收缩（原两处内联 flex-shrink） */
-.tag.tag-fixed { flex-shrink: 0; }
-.page { max-width: 1440px; margin: 0 auto; padding: 20px 36px 64px; }
-/* R117（04-61 C）：内嵌于方向台一级时去掉自身页边距与宽度上限，避免与宿主 .page 双层缩进 */
-.page.is-embedded { max-width: none; margin: 0; padding: 0; }
-.page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-left: 22px; }
-.page-head .crumb { font-size: var(--fs-body); color: var(--text-2); }
-.page-head .crumb b { color: var(--text); font-weight: 700; font-size: 16px; letter-spacing: .2px; }
-.page-head .crumb .sep { color: var(--text-4); margin: 0 6px; }
-/* R54-A1：面包屑上级可点 */
-.page-head .crumb .crumb-up { cursor: pointer; color: var(--text-3); }
-.page-head .crumb .crumb-up:hover { color: var(--accent); }
-.page-head .crumb .crumb-sep { color: var(--text-4); }
-.page-head .spacer { flex: 1; }
-.hint-chip { font-size: var(--fs-caption); color: var(--text-3); background: var(--surface); border: 1px dashed var(--border-strong); padding: 3px 10px; border-radius: 99px; }
-/* R117（04-61 C）：内嵌态轻量小节头——项目切换与目录都在左栏，此处只交代「这是什么」 */
-
-/* R117（04-61 C）：原「项目总览」的选择墙 / 项目卡（.section-label·.wall-section·.wall-grid·.pcard·
-   .ptop·.pname·.pin-btn·.chain·.mrows·.mrow·.pfoot）随模块退役整块删除——置顶/拖拽/新建能力已迁到
-   左栏「全部项目」列（见下方 .pt-sec-label / .pt-pin / .pt-item.dragging|.drag-over）。 */
-
-/* R49-D4：任务附件区 */
-.asset-sec { margin-top: 12px; }
-.asset-row { cursor: pointer; }
-/* G3（V3.8.27）：三处零兜底（无项目 / 无指标 / 无附件）改走 EmptyState 组件，
-   原裸空态容器与可点行内动作的样式一并退役 */
-
-/* 展板 */
-.board-layout { display: block; } /* 内嵌态维持单列满宽（R121 口径） */
-/* R131-N2：独立态 = 左目录 + 分隔条 + 右展板三列；展板 flex:1 撑满（防 R130-T7 收缩类 BUG） */
-/* ★P2（V3.8.34）：双列节奏——左目录退为**支撑列**（窄、贴在 bg 上、右缘一条发丝线与主列分开），
-   右展板为主体（卡面自带 --surface，主从不靠"宽度差不多"这种巧合）。
-   列间距按 sp-5 记账：10(把手左) + 4(把手) + 10(把手右) = 24 = var(--sp-5)。
-   窄窗下单列，先让路的是目录列——本页在窄窗里只做一件事：看任务树（导航回方向台仍有完整树）。 */
-.board-layout.with-dir { display: flex; align-items: flex-start; }
-.board-layout.with-dir .board { flex: 1; min-width: 0; }
-.pd-dir { flex-shrink: 0; position: sticky; top: 64px; max-height: calc(100vh - 96px); overflow-y: auto; padding: 2px 0 8px; border-right: 1px solid var(--border); }
-.pd-dir-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 6px 8px; letter-spacing: var(--tracking-sm); }
-.pd-group { margin-bottom: 10px; }
-.pd-goal { display: flex; align-items: baseline; gap: 4px; font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pd-term { font-size: var(--fs-tiny); color: var(--text-3); font-weight: 400; flex-shrink: 0; }
-.pd-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 14px; border-radius: 6px; cursor: pointer; font-size: var(--fs-body); color: var(--text-2); white-space: nowrap; overflow: hidden; transition: background var(--dur-fast); }
-.pd-item:hover { background: var(--surface-2); }
-.pd-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
-.pd-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
-.pd-dot.focus { background: var(--accent); }
-.pd-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.pd-pct { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.pd-empty { font-size: var(--fs-sub); color: var(--text-3); padding: 6px 8px; }
-/* ★P2：把手的左右外边距就是列间距（10+4+10 = sp-5），不再另外叠 gap */
-.pd-split { width: 4px; flex-shrink: 0; align-self: stretch; margin: 4px 10px; cursor: col-resize; border-radius: 2px; transition: background var(--dur-fast); z-index: 5; }
-.pd-split:hover { background: var(--accent-light); }
-/* ★P2：窄窗单列——列宽吃不住内容时先收起目录列，任务树不被挤成两行 */
-@media (max-width: 1024px) {
-  .board-layout.with-dir { display: block; }
-  .pd-dir, .pd-split { display: none; }
-}
-/* R132-T4/T5：左栏两段式——全景折叠块头 + 目录锚点项；锚点滚动留出顶栏高度 */
-.pb-head-row, .metric-sec { scroll-margin-top: 72px; }
-.pd-pan-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
-.pd-pan-head:hover { color: var(--text-2); }
-.pd-caret { font-size: var(--fs-tiny); color: var(--text-4); }
-.pd-pan { margin-bottom: 6px; }
-.toc-item { padding-left: 8px; }
-.board { min-width: 0; }
-.metric-sec .mname { outline: none; border-radius: 5px; padding: 2px 5px; margin: -2px -5px; cursor: text; }
-.metric-sec .mname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-.metric-sec .mname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-/* R52-F6：成功指标名输入行 */
-.metric-add-row { display: flex; gap: 8px; margin: -6px 0 14px; }
-.metric-add-row input { flex: 1; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; font-size: var(--fs-body); color: var(--text); outline: none; font-family: inherit; }
-.metric-add-row input:focus { border-color: var(--accent); }
-
-.metric-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; transition: border-color var(--dur), box-shadow var(--dur); }
-/* R55-G1：目录树定位闪烁 */
-.metric-sec.sec-flash { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-.btask.task-flash { background: var(--accent-light); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
-.btask.task-flash .bt { color: var(--accent); }
-.metric-sec.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.metric-head2 { display: flex; align-items: center; gap: 10px; }
-.metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; flex: 1; min-width: 0; }
-.metric-head2 .pct { font-size: var(--fs-sub); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-.icon-btn-sm { width: 24px; height: 24px; border: none; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; font-size: var(--fs-sub); display: flex; align-items: center; justify-content: center; font-family: inherit; flex-shrink: 0; }
-.icon-btn-sm:hover { background: var(--surface-3); color: var(--text); }
-.icon-btn-sm.del:hover { color: var(--danger); }
-/* R146：行内 AI 入口常态可见（审计：hover 才现=触屏与键盘 100% 摸不到），强调色只给"AI 可点"这一层 */
-.icon-btn-sm.ai { color: var(--accent); opacity: .78; }
-.icon-btn-sm.ai:hover { color: var(--accent-ink); opacity: 1; background: var(--accent-light); }
-.task-rows { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
-.btask { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background var(--dur-fast); }
-.btask:hover { background: var(--surface-2); }
-.btask.dragging { opacity: .35; }
-.btask .bdrag { color: var(--text-4); font-size: var(--fs-caption); cursor: grab; flex-shrink: 0; }
-.bcheck { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-tiny); color: #fff; background: var(--surface); }
-.bcheck:hover { border-color: var(--accent); }
-.bcheck.done { background: var(--success); border-color: var(--success); }
-.btask .bt { flex: 1; font-size: var(--fs-body); cursor: pointer; min-width: 0; }
-.btask:hover .bt { color: var(--accent); }
-.btask.done .bt { text-decoration: line-through; color: var(--text-3); }
-/* R177（原型 task-priority-pill + smp-row-actions）：优先级胶囊降权（仅高优保留琥珀淡底，中/低纯文本）+ 行内操作 hover 显露 */
-.btask .tag { background: transparent; padding: 1px 4px; }
-.btask .tag .tag-dot { display: none; }
-.btask .tag.danger { background: var(--tag-warn-bg); color: var(--warning); font-weight: 600; }
-.btask > .icon-btn-sm { opacity: 0; transition: opacity var(--dur-fast); }
-.btask:hover > .icon-btn-sm { opacity: 1; }
-.task-add { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-3); font-size: var(--fs-sub); cursor: pointer; border-radius: 8px; }
-.task-add:hover { color: var(--accent-ink); background: var(--accent-light); }
-.board-foot-hint { margin-top: 14px; font-size: var(--fs-caption); color: var(--text-3); text-align: center; padding: 10px; background: var(--surface-2); border-radius: var(--radius-xs); }
-
-/* ===== R121：展板头部（面包屑 + 标题行 + 统计条） ===== */
-.pb-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 14px; flex-wrap: wrap; }
-.pb-crumb { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-sub); color: var(--text-3); flex-wrap: wrap; }
-.pc-seg { cursor: pointer; }
-.pc-seg:hover { color: var(--accent); text-decoration: underline; }
-.pc-sep { color: var(--text-4); }
-.pc-current { color: var(--text); font-weight: 700; }
-.pb-acts { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.pb-more-wrap { position: relative; display: inline-flex; }
-.mini-btn.icon { padding: 5px 10px; }
-.pb-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 176px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-lg); padding: 4px; }
-.pb-menu .pm-item { padding: 7px 10px; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; white-space: nowrap; }
-.pb-menu .pm-item:hover { background: var(--accent-light); color: var(--accent-ink); }
-.pb-menu .pm-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
-.pb-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.pb-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* R170-①：标题旁「详情」入口——与 mini-btn 同款，颜色收敛不抢主标题 */
-.pb-title .pd-open { flex-shrink: 0; color: var(--text-2); border-color: var(--border); background: var(--surface); }
-.pb-title .pd-open:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-.pb-title .hero-pname { font-size: 18px; font-weight: 700; letter-spacing: .2px; outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
-.pb-title .hero-pname:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-.pb-title .hero-pname:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
-.pb-pct { flex-shrink: 0; font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-/* R177（原型 pec-metrics-strip）：统计条降权为面包屑同排单行轻量文本 */
-/* ★P1（V3.8.34）：再降一档到 caption，且数字一律中性（--text-2）——对账读数只该被查到，不该被看见 */
-.pb-stats { display: flex; align-items: center; gap: 10px; font-size: var(--fs-caption); color: var(--text-3); flex-wrap: wrap; }
-.pb-stats .pbs b { font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.pb-sep { color: var(--text-4); }
-.pb-tail-inline { color: var(--text-3); }
-/* R177（原型 pec-progress-box）：标题行进度轨（label + 5px 轨 + 数值） */
-.pb-progress-box { display: flex; align-items: center; gap: 10px; min-width: 200px; flex-shrink: 0; }
-.pb-progress-label { font-size: var(--fs-caption); color: var(--text-3); flex-shrink: 0; }
-.pb-track { flex-grow: 1; height: 5px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
-.pb-track-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width var(--dur-slow) ease; }
-.pb-pct { flex-shrink: 0; font-size: var(--fs-sub); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-/* R177（原型 btn-project-meta-detail）：⚙ 项目详情 = 展板主行动之一（subtle 底 + strong 边 + hover accent） */
-.pb-title .pd-open { flex-shrink: 0; color: var(--text); border-color: var(--border-strong); background: var(--surface-2); font-weight: 600; }
-.pb-title .pd-open:hover { color: var(--accent); border-color: var(--accent); background: var(--surface-3); }
-
-/* ===== R121：指标块与任务行（Linear 极简发丝线，对齐原型） ===== */
-.metric-sec { padding: 0; overflow: hidden; }
-.metric-head2 { background: var(--surface-2); padding: 9px 14px; border-bottom: 1px solid var(--border); }
-.mh-idx { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; }
-.mh-meta { flex-shrink: 0; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; }
-.mh-acts { display: none; gap: 2px; margin-left: auto; }
-.metric-sec:hover .mh-acts { display: inline-flex; }
-.metric-head2 .mname { font-size: var(--fs-body); font-weight: 600; }
-.task-rows { margin-top: 0; border-top: none; padding-top: 0; gap: 0; }
-.btask { border-radius: 0; border-bottom: 1px solid var(--hairline); padding: 9px 14px; }
-.btask:last-of-type { border-bottom: none; }
-.btask .bdrag { opacity: 0; }
-.btask:hover .bdrag { opacity: 1; }
-.btask .bcheck { width: 15px; height: 15px; border-radius: 4px; }
-.btask .bcheck.done { background: var(--text-3); border-color: var(--text-3); }
-
-/* 抽屉 */
-.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-menu); }
-
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
-.mini-btn:hover { border-color: var(--accent); color: var(--accent); }
-.mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.mini-btn.primary:hover { background: var(--accent-hover); }
-.mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
-.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
-.tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
-.tag.danger { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
-.tag.info { background: var(--accent-light); color: var(--accent-ink); }
-.progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; }
-.progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
-.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-/* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
-.tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }
-.tag.plain .tag-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-4); }
-.tag.plain .tag-txt { display: none; }
-.btask:hover .tag.plain .tag-dot { display: none; }
-.btask:hover .tag.plain .tag-txt { display: inline; }
-.btask:hover .tag.plain { padding: 2px 6px; }
-/* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度紫调光带 + 内阴影提层 ===== */
-/* R126（诉求 1）：内嵌展板 = 模块框线（对齐 ModuleCard 视觉；内边距 22 与主航线标题左缘对齐） */
-.page.is-embedded { background-color: var(--surface); background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 150px); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 22px 18px; }
-
-/* R126（诉求 1）：展板项目图标（主攻与普通统一普通项目图标；🚀 表示主攻（🎯 只留成功指标）） */
-.pb-title .pb-picon { font-size: 16px; flex-shrink: 0; }
-</style>
+<style scoped src="./ProjectCuration.css"></style>

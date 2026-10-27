@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知源调度台 · AI 荐三件事原型（PRD G1）· 审核稿 V1</title>
+<style>
+/* ═══ 令牌层：与 tokens.css 同源（四主题 + 密度 + radius-full） ═══ */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --fs-tiny: 10px; --fs-micro: 11px; --fs-caption: 12px; --fs-sub: 13px; --fs-body: 14px;
+  --fs-title: 15px; --fs-headline: 17px; --fs-display: 22px;
+  --lh-caption: 1.5; --lh-sub: 1.5; --lh-body: 1.55;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --radius-xs: 4px; --radius-sm: 8px; --radius-md: 10px; --radius: 12px; --radius-lg: 14px; --radius-full: 999px;
+  --dur-fast: 120ms; --dur: 150ms; --dur-slow: 250ms;
+  --ease-emphasis: cubic-bezier(.2, .8, .2, 1);
+  --card-pad-vert: var(--sp-3); --card-pad-horz: var(--sp-4); --card-gap: var(--sp-3);
+  --hit: 28px;
+}
+[data-density='compact'] { --card-pad-vert: var(--sp-2); --card-pad-horz: var(--sp-3); --card-gap: var(--sp-2); }
+[data-theme='linear'] {
+  --bg:#0D0E11; --surface:#14161B; --surface-2:#1B1E26; --surface-3:#242833; --border:#262A35; --border-strong:#3A4050;
+  --text:#E8EAF0; --text-2:#B4B9C6; --text-3:#8A90A0; --text-4:#5B6170;
+  --accent:#5E6AD2; --accent-ink:#A5ACE8; --accent-light:rgba(94,106,210,.14);
+  --ok:#4CB782; --warn:#E5B454;
+  --tag-ok-bg:rgba(76,183,130,.13); --tag-ok-text:#7DD3A8; --tag-warn-bg:rgba(229,180,84,.13); --tag-warn-text:#EFCB8A;
+  --shadow-md:0 6px 20px rgba(0,0,0,.35); --shadow-lg:0 18px 50px rgba(0,0,0,.5);
+}
+[data-theme='raycast'] {
+  --bg:#08080A; --surface:#101014; --surface-2:#17181D; --surface-3:#20222A; --border:#1F2129; --border-strong:#33363F;
+  --text:#F2F3F5; --text-2:#B9BCC4; --text-3:#868A95; --text-4:#585C68;
+  --accent:#1E6FD9; --accent-ink:#7FB4F2; --accent-light:rgba(30,111,217,.15);
+  --ok:#3FCF8E; --warn:#F5A623;
+  --tag-ok-bg:rgba(63,207,142,.13); --tag-ok-text:#8AE2BB; --tag-warn-bg:rgba(245,166,35,.13); --tag-warn-text:#F7C56D;
+  --shadow-md:0 6px 20px rgba(0,0,0,.45); --shadow-lg:0 18px 50px rgba(0,0,0,.6);
+}
+[data-theme='apple'] {
+  --bg:#F5F5F7; --surface:#FFFFFF; --surface-2:#F2F2F5; --surface-3:#E8E8EC; --border:#E3E3E8; --border-strong:#C9C9D0;
+  --text:#1D1D1F; --text-2:#48484D; --text-3:#6E6E73; --text-4:#A1A1A6;
+  --accent:#8452E0; --accent-ink:#6E3FD1; --accent-light:rgba(132,82,224,.10);
+  --ok:#34A853; --warn:#B8860B;
+  --tag-ok-bg:rgba(52,168,83,.10); --tag-ok-text:#2E7D46; --tag-warn-bg:rgba(184,134,11,.10); --tag-warn-text:#8A6508;
+  --shadow-md:0 6px 18px rgba(0,0,0,.08); --shadow-lg:0 18px 50px rgba(0,0,0,.14);
+}
+[data-theme='notion'] {
+  --bg:#F7F6F3; --surface:#FFFFFF; --surface-2:#F1F0EC; --surface-3:#E7E5DF; --border:#E6E4DD; --border-strong:#CFCCC2;
+  --text:#37352F; --text-2:#5F5E58; --text-3:#8A887F; --text-4:#B4B2A8;
+  --accent:#9E3FAF; --accent-ink:#8432A0; --accent-light:rgba(158,63,175,.09);
+  --ok:#2F9E6E; --warn:#B7791F;
+  --tag-ok-bg:rgba(47,158,110,.10); --tag-ok-text:#257A54; --tag-warn-bg:rgba(183,121,31,.10); --tag-warn-text:#8C5C17;
+  --shadow-md:0 6px 18px rgba(55,53,47,.08); --shadow-lg:0 18px 50px rgba(55,53,47,.16);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:var(--font-sans); background:var(--bg); color:var(--text); font-size:var(--fs-body); line-height:var(--lh-body); }
+button { font-family:inherit; }
+
+/* 顶栏 */
+.topbar { height:48px; display:flex; align-items:center; gap:var(--sp-3); padding:0 var(--sp-5); border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:40; }
+.brand { display:inline-flex; align-items:center; gap:7px; font-weight:700; font-size:var(--fs-sub); }
+.brand-ico { width:20px; height:20px; border-radius:6px; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:11px; font-weight:800; }
+.nav { display:flex; gap:2px; margin-left:var(--sp-4); }
+.nav a { padding:5px 12px; border-radius:var(--radius-full); font-size:var(--fs-sub); color:var(--text-3); text-decoration:none; }
+.nav a.on { color:var(--accent-ink); background:var(--accent-light); }
+.top-acts { margin-left:auto; display:flex; gap:var(--sp-1); }
+.icon-btn { min-width:var(--hit); min-height:var(--hit); border:0; border-radius:var(--radius-sm); background:transparent; color:var(--text-3); cursor:pointer; font-size:13px; }
+.icon-btn:hover { background:var(--surface-2); color:var(--text); }
+.menu { position:relative; }
+.menu-pop { position:absolute; right:0; top:calc(100% + var(--sp-1)); min-width:150px; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); padding:var(--sp-1); z-index:60; }
+.menu-item { display:flex; align-items:center; gap:8px; width:100%; padding:7px 10px; border:0; border-radius:var(--radius-sm); background:transparent; color:var(--text-2); font-size:var(--fs-sub); cursor:pointer; text-align:left; }
+.menu-item:hover { background:var(--surface-2); color:var(--text); }
+.menu-item.on { color:var(--accent-ink); background:var(--accent-light); }
+.menu-item .sw { width:10px; height:10px; border-radius:var(--radius-xs); border:1px solid var(--border-strong); }
+
+/* 说明条 */
+.proto-note { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-2) var(--sp-5); font-size:var(--fs-micro); color:var(--text-4); background:var(--surface); border-bottom:1px solid var(--border); }
+.proto-note b { color:var(--text-2); }
+.proto-note .grow { flex:1; }
+.note-btn { min-height:24px; padding:2px 10px; border-radius:var(--radius-full); border:1px solid var(--border); background:transparent; color:var(--text-3); font-size:var(--fs-micro); cursor:pointer; }
+
+/* 页面 */
+.page { max-width:1100px; margin:0 auto; padding:var(--sp-4) var(--sp-6) calc(var(--sp-7) + 28px); display:flex; flex-direction:column; gap:var(--sp-4); }
+.hero { display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-2) var(--sp-3); border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+.kicker { font-size:var(--fs-micro); color:var(--text-4); }
+.kicker b { color:var(--text-3); }
+.hero-title { font-size:var(--fs-headline); font-weight:700; }
+.hero-tools { margin-left:auto; display:flex; gap:var(--sp-1); }
+.tool { display:inline-flex; align-items:center; gap:5px; min-height:var(--hit); padding:0 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); color:var(--text-2); font-size:var(--fs-caption); font-weight:600; cursor:pointer; }
+.tool:hover { color:var(--accent-ink); border-color:var(--accent); }
+
+/* 主攻行 */
+.focus-line { display:flex; align-items:center; gap:var(--sp-2); padding:var(--sp-2) var(--sp-3); border-left:3px solid var(--accent); background:color-mix(in srgb, var(--accent) 4%, transparent); font-size:var(--fs-sub); }
+.focus-line .lab { font-size:var(--fs-micro); font-weight:700; color:var(--accent-ink); }
+.focus-line .next { color:var(--text-3); font-size:var(--fs-caption); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:44ch; }
+
+/* ═══ 主角：今日三件事卡 ═══ */
+.tb-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+.tb-head { display:flex; align-items:center; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--border); }
+.tb-title { font-size:var(--fs-title); font-weight:700; }
+.tb-count { font-size:var(--fs-micro); color:var(--text-4); }
+.tb-ai { margin-left:auto; display:inline-flex; align-items:center; gap:6px; min-height:var(--hit); padding:0 14px; border-radius:var(--radius-full); border:1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); background:var(--accent-light); color:var(--accent-ink); font-size:var(--fs-caption); font-weight:700; cursor:pointer; transition:all var(--dur); }
+.tb-ai:hover { border-color:var(--accent); }
+.tb-ai.done { background:var(--surface-2); color:var(--text-3); border-color:var(--border); }
+.tb-body { display:flex; flex-direction:column; }
+.slot { display:flex; align-items:center; gap:var(--sp-3); padding:var(--card-pad-vert) var(--sp-4); border-bottom:1px solid var(--border); transition:background var(--dur-slow); }
+.slot:last-child { border-bottom:0; }
+.slot.empty { color:var(--text-4); font-size:var(--fs-sub); }
+.slot.flash { animation: slotFlash 1.2s ease; }
+@keyframes slotFlash { 0%,100% { background:transparent; } 30% { background:var(--accent-light); } }
+.slot-idx { width:22px; height:22px; border-radius:7px; background:var(--surface-3); color:var(--text-3); font-size:10px; font-weight:700; display:grid; place-items:center; flex:none; }
+.slot.empty .slot-idx { background:transparent; border:1px dashed var(--border-strong); }
+.slot-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.slot-name { font-size:var(--fs-sub); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slot-meta { font-size:var(--fs-micro); color:var(--text-4); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.chip-mini { font-size:var(--fs-micro); padding:1px 8px; border-radius:var(--radius-full); font-weight:600; }
+.chip-mini.focus { background:var(--accent-light); color:var(--accent-ink); }
+.chip-mini.ammo { background:var(--surface-3); color:var(--text-3); }
+.slot-done { text-decoration:line-through; text-decoration-color:var(--text-4); color:var(--text-3); }
+.checkbox { width:var(--hit); height:var(--hit); border-radius:var(--radius-sm); border:1.5px solid var(--border-strong); background:transparent; cursor:pointer; flex:none; display:grid; place-items:center; color:transparent; font-size:13px; transition:all var(--dur); }
+.checkbox:hover { border-color:var(--accent); }
+.checkbox.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.slot-x { min-width:calc(var(--hit) - 6px); min-height:calc(var(--hit) - 6px); border:0; background:transparent; color:var(--text-4); font-size:14px; cursor:pointer; border-radius:var(--radius-xs); opacity:0; }
+.slot:hover .slot-x { opacity:1; }
+.slot-x:hover { color:var(--warn); background:var(--surface-2); }
+
+/* ═══ 荐三件弹层 ═══ */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:100; display:flex; align-items:center; justify-content:center; animation:fadeIn var(--dur) ease; }
+.sug-modal { width:min(620px, 92vw); max-height:86vh; background:var(--surface); border-radius:var(--radius-xl); box-shadow:var(--shadow-lg); display:flex; flex-direction:column; overflow:hidden; }
+.sug-head { display:flex; align-items:center; gap:var(--sp-2); padding:var(--sp-3) var(--sp-5); border-bottom:1px solid var(--border); }
+.sug-ico { width:30px; height:30px; border-radius:var(--radius-sm); background:var(--accent-light); color:var(--accent-ink); display:grid; place-items:center; font-size:14px; }
+.sug-title { font-size:var(--fs-sub); font-weight:700; }
+.sug-sub { font-size:var(--fs-micro); color:var(--text-4); }
+.sug-x { margin-left:auto; min-width:var(--hit); min-height:var(--hit); border:0; background:transparent; color:var(--text-3); font-size:16px; cursor:pointer; border-radius:var(--radius-sm); }
+.sug-x:hover { background:var(--surface-2); color:var(--text); }
+.sug-input { padding:var(--sp-2) var(--sp-5); border-bottom:1px solid var(--border); background:var(--surface-2); font-size:var(--fs-micro); color:var(--text-3); line-height:1.7; }
+.sug-input b { color:var(--text-2); font-weight:600; }
+.sug-body { flex:1; overflow-y:auto; padding:var(--sp-3) var(--sp-4); display:flex; flex-direction:column; gap:var(--card-gap); }
+.cand { display:flex; gap:var(--sp-3); padding:var(--card-pad-vert) var(--card-pad-horz); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); transition:all var(--dur); }
+.cand:hover { border-color:var(--accent); }
+.cand.taken { opacity:.45; }
+.cand-rank { width:24px; height:24px; border-radius:var(--radius-full); background:var(--accent-light); color:var(--accent-ink); font-size:11px; font-weight:700; display:grid; place-items:center; flex:none; margin-top:2px; }
+.cand-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.cand-name { font-size:var(--fs-sub); font-weight:700; }
+.cand-path { font-size:var(--fs-micro); color:var(--text-3); }
+.cand-path b { color:var(--accent-ink); font-weight:600; }
+.cand-why { font-size:var(--fs-micro); color:var(--text-3); line-height:1.6; }
+.cand-why .k { color:var(--text-2); font-weight:600; }
+.cand-tags { display:flex; gap:5px; flex-wrap:wrap; }
+.tag { font-size:var(--fs-micro); padding:1px 8px; border-radius:var(--radius-full); font-weight:600; }
+.tag.focus { background:var(--accent-light); color:var(--accent-ink); }
+.tag.ammo-ok { background:var(--tag-ok-bg); color:var(--tag-ok-text); }
+.tag.ammo-no { background:var(--surface-3); color:var(--text-4); }
+.tag.stall { background:var(--tag-warn-bg); color:var(--tag-warn-text); }
+.cand-act { display:flex; flex-direction:column; gap:6px; align-items:flex-end; justify-content:center; flex:none; }
+.btn-take { min-height:var(--hit); padding:0 16px; border-radius:var(--radius-sm); border:1px solid var(--accent); background:transparent; color:var(--accent-ink); font-size:var(--fs-caption); font-weight:700; cursor:pointer; white-space:nowrap; transition:all var(--dur); }
+.btn-take:hover { background:var(--accent-light); }
+.btn-take:disabled { opacity:.4; cursor:not-allowed; }
+.taken-mark { font-size:var(--fs-micro); color:var(--tag-ok-text); font-weight:700; white-space:nowrap; }
+.sug-foot { display:flex; align-items:center; gap:var(--sp-2); padding:var(--sp-2) var(--sp-5); border-top:1px solid var(--border); }
+.sug-note { font-size:var(--fs-micro); color:var(--text-4); line-height:1.5; }
+.btn-all { margin-left:auto; min-height:var(--hit); padding:0 16px; border-radius:var(--radius-sm); border:1px solid transparent; background:var(--accent); color:#fff; font-size:var(--fs-caption); font-weight:700; cursor:pointer; }
+.btn-all:hover { background:var(--accent); filter:brightness(1.1); }
+.btn-all:disabled { opacity:.4; cursor:not-allowed; }
+.btn-more { min-height:var(--hit); padding:0 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:transparent; color:var(--text-3); font-size:var(--fs-caption); font-weight:600; cursor:pointer; }
+.btn-more:hover { color:var(--accent-ink); border-color:var(--accent); }
+
+/* 复核条（focus-rank 衔接） */
+.rank-bar { display:flex; align-items:center; gap:var(--sp-2); padding:var(--sp-2) var(--sp-3); border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); font-size:var(--fs-caption); color:var(--text-3); }
+.rank-bar .ic { color:var(--accent-ink); }
+.rank-cta { margin-left:auto; min-height:calc(var(--hit) - 2px); padding:2px 12px; border-radius:var(--radius-full); border:1px solid var(--accent); background:transparent; color:var(--accent-ink); font-size:var(--fs-caption); font-weight:600; cursor:pointer; white-space:nowrap; }
+.rank-cta:hover { background:var(--accent-light); }
+
+/* 审核列 */
+.rv-fab { position:fixed; right:20px; bottom:20px; z-index:90; display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 14px; border-radius:var(--radius-full); border:1px solid var(--border-strong); background:var(--surface); color:var(--text-2); font-size:var(--fs-caption); font-weight:600; cursor:pointer; box-shadow:var(--shadow-md); }
+.rv-rail { position:fixed; right:20px; bottom:64px; width:370px; max-height:min(72vh, 660px); background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); z-index:91; display:none; flex-direction:column; overflow:hidden; }
+.rv-rail.show { display:flex; }
+.rv-head { display:flex; align-items:center; gap:var(--sp-2); padding:var(--sp-3) var(--sp-4); border-bottom:1px solid var(--border); }
+.rv-title { font-size:var(--fs-sub); font-weight:700; }
+.rv-list { flex:1; overflow-y:auto; padding:var(--sp-2); }
+.rv-item { border:1px solid var(--border); border-radius:var(--radius-sm); padding:var(--sp-2) var(--sp-3); margin-bottom:var(--sp-2); }
+.rv-item h4 { font-size:var(--fs-sub); }
+.rv-spec { font-size:var(--fs-micro); color:var(--accent-ink); margin-top:2px; }
+.rv-item p { font-size:var(--fs-micro); color:var(--text-3); margin-top:4px; line-height:1.6; }
+.rv-btns { display:flex; gap:4px; margin-top:6px; }
+.rv-judge { min-height:24px; padding:1px 9px; border-radius:var(--radius-full); border:1px solid var(--border); background:transparent; color:var(--text-3); font-size:var(--fs-micro); cursor:pointer; }
+.rv-judge.on-yes { background:var(--tag-ok-bg); color:var(--tag-ok-text); border-color:transparent; }
+.rv-judge.on-no { background:var(--tag-warn-bg); color:var(--tag-warn-text); border-color:transparent; }
+.rv-see { min-height:24px; padding:1px 9px; border-radius:var(--radius-full); border:1px dashed var(--border-strong); background:transparent; color:var(--text-4); font-size:var(--fs-micro); cursor:pointer; }
+.rv-foot { display:flex; gap:var(--sp-1); padding:var(--sp-2) var(--sp-3); border-top:1px solid var(--border); }
+.rv-export { flex:1; min-height:var(--hit); border-radius:var(--radius-sm); border:1px solid var(--accent); background:transparent; color:var(--accent-ink); font-size:var(--fs-caption); font-weight:600; cursor:pointer; }
+
+.toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:200; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-full); padding:7px 18px; font-size:var(--fs-caption); color:var(--text-2); box-shadow:var(--shadow-lg); }
+[data-tip] { position:relative; }
+[data-tip]:hover::after { content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 7px); transform:translateX(-50%); max-width:340px; white-space:normal; background:var(--surface-3); color:var(--text-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:6px 10px; font-size:var(--fs-micro); line-height:1.6; box-shadow:var(--shadow-md); z-index:80; pointer-events:none; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+@media (max-width:800px) { .sug-modal { width:96vw; } .cand { flex-direction:column; } .cand-act { flex-direction:row; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand"><span class="brand-ico">知</span>知源 · Ownway</span>
+  <nav class="nav"><a href="#" class="on">调度台</a><a href="#">方向台</a><a href="#">策展台</a><a href="#">画像洞察</a></nav>
+  <div class="top-acts">
+    <div class="menu"><button class="icon-btn" id="themeBtn">◐</button>
+      <div class="menu-pop" id="themeMenu" style="display:none">
+        <button class="menu-item on" data-t="linear"><span class="sw" style="background:#5E6AD2"></span>深空薰衣草 · linear</button>
+        <button class="menu-item" data-t="raycast"><span class="sw" style="background:#1E6FD9"></span>曜石蓝 · raycast</button>
+        <button class="menu-item" data-t="apple"><span class="sw" style="background:#8452E0"></span>纸白紫 · apple</button>
+        <button class="menu-item" data-t="notion"><span class="sw" style="background:#9E3FAF"></span>暖纸紫 · notion</button>
+      </div></div>
+    <div class="menu"><button class="icon-btn" id="densityBtn">≡</button>
+      <div class="menu-pop" id="densityMenu" style="display:none">
+        <button class="menu-item on" data-d="">舒适（默认）</button>
+        <button class="menu-item" data-d="compact">紧凑（行卡收紧）</button>
+      </div></div>
+  </div>
+</div>
+<div class="proto-note">
+  <span><b>审核稿 V1</b> · AI 荐三件事（PRD 04-74 · G1 差距项）· 调度台今日三件事区扩展 · 色值/字号/间距取自 tokens.css · 演示数据虚构</span>
+  <span class="grow"></span>
+  <button class="note-btn" id="rvOpen2">怎么审 · 8 模块</button>
+</div>
+
+<div class="page">
+  <section class="hero">
+    <div><div class="kicker">调度台 · <b>2026-10-25 周日</b></div><div class="hero-title">今天，先做哪三件</div></div>
+    <div class="hero-tools">
+      <button class="tool" data-tip="与方向台同一开关">👁 已完成：显示</button>
+      <button class="tool" data-tip="重读事件日志">⟳ 刷新</button>
+    </div>
+  </section>
+
+  <div class="focus-line" data-tip="主攻锚行（V3.9.18 已上线形态）：点击直达只读项目详情">
+    <span class="lab">当前主攻</span>
+    <b>省级科创政策对比研究</b>
+    <span style="color:var(--text-4);font-size:var(--fs-caption)">62% · 5/8 项任务</span>
+    <span class="next">下一步 · 补齐浙江 2026 版政策原文，核对新版差异条款</span>
+  </div>
+
+  <!-- ═══ 今日三件事（主角）═══ -->
+  <section class="tb-card" aria-label="今日三件事">
+    <div class="tb-head">
+      <span class="tb-title">今日三件事</span>
+      <span class="tb-count" id="tbCount">已排 2 / 3</span>
+      <!-- ★G1 入口：空槽态=「AI 荐三件」；排满态=「AI 复核顺序」（衔接既有 focus-rank） -->
+      <button class="tb-ai" id="aiEntry" data-tip="AI 结合方向树（主攻优先）+ 近 14 天任务动态 + 弹药就绪度，给出 3 件候选——采纳才写入，AI 不替决策">✦ AI 荐三件</button>
+    </div>
+    <div class="tb-body" id="tbBody"></div>
+  </section>
+
+  <!-- 排满后的复核条（focus-rank 既有能力衔接展示） -->
+  <div class="rank-bar" id="rankBar" style="display:none">
+    <span class="ic">✦</span>
+    <span>三件事已排满——可用 <b>AI 复核顺序</b>（每日首次打开先本地写入，AI 只复核不改内容，V3.8.24 已上线）。</span>
+    <button class="rank-cta" id="rankGo" data-tip="focus-rank：两段式，AI 复核不成则保留本地顺序">复核顺序 ›</button>
+  </div>
+</div>
+
+<!-- ═══ 荐三件弹层 ═══ -->
+<div id="sugModal" style="display:none">
+  <div class="overlay" data-close="sug">
+    <div class="sug-modal" role="dialog" aria-modal="true" aria-label="AI 荐三件">
+      <div class="sug-head">
+        <span class="sug-ico">✦</span>
+        <div><div class="sug-title">AI 荐三件 · 今日候选</div>
+        <div class="sug-sub">结合方向树与任务动态 · 采纳才写入，AI 不替决策</div></div>
+        <button class="sug-x" data-close="sug" aria-label="关闭">×</button>
+      </div>
+      <div class="sug-input" id="sugInput">
+        <b>推荐输入（可核对，非黑箱）：</b>方向树快照——主攻 2 项（省级科创政策对比研究 62% / 年度咨询交付·制造业 停滞 14 天）· 六层账本（项目 5 · 指标 8 · 任务 23）· 近 14 天任务动态（推进 11 / 停滞 3）· 弹药就绪度（4 任务有支撑卡）
+      </div>
+      <div class="sug-body" id="sugBody"></div>
+      <div class="sug-foot">
+        <span class="sug-note">排序口径：主攻优先 › 停滞破冰 › 弹药就绪 › 近期热度。候选来自任务池未删卡，不含已排任务。</span>
+        <button class="btn-more" id="btnMore" data-tip="重新生成一批（同口径，次序按评分并列段轮换）">↻ 换一批</button>
+        <button class="btn-all" id="btnAll">三件全采</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="rv-fab" id="rvFab">☑ 审核 · 8 模块</button>
+<div class="rv-rail" id="rvRail">
+  <div class="rv-head"><span class="rv-title">AI 荐三件事原型 · 逐模块审核</span><button class="sug-x" id="rvClose" style="margin-left:auto">×</button></div>
+  <div class="rv-list" id="rvList"></div>
+  <div class="rv-foot"><button class="rv-export" id="rvExport">⤓ 导出判定 JSON</button></div>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ═══ 数据（虚构；口径与生产一致） ═══ */
+const CANDS = [
+  { name: '补齐浙江 2026 版政策原文', path: ['省级科创政策对比研究', '覆盖省份数'], tags: [['focus', '主攻'], ['ammo-ok', '弹药 2 张']],
+    why: [['主攻项目', '主攻 1 当前 62%，该指标仅差 2 省未覆盖——今天推进一件即可收口一个省'], ['弹药就绪', '支撑卡「浙江 2025 版原文」「浙江省政策汇编」已挂，可直达调出']] },
+  { name: '整理长三角三省科创政策差异表', path: ['省级科创政策对比研究', '差异条款核对'], tags: [['focus', '主攻'], ['ammo-ok', '弹药 3 张']],
+    why: [['近期热度', '昨日已调出相关资源卡 2 次（江苏汇编、上海新政摘要）——顺势推进阻力最小'], ['主攻项目', '主攻 1 的核心交付物，差异表完成度 40%']] },
+  { name: '客户线索清单 10 月复盘', path: ['年度咨询交付 · 制造业', '线索转化'], tags: [['stall', '停滞 14 天'], ['ammo-no', '无弹药']],
+    why: [['停滞破冰', '主攻 2 已停滞 14 天，这是它唯一未归位任务——今天碰一下即解除停滞读数'], ['注意', '暂无支撑卡，建议先花 10 分钟从池里挂 1-2 张（AI 可代找）']] },
+  { name: '咨询方案初稿框架', path: ['年度咨询交付 · 制造业', '方案交付'], tags: [['ammo-ok', '弹药 4 张']],
+    why: [['弹药就绪', '支撑卡最厚的一件（SOP + 访谈模板 + 两份纪要）'], ['非主攻线', '不在今日主攻优先段，列为备选']] },
+  { name: '苏州工业园区政策要点入池核对', path: ['省级科创政策对比研究', '覆盖省份数'], tags: [['focus', '主攻'], ['ammo-ok', '弹药 1 张']],
+    why: [['收尾动作', '昨天采集的卡还没核对标签与归属，5 分钟可清'], ['主攻项目', '同指标下的轻量收尾，适合排在第 3 件']] },
+  { name: '顾问定位差异化的证据补强', path: ['好奇心 · 转化任务'], tags: [['ammo-no', '无弹药']],
+    why: [['好奇转化', '成熟好奇卡昨日刚转任务，趁热补证据'], ['非主攻线', '探索型任务，今日优先级最低，备选']] },
+];
+let candPage = 0, takenNames = new Set();
+const SLOTS = [
+  { name: '核对江苏 2025 政策汇编版本', path: '省级科创政策对比研究 · 覆盖省份数', focus: true, ammo: 2, done: true },
+  { name: '更新上海科技成果转化新政摘要标签', path: '省级科创政策对比研究 · 差异条款核对', focus: true, ammo: 1, done: false },
+  null,
+];
+
+function renderSlots(flashIdx = -1) {
+  $('#tbBody').innerHTML = SLOTS.map((s, i) => s ? `
+    <div class="slot${i === flashIdx ? ' flash' : ''}" data-tip="${s.path} · 点击标题开任务详情">
+      <button class="checkbox${s.done ? ' on' : ''}" data-cb="${i}" aria-label="完成切换">✓</button>
+      <div class="slot-main">
+        <span class="slot-name${s.done ? ' slot-done' : ''}">${s.name}</span>
+        <span class="slot-meta">${s.focus ? '<span class="chip-mini focus">主攻</span>' : ''}<span>${s.path}</span><span class="chip-mini ammo">弹药 ${s.ammo} 张</span></span>
+      </div>
+      <button class="slot-x" data-rm="${i}" aria-label="移出今日" title="移出今日三件事（回任务池，不删卡）">✕</button>
+    </div>` : `
+    <div class="slot empty${i === flashIdx ? ' flash' : ''}" data-tip="空槽——点右上「AI 荐三件」或到任务池手选">
+      <span class="slot-idx">${i + 1}</span>
+      <span class="slot-main"><span class="slot-name" style="color:var(--text-4);font-weight:400">空槽 · 从任务池选一件，或让 AI 荐三件</span></span>
+    </div>`).join('');
+  const filled = SLOTS.filter(Boolean).length;
+  $('#tbCount').textContent = `已排 ${filled} / 3`;
+  const full = filled === 3;
+  const entry = $('#aiEntry');
+  entry.textContent = full ? '✦ AI 复核顺序' : `✦ AI 荐三件${filled ? '（补 ' + (3 - filled) + ' 件）' : ''}`;
+  entry.classList.toggle('done', full);
+  $('#rankBar').style.display = full && !SLOTS.every(s => s && s.done) ? 'flex' : 'none';
+  $$('#tbBody [data-cb]').forEach(b => b.onclick = () => { const s = SLOTS[+b.dataset.cb]; s.done = !s.done; renderSlots(); });
+  $$('#tbBody [data-rm]').forEach(b => b.onclick = () => { SLOTS[+b.dataset.rm] = null; renderSlots(); toast('已移出今日 · 回任务池（卡不删）'); });
+}
+function renderCands() {
+  const batch = [0, 1, 2].map(i => CANDS[(candPage * 3 + i) % CANDS.length]);
+  $('#sugBody').innerHTML = batch.map((c, i) => {
+    const taken = takenNames.has(c.name) || SLOTS.some(s => s && s.name === c.name);
+    return `
+    <div class="cand${taken ? ' taken' : ''}">
+      <span class="cand-rank">${(candPage * 3 + i) % CANDS.length + 1}</span>
+      <div class="cand-main">
+        <span class="cand-name">${c.name}</span>
+        <span class="cand-path"><b>${c.path[0]}</b> › ${c.path[1]}</span>
+        <span class="cand-why">${c.why.map(([k, v]) => `<span class="k">${k}：</span>${v}`).join('　')}</span>
+        <span class="cand-tags">${c.tags.map(([cls, t]) => `<span class="tag ${cls}">${t}</span>`).join('')}</span>
+      </div>
+      <div class="cand-act">
+        ${taken ? '<span class="taken-mark">✓ 已采纳</span>' : `<button class="btn-take" data-take="${c.name}">采纳 →</button>`}
+      </div>
+    </div>`;
+  }).join('');
+  $$('#sugBody [data-take]').forEach(b => b.onclick = () => take(b.dataset.take));
+  const anyEmpty = SLOTS.some(s => !s);
+  $('#btnAll').disabled = !anyEmpty;
+  $('#btnAll').textContent = anyEmpty ? `三件全采（补 ${SLOTS.filter(s => !s).length} 件）` : '已排满';
+}
+function take(name) {
+  const c = CANDS.find(x => x.name === name);
+  const idx = SLOTS.findIndex(s => !s);
+  if (idx < 0) { toast('三件事已排满 · 可用「AI 复核顺序」'); return; }
+  SLOTS[idx] = { name: c.name, path: c.path.join(' · '), focus: c.tags.some(t => t[0] === 'focus'), ammo: 0, done: false, fresh: true };
+  takenNames.add(name);
+  renderSlots(idx);
+  renderCands();
+  toast(`已采纳第 ${idx + 1} 件：「${c.name.slice(0, 14)}」· 写入即生效（AI 不改后续内容）`);
+}
+$('#btnAll').onclick = () => {
+  let n = 0;
+  while (SLOTS.some(s => !s) && n < 3) {
+    const cand = [0, 1, 2].map(i => CANDS[(candPage * 3 + i) % CANDS.length])
+      .find(c => !takenNames.has(c.name) && !SLOTS.some(s => s && s.name === c.name));
+    if (!cand) break;
+    const idx = SLOTS.findIndex(s => !s);
+    SLOTS[idx] = { name: cand.name, path: cand.path.join(' · '), focus: cand.tags.some(t => t[0] === 'focus'), ammo: 0, done: false };
+    takenNames.add(cand.name); n++;
+  }
+  renderSlots(); renderCands();
+  toast(`已采纳 ${n} 件 · 三件事排满（复核顺序随时可跑）`);
+};
+$('#btnMore').onclick = () => { candPage = (candPage + 1) % 2; renderCands(); toast('换一批 · 同口径，次序按评分并列段轮换'); };
+$('#aiEntry').onclick = () => {
+  if (SLOTS.every(s => s)) { toast('focus-rank（V3.8.24 已上线）：AI 复核顺序，不成则保留本地序'); return; }
+  candPage = 0; renderCands(); $('#sugModal').style.display = 'block';
+};
+$('#rankGo').onclick = () => toast('focus-rank · AI 复核顺序（原型只演示入口衔接，能力已在生产）');
+$$('[data-close]').forEach(el => el.addEventListener('click', e => { if (e.target === el) $('#sugModal').style.display = 'none'; }));  /* click.self：点按钮不冒泡关层 */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#sugModal').style.display = 'none'; $('#rvRail').classList.remove('show'); } });
+renderSlots();
+
+/* 主题/密度 */
+function bindMenu(btn, menu) { $(btn).onclick = e => { e.stopPropagation(); const m = $(menu); m.style.display = m.style.display === 'none' ? 'block' : 'none'; }; }
+bindMenu('#themeBtn', '#themeMenu'); bindMenu('#densityBtn', '#densityMenu');
+document.addEventListener('click', () => { $('#themeMenu').style.display = 'none'; $('#densityMenu').style.display = 'none'; });
+$$('#themeMenu .menu-item').forEach(b => b.onclick = () => { document.documentElement.dataset.theme = b.dataset.t; $$('#themeMenu .menu-item').forEach(x => x.classList.toggle('on', x === b)); });
+$$('#densityMenu .menu-item').forEach(b => b.onclick = () => { if (b.dataset.d) document.documentElement.dataset.density = b.dataset.d; else delete document.documentElement.dataset.density; $$('#densityMenu .menu-item').forEach(x => x.classList.toggle('on', x === b)); });
+
+/* 审核列 8 模块 */
+const MODULES = [
+  { id: 'm1', name: '入口与状态机', spec: ['空槽=荐三件', '排满=复核顺序', 'AI 不替决策'],
+    see: '三件事卡头部「✦ AI 荐三件」：有 2/3 件时显示「补 1 件」；排满后自动变为「✦ AI 复核顺序」（灰化），下方出现复核条', do: '先看 2/3 状态的入口文案；移出一件看入口复原；采纳至排满看复核条出现', fb: '入口文案随状态自述，不藏在 tooltip', not: '荐三件不覆盖已排任务（只补空槽）' },
+  { id: 'm2', name: '推荐弹层 · 输入口径公开', spec: ['R03 镜子', '可核对', '非黑箱'],
+    see: '弹层第二行「推荐输入」：方向树快照（主攻 2 项含停滞天数）、六层账本、近 14 天动态、弹药就绪度', do: '打开弹层读第二行；每张候选的推荐理由与该输入一一对应', fb: '推荐理由四口径（主攻优先/停滞破冰/弹药就绪/近期热度）都可回查', not: '理由不写「AI 认为」这类不可核对的话' },
+  { id: 'm3', name: '候选卡 · 理由与标签', spec: ['路径到指标', '弹药徽标', '停滞中性标'],
+    see: '每张候选：任务名 › 项目 › 成功指标（方向树路径）；主攻/弹药 N 张/停滞 14 天三族标签；推荐理由两三条', do: '逐张读理由；注意「注意：」条目会给风险提示（如无弹药建议先挂卡）', fb: '停滞是中性读数（tag-warn 色）不催办', not: '候选不含已排/已采纳任务' },
+  { id: 'm4', name: '采纳交互 · 两段式', spec: ['采纳才写入', '单件/全采', '槽位闪亮'],
+    see: '「采纳 →」单件写入空槽（槽位 flash 高亮 1.2s）；「三件全采」一次补满；采纳后候选变「✓ 已采纳」灰化', do: '采纳一件看槽位闪亮与计数变化；再点三件全采看复核条出现', fb: '写入即生效，无二次确认（采纳本身就是确认）', not: 'AI 不自动排序、不自动勾选、不改任务内容' },
+  { id: 'm5', name: '换一批', spec: ['同口径轮换', '不重复', '可回翻'],
+    see: '「↻ 换一批」在并列评分段内轮换（6 候选两批）；已采纳的不重复出现', do: '点换一批读第二批（咨询方案初稿/苏州收尾/好奇转化）', fb: '换批不换口径——排序标准恒定，只是并列段内轮换', not: '不做「无限刷新碰运气」——批次有限且说明' },
+  { id: 'm6', name: '与 focus-rank 的衔接', spec: ['荐候选 ≠ 排顺序', '复核已有能力', '口Boundary 清晰'],
+    see: '排满后复核条：「三件事已排满——可用 AI 复核顺序（V3.8.24 已上线）」+ 入口按钮', do: '排满后点头部入口/复核条按钮，读 toast 说明', fb: '荐三件（新）管「选什么」，复核顺序（既有）管「先后」——两个能力不重叠', not: '不把排序复核重做一遍' },
+  { id: 'm7', name: '空槽/移出/勾选 闭环', spec: ['恒三槽', '移出不删卡', '完成态'],
+    see: '空槽虚线序号 + 引导文案；行尾 ✕ 移出（回任务池）；勾选完成（划线）', do: '移出一件看入口复原；勾选一件看划线与已排计数', fb: '与生产三件事行为一致（恒三槽 W17 纪律）', not: '移出≠删除（删除走任务详情软删红线）' },
+  { id: 'm8', name: '主题 × 密度 × 断点', spec: ['四主题令牌', '紧凑生效', '窄屏候选纵排'],
+    see: '右上 ◐/≡ 切换；800 以下候选卡纵排', do: '切 notion 看对比度；切紧凑看候选与槽位行距收紧；拖窄窗口', fb: '全套 tokens.css 令牌（radius-full 胶囊、card-pad 密度）', not: '无 999px 字面量、无硬编码色' },
+];
+$('#rvList').innerHTML = MODULES.map(m => `
+  <div class="rv-item">
+    <h4>${m.name}</h4>
+    <div class="rv-spec">${m.spec.map(s => '· ' + s).join(' ')}</div>
+    <p><b>看什么：</b>${m.see}</p>
+    <p><b>怎么验：</b>${m.do}</p>
+    <p><b>反馈点：</b>${m.fb}</p>
+    <p><b>边界：</b>${m.not}</p>
+    <div class="rv-btns"><button class="rv-judge" data-v="yes">✓ 通过</button><button class="rv-judge" data-v="no">✗ 有问题</button><button class="rv-see" data-demo="${m.id}">▶ 演示脚本</button></div>
+  </div>`).join('');
+$('#rvFab').onclick = () => $('#rvRail').classList.toggle('show');
+$('#rvOpen2').onclick = () => { $('#rvRail').classList.add('show'); window.scrollTo({ top: 0 }); };
+$('#rvClose').onclick = () => $('#rvRail').classList.remove('show');
+$$('.rv-judge').forEach(b => b.onclick = () => {
+  const g = b.closest('.rv-btns');
+  g.querySelectorAll('.rv-judge').forEach(x => x.classList.remove('on-yes', 'on-no'));
+  b.classList.add(b.dataset.v === 'yes' ? 'on-yes' : 'on-no');
+});
+const DEMO = {
+  m1: () => { SLOTS[1] = null; renderSlots(); toast('已移出第 2 件 · 入口复原为「补 1 件」'); },
+  m2: () => $('#aiEntry').click(),
+  m3: () => $('#aiEntry').click(),
+  m4: () => { $('#aiEntry').click(); setTimeout(() => take('客户线索清单 10 月复盘'), 400); },
+  m5: () => { $('#aiEntry').click(); $('#btnMore').click(); },
+  m6: () => { SLOTS[2] = { name: '苏州工业园区政策要点入池核对', path: '省级科创政策对比研究 · 覆盖省份数', focus: true, ammo: 1, done: false }; renderSlots(); },
+  m7: () => { SLOTS[0].done = false; renderSlots(); },
+  m8: () => { document.documentElement.dataset.theme = 'notion'; document.documentElement.dataset.density = 'compact'; toast('已切 notion + 紧凑档'); },
+};
+$$('.rv-see').forEach(b => b.onclick = () => { $('#rvRail').classList.remove('show'); (DEMO[b.dataset.demo] || (() => {}))(); });
+$('#rvExport').onclick = () => {
+  const out = { proto: 'AI 荐三件事 审核稿 V1（PRD 04-74 G1）', date: '2026-10-25', verdicts: {} };
+  $$('.rv-item').forEach((it, i) => {
+    const y = it.querySelector('.on-yes'), n = it.querySelector('.on-no');
+    out.verdicts[MODULES[i].id + ' ' + MODULES[i].name] = y ? '通过' : n ? '有问题' : '未判定';
+  });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'AI荐三件事_V1_判定.json'; a.click();
+  toast('已导出判定 JSON');
+};
+let toastTimer = null;
+function toast(msg) {
+  let el = $('.toast');
+  if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2600);
+}
+</script>
+</body>
+</html>

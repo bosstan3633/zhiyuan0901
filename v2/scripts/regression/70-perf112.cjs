@@ -108,11 +108,14 @@ check('R112-13 预取不跳过归一化：loadData 的归一化段在预取分�
 // ---- 批次 0：P0 周报失效 ----
 check('R113-1 ★ P0 周报入口修复（R172-T9 重指带备案 · M4/V3.8.32 再重指）：周报浮层退役 ⇒ "模板引用但从未 import"的病根整体消失；双向断言 = 旧浮层引用/导入零残留 + 右槽战报工具入口的**使用点**可见且其依赖（router / openReview）先于该使用点', () => {
   const h = read('/newtab/views/CompassHome.vue');
+  const cmp = read('/newtab/views/useCompassHome.ts');
   // ★M4（V3.8.32）重指：锚点从类名 mb-act cta 改为入口的使用点，类名不是契约，使用点才是。
+  // ★R181 随迁带备案：openReview 与它用到的 router 随域逻辑下沉 useCompassHome.ts，
+  //   "依赖先于使用点"拆成两处各自成立——① 宿主模板仍在使用点；② composable 里 router import 先于 openReview 定义。
   const tagIdx = h.indexOf('@click="openReview"');
-  const routerIdx = h.indexOf("import { useRouter, useRoute } from 'vue-router'");
-  const fnIdx = h.indexOf('function openReview');
-  return tagIdx > 0 && routerIdx > 0 && routerIdx < tagIdx && fnIdx > 0 && fnIdx < tagIdx && !h.includes('wr-overlay') && !h.includes("from '../components/WeeklyReport");
+  const routerIdx = cmp.indexOf("import { useRouter, useRoute } from 'vue-router'");
+  const fnIdx = cmp.indexOf('function openReview');
+  return tagIdx > 0 && routerIdx > 0 && fnIdx > 0 && routerIdx < fnIdx && !h.includes('wr-overlay') && !h.includes("from '../components/WeeklyReport");
 });
 
 /** R113-2 用：递归收集 src 下所有 .vue */
@@ -130,7 +133,12 @@ check('R113-2 ★ 孤儿组件全量护栏：src 下所有 .vue 模板中出现�
     for (const tag of tags) {
       if (VUE_BUILTIN_TAGS.has(tag)) continue;
       // R134 扩展：defineAsyncComponent 常量注册与 import 同罪同罚（懒加载组件不是孤儿）
-      if (!new RegExp('import\\s+[^;]*\\b' + tag + '\\b[^;]*from').test(src) && !new RegExp('const\\s+' + tag + '\\s*=\\s*defineAsyncComponent').test(src)) bad.push(path.relative(base, f) + ' → ' + tag);
+      // ★R181 扩展：结构优化把"懒加载组件常量"下沉到 composable、宿主改为 `const { X } = useXxx()` 解构接回时，
+      //   宿主仍是"有绑定"（不是静默空节点），故把"解构自本地 composable 的具名绑定"也算有效登记；
+      //   孤儿定义（既无绑定也无 defineAsyncComponent）仍照旧红。
+      if (!new RegExp('import\\s+[^;]*\\b' + tag + '\\b[^;]*from').test(src)
+        && !new RegExp('const\\s+' + tag + '\\s*=\\s*defineAsyncComponent').test(src)
+        && !new RegExp('const\\s+\\{[^}]*\\b' + tag + '\\b[^}]*\\}\\s*=').test(src)) bad.push(path.relative(base, f) + ' → ' + tag);
     }
   }
   if (bad.length) console.log('      孤儿组件：' + bad.join(' | '));

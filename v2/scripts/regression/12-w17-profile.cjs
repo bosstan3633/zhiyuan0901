@@ -160,7 +160,11 @@ check('V3.9.7-1 ★页头压缩：标题和操作按钮保留，去掉外层阴�
 });
 
 check('V3.9.7-2 ★指标明细点击不再去卡片池定位：任务开详情；资源有链接直接打开、无链接开详情；好奇心开详情', () => {
-  const fn = PI.slice(PI.indexOf('function openStatCard('), PI.indexOf('const statDrawerTitle'));
+  /* ★R181 随迁带备案：openStatCard 随域逻辑下沉 useProfileInsights.ts，而旧尾锚 `const statDrawerTitle`
+     随标签域进了 useProfileInsightsTags.ts —— 两锚跨文件后切片会一路吞过 openStatCard 之后的大段代码
+     （含 locateTargetOf / router.push 造成假红）。尾锚改指 openStatCard **紧邻的下一枚顶层函数**，
+     切片重新只覆盖 openStatCard 本体，判据意图（指标明细点击不再去卡片池定位）一字未改。 */
+  const fn = PI.slice(PI.indexOf('function openStatCard('), PI.indexOf('async function openTagDistribution'));
   return PI.includes("import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'")
     && PI.includes('const { openResourceLink } = useResourceOpen({ store, d: gd })')
     && PI.includes('<TaskDetailDrawer ref="taskDetailRef" />')

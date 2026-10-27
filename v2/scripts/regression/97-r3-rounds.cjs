@@ -144,7 +144,9 @@ check('R3-B1 ★树担得起首屏：项目级读数走预计算 ★W11(V3.8.11)
     && meta.includes('orphanMetric:')
     && meta.includes('orphanTasks')
     && /compassMeta = computed/.test(CT_W11)
-    && !/projectProgress\(/.test(CT_W11.slice(CT_W11.indexOf('<template>')));
+    /* ★R181 随迁带备案：切到 `<template>…</template>`（字面"模板内"），不再切到串尾——宿主拆分后逻辑成员追加在
+       `</style>` 之后会落进串尾切片造成假红；判据意图（模板零逐项现算 projectProgress）一字未改。 */
+    && !/projectProgress\(/.test(CT_W11.slice(CT_W11.indexOf('<template>'), CT_W11.indexOf('</template>')));
 });
 
 check('R3-B1 ★退役不悬空（能力去向逐条点名；★R3-B2 拍板后置顶与排序已回归树内，不在本条清单里）：主航线实现（vm-bar/focus-bar/goals-grid/proj-row/proj-menu/ovFilter/toolsGate/CHIP_LIMIT）随宿主整体退役，三面全站零命中；读数改由树页头 treeStats（主攻/停滞）+ 卡头 tp-flag 承担，密度由 R3-B′ 折叠承担。★G1(V3.8.24)随迁带备案：主攻/停滞两处页头读数前缀由 emoji「🚀/⚠」迁移为 <Icon name="main-focus"/"stall">，锚点随迁（读数表达式不动）', () => {
