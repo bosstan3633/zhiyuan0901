@@ -80,10 +80,12 @@ check('XM-03 ★画像年度段：只撤年度诊断提示条；四格指标均�
     && hm.includes('const yearLayout = computed')
     && hm.includes('const MONTH_GAP = 2')
     && hm.includes('offset += cols + MONTH_GAP')
-    && hm.includes('gridColumnStart: t.col + 2')
-    && hm.includes('gridColumnStart: c.col + 2')
+    && hm.includes('gridColumnStart: c.weekday + 1')
+    && hm.includes('gridRowStart: c.week + 1')
+    && hm.includes('class="dz-month-grid"')
     && hm.includes('12 个自然月分组')
-    && css.includes('.dz-year-scroll') && css.includes('min-width: 760px');
+    && css.includes('.dz-year-scroll') && css.includes('min-width: 1020px')
+    && css.includes('grid-template-columns: repeat(7, minmax(5px, 1fr))');
 });
 
 check('XM-04 ★策展台真删除：右键不再提供归档；资源卡/分类/论证卡进回收站；镜像释放不落池；3 秒整台撤销可恢复', () => {
@@ -153,7 +155,8 @@ check('XM-07 ★V3.9.26 重指：调度台右栏只保留今天状态与最近�
     && logic.includes('.slice(0, recentLimit.value)')
     && css.includes('.desk-layout {')
     && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
-    && css.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }')
+    && css.includes('.desk-status-rail { position: relative; z-index: 0; }')
+    && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(css)
     && css.includes('.side-rail { position: relative; top: auto; }')
     && css.includes('左右模块仍保持起点、间距与底部收口一致')
     && !css.includes('.rail-panel-recent { height: 100%')

@@ -162,17 +162,18 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-5 ★段头右缘操作四段同模具：本年段原先是四段里唯一右缘空着的，',
-  '横向扫四段时第三段有徽标、第四段什么都没有 —— 补一枚同模具的 m-badge。',
-  '口径纪律：它报「本年活跃天数」，是 strip4 四格之外的**时间刻度**，不与格内读数重复'), () => {
+  'A3-5（V3.9.27 重指）★段头右缘操作四段同模具，但年度段不再复制活跃读数：',
+  '本年段右缘保留与其它段同模具的动作容器和 AI 入口；「本年活跃」只由 strip4 承载一次，',
+  '热力图内部摘要同时关闭，避免同一读数在首屏重复三次'), () => {
   const heads = [TODAY, RHY, MONTH, YEAR].map(segHead);
   if (heads.some(s => !s)) { console.log('     段头切片缺失'); return false; }
   return heads.every(s => s.includes('<div class="pi-mod-acts">'))
-    && YEAR.includes('本年活跃 {{ ya.act }} 天')
-    && YEAR.includes('年内有动作的天数 = ')
-    /* 今日=按钮 / 本周=徽标 / 本月=徽标 / 本年=徽标，四段右缘各有各的实体，不是同一枚复制 */
+    && YEAR.includes('pi-ai-insight')
+    && YEAR.includes(':show-summary="false"')
+    && !YEAR.includes('本年活跃 {{ ya.act }} 天')
+    /* 今日=按钮 / 本周=徽标 / 本月=徽标 / 本年=AI；四段右缘各有自己的实体，年度不再复述活跃读数 */
     && TODAY.includes('<button class="pi-btn line"') && RHY.includes('class="wk-badge"')
-    && MONTH.includes('class="m-badge"') && YEAR.includes('class="m-badge"');
+    && MONTH.includes('class="m-badge"') && !YEAR.includes('class="m-badge"');
 });
 
 check(NAME(

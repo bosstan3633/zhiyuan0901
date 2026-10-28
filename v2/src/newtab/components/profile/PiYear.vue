@@ -74,8 +74,8 @@ function onHeatmapSel(day: string | null): void {
         <h2>这一年，你走过什么<span class="en">YEAR</span></h2>
         <p>全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 › 该日战报。</p>
       </div>
-      <!-- ★A3（V3.8.35）：本段原先是四段里唯一段头右缘空着的（今日=按钮 / 本周=徽标+按钮 / 本月=徽标）。
-           补一枚同模具的 m-badge —— 只报「本年活跃天数」，是 strip4 四格之外的时间刻度，不与格内读数重复。
+      <!-- ★V3.9.27：年度页头不再重复「本年活跃 N 天」。
+           strip4 是该段唯一指标入口，热力图内部摘要同时关闭，避免同一读数在首屏出现三次。
 
            ★★坑（V3.8.35 实测踩到，代价很大）：本段注释第一版里写了带反引号的类名，而下面节点自身的 title
            又含模板字符串反引号。Vue 的 template 解析按 HTML 注释规则走，注释一旦被判成未正常闭合，
@@ -83,10 +83,6 @@ function onHeatmapSel(day: string | null): void {
            vue-tsc 绿、build 绿、regression 也全绿（判据读的是源码不是产物），只有实拍 DOM 才看得出段头右缘仍然是空的。
            纪律：模板区注释里一律不写反引号，更不要把 title 的模板字符串搬进注释。 -->
       <div class="pi-mod-acts">
-        <span class="m-badge" :class="ya.act > 0 ? 'up' : ''"
-          :title="`${year} 年内有动作的天数 = ${ya.act} 天（与热力图同口径，点格看某天明细）`">
-          本年活跃 {{ ya.act }} 天
-        </span>
         <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
           <AiEntryButton variant="inline" label="AI 续写" />
         </button>
@@ -115,10 +111,10 @@ function onHeatmapSel(day: string | null): void {
       <div class="pi-hair"></div>
 
       <div>
-        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">12 个月分组 · 全年单行 · 点任意日期 › 直接打开当日战报</span></div>
+        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">12 个月分组 · 月内日期横向展开 · 点任意日期 › 直接打开当日战报</span></div>
         <div class="pi-hmbox">
           <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
-            default-expanded
+            default-expanded :show-summary="false"
             @update:year="emit('update:year', $event)" @update:sel-day="onHeatmapSel" />
           <div class="pi-hm-legend">
             <span>少</span>
@@ -126,7 +122,7 @@ function onHeatmapSel(day: string | null): void {
             <span class="s s-h2"></span><span class="s s-h3"></span>
             <span class="s s-h4"></span><span class="s s-h5"></span>
             <span>多</span>
-            <span class="hm-stats">活跃 <b>{{ ya.act }}</b> 天 · 最长连续 <b>{{ ls }}</b> 天<template v-if="ya.peak"> · 单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</template></span>
+            <span class="hm-stats">有效动作 <b>{{ ya.acts }}</b> 件<template v-if="ya.peak"> · 单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</template></span>
           </div>
         </div>
       </div>

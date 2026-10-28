@@ -590,7 +590,7 @@ check('R172-5 ★W10 退役重指带备案：概览带 UI 随时间轴三段式�
     && pi.includes('const dashStats = dash.stats')
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('useDashboardStats');
 });
-check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格 + 三态 + 六档语义图例 + 4 张摘要卡 + P90 实算 + 切年。★V3.9.23 重指：按用户拍板改成 12 个自然月分组，月间留空列，但全年仍在一行内呈现；每天仍由 gridColumnStart / gridRowStart 落位，占位格零渲染', () => {
+check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格 + 三态 + 六档语义图例 + 4 张摘要卡 + P90 实算 + 切年。★V3.9.27 重指：12 个自然月横向分组，每月内部星期为列、周为行，日期从左到右推进；每天仍由 gridColumnStart / gridRowStart 落位，占位格零渲染', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
   return h.includes('LV_NAME') && h.includes('LV_DESC') && h.includes('LV_RANGE')
     && h.includes('longestStreak(') && h.includes('yearAgg(')
@@ -598,12 +598,12 @@ check('R172-6 ★T6 年度热力图（04-67 F7~F11）：366 格 + 三态 + 六�
     && h.includes('agg.p90')                    // P90 实算
     && h.includes('今年第 1') && h.includes('· ${LV_NAME[lv]}')  // 「MM-DD · 满格」带分隔
     && h.includes("'future'")
-    /* ★V3.9.23：12 个自然月分组，月间空列，全年仍单行。 */
+    /* ★V3.9.27：12 个自然月分组，每月按标准日历方向横向展开。 */
     && h.includes('const yearLayout = computed(() => {')
     && h.includes('offset += cols + MONTH_GAP')
-    && h.includes('v-for="t in yearLayout.months"')
-    && h.includes('gridColumnStart: c.col + 2')
-    && h.includes('gridRowStart: c.row + 2')
+    && h.includes('v-for="mo in yearLayout.months"')
+    && h.includes('gridColumnStart: c.weekday + 1')
+    && h.includes('gridRowStart: c.week + 1')
     && !h.includes('function coordOf(')
     // ★ F8 可读性硬判据：图例区不得出现分档裸代号（大写 L+数字）
     && !/L[0-5]/.test(h);
@@ -775,7 +775,7 @@ check('R172-20 ★F31/F32 采纳出口是真的：落卡登记进全局撤销栈
     && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes("tcForm.title = props.prefill?.title || ''") && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('tcSaved.value = false');  /* ★V3.9.20 随迁备案：任务速记面板拆入 QuickAdd，prefill 改经 props 读取 */
 });
 
-check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项。★V3.9.23 重指：热力图按 12 个自然月分组但全年单行，导出与屏上共用 yearLayout 坐标；PNG/HTML 统一走知源卡片模板 zyCardBlob / zyCardHtml', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('grid-auto-rows: auto') && css.includes('min-width: 760px') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-year .dz-cell {') && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ["gridTemplateColumns: `16px repeat(${yearLayout.cols}, minmax(5px, 1fr))`", '<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'zyCardBlob(buildZyCard())', 'zyCardHtml(buildZyCard())', 'grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: 7 }']) && !hm.includes('tablesToCsv') && !hm.includes('heatmapShareHtml') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL'); });
+check('R172-21 ★F39 导出：ExportMenu 四项可配（CSV / Markdown / PNG / HTML，formats prop 决定开哪几项）且 v-if 不开即零节点、菜单右锚定不越视口右缘；复盘段仍是 CSV/MD/PNG 三件套、热力图段收为 PNG/HTML 两项。★V3.9.27 重指：热力图按 12 个自然月分组、每月日期横向展开，导出与屏上共用 yearLayout 坐标；PNG/HTML 统一走知源卡片模板 zyCardBlob / zyCardHtml', () => { const ex = codeOnly(read('/newtab/components/dashboard/ExportMenu.vue')); const css = read('/newtab/components/dashboard/dashboard.css'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hm = read('/newtab/components/dashboard/Heatmap.vue'); const dl = codeOnly(read('/newtab/components/dashboard/DashboardLogDrawer.vue')); return has(ex, ["pick('csv')", "pick('md')", "pick('png')", "pick('html')", 'v-if="open"', "formats"]) && css.includes('.dz-exp {') && css.includes('right: 0') && css.includes('.dz-year {') && css.includes('min-width: 1020px') && css.includes('.dz-year-scroll {') && css.includes('overflow-x: auto') && css.includes('.dz-month-grid {') && css.includes('grid-template-columns: repeat(7') && css.includes('.dz-year .dz-cell {') && has(rp, ['<ExportMenu @pick="onExport" />', 'tablesToCsv', 'sectionsToMd', 'pngBlobFromSpec']) && has(hm, ['<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />', 'zyCardBlob(buildZyCard())', 'zyCardHtml(buildZyCard())', 'grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: yearLayout.value.rows }']) && !hm.includes('tablesToCsv') && !hm.includes('heatmapShareHtml') && dl.includes('tablesToCsv') && !dl.includes('URL.createObjectURL'); });
 
 /* V3.9.15 · 方向台聚焦与调度闭环：用户反馈直接钉成静态合同。
    这一组只守“入口存在、语义不混、两个视图都接通”，不重测 E2E 已覆盖的点击路径。 */

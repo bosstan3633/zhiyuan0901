@@ -3,7 +3,7 @@
  *
  * 本片锁住本轮用户可见行为；版本锚仍由 helpers.cjs 的唯一字面量负责。
  */
-const { check, read } = require('./helpers.cjs');
+const { check, read, CUR_VER, CUR_VTAG, VER_ANCHOR_LITERAL } = require('./helpers.cjs');
 
 console.log('【V3.9.26 · 任务详情 / 调度台 / 方向台】');
 
@@ -51,7 +51,9 @@ check('R183-B1 ★调度台底轨不与右栏滚动重叠：状态轨在双列�
     && css.includes('.desk-main { grid-column: 1; grid-row: 1; }')
     && css.includes('.side-rail { grid-column: 2; grid-row: 1; }')
     && css.includes('.side-rail { position: relative; top: auto; }')
-    && css.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }');
+    && css.includes('.desk-status-rail { position: relative; z-index: 0; }')
+    && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(css)
+    && !/\.page-foot \{[\s\S]*?margin-top: -4px;/.test(css);
 });
 
 check('R183-C1 ★战略骨架整行可折叠：标题行支持点击、Enter、Space 与 aria-expanded；右侧「战略目标 / 建议目标 / 展开」动作区阻止冒泡，不误触折叠', () => {
@@ -96,19 +98,19 @@ check('R183-C3 ★指标到任务采用单一隶属轨：去掉独立泳道竖�
     && lane.includes('class="ltask-box"');
 });
 
-check('R183-V1 ★版本与更新日志同步到 V3.9.26：manifest / package / lock / 手册 / 回归锚一致，更新日志首条记录本轮五项用户可见变化', () => {
+check('R183-V1 ★版本与更新日志同步：manifest / package / lock / 手册 / 回归锚一致，V3.9.26 五项用户可见变化仍在更新日志中', () => {
   const pkg = require('../../package.json');
   const lock = require('../../package-lock.json');
   const manifest = read('/manifest.ts');
   const manual = read('/newtab/views/ManualPage.vue');
   const log = read('/newtab/changelog-data/entries-v3.ts');
   const helpers = read('/../scripts/regression/helpers.cjs');
-  return pkg.version === '3.9.26'
-    && lock.version === '3.9.26'
-    && lock.packages[''].version === '3.9.26'
-    && manifest.includes("version: '3.9.26'")
-    && manual.includes('V3.9.26')
-    && helpers.includes("version: '3.9.26'")
+  return pkg.version === CUR_VER
+    && lock.version === CUR_VER
+    && lock.packages[''].version === CUR_VER
+    && manifest.includes(VER_ANCHOR_LITERAL)
+    && manual.includes(CUR_VTAG)
+    && helpers.includes(VER_ANCHOR_LITERAL)
     && log.includes("version: '3.9.26'")
     && log.includes('任务详情工具收口')
     && log.includes('调度台底轨隔离')

@@ -5,18 +5,21 @@ const { check, read, codeOnly, segOf } = require('./helpers.cjs');
 
 console.log('【V3.9.22 · 画像洞察】');
 
-check('R180-A1 ★热力图随宽度铺满且保留月份分组：12 个自然月共用全年网格，月间空列；桌面铺满、窄屏容器横滚且页面不溢出', () => {
+check('R180-A1（V3.9.27 重指）★热力图随宽度铺满且保留月份分组：12 个自然月共用全年轨道，月间独立间隔；每月内部日期横向展开，窄屏容器横滚且页面不溢出', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'))
   const css = read('/newtab/components/dashboard/dashboard.css')
-  return hm.includes("gridTemplateColumns: `16px repeat(${yearLayout.cols}, minmax(5px, 1fr))`")
-    && hm.includes('v-for="t in yearLayout.months"')
-    && hm.includes('gridColumnStart: t.col + 2')
+  return hm.includes('v-for="mo in yearLayout.months"')
+    && hm.includes('class="dz-month-grid"')
+    && hm.includes('gridColumnStart: c.weekday + 1')
+    && hm.includes('gridRowStart: c.week + 1')
     && hm.includes('offset += cols + MONTH_GAP')
     && hm.includes('class="dz-year-scroll"')
     && css.includes('.dz-year {')
+    && css.includes('grid-template-columns: repeat(12, minmax(72px, 1fr))')
     && css.includes('width: 100%')
-    && css.includes('grid-auto-rows: auto')
-    && css.includes('min-width: 760px')
+    && css.includes('min-width: 1020px')
+    && css.includes('.dz-month-grid {')
+    && css.includes('grid-template-columns: repeat(7, minmax(5px, 1fr))')
     && css.includes('aspect-ratio: 1')
     && css.includes('.dz-year-scroll {')
     && css.includes('overflow-x: auto')

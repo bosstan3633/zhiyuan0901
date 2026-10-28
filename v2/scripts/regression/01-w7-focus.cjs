@@ -22,7 +22,8 @@ check('W7-1 ★V3.9.25 随迁备案：今日三件事仍是首屏唯一主体 �
     /* 次级层：手边卡降为 shadow-sm，侧栏只做案头信息 */
     && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--shadow-sm);')
     && ch.includes('.desk-layout {\n  display: grid;')
-    && ch.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }')
+    && ch.includes('.desk-status-rail { position: relative; z-index: 0; }')
+    && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(ch)
     && ch.includes('.hand-board { margin-top: 0; }')
     && css.includes('.dz-sec-h .dz-t { font-size: var(--fs-title);')
     /* ★负锚：旧三张卡不得把主角形态带回来，侧栏也不许用重框 */

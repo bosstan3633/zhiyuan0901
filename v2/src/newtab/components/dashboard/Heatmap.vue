@@ -28,6 +28,8 @@ const props = defineProps<{
   liveLink: number
   /** 画像洞察的年度视图默认直接展开全年；调度台等其它宿主仍保持近 26 周概览。 */
   defaultExpanded?: boolean
+  /** 画像洞察已在年度模块顶部给出四枚主指标时，隐藏热力图内部重复摘要。 */
+  showSummary?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'update:year', y: number): void
@@ -51,7 +53,6 @@ onMounted(() => {
 })
 onUnmounted(routeWatchOff)
 
-const WD = ['一', '二', '三', '四', '五', '六', '日']
 const pad2 = (n: number): string => String(n).padStart(2, '0')
 /* ★ V3.8.6 增补：today 改 computed——原 setup 期一次性取值，跨零点后"今天"格子标记会停在旧日期 */
 const today = computed(() => todayKey())
@@ -81,11 +82,11 @@ const summary = computed(() => {
 /**
  * 全年网格：**12 个自然月分组，桌面端仍在一行内呈现**。
  *
- * 每个自然月保留自己的星期行与月内列，月间留出明显间隔；这样既能看出全年的
- * 连续分布，也能一眼分清每个月的起止。数据口径仍是 `stats.days` 的日记录，
- * `months` 同时供给近 26 周概览条与键盘遍历。
+ * V3.9.27：每个月改成标准日历方向——星期为列、周为行，日期在每个月中从左到右推进。
+ * 月与月之间保留独立间隔；这样既保留全年横向阅读，也不再让日期沿单列自上而下堆叠。
+ * 数据口径仍是 `stats.days` 的日记录，`months` 同时供给近 26 周概览条与键盘遍历。
  *
- * ★不渲染占位格：每月首日由 `grid-row-start` 落位，月与月之间只插空列。
+ * ★不渲染占位格：每月首日由 `grid-column-start` 与 `grid-row-start` 落位。
  */
 const months = computed(() => {
   const y = props.year
@@ -112,11 +113,19 @@ const months = computed(() => {
 })
 
 const MONTH_GAP = 2
-/** 月份分组坐标：每月按自己的周列排布，月间插入两列空隙。
- *  日期从左到右、星期从上到下；同一周内不会把日期排成纵向月份流。 */
+/** 月份分组坐标：每月固定 7 个星期列，周从上到下堆叠。
+ *  日期在每个月中先向右、再换行；月间插入两列空隙。全局坐标同时供导出卡片复用。 */
 const yearLayout = computed(() => {
-  const monthsOut: { m: number; col: number; cols: number; start: number; cells: { k: string; lv: number; cls: string; col: number; row: number }[] }[] = []
+  const monthsOut: {
+    m: number
+    col: number
+    cols: number
+    rows: number
+    start: number
+    cells: { k: string; lv: number; cls: string; col: number; row: number; weekday: number; week: number }[]
+  }[] = []
   let offset = 0
+  let maxRows = 1
   for (const mo of months.value) {
     const first = mo.cells[0]
     const firstDow = first ? (new Date(first.k + 'T00:00:00').getDay() + 6) % 7 : 0
@@ -124,13 +133,16 @@ const yearLayout = computed(() => {
       const date = new Date(cell.k + 'T00:00:00')
       const localDay = date.getDate() - 1
       const week = Math.floor((localDay + firstDow) / 7)
-      return { ...cell, col: offset + week, row: (date.getDay() + 6) % 7 }
+      const weekday = (date.getDay() + 6) % 7
+      return { ...cell, col: offset + weekday, row: week, weekday, week }
     })
-    const cols = cells.length ? Math.max(...cells.map(cell => cell.col)) - offset + 1 : 1
-    monthsOut.push({ m: mo.m, col: offset, cols, start: firstDow, cells })
+    const cols = 7
+    const rows = cells.length ? Math.max(...cells.map(cell => cell.row)) + 1 : 1
+    maxRows = Math.max(maxRows, rows)
+    monthsOut.push({ m: mo.m, col: offset, cols, rows, start: firstDow, cells })
     offset += cols + MONTH_GAP
   }
-  return { months: monthsOut, cols: Math.max(1, offset - MONTH_GAP) }
+  return { months: monthsOut, cols: Math.max(1, offset - MONTH_GAP), rows: maxRows }
 })
 const yearCells = computed(() => yearLayout.value.months.flatMap(month => month.cells))
 
@@ -244,7 +256,7 @@ function buildZyCard() {
     title: `${props.year} 年调度热力图`,
     sub: `活跃 ${agg.value.act}/${agg.value.days} 天 · 有效动作 ${fmtW(agg.value.acts)} 件 · 加权 ${Math.round(agg.value.W)} 分 · P90 = ${agg.value.p90} 分 · 最长连续 ${streak.value} 天`,
     readouts: kpiSpec(),
-    grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: 7 },
+    grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: yearLayout.value.rows },
     footer: '知源调度台 · 档位由加权分映射 · 数据只在本机'
   }
 }
@@ -303,7 +315,7 @@ function onExport(fmt: ExportFmt): void {
       <template v-else>
       <!-- R174-5：四卡压单行指标条，说明收进 title（数据源 summary 不动——导出三件套 kpis 仍取全量）
            W5 #4c：chip → 图标化指标卡（图标 + 大数字 + 标签，纵向堆叠）；.d 保 DOM（R174-5 判据）display:none -->
-      <div class="dz-sum">
+      <div v-if="showSummary !== false" class="dz-sum">
         <div v-for="s in summary" :key="s.k" class="c" :title="s.d">
           <span class="ic" v-html="s.ic"></span>
           <span class="tx">
@@ -316,42 +328,43 @@ function onExport(fmt: ExportFmt): void {
 
       <div v-if="!agg.act" class="dz-empty">这一年还没有行为记录 —— 采集第一张卡，这里就会亮起来。</div>
       <template v-else>
-        <!-- ★12 个自然月分组：桌面端仍是一行，月份之间用空列形成间隔。
-             外框 .dz-months 保留为语义锚（全年网格容器）。 -->
+        <!-- ★12 个自然月分组：桌面端仍是一行；每月内部星期为列、周为行，日期横向推进。 -->
         <div class="dz-months" role="grid" :aria-label="`${year} 年全年热力图 · ${agg.act} 天有记录`">
           <div class="dz-year-scroll">
-            <div class="dz-year" :style="{ gridTemplateColumns: `16px repeat(${yearLayout.cols}, minmax(5px, 1fr))` }">
-              <!-- 星期标签占第 1 列、跨 7 行：与右侧日格的行一一对齐 -->
-              <div class="dz-wk" aria-hidden="true"><span v-for="w in WD" :key="w">{{ w }}</span></div>
-              <span
-                v-for="t in yearLayout.months"
-                :key="'t' + t.m"
-                class="dz-month-tick"
-                :style="{ gridColumnStart: t.col + 2 }"
-              >{{ t.m }} 月</span>
-              <span
+            <div class="dz-year">
+              <section
                 v-for="mo in yearLayout.months"
-                :key="'rule' + mo.m"
-                class="dz-month-rule"
-                aria-hidden="true"
-                :style="{ gridColumnStart: mo.col + 2 }"
-              />
-              <button
-                v-for="c in yearCells"
-                :key="c.k"
-                class="dz-cell"
-                :class="c.cls"
-                role="gridcell"
-                :data-day="c.k"
-                :disabled="c.cls.includes('future')"
-                :tabindex="c.k === dayStop ? 0 : -1"
-                :aria-label="c.k ? `${c.k} · ${LV_NAME[c.lv]}` : undefined"
-                :style="{ gridColumnStart: c.col + 2, gridRowStart: c.row + 2 }"
-                :title="c.k ? `${c.k} · ${LV_NAME[c.lv]}（${LV_RANGE[c.lv]}）` : ''"
-                @focus="gridStop = c.k"
-                @keydown="onDayKey(c, $event)"
-                @click="pickCell(c)"
-              />
+                :key="'m' + mo.m"
+                class="dz-month"
+                role="group"
+                :aria-label="`${mo.m} 月`"
+              >
+                <div class="dz-month-head">
+                  <span class="dz-month-tick">{{ mo.m }} 月</span>
+                  <span class="dz-month-rule" aria-hidden="true" />
+                </div>
+                <div
+                  class="dz-month-grid"
+                  :style="{ gridTemplateRows: `repeat(${mo.rows}, minmax(8px, auto))` }"
+                >
+                  <button
+                    v-for="c in mo.cells"
+                    :key="c.k"
+                    class="dz-cell"
+                    :class="c.cls"
+                    role="gridcell"
+                    :data-day="c.k"
+                    :disabled="c.cls.includes('future')"
+                    :tabindex="c.k === dayStop ? 0 : -1"
+                    :aria-label="c.k ? `${c.k} · ${LV_NAME[c.lv]}` : undefined"
+                    :style="{ gridColumnStart: c.weekday + 1, gridRowStart: c.week + 1 }"
+                    :title="c.k ? `${c.k} · ${LV_NAME[c.lv]}（${LV_RANGE[c.lv]}）` : ''"
+                    @focus="gridStop = c.k"
+                    @keydown="onDayKey(c, $event)"
+                    @click="pickCell(c)"
+                  />
+                </div>
+              </section>
             </div>
           </div>
         </div>

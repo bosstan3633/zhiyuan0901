@@ -231,31 +231,35 @@ const DASH_SCENES = [
       const todayOk = legend[6] === '今天'
       const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
       const sum = document.querySelectorAll('.dz-sum .c').length
-      /* ★V3.9.21 重指：热力图从「12 月块 4×3」改回「单行全年 53 周列 × 7 天行」。
-         守的行为不变：① 全年日格都在 ② 六档图例 + 今天项 ③ 四张摘要卡 ④ 不横向溢出。
-         换掉的承重锚：月块同顶 → 单行网格的**列数**（53 列）与**行数**（7 行）；
-         日期热区 28px 随月块形态退役（单行全年是 12px 视觉块，精度由键盘遍历 + tooltip 承担），
-         改钉「格子实际渲染成 12px 级小方块」这条单行全年自己的形态契约。 */
+      /* ★V3.9.27 重指：画像年度段只在四格主指标条展示汇总，热力图内部摘要关闭。
+         全年仍按 12 个自然月单行排开；每月内部改为标准日历方向：
+         星期定列、周次定行，日期先向右再换行。 */
       const cellsAll = [...document.querySelectorAll('.dz-cell:not(.future)')]
-      /* 列数取日格上真正落位的列号。注意：这些格子是显式 grid-column 定位，
-         computed 的 gridColumnStart 在本环境下会回成 'auto'，所以直接读**内联 style**
-         里的 grid-column-start（Vue 绑定的就是它）。也不读 grid-template-columns ——
-         后者在 width:max-content 的网格上算不出具体列数。 */
-      const colSet = new Set(cellsAll
-        .map(el => el.style.gridColumnStart)
-        .filter(v => v && v !== 'auto'))
-      const cols = colSet.size
-      const rowsSet = new Set(cellsAll.map(el => Math.round(el.getBoundingClientRect().top)))
-      /* 列数按「今年已过去的周数」判：未来日期是 future 格（不计入 cols），
-         所以 10 月只能看到 ~44 列，硬写 50 会把正确的实现判红。 */
-      const renderedYear = Number((document.querySelector('.hm-year')?.textContent || '').trim())
-      const now = new Date()
-      const isCurYear = now.getFullYear() === renderedYear
-      const minCols = isCurYear ? Math.max(20, Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / 604800000) - 2) : 50
-      const gridOk = cols >= minCols && rowsSet.size >= 6 && rowsSet.size <= 8
+      const monthGrids = [...document.querySelectorAll('.dz-month-grid')]
+      const monthCount = monthGrids.length
+      const monthGridOk = monthCount === 12 && monthGrids.every(grid => {
+        const monthCells = [...grid.querySelectorAll('.dz-cell:not(.future)')]
+        if (!monthCells.length) return true
+        const colSet = new Set(monthCells.map(el => el.style.gridColumnStart).filter(Boolean))
+        const rowSet = new Set(monthCells.map(el => el.style.gridRowStart).filter(Boolean))
+        return colSet.size <= 7 && rowSet.size <= 6
+      })
+      /* 每个月的头两天必须落在同一周相邻列；若第一天是周日，则第二天换行且回到第一列。 */
+      const horizontalOk = monthGrids.every(grid => {
+        const monthCells = [...grid.querySelectorAll('.dz-cell')]
+          .sort((a, b) => String(a.dataset.day).localeCompare(String(b.dataset.day)))
+        if (monthCells.length < 2) return true
+        const [a, b] = monthCells
+        const ca = Number(a.style.gridColumnStart)
+        const cb = Number(b.style.gridColumnStart)
+        const ra = Number(a.style.gridRowStart)
+        const rb = Number(b.style.gridRowStart)
+        return (cb === ca + 1 && rb === ra) || (ca === 7 && cb === 1 && rb === ra + 1)
+      })
+      const gridOk = monthGridOk && horizontalOk
       const minCell = Math.min(...cellsAll.map(el => Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height)))
       const overflow = Math.round(document.documentElement.scrollWidth - window.innerWidth)
-      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && gridOk && minCell >= 10 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 单行网格=${cols}列·${rowsSet.size}行 格块=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
+      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 0 && monthCount === 12 && gridOk && minCell >= 10 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}(年度四格已去重) 月份=${monthCount}/12 月内日历=${horizontalOk ? '横向' : '不符'} 格块=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
     })
   },
   {

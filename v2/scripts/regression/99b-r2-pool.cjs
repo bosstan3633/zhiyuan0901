@@ -151,7 +151,7 @@ check('W2-5 ★HTML / PNG 分享导出真在位：Heatmap 已与日战报统一�
     && zy.includes('const grid = spec.grid') && zy.includes('grid-template-columns:repeat(${spec.grid.cols}')
     && hm.includes('import { zyCardBlob, zyCardHtml }')
     && hm.includes('zyCardBlob(buildZyCard())') && hm.includes('zyCardHtml(buildZyCard())')
-    && hm.includes('grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: 7 }')
+    && hm.includes('grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: yearLayout.value.rows }')
     && !hm.includes('heatmapShareHtml') && !hm.includes('pngBlobFromSpec');
 });
 check("W2-6 ★W12-D 退役重指带备案：日详情「查看全部记录 ›」的 open-log 出口随日详情一起迁到 TodayBattleHost —— 打开全量抽屉并按该日预筛、且先关日详情弹窗再开抽屉（遮罩不叠两层）这条语义一字未改，只是宿主从 HeatmapModule/Heatmap 换成 TodayBattleHost。判据：① 新宿主有 onOpenLog/logOpen/logPreset 且挂 DashboardLogDrawer ② 新宿主把 DayDetail 的 @open-log 接上（不再是 Heatmap emit，因为日详情已解耦出热力图）③ 预筛三字段（from/to = day）与「先关弹窗」那句动作都在", () => {

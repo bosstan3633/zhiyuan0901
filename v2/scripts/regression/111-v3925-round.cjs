@@ -4,7 +4,7 @@
  * 本片只锁本轮新增行为；历史结构断言在各自分片内按新载体重指，
  * 不靠删除旧判据换取通过。
  */
-const { check, read, codeOnly, segOf } = require('./helpers.cjs');
+const { check, read, codeOnly, segOf, CUR_VER, CUR_VTAG, VER_ANCHOR_LITERAL } = require('./helpers.cjs');
 
 console.log('【V3.9.25 · 调度台 / 方向台 / 年度热力图】');
 
@@ -17,7 +17,9 @@ check('R182-D1（V3.9.26 重指）★调度台底轨独立：存储与同步状�
     && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
     && css.includes('.desk-main { grid-column: 1; grid-row: 1; }')
     && css.includes('.side-rail { grid-column: 2; grid-row: 1; }')
-    && css.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }')
+    && css.includes('.desk-status-rail { position: relative; z-index: 0; }')
+    && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(css)
+    && !/\.page-foot \{[\s\S]*?margin-top: -4px;/.test(css)
     && css.includes('.side-rail { position: relative; top: auto; }')
     && !css.includes('.side-rail, .rail-foot');
 });
@@ -119,33 +121,38 @@ check('R182-C4 ★第 5/6 层列表进入项目全景定位：行点击先打开
     && list.includes('点行打开所在项目的全景泳道');
 });
 
-check('R182-P1 ★年度热力图按时间从左到右：12 个自然月单行分组，月间两列间隔 + 轻分隔线；格坐标仍按 col/row 消费，不退回纵向月份流', () => {
+check('R182-P1（V3.9.27 重指）★年度热力图按时间从左到右：12 个自然月单行分组，月间独立间隔 + 轻分隔线；每月内部星期为列、周为行，日期先向右再换行，不再沿单列自上而下堆叠', () => {
   const heat = read('/newtab/components/dashboard/Heatmap.vue');
   const css = read('/newtab/components/dashboard/dashboard.css');
   return heat.includes('const MONTH_GAP = 2')
     && heat.includes('offset += cols + MONTH_GAP')
     && heat.includes('12 个自然月分组')
-    && heat.includes('gridColumnStart: c.col + 2')
+    && heat.includes('const weekday = (date.getDay() + 6) % 7')
+    && heat.includes('col: offset + weekday')
+    && heat.includes('gridColumnStart: c.weekday + 1')
+    && heat.includes('gridRowStart: c.week + 1')
+    && heat.includes('class="dz-month-grid"')
     && heat.includes('class="dz-month-rule"')
-    && heat.includes(':style="{ gridColumnStart: mo.col + 2 }"')
     && css.includes('.dz-month-rule {')
-    && css.includes('grid-row: 2 / span 7;')
-    && css.includes('border-left: 1px solid var(--border);')
+    && css.includes('height: 1px;')
+    && css.includes('background: var(--border);')
+    && css.includes('.dz-month-grid {')
+    && css.includes('grid-template-columns: repeat(7, minmax(5px, 1fr));')
     && css.includes('.dz-year-scroll {')
     && css.includes('overflow-x: auto');
 });
 
-check('R182-V1（V3.9.26 重指）★版本与更新日志同步：manifest / package / lock / 手册 / 回归锚一致，V3.9.25 六项用户可见变化仍在更新日志中', () => {
+check('R182-V1 ★版本与更新日志同步：manifest / package / lock / 手册 / 回归锚一致，V3.9.25 六项用户可见变化仍在更新日志中', () => {
   const pkg = require('../../package.json');
   const lock = require('../../package-lock.json');
   const manual = read('/newtab/views/ManualPage.vue');
   const log = read('/newtab/changelog-data/entries-v3.ts');
   const helpers = read('/../scripts/regression/helpers.cjs');
-  return pkg.version === '3.9.26'
-    && lock.version === '3.9.26'
-    && lock.packages[''].version === '3.9.26'
-    && manual.includes('V3.9.26')
-    && helpers.includes("version: '3.9.26'")
+  return pkg.version === CUR_VER
+    && lock.version === CUR_VER
+    && lock.packages[''].version === CUR_VER
+    && manual.includes(CUR_VTAG)
+    && helpers.includes(VER_ANCHOR_LITERAL)
     && log.includes("version: '3.9.25'")
     && log.includes('调度台状态收口')
     && log.includes('项目全景优先完整可读')

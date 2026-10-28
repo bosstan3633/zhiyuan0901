@@ -53,33 +53,40 @@
 .dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
 @media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
-/* ★12 个自然月分组：桌面端全年仍在一行内，月份之间保留两列间隔。
+/* ★12 个自然月分组：桌面端全年仍在一行内，月份之间保留独立间隔。
+   每月内部改为标准日历方向：星期为列、周为行，日期先向右再换行。
    容器名 .dz-months 保留（全年网格的语义锚，W7-2/W12-12 认这个名字）。 */
 .dz-months { display: flex; flex-direction: column; gap: 6px; }
 .dz-year-scroll {
   position: relative;
 }
-/* 第 1 行留给月份刻度，第 2..8 行才是 7 天。星期标签跨这 7 行，与日格逐行对齐。
-   V3.9.22：不再写死 12px；行高由列宽与 aspect-ratio 决定，标签行用 minmax(0,1fr) 跟齐。 */
-.dz-wk { grid-column: 1; grid-row: 2 / span 7; display: grid; grid-auto-rows: minmax(0, 1fr); gap: 3px; }
-.dz-wk span { font-size: var(--fs-micro); color: var(--text-4); line-height: 1; text-align: left; display: flex; align-items: center; }
-/* 只显示 一/四/日 三行标签（索引 1/4/7），其余隐藏但保留网格行（隐藏不会让日格错位） */
-.dz-wk span:nth-child(2), .dz-wk span:nth-child(3), .dz-wk span:nth-child(5), .dz-wk span:nth-child(6) { visibility: hidden; }
 .dz-year-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: thin; }
-.dz-year { display: grid; grid-auto-rows: auto; row-gap: 3px; column-gap: 3px; width: 100%; min-width: 760px; }
-.dz-month-tick {
-  grid-row: 1; align-self: end; justify-self: start;
-  font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap;
-  padding-bottom: 2px; pointer-events: none;
+.dz-year {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(72px, 1fr));
+  align-items: start;
+  gap: 14px;
+  width: 100%;
+  min-width: 1020px;
 }
-/* 月与月之间用一条很轻的起止线标出分组，但仍保持全年横向连续。 */
-.dz-month-rule {
-  grid-row: 2 / span 7;
-  align-self: stretch;
-  justify-self: start;
-  width: 1px;
-  border-left: 1px solid var(--border);
+.dz-month { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.dz-month-head { display: flex; align-items: center; gap: 6px; min-height: 14px; }
+.dz-month-tick {
+  font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap;
   pointer-events: none;
+}
+.dz-month-rule {
+  height: 1px;
+  flex: 1;
+  background: var(--border);
+  pointer-events: none;
+}
+.dz-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(5px, 1fr));
+  grid-auto-rows: auto;
+  gap: 2px;
+  width: 100%;
 }
 /* 月份分组：格子宽度跟随网格列宽，方形由 aspect-ratio 保证。
    V3.9.22 用户拍板：格子随宽度放大铺满（1440 下约 21px/格，高约 170px）；
