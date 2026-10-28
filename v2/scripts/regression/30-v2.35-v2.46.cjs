@@ -518,7 +518,7 @@ check('R73-4 页头全台渲染（V3.7.0 重指）：res台退役后 .ws-id-head
   const w = read('/newtab/views/Workspace.vue');
   return w.includes('class="ws-id-head"') && w.includes('{{ wsDisplayNameOf(workspace) }}') && w.includes('class="wsh-desc"')
     && w.includes('class="wsh-summary"')
-    && w.includes('font-size: 16px; letter-spacing: .2px');
+    && w.includes('font-size: 19px; line-height: 23px; letter-spacing: -.2px');
 });
 // R179-MIGRATED R73-5
 // V3.7.0（R179）随迁重写：导入弹窗收敛单形态「导入策展台数据包（JSON）」——hub 分支（书签/本地文件）

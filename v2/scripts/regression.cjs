@@ -66,6 +66,7 @@ const SHARDS = [
   '111-v3925-round',
   '112-v3926-round',
   '113-v3927-round',
+  '114-v3928-curation-head',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

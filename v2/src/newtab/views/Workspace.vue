@@ -7,7 +7,8 @@
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
-    <!-- V3.9.24：台身份与中心论点拆成两层；中心论点使用整行宽度，避免标题与论点半排互相挤压。 -->
+    <!-- V3.9.28：策展台页头三层——台身份 / 中心论点主舞台 / 页面级行动条。
+         视图切换仍归画布头，分享只留行尾；页头不制造第二入口。 -->
     <div class="ws-hero">
       <div class="ws-id-head">
         <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
@@ -17,20 +18,25 @@
         <span class="wsh-spacer" />
         <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
       </div>
-      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.24 起独占下一层整行，编辑与 AI 处理进入论点卡详情。 -->
+      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.28 起作为镇台卡呈现 L1 / 论点卡 / 金字塔根节点三层语义。
+           整卡只负责打开详情，编辑、AI 与分享继续留在各自唯一入口。 -->
       <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
         :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
         @click="thesisCard ? openThesisCard() : openThesisCreate()"
         @keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"
         @keydown.space.prevent="thesisCard ? openThesisCard() : openThesisCreate()">
         <template v-if="thesisCard">
-          <span class="tb-badge"><Icon name="landmark" :size="13"/> 中心论点</span>
-          <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
-          <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击打开论点卡详情' }}</span>
-          <span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span>
+          <span class="tb-content">
+            <span class="tb-kicker"><span class="tb-badge"><Icon name="landmark" :size="11"/> L1</span><span class="tb-kicker-label">中心论点 · 论点卡</span><span class="tb-kicker-sep">·</span><span class="tb-kicker-label">金字塔根节点</span></span>
+            <span class="tb-main"><span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span><span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span></span>
+            <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击查看论点详情 · 先写结论，再长出支撑分支' }}</span>
+          </span>
         </template>
         <template v-else>
-          <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click.stop="openThesisCreate">＋ 确立中心论点</button>
+          <span class="tb-content">
+            <span class="tb-kicker"><span class="tb-badge gray"><Icon name="landmark" :size="11"/> L1</span><span class="tb-kicker-label">中心论点 · 论点卡</span></span>
+            <span class="tb-main"><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click.stop="openThesisCreate">＋ 确立中心论点</button></span>
+          </span>
         </template>
       </div>
     </div>
@@ -88,27 +94,32 @@
       <div class="sm-item danger" v-pressable @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
     </div>
 
-    <!-- V3.9.10：指标与工具合并为单行，分享固定在最右侧；为画布腾出纵向空间。 -->
+    <!-- V3.9.10：指标与工具合并为单行，分享固定在最右侧；为画布腾出纵向空间。
+         V3.9.28：用发丝分隔把「画布读数 / 内容导入 / 检索与成果」三组动作分开，入口数量不变。 -->
     <div class="ws-toolbar cur-toolbar" data-curation-metrics="2">
-      <span class="toolbar-mode"><Icon name="tree" :size="13"/> 策展画布</span>
-      <!-- V3.9.10：两项读数仍保持独立下钻，但视觉上收成同一枚双段指标胶囊，
-           避免两枚 126px 卡盒在 1024px 宽度下把工具条挤成第二行。 -->
-      <div class="cur-metrics" data-curation-metrics="2">
-        <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
-          <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
-          <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
-        </button>
-        <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
-          <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
-          <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
-        </button>
+      <div class="cur-toolbar-lead">
+        <span class="toolbar-mode"><Icon name="tree" :size="13"/> 策展画布</span>
+        <!-- V3.9.10：两项读数仍保持独立下钻，但视觉上收成同一枚双段指标胶囊，
+             避免两枚 126px 卡盒在 1024px 宽度下把工具条挤成第二行。 -->
+        <div class="cur-metrics" data-curation-metrics="2">
+          <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
+            <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
+            <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
+          </button>
+          <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
+            <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
+            <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
+          </button>
+        </div>
       </div>
+      <span class="cur-sep" aria-hidden="true"></span>
       <!-- V3.9.8 体验收口：分支只由节点键盘操作创建；成果 HTML 是独立回导链，不再伪装成 JSON 数据包。 -->
       <button class="hero-btn ghost" title="导入知源分享的策展成果 HTML" @click="openShareHtmlImport"><Icon name="download" :size="13"/> 导入成果 HTML</button>
       <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
            与「＋新建」同属"往本台生成内容"，紧邻放置；V3.7.0（R179）：资源台退役后无 hub 门控，按钮常驻。 -->
       <button class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（中心论点 + 论证分支一次生成）"
         @click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>
+      <span class="cur-sep" aria-hidden="true"></span>
       <div class="toolbar-spacer"></div>
       <div class="toolbar-search">
         <span class="s-icon"><Icon name="search" :size="13"/></span>

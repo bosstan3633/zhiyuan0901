@@ -133,15 +133,17 @@ check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处�
 
 // ============== R4-En content 浮层进视觉门禁（#115） ==============
 console.log('【R4-En · content 浮层场景】');
-check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）。★B3（V3.8.28）重指带备案：图数下限里 `DASH_SCENES.length` 改为过滤后的 `dashScenes.length`（`--scenes` 过滤时原式必然假红），所守行为不变', () => {
+check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）。★B3（V3.8.28）重指带备案：图数下限里 `DASH_SCENES.length` 改为过滤后的 `dashScenes.length`（`--scenes` 过滤时原式必然假红），所守行为不变。★V3.9.28 重指带备案：`ovPage` 从长巡检结束后的惰性创建改为开始前预建（实测连续跑完 19 个扩展页场景后再 `ctx.newPage()` 会卡住），判据改为钉「预建发生在主题循环之前」且禁止惰性兜底回流', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const i1 = t.indexOf("id: 'ov-capture'");
   const i2 = t.indexOf("id: 'ov-search'");
+  const iP = t.indexOf('const ovPage = await ctx.newPage()');
+  const iLoop = t.indexOf('for (const theme of themes)');
   return i1 > 0 && i2 > i1
     && t.includes("msg: 'zy-open-capture'") && t.includes("ready: '#__zy_cap_save__'")
     && t.includes("msg: 'zy-open-search'") && t.includes("ready: '#__zy_si__'")
     && t.includes('chrome.tabs.sendMessage') && t.includes('ovServer.listen')
-    && t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
+    && iP > 0 && iLoop > iP && !t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
     && t.includes('if (overlayFail.length)') && /overlayFail\.length\) \{\s*console\.log\(`❌ content 浮层判据未过/.test(t)
     && t.includes('dashScenes.length + OVERLAY_SCENES.length');
 });

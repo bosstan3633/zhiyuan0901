@@ -441,10 +441,10 @@ check('R130-6 T4 三台左缘对齐线不变量：ws-page 1440 居中 + ws-conte
 
 // ============== R131 · V2.99.0：N1 三台对齐 + N2 项目目录侧栏 + 批次 C 性能 ==============
 console.log('【R131 · V2.99.0：N1/N2 体验修复 + 批次 C 性能】');
-check('R131-1 ★N1 策展台页头与论点带同轴（V3.9.24 重指：台身份一行、中心论点独占下一行；仍与 ws-content 的 36px 页轴对齐）', () => {
+check('R131-1 ★N1 策展台页头与论点带同轴（V3.9.28 重指：台身份 ≤40px、中心论点独占下一行；仍与 ws-content 的 36px 页轴对齐）', () => {
   const c = read('/newtab/views/workspace.css');
   return /\.ws-hero \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*gap: 9px;[^}]*padding-left: 22px;/.test(c)
-    && /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+    && /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 36px;[^}]*max-height: 40px;/.test(c)
     && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
     && c.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }')
     && !c.includes('padding: 4px 0 6px 22px');

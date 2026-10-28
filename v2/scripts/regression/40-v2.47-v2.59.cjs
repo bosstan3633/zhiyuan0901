@@ -468,9 +468,9 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
     && !WS84.includes('wsHeadDescFallback')
     && body.includes('workspace.value?.desc');
 });
-check('R84-3 W1 页头 ≤56px（V3.9.24 重指：台身份标题行保持 ≤56px，中心论点独占下一层全宽卡；仍不许退回两条大横条）', () => {
+check('R84-3 W1 页头 ≤40px（V3.9.28 重指：台身份标题行回到 R84 原始预算 ≤40px；中心论点独占下一层全宽卡，仍不许退回两条大横条）', () => {
   const c = read('/newtab/views/workspace.css');
-  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
+  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 36px;[^}]*max-height: 40px;/.test(c)
     && !/\.ws-id-head \{[^}]*min-width: 220px;/.test(c)
     && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
     && /\.ws-hero \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*gap: 9px;[^}]*padding-left: 22px;/.test(c);
