@@ -352,7 +352,7 @@ const DASH_SCENES = [
   {
     /* V3.9.15：项目全景的多指标真实渲染夹具。
        与 compass-pano 分开：原场景继续守“默认数据下的单/多泳道兼容”，
-       本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题两行与滚动边界。 */
+       本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题单行与滚动边界。 */
     /* ★同 compass-pano：host 必须是 act 之前就在的入口。 */
     id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.navside .view-seg',
     act: async (page) => {
@@ -378,18 +378,19 @@ const DASH_SCENES = [
       const equal = widths.length === 4 && Math.max(...widths) - Math.min(...widths) <= 2
       const orphanLast = !!orphan && !!lanesBox
         && orphan === lanesBox.lastElementChild
-      const titleClamp = titles.length === 4 && titles.every(t => {
+      const titleSingleLine = titles.length === 4 && titles.every(t => {
         const cs = getComputedStyle(t)
         return cs.overflow === 'hidden' && (t.getAttribute('title') || '').length > 0
-          && t.getBoundingClientRect().height <= 36
+          && cs.whiteSpace === 'nowrap' && cs.textOverflow === 'ellipsis'
+          && t.getBoundingClientRect().height <= 28
       })
       const taskWrap = taskTitles.every(t => t.scrollWidth <= t.clientWidth + 1)
       const overflowX = Math.round(document.documentElement.scrollWidth - window.innerWidth)
       const laneScroll = lanesBox ? Math.round(lanesBox.scrollWidth - lanesBox.clientWidth) : 0
       return {
-        ok: !!lanesBox && widths.length === 4 && equal && orphanLast && titleClamp && taskWrap
+        ok: !!lanesBox && widths.length === 4 && equal && orphanLast && titleSingleLine && taskWrap
           && !!hint && overflowX <= 1 && laneScroll > 4,
-        txt: `泳道=${widths.length}(应4) 宽度=${widths.join('/')} 等分=${equal} 收容最后=${orphanLast} 标题两行=${titleClamp} 长任务不溢出=${taskWrap} 滚动提示=${!!hint} 横向滚动=${laneScroll}px 页面溢出=${overflowX}px`,
+        txt: `泳道=${widths.length}(应4) 宽度=${widths.join('/')} 等分=${equal} 收容最后=${orphanLast} 标题单行=${titleSingleLine} 长任务不溢出=${taskWrap} 滚动提示=${!!hint} 横向滚动=${laneScroll}px 页面溢出=${overflowX}px`,
       }
     })
   },

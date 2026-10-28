@@ -827,7 +827,7 @@ check('R175-3 ★项目全景轨道规则可证明（V3.9.25 重指）：1 条�
     && pano.includes('.lanes-scroll > .lane') && pano.includes('flex: 0 0 360px; width: 360px; min-width: 360px;')
     && pano.includes('.lanes-single > .lane') && pano.includes('width: 100%')
     && lane.includes('min-width: 360px')
-    && lane.includes('<span class="lane-n">{{ m.title }}</span>')
+    && lane.includes('<span class="lane-n" :title="m.title">{{ m.title }}</span>')
     && lane.includes('<span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>')
     && !lane.includes('-webkit-line-clamp: 2');
 });

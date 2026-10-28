@@ -366,23 +366,23 @@ const {
         </section>
 
       </aside>
-
-      <!-- V3.9.25：存储 / 同步状态独占共享底轨，不再作为网格自动项挤进卡片区。 -->
-      <footer class="page-foot desk-status-rail" aria-label="本机存储与同步状态">
-        <div class="status-local">
-          <button class="foot-status" :class="{ error: !storageOk }" type="button" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
-            <span class="save-dot" /><span>{{ storageText }}</span>
-          </button>
-          <span class="local-note"><Icon name="shield" :size="12" /> 只存本机 · 无账号 · 可随时导出</span>
-        </div>
-        <span class="foot-sync">
-          <button class="foot-status" :class="{ error: !!atSyncErr }" type="button" :title="atChipTitle" @click="onSyncChipClick">
-            <span>{{ atChipText }}</span>
-          </button>
-          <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
-        </span>
-      </footer>
     </div>
+
+    <!-- V3.9.26：状态轨移出双列内容网格，滚动时不再与右下模块争用同一吸附层。 -->
+    <footer class="page-foot desk-status-rail" aria-label="本机存储与同步状态">
+      <div class="status-local">
+        <button class="foot-status" :class="{ error: !storageOk }" type="button" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
+          <span class="save-dot" /><span>{{ storageText }}</span>
+        </button>
+        <span class="local-note"><Icon name="shield" :size="12" /> 只存本机 · 无账号 · 可随时导出</span>
+      </div>
+      <span class="foot-sync">
+        <button class="foot-status" :class="{ error: !!atSyncErr }" type="button" :title="atChipTitle" @click="onSyncChipClick">
+          <span>{{ atChipText }}</span>
+        </button>
+        <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
+      </span>
+    </footer>
 
     <TodayBattleHost ref="battleHost" />
     <ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="modal"

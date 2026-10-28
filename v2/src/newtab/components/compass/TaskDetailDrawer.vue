@@ -81,7 +81,7 @@ function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   setTaskStatusOf(t, status)
   showToast('状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
 }
-// ---- R166 定案 6：任务详情三枚 AI 入口（补全 / 拆解 / 找资源支持）----
+// ---- R166 定案 6：任务详情三枚 AI 入口（补全 / 拆解 / 找资源）----
 // 三态与互斥：一把 `aiBusy` 锁（同时只跑一个，点了没反应会一直等是最难查的"卡"）；
 // 凭据共用 `aiTouchedAt`（三处写库都盖戳），所以 chip 走"最近 · 时间"的共享措辞、不硬猜是哪一枚动的。
 // ★ 三个工厂全部**点击时才 dynamic import**，AI 栈零静态引用（启动链零 AI 红线 + R134 入口 chunk 教训）。
@@ -364,6 +364,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <div class="ts-title-row">
             <div class="check-lg" v-pressable :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
             <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..." @blur="saveTaskTitle" />
+            <ExportMenu class="ts-title-export" :formats="['md', 'html']" align="end" @pick="exportTask" />
           </div>
           <div class="ts-head-row2">
             <div class="ds-status-wrap" data-a11y-container @click.stop>
@@ -381,7 +382,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
     </template>
     <template v-if="selectedTask">
       <div class="ts-body">
-        <!-- 归属是任务的首屏上下文：项目 / 指标紧跟标题与状态读数，不沉到正文底部。 -->
+        <!-- 归属是任务的首屏上下文：项目 / 指标紧跟标题与状态读数，压缩为两枚轻量字段。 -->
         <div class="ts-section ts-owner ds-props2">
           <div class="ds-prop-field">
             <label class="ds-prop-label"><Icon name="package" :size="13"/> 项目</label>
@@ -398,7 +399,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
             </select>
           </div>
         </div>
-        <!-- AI 三入口是同一组工具，导出是独立的数据动作；桌面端分列两端，窄屏整组换行。 -->
+        <!-- AI 三入口是同一组工具；导出已上移到标题栏右侧。 -->
         <div class="ts-action-bar">
           <div class="ts-ai-group" role="group" aria-label="AI 任务工具">
             <span class="ts-tool-label"><Icon name="sparkles" :size="13"/> AI 工具</span>
@@ -410,11 +411,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
                 <AiEntryButton variant="inline" label="拆解" :spin="aiBusy" />
               </button>
               <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源卡池，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
-                <AiEntryButton variant="inline" label="找支持" :spin="aiBusy" />
+                <AiEntryButton variant="inline" label="找资源" :spin="aiBusy" />
               </button>
             </div>
           </div>
-          <ExportMenu class="ts-export" :formats="['md', 'html']" align="end" @pick="exportTask" />
         </div>
         <!-- R48：说明区上移为 Hero（此前被四个大下拉挤到最底部） -->
         <div class="ts-section">
@@ -441,7 +441,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <span class="ts-sup-x" v-pressable title="解除关联（只删这条记录；资源卡与任务卡都不动）" @click.stop="unlinkSupport(row.link.id)">×</span>
             </div>
           </div>
-          <div v-else class="ts-sup-empty">还没有关联的资源——点上方「找资源支持」让 AI 从资源台里挑，或在下面手动挂。</div>
+          <div v-else class="ts-sup-empty">还没有关联的资源——点上方「找资源」让 AI 从资源台里挑，或在下面手动挂。</div>
           <div class="ts-sup-add">
             <input v-model="supportDraft" list="ts-sup-cands" placeholder="手动关联：搜资源标题回车即挂上（不走 AI，标记为手动）" @keydown.enter.prevent="addSupportManual">
             <datalist id="ts-sup-cands">
@@ -509,16 +509,23 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-title-row { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .ts-head-row2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* 任务详情首屏顺序：标题 / 读数 / 归属 / 工具 / 内容。AI 工具组与导出各占一端。 */
-.ts-owner { gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
-.ts-action-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-.ts-ai-group { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.ts-owner { gap: 6px; padding: 0; border: 0; background: transparent; margin-bottom: 10px; }
+.ts-owner .ds-prop-field {
+  min-width: 0; height: 32px; display: flex; align-items: center; gap: 5px;
+  padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+}
+.ts-owner .ds-prop-label { flex: none; margin: 0; display: inline-flex; align-items: center; gap: 4px; }
+.ts-owner .ds-prop-select { flex: 1; min-width: 0; margin: 0; padding: 0 5px; border: 0; background: transparent; }
+.ts-owner .ds-prop-select:focus { box-shadow: none; }
+.ts-action-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ts-ai-group { min-width: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
 .ts-tool-label { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px 0 3px; color: var(--text-3); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
-.ts-ai-row { display: flex; gap: 4px; flex: 1; min-width: 0; }
+.ts-ai-row { display: grid; grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 4px; flex: 1; min-width: 0; }
 .ts-ai-cell {
-  flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   min-height: 30px; padding: 4px 8px; border-radius: 8px; cursor: pointer;
   font-size: var(--fs-sub); font-weight: 600; border: 1px solid transparent; color: var(--text-2); background: var(--surface);
-  font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: hidden;
+  font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: visible;
 }
 .ts-ai-cell:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .ts-ai-cell:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
@@ -542,7 +549,12 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
-.ts-export { flex: none; margin-left: auto; }
+.ts-title-export { flex: none; position: relative; margin-left: auto; align-self: flex-start; }
+.ts-title-export :deep(.dz-exp-trigger) {
+  min-height: 34px; padding: 0 12px; border-color: var(--accent); border-radius: var(--radius-sm);
+  background: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 3px 10px var(--accent-glow);
+}
+.ts-title-export :deep(.dz-exp-trigger:hover) { border-color: var(--accent-hover); background: var(--accent-hover); color: #fff; }
 /* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
 .ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 .ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
@@ -589,6 +601,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
   .ts-action-bar { align-items: stretch; flex-wrap: wrap; }
   .ts-ai-group { width: 100%; align-items: flex-start; flex-direction: column; }
   .ts-tool-label { padding: 1px 3px 3px; }
-  .ts-export { margin-left: 0; align-self: flex-end; }
+  .ts-title-export { margin-left: 0; }
 }
 </style>

@@ -21,8 +21,6 @@ import { gradeColorVar } from '../../views/compassMeta'
 
 const props = defineProps<{
   m: MetricMeta
-  /** 泳道序号（从 1 起） */
-  idx: number
   /** 当前项目 id（加任务要带出） */
   projId: string
   /** 单指标时铺满画布，避免只占左侧一半并留下整片空画布。 */
@@ -89,18 +87,16 @@ function priOf(t: TaskCard): string {
   <section class="lane" :class="{ single: single, dense: dense }" :data-metric="m.id">
     <header class="lane-h">
       <div class="lane-top">
-        <span class="lane-i">{{ idx }}</span>
         <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
-        <span class="lane-n">{{ m.title }}</span>
+        <span class="lane-n" :title="m.title">{{ m.title }}</span>
         <span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
-        <button class="lane-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
-        <!-- ★F1：hover 🗑 + 「⋯」—— 与项目塔指标卡同一套删除语义（真源报数确认 + 撤销） -->
+        <!-- V3.9.26：指标头保持单行；打开详情与删除都收进「⋯」，序号让位给层级 5。 -->
         <span ref="menuRoot" class="lane-ops" data-a11y-container @click.stop @focusout="onMenuFocusout">
-          <button class="lo-del" title="删除本成功指标（其下任务转为未关联，可撤销）" @click="emit('delMetric', m.id)"><Icon name="trash" :size="13"/></button>
-          <button class="lo-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
-          <span v-if="menuFor === m.id" class="lo-menu" data-a11y-container @click.stop>
-            <button class="lom-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
+          <button class="lo-more" :class="{ on: menuFor === m.id }" :aria-expanded="menuFor === m.id" aria-haspopup="menu" title="指标操作" @click="toggleMenu(m.id)">⋯</button>
+          <span v-if="menuFor === m.id" class="lo-menu" role="menu" data-a11y-container @click.stop>
+            <button class="lom-item" role="menuitem" @click="menuFor = null; emit('openMetric', m.id)"><Icon name="target" :size="13"/> 打开指标详情</button>
+            <button class="lom-item danger" role="menuitem" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
           </span>
         </span>
       </div>
@@ -126,9 +122,7 @@ function priOf(t: TaskCard): string {
              原状泳道里指标头与任务行是各自独立的块，"这条任务属于哪个指标"只能靠"它们在同一条泳道里"
              推断——层级是排列出来的，不是连出来的。现给任务区加一条左轨 + 每行一个分支点，
              让归属成为视觉事实（与项目塔 W11 已有的「归属轨道」同一套语言）。 -->
-        <div class="lane-spine" aria-hidden="true"></div>
         <div v-for="t in m.tasks" :key="t.id" class="ltask" :class="statusOf(t)" :data-task="t.id">
-          <span class="ltask-node" aria-hidden="true"></span>
           <button
             class="ltask-box" :class="statusOf(t)"
             :aria-pressed="t.status === 'done'"
@@ -187,17 +181,11 @@ function priOf(t: TaskCard): string {
   content: ''; position: absolute; left: 0; top: 12px; bottom: 11px;
   width: 2px; border-radius: 1px; background: var(--hue); opacity: .7;
 }
-.lane-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
-.lane-i {
-  width: 17px; height: 17px; border-radius: 6px; display: grid; place-items: center;
-  font-size: var(--fs-micro); font-weight: 700; flex: none;
-  /* 序号是刻度不是印章：泳道身份由连接轨与进度条同色承担 */
-  background: var(--surface-2); color: var(--text-3);
-}
+.lane-top { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; min-width: 0; flex-wrap: nowrap; }
 .lane-n {
   font-size: var(--fs-sub); font-weight: 700; line-height: 1.45;
   flex: 1; min-width: 0; color: var(--text);
-  overflow-wrap: anywhere;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lane.dense .lane-n { font-size: var(--fs-body); line-height: 1.55; }
 .lane-status {
@@ -210,23 +198,15 @@ function priOf(t: TaskCard): string {
 }
 .lane-dot.doing { background: var(--warning-bg-soft); color: var(--warning); }
 .lane-dot.done { background: var(--success-bg-soft); color: var(--success); }
-.lane-detail {
-  flex: none; min-height: 28px; border: 1px solid var(--border); background: var(--surface);
-  color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 600;
-  padding: 2px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur);
-}
-.lane-detail:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-/* ★F1：泳道头删除入口 —— hover 显形（与项目塔指标卡同语言），「⋯」下拉同款 */
-.lane-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
-.lo-del, .lo-more {
+/* 指标头只保留一枚「⋯」；详情与删除都在菜单内，避免单行标题被操作按钮挤断。 */
+.lane-ops { position: relative; display: inline-flex; align-items: center; flex: none; }
+.lo-more {
   display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
-  font-size: var(--fs-micro); color: var(--text-3); opacity: 0;
+  font-size: var(--fs-micro); color: var(--text-3); opacity: 1;
   border-radius: 5px; cursor: pointer; transition: all var(--dur);
   border: 1px solid transparent; background: transparent;
 }
-.lane:hover .lo-del, .lane:hover .lo-more,
-.lo-del:focus-visible, .lo-more:focus-visible { opacity: 1; }
-.lo-del:hover, .lo-more:hover { color: var(--danger); background: var(--danger-bg-soft); }
+.lo-more:hover { color: var(--accent-ink); background: var(--accent-light); }
 .lo-more.on { opacity: 1; color: var(--accent-ink); background: var(--accent-light); }
 .lo-menu {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 148px;
@@ -267,31 +247,23 @@ function priOf(t: TaskCard): string {
 .lane-bar .v { font-size: var(--fs-micro); font-weight: 700; color: var(--text-2); flex: none; }
 
 .lane-b { padding: 7px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; flex: 1; min-height: 70px; }
-/* ★W12-F 贯穿连接轨：一条从指标头垂到最后一个任务行的竖轨 + 每行一个分支点。
-   轨道颜色取泳道主色 --hue，与进度条、序号牌同源 ⇒ "这条泳道属于这个指标"三处同一色。 */
-.lane-spine {
-  position: absolute; left: 15px; top: 0; bottom: 12px; width: 2px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--hue) 55%, transparent), color-mix(in srgb, var(--hue) 14%, transparent));
-  border-radius: 1px; pointer-events: none;
-}
-.ltask-node {
-  position: absolute; left: 10px; top: 14px; width: 12px; height: 2px;
-  background: color-mix(in srgb, var(--hue) 60%, transparent); pointer-events: none;
-}
-.ltask-node::after {
-  content: ''; position: absolute; right: -2px; top: -2.5px; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--surface); border: 1.6px solid color-mix(in srgb, var(--hue) 75%, transparent);
-}
+/* V3.9.26 隶属轨：任务行自己的上下两段拼成一条连续竖线，每条任务只伸出一条分支。
+   不再叠加泳道竖轨 + 任务左边框 + 独立分支点三套线，避免间距处出现断点和重色。 */
 .ltask {
   position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 5px 6px;
-  align-items: center; padding: 5px 6px 5px 28px; border-radius: 0;
-  /* 任务行从"小卡"退成"行"：保留左侧状态色与连接轨分支点，去掉底色与外边距 */
-  background: transparent; transition: all var(--dur); border-left: 2px solid var(--hue);
-  border-bottom: 1px solid var(--border);
+  align-items: center; padding: 5px 6px 5px 28px; border-radius: var(--radius-xs);
+  background: transparent; transition: background var(--dur); border-bottom: 1px solid var(--border);
 }
+.ltask::before,
+.ltask::after {
+  content: ''; position: absolute; left: 10px; pointer-events: none;
+  background: color-mix(in srgb, var(--text-3) 54%, transparent);
+}
+.ltask::before { top: 50%; width: 18px; height: 1px; }
+.ltask::after { top: -5px; bottom: -5px; width: 1px; }
+.ltask:first-child::after { top: -8px; }
+.ltask:last-child::after { bottom: 50%; }
 .ltask:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); }
-.ltask.done { border-left-color: var(--success); }
-.ltask.doing { border-left-color: var(--warning); }
 /* ★V3.9.17 任务账本：完成 / 标题与线索 / 优先级、成熟度、删除固定三列。
    标题和线索占同一可读列，操作固定在行尾，扫读不再在每一行里寻找按钮。 */
 .ltask-main { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }

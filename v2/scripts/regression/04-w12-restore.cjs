@@ -554,17 +554,20 @@ check('W12-E2 ★「← 返回项目详情」退役，但**来路感知必须保
   return true;
 });
 
-check('W12-F1 ★全景泳道必须有贯穿连接轨（用户拍板 C2）：项目→成功指标→任务的从属不能只靠"排列在同一条泳道里"推断，要有一条竖轨从指标头垂到最后一个任务行 + 每行一个分支点，轨道色取泳道主色 --hue 与进度条同源。判据：① 轨道与节点 DOM 在位 ② .lane-b 是定位上下文 ③ 轨道用 color-mix(--hue) 而非新增色系令牌 ④ 任务行左侧留出内边距让节点不压文字', () => {
+check('W12-F1（V3.9.26 重指）★全景泳道保留明确隶属轨，但收敛为一套连续线：V3.9.26 删除独立 lane-spine、分支点 DOM 与任务左边框三层叠线，改由任务行伪元素上下拼接一条主轨 + 每行唯一横分支；线色取中性 text-3 混合，状态回给复选框表达', () => {
   const L = read('/newtab/components/compass/CompassPanoLane.vue');
-  if (!L.includes('class="lane-spine"')) return false;
-  if (!L.includes('class="ltask-node"')) return false;
-  if (!/\.lane-b \{ position: relative/.test(L)) return false;
-  if (!/\.lane-spine \{[\s\S]*?var\(--hue\)/.test(L)) return false;
+  if (L.includes('class="lane-spine"')) return false;
+  if (L.includes('class="ltask-node"')) return false;
+  if (!L.includes('.ltask::before')) return false;
+  if (!L.includes('.ltask::after')) return false;
+  if (!L.includes('.ltask:first-child::after { top: -8px; }')) return false;
+  if (!L.includes('.ltask:last-child::after { bottom: 50%; }')) return false;
+  if (!/\.ltask::before \{ top: 50%; width: 18px; height: 1px; \}/.test(L)) return false;
+  if (/\.ltask \{[\s\S]*?border-left:\s*2px solid var\(--hue\)/.test(L)) return false;
   const task = (L.match(/\.ltask \{[\s\S]*?\n\}/) || [''])[0];
   const pad = /padding:\s*(\d+)px\s+(\d+)px\s+(\d+)px\s+(\d+)px/.exec(task);
   if (!pad || Number(pad[4]) <= 0) return false;
-  // 负锚：不许硬编码色
-  if (/#[0-9a-f]{3,6}/i.test(L.match(/\.lane-spine \{[\s\S]*?\n\}/) ? L.match(/\.lane-spine \{[\s\S]*?\n\}/)[0] : '')) return false;
+  if (/#[0-9a-f]{3,6}/i.test(L.match(/\.ltask::before,[\s\S]*?\n\}/) ? L.match(/\.ltask::before,[\s\S]*?\n\}/)[0] : '')) return false;
   return true;
 });
 

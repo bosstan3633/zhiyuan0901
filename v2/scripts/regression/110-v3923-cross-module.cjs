@@ -32,21 +32,23 @@ check('XM-01 ★方向层级标签三处接线：战略目标 / 项目 / 指标�
     && !treeCode.includes('当前主攻');
 });
 
-check('XM-02 ★任务详情首屏：项目/指标紧跟标题；AI 三入口成组且各自独立；导出独立靠右；所有宿主复用同一抽屉', () => {
+check('XM-02（V3.9.26 重指）★任务详情首屏：导出上移标题栏右上；项目/指标压缩为轻量双栏；AI 三入口成组且「找资源」完整显示；所有宿主复用同一抽屉', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
   const titleAt = td.indexOf('<div class="ts-title-wrap">');
+  const exportAt = td.indexOf('<ExportMenu class="ts-title-export"');
   const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
   const actionsAt = td.indexOf('<div class="ts-action-bar">');
   const descAt = td.indexOf('<!-- R48：说明区上移为 Hero');
-  const aiGroup = segOf(td, '<div class="ts-ai-group"', '</div>\n          <ExportMenu');
-  return titleAt >= 0 && ownerAt > titleAt && actionsAt > ownerAt && descAt > actionsAt
+  const aiGroup = td.slice(td.indexOf('<div class="ts-ai-group"'), descAt);
+  return titleAt >= 0 && exportAt > titleAt && exportAt < ownerAt && actionsAt > ownerAt && descAt > actionsAt
     && aiGroup.includes('aria-label="AI 任务工具"')
     && (aiGroup.match(/class="ts-ai-cell"/g) || []).length === 3
     && aiGroup.includes('@click="aiEnrich"')
     && aiGroup.includes('@click="aiBreakdown"')
     && aiGroup.includes('@click="aiSupport()"')
-    && td.includes('<ExportMenu class="ts-export"')
-    && td.includes('.ts-export { flex: none; margin-left: auto; }')
+    && aiGroup.includes('label="找资源"')
+    && td.includes('.ts-title-export :deep(.dz-exp-trigger)')
+    && td.includes('.ts-owner { gap: 6px; padding: 0; border: 0; background: transparent;')
     && td.includes('@media (max-width: 560px)')
     && td.includes('.ts-action-bar { align-items: stretch; flex-wrap: wrap; }')
     && [
@@ -138,7 +140,7 @@ check('XM-06 ★策展连线：按真实节点坐标生成正交折线，父右�
     && mm.includes('父右 → 中线 → 子左');
 });
 
-check('XM-07 ★V3.9.25 重指：调度台右栏只保留今天状态与最近调出；固定 6 条；左右模块边界、间距对齐，存储/同步状态独占全宽底轨，不强制内容等高', () => {
+check('XM-07 ★V3.9.26 重指：调度台右栏只保留今天状态与最近调出；固定 6 条；左右模块共享内容网格，状态轨移出网格并取消右栏吸附，滚动时不再覆盖', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const logic = read('/newtab/views/useCompassHome.ts');
   const css = read('/newtab/views/CompassHome.css');
@@ -150,10 +152,10 @@ check('XM-07 ★V3.9.25 重指：调度台右栏只保留今天状态与最近�
     && logic.includes('const recentLimit = computed(() => 6)')
     && logic.includes('.slice(0, recentLimit.value)')
     && css.includes('.desk-layout {')
-    && css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
-    && css.includes('.desk-status-rail { grid-column: 1 / -1; grid-row: 3; }')
-    && css.includes('左右模块的起点、间距与底部收口对齐')
-    && css.includes('不把卡片内容强行拉成等高')
+    && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
+    && css.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }')
+    && css.includes('.side-rail { position: relative; top: auto; }')
+    && css.includes('左右模块仍保持起点、间距与底部收口一致')
     && !css.includes('.rail-panel-recent { height: 100%')
     && !css.includes('.side-rail { height: 100%')
     && !home.includes('useEqualHeight')

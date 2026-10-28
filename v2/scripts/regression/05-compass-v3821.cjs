@@ -9,7 +9,7 @@ const { fs, path, base, check, read, codeOnly, exists, LANE, TOWER, PANO, PANO_L
 console.log('【V3.8.21 · 方向台 F1–F5 + 调度台 P4】');
 
 // ────────────────────────── F1 指标删除入口下沉 ──────────────────────────
-check('F1-1（V3.9.23 随迁）删除成功指标的真源只有一个（compassCrud.removeMetricWithConfirm），项目塔与项目全景两处都只从「⋯」菜单上抛 delMetric，主行不再露删除钮；项目舱菜单不放指标删除，宿主仍走确认与撤销', () => {
+check('F1-1（V3.9.26 随迁）删除成功指标的真源只有一个（compassCrud.removeMetricWithConfirm），项目塔与项目全景两处都只从「⋯」菜单上抛 delMetric；V3.9.26 起全景主行连独立「详情」钮也收进菜单，指标头只保留单行信息', () => {
   const lane = codeOnly(LANE)
   const pl = codeOnly(PANO_LANE)
   const tw = codeOnly(TOWER)
@@ -20,26 +20,28 @@ check('F1-1（V3.9.23 随迁）删除成功指标的真源只有一个（compass
   /* ② 项目舱菜单（项目级）零指标删除 */
   const menu = tw.slice(tw.indexOf('class="tw-menu"'), tw.indexOf('class="tw-body"'))
   /* ③ 宿主真源 */
-  return laneDel === 1 && plDel === 2
+  return laneDel === 1 && plDel === 1
     && !/class="mc-del"/.test(lane)
     && lane.includes('class="mc-menu"')
-    && pl.includes('class="lo-del"') && pl.includes('class="lo-menu"')
+    && !pl.includes('class="lo-del"') && !pl.includes('class="lane-detail"')
+    && pl.includes('class="lo-more"') && pl.includes('class="lo-menu"')
+    && pl.includes('打开指标详情') && pl.includes('删除本指标')
     && !menu.includes('delMetric') && !menu.includes('删除本指标')
     && tr.includes('function delMetricById(')
     && tr.includes('removeMetricWithConfirm(d.value, metricId, () => store.persist())')
     && (tr.match(/@del-metric="delMetricById"/g) || []).length === 2
     && tr.includes("import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm");
 });
-check('F1-2（V3.9.23 随迁）成功指标操作区 hover/focus 才显形，收起/展开固定在最右；删除只藏在「更多」内，不再作为主行常驻钮', () => {
+check('F1-2（V3.9.26 重指）项目全景指标头的详情与删除都藏进常驻「⋯」；项目塔仍保持 hover/focus 操作区。两条路径都必须键盘可达', () => {
   const lane = codeOnly(LANE)
   const pl = codeOnly(PANO_LANE)
   const laneBase = /\.mc-add, \.mc-ai, \.mc-more \{[^}]*opacity: 0/.test(lane)
     && /\.metric-card:hover \.mc-add, \.metric-card:hover \.mc-ai, \.metric-card:hover \.mc-more/.test(lane)
-  const plBase = /\.lo-del, \.lo-more \{[^}]*opacity: 0/.test(pl)
-    && /\.lane:hover \.lo-del, \.lane:hover \.lo-more/.test(pl)
+  const plBase = /\.lo-more \{[^}]*opacity: 1/.test(pl)
+    && pl.includes('.lo-more:hover') && pl.includes('.lo-more.on')
   /* 键盘可达：hover 化不能把无鼠标用户挡在门外（两套卡头各钉一次） */
   const a11y = lane.includes('mc-more:focus-visible')
-    && pl.includes('lo-del:focus-visible') && pl.includes('lo-more:focus-visible')
+    && pl.includes(':aria-expanded="menuFor === m.id"') && pl.includes('aria-haspopup="menu"')
   return laneBase && plBase && a11y
     && lane.includes('class="mc-more"')
     && lane.includes('class="mc-menu"')

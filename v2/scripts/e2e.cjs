@@ -1917,11 +1917,8 @@ async function main() {
     && bk.allInPool && bk.noCategory && bk.createdDeck === '(无)' && bookmarkPanel && bkReceipt,
     `页签=${bookmarkPanel} 落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 入池=${bk.allInPool} 分类空=${bk.noCategory} 新建台="${bk.createdDeck}" 回执=${bkReceipt}`)
 
-  // E2E-33 ★R4-Dc 附件 keepIds 单源：真跑一次设置页「清理孤儿附件」，核四类本体的生死。
-  //   这条守的是**不可恢复的物理删除**判错一次的代价：
-  //   活卡引用 / 回收站软删卡引用 / 论证卡引用（★本轮新补进 keepIds 的那一类）三者必须留，
-  //   只有谁都不引用的残留本体才准删。此前这条性质零行为覆盖，只有源码文本断言在管。
-  //   顺带验确认门：点钮先出弹窗，不确认就一个字节都不该动。
+  // E2E-33 ★V3.9.25 附件永久清理：设置页「全部附件」必须一次清空所有本体与卡片关联。
+  //   不可恢复的删除必须先过确认门；确认前一个字节都不能动，确认后列表与 IndexedDB 同时归零。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   await page.evaluate(async () => {
@@ -1957,11 +1954,11 @@ async function main() {
   await page.goto(base + '#/settings?page=data&tab=assets', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2600)
-  const hyBtn = page.locator('.gs-setting-row').filter({ hasText: '孤儿附件' }).locator('button', { hasText: '清理' }).first()
+  const hyBtn = page.locator('.gs-setting-row').filter({ hasText: '全部附件' }).locator('button', { hasText: '清理' }).first()
   await hyBtn.click()
   await page.waitForTimeout(900)
-  /* 确认门必须在：弹窗没点掉之前一个字节都不许动（本轮补的就是这道门） */
-  const hyGateShown = await page.getByText('清理孤儿附件').last().isVisible().catch(() => false)
+  /* 确认门必须在：弹窗没点掉之前一个字节都不许动。 */
+  const hyGateShown = await page.getByText('清空全部附件').last().isVisible().catch(() => false)
   /* ★不写"库里正好 4 个键"这种绝对数——同一轮跑里前面的场景（E2E-5 的 e2e-pdf-1）也会往 zy_assets 里留东西。
      要验的性质是**相对的**：弹窗还开着的时候，我种的这四个键一个都还没被删。 */
   const hyAfterCancel = await page.evaluate(() => new Promise((res, rej) => {
@@ -1986,14 +1983,21 @@ async function main() {
     }
     rq.onerror = () => rej(rq.error)
   }))
+  const hyState = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2'] || {}
+    const seeded = [...(d.resources || []), ...(d.argCards || [])].filter(x => String(x.id || '').startsWith('e2e-hy-'))
+    return {
+      refsCleared: seeded.length > 0 && seeded.every(x => !Array.isArray(x.assets) || x.assets.length === 0),
+      rows: document.querySelectorAll('.dm-asset-row').length,
+    }
+  }))
   const hy = {
-    live: hyKeys.includes('e2e-hy-live'), del: hyKeys.includes('e2e-hy-del'),
-    arg: hyKeys.includes('e2e-hy-arg'), orphanGone: !hyKeys.includes('e2e-hy-orphan'),
+    allGone: !['e2e-hy-live', 'e2e-hy-del', 'e2e-hy-arg', 'e2e-hy-orphan'].some(k => hyKeys.includes(k)),
     untouchedBeforeConfirm: ['e2e-hy-live', 'e2e-hy-del', 'e2e-hy-arg', 'e2e-hy-orphan'].every(k => hyAfterCancel.includes(k))
   }
-  report('E2E-33 ★R4-Dc keepIds 单源：活卡/软删卡/论证卡引用一律留，仅孤儿本体被删，且删前必有确认门',
-    hyGateShown && hy.untouchedBeforeConfirm && hy.live && hy.del && hy.arg && hy.orphanGone,
-    `弹窗=${hyGateShown} 未确认前不动=${hy.untouchedBeforeConfirm}(${hyAfterCancel.length}) 留活=${hy.live} 留软删=${hy.del} 留论证卡=${hy.arg} 孤儿已删=${hy.orphanGone}`)
+  report('E2E-33 ★V3.9.25 全部附件永久清理：确认门前零删除，确认后本体、卡片关联与附件列表一起归零',
+    hyGateShown && hy.untouchedBeforeConfirm && hy.allGone && hyState.refsCleared && hyState.rows === 0,
+    `弹窗=${hyGateShown} 未确认前不动=${hy.untouchedBeforeConfirm}(${hyAfterCancel.length}) 全部本体已删=${hy.allGone} 卡片关联已清=${hyState.refsCleared} 列表行=${hyState.rows}`)
   await page.evaluate(async () => {
     const d0 = (await chrome.storage.local.get('zy_data_v2'))['zy_data_v2']
     d0.resources = d0.resources.filter(r => !String(r.id).startsWith('e2e-hy-'))

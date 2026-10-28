@@ -68,14 +68,14 @@
   background: var(--accent);
 }
 
-/* V3.9.24：左右两列共用两条行轨道。左右模块的起点、间距与底部收口对齐，
-   但每个模块仍按自身内容决定高度，不把卡片内容强行拉成等高。 */
+/* V3.9.26：左右两列共用一条内容轨道，状态轨移到网格之后。
+   这样左右模块仍保持起点、间距与底部收口一致，但吸附层不会再跨进底轨。 */
 .desk-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 292px;
-  grid-template-rows: auto minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 18px 22px;
+  isolation: isolate;
 }
 .desk-main,
 .side-rail {
@@ -84,13 +84,13 @@
   gap: 18px;
   min-width: 0;
 }
-.desk-main { grid-column: 1; grid-row: 1 / span 2; }
-.side-rail { grid-column: 2; grid-row: 1 / span 2; }
+.desk-main { grid-column: 1; grid-row: 1; }
+.side-rail { grid-column: 2; grid-row: 1; }
 .desk-main > .desk-row-primary,
 .side-rail > .desk-row-primary { flex: none; }
 .desk-main > .desk-row-secondary,
 .side-rail > .desk-row-secondary { flex: 1 1 auto; }
-.desk-status-rail { grid-column: 1 / -1; grid-row: 3; }
+.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }
 
 /* ── 今日三件事：一张工作单里的三行 ── */
 .work-board,
@@ -569,8 +569,10 @@
 }
 .foot-gear:hover { background: var(--surface-3); color: var(--text); }
 
-/* ── 右侧案头栏 ── */
-.side-rail { position: sticky; top: 76px; }
+/* ── 右侧案头栏 ──
+   V3.9.26：右栏不再整列吸附。底轨是页面内容的一部分，吸附栏会在短视口
+   滚到底部时与底轨发生视觉重叠；对齐由共享网格行承担，不靠 fixed/sticky。 */
+.side-rail { position: relative; top: auto; }
 /* 右栏与左栏共享行轨道：第一行对齐今日三件事，第二行对齐手边的卡。 */
 .rail-panel { display: flex; flex-direction: column; }
 .recent-list { min-height: 0; overflow-y: auto; }
@@ -918,8 +920,8 @@
   .desk-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
 }
 @media (max-width: 960px) {
-  .desk-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
-  .desk-main, .side-rail, .desk-status-rail { grid-column: 1; grid-row: auto; }
+  .desk-layout { grid-template-columns: minmax(0, 1fr); }
+  .desk-main, .side-rail { grid-column: 1; grid-row: auto; }
   .side-rail { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 }
 @media (max-width: 720px) {

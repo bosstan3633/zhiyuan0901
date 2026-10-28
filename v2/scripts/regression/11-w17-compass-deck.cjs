@@ -96,11 +96,13 @@ check('W17-5 ★回落不双计：openResourceLink 记账后置（确认可打�
     && fn.includes('openExternalLink(url)\n    return true');
 });
 
-check('W17-6 ★V3.9.25 版式收口：左右列模块边界、18px 间距与底部收口对齐；存储/同步状态独占底轨，不贡献左右列高度；不强制左右内容等高，最近调出列表仍可内部滚动', () => {
+check('W17-6 ★V3.9.26 版式收口：左右列共享内容网格、18px 间距与底部收口对齐；状态轨移出网格并取消右栏吸附；不强制左右内容等高，最近调出列表仍可内部滚动', () => {
   return !PI.includes('curio-panel')
     && !PI.includes('useEqualHeight')
     && !PI.includes('--rail-top-h')
-    && PI.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
+    && !PI.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
+    && PI.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }')
+    && PI.includes('.side-rail { position: relative; top: auto; }')
     && PI.includes('class="page-foot desk-status-rail"')
     && PI.includes('desk-row-primary')
     && PI.includes('desk-row-secondary')

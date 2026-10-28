@@ -8,15 +8,17 @@ const { check, read, codeOnly, segOf } = require('./helpers.cjs');
 
 console.log('【V3.9.25 · 调度台 / 方向台 / 年度热力图】');
 
-check('R182-D1 ★调度台底轨独立：存储与同步状态独占 desk-layout 第三行全宽轨道，左右列只按 flex 间距排模块；不再由 subgrid/rail-foot 把状态挤进内容区', () => {
+check('R182-D1（V3.9.26 重指）★调度台底轨独立：存储与同步状态移出双列内容网格，右栏取消整列吸附；左右列仍共享同一内容行，滚动时状态轨不再与右下模块叠层', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const css = read('/newtab/views/CompassHome.css');
   return home.includes('<footer class="page-foot desk-status-rail" aria-label="本机存储与同步状态">')
     && home.indexOf('class="page-foot desk-status-rail"') > home.indexOf('</aside>')
     && !home.includes('class="rail-foot"')
-    && css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
-    && css.includes('.desk-main,\n.side-rail {\n  display: flex;\n  flex-direction: column;\n  gap: 18px;')
-    && css.includes('.desk-status-rail { grid-column: 1 / -1; grid-row: 3; }')
+    && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
+    && css.includes('.desk-main { grid-column: 1; grid-row: 1; }')
+    && css.includes('.side-rail { grid-column: 2; grid-row: 1; }')
+    && css.includes('.desk-status-rail { margin-top: 18px; position: relative; z-index: 0; }')
+    && css.includes('.side-rail { position: relative; top: auto; }')
     && !css.includes('.side-rail, .rail-foot');
 });
 
@@ -68,7 +70,7 @@ check('R182-C1 ★项目全景指标名完整可读：泳道标题不再两行�
   return pano.includes("'lanes-multi': laneCount > 1 && laneCount <= 3")
     && pano.includes("'lanes-scroll': laneCount > 3")
     && pano.includes('flex: 0 0 360px; width: 360px; min-width: 360px;')
-    && lane.includes('<span class="lane-n">{{ m.title }}</span>')
+    && lane.includes('<span class="lane-n" :title="m.title">{{ m.title }}</span>')
     && lane.includes('<span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>')
     && lane.includes('min-width: 360px')
     && !lane.includes('-webkit-line-clamp: 2')
@@ -133,17 +135,17 @@ check('R182-P1 ★年度热力图按时间从左到右：12 个自然月单行�
     && css.includes('overflow-x: auto');
 });
 
-check('R182-V1 ★版本与更新日志同步到 V3.9.25：manifest / package / lock / 手册 / 回归锚一致，更新日志新增本轮六项用户可见变化', () => {
+check('R182-V1（V3.9.26 重指）★版本与更新日志同步：manifest / package / lock / 手册 / 回归锚一致，V3.9.25 六项用户可见变化仍在更新日志中', () => {
   const pkg = require('../../package.json');
   const lock = require('../../package-lock.json');
   const manual = read('/newtab/views/ManualPage.vue');
   const log = read('/newtab/changelog-data/entries-v3.ts');
   const helpers = read('/../scripts/regression/helpers.cjs');
-  return pkg.version === '3.9.25'
-    && lock.version === '3.9.25'
-    && lock.packages[''].version === '3.9.25'
-    && manual.includes('V3.9.25')
-    && helpers.includes("version: '3.9.25'")
+  return pkg.version === '3.9.26'
+    && lock.version === '3.9.26'
+    && lock.packages[''].version === '3.9.26'
+    && manual.includes('V3.9.26')
+    && helpers.includes("version: '3.9.26'")
     && log.includes("version: '3.9.25'")
     && log.includes('调度台状态收口')
     && log.includes('项目全景优先完整可读')

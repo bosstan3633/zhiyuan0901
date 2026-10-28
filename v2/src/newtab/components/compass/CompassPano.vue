@@ -190,8 +190,8 @@ const laneCount = computed(() => {
           :data-lane-count="laneCount"
           aria-label="项目指标泳道"
         >
-          <CompassPanoLane v-for="(m, mi) in current.pm.metrics" :key="m.id"
-            :m="m" :idx="mi + 1" :proj-id="current.proj.id"
+          <CompassPanoLane v-for="m in current.pm.metrics" :key="m.id"
+            :m="m" :proj-id="current.proj.id"
             :single="laneCount === 1" :dense="laneCount > 1"
             @toggle-task="emit('toggleTask', $event)"
             @task-grade="emit('taskGrade', $event)"
