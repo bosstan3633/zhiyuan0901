@@ -24,9 +24,9 @@ function check(name, fn) {
 // ⇒ 实跑门禁通道改为：spawnSync 优先；通道被拦（error/status=null）时回退读 `.gate-cache.json`
 // ——由 `scripts/regression-eb.sh`（bash 通道）**先真实执行**各门禁并把真实退出码落缓存。
 // 缓存带门禁脚本 sha256 指纹 + 15 分钟时效：脚本被改、缓存过期或缺失即红，判据仍是真实退出码。
-function runGateSync(scriptPath, args = [], timeoutMs = 120000) {
+function runGateSync(scriptPath, args = [], timeoutMs = 120000, opts = {}) {
   const { spawnSync } = require('child_process');
-  const r = spawnSync(process.execPath, [scriptPath, ...args], { encoding: 'utf8', timeout: timeoutMs });
+  const r = spawnSync(process.execPath, [scriptPath, ...args], { encoding: 'utf8', timeout: timeoutMs, ...(opts.cwd ? { cwd: opts.cwd } : {}) });
   if (r.error || r.status === null || r.status === undefined) return readGateCache(scriptPath, args);
   return r;
 }
