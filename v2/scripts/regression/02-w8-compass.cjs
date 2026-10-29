@@ -15,7 +15,7 @@ check('W8-1 ★方向台主角＝愿景（用户2026-10-12 拍板 A 案）：.tl
     /*负锚：愿景不许退回字面量14px（原状）或降到 headline */
     && !t.includes('.tl-text { font-size: 14px;');
 });
-check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备案：W11 起六层分居四个文件：使命/战略目标在 CompassTree.vue（.tl-text.sub / .dh-n）、项目与指标在 CompassTower.vue / CompassLane.vue。判据改钉**各层实际字号**而非旧文件位置——本条守的是"层级差真的存在"，不是"样式写在哪个文件"。★取舍备案：层级仍允许使命17 › 项目15 的起伏，这是有意取舍不是失误。★W12 随迁备案：hero 留白锚由 30px 改为 14/16px（块内让位给面板卡面）+ accent 实轨', () => {
+check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备案：W11 起六层分居四个文件：使命/战略目标在 CompassTree.vue（.tl-text.sub / .dh-n）、项目与指标在 CompassTower.vue / CompassLane.vue。判据改钉**各层实际字号**而非旧文件位置——本条守的是"层级差真的存在"，不是"样式写在哪个文件"。★取舍备案：层级仍允许使命17 › 项目15 的起伏，这是有意取舍不是失误。★W12 随迁备案：hero 留白锚由 30px 改为 14/16px。★V3.9.25：愿景/使命层级面板以两栏压缩高度，留白锚改为 10px/11px + 8px 内部间距', () => {
   const missionOk = /\.tl-text\.sub \{ font-size: var\(--fs-headline\)/.test(CT_W11);
   const dirOk = /\.dh-n \{ font-size: var\(--fs-title\)/.test(CT_W11);
   const projOk = /\.tw-name-t \{ font-size: var\(--fs-title\)/.test(TOWER);
@@ -24,7 +24,7 @@ check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备�
   const noInflate = !/\.mc-title \{[^}]*font-size: var\(--fs-(title|headline|display)\)/.test(LANE)
     && !/\.tk-title \{[^}]*font-size: var\(--fs-(title|headline|display)\)/.test(LANE);
   /* ★W11 版式补偿 → W12：hero 独占一行 + 大留白（外框改 accent 实轨，见 W8-1 备案） */
-  const layoutOk = /\.tree-level-card\.hero \{[^}]*padding: 14px 0 16px 16px/.test(CT_W11)
+  const layoutOk = /\.tree-level-card\.hero \{[^}]*padding: 5px 0 5px 14px/.test(CT_W11)
     && /\.tree-level-card\.hero \{[^}]*border-left: 2px solid var\(--accent\)/.test(CT_W11);
   return missionOk && dirOk && projOk && metricOk && taskOk && noInflate && layoutOk;
 });
@@ -54,8 +54,23 @@ check('W8-4 ★主攻项目必须是**次级焦点**（原仅 accent-28% 边框 
 check('W8-5 ★V3.9.1 随迁备案：焦点唯一性继续跨工作面守。调度台主标题为页头 clamp 级排版、不占 display token；二级查看全部页标题使用 display 但属工具页，不与方向台愿景争主焦点。旧调度台标题类不得回流，方向台愿景仍必须是主角', () => {
   const TOOL_PAGES = ['newtab/views/ManualPage.vue', 'newtab/views/RecycleBin.vue'];
   const ICON_SEL = ['.gs-io-icon', '.cdf-icon'];
+  /* ★R181 随迁带备案：愿景标题的 `font-size: var(--fs-display)` 随样式外提搬进 `CompassTree.css`，
+     而 `srcFileEntries()` 只扫 .ts/.vue —— 故本判据的扫描面补上 .css（样式外提后"标题用 display 档"的
+     事实才看得见）；判据意图（愿景是唯一用 display 的主体、旧调度台标题零命中）一字未改。 */
+  const cssEntries = (() => {
+    const out = [];
+    const walk = (rel) => {
+      for (const f of fs.readdirSync(base + rel)) {
+        const abs = rel + '/' + f;
+        if (fs.statSync(base + abs).isDirectory()) { if (f === 'node_modules') continue; walk(abs); }
+        else if (f.endsWith('.css')) out.push({ rel: abs.replace(/^\//, ''), text: fs.readFileSync(base + abs, 'utf8') });
+      }
+    };
+    walk('');
+    return out;
+  })();
   const hits = [];
-  for (const e of srcFileEntries()) {
+  for (const e of srcFileEntries().concat(cssEntries)) {
     if (!/^newtab\//.test(e.rel)) continue;
     if (TOOL_PAGES.includes(e.rel)) continue;
     const txt = codeOnly(e.text);
@@ -72,11 +87,15 @@ check('W8-5 ★V3.9.1 随迁备案：焦点唯一性继续跨工作面守。调�
   /* V3.9.1：恰一处：CompassTree 的愿景。
      ★踩坑账：命中串是「rel → 选择器链」，rel 带 `newtab/views/` 前缀，所以判归属要用
      `indexOf(...) === 0` 永远不成立 ⇒ 判据恒红。必须 startsWith。 */
+  /* ★R181 随迁带备案：愿景标题的 `font-size: var(--fs-display)` 声明随样式外提迁到 `CompassTree.css`
+     （宿主是 `.vue`，规则在 `.css`），判归属时两个文件都算"方向台愿景"，判据意图（愿景恰一处、旧标题零命中）不变。 */
+  const isTree = (h) => h.startsWith('newtab/views/CompassTree.vue') || h.startsWith('newtab/views/CompassTree.css');
+  const isDeck = (h) => h.startsWith('newtab/views/CompassDeckView.vue') || h.startsWith('newtab/views/CompassDeckView.css');
   const homes = hits.filter(h => h.startsWith('newtab/views/CompassHome.vue')).length;
-  const trees = hits.filter(h => h.startsWith('newtab/views/CompassTree.vue')).length;
+  const trees = hits.filter(isTree).length;
   /* V3.9.1：查看全部已成独立二级页，页头标题是工具页导航层级，
      不是「方向台愿景」那种跨工作面的唯一主角。允许方向台愿景 + 二级页标题两类，
      但仍要求方向台恰好一处、旧调度台标题零命中。 */
   return homes === 0 && trees === 1
-    && hits.every(h => h.startsWith('newtab/views/CompassTree.vue') || h.startsWith('newtab/views/CompassDeckView.vue'));
+    && hits.every(h => isTree(h) || isDeck(h));
 });

@@ -1,0 +1,462 @@
+/* ══ W12 HERO 区（V3.8.20 收口版）：上=动作行，下=读数行 ══
+   ★V3.8.20（用户拍板 2026-10-15）：左文案栏（.hero-l：面包屑/眉标/大标题/副标）与
+   N4 就地编辑（.cp-edit/.cp-pen）整块退役 —— 定调语由骨架条 .spine-h 承担。
+   ★.hero-crumb 的消失意味着「三页页头统一 16px」在方向台侧不再有活体载体：
+   R51-6 / R123-10 随翻转为「工作台/项目详情两页守 16px + 方向台侧负锚」（翻转理由在判据正文）。 */
+.hero {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.hero-acts {
+  display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap;
+  flex: 1 1 auto; min-width: 0;
+}
+.hero-from { font-size: var(--fs-micro); color: var(--text-3); }
+.hero-tools { position: relative; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+/* ★F6 二次翻转（2026-10-16）：.hero-tools-menu / .menu-item 下拉壳随「⚙ 工具」整壳退役，
+   两枚开关回 .hero-tools 内常驻（回流下拉形态即 dead-css + 判据红）。 */
+
+/* ★C2（V3.8.33 B5-c）：筛选态提示条并入 hero 工具行后压成胶囊。
+   原来是画布内一条整宽横幅（accent 浅底 + 边框 + 12px 内边距），把引导条与舱列之间撑出一道横带；
+   收进动作行后宽度由内容决定，与 view-seg、两枚 tree-tool 同一基线，页头只多一枚小件，
+   树区不再被横向色块切断。三件事仍就地可见：被什么收窄（.hf-t）、命中多少（.hf-n）、怎么退出（.hf-clear）。 */
+.hero-filter {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 3px 4px 3px 10px; border-radius: var(--radius-full);
+  background: var(--accent-light);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.hf-t {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink);
+}
+/* 命中数是这一行的"口径"，不是结论：比筛选名弱一档（micro + text-3），读起来是注脚。
+   口径里两个数字分别在 .hf-n 与骨架条计数各自成立，不合并成第三个真源。 */
+.hf-n { font-size: var(--fs-micro); color: var(--text-3); }
+.hf-clear {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--fs-micro); font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 2px 9px; border-radius: var(--radius-full); cursor: pointer; transition: all var(--dur);
+}
+.hf-clear:hover { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+
+
+/* ══ ★V3.8.18（N14）战略骨架条的全宽承载容器 ══
+   .spine-bar 只负责"占满一行并给下方左右结构留出间距"，卡片本体仍是 CompassSpine 自己的
+   .spine（带自己的边框/圆角/阴影）—— 容器不接管卡片样式，避免两处各画一半边框。 */
+.spine-bar { margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.spine-bar .spine { margin-bottom: 0; }
+
+/* ══ ★V3.9.19：三层引导条（.tl-head-row + .gs-* 全族）随计数去重整体退役 ══
+   死样式不删会被 dead-css-scan 判孤儿。层号导航由骨架条 1~6 按钮承担（本就同源），
+   视图切换迁 .navside 首行；退役理由与判据随迁见模板同名注释。 */
+/* ★V3.8.20：.hero-r / .hero-meta 随左文案栏一并退役（hero 改纵向单列：acts 行 + stats 行）。
+   ★F6（2026-10-16）：读数行由右对齐改**左对齐**——右对齐时健康度徽章（行首元素）被推到最右，
+   视线要横跨整行才读到；健康度是这行的第一个判断，应该在视线落点上。 */
+.hero-stats {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-start;
+  min-width: 0; flex: 1 1 640px;
+  font-size: var(--fs-micro); color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+/* ★C1（V3.8.28）：分隔符由「·」中点改 1px 发丝线 —— 中点夹在 9px 读数之间像正文标点，
+   发丝线才是刻度（沿用骨架条 .gs-sep 的既有语言）；gap 同时收上 8px 网格。 */
+.hs-sep { width: 1px; height: 10px; background: var(--border); flex: none; }
+/* ★V3.9.19（一处不两说）：六层计数下钻入口——文字链形态（text-4，hover 才提 accent），
+   与读数同基线但低一档，视线先读状态、再顺这枚下钻。热区 ≥28px（A-1）。 */
+.hs-spine {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 28px; padding: 0 var(--sp-1);
+  border: 0; background: transparent; border-radius: var(--radius-sm);
+  /* W12-G：交互控件不吃最淡档（notion 下 ≈2:1 真机隐形）——基态 --text-3 与读数同级，弱化交给 hover 提 accent */
+  font-size: var(--fs-micro); color: var(--text-3); line-height: var(--lh-micro);
+  font-family: inherit; cursor: pointer; transition: all var(--dur);
+}
+.hs-spine:hover { color: var(--accent-ink); background: var(--surface-2); }
+/* 健康度徽章在读数行首位：★C1（V3.8.28）镜面口径 —— 健康度是「这页现在什么状况」，不是评分。
+   原 accent 实底药丸让它在 9px 计数行里像一枚按钮/徽章，视线先落颜色再读数字；改中性浅底 +
+   text-2，字号落 caption，只比计数重一档。warning 态不再用琥珀催促色：语义由「关注 / 需聚焦」
+   这三个字承担，颜色不参与评价（与 A2 同批口径）。 */
+.hero-stats .dhi-badge { cursor: default; }
+
+/* ★W12：容器 padding 完全不动（`20px 36px 64px`）——
+   R125「骨架 1440+36」把四页页边距拍成一条跨页一致性纪律，方向台侧的内缩就落在这条规则上；
+   原型的 .page 32px 是原型自己的值，拿它覆盖会让另外三页不动的情况下方向台单独"对齐"，
+   那正是 R123/R125 要挡的事。HERO 区的呼吸由 .hero 自身的 margin-bottom 承担，不动容器。 */
+.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }
+
+/* V3.9.12 项目全景工作态：保留页头与战略骨架，但把两者从“两张连续说明牌”
+   压成一条状态尺。全景的主角是当前项目摘要与泳道，先验层不应先吃掉半屏。 */
+.compass-layout.is-pano .hero {
+  align-items: center; gap: 12px; margin-bottom: 10px;
+}
+.compass-layout.is-pano .hero-acts { flex: 0 1 auto; }
+.compass-layout.is-pano .spine-bar {
+  margin-bottom: 10px; padding-bottom: 0; border-bottom: 0;
+}
+.compass-layout.is-pano :deep(.spine-h) { padding: 7px 12px 6px; }
+.compass-layout.is-pano :deep(.spine-hint) { display: none; }
+/* V3.9.14：收起态那枚 badge 是“六层仍在”的唯一可见凭据，不能被一起藏掉。
+   全景页只隐藏展开态的定位语，保留 1 愿景 · … · 6 任务的压缩摘要。 */
+.compass-layout.is-pano :deep(.spine-badge:not(.compact)) { display: none; }
+.compass-layout.is-pano :deep(.spine-toggle) { min-height: 28px; }
+.compass-layout.is-pano :deep(.spine-b) { padding: 7px 12px 9px; gap: 7px; }
+.compass-layout.is-pano :deep(.spine-lv) { min-height: 30px; padding: 5px 10px; }
+.compass-layout.is-pano :deep(.spine-risk.zero) { display: none; }
+.compass-layout.is-pano :deep(.spine-dirs) { gap: 5px; }
+.tree-layout { display: flex; gap: 36px; align-items: flex-start; }
+.link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: var(--radius-full); font-weight: 600; }
+/* R59-T4：关联卡片选择器（居中弹窗） */
+.lm-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: var(--z-mask-lg); display: flex; align-items: center; justify-content: center; }
+.lm-box { width: 520px; max-width: 94vw; max-height: 82vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.lm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; font-size: 14px; font-weight: 700; color: var(--text); }
+.lm-count { font-size: var(--fs-caption); font-weight: 500; color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-full); padding: 2px 10px; }
+.lm-head .pm-close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 4px; background: transparent; border: none; }
+.lm-head .pm-close:hover { color: var(--text); }
+.lm-body { padding: 0 18px 8px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.lm-search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: var(--fs-body); outline: none; font-family: inherit; background: var(--surface-2); color: var(--text); margin-bottom: 6px; }
+.lm-search:focus { border-color: var(--accent); }
+.lm-list { max-height: 30vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; margin-bottom: 6px; }
+.lm-foot { display: flex; align-items: center; gap: 10px; padding: 10px 18px 14px; border-top: 1px solid var(--border); }
+.lm-tip { flex: 1; font-size: var(--fs-caption); color: var(--text-4); }
+.mini-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: inherit; }
+.mini-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.link-pop-sec { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 6px 4px 3px; }
+.link-pop-item { display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px; cursor: pointer; font-size: var(--fs-sub); color: var(--text-2); }
+.link-pop-item:hover { background: var(--surface-2); color: var(--text); }
+.link-pop-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-pop-empty { padding: 12px; text-align: center; color: var(--text-4); font-size: var(--fs-sub); }
+/* 第卅三轮 REQ-017：关联卡片由胶囊 chip 改为卡片形态（两行截断 + 卡片圆角） */
+.linked-chip { position: relative; display: inline-flex; align-items: flex-start; gap: 5px; width: 186px; min-height: 32px; padding: 5px 27px 5px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--fs-sub); line-height: 1.45; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); overflow: hidden; }
+.linked-chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+.lc-ico { flex-shrink: 0; font-size: var(--fs-sub); }
+.lc-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+.lc-unlink {
+  position: absolute; top: 4px; right: 4px;
+  display: inline-grid; place-items: center; width: 22px; height: 22px;
+  padding: 0; border: 0; border-radius: 5px;
+  color: var(--text-2); background: transparent; font-family: inherit;
+  font-size: var(--fs-caption); cursor: pointer; opacity: .78;
+}
+.lc-unlink:hover, .lc-unlink:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); outline: none; }
+.peek-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
+.peek-label { width: 42px; flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding-top: 2px; }
+.peek-val { flex: 1; min-width: 0; font-size: var(--fs-body); color: var(--text); line-height: 1.6; word-break: break-all; }
+.peek-val.strong { font-weight: 700; font-size: var(--fs-title); }
+.peek-val.link { color: var(--accent); }
+.peek-tag { display: inline-block; font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: var(--radius-full); margin: 0 4px 4px 0; }
+.peek-open { width: 100%; margin-top: 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; }
+.peek-open:hover { background: var(--accent-hover); }
+.topbar { height: 48px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+/* ★C1（V3.8.28）：健康度徽章退成药丸形"读数"——中性浅底 + text-2 字，不再用强调色实底；
+   warning 态只加深一档表面，不换色相（琥珀是催促，镜面不催促）。 */
+.dhi-badge { display: flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: var(--radius-full); background: var(--surface-2); font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); }
+.dhi-badge.warning { background: var(--surface-3); color: var(--text); }
+
+/* 画布（左侧为项目导航预留空间） */
+.canvas { flex: 1; min-width: 0; padding: 0 4px 20px; }
+/* ★W12：放开原先 1000px/700px 的窄栏约束。原型 .page 是 1440px 满宽 + 210px 侧栏，
+   1000px 会让右侧项目舱被压扁、舱头按钮挤成两行（就是实际截图里的那个问题）。 */
+/* ★C2（V3.8.31）：树区成为「主角面」——大板 + xl 圆角 + 发丝边。
+   为什么底色用 color-mix 而不是直接用 --surface：树板里躺着的项目舱/泳道/层级列表本身
+   就是 --surface，直接铺 --surface 会让"卡在板上"变成"卡与板同色"，层级反而消失。
+   55% 的混合在两套光向（暗色提亮 / 亮色压灰）下都与 bg 有可辨差、又不吃掉卡的亮度。
+   圆角取 xl（18）是本页层级的第一档，C4 的「板 xl / 舱 lg / 子卡 sm」从这里往下排。 */
+.canvas-inner {
+  max-width: 1180px; margin: 0;
+  background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 18px 20px 20px;
+}
+
+/* ══ W12 左侧项目导航（原型 .navside）：项目清单 + 滚动跟随高亮 ══
+   ★V3.8.18（N15）吸顶常驻**本轮复核为已满足**：sticky + align-self:flex-start + top 偏移
+   三件套齐备（align-self 不加的话 flex 子项会按默认 stretch 拉满高度，sticky 直接失效，
+   这是 sticky 在 flex 布局里最常见的静默失效原因）。骨架条提到全宽后 .tree-layout 整体下移，
+   吸顶基准不变，仍以视口顶为参照 —— 项目舱涨到 20+ 时左栏也不会把地图推到屏幕外。
+   max-height + overflow-y 同时在位：舱数多到超过一屏时左栏自己滚，不把整页撑出第二条滚动条。 */
+.navside {
+  position: sticky; top: 16px; align-self: flex-start;
+  width: 176px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: calc(100vh - 120px); overflow-y: auto;
+}
+
+/* 响应式：保留“左项目导航 + 右方向画布”的架构，只按可用宽度逐级压缩。
+   ★V3.9.19（04-73 D-2 断点收敛）：1100 → 1024，480 档并入 800 —— 方向台收敛为
+   1024 / 800 两档（骨架条 900 也随批并到 800）。1024 收页边距与列距；800 起
+   左栏改横向项目条、页头允许换行，原 480 的窄屏细化（更紧的页边距、工具等分）
+   就地并入本档，148px 项目卡细化档退役（统一 164px 可滚动固定宽，W11-20 随迁备案）。 */
+@media (max-width: 1024px) {
+  .compass-layout { padding-left: 24px; padding-right: 24px; }
+  .compass-layout.is-pano .hero {
+    align-items: flex-start; gap: 8px;
+  }
+  .tree-layout { gap: 24px; }
+  .navside { width: 160px; }
+}
+/* 项目全景已有自己的项目切换器；左栏项目清单只服务项目塔，继续常驻会多出一套重复导航。 */
+.tree-layout.is-pano { display: block; }
+.tree-layout.is-pano .navside { display: none; }
+/* 全景没有左栏，画布应吃满 1440 页轴；沿用项目塔的 1180px 上限会在右侧留下整片空板。 */
+.tree-layout.is-pano .canvas-inner { width: 100%; max-width: none; }
+@media (max-width: 800px) {
+  .compass-layout { padding: 12px 10px 40px; }
+  .hero { align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+  .hero-acts { gap: 7px; }
+  .hero-stats { flex-basis: 100%; gap: 6px; }
+  .hs-sep { display: none; }
+  .hero-tools { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; margin-left: 0; }
+  .tree-tool { flex: 1; text-align: center; }
+  .tree-layout { display: block; }
+  .navside {
+    position: static; width: 100%; max-height: none;
+    flex-direction: row; gap: 6px; overflow-x: auto;
+    padding-bottom: 8px; margin-bottom: 14px;
+    scroll-snap-type: x proximity;
+  }
+  .navside .ns-t, .navside .ns-hint { display: none; }
+  /* 左栏转横条后，view-seg 回到内容宽（不再等分整行），随条横向滚动 */
+  .navside .view-seg { width: auto; flex: 0 0 auto; }
+  .navside .vs-b { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; }
+  .ns-item { flex: 0 0 164px; width: 164px; scroll-snap-align: start; }
+  .canvas-inner { padding: 12px 10px 14px; border-radius: var(--radius-lg); }
+  .footer-hint { margin-top: 20px; padding: 12px 8px; }
+}
+.ns-t {
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: .14em;
+  color: var(--text-4); padding: 0 4px 6px;
+}
+.ns-item {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 9px 11px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer; transition: all var(--dur); text-align: left;
+  font-family: inherit; width: 100%;
+}
+.ns-item:hover { background: var(--surface-2); }
+/* ★视觉聚焦（方向台优化）：当前项用"左侧细轨 + 纸面白底"标记，不用彩色底 + 彩色边框。
+   原来选中态是一块带色边框的彩色块，未选中项在 hover 时也变色，
+   一栏五六个项目扫下去最先看到的是"色块"，而不是项目名。 */
+.ns-item.on {
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow: inset 2px 0 var(--pc, var(--accent));
+}
+.ns-idx {
+  width: 20px; height: 20px; border-radius: 6px; flex: none; margin-top: 1px;
+  /* 序号是刻度不是徽章：常驻中性色，选中也不反白 */
+  background: transparent;
+  color: var(--text-4);
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.ns-item.on .ns-idx { background: transparent; color: var(--text-3); }
+.ns-body { min-width: 0; flex: 1; }
+.ns-n {
+  display: block;
+  font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);
+  line-height: 1.4; word-break: break-word;
+}
+.ns-item.on .ns-n { color: var(--text); }
+.ns-m {
+  display: block;
+  font-size: var(--fs-micro); color: var(--text-4); margin-top: 2px;
+}
+.ns-f { margin-left: 3px; }
+.ns-hint {
+  font-size: var(--fs-micro); color: var(--text-4);
+  padding: 10px 11px 0; line-height: 1.7;
+  border-top: 1px solid var(--border); margin-top: 4px;
+}
+
+/* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：`.tree-page-head` 三条（自身 / `.crumb` /
+   `.crumb .sep` / `.spacer`）与 `.tree-stats` 随 W12 页头退役即零挂载——模板里全库 `class=` 零命中。
+   ★为什么此前一直"绿"：\`dead-css-scan\` 取的是「最新一个日期目录」的 census 快照，
+     实测读到两周前那份，其间下线的类名仍被 census 票救活 ⇒「零死样式」是**看着绿、其实没查**。
+     本批改为只认全量实拍写下的权威 census 后，它们才第一次浮出来。
+   ★同族的 `.tree-tool` 三条**仍活着**（工具钮还在用），故只删上面四条，不连坐。
+   ★保留下面这段备案：它记的是「16px 档在方向台侧不再有载体」这条 R51-6/R123-10 翻转理由，
+     判据正文要用，删样式不许连带删掉理由。 */
+/* R49-C7：顶部统计 + 展开收起/显隐工具（★V3.8.41：`.tree-stats` 随上方一并退役，同族的 `.tree-tool` 三条仍活着） */
+.tree-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 8px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap; }
+
+
+.tree-tool:hover { border-color: var(--accent); color: var(--accent); }
+.tree-tool.off { opacity: .6; }
+/* R52-F8/R54-A1：返回入口（accent 强调）+ 面包屑上级可点 */
+.tree-tool.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+/* R54-A3：?hl 定位闪烁 */
+/* ★随迁备案（W11）：原锚 .tc-strategic-branch 三列网格已退役，改指新结构 .dir-head */
+.dir-head.goal-flash { animation: treeGoalFlash 1.4s ease; }
+@keyframes treeGoalFlash { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); border-color: var(--accent); } }
+
+/* ══ W12：.tree-page-head / .layer-toc / .lt-* 六层数字目录整族退役 ══
+   ★随迁备案：① 六层目录的定位能力由骨架条 1~6 按钮承担（同一入口，不摆两处）；
+   ② .tree-page-head 的密排工具行由 HERO 右栏（.hero-acts / .hero-meta / .hero-stats）接走，
+      能力一项未少，只是从「一行密排」变成「两栏分组」。③ .layer-header/.layer-num/.layer-name/.layer-desc
+      四条随之成为孤儿（模板零引用），本轮一并清 —— 删选择器容易，删完不跑扫描器就会留下一笔看不见的债。 */
+
+.node .node-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); line-height: 1.5; flex: 1; min-width: 0; }
+.node .node-title.editable { cursor: text; outline: none; border-radius: 4px; padding: 1px 4px; margin: -1px -4px; transition: background var(--dur); }
+.node .node-title.editable:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.node .node-title.editable.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
+/* R68-F4：操作按钮主题感知——原硬编码不透明白底 + 浅灰图标，深色主题（近黑画布）下对比度崩坏看不到入口 */
+.node-action { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); cursor: pointer; color: var(--text-2); transition: all var(--dur); background: var(--surface-3); border: 1px solid var(--border); }
+/* R135：文字型 AI 入口（骨架条上的「知 建议目标」）—— 与 .t3 同一套文字型规则 */
+.ai-chain-act { width: auto; min-height: 28px; padding: 0 8px; gap: 3px; font-size: var(--fs-caption); white-space: nowrap; }
+.node-action:hover { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
+.node-action.danger:hover { color: var(--danger); }
+/* ★V3.8.18（N5）三级分层。t1/t2 的差异只在底色与描边；t3 解除固定方块。
+   ★t3 必须显式 width:auto + white-space:nowrap —— 22px 方块 + 中文字符是竖排 bug 的成因，
+   文字型若继续继承 22px 就等于没修。 */
+.node-action.t1 { background: var(--accent-light); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
+.node-action.t1:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.node-action.t3 {
+  width: auto; min-width: 22px; height: 22px; padding: 0 9px;
+  white-space: nowrap; background: transparent; border-color: transparent;
+  font-size: var(--fs-caption);
+}
+.node-action.t3:hover { background: var(--surface-3); color: var(--text); border-color: var(--border); }
+.node-action.t3.on { color: var(--accent-ink); background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
+.stagnant-tag { background: var(--tag-danger-bg); color: var(--danger); font-size: var(--fs-micro); padding: 2px 7px; border-radius: var(--radius-full); font-weight: 500; }
+.status-active { color: var(--success); }
+.status-paused { color: var(--warning); }
+/* R59-T3 的「主攻项目强调」（.project-node.primary / .project-node.primary .node-title）随旧树节点类族一并退役
+   （R4-Ev 孤儿 CSS 第二批）——★随迁备案（W11）：主攻标记已迁到 .tower 的 is-focused 结构与 tw-badge.focus */
+.metric-item.expanded { background: var(--surface); border-color: color-mix(in srgb, var(--accent) 20%, var(--border)); border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
+.metric-status.done { background: var(--success); }
+.metric-status.doing { background: var(--warning); }
+.metric-status.todo { background: var(--text-3); }
+.metric-name.editing { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.metric-item.expanded .metric-expand-icon { transform: rotate(90deg); }
+/* ★W11 随迁清账（2026-10-13）：下方 .task-item/.task-check/.task-text/.task-meta/.task-actions/.empty-sub 六族
+   共 15 条是 R3-B2 时期的任务行样式，W11 起任务行已迁到 CompassLane 的 .tk-row（判死 13 + 祖先断 2，
+   由 dead-css-scan 实跑坐实）。四票全零 = 模板零引用 + 全站 class 属性零引用 + 全站字符串零引用 + 104 场景普查零命中。
+   同批不删 .metric-*（投影弹窗仍用）与 .proj-toggle/.toggle（R4-Ev① 的活体票载体，删了那条判据会假红）。 */
+/* G3（V3.8.27）：零方向兜底原用的裸容器类与图标位样式，随改走 EmptyState 组件一并退役
+   —— 留着会让下一个写空态的人"照着旧样式再写一遍"，正是本轮要断的那条路。 */
+
+/* 节点链接弹窗开关（愿景/使命关联资源） */
+.proj-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.toggle { position: relative; width: 30px; height: 16px; border-radius: var(--radius-full); background: var(--border-strong); cursor: pointer; transition: background .2s; flex-shrink: 0; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.toggle.on::after { transform: translateX(14px); }
+
+/* 底部 */
+.footer-hint { margin-top: 28px; padding: 14px; text-align: center; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.8; border-top: 1px solid var(--border); }
+
+/* 动画 */
+.expand-enter-active, .expand-leave-active { transition: all var(--dur) ease; overflow: hidden; }
+.expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; margin-top: 0; padding-top: 0; }
+
+/* ===== R121：方向树重构（对齐原型：锚点卡 + 三列分支 + 发丝缩进） ===== */
+.tree-level-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 6px; }
+.tl-badge { align-self: flex-start; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); background: var(--accent-light); padding: 2px 6px; border-radius: 4px; }
+.tl-badge.ghost { background: var(--surface-2); color: var(--text-2); margin-top: 6px; }
+/* ★V3.8.8 方向台焦点契约（用户拍板：主角=愿景、攻坚项目 17px）：
+   原状全页最大字是页头面包屑（16px 字面量），而真内容标题「六层思维链」只有 11px（caption）
+   ⇒ 层级倒置。以下五条把方向台拉回「一处主角 + 六层可辨」。判据 W8-1~W8-5 把守。
+
+   ① 愿景 = 本页**唯一** display 级主体（语义根：产品名与 Slogan「自有我方向」都指向它） */
+.tree-level-card.hero { border-color: var(--border-strong); box-shadow: var(--shadow-lg); padding: 18px 20px 16px; }
+.tl-text { font-size: var(--fs-display); font-weight: 700; color: var(--text); letter-spacing: -.02em; line-height: 1.24; }
+/* ② 使命降一档到 headline（它是准则不是方向本身） */
+.tl-text.sub { font-size: var(--fs-headline); font-weight: 500; color: var(--text-2); line-height: 1.4; }
+.tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
+/* ★V3.9.19：view-seg 迁入左栏后的列内形态——两枚等分、字号降一档（左栏 176px 里
+   「项目全景」四字 + 默认 padding 放不下 fs-sub，压到 caption 保单行不折）。 */
+.navside .view-seg { width: 100%; }
+.navside .vs-b { flex: 1; min-width: 0; padding-left: 6px; padding-right: 6px; font-size: var(--fs-caption); }
+/* ★V3.8.41（B8）：本行下方原有一条辅助提示样式判死——全库仅此一处字面量、无模板挂载点、
+   判据零命中。同族的愿景正文与其副形态、链接行、头行四段仍在用，未连坐。
+   ★备案：这是"删样式"与"删掉一个提示"是两回事——那条提示连同它的语义早已在层级重构里被更好的
+   头部结构取代，留着样式只会在下一次 census 换真时又被捞出来，徒增一轮判死。
+   同段判据仍在：.tl-text 的 display 档与其 .sub 的 headline 档由 03-w11-pyramid / 02-w8 钉死。 */
+
+/* ── W11 视图切换段（项目塔 / 项目全景）── */
+/* ★两个按钮都必须常驻可点：切过去容易、切回来难是典型的单向门。
+   ★V3.8.18（N10）：改为**页头唯一主焦点** —— 容器加 accent 描边、选中态实底白字、字重 700、
+   上下留白略增。理由：视图选择是这一页的第一个决策，其余页头按钮都是它的从属开关；
+   六枚同权重按钮并排时没有任何一枚"是入口"，用户只能逐个试。 */
+.view-seg {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-full); padding: 3px;
+  box-shadow: none;
+}
+.vs-b {
+  font-size: var(--fs-sub); font-weight: 700; color: var(--text-2);
+  background: transparent; border: none; cursor: pointer;
+  padding: 5px 14px; border-radius: var(--radius-full); transition: all var(--dur); white-space: nowrap;
+  /* M6（B7-e · V3.8.40）：热区下限 28px（实测 26.5px）——只撑盒子，胶囊形态与字号不变 */
+  min-height: 28px;
+}
+.vs-b:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.vs-b.on { color: #fff; background: var(--accent); }
+/* ★C3（V3.8.31）：视图形态切换的 150ms 内容过渡。
+   进：淡入 + 从下 8px 升起（新形态"从画布里长出来"）；出：淡出 + 上移 4px（旧形态退场）。
+   ⚠ 只给形态切换，路由切换仍零动画；reduced-motion 下全部归零（不是"缩短到 1ms"，
+     而是彻底不加过渡——前庭敏感用户要的是没有位移，不是一个看不出来的位移）。 */
+.viewfade-enter-active, .viewfade-leave-active { transition: opacity 150ms ease, transform 150ms ease; }
+.viewfade-enter-from { opacity: 0; transform: translateY(8px); }
+.viewfade-leave-to { opacity: 0; transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) {
+  .viewfade-enter-active, .viewfade-leave-active { transition: none; }
+  .viewfade-enter-from, .viewfade-leave-to { opacity: 1; transform: none; }
+}
+/* N11 合并开关：开着时给一点 accent 提示，让"当前是展开态"一眼可见 */
+/* ★V3.8.20：原 .fold-toggle（页头常驻展开收起钮）随 N11 反向开关 + 本轮工具下拉退役，
+   展开态强调色下沉为通用 .tree-tool.on。 */
+.tree-tool.on { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: var(--accent-light); }
+
+/* ── W11 筛选态提示条：已随 C2（V3.8.33）并入 hero 动作行，见上方 .hero-filter 三档 ── */
+/* ══ W11：纵向项目舱序列 ══
+   .tree-columns-grid 三列并排已退役（判据 W11-1 钉住它不许复活）——
+   三列时项目之间只靠列边界，扫视易串行，归属靠"在哪一列"推断。 */
+.tower-list { display: flex; flex-direction: column; gap: 40px; }
+
+/* 战略目标分组头：与骨架条芯片、层级面板目标卡三处同源 */
+.dir-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 0 4px 2px; margin-top: 10px;
+}
+.dir-head:first-of-type { margin-top: 0; }
+.dh-l { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+/* 发丝线：把行内读数在右侧收口，动作组因此不再孤零零吊在行尾（原型 .dir-line） */
+.dh-line { flex: 1; height: 1px; background: var(--border); min-width: 24px; }
+/* ★目标名 --fs-title(15px)：它是"分岔源头"，比项目重一档；使命/愿景仍是更高层（判据 W8-2 备案延续） */
+.dh-n { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
+.dh-meta { font-size: var(--fs-micro); color: var(--text-3); margin-left: 2px; }
+.dh-acts { display: flex; align-items: center; gap: 5px; flex: none; }
+.dh-acts .node-action.on { color: var(--accent-ink); background: var(--accent-light); }
+
+/* 层级定位闪烁：让"我点的这层实体在这儿"一眼可见 */
+@keyframes w11Flash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  22%, 62% { box-shadow: 0 0 0 3px var(--accent); }
+}
+.w11-flash { animation: w11Flash 1.4s ease; border-radius: var(--radius-md); }
+
+/* ★判据 W11-13 的版式补偿（D1 拍板：愿景保持 fs-display 22px，主角感靠版式）：
+   独占一行 + 上下大留白 + 强调框，三者缺一就是"只降字号不改版式"＝变相没实现。
+   ★W12：外框改为「左侧 2px accent 实轨 + 大留白」——
+   本块现在住在层级面板里（骨架条之下），套一层带底色的卡会变成"面板里再套一张卡"的双层框，
+   主角反而被面板抢走；改用实轨后主角感由 accent 承担，且不再与面板争底色。 */
+.tree-level-card.hero {
+  background: transparent;
+  border: none;
+  border-left: 2px solid var(--accent);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 5px 0 5px 14px;
+  margin-bottom: 2px;
+  gap: 7px;
+}
+.tree-level-card.hero .tl-text { line-height: 1.25; }
+.tree-level-card.hero .tl-text.sub { line-height: 1.35; }
+.tree-level-card.hero .tl-badge { margin-bottom: 1px; }
+.tree-level-card.hero .tl-links { gap: 6px; }

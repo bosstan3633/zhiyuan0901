@@ -15,7 +15,7 @@
  * 一根根泳道交给 CompassPanoLane。两块各自独立可判 —— 改导航样式不会把内容判据一起拖红。
  *
  * V3.9.17：阅读顺序固定为「项目切换 → 项目摘要 → 指标泳道」。
- * 轨道 1 铺满、2–4 等分、5+ 以 280px 下限滚动。
+ * V3.9.25：轨道 1 铺满、2–3 等分、4+ 以 360px 下限滚动，给完整指标名留出阅读宽度。
  *
  * 焦点纪律：★不得出现 font-size: var(--fs-display) / var(--fs-hero)（判据 W11-11 负锚）。
  * 项目名 --fs-title(15px)，主角感由横向铺开与留白承担。
@@ -184,14 +184,14 @@ const laneCount = computed(() => {
           class="lanes"
           :class="{
             'lanes-single': laneCount === 1,
-            'lanes-multi': laneCount > 1 && laneCount <= 4,
-            'lanes-scroll': laneCount > 4,
+            'lanes-multi': laneCount > 1 && laneCount <= 3,
+            'lanes-scroll': laneCount > 3,
           }"
           :data-lane-count="laneCount"
           aria-label="项目指标泳道"
         >
-          <CompassPanoLane v-for="(m, mi) in current.pm.metrics" :key="m.id"
-            :m="m" :idx="mi + 1" :proj-id="current.proj.id"
+          <CompassPanoLane v-for="m in current.pm.metrics" :key="m.id"
+            :m="m" :proj-id="current.proj.id"
             :single="laneCount === 1" :dense="laneCount > 1"
             @toggle-task="emit('toggleTask', $event)"
             @task-grade="emit('taskGrade', $event)"
@@ -228,9 +228,9 @@ const laneCount = computed(() => {
             </div>
           </section>
         </div>
-        <span v-if="laneCount > 4" class="lanes-edge lanes-edge-r" aria-hidden="true"></span>
+        <span v-if="laneCount > 3" class="lanes-edge lanes-edge-r" aria-hidden="true"></span>
       </div>
-      <div v-if="laneCount > 4" class="lanes-hint" role="note">
+      <div v-if="laneCount > 3" class="lanes-hint" role="note">
         <span class="lh-arrow" aria-hidden="true">↔</span>
         共 {{ laneCount }} 条泳道，横向滚动查看全部{{ current.pm.orphanTasks.length ? '；收容道固定在最后' : '' }}
       </div>
@@ -316,16 +316,16 @@ const laneCount = computed(() => {
   pointer-events: none; z-index: 2;
 }
 .lanes-edge-r { background: linear-gradient(270deg, var(--surface), transparent); }
-/* 2–4 条时所有轨道（含收容道）严格等分；泳道本体与收容道都只吃轨道宽度，
+/* 2–3 条时所有轨道（含收容道）严格等分；泳道本体与收容道都只吃轨道宽度，
    不再各自用 flex-grow 抢剩余空间。 */
 .lanes-multi > .lane,
 .lanes-multi > .lane-orphan {
   flex: 1 1 0; width: 0; min-width: 0;
 }
-/* 5 条以上：每根泳道保留 280px 可读下限，由容器统一横向滚动。 */
+/* 4 条以上：每根泳道保留 360px 可读下限，由容器统一横向滚动。 */
 .lanes-scroll > .lane,
 .lanes-scroll > .lane-orphan {
-  flex: 0 0 280px; width: 280px; min-width: 280px;
+  flex: 0 0 360px; width: 360px; min-width: 360px;
 }
 .lanes-single > .lane,
 .lanes-single > .lane-orphan {

@@ -162,24 +162,26 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-5 ★段头右缘操作四段同模具：本年段原先是四段里唯一右缘空着的，',
-  '横向扫四段时第三段有徽标、第四段什么都没有 —— 补一枚同模具的 m-badge。',
-  '口径纪律：它报「本年活跃天数」，是 strip4 四格之外的**时间刻度**，不与格内读数重复'), () => {
+  'A3-5（V3.9.27 重指）★段头右缘操作四段同模具，但年度段不再复制活跃读数：',
+  '本年段右缘保留与其它段同模具的动作容器和 AI 入口；「本年活跃」只由 strip4 承载一次，',
+  '热力图内部摘要同时关闭，避免同一读数在首屏重复三次'), () => {
   const heads = [TODAY, RHY, MONTH, YEAR].map(segHead);
   if (heads.some(s => !s)) { console.log('     段头切片缺失'); return false; }
   return heads.every(s => s.includes('<div class="pi-mod-acts">'))
-    && YEAR.includes('本年活跃 {{ ya.act }} 天')
-    && YEAR.includes('年内有动作的天数 = ')
-    /* 今日=按钮 / 本周=徽标 / 本月=徽标 / 本年=徽标，四段右缘各有各的实体，不是同一枚复制 */
+    && YEAR.includes('pi-ai-insight')
+    && YEAR.includes(':show-summary="false"')
+    && !YEAR.includes('本年活跃 {{ ya.act }} 天')
+    /* 今日=按钮 / 本周=徽标 / 本月=徽标 / 本年=AI；四段右缘各有自己的实体，年度不再复述活跃读数 */
     && TODAY.includes('<button class="pi-btn line"') && RHY.includes('class="wk-badge"')
-    && MONTH.includes('class="m-badge"') && YEAR.includes('class="m-badge"');
+    && MONTH.includes('class="m-badge"') && !YEAR.includes('class="m-badge"');
 });
 
 check(NAME(
-  'A3-6 ★四段内容能力零损失：三段式结构（诊断条 + strip4 + 内容）四段都在、',
-  '各段专属出口（今日=战报 / 本周=错误+柱+目标 / 本月=主题+漏斗 / 本年=热力+生命周期）一个不少，',
+  'A3-6 ★四段内容能力零损失：今天 / 本周 / 本月保留诊断条 + strip4 + 内容；年度段按 V3.9.23 拍板去掉诊断条，',
+  '但 strip4 四格与热力图 / 生命周期两个专属出口一个不少；',
   '本批新增的发丝线与徽标不许顶掉任何一个既有出口'), () => {
-  return [TODAY, RHY, MONTH, YEAR].every(s => (s.match(/class="one-insight"/g) || []).length === 1)
+  return [TODAY, RHY, MONTH].every(s => (s.match(/class="one-insight"/g) || []).length === 1)
+    && (YEAR.match(/class="one-insight"/g) || []).length === 0
     && [TODAY, RHY, MONTH, YEAR].every(s => s.includes('class="strip4"'))
     /* ★W17-C09 重指：今日段三行对账退役（bind/归位能力唯一归调度台），',
        改为守「打开战报 + 焦点格去调度台」两个专属出口。 */

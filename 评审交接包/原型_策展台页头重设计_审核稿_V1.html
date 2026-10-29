@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策展台页头重设计 · 交互式高保真原型 · 审核稿</title>
+<style>
+  :root{
+    --canvas:#010102; --s1:#0f1011; --s2:#141516; --s3:#18191a;
+    --hair:#23252a; --hair2:#34343a;
+    --ink:#f7f8f8; --muted:#d0d6e0; --sub:#8a8f98; --ter:#62666d;
+    --accent:#5e6ad2; --accent-h:#828fff;
+    --ok:#27a644; --warn:#d29922;
+  }
+  [data-theme="aurora"]{ --accent:#3fb68b; --accent-h:#5fd4a8; }
+  [data-theme="ember"]{ --accent:#e0653a; --accent-h:#f0835c; }
+  [data-theme="paper"]{
+    --canvas:#fbfbfa; --s1:#ffffff; --s2:#f5f6f6; --s3:#eceeee;
+    --hair:#e3e5e5; --hair2:#d2d5d5;
+    --ink:#14161a; --muted:#3c4148; --sub:#6d737c; --ter:#9aa0a8;
+    --accent:#5e6ad2; --accent-h:#4a56c0;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:-apple-system,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    background:var(--canvas); color:var(--ink);
+    font-size:14px; line-height:1.5; letter-spacing:-0.02em;
+    transition:background .25s,color .25s;
+  }
+  button{font:inherit; color:inherit; background:none; border:none; cursor:pointer;}
+  ::selection{background:var(--accent); color:#fff;}
+
+  /* ============ 全局顶栏（参照物，非重设计范围） ============ */
+  .appbar{
+    height:48px; display:flex; align-items:center; gap:20px; padding:0 20px;
+    border-bottom:1px solid var(--hair); background:var(--canvas);
+    position:sticky; top:0; z-index:50;
+  }
+  .brand{display:flex; align-items:center; gap:8px; font-weight:600; font-size:14px;}
+  .brand .logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--accent),var(--accent-h));display:inline-block;}
+  .brand .en{color:var(--ter); font-weight:400; font-size:12px; letter-spacing:.4px;}
+  .nav{display:flex; gap:4px;}
+  .nav button{padding:5px 10px; border-radius:6px; color:var(--sub); font-size:13px;}
+  .nav button:hover{color:var(--muted); background:var(--s2);}
+  .nav button.on{color:var(--ink); background:var(--s2); box-shadow:inset 0 0 0 1px var(--hair2);}
+  .appbar .right{margin-left:auto; display:flex; align-items:center; gap:12px; color:var(--sub); font-size:13px;}
+  .userchip{display:flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--hair2); border-radius:999px; font-size:12.5px; color:var(--muted);}
+  .userchip .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+
+  /* 主题切换 */
+  .themedock{
+    position:fixed; right:20px; bottom:20px; z-index:60;
+    display:flex; gap:6px; padding:6px; border-radius:999px;
+    background:var(--s1); border:1px solid var(--hair2);
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  .themedock button{
+    width:26px; height:26px; border-radius:50%; border:2px solid transparent;
+    transition:transform .15s;
+  }
+  .themedock button:hover{transform:scale(1.12);}
+  .themedock button.on{border-color:var(--accent);}
+  .themedock .t-dark{background:#14161a;}
+  .themedock .t-aurora{background:linear-gradient(135deg,#123a2e,#3fb68b);}
+  .themedock .t-ember{background:linear-gradient(135deg,#3a1c12,#e0653a);}
+  .themedock .t-paper{background:#f5f6f6; box-shadow:inset 0 0 0 1px #d2d5d5;}
+
+  /* 审核批注 */
+  .noteband{
+    margin:16px 24px 0; padding:12px 16px; border-radius:12px;
+    background:color-mix(in srgb, var(--accent) 8%, var(--s1));
+    border:1px solid color-mix(in srgb, var(--accent) 30%, var(--hair));
+    font-size:12.5px; color:var(--muted); line-height:1.7;
+  }
+  .noteband b{color:var(--ink);}
+  .noteband code{background:var(--s3); border:1px solid var(--hair); border-radius:4px; padding:0 5px; font-size:11.5px;}
+  .noteband .tag{display:inline-block; margin-right:10px; color:var(--accent); font-weight:600; font-size:11px; letter-spacing:.6px;}
+
+  .stage{padding:16px 24px 64px; max-width:1440px; margin:0 auto;}
+
+  /* ================================================================
+     重设计范围：策展台页头（红框示意用 outline）
+     ================================================================ */
+  .ws-head{
+    outline:2px solid #ff5a5a; outline-offset:4px; border-radius:8px;
+    margin-top:4px;
+  }
+
+  /* ---- 第 1 层 · 台身份条（≤40px，R84-W1） ---- */
+  .idbar{
+    min-height:34px; max-height:40px; padding:6px 0 8px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .idbar .ws-icon{
+    width:20px; height:20px; border-radius:6px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    background:color-mix(in srgb, var(--accent) 16%, var(--s2));
+    color:var(--accent); font-size:11px;
+  }
+  .idbar .ws-name{font-size:19px; font-weight:600; letter-spacing:-0.4px; line-height:23px; white-space:nowrap;}
+  .idbar .ws-desc{
+    color:var(--sub); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    border-left:1px solid var(--hair2); padding-left:10px; min-width:0;
+  }
+  .idbar .ws-meta{margin-left:auto; color:var(--ter); font-size:12px; white-space:nowrap; flex:none;}
+  .idbar .ws-meta b{color:var(--muted); font-weight:500;}
+
+  /* ---- 第 2 层 · 中心论点主舞台（重设计核心） ---- */
+  .thesis{
+    margin-top:10px; border-radius:14px; position:relative;
+    border:1px solid var(--hair);
+    background:
+      radial-gradient(600px 160px at 12% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+      var(--s1);
+    padding:18px 20px 16px;
+    transition:border-color .2s;
+    cursor:pointer;
+  }
+  .thesis:hover{border-color:color-mix(in srgb, var(--accent) 45%, var(--hair2));}
+  .thesis .kicker{
+    display:flex; align-items:center; gap:8px;
+    font-size:11.5px; font-weight:500; letter-spacing:.8px; color:var(--accent);
+  }
+  .thesis .kicker .lvl{
+    padding:1px 7px; border-radius:4px; font-size:10.5px; letter-spacing:.5px;
+    background:color-mix(in srgb, var(--accent) 18%, transparent);
+    color:var(--accent);
+  }
+  .thesis .kicker .sep{color:var(--ter);}
+  .thesis .row{display:flex; align-items:flex-end; gap:20px; margin-top:8px;}
+  .thesis h1{
+    font-size:22px; font-weight:600; letter-spacing:-0.4px; line-height:1.3;
+    flex:1; min-width:0;
+  }
+  .thesis .hint{color:var(--sub); font-size:12.5px; margin-top:5px;}
+  .thesis .cta{display:flex; gap:8px; flex:none; padding-bottom:2px;}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:7px 13px; border-radius:8px; font-size:13px; font-weight:500;
+    border:1px solid var(--hair2); background:var(--s2); color:var(--ink);
+    transition:background .15s, border-color .15s, transform .1s;
+    white-space:nowrap;
+  }
+  .btn:hover{background:var(--s3); border-color:var(--ter);}
+  .btn:active{transform:scale(.97);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-h); border-color:var(--accent-h);}
+  .btn.ghost{background:transparent;}
+
+  /* 论点未设立 · 轻引导（R84-W2 空态：灰底、无按钮、不弹窗） */
+  .thesis.empty{
+    background:var(--s1); cursor:default;
+    padding:10px 16px;
+  }
+  .thesis.empty:hover{border-color:var(--hair2);}
+  .thesis.empty .inner{display:flex; align-items:center; gap:10px; color:var(--sub); font-size:13px;}
+  .thesis.empty .pill{
+    flex:none; width:22px; height:22px; border-radius:7px;
+    background:var(--s3); border:1px dashed var(--hair2);
+    display:flex; align-items:center; justify-content:center; color:var(--ter); font-size:12px;
+  }
+  .thesis.empty b{color:var(--muted); font-weight:500;}
+
+  /* ---- 第 3 层 · 行动条（一行收口） ---- */
+  .toolbar{
+    margin-top:12px; display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border:1px solid var(--hair); border-radius:10px;
+    background:var(--s1);
+  }
+  .seg{display:flex; padding:3px; border-radius:8px; background:var(--s2); border:1px solid var(--hair);}
+  .seg button{
+    padding:5px 12px; border-radius:6px; font-size:12.5px; color:var(--sub);
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .seg button.on{background:var(--s3); color:var(--ink); box-shadow:inset 0 0 0 1px var(--hair2);}
+  .metric{
+    display:inline-flex; align-items:center; gap:7px; padding:6px 11px;
+    border:1px solid var(--hair); border-radius:8px; background:var(--s2);
+    font-size:12.5px; color:var(--sub); cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .metric:hover{border-color:var(--ter); background:var(--s3);}
+  .metric b{color:var(--ink); font-size:14px; font-weight:600; font-variant-numeric:tabular-nums;}
+  .toolbar .spacer{flex:1;}
+  .search{
+    display:flex; align-items:center; gap:7px; width:220px;
+    padding:6px 11px; border-radius:8px; border:1px solid var(--hair);
+    background:var(--s2); color:var(--ter); font-size:12.5px;
+  }
+  .search input{flex:1; min-width:0; background:none; border:none; outline:none; color:var(--ink); font:inherit; font-size:12.5px;}
+  .search input::placeholder{color:var(--ter);}
+  .iconbtn{
+    width:32px; height:32px; border-radius:8px; border:1px solid var(--hair);
+    background:var(--s2); color:var(--sub); font-size:14px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .iconbtn:hover{background:var(--s3); color:var(--ink);}
+
+  /* 导入下拉 */
+  .dropdown{position:relative;}
+  .menu{
+    position:absolute; top:calc(100% + 6px); right:0; min-width:190px; z-index:40;
+    background:var(--s1); border:1px solid var(--hair2); border-radius:10px;
+    padding:5px; box-shadow:0 12px 40px rgba(0,0,0,.4);
+    display:none;
+  }
+  .menu.open{display:block; animation:pop .12s ease;}
+  @keyframes pop{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .menu button{
+    display:flex; width:100%; align-items:center; gap:9px; text-align:left;
+    padding:8px 10px; border-radius:6px; font-size:13px; color:var(--muted);
+  }
+  .menu button:hover{background:var(--s2); color:var(--ink);}
+  .menu button span{color:var(--ter); font-size:12px;}
+
+  /* 下拉 · 论点详情抽屉（演示交互） */
+  .drawer-mask{
+    position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:80;
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .drawer-mask.open{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0; width:400px; max-width:92vw; z-index:90;
+    background:var(--s1); border-left:1px solid var(--hair2);
+    transform:translateX(100%); transition:transform .22s cubic-bezier(.3,.8,.3,1);
+    padding:22px; overflow:auto;
+  }
+  .drawer.open{transform:none;}
+  .drawer h3{font-size:16px; font-weight:600; letter-spacing:-.2px; margin-top:14px;}
+  .drawer .dk{color:var(--accent); font-size:11px; font-weight:600; letter-spacing:.8px;}
+  .drawer .body{margin-top:10px; color:var(--muted); font-size:13.5px; line-height:1.8;}
+  .drawer .kv{margin-top:18px; display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:12.5px;}
+  .drawer .kv dt{color:var(--ter);}
+  .drawer .kv dd{color:var(--muted);}
+
+  /* 下方画布占位（证明页头让出空间） */
+  .canvas-mock{
+    margin-top:14px; border:1px solid var(--hair); border-radius:12px;
+    background:
+      radial-gradient(circle, color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px) 0 0/22px 22px,
+      var(--s1);
+    height:420px; position:relative; overflow:hidden;
+  }
+  .canvas-mock .node{
+    position:absolute; left:50%; top:70px; transform:translateX(-50%);
+    min-width:280px; padding:14px 16px; border-radius:12px;
+    background:var(--s2); border:1px solid color-mix(in srgb, var(--accent) 55%, var(--hair2));
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  .canvas-mock .node .t{font-size:14px; font-weight:600;}
+  .canvas-mock .node .s{font-size:12px; color:var(--sub); margin-top:4px;}
+  .canvas-mock .node .lvl{font-size:10px; color:var(--accent); font-weight:600; letter-spacing:.6px;}
+  .canvas-mock .child{
+    position:absolute; left:50%; top:240px; transform:translateX(-50%);
+    min-width:200px; padding:12px 14px; border-radius:10px;
+    background:var(--s2); border:1px solid var(--hair2);
+  }
+  .canvas-mock .child::before{
+    content:""; position:absolute; left:50%; top:-70px; height:70px; width:2px;
+    background:color-mix(in srgb, var(--accent) 55%, var(--hair2));
+  }
+  .canvas-mock .child .t{font-size:13px; font-weight:600;}
+  .canvas-mock .child .s{font-size:11.5px; color:var(--sub); margin-top:3px;}
+  .canvas-mock .child .gap{
+    display:inline-flex; align-items:center; gap:5px; margin-top:8px;
+    font-size:11px; color:var(--warn);
+    border:1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+    background:color-mix(in srgb, var(--warn) 10%, transparent);
+    padding:2px 8px; border-radius:6px;
+  }
+  .canvas-mock .kbd{
+    position:absolute; left:14px; bottom:12px; right:14px;
+    display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--ter);
+  }
+  .canvas-mock .kbd kbd{
+    background:var(--s3); border:1px solid var(--hair2); border-bottom-width:2px;
+    border-radius:4px; padding:0 5px; font-size:10.5px; font-family:inherit;
+  }
+
+  /* 响应式 */
+  @media (max-width:900px){
+    .idbar .ws-meta{display:none;}
+    .thesis .row{flex-direction:column; align-items:flex-start; gap:12px;}
+    .toolbar{flex-wrap:wrap;}
+    .search{width:100%; order:10;}
+    .appbar .right .hide-s{display:none;}
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+  <!-- 全局顶栏：参照物，非重设计范围 -->
+  <div class="appbar">
+    <div class="brand"><span class="logo"></span>知源 <span class="en">ownway</span></div>
+    <div class="nav">
+      <button>调度台</button>
+      <button>方向台</button>
+      <button class="on">策展台</button>
+    </div>
+    <div class="right">
+      <span class="hide-s">🔵</span>
+      <span class="userchip"><span class="dot"></span>深空薰衣草 · ⌄</span>
+      <span>🔍</span><span>⛶</span>
+    </div>
+  </div>
+
+  <!-- 审核批注 -->
+  <div class="noteband">
+    <span class="tag">审核要点</span>
+  本页为<b>策展台页头重设计</b>交互式原型（红框内为改动范围）。三层结构：<code>① 台身份条 ≤40px</code>（R84-W1 规范）→ <code>② 中心论点主舞台</code>（本次核心：论点从灰条升级为镇台卡，点击开详情抽屉）→ <code>③ 行动条一行收口</code>。原则：<b>一个动作一个入口</b>——金字塔/树状切换只归行动条，分享只归行尾，论点卡只负责「点开看详情」。
+  </div>
+
+  <div class="stage">
+    <!-- ============ 重设计范围开始 ============ -->
+    <div class="ws-head">
+
+      <!-- 第 1 层 · 台身份条 -->
+      <div class="idbar">
+        <span class="ws-icon">🏛</span>
+        <span class="ws-name">策展 · 内容资产化方法论</span>
+        <span class="ws-desc">把刷过的信息，策展成自己的表达</span>
+        <span class="ws-meta"><b>1</b> 个分类 · 论据卡 <b>12</b> · 附件 <b>3</b> · 更新于 <b>10-27</b></span>
+      </div>
+
+      <!-- 第 2 层 · 中心论点主舞台 -->
+      <div class="thesis" id="thesisCard" role="button" tabindex="0" title="点击打开论点卡详情">
+        <div class="kicker">
+          <span class="lvl">L1</span> 中心论点 · 论点卡
+          <span class="sep">·</span> 金字塔根节点
+        </div>
+        <div class="row">
+          <div style="min-width:0">
+            <h1>让选择发生在看见之后：先见足够多，再谈要不要</h1>
+            <div class="hint">点击查看论点详情 · 先写结论，再长出支撑分支</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第 3 层 · 行动条 -->
+      <div class="toolbar">
+        <div class="seg" role="tablist">
+          <button class="on">⤒ 策展画布</button>
+          <button onclick="alert('演示：切到树状视图，共享同一份分类树')">☘ 树状</button>
+        </div>
+        <button class="metric" onclick="alert('演示：打开论据卡片明细抽屉')" title="查看明细">
+          🗂 论据卡片总数 <b>12</b>
+        </button>
+        <button class="metric" onclick="alert('演示：打开佐证附件明细抽屉')" title="查看明细">
+          📎 佐证附件数量 <b>3</b>
+        </button>
+        <div class="spacer"></div>
+        <label class="search">
+          🔍 <input placeholder="检索论证节点…  ⌘K">
+        </label>
+        <div class="dropdown">
+          <button class="btn" onclick="toggleMenu(event)">⤓ 导入 ⌄</button>
+          <div class="menu" id="importMenu">
+            <button onclick="menuAct(event,'导入成果 HTML')">⤓ 导入成果 HTML <span>从分享产物恢复</span></button>
+            <button onclick="menuAct(event,'导入模板')">▤ 导入模板 <span>新建策展结构</span></button>
+          </div>
+        </div>
+        <button class="iconbtn" title="画布设置" onclick="alert('演示：画布设置')">⚙</button>
+        <button class="btn primary" onclick="alert('演示：分享预览 → 下载自包含 HTML')">↗ 分享成果</button>
+      </div>
+    </div>
+    <!-- ============ 重设计范围结束 ============ -->
+
+    <!-- 画布占位 -->
+    <div class="canvas-mock">
+      <div class="node">
+        <div class="lvl">L1 · 中心论点 · 论点卡</div>
+        <div class="t">让选择发生在看见之后</div>
+        <div class="s">先写结论，再长出支撑分支</div>
+      </div>
+      <div class="child">
+        <div class="lvl" style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.6px;">L2 · 论证节点</div>
+        <div class="t">待分类</div>
+        <div class="s">双击补充分支说明</div>
+        <span class="gap">◷ 缺证据 · 关联</span>
+      </div>
+      <div class="kbd">
+        <span><kbd>Tab</kbd> 创建子分支</span>
+        <span><kbd>Enter</kbd> 创建同级</span>
+        <span><kbd>双击</kbd> 就地编辑</span>
+        <span><kbd>拖拽</kbd> 移动整棵子树</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 论点详情抽屉（演示） -->
+  <div class="drawer-mask" id="mask" onclick="closeDrawer()"></div>
+  <aside class="drawer" id="drawer" aria-label="论点卡详情">
+    <button class="iconbtn" onclick="closeDrawer()">✕</button>
+    <div class="dk" style="margin-top:14px;">L1 · 中心论点 · 论点卡</div>
+    <h3>让选择发生在看见之后：先见足够多，再谈要不要</h3>
+    <div class="body">
+      策展不是收藏，是公开表态。本台围绕「选择之前先扩大看见面」展开：每一条论据分支都必须能挂回一张有出处的资源卡，否则视为证据缺口。金字塔与树状共享同一棵分类树，分享产物保留 L1–L4 真实深度。
+    </div>
+    <dl class="kv">
+      <dt>创建时间</dt><dd>2026-10-20 21:14</dd>
+      <dt>最近更新</dt><dd>2026-10-27 23:02</dd>
+      <dt>支撑分支</dt><dd>1 个二级 · 0 张已挂资源</dd>
+      <dt>分享产物</dt><dd>纸白 / 论证树 双版式可用</dd>
+    </dl>
+    <div style="margin-top:22px; display:flex; gap:8px;">
+      <button class="btn primary" onclick="alert('演示：就地编辑论点')">就地编辑</button>
+      <button class="btn" onclick="alert('演示：查看金字塔')">查看金字塔</button>
+    </div>
+  </aside>
+
+  <!-- 主题坞 -->
+  <div class="themedock" role="group" aria-label="主题切换">
+    <button class="t-dark on" data-t="dark" title="深空（默认）"></button>
+    <button class="t-aurora" data-t="aurora" title="极光绿"></button>
+    <button class="t-ember" data-t="ember" title="余烬橙"></button>
+    <button class="t-paper" data-t="paper" title="纸白"></button>
+  </div>
+
+<script>
+  // 主题切换
+  document.querySelectorAll('.themedock button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.body.dataset.theme = b.dataset.t;
+      document.querySelectorAll('.themedock button').forEach(x=>x.classList.toggle('on',x===b));
+    });
+  });
+
+  // 导入下拉
+  function toggleMenu(e){
+    e.stopPropagation();
+    document.getElementById('importMenu').classList.toggle('open');
+  }
+  function menuAct(e,name){
+    e.stopPropagation();
+    document.getElementById('importMenu').classList.remove('open');
+    alert('演示：' + name);
+  }
+  document.addEventListener('click',()=>document.getElementById('importMenu').classList.remove('open'));
+
+  // 论点卡 → 详情抽屉
+  const thesis = document.getElementById('thesisCard');
+  const drawer = document.getElementById('drawer');
+  const mask = document.getElementById('mask');
+  function openDrawer(){
+    drawer.classList.add('open'); mask.classList.add('open');
+  }
+  function closeDrawer(){
+    drawer.classList.remove('open'); mask.classList.remove('open');
+  }
+  thesis.addEventListener('click',openDrawer);
+  thesis.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();openDrawer();} });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
+</script>
+</body>
+</html>

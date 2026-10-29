@@ -64,7 +64,10 @@ check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描
   const REG = {
     'shared/utils/locate.ts': 1,                    // 唯一算式本体（resourceLocateRoute 的 else 分支）
     'newtab/App.vue': 3,                            // 台签 / 新建台后跳转 / 数字快捷键跳台：来源都是 store.workspaces getter（已过滤池）
-    'newtab/components/GlobalPopups.vue': 3,        // locateOnly 的池分支之后、ws 类型行、分类树定位：三处都在 !== CURATION_WS_ID 过滤之后
+    // ★R181 随迁带备案：GlobalPopups 的 3 处随「检索域 / 行域」下沉——1 处随定位逻辑进 useGlobalPopups.ts，
+    //   2 处（ws 类型行、分类树定位）随行渲染进 useGlobalPopupsRows.ts；三处仍都在 !== CURATION_WS_ID 过滤之后。
+    'newtab/components/useGlobalPopups.ts': 1,
+    'newtab/components/useGlobalPopupsRows.ts': 2,
     'newtab/views/Workspace.vue': 1                 // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
   };
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
@@ -130,15 +133,17 @@ check('R4-Dm ★"取 workspaces[0] 当默认落点"这一族形状必须逐处�
 
 // ============== R4-En content 浮层进视觉门禁（#115） ==============
 console.log('【R4-En · content 浮层场景】');
-check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）。★B3（V3.8.28）重指带备案：图数下限里 `DASH_SCENES.length` 改为过滤后的 `dashScenes.length`（`--scenes` 过滤时原式必然假红），所守行为不变', () => {
+check('R4-En ★两个 content 浮层终于有像素门禁：theme-audit 必须有 ov-capture（采集面板）与 ov-search（网页 ⌘K）两条场景，且都在**宿主页**上拍（浮层只注入 http/https 页，扩展页里拍到的是空文档），任一判据不过即非零退出。起因是 R4-Dm 在采集下拉里量出一枚本该不可达的退役台面「资源台」且它是默认项——那件事只有真开一次浮层看得见，而 e2e 驱动采集浮层 0 条、本脚本此前浮层场景 0 条。★W4（V3.8.4）随迁：采集面板的两枚下拉退役，就绪锚从 #__zy_cap_ws__ 换成保存钮 #__zy_cap_save__（msg 仍是 zy-open-capture，不变）。★B3（V3.8.28）重指带备案：图数下限里 `DASH_SCENES.length` 改为过滤后的 `dashScenes.length`（`--scenes` 过滤时原式必然假红），所守行为不变。★V3.9.28 重指带备案：`ovPage` 从长巡检结束后的惰性创建改为开始前预建（实测连续跑完 19 个扩展页场景后再 `ctx.newPage()` 会卡住），判据改为钉「预建发生在主题循环之前」且禁止惰性兜底回流', () => {
   const t = stripComments(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'));
   const i1 = t.indexOf("id: 'ov-capture'");
   const i2 = t.indexOf("id: 'ov-search'");
+  const iP = t.indexOf('const ovPage = await ctx.newPage()');
+  const iLoop = t.indexOf('for (const theme of themes)');
   return i1 > 0 && i2 > i1
     && t.includes("msg: 'zy-open-capture'") && t.includes("ready: '#__zy_cap_save__'")
     && t.includes("msg: 'zy-open-search'") && t.includes("ready: '#__zy_si__'")
     && t.includes('chrome.tabs.sendMessage') && t.includes('ovServer.listen')
-    && t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
+    && iP > 0 && iLoop > iP && !t.includes('if (!ovPage) { ovPage = await ctx.newPage()')
     && t.includes('if (overlayFail.length)') && /overlayFail\.length\) \{\s*console\.log\(`❌ content 浮层判据未过/.test(t)
     && t.includes('dashScenes.length + OVERLAY_SCENES.length');
 });
@@ -276,7 +281,10 @@ check('R4-Eq ★退役台面名「资源台」只许活在带理由的四处：�
     'shared/storage/curationMigration.ts': 2,   // R61 迁移给 hub 实体写的 name，用户库实测仍叫「资源台」；显示一律走 wsNameById（R4-Dg），这里不许被当文案改
     'newtab/manual-data.ts': 4,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废"等），R4-De 明确保留这一形态
     'newtab/components/MigrateReportCard.vue': 1, // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
-    'newtab/changelog-data.ts': 13              // ★W5 扩表（★V3.9.20 由 12 改 13：新增版本条目的性能叙述「资源台族指标随 R179 退役记账」——退役事实的历史陈述，与既有版本条目同形态，随 diff 备案）：产品更新日志的版本标题与要点（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线）——与手册退役说明同形态的历史事实陈述，用户设置页可见。★2026-10-12 随V3.8.6 增补由 3 改 12：用户拍板「完整呈现全部 128 个版本」，v2 时代 88 版标题里的旧台名（"资源台 UI 迭代"/"资源台检索"等）随之进表，仍属历史叙述同一形态；改表随 diff 备案，判据体与口径一字未动
+    // ★R181 随迁带备案：`changelog-data.ts` 拆成 `changelog-data/{entries-v2,entries-v3}.ts`（宿主只管聚合与类型），
+    //   13 条历史叙述随内容分流为 v2 时代 10 条 + v3 时代 3 条，文本与口径一字未动，改表随 diff 备案。
+    'newtab/changelog-data/entries-v2.ts': 10,  // 产品更新日志 v2 时代的版本标题与要点（"资源台 UI 迭代"/"资源台检索"等 88 版里的旧台名，历史叙述形态）
+    'newtab/changelog-data/entries-v3.ts': 3    // v3 时代条目（"资源台退役 + 池语义迁移"/「/workspace 资源台」整页退役/冷挂资源台阻塞基线，含 V3.9.20 由 12 改 13 的那条）
   };
   const found = retiredNameHits(root);
   return Object.keys(found).sort().join('|') === Object.keys(REG).sort().join('|')
@@ -303,7 +311,7 @@ check('R4-Eq ★界面指位类文案不许再指向已退役的台面：采集�
   const wm = codeOnly(read('/newtab/composables/useWsMeta.ts'));
   const at = codeOnly(read('/shared/storage/airtable.ts'));
   return iDup > 0 && segDup.includes('已经收过了（在「${POOL_DISPLAY_NAME}」里）') && !segDup.includes('已存在于资源台')
-    && link.includes('全部分类（资源卡池）') && link.includes('从资源卡池可镜像的卡') && !link.includes('从资源台可镜像的卡')
+    && !link.includes('全部分类（资源卡池）') && link.includes('从资源卡池可镜像的卡') && !link.includes('从资源台可镜像的卡')
     && pool.includes('源卡仍留在资源卡池；目标台只是新增引用') && !pool.includes('打包请在资源台操作')
     && wm.includes('「资源卡池」是系统空间，不在此删除') && !wm.includes('资源台为系统空间')
     && at.includes('调度台/方向台/资源卡池/策展台名') && !at.includes('调度台/方向台/资源台/策展台名');
@@ -312,7 +320,7 @@ check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：V3
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const link = codeOnly(read('/newtab/components/LinkCardsModal.vue'));
   const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
-  return link.includes('关联资源卡到「') && link.includes('全部分类（资源卡池）')
+  return link.includes('关联资源卡到「') && !link.includes('lc-cat') && !link.includes('全部分类（资源卡池）')
     && !link.includes('资源台可镜像')
     && w.includes('镜像卡为引用（只读）——编辑请到资源卡池') && !w.includes('编辑请到资源台')
     && pool.includes('源卡仍留在资源卡池') && !pool.includes('源卡仍留在资源台');
@@ -690,7 +698,7 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
 });
 check('W6-2（V3.9.1 重指 · ★V3.9.18 再重指带备案：V3.9.18 原型迭代把手边的卡改三池页签（hand-tabs，v-show 切换），hand-grid/hand-col/mini-list×3 与 goDeck 字符串锚全保留；kicker 同 W5-2 改中文；负锚 bt-tab 保持——页签类名用 hand-tab，不与旧底部 tab 混淆）手边三卡入一张框：任务 / 好奇心 / 资源三池共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
-  return ch.includes('class="hand-board"') && ch.includes('class="hand-head"')
+  return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
     && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
     && (ch.match(/class="mini-list"/g) || []).length === 3
     && ch.includes('三池 · 只预览最近在用的')

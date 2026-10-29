@@ -180,19 +180,19 @@ check('W2-3（V3.9.8 随迁）只读合同没被画布改版碰坏：镜像资�
 });
 
 /* ============ W3 · 台头信息行弱化 ============ */
-check('W3-1 计数行降 caption：分类数/镜像数/更新流水一行可忽略但不缺失，「更新」入口的 tooltip 仍在（流水下钻不丢）', () => {
+check('W3-1（V3.9.30 重指）页头读数行降 caption：分类 / 论据卡 / 附件 / 更新统一为一行可忽略的读数，「更新于」tooltip 与流水下钻仍在', () => {
   const sum = rule(CSS, '.wsh-summary');
   const i = WSV.indexOf('class="wsh-summary"');
-  const seg = i >= 0 ? WSV.slice(i, WSV.indexOf('</span>', WSV.indexOf('</span>', i) + 1)) : '';
+  const seg = i >= 0 ? WSV.slice(i, WSV.indexOf('</div>', i)) : '';
   if (!sum || !seg) { console.log('     规则或模板缺失'); return false; }
   return sum.includes('font-size: var(--fs-caption)')
     && sum.includes('color: var(--text-3)')
-    && seg.includes('个分类') && seg.includes('镜像')
+    && seg.includes('个分类') && seg.includes('论据卡') && seg.includes('附件') && seg.includes('更新于')
     && seg.includes('title="查看最近更新流水"') && seg.includes('openDrill(\'recent\')');
 });
 
 /* ============ W5 · 中心论点层级 ============ */
-check('W5-1（V3.9.13 重指）论点卡仍是题眼：顶部论点标题保持 headline 档与 accent 左竖条；画布 L1 节点标题高于说明一档，标题与说明分行且由发丝线分隔', () => {
+check('W5-1（V3.9.29 重指）论点卡仍是题眼：顶部论点标题使用 22px 主句与径向渐变舞台，不再使用左侧粗色条；画布 L1 节点标题高于说明一档，标题与说明分行且由发丝线分隔', () => {
   const banner = rule(CSS, '.thesis-banner');
   const tbt = rule(CSS, '.tb-title');
   const root = rule(MIND_CSS, '.mind-node.mind-root');
@@ -201,14 +201,16 @@ check('W5-1（V3.9.13 重指）论点卡仍是题眼：顶部论点标题保持 
   /* V3.9.13：.mind-desc 先有共用输入控件基础规则，后有说明行语义规则；判据按层叠后的最后一条取证。 */
   const nodeDesc = lastRule(MIND_CSS, '.mind-desc');
   if (!banner || !tbt || !root || !rtitle) { console.log('     规则缺失'); return false; }
-  return tbt.includes('var(--fs-headline)')
+  return tbt.includes('font-size: 22px')
     && rtitle.includes('calc(var(--fs-body) + 1px)')
     && nodeTitle.includes('display: block')
     && nodeTitle.includes('var(--fs-body)')
     && nodeDesc.includes('display: block')
     && nodeDesc.includes('border-top: 1px solid')
     && nodeDesc.includes('var(--fs-caption)')
-    && banner.includes('inset 3px 0 0 var(--accent)')
+    && banner.includes('radial-gradient(')
+    && banner.includes('border-radius: 14px')
+    && !banner.includes('inset 3px 0 0 var(--accent)')
     && root.includes('inset 3px 0 0 var(--accent)')
     && !root.includes('border-left')
     && !banner.includes('border-left');

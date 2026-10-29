@@ -38,6 +38,7 @@ const emit = defineEmits<{
 /** V3.9.14：战略骨架是地图不是主角，默认折叠成一条状态带。
  *  KeepAlive 下展开态随页面会话保留；重新进入方向台默认仍回到紧凑首屏。 */
 const expanded = ref(false)
+function toggleExpanded() { expanded.value = !expanded.value }
 
 /* ★V3.9.19（04-73 一处不两说 · 用户拍板 2026-10-24）：hero 读数去重后，
  *   六层结构计数的**唯一账本**搬进骨架条——折叠态徽章从「只报名」升级为「名 + 数」，
@@ -90,7 +91,11 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
     <!-- ★W12 骨架条头部（原型 .spine-h）：图标 + 名称 + 定位语 + 右侧提示。
          之前骨架条没有头部，直接就是六层按钮 —— 于是它看起来像"一排统计标签"而不是
          "六层的骨架"，标题与定位语这两条让层级从哪开始、往哪收一眼可读。 -->
-    <header class="spine-h">
+    <header class="spine-h" role="button" tabindex="0" :aria-expanded="expanded"
+      title="点击整行展开或收起战略骨架"
+      @click="toggleExpanded"
+      @keydown.enter.prevent.self="toggleExpanded"
+      @keydown.space.prevent.self="toggleExpanded">
       <span class="spine-ico" aria-hidden="true">◈</span>
       <span class="spine-t">战略骨架<span class="spine-en">SPINE</span></span>
       <span class="spine-badge" :class="{ compact: !expanded }"
@@ -105,11 +110,11 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
            病根＝「＋战略目标」「建议目标」是第 3 层的操作，却摆在一堆全局按钮里，
            用户的视线要先跨过"视图切换/展开收起/已完成显示"才够得到它。
            用插槽而非硬编码：按钮的文案/图标/是否启用归父级（CompassTree）管，子组件只负责摆位。 -->
-      <div class="spine-actions">
+      <div class="spine-actions" data-a11y-container @click.stop>
         <slot name="actions" />
         <button class="spine-toggle" type="button" :aria-expanded="expanded"
           :title="expanded ? '收起战略骨架，为项目留出更多空间' : '展开完整战略骨架'"
-          @click="expanded = !expanded">
+          @click="toggleExpanded">
           {{ expanded ? '收起' : '展开' }}
           <span class="spine-toggle-caret" aria-hidden="true">{{ expanded ? '▴' : '▾' }}</span>
         </button>
@@ -200,7 +205,9 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 7px 14px 6px;
   border-bottom: 1px solid var(--border);
+  cursor: pointer;
 }
+.spine-h:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .spine-ico {
   width: 22px; height: 22px; border-radius: 7px; flex: none;
   display: flex; align-items: center; justify-content: center;

@@ -1,7 +1,18 @@
 <script setup lang="ts">
+
 // 第卌五轮 T-03：全域任务管理面板（自 CompassActions.vue 整体抽离，迁入「资源罗盘 → 好奇心培育」专区 Tab；V2.20.1 改名任务调度）
 // 全量能力保留：批量管理 / 状态筛选 / 排序+方向 / 按项目分组 / 搜索 / 拖拽排序（跨组=改归属）/ 看板 / 右键菜单 / 键盘导航
 // 第卌五轮新增：卡片视图（默认），与好奇心卡片视觉一致
+// R129-B5：链接协议白名单与打开通道全站唯一实现
+// R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
+// R147-d：任务行「知」AI 辅助菜单（与项目详情页同一组件）
+// W6（V3.8.6）#3：卡片视图右上角 AI 入口 —— 点击直接跑补全（详情走单击卡片）
+// R113-N2：LifecyclePanel / useLifecycle 移除——生命周期入口收敛到 设置→总览
+
+const props = withDefaults(defineProps<{
+  /** 独立二级页：隐藏所有新建入口；空态主行动改为清空筛选。 */
+  secondaryMode?: boolean
+}>(), { secondaryMode: false })
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
@@ -16,7 +27,6 @@ import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
 import type { TaskCard, Subtask, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
-// R129-B5：链接协议白名单与打开通道全站唯一实现
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { showToast } from '@/shared/components/toast'
@@ -25,700 +35,131 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
-// R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
-// R147-d：任务行「知」AI 辅助菜单（与项目详情页同一组件）
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
-// W6（V3.8.6）#3：卡片视图右上角 AI 入口 —— 点击直接跑补全（详情走单击卡片）
 import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
 import SubtaskList from '@/shared/components/SubtaskList.vue'
-// R113-N2：LifecyclePanel / useLifecycle 移除——生命周期入口收敛到 设置→总览
-
-const route = useRoute()
-const router = useRouter()
-const store = useAppStore()
-const { d, allProjects, projectProgress, taskArchiveIssue } = useCompass()
-
-const props = withDefaults(defineProps<{
-  /** 独立二级页：隐藏所有新建入口；空态主行动改为清空筛选。 */
-  secondaryMode?: boolean
-}>(), { secondaryMode: false })
-
-const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
-
-// ---- 视图与工具栏状态 ----
-// 第卌五轮：卡片视图默认（card | list | kanban）
-/** W6（V3.8.6）#3：默认列表视图（用户拍板；R176 曾改 card，本轮随卡片视图 AI 入口重构改回 list） */
-const viewMode = ref<'card' | 'list' | 'kanban'>('list')
-// R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
-const taskCols = useCardCols('task', store.ui)
-/** R127：分组三档（默认按项目；列表视图用） */
-type TaskGroupMode = 'project' | 'status' | 'pin'
-const groupMode = ref<TaskGroupMode>((store.ui?.sortPrefs?.task as { group?: TaskGroupMode } | undefined)?.group || 'project')
-/** 看板沿用「按项目分组」开关语义（映射自 groupMode） */
-const groupByProject = computed(() => groupMode.value === 'project')
-const sortBy = ref('manual')
-// 第卅二轮 REQ-007：任务时间/优先级排序方向（默认倒序）+ 排序偏好本地记忆（UIPrefs.sortPrefs.task）
-const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.task?.dir === 'asc') ? 'asc' : 'desc')
-if (store.ui?.sortPrefs?.task?.by) sortBy.value = store.ui.sortPrefs.task.by
-// 第卅五轮 REQ-036：状态筛选偏好持久化（UIPrefs.sortPrefs.task.filter）｜ R58-O2：新增「未归档」维度（快速采集沉淀池的就地治理入口）
-type TaskFilter = 'all' | 'todo' | 'doing' | 'done' | 'unarchived'
-const savedFilter = store.ui?.sortPrefs?.task?.filter
-const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doing' || savedFilter === 'done' || savedFilter === 'unarchived' ? savedFilter : 'all')
-// V3.9.1：首页「未归档」读数进入二级页时带筛选，不把用户丢在全量列表里再找一次。
-if (route.query.filter === 'unarchived') filterBy.value = 'unarchived'
-watch([sortBy, sortDir, filterBy, groupMode], () => {
-  const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value, group: groupMode.value } }
-  if (store.ui) store.ui.sortPrefs = sp
-  saveUIPrefs({ sortPrefs: sp })
-})
-function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
-const searchQuery = ref('')
-/** R3-Cc2：控制行值域配置（视图/筛选/排序/分组），模板里不再各写一份 option 列表 */
-const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }]
-const TASK_FILTERS = [{ id: 'all', label: '全部状态' }, { id: 'todo', label: '待办' }, { id: 'doing', label: '推进中' }, { id: 'done', label: '已完成' }, { id: 'unarchived', label: '未归档' }]
-const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }, { id: 'priority', label: '优先级' }]
-const TASK_GROUPS = [{ id: 'project', label: '按项目分组' }, { id: 'status', label: '按任务状态分组' }, { id: 'pin', label: '按置顶与否分组' }]
-const batchMode = ref(false)
-
-function toggleBatchMode() { batchMode.value = setBatchMode(!batchMode.value) }
-
-/** R110-LC（T3）：统一任务过滤管线（软删 → 状态/未归档 → 搜索）——归档提示与默认列表复用同一口径 */
-function applyTaskFilters(list: TaskCard[]): TaskCard[] {
-  let out = list.filter(t => !t.deletedAt)
-  // R58-O2：未归档口径与北极星 O23 一致（taskArchiveIssue：未挂项目/指标或引用失效）
-  if (filterBy.value === 'unarchived') out = out.filter(t => !!taskArchiveIssue(t))
-  else if (filterBy.value !== 'all') out = out.filter(t => t.status === filterBy.value)
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
-    out = out.filter(t => t.title.toLowerCase().includes(q))
-  }
-  return out
-}
-const filteredTasks = computed(() => {
-  // R110-LC（T3）：默认视图排除已归档任务（只在 ⏳ 生命周期面板中查看 / 恢复）
-  let tasks = applyTaskFilters(d.value.tasks || []).filter(t => !t.lifecycleArchived)
-  // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效
-  // R56-V1：manual（默认）= 拖拽序（sortOrder）优先，无拖拽序 = 最新创建在前；选其他排序即覆盖
-  if (sortBy.value !== 'manual') {
-    const dirMul = sortDir.value === 'asc' ? 1 : -1
-    const rank: Record<string, number> = { high: 3, medium: 2, low: 1 }
-    tasks = [...tasks].sort((a, b) => {
-      if (sortBy.value === 'recent') return dirMul * ((a.createdAt || 0) - (b.createdAt || 0))
-      if (sortBy.value === 'priority') return dirMul * ((rank[a.priority || 'low'] || 0) - (rank[b.priority || 'low'] || 0))
-      return 0
-    })
-  } else {
-    const hasDrag = tasks.some(t => t.sortOrder != null)
-    tasks = [...tasks].sort((a, b) => hasDrag
-      ? (a.sortOrder ?? Number.MAX_SAFE_INTEGER) - (b.sortOrder ?? Number.MAX_SAFE_INTEGER)
-      : (b.createdAt || 0) - (a.createdAt || 0))
-  }
-  // R127：已完成任务自动沉底（任何排序/分组下均最后，保持组内相对顺序）
-  const nonDone = tasks.filter(t => t.status !== 'done')
-  const done = tasks.filter(t => t.status === 'done')
-  return [...nonDone, ...done]
-})
-// R43-2 任务总数双值展示：当前筛选 N 条 / 全部 M
-const totalTaskCount = computed(() => (d.value.tasks || []).filter(t => !t.deletedAt).length)
-/** R110-LC（T3）：当前筛选/搜索口径命中的归档任务数——底部降级提示（≥1 才显示） */
-const archivedHintCount = computed(() => applyTaskFilters((d.value.tasks || []).filter(t => t.lifecycleArchived)).length)
-
-// R113-N2：生命周期入口收敛到 设置→总览（原 R110-LC 面板接线移除）
-function clearTaskFilter() {
-  filterBy.value = 'all'
-  searchQuery.value = ''
-}
-// O14：按所属项目分组
-const groupedTasks = computed(() => {
-  const tasks = filteredTasks.value
-  const groups: { key: string; name: string; pct: number; tasks: TaskCard[] }[] = []
-  const used = new Set<string>()
-  for (const p of allProjects()) {
-    const ts = tasks.filter(t => t.projectId === p.id)
-    if (ts.length) { groups.push({ key: p.id, name: p.name, pct: projectProgress(p).pct, tasks: ts }); ts.forEach(t => used.add(t.id)) }
-  }
-  const orphan = tasks.filter(t => !used.has(t.id))
-  if (orphan.length) groups.push({ key: '__none__', name: '未关联项目', pct: -1, tasks: orphan })
-  return groups
-})
-const todoTasks = computed(() => filteredTasks.value.filter(t => t.status === 'todo'))
-const doingTasks = computed(() => filteredTasks.value.filter(t => t.status === 'doing'))
-const doneTasks = computed(() => filteredTasks.value.filter(t => t.status === 'done'))
-// 第卅三轮 BUG-D 修复 + REQ-020：置顶独立分区（源数组顺序权威不变，仅渲染分流）
-const pinnedTasks = computed(() => filteredTasks.value.filter(t => t.pinned))
-const normalTasks = computed(() => filteredTasks.value.filter(t => !t.pinned))
-/* ★W17-C05（2026-10-20 用户拍板）分组折叠：状态**只存在组件内**（切分组 / 刷新 / 离开一律回全展开），
- * 与「折叠记忆不持久化」的拍板一致。空集合 = 全部展开。 */
-const collapsedGroups = ref<Set<string>>(new Set())
-function isGroupCollapsed(key: string): boolean { return collapsedGroups.value.has(key) }
-function toggleGroupCollapsed(key: string): void {
-  const next = new Set(collapsedGroups.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  collapsedGroups.value = next
-}
-/** 全局开关：任一组展开时给「全部折叠」，全收起时给「全部展开」 */
-const allGroupsCollapsed = computed(() => listGroups.value.length > 0 && listGroups.value.every(g => collapsedGroups.value.has(g.key)))
-function toggleAllGroups(): void {
-  collapsedGroups.value = allGroupsCollapsed.value ? new Set() : new Set(listGroups.value.map(g => g.key))
-}
-watch([groupMode, viewMode], () => { collapsedGroups.value = new Set() })
-
-/** R127：列表视图三档分组（按项目 / 按任务状态 / 按置顶与否） */
-const listGroups = computed<{ key: string; name: string; icon: string; pct: number; tasks: TaskCard[] }[]>(() => {
-  const tasks = filteredTasks.value
-  if (groupMode.value === 'project') {
-    return groupedTasks.value.map(g => ({ key: g.key, name: g.name, icon: '', pct: g.pct, tasks: g.tasks }))
-  }
-  if (groupMode.value === 'status') {
-    const defs: Array<{ k: TaskCard['status']; name: string; icon: string }> = [
-      { k: 'todo', name: '待开始', icon: '○' },
-      { k: 'doing', name: '进行中', icon: '◐' },
-      { k: 'done', name: '已完成', icon: '' }
-    ]
-    return defs
-      .map(d => ({ key: d.k, name: d.name, icon: d.icon, pct: -1, tasks: tasks.filter(t => t.status === d.k) }))
-      .filter(g => g.tasks.length)
-  }
-  const pin = tasks.filter(t => t.pinned)
-  const rest = tasks.filter(t => !t.pinned)
-  return [
-    { key: 'pin', name: '置顶', icon: '', pct: -1, tasks: pin },
-    { key: 'rest', name: '其他', icon: '', pct: -1, tasks: rest }
-  ].filter(g => g.tasks.length)
-})
-
-/* R3-Cb：批量选择收归 useBatchSelect 一份实现——改前这里的按钮文案写「全选/反选」，
-   函数体却只做满选↔清空（反选从来没实现过）。 */
-const { selected: selectedTaskIds, allSelected: allTasksSelected, toggle: toggleSelect, selectAll, invert: invertSelect, clear: clearSelection, setMode: setBatchMode } =
-  useBatchSelect(() => filteredTasks.value.map(t => t.id))
-function batchAddTag(t: string) {
-  const n = addTagToCards(d.value.tasks, selectedTaskIds.value, t)
-  store.persist()
-  showToast(`已给 ${n} 个任务加标签「${t}」（只加不减，去标签到任务详情里改）`)
-}
-function batchDelete() {
-  const removed: TaskCard[] = []
-  selectedTaskIds.value.forEach(id => {
-    const t = d.value.tasks.find(x => x.id === id)
-    // R141：软删统一走 softDeleteTaskToTrash——同时摘净 metric.taskIds 引用（撤销回填）
-    if (t) { softDeleteTaskToTrash(d.value, t); removed.push(t) }
-  })
-  store.persist()
-  showToast(`已删除 ${removed.length} 个任务`, { label: '撤销', cb: () => {
-    // REQ-030：按 id 从当前数据树查找（persist 后 onChanged 整树替换，removed 中的旧引用已失效）
-    removed.forEach(t => {
-      const cur = d.value.tasks.find(x => x.id === t.id)
-      if (cur && cur.deletedAt) {
-        cur.deletedAt = undefined
-        if (cur.metricId) {
-          for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
-            if (m.id === cur.metricId && !m.taskIds.includes(cur.id)) m.taskIds.push(cur.id)
-        }
-      }
-    })
-    store.persist()
-  } })
-  selectedTaskIds.value.clear()
-}
-function batchSetStatus(status: 'todo'|'doing'|'done') {
-  selectedTaskIds.value.forEach(id => {
-    const t = d.value.tasks.find(x => x.id === id)
-    if (t) { t.status = status; t.updatedAt = Date.now(); if (status==='done') t.completedAt=Date.now() }
-  })
-  store.persist()
-  showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${status==='done'?'已完成':status==='doing'?'进行中':'待开始'}`)
-  selectedTaskIds.value.clear()
-}
-function batchSetPriority(priority: 'low'|'medium'|'high') {
-  selectedTaskIds.value.forEach(id => {
-    const t = d.value.tasks.find(x => x.id === id)
-    if (t) { t.priority = priority; t.updatedAt = Date.now() }
-  })
-  store.persist()
-  showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${priority==='high'?'高':priority==='medium'?'中':'低'}优先级`)
-  selectedTaskIds.value.clear()
-}
-
-// ---- 批量挂载（O3）：挂到项目→指标 ----
-const mountModalOpen = ref(false)
-const mountProjId = ref('')
-const mountMetId = ref('')
-const mountProjectOptions = computed(() => allProjects())
-const mountMetricOptions = computed(() =>
-  mountProjectOptions.value.find(p => p.id === mountProjId.value)?.metrics || []
-)
-function openBatchMount() {
-  if (!selectedTaskIds.value.size) return
-  mountProjId.value = ''
-  mountMetId.value = ''
-  mountModalOpen.value = true
-}
-function confirmBatchMount() {
-  if (!mountProjId.value) { showToast('请选择项目'); return }
-  let count = 0
-  selectedTaskIds.value.forEach(id => {
-    const t = d.value.tasks.find(x => x.id === id)
-    if (!t) return
-    const oldMetric = t.metricId
-    t.projectId = mountProjId.value
-    t.metricId = mountMetId.value || undefined
-    for (const dir of d.value.compass.directions) {
-      for (const proj of dir.projects) {
-        for (const m of proj.metrics) {
-          if (oldMetric && m.id === oldMetric) m.taskIds = m.taskIds.filter(x => x !== id)
-          if (t.metricId && m.id === t.metricId && !m.taskIds.includes(id)) m.taskIds.push(id)
-        }
-      }
-    }
-    t.updatedAt = Date.now()
-    count++
-  })
-  store.persist()
-  mountModalOpen.value = false
-  showToast(`已将 ${count} 个任务挂载到所选指标`)
-  selectedTaskIds.value.clear()
-}
-
-// ---- 任务操作 ----
-/** B22：状态统一出口（completedAt 卫生清理） */
-function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
-  t.status = status
-  t.completedAt = status === 'done' ? Date.now() : undefined
-  t.updatedAt = Date.now()
-  store.persist()
-}
-function cycleTaskStatus(taskId: string) {
-  const t = d.value.tasks.find(x => x.id === taskId)
-  if (!t) return
-  const order: Array<'todo'|'doing'|'done'> = ['todo', 'doing', 'done']
-  setTaskStatusOf(t, order[(order.indexOf(t.status as any) + 1) % 3])
-}
-async function deleteTask(taskId: string) {
-  const t = d.value.tasks.find(x => x.id === taskId)
-  if (!t) return
-  softDeleteTaskToTrash(d.value, t)
-  store.persist()
-  // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）
-  showToast(`已删除「${t.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
-    const cur = d.value.tasks.find(x => x.id === taskId)
-    if (cur && cur.deletedAt) {
-      cur.deletedAt = undefined
-      if (cur.metricId) {
-        for (const dir of d.value.compass.directions) for (const proj of dir.projects) for (const m of proj.metrics)
-          if (m.id === cur.metricId && !m.taskIds.includes(cur.id)) m.taskIds.push(cur.id)
-      }
-    }
-    store.persist()
-  } })
-}
-function createNewTask() {
-  if (props.secondaryMode) return
-  const task: TaskCard = {
-    id: uid('tk'),
-    kind: 'task',
-    title: '新任务',
-    status: 'todo',
-    priority: 'medium',
-    customFields: {},
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  }
-  d.value.tasks.unshift(task)
-  store.persist()
-  drawerRef.value?.open(task)
-  showToast('新任务已创建')
-  // 第卅一轮：自动聚焦标题并全选（此前焦点落在按钮上，默认标题「新任务」易堆积）
-  nextTick(() => {
-    const el = document.querySelector('.ts-title') as HTMLTextAreaElement | null
-    if (el) { el.focus(); el.select() }
-  })
-}
-// R131-C4：项目/指标名 O(1) 查表——改前每行渲染都调 projectName/metricName（内部 flatMap+find 全表扫），
-// 数百行任务 = 数百次全表遍历；两个 Map 只在库变更时重建一次。
-const projNameById = computed(() => { const m = new Map<string, string>(); for (const dir of d.value.compass.directions) for (const p of dir.projects) m.set(p.id, p.name); return m })
-const metricTitleById = computed(() => { const m = new Map<string, string>(); for (const dir of d.value.compass.directions) for (const p of dir.projects) for (const x of p.metrics) m.set(x.id, x.title); return m })
-function projectName(projId?: string): string {
-  if (!projId) return '未关联'
-  return projNameById.value.get(projId) || '未关联'
-}
-function metricName(metricId?: string): string {
-  if (!metricId) return '未关联'
-  return metricTitleById.value.get(metricId) || '未关联'
-}
-/** R166 定案 1：子任务就地标注——卡内嵌清单的「done/total」进度（原 R144 的父标题记号随 parentId 退役）。
- *  零子任务返回空串，卡面因此零噪音（F2 验收口径）。 */
-function subProgress(t: TaskCard): string {
-  const s = t.subtasks
-  if (!s || !s.length) return ''
-  return `${s.filter(x => x.done).length}/${s.length}`
-}
-/**
- * F2：列表视图点胶囊**就地展开清单**（不跳详情、可直接勾选）。
- * 只给列表视图用——卡片/看板空间小，胶囊在那里是纯读数（丙版定案）。
- * 展开态按任务 id 记，切台/筛选后自然失效（不残留 DOM）。
- */
-const subExpanded = ref<Set<string>>(new Set())
-function toggleSubExpand(id: string) {
-  const next = new Set(subExpanded.value)
-  if (next.has(id)) next.delete(id); else next.add(id)
-  subExpanded.value = next
-}
-function writeSubtasks(t: TaskCard, v: Subtask[]) {
-  t.subtasks = v
-  t.updatedAt = Date.now()
-  store.persist()
-}
-
-// ---- 拖拽：列表排序 / 看板跨列 ----
-let draggedTask: TaskCard | null = null
-function onTaskDragStart(e: DragEvent, t: TaskCard) {
-  draggedTask = t
-  e.dataTransfer?.setData('text/plain', t.id)
-}
-function onTaskDrop(target: TaskCard, grouped?: boolean) {
-  if (!draggedTask || draggedTask.id === target.id) { clearTaskDrop(); return }
-  sortBy.value = 'manual'
-  const after = taskDropAfter.value
-  const moved = draggedTask
-  const fromIdx = d.value.tasks.findIndex(x => x.id === moved.id)
-  const toIdx = d.value.tasks.findIndex(x => x.id === target.id)
-  if (fromIdx < 0 || toIdx < 0) { clearTaskDrop(); return }
-  // 第廿八轮：分组列表跨组落卡 = 改项目归属（指标从属项目，跨组必然清空原指标）
-  const notes: string[] = []
-  if (grouped) {
-    const projectKey = target.projectId || '__none__'
-    if (projectKey !== '__none__' && moved.projectId !== projectKey) {
-      const oldMetric = moved.metricId
-      moved.projectId = projectKey
-      moved.metricId = undefined
-      syncMetricTaskIds(moved.id, oldMetric, undefined)
-      moved.updatedAt = Date.now()
-      notes.push('已归属「' + projectName(projectKey) + '」（原指标已清空）')
-    }
-  }
-  const [item] = d.value.tasks.splice(fromIdx, 1)
-  const newIdx = d.value.tasks.findIndex(x => x.id === target.id)
-  d.value.tasks.splice(after ? newIdx + 1 : newIdx, 0, item)
-  // R56-V1：拖拽序物化——全量重写 sortOrder（否则「无拖拽序=最新在前」会吞掉拖拽结果）
-  d.value.tasks.filter(t => !t.deletedAt).forEach((t, i) => { t.sortOrder = i })
-  store.persist()
-  draggedTask = null
-  clearTaskDrop()
-  showToast(notes.length ? `${notes.join('；')}` : '已调整排序')
-}
-// O8：看板列内卡片拖拽排序；第廿八轮：跨列落卡=改状态，分组模式跨组落卡=改项目归属（清空原指标）
-function onTaskCardDrop(e: DragEvent, target: TaskCard, grouped: boolean) {
-  e.preventDefault(); e.stopPropagation()
-  const after = taskDropAfter.value
-  clearTaskDrop()
-  if (!draggedTask || draggedTask.id === target.id) return
-  const moved = draggedTask
-  draggedTask = null
-  const fromIdx = d.value.tasks.findIndex(x => x.id === moved.id)
-  const toIdx = d.value.tasks.findIndex(x => x.id === target.id)
-  if (fromIdx < 0 || toIdx < 0) return
-  const notes: string[] = []
-  // 状态随列（completedAt 卫生走统一出口）
-  const status = target.status
-  if (moved.status !== status) {
-    setTaskStatusOf(moved, status)
-    notes.push(`已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
-  }
-  // 分组模式：跨项目组落卡 = 改项目归属（指标从属项目，跨组必然清空原指标）
-  if (grouped) {
-    const projectKey = target.projectId || '__none__'
-    if (projectKey !== '__none__' && moved.projectId !== projectKey) {
-      const oldMetric = moved.metricId
-      moved.projectId = projectKey
-      moved.metricId = undefined
-      syncMetricTaskIds(moved.id, oldMetric, undefined)
-      moved.updatedAt = Date.now()
-      notes.push('已归属「' + projectName(projectKey) + '」（原指标已清空）')
-    }
-  }
-  const [item] = d.value.tasks.splice(fromIdx, 1)
-  const newToIdx = d.value.tasks.findIndex(x => x.id === target.id)
-  d.value.tasks.splice(after ? newToIdx + 1 : newToIdx, 0, item)
-  store.persist()
-  showToast(notes.length ? `${notes.join('；')}` : '已调整排序')
-}
-function onKanbanDrop(status: 'todo' | 'doing' | 'done') {
-  if (!draggedTask) return
-  const t = d.value.tasks.find(x => x.id === draggedTask!.id)
-  if (t && t.status !== status) {
-    setTaskStatusOf(t, status)
-    showToast(`已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
-  }
-  draggedTask = null
-}
-
-// ---- O17：看板列内按项目分组 + 拖拽改归属 ----
-const kgDragOver = ref('')
-const tgDragOver = ref('')
-/** O21：分组列表跨组拖拽 = 改项目归属 */
-/** ★W17-C05：折叠组仍是合法落点——拖拽悬停 300ms 自动展开，让用户看见要放进哪一组 */
-let tgHoverTimer: ReturnType<typeof setTimeout> | null = null
-function onGroupHeadDragOver(key: string) {
-  if (groupMode.value === 'project') tgDragOver.value = key
-  if (collapsedGroups.value.has(key)) {
-    if (tgHoverTimer) clearTimeout(tgHoverTimer)
-    tgHoverTimer = setTimeout(() => {
-      tgHoverTimer = null
-      const next = new Set(collapsedGroups.value)
-      next.delete(key)
-      collapsedGroups.value = next
-    }, 300)
-  }
-}
-function onGroupHeadDragLeave(key: string) {
-  if (tgDragOver.value === key) tgDragOver.value = ''
-  if (tgHoverTimer) { clearTimeout(tgHoverTimer); tgHoverTimer = null }
-}
-function onListGroupDrop(e: DragEvent, projectKey: string) {
-  e.preventDefault(); e.stopPropagation()
-  tgDragOver.value = ''
-  if (!draggedTask) return
-  const t = draggedTask
-  draggedTask = null
-  if (projectKey === '__none__' || t.projectId === projectKey) return
-  const oldMetric = t.metricId
-  t.projectId = projectKey
-  t.metricId = undefined
-  syncMetricTaskIds(t.id, oldMetric, undefined)
-  t.updatedAt = Date.now()
-  store.persist()
-  showToast('已归属「' + projectName(projectKey) + '」')
-}
-// R131-C4：看板分组改 computed（一次成型三列）——改前是普通函数，模板 6 处调用各重算一遍
-const kanbanMap = computed(() => {
-  const build = (src: TaskCard[]) => {
-    const groups: { key: string; name: string; tasks: TaskCard[] }[] = []
-    const used = new Set<string>()
-    for (const p of allProjects()) {
-      const ts = src.filter(t => t.projectId === p.id)
-      if (ts.length) { groups.push({ key: p.id, name: p.name, tasks: ts }); ts.forEach(t => used.add(t.id)) }
-    }
-    const orphan = src.filter(t => !used.has(t.id))
-    if (orphan.length) groups.push({ key: '__none__', name: '未关联项目', tasks: orphan })
-    return groups
-  }
-  return { todo: build(todoTasks.value), doing: build(doingTasks.value), done: build(doneTasks.value) }
-})
-function kanbanGroups(status: 'todo' | 'doing' | 'done') { return kanbanMap.value[status] }
-/** 拖到项目小节 = 改项目归属（清空原指标），状态随所在列 */
-function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', projectKey: string) {
-  e.preventDefault(); e.stopPropagation()
-  kgDragOver.value = ''
-  if (!draggedTask) return
-  const t = d.value.tasks.find(x => x.id === draggedTask!.id)
-  draggedTask = null
-  if (!t) return
-  const notes: string[] = []
-  if (projectKey !== '__none__' && t.projectId !== projectKey) {
-    const oldMetric = t.metricId
-    t.projectId = projectKey
-    t.metricId = undefined
-    syncMetricTaskIds(t.id, oldMetric, undefined)
-    notes.push('已归属「' + projectName(projectKey) + '」（原指标已清空）')
-  }
-  if (t.status !== status) {
-    setTaskStatusOf(t, status)
-    notes.push(`已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
-  } else {
-    t.updatedAt = Date.now()
-    store.persist()
-  }
-  if (notes.length) showToast('' + notes.join('；'))
-}
-
-// ---- 字段渲染 ----
-const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
-/**
- * R117（04-61 D）：骨架字段可见性查询——「卡片与字段管理」的显隐设置必须真正落到卡片上。
- * 此前状态/项目/指标/日期这些骨架字段直接硬编码渲染，设置里关掉也照样显示（用户报「设置无效」）。
- */
-function tShow(key: string): boolean { return tFields.value.some(f => f.key === key) }
-/** 骨架区已渲染的 key（不再重复进扩展行） */
-const T_SKELETON_KEYS = ['title', 'projectId', 'metricId', 'status', 'assets', 'dueDate']
-// R40 REQ-051 保留（assets 走徽章、不重复渲染文本摘要）；
-// R117（04-61 D）取消原 slice(0, 4) 截断与 description 排除——设置里可见的字段必须都能显示
-const tListFields = computed(() => tFields.value.filter(f => !T_SKELETON_KEYS.includes(f.key)))
-// R40 REQ-051：assets 字段是否可见（驱动任务卡正面徽章显隐）
-const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
-function tVal(t: TaskCard, key: string): string {
-  return fieldValue(t, key, { projectName, metricName })
-}
-function tShort(t: TaskCard, f: FieldDef): string {
-  const v = tVal(t, f.key)
-  if (f.key === 'priority') return t.priority === 'high' ? '高' : t.priority === 'medium' ? '中' : '低'
-  return v.length > 10 ? v.slice(0, 10) + '…' : v
-}
-/** 第卌五轮：卡片视图日期角标
- *  R117（04-61 D）：入参放宽到 `number | string`——`dueDate` 是 ISO 日期串（非时间戳），
- *  日期角标优先吃截止时间时必须能吃字符串；顺手挡掉无效日期（渲染出 NaN-NaN 更糟）。 */
-function fmtCardDate(ts?: number | string): string {
-  if (!ts) return ''
-  const dt = new Date(ts)
-  if (Number.isNaN(dt.getTime())) return ''
-  return `${dt.getMonth()+1}-${String(dt.getDate()).padStart(2,'0')}`
-}
-
-// ---- 三卡交互统一（单击详情 / 双击打开卡内链接） ----
-function openCardLink(link?: string) {
-  // R129-B5：协议白名单 + 打开通道统一走 shared/utils/link（此处原为自建 toOpenableLinkUrl，
-  // 与 link.ts 两份实现并存——R128-A4 补的黑名单只是把它拉齐，没消灭分叉）
-  const url = toOpenableRawLink(link)
-  if (!url) { showToast('该卡片还没有可打开的链接，可在详情中添加'); return }
-  openExternalLink(url)
-}
-let taskClickTimer: ReturnType<typeof setTimeout> | null = null
-/** R147-d：「知」菜单里的「打开任务详情」——与行单击同一个抽屉 */
-function openTaskFromAi(t: TaskCard) { drawerRef.value?.open(t) }
-function onTaskRowClick(t: TaskCard) {
-  if (taskClickTimer) { clearTimeout(taskClickTimer); taskClickTimer = null; return }
-  taskClickTimer = setTimeout(() => {
-    taskClickTimer = null
-    // R47-B4：调起详情 = 一次「调用」，计入热度
-    recordCardOpen(d.value, t)
-    store.persistHot()
-    drawerRef.value?.open(t)
-  }, 260)
-}
-/** 二级页深链 `?hl=`：让独立页也能直接展开右侧任务详情（与列表点击同一抽屉）。 */
-function openDetail(id: string) {
-  const t = d.value.tasks.find(x => x.id === id && !x.deletedAt)
-  if (t) drawerRef.value?.open(t)
-}
-function onTaskRowDblClick(t: TaskCard) {
-  if (taskClickTimer) { clearTimeout(taskClickTimer); taskClickTimer = null }
-  recordCardOpen(d.value, t)
-  store.persistHot()
-  openCardLink(t.link)
-}
+import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type TaskGroupMode } from './useTaskManagerPanel'
+const {
+  route,
+  router,
+  store,
+  d,
+  allProjects,
+  projectProgress,
+  taskArchiveIssue,
+  drawerRef,
+  viewMode,
+  taskCols,
+  groupMode,
+  groupByProject,
+  sortBy,
+  sortDir,
+  savedFilter,
+  filterBy,
+  toggleSortDir,
+  searchQuery,
+  TASK_VIEWS,
+  TASK_FILTERS,
+  TASK_SORTS,
+  TASK_GROUPS,
+  batchMode,
+  toggleBatchMode,
+  applyTaskFilters,
+  filteredTasks,
+  totalTaskCount,
+  archivedHintCount,
+  clearTaskFilter,
+  groupedTasks,
+  todoTasks,
+  doingTasks,
+  doneTasks,
+  pinnedTasks,
+  normalTasks,
+  collapsedGroups,
+  isGroupCollapsed,
+  toggleGroupCollapsed,
+  allGroupsCollapsed,
+  toggleAllGroups,
+  listGroups,
+  selectedTaskIds,
+  allTasksSelected,
+  toggleSelect,
+  selectAll,
+  invertSelect,
+  clearSelection,
+  setBatchMode,
+  batchAddTag,
+  batchDelete,
+  batchSetStatus,
+  batchSetPriority,
+  mountModalOpen,
+  mountProjId,
+  mountMetId,
+  mountProjectOptions,
+  mountMetricOptions,
+  openBatchMount,
+  confirmBatchMount,
+  setTaskStatusOf,
+  cycleTaskStatus,
+  deleteTask,
+  createNewTask,
+  projNameById,
+  metricTitleById,
+  projectName,
+  metricName,
+  subProgress,
+  subExpanded,
+  toggleSubExpand,
+  writeSubtasks,
+  draggedTask,
+  onTaskDragStart,
+  onTaskDrop,
+  onTaskCardDrop,
+  onKanbanDrop,
+  kgDragOver,
+  tgDragOver,
+  tgHoverTimer,
+  onGroupHeadDragOver,
+  onGroupHeadDragLeave,
+  onListGroupDrop,
+  kanbanMap,
+  kanbanGroups,
+  onKanbanGroupDrop,
+  tFields,
+  tShow,
+  T_SKELETON_KEYS,
+  tListFields,
+  taskAssetsOn,
+  tVal,
+  tShort,
+  fmtCardDate,
+  openCardLink,
+  taskClickTimer,
+  openTaskFromAi,
+  onTaskRowClick,
+  openDetail,
+  onTaskRowDblClick,
+  toggleTaskPin,
+  toggleTaskStar,
+  syncMetricTaskIds,
+  highlightId,
+  taskCtx,
+  taskCtxItems,
+  taskCtxTarget,
+  openTaskCtx,
+  taskDropAfter,
+  taskDropKey,
+  markTaskDrop,
+  clearTaskDrop,
+  taskNavIndex,
+  onTaskNavKey,
+} = useTaskManagerPanel(props)
 defineExpose({ openDetail })
-/** 第十七轮：任务置顶切换 */
-function toggleTaskPin(t: TaskCard) {
-  t.pinned = !t.pinned
-  t.updatedAt = Date.now()
-  // 第卅三轮 BUG-D 修复：不物理 unshift 改源数组顺序，置顶呈现交给独立分区
-  store.persist()
-  showToast(t.pinned ? '已置顶，将展示在置顶分区' : '已取消置顶')
-}
-/** 第卅三轮 REQ-020：任务星标切换（独立于置顶，可叠加） */
-function toggleTaskStar(t: TaskCard) {
-  t.starred = !t.starred
-  t.updatedAt = Date.now()
-  store.persist()
-  showToast(t.starred ? '已星标，搜索时优先展示' : '已取消星标')
-}
-
-function syncMetricTaskIds(taskId: string, oldMetricId?: string, newMetricId?: string) {
-  for (const dir of d.value.compass.directions) {
-    for (const proj of dir.projects) {
-      for (const m of proj.metrics) {
-        if (oldMetricId && m.id === oldMetricId) m.taskIds = m.taskIds.filter(x => x !== taskId)
-        if (newMetricId && m.id === newMetricId && !m.taskIds.includes(taskId)) m.taskIds.push(taskId)
-      }
-    }
-  }
-}
-
-// ---- 高亮定位（B4：搜索任务结果跳转）
-// R117（04-61 B）：调度台首页同时挂着任务卡与好奇心卡两个 `?hl=` 消费者，靠 `?hk=` **认领**——
-// hk 指向别的卡型时本组件直接让路；只有真正滚到目标才清 query（否则会把另一个消费者要用的 hl 清掉）。
-const highlightId = ref<string | null>(null)
-watch(() => route.query.hl, (hl) => {
-  if (!hl || typeof hl !== 'string') return
-  const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
-  if (hk && hk !== 'task') return
-  highlightId.value = hl
-  // 二级页不依赖首页三页签；深链直接由本面板渲染并滚动到目标。
-  setTimeout(() => {
-    const el = document.querySelector(`[data-tid="${hl}"]`)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      setTimeout(() => { highlightId.value = null }, 2000)
-      router.replace({ path: route.path })
-    } else if (hk === 'task') {
-      // 目标确实是任务卡但当前没渲染（视图/筛选挡住）→ 依然清 query，避免残留
-      router.replace({ path: route.path })
-    }
-  }, 350)
-}, { immediate: true })
-// 第卅六轮 REQ-039：搜索浮层单击 → 任务卡高亮
-onMounted(() => {
-  const off = onOpenDrawer((p) => {
-    if (p.kind === 'task') {
-      highlightId.value = p.id
-      setTimeout(() => document.querySelector(`[data-tid="${p.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-      setTimeout(() => { highlightId.value = (highlightId.value === p.id ? null : highlightId.value) }, 2000)
-    }
-  })
-  onUnmounted(() => { off() })
-})
-
-// B5：任务行右键菜单 + B6 拖拽插入线
-const taskCtx = ref({ open: false, x: 0, y: 0 })
-const taskCtxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () => void }[]>([])
-const taskCtxTarget = ref<TaskCard | null>(null)
-function openTaskCtx(e: MouseEvent, t: TaskCard) {
-  taskCtxTarget.value = t
-  taskCtxItems.value = [
-    { label: '打开详情', icon: 'arrowright', cb: () => drawerRef.value?.open(t) },
-    { label: t.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => toggleTaskPin(t) },
-    { label: t.starred ? '取消星标' : '星标', icon: 'star', cb: () => toggleTaskStar(t) },
-    { label: '删除', icon: 'trash', danger: true, cb: () => deleteTask(t.id) }
-  ]
-  taskCtx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 200) }
-}
-const taskDropAfter = ref(false)
-const taskDropKey = ref('')
-function markTaskDrop(e: DragEvent, key: string) {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  taskDropAfter.value = (e.clientY - rect.top) / rect.height > 0.5
-  taskDropKey.value = key + (taskDropAfter.value ? '-b' : '-t')
-}
-function clearTaskDrop() { taskDropKey.value = '' }
-
-// ---- B4：任务列表键盘导航（↑↓ 选择 / Enter 打开 / 空格批量勾选，仅列表视图） ----
-const taskNavIndex = ref(-1)
-function onTaskNavKey(e: KeyboardEvent) {
-  const el = e.target as HTMLElement
-  if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
-  if (el?.isContentEditable) return
-  // 任务行本身已有 v-pressable 的 Enter/Space 通道；文档级导航只在行外接管，
-  // 否则一次按键会同时“打开当前行”和“执行行内动作”。
-  if (el?.closest?.('[data-tid]') && (e.key === 'Enter' || e.key === ' ')) return
-  if (mountModalOpen.value) return
-  if (viewMode.value !== 'list') return
-  // R129-B9：taskNavIndex 必须随 filteredTasks 收缩钳制——搜索/过滤把列表变短后，
-  // 旧索引会指向 undefined（Enter 传 undefined 给抽屉、空格取 .id 直接抛错）。
-  const list = filteredTasks.value
-  if (!list.length) { taskNavIndex.value = -1; return }
-  if (taskNavIndex.value > list.length - 1) taskNavIndex.value = list.length - 1
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    e.preventDefault()
-    const max = list.length - 1
-    taskNavIndex.value = e.key === 'ArrowDown'
-      ? Math.min(taskNavIndex.value + 1, max)
-      : Math.max(taskNavIndex.value - 1, 0)
-    document.querySelector(`.trow[data-nav="${taskNavIndex.value}"]`)?.scrollIntoView({ block: 'nearest' })
-  } else if (e.key === 'Enter' && taskNavIndex.value >= 0) {
-    e.preventDefault()
-    drawerRef.value?.open(list[taskNavIndex.value])
-  } else if (e.code === 'Space' && taskNavIndex.value >= 0) {
-    e.preventDefault()
-    toggleSelect(list[taskNavIndex.value].id)
-  }
-}
-onMounted(() => { document.addEventListener('keydown', onTaskNavKey, true) })
-onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) })
 </script>
 
 <template>
@@ -1057,169 +498,4 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
   </ModuleCard>
 </template>
 
-<style scoped>
-.mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
-.mini-btn:hover { border-color: var(--accent); color: var(--accent); }
-.mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.mini-btn.primary:hover { background: var(--accent-hover); }
-.mini-btn.active { background: var(--accent-light); color: var(--accent-ink); border-color: var(--accent); }
-.mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-
-.mini-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-.tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
-.tag.accent { background: var(--accent-light); color: var(--accent-ink); }
-.tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.tag.status-doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.tag.status-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
-.kc-assets { margin-left: 2px; }
-
-.mgr-body { padding-bottom: 4px; }
-.mgr-body.batch .check-sm { display: none; }
-/* R176（原型 panel-toolbar）：模块标题行退役 ⇒ 工具条自带顶部内距；批量/新建动作组贴右 */
-/* V3.9.8：视图 / 排序方向统一由 DeckControls 渲染，面板内旧分段样式退役。 */
-.sel { padding: 5px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; outline: none; font-family: inherit; }
-.mgr-count { display: flex; align-items: center; gap: 2px; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-right: 4px; }
-.mgr-count .cur { color: var(--text-2); font-weight: 600; }
-.mgr-count .total { cursor: default; }
-.mgr-count .total.act { cursor: pointer; color: var(--accent); font-weight: 600; }
-.mgr-count .total.act:hover { text-decoration: underline; }
-.batch-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: var(--fs-caption); color: #fff; background: var(--surface); }
-.batch-check.checked { background: var(--accent); border-color: var(--accent); }
-
-/* ===== 卡片视图（第卌五轮） ===== */
-.tm-grid { padding-bottom: 4px; }
-.tm-group-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin: 2px 0 8px; }
-/* R72：卡片视图列数由 --grid-cols 驱动（4/5/6/7）；容器放不下 N 列时自动降列，卡片最小 240px */
-.tm-grid-inner { display: grid; /* R106（F3）：精确 N 列（生产反馈：auto-fill+精确分数宽在 6/7 列因取整差一位永远少一） */ grid-template-columns: repeat(var(--grid-cols, 5), minmax(0, 1fr)); gap: 12px; }
-.tm-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; min-height: 94px; cursor: pointer; transition: all var(--dur) ease; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden; }
-.tm-card:hover { border-color: var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
-.tm-card.done { opacity: .62; }
-.tm-card.done .tm-title { text-decoration: line-through; color: var(--text-3); }
-.tm-card.selected { background: var(--accent-light); border-color: var(--accent); }
-.tm-card.flash { animation: tflash 2s ease-out; }
-@keyframes tflash { 0%,60% { background: var(--accent-light); box-shadow: inset 3px 0 0 var(--accent); } 100% { background: transparent; } }
-.tm-card.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.tm-card.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.tm-status { font-size: var(--fs-tiny); font-weight: 600; padding: 2px 8px; border-radius: 99px; align-self: flex-start; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-.tm-status.st-todo { background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
-.tm-status.st-doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.tm-status.st-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
-.tm-corner { position: absolute; top: 8px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; }
-.tm-corner.pin { right: 8px; }
-.tm-corner.star { right: 32px; }
-.tm-card:hover .tm-corner { opacity: .6; }
-.tm-corner:hover { opacity: 1 !important; background: var(--surface-3); }
-.tm-corner.on { opacity: 1; }
-.tm-sub { color: var(--text-3); font-weight: 400; margin-right: 3px; cursor: default; }
-.tm-title { font-size: var(--fs-body); font-weight: 600; line-height: 1.45; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.tm-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-/* R176（原型 task-item-card footer）：卡片标签统一中性灰（项目/指标不分色；字段显隐体系不动） */
-.tm-tags .tag.accent, .tm-tags .tag.warn { background: var(--surface-3); color: var(--text-2); }
-.tm-ext { display: flex; flex-wrap: wrap; gap: 5px; }
-.tm-ext-item { font-size: var(--fs-caption); color: var(--text-3); }
-.tm-ext-item.status-doing { color: var(--tag-warn-text); }
-.tm-ext-item.status-done { color: var(--tag-ok-text); }
-.tm-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; font-size: var(--fs-caption); color: var(--text-3); }
-.tm-del { width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; }
-.tm-card:hover .tm-del { opacity: .6; }
-.tm-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); }
-.tm-grid-empty { grid-column: 1 / -1; }
-
-/* ===== 列表 / 看板（自 CompassActions 原样迁入） ===== */
-.task-list { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.trow { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); transition: background .1s; }
-/* F2：就地展开清单——绝对定位浮在行下，不改行高（改行高会让整列在展开瞬间重排，点击点会跳走） */
-.trow-subs { position: absolute; left: 14px; right: 14px; top: calc(100% - 2px); z-index: var(--z-dropdown, 30); background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 4px; }
-.tm-sub.exp { cursor: pointer; }
-.tm-sub.exp:hover { color: var(--accent); border-color: var(--accent); }
-.trow:last-child { border-bottom: none; }
-.trow:hover { background: var(--surface); }
-.trow.selected { background: var(--accent-light); }
-.trow.done { opacity: .6; }
-.trow.done .tname { text-decoration: line-through; color: var(--text-3); }
-.trow.flash { animation: tflash 2s ease-out; }
-.trow.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.trow.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.t-drag { color: var(--text-4); font-size: var(--fs-caption); cursor: grab; flex-shrink: 0; }
-.check-sm { width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid var(--border-strong); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: var(--fs-tiny); color: #fff; background: var(--surface); cursor: pointer; }
-.check-sm.done { background: var(--success); border-color: var(--success); }
-.tname { font-size: var(--fs-body); flex: 1; min-width: 0; cursor: pointer; }
-.tname:hover { color: var(--accent); }
-.row-tags { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: wrap; }
-/* G3（V3.8.27）：.list-empty 的视觉已由 EmptyState 接管，class 只留作语义锚点 */
-.tgroup { border-bottom: 1px solid var(--border); }
-.tgroup:last-child { border-bottom: none; }
-/* ★W17-C05：组头可点折叠（箭头随状态）+ 全局开关按钮 */
-.tg-toggle { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
-.tg-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-.tg-ar { font-size: var(--fs-tiny); color: var(--text-4); width: 10px; display: inline-block; }
-.tg-allbtn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 4px 10px; font-size: var(--fs-caption); font-weight: 600; font-family: inherit; cursor: pointer; }
-.tg-allbtn:hover { border-color: var(--border-strong); color: var(--text); }
-.tg-head { display: flex; align-items: center; gap: 8px; padding: 9px 16px; background: var(--surface-3); position: sticky; top: 0; cursor: default; transition: background var(--dur-fast); }
-.tg-head.drag-over { background: var(--accent-light); box-shadow: inset 0 2px 0 var(--accent); }
-.tg-name { font-size: var(--fs-sub); font-weight: 700; color: var(--text); }
-.tg-name.none { color: var(--text-3); }
-.tg-pct { font-size: var(--fs-caption); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-.tg-count { margin-left: auto; font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface); padding: 1px 8px; border-radius: 99px; }
-.kanban-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.kcol { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px; min-height: 220px; }
-.khead { position: sticky; top: 0; z-index: 1; background: var(--surface-2); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 6px 0; font-size: var(--fs-body); font-weight: 600; }
-.kcount { font-size: var(--fs-tiny); background: var(--surface); color: var(--text-3); padding: 1px 7px; border-radius: 99px; font-weight: 500; }
-.kgroup { background: var(--surface-2); border-radius: var(--radius-xs); padding: 8px; margin-bottom: 10px; border: 1px dashed transparent; transition: border-color var(--dur); }
-.kgroup.drag-over { border-color: var(--accent); background: var(--accent-light); }
-.kg-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px 8px; }
-.kg-name { font-size: var(--fs-caption); font-weight: 700; color: var(--text-2); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kg-count { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface); padding: 1px 7px; border-radius: 99px; }
-.kg-empty { font-size: var(--fs-caption); color: var(--text-4); text-align: center; padding: 10px; border: 1px dashed var(--border); border-radius: 6px; }
-/* B1-c（V3.8.26）：看板三列空态 / 批量挂载弹窗 6 处模板内联样式收口，值逐字等价 */
-.kg-empty.kg-empty-pad { padding: 20px; }
-.picker-modal.tm-modal-mount { width: 420px; }
-.ts-label-pm.tm-label-mount { margin-top: 12px; }
-.tm-modal-footer { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
-.kcard { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 10px 13px; margin-bottom: 8px; cursor: pointer; transition: all var(--dur); }
-.kcard:hover { border-color: var(--border-strong); background: var(--surface-2); }
-.kcard.done { opacity: .6; }
-.kcard.done .kt { text-decoration: line-through; }
-.kcard.flash { animation: tflash 2s ease-out; }
-.kcard.drop-line-t { box-shadow: inset 0 2px 0 var(--accent); }
-.kcard.drop-line-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.kt { font-size: var(--fs-body); font-weight: 500; line-height: 1.5; margin-bottom: 6px; }
-.k-pin { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; }
-.k-star { position: absolute; top: 6px; right: 32px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; }
-/* R68-F2：删除按钮 emoji → 主题色线性图标（深色主题下 🗑 深灰单色 emoji 在近黑卡上不可见） */
-.k-del { position: absolute; top: 6px; right: 58px; width: 22px; height: 22px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; opacity: 0; transition: all var(--dur) ease; z-index: 1; color: var(--text-3); display: flex; align-items: center; justify-content: center; }
-.kcard:hover .k-pin, .kcard:hover .k-star, .kcard:hover .k-del { opacity: .85; }
-.k-pin:hover, .k-star:hover { opacity: 1 !important; background: var(--surface-3); }
-.k-del:hover { opacity: 1 !important; background: var(--tag-danger-bg); color: var(--danger, #e74c3c); }
-.k-pin.on, .k-star.on { opacity: 1; }
-/* M6（B7-e · V3.8.40）：热区下限 28px（实测 24px）——只撑点击盒子，图标尺寸不变 */
-.t-pin { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
-/* M6（B7-e · V3.8.40）：热区下限 28px（实测 24px）——只撑点击盒子，图标尺寸不变 */
-.t-star { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; opacity: 0; transition: all var(--dur) ease; flex-shrink: 0; }
-.t-del { width: 28px; height: 28px; border: none; background: transparent; border-radius: 6px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; opacity: .72; transition: all var(--dur) ease; flex-shrink: 0; }
-.trow:hover .t-pin, .trow:hover .t-star { opacity: .6; }
-.trow:hover .t-del { opacity: .9; }
-.t-pin:hover, .t-star:hover { opacity: 1 !important; background: var(--surface-3); }
-.t-pin.on, .t-star.on { opacity: 1; }
-.t-del:hover { opacity: 1 !important; background: var(--danger-light, rgba(231,76,60,.12)); color: var(--danger, #e74c3c); }
-
-/* 弹窗 */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: var(--z-overlay); }
-.picker-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92vw; max-height: 70vh; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: calc(var(--z-overlay) + 1); display: flex; flex-direction: column; overflow: hidden; }
-.pm-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; font-size: 14px; font-weight: 600; }
-.pm-head span:first-child { flex: 1; }
-.pm-close { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--text-3); font-size: var(--fs-headline); background: transparent; border: none; }
-.pm-close:hover { background: var(--surface-3); color: var(--text); }
-.pm-body { flex: 1; overflow-y: auto; padding: 14px 20px; }
-.ts-label-pm { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; margin-bottom: 7px; }
-.ts-select-pm { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; font-family: inherit; }
-.ts-select-pm:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-/* R110-LC（T3）：归档降级提示条 */
-.tm-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
-.tm-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-.modal-enter-active, .modal-leave-active { transition: all var(--dur) ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
-</style>
+<style scoped src="./TaskManagerPanel.css"></style>

@@ -127,12 +127,11 @@ check('W12-8 ★拆版式不许顺手删能力：★V3.9.22 重指：＋战略�
     .every(k => t.includes(k));
 });
 
-check('W12-9 ★战略目标分组头必须补回原型 .dir-head 的两件承重：「N 战略目标」pill 与右侧发丝线。★病根：实际实现只有一个纯数字方块 + 一整条 border-bottom。数字方块回答不了"这是第几层"，整条下边框则把行内读数与动作组硬生生切成两块 —— 前者丢了第 3 层的语义，后者让按钮组孤零零吊在行尾。原型两件都在：pill 收在左且**点即过滤**（与骨架条芯片同源），发丝线在右收口', () => {
+check('W12-9 ★战略目标分组头保留层级语义、筛选能力与右侧发丝线（跨模块优化重指）：静态 CompassLevelTag 回答"这是第几层"且不抢筛选，筛选仍由「只看我」承担；发丝线继续把行内读数收口；下边框保持退役', () => {
   const t = codeOnly(CT_W11);
-  return t.includes('class="dir-badge"')
-    && /\{\{ dg\.i \+ 1 \}\} 战略目标/.test(t)
-    /* pill 必须真的接上过滤动作，不能只是个静态标签 */
-    && /class="dir-badge"[^>]*@click\.stop="onDirFilter\(dg\.dir\.id\)"/.test(t)
+  return t.includes('<CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />')
+    && t.includes('class="node-action t3"')
+    && t.includes("onDirFilter(dg.dir.id)")
     && t.includes('class="dh-line"')
     && /\.dh-line \{[^}]*flex: 1/.test(t)
     /* 下边框退役（发丝线取代它） */
@@ -422,7 +421,7 @@ check('W12-D1 ★DayDetail 必须**从 Heatmap 里解耦出去**、且解耦是�
   return true;
 });
 
-check('W12-D2 ★今日战报宿主必须是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在组件内，CompassHome 一行挂载且源码里不出现 readEventLog（R49-3 负锚）。这正是 HeatmapModule 当年被评为「自包含宿主」的同一套口径，TodayBattleHost 照搬不得缩水——否则 HeatmapModule 一退役，调度台就丢了读日志的通道', () => {
+check('W12-D2 ★今日战报宿主仍是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在 TodayBattleHost 内，调度台一行挂载。★V3.9.25：调度台状态读数另需读取同一事件日志核对操作次数，读取入口由 useCompassHome 承担；战报宿主自身的五件与刷新链不减', () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   const ch = read('/newtab/views/CompassHome.vue');
   for (const n of ['useDashboardStats', 'readEventLog', 'derivedEvents', 'DayDetail', 'DashboardLogDrawer', 'useDailyLogRequest']) {
@@ -431,9 +430,10 @@ check('W12-D2 ★今日战报宿主必须是「自包含」的：数据桥 useDa
   // 派生回退与刷新语义
   if (!tbh.includes('logEmpty.value ? derivedEvents.value : eventLog.value')) return false;
   if (!tbh.includes('await refreshEventLog()')) return false;
-  // 页面侧只挂一行、不碰事件日志
+  // 页面侧只挂一行；状态读数若要读日志必须集中在 useCompassHome，不得在视图模板另造解析。
   if (!ch.includes('<TodayBattleHost ref="battleHost" />')) return false;
-  if (/readEventLog/.test(ch)) return false;
+  const homeView = fs.readFileSync(path.resolve(base, 'newtab/views/CompassHome.vue'), 'utf8');
+  if (/readEventLog/.test(codeOnly(homeView))) return false;
   return true;
 });
 
@@ -453,7 +453,9 @@ check('W12-D4 ★V3.9.1 随迁备案：热力图仍不得回调度台；原「�
   if (!ch.includes('@click="openCellTask(c)"')) return false;
   if (!ch.includes('drawerRef.value?.open(c.task)')) return false;
   /* 原热力图槽位现在由今日工作单本身承接：工作单必须在手边卡之前。 */
-  if (!(ch.indexOf('class="work-board"') < ch.indexOf('class="hand-board"'))) return false;
+  const iWork = ch.search(/class="[^"]*\bwork-board\b/);
+  const iHand = ch.search(/class="[^"]*\bhand-board\b/);
+  if (!(iWork >= 0 && iHand > iWork)) return false;
   // Heatmap 本体保留（画像洞察页在用）——基路径走 helpers 的 base，禁止硬编码盘符（原 D:/… 在非 Windows 环境恒 false）
   const exists = fs.existsSync(base + '/newtab/components/dashboard/Heatmap.vue');
   if (!exists) return false;
@@ -552,17 +554,20 @@ check('W12-E2 ★「← 返回项目详情」退役，但**来路感知必须保
   return true;
 });
 
-check('W12-F1 ★全景泳道必须有贯穿连接轨（用户拍板 C2）：项目→成功指标→任务的从属不能只靠"排列在同一条泳道里"推断，要有一条竖轨从指标头垂到最后一个任务行 + 每行一个分支点，轨道色取泳道主色 --hue 与进度条同源。判据：① 轨道与节点 DOM 在位 ② .lane-b 是定位上下文 ③ 轨道用 color-mix(--hue) 而非新增色系令牌 ④ 任务行左侧留出内边距让节点不压文字', () => {
+check('W12-F1（V3.9.26 重指）★全景泳道保留明确隶属轨，但收敛为一套连续线：V3.9.26 删除独立 lane-spine、分支点 DOM 与任务左边框三层叠线，改由任务行伪元素上下拼接一条主轨 + 每行唯一横分支；线色取中性 text-3 混合，状态回给复选框表达', () => {
   const L = read('/newtab/components/compass/CompassPanoLane.vue');
-  if (!L.includes('class="lane-spine"')) return false;
-  if (!L.includes('class="ltask-node"')) return false;
-  if (!/\.lane-b \{ position: relative/.test(L)) return false;
-  if (!/\.lane-spine \{[\s\S]*?var\(--hue\)/.test(L)) return false;
+  if (L.includes('class="lane-spine"')) return false;
+  if (L.includes('class="ltask-node"')) return false;
+  if (!L.includes('.ltask::before')) return false;
+  if (!L.includes('.ltask::after')) return false;
+  if (!L.includes('.ltask:first-child::after { top: -8px; }')) return false;
+  if (!L.includes('.ltask:last-child::after { bottom: 50%; }')) return false;
+  if (!/\.ltask::before \{ top: 50%; width: 18px; height: 1px; \}/.test(L)) return false;
+  if (/\.ltask \{[\s\S]*?border-left:\s*2px solid var\(--hue\)/.test(L)) return false;
   const task = (L.match(/\.ltask \{[\s\S]*?\n\}/) || [''])[0];
   const pad = /padding:\s*(\d+)px\s+(\d+)px\s+(\d+)px\s+(\d+)px/.exec(task);
   if (!pad || Number(pad[4]) <= 0) return false;
-  // 负锚：不许硬编码色
-  if (/#[0-9a-f]{3,6}/i.test(L.match(/\.lane-spine \{[\s\S]*?\n\}/) ? L.match(/\.lane-spine \{[\s\S]*?\n\}/)[0] : '')) return false;
+  if (/#[0-9a-f]{3,6}/i.test(L.match(/\.ltask::before,[\s\S]*?\n\}/) ? L.match(/\.ltask::before,[\s\S]*?\n\}/)[0] : '')) return false;
   return true;
 });
 
@@ -604,7 +609,10 @@ check('W12-G1 ★组件级可读性门禁必须真的在 theme-contrast.cjs 里�
   const la = (pano.match(/\.lane-add \{[\s\S]*?\n\}/) || [''])[0];
   if (/var\(--text-4\)/.test(la)) return false;
   const cz = read('/newtab/components/compass/CuriosityPanel.vue');
-if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[\s\S]*?\n\}/) || [''])[0])) return false;
+/* ★R181 随迁带备案：`.cz-kb-ai` 规则随样式外提到 CuriosityPanel.css（仍是单行规则）。旧写法 `\{[\s\S]*?\n\}`
+   要求"换行后紧跟 }"，对单行规则会一路吞到后面某个多行规则的收尾（吞进别的 text-4 规则造成假红）。
+   改 `[^}]*\}` 精确圈住该规则体（单行/多行都成立），判据意图（这枚控件不用最淡档 --text-4）一字未改。 */
+if (/var\(--text-4\)/.test((cz.match(/\.cz-kb-ai \{[^}]*\}/) || [''])[0])) return false;
   return true;
 });
 

@@ -49,7 +49,19 @@ function readGateCache(scriptPath, args = []) {
 // ★教训备案（本次差点又踩一次）：搬代码前必须先查「有没有判据在读被搬走的那段正���」——
 //   实测 R77 / R93 / R105 / B14 / D3 / D7 等 16 条判据读的正是那段 CSS；
 //   没有聚合表的话，这 16 条会同时红，且红得看不出真因（症状像「浮层样式被谁改了」）。
-const CONTENT_SRC_FILES = ['/content/search-overlay.ts', '/content/overlay-impl.ts', '/content/overlay-styles.ts', '/content/selection.ts'];
+// V3.9.23 结构优化：overlay-impl.ts 的 1,597 行按域拆出 overlay-search / overlay-capture / overlay-query。
+// ★聚合拼接顺序不是随意的：断言的 fnBody(head, next) 依赖「head 在 next 之前」的先后关系，
+//   历史锚点里 saveCapture→「采集去重确认视图」、showDupConfirm→「/** R78（A3）」都吃顺序，
+//   故这里保持「采集域在宿主之前、搜索域在纯函数域之前」的原始先后（其余 includes 判据与顺序无关）。
+const CONTENT_SRC_FILES = [
+  '/content/search-overlay.ts',
+  '/content/overlay-search.ts',
+  '/content/overlay-capture.ts',
+  '/content/overlay-impl.ts',
+  '/content/overlay-query.ts',
+  '/content/overlay-styles.ts',
+  '/content/selection.ts',
+];
 // R115（04-59 技术债第三批）：Workspace.vue 按域拆为 8 个 composable + 样式外置 workspace.css。
 // 断言语义不变：「资源台/策展台源码包含 X」——按宿主 + 域文件拼接后的整体判断（沿用 content 三文件同一机制），历史断言无需逐条改写。
 const WORKSPACE_SRC_FILES = [
@@ -66,6 +78,75 @@ const WORKSPACE_SRC_FILES = [
   '/newtab/composables/useWsLocate.ts',
   '/newtab/views/workspace.css',
 ];
+/**
+ * R181：大组件结构优化后的聚合读数表。
+ * 约定与 content / Workspace / GlobalSettings 同一套：宿主迁走样式或子域后，
+ * 历史判据从宿主路径读取时仍拿到「宿主 + 拆出成员」的完整源码。
+ * 这样结构优化只改物理位置，不改判据语义。
+ */
+/* R181：少数宿主需要「成员前置」（成员排在宿主正文之前）才能让历史 slice 判据取到正确区间。
+   典型：repository.ts 的 P0-2 判据用 slice(indexOf('export function normalizeLegacyCards'),
+   indexOf('/** 加载数据（含首次初始化）')) 取归一化函数体——被拆出的 legacy-normalize.ts 必须排在
+   宿主 loadData 注释之前，否则 slice 起>止 ⇒ 空切片。默认是追加（host + extra）。 */
+const PREPEND_AGGREGATES = new Set([
+  '/shared/storage/repository.ts',
+]);
+const COMPONENT_AGGREGATES = {
+  // V3.9.23：设置页的域逻辑自 GlobalSettings.vue 拆到 views/ 下的两个 composable（不在 settings/ 目录里，
+  // 目录聚合抓不到）⇒ 显式登记；read() 的 GlobalSettings 分支会把本表条目一并接进聚合。
+  '/newtab/views/GlobalSettings.vue': [
+    '/newtab/views/useGlobalSettings.ts',
+    '/newtab/views/useGlobalSettingsPanels.ts',
+  ],
+  '/newtab/views/CompassHome.vue': [
+    '/newtab/views/CompassHome.css',
+    '/newtab/views/useCompassHome.ts',
+    '/newtab/views/useCompassHomeStorage.ts',
+    '/newtab/views/useCompassHomeDetail.ts',
+  ],
+  '/newtab/views/CompassTree.vue': [
+    '/newtab/views/CompassTree.css',
+    '/newtab/views/useCompassTree.ts',
+    '/newtab/views/useCompassTreeProjects.ts',
+    '/newtab/views/useCompassTreeSpine.ts',
+  ],
+  '/newtab/components/GlobalPopups.vue': [
+    '/newtab/components/GlobalPopups.css',
+    '/newtab/components/useGlobalPopups.ts',
+    '/newtab/components/useGlobalPopupsSearch.ts',
+    '/newtab/components/useGlobalPopupsCapture.ts',
+    '/newtab/components/useGlobalPopupsRows.ts',
+  ],
+  '/newtab/components/compass/TaskManagerPanel.vue': [
+    '/newtab/components/compass/TaskManagerPanel.css',
+    '/newtab/components/compass/useTaskManagerPanel.ts',
+    '/newtab/components/compass/taskPanelBatch.ts',
+  ],
+  '/newtab/views/ProjectCuration.vue': [
+    '/newtab/views/ProjectCuration.css',
+    '/newtab/views/projectCurationUtils.ts',
+    '/newtab/views/useProjectCurationRail.ts',
+    '/newtab/views/useProjectCurationDnd.ts',
+  ],
+  '/newtab/views/ProfileInsights.vue': [
+    '/newtab/views/ProfileInsights.css',
+    '/newtab/views/useProfileInsights.ts',
+    '/newtab/views/useProfileInsightsTags.ts',
+    '/newtab/views/useProfileInsightsMonth.ts',
+  ],
+  '/newtab/components/compass/CuriosityPanel.vue': [
+    '/newtab/components/compass/CuriosityPanel.css',
+    '/newtab/components/compass/curiosityPanelCore.ts',
+    '/newtab/components/compass/curiosityPanelBridges.ts',
+  ],
+  '/newtab/components/AiSuggestionDrawer.vue': ['/newtab/components/AiSuggestionDrawer.css'],
+  '/newtab/changelog-data.ts': [
+    '/newtab/changelog-data/types.ts',
+    '/newtab/changelog-data/entries-v3.ts',
+    '/newtab/changelog-data/entries-v2.ts',
+  ],
+  '/shared/storage/repository.ts': ['/shared/storage/legacy-normalize.ts'],
+};
 function read(p) {
   // R110：CRLF/LF 归一化——Windows 检出（autocrlf）下多行锚串不再失配
   const norm = (t) => t.replace(/\r\n/g, '\n');
@@ -94,12 +175,30 @@ function read(p) {
   if (p === '/newtab/views/GlobalSettings.vue') {
     const host = norm(fs.readFileSync(base + p, 'utf8'));
     const dir = path.join(base, 'newtab/views/settings');
-    if (!fs.existsSync(dir)) return host;      // 目录不存在 ⇒ 等价于未拆分，读数与拆分前逐字节一致
-    const extra = fs.readdirSync(dir)
-      .filter(f => f.endsWith('.vue') || f.endsWith('.ts') || f.endsWith('.css'))
-      .sort()                                     // 排序保证读数稳定（目录遍历顺序不可依赖）
-      .map(f => `\n/* ---- 聚合成员：newtab/views/settings/${f} ---- */\n` + norm(fs.readFileSync(path.join(dir, f), 'utf8')))
+    let extra = '';
+    if (fs.existsSync(dir)) {                  // 目录不存在 ⇒ 等价于未拆分，读数与拆分前逐字节一致
+      extra += fs.readdirSync(dir)
+        .filter(f => f.endsWith('.vue') || f.endsWith('.ts') || f.endsWith('.css'))
+        .sort()                                   // 排序保证读数稳定（目录遍历顺序不可依赖）
+        .map(f => `\n/* ---- 聚合成员：newtab/views/settings/${f} ---- */\n` + norm(fs.readFileSync(path.join(dir, f), 'utf8')))
+        .join('');
+    }
+    // V3.9.23：域逻辑 composable 住在 views/ 下（非 settings/），目录聚合抓不到 ⇒ 显式表一并接进
+    for (const f of (COMPONENT_AGGREGATES['/newtab/views/GlobalSettings.vue'] || [])) {
+      if (fs.existsSync(base + f)) extra += `\n/* ---- 聚合成员：${f.slice(1)} ---- */\n` + norm(fs.readFileSync(base + f, 'utf8'));
+    }
+    return host + extra;
+  }
+  if (COMPONENT_AGGREGATES[p]) {
+    const host = norm(fs.readFileSync(base + p, 'utf8'));
+    const extra = COMPONENT_AGGREGATES[p]
+      .filter(f => fs.existsSync(base + f))
+      .map(f => `\n/* ---- 聚合成员：${f.slice(1)} ---- */\n` + norm(fs.readFileSync(base + f, 'utf8')))
       .join('');
+    // ★方向不是随手定的：P0-2 判据用 slice(indexOf('export function normalizeLegacyCards'),
+    //   indexOf('/** 加载数据（含首次初始化）')) 取归一化函数体——被拆出的 legacy-normalize.ts 必须
+    //   排在 loadData 注释**之前**，否则 slice 起>止 ⇒ 空切片。其余宿主（组件/样式外提）都是追加。
+    if (PREPEND_AGGREGATES.has(p)) return extra + host;
     return host + extra;
   }
   return norm(fs.readFileSync(base + p, 'utf8'));
@@ -246,7 +345,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.9.22'";
+const VER_ANCHOR_LITERAL = "version: '3.9.30'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -294,7 +393,8 @@ const POOL_ROW_ACTIONS = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>
 const POOL_GRID_ACTIONS = segOf(POOL_PANEL, '<template v-else>\n            <CardAiEntry :card="r" />', '</template>');
 const POOL_CONTROLS = segOf(POOL_PANEL, '<DeckControls panel="pool"', '</DeckControls>');
 const CURATION_TOOLBAR = segOf(read('/newtab/views/Workspace.vue'), '<div class="ws-toolbar cur-toolbar"', '<CurationMindMap');
-const MIND_ACTIONS = segOf(CURATION_MAP, '<div class="mindmap-layout"', '<div class="mindmap-status">');
+/* V3.9.30：普通视图布局切换归页头行动条；画布内只保留全屏专用切换。 */
+const MIND_ACTIONS = segOf(CURATION_MAP, '<div v-if="fullscreen" class="mindmap-layout"', '<div class="mindmap-status">');
 const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div class="mind-node-foot">', '</div>');
 // 兼容旧导出名：语义已迁到资源池两视图。KANBAN 在池里没有第三种视图，
 // 以“分组列表”的同一动作区承接，避免旧切片静默为空。

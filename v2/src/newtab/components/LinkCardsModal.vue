@@ -26,8 +26,6 @@ defineProps<{
   /** 已勾选（镜像目标）的卡的 id；`linkCardsModal.picked` */
   picked?: Set<string>
   q: string
-  cat: string
-  catOptions: { id: string; label: string }[]
   /** 可见列表：字面命中 + AI 语义命中合并后的次序（`usePyramid#linkShowList`） */
   list: { r: ResourceCard; mirrored: boolean }[]
   aiBusy: boolean
@@ -42,7 +40,6 @@ defineProps<{
 const emit = defineEmits<{
   close: []
   'update:q': [v: string]
-  'update:cat': [v: string]
   'toggle-pick': [id: string]
   confirm: []
   'ai-run': []
@@ -60,14 +57,6 @@ const emit = defineEmits<{
         @click="emit('ai-run')">
         <AiEntryButton variant="inline" :spin="aiBusy" :label="aiBusy ? '检索中…' : 'AI 检索'" />
       </button>
-    </div>
-    <!-- R126（诉求 3）：资源卡池分类过滤（含子分类） -->
-    <div class="lc-cat-row">
-      <select :value="cat" class="lc-cat" @change="emit('update:cat', ($event.target as HTMLSelectElement).value)">
-        <option value="">全部分类（资源卡池）</option>
-        <option v-for="o in catOptions" :key="o.id" :value="o.id">{{ o.label }}</option>
-        <option value="__uncat__">未分类</option>
-      </select>
     </div>
     <!-- R161-④：投料口径与收窄范围（与检索面板同一条「说实话」纪律：投了多少张、收窄到哪个范围都要看得见） -->
     <div v-if="aiOn || aiBusy" class="lc-ai-fed">
@@ -101,7 +90,6 @@ const emit = defineEmits<{
 /* 以下 .lc-* 由 workspace.css 迁入（原为 Workspace.vue 的 scoped 样式，跨不到本组件） */
 .lc-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); margin-bottom: 10px; }
 .lc-search input { border: none; outline: none; background: transparent; font-size: var(--fs-sub); flex: 1; color: var(--text); }
-.lc-cat-row { margin-bottom: 10px; }
 .lc-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .lc-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
 .lc-item:hover { background: var(--surface-2); }

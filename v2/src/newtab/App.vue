@@ -6,11 +6,12 @@ import { resourceLocateRoute } from '@/shared/utils/locate'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { uid } from '@/shared/utils'
-import { type Workspace } from '@/shared/models'
+import { CURATION_WS_ID, type Workspace } from '@/shared/models'
 import Toast from '@/shared/components/Toast.vue'
 import { showToast } from '@/shared/components/toast'
 // R160（P1）：GlobalPopups（99KB 源，入口最大应用模块）改按需挂载——首屏不加载，首次呼出（热键/顶栏/消息）时拉起
-const GlobalPopups = defineAsyncComponent(() => import('./components/GlobalPopups.vue'))
+const loadGlobalPopups = () => import('./components/GlobalPopups.vue')
+const GlobalPopups = defineAsyncComponent(loadGlobalPopups)
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import { useConfirm } from '@/shared/components/confirm'
 // R146（回退契约）：策展台「归档 / 删除」两语义真源
@@ -19,7 +20,7 @@ import Icon from '@/shared/components/Icon.vue'
 import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'
 const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
 import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
-import { installGlobalUndo } from '@/shared/utils/undo'
+import { DECK_DELETE_UNDO_WINDOW_MS, installGlobalUndo } from '@/shared/utils/undo'
 import { recordRuntimeError } from '@/shared/utils/runtimeError'
 import { emitOpenDrawer, onOpenDrawer, setPendingDrawer, onOpenPanel } from '@/shared/utils/bus'
 // R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
@@ -137,6 +138,26 @@ const hiddenWsCount = computed(() => (wsOverflow.value && !wsOverflowOpen.value)
 
 function navigate(path: string) { router.push(path) }
 
+/* V3.9.24：首屏稳定后再预取高频交互资源。全局检索与常用台面都是懒加载 chunk；
+   在浏览器空闲时提前取回，真实点击时不再等待下载。预取失败不影响主流程。 */
+let prefetchTimer: ReturnType<typeof setTimeout> | null = null
+let prefetchIdle: number | null = null
+function scheduleInteractionPrefetch(): void {
+  prefetchTimer = setTimeout(() => {
+    prefetchTimer = null
+    const run = () => {
+      prefetchIdle = null
+      void Promise.allSettled([
+        loadGlobalPopups(),
+        import('./views/CompassTree.vue'),
+        import('./views/Workspace.vue'),
+      ])
+    }
+    if ('requestIdleCallback' in window) prefetchIdle = window.requestIdleCallback(run, { timeout: 2000 })
+    else run()
+  }, 900)
+}
+
 // W5（V3.8.5）#6 → V3.8.9（W9）：品牌区点击 = 打开画像洞察页（独立路由 #/profile）。
 // 原「今日战报」链路（跳首页 + HeatmapModule 消费 requestDailyLog）退役——
 // 战报改为画像页 §0 页头入口按钮 + 中央弹窗，数据桥与 HeatmapModule 同源（useDashboardStats）。
@@ -236,21 +257,33 @@ function confirmRename() {
   }
   renamingWs.value = null
 }
-/** R146（回退契约）：台签右键这项**不是删除而是归档**——原实现 archived=true + 卡搬走，
- *  却与 ⚙ 菜单里"卡进回收站"的真删除共用「删除策展台」同名，两入口两种数据命运。
- *  现改名并接真源 archiveWorkspace；原生 confirm 换应用内确认（四主题一致）。 */
-async function archiveDeck() {
+/** 台签右键与台内设置共用同一个删除真源：台内卡进回收站，镜像只释放引用。 */
+async function deleteDeckFromTab() {
   const ws = menuWs.value
   closeMenu()
   if (!ws || !store.data) return
-  // R160（P1）：策展台 CRUD（9.1KB 源）改动态加载——仅归档动作时入内存
-  const { deckCardCount, archiveWorkspace } = await import('@/shared/utils/compassCrud')
+  if (ws.id === CURATION_WS_ID) { showToast('ℹ 「资源卡池」是系统空间，不在此删除'); return }
+  const { deckCardCount, deleteDeck, restoreDeck } = await import('@/shared/utils/compassCrud')
   const n = deckCardCount(store.data, ws.id)
-  if (!(await useConfirm({ title: '归档策展台', message: `确定归档「${wsDisplayNameOf(ws)}」？\n其下 ${n} 张卡将搬入资源卡池或其它策展台的「待分类」（卡片不删，论点标记随台摘除），此台从标签栏收起。`, confirmText: '归档' }))) return
-  const r = archiveWorkspace(store.data, ws)
+  const argCount = (store.data.argCards || []).filter(c => c.workspaceId === ws.id && !c.deletedAt).length
+  if (!(await useConfirm({
+    title: '删除策展台',
+    message: `确定删除策展台「${wsDisplayNameOf(ws)}」？\n其中 ${n} 张本台资源卡、${argCount} 张论证卡与全部分类将移入回收站；本台镜像引用会释放，资源卡池里的源卡、标签与附件不变。\n台内卡片不会迁入资源卡池，3 秒内可撤销。`,
+    confirmText: '删除策展台',
+  }))) return
+  const snap = deleteDeck(store.data, ws.id)
+  if (!snap) { showToast('⚠ 该策展台已不存在'); return }
   store.persist()
   if (activeWorkspaceId.value === ws.id) navigate('/')
-  showToast(`已归档「${wsDisplayNameOf(ws).slice(0, 14)}」· ${r.moved} 张卡移至待分类`)
+  showToast(`已删除策展台「${wsDisplayNameOf(ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡、${snap.argCardIds.length} 张论证卡进回收站`, {
+    label: '撤销',
+    cb: () => {
+      if (!store.data) return
+      restoreDeck(store.data, snap)
+      store.persist()
+      showToast(`已恢复策展台「${wsDisplayNameOf(ws).slice(0, 14)}」`)
+    },
+  }, { duration: DECK_DELETE_UNDO_WINDOW_MS, sticky: false, undoWindowMs: DECK_DELETE_UNDO_WINDOW_MS })
 }
 
 // ===== 全局快捷键 =====
@@ -333,6 +366,7 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
+  scheduleInteractionPrefetch()
   // R131-C6a：启动 idle 预热退役——每开一个新标签页都后台拉 ~312KB 拼音字典，与「按需加载」交付口径相悖；
   // 字典改由搜索面板打开时 ensurePinyin（GlobalPopups）/ 网页浮层唤起时（overlay-impl）加载，
   // pinyinReady 就绪后结果链自动补跑拼音命中（V2.21 既有机制），首屏与多标签页内存不再为该预热买单。
@@ -441,7 +475,14 @@ async function runAirtableSync(withToast: boolean): Promise<void> {
     if (withToast) showToast('Airtable 同步失败：' + (e instanceof Error ? e.message : String(e)))
   } finally { atSyncBusy = false }
 }
-onUnmounted(() => { window.removeEventListener('keydown', onGlobalKeydown, true) })
+onUnmounted(() => {
+  window.removeEventListener('keydown', onGlobalKeydown, true)
+  if (prefetchTimer) { clearTimeout(prefetchTimer); prefetchTimer = null }
+  if (prefetchIdle != null && 'cancelIdleCallback' in window) {
+    window.cancelIdleCallback(prefetchIdle)
+    prefetchIdle = null
+  }
+})
 
 // R45-5（V2.20.0）：资源引擎 Tab 角标彻底移除——不做任务管理平台，去掉任务数催办感（理念对齐：项目驱动）
 
@@ -609,7 +650,7 @@ const backupReminderDot = computed(() => {
     <Teleport to="body">
       <div v-if="menuWs" class="ctx-menu" data-a11y-container :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" v-pressable @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
-        <div class="ctx-item" v-pressable @click="archiveDeck"><Icon name="package" :size="13"/> 归档此台（卡移至待分类）</div>
+        <div class="ctx-item danger" v-pressable @click="deleteDeckFromTab"><Icon name="trash" :size="13"/> 删除策展台</div>
       </div>
     </Teleport>
 

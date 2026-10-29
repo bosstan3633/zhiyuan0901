@@ -332,17 +332,24 @@
 /* ===== 年度热力盒子 ===== */
 /* ★A3（V3.8.35）段内卡片圆角统一 lg：热力盒与四段里的其它段内卡（`.lbox`）原是 md，
    同为「段内一级容器」却两档圆角 —— 横向扫下来节奏在全年段断了一下。 */
+/* V3.9.30：年度段压缩纵向节奏。编号与标题并入热力图自身页头，
+   外层不再重复同名分节标题与第二套色阶图例。 */
+#mod-year .pi-mod-h { padding: 18px 22px 0; }
+#mod-year .pi-mod-b { padding: 16px 22px 20px; gap: 12px; }
+#mod-year .pi-strip { gap: 6px; }
+#mod-year .pi-chip { height: 32px; padding: 0 12px; }
+#mod-year .pi-hair { margin: 0; }
 .pi-hmbox { background: transparent; border-radius: 0; padding: 0; }
 .pi-hmbox .dz-sec { border: 0; background: transparent; }
-.pi-hmbox .dz-sec-h { padding: 0 0 10px; }
+.pi-hmbox .dz-sec-h { padding: 0 0 7px; }
 .pi-hmbox .dz-sec-b { padding: 0; }
-.pi-hm-legend {
-  display: flex; align-items: center; gap: 5px; font-size: var(--fs-micro); color: var(--text-4);
-  margin-top: 12px; flex-wrap: wrap;
+.pi-hmbox .dz-year { min-width: 900px; gap: 7px; }
+.pi-hm-meta {
+  display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap;
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
+  font-size: var(--fs-micro); color: var(--text-3); font-variant-numeric: tabular-nums;
 }
-.pi-hm-legend .s { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
-.pi-hm-legend .hm-stats { margin-left: auto; font-variant-numeric: tabular-nums; }
-.pi-hm-legend .hm-stats b { color: var(--text-2); }
+.pi-hm-meta b { color: var(--text-2); font-weight: 600; }
 
 /* ★W12-B 底栏样式（.pi-endbar 及其 .tx 两级）随底栏整条删除一并退役：
    底栏原挂「只读纪律」免责文字 + 一枚「全部记录」，按用户 2026-10-13 拍板不留。
@@ -398,13 +405,6 @@
 .pi-chip.pi-rule-card.collapsed .ar { color: var(--text-2); }
 
 
-/* B1-c（V3.8.26）：年度热力图图例色阶 + 阈值入口（原 7 处模板内联样式）。
-   图例格子的底色只认 --heat-*，不写死色值，四主题自动跟随。 */
-.pi-hm-legend .s-h0 { background: var(--heat-0); }
-.pi-hm-legend .s-h1 { background: var(--heat-1); }
-.pi-hm-legend .s-h2 { background: var(--heat-2); }
-.pi-hm-legend .s-h3 { background: var(--heat-3); }
-.pi-hm-legend .s-h4 { background: var(--heat-4); }
-.pi-hm-legend .s-h5 { background: var(--heat-5); }
+/* B1-c（V3.8.26）：阈值入口保留；重复色阶图例已随 V3.9.30 年度段减法移除。 */
 .pi-lc-settings { margin-left: auto; }
 .pi-ai-insight { min-height: 28px; }

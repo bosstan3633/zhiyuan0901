@@ -53,28 +53,50 @@
 .dz-sum .k { font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dz-sum .d { display: none; }
 @media (max-width: 900px) { .dz-sum { grid-template-columns: repeat(2, 1fr); } }
-/* ★V3.9.21 单行全年：53 列周 × 7 行天（GitHub 贡献图口径）。
-   12 个月块退役——它把同一年的分布切成 12 个互不相邻的小日历，
-   跨月趋势要眼睛在 12 块之间来回跳；单行网格让「一年」真的是一行。
+/* ★12 个自然月分组：桌面端全年仍在一行内，月份之间保留独立间隔。
+   每月内部改为标准日历方向：星期为列、周为行，日期先向右再换行。
    容器名 .dz-months 保留（全年网格的语义锚，W7-2/W12-12 认这个名字）。 */
 .dz-months { display: flex; flex-direction: column; gap: 6px; }
-/* 第 1 行留给月份刻度，第 2..8 行才是 7 天。星期标签跨这 7 行，与日格逐行对齐。
-   V3.9.22：不再写死 12px；行高由列宽与 aspect-ratio 决定，标签行用 minmax(0,1fr) 跟齐。 */
-.dz-wk { grid-column: 1; grid-row: 2 / span 7; display: grid; grid-auto-rows: minmax(0, 1fr); gap: 3px; }
-.dz-wk span { font-size: var(--fs-micro); color: var(--text-4); line-height: 1; text-align: left; display: flex; align-items: center; }
-/* 只显示 一/四/日 三行标签（索引 1/4/7），其余隐藏但保留网格行（隐藏不会让日格错位） */
-.dz-wk span:nth-child(2), .dz-wk span:nth-child(3), .dz-wk span:nth-child(5), .dz-wk span:nth-child(6) { visibility: hidden; }
-.dz-year-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: thin; }
-.dz-year { display: grid; grid-auto-rows: auto; row-gap: 3px; column-gap: 3px; width: 100%; min-width: 0; }
-.dz-month-tick {
-  grid-row: 1; align-self: end; justify-self: start;
-  font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap;
-  padding-bottom: 2px; pointer-events: none;
+.dz-year-scroll {
+  position: relative;
 }
-/* 单行全年：格子宽度跟随网格列宽，方形由 aspect-ratio 保证。
+.dz-year-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: thin; }
+.dz-year {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(72px, 1fr));
+  align-items: start;
+  gap: 8px;
+  width: 100%;
+  min-width: 920px;
+}
+.dz-month { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dz-month-head { display: flex; align-items: center; gap: 4px; min-height: 12px; }
+.dz-month-tick {
+  font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap;
+  pointer-events: none;
+}
+.dz-month-today {
+  flex: none; padding: 0 4px; border-radius: 999px;
+  background: var(--accent-light); color: var(--accent-ink);
+  font-size: 9px; font-weight: 700; line-height: 14px; white-space: nowrap;
+}
+.dz-month-rule {
+  height: 1px;
+  flex: 1;
+  background: var(--border);
+  pointer-events: none;
+}
+.dz-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(5px, 1fr));
+  grid-auto-rows: auto;
+  gap: 1px;
+  width: 100%;
+}
+/* 月份分组：格子宽度跟随网格列宽，方形由 aspect-ratio 保证。
    V3.9.22 用户拍板：格子随宽度放大铺满（1440 下约 21px/格，高约 170px）；
    窄屏保底 10px 并允许容器横滚，避免挤成不可点的小点。 */
-.dz-year .dz-cell { width: 100%; height: auto; aspect-ratio: 1; min-width: 0; min-height: 10px; border-radius: 2px; }
+.dz-year .dz-cell { width: 100%; height: auto; aspect-ratio: 1; min-width: 0; min-height: 8px; border-radius: 2px; }
 .dz-year .dz-cell::after { inset: 0; border-radius: 2px; }
 .dz-year .dz-cell:hover { transform: scale(1.6); z-index: 3; }
 /* V3.9.15：日期格是触控目标，不只是色块。实际按钮至少 28×28，
@@ -91,11 +113,18 @@
 .dz-cell.l3 { background: var(--heat-3); }
 .dz-cell.l4 { background: var(--heat-4); }
 .dz-cell.l5 { background: var(--heat-5); }
-/* ★V3.8.7 补丁三：当日格子必须**看得见**。原样式在位但只有 1.5px text-2 描边，
-   在纸墨白（notion）底上 heat 色阶本身也浅 ⇒ 等于没有。改为 accent 2px 实环 + 轻微提亮，
-   且与「选中」态拉开距离（sel 是 offset 2px + accent-light 填充）。 */
-.dz-cell.today::after { outline: 2px solid var(--accent); outline-offset: 1px; }
-.dz-cell.today.l0 { background: var(--surface-3); }
+/* 今日必须一眼可见：色阶仍表达强度，今天由「内描边 + 中心点」单独表达，
+   不再依赖容易被浅色底吃掉的 outline。月份标题另给一枚「今天」标签。 */
+.dz-cell.today { z-index: 1; }
+.dz-cell.today::before {
+  content: "";
+  position: absolute; inset: 0; z-index: 2;
+  border: 1.5px solid var(--accent);
+  border-radius: 2px;
+  background: radial-gradient(circle, var(--accent) 0 1.3px, var(--surface) 1.6px 2.2px, transparent 2.4px);
+  pointer-events: none;
+}
+.dz-cell.today.l0 { background: color-mix(in srgb, var(--accent) 18%, var(--surface-3)); }
 /* 选中态：环 + 淡底，与 today 的「只有环」可区分（同在位时叠加也不糊） */
 .dz-cell.sel::after { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--accent-light); }
 /* ★V3.8.7 焦点契约 #4：调度台首屏的「近 26 周」概览条。
@@ -120,13 +149,19 @@
 .dz-mini-more:hover { border-color: var(--accent); color: var(--accent-ink); }
 /* ★V3.8.7 补丁三：原此处有一条 1.5px text-2 的弱 today 描边（真机实证在纸墨白底上等于没有），
    已由上方 .dz-cell.today 的 accent 2px 实环取代并整条删除——留两条同选择器规则等于暗病。 */
-.dz-legend { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
+.dz-legend { display: flex; align-items: center; gap: var(--sp-2); margin-top: 8px; flex-wrap: wrap; font-size: var(--fs-caption); color: var(--text-3); }
 .dz-legend .lvs { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
 .dz-legend .lv { display: flex; align-items: center; gap: 4px; cursor: help; }
 .dz-legend .sw { width: 13px; height: 13px; border-radius: 3px; display: inline-block; flex: none; }
 /* 「今天」图例项：与 .dz-cell.today 同款 accent 描边，视觉语言一致 */
 .dz-legend .today-key { cursor: default; }
-.dz-legend .today-key::before { content: ''; width: 13px; height: 13px; border-radius: 3px; background: var(--surface-3); outline: 2px solid var(--accent); outline-offset: 1px; flex: none; }
+.dz-legend .today-key::before {
+  content: ''; width: 13px; height: 13px; flex: none;
+  border: 1.5px solid var(--accent); border-radius: 3px;
+  background:
+    radial-gradient(circle, var(--accent) 0 1.5px, var(--surface) 1.8px 2.5px, transparent 2.7px),
+    color-mix(in srgb, var(--accent) 18%, var(--surface-3));
+}
 .dz-legend .note { margin-left: auto; text-align: right; line-height: 1.6; }
 .dz-legend .note b { color: var(--heat-ink); }
 .dz-empty { padding: var(--sp-5); text-align: center; color: var(--text-4); font-size: var(--fs-sub); }
@@ -192,6 +227,12 @@
 .dz-tl-row:last-of-type .dotcol::before { bottom: 50%; }
 .dz-tl-row .tl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); display: block; position: relative; z-index: 1; }
 .dz-tl-row .ac { flex: none; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+.dz-tl-row .tl-x {
+  flex: none; min-width: 24px; text-align: center; padding: 2px 5px;
+  border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-2); background: var(--surface-2);
+  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
 .dz-tl-row .kd { flex: none; font-size: 10px; color: var(--text-3); width: 28px; }
 .dz-tl-row .ti { flex: 1; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dz-tl-row .to { flex: none; font-size: 10px; color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 0 7px; }

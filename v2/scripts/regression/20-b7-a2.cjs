@@ -115,16 +115,16 @@ check(NAME(
 });
 
 check(NAME(
-  'A2-6 ★每个读数可悬停看口径（A2 验收原文）：画像页十八个读数格（段内 14 + 概览 4）逐一要有 title。',
+  'A2-6 ★每个读数可悬停看口径（A2 验收原文）：画像页二十个读数格（段内 16 + 概览 4）逐一要有 title。',
   '★口径纪律：格子的语义类可以留（钩子），但**语义类不是口径** —— 口径必须写在 title 里说清分子分母，',
-  '否则「80%」既不知道算什么，也不知道点进去看什么。负锚：段内语义格恰好 14 处、Hero 恰好 4 处，',
+  '否则「80%」既不知道算什么，也不知道点进去看什么。负锚：段内语义格恰好 16 处、Hero 恰好 4 处，',
   '与实际渲染数一一对应（多一处说明新增了读数没补口径，少一处说明被删了口径）。'), () => {
-  // 语义格 = 各段 strip4/指标行的 pi-chip（今日 4 / 本周 4 / 本月 4 / 全年 2）；
+  // 语义格 = 各段 strip4/指标行的 pi-chip（今日 4 / 本周 4 / 本月 4 / 全年 4）；
   // 概览四格走独立的 pi-ov-kpi 类，单独计。★两处都要 codeOnly，避免注释复述干扰计数。
   const body = [TODAY, RHY, MONTH, YEAR].map(codeOnly).join('\n');
   const cells = body.match(/<button class="pi-chip[^"]*"[^>]*title="/g) || [];
   const kpis = (codeOnly(OVERVIEW).match(/<button class="pi-ov-kpi[^"]*"[^>]*:title=/g) || []).length;
-  if (cells.length !== 14) { console.log('     段内语义格数 = ' + cells.length + '（应为 14）'); return false; }
+  if (cells.length !== 16) { console.log('     段内语义格数 = ' + cells.length + '（应为 16）'); return false; }
   if (kpis !== 4) { console.log('     概览 KPI 格数 = ' + kpis + '（应为 4）'); return false; }
   // 概览四格必须把分子分母说全：全库净资产=三类合计 / 熵=标签分布离散度 / 支撑=有支撑任务÷总数 / 落主攻=主攻动作÷总动作
   return OVERVIEW.includes('回收站不计')

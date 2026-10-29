@@ -12,12 +12,14 @@ defineProps<{
   en?: string
   desc?: string
   hover?: boolean
+  /** 旁路宿主只借用模块内容（如设置页的详情抽屉）时去掉卡面与标题。 */
+  bare?: boolean
 }>()
 </script>
 
 <template>
-  <div class="module-card" :class="{ hover: hover !== false }">
-    <div class="module-title" v-if="title || $slots.title || $slots.actions">
+  <div class="module-card" :class="{ hover: hover !== false, bare }">
+    <div class="module-title" v-if="!bare && (title || $slots.title || $slots.actions)">
       <span v-if="iconName" class="icon icon-line"><Icon :name="iconName" :size="17" /></span>
       <span v-else-if="icon" class="icon">{{ icon }}</span>
       <slot name="title">
@@ -46,6 +48,12 @@ defineProps<{
 .module-card.hover:hover {
   box-shadow: var(--shadow-hover);
 }
+.module-card.bare {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.module-card.bare .module-body { padding: 0; }
 .module-title {
   display: flex;
   align-items: center;

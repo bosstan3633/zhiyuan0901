@@ -142,7 +142,7 @@ export async function deleteAssetIfOrphan(id: string, selfCardId?: string): Prom
     const d = getData()
     const heldElsewhere = (arr: { id?: string; assets?: { id: string }[] }[] | undefined) =>
       (arr || []).some(c => c.id !== selfCardId && (c.assets || []).some(a => a?.id === id))
-    if (heldElsewhere(d.resources) || heldElsewhere(d.tasks) || heldElsewhere(d.curiosities)) return false
+    if (heldElsewhere(d.resources) || heldElsewhere(d.tasks) || heldElsewhere(d.curiosities) || heldElsewhere(d.argCards)) return false
   } catch { /* 仓库未加载（如 options 独立上下文）：按原语义直接删 */ }
   await deleteAsset(id)
   return true

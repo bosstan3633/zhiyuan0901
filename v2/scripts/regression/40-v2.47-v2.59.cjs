@@ -419,7 +419,11 @@ check('R83-6/R121 M3 项目卡头三读数 ★W11(V3.8.11)随迁带备案：读�
 });
 
 check('R83-7 ★性能红线 ★W11(V3.8.11)随迁带备案：方向台模板内不得逐项调 projectProgress / isProjectStalled，也不得在模板里 filter 任务。W11 更进一步：全部取数收进 compassMeta.ts 一次聚合成 Map，模板只做 O(1) 取值——本条改钉这条更强的口径。★V3.9.1 再随迁：指标任务桶扩为 `task.metricId / metric.taskIds` 双路单次建桶，仍不得在每个指标里各扫全表', () => {
-  const tpl = CT_W11.slice(CT_W11.indexOf('<template>'));
+  /* ★R181 随迁带备案：需求原文是"**模板内**不得逐项调 / 不得 filter 任务"，旧写法从 `<template>` 切到串尾
+     是个近似（拆分前脚本+模板+样式同文件、且脚本在模板之前，切到串尾≈只切到模板+样式）。宿主拆分后
+     逻辑成员追加在 `</style>` 之后会落进这个切片造成假红，故改切到 `</template>` —— 这才是"模板内"的字面口径，
+     判据意图（模板零逐项现算）一字未改。 */
+  const tpl = CT_W11.slice(CT_W11.indexOf('<template>'), CT_W11.indexOf('</template>'));
   /* 模板内零逐项调 */
   const noInline = !/projectProgress\(/.test(tpl) && !/isProjectStalled\(/.test(tpl);
   /* 模板内零 filter 任务（集中取数后不该再有） */
@@ -464,19 +468,22 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
     && !WS84.includes('wsHeadDescFallback')
     && body.includes('workspace.value?.desc');
 });
-check('R84-3 W1 页头 ≤56px（V3.9.13 重指：台身份与论点卡合并成同一上下文带，仍不许退回两条大横条）', () => {
+check('R84-3 W1 页头 ≤40px（V3.9.30 重指：台身份标题行保持 ≤40px；中心论点独占下一层全宽舞台，页头三层共处连续 10px 节奏）', () => {
   const c = read('/newtab/views/workspace.css');
-  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 220px;[^}]*max-width: 38%;[^}]*min-height: 52px;[^}]*max-height: 56px;/.test(c)
-    && /\.ws-hero \{[^}]*display: flex;[^}]*align-items: stretch;[^}]*gap: 14px;[^}]*padding-left: 22px;/.test(c);
+  return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 36px;[^}]*max-height: 40px;/.test(c)
+    && !/\.ws-id-head \{[^}]*min-width: 220px;/.test(c)
+    && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
+    && /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 10px;[^}]*padding-left: 22px;/.test(c);
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')
     && WS84.includes('class="ws-id-head"');
 });
-check('R84-5（V3.9.8 随迁备案）论点横幅两态：已设 → 标题 + 论点卡详情入口；未设 → 轻引导 + 确立按钮。旧“查看金字塔”随四视图退役，能力改由常驻画布承接', () => {
+check('R84-5（V3.9.30 重指）论点横幅两态：已设 → 标题 + 点击查看论点详情；未设 → 单行轻引导 + 文本式开始提示。整卡仍可点击，旧“查看金字塔”不回流', () => {
   return BANNER_TPL.includes('class="tb-title"')
-    && BANNER_TPL.includes('class="tb-open"') && BANNER_TPL.includes('论点卡详情')
-    && BANNER_TPL.includes('class="tb-hint"') && BANNER_TPL.includes('＋ 点击确立本策展台的 L1 中心论点')
+    && BANNER_TPL.includes('class="tb-open"') && BANNER_TPL.includes('点击查看论点详情')
+    && BANNER_TPL.includes('class="tb-hint"') && BANNER_TPL.includes('点击确立本策展台的')
+    && BANNER_TPL.includes('class="tb-btn"') && !BANNER_TPL.includes('<button class="tb-btn"')
     && BANNER_TPL.includes("openThesisCard()") && BANNER_TPL.includes('openThesisCreate()')
     && !BANNER_TPL.includes("setViewMode('pyramid')");
 });
@@ -785,17 +792,19 @@ check('R88-6（V3.9.8 随迁备案）批量开关常驻资源池控制行：批�
     && pool.includes('@invert="invertSel"')
     && !WS88_TPL.includes('toggleBatchMode');
 });
-check('R88-7（V3.9.9 重指）双入口各守其责：⚙ 内导入 JSON 备份（全库合并）；一级工具栏导入成果 HTML（新台或合并）并分享成果', () => {
+check('R88-7（V3.9.29 重指）双入口各守其责：⚙ 内导入 JSON 备份（全库合并）；一级工具栏「导入」菜单承接成果 HTML 与模板，并保留分享成果', () => {
   return SM88.includes('@click="openImport"') && /<Icon name="download"[^>]*\/> 导入 JSON 备份/.test(SM88) && !SM88.includes("isHub ? '⬇ 导入资源'")
-    && /<Icon name="download"[^>]*\/> 导入成果 HTML/.test(WS88) && /<Icon name="share"[^>]*\/> 分享成果/.test(WS88)
+    && WS88.includes('class="cur-import"') && WS88.includes('<b>导入成果 HTML</b>') && WS88.includes('<b>导入模板</b>')
+    && /<Icon name="share"[^>]*\/> 分享成果/.test(WS88)
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（V3.9.9 随迁备案）策展画布主色稀缺：建支改由节点键盘触发后，一级工具条零 primary；导入成果 HTML / 分享成果为 ghost 次级，导入模板与设置保持 settings 次级；旧资源池批量与建支 CTA 不回流', () => {
-  return (TB1_88.match(/hero-btn primary/g) || []).length === 0
+check('R88-8（V3.9.29 重指）策展画布主行动唯一：分享成果恢复为行尾 primary；导入折叠为单个 ghost 菜单触发器，设置保持次级；旧资源池批量与建支 CTA 不回流', () => {
+  return (TB1_88.match(/hero-btn primary/g) || []).length === 1
     && !TB1_88.includes("mind.createChild('root')")
-    && (TB1_88.match(/hero-btn ghost/g) || []).length === 2
-    && /<Icon name="download"[^>]*\/> 导入成果 HTML/.test(TB1_88)
+    && (TB1_88.match(/hero-btn ghost/g) || []).length === 1
+    && TB1_88.includes('class="hero-btn ghost cur-import-trigger"')
+    && TB1_88.includes('<b>导入成果 HTML</b>')
     && /<Icon name="share"[^>]*\/> 分享成果/.test(TB1_88)
     && !TB1_88.includes('openNewArgument')
     && !TB1_88.includes('batchMode');

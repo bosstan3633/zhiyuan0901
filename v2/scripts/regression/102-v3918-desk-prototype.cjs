@@ -74,16 +74,14 @@ check('D18-4 ★右栏状态读数改「今日入台 / 今日调出 / 未归档�
     && !CH.includes('class="stat-focus-item"');
 });
 
-check('D18-5 ★好奇心培育面板（右栏第三块）：最近 3 条好奇心（复用 previewCuriosities 前 3，点击进卡池定位）；「转为任务」留在好奇心卡池（CuriosityPanel 既有能力），面板脚注写明好奇与资源互不挂载、转任务沿六层链归位——面板本身不提供挂载动作', () => {
-  return CH.includes('class="curio-panel"')
-    && CH_C.includes('const nurtureCuriosities = computed<CuriosityCard[]>(() => previewCuriosities.value.slice(0, 3))')
-    && CH.includes('aria-label="好奇心培育"')
-    && CH.includes('好奇心培育')
-    && CH_C.includes('好奇与资源互不挂载')
-    && CH_C.includes('「转为任务」在卡池内操作')
-    && CH.includes('@click="openCurioPreview(c)"')
-    /* 独立类名：不进 rail-panel 等高机制、不占 mini-list×3 计数锚（这两条由样式注释备案） */
-    && !CH.includes('class="rail-panel curio-panel"');
+check('D18-5 ★V3.9.23 右栏收口：删除“好奇心培育”第三块；左栏好奇心页签与卡池能力保留，右栏只留今天的状态 / 最近调出', () => {
+  return !CH.includes('class="curio-panel"')
+    && !CH_C.includes('nurtureCuriosities')
+    && CH.includes('aria-label="手边的卡类型"')
+    && CH.includes("handTab = 'curiosity'")
+    && CH.includes('@click="goDeck(\'curiosity\')"')
+    && CH.includes('rail-panel rail-panel-recent desk-row desk-row-secondary')
+    && !CH.includes('useEqualHeight');
 });
 
 check('D18-6 ★密度令牌接通（04-73 D-1(a)）：主栏行卡内距读 --card-pad-vert / --card-pad-horz、行距读 --card-gap——紧凑密度开关在调度台真实生效；R50-4/R52-6/R56-6 的原字符串锚原样保留（保护性双锚，gap 单列一条不覆盖首行）', () => {
@@ -96,12 +94,12 @@ check('D18-6 ★密度令牌接通（04-73 D-1(a)）：主栏行卡内距读 --c
     && CH.includes('.mini-item') && CH.includes('padding: var(--card-pad-vert) 10px;');
 });
 
-check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'；入台明细按创建时间倒序列三类卡（好奇心行只读无动作），调出明细带最近时刻与累计次数；note 明示两套口径不冒充同源', () => {
+check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'；入台明细按创建时间倒序列三类卡（好奇心行只读无动作），调出明细带最近时刻、今日操作次数与累计次数；note 明示两套口径不冒充同源', () => {
   return SM.includes("export type StatusDetailKey = 'focus' | 'unarchived' | 'reuse' | 'in' | 'out'")
     && CH.includes("in: '今日入台明细', out: '今日调出明细'")
     && CH.includes('两者不冒充同源')
     && CH_C.includes('rows.sort((a, b) => b.ts - a.ts).map(x => x.item)')
-    && CH_C.includes('meta: `最近 ${fmtRecentTime(r.lastCalledAt)}`')
+    && CH_C.includes('meta: `最近 ${fmtRecentTime(r.lastCalledAt)} · 今日操作 ${todayCallCounts.value.get(r.id) || 0} 次`')
     && CH_C.includes('extra: `累计 ${r.callCount || 0} 次`');
 });
 

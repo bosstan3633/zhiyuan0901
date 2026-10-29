@@ -8,8 +8,11 @@ const { check, codeOnly, CT_W11, SPINE, PANEL, path, fs, SCRIPTS_DIR } = require
 const READ = (p) => codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, '..', p), 'utf8'));
 const RAW = (p) => fs.readFileSync(path.join(SCRIPTS_DIR, '..', p), 'utf8');
 const LIST = READ('src/newtab/components/compass/CompassLayerList.vue');
-const HOME = READ('src/newtab/views/CompassHome.vue');
-const HOME_RAW = RAW('src/newtab/views/CompassHome.vue');
+/* ★R181 随迁带备案：调度台首页的域逻辑下沉 useCompassHome.ts，判据读的"首页这一面"= 宿主 + 该 composable。
+   本片仍守 fs 直读纪律（READ 就是 codeOnly 直读）。负锚（tc-subs / sub* 残留）跨两文件一起扫，只会更严不会更松。 */
+const HOME = READ('src/newtab/views/CompassHome.vue') + '\n' + READ('src/newtab/views/useCompassHome.ts');
+/* ★R181 随迁带备案：备案注释（"tc-subs 模板块一并退役"）随域逻辑下沉 useCompassHome.ts，故 RAW 面同 HOME 一起含该 composable。 */
+const HOME_RAW = RAW('src/newtab/views/CompassHome.vue') + '\n' + RAW('src/newtab/views/useCompassHome.ts');
 
 console.log('【V3.8.22 · 批一 P5/F6/F7 三项界面调整】');
 
@@ -36,7 +39,7 @@ check('G6-1 ★方向台 F6 读数行与工具常驻（用户拍板 2026-10-16�
 });
 
 // ────────────────────────── F7 骨架 3/5/6 层级专属列表 ──────────────────────────
-check('G7-1 ★骨架第 3/5/6 层必须是「层级专属列表视图」而不是"定位到一条 + toast"（F7，用户拍板 2026-10-16）：点第 6 层的预期是看到全部任务，旧行为只滚到第一条 —— "定位到一条"和"看到全部"差一个数量级。判据钉：① layerView 状态三态 3|5|6 + spine 路由（1/2 面板 / 4 定位 / 3、5、6 列表）② 三态列表模板互斥占位（CompassLayerList v-if ↔ Pano/tower v-else-if 链 = 打开列表整体切换、关闭即恢复 viewMode 记忆）③ 双回程（同层再点 + ✕ 返回）④ 行内能力迁移（第 3 层点行过滤 onDirFilter · 第 5/6 层行内定位 onListLocate → gotoTower）⑤ 第 4 层定位保留（onLocateLayer lv:4 + ensureTower）⑥ 第 1/2 层面板保留（CompassLayerPanel 仍在、layerOpen 1|2）。负锚：定位旧形态 .metric-card/.tk-row 首条 flash 的分支不许回流', () => {
+check('G7-1 ★骨架第 3/5/6 层必须是「层级专属列表视图」而不是"定位到一条 + toast"（F7）：点第 6 层先看到全部任务。★V3.9.25 行内定位改为进入所属项目的项目全景并高亮目标，守的「看到全部 + 能精确落点 + 双回程」不变。判据：① layerView 三态 3|5|6 + spine 路由 ② 三态列表互斥占位 ③ 同层再点与关闭双回程 ④ 第 3 层过滤、第 5/6 层全景定位 ⑤ 第 4 层定位保留 ⑥ 第 1/2 层面板保留。负锚：旧形态 .metric-card/.tk-row 首条 flash 不许回流', () => {
   const t = codeOnly(CT_W11)
   const s = codeOnly(SPINE)
   return t.includes('const layerView = ref<3 | 5 | 6 | null>(null)')

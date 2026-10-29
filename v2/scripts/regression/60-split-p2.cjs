@@ -61,7 +61,7 @@ console.log('【第一百零五轮 · V2.74.0：P2 收官（B4 + C3 + D3 + E2 + 
  *  直达锚点自动展开）；C3 浮层字号阶梯（文本档全走 --zy-fs-*，输入态 16-17px 保留）；D3 重复卡
  *  确认视图加「仍然新建一张」（整屏例外不变）；E2 策展台 >5 页签收起「≪ N」hover 展开（活动台
  *  恒可见）；W10 搜索纳入 link（两台与浮层范围统一，拍板按提案原文）。 */
-check('R105-1 B4（V3.9.1 重指）手边三卡预览：任务卡 / 好奇心卡 / 资源卡三列在位，查看全部进入独立二级页，旧 tab 挂载状态退役', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="hand-board"') && h.includes('class="hand-grid"') && h.includes('好奇心卡') && h.includes('任务卡') && h.includes('资源卡') && h.includes("goDeck('task')") && h.includes("goDeck('curiosity')") && h.includes("goDeck('resource')") && !h.includes('curioMounted'); });
+check('R105-1 B4（V3.9.24 重指）手边三卡预览：任务卡 / 好奇心卡 / 资源卡三列在位，查看全部进入独立二级页，旧 tab 挂载状态退役', () => { const h = read('/newtab/views/CompassHome.vue'); return /class="[^"]*\bhand-board\b/.test(h) && h.includes('class="hand-grid"') && h.includes('好奇心卡') && h.includes('任务卡') && h.includes('资源卡') && h.includes("goDeck('task')") && h.includes("goDeck('curiosity')") && h.includes("goDeck('resource')") && !h.includes('curioMounted'); });
 check('R105-2 C3 浮层字号阶梯：--zy-fs-2xs/xs/sm/md/lg 五档定义 + 文本档字面量归并（10-14px 零命中）+ 输入态 17px 保留', () => {
   return OV105.includes('--zy-fs-2xs:10.5px;--zy-fs-xs:11px;--zy-fs-sm:12px;--zy-fs-md:13px;--zy-fs-lg:14px;')
     && !/font-size:1[0-4](\.\d)?px/.test(OV105)
@@ -167,7 +167,8 @@ check('R100-1 ★ 导入域拆分不变量（★R4-Db 重指带备案：书签�
     && WSP100.includes('handleBoardImport')
     && DM100.includes("await import('@/newtab/composables/useBookmarkImport')")
     && DM100.includes('useBookmarkImport({ d: gd, persist: () => store.persist() })')
-    && DM100.includes('await api.handleBookmarkImport(fakeEvent, bookmarkTargetWs.value)')
+    && DM100.includes('await api.handleBookmarkImport(fakeEvent)')
+    && !DM100.includes('bookmarkTargetWs')
     && !WSP100.includes('function parseBookmarksHtml') && !WSP100.includes('function ensureBookmarkCategory')
     && !WSP100.includes('async function handleFileImport(')
     && !GS100.includes('function parseBookmarksHtml') && !GS100.includes('interface BkNode')
@@ -226,14 +227,16 @@ check('R108-3 ★ goal 写入链：任务双挂（projectId+metricId+taskIds 回
     /* ★W11 随迁带备案：发起端 v-for 变量名由 dir 变 dg（.dir-head 落在 v-for="dg in towerGroups" 内） */
     && CT_ALL.includes('openGoalImport(dg.dir)');
 });
-check('R108-4（V3.9.8 随迁）pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 200 节点上限 + 导入后回到画布根节点', () => {
+check('R108-4（V3.9.29 重指）pyramid 写入链：论点卡+setThesis（本台未设时）+ 分类同父同名复用 + 200 节点上限 + 导入后回到画布根节点；模板入口收进导入菜单', () => {
   return WSP108.includes('function confirmPyramidImport(payload: { pyramid?: PyramidParseResult })')
     && WSP108.includes('setThesis(d.value, workspaceId.value, card.id)')
     && WSP108.includes('const found = d.value.categories.find(c => c.workspaceId === workspaceId.value && !c.deletedAt && (c.parentId || undefined) === parentId && c.name === name') // R109 重指：同父同名复用排除软删分类
     && WSP108.includes('if (nodeTotal > 200) { showToast(\'⚠ 单次导入建议不超过 200 个节点——请分批导入\'); return }')
     && WSP108.includes("pyramidImportOpen.value = false") && WSP108.includes("mind.selectedId.value = 'root'")
-    // R113-N4：入口从 ⚙ 溢出菜单提到一级工具条，文案缩短为「📋 导入模板」
-    && WSP108.includes('📋 导入模板') && WSP108.includes('@click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>');
+    // V3.9.29：模板仍是一级可达，但收进「导入」菜单，避免行动条平铺两个导入按钮。
+    && WSP108.includes('<b>导入模板</b>')
+    && WSP108.includes('function importPyramidTemplateFromMenu()')
+    && WSP108.includes('pyramidImportOpen.value = true');
 });
 check('R108-5 F10 页边距统一：ws-page 1440 居中 + topbar 三档（align-ws 退役）', () => {
   return WSP108.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }')
@@ -313,7 +316,7 @@ console.log('【第 110 轮 · V2.79.0：LC + BUG-1/BUG-2 + FS】');
 // ---- BUG-1：资源台镜像脏数据 ----
 check('R110-B1-1 ★ 镜像净化函数：scrubHubMirrorMarkers（幂等剥离 __mirrorProjId/__mirrorCat + 清除 targetWsId 指向资源台的投射记录）', () => { const h = read('/shared/storage/hub.ts'); return h.includes('export function scrubHubMirrorMarkers(d: AppData): number') && h.includes("'__mirrorProjId' in r") && h.includes("'__mirrorCat' in r") && h.includes('p.targetWsId !== CURATION_WS_ID'); });
 check('R110-B1-2 ★ 红线兜底：curationMetrics 对 hub 台镜像计数恒 0（不再依赖「数据一定干净」）', () => { const h = read('/shared/storage/hub.ts'); return h.includes('const isHub = isHubWs(d.workspaces.find(w => w.id === wsId))') && h.includes('if (isMirrorView(r) && !isHub) mirrored++') && h.includes('if (!isMirrorView(r) || isHub) native++'); });
-check('R110-B1-3（R122 重指）★ 启动期接线保留；hub 提示格退役（分类数转入页头描述，无「待清理」分支）', () => { const r = read('/shared/storage/repository.ts'); const w = read('/newtab/views/Workspace.vue'); return r.includes("import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'") && r.includes('try { scrubHubMirrorMarkers(data) } catch { /* noop */ }') && !w.includes('hubCountHint') && w.includes('{{ categories.length }} 个分类') && !w.includes('待清理'); });
+check('R110-B1-3（V3.9.30 重指）★ 启动期接线保留；hub 提示格退役（分类 / 论据卡 / 附件读数转入连续页头，无「待清理」分支）', () => { const r = read('/shared/storage/repository.ts'); const w = read('/newtab/views/Workspace.vue'); return r.includes("import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'") && r.includes('try { scrubHubMirrorMarkers(data) } catch { /* noop */ }') && !w.includes('hubCountHint') && w.includes('<b>{{ categories.length }}</b> 个分类') && w.includes('论据卡 <b>{{ metrics.total }}</b>') && !w.includes('待清理'); });
 // ---- BUG-2：附件明细跳卡 / 孤儿清理 ----
 check('R110-B2-1 ★ 附件行三态：cardExists 判定 + 本体缺失（IndexedDB 只读索引）+ 孤儿本体清单', () => { const o = read('/newtab/components/CurationDrillDrawer.vue'); return o.includes('cardExists: (cardId: string) => boolean') && o.includes('referencedAssetIds: string[]') && o.includes('getAllAssetIds') && o.includes("type AssetRowState = 'ok' | 'missing' | 'orphan'") && o.includes('orphanAssetIds'); });
 check('R110-B2-2 ★ 点击行 = 定位来源卡：本台高亮 / 跨台定位（★R4-De 重指带备案：原判据逐字钉 query 字面量 `{ hl: cardId }`，并默认跨台一定走 `/workspace/<id>`——而 R179 之后资源卡真身在隐藏池，池卡的跨台兜底若照旧直拼就会落「策展台不存在」死页。锚点跟着实现搬到共用算式 resourceLocateRoute 的调用上，口径不降反升：现在既钉住 hl=cardId 仍在 query 里，又钉住落点必须由算式算、不许再手拼路径字面量）', () => { const o = read('/newtab/components/CurationDrillDrawer.vue'); const w = read('/newtab/views/Workspace.vue'); return o.includes("emit('locate-asset', row.cardId)") && w.includes('function onDrillLocateAsset') && w.includes('query: { ...fb.query, hl: cardId }') && w.includes('resourceLocateRoute(r.workspaceId)') && !w.includes("path: `/workspace/${r.workspaceId}`"); });

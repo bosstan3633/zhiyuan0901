@@ -243,7 +243,7 @@ check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成�
   return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
 });
 check('R94-6（V3.9.1 重指）B3：完成态挂在 .work-board.all-done 上，整张工作单轻降饱和，仍低饱和 + 安静收束', () => {
-  return CH94.includes('class="work-board" :class="{ \'all-done\': focusAllDone }"')
+  return /class="work-board[^"]*"\s+:class="\{ 'all-done': focusAllDone \}"/.test(CH94)
     && /\.work-board\.all-done \{[^}]*background: color-mix/.test(CH94)
     && !CH94.includes('.today-cards { filter: saturate');
 });
@@ -358,8 +358,10 @@ check('R98-1（V3.9.8 随迁）层级密度控制换轨：旧 pyFold 三档退�
 check('R98-2 W8 策展台指标条（V3.9.10 重指）：旧 5/3 格条退役，来源构成零命中；读数收进单行工具条，最近更新仍保留页头流水下钻', () => {
   return read('/newtab/views/workspace.css').includes('.cur-metrics {')
     && !WS98.includes('🔀 来源构成')
-    && WS98.includes("class=\"wsh-upd\" v-pressable title=\"查看最近更新流水\" @click.stop=\"openDrill('recent')\"")
-    && WS98.includes('· 更新 {{ lastUpdateText }}');
+    && WS98.includes('class="wsh-upd"')
+    && WS98.includes('title="查看最近更新流水"')
+    && WS98.includes("@click.stop=\"openDrill('recent')\"")
+    && WS98.includes('· 更新于 <b>{{ lastUpdateText }}</b>');
 });
 check('R98-3（V3.9.23 随迁）子分类数从分组标题迁到节点原位：每个节点直接显示直属资源数，节点内资源卡全量穷尽呈现，子节点由递归结构呈现', () => {
   const n = read('/newtab/components/curation/CurationMindNode.vue');

@@ -6,6 +6,7 @@ import { transform as transformCss } from 'lightningcss'
 import { fileURLToPath, URL } from 'node:url'
 import fs from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
 import manifest from './src/manifest'
 
 /**
@@ -80,8 +81,107 @@ function compactBuildArtifacts() {
   }
 }
 
+/**
+ * 手册正文是运行时直接交给 v-html 的静态 HTML。Vite/Terser 只会压缩 JS 语法，
+ * 不会碰模板字符串里的缩进和纯标签间空白，于是约 37KB 的正文把无意义排版原样带进安装包。
+ * 本插件只在构建期压缩这些 HTML 文本（不改源文件、不删正文），开发态与回归仍读可维护的源稿。
+ */
+function compactManualHtmlData() {
+  let build = false
+  const compact = (html: string): string => html
+    .replace(/^[\r\n]+\s*/, '')
+    .replace(/\s*[\r\n]+$/, '')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/^[ \t]+/gm, '')
+    .replace(/>[\t\r\n ]+</g, '><')
+    .replace(/\n{3,}/g, '\n\n')
+
+  return {
+    name: 'compact-manual-html-data',
+    enforce: 'pre' as const,
+    configResolved(config: { command: string }) {
+      build = config.command === 'build'
+    },
+    transform(code: string, id: string) {
+      if (!build || !id.replace(/\\/g, '/').endsWith('/src/newtab/manual-data.ts')) return null
+      let changed = 0
+      const out = code.replace(/(\bhtml:\s*`)([\s\S]*?)(`\s*\})/g, (_match, open: string, html: string, close: string) => {
+        const next = compact(html)
+        if (next !== html) changed++
+        return open + next + close
+      })
+      if (!changed) return null
+      console.log(`  [compact-manual-html-data] 压缩 ${changed} 段手册 HTML（仅构建产物）`)
+      return { code: out, map: null }
+    }
+  }
+}
+
+/**
+ * 更新日志保留全部历史，但对象字面量会在 193 个版本里重复写入
+ * version/date/title/points/kinds 五组键名。构建期把数组收成位置元组，再在运行时映射回
+ * 同一 ChangelogEntry 形状；源文件仍然是逐字段可审的可读格式，历史内容一条不删。
+ */
+function compactChangelogData() {
+  let build = false
+  return {
+    name: 'compact-changelog-data',
+    enforce: 'pre' as const,
+    configResolved(config: { command: string }) {
+      build = config.command === 'build'
+    },
+    transform(code: string, id: string) {
+      const rel = id.replace(/\\/g, '/')
+      if (!build || !/(?:entries-v2|entries-v3)\.ts$/.test(rel)) return null
+      const sf = ts.createSourceFile(rel, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+      let target: ts.ArrayLiteralExpression | null = null
+      const visit = (node: ts.Node) => {
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
+          && (node.name.text === 'CHANGELOG_V2' || node.name.text === 'CHANGELOG_V3')
+          && node.initializer && ts.isArrayLiteralExpression(node.initializer)) {
+          target = node.initializer
+          return
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      if (!target) return null
+      const rows: string[] = []
+      for (const element of target.elements) {
+        if (!ts.isObjectLiteralExpression(element)) return null
+        const fields: Record<string, string> = {}
+        for (const prop of element.properties) {
+          if (!ts.isPropertyAssignment(prop)) return null
+          const key = prop.name.getText(sf).replace(/^['"]|['"]$/g, '')
+          fields[key] = prop.initializer.getText(sf)
+        }
+        if (!fields.version || !fields.date || !fields.title || !fields.points) return null
+        rows.push(`[${fields.version},${fields.date},${fields.title},${fields.points}${fields.kinds ? ',' + fields.kinds : ''}]`)
+      }
+      const replacement = `([
+${rows.join(',\n')}
+] as const).map(([version, date, title, points, kinds]) => ({ version, date, title, points, kinds })) as ChangelogEntry[]`
+      const start = target.getStart(sf)
+      const end = target.getEnd()
+      console.log(`  [compact-changelog-data] ${path.basename(rel)}：${rows.length} 条历史改为紧凑元组（仅构建产物）`)
+      return {
+        code: code.slice(0, start) + replacement + code.slice(end),
+        map: null
+      }
+    }
+  }
+}
+
 export default defineConfig({
-  plugins: [vue(), crx({ manifest }), UnoCSS(), fixContentDynamicImports(), compactBuildArtifacts()],
+  plugins: [
+    compactManualHtmlData(),
+    compactChangelogData(),
+    vue(),
+    crx({ manifest }),
+    UnoCSS(),
+    fixContentDynamicImports(),
+    compactBuildArtifacts()
+  ],
   // 全项目均为 <script setup> / 组合式 API，Options API 合并与运行时代理分支
   // 可以安全裁掉；这是 Vue 官方支持的编译期能力开关，不改变业务行为。
   define: {

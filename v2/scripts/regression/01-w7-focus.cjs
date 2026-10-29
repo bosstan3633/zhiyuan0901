@@ -9,7 +9,7 @@ const {
 
 // ============== W7（V3.8.7）调度台视觉焦点契约 ==============
 console.log('【W7 · 调度台焦点契约】');
-check('W7-1 ★V3.9.1 随迁备案：今日三件事仍是首屏唯一主体 —— 页面标题承担 display 级视觉焦点，工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。本条继续守「首屏只有一个主角」，只把锚点从旧三张卡迁到现役两栏工作台', () => {
+check('W7-1 ★V3.9.25 随迁备案：今日三件事仍是首屏唯一主体 —— 页面标题承担 display 级视觉焦点，工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。左右列仍按模块边界、18px 间距与底轨对齐，不改变主次层级', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   /* 主角：唯一 display + 重框 */
@@ -21,7 +21,10 @@ check('W7-1 ★V3.9.1 随迁备案：今日三件事仍是首屏唯一主体 —
     && ch.includes('.row-check::before') && ch.includes('width: 20px;')
     /* 次级层：手边卡降为 shadow-sm，侧栏只做案头信息 */
     && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--shadow-sm);')
-    && ch.includes('.hand-board { margin-top: 18px; }')
+    && ch.includes('.desk-layout {\n  display: grid;')
+    && ch.includes('.desk-status-rail { position: relative; z-index: 0; }')
+    && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(ch)
+    && ch.includes('.hand-board { margin-top: 0; }')
     && css.includes('.dz-sec-h .dz-t { font-size: var(--fs-title);')
     /* ★负锚：旧三张卡不得把主角形态带回来，侧栏也不许用重框 */
     && !ch.includes('.card.focus {') && !ch.includes('.today-card {')
@@ -99,16 +102,20 @@ check('W7-4 ★展开态不许被四枚指标抢焦点（用户 2026-10-12 真�
     && css.includes('padding: 2px 4px; background: transparent;')
     && css.includes('.dz-sum .tx { display: flex; align-items: baseline; gap: 5px; min-width: 0; }');
 });
-check('W7-5 ★当日格子必须**看得见**且可被一眼认出：.dz-cell.today 用 accent 2px 实环（真机实证原1.5px text-2 描边在纸墨白底上等于没有）+ 选中态改 accent-light 填充 + offset 2px 与 today 可区分 + 图例补「今天」说明那一圈是什么（高亮若没说明，用户不知道该看哪格）', () => {
+check('W7-5（V3.9.30 重指）★当日格子必须**看得见**且可被一眼认出：accent 内描边 + 中心点 + 月份「今天」标签 + aria-current，选中态仍用 accent-light 填充与 offset 2px 区分；图例继续解释今日标记', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
-  return css.includes('.dz-cell.today::after { outline: 2px solid var(--accent); outline-offset: 1px; }')
+  return css.includes('.dz-cell.today::before {')
+    && css.includes('border: 1.5px solid var(--accent);')
+    && css.includes('radial-gradient(circle, var(--accent) 0 1.3px')
     /* 负锚：原来那条弱描边不许复活 */
     && !css.includes('.dz-cell.today { outline: 1.5px solid var(--text-2);')
     /* today 与 sel 必须可区分（同在位时不糊）：sel 多一层 accent-light 填充 + offset 2px */
     && css.includes('.dz-cell.sel::after { outline: 2px solid var(--accent); outline-offset: 2px; background: var(--accent-light); }')
     /* 模板侧：today 类名确实由 months 计算产出并落到格子 class 上 */
     && hm.includes("if (k === today.value) cls.push('today')")
+    && hm.includes(":aria-current=\"c.k === today ? 'date' : undefined\"")
+    && hm.includes('class="dz-month-today"')
     /* 图例项在位（正锚吃 codeOnly：模板原文） */
     && hm.includes('class="lv today-key"') && hm.includes('今天</span>')
     && css.includes('.dz-legend .today-key::before');

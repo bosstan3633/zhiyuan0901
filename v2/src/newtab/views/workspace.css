@@ -9,34 +9,70 @@
 /* R123（要求 #4）：页头更紧凑——16px 标题 / 30~36px 高 */
 /* R131-N1：页头缩进 22px 对齐三台 .page-head 的 padding-left:22px——主界面标题在 36+22=58px，
    资源台此前贴 36px 渲染，标题比调度台/方向台偏左 22px（用户截图实证） */
-.ws-hero { display: flex; align-items: stretch; gap: 14px; padding-left: 22px; min-width: 0; }
-.ws-id-head { display: flex; align-items: center; gap: 8px; min-width: 220px; max-width: 38%; min-height: 52px; max-height: 56px; padding: 4px 2px 4px 0; overflow: hidden; }
-.wsh-icon { flex-shrink: 0; font-size: 16px; line-height: 1; }
+/* V3.9.30：三层共处一个连续页头；不再把行动条漂在页头之外。 */
+.ws-head { display: flex; flex-direction: column; gap: 10px; padding-left: 22px; min-width: 0; }
+/* V3.9.28：台身份回到 ≤40px 的紧凑读数行；图标收进 accent 淡底方片，台名回到 19px 页头字阶。 */
+.ws-id-head { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 36px; max-height: 40px; padding: 2px 2px 2px 0; overflow: hidden; }
+.wsh-icon {
+  width: 20px; height: 20px; flex-shrink: 0;
+  display: inline-grid; place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 6px;
+  background: var(--accent-light);
+  color: var(--accent-ink);
+  font-size: 12px; line-height: 1;
+}
 /* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
    不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */
-.wsh-name { flex-shrink: 0; font-size: 16px; letter-spacing: .2px; font-weight: 700; color: var(--text); }
-.wsh-desc { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wsh-name { flex-shrink: 0; font-size: 19px; line-height: 23px; letter-spacing: -.2px; font-weight: 600; color: var(--text); }
+.wsh-desc { flex: 1; min-width: 0; padding-left: 10px; border-left: 1px solid var(--border); font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ★W3（V3.8.34）：分类数 / 镜像数 / 更新流水这一行是"读数"，不是标题——降到 caption 档。
    页头一行可忽略但不缺失：台名仍是 headline 档的 b 标签（.wsh-name 16px 属既有 R123 口径，本批不动），
    计数只报量不抢眼；「更新」入口的 tooltip 保留（原已有 title="查看最近更新流水"）。 */
 .wsh-summary { flex-shrink: 0; margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; }
+.wsh-summary b { color: var(--text-2); font-weight: 600; font-variant-numeric: tabular-nums; }
 /* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
 .wsh-upd { cursor: pointer; }
 .wsh-upd:hover { color: var(--accent); }
-/* ★W5（V3.8.34）：论点横幅是默认视图就能看到的题眼（.py-root-card 只在金字塔视图出现），
-   所以竖条与字阶两处都落：竖条 inset 3px 内画（同 .py-root-card，不与已有 accent 描边叠成双线），
-   标题 14px → headline 档。徽标仍在前端留白处，竖条贴着卡内缘 3px 不与之抢位。 */
-.thesis-banner { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 10px; padding: 9px 13px; background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent) 4%, var(--surface)) 100%); border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-md); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 6%, transparent), inset 3px 0 0 var(--accent); }
-.thesis-banner.empty { background: var(--surface-2); border-color: var(--border); box-shadow: none; }
-.tb-badge { flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; letter-spacing: .03em; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 4px; }
-.tb-badge.gray { color: var(--text-3); background: var(--surface-3); }
-.tb-title { flex: 0 1 auto; min-width: 96px; max-width: 42%; font-size: var(--fs-headline); font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; letter-spacing: -.01em; }
+/* V3.9.29：中心论点按审核原型恢复为“镇台主舞台”——大留白、轻渐变、无左侧色条，
+   让论点标题成为页头唯一主句；整卡只负责打开详情，不在卡内再造动作入口。 */
+.thesis-banner {
+  display: flex; min-width: 0; align-items: stretch;
+  padding: 18px 20px 16px;
+  background:
+    radial-gradient(600px 160px at 12% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  transition: border-color var(--dur), box-shadow var(--dur);
+  cursor: pointer;
+}
+.thesis-banner:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong)); }
+.thesis-banner.empty {
+  min-height: 42px; align-items: center;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.thesis-banner.empty:hover { border-color: var(--border-strong); }
+.tb-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.tb-kicker { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--accent-ink); font-size: var(--fs-caption); font-weight: 600; letter-spacing: .02em; }
+.tb-kicker-label { white-space: nowrap; }
+.tb-kicker-sep { color: var(--text-3); font-weight: 400; }
+.tb-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); font-weight: 600; letter-spacing: .05em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 16%, transparent); padding: 1px 7px; border-radius: 4px; }
+.tb-title { min-width: 0; max-width: none; font-size: 22px; line-height: 1.3; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.02em; }
 .tb-title:hover { color: var(--accent); }
-.tb-desc { flex: 1 1 auto; min-width: 90px; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tb-open { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-caption); font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
-.tb-btn { flex-shrink: 0; font-size: var(--fs-sub); font-weight: 600; color: var(--accent-ink); background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); padding: 4px 12px; border-radius: var(--radius-xs); cursor: pointer; transition: all var(--dur); font-family: inherit; }
-.tb-btn:hover { background: var(--accent); color: #fff; }
-.tb-hint { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.icon-pick-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
+.tb-desc-row { min-width: 0; display: flex; align-items: center; }
+.tb-desc { min-width: 0; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-open { color: var(--text-2); font-size: inherit; white-space: nowrap; }
+.thesis-banner:hover .tb-open { color: var(--accent-ink); }
+.thesis-empty-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--text-3); }
+.thesis-empty-pill { flex: none; width: 22px; height: 22px; display: inline-grid; place-items: center; border: 1px dashed var(--border-strong); border-radius: 7px; background: var(--surface-3); color: var(--text-3); }
+.tb-hint { min-width: 0; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-hint b { color: var(--text-2); font-weight: 600; }
+.tb-btn { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-caption); font-weight: 500; white-space: nowrap; }
+.thesis-banner.empty:hover .tb-btn { color: var(--accent-ink); }
+.icon-pick-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
 .icon-pick { position: fixed; z-index: calc(var(--z-popover) + 1); width: 272px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 14px; animation: ipIn .18s var(--ease-emphasis); }
 @keyframes ipIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
 .ip-title { font-size: var(--fs-body); font-weight: 700; color: var(--text); margin-bottom: 10px; }
@@ -69,26 +105,74 @@
 .sm-item.danger:hover { background: var(--tag-danger-bg); }
 .sm-divider { height: 1px; background: var(--border); margin: 4px 0; }
 /* 工具条 */
-/* V3.9.10：指标 + 操作合并为一排，保留 sticky；分享固定在行尾。 */
-.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-sm); }
-.toolbar-mode { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding-right: 3px; color: var(--text-3); font-size: var(--fs-caption); white-space: nowrap; }
+/* V3.9.10：指标 + 操作合并为一排；V3.9.30 起作为页头第三层，不再单独吸附。 */
+.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.ws-head > .cur-toolbar { position: static; z-index: auto; margin-top: 2px; }
+.cur-layout {
+  flex: none; display: inline-flex; align-items: center; gap: 2px;
+  min-height: 32px; padding: 3px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2);
+}
+.cur-layout-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 26px; padding: 0 7px;
+  color: var(--text-2); font-size: var(--fs-caption); font-weight: 600;
+  white-space: nowrap;
+}
+.cur-layout button {
+  min-height: 26px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-3);
+  cursor: pointer; font: inherit; font-size: var(--fs-caption);
+  white-space: nowrap;
+}
+.cur-layout button:hover { color: var(--text); background: var(--surface); }
+.cur-layout button.on {
+  color: var(--accent-ink); background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm);
+  font-weight: 600;
+}
 .cur-toolbar .hero-btn { flex-shrink: 0; white-space: nowrap; }
 .cur-toolbar .share-action { margin-left: 0; }
-.cur-metrics { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: stretch; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); overflow: hidden; }
-.cur-metric { min-width: 0; min-height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border: 0; background: transparent; color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; }
-.cur-metric + .cur-metric { border-left: 1px solid var(--border); }
-.cur-metric:hover { background: var(--surface); }
+.cur-toolbar-lead { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.cur-sep { flex: none; width: 1px; height: 18px; background: var(--border); }
+.cur-metrics { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: stretch; gap: 6px; }
+.cur-metric { min-width: 0; min-height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; transition: border-color var(--dur-fast), background var(--dur-fast); }
+.cur-metric:hover { border-color: var(--border-strong); background: var(--surface-3); }
 .cur-metric .mbox-label { font-size: var(--fs-caption); }
 .cur-metric .mbox-value { font-size: var(--fs-sub); }
 .cur-metric .mbox-sub { font-size: var(--fs-micro); }
+.cur-import { position: relative; flex: none; }
+.cur-import-trigger { min-height: 30px; }
+.cur-import-caret { margin-left: 1px; color: var(--text-3); font-size: 10px; }
+.cur-import-popover {
+  position: absolute; top: calc(100% + 7px); right: 0; z-index: 20;
+  width: 250px; padding: 5px;
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--surface); box-shadow: var(--shadow-lg);
+  animation: curImportIn .14s var(--ease-emphasis);
+}
+@keyframes curImportIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.cur-import-item {
+  width: 100%; display: flex; align-items: flex-start; gap: 9px;
+  padding: 9px 10px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-2); text-align: left;
+  cursor: pointer; font: inherit;
+}
+.cur-import-item:hover, .cur-import-item:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
+.cur-import-item-icon { flex: none; width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 6px; background: var(--accent-light); color: var(--accent-ink); }
+.cur-import-item > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cur-import-item b { font-size: var(--fs-sub); font-weight: 600; }
+.cur-import-item small { font-size: var(--fs-caption); line-height: 1.45; color: var(--text-3); }
 /* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
 .ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
 /* R90（R8-②）：右推职责交给 .toolbar-spacer（主 CTA 前置后，搜索不再是第一个右端元素） */
 .toolbar-spacer { flex: 1; }
-.toolbar-search { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); transition: all var(--dur); }
+.toolbar-search { display: flex; align-items: center; gap: 6px; width: 210px; padding: 5px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); transition: all var(--dur); }
 .toolbar-search:focus-within { border-color: var(--accent); }
-.toolbar-search input { border: none; outline: none; font-size: var(--fs-sub); width: 170px; background: transparent; color: var(--text); }
+.toolbar-search input { border: none; outline: none; font-size: var(--fs-sub); width: 100%; min-width: 0; background: transparent; color: var(--text); }
 .toolbar-search .s-icon { color: var(--text-3); font-size: var(--fs-body); }/* Body */
 .ws-modal-input { width: 100%; padding: 10px 13px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-body); background: var(--surface); color: var(--text); outline: none; font-family: inherit; transition: all var(--dur); }
 .ws-modal-input.dup { border-color: var(--danger); box-shadow: 0 0 0 2px var(--danger-bg-soft); }
@@ -206,16 +290,22 @@
 
 @media (max-width: 900px) {
   .ws-content { padding: 16px 18px 72px; }
-  .ws-hero { flex-direction: column; gap: 8px; padding-left: 0; }
+  .ws-head { gap: 8px; padding-left: 0; }
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
-  .thesis-banner { align-items: flex-start; flex-wrap: wrap; gap: 7px 9px; }
-  .tb-title, .tb-desc { flex-basis: 100%; }
-  .tb-title { max-width: none; }
+  .wsh-name { font-size: 17px; }
+  .wsh-desc { display: none; }
+  .thesis-banner:not(.empty) { padding: 16px; }
+  .tb-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .tb-desc { min-width: 0; }
+  .tb-hint { white-space: normal; line-height: 1.55; }
   .ws-toolbar { flex-wrap: wrap; gap: 7px; padding: 8px 10px; }
-  .toolbar-mode { width: 100%; }
-  .cur-metrics { order: 2; flex: 1 1 100%; }
+  .cur-toolbar-lead { width: 100%; flex-wrap: wrap; }
+  .cur-layout { width: 100%; }
+  .cur-layout-label { flex: 1; }
+  .cur-sep { display: none; }
+  .cur-metrics { flex: 1 1 auto; }
   .cur-metric { flex: 1; justify-content: space-between; }
+  .cur-import-popover { left: 0; right: auto; width: min(250px, calc(100vw - 40px)); }
   .cur-toolbar .share-action { margin-left: auto; }
   .toolbar-spacer { display: none; }
   .toolbar-search { flex: 1 1 180px; min-width: 0; }

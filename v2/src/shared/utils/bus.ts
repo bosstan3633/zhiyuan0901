@@ -9,8 +9,10 @@ export interface DrawerPayload {
 }
 
 export type DrawerListener = (p: DrawerPayload) => void
+export type DrawerClosedListener = (p: DrawerPayload) => void
 
 const listeners = new Set<DrawerListener>()
+const closedListeners = new Set<DrawerClosedListener>()
 
 export function onOpenDrawer(fn: DrawerListener): () => void {
   listeners.add(fn)
@@ -19,6 +21,19 @@ export function onOpenDrawer(fn: DrawerListener): () => void {
 
 export function emitOpenDrawer(p: DrawerPayload): void {
   listeners.forEach((fn) => { try { fn(p) } catch (e) { console.error('[bus] drawer handler error:', e) } })
+}
+
+/**
+ * 详情抽屉关闭回流：附件管理等旁路视图据此刷新卡片最新状态。
+ * 关闭事件与打开事件使用同一 payload，宿主可只订阅自己关心的卡型。
+ */
+export function onDrawerClosed(fn: DrawerClosedListener): () => void {
+  closedListeners.add(fn)
+  return () => closedListeners.delete(fn)
+}
+
+export function emitDrawerClosed(p: DrawerPayload): void {
+  closedListeners.forEach((fn) => { try { fn(p) } catch (e) { console.error('[bus] drawer close handler error:', e) } })
 }
 
 /** R160（P1）：详情抽屉按需挂载——挂载前的首个事件暂存，抽屉就绪后自取自开（异步组件加载期间不丢事件） */

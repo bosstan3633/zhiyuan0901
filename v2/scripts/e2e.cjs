@@ -736,8 +736,8 @@ async function main() {
   const dsYearOn = await page.locator('.dz-months .dz-year').count()
   const dsAugL2 = await page.locator('.dz-year .dz-cell[data-day="2026-08-15"]')
     .evaluate(el => el.classList.contains('l2') ? 1 : 0).catch(() => 0)
-  // fullSince 徽章真实落点在网格下方的 .note 区（文案「调出维度自 X 起完整」），不在 .dz-sec-h 里
-  const dsBadge = await page.locator('#mod-year .dz-sec-b .note').first().innerText().catch(() => '')
+  // V3.9.30：年度段收紧后，fullSince 从第二行说明并入网格下方的紧凑元数据行。
+  const dsBadge = await page.locator('#mod-year .pi-hm-meta').first().innerText().catch(() => '')
   // 写链路：进资源卡池 → 单击开 App 级详情 → 改标题 → 保存 → pagehide → 读回
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
@@ -1102,7 +1102,7 @@ async function main() {
 
   // E2E-50（V3.9.14）：树状布局的连线不是装饰伪元素，而是按真实父子节点盒
   //   生成的正交 SVG。每条有子节点的分支，每个直接子节点都必须对应一条非空路径。
-  await page.evaluate(() => document.querySelectorAll('.mindmap-layout button')[1]?.click())
+  await page.evaluate(() => document.querySelectorAll('.ws-head .cur-layout button')[1]?.click())
   await page.waitForTimeout(900)
   const connectorContract = await page.evaluate(() => {
     const svg = document.querySelector('.mind-connectors')
@@ -1863,12 +1863,12 @@ async function main() {
     && czBar && /已选 2/.test(czAll) && /已选 0/.test(czInvert),
     `栏即出=${barWithoutSel} 初始="${sel0.trim()}" 全选=${tSelAll} 打标落库=${taskTagged.n} 重进残留=${selAfterReenter} 好奇栏=${czBar} 全选="${czAll.trim()}" 反选="${czInvert.trim()}"`)
 
-  // E2E-32 ★R4-Db 书签导入唯一路线：真喂一份 Netscape 书签 HTML 进设置页那枚 input，核四件
+  // E2E-32 ★V3.9.23 书签导入唯一路线：真喂一份 Netscape 书签 HTML 进数据包页那枚 input，核五件
   //   此前**只有源码文本断言**在管的事（书签链路过去零行为覆盖，删一整条死链却没有活性凭据
   //   就等于"合一"可能只是"删坏了"）：
   //   ① 落库张数 == 解析张数；② 文件夹层级进标签、浏览器根栏名不混进标签；
-  //   ③ percent-encoding 标题被解码（合一从旧实现带来的那处硬化）；④ 卡不落隐藏池 + 回执挂出
-  //   「归类并补全这批」（R138-H3：导入完不自动弹抽屉）。
+  //   ③ percent-encoding 标题被解码；④ 直接进入资源卡池，不建“书签导入”策展台、不建分类；
+  //   ⑤ 数据包页回执挂出「刚导入 3 张资源卡」（R138-H3：导入完不自动弹抽屉）。
   const bkHtml = [
     '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
     '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
@@ -1884,44 +1884,41 @@ async function main() {
   ].join('\n')
   const bkBefore = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
     .then(r => (r['zy_data_v2'].resources || []).filter(x => !x.deletedAt).length))
-  await page.goto(base + '#/settings?page=data&tab=bookmark', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/settings?page=data&tab=package', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2600)
-  const bookmarkPanel = await page.getByText('浏览器书签 HTML').first().isVisible().catch(() => false)
+  const bookmarkPanel = await page.getByText('浏览器书签').first().isVisible().catch(() => false)
   await page.locator('input[accept=".html,.htm"]').first()
     .setInputFiles({ name: 'bookmarks.html', mimeType: 'text/html', buffer: Buffer.from(bkHtml, 'utf8') })
   await page.waitForTimeout(2000)
   const bk = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
     const d = r['zy_data_v2']
     const cards = (d.resources || []).filter(x => /^https:\/\/e2e-db\.test|^obsidian:\/\/e2e-db/.test(x.link || ''))
-    const ws = d.workspaces.find(w => w.id === (cards[0] || {}).workspaceId)
+    const importedDeck = d.workspaces.find(w => /书签导入/.test(w.name))
     return {
       added: cards.length,
       tags: Array.from(new Set(cards.flatMap(c => c.tags || []))),
       decoded: cards.map(c => c.title).find(t => t === '习惯养成') || '',
       linkTypes: Array.from(new Set(cards.map(c => c.linkType))).sort(),
-      wsName: ws ? ws.name : '(无)',
-      inPool: cards.some(c => c.workspaceId === 'zy-curation'),
-      catUncat: cards.every(c => !!c.categoryId)
+      allInPool: cards.every(c => c.workspaceId === 'zy-curation'),
+      noCategory: cards.every(c => c.categoryId === ''),
+      createdDeck: importedDeck ? importedDeck.name : '(无)'
     }
   }))
   /* ★回执钮文案是**条件式**的：接入未配时印「先在 AI 助手完成接入」、配了才印「归类并补全这批」，
      按后者找在 E2E 环境里永远命不中（首轮就红在这里，而导入本身其实已经成功）。
      改核那一行无条件存在的「刚导入 N 张卡」——它才证明 pendingImportEnrich 真的被赋值了。 */
-  const bkReceipt = await page.getByText(/刚导入 3 张卡/).first().isVisible().catch(() => false)
+  const bkReceipt = await page.getByText(/刚导入 3 张资源卡/).first().isVisible().catch(() => false)
   const bkCount = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
     .then(r => (r['zy_data_v2'].resources || []).filter(x => !x.deletedAt).length))
-  report('E2E-32 ★R4-Db 书签导入唯一路线：落库张数=解析张数 / 层级进标签且根栏名排除 / 编码标题解码 / 不落池 + 回执在位',
+  report('E2E-32 ★V3.9.23 书签导入唯一路线：落库张数=解析张数 / 层级进标签且根栏名排除 / 编码标题解码 / 直接入池且不建台 / 回执在位',
     bk.added === 3 && bkCount === bkBefore + 3 && JSON.stringify(bk.tags) === '["AI工具"]'
     && bk.decoded === '习惯养成' && JSON.stringify(bk.linkTypes) === '["obsidian","url"]'
-    && bk.wsName.startsWith('🔖 书签导入') && !bk.inPool && bk.catUncat && bookmarkPanel && bkReceipt,
-    `页签=${bookmarkPanel} 落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 台="${bk.wsName}" 落池=${bk.inPool} 回执=${bkReceipt}`)
+    && bk.allInPool && bk.noCategory && bk.createdDeck === '(无)' && bookmarkPanel && bkReceipt,
+    `页签=${bookmarkPanel} 落库=${bk.added} 总数=${bkBefore}→${bkCount} 标签=${JSON.stringify(bk.tags)} 解码="${bk.decoded}" 型=${JSON.stringify(bk.linkTypes)} 入池=${bk.allInPool} 分类空=${bk.noCategory} 新建台="${bk.createdDeck}" 回执=${bkReceipt}`)
 
-  // E2E-33 ★R4-Dc 附件 keepIds 单源：真跑一次设置页「清理孤儿附件」，核四类本体的生死。
-  //   这条守的是**不可恢复的物理删除**判错一次的代价：
-  //   活卡引用 / 回收站软删卡引用 / 论证卡引用（★本轮新补进 keepIds 的那一类）三者必须留，
-  //   只有谁都不引用的残留本体才准删。此前这条性质零行为覆盖，只有源码文本断言在管。
-  //   顺带验确认门：点钮先出弹窗，不确认就一个字节都不该动。
+  // E2E-33 ★V3.9.25 附件永久清理：设置页「全部附件」必须一次清空所有本体与卡片关联。
+  //   不可恢复的删除必须先过确认门；确认前一个字节都不能动，确认后列表与 IndexedDB 同时归零。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   await page.evaluate(async () => {
@@ -1957,11 +1954,11 @@ async function main() {
   await page.goto(base + '#/settings?page=data&tab=assets', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2600)
-  const hyBtn = page.locator('.gs-setting-row').filter({ hasText: '孤儿附件' }).locator('button', { hasText: '清理' }).first()
+  const hyBtn = page.locator('.gs-setting-row').filter({ hasText: '全部附件' }).locator('button', { hasText: '清理' }).first()
   await hyBtn.click()
   await page.waitForTimeout(900)
-  /* 确认门必须在：弹窗没点掉之前一个字节都不许动（本轮补的就是这道门） */
-  const hyGateShown = await page.getByText('清理孤儿附件').last().isVisible().catch(() => false)
+  /* 确认门必须在：弹窗没点掉之前一个字节都不许动。 */
+  const hyGateShown = await page.getByText('清空全部附件').last().isVisible().catch(() => false)
   /* ★不写"库里正好 4 个键"这种绝对数——同一轮跑里前面的场景（E2E-5 的 e2e-pdf-1）也会往 zy_assets 里留东西。
      要验的性质是**相对的**：弹窗还开着的时候，我种的这四个键一个都还没被删。 */
   const hyAfterCancel = await page.evaluate(() => new Promise((res, rej) => {
@@ -1986,14 +1983,21 @@ async function main() {
     }
     rq.onerror = () => rej(rq.error)
   }))
+  const hyState = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2'] || {}
+    const seeded = [...(d.resources || []), ...(d.argCards || [])].filter(x => String(x.id || '').startsWith('e2e-hy-'))
+    return {
+      refsCleared: seeded.length > 0 && seeded.every(x => !Array.isArray(x.assets) || x.assets.length === 0),
+      rows: document.querySelectorAll('.dm-asset-row').length,
+    }
+  }))
   const hy = {
-    live: hyKeys.includes('e2e-hy-live'), del: hyKeys.includes('e2e-hy-del'),
-    arg: hyKeys.includes('e2e-hy-arg'), orphanGone: !hyKeys.includes('e2e-hy-orphan'),
+    allGone: !['e2e-hy-live', 'e2e-hy-del', 'e2e-hy-arg', 'e2e-hy-orphan'].some(k => hyKeys.includes(k)),
     untouchedBeforeConfirm: ['e2e-hy-live', 'e2e-hy-del', 'e2e-hy-arg', 'e2e-hy-orphan'].every(k => hyAfterCancel.includes(k))
   }
-  report('E2E-33 ★R4-Dc keepIds 单源：活卡/软删卡/论证卡引用一律留，仅孤儿本体被删，且删前必有确认门',
-    hyGateShown && hy.untouchedBeforeConfirm && hy.live && hy.del && hy.arg && hy.orphanGone,
-    `弹窗=${hyGateShown} 未确认前不动=${hy.untouchedBeforeConfirm}(${hyAfterCancel.length}) 留活=${hy.live} 留软删=${hy.del} 留论证卡=${hy.arg} 孤儿已删=${hy.orphanGone}`)
+  report('E2E-33 ★V3.9.25 全部附件永久清理：确认门前零删除，确认后本体、卡片关联与附件列表一起归零',
+    hyGateShown && hy.untouchedBeforeConfirm && hy.allGone && hyState.refsCleared && hyState.rows === 0,
+    `弹窗=${hyGateShown} 未确认前不动=${hy.untouchedBeforeConfirm}(${hyAfterCancel.length}) 全部本体已删=${hy.allGone} 卡片关联已清=${hyState.refsCleared} 列表行=${hyState.rows}`)
   await page.evaluate(async () => {
     const d0 = (await chrome.storage.local.get('zy_data_v2'))['zy_data_v2']
     d0.resources = d0.resources.filter(r => !String(r.id).startsWith('e2e-hy-'))

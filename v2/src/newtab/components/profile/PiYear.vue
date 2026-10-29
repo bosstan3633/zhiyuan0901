@@ -1,12 +1,11 @@
 <script setup lang="ts">
 /**
  * W13-T6（2026-10-16 · D2/D4/F20~F23）PiYear —— 时间轴模块④ 全年 · YEAR（三段式）。
- *   ① #ins-year `.one-insight` 一句人话诊断条（F20：方向归属占比 × 冷却期高价值卡数，
- *      宿主推导传入；CTA `🔥 去下方唤醒 N 张核心卡 ›` 注入 focus='cooling' 并滚 #lc-sec）
- *   ② `.strip4` 四格（F21 归位版）：本年活跃 / 最长连续 / 活跃期资产 / 高价值冷却卡——
+ *   ① `.strip4` 四格（F21 归位版）：本年活跃 / 最长连续 / 活跃期资产 / 高价值冷却卡——
  *      原重复摆在 PiHero 的「本年活跃天数 / 最长连续天数」正式归位本段，全页仅此一处
- *   ③ 年度热力图（Heatmap：全年 53 周 / 近 26 周两态 + 图例；点格 → 该日战报）
+ *   ② 年度热力图（Heatmap：全年 12 个自然月分组 / 近 26 周两态 + 图例；点格 → 该日战报）
  *      + `#lc-sec` 生命周期模块完整保留（D4/F23：LifecyclePanel 三态圆环 + Tab + 列表 + ⚙ 设置）
+ *   ③ 四格全部可下钻：日期型给日级明细，资产型给真实卡片清单。
  *
  * ★W13-F21 退役带备案：原「累计 入台/调出/状态变更/清理」四格（cum 事件流口径）随
  *   F21 归位版定版退役——累计事件在页头「全部记录」抽屉按动作筛选全量可查。
@@ -16,7 +15,7 @@
 import Icon from '@/shared/components/Icon.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed } from 'vue'
-import { yearAgg, longestStreak, type ConciseInsight } from '@/shared/utils/reviewReport'
+import { yearAgg, longestStreak } from '@/shared/utils/reviewReport'
 import { lifecycleState } from '@/shared/utils/lifecycle'
 import type { DailyStats } from '@/shared/utils/dailyStats'
 import type { CardEvent } from '@/shared/utils/eventLog'
@@ -32,8 +31,6 @@ const props = defineProps<{
   lcCards: LifecycleCard[]
   /** 全量事件日志（累计口径，供热力图）；空日志回退由宿主处理 */
   allEvents: CardEvent[]
-  /** F20 年度诊断条（★W13-T7 起注入宿主 buildConciseInsights 的 year 段，形状 = ConciseInsight） */
-  insight: ConciseInsight
   /** F20 CTA 联动注入的生命周期 Tab（'cooling' 时 LifecyclePanel 自动切冷却期） */
   focusFilter?: 'active' | 'cooling' | 'archived'
 }>()
@@ -50,9 +47,8 @@ const emit = defineEmits<{
   (e: 'lc-reactivate', id: string): void
   (e: 'lc-set-days', id: string, days: number | null): void
   (e: 'lc-settings'): void
-  /** F21 四格下钻：活跃期资产 → 全部卡片明细；高价值冷却 → 唤醒（滚 #lc-sec + 切冷却 Tab） */
-  (e: 'drill', k: 'yr-assets' | 'yr-high'): void
-  (e: 'insight-action', action: string): void
+  /** F21 四格下钻：日期型给日级明细，资产型给真实卡片清单。 */
+  (e: 'drill', k: 'yr-active' | 'yr-streak' | 'yr-assets' | 'yr-high'): void
   (e: 'ai-insight'): void
 }>()
 
@@ -78,8 +74,8 @@ function onHeatmapSel(day: string | null): void {
         <h2>这一年，你走过什么<span class="en">YEAR</span></h2>
         <p>全年尺度：诊断看方向、热力看分布、生命周期看流转。点任意一天 › 该日战报。</p>
       </div>
-      <!-- ★A3（V3.8.35）：本段原先是四段里唯一段头右缘空着的（今日=按钮 / 本周=徽标+按钮 / 本月=徽标）。
-           补一枚同模具的 m-badge —— 只报「本年活跃天数」，是 strip4 四格之外的时间刻度，不与格内读数重复。
+      <!-- ★V3.9.27：年度页头不再重复「本年活跃 N 天」。
+           strip4 是该段唯一指标入口，热力图内部摘要同时关闭，避免同一读数在首屏出现三次。
 
            ★★坑（V3.8.35 实测踩到，代价很大）：本段注释第一版里写了带反引号的类名，而下面节点自身的 title
            又含模板字符串反引号。Vue 的 template 解析按 HTML 注释规则走，注释一旦被判成未正常闭合，
@@ -87,35 +83,22 @@ function onHeatmapSel(day: string | null): void {
            vue-tsc 绿、build 绿、regression 也全绿（判据读的是源码不是产物），只有实拍 DOM 才看得出段头右缘仍然是空的。
            纪律：模板区注释里一律不写反引号，更不要把 title 的模板字符串搬进注释。 -->
       <div class="pi-mod-acts">
-        <span class="m-badge" :class="ya.act > 0 ? 'up' : ''"
-          :title="`${year} 年内有动作的天数 = ${ya.act} 天（与热力图同口径，点格看某天明细）`">
-          本年活跃 {{ ya.act }} 天
-        </span>
         <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
           <AiEntryButton variant="inline" label="AI 续写" />
         </button>
       </div>
     </div>
     <div class="pi-mod-b">
-      <!-- ① F20 年度诊断条 -->
-      <div id="ins-year" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic"><Icon v-if="insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
-        <span class="oi-text" v-html="insight.html"></span>
-        <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
-          {{ insight.ctaLabel }}
-        </button>
-      </div>
-
-      <!-- ② F21 strip4 归位四格（原 PiHero 活跃/最长两枚迁入；累计四格退役） -->
+      <!-- ① F21 strip4 归位四格（原 PiHero 活跃/最长两枚迁入；累计四格退役） -->
       <div class="pi-strip">
         <span class="pi-strip-lab">本年</span>
         <div class="strip4">
-          <span class="pi-chip" title="本年活跃天数 = 有加权动作的天数（热力图同口径）">
-            <span class="v">{{ ya.act }}<small>天</small></span><span class="l">本年活跃</span>
-          </span>
-          <span class="pi-chip" title="最长连续天数 = 连续有动作的最长跨度">
-            <span class="v">{{ ls }}<small>天</small></span><span class="l">最长连续</span>
-          </span>
+          <button class="pi-chip" title="本年活跃天数 = 有加权动作的天数（热力图同口径）；点开看逐日明细" @click="emit('drill', 'yr-active')">
+            <span class="v">{{ ya.act }}<small>天</small></span><span class="l">本年活跃</span><span class="ar">▸</span>
+          </button>
+          <button class="pi-chip" title="最长连续天数 = 连续有动作的最长跨度；点开看连续日期" @click="emit('drill', 'yr-streak')">
+            <span class="v">{{ ls }}<small>天</small></span><span class="l">最长连续</span><span class="ar">▸</span>
+          </button>
           <button class="pi-chip acc" title="活跃期资产 = 生命周期三态中处于活跃期的存活卡片" @click="emit('drill', 'yr-assets')">
             <span class="v">{{ activeAssets }}<small>张</small></span><span class="l">活跃期资产</span><span class="ar">▸</span>
           </button>
@@ -128,18 +111,16 @@ function onHeatmapSel(day: string | null): void {
       <div class="pi-hair"></div>
 
       <div>
-        <div class="pi-sect"><span class="n">1</span><span class="t">年度热力图</span><span class="m">全年 53 周 · 点任意日期 › 直接打开当日战报</span></div>
         <div class="pi-hmbox">
           <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
-            default-expanded
+            default-expanded :show-summary="false" :show-legend-note="false" :section-number="1"
             @update:year="emit('update:year', $event)" @update:sel-day="onHeatmapSel" />
-          <div class="pi-hm-legend">
-            <span>少</span>
-            <span class="s s-h0"></span><span class="s s-h1"></span>
-            <span class="s s-h2"></span><span class="s s-h3"></span>
-            <span class="s s-h4"></span><span class="s s-h5"></span>
-            <span>多</span>
-            <span class="hm-stats">活跃 <b>{{ ya.act }}</b> 天 · 最长连续 <b>{{ ls }}</b> 天<template v-if="ya.peak"> · 单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</template></span>
+          <div class="pi-hm-meta">
+            <span>有效动作 <b>{{ ya.acts }}</b> 件</span>
+            <template v-if="ya.peak"><span>单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</span></template>
+            <span>本年活跃日均 <b>{{ (ya.W / Math.max(1, ya.act)).toFixed(1) }}</b> 分</span>
+            <span>P90 <b>{{ ya.p90 }}</b> 分</span>
+            <span title="调出维度从该日期起具备完整事件记录">调出完整自 <b>{{ stats.fullSince }}</b></span>
           </div>
         </div>
       </div>

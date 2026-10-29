@@ -1,0 +1,2 @@
+/* ===== 页面容器 ===== */
+.pi-page { max-width: 1440px; margin: 0 auto; padding: 24px 36px 64px; display: flex; flex-direction: column; gap: 24px; }

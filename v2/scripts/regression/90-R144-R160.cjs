@@ -9,11 +9,14 @@ console.log('【R144 · V2.112.0：批次 G 四场景 + 子任务软层级】');
 check('R144-1 ★子任务改卡内嵌（R166 定案 1/2 重写本条）：detachChildren / flattenTaskTree 随 parentId 整体退役、真源零残留；解绑与软删不再摘子（只摘指标引用）；折叠迁移 foldParentIdSubtasks 挂在载入链上且幂等标记在位；拆解链不再给步骤打父指针', () => { const l = codeOnly(read('/shared/utils/taskLinks.ts')); const r = read('/shared/storage/repository.ts'); const c = codeOnly(read('/shared/ai/chain.ts')); const m = codeOnly(read('/shared/models/index.ts')); return !l.includes('detachChildren') && !l.includes('flattenTaskTree') && !l.includes('parentId') && (l.match(/detachTaskFromMetrics\(d, t\.id\)/g) || []).length === 2 && m.includes('subtasks?: Subtask[]') && m.includes('export interface Subtask') && r.includes('function foldParentIdSubtasks(data: AppData)') && r.includes('foldParentIdSubtasks(data)') && r.includes('if (data.subtasksFoldedAt) return') && r.includes('data.subtasksFoldedAt = Date.now()') && !c.includes('parentId') && !c.includes('mkTask(s, t.projectId, t.metricId, t.id)'); });
 check('R144-2 呈现触点随迁（R166 定案 1 重写）：方向树与项目抽屉改一维列表（flattenTaskTree/⤴ 退役）；面板 ↳ 由「标父名」改「子任务 done/total 进度」且卡片/列表/看板现役视图共用一个 helper；详情头部进度胶囊与清单同源；四个消费文件 parentId 零读写（完成态永不联动到卡级评分）· V3.9.16 按现役模板精确钉 4 处，删除死平铺后不允许计数继续虚高', () => { const ct = codeOnly(CT_ALL); const pd = codeOnly(read('/newtab/components/ProjectDetailDrawer.vue')); const tp = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue')); const td = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue')); return !ct.includes('flattenTaskTree') && !ct.includes('promoteTask') && !ct.includes('.tk-row.sub') && !pd.includes('flattenTaskTree') && !pd.includes('promoteTask') && !pd.includes('.pd-task.sub') && !tp.includes('parentTitleOf') && (tp.match(/v-if="subProgress\(task\)"/g) || []).length === 4 && td.includes('const subtasks = computed') && td.includes('const subtaskDone = computed') && !td.includes('parentTask') && [ct, pd, tp, codeOnly(read('/shared/utils/taskLinks.ts'))].every(x => !x.includes('parentId')); });
 check('R144-3 ★G1 论点契约与消毒：提示词要「一句可被反驳的判断」+ MECE 互斥穷尽；parse 消毒=论点≤40、支≤5 去重、cardIds 只认本台活卡且一卡只归一支；采纳只写主题卡 🤖 块（整段替换不堆积），建分类是显式次通道（顶层≤12 封顶）', () => {
-  const s = read('/shared/ai/scenarios.ts'); const g = read('/shared/ai/batchG.ts'); const p = read('/shared/ai/project.ts'); const w = read('/newtab/views/Workspace.vue');
+  const s = read('/shared/ai/scenarios.ts'); const g = read('/shared/ai/batchG.ts'); const p = read('/shared/ai/project.ts'); const w = read('/newtab/views/Workspace.vue'); const d = read('/newtab/components/curation/CurationThesisDrawer.vue');
   return s.includes('一句可被反驳的判断') && s.includes('彼此互斥、合起来穷尽卡群主体（MECE）')
     && g.includes('known.has(id) && !used.has(id)') && g.includes('(bag.parts || []).slice(0, 5)') && g.includes('THESIS_BLOCK') && g.includes('function ensureThesisCard')
     && g.includes("label: '🗂 分论点建成分类并归架'") && g.includes('kids.length >= 12')
-    && p.includes('export function projectDeckThesis') && p.includes('别假装有读过') && w.includes('<ThesisAiBtn :ws-id="workspaceId"');
+    && p.includes('export function projectDeckThesis') && p.includes('别假装有读过')
+    && d.includes('<ThesisAiBtn :ws-id="wsId" :ws-name="wsName"')
+    && w.includes('<CurationThesisDrawer') && w.includes(':ws-id="workspaceId"') && w.includes(':ws-name="wsDisplayName"')
+    && !w.includes('编辑中心论点') && !w.includes('AI 提炼骨架');
 });
 check('R144-4 ★G2 三判决与写入边界：verdict 白名单（第四种全丢）、convert 缺 taskTitle 即丢行、转化只走宿主 convertToTask 唯一通道、drop=置 shelf 不删卡、keep 零写入；投料吃 R142 的 curioRelated 并集', () => {
   const g = read('/shared/ai/batchG.ts'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const p = read('/shared/ai/project.ts');
@@ -30,7 +33,8 @@ check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录�
     && g.includes('rawText: true') && g.includes("label: '📥 下载 .md'") && g.includes('replace(/^```(?:md|markdown)?')
     && em.includes("import('@/shared/ai/batchG')") && gs.includes('成果文稿') /* ★G1(V3.8.25)随迁带备案：设置页卡片头 📄 前缀迁 <Icon name="compass">，「成果文稿」入口文案仍在 */
     && node.includes("emit('link-resource', node)") && mm.includes("@link-resource=\"emit('link-resource', $event)\"")
-    && w.includes('@link-resource="openLinkCards"') && w.includes('<LinkCardsModal') && lm.includes('全部分类（资源卡池）')
+    && w.includes('@link-resource="openLinkCards"') && w.includes('<LinkCardsModal')
+    && lm.includes('关键词过滤') && lm.includes('AI 检索') && !lm.includes('lc-cat')
     && !w.includes('<EvidenceMenuItem') && !w.includes('nodeMenu');
 });
 check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {
@@ -51,12 +55,13 @@ check('R146-1 ★罗盘节点删除真源（回退契约①③）：确认先报
     && CRUD146.includes('if (!list) return false') && ct.includes('removeCompassNode') && ct.includes('restoreCompassNode') && ct.includes('compassNodeCounts')
     && !/directions\[[^\]]*\]\.projects\.splice/.test(ct) && !pc.includes('metrics.splice') && !pd.includes('metrics.splice') && !ch.includes('metrics.splice')
 });
-check('R146-2 ★策展台两语义拆名（回退契约④）：归档=archived+卡搬他台待分类+投射与镜像随台摘；删除=台移除+卡与分类一律软删进回收站+3 秒整台撤销；两入口文案自解释、零原生 confirm', () => {
+check('R146-2 ★V3.9.23 策展台删除收口：右键与设置共用删除真源；资源卡、分类、论证卡进回收站，镜像投射与分类释放后由 3 秒整台撤销完整恢复；不再提供归档入口', () => {
   const app = read('/newtab/App.vue'); const wm = read('/newtab/composables/useWsMeta.ts')
-  return CRUD146.includes('export function archiveWorkspace') && CRUD146.includes('ws.archived = true') && CRUD146.includes("name === '待分类'")
-    && CRUD146.includes('export function deleteDeck') && CRUD146.includes('if (wsId === CURATION_WS_ID) return null')
-    && app.includes('async function archiveDeck') && /<Icon name="package"[^>]*\/> 归档此台（卡移至待分类）/.test(app) && app.includes('archiveWorkspace(store.data, ws)') && !app.includes('async function deleteWorkspace')
+  return CRUD146.includes('export function deleteDeck') && CRUD146.includes('if (wsId === CURATION_WS_ID) return null')
+    && CRUD146.includes('argCardIds') && CRUD146.includes('mirrorCategories') && CRUD146.includes('mirrorProjectionTargets')
+    && app.includes('async function deleteDeckFromTab') && /<Icon name="trash"[^>]*\/> 删除策展台/.test(app) && app.includes('deleteDeck(store.data, ws.id)') && !app.includes('archiveWorkspace(store.data, ws)') && !app.includes('归档此台')
     && wm.includes('const snap = deleteDeck(d.value, workspaceId.value)') && wm.includes('restoreDeck(d.value, snap)') && wm.includes('deckCardCount')
+    && app.includes('DECK_DELETE_UNDO_WINDOW_MS') && wm.includes('DECK_DELETE_UNDO_WINDOW_MS') && wm.includes('sticky: false')
     && !app.includes('confirm(') && !wm.includes('window.confirm')
 });
 check('R146-3 回收站两口径（回退契约⑤⑥）：永久删除必过确认且回执点名对象、批量恢复只报一条账、清空带条数与后果、分类分区补齐永久删除；硬删仍统一引擎（附件在引擎内清）', () => {

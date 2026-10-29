@@ -77,7 +77,10 @@ check('P0-C6-B ★AI 字面量入口白名单：系统组件内凡出现 AI 入�
   return viol.length === 0;
 });
 check('P0-A4 ★今日战报入口全局唯一：调度台 MetricBar 右槽 cta（battleHost.openToday）+ 画像洞察页 PiToday「打开战报」+ TodayBattleHost 自包含宿主（dz-battle-host）；全站不得出现第二处「今日战报」按钮入口（codeOnly 负锚，白名单＝宿主/明细/手册/回收站上下文）', () => {
-  const ch = fs.readFileSync(base + '/newtab/views/CompassHome.vue', 'utf8');
+  /* ★R181 随迁带备案（仍守本片"fs 直读"取证纪律，不做 helpers.read 的 Workspace/search-overlay 拼接）：
+     `battleHost.openToday` 的调用随域逻辑下沉 useCompassHome.ts，故把宿主 + 该 composable 一起直读，
+     等价于"CompassHome 这一面的战报入口"；其余锚点与负锚一字未动。 */
+  const ch = fs.readFileSync(base + '/newtab/views/CompassHome.vue', 'utf8') + '\n' + fs.readFileSync(base + '/newtab/views/useCompassHome.ts', 'utf8');
   const pt = fs.readFileSync(base + '/newtab/components/profile/PiToday.vue', 'utf8');
   const tbh = fs.readFileSync(base + '/newtab/components/dashboard/TodayBattleHost.vue', 'utf8');
   const alt = ALL_VUE146.filter(f => {

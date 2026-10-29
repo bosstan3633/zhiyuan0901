@@ -27,7 +27,7 @@ check('R175-6 ★战略骨架默认折叠：CompassSpine 初始 expanded=false�
     && tree.includes('@locate=')
     && tree.includes('spine-bar');
 });
-check('R175-10 ★V3.9.21 热力图导出与屏上同坐标：gridCells 直接消费 yearCells 的 col/row 并过滤 future，buildZyCard 用 weekCount × 7；不再保留 12 月块 bx/by 算法', () => {
+check('R175-10（V3.9.27 重指）★热力图导出与屏上同坐标：gridCells 直接消费 12 月分组后的 yearCells col/row 并过滤 future，buildZyCard 用 yearLayout.cols × yearLayout.rows；不再保留 12 月块 bx/by 算法', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'))
   const grid = segOf(hm, 'function gridCells()', '\n}')
   const card = segOf(hm, 'function buildZyCard()', '\n}')
@@ -36,7 +36,9 @@ check('R175-10 ★V3.9.21 热力图导出与屏上同坐标：gridCells 直接�
     && grid.includes('c: c.col, r: c.row, lv: c.lv')
     && !grid.includes('bi % 4')
     && !grid.includes('Math.floor(n / 7)')
-    && card.includes('cols: weekCount.value, rows: 7')
+    && card.includes('cols: yearLayout.value.cols, rows: yearLayout.value.rows')
+    && hm.includes('const yearLayout = computed(() => {')
+    && hm.includes('offset += cols + MONTH_GAP')
     && !card.includes('cols: 32, rows: 24');
 });
 check('R175-11 ★V3.9.21 HTML 热力卡片补齐格子图：zyCardHtml 渲染 spec.grid（grid-wrap / 行列坐标 / heat 令牌），不再只有 PNG 才有明细图', () => {

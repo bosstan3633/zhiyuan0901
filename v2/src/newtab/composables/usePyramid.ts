@@ -72,20 +72,8 @@ export function usePyramid(ctx: PyramidCtx) {
   // ===== R65-F3：节点关联资源卡（资源台全量卡选择器 → 镜像到节点）=====
   const linkCardsModal = ref<{ catId: string; catName: string; picked: Set<string> } | null>(null)
   const linkCardsQ = ref('')
-  /** R126（诉求 3）：资源台分类过滤（含子分类；__uncat__ = 未分类） */
-  const linkCardsCat = ref('')
-  const linkCatOptions = computed<{ id: string; label: string }[]>(() => {
-    const cats = (d.value.categories || []).filter(c => c.workspaceId === CURATION_WS_ID && !(c as { deletedAt?: number }).deletedAt)
-    const out: { id: string; label: string }[] = []
-    for (const root of cats.filter(c => !c.parentId)) {
-      out.push({ id: root.id, label: root.name })
-      for (const ch of cats.filter(c => c.parentId === root.id)) out.push({ id: ch.id, label: '　└ ' + ch.name })
-    }
-    return out
-  })
   function openLinkCards(cat: Category) {
     linkCardsQ.value = ''
-    linkCardsCat.value = ''
     linkCardsModal.value = { catId: cat.id, catName: cat.name, picked: new Set() }
   }
   function toggleLinkPick(id: string) {
@@ -94,23 +82,15 @@ export function usePyramid(ctx: PyramidCtx) {
     if (m.picked.has(id)) m.picked.delete(id)
     else m.picked.add(id)
   }
-  /** 弹窗候选的**共同底座**：资源卡池在册卡 + 分类过滤。
+  /** 弹窗候选的**共同底座**：资源卡池全部可镜像卡。
    *  关键词只影响**可见列表**，不进底座——与检索面板同一条纪律：AI 的候选不该被"字面没命中"提前砍掉，
    *  否则"换个说法也能召回"这个功能本身就白做了。 */
   const linkBase = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
     if (!linkCardsModal.value) return []
     const mirroredSet = new Set((d.value.curationProjections || [])
       .filter(p => p.kind === 'card' && p.targetWsId === workspaceId.value).map(p => p.cardId))
-    const catSel = linkCardsCat.value
-    const catIds = catSel && catSel !== '__uncat__'
-      ? new Set<string>([catSel, ...(d.value.categories || []).filter(c => c.parentId === catSel).map(c => c.id)])
-      : null
-    // R129-B3：「未分类」与资源台待分类同判据——无分类 **或** 分类已删/失效（悬空卡不隐身）
-    const curCatIds = new Set((d.value.categories || [])
-      .filter(c => c.workspaceId === CURATION_WS_ID && !(c as { deletedAt?: number }).deletedAt).map(c => c.id))
     return d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
-      .filter(r => !catSel || (catSel === '__uncat__' ? (!r.categoryId || !curCatIds.has(r.categoryId)) : catIds!.has(r.categoryId || '')))
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
       .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
   })
@@ -201,8 +181,8 @@ export function usePyramid(ctx: PyramidCtx) {
       showToast('⚠ AI 检索失败：' + ((e as Error).message || String(e)).slice(0, 80))
     } finally { if (linkAiCtl === ctl) linkAiCtl = null; linkAiBusy.value = false }
   }
-  /** 关键词 / 分类 / 开关弹窗一换，AI 结果就指着不相干的卡了——与检索面板同一条纪律：立刻清 */
-  watch([linkCardsQ, linkCardsCat, linkCardsModal], () => { linkAiCtl?.abort(); linkAiReset() })
+  /** 关键词 / 开关弹窗一换，AI 结果就指着不相干的卡了——与检索面板同一条纪律：立刻清 */
+  watch([linkCardsQ, linkCardsModal], () => { linkAiCtl?.abort(); linkAiReset() })
   /** 展示列表：有 AI 结果 → 命中置顶；**字面没命中的命中卡也要补进来**（否则召回等于没做） */
   const linkShowList = computed(() => {
     const base = linkCandidates.value
@@ -224,7 +204,7 @@ export function usePyramid(ctx: PyramidCtx) {
 
   return {
     pyramidImportOpen, confirmPyramidImport,
-    linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+    linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
     linkAiBusy, linkAiHits, linkAiNote, linkAiScope, linkAiFed, linkAiTook, linkAiOn, linkAiProgress, linkAiRun, linkShowList, linkAiHitOf,
   }
 }

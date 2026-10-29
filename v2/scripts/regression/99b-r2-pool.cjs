@@ -90,16 +90,17 @@ check('R2-⑧ ★增量渲染上限立住：默认一屏 60 张 + 滚动到底�
 
 // ============== W2 ★热力图迁调度台（V3.8.2） ==============
 console.log('【W2 · 热力图迁调度台】');
-check('W2-1（V3.9.1 重指）热力图与 FocusDetail 均不常驻调度台：今日战报由 TodayBattleHost 自包含承载，首页只保留三件事工作单与手边卡预览，读日志仍只在宿主内', () => {
+check('W2-1（V3.9.25 重指）热力图与 FocusDetail 均不常驻调度台：今日战报由 TodayBattleHost 自包含承载，首页只保留三件事工作单与手边卡预览；状态读数的操作次数由 useCompassHome 取数层读取，视图仍不直接解析日志', () => {
   const ch = read('/newtab/views/CompassHome.vue');
+  const homeView = fs.readFileSync(path.resolve(base, 'newtab/views/CompassHome.vue'), 'utf8');
   const iH = ch.indexOf('<TodayBattleHost ref="battleHost" />');
-  const iF = ch.indexOf('class="work-board"');
-  const iC = ch.indexOf('class="hand-board"');
+  const iF = ch.search(/class="[^"]*\bwork-board\b/);
+  const iC = ch.search(/class="[^"]*\bhand-board\b/);
   return ch.includes("import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'")
     && !ch.includes('HeatmapModule') && !ch.includes('<FocusDetail')
     && iH > 0 && iF > 0 && iC > 0
     && iH > iF && iH > iC
-    && !/readEventLog/.test(ch)
+    && !/readEventLog/.test(codeOnly(homeView))
 });
 check('W2-2 ★GlobalSettings 不再挂热力图：无 Heatmap import / 无 <Heatmap> 模板 / 无 onDashOpenLog（日详情「查看全部记录」迁 HeatmapModule.onOpenLog）——★W9 再随迁带备案：本条原还要求「概览带 + 复盘段 + 操作记录保留」在 GlobalSettings 里，而这三样已随 V3.8.7 整块迁画像洞察页；负锚三条继续钉在 GS 上（热力图与 onDashOpenLog 都不许搬回设置页），正锚改指新宿主 ProfileInsights（dashYear/dashSelDay/dashStats + <ReviewPanel> + openLog(），能力一项未减', () => {
   const gs = read('/newtab/views/GlobalSettings.vue');
@@ -143,13 +144,15 @@ check('W2-4 ★W12-D 退役重指带备案：日详情中央弹窗的 Teleport +
   return hm.includes('<ExportMenu :formats="[\'png\', \'html\']" @pick="onExport" />')
     && !hm.includes('tablesToCsv') && !hm.includes('exportCsv') && !hm.includes('exportMd');
 });
-check('W2-5 ★HTML 分享导出真在位：exportView.heatmapShareHtml 生成自包含单文件 HTML（内联 CSS、tok() 现取 --heat-0..5、escHtml 转义），Heatmap.exportHtml 调用之；PNG 导出走 pngBlobFromSpec 现取主题令牌', () => {
-  const ev = codeOnly(read('/shared/utils/exportView.ts'));
+check('W2-5 ★HTML / PNG 分享导出真在位：Heatmap 已与日战报统一走知源卡片模板，exportHtml 调用 zyCardHtml、exportPng 调用 zyCardBlob；导出网格直接消费现役 yearCells 坐标，HTML 含真实格子图', () => {
+  const zy = codeOnly(read('/shared/utils/zyCard.ts'));
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
-  return ev.includes('heatmapShareHtml') && ev.includes('HeatmapShareSpec')
-    && ev.includes("'--heat-0'") && ev.includes('escHtml')
-    && hm.includes('exportHtml') && hm.includes('heatmapShareHtml')
-    && hm.includes('pngBlobFromSpec');
+  return zy.includes('export function zyCardHtml(') && zy.includes('export function zyCardBlob(')
+    && zy.includes('const grid = spec.grid') && zy.includes('grid-template-columns:repeat(${spec.grid.cols}')
+    && hm.includes('import { zyCardBlob, zyCardHtml }')
+    && hm.includes('zyCardBlob(buildZyCard())') && hm.includes('zyCardHtml(buildZyCard())')
+    && hm.includes('grid: { cells: gridCells(), cols: yearLayout.value.cols, rows: yearLayout.value.rows }')
+    && !hm.includes('heatmapShareHtml') && !hm.includes('pngBlobFromSpec');
 });
 check("W2-6 ★W12-D 退役重指带备案：日详情「查看全部记录 ›」的 open-log 出口随日详情一起迁到 TodayBattleHost —— 打开全量抽屉并按该日预筛、且先关日详情弹窗再开抽屉（遮罩不叠两层）这条语义一字未改，只是宿主从 HeatmapModule/Heatmap 换成 TodayBattleHost。判据：① 新宿主有 onOpenLog/logOpen/logPreset 且挂 DashboardLogDrawer ② 新宿主把 DayDetail 的 @open-log 接上（不再是 Heatmap emit，因为日详情已解耦出热力图）③ 预筛三字段（from/to = day）与「先关弹窗」那句动作都在", () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');

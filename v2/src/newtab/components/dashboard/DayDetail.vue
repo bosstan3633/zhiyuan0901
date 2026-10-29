@@ -121,14 +121,22 @@ const KIND_LABEL: Record<string, string> = { resource: '资源', task: '任务',
  *  同时间段连续成组（上午 / 下午 / 晚上）。
  *  ★ W6.1：行可点击——单击定位卡片 / 双击直达链接（与 DrillCardList 同一套交互，全库统一）。 */
 const flowGroups = computed(() => {
-  const out: { label: string; rows: { tm: string; e: CardEvent }[] }[] = []
+  const out: { label: string; rows: { tm: string; tm2?: string; n: number; e: CardEvent }[] }[] = []
   const sorted = [...dayEvents.value].sort((a, b) => b.ts - a.ts)
   for (const e of sorted) {
     const h = new Date(e.ts).getHours()
     const label = h < 12 ? '上午' : h < 18 ? '下午' : '晚上'
     let g = out[out.length - 1]
     if (!g || g.label !== label) { g = { label, rows: [] }; out.push(g) }
-    g.rows.push({ tm: hm(e.ts), e })
+    /* 同一张卡、同一动作在同一时段内只占一行；n 保留真实操作次数，总指标同步不减。 */
+    const same = g.rows.find(row => row.e.kind === e.kind && row.e.cardId === e.cardId && row.e.action === e.action)
+    if (same) {
+      same.n++
+      same.tm2 = hm(e.ts)
+      if (e.ts < same.e.ts) same.e = e
+    } else {
+      g.rows.push({ tm: hm(e.ts), n: 1, e })
+    }
   }
   return out
 })
@@ -184,9 +192,9 @@ function drillResourceHref(row: DrillRow): string {
     : ''
 }
 function exportRows() {
-  const timeline = flowGroups.value.flatMap(group => group.rows.map(({ tm, e }) => ({
+  const timeline = flowGroups.value.flatMap(group => group.rows.map(({ tm, n, e }) => ({
     time: tm,
-    label: EVENT_ACT_LABEL[e.action],
+    label: `${EVENT_ACT_LABEL[e.action]}${n > 1 ? ` ×${n}` : ''}`,
     title: e.title,
     href: resourceHref(e),
   })))
@@ -217,10 +225,10 @@ function exportHtml(): void {
 function exportMd(): void {
   const timelineLines = flowGroups.value.flatMap(group => [
     `- **${group.label}**`,
-    ...group.rows.map(({ tm, e }) => {
+    ...group.rows.map(({ tm, n, e }) => {
       const href = resourceHref(e)
       const title = href ? `[${escapeMarkdown(e.title)}](${href})` : escapeMarkdown(e.title)
-      return `  - ${tm}　${EVENT_ACT_LABEL[e.action]}　${title}`
+      return `  - ${tm}　${EVENT_ACT_LABEL[e.action]}${n > 1 ? ` ×${n}` : ''}　${title}`
     })
   ])
   const drillLines = drillRows.value
@@ -296,18 +304,19 @@ function onExport(fmt: ExportFmt): void {
     <!-- ④ 分时段叙事时间线（原型 md-scroll：降序，下午在前；★W6.1 行可点击） -->
     <div class="dz-tl">
       <div class="th">当日操作时间线<span class="dz-sp"></span>
-        <span class="dz-day-note">共 {{ dlSum.n }} 条 · 明细来自 zy_event_log</span>
+        <span class="dz-day-note">共 {{ dlSum.n }} 次操作 · 明细来自 zy_event_log</span>
         <button class="dz-btn sm" @click="emit('open-log', day)">查看全部记录 ›</button>
       </div>
       <div v-if="!flowGroups.length" class="dz-row"><span class="ti dz-day-note">今天还没有操作记录 —— 去调度台做点什么吧：采集一张卡、推进一个任务、或打开一次资源</span></div>
       <template v-for="g in flowGroups" :key="g.label">
         <div class="dz-tl-grp">{{ g.label }}</div>
-        <div v-for="({ tm, e }, i) in g.rows" :key="e.id + '-' + i" class="dz-tl-row" v-pressable
+        <div v-for="({ tm, tm2, n, e }, i) in g.rows" :key="e.kind + '-' + e.cardId + '-' + e.action + '-' + i" class="dz-tl-row" v-pressable
           :title="`单击 → 定位「${e.title}」· 双击 → 直达链接 / 打开文件`"
           @click="locateRow(e)" @dblclick="openRow(e)">
           <span class="tm">{{ tm }}</span>
           <span class="dotcol"><span class="tl-dot" :class="actOf(e.action).cls"></span></span>
           <span class="ac" :class="actOf(e.action).cls">{{ actOf(e.action).txt }}</span>
+          <span v-if="n > 1" class="tl-x" :title="`同卡同动作共 ${n} 次${tm2 ? `，最近 ${tm2}` : ''}`">×{{ n }}</span>
           <span class="kd">{{ KIND_LABEL[e.kind] || e.kind }}</span>
           <span class="ti">{{ e.title }}</span>
           <span v-if="e.to" class="to">{{ e.to }}</span>

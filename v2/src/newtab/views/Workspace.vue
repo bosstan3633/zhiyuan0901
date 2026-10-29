@@ -7,32 +7,102 @@
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
-    <!-- V3.9.13：台身份与中心论点合成同一条上下文带；论点不再独占整行，工具条紧接其后。 -->
-    <div class="ws-hero">
+    <!-- V3.9.30：策展台页头严格按审核原型收成一个连续结构。
+         ① 台身份 ≤40px；② 中心论点主舞台；③ 页面级行动条。
+         金字塔 / 树状切换归行动条唯一入口；画布头只在全屏模式补一个回程入口。 -->
+    <div class="ws-head">
       <div class="ws-id-head">
         <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
         <b class="wsh-name">{{ wsDisplayNameOf(workspace) }}</b>
         <!-- V3.7.0（R179）：资源台页头分支退役——策展台两态描述 + 摘要 + 更新流水入口为唯一形态 -->
         <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
         <span class="wsh-spacer" />
-        <span class="wsh-summary">{{ categories.length }} 个分类<template v-if="metrics.mirrored"> · 镜像 {{ metrics.mirrored }} 条</template><span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新 {{ lastUpdateText }}</span></span>
+        <span class="wsh-summary">
+          <b>{{ categories.length }}</b> 个分类 · 论据卡 <b>{{ metrics.total }}</b> · 附件 <b>{{ metrics.attachmentCount }}</b>
+          <span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新于 <b>{{ lastUpdateText }}</b></span>
+        </span>
       </div>
-      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.13 起与台身份并排，保留原入口与键盘语义。 -->
+      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.28 起作为镇台卡呈现 L1 / 论点卡 / 金字塔根节点三层语义。
+           整卡只负责打开详情，编辑、AI 与分享继续留在各自唯一入口。 -->
       <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
         :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
         @click="thesisCard ? openThesisCard() : openThesisCreate()"
         @keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"
         @keydown.space.prevent="thesisCard ? openThesisCard() : openThesisCreate()">
         <template v-if="thesisCard">
-          <span class="tb-badge"><Icon name="landmark" :size="13"/> 中心论点</span>
-          <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
-          <span class="tb-desc" :title="thesisCard.description || ''">{{ thesisCard.description || '点击打开论点卡详情' }}</span>
-          <span class="tb-open">论点卡详情 <Icon name="arrowright" :size="13"/></span>
-          <ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
+          <span class="tb-content">
+            <span class="tb-kicker"><span class="tb-badge"><Icon name="landmark" :size="11"/> L1</span><span class="tb-kicker-label">中心论点 · 论点卡</span><span class="tb-kicker-sep">·</span><span class="tb-kicker-label">金字塔根节点</span></span>
+            <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
+            <span class="tb-desc-row">
+              <span class="tb-desc" :title="thesisCard.description || ''">
+                {{ thesisCard.description || '先写结论，再长出支撑分支' }}<span class="tb-open"> · 点击查看论点详情</span>
+              </span>
+            </span>
+          </span>
         </template>
         <template v-else>
-          <span class="tb-badge gray"><Icon name="landmark" :size="13"/> 中心论点</span><span class="tb-hint">＋ 点击确立本策展台的 L1 中心论点，让研究从判断出发</span><button class="tb-btn" @click="openThesisCreate">＋ 确立中心论点</button><ThesisAiBtn :ws-id="workspaceId" :ws-name="wsDisplayName" />
+          <span class="thesis-empty-inner">
+            <span class="thesis-empty-pill" aria-hidden="true"><Icon name="landmark" :size="12"/></span>
+            <span class="tb-hint">点击确立本策展台的 <b>L1 中心论点</b>，让研究从判断出发</span>
+            <span class="tb-btn">开始确立 <Icon name="arrowright" :size="12"/></span>
+          </span>
         </template>
+      </div>
+
+      <!-- ③ 行动条：画布布局、读数、导入、检索、设置与分享在一条内收口。
+           布局切换是这里唯一的普通视图入口；CurationMindMap 内只在全屏时补回切换。 -->
+      <div class="ws-toolbar cur-toolbar" data-curation-metrics="2">
+        <div class="cur-toolbar-lead">
+          <div class="cur-layout" role="group" aria-label="切换策展画布布局">
+            <span class="cur-layout-label"><Icon name="tree" :size="13"/> 策展画布</span>
+            <button type="button" :class="{ on: mind.layout.value === 'pyramid' }"
+              title="金字塔：向下展开，适合阅读与演示" @click="mind.setLayout('pyramid')">
+              <Icon name="layers" :size="13"/> 金字塔
+            </button>
+            <button type="button" :class="{ on: mind.layout.value === 'tree' }"
+              title="树状：向右展开，适合密集整理" @click="mind.setLayout('tree')">
+              <Icon name="branch" :size="13"/> 树状
+            </button>
+          </div>
+          <span class="cur-sep" aria-hidden="true"></span>
+          <div class="cur-metrics" data-curation-metrics="2">
+            <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
+              <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
+              <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
+            </button>
+            <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
+              <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
+              <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
+            </button>
+          </div>
+        </div>
+        <span class="cur-sep" aria-hidden="true"></span>
+        <!-- V3.9.29：两种导入合并为一个菜单入口，降低行动条噪声；两项能力保持一级可达。 -->
+        <div class="cur-import" :class="{ open: importMenuOpen }" @keydown.esc.stop="closeImportMenu">
+          <button class="hero-btn ghost cur-import-trigger" type="button"
+            title="导入成果 HTML 或金字塔模板" aria-haspopup="menu" :aria-expanded="importMenuOpen"
+            @click.stop="toggleImportMenu"><Icon name="download" :size="13"/> 导入 <span class="cur-import-caret" aria-hidden="true">▾</span></button>
+          <div v-if="importMenuOpen" class="cur-import-popover" role="menu" aria-label="导入内容">
+            <button type="button" class="cur-import-item" role="menuitem" @click="importShareHtmlFromMenu">
+              <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
+              <span><b>导入成果 HTML</b><small>从知源分享产物恢复</small></span>
+            </button>
+            <button type="button" class="cur-import-item" role="menuitem" @click="importPyramidTemplateFromMenu">
+              <span class="cur-import-item-icon"><Icon name="filetext" :size="14"/></span>
+              <span><b>导入模板</b><small>中心论点 + 论证分支一次生成</small></span>
+            </button>
+          </div>
+        </div>
+        <span class="cur-sep" aria-hidden="true"></span>
+        <div class="toolbar-spacer"></div>
+        <div class="toolbar-search">
+          <span class="s-icon"><Icon name="search" :size="13"/></span>
+          <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
+            title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
+        </div>
+        <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
+        <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu"><Icon name="settings" :size="13"/></button>
+        <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       </div>
     </div>
     <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
@@ -87,38 +157,6 @@
       <div class="sm-item" v-pressable @click="exportWorkspace"><Icon name="package" :size="13"/> 导出 JSON 备份</div>
       <div class="sm-divider"></div>
       <div class="sm-item danger" v-pressable @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
-    </div>
-
-    <!-- V3.9.10：指标与工具合并为单行，分享固定在最右侧；为画布腾出纵向空间。 -->
-    <div class="ws-toolbar cur-toolbar" data-curation-metrics="2">
-      <span class="toolbar-mode"><Icon name="tree" :size="13"/> 策展画布</span>
-      <!-- V3.9.10：两项读数仍保持独立下钻，但视觉上收成同一枚双段指标胶囊，
-           避免两枚 126px 卡盒在 1024px 宽度下把工具条挤成第二行。 -->
-      <div class="cur-metrics" data-curation-metrics="2">
-        <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
-          <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
-          <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
-        </button>
-        <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
-          <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
-          <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
-        </button>
-      </div>
-      <!-- V3.9.8 体验收口：分支只由节点键盘操作创建；成果 HTML 是独立回导链，不再伪装成 JSON 数据包。 -->
-      <button class="hero-btn ghost" title="导入知源分享的策展成果 HTML" @click="openShareHtmlImport"><Icon name="download" :size="13"/> 导入成果 HTML</button>
-      <!-- R113-N4：金字塔模板导入提到一级。原藏在 ⚙ 菜单第 4 项（用户反馈"埋太深、不方便"），
-           与「＋新建」同属"往本台生成内容"，紧邻放置；V3.7.0（R179）：资源台退役后无 hub 门控，按钮常驻。 -->
-      <button class="hero-btn settings py-import-btn" title="导入金字塔 Markdown 模板（中心论点 + 论证分支一次生成）"
-        @click="pyramidImportOpen = true"><Icon name="filetext" :size="13"/> 导入模板</button>
-      <div class="toolbar-spacer"></div>
-      <div class="toolbar-search">
-        <span class="s-icon"><Icon name="search" :size="13"/></span>
-        <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
-          title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
-      </div>
-      <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
-      <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu"><Icon name="settings" :size="13"/></button>
-      <button class="hero-btn ghost share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
     </div>
 
     <!-- 下钻抽屉（R62-2） -->
@@ -179,11 +217,11 @@
       @update:fullscreen="mind.setFullscreenState($event.on, $event.fallback)" />
     </div>
 
-    <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats"
+    <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats" :ws-id="workspaceId" :ws-name="wsDisplayName"
       :root-count="mind.rootBranchCount.value" :resource-count="mind.linkedResourceCount.value"
       :attachment-count="metrics.attachmentCount"
       @close="thesisOpen = false" @save="saveThesisCard" @open-create="openThesisCreate"
-      @share="thesisOpen = false; shareOpen = true" />
+    />
 
     <CurationShareDrawer :open="shareOpen" :workspace-name="wsDisplayName" :thesis="thesisCard"
       :nodes="wsCats" :cards="shareCards" @close="shareOpen = false" />
@@ -279,10 +317,10 @@
                        （宿主回到 ≤1500 行验收线 + 少一套私有 modal 实现的消费方） -->
     <LinkCardsModal
       :open="!!linkCardsModal" :cat-name="linkCardsModal?.catName || ''" :picked="linkCardsModal?.picked"
-      :q="linkCardsQ" :cat="linkCardsCat" :cat-options="linkCatOptions" :list="linkShowList"
+      :q="linkCardsQ" :list="linkShowList"
       :ai-busy="linkAiBusy" :ai-on="linkAiOn" :ai-hits="linkAiHits" :ai-fed="linkAiFed" :ai-took="linkAiTook"
       :ai-scope="linkAiScope" :ai-note="linkAiNote"
-      @update:q="linkCardsQ = $event" @update:cat="linkCardsCat = $event" @toggle-pick="toggleLinkPick"
+      @update:q="linkCardsQ = $event" @toggle-pick="toggleLinkPick"
       @confirm="confirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
 
     <!-- N8（V3.8.18）镜像到策展台——推送方向的选台弹窗（与上面的「移动分类」同款 modal 形态）。
@@ -388,7 +426,7 @@ import { useCompass } from '@/newtab/stores/compass'
 import { recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
-import AssetPreview from '@/shared/components/AssetPreview.vue'; import ThesisAiBtn from '@/newtab/components/ThesisAiBtn.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
+import AssetPreview from '@/shared/components/AssetPreview.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R161-④：关联资源卡（镜像）弹窗整体抽出（宿主回到 ≤1500 行验收线 + 换 R161 新壳 Modal.vue）
 import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'
@@ -696,9 +734,25 @@ const {
 // ===== 画布辅助域：模板导入 / 关联资源 / 全屏（旧金字塔视图已退出宿主）=====
 const {
   pyramidImportOpen, confirmPyramidImport,
-  linkCardsModal, linkCardsQ, linkCardsCat, linkCatOptions, openLinkCards, toggleLinkPick, confirmLinkCards,
+  linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, confirmLinkCards,
   linkAiBusy, linkAiHits, linkAiFed, linkAiTook, linkAiOn, linkAiScope, linkAiNote, linkAiRun, linkShowList, linkAiHitOf,
 } = usePyramid({ store, d, workspaceId, thesisCard, mind })
+
+// ===== 页头导入菜单 =====
+const importMenuOpen = ref(false)
+function closeImportMenu() { importMenuOpen.value = false }
+function toggleImportMenu() {
+  importMenuOpen.value = !importMenuOpen.value
+  if (importMenuOpen.value) settingsMenuOpen.value = false
+}
+function importShareHtmlFromMenu() {
+  closeImportMenu()
+  openShareHtmlImport()
+}
+function importPyramidTemplateFromMenu() {
+  closeImportMenu()
+  pyramidImportOpen.value = true
+}
 
 // ===== 设置菜单 =====
 const settingsMenuOpen = ref(false)
@@ -706,6 +760,7 @@ function closeSettingsMenu() { settingsMenuOpen.value = false }
 function toggleSettingsMenu() {
   const next = !settingsMenuOpen.value
   settingsMenuOpen.value = next
+  if (next) closeImportMenu()
 }
 /** R88（W6）：导入弹窗（自工具条收进 ⚙ 后，入口与弹窗标题同为 mode-aware） */
 function openImport() {
@@ -713,9 +768,19 @@ function openImport() {
   importModalOpen.value = true
 }
 
-onMounted(() => { document.addEventListener('click', closeSettingsMenu); document.addEventListener('visibilitychange', onWsOpenVisibility) })
+onMounted(() => {
+  document.addEventListener('click', closeSettingsMenu)
+  document.addEventListener('click', closeImportMenu)
+  document.addEventListener('visibilitychange', onWsOpenVisibility)
+})
 // R112：同时补一次热度落盘（组件真正卸载时，节流中的待写数据不能丢）
-onUnmounted(() => { flushWsOpenPersist(); if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null } document.removeEventListener('click', closeSettingsMenu); document.removeEventListener('visibilitychange', onWsOpenVisibility) })
+onUnmounted(() => {
+  flushWsOpenPersist()
+  if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null }
+  document.removeEventListener('click', closeSettingsMenu)
+  document.removeEventListener('click', closeImportMenu)
+  document.removeEventListener('visibilitychange', onWsOpenVisibility)
+})
 
 // ===== 设置菜单关闭 + 采集跳转高亮 =====
 // ===== R115 拆分接线：附件卫生域（R110-BUG2 跨台判定/定位/清理）=====

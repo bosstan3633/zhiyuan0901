@@ -9,7 +9,7 @@ console.log('【红线检查】');
 check('卡间零挂载红线（R165 立 · R166 收口 fromCuriosityId + 明文豁免记录型关联）：三卡模型零互持 id + 载入与导入**两条路**都剥 + 建卡字面量零携带（活性验证：临时加回字段→红→撤→绿）。R166 定案 4/5：fromCuriosityId 退役（转化即出路，溯源由 link+描述承担）；CurationProjection / SupportLink 是独立表里的**记录**，卡对象互不持有 id，不属卡间挂载', () => { const fsx = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = []; const walk = (d) => { for (const f of fsx.readdirSync(d)) { const p = path2.join(d, f); const st = fsx.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { const s = codeOnly(fsx.readFileSync(p, 'utf8')); if (/mountedCuriosityIds:\s*\[|relatedResourceIds:\s*\[|fromCuriosityId:/.test(s)) hits.push(p.replace(/\\/g, '/')); } } }; walk(root); const m = codeOnly(read('/shared/models/index.ts')); const r = read('/shared/storage/repository.ts'); const gs = read('/newtab/views/GlobalSettings.vue'); const bodies = ['ResourceCard', 'TaskCard', 'CuriosityCard'].map(k => m.split('interface ' + k)[1].split('}')[0]); return hits.length === 0 && bodies.every(b => !/mountedResourceIds|mountedCuriosityIds|relatedResourceIds|fromCuriosityId|parentId/.test(b)) && (m.match(/fromCuriosityId/g) || []).length === 0 && r.includes("export const RETIRED_CARD_KEYS = ['mountedResourceIds', 'mountedCuriosityIds', 'relatedResourceIds', 'fromCuriosityId']") && r.includes('export function stripRetiredCardKeys') && ['tasks', 'curiosities', 'resources'].every(k => r.includes('stripRetiredCardKeys(data.' + k + ')')) && ['ResourceCard', 'TaskCard', 'CuriosityCard'].every(k => gs.includes('stripRetiredCardKeys<' + k + '>(imported.')) && m.includes('export interface SupportLink') && m.includes('supportLinks?: SupportLink[]') && bodies.every(b => !/supportLinks|resourceId/.test(b)); });
 check('单向挂载：Curiosity 无 taskId', () => !/taskId\??\s*:/.test(read('/shared/models/index.ts').split('interface CuriosityCard')[1].split('}')[0]));
 check('单向挂载：Resource 无 taskId', () => !/taskId\??\s*:/.test(read('/shared/models/index.ts').split('interface ResourceCard')[1].split('}')[0]));
-check('数据 100% 本地：无 http 数据上传', () => !/fetch\(|XMLHttpRequest/.test(read('/newtab/App.vue')));
+check('数据 100% 本地：无 http 数据上传', () => !/\bfetch\(|XMLHttpRequest/.test(read('/newtab/App.vue')));
 
 console.log('【架构检查】');
 check('路由：首页/方向台一级（★R3-B1 树即首屏：/compass 直挂 CompassTree、/compass/tree 转带 query 重定向、/compass/projects 平铺成一级）/工作台/设置（R49：actions 子页退役）', () => { const r = read('/newtab/router.ts'); return r.includes("name: 'compass'") && r.includes("import('./views/CompassTree.vue')") && count('/newtab/router.ts', "path: '/compass/projects'") === 1 && count('/newtab/router.ts', "path: '/compass/tree'") === 1 && count('/newtab/router.ts', "path: 'actions'") === 0 && r.includes("redirect: to => ({ path: '/compass', query: to.query })"); });
@@ -18,7 +18,7 @@ check('此刻最重要已整体移除', () => !exists('/newtab/components/compas
 check('R49 方向台容器（R117 重写 → ★R3-B1 再重写：树即一级）：router 把 /compass 直挂 CompassTree，方向台不再嵌项目详情/任务调度/MetricBar', () => { const r = read('/newtab/router.ts'); const t = CT_ALL; return r.includes("path: '/compass'") && r.includes("component: () => import('./views/CompassTree.vue')") && !codeOnly(r).includes('CompassShell') && !r.includes('children:') && !t.includes('ProjectCuration') && !t.includes('TaskManagerPanel') && !t.includes('MetricBar'); });
 
 console.log('【A组 弹窗工作流】');
-check('四端 zy-locate-workspace 单例定位 ★R4-Fb 重指带备案：第四端 popup 随降级路径退役（那个独立弹窗从未进过构建，在 chrome:// 按快捷键只得到空白窗口），三端锚保留 + 加一条负锚——src 的**代码**里不许再出现 src/popup 路径（注释里讲历史不算，所以判据吃 codeOnly），否则半拉子入口会静默回流。★2026-10-12 再随迁带备案：网页端锚从 search-overlay.ts 迁到 overlay-impl.ts（content 拆两层后单例定位的实现落在重型实现层，与 R4-Fb① 的负锚豁免同批处理——changelog 那条用户可见历史叙述不算代码路径）', () => ['background/index.ts', 'content/overlay-impl.ts', 'newtab/components/GlobalPopups.vue'].every(f => count('/' + f, 'zy-locate-workspace') >= 1) && !srcFileEntries().some(e => !e.rel.endsWith('changelog-data.ts') && codeOnly(e.text).includes('src/popup')));
+check('四端 zy-locate-workspace 单例定位 ★R4-Fb 重指带备案：第四端 popup 随降级路径退役（那个独立弹窗从未进过构建，在 chrome:// 按快捷键只得到空白窗口），三端锚保留 + 加一条负锚——src 的**代码**里不许再出现 src/popup 路径（注释里讲历史不算，所以判据吃 codeOnly），否则半拉子入口会静默回流。★2026-10-12 再随迁带备案：网页端锚从 search-overlay.ts 迁到 overlay-impl.ts（content 拆两层后单例定位的实现落在重型实现层，与 R4-Fb① 的负锚豁免同批处理——changelog 那条用户可见历史叙述不算代码路径）。★R181 再随迁：网页端锚从 overlay-impl.ts 迁到 overlay-capture.ts（采集域整体下沉，单例定位的 safeSend/定位消息都在采集域；changelog 负锚豁免同 R4-Fb①）', () => ['background/index.ts', 'content/overlay-capture.ts', 'newtab/components/GlobalPopups.vue'].every(f => count('/' + f, 'zy-locate-workspace') >= 1) && !srcFileEntries().some(e => !e.rel.includes('changelog-data') && codeOnly(e.text).includes('src/popup')));
 check('B14 网页浮层 corner 模式 display:flex', () => read('/content/search-overlay.ts').includes('.corner{display:flex'));
 check('B12 应用内采集弹窗右上角', () => read('/newtab/components/GlobalPopups.vue').includes('.gp-overlay.corner { align-items: flex-start; justify-content: flex-end'));
 check('B5 采集去重（应用内+网页端）', () => count('/newtab/components/GlobalPopups.vue', 'normalizeUrl') >= 1 && count('/content/search-overlay.ts', 'normalizeUrl') >= 1);
@@ -405,18 +405,22 @@ console.log('【第卅轮 · 信件模块化/书签导入分类树 · V2.10.0】
 check('R30-1 信件节头+停顿+信念行（应用内样式）', () => read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-h') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-turn') && read('/newtab/views/GlobalSettings.vue').includes('.gs-letter .lp-body p.lp-creed'));
 check('R30-2 信件 HTML 模块化结构（两处渲染共享）', () => read('/newtab/letter-data.ts').includes('<p class="lp-h">') && read('/newtab/letter-data.ts').includes('<p class="lp-turn">') && read('/newtab/letter-data.ts').includes('<p class="lp-creed">'));
 check('R30-3 分享版分节样式同构', () => read('/newtab/letter-data.ts').includes('.lp-body p.lp-h'));
-check('R30-4（R73 修订；R100 拆入 composable；V3.9.23 数据管理随迁）书签导入现役口径：浏览器导出的 HTML → 资源卡，文件夹层级只进标签，目标台内单「待分类」承接；旧「前 2 级建分类」与文件夹勾选弹窗继续零回流', () => {
+check('R30-4（R73 修订；R100 拆入 composable；V3.9.23 数据管理随迁）书签导入现役口径：数据包内导入浏览器 HTML → 直接写资源卡池（workspaceId=CURATION_WS_ID、categoryId 空），文件夹层级只进标签；不建目标策展台、不建「待分类」分类，旧建树与文件夹勾选弹窗继续零回流', () => {
   const bk = codeOnly(read('/newtab/composables/useBookmarkImport.ts'));
   const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts'));
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
-  const retired = ['function ensureBookmarkCategory', 'cat.parentId = parentId', 'segs.slice(0, 2)', 'bkFolders', 'bookmarkModalOpen'];
+  const retired = ['function ensureBookmarkCategory', 'cat.parentId = parentId', 'segs.slice(0, 2)', 'bkFolders', 'bookmarkModalOpen', "name: '待分类'"];
   return retired.every(k => !bk.includes(k) && !imp.includes(k))
-    && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))') && bk.includes("name: '待分类'")
-    && !bk.includes('CURATION_WS_ID') && !imp.includes('CURATION_WS_ID')
+    && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))')
+    && bk.includes('workspaceId: CURATION_WS_ID, categoryId: \'\'')
+    && bk.includes('data.resources.unshift(card)') && bk.includes('persist()')
+    && bk.includes('已导入 ${items.length} 张资源卡到资源卡池')
+    && !imp.includes('CURATION_WS_ID')
     && bk.includes('parseBookmarksHtml') && bk.includes('浏览器导出的书签 HTML')
     && dm.includes("await import('@/newtab/composables/useBookmarkImport')")
     && dm.includes('useBookmarkImport({ d: gd, persist: () => store.persist() })')
-    && dm.includes('不读取浏览器标签页；文件夹层级写入标签');
+    && dm.includes('解析后直接进入资源卡池；文件夹路径转为资源标签')
+    && dm.includes('不会创建策展台，也不需要选择归属');
 });
 check('R30-5（R73 修订；R100 拆入 composable；★R4-Db 重指带备案：口径由「第 3 级+转标签（前 2 级已建分类）」改成「整条路径全部转标签」——建树那条已随上一条退役，层级不再有第二处去处；本条原先那条负判据禁的正是旧设置页那枚只排 书签栏 的公式，本轮唯一实现用的就是它当初要求的那一侧：按 BK_ROOT_NAMES 八枚排净，中英文与移动端栏名都不漏进标签）书签层级→标签唯一口径', () => { const bk = read('/newtab/composables/useBookmarkImport.ts'); const imp = codeOnly(read('/newtab/composables/useWorkspaceImport.ts')); const gs = codeOnly(read('/newtab/views/GlobalSettings.vue')); return bk.includes('!BK_ROOT_NAMES.has(p)') && bk.includes("const BK_ROOT_NAMES = new Set(['书签栏', '收藏栏', '其他书签'") && !bk.includes('segs.slice(2)') && !bk.includes("p !== '书签栏'") && !imp.includes("p !== '书签栏'") && !gs.includes("p !== '书签栏'") && !gs.includes('function parseBookmarksHtml'); });
 

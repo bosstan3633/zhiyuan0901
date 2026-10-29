@@ -1,0 +1,202 @@
+.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: 24px 36px 64px; gap: 24px; }
+
+/* 返回按钮 */
+.gs-back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all var(--dur); margin-bottom: 16px; text-decoration: none; width: fit-content; }
+.gs-back-btn:hover { background: var(--surface-3); color: var(--text); }
+
+/* 左侧导航 */
+/* R178（原型 settings-nav-sidebar）：浮动卡片轨（radius-lg + 卡影 + sticky 66px），边线分栏退役 */
+.gs-nav { width: 214px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 11px; background: var(--surface); box-shadow: var(--shadow-sm); position: sticky; top: 66px; max-height: calc(100vh - 90px); overflow-y: auto; align-self: flex-start; display: flex; flex-direction: column; gap: 3px; }
+/* R178（原型 sns-group-title）：组标题 11px/700 三级字
+   ★V3.8.30：字距改走 --tracking-sm（同值 0.04em 的令牌，不再写字面量）——
+   与卡片分区名共用同一套「小字号 + 正字距 + 700」标签排印，两处只差颜色（导航侧 text-3，分区名 text）。 */
+.gs-nav-group { margin-bottom: 10px; }
+.gs-nav-group:last-child { margin-bottom: 0; }
+.gs-nav-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 8px 8px 4px; letter-spacing: var(--tracking-sm); }
+/* R178（原型 sns-nav-item）：12.5px 档 + hover 浅底 + active accent-light
+   ★S1（V3.8.29）：当前态补「accent 左侧 2px 竖条」——原来只有填充底，与 hover 的浅底
+   属于同一种「整块变色」，一眼分不出「我在这里」还是「鼠标在这里」。竖条是形状信号，
+   不依赖色相差异，因此四主题下都成立（含对底色不敏感的高对比场景）。
+   注：规范写"accent-soft 底"，tokens 里的实际令牌名是 --accent-light（同义），沿用不新造。
+   原 2429/2430 两行完全重复的 hover 规则一并删去一条。 */
+.gs-nav-item { position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); margin-bottom: 0; }
+.gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
+.gs-nav-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
+.gs-nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 14px; border-radius: 0 2px 2px 0; background: var(--accent); }
+.gs-nav-icon { font-size: 14px; width: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+/* 右侧内容 */
+.gs-content { flex: 1; min-width: 0; padding: 0; overflow: visible; } /* V3.9.13：与调度台/方向台共用 1440px + 36px 页轴；具体阅读行宽由各内容块自控 */
+
+
+
+
+
+
+/* 字段管理 */
+
+.gs-field-add { margin-top: 10px; padding: 14px; border: 1.5px dashed var(--border-strong); border-radius: 8px; text-align: center; cursor: pointer; font-size: var(--fs-body); color: var(--text-3); transition: all var(--dur); }
+.gs-field-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+/* 两个并列的虚线按钮（新建根标签 / 从卡片收纳）：原先第二个写内联 margin-left:8px */
+.gs-field-add + .gs-field-add { margin-left: 8px; }
+.gs-field-hint { margin-top: 12px; padding: 10px 14px; background: var(--accent-light); border-radius: 8px; font-size: var(--fs-sub); color: var(--accent-ink); line-height: 1.7; }
+
+/* ★V3.8.25（B1-a）：手册页的"已升级为独立阅读页"空态。
+   原先是一串内联 flex + 三处 font-size，其中大图标因为 Icon 用 width/height 定尺寸而一直是 13px。
+   注意本段必须排在 `.gs-card-body` 之后，否则同为单类选择器时 padding 抢不过 16px 18px。 */
+
+/* 预览 */
+.gs-preview-section { margin-top: 16px; }
+.gs-preview-title { font-size: var(--fs-caption); font-weight: 700; letter-spacing: var(--tracking-sm); color: var(--text-3); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.gs-preview-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.gs-preview-tab { padding: 4px 11px; border-radius: 6px; font-size: var(--fs-caption); cursor: pointer; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); transition: all var(--dur); }
+.gs-preview-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.gs-preview-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 14px; min-height: 80px; }
+/* ★V3.8.25（B1-a）：以下 8 条原本是裸 `.gs-pv-*`，配合 `v-html` 注入的节点**从未生效**
+   （注入节点没有 scope id，`.gs-pv-field[data-v-xxxx]` 匹配不到）。宿主 `.gs-preview-card`
+   带 scope id，用 `:deep()` 放行其内部，规则才真正命中。新增的 `--sm` / `--meta` / `--desc` /
+   `--list` / `--name` 是原来写在字符串内联 style 里的那几条，收进来一并生效。 */
+.gs-preview-card :deep(.gs-pv-field) { margin-bottom: 6px; font-size: var(--fs-sub); }
+.gs-preview-card :deep(.gs-pv-field:last-child) { margin-bottom: 0; }
+.gs-preview-card :deep(.gs-pv-field-title) { font-weight: 600; color: var(--text); font-size: var(--fs-body); }
+.gs-preview-card :deep(.gs-pv-field-title--sm) { font-size: var(--fs-sub); }
+.gs-preview-card :deep(.gs-pv-field-label) { color: var(--text-3); font-size: var(--fs-tiny); margin-right: 4px; }
+.gs-preview-card :deep(.gs-pv-field-text) { color: var(--text-2); }
+.gs-preview-card :deep(.gs-pv-field-tags) { display: inline-flex; gap: 4px; }
+.gs-preview-card :deep(.gs-pv-tag) { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); }
+.gs-preview-card :deep(.gs-pv-field-link) { font-size: var(--fs-caption); color: var(--accent); }
+.gs-preview-card :deep(.gs-pv-field-link--sm) { font-size: var(--fs-tiny); }
+.gs-preview-card :deep(.gs-pv-desc) { color: var(--text-3); font-size: var(--fs-caption); }
+.gs-preview-card :deep(.gs-pv-list) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gs-preview-card :deep(.gs-pv-name) { font-weight: 600; font-size: var(--fs-sub); }
+.gs-preview-card :deep(.gs-pv-meta) { font-size: var(--fs-tiny); color: var(--text-3); }
+
+/* 导入导出 */
+
+/* 第卅六轮 REQ-038：开关 + 容量/异常行 */
+
+
+
+
+
+
+/* 信件页底部"下载这封信"按钮的居中容器（原先写内联 text-align + margin-top） */
+.gs-letter-actions { text-align: center; margin-top: 14px; }
+
+/* 标签管理（N4） */
+.gs-tt-row.editing { border-color: var(--accent); }
+.gs-tt-input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: var(--fs-body); font-family: inherit; color: var(--text); padding: 2px 4px; }
+.gs-tt-ico { font-size: var(--fs-sub); flex-shrink: 0; }
+/* Bug2：层级缩进与从属视觉（!important 兜底，确保不被其他规则覆盖） */
+.gs-tt-row { padding-left: 10px; }
+.gs-tt-row[data-depth="1"], .gs-tt-row.subrow { padding-left: 34px !important; margin-left: 16px; position: relative; }
+/* B37d：子标签树形隶属引导线（竖线自父级垂下 + 横向分支线） */
+.gs-tt-row[data-depth="1"]::before, .gs-tt-row.subrow::before { content: ''; position: absolute; left: 6px; top: -3px; bottom: 50%; width: 2px; background: linear-gradient(to bottom, var(--accent), var(--accent-light)); border-radius: 2px; }
+.gs-tt-row[data-depth="1"]::after, .gs-tt-row.subrow::after { content: ''; position: absolute; left: 6px; top: 50%; width: 16px; height: 2px; background: var(--accent-light); border-radius: 2px; }
+.gs-tt-row[data-depth="2"], .gs-tt-row[data-depth="2"].subrow { padding-left: 58px !important; margin-left: 40px; }
+.gs-tt-toggle.leaf { opacity: 0; pointer-events: none; }
+/* B37c：新建标签高亮闪烁 */
+.gs-tt-row.flash { animation: ttFlashAnim 2s ease-out; }
+@keyframes ttFlashAnim { 0%, 40% { background: var(--accent-light); box-shadow: inset 3px 0 0 var(--accent); } 100% { background: transparent; } }
+.gs-tt-empty { padding: 26px; text-align: center; color: var(--text-3); font-size: var(--fs-body); border: 1.5px dashed var(--border-strong); border-radius: 8px; }
+
+.gs-tagtree { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.gs-tt-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: grab; transition: all var(--dur-fast); }
+.gs-tt-row:hover { border-color: var(--accent); }
+.gs-tt-toggle { width: 16px; font-size: var(--fs-tiny); color: var(--text-3); cursor: pointer; flex-shrink: 0; }
+.gs-tt-name { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.gs-tt-name.sub { font-weight: 500; color: var(--text-2); }
+.gs-tt-count { font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface-3); padding: 1px 7px; border-radius: 99px; }
+.gs-tt-actions { margin-left: auto; display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur); }
+.gs-tt-row:hover .gs-tt-actions { opacity: 1; }
+.gs-tt-act { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; font-size: var(--fs-caption); color: var(--text-3); cursor: pointer; }
+.gs-tt-act:hover { background: var(--surface-3); color: var(--text); }
+.gs-tt-act.del:hover { color: var(--danger); }
+
+/* ===== 第卌四轮：知源仪表盘 ===== */
+.gs-dash-en { font-size: var(--fs-tiny); color: var(--text-3); letter-spacing: 2px; margin-left: 6px; }
+/* V3.9.7：指标抽屉及其搜索、翻页、对账样式已迁入
+   PiMetricDetailDrawer.vue；宿主只保留数据与动作，禁止在这里恢复旧规则。 */
+
+
+/* ===== R4-Da（旧世界清账）：🗺 全景整页退役后，原同一段样式里仍被存活页面消费的规则补回。
+   ★这一段不是"把全景样式留着"——它守的是两类连带损失：标签管理双栏与右列卡片（tt-*）、
+   标签详情抽屉（gs-pd-*）。全景自己的双栏树样式（左树/ws 行/
+   分类行/计数徽标/批量条/卡片日期）一律没补，退役类名按 R44-10/11 判据零命中。
+   右列卡片原借全景的 gs-pan-* 类名，本轮改成标签管理本地 tt-*：类名跟着居所走，
+   下一个读代码的人不会以为它属于已删的那一页。
+   ★W9 退役重指带备案：第三类「生命周期阈值弹窗（lc-set-*）」随 LifecyclePanel 整块迁
+   ProfileInsights（新页自带同名样式），本页那四条规则已成孤儿，一并删除。 ===== */
+/* R127：标签管理双栏（左树 + 右列卡片） */
+.tt-wrap { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+.gs-tt-row.active { border-color: var(--accent); background: var(--accent-light); }
+/* R130-T3：拖拽落点高亮（比 active 多一圈实心内环）+ 被拖卡片行降透明度 */
+.gs-tt-row.drop { border-color: var(--accent); background: var(--accent-light); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.tt-card.dragging { opacity: .45; }
+.tt-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tt-picked { font-size: var(--fs-caption); color: var(--accent); white-space: nowrap; }
+.tt-list { display: flex; flex-direction: column; gap: 6px; max-height: 560px; overflow-y: auto; }
+.tt-allcheck { display: flex; align-items: center; gap: 5px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; }
+.tt-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; transition: all var(--dur-fast); }
+.tt-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.tt-card.selected { border-color: var(--accent); background: var(--accent-light); }
+.tt-check { flex-shrink: 0; cursor: pointer; }
+.tt-card-main { flex: 1; min-width: 0; }
+.tt-card-title { font-size: var(--fs-body); font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-card-sub { font-size: var(--fs-caption); color: var(--text-4); margin-top: 1px; }
+/* 标签详情抽屉字段行 */
+.gs-pd-title { font-size: var(--fs-title); font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
+.gs-pd-row { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
+.gs-pd-k { width: 40px; flex-shrink: 0; color: var(--text-4); }
+.gs-pd-v { flex: 1; min-width: 0; color: var(--text-2); word-break: break-all; line-height: 1.6; }
+.gs-pd-actions { display: flex; gap: 8px; margin-top: 14px; }
+@media (max-width: 1100px) { .tt-wrap { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .gs-page { flex-direction: column; padding: 18px 18px 56px; gap: 16px; }
+  .gs-nav { position: static; width: 100%; max-height: none; }
+  .gs-content { width: 100%; }
+}
+
+/* ===== R134-F · AI 助手页 ===== */
+
+.ai-form { display: flex; flex-direction: column; gap: 10px; }
+.ai-field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sub); color: var(--text-3); }
+.ai-field.inline { flex-direction: row; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--text-2); }
+.ai-field .gs-input { width: 100%; }
+.ai-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-genre { width: 260px; font-size: var(--fs-sub); }
+.ai-depth { width: auto; }
+.ai-msg { font-size: var(--fs-sub); color: var(--success); max-width: 100%; word-break: break-all; }
+.ai-msg.err { color: var(--danger); }
+.ai-textarea { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: var(--fs-body); font-family: inherit; line-height: 1.7; resize: vertical; }
+.ai-textarea:focus { outline: none; border-color: var(--accent); }
+.ai-persona-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; }
+.ai-guide { font-size: var(--fs-sub); line-height: 1.7; color: var(--text-3); background: var(--surface-2); border-left: 3px solid var(--accent); border-radius: 0 var(--radius-xs) var(--radius-xs) 0; padding: 7px 11px; margin-bottom: 9px; }
+.ai-pedit { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px 22px; padding: 9px 11px; border: 1px dashed var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.ai-pedit .gs-input { font-size: var(--fs-sub); }
+.ai-pedit-row { display: flex; gap: 8px; }
+.ai-persona { display: flex; align-items: center; gap: 6px; font-size: var(--fs-body); color: var(--text); cursor: pointer; white-space: nowrap; }
+.ai-persona-brief { font-size: var(--fs-sub); color: var(--text-3); line-height: 1.6; }
+
+.gs-btn.ai-batch-btn { margin-left: 10px; padding: 3px 10px; font-size: var(--fs-sub); }
+.ai-tray { margin: 0 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.ai-tray-head { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sub); color: var(--text); }
+.ai-tray-hint { font-size: var(--fs-caption); font-weight: 400; color: var(--text-4); flex: 1; }
+.ai-tray-row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sub); color: var(--text-2); }
+.ai-tray-t { font-weight: 600; color: var(--text); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-tray-st { flex: 1; color: var(--text-3); }
+.ai-tray-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); flex-shrink: 0; }
+.ai-tray-dot.running { background: var(--accent); animation: breathe 1.2s ease-in-out infinite; }
+.ai-tray-dot.done { background: var(--success); }
+.ai-tray-dot.error { background: var(--danger); }
+.ai-tray-dot.queued { background: var(--warning); }
+.ai-tray-dot.stopped { background: var(--text-3); }
+.gs-btn.ai-batch-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.ai-pnew { display: flex; gap: 8px; align-items: center; margin: 8px 0 10px; flex-wrap: wrap; }
+.ai-pnew .gs-input { flex: 1; min-width: 130px; }
+.ai-btn-mini { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font-size: var(--fs-tiny); cursor: pointer; line-height: 1; }
+.ai-btn-mini.on { border-color: var(--accent); color: var(--accent); }
+.ai-btn-mini.danger:hover { color: var(--danger); border-color: var(--danger); }
+/* ★V3.8.25（B1-a）：`.ai-btn-mini` 是 20×20 的方图标钮；"恢复内置默认"要带文字，
+   故放开宽度、改内边距（原先写内联 width/padding）。 */
+.ai-btn-mini--text { width: auto; padding: 2px 8px; }

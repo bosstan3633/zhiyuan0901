@@ -63,6 +63,44 @@ export async function deleteAsset(id: string): Promise<void> {
   await reqToPromise(db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id))
 }
 
+/** 清空附件库并返回实际删除数量。用于设置页「清空全部附件」的不可恢复操作。 */
+export async function clearAllAssets(): Promise<number> {
+  const db = await openDb()
+  if (!db) return 0
+  const ids = await getAllAssetIds()
+  if (!ids.length) return 0
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    const store = tx.objectStore(STORE)
+    for (const id of ids) store.delete(id)
+    tx.oncomplete = () => resolve(ids.length)
+    tx.onerror = () => reject(tx.error || new Error('idb clear failed'))
+  })
+}
+
+/** 从全库四类卡片清空附件引用；返回受影响的卡片数量。 */
+export function clearAllAssetReferences(d: {
+  resources?: { assets?: { id: string }[] }[]
+  tasks?: { assets?: { id: string }[] }[]
+  curiosities?: { assets?: { id: string }[] }[]
+  argCards?: { assets?: { id: string }[] }[]
+}): number {
+  let changed = 0
+  const clear = (cards: { assets?: { id: string }[] }[] | undefined) => {
+    for (const card of cards || []) {
+      if (Array.isArray(card.assets) && card.assets.length) {
+        card.assets = []
+        changed++
+      }
+    }
+  }
+  clear(d.resources)
+  clear(d.tasks)
+  clear(d.curiosities)
+  clear(d.argCards)
+  return changed
+}
+
 /** 遍历全部附件（供统计 / 孤儿清理） */
 async function forEachAsset(fn: (id: string, blob: Blob) => void): Promise<number> {
   const db = await openDb()

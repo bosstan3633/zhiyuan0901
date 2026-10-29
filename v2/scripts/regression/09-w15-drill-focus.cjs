@@ -110,13 +110,14 @@ check('W15-5 ★行末动作常驻 + 镜像入口两侧同口径：① 列表行
     && !/r\.workspaceId\s*=\s*(?!=)/.test(POOL_C);
 });
 
-check('W15-6 ★V3.9.1 随迁备案：首屏焦点仍收在一张工作单里。三件事与子任务信息不再各自开模块，而是同一计划行 + 右侧共享详情；工作单与手边卡之间保留独立留白，旧「全貌子任务区」不得作为第二个强模块回流', () => {
+check('W15-6 ★V3.9.24 随迁备案：首屏焦点仍收在一张工作单里。三件事与子任务信息不再各自开模块，而是同一计划行 + 右侧共享详情；工作单与手边卡的独立留白由共享行间距承担，旧「全貌子任务区」不得作为第二个强模块回流', () => {
   return HOME.includes('class="focus-list"')
     && HOME.includes('class="focus-row"')
     && HOME.includes('子任务 {{ c.task.subtasks.filter(s => s.done).length }}/{{ c.task.subtasks.length }}')
     && HOME.includes('drawerRef.value?.open(c.task)')
     && HOME_C.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }')
-    && HOME_C.includes('.hand-board { margin-top: 18px; }')
+    && HOME_C.includes('gap: 18px 22px;')
+    && HOME_C.includes('.hand-board { margin-top: 0; }')
     && !HOME.includes('class="focus-sub-zone"')
     && !/<section class="module">\s*<FocusDetail/.test(HOME.replace(/\n\s*/g, ' '));
 });

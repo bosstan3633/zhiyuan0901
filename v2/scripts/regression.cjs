@@ -62,6 +62,13 @@ const SHARDS = [
   '107-v3922-desk',
   '108-v3922-compass',
   '109-shared-export',
+  '110-v3923-cross-module',
+  '111-v3925-round',
+  '112-v3926-round',
+  '113-v3927-round',
+  '114-v3928-curation-head',
+  '115-v3929-curation-head-prototype',
+  '116-v3930-profile-curation-perf',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

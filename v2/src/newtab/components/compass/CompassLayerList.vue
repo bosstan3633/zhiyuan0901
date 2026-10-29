@@ -42,8 +42,8 @@ const emit = defineEmits<{
 
 const LAYER_META = {
   3: { n: 3, t: '战略目标', en: 'DIRECTION', ic: '', tip: '点任一行过滤项目塔 · 行尾可编辑 / 删除' },
-  5: { n: 5, t: '成功指标', en: 'METRIC', ic: '◎', tip: '全部指标平铺 · 行内「定位」回项目塔' },
-  6: { n: 6, t: '任务', en: 'TASK', ic: '', tip: '全部任务平铺（未删除即算，与骨架条同口径）· 行内「定位」回项目塔' }
+  5: { n: 5, t: '成功指标', en: 'METRIC', ic: '◎', tip: '全部指标平铺 · 点行打开所在项目的全景泳道' },
+  6: { n: 6, t: '任务', en: 'TASK', ic: '', tip: '全部任务平铺（未删除即算，与骨架条同口径）· 点行打开所在项目的全景泳道' }
 } as const
 const lm = LAYER_META[props.layer]
 
@@ -69,7 +69,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
         <!-- 行本体用 div + role=button：行尾要放两个真 button（编辑 / 删除），
              而 <button> 里再嵌 <button> 是非法结构，浏览器会把内层按钮拆出来。 -->
         <div
-          v-for="r in rows3" :key="r.id" class="lvl-row r3"
+        v-for="(r, ri) in rows3" :key="r.id" class="lvl-row r3"
           :class="{ on: dirFilter === r.id }"
           role="button" tabindex="0"
           :aria-pressed="dirFilter === r.id"
@@ -77,7 +77,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
           @keydown.enter.prevent="emit('dir', r.id)"
           @keydown.space.prevent="emit('dir', r.id)"
         >
-          <span class="lr-i">{{ r.i + 1 }}</span>
+          <span class="lr-i">{{ ri + 1 }}</span>
           <span class="lr-n">{{ r.name }}</span>
           <span v-if="r.stall" class="lr-w"><Icon name="warn" :size="13"/> 有停滞</span>
           <span class="lr-pct">
@@ -113,7 +113,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
             <span class="lr-bar"><i :style="{ width: r.pct + '%' }" /></span>
             <em>{{ r.done }}/{{ r.total }}</em>
           </span>
-          <span class="lr-go">▸ 定位</span>
+          <span class="lr-go">▸ 全景定位</span>
         </button>
         <div v-if="!rows5.length" class="lvl-empty">还没有成功指标 · 进项目舱点「＋ 指标」开始</div>
       </template>
@@ -130,7 +130,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
           <span class="lr-n" :class="{ done: r.status === 'done' }">{{ r.title }}</span>
           <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 未归属</span>
           <span class="lr-path">{{ r.metricTitle ? `${r.projName} › ${r.metricTitle}` : (r.projName || '未挂项目') }}</span>
-          <span class="lr-go" v-if="r.projId || r.metricId">▸ 定位</span>
+          <span class="lr-go" v-if="r.projId || r.metricId">▸ 全景定位</span>
           <span class="lr-go dim" v-else>不可定位</span>
         </button>
         <div v-if="!rows6.length" class="lvl-empty">还没有任务 · 进项目舱给指标加任务</div>

@@ -34,6 +34,16 @@ const argv = Object.fromEntries(process.argv.slice(2).map(a => {
   return m ? [m[1], m[2] ?? true] : [a, true]
 }))
 
+const within = (promise, ms, label) => {
+  let timer
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label}超时（${ms}ms）`)), ms)
+    })
+  ]).finally(() => clearTimeout(timer))
+}
+
 /*
  * R4-Dl：截图可复现的两道闩（默认开）。R4-Dj 实测**同一份代码连采两次仍有 25-26/92 张逐像素不同**
  * ——原因是分钟级相对时间文本、hover 残留、动画窗口三种噪声，它们比一次真实改动还大，
@@ -120,7 +130,8 @@ const DRAWER_VIEWS = [
     /* V3.9.1：任务详情已统一到共享 Drawer 壳，旧的 `.task-sidebar` 只存在于历史选择器里。
        改用抽屉内的标题块作为打开判据，AI 入口仍在同一层，避免把真实可用的详情误判成“没打开”。 */
     card: '[data-tid]', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
-    invert: '.drawer .ts-ai-cell',
+    /* V3.9.23：AI 三入口改为浅色工具组，hover 只提 accent 边与浅底，不再翻实心 accent，
+       因此旧“白徽标 + accent 底”的反相判据在此退役；真实对比度由 theme-contrast 守。 */
   },
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
@@ -169,7 +180,7 @@ const DASH_SCENES = [
       /* 节点内资源必须穷尽展示，「+N」入口已按产品要求退役。 */
       const more = document.querySelector('.mind-resource-more')
       const gap = document.querySelector('.evidence-gap')
-      const layouts = document.querySelectorAll('.mindmap-layout button').length
+      const layouts = document.querySelectorAll('.ws-head .cur-layout button').length
       const hot = ['.mind-resource', '.mind-resource-more', '.evidence-gap']
         .flatMap(sel => [...document.querySelectorAll(sel)])
         .map(el => el.getBoundingClientRect().height)
@@ -230,31 +241,35 @@ const DASH_SCENES = [
       const todayOk = legend[6] === '今天'
       const bad = /\bL[0-5]\b/.test(document.querySelector('.dz-legend')?.textContent || '')
       const sum = document.querySelectorAll('.dz-sum .c').length
-      /* ★V3.9.21 重指：热力图从「12 月块 4×3」改回「单行全年 53 周列 × 7 天行」。
-         守的行为不变：① 全年日格都在 ② 六档图例 + 今天项 ③ 四张摘要卡 ④ 不横向溢出。
-         换掉的承重锚：月块同顶 → 单行网格的**列数**（53 列）与**行数**（7 行）；
-         日期热区 28px 随月块形态退役（单行全年是 12px 视觉块，精度由键盘遍历 + tooltip 承担），
-         改钉「格子实际渲染成 12px 级小方块」这条单行全年自己的形态契约。 */
+      /* ★V3.9.27 重指：画像年度段只在四格主指标条展示汇总，热力图内部摘要关闭。
+         全年仍按 12 个自然月单行排开；每月内部改为标准日历方向：
+         星期定列、周次定行，日期先向右再换行。 */
       const cellsAll = [...document.querySelectorAll('.dz-cell:not(.future)')]
-      /* 列数取日格上真正落位的列号。注意：这些格子是显式 grid-column 定位，
-         computed 的 gridColumnStart 在本环境下会回成 'auto'，所以直接读**内联 style**
-         里的 grid-column-start（Vue 绑定的就是它）。也不读 grid-template-columns ——
-         后者在 width:max-content 的网格上算不出具体列数。 */
-      const colSet = new Set(cellsAll
-        .map(el => el.style.gridColumnStart)
-        .filter(v => v && v !== 'auto'))
-      const cols = colSet.size
-      const rowsSet = new Set(cellsAll.map(el => Math.round(el.getBoundingClientRect().top)))
-      /* 列数按「今年已过去的周数」判：未来日期是 future 格（不计入 cols），
-         所以 10 月只能看到 ~44 列，硬写 50 会把正确的实现判红。 */
-      const renderedYear = Number((document.querySelector('.hm-year')?.textContent || '').trim())
-      const now = new Date()
-      const isCurYear = now.getFullYear() === renderedYear
-      const minCols = isCurYear ? Math.max(20, Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / 604800000) - 2) : 50
-      const gridOk = cols >= minCols && rowsSet.size >= 6 && rowsSet.size <= 8
+      const monthGrids = [...document.querySelectorAll('.dz-month-grid')]
+      const monthCount = monthGrids.length
+      const monthGridOk = monthCount === 12 && monthGrids.every(grid => {
+        const monthCells = [...grid.querySelectorAll('.dz-cell:not(.future)')]
+        if (!monthCells.length) return true
+        const colSet = new Set(monthCells.map(el => el.style.gridColumnStart).filter(Boolean))
+        const rowSet = new Set(monthCells.map(el => el.style.gridRowStart).filter(Boolean))
+        return colSet.size <= 7 && rowSet.size <= 6
+      })
+      /* 每个月的头两天必须落在同一周相邻列；若第一天是周日，则第二天换行且回到第一列。 */
+      const horizontalOk = monthGrids.every(grid => {
+        const monthCells = [...grid.querySelectorAll('.dz-cell')]
+          .sort((a, b) => String(a.dataset.day).localeCompare(String(b.dataset.day)))
+        if (monthCells.length < 2) return true
+        const [a, b] = monthCells
+        const ca = Number(a.style.gridColumnStart)
+        const cb = Number(b.style.gridColumnStart)
+        const ra = Number(a.style.gridRowStart)
+        const rb = Number(b.style.gridRowStart)
+        return (cb === ca + 1 && rb === ra) || (ca === 7 && cb === 1 && rb === ra + 1)
+      })
+      const gridOk = monthGridOk && horizontalOk
       const minCell = Math.min(...cellsAll.map(el => Math.min(el.getBoundingClientRect().width, el.getBoundingClientRect().height)))
       const overflow = Math.round(document.documentElement.scrollWidth - window.innerWidth)
-      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 4 && gridOk && minCell >= 10 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}/4 单行网格=${cols}列·${rowsSet.size}行 格块=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
+      return { ok: cells >= 360 && sixOk && todayOk && !bad && sum === 0 && monthCount === 12 && gridOk && minCell >= 10 && overflow <= 1, txt: `格=${cells}(应≥360) 图例=${legend.join('/')} 六档名=${sixOk ? '符' : '不符'} 今天项=${todayOk ? '有' : '无'} 裸代号=${bad ? '有(红)' : '无'} 摘要卡=${sum}(年度四格已去重) 月份=${monthCount}/12 月内日历=${horizontalOk ? '横向' : '不符'} 格块=${Number.isFinite(minCell) ? Math.round(minCell) : 0}px 溢出=${overflow}px` }
     })
   },
   {
@@ -296,14 +311,16 @@ const DASH_SCENES = [
        从未进过四主题实拍。场景必须真点「项目全景」，否则拍到的仍是默认项目塔。 */
     /* ★V3.9.21 备案：host 判据在 `act` **之前**执行（见下方 `if (sc.act)`），
        所以它只能认「切换前就该在」的入口；`.pano-switch` 要等 act 点完才出现，
-       拿它当 host 会永远判「未挂载」。host 保持 `.navside .view-seg`（V3.9.19 迁入左栏后的真实入口），
+       拿它当 host 会永远判「未挂载」。host 用始终可见的 `.compass-layout`，
        全景是否真渲染由 act 之后的 judge 负责。 */
-    id: 'compass-pano', name: '项目全景', hash: '#/compass', host: '.navside .view-seg',
+    id: 'compass-pano', name: '项目全景', hash: '#/compass', host: '.compass-layout',
     act: async (page) => {
       /* ★V3.9.21：原来两步都 catch 成空 —— 点不到按钮时静默继续，最后只报「宿主未挂载」，
          看不出是按钮没点到还是数据为空。这里把点击失败如实打出来（不中断，交给 judge 判定）。 */
-      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 })
-        .catch(e => console.log(`      [act] 项目全景按钮点击失败：${String(e.message).split('\n')[0]}`))
+      if (!(await page.locator('.pano-switch').first().isVisible().catch(() => false))) {
+        await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 })
+          .catch(e => console.log(`      [act] 项目全景按钮点击失败：${String(e.message).split('\n')[0]}`))
+      }
       await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 })
         .catch(() => console.log('      [act] 点完后 .pano-switch 仍未出现（可能是项目数据为空）'))
       await page.waitForTimeout(700)
@@ -351,12 +368,15 @@ const DASH_SCENES = [
   {
     /* V3.9.15：项目全景的多指标真实渲染夹具。
        与 compass-pano 分开：原场景继续守“默认数据下的单/多泳道兼容”，
-       本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题两行与滚动边界。 */
-    /* ★同 compass-pano：host 必须是 act 之前就在的入口。 */
-    id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.navside .view-seg',
+       本场景专门守 4 指标 + 收容道 + 长标题下的轨道等分、标题单行与滚动边界。 */
+    /* ★同 compass-pano：host 只证明方向台已挂载；全景态的 navside 会隐藏，
+       不能拿 .navside .view-seg 当 host，否则连续第二个全景镜头必被误判“未挂载”。 */
+    id: 'compass-pano-multi', name: '项目全景·多指标', hash: '#/compass', host: '.compass-layout',
     act: async (page) => {
-      await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 })
-        .catch(e => console.log(`      [act] 项目全景按钮点击失败：${String(e.message).split('\n')[0]}`))
+      if (!(await page.locator('.pano-switch').first().isVisible().catch(() => false))) {
+        await page.locator('.view-seg .vs-b', { hasText: '项目全景' }).first().click({ timeout: 8000 })
+          .catch(e => console.log(`      [act] 项目全景按钮点击失败：${String(e.message).split('\n')[0]}`))
+      }
       await page.locator('.pano-switch').first().waitFor({ state: 'visible', timeout: 8000 })
         .catch(() => console.log('      [act] 点完后 .pano-switch 仍未出现（可能是项目数据为空）'))
       await page.locator('.pano-switch .ps-current').first().click({ timeout: 5000 }).catch(() => {})
@@ -377,18 +397,19 @@ const DASH_SCENES = [
       const equal = widths.length === 4 && Math.max(...widths) - Math.min(...widths) <= 2
       const orphanLast = !!orphan && !!lanesBox
         && orphan === lanesBox.lastElementChild
-      const titleClamp = titles.length === 4 && titles.every(t => {
+      const titleSingleLine = titles.length === 4 && titles.every(t => {
         const cs = getComputedStyle(t)
         return cs.overflow === 'hidden' && (t.getAttribute('title') || '').length > 0
-          && t.getBoundingClientRect().height <= 36
+          && cs.whiteSpace === 'nowrap' && cs.textOverflow === 'ellipsis'
+          && t.getBoundingClientRect().height <= 28
       })
       const taskWrap = taskTitles.every(t => t.scrollWidth <= t.clientWidth + 1)
       const overflowX = Math.round(document.documentElement.scrollWidth - window.innerWidth)
       const laneScroll = lanesBox ? Math.round(lanesBox.scrollWidth - lanesBox.clientWidth) : 0
       return {
-        ok: !!lanesBox && widths.length === 4 && equal && orphanLast && titleClamp && taskWrap
+        ok: !!lanesBox && widths.length === 4 && equal && orphanLast && titleSingleLine && taskWrap
           && !!hint && overflowX <= 1 && laneScroll > 4,
-        txt: `泳道=${widths.length}(应4) 宽度=${widths.join('/')} 等分=${equal} 收容最后=${orphanLast} 标题两行=${titleClamp} 长任务不溢出=${taskWrap} 滚动提示=${!!hint} 横向滚动=${laneScroll}px 页面溢出=${overflowX}px`,
+        txt: `泳道=${widths.length}(应4) 宽度=${widths.join('/')} 等分=${equal} 收容最后=${orphanLast} 标题单行=${titleSingleLine} 长任务不溢出=${taskWrap} 滚动提示=${!!hint} 横向滚动=${laneScroll}px 页面溢出=${overflowX}px`,
       }
     })
   },
@@ -1193,10 +1214,13 @@ if (argv.scenes) {
   await new Promise(r => ovServer.listen(0, '127.0.0.1', r))
   const ovPort = ovServer.address().port
   const ovUrl = `http://127.0.0.1:${ovPort}/`
-  let ovPage = null
 
   const page = await ctx.newPage()
   page.setDefaultTimeout(30000)
+  /* 宿主页必须在长巡检开始前就创建：本轮实测连续跑完 19 个扩展页场景后再
+     `ctx.newPage()` 会卡住，后续 content 浮层永远拍不到。提前建页不改变任何判据。 */
+  const ovPage = await ctx.newPage()
+  ovPage.setDefaultTimeout(20000)
 
   /* R4-Et 类名普查：包一层 screenshot，每拍一张就把当时 DOM 里所有 class token 记账（主页面与浮层页都包）。
      为什么要它：孤儿 CSS 的静态扫描会误杀（Transition 生成的类、数据修饰类、v-html 里的类），
@@ -1691,11 +1715,9 @@ if (argv.scenes) {
            判据改为**看文档是否还在目标 hash**，不在就直接 goto 目标地址；
            只有 URL 已经在目标 hash、宿主仍缺失时，reload 才是兜底手段。 */
         const targetUrl = base + (sc.hash || '#/profile')
-        if (!curUrl.startsWith(base) || curUrl !== targetUrl) {
-          await page.goto(targetUrl, { waitUntil: 'domcontentloaded' }).catch(() => {})
-        } else {
-          await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
-        }
+        /* 同 URL 的 page.reload() 在本机 Chromium 会偶发不返回；goto 同一地址本身就会
+           重建文档，也能让懒 chunk 重新挂载，故统一走带超时的 goto。 */
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {})
         await page.waitForTimeout(2400)
         await settle(page, sc.id + ':reload')
         if (!(await page.locator(HOST).first().isVisible().catch(() => false))) {
@@ -1751,12 +1773,13 @@ if (argv.scenes) {
     // 浮层自己读 zy_ui_v2 判主题（普通 DOM，不共享扩展页的 data-theme），故上面刚写回的 storage 主题对它生效。
     let appAccent = ''
     try {
-      appAccent = await page.evaluate(() => {
+      appAccent = await within(page.evaluate(() => {
         const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
         const sp = document.createElement('span'); sp.style.color = v; document.body.appendChild(sp)
         const c = getComputedStyle(sp).color; sp.remove(); return c
-      })
+      }), 5000, '读取应用 accent')
     } catch (e) { /* 取不到就走判据红 */ }
+    console.log(`  · ${theme.padEnd(8)} content 浮层准备（accent=${appAccent || '未取到'}）`)
     /* ★2026-10-21 修：检索词面从注入的真实库里取一张卡的标题里一段**连续非空白**文字。
        病根：原写法是 `String(title).replace(/\s+/g, '').slice(0, 4)`——**删掉**空白再截前 4 字。
        而 content script 的匹配口径是 `blob.toLowerCase().includes(kw)`（blob 含**原标题**，空格还在），
@@ -1774,7 +1797,7 @@ if (argv.scenes) {
       return '资源'
     })()
     for (const sc of OVERLAY_SCENES) {
-      if (!ovPage) { ovPage = await ctx.newPage(); ovPage.setDefaultTimeout(20000) }
+      console.log(`  · ${theme.padEnd(8)} ${sc.name} 打开宿主页`)
       await ovPage.goto(ovUrl, { waitUntil: 'load' })
       /* ★V3.8.41：等 content script **真的就绪**，不再固定等 1400ms。
          病根：`ovPage` 是循环外复用的同一个 page，每个镜头 goto 后只等固定时长，
@@ -1792,12 +1815,17 @@ if (argv.scenes) {
          注意：content script 由 MV3 按 manifest 注入，且产物是 loader（不是
          content/index.js）。这里不伪造第二次注入，只把等待改成可收敛的轮询。 */
       let contentReady = false
-      const probeContent = () => worker.evaluate(async ({ p }) => {
+      /* MV3 service worker 可能在本轮长巡检后进入休眠；继续调用旧 Worker 句柄会一直不返回。
+         改从仍活着的扩展页调用 chrome.tabs，并用真实存活探针 `zy-ping` 等回包。 */
+      const probeContent = () => within(page.evaluate(async ({ p }) => {
         const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
         if (!tabs[0]) return false
-        try { await chrome.tabs.sendMessage(tabs[0].id, { type: '__zy_probe__' }); return true }
+        try {
+          const reply = await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-ping' })
+          return reply && reply.ok === true
+        }
         catch (e) { return false }
-      }, { p: ovPort }).catch(() => false)
+      }, { p: ovPort }), 5000, 'content script 存活探测').catch(() => false)
       const CONTENT_READY = Date.now() + 20000
       while (Date.now() < CONTENT_READY) {
         contentReady = await probeContent()
@@ -1815,11 +1843,11 @@ if (argv.scenes) {
       let ready = false
       let opened = true
       try {
-        await worker.evaluate(async ({ p, t }) => {
+        await within(page.evaluate(async ({ p, t }) => {
           const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${p}/*` })
           if (!tabs[0]) throw new Error('宿主页 tab 未找到')
           await chrome.tabs.sendMessage(tabs[0].id, { type: t })
-        }, { p: ovPort, t: sc.msg })
+        }, { p: ovPort, t: sc.msg }), 5000, 'content script 唤起')
         ready = !!(await ovPage.waitForSelector(sc.ready, { timeout: 8000 }).catch(() => null))
       } catch (e) { opened = false; overlayFail.push(`${theme}/${sc.id}：唤起消息失败 ${e.message}`) }
       if (ready && sc.act) await sc.act(ovPage, needle)

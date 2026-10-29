@@ -5,18 +5,25 @@ const { check, read, codeOnly, segOf } = require('./helpers.cjs');
 
 console.log('【V3.9.22 · 画像洞察】');
 
-check('R180-A1 ★热力图随宽度铺满：周列 minmax(0,1fr) 等分、日格 aspect-ratio 1；窄屏容器横滚且页面不溢出', () => {
+check('R180-A1（V3.9.30 重指）★热力图随宽度铺满且保留月份分组：12 个自然月共用全年轨道，月间独立间隔；画像年度紧收到 900px，窄屏容器横滚且页面不溢出', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'))
   const css = read('/newtab/components/dashboard/dashboard.css')
-  return hm.includes("gridTemplateColumns: `16px repeat(${weekCount}, minmax(0, 1fr))`")
+  return hm.includes('v-for="mo in yearLayout.months"')
+    && hm.includes('class="dz-month-grid"')
+    && hm.includes('gridColumnStart: c.weekday + 1')
+    && hm.includes('gridRowStart: c.week + 1')
+    && hm.includes('offset += cols + MONTH_GAP')
     && hm.includes('class="dz-year-scroll"')
     && css.includes('.dz-year {')
+    && css.includes('grid-template-columns: repeat(12, minmax(72px, 1fr))')
     && css.includes('width: 100%')
-    && css.includes('grid-auto-rows: auto')
+    && css.includes('min-width: 920px')
+    && css.includes('.dz-month-grid {')
+    && css.includes('grid-template-columns: repeat(7, minmax(5px, 1fr))')
     && css.includes('aspect-ratio: 1')
     && css.includes('.dz-year-scroll {')
     && css.includes('overflow-x: auto')
-    && !css.includes('repeat(${weekCount}, 12px)');
+    && !hm.includes('function coordOf(') && !hm.includes('const weekCount = computed');
 });
 
 check('R180-A2 ★画像主攻点击打开可编辑项目详情弹窗：复用 ProjectDetailDrawer mode=modal，关闭右侧抽屉形态', () => {
