@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="linear">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知源调度台 · 方向台层级标签与任务详情优化 · 审核稿 V2</title>
+<!--
+  知源调度台（Ownway）· 方向台层级标签 + 任务详情优化 · 高保真交互原型
+
+  依据：
+  - 文档中心/04_产品与设计/04-73_产品价值锚定的UI设计规范与优化方案_V3.9.16.md
+  - v2/src/newtab/components/compass/TaskDetailDrawer.vue（共享详情唯一实现）
+  - v2/src/newtab/components/compass/CompassTower.vue / CompassLane.vue
+
+  声明：审核稿，不涉及生产代码；演示数据均为虚构样例。所有色值 / 字号 /
+  间距 / 圆角 / 动效均取自 tokens.css（V3.9.22），未新增产品色。
+
+  交互：
+  - 顶部切「方向台 / 任务详情」看两个工作面
+  - 方向台点任务标题或项目舱头 → 打开共享任务详情
+  - 详情内项目 → 指标级联、状态菜单、AI 忙碌态、导出菜单均可操作
+  - 右上「规范」可看设计依据；「入口矩阵」可看同步范围
+  - 主题菜单四套主题；Esc 逐层关闭
+-->
+<style>
+/* ===================== 令牌层（tokens.css V3.9.22 原值） ===================== */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --fs-micro: 9px; --fs-tiny: 10px; --fs-caption: 11px; --fs-sub: 12px;
+  --fs-body: 13px; --fs-title: 15px; --fs-headline: 17px; --fs-display: 22px;
+  --lh-micro: 1.4; --lh-tiny: 1.45; --lh-caption: 1.5; --lh-sub: 1.5;
+  --lh-body: 1.55; --lh-title: 1.35; --lh-headline: 1.3; --lh-display: 1.2;
+  --tracking-sm: .04em;
+  --dur-fast: 120ms; --dur: 150ms; --dur-slow: 250ms;
+  --ease-out-soft: cubic-bezier(.2, .8, .2, 1);
+  --ease-emphasis: cubic-bezier(.16, 1, .3, 1);
+  --radius-xl: 18px; --radius-lg: 14px; --radius: 12px; --radius-md: 10px;
+  --radius-sm: 8px; --radius-xs: 4px; --radius-full: 999px;
+  --hairline: 1px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --hit: 28px;
+  --z-sticky: 100; --z-overlay: 200; --z-modal: 300; --z-menu: 400; --z-toast: 9999;
+}
+/* ===== 深空薰衣草 · linear ===== */
+:root, [data-theme='linear'] {
+  --bg: #0D0E11; --surface: #14161B; --surface-2: #1A1D24; --surface-3: #1C1F26;
+  --border: rgba(255,255,255,.08); --border-strong: rgba(255,255,255,.14);
+  --text: rgba(255,255,255,.92); --text-2: rgba(255,255,255,.70);
+  --text-3: rgba(255,255,255,.50); --text-4: rgba(255,255,255,.32);
+  --accent: #5E6AD2; --accent-2: #7A85E0; --accent-light: rgba(94,106,210,.16);
+  --accent-hover: #828FFF; --accent-ink: #828FFF; --accent-glow: rgba(109,92,232,.40);
+  --success: #27A644; --warning: #D9A03C; --danger: #E5484D;
+  --tag-ok-bg: rgba(39,166,68,.15); --tag-ok-text: #6FCE8B;
+  --tag-warn-bg: rgba(217,160,60,.14); --tag-warn-text: #EFBE66;
+  --tag-neutral-bg: rgba(255,255,255,.06); --tag-neutral-text: rgba(255,255,255,.50);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0,0,0,.45);
+  --shadow-modal: 0 2px 10px rgba(0,0,0,.35), 0 28px 72px rgba(0,0,0,.60);
+  --toast-bg: #1A1D23; --toast-fg: #F2F3F5;
+}
+/* ===== 光速黑 · raycast ===== */
+[data-theme='raycast'] {
+  --bg: #08080A; --surface: #101014; --surface-2: #16161B; --surface-3: #1B1B21;
+  --border: rgba(255,255,255,.12); --border-strong: rgba(255,255,255,.18);
+  --text: rgba(255,255,255,.95); --text-2: rgba(255,255,255,.72);
+  --text-3: rgba(255,255,255,.52); --text-4: rgba(255,255,255,.34);
+  --accent: #1E6FD9; --accent-2: #3D8BEA; --accent-light: rgba(30,111,217,.16);
+  --accent-hover: #3E86E0; --accent-ink: #3D8BEA; --accent-glow: rgba(30,111,217,.45);
+  --success: #27A644; --warning: #D9A03C; --danger: #E5484D;
+  --tag-ok-bg: rgba(39,166,68,.15); --tag-ok-text: #6FCE8B;
+  --tag-warn-bg: rgba(217,160,60,.14); --tag-warn-text: #EFBE66;
+  --tag-neutral-bg: rgba(255,255,255,.08); --tag-neutral-text: rgba(255,255,255,.52);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0,0,0,.55);
+  --shadow-modal: 0 2px 10px rgba(0,0,0,.40), 0 28px 72px rgba(0,0,0,.70);
+  --toast-bg: #0B0B0E; --toast-fg: #F2F3F5;
+}
+/* ===== 极简白 · apple ===== */
+[data-theme='apple'] {
+  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #EFEFF2; --surface-3: #EAEAEF;
+  --border: rgba(0,0,0,.09); --border-strong: rgba(0,0,0,.15);
+  --text: rgba(0,0,0,.90); --text-2: rgba(0,0,0,.62);
+  --text-3: rgba(0,0,0,.46); --text-4: rgba(0,0,0,.28);
+  --accent: #8452E0; --accent-2: #9E8FEC; --accent-light: #EFEBFB;
+  --accent-hover: #6C3FC8; --accent-ink: #6C3FC8; --accent-glow: rgba(132,82,224,.18);
+  --success: #27A644; --warning: #A66A00; --danger: #D0342C;
+  --tag-ok-bg: #E4F2E8; --tag-ok-text: #2E7D42;
+  --tag-warn-bg: #FBF1DE; --tag-warn-text: #8A5A00;
+  --tag-neutral-bg: #EFEFF2; --tag-neutral-text: rgba(0,0,0,.46);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(0,0,0,.04);
+  --shadow-modal: 0 2px 10px rgba(0,0,0,.06), 0 28px 72px rgba(0,0,0,.16);
+  --toast-bg: #FFFFFF; --toast-fg: #1D1D1F;
+}
+/* ===== 纸墨白 · notion ===== */
+[data-theme='notion'] {
+  --bg: #F7F6F3; --surface: #FFFFFF; --surface-2: #F2F0EB; --surface-3: #EEEAE3;
+  --border: rgba(40,34,24,.11); --border-strong: rgba(40,34,24,.18);
+  --text: rgba(35,31,25,.90); --text-2: rgba(35,31,25,.64);
+  --text-3: rgba(35,31,25,.52); --text-4: rgba(35,31,25,.30);
+  --accent: #9E3FAF; --accent-2: #B76BC6; --accent-light: #F6EDF8;
+  --accent-hover: #85349A; --accent-ink: #85349A; --accent-glow: rgba(158,63,175,.18);
+  --success: #448361; --warning: #C08A2D; --danger: #E03E3E;
+  --tag-ok-bg: #E4EFE7; --tag-ok-text: #3F7355;
+  --tag-warn-bg: #F5E9D3; --tag-warn-text: #8A5F1E;
+  --tag-neutral-bg: #F2F0EB; --tag-neutral-text: rgba(35,31,25,.52);
+  --shadow-hover: 0 0 0 1px var(--border-strong), 0 2px 8px rgba(15,15,15,.04);
+  --shadow-modal: 0 2px 10px rgba(15,15,15,.06), 0 28px 72px rgba(15,15,15,.16);
+  --toast-bg: #FBFAF8; --toast-fg: #2B2A27;
+}
+
+/* ===================== 基础契约 ===================== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { font-family: var(--font-sans); background: var(--bg); color: var(--text); font-size: var(--fs-body); line-height: var(--lh-body); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 1px; }
+::selection { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+.icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.icon.sm { width: 12px; height: 12px; }
+.icon.lg { width: 16px; height: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+/* ===================== 原子组件 ===================== */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); min-height: var(--hit); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-sm); font-size: var(--fs-sub); font-weight: 500; white-space: nowrap; transition: background var(--dur) var(--ease-out-soft), border-color var(--dur) var(--ease-out-soft), color var(--dur) var(--ease-out-soft); }
+.btn.secondary { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); }
+.btn.secondary:hover { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+.btn.ghost { color: var(--text-3); }
+.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn.primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); font-weight: 600; }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.btn.sm { min-height: 26px; padding: 2px 8px; font-size: var(--fs-caption); }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: var(--hit); height: var(--hit); border-radius: var(--radius-sm); color: var(--text-3); transition: background var(--dur), color var(--dur); }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: var(--radius-xs); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 500; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); white-space: nowrap; letter-spacing: var(--tracking-sm); }
+.chip.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.chip.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.chip.accent { background: var(--accent-light); color: var(--accent-ink); }
+.kbd { font-family: var(--font-mono); font-size: var(--fs-tiny); padding: 1px 5px; border: 1px solid var(--border); border-radius: var(--radius-xs); color: var(--text-3); background: var(--surface-2); }
+[data-tip] { position: relative; }
+[data-tip]::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); width: max-content; max-width: 320px; padding: var(--sp-1) var(--sp-2); background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow-hover); color: var(--text-2); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 400; letter-spacing: 0; white-space: normal; opacity: 0; pointer-events: none; z-index: var(--z-menu); transition: opacity var(--dur); }
+[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; }
+
+/* ===================== 原型壳 ===================== */
+.proto-bar { min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-1) var(--sp-6); border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--accent) 5%, var(--bg)); font-size: var(--fs-caption); color: var(--text-3); }
+.proto-bar b { color: var(--text-2); font-weight: 600; }
+.proto-actions { display: flex; align-items: center; gap: var(--sp-1); }
+.proto-actions .btn { min-height: 26px; font-size: var(--fs-caption); }
+.app-top { height: 48px; display: flex; align-items: center; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 92%, transparent); position: sticky; top: 0; z-index: var(--z-sticky); backdrop-filter: blur(10px); }
+.app-top-inner { width: min(1440px, 100%); margin: 0 auto; padding: 0 var(--sp-6); display: flex; align-items: center; gap: var(--sp-4); }
+.brand { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-title); font-weight: 600; white-space: nowrap; }
+.brand-mark { width: 16px; height: 16px; border-radius: var(--radius-sm); background: var(--accent); color: #fff; display: grid; place-items: center; font-size: var(--fs-tiny); font-weight: 700; }
+.brand small { font-size: var(--fs-caption); color: var(--text-4); font-weight: 400; }
+.deck-tabs { display: flex; gap: var(--sp-1); }
+.deck-tab { min-height: var(--hit); padding: 0 var(--sp-3); border-radius: var(--radius-full); font-size: var(--fs-sub); color: var(--text-2); }
+.deck-tab:hover { background: var(--surface-2); color: var(--text); }
+.deck-tab.on { background: var(--accent-light); color: var(--accent-ink); font-weight: 500; }
+.top-grow { flex: 1; }
+.save-state { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--hit); padding: 0 var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); }
+.save-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); opacity: .8; }
+.menu-anchor { position: relative; }
+.menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); min-width: 168px; padding: var(--sp-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-hover); z-index: var(--z-menu); }
+.menu.open { display: block; animation: pop var(--dur) var(--ease-emphasis); }
+@keyframes pop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.menu-item { width: 100%; display: flex; align-items: center; gap: var(--sp-2); min-height: var(--hit); padding: 0 var(--sp-2); border-radius: var(--radius-sm); color: var(--text-2); font-size: var(--fs-sub); text-align: left; }
+.menu-item:hover { background: var(--surface-2); color: var(--text); }
+.menu-item.on { background: var(--accent-light); color: var(--accent-ink); }
+.sw { width: 10px; height: 10px; border-radius: var(--radius-xs); border: 1px solid var(--border-strong); }
+.menu-sep { height: 1px; background: var(--border); margin: var(--sp-1) 0; }
+
+/* ===================== 方向台 ===================== */
+.view { display: none; }
+.view.on { display: block; }
+.page { width: min(1440px, 100%); margin: 0 auto; padding: var(--sp-5) var(--sp-6) var(--sp-7); }
+.page-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.health { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); min-height: var(--hit); }
+.health .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+.head-stat { display: inline-flex; align-items: center; gap: 4px; min-height: var(--hit); font-size: var(--fs-caption); color: var(--text-3); }
+.head-stat b { color: var(--text); font-weight: 600; }
+.head-sep { width: 1px; height: 12px; background: var(--border-strong); }
+.head-right { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
+.spine-bar { margin-top: var(--sp-3); min-height: 48px; border-top: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong); display: flex; align-items: center; gap: var(--sp-2); overflow-x: auto; }
+.spine-name { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-caption); font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.spine-name .diamond { width: 10px; height: 10px; background: var(--accent); transform: rotate(45deg); border-radius: 2px; }
+.layers { display: flex; align-items: center; gap: 1px; white-space: nowrap; }
+.layer-chip { min-height: var(--hit); padding: 0 8px; border-radius: var(--radius-xs); display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--text-3); }
+.layer-chip:hover { background: var(--surface-2); color: var(--text); }
+.layer-chip i { font-style: normal; font-size: var(--fs-micro); color: var(--text-4); }
+.layer-chip b { font-weight: 600; color: var(--text-2); }
+.layer-arrow { font-size: var(--fs-caption); color: var(--text-4); }
+.spine-grow { flex: 1; min-width: var(--sp-4); }
+
+.progress { width: 100px; height: 5px; border-radius: var(--radius-full); background: var(--surface-3); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+
+.work { margin-top: var(--sp-5); display: grid; grid-template-columns: 244px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
+.nav-side { position: sticky; top: calc(48px + 36px + var(--sp-4)); }
+.nav-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-3); font-size: var(--fs-caption); color: var(--text-3); }
+.nav-title b { font-size: var(--fs-body); color: var(--text-2); }
+.nav-switch { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: var(--sp-3); }
+.nav-switch button { flex: 1; min-height: 26px; border-radius: 6px; font-size: var(--fs-caption); color: var(--text-3); }
+.nav-switch button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.nav-group { margin-bottom: var(--sp-3); }
+.nav-goal { padding: 0 var(--sp-2) 5px; color: var(--text-4); font-size: var(--fs-micro); letter-spacing: var(--tracking-sm); }
+.nav-item { width: 100%; display: flex; align-items: flex-start; gap: var(--sp-2); padding: 7px var(--sp-2); border-radius: var(--radius-sm); text-align: left; color: var(--text-2); border-left: 2px solid transparent; }
+.nav-item:hover { background: var(--surface-2); }
+.nav-item.on { background: var(--surface); border-left-color: var(--accent); color: var(--text); }
+.nav-no { flex: none; padding-top: 1px; font-size: var(--fs-micro); color: var(--text-4); }
+.nav-copy { min-width: 0; }
+.nav-name { font-size: var(--fs-sub); line-height: 1.45; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.nav-meta { margin-top: 2px; font-size: var(--fs-micro); color: var(--text-4); }
+.nav-foot { padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); line-height: 1.7; }
+
+.board { min-width: 0; }
+.board-head { display: flex; align-items: center; gap: var(--sp-2); padding-bottom: var(--sp-3); border-bottom: 1px solid var(--border); }
+.board-title { font-size: var(--fs-headline); font-weight: 650; letter-spacing: -.015em; }
+.board-meta { font-size: var(--fs-caption); color: var(--text-3); }
+.board-tools { margin-left: auto; display: flex; align-items: center; gap: var(--sp-1); }
+
+/* 战略目标分组头：层级签 + 标题 + 读数 + 操作 */
+.dir-group { margin-top: var(--sp-4); }
+.dir-group + .dir-group { margin-top: var(--sp-6); }
+.dir-head { display: flex; align-items: center; gap: var(--sp-2); min-height: 38px; flex-wrap: wrap; }
+.dir-head::before { content: ""; align-self: stretch; width: 3px; flex: none; border-radius: var(--radius-full); background: var(--accent); margin-right: 2px; }
+.dir-title { font-size: var(--fs-headline); font-weight: 650; letter-spacing: -.01em; }
+.dir-meta { font-size: var(--fs-caption); color: var(--text-3); }
+.dir-grow { flex: 1; min-width: var(--sp-3); height: 1px; background: var(--border); }
+.dir-actions { display: flex; align-items: center; gap: 2px; }
+.mini-act { width: var(--hit); height: var(--hit); display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--text-3); }
+.mini-act:hover { background: var(--surface-2); color: var(--text); }
+.mini-act.on { background: var(--accent-light); color: var(--accent-ink); }
+.mini-act.filter { width: auto; min-width: var(--hit); padding: 0 8px; gap: 4px; font-size: var(--fs-caption); white-space: nowrap; }
+
+/* 层级签（本需求核心新增） */
+.level-tag { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 26px; padding: 2px 9px 2px 4px; border-radius: var(--radius-xs); border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-caption); font-weight: 650; line-height: var(--lh-caption); letter-spacing: var(--tracking-sm); white-space: nowrap; }
+.level-tag .lv { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-xs); background: var(--surface-3); color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0; }
+.level-tag .lv-ico { color: var(--text-3); }
+/* 战略目标：唯一使用强调色的层级签，承担“分组起点” */
+.level-tag.goal { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); color: var(--accent-ink); }
+.level-tag.goal .lv { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); color: var(--accent-ink); }
+.level-tag.goal .lv-ico { color: var(--accent-ink); }
+/* 项目：同族中性，尺寸更紧 */
+.level-tag.project { min-height: 24px; padding-right: 8px; background: var(--surface); border-color: var(--border); color: var(--text-2); }
+.level-tag.project .lv { width: 16px; height: 16px; background: transparent; border: 1px solid var(--border-strong); }
+/* 指标：与项目同族，弱一档；不抢项目标题 */
+.level-tag.metric { min-height: 22px; padding: 1px 7px 1px 3px; border-color: var(--border); background: transparent; color: var(--text-3); font-weight: 550; }
+.level-tag.metric .lv { width: 15px; height: 15px; background: transparent; border: 1px solid var(--border); color: var(--text-4); }
+
+/* 项目舱 */
+.tower { margin-top: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+.tower + .tower { margin-top: var(--sp-3); }
+.tower-head { display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-3) var(--sp-3) var(--sp-2); }
+.tower-idx { flex: none; width: 20px; height: 20px; display: grid; place-items: center; margin-top: 2px; border-radius: 6px; background: var(--surface-2); font-size: var(--fs-micro); color: var(--text-3); font-weight: 600; }
+.tower-main { flex: 1; min-width: 0; }
+.tower-title-line { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.tower-name { font-size: var(--fs-headline); font-weight: 650; letter-spacing: -.01em; }
+.tower-crumb { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-size: var(--fs-caption); color: var(--text-4); flex-wrap: wrap; }
+.tower-crumb b { font-weight: 500; color: var(--text-3); }
+.tower-right { display: flex; align-items: center; gap: var(--sp-2); flex: none; padding-top: 1px; }
+.ring { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-micro); font-weight: 700; color: var(--text-2); background: conic-gradient(var(--accent) 0 38%, var(--surface-3) 38% 100%); position: relative; }
+.ring::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--surface); }
+.ring span { position: relative; z-index: 1; }
+.tower-count { min-width: 56px; font-size: var(--fs-micro); color: var(--text-3); line-height: 1.4; }
+.tower-count b { display: block; font-size: var(--fs-sub); color: var(--text); font-weight: 600; }
+.tower-acts { display: flex; align-items: center; gap: 2px; }
+.tower-body { border-top: 1px solid var(--border); }
+
+/* 指标与任务：发丝线阅读行 */
+.metric { border-bottom: 1px solid var(--border); }
+.metric:last-child { border-bottom: 0; }
+.metric-head { display: flex; align-items: center; gap: var(--sp-2); min-height: 42px; padding: 7px var(--sp-3); }
+.metric-name { font-size: var(--fs-title); font-weight: 600; color: var(--text); }
+.metric-progress { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+.metric-progress .progress { width: 82px; }
+.metric-count { font-size: var(--fs-caption); color: var(--text-3); min-width: 54px; text-align: right; }
+.metric-actions { display: flex; gap: 1px; }
+.metric-expand { width: var(--hit); height: var(--hit); display: grid; place-items: center; color: var(--text-3); border-radius: var(--radius-sm); }
+.metric-expand:hover { background: var(--surface-2); color: var(--text); }
+.task-list { padding: 0 var(--sp-3) var(--sp-2); }
+.task-list[hidden] { display: none; }
+.task-row { min-height: 38px; display: flex; align-items: center; gap: var(--sp-2); padding: 5px 4px 5px var(--sp-3); border-top: 1px solid var(--border); position: relative; }
+.task-row::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: var(--border-strong); }
+.task-row::after { content: ""; position: absolute; left: 4px; top: 50%; width: 9px; height: 1px; background: var(--border-strong); }
+.check { flex: none; width: 16px; height: 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); display: grid; place-items: center; color: #fff; background: var(--surface); }
+.check:hover { border-color: var(--success); }
+.check.done { background: var(--success); border-color: var(--success); }
+.check .icon { width: 10px; height: 10px; }
+.task-title { flex: 1; min-width: 0; text-align: left; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.5; }
+.task-title:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+.task-row.done .task-title { color: var(--text-4); text-decoration: line-through; }
+.task-side { display: flex; align-items: center; gap: var(--sp-1); flex: none; opacity: .5; transition: opacity var(--dur); }
+.task-row:hover .task-side, .task-row:focus-within .task-side { opacity: 1; }
+.pri { width: 6px; height: 6px; border-radius: 50%; background: var(--text-4); }
+.pri.high { background: var(--danger); } .pri.medium { background: var(--warning); } .pri.low { background: var(--success); }
+.task-copy { display: grid; gap: 1px; text-align: right; }
+.task-copy b { font-size: var(--fs-micro); font-weight: 500; color: var(--text-4); }
+.task-del { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-xs); color: var(--text-4); opacity: 0; }
+.task-row:hover .task-del, .task-del:focus-visible { opacity: 1; }
+.task-del:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+
+/* 提醒条：说明本轮改了什么；可关 */
+.change-note { margin-top: var(--sp-4); display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--accent) 4%, transparent); font-size: var(--fs-caption); color: var(--text-3); line-height: 1.6; }
+.change-note b { color: var(--text-2); font-weight: 600; }
+.change-note .icon { margin-top: 2px; color: var(--accent-ink); }
+.change-note .x { margin-left: auto; color: var(--text-4); }
+
+/* ===================== 任务详情演示工作面 ===================== */
+.detail-stage { min-height: calc(100vh - 84px); background: var(--bg); }
+.stage-grid { width: min(1440px, 100%); margin: 0 auto; padding: var(--sp-5) var(--sp-6) var(--sp-7); display: grid; grid-template-columns: minmax(0, 1fr) 560px; gap: var(--sp-5); align-items: start; }
+.stage-context { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); padding: var(--sp-4); }
+.stage-eyebrow { font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); }
+.stage-title { margin-top: 2px; font-size: var(--fs-display); font-weight: 650; letter-spacing: -.02em; line-height: 1.2; }
+.stage-desc { margin-top: var(--sp-2); font-size: var(--fs-sub); color: var(--text-3); max-width: 48ch; }
+.stage-points { margin-top: var(--sp-5); display: grid; gap: var(--sp-2); }
+.stage-point { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: var(--sp-2); padding: var(--sp-3); border-top: 1px solid var(--border); }
+.stage-point:last-child { border-bottom: 1px solid var(--border); }
+.stage-no { width: 22px; height: 22px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-ink); display: grid; place-items: center; font-size: var(--fs-caption); font-weight: 700; }
+.stage-point b { font-size: var(--fs-sub); font-weight: 600; }
+.stage-point p { margin-top: 2px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.65; }
+.stage-matrix { margin-top: var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.stage-matrix-head, .stage-matrix-row { display: grid; grid-template-columns: 1.1fr 1fr 1.4fr; gap: var(--sp-2); padding: 7px var(--sp-3); font-size: var(--fs-caption); }
+.stage-matrix-head { background: var(--surface-2); color: var(--text-4); font-size: var(--fs-micro); letter-spacing: var(--tracking-sm); }
+.stage-matrix-row { border-top: 1px solid var(--border); color: var(--text-3); }
+.stage-matrix-row b { color: var(--text-2); font-weight: 500; }
+.stage-matrix-row i { font-style: normal; color: var(--success); }
+.stage-before-after { margin-top: var(--sp-4); display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.ba { padding: var(--sp-3); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2); }
+.ba small { display: block; font-size: var(--fs-micro); color: var(--text-4); letter-spacing: var(--tracking-sm); }
+.ba b { display: block; margin-top: 3px; font-size: var(--fs-sub); font-weight: 600; }
+.ba p { margin-top: 2px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.6; }
+.ba.after { border-color: color-mix(in srgb, var(--accent) 36%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--surface-2)); }
+
+/* 详情抽屉：原型直接在右栏展示，形状/间距与 Drawer.vue 同源 */
+.drawer-demo { width: 100%; height: min(820px, calc(100vh - 136px)); min-height: 640px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-modal); overflow: hidden; position: sticky; top: 88px; }
+.drawer-head { display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--border); }
+.drawer-head-main { flex: 1; min-width: 0; }
+.drawer-kicker { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 6px; font-size: var(--fs-caption); color: var(--text-4); }
+.task-title-line { display: flex; align-items: flex-start; gap: var(--sp-2); }
+.task-check { width: 22px; height: 22px; flex: none; margin-top: 1px; border: 2px solid var(--border-strong); border-radius: 6px; display: grid; place-items: center; color: #fff; background: var(--surface); }
+.task-check.done { background: var(--success); border-color: var(--success); }
+.task-check .icon { width: 13px; height: 13px; }
+.task-h1 { flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; color: var(--text); padding: 2px 5px; margin: -2px -5px 0; border-radius: var(--radius-sm); font-size: var(--fs-headline); font-weight: 650; line-height: var(--lh-headline); letter-spacing: -.01em; resize: none; overflow: hidden; min-height: 44px; }
+.task-h1:hover { border-color: var(--border); }
+.task-h1:focus { outline: none; border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-glow); }
+.head-close { flex: none; }
+.head-tools { display: flex; align-items: center; gap: var(--sp-2); }
+.drawer-body { flex: 1; overflow-y: auto; padding: var(--sp-3) var(--sp-4); }
+.drawer-foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); display: flex; gap: var(--sp-2); }
+.drawer-foot .btn { flex: 1; }
+.drawer-foot .btn.primary { flex: 2; }
+
+/* 状态 + 轻量徽标 */
+.meta-line { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.status-wrap { position: relative; }
+.status-btn { min-height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; border-radius: var(--radius-full); font-size: var(--fs-sub); font-weight: 600; white-space: nowrap; }
+.status-btn::after { content: "▾"; font-size: var(--fs-micro); opacity: .65; }
+.status-btn.todo { background: var(--tag-neutral-bg); color: var(--text-2); }
+.status-btn.doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
+.status-btn.done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+.status-menu { display: none; position: absolute; top: calc(100% + 5px); left: 0; z-index: var(--z-menu); min-width: 138px; padding: var(--sp-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-hover); }
+.status-menu.open { display: block; }
+.status-menu button { width: 100%; min-height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 var(--sp-2); border-radius: 6px; text-align: left; color: var(--text-2); font-size: var(--fs-sub); }
+.status-menu button:hover { background: var(--surface-2); color: var(--text); }
+.status-menu button.on { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
+
+/* 归属卡：从正文底部提前到标题下 */
+.ownership { margin-top: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.ownership-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-2); font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); }
+.ownership-head .icon { color: var(--text-4); }
+.ownership-head .hint { margin-left: auto; font-size: var(--fs-caption); font-weight: 400; color: var(--text-4); }
+.ownership-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.own-field { min-width: 0; }
+.own-label { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; font-size: var(--fs-caption); color: var(--text-4); }
+.own-label .icon { width: 11px; height: 11px; }
+.own-select { width: 100%; min-height: 32px; padding: 0 var(--sp-3) 0 var(--sp-2); border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--fs-sub); cursor: pointer; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-4) 50%), linear-gradient(135deg, var(--text-4) 50%, transparent 50%); background-position: calc(100% - 12px) 13px, calc(100% - 8px) 13px; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; }
+.own-select:hover { border-color: var(--border-strong); }
+.own-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.own-select:disabled { opacity: .55; cursor: not-allowed; }
+
+/* 动作行：AI 收成一组，导出独立靠右 */
+.action-bar { margin-top: var(--sp-3); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.ai-group { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.ai-group-label { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px 0 4px; color: var(--text-4); font-size: var(--fs-caption); white-space: nowrap; }
+.ai-mark { width: 13px; height: 13px; flex: none; color: var(--accent-ink); }
+.ai-btn { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border-radius: 6px; color: var(--text-2); font-size: var(--fs-caption); font-weight: 500; white-space: nowrap; }
+.ai-btn:hover { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.ai-btn:disabled { opacity: .5; cursor: progress; }
+.ai-btn .ai-mark { width: 11px; height: 11px; }
+.ai-btn.busy .ai-mark { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.action-spacer { flex: 1; min-width: var(--sp-1); }
+.export-wrap { position: relative; flex: none; }
+.export-menu { display: none; position: absolute; right: 0; top: calc(100% + 5px); min-width: 166px; padding: var(--sp-1); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-hover); z-index: var(--z-menu); }
+.export-menu.open { display: block; }
+.export-menu button { width: 100%; min-height: var(--hit); display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2); border-radius: 6px; text-align: left; font-size: var(--fs-sub); color: var(--text-2); }
+.export-menu button:hover { background: var(--surface-2); color: var(--text); }
+.export-menu small { margin-left: auto; font-size: var(--fs-micro); color: var(--text-4); }
+
+/* 正文分组 */
+.sec { margin-top: var(--sp-3); }
+.sec-label { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: 6px; font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); letter-spacing: var(--tracking-sm); }
+.sec-label .icon { align-self: center; color: var(--text-4); }
+.sec-label .hint { font-weight: 400; letter-spacing: 0; color: var(--text-4); }
+.desc-wrap { position: relative; }
+.desc { width: 100%; min-height: 150px; padding: var(--sp-3); border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: var(--fs-body); line-height: 1.7; resize: vertical; }
+.desc:hover { border-color: var(--border); }
+.desc:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 2px var(--accent-glow); }
+.sub-add { display: flex; align-items: center; gap: var(--sp-2); min-height: 34px; padding: 0 var(--sp-3); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); color: var(--text-3); font-size: var(--fs-sub); }
+.sub-add input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--text); font-size: var(--fs-sub); }
+.sub-add input::placeholder { color: var(--text-4); }
+.sub-list { margin-top: 5px; }
+.sub-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 32px; padding: 3px 2px; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); color: var(--text-2); }
+.sub-row:last-child { border-bottom: 0; }
+.sub-row .check { width: 14px; height: 14px; }
+.sub-row .check .icon { width: 9px; height: 9px; }
+.sub-row.done span { color: var(--text-4); text-decoration: line-through; }
+.sub-row .x { margin-left: auto; color: var(--text-4); opacity: 0; }
+.sub-row:hover .x { opacity: 1; }
+.support-empty { padding: var(--sp-2) 0; font-size: var(--fs-caption); color: var(--text-3); }
+.support-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 32px; padding: 3px 2px; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
+.support-row a { flex: 1; min-width: 0; color: var(--text-2); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.support-row a:hover { color: var(--accent-ink); text-decoration: underline; }
+.support-row .chip { flex: none; }
+.support-add { display: flex; gap: 6px; margin-top: 6px; }
+.support-add input { flex: 1; min-width: 0; min-height: 30px; padding: 0 var(--sp-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--fs-sub); }
+.support-add input:focus { outline: none; border-color: var(--accent); }
+.support-add .btn { min-height: 30px; }
+
+.props-grid { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2) var(--sp-3); align-items: center; }
+.prop-key { font-size: var(--fs-caption); color: var(--text-4); white-space: nowrap; }
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.segmented button { min-height: 28px; padding: 0 10px; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); }
+.segmented button + button { border-left: 1px solid var(--border); }
+.segmented button.on[data-p="high"] { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--surface-2)); font-weight: 600; }
+.segmented button.on[data-p="medium"] { color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, var(--surface-2)); font-weight: 600; }
+.segmented button.on[data-p="low"] { color: var(--success); background: color-mix(in srgb, var(--success) 12%, var(--surface-2)); font-weight: 600; }
+.link-row { display: flex; gap: 6px; }
+.link-input { flex: 1; min-width: 0; min-height: 30px; padding: 0 var(--sp-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); }
+.link-input:focus { outline: none; border-color: var(--accent); }
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 7px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-caption); }
+.tag span { opacity: .65; }
+.tag-add { min-height: 24px; padding: 0 7px; border: 1px dashed var(--border-strong); border-radius: var(--radius-full); color: var(--text-3); font-size: var(--fs-caption); }
+.meta { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding-top: var(--sp-2); font-size: var(--fs-caption); color: var(--text-4); }
+.attaches { border-top: 1px solid var(--border); margin-top: var(--sp-3); padding-top: var(--sp-2); }
+.attaches summary { display: flex; align-items: center; gap: 6px; min-height: var(--hit); cursor: pointer; list-style: none; font-size: var(--fs-sub); color: var(--text-2); }
+.attaches summary::-webkit-details-marker { display: none; }
+
+/* ===================== 浮层：规范 / 入口矩阵 / Toast ===================== */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: calc(var(--z-modal) - 1); }
+.overlay.open { display: block; }
+.sheet { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -48%); width: min(640px, calc(100vw - 32px)); max-height: min(82vh, 780px); flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-modal); z-index: var(--z-modal); overflow: hidden; }
+.sheet.open { display: flex; animation: sheetIn var(--dur-slow) var(--ease-emphasis); }
+@keyframes sheetIn { from { opacity: 0; transform: translate(-50%, -47%) scale(.99); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.sheet-head { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border); }
+.sheet-head h2 { font-size: var(--fs-headline); font-weight: 650; letter-spacing: -.01em; }
+.sheet-head p { margin-top: 2px; font-size: var(--fs-caption); color: var(--text-3); }
+.sheet-head .icon-btn { margin-left: auto; }
+.sheet-body { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-5); }
+.spec-block { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.spec-block:last-child { border-bottom: 0; }
+.spec-block h3 { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-title); font-weight: 600; }
+.spec-block h3 .chip { font-weight: 500; }
+.spec-block p { margin-top: 5px; font-size: var(--fs-sub); color: var(--text-2); line-height: 1.7; }
+.spec-block ul { margin-top: 6px; padding-left: 18px; font-size: var(--fs-caption); color: var(--text-3); line-height: 1.8; }
+.spec-block li::marker { color: var(--accent); }
+.entry-table { width: 100%; border-collapse: collapse; font-size: var(--fs-caption); }
+.entry-table th, .entry-table td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.entry-table th { font-size: var(--fs-micro); color: var(--text-4); font-weight: 600; letter-spacing: var(--tracking-sm); }
+.entry-table td { color: var(--text-3); }
+.entry-table td b { color: var(--text-2); font-weight: 500; }
+.entry-table .ok { color: var(--success); white-space: nowrap; }
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: var(--z-toast); display: flex; align-items: center; gap: var(--sp-2); max-width: min(360px, calc(100vw - 40px)); padding: 9px var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--toast-bg); color: var(--toast-fg); box-shadow: var(--shadow-hover); font-size: var(--fs-sub); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity var(--dur), transform var(--dur); }
+.toast.show { opacity: 1; transform: none; }
+
+/* ===================== 响应式：只重排，不缩字 ===================== */
+@media (max-width: 1180px) {
+  .stage-grid { grid-template-columns: minmax(0, 1fr) 520px; gap: var(--sp-4); }
+  .work { grid-template-columns: 216px minmax(0, 1fr); gap: var(--sp-4); }
+}
+@media (max-width: 1024px) {
+  .page { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
+  .app-top-inner { padding: 0 var(--sp-4); }
+  .work { grid-template-columns: 196px minmax(0, 1fr); gap: var(--sp-3); }
+  .nav-name { font-size: var(--fs-caption); }
+  .stage-grid { grid-template-columns: 1fr; }
+  .drawer-demo { position: static; height: auto; max-height: none; min-height: 680px; }
+  .drawer-body { max-height: 720px; }
+}
+@media (max-width: 800px) {
+  .proto-bar { align-items: flex-start; flex-direction: column; padding: var(--sp-2) var(--sp-4); }
+  .proto-actions { width: 100%; overflow-x: auto; }
+  .app-top { height: auto; min-height: 48px; }
+  .app-top-inner { flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
+  .deck-tabs { order: 3; width: 100%; }
+  .deck-tab { flex: 1; text-align: center; }
+  .work { display: block; }
+  .nav-side { position: static; margin-bottom: var(--sp-4); }
+  .nav-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-3); }
+  .nav-foot { display: none; }
+  .tower-head { flex-wrap: wrap; }
+  .tower-right { width: 100%; justify-content: flex-end; padding-left: 28px; }
+  .metric-head { flex-wrap: wrap; }
+  .metric-progress { width: 100%; justify-content: flex-end; }
+  .ownership-grid { grid-template-columns: 1fr; }
+  .stage-before-after { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .page, .stage-grid { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  .brand small, .save-state span:not(.save-dot) { display: none; }
+  .drawer-head { padding: var(--sp-3); }
+  .drawer-body { padding: var(--sp-2) var(--sp-3); }
+  .ai-group { width: 100%; }
+  .ai-group-label { display: none; }
+  .ai-btn { flex: 1; justify-content: center; }
+  .action-spacer { display: none; }
+  .export-wrap { margin-left: auto; }
+  .props-grid { grid-template-columns: 1fr; }
+  .props-grid .prop-key { margin-top: var(--sp-2); }
+  .task-copy { display: none; }
+  .task-del { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span><b>审核稿 V2</b> · 方向台层级标签 + 任务详情信息重排 · 基线 V3.9.22 · 演示数据虚构 · 令牌取自 tokens.css</span>
+  <div class="proto-actions">
+    <button class="btn ghost" id="btnSpec"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h6"/></svg>规范</button>
+    <button class="btn ghost" id="btnMatrix"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>入口矩阵</button>
+    <button class="btn ghost" id="btnThemeNext"><svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18"/></svg>换主题</button>
+  </div>
+</div>
+
+<header class="app-top">
+  <div class="app-top-inner">
+    <div class="brand"><span class="brand-mark">知</span>知源<small>Ownway</small></div>
+    <nav class="deck-tabs" aria-label="台面">
+      <button class="deck-tab" data-view="home">调度台</button>
+      <button class="deck-tab on" data-view="compass">方向台</button>
+      <button class="deck-tab" data-view="home">策展台</button>
+      <button class="deck-tab" data-view="home">画像洞察</button>
+    </nav>
+    <span class="top-grow"></span>
+    <span class="save-state" id="saveState"><span class="save-dot"></span>已保存 09:12</span>
+    <div class="menu-anchor">
+      <button class="icon-btn" id="btnTheme" aria-label="主题与密度"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.5 0 2-1 2-2s-.7-1.6 0-2.4c.8-.9 2.5-.3 3.6-1.2 1.6-1.3.6-4.4-1-6.4C15.6 6.6 13 3 12 3Z"/></svg></button>
+      <div class="menu" id="themeMenu">
+        <button class="menu-item on" data-theme="linear"><span class="sw" style="background:#0D0E11"></span>深空薰衣草</button>
+        <button class="menu-item" data-theme="raycast"><span class="sw" style="background:#08080A"></span>光速黑</button>
+        <button class="menu-item" data-theme="apple"><span class="sw" style="background:#F5F5F7"></span>极简白</button>
+        <button class="menu-item" data-theme="notion"><span class="sw" style="background:#F7F6F3"></span>纸墨白</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" id="menuDetail"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h6"/></svg>打开任务详情演示</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ==================== 方向台 ==================== -->
+  <section class="view on" id="view-compass">
+    <div class="page">
+      <div class="page-head">
+        <span class="health"><span class="dot"></span>方向健康度：关注</span>
+        <span class="head-sep"></span>
+        <span class="head-stat">主攻 <b>2</b></span>
+        <span class="head-sep"></span>
+        <span class="head-stat">停滞 <b>1</b></span>
+        <span class="head-stat" style="margin-left:2px">六层计数 · 战略骨架</span>
+        <div class="head-right">
+          <button class="btn ghost" id="expandAll"><svg class="icon sm" viewBox="0 0 24 24"><path d="M8 7 4 12l4 5M16 7l4 5-4 5"/></svg>全部展开</button>
+          <button class="btn ghost"><svg class="icon sm" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>已完成项目：显示</button>
+        </div>
+      </div>
+
+      <div class="spine-bar" aria-label="六层结构">
+        <span class="spine-name"><span class="diamond"></span>战略骨架</span>
+        <span class="chip">SPINE</span>
+        <div class="layers">
+          <button class="layer-chip" data-tip="愿景：终极方向"><i>1</i>愿景 <b>1</b></button><span class="layer-arrow">›</span>
+          <button class="layer-chip" data-tip="使命：行动准则"><i>2</i>使命 <b>1</b></button><span class="layer-arrow">›</span>
+          <button class="layer-chip" data-tip="战略目标：本轮新增层级签的主角"><i>3</i>战略目标 <b>3</b></button><span class="layer-arrow">›</span>
+          <button class="layer-chip" data-tip="项目：本轮新增层级签"><i>4</i>项目 <b>6</b></button><span class="layer-arrow">›</span>
+          <button class="layer-chip" data-tip="成功指标：界面简称指标"><i>5</i>指标 <b>20</b></button><span class="layer-arrow">›</span>
+          <button class="layer-chip" data-tip="任务：最小执行单位"><i>6</i>任务 <b>30</b></button>
+        </div>
+        <span class="spine-grow"></span>
+        <button class="btn ghost" id="addGoal"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>战略目标</button>
+        <button class="btn ghost"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>建议目标</button>
+      </div>
+
+      <div class="change-note" id="changeNote">
+        <svg class="icon sm" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5M12 18v.5"/></svg>
+        <div><b>V2 改动：</b>移除“当前主攻”模块，让战略骨架直接进入项目塔；保留标题层级签与共享任务详情优化。核对确认任务导出属于 V3.9.22 发布能力，当前工作树里是未提交回退。</div>
+        <button class="x" id="closeNote" aria-label="关闭说明">×</button>
+      </div>
+
+      <div class="work">
+        <aside class="nav-side" aria-label="项目导航">
+          <div class="nav-title"><b>项目塔</b><span>6 个舱</span></div>
+          <div class="nav-switch"><button class="on">项目塔</button><button>项目全景</button></div>
+          <div class="nav-groups">
+            <div class="nav-group">
+              <div class="nav-goal">3.1 · 知识产品打造</div>
+              <button class="nav-item on"><span class="nav-no">1.1</span><span class="nav-copy"><span class="nav-name">知源产品打造与销售</span><span class="nav-meta">1 指标 · 8 任务 · 主攻</span></span></button>
+              <button class="nav-item"><span class="nav-no">1.2</span><span class="nav-copy"><span class="nav-name">软硬一体服务系统解决方案</span><span class="nav-meta">5 指标 · 4 任务</span></span></button>
+            </div>
+            <div class="nav-group">
+              <div class="nav-goal">3.2 · 方向研究</div>
+              <button class="nav-item"><span class="nav-no">2.1</span><span class="nav-copy"><span class="nav-name">教育 + AI 行业地图研究</span><span class="nav-meta">2 指标 · 5 任务</span></span></button>
+              <button class="nav-item"><span class="nav-no">2.2</span><span class="nav-copy"><span class="nav-name">武汉地区教育政策研究</span><span class="nav-meta">5 指标 · 2 任务</span></span></button>
+            </div>
+            <div class="nav-group">
+              <div class="nav-goal">3.3 · 能力建设</div>
+              <button class="nav-item"><span class="nav-no">3.1</span><span class="nav-copy"><span class="nav-name">内容生产工程</span><span class="nav-meta">5 指标 · 4 任务</span></span></button>
+              <button class="nav-item"><span class="nav-no">3.2</span><span class="nav-copy"><span class="nav-name">workbuddy 培训项目</span><span class="nav-meta">2 指标 · 7 任务</span></span></button>
+            </div>
+          </div>
+          <div class="nav-foot">点任务标题打开共享详情；左侧导航与正文滚动跟随。窄屏下列导航转为上方横向题列，不缩字号。</div>
+        </aside>
+
+        <section class="board" aria-label="项目塔">
+          <div class="board-head">
+            <span class="board-title">项目塔</span>
+            <span class="board-meta">6 个舱 · 3 个战略目标</span>
+            <div class="board-tools">
+              <button class="btn ghost sm"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>添加舱</button>
+              <button class="icon-btn" aria-label="更多"><svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+            </div>
+          </div>
+
+          <div class="dir-group">
+            <div class="dir-head">
+              <span class="level-tag goal" title="第 3 层 · 战略目标"><span class="lv">3</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>战略目标</span>
+              <span class="dir-title">产品全生命周期管理专家</span>
+              <span class="chip warn">停滞</span>
+              <span class="dir-meta">2 攻坚项目 · 6 成功指标 · 12 任务</span>
+              <span class="dir-grow"></span>
+              <div class="dir-actions">
+                <button class="mini-act" data-tip="添加项目"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                <button class="mini-act" data-tip="AI 建议项目"><svg class="icon" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8Z"/></svg></button>
+                <button class="mini-act filter on" data-tip="正在只看这个战略目标 · 再点取消"><svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>只看我</button>
+                <button class="mini-act" data-tip="编辑战略目标"><svg class="icon" viewBox="0 0 24 24"><path d="m4 20 4.5-1L20 7.5 16.5 4 5 15.5Z"/><path d="m14.5 6 3.5 3.5"/></svg></button>
+                <button class="mini-act" data-tip="删除战略目标"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button>
+              </div>
+            </div>
+
+            <article class="tower">
+              <div class="tower-head">
+                <span class="tower-idx">1</span>
+                <div class="tower-main">
+                  <div class="tower-title-line">
+                    <span class="level-tag project" title="第 4 层 · 项目"><span class="lv">4</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg>项目</span>
+                    <span class="tower-name">知源产品打造与销售</span>
+                    <span class="chip accent"><svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>主攻</span>
+                  </div>
+                  <div class="tower-crumb"><b>战略目标</b> · 产品全生命周期管理专家 <span>›</span> <b>项目</b> · 知源产品打造与销售 <span>›</span> 1 指标 · 8 任务</div>
+                </div>
+                <div class="tower-right">
+                  <span class="ring"><span>38%</span></span>
+                  <span class="tower-count"><b>3 / 8</b>任务完成</span>
+                  <div class="tower-acts">
+                    <button class="mini-act" data-tip="AI 诊断"><svg class="icon" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"/></svg></button>
+                    <button class="mini-act" data-tip="添加指标"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                    <button class="mini-act" data-tip="收起项目"><svg class="icon" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+                  </div>
+                </div>
+              </div>
+              <div class="tower-body">
+                <div class="metric">
+                  <div class="metric-head">
+                    <span class="level-tag metric" title="第 5 层 · 成功指标"><span class="lv">5</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>指标</span>
+                    <span class="metric-name">知源产品上线并使用</span>
+                    <div class="metric-progress"><span class="progress"><i style="width:38%"></i></span><span class="metric-count">3/8 · 38%</span></div>
+                    <div class="metric-actions">
+                      <button class="metric-expand" data-detail data-tip="打开任务详情演示"><span class="btn ghost sm">详情</span></button>
+                      <button class="metric-expand" data-tip="添加任务"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                      <button class="metric-expand" aria-label="收起指标"><svg class="icon" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+                    </div>
+                  </div>
+                  <div class="task-list">
+                    <div class="task-row done">
+                      <button class="check done" aria-label="标记未完成"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button>
+                      <button class="task-title" data-detail>上架到 github 上</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row">
+                      <button class="check" aria-label="标记完成"></button>
+                      <button class="task-title" data-detail>一页纸销售工具</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row">
+                      <button class="check" aria-label="标记完成"></button>
+                      <button class="task-title" data-detail>用户故事说明 · 使用案例 · 策展</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row">
+                      <button class="check" aria-label="标记完成"></button>
+                      <button class="task-title" data-detail>产品的视频介绍</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row done">
+                      <button class="check done" aria-label="标记未完成"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button>
+                      <button class="task-title" data-detail>形成可安装压缩包</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row done">
+                      <button class="check done" aria-label="标记未完成"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button>
+                      <button class="task-title" data-detail>知源工作台命名在思考</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row">
+                      <button class="check" aria-label="标记完成"></button>
+                      <button class="task-title" data-detail>录制产品演示或解说音频</button>
+                      <div class="task-side"><span class="pri medium"></span><span class="task-copy"><b>中优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                    <div class="task-row">
+                      <button class="check" aria-label="标记完成"></button>
+                      <button class="task-title" data-detail>收集产品素材与截图</button>
+                      <div class="task-side"><span class="pri high"></span><span class="task-copy"><b>高优</b><b>成熟度</b></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="metric">
+                  <div class="metric-head">
+                    <span class="level-tag metric" title="第 5 层 · 成功指标"><span class="lv">5</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>指标</span>
+                    <span class="metric-name">产品支持付费交付</span>
+                    <div class="metric-progress"><span class="progress"><i style="width:0%"></i></span><span class="metric-count">0/2 · 0%</span></div>
+                    <div class="metric-actions"><button class="metric-expand" data-detail><span class="btn ghost sm">详情</span></button><button class="metric-expand" data-tip="添加任务"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="metric-expand" aria-label="展开指标"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>
+                  </div>
+                  <div class="task-list" hidden>
+                    <div class="task-row"><button class="check" aria-label="标记完成"></button><button class="task-title" data-detail>设计解决方案报价模板</button><div class="task-side"><span class="pri high"></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="tower">
+              <div class="tower-head">
+                <span class="tower-idx">2</span>
+                <div class="tower-main">
+                  <div class="tower-title-line">
+                    <span class="level-tag project" title="第 4 层 · 项目"><span class="lv">4</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg>项目</span>
+                    <span class="tower-name">软硬一体服务系统解决方案</span>
+                  </div>
+                  <div class="tower-crumb"><b>战略目标</b> · 产品全生命周期管理专家 <span>›</span> <b>项目</b> · 软硬一体服务系统解决方案 <span>›</span> 5 指标 · 4 任务</div>
+                </div>
+                <div class="tower-right">
+                  <span class="ring"><span>20%</span></span>
+                  <span class="tower-count"><b>1 / 5</b>任务完成</span>
+                  <div class="tower-acts"><button class="mini-act" data-tip="AI 诊断"><svg class="icon" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"/></svg></button><button class="mini-act" data-tip="添加指标"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="mini-act" data-tip="展开项目"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>
+                </div>
+              </div>
+              <div class="tower-body">
+                <div class="metric">
+                  <div class="metric-head">
+                    <span class="level-tag metric" title="第 5 层 · 成功指标"><span class="lv">5</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>指标</span>
+                    <span class="metric-name">产品售卖工具包</span>
+                    <div class="metric-progress"><span class="progress"><i style="width:25%"></i></span><span class="metric-count">1/4 · 25%</span></div>
+                    <div class="metric-actions"><button class="metric-expand" data-detail><span class="btn ghost sm">详情</span></button><button class="metric-expand" data-tip="添加任务"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="metric-expand" aria-label="展开指标"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>
+                  </div>
+                  <div class="task-list" hidden>
+                    <div class="task-row"><button class="check" aria-label="标记完成"></button><button class="task-title" data-detail>设计解决方案报价模板</button><div class="task-side"><span class="pri high"></span><button class="task-del" data-del aria-label="删除任务"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button></div></div>
+                  </div>
+                </div>
+                <div class="metric">
+                  <div class="metric-head"><span class="level-tag metric" title="第 5 层 · 成功指标"><span class="lv">5</span>指标</span><span class="metric-name">交付流程与验收标准</span><div class="metric-progress"><span class="progress"><i style="width:0%"></i></span><span class="metric-count">0/3 · 0%</span></div><div class="metric-actions"><button class="metric-expand" data-detail><span class="btn ghost sm">详情</span></button><button class="metric-expand" data-tip="添加任务"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="metric-expand" aria-label="收起指标"><svg class="icon" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button></div></div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="dir-group">
+            <div class="dir-head">
+              <span class="level-tag goal" title="第 3 层 · 战略目标"><span class="lv">3</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>战略目标</span>
+              <span class="dir-title">教育 + AI 行业地图研究</span>
+              <span class="dir-meta">2 攻坚项目 · 7 成功指标 · 9 任务</span>
+              <span class="dir-grow"></span>
+              <div class="dir-actions"><button class="mini-act" data-tip="添加项目"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="mini-act filter on"><svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>只看我</button></div>
+            </div>
+            <article class="tower">
+              <div class="tower-head">
+                <span class="tower-idx">3</span>
+                <div class="tower-main"><div class="tower-title-line"><span class="level-tag project" title="第 4 层 · 项目"><span class="lv">4</span><svg class="icon sm lv-ico" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg>项目</span><span class="tower-name">武汉地区教育政策研究</span></div><div class="tower-crumb"><b>战略目标</b> · 教育 + AI 行业地图研究 <span>›</span> <b>项目</b> · 武汉地区教育政策研究 <span>›</span> 5 指标 · 2 任务</div></div>
+                <div class="tower-right"><span class="ring"><span>0%</span></span><span class="tower-count"><b>0 / 2</b>任务完成</span><div class="tower-acts"><button class="mini-act" data-tip="添加指标"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button class="mini-act" data-tip="展开项目"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div></div>
+              </div>
+              <div class="tower-body">
+                <div class="metric"><div class="metric-head"><span class="level-tag metric" title="第 5 层 · 成功指标"><span class="lv">5</span>指标</span><span class="metric-name">武汉教育政策现状图谱</span><div class="metric-progress"><span class="progress"><i style="width:0%"></i></span><span class="metric-count">0/2 · 0%</span></div><div class="metric-actions"><button class="metric-expand" data-detail><span class="btn ghost sm">详情</span></button><button class="metric-expand" aria-label="展开指标"><svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div></div></div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 任务详情演示工作面 ==================== -->
+  <section class="view" id="view-detail">
+    <div class="detail-stage">
+      <div class="stage-grid">
+        <aside class="stage-context">
+          <div class="stage-eyebrow">TASK DETAIL · 共享详情组件</div>
+          <h1 class="stage-title">先讲归属，再给动作</h1>
+          <p class="stage-desc">同一份 <code>TaskDetailDrawer</code>，从任何模块打开都看到这一版。方向台、项目详情、任务调度、今日三件事、画像洞察无需各改一次。</p>
+
+          <div class="stage-points">
+            <div class="stage-point"><span class="stage-no">1</span><div><b>标题与轻量读数</b><p>标题独占主视线；状态、成熟度、子任务数只做旁注，不与标题争行。</p></div></div>
+            <div class="stage-point"><span class="stage-no">2</span><div><b>项目 / 指标前置</b><p>归属卡直接从正文底部提到标题下方，切换项目时指标自动清空并重载。</p></div></div>
+            <div class="stage-point"><span class="stage-no">3</span><div><b>AI 收成一组，导出独立</b><p>三项能力仍各自可点，但视觉上是一个工具组；导出与 AI 之间留出弹性空间。</p></div></div>
+            <div class="stage-point"><span class="stage-no">4</span><div><b>正文连续阅读</b><p>说明、子任务、资源支持依次向下，回到“先读任务、再做任务”的顺序。</p></div></div>
+          </div>
+
+          <div class="stage-before-after">
+            <div class="ba"><small>BEFORE · 现状</small><b>标题行挤三类动作</b><p>导出与 AI 三入口同排；项目/指标在底部，用户先看到操作。</p></div>
+            <div class="ba after"><small>AFTER · 本稿</small><b>归属先行，工具后置</b><p>标题 → 归属 → AI/导出 → 正文；520px 及以下也不重叠。</p></div>
+          </div>
+
+          <div class="stage-matrix">
+            <div class="stage-matrix-head"><span>打开入口</span><span>同步方式</span><span>验收</span></div>
+            <div class="stage-matrix-row"><b>方向台 · 任务标题</b><span>共享组件</span><i>自动同步</i></div>
+            <div class="stage-matrix-row"><b>项目 / 指标详情</b><span>共享组件</span><i>自动同步</i></div>
+            <div class="stage-matrix-row"><b>任务调度 / 看板</b><span>共享组件</span><i>自动同步</i></div>
+            <div class="stage-matrix-row"><b>今日三件事 / 画像</b><span>共享组件</span><i>自动同步</i></div>
+          </div>
+        </aside>
+
+        <!-- 详情抽屉视觉稿 -->
+        <section class="drawer-demo" aria-label="任务详情">
+          <header class="drawer-head">
+            <div class="drawer-head-main">
+              <div class="drawer-kicker"><span>TASK</span><span>·</span><span>第 6 层 · 任务</span></div>
+              <div class="task-title-line">
+                <button class="task-check" id="detailCheck" aria-label="切换完成状态"></button>
+                <textarea class="task-h1" id="detailTitle" rows="2" spellcheck="false">设计解决方案报价模板</textarea>
+              </div>
+              <div class="meta-line" style="margin-top:7px">
+                <div class="status-wrap">
+                  <button class="status-btn todo" id="statusBtn">○ 待开始</button>
+                  <div class="status-menu" id="statusMenu">
+                    <button data-status="todo" class="on">○ 待开始</button>
+                    <button data-status="doing">◐ 进行中</button>
+                    <button data-status="done">✓ 已完成</button>
+                  </div>
+                </div>
+                <span class="chip"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"/></svg>B · 55</span>
+                <span class="chip"><svg class="icon sm" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/></svg>子任务 2/4</span>
+              </div>
+            </div>
+            <button class="icon-btn head-close" id="closeDetailDemo" aria-label="关闭详情">×</button>
+          </header>
+
+          <div class="drawer-body">
+            <section class="ownership" aria-label="任务归属">
+              <div class="ownership-head"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg>归属<span class="hint">决定它在方向树里的位置</span></div>
+              <div class="ownership-grid">
+                <div class="own-field">
+                  <label class="own-label" for="projSel"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg>项目</label>
+                  <select class="own-select" id="projSel">
+                    <option value="p1" selected>软硬一体服务系统解决方案</option>
+                    <option value="p2">知源产品打造与销售</option>
+                    <option value="p3">武汉地区教育政策研究</option>
+                    <option value="">未关联项目</option>
+                  </select>
+                </div>
+                <div class="own-field">
+                  <label class="own-label" for="metricSel"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>指标</label>
+                  <select class="own-select" id="metricSel">
+                    <option value="m1" selected>产品售卖工具包</option>
+                    <option value="m2">交付流程与验收标准</option>
+                    <option value="">暂不归属</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <div class="action-bar">
+              <div class="ai-group" role="group" aria-label="AI 协作">
+                <span class="ai-group-label"><svg class="ai-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z"/></svg>AI</span>
+                <button class="ai-btn" data-ai="补全"><svg class="ai-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8Z"/></svg>补全</button>
+                <button class="ai-btn" data-ai="拆解"><svg class="ai-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h6M4 12h6M4 18h6M14 6h6M14 12h6M14 18h6"/><path d="m9 6 2 2-2 2"/></svg>拆解</button>
+                <button class="ai-btn" data-ai="找支持"><svg class="ai-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4M8 11h6M11 8v6"/></svg>找支持</button>
+              </div>
+              <span class="action-spacer"></span>
+              <div class="export-wrap">
+                <button class="btn secondary" id="exportBtn"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>导出<svg class="icon sm" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+                <div class="export-menu" id="exportMenu">
+                  <button data-export="Markdown">Markdown <small>.md</small></button>
+                  <button data-export="HTML">HTML <small>.html</small></button>
+                  <button data-export="CSV">CSV <small>表格</small></button>
+                </div>
+              </div>
+            </div>
+
+            <section class="sec">
+              <div class="sec-label">说明 <span class="hint">补充上下文 · 验收标准</span></div>
+              <textarea class="desc" spellcheck="false">设计解决方案报价模板属于交付环节的文档制作。
+
+验收标准：
+1. 报价项可复用，能按项目规模调整；
+2. 明确服务边界与交付周期；
+3. 一页内能让客户看懂总价构成。</textarea>
+            </section>
+
+            <section class="sec">
+              <div class="sec-label"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/></svg>子任务清单 <span class="hint">本卡内容 · 不独立计分</span></div>
+              <div class="sub-add"><svg class="icon sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><input placeholder="加一条子任务，回车确认" id="subInput"></div>
+              <div class="sub-list" id="subList">
+                <div class="sub-row done"><button class="check done" aria-label="标记未完成"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button><span>梳理报价项与计价单位</span><button class="x" aria-label="删除子任务">×</button></div>
+                <div class="sub-row done"><button class="check done" aria-label="标记未完成"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></button><span>确认交付边界与服务周期</span><button class="x" aria-label="删除子任务">×</button></div>
+                <div class="sub-row"><button class="check" aria-label="标记完成"></button><span>补一页总价构成示意</span><button class="x" aria-label="删除子任务">×</button></div>
+                <div class="sub-row"><button class="check" aria-label="标记完成"></button><span>找一份历史报价做对照</span><button class="x" aria-label="删除子任务">×</button></div>
+              </div>
+            </section>
+
+            <section class="sec">
+              <div class="sec-label"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 9-2 4-4 2 2-4Z"/></svg>资源支持 <span class="hint">点行打开链接 · 解绑只删记录</span></div>
+              <div class="support-row"><a href="#" data-link>历史报价单样例 · 2025 交付版</a><span class="chip accent">AI</span><button class="task-del" aria-label="解除关联">×</button></div>
+              <div class="support-row"><a href="#" data-link>服务边界说明模板</a><span class="chip">手动</span><button class="task-del" aria-label="解除关联">×</button></div>
+              <div class="support-add"><input placeholder="搜资源标题，回车挂上（不走 AI）" id="supportInput"><button class="btn secondary sm" id="supportAdd">挂上</button></div>
+            </section>
+
+            <section class="sec">
+              <div class="props-grid">
+                <span class="prop-key">优先级</span>
+                <div class="segmented" id="prioSeg"><button data-p="high"><span class="pri high" style="display:inline-block;margin-right:5px"></span>高</button><button data-p="medium" class="on"><span class="pri medium" style="display:inline-block;margin-right:5px"></span>中</button><button data-p="low"><span class="pri low" style="display:inline-block;margin-right:5px"></span>低</button></div>
+                <span class="prop-key">链接</span>
+                <div class="link-row"><input class="link-input" value="https://ownway.local/samples/quote-template"><button class="icon-btn" aria-label="打开链接"><svg class="icon" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v6H5V6h6"/></svg></button><button class="icon-btn" aria-label="复制链接"><svg class="icon" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5H5v11h3"/></svg></button></div>
+                <span class="prop-key">标签</span>
+                <div class="tags"><span class="tag">#产品全生命周期管理 <span>×</span></span><span class="tag">#项目运营与交付 <span>×</span></span><button class="tag-add">+ 标签</button></div>
+              </div>
+              <div class="meta"><span>创建 2026-10-20 14:12</span><span>更新 2026-10-27 09:08</span><button style="color:var(--accent-ink);font-size:var(--fs-caption)">去方向台创建项目 / 指标 ›</button></div>
+              <details class="attaches"><summary><svg class="icon" viewBox="0 0 24 24"><path d="M20 12 12 20a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></svg>附件 <span class="chip">2</span><span style="margin-left:auto;color:var(--text-4);font-size:var(--fs-caption)">图片 / HTML / PDF</span></summary></details>
+            </section>
+          </div>
+
+          <footer class="drawer-foot">
+            <button class="btn danger"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>删除</button>
+            <button class="btn primary" id="saveClose"><svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>完成并关闭 <span class="kbd">Ctrl + ←</span></button>
+          </footer>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 规范说明 -->
+<div class="overlay" id="specOverlay"></div>
+<section class="sheet" id="specSheet" role="dialog" aria-modal="true" aria-label="设计与需求规范">
+  <div class="sheet-head">
+    <div><h2>设计与需求规范</h2><p>按 04-73 价值锚定 UI 规范执行；本文只定义本需求新增内容。</p></div>
+    <button class="icon-btn" data-close-sheet aria-label="关闭">×</button>
+  </div>
+  <div class="sheet-body">
+    <div class="spec-block">
+      <h3>层级签 <span class="chip accent">新增</span></h3>
+      <p>三处统一使用“层级号 + 线性图标 + 类型名”的静态标签。战略目标唯一使用 accent 淡底，项目与指标用中性同族；指标字重弱于项目，避免与项目标题抢焦。</p>
+      <ul>
+        <li>尺寸：战略目标 26px 高；项目 24px；指标 22px。热区不依赖标签本身。</li>
+        <li>颜色：仅取 <code>--accent / --accent-light / --surface / --border / --text</code>。</li>
+        <li>语义：`span` 静态说明，不进 Tab 顺序；筛选只保留行尾“只看我”。</li>
+        <li>术语：可见“指标”，`title` 为“第 5 层 · 成功指标”。</li>
+      </ul>
+    </div>
+    <div class="spec-block">
+      <h3>任务详情顺序</h3>
+      <p>标题与轻量读数 → 项目/指标归属 → AI 与导出 → 说明 → 子任务 → 资源支持 → 优先级/链接/标签 → 时间与附件。</p>
+      <ul>
+        <li>归属卡使用 <code>surface-2</code> 淡底与 <code>radius-md</code>，与正文输入区分。</li>
+        <li>项目/指标仍为原生 `select`，保留键盘与读屏能力；项目变化时指标清空。</li>
+        <li>标题保持 17px，不与正文争字阶；状态 chip 只读旁注。</li>
+      </ul>
+    </div>
+    <div class="spec-block">
+      <h3>顶部动作</h3>
+      <p>AI 三项收进一组低强调容器，组前有“AI”说明；导出独立靠右。两组之间用弹性空间分离，窄屏自动换行。</p>
+      <ul>
+        <li>AI 按钮默认 surface-2 底、text-2 字；hover 才出现 accent，不出现三块实心强调色。</li>
+        <li>导出默认 secondary，点击打开格式菜单；菜单选择后给出 Toast 回执。</li>
+        <li>520px 以下 AI 组独占一行，导出右侧；不缩字号换取空间。</li>
+      </ul>
+    </div>
+    <div class="spec-block">
+      <h3>同步范围</h3>
+      <p>通过唯一共享 <code>TaskDetailDrawer.vue</code> 自动覆盖：方向台、项目详情、指标详情、任务调度、今日三件事、画像洞察、全局深链。禁止在任一宿主复制详情模板。</p>
+    </div>
+    <div class="spec-block">
+      <h3>本轮不做</h3>
+      <p>不改数据模型、不改软删/回收站、不新增卡间挂载字段、不新增导出算法。导出菜单仅演示入口；若现网只支持一种格式，保留单按钮与位置，不扩功能。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 入口矩阵 -->
+<div class="overlay" id="matrixOverlay"></div>
+<section class="sheet" id="matrixSheet" role="dialog" aria-modal="true" aria-label="任务详情入口矩阵">
+  <div class="sheet-head">
+    <div><h2>任务详情入口矩阵</h2><p>所有入口复用同一个详情组件；开发验收时逐一打开确认。</p></div>
+    <button class="icon-btn" data-close-sheet aria-label="关闭">×</button>
+  </div>
+  <div class="sheet-body">
+    <table class="entry-table">
+      <thead><tr><th>模块</th><th>打开方式</th><th>同步方式</th><th>验收</th></tr></thead>
+      <tbody>
+        <tr><td><b>方向台 · 项目塔</b></td><td>任务标题单击</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>方向台 · 项目全景</b></td><td>泳道任务标题单击</td><td>同一 ref → open()</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>项目详情</b></td><td>项目任务行</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>指标详情</b></td><td>指标下任务行</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>任务调度</b></td><td>卡片 / 列表 / 看板菜单</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>今日三件事</b></td><td>任务行单击</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>画像洞察</b></td><td>任务明细行</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+        <tr><td><b>全局搜索 / 深链</b></td><td>打开任务详情</td><td>共享 TaskDetailDrawer</td><td class="ok">✓ 自动同步</td></tr>
+      </tbody>
+    </table>
+    <div class="spec-block">
+      <h3>开发注意</h3>
+      <ul>
+        <li>只在 <code>TaskDetailDrawer.vue</code> 内完成信息重排，不在宿主页复制模版。</li>
+        <li>新增断言须校验：标签为静态 `span`、项目/指标在说明之前、AI 三项同组、导出独立。</li>
+        <li>520 / 390 两档走查时检查横向溢出与按钮可达；不缩小字号。</li>
+        <li>四主题逐一检查 status chip、归属卡、AI 组与导出菜单的对比度。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+let toastTimer = null;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* 视图切换 */
+function setView(name) {
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'view-' + name));
+  $$('.deck-tab').forEach(b => b.classList.toggle('on', b.dataset.view === name));
+  window.scrollTo({ top: 0 });
+}
+$$('.deck-tab').forEach(b => b.onclick = () => setView(b.dataset.view === 'compass' ? 'compass' : b.dataset.view === 'detail' ? 'detail' : 'compass'));
+
+/* 打开详情演示：方向台点任务标题 */
+function openDetail(title) {
+  if (title) $('#detailTitle').value = title;
+  setView('detail');
+}
+$$('[data-detail]').forEach(b => b.onclick = () => openDetail(b.matches('.task-title') ? b.textContent.trim() : '设计解决方案报价模板'));
+$('#menuDetail').onclick = () => { closeMenus(); openDetail('设计解决方案报价模板'); };
+$('#closeDetailDemo').onclick = () => { setView('compass'); toast('已返回方向台'); };
+
+/* 主题 */
+$('#btnTheme').onclick = e => { e.stopPropagation(); $('#themeMenu').classList.toggle('open'); };
+function closeMenus() { $('#themeMenu').classList.remove('open'); $('#statusMenu').classList.remove('open'); $('#exportMenu').classList.remove('open'); }
+document.addEventListener('click', e => { if (!e.target.closest('.menu-anchor')) $('#themeMenu').classList.remove('open'); if (!e.target.closest('.status-wrap')) $('#statusMenu').classList.remove('open'); if (!e.target.closest('.export-wrap')) $('#exportMenu').classList.remove('open'); });
+$$('#themeMenu [data-theme]').forEach(b => b.onclick = () => {
+  document.documentElement.dataset.theme = b.dataset.theme;
+  $$('#themeMenu [data-theme]').forEach(x => x.classList.toggle('on', x === b));
+  closeMenus(); touchSave();
+  toast(`主题已切换 · ${b.textContent.trim()}`);
+});
+$('#btnThemeNext').onclick = () => {
+  const order = ['linear', 'raycast', 'apple', 'notion'];
+  const next = order[(order.indexOf(document.documentElement.dataset.theme) + 1) % 4];
+  document.documentElement.dataset.theme = next;
+  $$('#themeMenu [data-theme]').forEach(x => x.classList.toggle('on', x.dataset.theme === next));
+  toast(`主题 · ${next}`);
+};
+
+/* 保存状态 */
+const savedAt = new Date();
+function touchSave() {
+  const el = $('#saveState');
+  el.innerHTML = '<span class="save-dot" style="background:var(--warning)"></span>保存中…';
+  setTimeout(() => { el.innerHTML = `<span class="save-dot"></span>已保存 ${savedAt.getHours().toString().padStart(2,'0')}:${savedAt.getMinutes().toString().padStart(2,'0')}`; }, 420);
+}
+
+/* 方向台 */
+$('#expandAll').onclick = () => {
+  $$('.task-list').forEach(t => { t.hidden = !t.hidden; });
+  toast('已展开全部指标下的任务');
+};
+$$('.metric-expand').forEach(b => {
+  if (b.querySelector('svg') && !b.hasAttribute('data-detail')) {
+    b.onclick = () => {
+      const list = b.closest('.metric').querySelector('.task-list');
+      if (list) list.hidden = !list.hidden;
+    };
+  }
+});
+$$('.task-title').forEach(b => b.onclick = () => openDetail(b.textContent.trim()));
+$$('.check').forEach(b => b.onclick = e => {
+  e.stopPropagation();
+  const row = b.closest('.task-row, .sub-row');
+  b.classList.toggle('done');
+  const on = b.classList.contains('done');
+  b.innerHTML = on ? '<svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>' : '';
+  if (row) row.classList.toggle('done', on);
+  touchSave();
+  if (row?.classList.contains('sub-row')) toast(on ? '子任务已完成' : '子任务已恢复');
+  else toast(on ? '任务已完成 · 可撤销' : '任务已恢复');
+});
+$$('[data-del]').forEach(b => b.onclick = e => {
+  e.stopPropagation();
+  const row = b.closest('.task-row');
+  row.style.display = 'none';
+  toast('任务已移入回收站 · 可撤销');
+});
+$('#closeNote').onclick = () => { $('#changeNote').style.display = 'none'; };
+$('#addGoal').onclick = () => toast('演示：打开新建战略目标表单');
+$('#exportBtn').onclick = e => { e.stopPropagation(); $('#exportMenu').classList.toggle('open'); $('#statusMenu').classList.remove('open'); };
+$$('#exportMenu [data-export]').forEach(b => b.onclick = () => {
+  const fmt = b.dataset.export;
+  closeMenus();
+  toast(`已导出「设计解决方案报价模板」· ${fmt}`);
+});
+
+/* 详情：状态 */
+$('#statusBtn').onclick = e => { e.stopPropagation(); $('#statusMenu').classList.toggle('open'); $('#exportMenu').classList.remove('open'); };
+$$('#statusMenu button').forEach(b => b.onclick = () => {
+  $$('#statusMenu button').forEach(x => x.classList.toggle('on', x === b));
+  const map = { todo: ['○ 待开始','todo'], doing: ['◐ 进行中','doing'], done: ['✓ 已完成','done'] };
+  const [label, cls] = map[b.dataset.status];
+  const btn = $('#statusBtn');
+  btn.textContent = label;
+  btn.className = 'status-btn ' + cls;
+  $('#statusMenu').classList.remove('open');
+  $('#detailCheck').classList.toggle('done', b.dataset.status === 'done');
+  $('#detailCheck').innerHTML = b.dataset.status === 'done' ? '<svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>' : '';
+  touchSave();
+  toast(`状态已切换为「${label.replace(/^[○◐✓]\s*/, '')}」`);
+});
+$('#detailCheck').onclick = () => {
+  const done = $('#detailCheck').classList.toggle('done');
+  $('#detailCheck').innerHTML = done ? '<svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>' : '';
+  const btn = $('#statusBtn');
+  btn.textContent = done ? '✓ 已完成' : '○ 待开始';
+  btn.className = 'status-btn ' + (done ? 'done' : 'todo');
+  touchSave();
+};
+
+/* 详情：AI 忙碌态 */
+$$('.ai-btn').forEach(b => b.onclick = () => {
+  if (b.classList.contains('busy')) return;
+  $$('.ai-btn').forEach(x => x.disabled = true);
+  b.classList.add('busy');
+  const label = b.dataset.ai;
+  toast(`AI ${label}运行中…`);
+  setTimeout(() => {
+    $$('.ai-btn').forEach(x => { x.disabled = false; x.classList.remove('busy'); });
+    toast(`AI ${label}完成 · 方案待你逐条采纳`);
+  }, 1100);
+});
+
+/* 详情：项目 → 指标级联 */
+const metricMap = {
+  p1: [['m1','产品售卖工具包'], ['m2','交付流程与验收标准']],
+  p2: [['m4','知源产品上线并使用'], ['m5','产品支持付费交付']],
+  p3: [['m6','武汉教育政策现状图谱']],
+  '': []
+};
+$('#projSel').onchange = () => {
+  const ps = $('#projSel').value;
+  const ms = $('#metricSel');
+  ms.innerHTML = ps ? '<option value="">暂不归属</option>' : '<option value="">请先选择项目</option>';
+  (metricMap[ps] || []).forEach(([v,t]) => {
+    const o = document.createElement('option'); o.value = v; o.textContent = t; ms.appendChild(o);
+  });
+  ms.disabled = !ps;
+  touchSave();
+  toast(ps ? '项目已更新 · 指标已清空，请重新选择' : '已解除项目归属');
+};
+$('#metricSel').onchange = () => { touchSave(); toast('指标归属已更新'); };
+$('#projSel').value = 'p1';
+$('#metricSel').innerHTML = '<option value="m1" selected>产品售卖工具包</option><option value="m2">交付流程与验收标准</option><option value="">暂不归属</option>';
+
+/* 详情：优先级 / 子任务 / 链接 / 导出 */
+$$('#prioSeg button').forEach(b => b.onclick = () => {
+  $$('#prioSeg button').forEach(x => x.classList.toggle('on', x === b));
+  touchSave(); toast(`优先级已设为${b.textContent.trim()}`);
+});
+$('#subInput').onkeydown = e => {
+  if (e.key !== 'Enter' || !e.target.value.trim()) return;
+  e.preventDefault();
+  const row = document.createElement('div');
+  row.className = 'sub-row';
+  row.innerHTML = '<button class="check" aria-label="标记完成"></button><span></span><button class="x" aria-label="删除子任务">×</button>';
+  row.querySelector('span').textContent = e.target.value.trim();
+  $('#subList').appendChild(row);
+  bindSubRow(row);
+  e.target.value = '';
+  touchSave(); toast('子任务已添加');
+};
+function bindSubRow(row) {
+  row.querySelector('.check').onclick = () => {
+    const c = row.querySelector('.check');
+    const on = c.classList.toggle('done'); row.classList.toggle('done', on);
+    c.innerHTML = on ? '<svg class="icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>' : '';
+    touchSave();
+  };
+  row.querySelector('.x').onclick = () => { row.remove(); touchSave(); toast('子任务已删除'); };
+}
+$$('#subList .sub-row').forEach(bindSubRow);
+$('#supportAdd').onclick = () => {
+  const inp = $('#supportInput');
+  if (!inp.value.trim()) return toast('先输入资源标题');
+  const row = document.createElement('div');
+  row.className = 'support-row';
+  row.innerHTML = '<a href="#" data-link></a><span class="chip">手动</span><button class="task-del" aria-label="解除关联">×</button>';
+  row.querySelector('a').textContent = inp.value.trim();
+  inp.value = '';
+  $('#supportAdd').closest('.sec').querySelector('.support-row').before(row);
+  toast('已关联资源 · 两张卡本体均未改动');
+};
+$$('[data-link]').forEach(a => a.onclick = e => { e.preventDefault(); toast('演示：打开资源链接'); });
+
+/* 完成并关闭 */
+$('#saveClose').onclick = () => { touchSave(); toast('已保存 · 详情已关闭'); setTimeout(() => setView('compass'), 420); };
+$('#detailTitle').onkeydown = e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('#saveClose').click(); }
+};
+
+/* 浮层 */
+function openSheet(sheet, overlay) { sheet.classList.add('open'); overlay.classList.add('open'); sheet.querySelector('button')?.focus(); }
+function closeSheets() {
+  $$('.sheet').forEach(s => s.classList.remove('open'));
+  $$('.overlay').forEach(o => o.classList.remove('open'));
+}
+$('#btnSpec').onclick = () => openSheet($('#specSheet'), $('#specOverlay'));
+$('#btnMatrix').onclick = () => openSheet($('#matrixSheet'), $('#matrixOverlay'));
+$$('[data-close-sheet]').forEach(b => b.onclick = closeSheets);
+$$('.overlay').forEach(o => o.onclick = closeSheets);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if ($('.sheet.open')) return closeSheets();
+    if ($('#themeMenu').classList.contains('open') || $('#statusMenu').classList.contains('open') || $('#exportMenu').classList.contains('open')) return closeMenus();
+    if ($('#view-detail').classList.contains('on')) { setView('compass'); toast('已返回方向台'); }
+  }
+});
+
+/* 初始 */
+</script>
+</body>
+</html>
