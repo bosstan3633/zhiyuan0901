@@ -86,7 +86,7 @@ AI 让"生成答案"的速度比"找到自己产出"的速度快一千倍。
 | 2 | **三秒搜索** | `Ctrl+K` 全场景（任意网页浮层 / newtab 内） | 3 秒 |
 | 3 | **追想法念头** | 好奇心采集 `Ctrl+Shift+I` | 10 秒 |
 | 4 | **一键直跳** | 双击搜索结果 | 0 思考 |
-| 5 | **方向管理** | 知源引擎（愿景 / 使命 / 方向 / 项目 / 指标 / 任务） | 锚定主攻方向 |
+| 5 | **方向管理** | 知源引擎（愿景 / 使命 / 战略目标 / 项目 / 成功指标 / 任务） | 锚定主攻方向 |
 | 6 | **完整导出** | 设置 → 导出全部数据 | 一份 JSON |
 
 **全局快捷键系统**通过 `chrome://extensions/shortcuts` 自定义键位，共 6 个命令项（4 个自带默认键位 + 2 个由你按需分配，包括"打开设置"键）。
@@ -149,7 +149,7 @@ AI 让"生成答案"的速度比"找到自己产出"的速度快一千倍。
 | # | 规则 | 说明 |
 |---|------|------|
 | 1 | **版本号唯一来源 = `v2/src/manifest.ts`** | 改版本必须同步 **7 处**：`manifest.ts`、`package.json`、`package-lock.json`（2 行）、设置页关于（动态读 manifest，无需手改）、手册页 `ManualPage.vue`、`regression` 版本锚、`v2/README.md` 版本行、根 README 当前版本行。**此清单以 `v2/README.md` 第 17 行为准**（该行自 R96 起已纳入回归断言把守） |
-| 2 | **单向挂载红线** | 仅 TaskCard 持有 `mountedResourceIds/mountedCuriosityIds`；Resource/Curiosity/TagNode Schema 禁止出现 taskId |
+| 2 | **卡间零挂载红线** | 三卡互不持有对方 id（R162 退任务↔资源、R165 退任务↔好奇与好奇↔资源、R166 退溯源引用 fromCuriosityId）；明文豁免独立记录表的 `CurationProjection`（策展镜像）与 `SupportLink`（任务→资源支持记录）；六层归属（projectId/metricId）不受限 |
 | 3 | **删除一律软删** | 任何删除只写 `deletedAt`（回收站 `/recycle` 可恢复）；`stats.lastVisits` 只经 `recordResourceOpen` 更新 |
 | 4 | **排序 computed 禁止 `.sort()`** | 支持拖拽排序的列表，渲染 computed 不得原地 sort |
 | 5 | **样式只用 `tokens.css` 令牌** | 禁止硬编码色值；新增 UI 须在六主题下逐一走查 |
@@ -167,7 +167,7 @@ AI 让"生成答案"的速度比"找到自己产出"的速度快一千倍。
 │   ├── src/manifest.ts          # MV3 清单 ★版本号唯一来源
 │   ├── src/background/          # Service Worker
 │   ├── src/content/             # 网页浮层（搜索/采集/好奇）
-│   ├── src/newtab/              # 主应用（知源罗盘/知源引擎/工作台/设置/回收站）
+│   ├── src/newtab/              # 主应用（调度台/方向台/项目详情/策展台/画像洞察/设置/手册）
 │   ├── src/shared/              # models / storage / utils / components / tokens.css
 │   └── scripts/regression.cjs   # 静态回归断言
 ├── docs/                        # 核心文档
