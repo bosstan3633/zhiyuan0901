@@ -45,6 +45,7 @@ export const MANUAL: ManualPart[] = [
     title: '速览 · 一页上手',
     sections: [
       { id: 'quick-1', title: '它是什么 · 给谁用 · 解决什么', html: `
+<div class="mnz-mock"><div class="mbar"><i></i><i></i><span>知源调度台 · 调度台</span></div><div class="mbd"><b>今天，先做这三件。</b><div class="mrow"><i></i><i></i><i></i></div></div><div class="mcap">示意 · 调度台首屏：今日三件事与手边的卡</div></div>
         <p>知源调度台是一套 <strong>浏览器扩展</strong>（Chrome / Edge / Brave 等 MV3），<strong>接管你的新标签页</strong>——它是<strong>你在浏览器里的个人调度中台</strong>：围绕自己的方向，组织探索、调用与成果的工作空间。</p>
         <h4>名称的内涵</h4>
         <div class="mc-quote"><strong>知源</strong>，是知道自己为何出发，也知道所用信息从何而来；<strong>调度</strong>，是围绕自己的问题，让合适的信息、工具与材料参与行动。<br>—— 万千可调用，自有我方向。</div>
@@ -66,6 +67,8 @@ export const MANUAL: ManualPart[] = [
       { id: 'quick-2', title: '三大系统页与六个核心动作', html: `
         <h4>系统页 · 一条动线</h4>
         <div class="mc-flow">🎛 调度台（今天从哪里出发 + 底部资源卡池）→ 🧭 方向台（六层全深度树）→ 🗂 策展台（N 个，论证节点 + 镜像 + 金字塔）</div>
+        <div class="mc-flow">🗺 策展模式（全屏二级页：方向树只读全景 · 树状 / 金字塔 · 折叠 · 导出 MD/HTML）——入口在方向台左栏「策展模式」，项目全景页头也有直达按钮</div>
+        <div class="mnz-mock"><div class="mbar"><i></i><i></i><span>方向台 · 三种看法</span></div><div class="mbd"><b>项目塔 · 项目全景 · 策展模式</b><div class="mrow"><i class="hot"></i><i></i><i class="hot"></i></div></div><div class="mcap">示意 · 同一棵方向树的三种投影，自由切换</div></div>
         <h4>六个核心动作 · 时间即价值</h4>
         <table class="mc-table">
           <tr><th>#</th><th>动作</th><th>触发</th><th>时间</th></tr>
@@ -117,6 +120,7 @@ export const MANUAL: ManualPart[] = [
         <div class="mc-flow">🎛 调度台（方向状态 + 今日三件事 + 底部三张卡）→ 🧭 方向台（六层思维链全深度树）→ 🗂 策展台（N 个，论证节点 + 金字塔）</div>
         <div class="mc-warn">⚠ <b>资源卡没有台面。</b>V3.7.0 起所有资源卡真身统一住进一个<b>隐藏的「资源卡池」</b>（内部 id <code>zy-curation</code>，不出现在台签列表里），它的<b>唯一管理面是调度台底部「资源卡」tab</b>。早期版本"顶部导航里有一个资源台"的说法已作废——照那句去找是找不到的；同理，"方向台上有指标条 / 主航线 / 项目总览"三样也都不在了（指标条在调度台页头，主航线与项目总览由方向树整条接替）。</div>
         <h4>调度台：今天，从哪里出发</h4>
+        <p>右栏「<b>常调 Top 10</b>（按调用频率排序的前十张资源卡）」随时回答「我最近反复在用哪几张卡」；「未归档 N 件」提醒散叶归位。</p>
         <ul>
           <li><b>方向状态指标条（页头）</b>：战略目标 / 推进项目 / WCE 好奇探索 / WRR 资源复用 / 未归档任务五格，日 / 周 / 累计三档并入表头，五格全部可点击下钻明细抽屉。右上角三个动作：<b>数据存储 chip</b>（点看存储用量）· <b>同步状态 chip</b>（带 ⚙ 直达 Airtable 设置）· <b>📈 复盘</b>（直达画像洞察页）。</li>
           <li><b>今日三件事</b>：硬上限 3 件（方法论见方法篇），三槽<strong>横向并列</strong>为一个模块；<strong>单击</strong>任务卡选中该格，<strong>双击</strong>打开任务详情抽屉。</li>
@@ -284,7 +288,9 @@ export const MANUAL: ManualPart[] = [
           <li><b>项目详情页</b>：归属链可点击（当前级用强调色）、任务附件按任务聚合、任务拖拽跨指标改归属；停滞判定直接在卡头标出。返回按钮<strong>感知来源</strong>——从树进来的就写「← 返回方向树」，与完整方向树双向同步不漂移（同一份 store，不是两份数据）。</li>
         </ul>
         <div class="mc-tip">💡 建议每周进一次项目详情做「策展式回顾」——把该支指标与任务扫一遍、该摘的摘该并的并。这是给你自己看的，不是给老板看的。</div>
-      ` },
+      
+        <p><b>三种看法自由切换</b>：项目塔 / 项目全景之外，左栏还有<b>策展模式</b>（全屏二级页，六层只读全景）；项目全景页头也带直达按钮。</p>
+` },
 
       { id: 'mid-4', title: '方向状态与未归档任务', html: `
         <table class="mc-table">
@@ -356,6 +362,26 @@ export const MANUAL: ManualPart[] = [
           <li><b>复盘段</b>：「⬇ 导出」菜单有三项——<b>CSV 表格</b>（KPI / 目标对账 / 规则）、<b>Markdown 文档</b>（同一套内容的文档版）、<b>PNG 图片</b>（按你当前主题配色）。</li>
         </ul>
         <div class="mc-tip">💡 整段仪表盘是<b>纯读取</b>——只读事件日志与卡片时间戳派生，不改任何数据、不上传、不联网。首次使用没有历史聚合数据属正常，从当天起逐日累积。</div>
+      ` },
+      { id: 'mid-9', title: '方向树策展模式（全屏只读全景）', html: `
+        <p class="mnz-sub">把整棵方向树当成一次策展来读：只读、结构化、可带走。</p>
+        <div class="mc-steps">
+          <div class="mc-step"><b class="mc-n">1</b><span><b>进入</b>：方向台左栏「策展模式」（全屏二级页）；项目全景页头也有直达按钮</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span><b>读</b>：树状（默认，逐层折叠、上下滑动通览）/ 金字塔（隶属连线结构图：目标 → 项目 → 指标）双布局可切</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span><b>看细节</b>：点击任一节点，右侧滑出只读详情——愿景 / 使命 / 目标 / 项目 / 指标 / 任务 / 散叶（未归档）</span></div>
+          <div class="mc-step"><b class="mc-n">4</b><span><b>带走</b>：页头导出 Markdown / HTML；HTML 链接可点击，Markdown 可直接投喂 AI 作上下文</span></div>
+        </div>
+        <div class="mnz-mock"><div class="mbar"><i></i><i></i><span>方向树 · 策展模式（金字塔）</span></div><div class="mbd"><b>愿景 → 使命</b><div class="mrow"><i class="hot"></i><i></i><i></i></div></div><div class="mcap">示意 · 连线即隶属：战略目标 → 项目 → 成功指标</div></div>
+        <div class="mc-tip">只读红线：策展模式不写任何数据——所有修改回方向台完成，回到策展模式刷新即见新形态。</div>
+      ` },
+      { id: 'mid-10', title: '导出与分享：给人看，也给 AI 读', html: `
+        <p class="mnz-sub">三份导出，覆盖「备份 / 单项目 / 全景」三种口径。</p>
+        <div class="mc-steps">
+          <div class="mc-step"><b class="mc-n">1</b><span><b>全量数据包</b>（JSON）：设置 → 数据管理；换机与备份用</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span><b>项目导出</b>（Markdown / HTML）：项目详情弹窗或项目全景页头；单项目完整情况，含支撑资源</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span><b>方向树全景导出</b>（Markdown / HTML）：策展模式页头；愿景到任务全树一次带走</span></div>
+        </div>
+        <div class="mc-tip">HTML 链接可点击、样式随当前主题；Markdown 结构化纯文本，可直接投喂 AI 作上下文——AI 读完就理解你当前的状态与推进节奏。</div>
       ` },
       { id: 'ai-1', title: 'AI 认知助手（接入你的三方模型）', html: `
         <p>全站 AI 走 OpenAI 兼容协议，接<b>你自己选定的第三方大模型 API</b>（DeepSeek / Kimi / 通义 / OpenAI…皆可）：在「设置 → 知 AI 助手」填 API 地址 + Key + 模型，⚡ 测试连接通过即开工。<b>密钥只存本机</b>（独立存储键，不进导出 / 备份 / 合并任何数据链路）。</p>
@@ -576,6 +602,25 @@ export function buildManualStandaloneHtml(): string {
   .doc .mc-table { display: block; overflow-x: auto; width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
   .doc .mc-table th { text-align: left; background: #EFEFF1; padding: 7px 10px; border: 1px solid #E3E4E8; }
   .doc .mc-table td { padding: 7px 10px; border: 1px solid #E3E4E8; vertical-align: top; }
+  .doc .mnz-sub { color: #6C7076; margin: -6px 0 14px; }
+  .doc .mnz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; }
+  .doc .mnz-card { background: #F7F7F8; border: 1px solid #E3E4E8; border-radius: 10px; padding: 11px 13px; }
+  .doc .mnz-card .n { font-size: 11px; font-weight: 700; color: #5E6AD2; letter-spacing: .08em; }
+  .doc .mnz-card h5 { margin: 4px 0; font-size: 15px; color: #17181C; }
+  .doc .mnz-card p { margin: 0; color: #3C3F45; }
+  .doc .mnz-mock { margin: 14px 0; border: 1px solid #D5D6DB; border-radius: 12px; overflow: hidden; background: #fff; }
+  .doc .mnz-mock .mbar { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border-bottom: 1px solid #E7E8EC; color: #8A8F98; font-size: 11px; }
+  .doc .mnz-mock .mbar i { width: 8px; height: 8px; border-radius: 2px; background: #5E6AD2; opacity: .7; }
+  .doc .mnz-mock .mbd { padding: 14px 16px; }
+  .doc .mnz-mock .mbd b { color: #17181C; font-size: 15px; }
+  .doc .mnz-mock .mrow { display: flex; gap: 8px; margin-top: 10px; }
+  .doc .mnz-mock .mrow i { flex: 1; height: 24px; border-radius: 7px; background: #F0F0F3; border: 1px solid #E3E4E8; }
+  .doc .mnz-mock .mrow i.hot { border-color: #5E6AD2; background: #EDF0FA; }
+  .doc .mnz-mock .mcap { padding: 7px 12px; border-top: 1px solid #E7E8EC; color: #8A8F98; font-size: 11px; }
+  .doc .mnz-faq details { border: 1px solid #E3E4E8; border-radius: 10px; padding: 10px 14px; margin: 8px 0; background: #fff; }
+  .doc .mnz-faq summary { cursor: pointer; color: #17181C; font-weight: 600; }
+  .doc .mnz-faq details[open] summary { color: #5E6AD2; }
+  .doc .mnz-faq details p { color: #3C3F45; margin: 8px 0 0; }
   footer { text-align: center; font-size: 11px; color: #8A8F98; padding: 24px 0 40px; letter-spacing: .1em; }
   @media (max-width: 1024px) { .wrap { flex-direction: column; gap: 16px; } nav { width: 100%; position: static; max-height: none; } .doc { max-width: 100%; } }
   @media print { nav { display: none; } .wrap { display: block; padding: 0; } section { border: none; padding: 0; } }

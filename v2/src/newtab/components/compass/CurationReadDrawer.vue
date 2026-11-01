@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * V3.9.32（批 A）：策展模式 · 只读详情抽屉（单一抽屉六形态 + 散叶）。
- * 只读红线：全文件零 persist / 零编辑控件——任何修改都通过「去方向台编辑」导流回工作面。
+ * 只读红线：全文件零写库调用 / 零编辑控件——任何修改都通过「去方向台编辑」导流回工作面。
  */
 import { computed } from 'vue'
 import Icon from '@/shared/components/Icon.vue'

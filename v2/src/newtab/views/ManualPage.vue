@@ -85,7 +85,7 @@ onBeforeUnmount(() => { io?.disconnect(); io = null; visibleSecs.clear() })
   <div class="mn-page">
     <header class="mn-head">
       <button class="mn-back" @click="router.push('/settings')"><Icon name="arrowright" :size="13" class="mn-back-ico" />返回设置</button>
-<div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.9.32</span></div>
+<div class="mn-brand"><Icon name="book" :size="13"/> 知源调度台 · 使用手册 <span class="mn-ver">V3.9.33</span></div>
       <div class="mn-spacer" />
       <button class="mn-dl" @click="downloadShare"><Icon name="download" :size="13"/> 下载分享版</button>
     </header>
@@ -194,6 +194,27 @@ onBeforeUnmount(() => { io?.disconnect(); io = null; visibleSecs.clear() })
    它是注解不是正文，不该与手册内容抢层级。 */
 .mn-content .mn-src { font-size: var(--fs-caption); color: var(--text-3); line-height: 1.7; margin: 8px 0 14px; }
 .mn-content .mn-src b { color: var(--text-2); }
+
+/* —— V3.9.33（批 C）官网化组件（v-html 内容样式）—— */
+.mn-content .mnz-sub { color: var(--text-3); margin: -6px 0 14px; }
+.mn-content .mnz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; }
+.mn-content .mnz-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+.mn-content .mnz-card .n { font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); letter-spacing: .08em; }
+.mn-content .mnz-card h5 { margin: 4px 0; font-size: var(--fs-title); color: var(--text); }
+.mn-content .mnz-card p { margin: 0; color: var(--text-2); }
+.mn-content .mnz-mock { margin: 14px 0; border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.mn-content .mnz-mock .mbar { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--text-4); font-size: var(--fs-caption); }
+.mn-content .mnz-mock .mbar i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); opacity: .7; }
+.mn-content .mnz-mock .mbd { padding: 14px 16px; }
+.mn-content .mnz-mock .mbd b { color: var(--text); font-size: var(--fs-title); }
+.mn-content .mnz-mock .mrow { display: flex; gap: 8px; margin-top: 10px; }
+.mn-content .mnz-mock .mrow i { flex: 1; height: 24px; border-radius: 7px; background: var(--surface-3); border: 1px solid var(--border); }
+.mn-content .mnz-mock .mrow i.hot { border-color: var(--accent); background: var(--accent-light); }
+.mn-content .mnz-mock .mcap { padding: 7px 12px; border-top: 1px solid var(--border); color: var(--text-4); font-size: var(--fs-caption); }
+.mn-content .mnz-faq details { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin: 8px 0; background: var(--surface); }
+.mn-content .mnz-faq summary { cursor: pointer; color: var(--text); font-weight: 600; }
+.mn-content .mnz-faq details[open] summary { color: var(--accent-ink); }
+.mn-content .mnz-faq details p { color: var(--text-2); margin: 8px 0 0; }
 
 /* H2 / M6：窄窗回落。目录从"常驻左轨"改为顶部可折叠章目（规范允许的另一种方案），
    正文取消左右留白、章节发丝线继续通栏。 */

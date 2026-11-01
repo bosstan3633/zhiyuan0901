@@ -331,6 +331,7 @@ const {
               @pick="panoId = $event"
               @to-tower="backToTower"
               @export-project="fmt => exportProjectPanorama(panoEffectiveId, fmt)"
+              @open-curation="router.push('/compass/curation')"
               @toggle-task="toggleTask"
               @task-grade="showTaskGrade"
               @open-detail="openTaskDetail"

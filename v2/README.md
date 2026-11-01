@@ -14,7 +14,7 @@ updated: 2026-10-28 15:30:00
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-- **产品版本**：V3.9.32（方向树「策展模式」）——方向台左栏新增全屏二级页入口：六层只读全景（树状/金字塔双布局、折叠双动作、七形态只读详情抽屉、零写库）+ 方向树全景导出 Markdown/HTML（`compassExport.ts` 与渲染共用 `compassCurationModel.ts` 同源树模型，链接可点击，MD 可投喂 AI）。上一版 V3.9.31（用户反馈五项收口）详见根 `README.md` 与更新日志。
+- **产品版本**：V3.9.33（策展模式反馈三连）——金字塔布局升级为隶属关系结构图（org-chart 连线：战略目标 → 项目 → 成功指标，谁属于谁一眼可辨）；项目全景页头新增策展模式直达（三模式自由切换，修复全景隐藏左栏后入口丢失）；使用手册图示化增强（三张界面示意 + mid-9/mid-10 两新节 + 常调 Top 10 口径）。上一版 V3.9.32（方向树策展模式）详见根 `README.md` 与更新日志。
 
 > **品牌隔离提醒**：本产品的目标用户是知识工作者，与作者个人的"高考志愿规划师"IP 是两个独立受众体系——前者用本账号运营，后者用独立账号/笔名，否则互相污染定位。
 
@@ -204,7 +204,7 @@ npm install          # 按 package-lock.json 还原依赖
 npm run dev          # 开发模式（HMR 输出到 dist/）
 npm run build        # vue-tsc --noEmit 类型检查 + vite build（交付必须两者通过）
 npm run typecheck    # 仅类型检查
-node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,200 项，64 分片，只增不减）
+node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,206 项，65 分片，只增不减）
 ```
 
 ### 4.3 加载到浏览器
@@ -311,7 +311,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,200 项�
 
 ## 十、开发规范与回归基线
 
-- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 2,200 项 / 64 分片，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
+- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 2,206 项 / 65 分片，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
 - **性能门禁**：`scripts/perf.cjs` A/B 基准台——视图切换 <40ms 红线（R71 起）；新功能默认须过性能走查
 - **数据红线**：Resource/Curiosity/TagNode 禁止 taskId；删除一律软删；stats.lastVisits 只走 recordResourceOpen
 - **标记排序**：一律走 `utils/marksort.ts`（置顶 > 星标 > 命中度），拖拽排序列表的渲染 computed 禁止 `.sort()`

@@ -66,6 +66,8 @@ const emit = defineEmits<{
   (e: 'diagReport', projId: string): void
   /** V3.9.31（F5）：项目导出（Tree 侧用 projectExport 单一生成器落盘） */
   (e: 'exportProject', fmt: ExportFmt): void
+  /** V3.9.33（批 B）：三模式自由切换——全景页头直达策展模式（全景隐藏左栏，入口必须随台自带） */
+  (e: 'openCuration'): void
 }>()
 
 /** 选择条上的项目序列（扁平成一条，前端不再嵌套遍历） */
@@ -129,6 +131,8 @@ const laneCount = computed(() => {
             <span class="ph-prog-c">{{ current.pm.done }} / {{ current.pm.total }} 任务</span>
           </div>
           <div class="ph-acts">
+            <!-- V3.9.33（批 B）：三模式自由切换——全景模式下左栏隐藏，策展模式入口随台自带 -->
+            <button class="ph-act" title="全屏策展模式：六层方向树只读全景，可折叠、可导出 MD/HTML 分享或投喂 AI" @click="emit('openCuration')"><Icon name="compass" :size="13"/> 策展模式</button>
             <button class="ph-act" title="在本项目下新建成功指标" @click="emit('addMetric', current.proj.id)">＋ 指标</button>
             <!-- V3.9.31（F5）：项目导出 —— 与项目详情弹窗共用同一生成器 -->
             <ExportMenu :formats="['md', 'html']" align="end" @pick="fmt => emit('exportProject', fmt)" />

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * V3.9.32（批 A）：策展模式 · 金字塔布局（总览态）。
- * 愿景居顶、使命次之，战略目标→项目→指标→任务 逐层展开的塔形总览；
- * 与树状布局消费同一棵 CurationTree（同源），点击节点同样开只读抽屉。
- * 折叠在树状布局中生效；本布局恒为全展开总览（页脚有说明）。
+ * V3.9.33（批 A 用户反馈）：策展模式 · 金字塔布局 = **隶属关系结构图**。
+ * 愿景 → 使命 → 战略目标 → 项目 → 成功指标：五级 org-chart 连线（横轨 + 垂直落线），
+ * 谁属于谁一眼可辨——不再只是「按层平铺」；任务明细切「树状」布局看。
+ * 与树状布局消费同一棵 CurationTree（同源）；点击节点开只读抽屉；零写库。
  */
 import { computed } from 'vue'
 import type { CurationSel, CurationTree } from '@/shared/utils/compassCurationModel'
@@ -11,90 +11,106 @@ import type { CurationSel, CurationTree } from '@/shared/utils/compassCurationMo
 const props = defineProps<{ tree: CurationTree }>()
 const emit = defineEmits<{ (e: 'open', sel: CurationSel): void }>()
 
-const allProjects = computed(() => props.tree.goals.flatMap(g => g.projects.map(P => ({ ...P, goal: g.dir.name }))))
-const allMetrics = computed(() => allProjects.value.flatMap(P => P.metrics.map(M => ({ ...M, proj: P.project.name }))))
-const allTasks = computed(() => allMetrics.value.flatMap(M => M.tasks.map(T => ({ ...T, metric: M.metric.title }))))
-const stCls: Record<string, string> = { done: 'st-done', doing: 'st-doing', todo: 'st-todo', stale: 'st-stale' }
+const allMetrics = computed(() =>
+  props.tree.goals.flatMap(g => g.projects.flatMap(P => P.metrics)))
+const allTasks = computed(() =>
+  allMetrics.value.reduce((s, M) => s + M.totalCount, 0) + props.tree.orphans.length)
 </script>
 
 <template>
   <div class="cpl">
-    <div class="tier t1">
+    <div class="tier">
       <div class="cv-card hero" role="button" tabindex="0" @click="emit('open', { kind: 'vision' })" @keydown.enter="emit('open', { kind: 'vision' })">
         <span class="k">愿景</span><p>{{ tree.vision || '尚未填写愿景' }}</p>
       </div>
     </div>
-    <div class="tier t2">
+    <div class="vline" aria-hidden="true"></div>
+    <div class="tier">
       <div class="cv-card hero" role="button" tabindex="0" @click="emit('open', { kind: 'mission' })" @keydown.enter="emit('open', { kind: 'mission' })">
         <span class="k">使命</span><p>{{ tree.mission || '尚未填写使命' }}</p>
       </div>
     </div>
-    <div class="tier-label">战略目标 ×{{ tree.goals.length }}</div>
-    <div class="tier t3">
-      <div v-for="(g, gi) in tree.goals" :key="g.dir.id" class="cv-card chip goal" role="button" tabindex="0"
-        @click="emit('open', { kind: 'goal', goal: g })" @keydown.enter="emit('open', { kind: 'goal', goal: g })">
-        <b>{{ gi + 1 }}. {{ g.dir.name || '未命名战略目标' }}</b>
-        <small>{{ g.projects.length }} 项目</small>
+
+    <!-- 隶属关系 org-chart：使命 → 战略目标 → 项目 → 成功指标，连线即归属 -->
+    <div class="org" v-if="tree.goals.length">
+      <ul class="org-lv">
+        <li v-for="(g, gi) in tree.goals" :key="g.dir.id">
+          <div class="cv-card node goal" role="button" tabindex="0"
+            @click="emit('open', { kind: 'goal', goal: g })" @keydown.enter="emit('open', { kind: 'goal', goal: g })">
+            <b>{{ gi + 1 }}. {{ g.dir.name || '未命名战略目标' }}</b>
+            <small>{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, P) => s + P.totalCount, 0) }} 任务</small>
+          </div>
+          <ul class="org-lv" v-if="g.projects.length">
+            <li v-for="P in g.projects" :key="P.project.id">
+              <div class="cv-card node proj" role="button" tabindex="0"
+                @click="emit('open', { kind: 'project', node: P })" @keydown.enter="emit('open', { kind: 'project', node: P })">
+                <div class="np"><b>{{ P.project.name || '未命名项目' }}</b><span v-if="P.project.isFocused" class="badge">主攻</span></div>
+                <span class="bar"><span :style="{ width: P.progress + '%' }"></span></span>
+                <small>{{ P.doneCount }}/{{ P.totalCount }} · {{ P.progress }}%<template v-if="P.stalled"> · ⚠停滞</template></small>
+              </div>
+              <ul class="org-lv" v-if="P.metrics.length">
+                <li v-for="M in P.metrics" :key="M.metric.id">
+                  <div class="cv-card node met" role="button" tabindex="0"
+                    @click="emit('open', { kind: 'metric', node: M })" @keydown.enter="emit('open', { kind: 'metric', node: M })">
+                    <b>{{ M.metric.title || '未命名指标' }}</b>
+                    <small :class="{ warn: !M.totalCount }">{{ M.totalCount ? M.doneCount + '/' + M.totalCount + ' · ' + M.progress + '%' : '⚠ 缺任务' }}</small>
+                    <small v-if="M.metric.target" class="target" :title="M.metric.target">{{ M.metric.target }}</small>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div v-if="tree.orphans.length" class="tier">
+      <div class="cv-card orph" role="button" tabindex="0" @click="emit('open', { kind: 'orphans' })" @keydown.enter="emit('open', { kind: 'orphans' })">
+        <b>散叶 · 未归档任务</b><small>{{ tree.orphans.length }} 件 · 挂上指标即上枝</small>
       </div>
     </div>
-    <div class="tier-label">项目 ×{{ allProjects.length }}</div>
-    <div class="tier t4">
-      <div v-for="P in allProjects" :key="P.project.id" class="cv-card chip proj" role="button" tabindex="0"
-        @click="emit('open', { kind: 'project', node: P })" @keydown.enter="emit('open', { kind: 'project', node: P })">
-        <b>{{ P.project.name || '未命名项目' }}</b>
-        <small>{{ P.doneCount }}/{{ P.totalCount }} · {{ P.progress }}% <template v-if="P.project.isFocused">· 主攻</template><template v-if="P.stalled"> · ⚠停滞</template></small>
-        <span class="bar"><span :style="{ width: P.progress + '%' }"></span></span>
-      </div>
-    </div>
-    <div class="tier-label">成功指标 ×{{ allMetrics.length }}</div>
-    <div class="tier t5">
-      <div v-for="M in allMetrics" :key="M.metric.id" class="cv-card chip met" role="button" tabindex="0"
-        @click="emit('open', { kind: 'metric', node: M })" @keydown.enter="emit('open', { kind: 'metric', node: M })">
-        <b>{{ M.metric.title || '未命名指标' }}</b>
-        <small>{{ M.totalCount ? M.doneCount + '/' + M.totalCount + ' · ' + M.progress + '%' : '⚠ 缺任务' }}</small>
-      </div>
-    </div>
-    <div class="tier-label">任务 ×{{ allTasks.length }} <span class="hint">（含未归档 {{ tree.orphans.length }} 件）</span></div>
-    <div class="tier t6">
-      <div v-for="T in allTasks" :key="'tk' + T.task.id" class="cv-card chip tk" role="button" tabindex="0"
-        @click="emit('open', { kind: 'task', node: T })" @keydown.enter="emit('open', { kind: 'task', node: T })">
-        <span class="st" :class="stCls[T.status]"></span><span class="tt">{{ T.task.title || '未命名任务' }}</span>
-      </div>
-      <div v-for="(T, i) in tree.orphans" :key="'or' + i" class="cv-card chip tk orph" role="button" tabindex="0"
-        @click="emit('open', { kind: 'orphans' })" @keydown.enter="emit('open', { kind: 'orphans' })">
-        <span class="st st-orph"></span><span class="tt">{{ T.task.title || '未命名任务' }}</span>
-      </div>
-    </div>
-    <p class="cap">金字塔为总览态（恒全展开）；逐层折叠与滑动通览请切「树状」布局。</p>
+    <p class="cap">连线即隶属：战略目标 → 项目 → 成功指标 · 任务 ×{{ allTasks }}（明细切「树状」）· 横向滚动查看全局 · 点击节点看只读详情</p>
   </div>
 </template>
 
 <style scoped>
-.cpl { max-width: 1080px; margin: 0 auto; padding: 4px 0 40px; }
-.tier { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 0 6px; }
-.tier-label { text-align: center; font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .12em; margin: 14px 0 8px; }
-.tier-label .hint { font-weight: 500; letter-spacing: 0; }
+.cpl { max-width: 100%; padding: 4px 0 40px; overflow-x: auto; }
+.tier { display: flex; justify-content: center; margin: 0 0 6px; }
 .cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 10px); padding: 8px 12px; cursor: pointer; transition: border-color var(--dur-fast, 120ms), background var(--dur-fast, 120ms); }
 .cv-card:hover { border-color: var(--accent); background: var(--surface-2); }
 .cv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .hero { max-width: 460px; width: 100%; text-align: center; border-color: var(--border-strong); }
 .hero .k { display: inline-block; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); letter-spacing: .1em; margin-bottom: 3px; }
 .hero p { margin: 0; font-size: var(--fs-title); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
-.chip { display: flex; flex-direction: column; gap: 2px; min-width: 180px; max-width: 300px; }
-.chip b { color: var(--text); font-size: var(--fs-body); overflow-wrap: anywhere; }
-.chip small { color: var(--text-3); font-size: var(--fs-caption); }
-.chip.goal { border-left: 3px solid var(--accent); }
-.chip.met { min-width: 200px; }
-.chip.tk { flex-direction: row; align-items: center; gap: 7px; min-width: 0; max-width: 340px; padding: 5px 10px; }
-.chip.tk .tt { color: var(--text-2); font-size: var(--fs-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip.tk.orph { border-style: dashed; }
-.st { flex: none; width: 7px; height: 7px; border-radius: 50%; }
-.st-done { background: var(--success); }
-.st-doing { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
-.st-todo { background: var(--text-4); }
-.st-stale { background: var(--warning); }
-.st-orph { background: transparent; border: 1px dashed var(--text-4); }
-.bar { display: block; height: 3px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
-.bar span { display: block; height: 100%; background: var(--accent); }
+.vline { width: 1px; height: 26px; margin: 0 auto; background: var(--border-strong); }
+
+/* ── org-chart 连线（经典 CSS 树）：横轨 + 垂直落线 + 父级中缝引用线 ── */
+.org { padding: 0 12px; }
+ul.org-lv { display: flex; justify-content: center; list-style: none; margin: 0; padding: 26px 0 0; position: relative; }
+ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0; height: 26px; border-left: 1px solid var(--border-strong); }
+.org-lv li { display: flex; flex-direction: column; align-items: center; position: relative; padding: 26px 12px 0; }
+.org-lv li::before, .org-lv li::after { content: ''; position: absolute; top: 0; right: 50%; width: 50%; height: 26px; border-top: 1px solid var(--border-strong); }
+.org-lv li::after { right: auto; left: 50%; border-left: 1px solid var(--border-strong); }
+.org-lv li:first-child::before { border-top: 0; }
+.org-lv li:last-child::after { border-top: 0; }
+.org-lv li:last-child::before { border-right: 1px solid var(--border-strong); border-radius: 0 8px 0 0; }
+.org-lv li:first-child::after { border-radius: 8px 0 0 0; }
+.org-lv li:only-child { padding-top: 26px; }
+.org-lv li:only-child::before { display: none; }
+.org-lv li:only-child::after { width: 0; border-top: 0; }
+
+.node { display: flex; flex-direction: column; gap: 3px; min-width: 168px; max-width: 250px; }
+.node.goal { border-left: 3px solid var(--accent); min-width: 200px; }
+.node.goal b, .node.proj b, .node.met b { color: var(--text); font-size: var(--fs-body); overflow-wrap: anywhere; }
+.node.proj .np { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.badge { flex: none; font-size: 10px; font-weight: 700; color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; }
+.node small { color: var(--text-3); font-size: var(--fs-caption); }
+.node small.warn { color: var(--warning); }
+.node .target { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node .bar { display: block; height: 3px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.node .bar span { display: block; height: 100%; background: var(--accent); }
+.orph { display: inline-flex; align-items: center; gap: 10px; border-style: dashed; }
+.orph b { color: var(--text); font-size: var(--fs-body); }
+.orph small { color: var(--text-3); font-size: var(--fs-caption); }
 .cap { text-align: center; color: var(--text-4); font-size: var(--fs-caption); margin: 22px 0 0; }
 </style>
