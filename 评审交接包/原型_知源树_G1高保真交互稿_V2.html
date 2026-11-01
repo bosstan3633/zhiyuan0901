@@ -265,7 +265,7 @@ text{font-family:var(--font)}
 <div class="proto-note">
   <span class="tag g1">G1 目标态</span>
   <span><b>知源树 = 只读镜像</b>：方向树 / 任务 / 指标任何数据变更，回到知源树刷新即得新形态（V2 交互稿以示例数据渲染，实装后与主数据同源）</span>
-  <span><b>V2 参天形态</b>：根冠比 · 三级分枝（主枝→分枝→果柄）· 树冠体量（冠团 = 累计完成 + 养分沉淀）· 根部外张与树皮纹</span>
+  <span><b>V2 参天形态</b>：根冠比 · 三级分枝（主枝→分枝→果柄）· 树冠体量（冠团 = 累计完成 + 养分沉淀）· 根部外张与树皮纹 · <b>枝干粗细数据驱动</b>（干 ∝ 全树任务量，主枝 ∝ 项目+任务数，分枝 ∝ 任务数）</span>
   <span class="tag">G2 演示</span><span>回放 / 年轮为 G2 能力的原型预演</span>
   <span class="tag">G3 演示</span><span>摘果 · 天气 · 生长账本为 G3 语汇预演；账本无连续天数、无等级、无排行</span>
   <span class="tag">审核稿 V2</span><span>2026-11-01 · 数据为示例 · 入口改为画像洞察 / 方向台左上角（点「入口示意」看位置）</span>
@@ -536,9 +536,11 @@ function renderTreeSVG(state, at){
   S.push('</g>');
 
   /* ═══ 参天形态（V2）：根冠比 · 三级分枝 · 树冠体量 ═══
-     干=使命（粗度=累计完成）· 主枝=战略目标 · 分枝=项目 · 果柄=指标 · 叶=任务 · 冠团=完成与养分的沉淀 */
+     干=使命 · 主枝=战略目标 · 分枝=项目 · 果柄=指标 · 叶=任务 · 冠团=完成与养分的沉淀
+     ★粗细全部数据驱动：干 ∝ 全树任务量与分支数；主枝 ∝ 其下项目数+任务数；分枝 ∝ 其上任务数+指标数（用户 2026-11-01 拍板） */
+  const totalTasks = state.goals.reduce((s, g) => s + g.projects.reduce((s2, p) => s2 + p.tasks.length, 0), 0);
   const topY = GY - 205 * (0.5 + growth * 0.5);
-  const trunkW = 9 + Math.min(11, doneTotal * .6) * (0.55 + growth * .45);
+  const trunkW = 8 + Math.min(13, totalTasks * .16 + state.goals.length * .7 + doneTotal * .12) * (0.5 + growth * .5);
   S.push('<g class="sway">');
   /* 干：两段锥度 + 树皮纹 + 根部外张 */
   S.push('<path class="branch" d="M' + BX + ' ' + GY + ' C ' + (BX-10) + ' ' + px(GY-70) + ', ' + (BX+10) + ' ' + px(GY-130) + ', ' + BX + ' ' + px(GY-178) + '" stroke="var(--bark)" stroke-width="' + px(trunkW + 8) + '" fill="none" stroke-linecap="round"/>');
@@ -566,9 +568,14 @@ function renderTreeSVG(state, at){
       const psx = sx + (e2x - sx) * att, psy = sy + (e2y - sy) * att;
       const plen = 58 + 84 * p.progress * (0.55 + growth * .45);
       const pex = psx + Math.sin(thp) * plen, pey = psy - Math.cos(thp) * plen;
-      return { p, pi, thp, psx, psy, pex, pey };
+      /* 枝粗数据化：分枝 ∝ 任务数 + 指标数（主攻略加粗） */
+      const tw = Math.min(4.8, 1.9 + p.tasks.length * .17 + p.metrics.length * .13 + (p.focus ? .35 : 0));
+      return { p, pi, thp, psx, psy, pex, pey, tw };
     });
-    return { g, gi, th, hueMix: GOAL_HUES[gi % GOAL_HUES.length], sx, sy, e1x, e1y, e2x, e2y, projects };
+    /* 主枝粗数据化：∝ 其下项目数 + 任务数 */
+    const tn = projects.reduce((s2, P2) => s2 + P2.p.tasks.length, 0);
+    const boughW = Math.min(8.5, 3.4 + projects.length * .5 + tn * .07);
+    return { g, gi, th, hueMix: GOAL_HUES[gi % GOAL_HUES.length], sx, sy, e1x, e1y, e2x, e2y, projects, boughW };
   });
   /* 第一遍：树冠（大团铺体量 + 叶簇铺质感 + 末梢小枝；先冠后枝） */
   const pr = rng(77);
@@ -614,7 +621,7 @@ function renderTreeSVG(state, at){
     S.push('<title>主枝 · 战略目标｜' + esc(L.g.name) + '（' + L.g.projects.length + ' 项目）</title>');
     S.push('<path class="branch branch-lit" d="M' + px(L.sx) + ' ' + px(L.sy) +
       ' Q ' + px((L.sx + L.e1x) / 2 + Math.sin(L.th) * 16) + ' ' + px((L.sy + L.e1y) / 2 - 20) + ', ' + px(L.e1x) + ' ' + px(L.e1y) +
-      ' Q ' + px((L.e1x + L.e2x) / 2) + ' ' + px((L.e1y + L.e2y) / 2 - 14) + ', ' + px(L.e2x) + ' ' + px(L.e2y) + '" stroke="' + branchCol + '" stroke-width="6" fill="none" stroke-linecap="round"/>');
+      ' Q ' + px((L.e1x + L.e2x) / 2) + ' ' + px((L.e1y + L.e2y) / 2 - 14) + ', ' + px(L.e2x) + ' ' + px(L.e2y) + '" stroke="' + branchCol + '" stroke-width="' + px(L.boughW) + '" fill="none" stroke-linecap="round"/>');
     S.push('</g>');
   });
   /* 第三遍：分枝（项目）+ 果柄（指标）+ 叶（任务）+ 花果 */
@@ -624,7 +631,7 @@ function renderTreeSVG(state, at){
       const dim = P.p.progress <= 0;
       S.push('<g class="hit" data-kind="proj" data-id="' + L.gi + '-' + P.pi + '">');
       S.push('<title>分枝 · 项目｜' + esc(P.p.name) + '（' + Math.round(P.p.progress * 100) + '% · ' + (P.p.focus ? '主攻 · 向阳枝' : '普通枝') + '）</title>');
-      S.push('<path class="branch branch-lit" d="M' + px(P.psx) + ' ' + px(P.psy) + ' Q ' + px((P.psx + P.pex) / 2 + Math.sin(P.thp) * 9) + ' ' + px((P.psy + P.pey) / 2 - 12) + ', ' + px(P.pex) + ' ' + px(P.pey) + '" stroke="' + (dim ? 'var(--text-4)' : pcolBase) + '" stroke-width="' + px(P.p.focus ? 3.6 : 2.8) + '" fill="none" stroke-linecap="round"' + (P.p.focus ? ' style="filter:drop-shadow(0 0 4px var(--glow))"' : '') + '/>');
+      S.push('<path class="branch branch-lit" d="M' + px(P.psx) + ' ' + px(P.psy) + ' Q ' + px((P.psx + P.pex) / 2 + Math.sin(P.thp) * 9) + ' ' + px((P.psy + P.pey) / 2 - 12) + ', ' + px(P.pex) + ' ' + px(P.pey) + '" stroke="' + (dim ? 'var(--text-4)' : pcolBase) + '" stroke-width="' + px(P.tw) + '" fill="none" stroke-linecap="round"' + (P.p.focus ? ' style="filter:drop-shadow(0 0 4px var(--glow))"' : '') + '/>');
       S.push('</g>');
       /* 果柄 + 花果（指标自分枝末的果柄垂挂）+ 果柄旁护叶 */
       const mr = rng(300 + L.gi * 31 + P.pi * 13);
