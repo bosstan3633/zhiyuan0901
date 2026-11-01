@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c1728">
+<title>知源调度台 OWNWAY｜万千可调用，自有我方向</title>
+<style>
+:root{--navy:#0c1728;--blue:#1764a0;--cyan:#55c8f2;--ink:#15263c;--muted:#6c7d91;--paper:#f5f8fc}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:76px}body{margin:0;color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.65}a{color:inherit}button{font:inherit;cursor:pointer}.wrap{max-width:1160px;margin:auto;padding:0 25px}
+.nav{position:sticky;top:0;z-index:20;background:rgba(9,20,36,.95);backdrop-filter:blur(18px);color:white;border-bottom:1px solid #ffffff16}.navin{height:68px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{font-weight:750;letter-spacing:2px;font-size:17px;color:#fff;text-decoration:none;line-height:1.2}.brand small{display:block;font-size:9px;letter-spacing:4px;color:#8ba9c8;font-weight:500;margin-top:5px}.navlinks{display:flex;align-items:center;gap:23px}.navlinks a{color:#c4d2e1;font-size:12px;text-decoration:none}.navlinks a:hover{color:#71d1fa}.navcta,.btn{border:1px solid #72cafa;color:white;background:#1678b5;border-radius:5px;padding:10px 17px;font-size:12px;font-weight:650;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}.outline-btn{border:1px solid #6689a9;color:#e3f1ff;background:#ffffff09;border-radius:5px;padding:10px 18px;font-size:12px;text-decoration:none}.mobile-menu{display:none;background:transparent;border:1px solid #47627d;color:white;padding:7px 10px;border-radius:4px}
+.hero{position:relative;overflow:hidden;background:radial-gradient(ellipse at 75% 40%,#235d86 0,#132e4d 34%,#0a172a 72%);color:white;min-height:590px;display:flex;align-items:center}.hero:before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 25%,#7ecfff0b 55%,transparent 80%),radial-gradient(ellipse at 70% 90%,#56c9ed30,transparent 48%)}.hero:after{content:"";position:absolute;left:0;right:0;bottom:0;height:130px;background:linear-gradient(0deg,#091525,transparent)}.hero-content{position:relative;z-index:2;width:100%;padding-top:85px;padding-bottom:115px}.eyebrow{font-size:10px;letter-spacing:4px;color:#82c9ed;text-transform:uppercase}.hero h1{font-size:clamp(38px,6vw,70px);line-height:1.2;letter-spacing:-2px;font-weight:750;margin:23px 0}.hero h1 em{font-style:normal;color:#7bcaf5}.hero-sub{font-size:18px;color:#d3e3f2;max-width:590px}.hero-desc{color:#9fb5ca;font-size:13px;max-width:490px;margin-top:16px}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}.hero-art{position:absolute;right:3%;top:13%;width:43%;height:74%;pointer-events:none}.orbit{position:absolute;border:1px solid #71d4ff55;border-radius:50%;width:410px;height:410px;max-width:100%;aspect-ratio:1;right:4%;top:6%;box-shadow:0 0 65px #2b9fe72b,inset 0 0 45px #2b9fe71c}.orbit:before,.orbit:after{content:"";position:absolute;border:1px solid #72cafa45;border-radius:50%;inset:35px}.orbit:after{inset:85px;border-color:#9be6ff65}.core{position:absolute;right:calc(4% + 115px);top:calc(6% + 115px);width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle,#23547d,#10233d 70%);border:1px solid #78d5ff;box-shadow:0 0 65px #31a9e877;color:white;font-weight:700;letter-spacing:2px}.core span{display:block;font-size:10px;letter-spacing:5px;color:#9ddafa}.float{position:absolute;background:#102a43d9;border:1px solid #63bce65c;padding:11px 15px;border-radius:8px;color:#d9efff;font-size:11px;box-shadow:0 8px 35px #0004;backdrop-filter:blur(10px)}.f1{right:0;top:8%}.f2{left:2%;top:38%}.f3{right:0;bottom:13%}.hero-bottom{position:absolute;z-index:3;bottom:27px;left:0;right:0;color:#8daac5;font-size:10px;letter-spacing:2px}
+section{padding:88px 0}.section-dark{background:#0e1b2e;color:white}.section-light{background:#f4f7fb}.section-white{background:white}.section-head{text-align:center;max-width:720px;margin:0 auto 45px}.kicker{font-size:10px;letter-spacing:3px;color:#3297c7;font-weight:700}.section-head h2{font-size:clamp(27px,4vw,42px);line-height:1.28;letter-spacing:-1px;margin:12px 0;font-weight:730}.section-head p{color:var(--muted);font-size:14px}.section-dark .section-head p{color:#a5b9cd}
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.pain{padding:27px 24px;border:1px solid #ffffff20;background:linear-gradient(145deg,#192e48,#101e31);border-radius:9px;min-height:205px}.pain .num{font-size:11px;letter-spacing:2px;color:#68c6ef}.pain h3{font-size:21px;margin:15px 0 8px}.pain p{font-size:13px;color:#aabdd0;margin:0}.pain strong{display:block;margin-top:22px;color:#8bd7fa;font-size:12px}.statement{text-align:center;font-size:clamp(19px,3vw,27px);font-weight:650;margin-top:42px;color:#e6f3ff}.statement span{color:#6bcafa}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:18px}.lane{border-radius:10px;padding:30px;background:white;border:1px solid #e2eaf2;box-shadow:0 10px 35px #1b38500a}.lane.out{background:linear-gradient(150deg,#102b47,#0e1b2c);color:white;border-color:#244d70}.lane-tag{font-size:11px;letter-spacing:2px;color:#3296c9}.lane.out .lane-tag{color:#75d0f5}.lane h3{font-size:25px;margin:8px 0}.lane p{font-size:13px;color:#75869a}.lane.out p{color:#b3c7db}.tree{display:flex;flex-direction:column;gap:7px;margin-top:22px}.tree div{padding:9px 12px;border-radius:5px;background:#edf4fa;font-size:12px;color:#24425e;border-left:3px solid #43a6d7}.out .tree div{background:#ffffff0d;color:#d8eafa;border-left-color:#50c9e8}.tree div:nth-child(2){margin-left:13px}.tree div:nth-child(3){margin-left:26px}.tree div:nth-child(4){margin-left:39px}.tree div:nth-child(5){margin-left:52px}.tree div:nth-child(6){margin-left:65px}.loop-label{text-align:center;margin-top:22px;color:#6d91ad;font-size:12px;letter-spacing:2px}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.step{border:1px solid #294967;background:#12243a;border-radius:8px;padding:20px 13px;text-align:center;color:#d9e8f6;transition:.2s}.step:hover,.step.active{border-color:#5dc7f4;background:#183b5a;transform:translateY(-3px);box-shadow:0 8px 28px #1d9ed12a}.step b{display:block;font-size:10px;color:#66c8f2;letter-spacing:2px}.step strong{display:block;font-size:20px;margin:9px 0}.step small{font-size:10px;color:#9bb1c6}.step-detail{margin-top:22px;padding:25px;border:1px solid #315471;background:#132942;border-radius:8px;min-height:130px;display:flex;justify-content:space-between;gap:22px;align-items:center}.step-detail h3{font-size:23px;margin:0 0 8px}.step-detail p{font-size:13px;color:#b5c9dc;margin:0;max-width:650px}.step-no{font-size:44px;color:#4a9bc8;font-weight:750}
+.feature-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:17px}.feature{padding:25px;border:1px solid #e1e9f1;border-radius:9px;background:white;min-height:205px}.ico{width:38px;height:38px;border-radius:9px;background:#e7f4fc;color:#2387bb;display:flex;align-items:center;justify-content:center;font-size:19px}.feature h3{font-size:19px;margin:15px 0 6px}.feature p{font-size:13px;color:#728398;margin:0}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:16px}.chip{font-size:10px;color:#28668e;background:#edf6fc;padding:5px 9px;border-radius:4px}
+.demo{background:#0d1b2c;border-radius:12px;padding:24px;color:#e7f2fc;border:1px solid #294766;box-shadow:0 20px 60px #122e4a1b}.demo-top{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff1b;padding-bottom:15px}.demo-window{background:#142a42;border:1px solid #345674;border-radius:7px;margin-top:20px;padding:18px}.searchbox{display:flex;gap:10px;align-items:center;background:#071526;border:1px solid #467b9f;border-radius:6px;padding:12px}.searchbox input{background:transparent;border:0;outline:none;color:white;width:100%;font-size:14px;min-width:0}.results{margin-top:12px;display:grid;gap:7px}.result{background:#1c3854;padding:11px;border-radius:5px;font-size:12px;color:#d7eafa;display:flex;justify-content:space-between;gap:8px}.result small{color:#8fb5d0}.hint{color:#89a8c2;font-size:10px;margin-top:12px}
+.case{display:grid;grid-template-columns:.8fr 1.2fr;gap:35px;align-items:center}.case-visual{min-height:330px;border-radius:12px;background:radial-gradient(ellipse at 60% 45%,#2e83b1,#173d60 40%,#0c1b30 80%);padding:25px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}.case-visual:before{content:"";position:absolute;width:260px;height:260px;border:1px solid #80d8ff70;border-radius:50%;box-shadow:0 0 55px #56b8eb40}.case-stack{position:relative;z-index:1;width:80%;display:grid;gap:8px}.case-card{background:#eaf5ffed;color:#193a56;padding:13px 15px;border-radius:6px;font-size:12px;box-shadow:0 7px 20px #0003}.case-card:nth-child(2){margin-left:20px}.case-card:nth-child(3){margin-left:40px}.case-copy h3{font-size:27px;line-height:1.4}.case-copy p{color:#708196;font-size:13px}.case-list{list-style:none;padding:0;margin:22px 0}.case-list li{padding:9px 0;border-bottom:1px solid #e6edf3;font-size:13px}.case-list b{color:#2588b9;margin-right:10px}
+.trust-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.trust{border:1px solid #dfe8f0;border-radius:8px;padding:22px;background:#fff}.trust h3{font-size:16px;margin:0 0 8px}.trust p{font-size:12px;color:#738398;margin:0}.disclaimer{font-size:10px;color:#8097ac;margin-top:14px}.faq{max-width:820px;margin:auto}.faq-item{border-bottom:1px solid #dfe7ef}.faq-q{width:100%;display:flex;justify-content:space-between;gap:15px;text-align:left;padding:18px 4px;border:0;background:transparent;color:#20364d;font-size:14px;font-weight:650}.faq-a{display:none;color:#708196;font-size:13px;padding:0 4px 18px}.faq-item.open .faq-a{display:block}.faq-item.open .faq-q span:last-child{transform:rotate(45deg)}
+.closing{background:radial-gradient(ellipse at 50% 10%,#244c70,#10223a 55%,#091525);color:white;text-align:center;padding:100px 20px}.closing h2{font-size:clamp(32px,5vw,55px);line-height:1.25}.closing p{color:#a9c1d7;font-size:13px}footer{background:#091321;color:#8ca3b9;padding:28px 0;font-size:11px}.footin{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap}
+@media(max-width:760px){.navlinks{display:none;position:absolute;top:68px;left:0;right:0;background:#0d1b2e;padding:18px 25px;flex-direction:column;align-items:flex-start}.navlinks.show{display:flex}.mobile-menu{display:block}.navcta{display:none}.hero{min-height:560px}.hero-content{padding-top:65px;padding-bottom:190px}.hero-art{width:100%;height:230px;right:0;top:auto;bottom:15px;opacity:.8}.orbit{width:220px;height:220px;right:calc(50% - 110px);top:5px}.orbit:before{inset:22px}.orbit:after{inset:48px}.core{width:100px;height:100px;right:calc(50% - 50px);top:65px;font-size:12px}.float{font-size:9px;padding:7px 9px}.f1{right:2%;top:4%}.f2{left:1%;top:48%}.f3{right:1%;bottom:2%}section{padding:65px 0}.pain-grid,.duo,.trust-grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,1fr)}.step:last-child{grid-column:1/-1}.feature-grid{grid-template-columns:1fr}.case{grid-template-columns:1fr}.case-visual{min-height:250px}.step-detail{align-items:flex-start}.step-no{font-size:30px}.wrap{padding-left:19px;padding-right:19px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap navin">
+<a href="#home" class="brand">知源调度台<small>OWNWAY</small></a>
+<nav class="navlinks" id="nav"><a href="#idea">产品理念</a><a href="#flow">工作流程</a><a href="#features">核心能力</a><a href="#case">使用场景</a><a href="#faq">常见问题</a></nav>
+<div style="display:flex;gap:10px;align-items:center"><a class="navcta" href="#experience">探索知源 ↗</a><button class="mobile-menu" id="menu" aria-label="打开菜单" aria-expanded="false">☰</button></div>
+</div></header>
+<main>
+<section class="hero" id="home"><div class="wrap hero-content">
+<div class="eyebrow">YOUR PERSONAL WORKSPACE · OWNWAY</div><h1>万千可调用，<br><em>自有我方向。</em></h1>
+<div class="hero-sub">知源调度台 · 你的浏览器个人调度中台</div><p class="hero-desc">让方向有归属，让信息可调用，让专业积累成为真正能够创造价值的资产。</p>
+<div class="hero-actions"><a class="btn" href="#idea">探索知源 ↗</a><a class="outline-btn" href="#flow">了解工作流程 ↓</a></div>
+<div class="hero-art" aria-hidden="true"><div class="orbit"></div><div class="core">知源调度台<div><span>OWNWAY</span></div></div><div class="float f1">方向树 · 个人赛道</div><div class="float f2">资源卡 · 任务卡 · 好奇心卡</div><div class="float f3">收集 → 调用 → 创造</div></div>
+<div class="hero-bottom">INFORMATION · DIRECTION · VALUE</div>
+</div></section>
+<section class="section-dark" id="idea"><div class="wrap"><div class="section-head"><div class="kicker">WHY OWNWAY</div><h2>每天都很忙，<br>但你知道自己在忙什么吗？</h2><p>信息爆炸、工具爆炸、AI 焦虑。真正的问题不是不够努力，而是方向、信息与价值彼此断开。</p></div>
+<div class="pain-grid">
+<article class="pain"><div class="num">01 / DIRECTION</div><h3>方向的迷失</h3><p>科技不断变化，热点层出不穷。每天都在忙，却不确定正在做的事通向哪里。</p><strong>努力，需要方向。</strong></article>
+<article class="pain"><div class="num">02 / INFORMATION</div><h3>信息的迷失</h3><p>看过很多，收藏很多。真正需要的时候，却想不起来、找不回、用不了。</p><strong>知识，需要调用。</strong></article>
+<article class="pain"><div class="num">03 / VALUE</div><h3>价值的迷失</h3><p>长期解决一个又一个问题，但投入没有沉淀成别人能够看见、使用的成果。</p><strong>积累，需要转化。</strong></article></div>
+<div class="statement">问题不在你不够努力。<br><span>而在于三段断开了：方向断了、信息断了、价值断了。</span></div></div></section>
+<section class="section-light"><div class="wrap"><div class="section-head"><div class="kicker">ONE SYSTEM · TWO DIRECTIONS</div><h2>向内建立方向，向外创造价值。</h2><p>知源不是功能的简单集合，而是把个人方向与价值创造连接起来的一套工作方法。</p></div>
+<div class="duo"><article class="lane"><div class="lane-tag">01 · LOOK INWARD</div><h3>向内 · 建立方向</h3><p>知道自己做的事与个人赛道的关系，让每天的行动有来处。</p><div class="tree"><div>愿景 · 我想成为什么样的人</div><div>使命 · 我想为世界创造什么</div><div>战略目标 · 我在哪些领域实现价值</div><div>项目 · 当前主攻方向</div><div>成功指标 · 如何衡量是否达成</div><div>任务 · 每天具体做什么</div></div></article>
+<article class="lane out"><div class="lane-tag">02 · LOOK OUTWARD</div><h3>向外 · 创造价值</h3><p>把每天浏览的信息组织成可调用资产，用证据支撑判断，形成可交付成果。</p><div class="tree"><div>信息捕获 · 我看过</div><div>卡片沉淀 · 我留下了</div><div>全局调用 · 我调得出</div><div>证据论证 · 我有依据</div><div>成果交付 · 我能证明给你看</div><div>价值落地 · 反馈与复用</div></div></article></div><div class="loop-label">向外变现的前提是向内清楚 · 向内清楚的能量来自向外反馈</div></div></section>
+<section class="section-dark" id="flow"><div class="wrap"><div class="section-head"><div class="kicker">THE FIVE-STEP LOOP</div><h2>五个动作，形成一个闭环。</h2><p>从信息进入，到价值创造，再到方向校准，让每一次积累都能进入下一轮工作。</p></div>
+<div class="steps" id="steps">
+<button class="step active" data-step="0" aria-pressed="true"><b>01</b><strong>入台</strong><small>快速捕获</small></button><button class="step" data-step="1" aria-pressed="false"><b>02</b><strong>归位</strong><small>分类沉淀</small></button><button class="step" data-step="2" aria-pressed="false"><b>03</b><strong>调出</strong><small>全局调用</small></button><button class="step" data-step="3" aria-pressed="false"><b>04</b><strong>复用</strong><small>组织成果</small></button><button class="step" data-step="4" aria-pressed="false"><b>05</b><strong>校准</strong><small>回看方向</small></button></div>
+<div class="step-detail" aria-live="polite"><div><div class="kicker" id="step-kicker">STEP 01</div><h3 id="step-title">入台 · 把信息收进来</h3><p id="step-copy">浏览网页、阅读文件、产生念头时，快速捕获内容。资源卡、任务卡、好奇心卡，让值得留下的东西不再轻易流失。</p></div><div class="step-no" id="step-no">01</div></div></div></section>
+<section class="section-white" id="features"><div class="wrap"><div class="section-head"><div class="kicker">BUILT AROUND REAL WORK</div><h2>不是功能堆砌，<br>而是围绕工作场景组织能力。</h2><p>从建立方向，到调用信息，再到组织成果，每一项能力都对应一个真实的工作问题。</p></div>
+<div class="feature-grid">
+<article class="feature"><div class="ico">⌘</div><h3>方向管理</h3><p>用六层方向树连接愿景、使命、战略目标、项目、成功指标与任务。每天三件事都有方向归属。</p><div class="chips"><span class="chip">方向树</span><span class="chip">项目全景</span><span class="chip">今日三件事</span></div></article>
+<article class="feature"><div class="ico">▤</div><h3>三卡捕获</h3><p>将有出处的资源、需要跟进的任务，以及一闪而过的好奇心，分别沉淀到对应卡片池。</p><div class="chips"><span class="chip">资源卡</span><span class="chip">任务卡</span><span class="chip">好奇心卡</span></div></article>
+<article class="feature"><div class="ico">⌕</div><h3>全局调用</h3><p>在任意网页通过快捷键调出搜索，关键词或拼音首字母命中，快速回到原始出处。</p><div class="chips"><span class="chip">⌘K / Ctrl+K</span><span class="chip">关键词检索</span><span class="chip">原文直达</span></div></article>
+<article class="feature"><div class="ico">◇</div><h3>策展台</h3><p>围绕主题建立论证树，为观点关联资源卡，将个人判断与支撑依据组织成可分享的表达。</p><div class="chips"><span class="chip">论证树</span><span class="chip">证据关联</span><span class="chip">自包含 HTML</span></div></article>
+<article class="feature"><div class="ico">▥</div><h3>画像洞察</h3><p>通过年度热力图、收集与调用统计、当日报表和生命周期，回看自己的行动与积累。</p><div class="chips"><span class="chip">年度热力图</span><span class="chip">当日报表</span><span class="chip">生命周期</span></div></article>
+<article class="feature"><div class="ico">✧</div><h3>AI 赋能</h3><p>AI 可以协助打标、归类、拆解与诊断。它提供整理力和建议，但不替你做最终判断。</p><div class="chips"><span class="chip">辅助整理</span><span class="chip">建议与诊断</span><span class="chip">判断权在你</span></div></article></div></div></section>
+<section class="section-dark"><div class="wrap"><div class="section-head"><div class="kicker">TRY THE EXPERIENCE</div><h2>看过的信息，真正能够调用。</h2><p>下面是一个搜索交互示意。体验从收藏到调用的差别。</p></div>
+<div class="demo"><div class="demo-top"><strong>知源 · 全局调用</strong><small style="color:#91b4ce">INTERACTIVE DEMO</small></div><div class="demo-window"><div class="searchbox"><span style="color:#71c9f2">⌕</span><input id="search" placeholder="试试输入：武汉升学、AI 教育、行业报告……" autocomplete="off" aria-label="搜索演示"><span style="color:#7396b2;font-size:11px;white-space:nowrap">⌘ K</span></div><div class="results" id="results"><div class="result"><span>武汉中考政策资料</span><small>资源卡 · 示例</small></div><div class="result"><span>AI 教育行业研究报告</span><small>资源卡 · 示例</small></div><div class="result"><span>整理客户方案初稿</span><small>任务卡 · 示例</small></div></div><div class="hint">演示数据仅用于展示交互方式，不代表真实用户数据或产品已存储内容。</div></div></div></div></section>
+<section class="section-light" id="case"><div class="wrap"><div class="section-head"><div class="kicker">FROM KNOWLEDGE TO DELIVERY</div><h2>让专业判断，变成可交付的成果。</h2><p>以独立顾问的一次服务方案为例，看看个人积累如何进入真实工作。</p></div>
+<div class="case"><div class="case-visual" aria-label="资源与成果概念示意"><div class="case-stack"><div class="case-card">01 · 行业报告与原始资料</div><div class="case-card">02 · 主题论证树与观点结构</div><div class="case-card">03 · 证据关联与 HTML 成果</div></div></div>
+<div class="case-copy"><div class="kicker">A WORKFLOW CONCEPT</div><h3>从个人积累，<br>到专业交付。</h3><p>客户提出问题时，不必每次都从零开始。把曾经积累的资料调出来，组织判断与依据，形成可供对方查看的成果。</p><ul class="case-list"><li><b>01</b> 收集行业报告，沉淀资源卡。</li><li><b>02</b> 将资料归入对应项目和方向。</li><li><b>03</b> 客户提出问题，通过全局调用找回依据。</li><li><b>04</b> 在策展台搭建论证树，关联证据。</li><li><b>05</b> 分享为自包含 HTML，让观点和依据一起交付。</li></ul><div style="font-size:13px;color:#287da8;font-weight:650">从「我认为」，到「我有依据」。</div></div></div></div></section>
+<section class="section-white"><div class="wrap"><div class="section-head"><div class="kicker">TRUST BY DESIGN</div><h2>工具应该帮助你，<br>而不是接管你。</h2><p>知源的边界清晰：组织信息与智能，保留人的判断权。</p></div>
+<div class="trust-grid"><article class="trust"><h3>本地优先</h3><p>产品材料描述为 100% 本地运行，无知源云端、无账号、无追踪。</p></article><article class="trust"><h3>AI 辅助，而非替代</h3><p>AI 帮助整理、建议和诊断，判断权始终属于使用者。</p></article><article class="trust"><h3>互补，而非替代</h3><p>知源不取代 Notion、Obsidian 等笔记与写作环境，而是组织和调用外部资源。</p></article></div>
+<p class="disclaimer">说明：AI 服务与 Airtable 同步等能力需按产品设置及用户自备配置使用；具体数据流以正式产品说明为准。</p></div></section>
+<section class="section-light" id="faq"><div class="wrap"><div class="section-head"><div class="kicker">FAQ</div><h2>关于知源，你可能还想知道。</h2></div><div class="faq" id="faq-list">
+<div class="faq-item"><button class="faq-q" aria-expanded="false"><span>知源是一个收藏夹吗？</span><span>＋</span></button><div class="faq-a">不是。收藏强调保存，知源强调调用。它将资源、任务与好奇心组织成可调用的个人资产，让信息在需要时重新进入工作。</div></div>
+<div class="faq-item"><button class="faq-q" aria-expanded="false"><span>知源会替代 Notion 或 Obsidian 吗？</span><span>＋</span></button><div class="faq-a">不会。笔记系统、写作环境继续由原有工具承担。知源作为浏览器中的个人调度中台，帮助组织和调用这些外部资源。</div></div>
+<div class="faq-item"><button class="faq-q" aria-expanded="false"><span>数据会上传到知源云端吗？</span><span>＋</span></button><div class="faq-a">产品介绍材料说明，知源 100% 本地运行，无知源云端、无账号、无追踪。用户自行配置的第三方服务和同步行为需单独理解其数据流。</div></div>
+<div class="faq-item"><button class="faq-q" aria-expanded="false"><span>知源里的 AI 会替我做决定吗？</span><span>＋</span></button><div class="faq-a">不会。AI 帮助整理信息、提供建议与诊断，最终判断权始终在用户手中。AI 建议不自动成为事实。</div></div>
+<div class="faq-item"><button class="faq-q" aria-expanded="false"><span>知源目前如何获取？</span><span>＋</span></button><div class="faq-a">现有产品材料标注为当前免费、本地分发，购买模式仍在规划中。本原型暂不设置虚构的下载地址或购买入口。</div></div>
+</div></div></section>
+<section class="closing" id="experience"><div class="eyebrow">OWN YOUR DIRECTION</div><h2>万千可调用，<br><span style="color:#77d1fa">自有我方向。</span></h2><p>知源不能替你走，但能让你知道当下在哪里、往哪里去、走到了哪里。</p><a class="btn" href="#home" style="margin-top:20px">回到起点 ↑</a><div style="font-size:11px;letter-spacing:5px;color:#83a9c9;margin-top:42px">知源调度台 · OWNWAY</div></section>
+</main>
+<footer><div class="wrap footin"><span>知源调度台 OWNWAY</span><span>万千可调用，自有我方向。</span><span>产品介绍官网 · 交互概念原型 V1.0</span></div></footer>
+<script>
+(()=>{
+const nav=document.getElementById('nav'),menu=document.getElementById('menu');
+menu.addEventListener('click',()=>{const open=nav.classList.toggle('show');menu.setAttribute('aria-expanded',String(open));});
+nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{nav.classList.remove('show');menu.setAttribute('aria-expanded','false');}));
+const steps=[
+['入台 · 把信息收进来','浏览网页、阅读文件、产生念头时，快速捕获内容。资源卡、任务卡、好奇心卡，让值得留下的东西不再轻易流失。'],
+['归位 · 让资源有自己的家','三类卡片分别沉淀在对应卡片池。任务有归属，资源有出处，好奇心有自己的空间，并逐步与个人方向建立联系。'],
+['调出 · 需要时快速找回来','在任意网页使用 ⌘K 或 Ctrl+K，输入关键词或拼音首字母，找到积累过的内容并直达原始出处。'],
+['复用 · 让积累成为成果','围绕主题组织判断与论证，将资源卡关联到论点，形成可分享的自包含 HTML 成果。'],
+['校准 · 让行动回到方向','通过方向全景与画像洞察回看行动、投入和成果，判断是否仍在自己的赛道上，并调整下一步行动。']
+];
+const btns=[...document.querySelectorAll('.step')];
+btns.forEach((b,i)=>b.addEventListener('click',()=>{
+btns.forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});
+b.classList.add('active');b.setAttribute('aria-pressed','true');
+document.getElementById('step-kicker').textContent='STEP 0'+(i+1);
+document.getElementById('step-title').textContent=steps[i][0];
+document.getElementById('step-copy').textContent=steps[i][1];
+document.getElementById('step-no').textContent='0'+(i+1);
+}));
+const data=[
+['武汉中考政策资料','资源卡 · 示例','武汉 中考 政策 升学'],
+['武汉高中升学率分析','资源卡 · 示例','武汉 升学率 高中'],
+['AI 教育行业研究报告','资源卡 · 示例','AI 教育 行业 报告'],
+['整理客户方案初稿','任务卡 · 示例','客户 方案 任务'],
+['升学规划中的一个问题','好奇心卡 · 示例','升学 规划 好奇心'],
+['个人战略目标梳理','任务卡 · 示例','方向 目标 任务']
+];
+const input=document.getElementById('search'),results=document.getElementById('results');
+function search(q){
+const query=q.trim().toLowerCase(),matches=data.filter(d=>!query||d.join(' ').toLowerCase().includes(query));
+results.replaceChildren();
+if(!matches.length){const el=document.createElement('div');el.className='result';el.textContent='没有匹配的示例资源 · 试试其他关键词';results.append(el);return;}
+matches.forEach(d=>{const el=document.createElement('div');el.className='result';const name=document.createElement('span');name.textContent=d[0];const tag=document.createElement('small');tag.textContent=d[1];el.append(name,tag);results.append(el);});
+}
+input.addEventListener('input',e=>search(e.target.value));
+document.querySelectorAll('.faq-q').forEach(b=>b.addEventListener('click',()=>{const item=b.parentElement,open=item.classList.toggle('open');b.setAttribute('aria-expanded',String(open));}));
+})();
+</script>
+</body></html>

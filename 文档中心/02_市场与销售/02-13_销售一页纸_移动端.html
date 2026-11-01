@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知源调度台 · 销售一页纸</title>
+<style>
+:root{
+  --paper:#FAF9F5; --paper2:#F2F0E9;
+  --ink:#1A1D23; --ink2:#4C5563; --ink3:#8A9099;
+  --line:#DDD8CB;
+  --green:#00A870; --green-d:#00805A; --green-s:#E4F6EF;
+  --orange:#E86A17;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--paper);color:var(--ink);
+  font-family:"MiSans","PingFang SC","Helvetica Neue","Source Han Sans SC",system-ui,sans-serif;
+  line-height:1.75;-webkit-font-smoothing:antialiased;letter-spacing:.01em;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(400px 260px at 20% 0%, rgba(0,168,112,.05), transparent 70%),
+             repeating-linear-gradient(0deg, transparent 0 27px, rgba(26,29,35,.015) 27px 28px);}
+.page{max-width:430px;margin:0 auto;position:relative;z-index:1;
+  padding:56px 26px 72px;background:rgba(255,255,255,.4);}
+
+/* ─── 顶部工具条（不进入导出） ─── */
+.toolbar{position:sticky;top:0;z-index:10;text-align:center;padding:14px 0 8px;
+  backdrop-filter:blur(8px);background:rgba(250,249,245,.85);margin:-56px -26px 32px;}
+.toolbar button{
+  background:var(--ink);color:#fff;border:0;border-radius:999px;
+  padding:11px 26px;font-size:14px;font-weight:600;letter-spacing:.04em;cursor:pointer;
+  font-family:inherit;box-shadow:0 6px 18px rgba(26,29,35,.18);
+}
+.toolbar button:active{transform:translateY(1px)}
+.toolbar small{display:block;margin-top:6px;color:var(--ink3);font-size:11.5px}
+
+/* ─── 第一阶 定锚 ─── */
+.hero{padding:8px 0 8px;border-bottom:1px dashed var(--line)}
+.eyebrow{font-size:11px;letter-spacing:.22em;font-weight:600;color:var(--green-d);
+  display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.eyebrow::before{content:"";width:24px;height:2px;background:var(--green);border-radius:2px}
+.slogan{font-size:clamp(32px,9.6vw,42px);font-weight:700;line-height:1.22;letter-spacing:-.01em}
+.slogan em{font-style:normal;color:var(--green);display:block}
+.category{margin-top:16px;font-size:16px;font-weight:600;color:var(--ink)}
+.value{margin-top:8px;font-size:14px;color:var(--ink2)}
+.trust{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px}
+.trust span{font-size:11.5px;color:var(--ink2);border:1px solid var(--line);
+  border-radius:999px;padding:4px 12px;background:#fff}
+
+/* ─── 章节通用 ─── */
+section{padding:38px 0 34px;border-bottom:1px dashed var(--line)}
+section:last-of-type{border-bottom:0}
+.stag{font-size:11px;letter-spacing:.18em;font-weight:700;color:var(--green-d);margin-bottom:10px}
+.stitle{font-size:22px;font-weight:700;line-height:1.35;letter-spacing:-.005em}
+.sdesc{margin-top:10px;font-size:13.5px;color:var(--ink2)}
+.gap{height:14px}
+
+/* ─── 第二阶 三种断裂 ─── */
+.lost{background:#fff;border:1px solid #EFEDE4;border-left:3px solid var(--orange);
+  border-radius:12px;padding:14px 16px;margin-top:12px}
+.lost .idx{font-size:10.5px;letter-spacing:.16em;font-weight:700;color:var(--orange)}
+.lost b{display:block;font-size:14.5px;margin:3px 0 4px;font-weight:600}
+.lost small{font-size:13px;color:var(--ink2);line-height:1.65;display:block}
+.after-note{margin-top:18px;padding:12px 16px;background:var(--green-s);
+  border-left:3px solid var(--green);border-radius:0 10px 10px 0;
+  font-size:13.5px;color:var(--ink);font-weight:500}
+
+/* ─── 第三阶 JTBD ─── */
+.jtbd{margin-top:16px}
+.row{display:grid;grid-template-columns:32px 1fr;gap:12px;padding:16px 0;
+  border-bottom:1px solid #EFEDE4;background:#fff;padding:16px;border-radius:12px;
+  border:1px solid #EFEDE4;margin-bottom:10px}
+.row:last-child{margin-bottom:0}
+.row .no{width:32px;height:32px;border-radius:50%;background:var(--green-s);
+  color:var(--green-d);font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex:0 0 32px}
+.row .jt{font-size:14.5px;font-weight:600;line-height:1.5}
+.row .sp{font-size:13px;color:var(--ink2);margin-top:3px;line-height:1.65}
+.shot{margin-top:18px;background:#fff;border:1px solid #EFEDE4;border-radius:14px;
+  padding:14px;font-size:12.5px;color:var(--ink3)}
+.shot .box{background:var(--paper2);border-radius:10px;padding:22px 16px;
+  text-align:center;color:var(--ink2);font-size:13px;line-height:1.8}
+.shot .box b{color:var(--ink);font-weight:600;display:block;font-size:13px;margin-bottom:4px}
+.shot .legend{display:flex;gap:14px;margin-top:10px;font-size:11.5px;flex-wrap:wrap}
+.shot .legend span{color:var(--ink2)}
+.shot .legend i{font-style:normal;color:var(--green);font-weight:700;margin-right:3px}
+
+/* ─── 第四阶 收口 ─── */
+.who{background:#fff;border:1px solid #EFEDE4;border-radius:12px;padding:14px 16px;
+  font-size:13.5px;color:var(--ink2);margin-top:14px;line-height:1.75}
+.who b{color:var(--ink);font-weight:600}
+.coexist{margin-top:10px;background:#fff;border:1px solid #EFEDE4;border-radius:12px;
+  padding:14px 16px;font-size:13.5px;color:var(--ink2);line-height:1.75}
+.coexist b{color:var(--ink);font-weight:600}
+.trustbox{margin-top:10px;background:var(--paper2);border-radius:12px;padding:14px 16px;
+  font-size:12.5px;color:var(--ink2);line-height:1.75}
+.trustbox b{color:var(--ink);font-weight:600}
+.cta{margin-top:26px;text-align:center;padding:22px 12px;background:var(--green-s);
+  border-radius:16px;border:1.5px solid var(--green)}
+.cta .line1{font-size:16.5px;font-weight:700;color:var(--ink);letter-spacing:.01em}
+.cta .line2{margin-top:10px;font-size:13px;color:var(--green-d);font-weight:500;letter-spacing:.06em}
+
+/* ─── 页脚 ─── */
+footer{margin-top:30px;text-align:center}
+footer .slogan2{font-size:19px;font-weight:700;letter-spacing:.04em}
+footer .slogan2 em{font-style:normal;color:var(--green)}
+footer small{display:block;margin-top:8px;color:var(--ink3);font-size:11px}
+
+@media (min-width:480px){.page{padding:64px 34px 88px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+@media print{
+  .toolbar{display:none}
+  body{background:#fff}
+  .page{max-width:none;padding:40px 32px}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar noprint">
+  <button id="exportBtn">↓ 导出为长图（PNG）</button>
+  <small>适合发到微信 / 朋友圈 / 销售对话</small>
+</div>
+
+<div class="page">
+
+  <!-- ★ 第一阶 定锚 -->
+  <div class="hero">
+    <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+    <h1 class="slogan">万千可调用，<em>自有我方向。</em></h1>
+    <p class="category">你在浏览器里的个人调度中台。</p>
+    <p class="value">信息与工具不断出现，重要的不只是知道更多，而是看清自己要推进什么。知源围绕你的方向，组织探索、调用与成果——让外部的丰富，参与你的行动。</p>
+    <div class="trust">
+      <span>Chromium 扩展</span><span>100% 本地运行</span><span>无需注册</span><span>免费体验中</span>
+    </div>
+  </div>
+
+  <!-- ★ 第二阶 三种断裂 -->
+  <section>
+    <div class="stag">MOMENTS · 场景共鸣</div>
+    <h2 class="stitle">你是否也有这些时刻？</h2>
+    <p class="sdesc">不是焦虑，只是三种真实的断裂。</p>
+
+    <div class="lost">
+      <span class="idx">断裂 Ⅰ</span>
+      <b>方向的断裂</b>
+      <small>每天都很忙，却说不清手头这件事和自己的赛道，到底是什么关系。</small>
+    </div>
+    <div class="lost">
+      <span class="idx">断裂 Ⅱ</span>
+      <b>信息的断裂</b>
+      <small>看过、存过很多，真正需要的那一刻，却想不起、找不到、用不上。</small>
+    </div>
+    <div class="lost">
+      <span class="idx">断裂 Ⅲ</span>
+      <b>价值的断裂</b>
+      <small>持续在解决问题，却没有沉淀成别人愿意为之付费的成果。</small>
+    </div>
+
+    <div class="after-note">问题不在你不够努力，在于<b>三段断开了</b>——方向断了、信息断了、价值断了。</div>
+  </section>
+
+  <!-- ★ 第三阶 JTBD -->
+  <section>
+    <div class="stag">WORKFLOW · 价值证据</div>
+    <h2 class="stitle">在知源里，围绕一件事展开工作</h2>
+    <p class="sdesc">不堆功能，只看你做一件事时它如何站在你旁边。</p>
+
+    <div class="jtbd">
+      <div class="row">
+        <div class="no">①</div>
+        <div>
+          <div class="jt">看清当前重点</div>
+          <div class="sp">方向树 + 今日三件事：连接你的目标、项目与今日行动。</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="no">②</div>
+        <div>
+          <div class="jt">留下值得追问的问题</div>
+          <div class="sp">三卡快速捕获，好奇可培育、能回看、可转为投入。</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="no">③</div>
+        <div>
+          <div class="jt">善用已有的工具与材料</div>
+          <div class="sp">卡片池 + 全局调用 ⌘K：关联任务，需要时三秒调回。</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="no">④</div>
+        <div>
+          <div class="jt">呈现阶段成果</div>
+          <div class="sp">策展台围绕主题组织判断与证据，一键导出可交付 HTML。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="box">
+        <b>真实界面占位（上线前替换）</b>
+        建议放：调度台首屏"今日三件事 + 方向树一角"
+      </div>
+      <div class="legend">
+        <span><i>①</i>今日三件事（看见方向）</span>
+        <span><i>③</i>⌘K 三秒调出（调用所需）</span>
+        <span><i>④</i>金字塔中心论点（策展成果）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ★ 第四阶 消除防卫 + 行动 -->
+  <section>
+    <div class="stag">FIT & TRUST · 消除防卫</div>
+    <h2 class="stitle">它适合这样的你</h2>
+
+    <div class="who">
+      <b>对号入座</b>：以浏览器为主要工作入口，独立开展咨询、研究、内容创作或多项目交付——希望工具围绕自己的问题工作，而不是每天围着新工具转。
+    </div>
+
+    <div class="coexist">
+      <b>与你已有的工具共处</b>：不需要搬家。笔记、原始资料、Notion、Obsidian 都保留原位——知源负责组织它们与你当前工作的关系。互补，不替代。
+    </div>
+
+    <div class="trustbox">
+      <b>数据与诚实边界</b>：100% 本机保存，无云端、无追踪；支持导出与删除恢复。<br>
+      <i style="font-style:normal">本地保存 ≠ 自动备份，请定期备份。当前免费、开发者模式安装，买断方案仍在规划中——上线前，我们不想假装已开售。</i>
+    </div>
+
+    <div class="cta">
+      <div class="line1">带着一件正在推进的事，进入知源。</div>
+      <div class="line2">观看演示 ｜ 查看安装指南</div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="slogan2">万千可调用，<em>自有我方向。</em></div>
+    <small>知源调度台 V3.9.30 · 2026-10-29</small>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+(function(){
+  var btn=document.getElementById('exportBtn');
+  if(!btn) return;
+  btn.addEventListener('click',function(){
+    btn.disabled=true;btn.textContent='正在导出…';
+    var page=document.querySelector('.page');
+    var scale=Math.min(2.5,1080/page.offsetWidth)||2;
+    html2canvas(page,{
+      backgroundColor:'#FAF9F5',
+      scale:scale,
+      useCORS:true,
+      logging:false,
+      width:page.offsetWidth,
+      windowWidth:page.offsetWidth+1
+    }).then(function(canvas){
+      canvas.toBlob(function(blob){
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');
+        a.href=url;a.download='知源调度台_销售一页纸.png';
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(function(){URL.revokeObjectURL(url)},4000);
+        btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      },'image/png',0.95);
+    }).catch(function(e){
+      btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      alert('导出失败：'+e.message);
+    });
+  });
+})();
+</script>
+</body>
+</html>

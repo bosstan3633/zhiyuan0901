@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B3-v2 · 对照型 · 知源一页屏</title>
+<style>
+:root{
+  --paper:#FAF9F5; --ink:#1A1D23; --ink2:#4C5563; --ink3:#8A9099;
+  --green:#00A870; --green-d:#00805A; --green-s:#E4F6EF;
+  --orange:#E86A17; --line:#E4E0D5;
+  --blue:#4A5CC2; --purple:#7B5FC9;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"MiSans","PingFang SC","Helvetica Neue",system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.65;
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:40px 20px 120px;
+}
+.sheet{
+  width:100%;max-width:420px;background:var(--paper);
+  border:1px solid var(--line);border-radius:24px;
+  padding:28px 22px 22px;position:relative;overflow:hidden;
+}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;font-weight:700;color:var(--green-d);margin-bottom:14px}
+.slogan{font-size:28px;font-weight:700;line-height:1.25}
+.slogan em{font-style:normal;color:var(--green);display:block}
+.category{font-size:13px;font-weight:600;margin-top:6px}
+
+.pain{margin-top:14px;font-size:12.5px;color:var(--ink2);line-height:1.7;
+  padding-left:11px;border-left:2px solid var(--orange)}
+.pain b{color:var(--ink);font-weight:600}
+
+/* 对照 */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 14px}
+.col{border-radius:12px;padding:12px;font-size:11px;line-height:1.6}
+.col .label{font-size:9.5px;letter-spacing:.14em;font-weight:700;margin-bottom:8px}
+.col .row{padding:7px 0;border-top:1px dashed var(--line);font-size:11px}
+.col .row:first-of-type{border-top:0;padding-top:0}
+.col .row b{display:block;font-weight:600;font-size:11.5px}
+.before{background:#F4F2EC;border:1px solid #E5E1D4;color:var(--ink2)}
+.before .label{color:var(--ink3)}
+.after{background:var(--green-s);border:1px solid var(--green);color:var(--ink)}
+.after .label{color:var(--green-d)}
+
+/* 设计化 UI 示意：今日三件事 */
+.showcase{
+  margin:8px 0 16px;border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  background:#fff;box-shadow:0 2px 10px rgba(26,29,35,.04),0 14px 34px rgba(26,29,35,.05);
+  position:relative;
+}
+.sc-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--line);background:#FFFEFB;
+}
+.sc-head .l{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;color:var(--ink)}
+.sc-head .l .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.sc-head .r{font-size:9.5px;color:var(--ink3);letter-spacing:.06em}
+.sc-body{padding:16px 14px 12px;background:linear-gradient(180deg,#FAFBF8 0%, #FFFFFF 100%)}
+.today-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:10px;letter-spacing:-.005em}
+.slot{
+  display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #EFEDE4;
+  border-radius:11px;padding:10px 12px;margin-bottom:9px;font-size:11.5px;line-height:1.5;
+  box-shadow:0 1px 3px rgba(0,0,0,.02);
+}
+.slot:last-child{margin-bottom:0}
+.slot .rank{
+  flex:0 0 22px;height:22px;border-radius:7px;background:var(--green-s);color:var(--green-d);
+  font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.slot .body{flex:1}
+.slot .body b{display:block;font-weight:600;font-size:11.5px}
+.slot .body small{color:var(--ink3);font-size:10px;display:block;margin-top:1px}
+.slot .meta{font-size:9.5px;color:var(--ink3);white-space:nowrap}
+.slot.done{opacity:.55}
+.slot.done .rank{background:#E8E6DE;color:var(--ink3)}
+.slot.done b{text-decoration:line-through}
+.sc-cap{padding:10px 14px 12px;border-top:1px solid var(--line);background:var(--paper2);
+  font-size:11.5px;color:var(--ink2);line-height:1.55}
+.sc-cap b{color:var(--ink)}
+.badge-real{
+  position:absolute;top:52px;right:14px;z-index:2;
+  background:var(--green);color:#fff;font-size:9.5px;font-weight:600;
+  padding:4px 11px;border-radius:999px;letter-spacing:.06em;
+}
+
+.jtbd{margin-bottom:12px}
+.jtbd .row{display:flex;gap:9px;padding:8px 0;border-top:1px dashed var(--line);font-size:11.5px;line-height:1.6}
+.jtbd .row:first-child{border-top:0}
+.jtbd .no{color:var(--green);font-weight:700;flex:0 0 18px}
+.jtbd .t{font-weight:600;flex:0 0 96px}
+.jtbd .d{color:var(--ink2)}
+
+.trust{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px}
+.trust span{font-size:10px;color:var(--ink3);border:1px solid var(--line);border-radius:999px;
+  padding:3px 10px;background:#fff}
+.cta{background:var(--green-s);border:1.5px solid var(--green);border-radius:14px;
+  text-align:center;padding:14px 12px}
+.cta .l1{font-size:14.5px;font-weight:700}
+.cta .l2{margin-top:3px;font-size:11.5px;color:var(--green-d);letter-spacing:.05em}
+
+.bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, var(--paper) 30%);
+  display:flex;justify-content:center;pointer-events:none}
+.bar button{pointer-events:auto;background:var(--ink);color:#fff;border:0;border-radius:999px;
+  padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 24px rgba(26,29,35,.2)}
+@media print{.bar{display:none}body{padding:0}.sheet{border-radius:0;border:0}}
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+  <h1 class="slogan">万千可调用，<em>自有我方向。</em></h1>
+  <p class="category">你在浏览器里的个人调度中台</p>
+
+  <p class="pain">不是你不够努力，是<b>方向、信息、价值</b>三段断开了。</p>
+
+  <div class="vs">
+    <div class="col before">
+      <div class="label">你还在这样</div>
+      <div class="row"><b>忙碌</b>说不清和赛道什么关系</div>
+      <div class="row"><b>存过</b>需要时想不起、找不到</div>
+      <div class="row"><b>做完</b>没沉淀成可交付成果</div>
+    </div>
+    <div class="col after">
+      <div class="label">在知源里</div>
+      <div class="row"><b>看清</b>方向树挂今日三件事</div>
+      <div class="row"><b>调得出</b>三卡入池，⌘K 三秒调回</div>
+      <div class="row"><b>可交付</b>策展台一键导出 HTML</div>
+    </div>
+  </div>
+
+  <div class="showcase">
+    <div class="sc-head">
+      <div class="l"><span class="dot"></span>调度台 · 今日</div>
+      <div class="r">10月27日 周二 · 战报</div>
+    </div>
+    <span class="badge-real">功能结构示意</span>
+    <div class="sc-body">
+      <div class="today-title">今天，先做这三件。</div>
+      <div class="slot done">
+        <div class="rank">1</div>
+        <div class="body">
+          <b>整理浏览器现场里的判断与证据</b>
+          <small>多指标阅读节奏审计 · 把散落在浏览器里的判断整理成可复用证据池</small>
+        </div>
+        <div class="meta">✓</div>
+      </div>
+      <div class="slot done">
+        <div class="rank">2</div>
+        <div class="body">
+          <b>复盘本周三件事与项目指标的对齐</b>
+          <small>验证方向树与每天行动之间的闭环是否真正减少漂移</small>
+        </div>
+        <div class="meta">✓</div>
+      </div>
+      <div class="slot">
+        <div class="rank">3</div>
+        <div class="body">
+          <b>把高频问题与对应资源建立可召回索引</b>
+          <small>建立面向真实业务问题的资源调用路径</small>
+        </div>
+        <div class="meta">待开始</div>
+      </div>
+    </div>
+    <div class="sc-cap"><b>每天的开始</b> · 三件事恒三槽，来自方向归属，结束要回战报——很短的仪式，能把你拽回主线。</div>
+  </div>
+
+  <div class="jtbd">
+    <div class="row"><span class="no">①</span><span class="t">看清当前重点</span><span class="d">方向树 + 今日三件事</span></div>
+    <div class="row"><span class="no">②</span><span class="t">留下值得追问的问题</span><span class="d">三卡捕获 + 好奇培育</span></div>
+    <div class="row"><span class="no">③</span><span class="t">善用已有的工具与材料</span><span class="d">卡片池 + 全局调用</span></div>
+    <div class="row"><span class="no">④</span><span class="t">呈现阶段成果</span><span class="d">策展台 + 一键导出 HTML</span></div>
+  </div>
+
+  <div class="trust">
+    <span>Chromium 扩展</span><span>100% 本地</span><span>无需注册</span><span>免费体验中</span>
+  </div>
+
+  <div class="cta">
+    <div class="l1">带着一件正在推进的事，进入知源。</div>
+    <div class="l2">观看演示 ｜ 查看安装指南</div>
+  </div>
+</div>
+
+<div class="bar noprint">
+  <button id="exportBtn">↓ 导出为长图（PNG）</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+document.getElementById('exportBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='正在导出…';
+  var el=document.querySelector('.sheet');
+  html2canvas(el,{backgroundColor:'#FAF9F5',scale:2,useCORS:true,allowTaint:true,logging:false})
+    .then(function(c){
+      c.toBlob(function(b){
+        var u=URL.createObjectURL(b);var a=document.createElement('a');
+        a.href=u;a.download='知源一页屏_方案B3v2.png';a.click();
+        setTimeout(function(){URL.revokeObjectURL(u)},3000);
+        btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      });
+    }).catch(function(e){btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';alert(e.message)});
+});
+</script>
+</body>
+</html>

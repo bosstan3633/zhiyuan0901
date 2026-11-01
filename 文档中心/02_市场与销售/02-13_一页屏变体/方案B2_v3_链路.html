@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B2-v3 · 三段断裂如何被接上</title>
+<style>
+:root{
+  --paper:#FAF9F5; --ink:#1A1D23; --ink2:#4C5563; --ink3:#8A9099;
+  --green:#00A870; --green-d:#00805A; --green-s:#E4F6EF;
+  --orange:#E86A17; --line:#E4E0D5;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"MiSans","PingFang SC","Helvetica Neue",system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.6;
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:36px 20px 120px;
+}
+.sheet{
+  width:100%;max-width:420px;background:var(--paper);
+  border:1px solid var(--line);border-radius:22px;
+  padding:26px 20px 22px;position:relative;
+}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;font-weight:700;color:var(--green-d);margin-bottom:12px}
+.slogan{font-size:30px;font-weight:700;line-height:1.26;letter-spacing:-.01em;margin-bottom:5px}
+.slogan em{font-style:normal;color:var(--green)}
+.category{font-size:13px;font-weight:600;margin-bottom:10px}
+.value{font-size:12.5px;color:var(--ink2);line-height:1.7;padding-left:11px;border-left:2px solid var(--orange)}
+.value b{color:var(--ink);font-weight:600}
+
+/* 痛点:紧凑三联 */
+.pains{display:flex;gap:6px;margin:14px 0 18px}
+.pcell{
+  flex:1;background:#FBF5ED;border:1px solid #F0E4D0;border-left:3px solid var(--orange);
+  border-radius:9px;padding:8px 9px;font-size:10.5px;line-height:1.5;color:var(--ink2);
+}
+.pcell b{display:block;font-weight:600;font-size:11px;color:var(--ink);margin-bottom:1px}
+.pcell .lbl{font-size:9.5px;letter-spacing:.12em;font-weight:700;color:var(--orange);display:block;margin-bottom:3px}
+
+/* 循环:紧凑双列 */
+.loop-title{
+  font-size:11px;letter-spacing:.18em;font-weight:700;color:var(--green-d);
+  display:flex;align-items:center;gap:8px;margin-bottom:4px;
+}
+.loop-title::before{content:"";width:16px;height:2px;background:var(--green);border-radius:2px}
+.loop-sub{font-size:11.5px;color:var(--ink2);margin-bottom:14px}
+
+.loop{
+  border:2px solid var(--green);border-radius:18px;background:#fff;
+  padding:18px 14px 16px;position:relative;margin-bottom:14px;
+  box-shadow:0 8px 26px rgba(0,168,112,.08);
+}
+/* 顶部:入台 */
+.entry{
+  background:var(--green-s);border:1px solid var(--green);border-radius:12px;
+  padding:11px 14px;text-align:center;margin-bottom:16px;
+}
+.entry .n{font-size:12px;font-weight:700;color:var(--green-d);letter-spacing:.04em}
+.entry .t{font-size:11px;color:var(--ink2);margin-top:2px}
+/* 五动词链 */
+.verbs{display:grid;grid-template-columns:repeat(5,1fr);gap:0;position:relative;margin-bottom:16px}
+.verb{text-align:center;position:relative}
+.verb .n{font-size:11.5px;font-weight:700;color:var(--green-d)}
+.verb .t{font-size:9.5px;color:var(--ink2);display:block;margin-top:2px;line-height:1.4}
+.verb::before{content:"";position:absolute;top:6px;left:50%;width:8px;height:8px;border-radius:50%;
+  background:var(--green);transform:translateX(-50%);z-index:2}
+.verb::after{content:"";position:absolute;top:9px;left:calc(50% + 8px);right:calc(-50% + 4px);
+  height:1.5px;background:var(--line);z-index:1}
+.verb:last-child::after{display:none}
+.verb .n{position:relative;z-index:2;padding-top:14px}
+/* 收益(从用户视角) */
+.gains{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
+.gain{
+  background:var(--green-s);border:1px solid var(--green);border-radius:11px;
+  padding:11px 12px;font-size:11.5px;line-height:1.55;color:var(--ink);
+}
+.gain .k{font-size:9.5px;letter-spacing:.14em;font-weight:700;color:var(--green-d);display:block;margin-bottom:4px}
+.gain b{font-weight:600}
+
+/* CTA */
+.cta{background:var(--green-s);border:1.5px solid var(--green);border-radius:14px;
+  text-align:center;padding:14px 12px}
+.cta .l1{font-size:14.5px;font-weight:700}
+.cta .l2{margin-top:3px;font-size:11px;color:var(--green-d);letter-spacing:.05em}
+
+.bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, var(--paper) 30%);
+  display:flex;justify-content:center;pointer-events:none}
+.bar button{pointer-events:auto;background:var(--ink);color:#fff;border:0;border-radius:999px;
+  padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 24px rgba(26,29,35,.2)}
+@media print{.bar{display:none}body{padding:0}.sheet{border-radius:0;border:0}}
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+  <h1 class="slogan">万千可调用，<br><em>自有我方向。</em></h1>
+  <p class="category">你在浏览器里的个人调度中台</p>
+  <p class="value">不是你不够努力，是<b>方向、信息、价值</b>三段断开了。知源负责把它们重新接上。</p>
+
+  <!-- 痛点:紧凑三联 -->
+  <div class="pains">
+    <div class="pcell"><span class="lbl">断裂 Ⅰ</span><b>方向</b>说不清手头的事和赛道什么关系</div>
+    <div class="pcell"><span class="lbl">断裂 Ⅱ</span><b>信息</b>存过很多，需要时找不回</div>
+    <div class="pcell"><span class="lbl">断裂 Ⅲ</span><b>价值</b>做完了，没沉淀成可交付</div>
+  </div>
+
+  <!-- 正向循环:焦点 -->
+  <div class="loop-title">它怎么持续在你手里正转</div>
+  <div class="loop-sub">五个动词，正向加强，越用越回到你自己身上。</div>
+
+  <div class="loop">
+    <div class="entry">
+      <div class="n">入台</div>
+      <div class="t">把见过的东西，一键收进来</div>
+    </div>
+    <div class="verbs">
+      <div class="verb"><span class="n">归位</span><span class="t">挂到你的方向</span></div>
+      <div class="verb"><span class="n">调出</span><span class="t">三秒找回出处</span></div>
+      <div class="verb"><span class="n">复用</span><span class="t">组织成判断+依据</span></div>
+      <div class="verb"><span class="n">校准</span><span class="t">每周照镜子</span></div>
+      <div class="verb"><span class="n">入台</span><span class="t">下一波开始</span></div>
+    </div>
+
+    <!-- 用户视角收益(替代原工具名列表) -->
+    <div class="gains">
+      <div class="gain"><span class="k">你会得到</span><b>知道自己的方向</b>今天的每件事都有来处</div>
+      <div class="gain"><span class="k">你会得到</span><b>所见即所得</b>用到的都是曾留存的</div>
+      <div class="gain"><span class="k">你会得到</span><b>真正可交付</b>解决别人的问题，像作品</div>
+      <div class="gain"><span class="k">你会得到</span><b>每周的镜子</b>漂移被看见，回到主线</div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="l1">带着一件正在推进的事，进入知源。</div>
+    <div class="l2">观看演示 ｜ 查看安装指南</div>
+  </div>
+</div>
+
+<div class="bar noprint">
+  <button id="exportBtn">↓ 导出为长图（PNG）</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+document.getElementById('exportBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='正在导出…';
+  html2canvas(document.querySelector('.sheet'),{backgroundColor:'#FAF9F5',scale:2,useCORS:true,allowTaint:true,logging:false})
+    .then(function(c){
+      c.toBlob(function(b){
+        var u=URL.createObjectURL(b);var a=document.createElement('a');
+        a.href=u;a.download='知源一页屏_方案B2v3.png';a.click();
+        setTimeout(function(){URL.revokeObjectURL(u)},3000);
+        btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      });
+    }).catch(function(e){btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';alert(e.message)});
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B3-v3 · 两条主线互相加强</title>
+<style>
+:root{
+  --paper:#FAF9F5; --ink:#1A1D23; --ink2:#4C5563; --ink3:#8A9099;
+  --green:#00A870; --green-d:#00805A; --green-s:#E4F6EF;
+  --orange:#E86A17; --line:#E4E0D5;
+  --blue:#4A5CC2; --blue-s:#E7EAFB;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"MiSans","PingFang SC","Helvetica Neue",system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.6;
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:36px 20px 120px;
+}
+.sheet{
+  width:100%;max-width:420px;background:var(--paper);
+  border:1px solid var(--line);border-radius:22px;
+  padding:26px 20px 22px;position:relative;
+}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;font-weight:700;color:var(--green-d);margin-bottom:12px}
+.slogan{font-size:30px;font-weight:700;line-height:1.26;letter-spacing:-.01em;margin-bottom:5px}
+.slogan em{font-style:normal;color:var(--green)}
+.category{font-size:13px;font-weight:600;margin-bottom:10px}
+.value{font-size:12.5px;color:var(--ink2);line-height:1.7;padding-left:11px;border-left:2px solid var(--orange)}
+.value b{color:var(--ink);font-weight:600}
+
+/* 焦点:两主线互推(精简) */
+.mutual{
+  margin-top:20px;border:2px solid var(--green);border-radius:18px;background:#fff;
+  padding:16px 14px 14px;position:relative;margin-bottom:14px;
+  box-shadow:0 8px 26px rgba(0,168,112,.08);
+}
+.mutual .head{text-align:center;margin-bottom:12px}
+.mutual .head .t{font-size:11px;letter-spacing:.18em;font-weight:700;color:var(--green-d)}
+.mutual .head .q{font-size:14px;font-weight:700;margin-top:4px;line-height:1.5}
+
+/* 双列主线 */
+.cycle{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.cyc-col{border-radius:13px;padding:13px 12px}
+.cyc-col.in{background:var(--blue-s);border:1px solid var(--blue)}
+.cyc-col.out{background:var(--green-s);border:1px solid var(--green)}
+.cyc-col .lbl{font-size:9.5px;letter-spacing:.14em;font-weight:700;display:block;margin-bottom:5px}
+.cyc-col.in .lbl{color:var(--blue)}
+.cyc-col.out .lbl{color:var(--green-d)}
+.cyc-col .q{font-size:12.5px;font-weight:700;line-height:1.45;margin-bottom:10px}
+.cyc-col .steps{display:flex;flex-direction:column;gap:5px}
+.step{
+  background:#fff;border:1px solid rgba(0,0,0,.04);border-radius:8px;
+  padding:6px 9px;font-size:10px;line-height:1.45;display:flex;gap:6px;align-items:center;
+}
+.step .n{flex:0 0 14px;height:14px;border-radius:50%;font-size:9px;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+.step.in .n{background:var(--blue);color:#fff}
+.step.out .n{background:var(--green);color:#fff}
+.step b{font-weight:600;font-size:10.5px;display:block}
+.step small{font-size:9.5px;color:var(--ink2);display:block;margin-top:1px}
+
+/* 互推桥 */
+.bridge{margin:0;padding-top:10px;border-top:1px dashed var(--line)}
+.br-row{display:grid;grid-template-columns:56px 1fr;gap:9px;align-items:center;margin-bottom:7px}
+.br-row:last-child{margin-bottom:0}
+.br-row .tag{
+  background:var(--green-s);color:var(--green-d);font-size:9.5px;font-weight:700;
+  padding:3px 7px;border-radius:6px;text-align:center;letter-spacing:.04em;
+}
+.br-row.in .tag{background:var(--blue-s);color:var(--blue)}
+.br-row .txt{font-size:10.5px;line-height:1.55;color:var(--ink2)}
+.br-row .txt b{color:var(--ink);font-weight:600}
+
+/* 收益(用户视角,4格) */
+.gains{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.gain{
+  background:var(--green-s);border:1px solid var(--green);border-radius:11px;
+  padding:11px 12px;font-size:11.5px;line-height:1.55;color:var(--ink);
+}
+.gain .k{font-size:9.5px;letter-spacing:.14em;font-weight:700;color:var(--green-d);display:block;margin-bottom:4px}
+.gain b{font-weight:600}
+
+/* 调度台压缩示意 */
+.mini{
+  border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;
+  margin-bottom:14px;
+}
+.mini-h{
+  display:flex;justify-content:space-between;align-items:center;padding:9px 12px;
+  border-bottom:1px solid var(--line);background:#FFFEFB;font-size:11px;font-weight:600;
+}
+.mini-h .r{font-size:9.5px;color:var(--ink3)}
+.mini-b{padding:10px 12px 12px;background:linear-gradient(180deg,#FAFBF8 0%, #FFFFFF 100%)}
+.mini-track{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--ink2);
+  margin-bottom:8px}
+.mini-track .dot{flex:0 0 7px;height:7px;border-radius:50%;background:var(--green)}
+.mini-slots{display:flex;flex-direction:column;gap:5px}
+.mini-slot{
+  display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #EFEDE4;
+  border-radius:8px;padding:6px 9px;font-size:10.5px;
+}
+.mini-slot .rk{flex:0 0 16px;height:16px;border-radius:5px;background:var(--green-s);color:var(--green-d);
+  font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.mini-slot .nm{flex:1;font-weight:600}
+.mini-slot .st{font-size:9px;color:var(--ink3)}
+.mini-slot.done{opacity:.55}
+.mini-slot.done .nm{text-decoration:line-through}
+
+/* 信任(用户视角) */
+.trust{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px}
+.trust span{font-size:10px;color:var(--ink3);border:1px solid var(--line);border-radius:999px;
+  padding:3px 10px;background:#fff}
+
+.cta{background:var(--green-s);border:1.5px solid var(--green);border-radius:14px;
+  text-align:center;padding:14px 12px}
+.cta .l1{font-size:14.5px;font-weight:700}
+.cta .l2{margin-top:3px;font-size:11px;color:var(--green-d);letter-spacing:.05em}
+
+.bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, var(--paper) 30%);
+  display:flex;justify-content:center;pointer-events:none}
+.bar button{pointer-events:auto;background:var(--ink);color:#fff;border:0;border-radius:999px;
+  padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 24px rgba(26,29,35,.2)}
+@media print{.bar{display:none}body{padding:0}.sheet{border-radius:0;border:0}}
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+  <h1 class="slogan">万千可调用，<br><em>自有我方向。</em></h1>
+  <p class="category">你在浏览器里的个人调度中台</p>
+  <p class="value">不堆功能。知源只做一件事——<b>让方向、信息、价值在你的工作里闭环。</b></p>
+
+  <!-- 焦点:两主线互推 -->
+  <div class="mutual">
+    <div class="head">
+      <div class="t">两条主线 · 正向加强</div>
+      <div class="q">向内校准 · 向外落地，互为底气</div>
+    </div>
+
+    <div class="cycle">
+      <div class="cyc-col in">
+        <span class="lbl">向内 · 校准赛道</span>
+        <div class="q">我做的事，和我的赛道什么关系？</div>
+        <div class="steps">
+          <div class="step in"><span class="n">1</span><div><b>愿景与使命</b><small>一行即可</small></div></div>
+          <div class="step in"><span class="n">2</span><div><b>战略与项目</b><small>主攻不超过 2 个</small></div></div>
+          <div class="step in"><span class="n">3</span><div><b>今日三件事</b><small>恒三槽,挂归属</small></div></div>
+          <div class="step in"><span class="n">4</span><div><b>每周照镜子</b><small>画像洞察看漂移</small></div></div>
+        </div>
+      </div>
+      <div class="cyc-col out">
+        <span class="lbl">向外 · 解决问题到变现</span>
+        <div class="q">我的积累，怎么变成可交付？</div>
+        <div class="steps">
+          <div class="step out"><span class="n">1</span><div><b>三卡捕获</b><small>见过即收进池</small></div></div>
+          <div class="step out"><span class="n">2</span><div><b>归位与调用</b><small>一键调出，直达出处</small></div></div>
+          <div class="step out"><span class="n">3</span><div><b>论证与策展</b><small>判断+依据成结构</small></div></div>
+          <div class="step out"><span class="n">4</span><div><b>分享与交付</b><small>一键导出 HTML</small></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bridge">
+      <div class="br-row">
+        <span class="tag">向外 → 向内</span>
+        <span class="txt">真实问题让<b>你的赛道更清楚</b>——什么是有价值的、什么是噪声</span>
+      </div>
+      <div class="br-row in">
+        <span class="tag">向内 → 向外</span>
+        <span class="txt">清楚方向让<b>你的输出更锋利</b>——知道要做什么，以及为什么做</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 收益(用户视角) -->
+  <div class="gains">
+    <div class="gain"><span class="k">你会得到</span><b>看得见的方向</b>主攻项目清楚，不再被推着走</div>
+    <div class="gain"><span class="k">你会得到</span><b>可调用的积累</b>所见即所得，所用即所得</div>
+    <div class="gain"><span class="k">你会得到</span><b>可交付的成果</b>个人积累组织成别人可付费的</div>
+    <div class="gain"><span class="k">你会得到</span><b>每周的镜子</b>漂移被看见，回到你的主线</div>
+  </div>
+
+  <!-- 调度台压缩示意 -->
+  <div class="mini">
+    <div class="mini-h">
+      <span>调度台 · 今日 10/27 · 周二</span>
+      <span class="r">今日战报</span>
+    </div>
+    <div class="mini-b">
+      <div class="mini-track"><span class="dot"></span>企业服务赛道 · 主攻项目 2/2 · 今日三件事</div>
+      <div class="mini-slots">
+        <div class="mini-slot done"><span class="rk">✓</span><span class="nm">整理浏览器现场的判断与证据</span><span class="st">项目 1</span></div>
+        <div class="mini-slot done"><span class="rk">✓</span><span class="nm">复盘本周三件事与指标的对齐</span><span class="st">项目 1</span></div>
+        <div class="mini-slot"><span class="rk">3</span><span class="nm">把高频问题与资源建立可召回索引</span><span class="st">项目 2 · 待开始</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="l1">带着一件正在推进的事，进入知源。</div>
+    <div class="l2">观看演示 ｜ 查看安装指南</div>
+  </div>
+</div>
+
+<div class="bar noprint">
+  <button id="exportBtn">↓ 导出为长图（PNG）</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+document.getElementById('exportBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='正在导出…';
+  html2canvas(document.querySelector('.sheet'),{backgroundColor:'#FAF9F5',scale:2,useCORS:true,allowTaint:true,logging:false})
+    .then(function(c){
+      c.toBlob(function(b){
+        var u=URL.createObjectURL(b);var a=document.createElement('a');
+        a.href=u;a.download='知源一页屏_方案B3v3_双主线.png';a.click();
+        setTimeout(function(){URL.revokeObjectURL(u)},3000);
+        btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      });
+    }).catch(function(e){btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';alert(e.message)});
+});
+</script>
+</body>
+</html>

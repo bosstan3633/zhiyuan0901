@@ -1,0 +1,11 @@
+{
+  "requests": [
+    {
+      "prompt": "极简电子氛围，克制笃定，缓慢脉冲的合成器长音，干净无鼓点，无人声，深邃安静的夜间质感，适合专业工具产品宣传片背景配乐",
+      "format": "mp3",
+      "sample_rate": 44100,
+      "bitrate": 128000,
+      "output_file": "music_main"
+    }
+  ]
+}

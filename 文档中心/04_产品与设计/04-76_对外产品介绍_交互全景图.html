@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知源调度台 · 产品全景图</title>
+<style>
+  :root{
+    --paper:#FAF9F5;
+    --paper2:#F2F0E9;
+    --card:#FFFFFF;
+    --ink:#1A1D23;
+    --ink2:#4C5563;
+    --ink3:#8A9099;
+    --line:#DDD8CB;
+    --green:#00A870;
+    --green-d:#00805A;
+    --green-s:#E4F6EF;
+    --orange:#E86A17;
+    --r:18px;
+    --sh:0 2px 8px rgba(26,29,35,.04),0 12px 32px rgba(26,29,35,.05);
+    --sh-h:0 4px 10px rgba(0,168,112,.10),0 16px 40px rgba(0,168,112,.13);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"MiSans","PingFang SC","Helvetica Neue","Source Han Sans SC",system-ui,sans-serif;
+    background:var(--paper);color:var(--ink);line-height:1.75;
+    -webkit-font-smoothing:antialiased;letter-spacing:.01em;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(720px 420px at 12% 4%, rgba(0,168,112,.05), transparent 70%),
+      radial-gradient(680px 480px at 92% 76%, rgba(232,106,23,.035), transparent 70%),
+      repeating-linear-gradient(0deg, transparent 0 31px, rgba(26,29,35,.013) 31px 32px);
+  }
+  .wrap{max-width:1140px;margin:0 auto;padding:0 36px;position:relative;z-index:1}
+
+  /* ───────── Hero ───────── */
+  header{padding:96px 0 44px}
+  .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.22em;
+    font-weight:600;color:var(--green-d);margin-bottom:22px}
+  .eyebrow::before{content:"";width:30px;height:2px;background:var(--green);border-radius:2px}
+  h1{font-size:clamp(32px,5vw,54px);font-weight:700;line-height:1.24;letter-spacing:-.005em}
+  h1 em{font-style:normal;color:var(--green);position:relative}
+  h1 em::after{content:"";position:absolute;left:0;right:0;bottom:.06em;height:.38em;
+    background:rgba(0,168,112,.12);z-index:-1;border-radius:2px}
+  .sub{margin-top:20px;font-size:16.5px;color:var(--ink2);max-width:660px}
+  .meta{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap}
+  .meta span{font-size:12.5px;color:var(--ink2);border:1px solid var(--line);
+    border-radius:999px;padding:5px 15px;background:var(--card)}
+
+  /* ───────── 通用标题 ───────── */
+  .section{padding:60px 0}
+  .sec-no{font-size:11.5px;letter-spacing:.22em;color:var(--green-d);font-weight:700}
+  .sec-title{font-size:clamp(24px,3.2vw,34px);font-weight:700;margin-top:10px;letter-spacing:-.005em}
+  .sec-desc{margin-top:12px;color:var(--ink2);font-size:15px;max-width:700px}
+  .sec-head{margin-bottom:34px}
+
+  /* ───────── 全景图 ───────── */
+  .map{background:var(--card);border:1px solid #EDEAE1;border-radius:26px;
+    padding:38px 38px 30px;box-shadow:var(--sh);position:relative;overflow:hidden}
+  .map::after{content:"";position:absolute;right:-90px;top:-90px;width:260px;height:260px;
+    border-radius:50%;background:radial-gradient(circle,rgba(0,168,112,.07),transparent 70%);pointer-events:none}
+
+  .verbs{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-bottom:34px;position:relative}
+  .verb{text-align:center;padding:12px 4px;position:relative;z-index:1}
+  .verb b{display:block;font-size:15px;color:var(--green-d);letter-spacing:.04em}
+  .verb small{font-size:12px;color:var(--ink3)}
+  .verb:not(:last-child)::before{
+    content:"";position:absolute;left:calc(50% + 44px);right:calc(-50% + 44px);top:24px;height:1px;
+    background:linear-gradient(90deg,var(--line) 0 60%,transparent 60%);background-size:8px 1px;
+  }
+  .verb:not(:last-child)::after{
+    content:"›";position:absolute;right:-2px;top:12px;color:var(--green);font-size:16px;font-weight:700;
+  }
+
+  .tracks{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .track{border-radius:var(--r);padding:22px 22px 22px;background:#FFFDF8;border:1px solid var(--line)}
+  .track.out{background:#FFFEFB}
+  .track h3{font-size:15.5px;display:flex;align-items:center;gap:9px;font-weight:700}
+  .track h3 .dot{width:9px;height:9px;border-radius:50%;background:var(--green);flex:0 0 auto}
+  .track.in h3 .dot{background:var(--ink)}
+  .track .tag{font-size:12.5px;color:var(--ink3);margin:4px 0 16px}
+  .mods{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .mod{background:var(--card);border:1px solid #EFEDE4;border-radius:13px;padding:11px 14px;
+    cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1)}
+  .mod:hover{border-color:var(--green);box-shadow:var(--sh-h);transform:translateY(-3px)}
+  .mod b{display:block;font-size:13.5px;font-weight:600}
+  .mod small{font-size:11.5px;color:var(--ink3);line-height:1.4;display:block;margin-top:2px}
+  .map-foot{margin-top:26px;padding-top:18px;border-top:1px dashed var(--line);
+    font-size:13px;color:var(--ink2);text-align:center}
+  .map-foot b{color:var(--ink);font-weight:600}
+  .map-foot em{font-style:normal;color:var(--ink3);margin:0 6px}
+
+  /* ───────── 叙事区 ───────── */
+  .narr{display:grid;grid-template-columns:216px minmax(0,1fr);gap:60px;align-items:start}
+  .rail{position:sticky;top:48px}
+  .rail-inner{position:relative;padding-left:22px}
+  .rail-line{position:absolute;left:2px;top:6px;bottom:6px;width:2px;background:#E5E1D6;border-radius:2px;overflow:hidden}
+  .rail-line i{display:block;width:100%;height:0;background:var(--green);transition:height .12s linear}
+  .rl-cap{font-size:11px;letter-spacing:.2em;color:var(--ink3);margin-bottom:16px;font-weight:600}
+  .rl-item{display:flex;gap:12px;align-items:flex-start;padding:10px 0;text-decoration:none;
+    color:var(--ink2);font-size:13.5px;transition:color .2s,transform .2s}
+  .rl-item .n{flex:0 0 24px;height:24px;border:1.5px solid var(--line);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:10.5px;
+    color:var(--ink3);background:var(--paper);transition:all .25s;margin-top:1px}
+  .rl-item:hover{color:var(--ink)}
+  .rl-item.active{color:var(--ink);font-weight:600}
+  .rl-item.active .n{border-color:var(--green);background:var(--green);color:#fff;
+    box-shadow:0 0 0 4px rgba(0,168,112,.12)}
+
+  .chapter{margin-bottom:74px;scroll-margin-top:40px}
+  .chapter:last-child{margin-bottom:0}
+  .ch-tag{font-size:11.5px;letter-spacing:.2em;color:var(--green-d);font-weight:700;margin-bottom:10px}
+  .chapter h2{font-size:clamp(21px,2.7vw,29px);font-weight:700;line-height:1.45;margin-bottom:16px;letter-spacing:-.005em}
+  .chapter h3{font-size:17px;margin:34px 0 12px;font-weight:700}
+  .chapter p{color:var(--ink2);font-size:15px;margin-bottom:13px;max-width:700px}
+  .chapter p.lead{font-size:16px;color:var(--ink);font-weight:500;max-width:720px}
+  blockquote{border-left:3px solid var(--green);background:var(--green-s);color:var(--ink);
+    border-radius:0 12px 12px 0;padding:15px 20px;margin:20px 0;font-weight:500;font-size:14.5px;max-width:720px}
+  blockquote.ink{background:var(--paper2);border-left-color:var(--ink)}
+  blockquote b{color:var(--green-d)}
+
+  .lost3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}
+  .lost{background:var(--card);border:1px solid #EFEDE4;border-radius:15px;padding:18px 18px}
+  .lost .idx{font-size:10.5px;letter-spacing:.14em;font-weight:700;color:var(--orange)}
+  .lost b{display:block;font-size:14.5px;margin:4px 0 5px}
+  .lost small{font-size:12.5px;color:var(--ink2);line-height:1.6}
+
+  .sell{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0}
+  .sell-c{background:var(--card);border:1px solid #EFEDE4;border-radius:15px;padding:18px 20px;
+    transition:all .22s}
+  .sell-c:hover{border-color:var(--green);box-shadow:var(--sh-h)}
+  .sell-c .no{font-size:10.5px;letter-spacing:.14em;color:var(--green-d);font-weight:700}
+  .sell-c h4{font-size:14.5px;margin:5px 0 5px;line-height:1.5}
+  .sell-c p{font-size:12.5px;color:var(--ink3);margin:0}
+  .anti{margin-top:14px;font-size:12.5px;color:var(--ink2);background:var(--paper2);
+    border-radius:12px;padding:12px 16px;border-left:2px solid var(--line)}
+
+  ul.clean,ol.clean{margin:8px 0 16px 20px;color:var(--ink2);font-size:14.5px}
+  ul.clean li,ol.clean li{margin-bottom:7px}
+  ul.clean b,ol.clean b{color:var(--ink);font-weight:600}
+
+  .flow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:16px 0}
+  .flow span{background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:6px 15px;font-size:13px;font-weight:500;white-space:nowrap}
+  .flow i{font-style:normal;color:#C9C3B4;font-size:12px}
+
+  details{background:var(--card);border:1px solid #EFEDE4;border-radius:13px;margin-bottom:9px;overflow:hidden;
+    transition:border-color .2s}
+  details:hover{border-color:#DCD6C7}
+  details[open]{border-color:#D5E8DE;box-shadow:var(--sh)}
+  summary{padding:14px 18px;font-size:14.5px;font-weight:600;cursor:pointer;list-style:none;
+    display:flex;align-items:center;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary .k{flex:0 0 26px;height:26px;border-radius:8px;background:var(--green-s);color:var(--green-d);
+    font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  summary::after{content:"+";margin-left:auto;color:var(--green);font-size:17px;font-weight:400;transition:.25s;line-height:1}
+  details[open] summary::after{transform:rotate(45deg)}
+  details .body{padding:0 18px 16px 56px;font-size:13.5px;color:var(--ink2);line-height:1.8}
+  details .body b{color:var(--ink);font-weight:600}
+
+  footer{padding:44px 0 84px;text-align:center}
+  footer .slogan{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:.05em}
+  footer .slogan em{font-style:normal;color:var(--green)}
+  footer p{margin-top:12px;color:var(--ink3);font-size:13px}
+  footer .fin{display:inline-block;width:38px;height:2px;background:var(--line);margin:26px auto 0;border-radius:2px}
+
+  .reveal{opacity:0;transform:translateY(22px);animation:rise .8s cubic-bezier(.2,.6,.2,1) both;animation-delay:calc(var(--i,0)*90ms)}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .reveal.in{opacity:1;transform:none}
+
+  @media (max-width:960px){
+    .narr{grid-template-columns:1fr;gap:0}
+    .rail{display:none}
+    .tracks{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .wrap{padding:0 20px}
+    header{padding:56px 0 28px}
+    .section{padding:40px 0}
+    .map{padding:24px 18px}
+    .mods{grid-template-columns:1fr}
+    .lost3,.sell{grid-template-columns:1fr}
+    .verbs{gap:0}
+    .verb b{font-size:13px}
+    .verb small{font-size:10.5px}
+    .verb:not(:last-child)::before,.verb:not(:last-child)::after{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;animation:none!important}
+    .reveal{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+  <h1>在信息爆炸里<br><em>找回自己的方向</em></h1>
+  <p class="sub">知源调度台是你在浏览器里的个人调度中台。它不生产智能，它组织智能——把「收、找、用、做、复盘」合成一个地方。</p>
+  <div class="meta">
+    <span>Chromium 扩展 · 接管新标签页</span>
+    <span>100% 本地运行</span>
+    <span>12 个核心模块</span>
+    <span>两条主线一个闭环</span>
+  </div>
+</header>
+
+<!-- ══════════════ 一、全景图 ══════════════ -->
+<section class="wrap section" id="panorama">
+  <div class="sec-head reveal">
+    <div class="sec-no">PANORAMA / 全景图</div>
+    <h2 class="sec-title">一幅图看懂知源</h2>
+    <p class="sec-desc">两个方向，五个动词，十二个模块。点任意模块，直接跳到它的说明。</p>
+  </div>
+
+  <div class="map reveal">
+    <div class="verbs">
+      <div class="verb"><b>入台</b><small>收进来</small></div>
+      <div class="verb"><b>归位</b><small>挂上方向</small></div>
+      <div class="verb"><b>调出</b><small>需要时找回</small></div>
+      <div class="verb"><b>复用</b><small>论证与表达</small></div>
+      <div class="verb"><b>校准</b><small>每周照镜子</small></div>
+    </div>
+
+    <div class="tracks">
+      <div class="track in">
+        <h3><span class="dot"></span>向内 · 赛道校准</h3>
+        <p class="tag">知道自己做的事，和赛道是什么关系</p>
+        <div class="mods">
+          <div class="mod" onclick="jump('m6')"><b>06 方向树</b><small>六层赛道结构</small></div>
+          <div class="mod" onclick="jump('m7')"><b>07 今日三件事</b><small>每一天都有来处</small></div>
+          <div class="mod" onclick="jump('m9')"><b>09 画像洞察</b><small>每周照一次镜子</small></div>
+          <div class="mod" onclick="jump('m12')"><b>12 性能与视觉</b><small>快与美的底线</small></div>
+        </div>
+      </div>
+      <div class="track out">
+        <h3><span class="dot"></span>向外 · 从解决问题到变现</h3>
+        <p class="tag">把见过的，变成可调用、可交付的</p>
+        <div class="mods">
+          <div class="mod" onclick="jump('m1')"><b>01 三卡捕获</b><small>一按收台</small></div>
+          <div class="mod" onclick="jump('m2')"><b>02 卡片池</b><small>待调用的资产</small></div>
+          <div class="mod" onclick="jump('m3')"><b>03 全局调用 ⌘K</b><small>需要时三秒找回</small></div>
+          <div class="mod" onclick="jump('m4')"><b>04 AI 赋能</b><small>整理，但不判断</small></div>
+          <div class="mod" onclick="jump('m5')"><b>05 跟进闭环</b><small>任务与好奇</small></div>
+          <div class="mod" onclick="jump('m8')"><b>08 策展台</b><small>可交付的表达</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-foot">
+      <b>底座</b> <em>·</em> 10 导入导出与 Airtable 单向同步 <em>·</em> 11 系统与设置 <em>·</em> 100% 本机运行，无账号、无云端、无追踪
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 二、逻辑引导线 ══════════════ -->
+<section class="wrap section">
+  <div class="sec-head reveal">
+    <div class="sec-no">NARRATIVE / 逻辑引导线</div>
+    <h2 class="sec-title">六步，从痛到上路</h2>
+    <p class="sec-desc">痛 → 解法 → 主线 → 卖点 → 落地 → 上路。左侧的线会随着你的阅读一起走。</p>
+  </div>
+
+  <div class="narr">
+    <aside class="rail">
+      <div class="rail-inner">
+        <div class="rail-line"><i id="railbar"></i></div>
+        <div class="rl-cap">阅读脉络</div>
+        <a class="rl-item" href="#c1"><span class="n">01</span>你的痛，被看见了</a>
+        <a class="rl-item" href="#c2"><span class="n">02</span>知源是什么</a>
+        <a class="rl-item" href="#c3"><span class="n">03</span>两条主线</a>
+        <a class="rl-item" href="#c4"><span class="n">04</span>四个卖点</a>
+        <a class="rl-item" href="#c5"><span class="n">05</span>12 个模块</a>
+        <a class="rl-item" href="#c6"><span class="n">06</span>场景与上路</a>
+      </div>
+    </aside>
+
+    <div class="col">
+      <article class="chapter reveal" id="c1">
+        <div class="ch-tag">01 / 痛点</div>
+        <h2>每天都很忙，忙完不知道自己在忙什么</h2>
+        <p class="lead">信息爆炸、工具爆炸、AI 焦虑、工作失速——学得越多越焦虑，收藏得越多越用不上，工具越装越多、日程越满，产出反而越少。</p>
+        <p>这不是三个毛病，是三个迷失。</p>
+        <div class="lost3">
+          <div class="lost"><span class="idx">迷失 Ⅰ</span><b>方向的迷失</b><small>科技爆炸的潮流里，不知道自己在做的事和赛道有什么关系，容易被每个新热点牵着走。</small></div>
+          <div class="lost"><span class="idx">迷失 Ⅱ</span><b>信息的迷失</b><small>见过的东西太多，真正需要时想不起来、找不回、用不了——知识没有变成解决问题的能力。</small></div>
+          <div class="lost"><span class="idx">迷失 Ⅲ</span><b>价值的迷失</b><small>长期只解决自己的问题，投入没有沉淀成可被他人使用、可变现的成果。</small></div>
+        </div>
+        <blockquote>问题不在你不够努力，在于三段断开了：<b>方向断了、信息断了、价值断了。</b></blockquote>
+      </article>
+
+      <article class="chapter reveal" id="c2">
+        <div class="ch-tag">02 / 是什么</div>
+        <h2>你在浏览器里的个人调度中台</h2>
+        <p>你在浏览器里工作、看信息、处理问题。知源接管你的新标签页，把「收、找、用、做、复盘」合成一个地方：看见方向、留下好奇、调用所需、策展成果。</p>
+        <ul class="clean">
+          <li><b>形态</b> — Chromium 浏览器扩展（MV3），接管新标签页</li>
+          <li><b>边界</b> — 不替你写作、不替你协作、不替你决策</li>
+          <li><b>信任</b> — 100% 本地运行，无账号、无云端、无追踪</li>
+        </ul>
+        <blockquote class="ink">它不生产智能，它组织智能。真正重要的是你<b>去过哪里、想往哪去</b>——不是工具本身。</blockquote>
+      </article>
+
+      <article class="chapter reveal" id="c3">
+        <div class="ch-tag">03 / 主线</div>
+        <h2>两条主线，一个闭环</h2>
+        <h3>向外：从解决自己的问题，到解决别人的问题</h3>
+        <p>把你每天浏览的信息组织成可调用的资产，在需要的时候调回来、用证据论证它；最终围绕一个主题把「判断 + 依据」组织成可交付的成果——别人打开就能看到你怎么看、为什么。</p>
+        <div class="flow"><span>我看过</span><i>→</i><span>我调得出</span><i>→</i><span>我有依据</span><i>→</i><span>我能证明给你看</span><i>→</i><span>价值落地</span></div>
+        <h3>向内：知道自己做的事与赛道的关系</h3>
+        <p>把个人赛道写成一棵六层方向树——愿景 → 使命 → 战略目标 → 项目 → 成功指标 → 任务。主攻项目不超过两个；每天三件事必须挂在方向上；每周用数据照镜子，看行动还在不在赛道上。</p>
+        <blockquote>赛道清楚了，科技怎么爆炸都不慌——新工具新热点只有一个问题：<b>它对我的赛道有没有用？</b></blockquote>
+        <h3>两条主线是一个闭环</h3>
+        <p>向外变现的前提是向内清楚；向内清楚的能量来自向外的反馈。知源把这两条主线按五个动词串成闭环：<b>入台 → 归位 → 调出 → 复用 → 校准</b>。</p>
+      </article>
+
+      <article class="chapter reveal" id="c4">
+        <div class="ch-tag">04 / 卖点</div>
+        <h2>四个卖点，回应三个迷失</h2>
+        <div class="sell">
+          <div class="sell-c"><span class="no">卖点 01 · 向内</span><h4>在信息爆炸里找回自己的方向</h4><p>把赛道写下来，让每天的努力都挂在上面。</p></div>
+          <div class="sell-c"><span class="no">卖点 02 · 向外</span><h4>把见过的一切变成可调用的资产</h4><p>知识从「存过」变成「能用」。</p></div>
+          <div class="sell-c"><span class="no">卖点 03 · 向外</span><h4>从个人积累到专业变现</h4><p>把解决问题的能力组织成可交付的成果。</p></div>
+          <div class="sell-c"><span class="no">卖点 04 · 双线贯通</span><h4>一个闭环，长出各自的人生主线</h4><p>工具相同，长出来的是各自的护城河。</p></div>
+        </div>
+        <div class="anti">不该当卖点讲的两件事：数据本地优先（是信任状）、⌘K 调用速度（是体验承诺）。卖点是「你的痛怎么解」，这两件是「产品做得好不好」。</div>
+      </article>
+
+      <article class="chapter reveal" id="c5">
+        <div class="ch-tag">05 / 落地</div>
+        <h2>12 个模块，各只做一件事</h2>
+        <p>不理解「好用」，只看「怎么落地」。点开每一条，看它到底解决什么。</p>
+
+        <div id="m1"></div>
+        <details open><summary><span class="k">01</span>三卡捕获 — 把一切见过的东西一按收进来</summary>
+          <div class="body">⌘Shift+J 收网页 / 文件 / Obsidian；⌘Shift+I 速记一闪而过的念头（选中自动带来源）。卡片只有三种：<b>资源卡</b>（有出处的事实资产）、<b>任务卡</b>（要被跟进闭环）、<b>好奇心卡</b>（全局池，不归任何项目）。快捷键 5 秒收完。捕获不是目的，后续的使用才是产品精髓。</div></details>
+
+        <div id="m2"></div>
+        <details><summary><span class="k">02</span>卡片池 — 三卡有自己的家</summary>
+          <div class="body">三类卡 = 三张数据表，统一沉淀在卡片池，操作面在「调度台」底部的三池页签。<b>池里没有「杂乱收藏」，只有待调用的资产</b>。删除一律软删，回收站可恢复。</div></details>
+
+        <div id="m3"></div>
+        <details><summary><span class="k">03</span>全局调用 ⌘K — 需要时三秒调回来</summary>
+          <div class="body">任意网页按 ⌘K（或 Ctrl+K）立刻调出。关键词、拼音首字母命中；单击回车直达原文；AI 自然语义检索（可选）。单击 / 双击两种交互可配置。</div></details>
+
+        <div id="m4"></div>
+        <details><summary><span class="k">04</span>AI 赋能 — 24 个入口，整理但不替你判断</summary>
+          <div class="body">资源卡自动打标与批量归类、任务子任务拆解建议、成功指标拆解、单项目深度诊断、今日三件事候选排序复核、画像洞察续写。<b>AI 是「判断力之外的整理力」，判断权永远在你</b>；AI 建议不入库，采纳才成现实。</div></details>
+
+        <div id="m5"></div>
+        <details><summary><span class="k">05</span>任务与好奇的跟进闭环</summary>
+          <div class="body">好奇心可培育成熟（状态、热度、成熟度），成熟后转化为任务卡或资源卡；AI 可为任务 / 好奇匹配池内的支撑资源卡；任务可挂到方向树的项目与成功指标下，「未归档任务」有归位引导。</div></details>
+
+        <div id="m6"></div>
+        <details><summary><span class="k">06</span>方向树 — 把赛道写出来</summary>
+          <div class="body">六层结构：愿景 → 使命 → 战略目标 → 项目 → 成功指标 → 任务。作用一：在方向台看见自己的状态、位置与停滞点；作用二：每个项目下的<b>所有任务一眼可见</b>，主攻项目 ≤ 2。</div></details>
+
+        <div id="m7"></div>
+        <details><summary><span class="k">07</span>今日三件事 — 每一天都有来处</summary>
+          <div class="body">每天早上选三件任务，恒三槽。事件必须挂方向归属；弹药（支撑资源卡）就绪才允许主推；拉开详情抽屉，一键直达。每天早上 3 分钟。</div></details>
+
+        <div id="m8"></div>
+        <details><summary><span class="k">08</span>策展台 — 把判断组织成能交付的表达</summary>
+          <div class="body">围绕一个主题搭论证树：金字塔（树状向下）/ 树状（全部向右）两种结构，节点挂资源卡，顶部标论据卡总数与佐证附件数。<b>一键分享为自包含 HTML</b>——别人打开就能看到你的论点和证据；对方的 HTML 还能回导成新的策展台。</div></details>
+
+        <div id="m9"></div>
+        <details><summary><span class="k">09</span>画像洞察 — 每周给自己照一次镜子</summary>
+          <div class="body">年任热力图（53 周、6 档）、收 / 调 / 转化统计、当日报表（四格统计 + 热力带 + 时间线 + 导出 PNG/HTML）、生命周期（活跃 / 冷却 / 归档 + 高价值沉睡唤醒）。<b>「看见了什么」比「做了什么」重要。</b></div></details>
+
+        <div id="m10"></div>
+        <details><summary><span class="k">10</span>导入导出与同步 — 全面、不绑定</summary>
+          <div class="body">Markdown 书签批量导入 / 数据包 JSON / CSV / PNG；Airtable 单向同步（用户自备 Token、手动触发、绝不回写）。</div></details>
+
+        <div id="m11"></div>
+        <details><summary><span class="k">11</span>系统与设置</summary>
+          <div class="body">快捷键中心、四主题 + 三档密度、更新日志（187 个版本全量）、运行手册、手动备份、错误日志导出。</div></details>
+
+        <div id="m12"></div>
+        <details><summary><span class="k">12</span>性能与视觉 — 两条不拿来吹的生命线</summary>
+          <div class="body">⌘K 首屏 P95 &lt; 100ms、冷启动 &lt; 500ms；120 图四主题视觉对比度每版门禁零失败。<b>快与美是基本要求，不当作卖点。</b></div></details>
+      </article>
+
+      <article class="chapter reveal" id="c6">
+        <div class="ch-tag">06 / 场景与上路</div>
+        <h2>一个真实场景：独立顾问的第 N 次交付</h2>
+        <p>早上读几份行业报告，两张按 ⌘⇧J 收进资源池（自动带出处）；在报告里标记一张卡到战略目标「企业服务」的项目，一条题案的事转为好奇心卡留到晚上。下午客户追问，按 ⌘K、键入两字、回车直达原报告那一段。客户问「你凭什么这么说」，把相关行业数据和出处挂到论据上。晚上把诊断整理成一棵金字塔论证树，导出 HTML 发给客户——客户点开，每条依据都能直达原始出处。</p>
+        <p>结果：方案不是靠「我说得多」，而是靠<b>判断 + 依据</b>一起呈现。</p>
+
+        <h3>新手 7 天，长出一套组织智能的方法</h3>
+        <ol class="clean">
+          <li><b>第 1 天</b>：打开新标签，写下愿景一行、使命一句。不用完美，只是开端</li>
+          <li><b>第 2 天</b>：写 1 个战略目标，挂 1 个项目，项目下设 1 个指标</li>
+          <li><b>第 3 天</b>：今天三件事挂上归属，试用 ⌘⇧J 收三份资料</li>
+          <li><b>第 4 天</b>：遇到问题按 ⌘K 调出，点开原始出处</li>
+          <li><b>第 5 天</b>：围绕一件小事搭 1 个策展台，挂 3 份证据，分享给一个可信的同事</li>
+          <li><b>第 6 天</b>：看画像洞察，问自己「这周真的在推进吗」</li>
+          <li><b>第 7 天</b>：补一遍本周的成果分享（HTML），发给一个需要的人，或写进周报</li>
+        </ol>
+
+        <h3>它也明确不适合谁</h3>
+        <p>想找「存一堆链接就不看」的工具的人；已有完整 Notion / Obsidian 工作流且满意的人（知源互补，不替代）；强依赖多人实时协作与自动云同步的人；想让 AI 替自己做决定的人。</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap reveal">
+  <div class="slogan">万千可调用，<em>自有我方向</em></div>
+  <p>知源不能替你走，但能让你知道当下在哪、往哪去、走到了哪。</p>
+  <p>好的工具不是让工作更快，而是让工作更有来处、有方向、有结果。</p>
+  <div class="fin"></div>
+</footer>
+
+<script>
+function jump(id){
+  var el=document.getElementById(id);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  var d=el.nextElementSibling;
+  if(d&&d.tagName==='DETAILS'&&!d.open){d.open=true;}
+  var prev=el.previousElementSibling;
+  if(prev&&prev.tagName==='DETAILS'){prev.open=false;}
+}
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.1});
+document.querySelectorAll('.reveal').forEach(function(el){
+  var list=document.querySelectorAll('.reveal');
+  el.style.setProperty('--i', Math.min([].indexOf.call(list,el),12));
+});
+document.addEventListener('scroll',function(){
+  var first=document.querySelector('.reveal:not(.in)');
+  if(first && first.getBoundingClientRect().top < innerHeight*0.92){
+    first.classList.add('in');
+  }
+},{passive:true});
+
+var items=[].slice.call(document.querySelectorAll('.rl-item'));
+var chapters=[].slice.call(document.querySelectorAll('.chapter'));
+var bar=document.getElementById('railbar');
+function onScroll(){
+  var idx=0;
+  chapters.forEach(function(c,i){ if(c.getBoundingClientRect().top<160) idx=i; });
+  items.forEach(function(it,i){ it.classList.toggle('active',i===idx); });
+  if(bar){ bar.style.height=((idx+1)/chapters.length*100)+'%'; }
+}
+document.addEventListener('scroll',onScroll,{passive:true});
+onScroll();
+</script>
+</body>
+</html>

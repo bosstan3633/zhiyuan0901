@@ -1,0 +1,104 @@
+[
+ {
+  "start": 1.2,
+  "end": 4.2,
+  "text": "世界不断上新，工具越攒越多。",
+  "kind": "normal",
+  "png": "sub_00.png"
+ },
+ {
+  "start": 4.2,
+  "end": 7.4,
+  "text": "但你要推进的那件事——走到哪了？",
+  "kind": "normal",
+  "png": "sub_01.png"
+ },
+ {
+  "start": 10.3,
+  "end": 12.6,
+  "text": "知源调度台——",
+  "kind": "normal",
+  "png": "sub_02.png"
+ },
+ {
+  "start": 12.6,
+  "end": 16.0,
+  "text": "你在浏览器里的个人调度中台。",
+  "kind": "caption",
+  "png": "sub_03.png"
+ },
+ {
+  "start": 16.0,
+  "end": 19.3,
+  "text": "收录到知源、留下好奇、随时调出，都只要几秒。",
+  "kind": "normal",
+  "png": "sub_04.png"
+ },
+ {
+  "start": 20.4,
+  "end": 24.6,
+  "text": "每天打开新标签页，先看见今天最重要的三件事——",
+  "kind": "normal",
+  "png": "sub_05.png"
+ },
+ {
+  "start": 24.6,
+  "end": 28.2,
+  "text": "它们挂在哪个项目、指向哪个目标，一目了然。",
+  "kind": "normal",
+  "png": "sub_06.png"
+ },
+ {
+  "start": 28.2,
+  "end": 34.3,
+  "text": "需要的资料和工具，直接调用到任务里，不必事事从零开始。",
+  "kind": "normal",
+  "png": "sub_07.png"
+ },
+ {
+  "start": 35.4,
+  "end": 39.2,
+  "text": "做过的事，别只留在记录里。",
+  "kind": "normal",
+  "png": "sub_08.png"
+ },
+ {
+  "start": 39.2,
+  "end": 44.6,
+  "text": "在策展台，围绕主题取舍、分层，让判断有论据、让观点有支撑——策展成你自己的表达。",
+  "kind": "normal",
+  "png": "sub_09.png"
+ },
+ {
+  "start": 46.5,
+  "end": 49.6,
+  "text": "你的数据 100% 存在本地，无需账号，随时导出。",
+  "kind": "normal",
+  "png": "sub_10.png"
+ },
+ {
+  "start": 49.6,
+  "end": 51.6,
+  "text": "看见方向，留下好奇，调用所需，策展成果。",
+  "kind": "caption",
+  "png": "sub_11.png"
+ },
+ {
+  "start": 51.6,
+  "end": 55.4,
+  "text": "知源调度台：万千可调用，自有我方向。",
+  "kind": "caption",
+  "png": "sub_12.png"
+ },
+ {
+  "start": 55.4,
+  "end": 59.2,
+  "text": "带着一件正在推进的事，进入知源。",
+  "kind": "caption",
+  "png": "sub_13.png"
+ },
+ {
+  "endframe": "endframe.png",
+  "thread": "thread.png"
+ }
+]

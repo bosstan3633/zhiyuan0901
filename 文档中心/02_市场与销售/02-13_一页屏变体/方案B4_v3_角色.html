@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B4-v3 · 一个顾问的一天</title>
+<style>
+:root{
+  --paper:#FAF9F5; --ink:#1A1D23; --ink2:#4C5563; --ink3:#8A9099;
+  --green:#00A870; --green-d:#00805A; --green-s:#E4F6EF;
+  --orange:#E86A17; --line:#E4E0D5;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"MiSans","PingFang SC","Helvetica Neue",system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.65;
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:36px 20px 120px;
+}
+.sheet{
+  width:100%;max-width:420px;background:var(--paper);
+  border:1px solid var(--line);border-radius:22px;
+  padding:26px 22px 22px;position:relative;
+}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;font-weight:700;color:var(--green-d);margin-bottom:12px}
+.slogan{font-size:30px;font-weight:700;line-height:1.26;letter-spacing:-.01em;margin-bottom:4px}
+.slogan em{font-style:normal;color:var(--green)}
+.category{font-size:13.5px;font-weight:600;margin-bottom:18px}
+
+.role{
+  border:1px dashed var(--green);border-radius:11px;background:#FFFEFB;
+  padding:11px 14px;font-size:12.5px;line-height:1.7;color:var(--ink2);margin-bottom:16px;
+}
+.role b{color:var(--ink);font-weight:600}
+
+/* 时间线 */
+.day{position:relative;padding-left:22px;margin-bottom:12px}
+.day::before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:1.5px;background:var(--line)}
+
+.moment{position:relative;margin-bottom:16px}
+.moment::before{content:"";position:absolute;left:-19px;top:5px;width:9px;height:9px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 0 3px var(--paper)}
+.moment .time{font-size:10.5px;letter-spacing:.14em;font-weight:700;color:var(--green-d);margin-bottom:4px}
+.moment .scene{font-size:13px;font-weight:600;line-height:1.6;margin-bottom:6px}
+.moment .scene i{font-style:normal;color:var(--ink3);font-weight:400}
+.moment .act{
+  background:#fff;border:1px solid #EFEDE4;border-radius:11px;padding:10px 13px;
+  font-size:11.5px;line-height:1.65;color:var(--ink2);
+}
+.moment .act b{color:var(--ink);font-weight:600;display:block}
+.moment .act .key{
+  display:inline-block;background:var(--green);color:#fff;font-size:10px;font-weight:600;
+  padding:2px 8px;border-radius:6px;margin-top:5px;letter-spacing:.03em;
+}
+.moment.brk::before{background:var(--orange)}
+.moment.brk .time{color:var(--orange)}
+.moment.pain::before{background:var(--orange)}
+.moment.pain .time{color:var(--orange)}
+
+.result{
+  border:1px solid var(--green);background:var(--green-s);border-radius:13px;
+  padding:12px 14px;font-size:12.5px;line-height:1.65;color:var(--ink);margin-bottom:16px;
+}
+.result b{font-weight:700}
+
+.cta{background:var(--green-s);border:1.5px solid var(--green);border-radius:14px;
+  text-align:center;padding:14px 12px}
+.cta .l1{font-size:14.5px;font-weight:700}
+.cta .l2{margin-top:3px;font-size:11px;color:var(--green-d);letter-spacing:.05em}
+
+.bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, var(--paper) 30%);
+  display:flex;justify-content:center;pointer-events:none}
+.bar button{pointer-events:auto;background:var(--ink);color:#fff;border:0;border-radius:999px;
+  padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 24px rgba(26,29,35,.2)}
+@media print{.bar{display:none}body{padding:0}.sheet{border-radius:0;border:0}}
+
+
+/* 用户视角收益(覆盖原 trust) */
+.gains{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.gain{
+  background:var(--green-s);border:1px solid var(--green);border-radius:11px;
+  padding:11px 12px;font-size:11.5px;line-height:1.55;color:var(--ink);
+}
+.gain .k{font-size:9.5px;letter-spacing:.14em;font-weight:700;color:var(--green-d);display:block;margin-bottom:4px}
+.gain b{font-weight:600}
+
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+  <h1 class="slogan">万千可调用，<br><em>自有我方向。</em></h1>
+  <p class="category">你在浏览器里的个人调度中台</p>
+
+  <div class="role">
+    <b>看得见的样板</b> · 独立顾问的第 N 次服务交付：早上收资料，下午客户追问，晚上出方案——一天里，方向、信息、价值三段如何被接起来。
+  </div>
+
+  <div class="day">
+    <!-- 08:30 入台 -->
+    <div class="moment">
+      <div class="time">08:30 · 入台</div>
+      <div class="scene">读行业报告，<i>想到一个判断 + 一份数据</i></div>
+      <div class="act">
+        <b>一键采集，一张做资源卡，一张做好奇心卡</b>
+        出处自动带上，留在池里，不归项目，先别想。
+        <span class="key">一键采集 · 不带干扰</span>
+      </div>
+    </div>
+
+    <!-- 10:00 归位 -->
+    <div class="moment">
+      <div class="time">10:00 · 归位</div>
+      <div class="scene">看到一份材料，<i>刚好和客户问的项目对得上</i></div>
+      <div class="act">
+        <b>把它挂到战略目标「企业服务」的主攻项目下</b>
+        未归档的，归位引导一步步走完。
+        <span class="key">方向树 · 三秒归位</span>
+      </div>
+    </div>
+
+    <!-- 14:00 调出 -->
+    <div class="moment">
+      <div class="time">14:00 · 调出</div>
+      <div class="scene">客户追问，<i>"你上次的判断依据在哪？"</i></div>
+      <div class="act">
+        <b>一键调出，键入两个关键词，回车直达原报告那一段</b>
+        不用翻文件夹，不用从头想"我存哪了"。
+        <span class="key">一键调出 · 直达出处</span>
+      </div>
+    </div>
+
+    <!-- 20:00 复用 -->
+    <div class="moment">
+      <div class="time">20:00 · 复用</div>
+      <div class="scene">晚上整合，<i>围绕主题组织判断与证据</i></div>
+      <div class="act">
+        <b>把判据挂到策展台的金字塔论证树，一键导出 HTML</b>
+        客户点开：每条证据都可追溯回原始出处。
+        <span class="key">策展台 · 判断 + 依据 = 可交付</span>
+      </div>
+    </div>
+
+    <!-- 21:00 校准 -->
+    <div class="moment">
+      <div class="time">21:00 · 校准</div>
+      <div class="scene">睡前瞄一眼，<i>这一周真的在推进吗？</i></div>
+      <div class="act">
+        <b>打开画像洞察，看热力图与战报</b>
+        收/调/转化的数字告诉你，行动还在不在赛道上。
+        <span class="key">画像洞察 · 每周照镜子</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="result">
+    <b>结果：</b>方案不是靠"我说得多"，而是<b>判断 + 依据</b>一起呈现。三段原本断裂的事——方向、信息、价值——在这一天被接成了一个环。
+  </div>
+
+  <!-- 用户视角卖点(替换原徽标) -->
+  <div class="gains">
+    <div class="gain"><span class="k">你会得到</span><b>方向感</b>每天的事都有来处</div>
+    <div class="gain"><span class="k">你会得到</span><b>掌控感</b>一键调出曾留存的</div>
+    <div class="gain"><span class="k">你会得到</span><b>可交付</b>判断 + 依据成成果</div>
+    <div class="gain"><span class="k">你会得到</span><b>自我校准</b>每周看见漂移与回归</div>
+  </div>
+
+  <div class="cta">
+    <div class="l1">带着一件正在推进的事，进入知源。</div>
+    <div class="l2">观看演示 ｜ 查看安装指南</div>
+  </div>
+</div>
+
+<div class="bar noprint">
+  <button id="exportBtn">↓ 导出为长图（PNG）</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+document.getElementById('exportBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='正在导出…';
+  html2canvas(document.querySelector('.sheet'),{backgroundColor:'#FAF9F5',scale:2,useCORS:true,allowTaint:true,logging:false})
+    .then(function(c){
+      c.toBlob(function(b){
+        var u=URL.createObjectURL(b);var a=document.createElement('a');
+        a.href=u;a.download='知源一页屏_方案B4v3_角色.png';a.click();
+        setTimeout(function(){URL.revokeObjectURL(u)},3000);
+        btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      });
+    }).catch(function(e){btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';alert(e.message)});
+});
+</script>
+</body>
+</html>

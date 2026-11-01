@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B2 · 解说型 · 知源一页屏</title>
+<style>
+:root{
+  --paper:#FAF9F5; --ink:#1A1D23; --ink2:#4C5563; --ink3:#8A9099;
+  --green:#00A870; --green-d:#00805A; --green-s:#E4F6EF;
+  --orange:#E86A17; --line:#E4E0D5;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"MiSans","PingFang SC","Helvetica Neue",system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.65;
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:40px 20px 120px;
+}
+.sheet{
+  width:100%;max-width:420px;background:var(--paper);
+  border:1px solid var(--line);border-radius:24px;
+  padding:34px 26px 26px;position:relative;overflow:hidden;
+}
+.sheet::before{
+  content:"";position:absolute;top:-40px;left:-40px;width:180px;height:180px;border-radius:50%;
+  background:radial-gradient(circle,rgba(0,168,112,.1),transparent 70%);pointer-events:none;
+}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;font-weight:700;color:var(--green-d);margin-bottom:30px}
+.slogan{font-size:36px;font-weight:700;line-height:1.22;letter-spacing:-.015em;margin-bottom:12px}
+.slogan em{font-style:normal;color:var(--green);display:block}
+.category{font-size:15px;font-weight:600}
+.value{margin-top:14px;font-size:13.5px;color:var(--ink2);line-height:1.8;
+  padding-left:14px;border-left:2px solid var(--orange)}
+.value b{color:var(--ink);font-weight:600}
+
+/* 图文组合段 */
+.showcase{
+  margin-top:32px;border:1px solid var(--line);border-radius:16px;
+  overflow:hidden;background:#fff;
+}
+.showcase .shot{
+  position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;background:#0F1117;
+}
+.showcase .shot img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+.showcase .shot::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(transparent 60%, rgba(15,17,23,.6));
+  pointer-events:none;
+}
+.showcase .shot .badge{
+  position:absolute;top:14px;left:14px;z-index:2;
+  background:rgba(0,168,112,.92);color:#fff;font-size:11px;font-weight:600;
+  padding:5px 12px;border-radius:999px;letter-spacing:.06em;
+  box-shadow:0 4px 14px rgba(0,168,112,.3);
+}
+.showcase .shot .caption{
+  position:absolute;left:16px;right:16px;bottom:14px;z-index:2;
+  color:#fff;font-size:12.5px;line-height:1.55;font-weight:500;
+  text-shadow:0 2px 8px rgba(0,0,0,.6);
+}
+.showcase .desc{padding:14px 16px;font-size:13px;color:var(--ink2);line-height:1.65;background:var(--paper2)}
+.showcase .desc b{color:var(--ink);font-weight:600}
+
+.blocks{margin-top:26px}
+.blk{display:flex;gap:14px;padding:12px 0;border-top:1px dashed var(--line);font-size:13px;line-height:1.6}
+.blk:first-child{border-top:0}
+.blk .no{flex:0 0 24px;color:var(--green);font-weight:700;font-size:15px}
+.blk .t{font-weight:600}
+.blk .d{color:var(--ink2);margin-top:1px;font-size:12.5px}
+
+.trust{margin-top:14px;font-size:11px;color:var(--ink3);display:flex;gap:6px;flex-wrap:wrap}
+.trust span{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:#fff}
+
+.cta{margin-top:22px;background:var(--green-s);border:1.5px solid var(--green);
+  border-radius:14px;text-align:center;padding:16px 12px}
+.cta .l1{font-size:15.5px;font-weight:700}
+.cta .l2{margin-top:4px;font-size:12px;color:var(--green-d);letter-spacing:.05em}
+
+.bar{position:fixed;bottom:0;left:0;right:0;z-index:10;
+  padding:14px 20px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, var(--paper) 30%);
+  display:flex;justify-content:center;pointer-events:none}
+.bar button{pointer-events:auto;background:var(--ink);color:#fff;border:0;border-radius:999px;
+  padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 24px rgba(26,29,35,.2)}
+@media print{.bar{display:none}body{padding:0}.sheet{border-radius:0;border:0}}
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <div class="eyebrow">OWNWAY · 知源调度台 · V3.9.30</div>
+  <h1 class="slogan">万千可调用，<em>自有我方向。</em></h1>
+  <p class="category">你在浏览器里的个人调度中台</p>
+  <p class="value">在信息与工具都过载的时代，重要的不是知道更多，而是<b>看清自己要推进什么</b>。方向不丢、信息不丢、价值不丢。</p>
+
+  <div class="showcase">
+    <div class="shot">
+      <span class="badge">策展台 · 真实界面</span>
+      <img src="assets/crop-curation.png" alt="知源调度台 · 策展台画布（金字塔论证结构）">
+      <div class="caption">围绕一个主题，把判断与证据组织成结构化的成果。</div>
+    </div>
+    <div class="desc"><b>策略性沉淀</b> · 中心论点 → 论据分支 → 资源证据，一键导出可交付 HTML。</div>
+  </div>
+
+  <div class="blocks">
+    <div class="blk"><span class="no">①</span><div><div class="t">看清当前重点</div><div class="d">方向树 · 今日三件事</div></div></div>
+    <div class="blk"><span class="no">②</span><div><div class="t">留下值得追问的问题</div><div class="d">三卡捕获 · 好奇培育</div></div></div>
+    <div class="blk"><span class="no">③</span><div><div class="t">善用已有的工具与材料</div><div class="d">卡片池 · 全局调用</div></div></div>
+    <div class="blk"><span class="no">④</span><div><div class="t">呈现阶段成果</div><div class="d">策展台 · 上方截图即成果</div></div></div>
+  </div>
+
+  <div class="trust">
+    <span>Chromium 扩展</span><span>100% 本地运行</span><span>无需注册</span><span>免费体验中</span>
+  </div>
+
+  <div class="cta">
+    <div class="l1">带着一件正在推进的事，进入知源。</div>
+    <div class="l2">观看演示 ｜ 查看安装指南</div>
+  </div>
+</div>
+
+<div class="bar noprint">
+  <button id="exportBtn">↓ 导出为长图（PNG）</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+document.getElementById('exportBtn').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='正在导出…';
+  var el=document.querySelector('.sheet');
+  html2canvas(el,{backgroundColor:'#FAF9F5',scale:2,useCORS:true,allowTaint:true,logging:false})
+    .then(function(c){
+      c.toBlob(function(b){
+        var u=URL.createObjectURL(b);var a=document.createElement('a');
+        a.href=u;a.download='知源一页屏_方案B2_解说型.png';a.click();
+        setTimeout(function(){URL.revokeObjectURL(u)},3000);
+        btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';
+      });
+    }).catch(function(e){btn.disabled=false;btn.textContent='↓ 导出为长图（PNG）';alert(e.message)});
+});
+</script>
+</body>
+</html>

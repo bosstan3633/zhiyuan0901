@@ -1,0 +1,975 @@
+{
+  "__wid": "stkew0-mvcc2xay-1",
+  "activityLogs": [],
+  "airtableMap": {},
+  "airtableSync": {
+    "baseId": "",
+    "pat": "",
+    "pollEnabled": false,
+    "tableId": ""
+  },
+  "argCards": [],
+  "boardCardsPooledAt": 1792237745204,
+  "categories": [
+    {
+      "id": "audit-cat-thesis-gap",
+      "workspaceId": "zy-audit-curation",
+      "name": "知识工作者的真正瓶颈",
+      "description": "问题不在信息不足，而在判断没有被组织。",
+      "order": 0
+    },
+    {
+      "id": "audit-cat-signal",
+      "workspaceId": "zy-audit-curation",
+      "name": "信号识别",
+      "description": "先分清哪些信息值得进入认知系统。",
+      "order": 1,
+      "parentId": "audit-cat-thesis-gap"
+    },
+    {
+      "id": "audit-cat-evidence",
+      "workspaceId": "zy-audit-curation",
+      "name": "证据组织",
+      "description": "让资源围绕判断形成可追溯的结构。",
+      "order": 1,
+      "parentId": "audit-cat-thesis-gap"
+    },
+    {
+      "id": "audit-cat-reuse",
+      "workspaceId": "zy-audit-curation",
+      "name": "调用与复用",
+      "description": "在问题出现时把证据重新调回现场。",
+      "order": 2,
+      "parentId": "audit-cat-evidence"
+    },
+    {
+      "id": "audit-cat-gap",
+      "workspaceId": "zy-audit-curation",
+      "name": "边界与反例",
+      "description": "主动保留会推翻当前判断的材料。",
+      "order": 3,
+      "parentId": "audit-cat-evidence"
+    },
+    {
+      "id": "audit-cat-share",
+      "workspaceId": "zy-audit-curation",
+      "name": "成果表达",
+      "description": "把论证结构变成他人可阅读的方案。",
+      "order": 4,
+      "parentId": "audit-cat-thesis-gap"
+    },
+    {
+      "id": "audit-cat-ev-min",
+      "workspaceId": "zy-audit-curation",
+      "name": "论证的最小结构",
+      "description": "主题—判断—论点—证据的最小充分形式。",
+      "order": 0,
+      "parentId": "audit-cat-reuse"
+    },
+    {
+      "id": "audit-cat-ev-reuse",
+      "workspaceId": "zy-audit-curation",
+      "name": "跨工具调用频次",
+      "description": "被反复调用的资产，检索成本远低于一次性阅读。",
+      "order": 1,
+      "parentId": "audit-cat-reuse"
+    },
+    {
+      "id": "audit-cat-ev-bound",
+      "workspaceId": "zy-audit-curation",
+      "name": "反例保留机制",
+      "description": "主动纳入反面材料，避免单向论证。",
+      "order": 0,
+      "parentId": "audit-cat-gap"
+    },
+    {
+      "id": "audit-cat-ev-read",
+      "workspaceId": "zy-audit-curation",
+      "name": "方法论可读性",
+      "description": "面向他人表达时的结构要求。",
+      "order": 0,
+      "parentId": "audit-cat-share"
+    }
+  ],
+  "catsMigratedAt": 1792237745204,
+  "compass": {
+    "directions": [
+      {
+        "id": "seed-dir1",
+        "name": "P0 收口批",
+        "projects": [],
+        "status": "active",
+        "term": "short"
+      },
+      {
+        "id": "seed-dir2",
+        "name": "UI 规范落地",
+        "projects": [],
+        "status": "active",
+        "term": "mid"
+      },
+      {
+        "id": "audit-tree-fold-dir",
+        "name": "认知调度研究",
+        "status": "active",
+        "term": "mid",
+        "projects": [
+          {
+            "id": "audit-tree-fold-proj",
+            "name": "完成一次专题分享",
+            "nextStep": "让方向树折叠判据在四主题实拍中真实可判。",
+            "isFocused": false,
+            "progress": 0,
+            "status": "active",
+            "order": 0,
+            "metrics": [
+              {
+                "id": "audit-tree-fold-metric",
+                "title": "视觉验收覆盖完整",
+                "target": "四主题真判",
+                "acceptance": "四主题实拍不再跳过方向树折叠",
+                "taskIds": [
+                  "audit-tree-fold-task"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "audit-pano-multi-dir",
+        "name": "认知调度产品化",
+        "status": "active",
+        "term": "mid",
+        "projects": [
+          {
+            "id": "audit-pano-multi-proj",
+            "name": "多指标阅读节奏审计",
+            "nextStep": "验证四条指标泳道在长标题下仍能保持稳定阅读节奏。",
+            "isFocused": true,
+            "progress": 0,
+            "status": "active",
+            "order": 0,
+            "metrics": [
+              {
+                "id": "audit-pano-metric-1",
+                "title": "把分散在浏览器标签页里的判断，整理成可复用的证据链",
+                "target": "证据链可被第三人复核",
+                "acceptance": "每个核心判断都能追到来源、反例与适用边界",
+                "taskIds": [
+                  "audit-pano-task-1",
+                  "audit-pano-task-2"
+                ]
+              },
+              {
+                "id": "audit-pano-metric-2",
+                "title": "建立面向真实业务问题的资源调用路径",
+                "target": "高频问题可在 30 秒内调回材料",
+                "acceptance": "检索结果能直接进入当前任务上下文",
+                "taskIds": [
+                  "audit-pano-task-3"
+                ]
+              },
+              {
+                "id": "audit-pano-metric-3",
+                "title": "让一次解决过程沉淀为可分享的结构化方案",
+                "target": "形成可交付的策展成果",
+                "acceptance": "分享页保留层级关系与资源链接",
+                "taskIds": []
+              },
+              {
+                "id": "audit-pano-metric-4",
+                "title": "验证方向树与每日行动之间的闭环是否真正减少漂移",
+                "target": "连续四周主攻不偏移",
+                "acceptance": "今日三件事均可追溯到项目与成功指标",
+                "taskIds": [
+                  "audit-pano-task-4"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "mission": {
+      "content": "把散在四处的调用收敛成一条自己的路。",
+      "updatedAt": 1791373743637
+    },
+    "vision": {
+      "content": "万千可调用，自有我方向。",
+      "updatedAt": 1791373743637
+    }
+  },
+  "curationProjections": [],
+  "curiosities": [
+    {
+      "createdAt": 1791200943637,
+      "deletedAt": null,
+      "desc": "",
+      "done": false,
+      "id": "seed-c1",
+      "tags": [],
+      "title": "「门禁绿」能不能证明判据覆盖外的地方没问题？",
+      "updatedAt": 1792151343637
+    },
+    {
+      "createdAt": 1791200943637,
+      "deletedAt": null,
+      "desc": "",
+      "done": false,
+      "id": "seed-c2",
+      "tags": [],
+      "title": "为什么 ZIP 装了全部产物，代码分割却只影响首屏",
+      "updatedAt": 1792151343637
+    }
+  ],
+  "dailyFocus": {
+    "2026-10-17": [
+      {
+        "auto": true,
+        "done": false,
+        "id": "focus_93e9d5adbbba4842",
+        "sourceId": "seed-t1",
+        "sourceType": "task",
+        "text": "B1-c 内联样式收口（20 文件）"
+      }
+    ]
+  },
+  "fieldConfig": {
+    "argument": [
+      {
+        "key": "title",
+        "label": "节点标题",
+        "order": 0,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "description",
+        "label": "论证描述",
+        "order": 1,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "tags",
+        "label": "标签",
+        "order": 2,
+        "type": "tags",
+        "visible": false
+      },
+      {
+        "key": "createdAt",
+        "label": "创建时间",
+        "order": 3,
+        "type": "date",
+        "visible": false
+      },
+      {
+        "key": "link",
+        "label": "链接",
+        "order": 4,
+        "type": "text",
+        "visible": false
+      },
+      {
+        "key": "assets",
+        "label": "附件",
+        "order": 5,
+        "type": "text",
+        "visible": false
+      }
+    ],
+    "curiosity": [
+      {
+        "key": "question",
+        "label": "问题",
+        "order": 0,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "sourceUrl",
+        "label": "来源链接",
+        "order": 1,
+        "type": "text",
+        "visible": false
+      },
+      {
+        "key": "status",
+        "label": "状态",
+        "options": [
+          "待探索",
+          "探索中",
+          "已求证",
+          "已搁置"
+        ],
+        "order": 2,
+        "type": "select",
+        "visible": true
+      },
+      {
+        "key": "createdAt",
+        "label": "创建时间",
+        "order": 3,
+        "type": "date",
+        "visible": false
+      },
+      {
+        "key": "tags",
+        "label": "标签",
+        "order": 4,
+        "type": "tags",
+        "visible": false
+      },
+      {
+        "key": "assets",
+        "label": "附件",
+        "order": 5,
+        "type": "text",
+        "visible": true
+      }
+    ],
+    "resource": [
+      {
+        "key": "title",
+        "label": "标题",
+        "order": 0,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "link",
+        "label": "链接",
+        "order": 1,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "description",
+        "label": "描述",
+        "order": 2,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "sourceType",
+        "label": "来源类型",
+        "options": [
+          "官方",
+          "学术",
+          "媒体",
+          "个人",
+          "AI工具",
+          "个人成果"
+        ],
+        "order": 3,
+        "type": "select",
+        "visible": false
+      },
+      {
+        "key": "tags",
+        "label": "标签",
+        "order": 4,
+        "type": "tags",
+        "visible": true
+      },
+      {
+        "key": "createdAt",
+        "label": "创建时间",
+        "order": 5,
+        "type": "date",
+        "visible": false
+      },
+      {
+        "key": "assets",
+        "label": "附件",
+        "order": 6,
+        "type": "text",
+        "visible": true
+      }
+    ],
+    "task": [
+      {
+        "key": "title",
+        "label": "任务名",
+        "order": 0,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "projectId",
+        "label": "所属项目",
+        "order": 1,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "metricId",
+        "label": "成功指标",
+        "order": 2,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "priority",
+        "label": "优先级",
+        "options": [
+          "高",
+          "中",
+          "低"
+        ],
+        "order": 3,
+        "type": "select",
+        "visible": true
+      },
+      {
+        "key": "dueDate",
+        "label": "截止时间",
+        "order": 4,
+        "type": "date",
+        "visible": true
+      },
+      {
+        "key": "status",
+        "label": "状态",
+        "options": [
+          "待办",
+          "进行中",
+          "已完成"
+        ],
+        "order": 5,
+        "type": "select",
+        "visible": false
+      },
+      {
+        "key": "description",
+        "label": "描述",
+        "order": 6,
+        "type": "text",
+        "visible": false
+      },
+      {
+        "key": "tags",
+        "label": "标签",
+        "order": 7,
+        "type": "tags",
+        "visible": false
+      },
+      {
+        "key": "assets",
+        "label": "附件",
+        "order": 8,
+        "type": "text",
+        "visible": true
+      }
+    ],
+    "thesis": [
+      {
+        "key": "title",
+        "label": "论点",
+        "order": 0,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "description",
+        "label": "论证",
+        "order": 1,
+        "type": "text",
+        "visible": true
+      },
+      {
+        "key": "tags",
+        "label": "标签",
+        "order": 2,
+        "type": "tags",
+        "visible": false
+      },
+      {
+        "key": "createdAt",
+        "label": "创建时间",
+        "order": 3,
+        "type": "date",
+        "visible": false
+      },
+      {
+        "key": "link",
+        "label": "链接",
+        "order": 4,
+        "type": "text",
+        "visible": false
+      },
+      {
+        "key": "assets",
+        "label": "附件",
+        "order": 5,
+        "type": "text",
+        "visible": true
+      }
+    ]
+  },
+  "focusAutoDate": "2026-10-17",
+  "hotStatsSplitAt": 1792237745145,
+  "hubMergedAt": 1792237745155,
+  "hubMigratedAt": 1792237745155,
+  "resources": [
+    {
+      "categoryId": "",
+      "coverTheme": "deep-sea",
+      "createdAt": 1789645743637,
+      "deletedAt": null,
+      "desc": "",
+      "fields": {},
+      "id": "seed-r1",
+      "link": "file:///Users/beantan/Downloads/zhiyuan0904/README.md",
+      "linkType": "file",
+      "openCount": 9,
+      "pinned": true,
+      "starred": true,
+      "tags": [
+        "产品设计",
+        "基线"
+      ],
+      "title": "知源调度台 · 产品认知基线",
+      "updatedAt": 1792064943637,
+      "visitCount": 12,
+      "workspaceId": "zy-curation"
+    },
+    {
+      "categoryId": "",
+      "coverTheme": "deep-sea",
+      "createdAt": 1789645743637,
+      "deletedAt": null,
+      "desc": "",
+      "fields": {},
+      "id": "seed-r2",
+      "link": "https://developer.chrome.com/docs/extensions/mv3/",
+      "linkType": "url",
+      "openCount": 5,
+      "pinned": false,
+      "starred": false,
+      "tags": [
+        "工程",
+        "参考"
+      ],
+      "title": "MV3 扩展新标签页接管清单",
+      "updatedAt": 1792219743637,
+      "visitCount": 7,
+      "workspaceId": "zy-curation"
+    },
+    {
+      "categoryId": "",
+      "coverTheme": "deep-sea",
+      "createdAt": 1789645743637,
+      "deletedAt": null,
+      "desc": "",
+      "fields": {},
+      "id": "seed-r3",
+      "link": "",
+      "linkType": "url",
+      "openCount": 4,
+      "pinned": false,
+      "starred": false,
+      "tags": [
+        "设计令牌"
+      ],
+      "title": "四主题令牌对照表",
+      "updatedAt": 1792064943637,
+      "visitCount": 4,
+      "workspaceId": "zy-curation"
+    },
+    {
+      "categoryId": "",
+      "coverTheme": "deep-sea",
+      "createdAt": 1789645743637,
+      "deletedAt": null,
+      "desc": "",
+      "fields": {},
+      "id": "seed-r4",
+      "link": "obsidian://open?vault=zhiyuan&file=AirTable",
+      "linkType": "obsidian",
+      "openCount": 1,
+      "pinned": false,
+      "starred": false,
+      "tags": [
+        "数据"
+      ],
+      "title": "Airtable 同步字段口径",
+      "updatedAt": 1792064943637,
+      "visitCount": 2,
+      "workspaceId": "zy-curation"
+    },
+    {
+      "categoryId": "",
+      "coverTheme": "deep-sea",
+      "createdAt": 1789645743637,
+      "deletedAt": null,
+      "desc": "",
+      "fields": {},
+      "id": "seed-r5",
+      "link": "",
+      "linkType": "url",
+      "openCount": 14,
+      "pinned": false,
+      "starred": true,
+      "tags": [
+        "工程",
+        "门禁"
+      ],
+      "title": "回归分片架构笔记",
+      "updatedAt": 1792064943637,
+      "visitCount": 15,
+      "workspaceId": "zy-curation"
+    },
+    {
+      "id": "audit-thesis",
+      "kind": "resource",
+      "title": "知识工作者的真正瓶颈，已经从内容生产转向认知调度。",
+      "description": "当生成变得廉价，稀缺的是在正确时刻把信息、判断与证据重新调回现场的能力。",
+      "linkType": "url",
+      "link": "https://example.com/audit-thesis",
+      "workspaceId": "zy-audit-curation",
+      "categoryId": "",
+      "sourceType": "own-work",
+      "tags": [
+        "认知调度"
+      ],
+      "pinned": false,
+      "callCount": 6,
+      "lastCalledAt": 1791345317567,
+      "customFields": {},
+      "assets": [],
+      "createdAt": 1793016000000,
+      "updatedAt": 1793016000000,
+      "isThesis": true
+    },
+    {
+      "id": "audit-r1",
+      "kind": "resource",
+      "title": "浏览器里的工作现场",
+      "description": "工作发生在标签页之间，调度也必须发生在现场。",
+      "linkType": "url",
+      "link": "https://example.com/audit-r1",
+      "workspaceId": "zy-audit-curation",
+      "categoryId": "audit-cat-signal",
+      "sourceType": "official",
+      "tags": [
+        "认知调度"
+      ],
+      "pinned": false,
+      "callCount": 4,
+      "lastCalledAt": 1791345317567,
+      "customFields": {},
+      "assets": [],
+      "createdAt": 1793016000000,
+      "updatedAt": 1793016000000
+    },
+    {
+      "id": "audit-r2",
+      "kind": "resource",
+      "title": "证据链的最小结构",
+      "description": "结论、理由、证据与边界需要同时可见。",
+      "linkType": "url",
+      "link": "https://example.com/audit-r2",
+      "workspaceId": "zy-audit-curation",
+      "categoryId": "audit-cat-ev-min",
+      "sourceType": "academic",
+      "tags": [
+        "认知调度"
+      ],
+      "pinned": false,
+      "callCount": 5,
+      "lastCalledAt": 1791345317567,
+      "customFields": {},
+      "assets": [],
+      "createdAt": 1793016000000,
+      "updatedAt": 1793016000000
+    },
+    {
+      "id": "audit-r3",
+      "kind": "resource",
+      "title": "复用发生在问题出现时",
+      "description": "能被快速召回的知识，才会变成能力。",
+      "linkType": "url",
+      "link": "https://example.com/audit-r3",
+      "workspaceId": "zy-audit-curation",
+      "categoryId": "audit-cat-ev-reuse",
+      "sourceType": "media",
+      "tags": [
+        "认知调度"
+      ],
+      "pinned": false,
+      "callCount": 7,
+      "lastCalledAt": 1792900517567,
+      "customFields": {},
+      "assets": [],
+      "createdAt": 1793016000000,
+      "updatedAt": 1793016000000
+    },
+    {
+      "id": "audit-r4",
+      "kind": "resource",
+      "title": "把一次解决变成可交付方案",
+      "description": "结构化成果让经验可以分享，也可以被检验。",
+      "linkType": "url",
+      "link": "https://example.com/audit-r4",
+      "workspaceId": "zy-audit-curation",
+      "categoryId": "audit-cat-ev-read",
+      "sourceType": "own-work",
+      "tags": [
+        "认知调度"
+      ],
+      "pinned": false,
+      "callCount": 3,
+      "lastCalledAt": 1792900517567,
+      "customFields": {},
+      "assets": [],
+      "createdAt": 1793016000000,
+      "updatedAt": 1793016000000
+    },
+    {
+      "id": "audit-r5",
+      "kind": "resource",
+      "title": "反例保留：主动纳入反面材料",
+      "description": "保留会推翻当前判断的材料，避免单向论证。",
+      "linkType": "url",
+      "link": "https://example.com/audit-r5",
+      "workspaceId": "zy-audit-curation",
+      "categoryId": "audit-cat-ev-bound",
+      "sourceType": "academic",
+      "tags": [
+        "认知调度"
+      ],
+      "pinned": false,
+      "callCount": 3,
+      "lastCalledAt": 1791345317567,
+      "customFields": {},
+      "assets": [],
+      "createdAt": 1793016000000,
+      "updatedAt": 1793016000000
+    }
+  ],
+  "stats": {
+    "lastReuse": {},
+    "lastVisits": {},
+    "weekly": [],
+    "wrr": {
+      "lastUpdatedAt": 0,
+      "thisWeekUsage": 0,
+      "totalCumulativeUsage": 0
+    }
+  },
+  "subtasksFoldedAt": 1792237745144,
+  "tagTree": [
+    {
+      "id": "seed-tt1",
+      "name": "产品设计",
+      "order": 0,
+      "parentId": ""
+    },
+    {
+      "id": "seed-tt2",
+      "name": "工程",
+      "order": 1,
+      "parentId": ""
+    },
+    {
+      "id": "seed-tt3",
+      "name": "门禁",
+      "order": 0,
+      "parentId": "seed-tt2"
+    },
+    {
+      "id": "seed-tt4",
+      "name": "设计令牌",
+      "order": 0,
+      "parentId": "seed-tt1"
+    }
+  ],
+  "tagsVisibleMigratedAt": 1792237745145,
+  "tasks": [
+    {
+      "createdAt": 1790509743637,
+      "deletedAt": null,
+      "desc": "",
+      "done": false,
+      "dueAt": 1792496943637,
+      "id": "seed-t1",
+      "priority": "high",
+      "projectId": "seed-dir1",
+      "tags": [
+        "P0"
+      ],
+      "title": "B1-c 内联样式收口（20 文件）",
+      "updatedAt": 1792151343637
+    },
+    {
+      "createdAt": 1790509743637,
+      "deletedAt": null,
+      "desc": "",
+      "done": false,
+      "dueAt": 0,
+      "id": "seed-t2",
+      "priority": "mid",
+      "projectId": "seed-dir1",
+      "tags": [
+        "验收"
+      ],
+      "title": "像素 AB 三档复跑",
+      "updatedAt": 1792151343637
+    },
+    {
+      "createdAt": 1790509743637,
+      "deletedAt": null,
+      "desc": "",
+      "done": true,
+      "dueAt": 0,
+      "id": "seed-t3",
+      "priority": "mid",
+      "projectId": "",
+      "tags": [
+        "UI"
+      ],
+      "title": "Toast 加语义类型 + 图标位",
+      "updatedAt": 1792151343637
+    },
+    {
+      "createdAt": 1790509743637,
+      "deletedAt": null,
+      "desc": "",
+      "done": false,
+      "dueAt": 0,
+      "id": "seed-t4",
+      "priority": "low",
+      "projectId": "",
+      "tags": [],
+      "title": "写 V3.8.26 交付说明",
+      "updatedAt": 1792151343637
+    },
+    {
+      "id": "audit-tree-fold-task",
+      "kind": "task",
+      "title": "补齐方向树实拍夹具",
+      "description": "让折叠判据在真实渲染上有数据可判。",
+      "projectId": "audit-tree-fold-proj",
+      "metricId": "audit-tree-fold-metric",
+      "status": "doing",
+      "priority": "high",
+      "customFields": {},
+      "tags": [
+        "视觉验收"
+      ],
+      "pinned": false,
+      "createdAt": 1793019600000,
+      "updatedAt": 1793019600000
+    },
+    {
+      "id": "audit-pano-task-1",
+      "kind": "task",
+      "title": "整理浏览器现场里的判断与证据",
+      "description": "覆盖长任务标题在窄泳道中的换行行为。",
+      "projectId": "audit-pano-multi-proj",
+      "metricId": "audit-pano-metric-1",
+      "status": "doing",
+      "priority": "high",
+      "customFields": {},
+      "tags": [
+        "视觉验收"
+      ],
+      "pinned": false,
+      "createdAt": 1793023200000,
+      "updatedAt": 1793023200000
+    },
+    {
+      "id": "audit-pano-task-2",
+      "kind": "task",
+      "title": "为关键判断补齐反例与适用边界",
+      "description": "同一指标下的第二条任务。",
+      "projectId": "audit-pano-multi-proj",
+      "metricId": "audit-pano-metric-1",
+      "status": "todo",
+      "priority": "medium",
+      "customFields": {},
+      "tags": [
+        "视觉验收"
+      ],
+      "pinned": false,
+      "createdAt": 1793023200001,
+      "updatedAt": 1793023200001
+    },
+    {
+      "id": "audit-pano-task-3",
+      "kind": "task",
+      "title": "把高频问题与对应资源建立可召回索引",
+      "description": "第二指标任务。",
+      "projectId": "audit-pano-multi-proj",
+      "metricId": "audit-pano-metric-2",
+      "status": "todo",
+      "priority": "high",
+      "customFields": {},
+      "tags": [
+        "视觉验收"
+      ],
+      "pinned": false,
+      "createdAt": 1793023200002,
+      "updatedAt": 1793023200002
+    },
+    {
+      "id": "audit-pano-task-4",
+      "kind": "task",
+      "title": "复盘本周三件事与项目指标的对齐情况",
+      "description": "第四指标任务。",
+      "projectId": "audit-pano-multi-proj",
+      "metricId": "audit-pano-metric-4",
+      "status": "doing",
+      "priority": "medium",
+      "customFields": {},
+      "tags": [
+        "视觉验收"
+      ],
+      "pinned": false,
+      "createdAt": 1793023200003,
+      "updatedAt": 1793023200003
+    },
+    {
+      "id": "audit-pano-task-5",
+      "kind": "task",
+      "title": "尚未归入任何成功指标、需要重新判断归属的长标题任务",
+      "description": "未归档任务，用于展示调度台的未归档读数。",
+      "status": "todo",
+      "priority": "low",
+      "customFields": {},
+      "tags": [],
+      "pinned": false,
+      "createdAt": 1793023200004,
+      "updatedAt": 1793023200004
+    }
+  ],
+  "version": 2,
+  "workspaces": [
+    {
+      "archived": false,
+      "color": "#3A6B4C",
+      "coverTheme": "deep-sea",
+      "icon": "🗂",
+      "id": "zy-curation",
+      "kind": "resource",
+      "name": "资源台",
+      "order": -1
+    },
+    {
+      "id": "zy-audit-curation",
+      "name": "认知调度研究",
+      "icon": "🧭",
+      "color": "#3A6B4C",
+      "coverTheme": "deep-sea",
+      "desc": "把零散信息组织成可被复用、被质疑、被分享的判断。",
+      "order": 90,
+      "archived": false,
+      "kind": "curation",
+      "callCount": 0,
+      "lastCalledAt": 1793016000000
+    }
+  ]
+}

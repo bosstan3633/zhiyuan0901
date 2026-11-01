@@ -1,0 +1,147 @@
+[
+ {
+  "id": "01",
+  "kind": "clip",
+  "src": "g1_pain.mp4",
+  "dur": 8.8,
+  "mov": "in",
+  "shot": "镜头1",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_01.mp4"
+ },
+ {
+  "id": "02",
+  "kind": "clip",
+  "src": "g2_gather.mp4",
+  "dur": 1.2,
+  "mov": "in",
+  "shot": "镜头1",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_02.mp4"
+ },
+ {
+  "id": "03",
+  "kind": "still",
+  "src": "06-overlay-capture.png",
+  "dur": 3.3,
+  "mov": "right",
+  "shot": "镜头2",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_03.mp4"
+ },
+ {
+  "id": "04",
+  "kind": "still",
+  "src": "07-overlay-curiosity.png",
+  "dur": 3.3,
+  "mov": "in",
+  "shot": "镜头2",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_04.mp4"
+ },
+ {
+  "id": "05",
+  "kind": "still",
+  "src": "08-overlay-search.png",
+  "dur": 3.4,
+  "mov": "left",
+  "shot": "镜头2",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_05.mp4"
+ },
+ {
+  "id": "06",
+  "kind": "still",
+  "src": "01-dashboard.png",
+  "dur": 7.0,
+  "mov": "in",
+  "shot": "镜头3",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_06.mp4"
+ },
+ {
+  "id": "07",
+  "kind": "still",
+  "src": "02-drawer-task.png",
+  "dur": 4.0,
+  "mov": "left",
+  "shot": "镜头3",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_07.mp4"
+ },
+ {
+  "id": "08",
+  "kind": "still",
+  "src": "09-reuse-count.png",
+  "dur": 4.0,
+  "mov": "in",
+  "shot": "镜头3",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_08.mp4"
+ },
+ {
+  "id": "09",
+  "kind": "clip",
+  "src": "g3_thread.mp4",
+  "dur": 1.2,
+  "mov": "in",
+  "shot": "镜头4",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_09.mp4"
+ },
+ {
+  "id": "10",
+  "kind": "still",
+  "src": "03-curation.png",
+  "dur": 4.8,
+  "mov": "in",
+  "shot": "镜头4",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_10.mp4"
+ },
+ {
+  "id": "11",
+  "kind": "still",
+  "src": "04-curation-canvas.png",
+  "dur": 3.5,
+  "mov": "right",
+  "shot": "镜头4",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_11.mp4"
+ },
+ {
+  "id": "12",
+  "kind": "clip",
+  "src": "g4_structure.mp4",
+  "dur": 1.5,
+  "mov": "in",
+  "shot": "镜头4",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_12.mp4"
+ },
+ {
+  "id": "13",
+  "kind": "still",
+  "src": "05-export.png",
+  "dur": 4.5,
+  "mov": "in",
+  "shot": "镜头5",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_13.mp4"
+ },
+ {
+  "id": "14",
+  "kind": "clip",
+  "src": "g5_data.mp4",
+  "dur": 2.0,
+  "mov": "in",
+  "shot": "镜头5",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_14.mp4"
+ },
+ {
+  "id": "15",
+  "kind": "clip",
+  "src": "g6_end.mp4",
+  "dur": 3.0,
+  "mov": "in",
+  "shot": "镜头5",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_15.mp4"
+ },
+ {
+  "id": "16",
+  "kind": "still",
+  "src": null,
+  "dur": 4.5,
+  "mov": "none",
+  "shot": "镜头5",
+  "note": "品牌尾帧（overlays/endframe.png）",
+  "out": "/Users/beantan/Downloads/zhiyuan0904/宣传片/work/segments/seg_16.mp4"
+ }
+]
