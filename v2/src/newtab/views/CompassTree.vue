@@ -191,6 +191,8 @@ const {
         <div class="view-seg" role="tablist" aria-label="项目视图形态">
           <button class="vs-b" :class="{ on: viewMode === 'tower' }" :aria-selected="viewMode === 'tower'" title="纵向项目舱列 · 看我在哪个位置" @click="viewMode = 'tower'; layerView = null">项目塔</button>
           <button class="vs-b" :class="{ on: viewMode === 'pano' }" :aria-selected="viewMode === 'pano'" title="横向泳道全景 · 看这一个项目的完整链路" @click="viewMode = 'pano'; layerView = null">项目全景</button>
+          <!-- V3.9.32（批 A）：策展模式 = 全屏二级页（用户拍板）；六层只读全景 + 折叠 + MD/HTML 导出 -->
+          <button class="vs-b" title="全屏策展模式：六层方向树只读全景，可折叠、可导出 MD/HTML 分享或投喂 AI" @click="router.push('/compass/curation')">策展模式</button>
         </div>
         <!-- ★序号用**全局舱序号**（原型 .ns-idx 是 1~N 连号），不用「目标·项目」复合号：
              复合号在左栏只有 210px 宽时会挤掉项目名，而项目名才是这一栏唯一要读的东西。

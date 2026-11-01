@@ -63,7 +63,11 @@ check('W11-3 ★所有展开/切换都必须**双向可达**（开了能回、�
     && TOWER.includes('.tw-fold[aria-expanded="true"]::before')
     && LANE.includes("{{ open ? '收起 ▾' : '展开 ▸' }}")                  /* ③ 指标双向 */
     && CT_W11.includes("viewMode === 'tower'") && CT_W11.includes("viewMode === 'pano'")
-    && (CT_W11.match(/class="vs-b"/g) || []).length === 2                /* ④ 两个按钮都在 */
+    /* ★V3.9.32 重指备案（批 A）：视图切换入口从两枚变三枚——塔/全景仍带 :class 绑定（模式态），
+       第三枚「策展模式」是全屏二级页的路由按钮（无 on 态），双向可达由页内「← 方向台」回程承担。
+       ★三枚按钮的静态 class 属性都写作 class="vs-b"（Vue 静态+绑定合并），故静态计数=3。 */
+    && (CT_W11.match(/class="vs-b"/g) || []).length === 3                /* ④ 三枚入口都在 */
+    && (CT_W11.match(/:class="\{ on: viewMode ===/g) || []).length === 2  /* ④ 两枚模式绑定都在 */
     && CT_W11.includes('v-if="dirFilter || riskOnly"') && CT_W11.includes('clearFilters')
     && CT_W11.includes('class="hf-clear"') && CT_W11.includes('清除筛选');   /* ⑤ 筛选有出口（★B5-c：并入 hero 后类名随迁，只钉出口与文案，不钉图标尺寸） */
 });

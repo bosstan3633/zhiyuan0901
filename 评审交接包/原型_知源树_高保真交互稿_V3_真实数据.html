@@ -1,0 +1,1433 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dusk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>知源树 · 高保真交互稿 V3（真实数据 · 审核稿）</title>
+<style>
+/* ═══ 知源树原型 · 设计令牌（对齐 tokens.css 口径：四主题即四种天光） ═══ */
+:root{
+  --dur:150ms; --dur-slow:250ms;
+  --radius-sm:8px; --radius-md:10px; --radius-lg:14px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+[data-theme="dusk"]{   /* 深空暮蓝（linear） */
+  --bg:#010102; --surface:#0E0E13; --surface-2:#16161D; --surface-3:#1D1D26;
+  --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.14);
+  --text:#ECECF1; --text-2:#9C9CA8; --text-3:#6C6C78; --text-4:#4A4A55;
+  --accent:#5E6AD2; --accent-light:rgba(94,106,210,.16); --accent-ink:#AEB6F2;
+  --success:#3FB27F; --warning:#D9A13B; --danger:#D96C6C;
+  --bark:#565663; --bark-2:#3E3E49; --soil:#101014; --soil-dot:#232331;
+  --glow:rgba(94,106,210,.35); --sky:transparent;
+}
+[data-theme="paper"]{  /* 纸墨林间（notion） */
+  --bg:#F7F6F3; --surface:#FFFFFF; --surface-2:#F1EFEA; --surface-3:#E9E6DF;
+  --border:rgba(38,37,31,.10); --border-strong:rgba(38,37,31,.18);
+  --text:#26251F; --text-2:#6B6A60; --text-3:#8F8D82; --text-4:#B4B2A6;
+  --accent:#9E3FAF; --accent-light:rgba(158,63,175,.12); --accent-ink:#7C2F8B;
+  --success:#2F8F5B; --warning:#B57F1F; --danger:#C05656;
+  --bark:#7A6A55; --bark-2:#5E5140; --soil:#E9E4D8; --soil-dot:#D8D2C2;
+  --glow:rgba(158,63,175,.28); --sky:transparent;
+}
+[data-theme="night"]{  /* 光速夜黑（raycast） */
+  --bg:#07080A; --surface:#0D0F12; --surface-2:#14171B; --surface-3:#1B1F25;
+  --border:rgba(255,255,255,.07); --border-strong:rgba(255,255,255,.13);
+  --text:#E8EAEE; --text-2:#969AA3; --text-3:#666B75; --text-4:#454A53;
+  --accent:#1E6FD9; --accent-light:rgba(30,111,217,.16); --accent-ink:#6FA8EE;
+  --success:#2FA46F; --warning:#D09A32; --danger:#CF6363;
+  --bark:#4E545E; --bark-2:#373C44; --soil:#0B0D10; --soil-dot:#1B2027;
+  --glow:rgba(30,111,217,.35); --sky:transparent;
+}
+[data-theme="dawn"]{   /* 极简晨白（apple） */
+  --bg:#FAFAFC; --surface:#FFFFFF; --surface-2:#F2F2F7; --surface-3:#E8E8EF;
+  --border:rgba(28,28,34,.09); --border-strong:rgba(28,28,34,.16);
+  --text:#1C1C22; --text-2:#6E6E78; --text-3:#94949E; --text-4:#B9B9C2;
+  --accent:#8452E0; --accent-light:rgba(132,82,224,.11); --accent-ink:#6C3EC4;
+  --success:#2E9E68; --warning:#B8862C; --danger:#C05B5B;
+  --bark:#8B7B66; --bark-2:#6E5F4C; --soil:#EFEDE4; --soil-dot:#DDD9C9;
+  --glow:rgba(132,82,224,.26); --sky:transparent;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.65;
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+button{font-family:inherit}
+::selection{background:var(--accent-light)}
+
+/* ═══ 顶栏（示意产品导航：知源树的入口位置） ═══ */
+.topbar{display:flex;align-items:center;gap:14px;padding:9px 18px;border-bottom:1px solid var(--border);flex:none}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px}
+.brand .logo{width:18px;height:18px;border-radius:5px;background:var(--accent);display:grid;place-items:center;color:#fff;font-size:10px;font-weight:800}
+.nav{display:flex;gap:4px;color:var(--text-3);font-size:12px}
+.nav .on{color:var(--text);font-weight:600}
+.nav .ghost-new{color:var(--accent-ink);border:1px dashed var(--accent);border-radius:999px;padding:0 8px;font-weight:600}
+.topbar .sp{flex:1}
+.kbd-note{color:var(--text-4);font-size:11px}
+.kbd-note b{color:var(--text-3);font-weight:600;border:1px solid var(--border);border-radius:4px;padding:0 5px;font-family:ui-monospace,monospace;font-size:10px}
+
+/* ═══ 页头 ═══ */
+.pagehead{display:flex;align-items:center;gap:12px;padding:14px 22px 4px;flex:none}
+.ph-title{font-size:19px;font-weight:800;letter-spacing:.01em}
+.ph-sub{color:var(--text-3);font-size:12px}
+.seg{display:flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--text-3);font-size:12px;font-weight:600;padding:5px 13px;cursor:pointer;transition:all var(--dur)}
+.seg button.on{background:var(--accent-light);color:var(--accent-ink)}
+.seg button:hover:not(.on){color:var(--text-2)}
+.pagehead .sp{flex:1}
+.tool-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text-2);border-radius:var(--radius-sm);padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;transition:all var(--dur)}
+.tool-btn:hover{color:var(--accent-ink);border-color:var(--accent)}
+.tool-btn.on{background:var(--accent-light);border-color:var(--accent);color:var(--accent-ink)}
+.theme-dots{display:flex;gap:6px;align-items:center;margin-left:4px}
+.tdot{width:14px;height:14px;border-radius:50%;border:1px solid var(--border-strong);cursor:pointer;padding:0;position:relative}
+.tdot.on::after{content:'';position:absolute;inset:-4px;border:1px solid var(--accent);border-radius:50%}
+.tdot[data-t="dusk"]{background:#5E6AD2}.tdot[data-t="paper"]{background:#F7F6F3}
+.tdot[data-t="night"]{background:#1E6FD9}.tdot[data-t="dawn"]{background:#EDEBF6}
+
+/* ═══ 舞台 ═══ */
+.stage-wrap{flex:1;display:flex;flex-direction:column;min-height:0}
+.stage{flex:1;min-height:0;position:relative}
+.stage svg{width:100%;height:100%;display:block}
+.sway{transform-origin:720px 600px;animation:sway 8s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-.35deg)}to{transform:rotate(.4deg)}}
+@media (prefers-reduced-motion: reduce){.sway{animation:none}.pop{animation:none}}
+
+/* 土层 */
+.soil-g{transition:opacity var(--dur-slow)}
+.dig .soil-g{opacity:.14}
+.dig .root-g{opacity:1}
+.root-g{transition:opacity var(--dur-slow);opacity:.35}
+
+/* 元素交互 */
+.hit{cursor:pointer}
+.hit:hover{filter:brightness(1.18)}
+.hit:hover .leaf{transform:scale(1.35)}
+.leaf,.fruit,.seed{transition:transform var(--dur)}
+.hit:hover .fruit{transform:scale(1.25)}
+.branch{transition:stroke var(--dur)}
+.hit:hover .branch-lit{stroke:var(--accent-ink)}
+text{font-family:var(--font)}
+.tip-line{font-size:11px;fill:var(--text-3)}
+
+/* 图例 */
+.legend{display:flex;flex-wrap:wrap;gap:7px;padding:6px 22px 2px;flex:none}
+.lg{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);
+  border:1px solid var(--border);border-radius:999px;padding:1px 9px;background:var(--surface)}
+.lg i{width:8px;height:8px;border-radius:50%;flex:none}
+
+/* 底栏：今日滋养 / 回放轴 */
+.bottombar{flex:none;border-top:1px solid var(--border);padding:9px 22px 12px;background:var(--surface)}
+.nourish{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--text-2)}
+.nourish b{color:var(--text)}
+.nourish .dot{width:5px;height:5px;border-radius:50%;background:var(--text-4)}
+.nourish .rain{color:var(--accent-ink);font-weight:600}
+.scrub-row{display:none;align-items:center;gap:12px;margin-top:8px}
+.scrub-row.show{display:flex}
+.scrub-row input[type=range]{flex:1;accent-color:var(--accent)}
+.scrub-date{font-weight:700;font-size:12px;min-width:86px;color:var(--accent-ink)}
+.play-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);
+  border-radius:var(--radius-sm);padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.play-btn:hover{color:var(--accent-ink);border-color:var(--accent)}
+
+/* 抽屉 */
+.drawer{position:fixed;top:0;right:-400px;width:372px;height:100vh;background:var(--surface);
+  border-left:1px solid var(--border-strong);z-index:40;transition:right var(--dur-slow) cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;box-shadow:-18px 0 48px rgba(0,0,0,.25)}
+.drawer.open{right:0}
+.dr-head{padding:14px 18px 10px;border-bottom:1px solid var(--border)}
+.dr-kind{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--accent-ink);
+  background:var(--accent-light);border-radius:999px;padding:1px 10px}
+.dr-title{font-size:16px;font-weight:800;margin-top:8px;line-height:1.4}
+.dr-body{padding:12px 18px;overflow:auto;flex:1}
+.dr-row{display:flex;gap:8px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)}
+.dr-row:last-child{border-bottom:0}
+.dr-row .k{color:var(--text-3);flex:none;width:64px}
+.dr-row .v{color:var(--text);overflow-wrap:anywhere}
+.dr-foot{padding:12px 18px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.btn{flex:1;border-radius:var(--radius-sm);padding:8px 0;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn:hover{color:var(--text)}
+.mask-tip{padding:9px 18px;font-size:11px;color:var(--text-4);border-top:1px solid var(--border)}
+
+/* 账本 */
+.ledger{position:fixed;top:0;right:-430px;width:396px;height:100vh;background:var(--surface);z-index:41;
+  border-left:1px solid var(--border-strong);transition:right var(--dur-slow) cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column}
+.ledger.open{right:0}
+.lg-head{padding:14px 18px 10px;border-bottom:1px solid var(--border)}
+.lg-head h3{margin:6px 0 0;font-size:15px}
+.lg-note{font-size:11px;color:var(--text-4);margin-top:4px}
+.lg-body{flex:1;overflow:auto;padding:10px 18px}
+.lg-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px}
+.lg-item:last-child{border-bottom:0}
+.lg-item .ic{flex:none;width:26px;height:26px;border-radius:8px;background:var(--accent-light);display:grid;place-items:center;color:var(--accent-ink);font-size:12px}
+.lg-item .t b{font-weight:700}
+.lg-item .e{color:var(--text-3);margin-top:2px}
+.lg-item .e em{color:var(--accent-ink);font-style:normal;font-weight:600}
+.lg-foot{padding:11px 18px 15px;border-top:1px solid var(--border);font-size:11px;color:var(--text-4)}
+.lg-foot b{color:var(--text-3)}
+
+/* 摘果气泡 */
+.pick-pop{position:fixed;z-index:50;background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius-lg);padding:14px 16px;width:300px;box-shadow:0 14px 40px rgba(0,0,0,.35);display:none}
+.pick-pop.show{display:block;animation:pop var(--dur-slow) cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{transform:scale(.92) translateY(6px);opacity:0}to{transform:none;opacity:1}}
+.pick-pop h4{margin:0 0 6px;font-size:13px}
+.pick-pop p{margin:0 0 12px;font-size:12px;color:var(--text-2)}
+.pick-pop .row{display:flex;gap:8px}
+
+/* 年轮 */
+.rings-caption{position:absolute;left:22px;bottom:14px;font-size:12px;color:var(--text-2);max-width:430px}
+.rings-caption b{color:var(--text)}
+.ring-lb{font-size:11px;fill:var(--text-3)}
+
+/* 审核信息条 */
+.proto-note{flex:none;border-top:1px solid var(--border);padding:8px 22px;font-size:11px;color:var(--text-4);display:flex;gap:14px;flex-wrap:wrap;background:var(--surface)}
+.proto-note .tag{border:1px solid var(--border-strong);border-radius:4px;padding:0 6px;font-weight:700;color:var(--text-3)}
+.proto-note .g1{color:var(--accent-ink);border-color:var(--accent)}
+.proto-note b{color:var(--text-3)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:76px;transform:translateX(-50%) translateY(10px);background:var(--surface-3);
+  border:1px solid var(--border-strong);color:var(--text);border-radius:var(--radius-md);padding:8px 16px;
+  font-size:12px;font-weight:600;opacity:0;pointer-events:none;transition:all var(--dur-slow);z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+/* 入口示意弹窗（知源树 = 二级页面：画像洞察 / 方向台 左上角进入） */
+.entry-pop{position:fixed;z-index:55;left:50%;top:50%;transform:translate(-50%,-50%);width:660px;max-width:92vw;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-lg);
+  box-shadow:0 24px 64px rgba(0,0,0,.4);padding:20px 22px;display:none}
+.entry-pop.show{display:block;animation:pop var(--dur-slow) cubic-bezier(.2,.9,.3,1.2)}
+.entry-pop h3{margin:0 0 4px;font-size:15px}
+.entry-pop .sub{font-size:11px;color:var(--text-4);margin-bottom:14px}
+.mock-row{display:flex;gap:14px}
+.mock{flex:1;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--bg)}
+.mock-bar{padding:6px 9px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text-4);display:flex;gap:6px;align-items:center}
+.mock-bar i{width:8px;height:8px;border-radius:2px;background:var(--accent);opacity:.7}
+.mock-body{padding:10px 9px;display:flex;gap:6px;align-items:center;min-height:56px}
+.mock-btn{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--accent-ink);
+  background:var(--accent-light);border:1px solid var(--accent);border-radius:999px;padding:2px 9px}
+.mock-body .after{font-size:10px;color:var(--text-4)}
+.mock-cap{padding:7px 9px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border)}
+.mock-cap b{color:var(--text)}
+.entry-close{margin-top:14px;display:flex;justify-content:flex-end}
+</style>
+</head>
+<body>
+
+<!-- 顶栏：示意「知源树」在产品导航中的位置（二级页面 /tree，顶栏不设常驻页签） -->
+<div class="topbar">
+  <div class="brand" id="brandArea" title="品牌区 · 进入画像洞察"><span class="logo">知</span>知源 ownway</div>
+  <div class="nav"><span>调度台</span><span>方向台</span><span id="navProfile" style="cursor:pointer" title="画像洞察页左上角有知源树入口">画像洞察</span><span class="ghost-new">＋</span></div>
+  <div class="sp"></div>
+  <span class="kbd-note">入口：品牌区 → <b>画像洞察</b> 左上角 · <b>方向台</b> 左上角 · 知源树为<b>二级页面</b>（/tree）</span>
+</div>
+
+<!-- 页头 -->
+<div class="pagehead">
+  <div>
+    <div class="ph-title">知源树 <span style="color:var(--text-3);font-weight:600;font-size:12px">/ 2026年11月</span></div>
+    <div class="ph-sub">万千可调用，终有一棵自己的树 —— 六层数据的只读镜像，行为即滋养</div>
+  </div>
+  <div class="sp"></div>
+  <div class="seg" id="modeSeg">
+    <button data-m="now" class="on">现在</button>
+    <button data-m="replay">回放</button>
+    <button data-m="rings">年轮</button>
+  </div>
+  <button class="tool-btn" id="digBtn" title="拨开土层，看见根与休眠的种子">🌱 拨土</button>
+  <button class="tool-btn" id="ledgerBtn">生长账本</button>
+  <button class="tool-btn" id="entryBtn">入口示意</button>
+  <button class="tool-btn" id="exportBtn" title="原型内未实装">⤓ 导出</button>
+  <div class="theme-dots" title="四主题 = 四种天光">
+    <button class="tdot on" data-t="dusk" title="深空暮蓝"></button>
+    <button class="tdot" data-t="paper" title="纸墨林间"></button>
+    <button class="tdot" data-t="night" title="光速夜黑"></button>
+    <button class="tdot" data-t="dawn" title="极简晨白"></button>
+  </div>
+</div>
+
+<!-- 舞台 -->
+<div class="stage-wrap">
+  <div class="stage" id="stage"></div>
+  <div class="legend" id="legend"></div>
+  <div class="bottombar">
+    <div class="nourish" id="nourish"></div>
+    <div class="scrub-row" id="scrubRow">
+      <button class="play-btn" id="playBtn">▶ 重放来时路</button>
+      <input type="range" id="scrub" min="0" max="100" value="100">
+      <span class="scrub-date" id="scrubDate">2026-11-01</span>
+    </div>
+  </div>
+</div>
+
+<!-- 审核信息条 -->
+<div class="proto-note">
+  <span class="tag g1">G1 目标态 · 真实数据</span>
+  <span><b>本稿渲染你的真实数据包（2026-11-01 导出）</b>：3 战略目标 · 6 项目（2 主攻）· 15 指标 · 23 件挂枝任务 · 3 颗真实熟果 · 10 只空枝花苞 · 7 颗好奇种子 · 8 片散叶（未归档）</span>
+  <span><b>枝干粗细数据驱动</b>：对比「workbuddy 培训（7 件）」与「武汉政策（2 件）」的枝差；「软硬一体（主攻·0%）」真实呈现为主攻但未动</span>
+  <span class="tag">隐私</span><span>本稿含真实个人数据，仅本地审阅，不入公共仓库</span>
+  <span class="tag">审核稿 V3</span><span>2026-11-01</span>
+</div>
+
+<!-- 详情抽屉 -->
+<aside class="drawer" id="drawer">
+  <div class="dr-head">
+    <span class="dr-kind" id="drKind">叶 · 任务</span>
+    <div class="dr-title" id="drTitle">—</div>
+  </div>
+  <div class="dr-body" id="drBody"></div>
+  <div class="dr-foot">
+    <button class="btn" id="drClose">关闭（Esc）</button>
+    <button class="btn primary" id="drGo">去方向台查看真身 ›</button>
+  </div>
+  <div class="mask-tip">知源树只读不写：所有编辑都在方向台 / 各详情抽屉完成，回到这里刷新即见新形态。</div>
+</aside>
+
+<!-- 生长账本 -->
+<aside class="ledger" id="ledger">
+  <div class="lg-head">
+    <span class="dr-kind">生长账本 · 今日滋养</span>
+    <h3>今天，你落下了什么</h3>
+    <div class="lg-note">形态 = f（六层结构，行为时间戳）。公式全透明：每一条行为 → 每一分形态。没有连续天数，没有等级，没有排行。</div>
+  </div>
+  <div class="lg-body" id="lgBody"></div>
+  <div class="lg-foot"><b>镜子不鞭子</b>：账本只如实记录滋养，不做任何催促；停滞的枝头只转黄，不审判。</div>
+</aside>
+
+<!-- 摘果气泡 -->
+<div class="pick-pop" id="pickPop">
+  <h4>把这条指标的成果策展出来？</h4>
+  <p id="pickText">—</p>
+  <div class="row">
+    <button class="btn" id="pickCancel">再长一会儿</button>
+    <button class="btn primary" id="pickGo">摘果 · 去策展台 ›</button>
+  </div>
+</div>
+
+<!-- 入口示意弹窗 -->
+<div class="entry-pop" id="entryPop">
+  <h3>「知源树」入口 · 二级页面（/tree）</h3>
+  <div class="sub">顶栏不设常驻页签；两处入口均在台面左上角，点击即进入知源树。</div>
+  <div class="mock-row">
+    <div class="mock">
+      <div class="mock-bar"><i></i>画像洞察 · 页头左上角</div>
+      <div class="mock-body"><span class="mock-btn">🌳 知源树</span><span class="after">← 左上角 · 与「数字体检」互链</span></div>
+      <div class="mock-cap"><b>画像洞察</b>：看数字 → 画像，看自己 → 知源树</div>
+    </div>
+    <div class="mock">
+      <div class="mock-bar"><i></i>方向台 · 左上角</div>
+      <div class="mock-body"><span class="mock-btn">🌳 知源树</span><span class="after">← 与「项目塔 / 项目全景」并列的第三种看法</span></div>
+      <div class="mock-cap"><b>方向台</b>：工作面编辑真源，知源树是其映照面</div>
+    </div>
+  </div>
+  <div class="entry-close"><button class="btn" id="entryClose" style="flex:none;padding:6px 16px">知道了</button></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ═══════════════ 示例数据（取自真实使用场景） ═══════════════ */
+const DATA = {
+  "vision": "有钱有闲有智慧的平凡人",
+  "mission": "贡献自己的时间精力研究的成果，开源",
+  "seededAt": "2026-08-31",
+  "now": "2026-11-01",
+  "goals": [
+    {
+      "name": "产品全生命周期管理专家",
+      "created": "2026-08-31",
+      "projects": [
+        {
+          "name": "知源产品打造与销售",
+          "focus": false,
+          "progress": 0.75,
+          "created": "2026-08-31",
+          "metrics": [
+            {
+              "title": "知源产品上线并使用",
+              "acceptance": "",
+              "target": "",
+              "progress": 1.0,
+              "created": "2026-08-31",
+              "tasks": [
+                {
+                  "title": "上架到github上",
+                  "status": "done",
+                  "created": "2026-08-31",
+                  "doneAt": "2026-09-04"
+                },
+                {
+                  "title": "形成可安装压缩包",
+                  "status": "done",
+                  "created": "2026-08-31",
+                  "doneAt": "2026-09-04"
+                },
+                {
+                  "title": "知源工作台命名在思考",
+                  "status": "done",
+                  "created": "2026-09-04",
+                  "doneAt": "2026-09-05"
+                }
+              ]
+            },
+            {
+              "title": "知源产品销售材料",
+              "acceptance": "",
+              "target": "",
+              "progress": 0.0,
+              "created": "2026-10-31",
+              "tasks": [
+                {
+                  "title": "制作知源产品介绍PPT",
+                  "status": "todo",
+                  "created": "2026-10-31",
+                  "doneAt": null
+                }
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "title": "上架到github上",
+              "status": "done",
+              "created": "2026-08-31",
+              "doneAt": "2026-09-04"
+            },
+            {
+              "title": "形成可安装压缩包",
+              "status": "done",
+              "created": "2026-08-31",
+              "doneAt": "2026-09-04"
+            },
+            {
+              "title": "知源工作台命名在思考",
+              "status": "done",
+              "created": "2026-09-04",
+              "doneAt": "2026-09-05"
+            },
+            {
+              "title": "制作知源产品介绍PPT",
+              "status": "todo",
+              "created": "2026-10-31",
+              "doneAt": null
+            }
+          ]
+        },
+        {
+          "name": "软硬一体服务系统解决方案",
+          "focus": true,
+          "progress": 0.0,
+          "created": "2026-09-01",
+          "metrics": [
+            {
+              "title": "产品解决方案",
+              "acceptance": "",
+              "target": "",
+              "progress": 0.0,
+              "created": "2026-09-01",
+              "tasks": [
+                {
+                  "title": "把硬件+软件+服务的一体机业务，做成标准化解决方案，搞场景，做销售工具，自己去讲。",
+                  "status": "todo",
+                  "created": "2026-09-01",
+                  "doneAt": null
+                }
+              ]
+            },
+            {
+              "title": "产品销售工具包",
+              "acceptance": "",
+              "target": "",
+              "progress": 0.0,
+              "created": "2026-09-20",
+              "tasks": [
+                {
+                  "title": "梳理产品核心卖点清单",
+                  "status": "todo",
+                  "created": "2026-09-20",
+                  "doneAt": null
+                },
+                {
+                  "title": "制作产品介绍PPT模板",
+                  "status": "todo",
+                  "created": "2026-09-20",
+                  "doneAt": null
+                }
+              ]
+            },
+            {
+              "title": "产品解决方案文档完成 3 版",
+              "acceptance": "每版包含系统架构图、软硬件接口说明、部署指南，且通过内部评审（评审得分≥80分）",
+              "target": "2026-12-20 前完成 3 版",
+              "progress": 0.0,
+              "created": "2026-10-29",
+              "tasks": [
+                {
+                  "title": "梳理一体机产品解决方案",
+                  "status": "todo",
+                  "created": "2026-10-29",
+                  "doneAt": null
+                }
+              ]
+            },
+            {
+              "title": "产品销售工具包包含 5 类材料",
+              "acceptance": "包含产品彩页、演示视频、报价模板、常见问题FAQ、竞品对比表，每类材料有明确负责人并上传至共享库",
+              "target": "2026-11-20 前完成 5 类材料",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "完成 2 个客户验证案例",
+              "acceptance": "每个案例包含客户需求文档、解决方案实施记录、客户反馈报告，且客户满意度评分≥4.5/5",
+              "target": "2027-01-20 前完成 2 个案例",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            }
+          ],
+          "tasks": [
+            {
+              "title": "把硬件+软件+服务的一体机业务，做成标准化解决方案，搞场景，做销售工具，自己去讲。",
+              "status": "todo",
+              "created": "2026-09-01",
+              "doneAt": null
+            },
+            {
+              "title": "梳理产品核心卖点清单",
+              "status": "todo",
+              "created": "2026-09-20",
+              "doneAt": null
+            },
+            {
+              "title": "制作产品介绍PPT模板",
+              "status": "todo",
+              "created": "2026-09-20",
+              "doneAt": null
+            },
+            {
+              "title": "梳理一体机产品解决方案",
+              "status": "todo",
+              "created": "2026-10-29",
+              "doneAt": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "教育+AI专家",
+      "created": "2026-09-11",
+      "projects": [
+        {
+          "name": "教育+AI行业地图研究",
+          "focus": true,
+          "progress": 0.0,
+          "created": "2026-09-21",
+          "metrics": [
+            {
+              "title": "对行业现状如数家珍",
+              "acceptance": "",
+              "target": "",
+              "progress": 0.0,
+              "created": "2026-09-21",
+              "tasks": [
+                {
+                  "title": "整理教育+AI头部公司清单",
+                  "status": "todo",
+                  "created": "2026-09-21",
+                  "doneAt": null
+                },
+                {
+                  "title": "精读2篇行业报告并做摘要",
+                  "status": "todo",
+                  "created": "2026-09-21",
+                  "doneAt": null
+                },
+                {
+                  "title": "梳理主流商业模式分类",
+                  "status": "todo",
+                  "created": "2026-09-21",
+                  "doneAt": null
+                },
+                {
+                  "title": "汇总近一周行业新闻关键点",
+                  "status": "todo",
+                  "created": "2026-09-21",
+                  "doneAt": null
+                }
+              ]
+            },
+            {
+              "title": "撰写行业分析报告3篇",
+              "acceptance": "",
+              "target": "",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            }
+          ],
+          "tasks": [
+            {
+              "title": "整理教育+AI头部公司清单",
+              "status": "todo",
+              "created": "2026-09-21",
+              "doneAt": null
+            },
+            {
+              "title": "精读2篇行业报告并做摘要",
+              "status": "todo",
+              "created": "2026-09-21",
+              "doneAt": null
+            },
+            {
+              "title": "梳理主流商业模式分类",
+              "status": "todo",
+              "created": "2026-09-21",
+              "doneAt": null
+            },
+            {
+              "title": "汇总近一周行业新闻关键点",
+              "status": "todo",
+              "created": "2026-09-21",
+              "doneAt": null
+            }
+          ]
+        },
+        {
+          "name": "武汉地区教育政策研究",
+          "focus": false,
+          "progress": 1.0,
+          "created": "2026-09-11",
+          "metrics": [
+            {
+              "title": "全域学校数据库",
+              "acceptance": "",
+              "target": "",
+              "progress": 1.0,
+              "created": "2026-09-11",
+              "tasks": [
+                {
+                  "title": "构建最新武汉K12学校数据库",
+                  "status": "done",
+                  "created": "2026-09-11",
+                  "doneAt": "2026-09-14"
+                }
+              ]
+            },
+            {
+              "title": "武汉升学政策数据库",
+              "acceptance": "",
+              "target": "",
+              "progress": 1.0,
+              "created": "2026-09-11",
+              "tasks": [
+                {
+                  "title": "采集武汉本地教育政策",
+                  "status": "done",
+                  "created": "2026-09-11",
+                  "doneAt": "2026-09-14"
+                }
+              ]
+            },
+            {
+              "title": "武汉教育政策分析报告完成 3 份",
+              "acceptance": "每份报告包含政策背景、数据支撑、影响分析与建议，公开发布于开源仓库或公众号，且通过自检清单（含引用来源、量化数据）",
+              "target": "2026-12-31 前完成 3 份，每份≥2000字",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "武汉升学政策数据库覆盖 13 个行政区",
+              "acceptance": "数据库条目含政策名称、发布机构、生效日期、核心内容摘要、原始链接，且通过数据完整性抽查（每条字段完整率100%）",
+              "target": "2026-12-31 前覆盖全部 13 个行政区，每区至少 5 条政策条目",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "基于政策研究成果的开源贡献≥ 5 次",
+              "acceptance": "每commit含代码/数据/文档非空改动，且附带说明文件，仓库获得至少 1 个外部star或fork",
+              "target": "2026-12-31 前在开源仓库提交 5 次以上高质量commit（含数据更新、分析代码、文档）",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            }
+          ],
+          "tasks": [
+            {
+              "title": "构建最新武汉K12学校数据库",
+              "status": "done",
+              "created": "2026-09-11",
+              "doneAt": "2026-09-14"
+            },
+            {
+              "title": "采集武汉本地教育政策",
+              "status": "done",
+              "created": "2026-09-11",
+              "doneAt": "2026-09-14"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI知识管理+内容生产专家",
+      "created": "2026-09-01",
+      "projects": [
+        {
+          "name": "内容生产工程",
+          "focus": false,
+          "progress": 0.5,
+          "created": "2026-09-03",
+          "metrics": [
+            {
+              "title": "公众号1W",
+              "acceptance": "",
+              "target": "",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "小红书1W",
+              "acceptance": "",
+              "target": "",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "skill地图集完成 3 个可复用技能模块",
+              "acceptance": "每个模块包含：技能说明、操作流程、示例输出，且已开源发布到仓库，并附有使用文档。",
+              "target": "2026-10-20 前完成 3 个模块",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "公众号文章发布 10 篇，平均阅读量达 1000",
+              "acceptance": "发布 10 篇原创文章，后台数据统计平均阅读量≥1000，且每篇均有至少 1 条有效评论。",
+              "target": "2026-11-20 前发布 10 篇，平均阅读量 ≥1000",
+              "progress": 0,
+              "created": null,
+              "tasks": []
+            },
+            {
+              "title": "小红书笔记发布 15 篇，累计获赞 5000",
+              "acceptance": "发布 15 篇图文或视频笔记，后台数据累计获赞≥5000，且每篇笔记均带话题标签。",
+              "target": "2026-11-20 前发布 15 篇，累计获赞 ≥5000",
+              "progress": 0.5,
+              "created": "2026-09-03",
+              "tasks": [
+                {
+                  "title": "obsidian工作流",
+                  "status": "todo",
+                  "created": "2026-09-03",
+                  "doneAt": null
+                },
+                {
+                  "title": "研究栋哥的skill",
+                  "status": "done",
+                  "created": "2026-09-15",
+                  "doneAt": "2026-09-19"
+                }
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "title": "obsidian工作流",
+              "status": "todo",
+              "created": "2026-09-03",
+              "doneAt": null
+            },
+            {
+              "title": "研究栋哥的skill",
+              "status": "done",
+              "created": "2026-09-15",
+              "doneAt": "2026-09-19"
+            }
+          ]
+        },
+        {
+          "name": "workbuddy培训项目",
+          "focus": false,
+          "progress": 0.286,
+          "created": "2026-09-01",
+          "metrics": [
+            {
+              "title": "教程文章20篇",
+              "acceptance": "",
+              "target": "",
+              "progress": 0.4,
+              "created": "2026-09-01",
+              "tasks": [
+                {
+                  "title": "研究workbuddy",
+                  "status": "doing",
+                  "created": "2026-09-01",
+                  "doneAt": null
+                },
+                {
+                  "title": "AI Agent概念梳理，构建认知基础",
+                  "status": "todo",
+                  "created": "2026-09-03",
+                  "doneAt": null
+                },
+                {
+                  "title": "招聘网站上抓一下workbuddy培训相关的需求和要求，通过岗位分析。",
+                  "status": "done",
+                  "created": "2026-09-01",
+                  "doneAt": "2026-09-07"
+                },
+                {
+                  "title": "继续拆解Agent相关概念",
+                  "status": "done",
+                  "created": "2026-09-11",
+                  "doneAt": "2026-09-14"
+                },
+                {
+                  "title": "用workbuddy解决职场办公的100个方案",
+                  "status": "todo",
+                  "created": "2026-09-14",
+                  "doneAt": null
+                }
+              ]
+            },
+            {
+              "title": "课程产品研发",
+              "acceptance": "",
+              "target": "",
+              "progress": 0.0,
+              "created": "2026-09-08",
+              "tasks": [
+                {
+                  "title": "搭建课程产品V1.0",
+                  "status": "todo",
+                  "created": "2026-09-08",
+                  "doneAt": null
+                },
+                {
+                  "title": "AI 培训： 推荐得到大脑——我的邀请链接 推荐微信输入法，豆包输入法 做微信表情包，做证件…",
+                  "status": "todo",
+                  "created": "2026-09-20",
+                  "doneAt": null
+                }
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "title": "研究workbuddy",
+              "status": "doing",
+              "created": "2026-09-01",
+              "doneAt": null
+            },
+            {
+              "title": "AI Agent概念梳理，构建认知基础",
+              "status": "todo",
+              "created": "2026-09-03",
+              "doneAt": null
+            },
+            {
+              "title": "招聘网站上抓一下workbuddy培训相关的需求和要求，通过岗位分析。",
+              "status": "done",
+              "created": "2026-09-01",
+              "doneAt": "2026-09-07"
+            },
+            {
+              "title": "继续拆解Agent相关概念",
+              "status": "done",
+              "created": "2026-09-11",
+              "doneAt": "2026-09-14"
+            },
+            {
+              "title": "用workbuddy解决职场办公的100个方案",
+              "status": "todo",
+              "created": "2026-09-14",
+              "doneAt": null
+            },
+            {
+              "title": "搭建课程产品V1.0",
+              "status": "todo",
+              "created": "2026-09-08",
+              "doneAt": null
+            },
+            {
+              "title": "AI 培训： 推荐得到大脑——我的邀请链接 推荐微信输入法，豆包输入法 做微信表情包，做证件…",
+              "status": "todo",
+              "created": "2026-09-20",
+              "doneAt": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "curiosities": [
+    {
+      "title": "大家每天上班的时候，真正消耗时间的根本不是写方案，而是找文件、回消息、对数据、同步进…",
+      "status": "seed",
+      "created": "2026-08-31"
+    },
+    {
+      "title": "去研究整个教育行业都在做什么，K12阶段的教育+人工智能，高校的教育+人工智能，然后…",
+      "status": "dormant",
+      "created": "2026-09-01"
+    },
+    {
+      "title": "朋友告诉我：用 WorkBuddy 配上这10个开源库赚了 8000 块 别再把AI…",
+      "status": "seed",
+      "created": "2026-09-19"
+    },
+    {
+      "title": "微信公众号文章封面要设计成 3.35:1，而不是按照默认的 2.35:1",
+      "status": "seed",
+      "created": "2026-09-21"
+    },
+    {
+      "title": "在个人事业上，升学咨询规划是主线，但这是面向 C 端的。我核心的研究点还是学习方法、…",
+      "status": "seed",
+      "created": "2026-09-25"
+    },
+    {
+      "title": "对标任务：视频号，教育理念，生活化 可以和我的全职奶爸，AI教育相对标",
+      "status": "seed",
+      "created": "2026-09-26"
+    },
+    {
+      "title": "吉大秋果老师，围绕批判性思维，挣钱做的内容，正好是我想要做的。我认可的。所以后续可以…",
+      "status": "seed",
+      "created": "2026-09-29"
+    }
+  ],
+  "today": {
+    "inc": 266,
+    "call": 450,
+    "done": 9,
+    "orph": 8,
+    "l7t": 2,
+    "l7r": 5
+  },
+  "orphans": [
+    "拆解豆包自媒体创作系统案例",
+    "构建行业术语表（20个核心词）",
+    "设计解决方案报价模板",
+    "录制产品演示或解说音频",
+    "收集产品素材与截图",
+    "产品的视频介绍",
+    "一页纸销售工具",
+    "用户故事说明-使用案例-策展"
+  ],
+  "rings": [
+    {
+      "label": "8月",
+      "width": 18,
+      "goal": 0,
+      "note": "214 张资源卡入库 · 知源上线三件套完成"
+    },
+    {
+      "label": "9月",
+      "width": 26,
+      "goal": 2,
+      "note": "65 件任务铺开六层 · 武汉两库落地"
+    },
+    {
+      "label": "10月",
+      "width": 10,
+      "goal": 0,
+      "note": "产品介绍 PPT 启动 · 蓄力过冬"
+    }
+  ],
+  "ledger": [
+    {
+      "ic": "✓",
+      "t": "完成 9 件任务（8/31 – 10/31）",
+      "e": "首颗硕果来自「知源产品上线并使用」：<em>上架 GitHub · 安装包 · 命名</em> 三叶齐落"
+    },
+    {
+      "ic": "≈",
+      "t": "入台 266 张资源卡（8月 214 · 9月 46 · 10月 6）",
+      "e": "降雨 <em>266 次</em> · 根域养分持续沉淀"
+    },
+    {
+      "ic": "↗",
+      "t": "调用 450 次",
+      "e": "Top：<em>嘉兴数字城市实验室 V8.0SP… ×83</em> · opencode ×18 · X ×16"
+    },
+    {
+      "ic": "✦",
+      "t": "23 件任务挂枝（20 待开始 · 2 进行 · 5 条指标受益）",
+      "e": "8 件<em>未归档</em>散在根部——挂上指标即上枝"
+    },
+    {
+      "ic": "🌰",
+      "t": "留下好奇 7 颗（1 颗已搁置休眠）",
+      "e": "种子不催促：<em>转化即出路</em>"
+    }
+  ]
+};
+
+/* ═══════════════ 工具 ═══════════════ */
+function rng(seed){ let a = seed >>> 0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; } }
+const fmtD = s => s; // 数据里已是 YYYY-MM-DD
+const $ = id => document.getElementById(id);
+let toastTimer;
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); }
+
+/* ═══════════════ 主题 ═══════════════ */
+document.querySelectorAll('.tdot').forEach(b => b.addEventListener('click', () => {
+  document.documentElement.dataset.theme = b.dataset.t;
+  document.querySelectorAll('.tdot').forEach(x => x.classList.toggle('on', x === b));
+  toast(({dusk:'深空暮蓝',paper:'纸墨林间',night:'光速夜黑',dawn:'极简晨白'})[b.dataset.t] + ' · 同一棵树，另一种天光');
+  render();
+}));
+
+/* ═══════════════ 时间轴（回放） ═══════════════ */
+const T0 = new Date(DATA.seededAt).getTime(), T1 = new Date(DATA.now).getTime();
+let curDate = T1;
+function dateOf(v){ return new Date(T0 + (T1 - T0) * v / 100); }
+function fmtDate(d){ const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()); }
+const inScope = (created, at) => new Date(created) <= at;
+/* 指标在 at 时点的进度：线性从 created 长到（maturedAt 或 now） */
+function progressAt(m, at){
+  if (!inScope(m.created, at)) return 0;
+  const end = m.maturedAt && new Date(m.maturedAt) <= at ? m.maturedAt : DATA.now;
+  const full = new Date(end).getTime() - new Date(m.created).getTime();
+  if (full <= 0) return m.progress;
+  return Math.min(m.progress, (at.getTime() - new Date(m.created).getTime()) / full * m.progress);
+}
+
+/* ═══════════════ 树渲染（线构 · 确定性形态） ═══════════════ */
+const W = 1440, H = 840, GY = 600, BX = 720;
+const GOAL_HUES = ['82%', '64%', '46%']; // 对齐产品 HUES 惯例：accent 的色相变体（color-mix）
+const leafColor = { done: 'var(--success)', doing: 'var(--accent-ink)', todo: 'var(--text-4)', stale: 'var(--warning)' };
+const STATUS_LB = { done: '已完成', doing: '进行中', todo: '待开始', stale: '停滞 14 天+' };
+const CUR_LB = { seed: '待探索 · 种子', sprout: '探索中 · 破土', proven: '已求证 · 新梢', dormant: '已搁置 · 休眠' };
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function px(n){ return Math.round(n * 10) / 10; }
+
+function buildState(at){
+  const goals = DATA.goals.map((g, gi) => ({
+    name: g.name, created: g.created, gi,
+    projects: g.projects.map(p => ({
+      name: p.name, focus: p.focus, created: p.created, gi,
+      progress: inScope(p.created, at) ? progressAt({ created: p.created, progress: p.progress, maturedAt: null }, at) : 0,
+      metrics: p.metrics.filter(m => inScope(m.created, at)).map(m => ({ ...m, cur: progressAt(m, at) })),
+      tasks: p.tasks.filter(t => inScope(t.created, at)),
+    })).filter(p => inScope(p.created, at)),
+  })).filter(g => inScope(g.created, at));
+  const curiosities = DATA.curiosities.filter(c => inScope(c.created, at));
+  return { goals, curiosities };
+}
+
+function leafShape(x, y, ang, size, color, glow, taskId, title, status){
+  const g = ['<g class="hit" data-kind="task" data-id="' + esc('t' + taskId) + '" transform="translate(' + px(x) + ',' + px(y) + ') rotate(' + px(ang) + ')">'];
+  g.push('<title>叶 · 任务｜' + esc(title) + '（' + STATUS_LB[status] + '）</title>');
+  if (glow) g.push('<circle r="8" fill="var(--accent)" opacity=".14"/>');
+  g.push('<path class="leaf" d="M0 0 C ' + px(size*.9) + ' ' + px(-size*.55) + ', ' + px(size*.9) + ' ' + px(-size*1.5) + ', 0 ' + px(-size*2.1) + ' C ' + px(-size*.9) + ' ' + px(-size*1.5) + ', ' + px(-size*.9) + ' ' + px(-size*.55) + ', 0 0 Z" fill="' + color + '" opacity=".92"/>');
+  g.push('<line x1="0" y1="-2" x2="0" y2="' + px(-size*1.8) + '" stroke="var(--bg)" stroke-width=".7" opacity=".55"/>');
+  g.push('</g>');
+  return g.join('');
+}
+function fruitShape(x, y, r, color, dashed, kind, id, title, extra){
+  const g = ['<g class="hit" data-kind="' + kind + '" data-id="' + esc(id) + '">'];
+  g.push('<title>' + esc(extra) + '</title>');
+  g.push('<circle class="fruit" cx="' + px(x) + '" cy="' + px(y) + '" r="' + px(r) + '" fill="' + (dashed ? 'none' : color) + '" ' + (dashed ? 'stroke="var(--text-4)" stroke-dasharray="2 2.5" stroke-width="1"' : '') + '/>');
+  if (!dashed) g.push('<line x1="' + px(x) + '" y1="' + px(y - r) + '" x2="' + px(x + 2) + '" y2="' + px(y - r - 4) + '" stroke="var(--bark)" stroke-width="1"/>');
+  g.push('</g>');
+  return g.join('');
+}
+
+function renderTreeSVG(state, at){
+  const S = [];
+  const growth = Math.max(.12, (at.getTime() - T0) / (T1 - T0)); // 干的生长系数
+  const doneTotal = state.goals.reduce((s, g) => s + g.projects.reduce((s2, p) => s2 + p.tasks.filter(t => t.status === 'done').length, 0), 0);
+
+  S.push('<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">');
+  /* 地平线 */
+  S.push('<line x1="60" y1="' + GY + '" x2="' + (W-60) + '" y2="' + GY + '" stroke="var(--border-strong)" stroke-width="1"/>');
+  /* 土层 */
+  S.push('<g class="soil-g">');
+  S.push('<rect x="0" y="' + (GY+1) + '" width="' + W + '" height="' + (H-GY-1) + '" fill="var(--soil)"/>');
+  const sr = rng(7);
+  for (let i = 0; i < 130; i++) S.push('<circle cx="' + px(sr()*W) + '" cy="' + px(GY + 12 + sr()*(H-GY-26)) + '" r="' + px(.8 + sr()*1.3) + '" fill="var(--soil-dot)"/>');
+  S.push('<text x="24" y="' + (GY+22) + '" class="tip-line">土层 · 根系与休眠的种子都在这里（点右上「拨土」显形）</text>');
+  S.push('</g>');
+
+  /* 根系（拨土显形）+ 种子 */
+  S.push('<g class="root-g">');
+  const rr = rng(21);
+  const rootDefs = [[-14,-88],[-5,-150],[6,-96],[16,-140],[24,-64]];
+  rootDefs.forEach((rd, i) => {
+    const ex = BX + rd[0] + (rr()-.5)*20, ey = GY + Math.min(210, -rd[1] * (.55 + growth*.45));
+    S.push('<path d="M' + BX + ' ' + (GY+2) + ' C ' + px(BX + rd[0]*.4) + ' ' + px(GY+40) + ', ' + px(ex) + ' ' + px(GY+70) + ', ' + px(ex) + ' ' + px(ey) + '" stroke="var(--bark-2)" stroke-width="' + px(3.4 - i*.5) + '" fill="none" stroke-linecap="round"/>');
+    for (let k = 1; k <= 2; k++){
+      const mx = BX + (ex-BX)*k/3, my = GY + (ey-GY)*k/3;
+      S.push('<path d="M' + px(mx) + ' ' + px(my) + ' q ' + px((rr()-.5)*50) + ' ' + px(14 + rr()*18) + ', ' + px((rr()-.5)*70) + ' ' + px(20 + rr()*26) + '" stroke="var(--bark-2)" stroke-width="1.1" fill="none" opacity=".8"/>');
+    }
+  });
+  S.push('<text x="' + (BX-160) + '" y="' + (H-26) + '" class="tip-line" fill="var(--text-3)">根 · 愿景：' + esc(DATA.vision) + '</text>');
+  S.push('<text x="' + (BX-160) + '" y="' + (H-10) + '" class="tip-line">主根 · 使命：' + esc(DATA.mission) + '</text>');
+  /* 好奇心种子 */
+  const cs = rng(33);
+  state.curiosities.forEach((c, i) => {
+    const x = 120 + i * 108 + cs()*30, y = GY + 16 + cs()*10;
+    const col = c.status === 'exploring' ? 'var(--accent-ink)' : c.status === 'proven' ? 'var(--success)' : 'var(--text-3)';
+    const glow = c.status === 'exploring' || c.status === 'sprout';
+    S.push('<g class="hit" data-kind="curio" data-id="' + i + '">');
+    S.push('<title>种子 · 好奇心｜' + esc(c.title) + '（' + CUR_LB[c.status] + '）</title>');
+    if (glow) S.push('<circle cx="' + px(x) + '" cy="' + px(y) + '" r="7" fill="var(--accent)" opacity=".18"/>');
+    if (c.status === 'sprout' || c.status === 'proven') S.push('<path d="M' + px(x) + ' ' + px(y) + ' q 1 -6 4 -9" stroke="' + col + '" stroke-width="1.4" fill="none"/>');
+    S.push('<circle class="seed" cx="' + px(x) + '" cy="' + px(y) + '" r="3" fill="' + col + '"/>');
+    S.push('</g>');
+  });
+
+  /* 散叶 · 未归档任务（真实数据）：挂在根部，待归位上枝 */
+  S.push('<g class="hit" data-kind="orphans" data-id="0">');
+  S.push('<title>散叶 · 未归档任务｜' + DATA.orphans.length + ' 件待归位（点开看清单）</title>');
+  const orr = rng(91);
+  DATA.orphans.forEach(function(o, i){
+    const ox = BX + 62 + (i % 4) * 16 + orr() * 8, oy = GY - 4 - Math.floor(i / 4) * 11 - orr() * 5;
+    S.push('<path d="M' + px(ox) + ' ' + px(oy) + ' q 3 -2.4 0.8 -8 q -3 2.4 -0.8 8 Z" fill="var(--text-4)" opacity=".8"/>');
+  });
+  S.push('<text x="' + px(BX + 56) + '" y="' + px(GY + 16) + '" class="tip-line">散叶 · 未归档任务 ' + DATA.orphans.length + ' 件（挂上指标即上枝）</text>');
+  S.push('</g>');
+  S.push('</g>');
+
+  /* ═══ 参天形态（V2）：根冠比 · 三级分枝 · 树冠体量 ═══
+     干=使命 · 主枝=战略目标 · 分枝=项目 · 果柄=指标 · 叶=任务 · 冠团=完成与养分的沉淀
+     ★粗细全部数据驱动：干 ∝ 全树任务量与分支数；主枝 ∝ 其下项目数+任务数；分枝 ∝ 其上任务数+指标数（用户 2026-11-01 拍板） */
+  const totalTasks = state.goals.reduce((s, g) => s + g.projects.reduce((s2, p) => s2 + p.tasks.length, 0), 0);
+  const topY = GY - 205 * (0.5 + growth * 0.5);
+  const trunkW = 8 + Math.min(13, totalTasks * .16 + state.goals.length * .7 + doneTotal * .12) * (0.5 + growth * .5);
+  S.push('<g class="sway">');
+  /* 干：两段锥度 + 树皮纹 + 根部外张 */
+  S.push('<path class="branch" d="M' + BX + ' ' + GY + ' C ' + (BX-10) + ' ' + px(GY-70) + ', ' + (BX+10) + ' ' + px(GY-130) + ', ' + BX + ' ' + px(GY-178) + '" stroke="var(--bark)" stroke-width="' + px(trunkW + 8) + '" fill="none" stroke-linecap="round"/>');
+  S.push('<path class="branch" d="M' + BX + ' ' + px(GY-172) + ' C ' + (BX+6) + ' ' + px((GY-172+topY)/2) + ', ' + (BX-6) + ' ' + px((GY-172+topY)/2) + ', ' + BX + ' ' + px(topY) + '" stroke="var(--bark)" stroke-width="' + px(trunkW) + '" fill="none" stroke-linecap="round"/>');
+  S.push('<path d="M' + BX + ' ' + px(GY-172) + ' C ' + (BX+6) + ' ' + px((GY-172+topY)/2) + ', ' + (BX-6) + ' ' + px((GY-172+topY)/2) + ', ' + BX + ' ' + px(topY) + '" stroke="var(--bark-2)" stroke-width="1" fill="none" opacity=".45"/>');
+  const brk = rng(55);
+  for (let i = 0; i < 3; i++) S.push('<path d="M' + px(BX - 5 + i * 5) + ' ' + px(GY - 26 - i * 52) + ' q ' + px(2 + brk() * 4) + ' ' + px(16) + ', ' + px((brk() - .5) * 7) + ' ' + px(38) + '" stroke="var(--bark-2)" stroke-width=".9" fill="none" opacity=".4"/>');
+  S.push('<path d="M' + px(BX - 9) + ' ' + px(GY - 44) + ' Q ' + px(BX - 32) + ' ' + px(GY - 10) + ', ' + px(BX - 50) + ' ' + px(GY + 2) + '" stroke="var(--bark)" stroke-width="' + px(trunkW * .8) + '" fill="none" stroke-linecap="round"/>');
+  S.push('<path d="M' + px(BX + 9) + ' ' + px(GY - 44) + ' Q ' + px(BX + 32) + ' ' + px(GY - 10) + ', ' + px(BX + 50) + ' ' + px(GY + 2) + '" stroke="var(--bark)" stroke-width="' + px(trunkW * .8) + '" fill="none" stroke-linecap="round"/>');
+
+  /* 布局预计算：主枝（战略目标，两段有机大枝）→ 分枝（项目）挂点与末端 */
+  const goals = state.goals;
+  const thetas = goals.length === 1 ? [0] : goals.map((g, i) => -0.98 + i * (1.96 / Math.max(1, goals.length - 1)));
+  const L1 = 200 + 58 * growth;
+  const layout = goals.map((g, gi) => {
+    const th = thetas[gi];
+    const sx = BX, sy = topY + 8;
+    const th2 = th * .72;
+    const e1x = BX + Math.sin(th) * L1, e1y = sy - Math.cos(th) * L1 * .8;
+    const e2x = e1x + Math.sin(th2) * 66, e2y = e1y - Math.cos(th2) * 66;
+    const n = g.projects.length;
+    const projects = g.projects.map((p, pi) => {
+      const thp = th * .58 + (pi - (n - 1) / 2) * .5;
+      const att = n === 1 ? .66 : .38 + pi * (.42 / Math.max(1, n - 1));
+      const psx = sx + (e2x - sx) * att, psy = sy + (e2y - sy) * att;
+      const plen = 58 + 84 * p.progress * (0.55 + growth * .45);
+      const pex = psx + Math.sin(thp) * plen, pey = psy - Math.cos(thp) * plen;
+      /* 枝粗数据化：分枝 ∝ 任务数 + 指标数（主攻略加粗） */
+      const tw = Math.min(4.8, 1.9 + p.tasks.length * .17 + p.metrics.length * .13 + (p.focus ? .35 : 0));
+      return { p, pi, thp, psx, psy, pex, pey, tw };
+    });
+    /* 主枝粗数据化：∝ 其下项目数 + 任务数 */
+    const tn = projects.reduce((s2, P2) => s2 + P2.p.tasks.length, 0);
+    const boughW = Math.min(8.5, 3.4 + projects.length * .5 + tn * .07);
+    return { g, gi, th, hueMix: GOAL_HUES[gi % GOAL_HUES.length], sx, sy, e1x, e1y, e2x, e2y, projects, boughW };
+  });
+  /* 第一遍：树冠（大团铺体量 + 叶簇铺质感 + 末梢小枝；先冠后枝） */
+  const pr = rng(77);
+  const leaflet = (x, y, ang, size, col, op) =>
+    '<path d="M' + px(x) + ' ' + px(y) + ' q ' + px(size * .8) + ' ' + px(-size * .5) + ', ' + px(size * .2) + ' ' + px(-size * 1.9) + ' q ' + px(-size * .8) + ' ' + px(size * .4) + ', ' + px(-size * .2) + ' ' + px(size * 1.9) + ' Z" fill="' + col + '" opacity="' + op + '" transform="rotate(' + px(ang) + ' ' + px(x) + ' ' + px(y) + ')"/>';
+  layout.forEach(L => {
+    const massCol = 'color-mix(in srgb, var(--accent) ' + L.hueMix + ', var(--surface-2))';
+    for (let k = 0; k < 3; k++){
+      const tt = .3 + k * .3;
+      S.push('<circle cx="' + px(L.sx + (L.e2x - L.sx) * tt + Math.sin(L.th) * 14) + '" cy="' + px(L.sy + (L.e2y - L.sy) * tt - 30 - k * 8) + '" r="' + px(40 + pr() * 16) + '" fill="' + massCol + '" opacity=".15"/>');
+    }
+    S.push('<circle cx="' + px(L.e2x) + '" cy="' + px(L.e2y - 34) + '" r="' + px(46 + pr() * 12) + '" fill="' + massCol + '" opacity=".17"/>');
+    L.projects.forEach(P => {
+      const doneN = P.p.tasks.filter(t => t.status === 'done').length;
+      const cnt = Math.min(12, 4 + doneN * 2 + P.p.metrics.length * 2);
+      for (let k = 0; k < cnt; k++){
+        const ang = pr() * Math.PI * 2, rad = 10 + pr() * 46;
+        const cxp = P.pex + Math.sin(ang) * rad, cyp = P.pey - 12 + Math.cos(ang) * rad * .58;
+        S.push('<circle cx="' + px(cxp) + '" cy="' + px(cyp) + '" r="' + px(14 + pr() * 20) + '" fill="' + (k % 3 === 0 ? 'var(--surface-3)' : massCol) + '" opacity="' + px(.17 + pr() * .15) + '"/>');
+      }
+      /* 叶簇：项目末端的细叶质感（园艺层，非数据叶） */
+      const lc = 7 + Math.round(pr() * 5);
+      for (let k = 0; k < lc; k++){
+        const ang = pr() * Math.PI * 2, rad = 8 + pr() * 40;
+        const lx2 = P.pex + Math.sin(ang) * rad, ly2 = P.pey - 10 + Math.cos(ang) * rad * .55;
+        const col = k % 3 === 0 ? 'var(--success)' : 'color-mix(in srgb, var(--accent) ' + L.hueMix + ', var(--success))';
+        S.push(leaflet(lx2, ly2, (pr() - .5) * 160, 3.6 + pr() * 2.4, col, px(.4 + pr() * .4)));
+      }
+      /* 末梢小枝 3 根 + 梢头叶 */
+      for (let k = 0; k < 3; k++){
+        const ta = P.thp + (k - 1) * .5;
+        const tl = 14 + pr() * 14;
+        S.push('<path d="M' + px(P.pex) + ' ' + px(P.pey) + ' q ' + px(Math.sin(ta) * tl * .6) + ' ' + px(-tl * .6) + ', ' + px(Math.sin(ta) * tl) + ' ' + px(-tl) + '" stroke="var(--bark-2)" stroke-width="1.2" fill="none" opacity=".9"/>');
+        S.push(leaflet(P.pex + Math.sin(ta) * tl, P.pey - tl, (pr() - .5) * 120, 4 + pr() * 2, 'color-mix(in srgb, var(--accent) ' + L.hueMix + ', var(--success))', px(.55 + pr() * .3)));
+      }
+    });
+  });
+
+  /* 第二遍：主枝（两段有机大枝） */
+  layout.forEach(L => {
+    const branchCol = 'color-mix(in srgb, var(--accent) ' + L.hueMix + ', var(--bark))';
+    S.push('<g class="hit" data-kind="goal" data-id="' + L.gi + '">');
+    S.push('<title>主枝 · 战略目标｜' + esc(L.g.name) + '（' + L.g.projects.length + ' 项目）</title>');
+    S.push('<path class="branch branch-lit" d="M' + px(L.sx) + ' ' + px(L.sy) +
+      ' Q ' + px((L.sx + L.e1x) / 2 + Math.sin(L.th) * 16) + ' ' + px((L.sy + L.e1y) / 2 - 20) + ', ' + px(L.e1x) + ' ' + px(L.e1y) +
+      ' Q ' + px((L.e1x + L.e2x) / 2) + ' ' + px((L.e1y + L.e2y) / 2 - 14) + ', ' + px(L.e2x) + ' ' + px(L.e2y) + '" stroke="' + branchCol + '" stroke-width="' + px(L.boughW) + '" fill="none" stroke-linecap="round"/>');
+    S.push('</g>');
+  });
+  /* 第三遍：分枝（项目）+ 果柄（指标）+ 叶（任务）+ 花果 */
+  layout.forEach(L => {
+    const pcolBase = 'color-mix(in srgb, var(--accent) ' + L.hueMix + ', var(--bark-2))';
+    L.projects.forEach(P => {
+      const dim = P.p.progress <= 0;
+      S.push('<g class="hit" data-kind="proj" data-id="' + L.gi + '-' + P.pi + '">');
+      S.push('<title>分枝 · 项目｜' + esc(P.p.name) + '（' + Math.round(P.p.progress * 100) + '% · ' + (P.p.focus ? '主攻 · 向阳枝' : '普通枝') + '）</title>');
+      S.push('<path class="branch branch-lit" d="M' + px(P.psx) + ' ' + px(P.psy) + ' Q ' + px((P.psx + P.pex) / 2 + Math.sin(P.thp) * 9) + ' ' + px((P.psy + P.pey) / 2 - 12) + ', ' + px(P.pex) + ' ' + px(P.pey) + '" stroke="' + (dim ? 'var(--text-4)' : pcolBase) + '" stroke-width="' + px(P.tw) + '" fill="none" stroke-linecap="round"' + (P.p.focus ? ' style="filter:drop-shadow(0 0 4px var(--glow))"' : '') + '/>');
+      S.push('</g>');
+      /* 果柄 + 花果（指标自分枝末的果柄垂挂）+ 果柄旁护叶 */
+      const mr = rng(300 + L.gi * 31 + P.pi * 13);
+      P.p.metrics.forEach((m, mi) => {
+        const angm = P.thp + (mi - (P.p.metrics.length - 1) / 2) * .55;
+        const stx = P.pex - Math.sin(P.thp) * 6, sty = P.pey + Math.cos(P.thp) * 6;
+        const stemLen = 13 + mi * 4;
+        const fx = P.pex + Math.sin(angm) * stemLen, fy = P.pey - Math.cos(angm) * stemLen;
+        S.push('<path d="M' + px(stx) + ' ' + px(sty) + ' Q ' + px((stx + fx) / 2) + ' ' + px((sty + fy) / 2 - 5) + ', ' + px(fx) + ' ' + px(fy) + '" stroke="var(--bark-2)" stroke-width="1.3" fill="none"/>');
+        if (m.cur >= .999) {
+          S.push(fruitShape(fx, fy, 6.6, 'var(--warning)', false, 'metric', 'm' + L.gi + '-' + P.pi + '-' + mi, m.title, '硕果 · 成功指标｜' + esc(m.title) + '（100% 成熟 · 可摘入策展）'));
+          S.push('<text x="' + px(fx) + '" y="' + px(fy - 14) + '" text-anchor="middle" class="tip-line" style="fill:var(--warning)">熟</text>');
+        } else if (m.cur > 0) {
+          S.push(fruitShape(fx, fy, 3.6 + 3.6 * m.cur, 'color-mix(in srgb, var(--accent) 55%, var(--surface-3))', false, 'metric', 'm' + L.gi + '-' + P.pi + '-' + mi, m.title, '花果 · 成功指标｜' + esc(m.title) + '（' + Math.round(m.cur * 100) + '% 开花）'));
+        } else {
+          S.push(fruitShape(fx, fy, 4, '', true, 'metric', 'm' + L.gi + '-' + P.pi + '-' + mi, m.title, '空枝花苞 · 成功指标｜' + esc(m.title) + '（⚠ 缺任务：验收已定，动作未落）'));
+        }
+        S.push('<path d="M' + px(fx + 4) + ' ' + px(fy + 2) + ' q ' + px(3 + mr() * 3) + ' ' + px(-4) + ', ' + px(2 + mr() * 4) + ' ' + px(-9) + '" stroke="var(--success)" stroke-width="1.6" fill="none" opacity=".8"/>');
+      });
+      /* 叶：任务沿分枝排布（taskIds 轨道序的树语） */
+      const lr = rng(100 + L.gi * 17 + P.pi * 7);
+      P.p.tasks.forEach((t, ti) => {
+        const tt = .2 + (ti + .5) / Math.max(1, P.p.tasks.length) * .74;
+        const lx = P.psx + (P.pex - P.psx) * tt + (lr() - .5) * 9;
+        const ly = P.psy + (P.pey - P.psy) * tt - 5 - lr() * 11;
+        S.push(leafShape(lx, ly, (lr() - .5) * 140, 5.6, leafColor[t.status], t.status === 'doing', L.gi + '-' + P.pi + '-' + ti, t.title, t.status));
+      });
+    });
+  });
+  S.push('</g>'); /* sway */
+
+  /* 干上的名字（点干看愿景使命） */
+  S.push('<g class="hit" data-kind="trunk" data-id="0">');
+  S.push('<title>树干 · 使命｜' + esc(DATA.mission) + '（点开看愿景与使命原文）</title>');
+  S.push('<rect x="' + (BX-16) + '" y="' + px(topY+40) + '" width="32" height="' + px(GY-topY-40) + '" fill="transparent"/>');
+  S.push('</g>');
+  S.push('</svg>');
+  return S.join('');
+}
+
+/* ═══════════════ 年轮（G2 预演） ═══════════════ */
+function renderRingsSVG(){
+  const S = [], cx = W/2, cy = H/2 + 20, R = 210;
+  S.push('<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">');
+  S.push('<rect width="' + W + '" height="' + H + '" fill="var(--bg)"/>');
+  let r0 = 34;
+  DATA.rings.forEach((ring, i) => {
+    const hue = GOAL_HUES[ring.goal % GOAL_HUES.length];
+    const col = 'color-mix(in srgb, var(--accent) ' + hue + ', var(--bark))';
+    S.push('<g class="hit" data-kind="ring" data-id="' + i + '">');
+    S.push('<title>年轮 · ' + ring.label + '｜' + esc(ring.note) + '</title>');
+    S.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + (r0 + ring.width/2) + '" fill="none" stroke="' + col + '" stroke-width="' + ring.width + '" opacity=".85"/>');
+    S.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + (r0 + ring.width) + '" fill="none" stroke="var(--border)" stroke-width="1"/>');
+    S.push('<text class="ring-lb" x="' + px(cx) + '" y="' + px(cy - r0 - ring.width - 8) + '" text-anchor="middle">' + esc(ring.label) + ' · ' + esc(ring.note) + '</text>');
+    r0 += ring.width + 1.5;
+  });
+  S.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + 30 + '" fill="var(--surface-3)" stroke="var(--border-strong)"/>');
+  S.push('<text x="' + cx + '" y="' + (cy+4) + '" text-anchor="middle" style="font-size:12px;font-weight:700" fill="var(--text)">2026</text>');
+  S.push('<text x="' + (W/2) + '" y="86" text-anchor="middle" style="font-size:15px;font-weight:800" fill="var(--text)">年轮 · 干的横切面</text>');
+  S.push('<text x="' + (W/2) + '" y="108" text-anchor="middle" class="tip-line">一圈 = 一个自然月 · 圈厚 = 该期行为量 · 圈色 = 当期推进最多的战略目标 —— 每一圈都不一样</text>');
+  S.push('</svg>');
+  return S.join('');
+}
+
+/* ═══════════════ 图例 / 底栏 ═══════════════ */
+const LEGEND = [
+  ['var(--success)', '翠叶 = 已完成任务'], ['var(--accent-ink)', '嫩叶微光 = 进行中'], ['var(--text-4)', '芽 = 待开始'],
+  ['var(--warning)', '黄叶 = 停滞 14 天+'], ['var(--warning)', '熟果 = 指标 100%（可摘入策展）'], ['var(--text-4)', '虚线花苞 = ⚠ 缺任务'],
+  ['var(--text-3)', '越冬枝 = 已归档'], ['var(--accent-ink)', '种子 = 好奇心'],
+  ['color-mix(in srgb, var(--accent) 46%, var(--surface-2))', '树冠团 = 累计完成 + 养分沉淀的体量'],
+];
+function renderLegend(){
+  $('legend').innerHTML = LEGEND.map(l => '<span class="lg"><i style="background:' + l[0] + '"></i>' + l[1] + '</span>').join('');
+}
+function renderNourish(){
+  $('nourish').innerHTML =
+    '<b>累计滋养</b><span>入台 <b>' + DATA.today.inc + '</b> 张</span><span class="dot"></span>' +
+    '<span>调用 <b>' + DATA.today.call + '</b> 次</span><span class="dot"></span>' +
+    '<span>完成 <b>' + DATA.today.done + '</b> 件</span><span class="dot"></span>' +
+    '<span>未归档 <b>' + DATA.today.orph + '</b> 件</span><span class="dot"></span>' +
+    '<span style="color:var(--text-4)">近 7 天 +<b>' + DATA.today.l7t + '</b> 任务 · +<b>' + DATA.today.l7r + '</b> 卡 · 树只如实呈现，不评判节奏</span>';
+}
+
+/* ═══════════════ 模式切换与渲染 ═══════════════ */
+let mode = 'now';
+function render(){
+  const stage = $('stage');
+  if (mode === 'rings'){
+    stage.innerHTML = renderRingsSVG();
+    const cap = document.createElement('div');
+    cap.className = 'rings-caption';
+    cap.innerHTML = '<b>年轮是干的记忆</b>：把时间切片叠回树干。回放看「怎么长成这样」，年轮看「每一期长成了什么」。（G2 预演）';
+    stage.appendChild(cap);
+  } else {
+    stage.innerHTML = renderTreeSVG(buildState(new Date(mode === 'replay' ? curDate : T1)), new Date(mode === 'replay' ? curDate : T1));
+    bindStage();
+  }
+  $('scrubRow').classList.toggle('show', mode === 'replay');
+  renderLegend(); renderNourish();
+}
+document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.m;
+  document.querySelectorAll('#modeSeg button').forEach(x => x.classList.toggle('on', x === b));
+  render();
+}));
+
+/* 回放轴 */
+function applyScrub(v){
+  curDate = dateOf(v).getTime();
+  $('scrubDate').textContent = fmtDate(new Date(curDate));
+  render();
+}
+$('scrub').addEventListener('input', e => applyScrub(+e.target.value));
+let playRaf = null;
+$('playBtn').addEventListener('click', () => {
+  if (playRaf){ cancelAnimationFrame(playRaf); playRaf = null; $('playBtn').textContent = '▶ 重放来时路'; return; }
+  $('playBtn').textContent = '⏸ 暂停';
+  const t0 = performance.now(), dur = 6000;
+  const step = t => {
+    const k = Math.min(1, (t - t0) / dur);
+    const v = Math.round(k * 100);
+    $('scrub').value = v; applyScrub(v);
+    if (k < 1) playRaf = requestAnimationFrame(step);
+    else { playRaf = null; $('playBtn').textContent = '▶ 重放来时路'; }
+  };
+  playRaf = requestAnimationFrame(step);
+});
+
+/* 拨土 */
+let dug = false;
+$('digBtn').addEventListener('click', () => {
+  dug = !dug;
+  document.body.classList.toggle('dig', dug);
+  $('digBtn').classList.toggle('on', dug);
+  toast(dug ? '土层拨开：根（愿景/使命）与休眠的种子显形' : '土层掩上');
+});
+
+/* ═══════════════ 抽屉（点开即真身） ═══════════════ */
+function openDrawer(kind, id){
+  const K = $('drKind'), T = $('drTitle'), B = $('drBody');
+  const row = (k, v) => '<div class="dr-row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+  const findTask = gid => { const [gi, pi, ti] = gid.slice(1).split('-').map(Number); return DATA.goals[gi].projects[pi].tasks[ti]; };
+  const findMetric = gid => { const [gi, pi, mi] = gid.slice(1).split('-').map(Number); return DATA.goals[gi].projects[pi].metrics[mi]; };
+  if (kind === 'task'){
+    const t = findTask(id);
+    K.textContent = '叶 · 任务'; T.textContent = t.title;
+    B.innerHTML = row('状态', STATUS_LB[t.status]) + row('树语', t.status === 'done' ? '翠叶（果实般的完成）' : t.status === 'doing' ? '嫩叶 · 微光呼吸' : t.status === 'stale' ? '黄叶 · 停滞转黄（季节，不是审判）' : '芽 · 带壳待放') + row('入树于', t.created) + (t.doneAt ? row('成熟于', t.doneAt) : '') + row('叶脉', '子任务清单（实装后展示完成比）') + row('编辑', '所有修改在任务详情抽屉完成，此处只读');
+  } else if (kind === 'metric'){
+    const m = findMetric(id);
+    const pct = Math.round(m.progress * 100);
+    K.textContent = m.progress >= 1 ? '熟果 · 成功指标' : '花果 · 成功指标';
+    T.textContent = m.title;
+    B.innerHTML = row('进度', pct + '%') + row('树语', m.progress >= 1 ? '硕果成熟 · 可摘入策展（摘后留果蒂）' : pct > 0 ? '开花中 · 花径随进度变大' : '空枝花苞（⚠ 缺任务）') + row('验收', m.acceptance || '—') + row('挂枝', '所属项目分枝末端（实装后显示同枝其他指标）');
+  } else if (kind === 'proj'){
+    const [gi, pi] = id.split('-').map(Number);
+    const p = DATA.goals[gi].projects[pi];
+    K.textContent = '分枝 · 项目'; T.textContent = p.name;
+    B.innerHTML = row('进度', Math.round(p.progress * 100) + '%（分枝长度与垂度）') + row('身份', p.focus ? '主攻 · 向阳枝（树冠受光最多）' : '普通枝') + row('树语', '停滞 14 天+ 时叶色转黄；满枝硕果后木质化转稳定') + row('指标', p.metrics.length + ' 条（花果位）') + row('任务', p.tasks.length + ' 条（叶）') + row('编辑', '项目全景与详情在方向台完成');
+  } else if (kind === 'goal'){
+    const g = DATA.goals[+id];
+    K.textContent = '主枝 · 战略目标'; T.textContent = g.name;
+    B.innerHTML = row('层级', '第 3 层（干上的大枝）') + row('项目', g.projects.length + ' 个分枝') + row('树语', '已归档目标 = 越冬枝（休眠色，不断不删）') + row('编辑', '战略骨架在方向台完成');
+  } else if (kind === 'trunk'){
+    K.textContent = '干与根 · 使命与愿景'; T.textContent = '这棵树为什么长';
+    B.innerHTML = row('根 · 愿景', DATA.vision) + row('干 · 使命', DATA.mission) + row('年轮', '干的粗度 = 累计完成事项；横切面见「年轮」模式') + row('拨土', '右上「拨土」可随时看见根与休眠的种子') + row('编辑', '愿景/使命在方向台战略骨架原位编辑');
+  } else if (kind === 'curio'){
+    const c = DATA.curiosities[+id];
+    K.textContent = '种子 · 好奇心'; T.textContent = c.title;
+    B.innerHTML = row('状态', CUR_LB[c.status]) + row('树语', c.status === 'dormant' ? '休眠在土里，不消失也不催促' : c.status === 'proven' ? '已求证 = 抽出新梢' : c.status === 'exploring' ? '破土嫩芽（微光）' : '土面种子') + row('转化', '好奇心转任务 = 种子破土、接上枝头（转化即出路）') + row('编辑', '好奇心卡池中完成');
+  } else if (kind === 'orphans'){
+    K.textContent = '散叶 · 未归档任务'; T.textContent = DATA.orphans.length + ' 件待归位';
+    B.innerHTML = DATA.orphans.map(function(t){ return row('待归位', esc(t)); }).join('') +
+      row('树语', '散叶挂在根部——在任务详情挂上指标，就会长上枝头') + row('编辑', '任务详情抽屉完成归属');
+  } else if (kind === 'ring'){
+    const r = DATA.rings[+id];
+    K.textContent = '年轮 · ' + r.label; T.textContent = r.note;
+    B.innerHTML = row('圈厚', '该期行为量（完成/采集）') + row('圈色', '当期推进最多的战略目标色相') + row('口径', '月度切片；G2 实装后随时间轴自动生长');
+  }
+  $('drawer').classList.add('open');
+}
+function bindStage(){
+  document.querySelectorAll('#stage .hit').forEach(el => {
+    el.addEventListener('click', ev => {
+      const kind = el.dataset.kind;
+      if (kind === 'metric' && findMature(el.dataset.id)){ openPick(el, kind, el.dataset.id); return; }
+      openDrawer(kind, el.dataset.id);
+    });
+  });
+}
+function findMature(id){
+  const [gi, pi, mi] = id.slice(1).split('-').map(Number);
+  const m = DATA.goals[gi] && DATA.goals[gi].projects[pi] && DATA.goals[gi].projects[pi].metrics[mi];
+  return m && m.progress >= 1;
+}
+$('drClose').addEventListener('click', () => $('drawer').classList.remove('open'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ $('drawer').classList.remove('open'); $('ledger').classList.remove('open'); $('pickPop').classList.remove('show'); $('entryPop').classList.remove('show'); } });
+
+/* 入口示意 */
+$('entryBtn').addEventListener('click', () => $('entryPop').classList.toggle('show'));
+$('entryClose').addEventListener('click', () => $('entryPop').classList.remove('show'));
+$('entryPop').addEventListener('click', e => { if (e.target === $('entryPop')) $('entryPop').classList.remove('show'); });
+$('brandArea').addEventListener('click', () => toast('品牌区 → 画像洞察（实装后跳转；画像洞察页左上角即知源树入口）'));
+$('navProfile').addEventListener('click', () => toast('画像洞察：数字镜像页 · 左上角提供「知源树」入口（实装后跳转）'));
+$('drGo').addEventListener('click', () => toast('原型示意：跳转方向台 / 对应详情抽屉（实装后直达真身）'));
+
+/* 摘果 */
+let pickCtx = null;
+function openPick(el, kind, id){
+  const m = findMature(id);
+  pickCtx = id;
+  $('pickText').textContent = '「' + m.title + '」已 100% 成熟。摘果会把该指标与其支撑资源预选进一个新策展台，组织成可分享的成果——这是硕果的归宿，也是「调用 → 论证 → 展示」在树上的收口。';
+  const r = el.getBoundingClientRect ? el.getBoundingClientRect() : { left: innerWidth/2 - 150, top: 200, bottom: 240 };
+  const pop = $('pickPop');
+  pop.style.left = Math.min(innerWidth - 316, Math.max(12, r.left - 130)) + 'px';
+  pop.style.top = Math.min(innerHeight - 190, r.bottom + 10) + 'px';
+  pop.classList.add('show');
+}
+$('pickCancel').addEventListener('click', () => { $('pickPop').classList.remove('show'); openDrawer('metric', pickCtx); });
+$('pickGo').addEventListener('click', () => { $('pickPop').classList.remove('show'); toast('原型示意：携带指标与支撑资源 → 策展台新建（G3 实装）'); });
+
+/* 账本 */
+$('ledgerBtn').addEventListener('click', () => {
+  $('lgBody').innerHTML = DATA.ledger.map(l =>
+    '<div class="lg-item"><div class="ic">' + l.ic + '</div><div class="t"><b>' + esc(l.t) + '</b><div class="e">' + l.e + '</div></div></div>').join('');
+  $('ledger').classList.add('open');
+});
+$('ledger').addEventListener('click', e => { if (e.target.classList.contains('lg-head')) $('ledger').classList.remove('open'); });
+$('exportBtn').addEventListener('click', () => toast('导出（G2/G3 实装）：把「现在的树 / 某一天的树」导出为图片或 HTML'));
+
+render();
+</script>
+</body>
+</html>

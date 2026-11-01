@@ -43,6 +43,14 @@ const router = createRouter({
       meta: { title: '知源调度台 · 项目详情' }
     },
     {
+      // V3.9.32（批 A）：方向树「策展模式」——全屏二级页（用户拍板：第三视图模式可以，但要全屏、可为二级页面）。
+      // 六层只读全景：树状/金字塔双布局 + 折叠展开 + MD/HTML 全树导出；零写库，编辑导流回方向台。
+      path: '/compass/curation',
+      name: 'compass-curation',
+      component: () => import('./views/CompassCurationPage.vue'),
+      meta: { title: '知源调度台 · 方向树策展模式' }
+    },
+    {
       // V3.7.0（R179）：仅策展台（论点 + 论证节点卡 + 镜像投射）。资源台已随池语义退役——
       // 工作区不再有 isHub 分支，资源卡统一入池，管理面收敛到调度台「3张卡」。
       path: '/workspace/:id',
