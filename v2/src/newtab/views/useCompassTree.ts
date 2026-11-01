@@ -23,6 +23,11 @@ import CompassLayerList from '../components/compass/CompassLayerList.vue'
 import CompassPano from '../components/compass/CompassPano.vue'
 import { buildCompassMeta } from './compassMeta'
 import type { ProjectMeta } from './compassMeta'
+import { useTaskRelocationDnd, TASK_DND_KEY } from './useTaskRelocationDnd'
+import { provide } from 'vue'
+import { buildProjectExportDocument, projectExportMarkdown, projectExportHtml } from '@/shared/utils/projectExport'
+import { downloadText } from '@/shared/utils/download'
+import type { ExportFmt } from '../components/dashboard/ExportMenu.vue'
 import CompassRiskModal, { type RiskProjectGroup } from '../components/compass/CompassRiskModal.vue'
 import type { GoalParseResult } from '@/shared/utils/mdImport'
 import { useProjectDiag } from '../composables/useProjectDiag'
@@ -41,6 +46,11 @@ const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
 const { d, visionText, missionText, allProjects, projectProgress, toggleFocusProject, addProjectToDir, isProjectDone, isProjectStalled, showDone, toggleShowDone } = useCompass()
+/** V3.9.31（F4）：塔/全景共享任务拖拽 —— 本组合式内唯一实例，provide 给两条泳道组件
+ *  （PanoLane / CompassLane 经 TASK_DND_KEY inject；不经 props 透传，避免顶爆 400 行帽）；
+ *  数据口径见 useTaskRelocationDnd（双写归属，同展板）。 */
+const taskDnd = useTaskRelocationDnd({ d: () => d.value, persist: () => store.persist() })
+provide(TASK_DND_KEY, taskDnd)
 
 // ---- R135：罗盘链式生成（directions/projects/metrics/tasks 四层入口共用一个评审抽屉） ----
 const AiDrawer = defineAsyncComponent(() => import('@/newtab/components/AiSuggestionDrawer.vue'))
@@ -457,6 +467,32 @@ const layerRows3 = computed(() => compassMeta.value.dirs.map((g, i) => {
 }))
 const activeLayer = ref(1)
   const { layerRows5, layerRows6, onLayerOpen, onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget, flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter, toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport, showTaskGrade, bindOrphan, toggleMetric, editingField, focusEditField, startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate, openDirectionEdit, saveDirectionForm } = useCompassTreeProjects({ compassMeta, findProject, d, layerOpen, layerView, activeLayer, ensureTower, projFoldOverride, writeProjFold, expandedMetrics, viewMode, dirFilter, riskOnly, router, panoId, openPano, visionText, missionText, allProjects, store })
+
+/** V3.9.31（F1）：任务详情「查看项目全景」深链 —— /compass?pano=1&proj=&m=&task=。
+ *  复用 onListLocate 全景定位链路（切全景 → 定位任务 → 闪烁），不另造第二套定位；
+ *  参数缺省安全：proj 缺失/非法时由 onListLocate 自带兜底（任务池出口与提示）。
+ *  watch 挂在组合之后：onListLocate 在 useCompassTreeProjects 内定义，此处才进入作用域。 */
+watch(() => route.query, q => {
+  if (q.pano !== '1' || typeof q.proj !== 'string' || !q.proj) return
+  onListLocate({
+    projId: q.proj,
+    metricId: typeof q.m === 'string' && q.m ? q.m : undefined,
+    taskId: typeof q.task === 'string' && q.task ? q.task : undefined,
+  })
+})
+
+/** V3.9.31（F5）：项目导出 —— 全景页头与项目详情弹窗共用 projectExport 单一生成器（防两处漂移）。
+ *  结构化输出项目头（战略链/主攻/状态/下一步/进度/断链警示）→ 指标（验收/进度/缺任务）→
+ *  任务（子任务/任务链接）→ 支撑资源（SupportLink）；链接一律可点击，附件不嵌本体。 */
+function exportProjectPanorama(projId: string, fmt: ExportFmt) {
+  if (fmt !== 'md' && fmt !== 'html') return
+  const proj = findProject(projId)
+  if (!proj) { showToast('项目已不在'); return }
+  const doc = buildProjectExportDocument(d.value, proj)
+  if (fmt === 'md') downloadText(`${doc.filenameBase}.md`, projectExportMarkdown(doc), 'md')
+  else downloadText(`${doc.filenameBase}.html`, projectExportHtml(doc), 'html')
+  showToast(`已导出项目全景 ${fmt === 'md' ? 'Markdown' : 'HTML'}（链接可点击，不含附件本体）`)
+}
 function addProject(dirId: string) {
   const proj = addProjectToDir(dirId, '新攻坚项目')
   if (proj) showToast('项目已创建')
@@ -694,7 +730,7 @@ onUnmounted(() => {
     allExpanded, toggleAllNodes, projMenu, toggleProjMenu, closeProjMenu,
     onDocClickCloseProjMenu, dragProj, dropTargetId, onProjDragStart, onProjDragOver,
     onProjDragLeave, onProjDragEnd, onProjDrop, toggleProjectPin, visibleProjectsOf,
-    treeStats, projMeta, compassMeta, viewMode, panoId,
+    treeStats, projMeta, compassMeta, viewMode, panoId, exportProjectPanorama,
     openPano, panoEffectiveId, backToTower, dirFilter, layerOpen,
     layerView, riskOnly, dirFilterName, clearFilters, HUES,
     hueAt, towerGroups, focusTower, gotoFocusTower, findProject,

@@ -802,9 +802,12 @@ check('N2 ★单项目 AI 诊断（与设置页 diagnose 整库会诊**各走各
   if (!tr.includes('<ProjectDiagnoseModal')) return false;
   if (!tr.includes(':diag="diagFor(panoEffectiveId)"')) return false;
   if (!tr.includes(':diag="diagFor(row.proj.id)"')) return false;
-  /* ★F4 三处入口：全景项目头 + 项目策展页头都挂 CompassTowerStatus 两态挂件 */
-  const pano = read('/newtab/components/compass/CompassPano.vue');
+  /* ★F4 三处入口：全景项目头 + 项目策展页头都挂 CompassTowerStatus 两态挂件
+     ★V3.9.31 重指备案（W11-12 拆件）：全景的「⋯」菜单整块拆入 CompassPanoMore.vue，
+     诊断挂件随菜单走——判据跟着组件走（同塔本体 R141 先例），宿主 CompassPano 只留转发。 */
+  const pano = read('/newtab/components/compass/CompassPanoMore.vue');
   if (!pano.includes('class="ph-diag"') || !pano.includes('<CompassTowerStatus')) return false;
+  if (!read('/newtab/components/compass/CompassPano.vue').includes('<CompassPanoMore')) return false;
   const pc = read('/newtab/views/ProjectCuration.vue');
   if (!pc.includes('useProjectDiag(') || !pc.includes('<CompassTowerStatus')) return false;
   // 弹窗形态：Teleport + overlay + 过期条 + 导出 HTML/MD（PNG 二批）

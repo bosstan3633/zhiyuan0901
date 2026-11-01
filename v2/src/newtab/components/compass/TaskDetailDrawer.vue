@@ -320,6 +320,18 @@ function onSelMetricChange() {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
+/** V3.9.31（F1）：一键看所属项目的全景 —— 深链 /compass?pano=1&proj&m&task；
+ *  方向台 watch 到查询后复用 onListLocate 既有链路（切全景 → 定位本任务 → 闪烁），不另造定位。
+ *  未挂项目时按钮置灰不可点。 */
+function gotoProjectPano() {
+  const t = selectedTask.value
+  const pid = selProjectId.value
+  if (!t || !pid) return
+  router.push({
+    path: '/compass',
+    query: { pano: '1', proj: pid, ...(t.metricId ? { m: t.metricId } : {}), task: t.id },
+  })
+}
 // R48 详情重设计：头部状态下拉（替代 body 内三枚大 chip）
 const statusMenuOpen = ref(false)
 const STATUS_UI: Record<'todo' | 'doing' | 'done', { label: string; cls: string }> = {
@@ -399,6 +411,12 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
             </select>
           </div>
         </div>
+        <!-- V3.9.31（F1）：归属字段的行尾出口 —— 挂了项目就能一键进全景看全部指标与任务 -->
+        <button class="ts-goto ds-goto-pano" type="button" :disabled="!selProjectId"
+          :title="selProjectId ? '进入方向台项目全景：看该项目的全部指标与任务' : '先选择所属项目，再看它的全景'"
+          @click="gotoProjectPano">
+          <Icon name="compass" :size="13"/> 查看项目全景（全部指标与任务）›
+        </button>
         <!-- AI 三入口是同一组工具；导出已上移到标题栏右侧。 -->
         <div class="ts-action-bar">
           <div class="ts-ai-group" role="group" aria-label="AI 任务工具">
@@ -562,6 +580,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-section { margin-bottom: 16px; }
 .ts-goto { margin-top: 7px; font-size: var(--fs-caption); color: var(--accent); cursor: pointer; }
 .ts-goto:hover { text-decoration: underline; }
+/* V3.9.31（F1）：全景直达按钮 —— 复用 .ts-goto 链接观感，补 button 形态重置与禁用态 */
+.ds-goto-pano { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font-family: inherit; font-size: var(--fs-caption); }
+.ds-goto-pano:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; text-decoration: none; }
 /* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
 .ta-wrap { position: relative; }
 .ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }

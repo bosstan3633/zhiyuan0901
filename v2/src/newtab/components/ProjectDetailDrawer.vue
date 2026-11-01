@@ -20,6 +20,9 @@ import { resolveProjectNextStep, tasksOfMetric, tasksOfProject } from '../views/
 import TaskAddDrawer from './TaskAddDrawer.vue'
 import TaskDetailDrawer from './compass/TaskDetailDrawer.vue'
 import MetricDetailDrawer from './compass/MetricDetailDrawer.vue'
+import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
+import { downloadText } from '@/shared/utils/download'
+import { buildProjectExportDocument, projectExportMarkdown, projectExportHtml } from '@/shared/utils/projectExport'
 
 const props = defineProps<{
   open: boolean
@@ -107,6 +110,15 @@ function onTabKeydown(e: KeyboardEvent, current: number) {
 }
 
 // ---- 编辑（实时同步罗盘） ----
+/** V3.9.31（F5）：项目详情弹窗导出 —— 与项目全景共用 projectExport 单一生成器（防两处漂移）。
+ *  结构化输出项目头/指标/任务/支撑资源，链接可点击；附件不嵌本体（同任务卡导出口径）。 */
+function exportProject(fmt: ExportFmt): void {
+  if (!project.value || (fmt !== 'md' && fmt !== 'html')) return
+  const doc = buildProjectExportDocument(d.value, project.value)
+  if (fmt === 'md') downloadText(`${doc.filenameBase}.md`, projectExportMarkdown(doc), 'md')
+  else downloadText(`${doc.filenameBase}.html`, projectExportHtml(doc), 'html')
+  showToast(`已导出项目全景 ${fmt === 'md' ? 'Markdown' : 'HTML'}（链接可点击，不含附件本体）`)
+}
 function renameProject(e: FocusEvent) {
   const v = (e.target as HTMLElement).textContent?.trim()
   if (v && project.value) { project.value.name = v; store.persist() }
@@ -206,6 +218,9 @@ function chainStatus(): { broken: boolean; text: string } {
 
 <template>
   <Drawer :open="open && !!project" :title="project ? ` ${project.name}` : ''" width="480px" :mode="mode || 'drawer'" @close="emit('close')">
+    <template v-if="project" #title-extra>
+      <ExportMenu :formats="['md', 'html']" align="end" @pick="exportProject" />
+    </template>
     <template v-if="project">
       <!-- 项目名 + 主攻标记 -->
       <div class="pd-head">

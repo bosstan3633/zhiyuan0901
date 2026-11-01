@@ -26,7 +26,8 @@ import type { Direction, Project } from '@/shared/models'
 import type { CompassMeta, ProjectMeta } from '../../views/compassMeta'
 import CompassPanoLane from './CompassPanoLane.vue'
 import CompassPanoSwitch from './CompassPanoSwitch.vue'
-import CompassTowerStatus from './CompassTowerStatus.vue'
+import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
+import CompassPanoMore from './CompassPanoMore.vue'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
 
 const props = defineProps<{
@@ -63,15 +64,9 @@ const emit = defineEmits<{
   /** ★F4：AI 诊断两态（无报告→跑；有报告→开中央弹窗） */
   (e: 'diagRun', projId: string): void
   (e: 'diagReport', projId: string): void
+  /** V3.9.31（F5）：项目导出（Tree 侧用 projectExport 单一生成器落盘） */
+  (e: 'exportProject', fmt: ExportFmt): void
 }>()
-
-/** V3.9.12：「⋯」用一个本地开合态；点外部由 section 的 focusout 收口。 */
-const moreOpen = ref(false)
-const moreRoot = ref<HTMLElement | null>(null)
-function onMoreFocusout(e: FocusEvent) {
-  const next = e.relatedTarget as Node | null
-  if (!next || !moreRoot.value?.contains(next)) moreOpen.value = false
-}
 
 /** 选择条上的项目序列（扁平成一条，前端不再嵌套遍历） */
 interface PickRow { proj: Project; pm: ProjectMeta; dir: Direction; hue: string; i: number }
@@ -135,22 +130,16 @@ const laneCount = computed(() => {
           </div>
           <div class="ph-acts">
             <button class="ph-act" title="在本项目下新建成功指标" @click="emit('addMetric', current.proj.id)">＋ 指标</button>
-            <div ref="moreRoot" class="ph-more-wrap" @focusout="onMoreFocusout">
-              <button class="ph-more" :class="{ on: moreOpen }" :aria-expanded="moreOpen" aria-haspopup="menu" title="更多项目操作" @click="moreOpen = !moreOpen">⋯</button>
-              <div v-if="moreOpen" class="ph-menu" role="menu">
-                <button class="ph-mi" role="menuitem" @click="moreOpen = false; emit('importTemplate', current.proj.id)">
-                  <Icon name="filetext" :size="13"/> 导入模板
-                </button>
-                <button class="ph-mi" role="menuitem" @click="moreOpen = false; emit('aiMetric', current.proj.id)">
-                  <Icon name="sparkle" :size="13"/> AI 建议指标
-                </button>
-                <CompassTowerStatus class="ph-diag" :proj-id="current.proj.id" :hue="current.hue"
-                  :meta="current.pm" :diag="diag" :stale="diagStale"
-                  @diag-run="(id) => { moreOpen = false; emit('diagRun', id) }"
-                  @diag-report="(id) => { moreOpen = false; emit('diagReport', id) }"
-                />
-              </div>
-            </div>
+            <!-- V3.9.31（F5）：项目导出 —— 与项目详情弹窗共用同一生成器 -->
+            <ExportMenu :formats="['md', 'html']" align="end" @pick="fmt => emit('exportProject', fmt)" />
+            <!-- V3.9.31（W11-12 拆件）：「⋯ 更多操作」菜单自宿主拆出（CompassPanoMore） -->
+            <CompassPanoMore :proj-id="current.proj.id" :hue="current.hue" :meta="current.pm"
+              :diag="diag" :stale="diagStale"
+              @import-template="p => emit('importTemplate', p)"
+              @ai-metric="p => emit('aiMetric', p)"
+              @diag-run="p => emit('diagRun', p)"
+              @diag-report="p => emit('diagReport', p)"
+            />
           </div>
         </div>
         <div class="ph-b">
@@ -283,25 +272,6 @@ const laneCount = computed(() => {
   transition: all var(--dur); white-space: nowrap; font-family: inherit;
 }
 .ph-act:hover { color: var(--accent-ink); border-color: var(--accent-light); background: var(--accent-light); }
-.ph-more-wrap { position: relative; }
-.ph-more {
-  display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: transparent; color: var(--text-2); font-family: inherit;
-  font-size: var(--fs-sub); cursor: pointer;
-}
-.ph-more:hover, .ph-more.on { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-.ph-menu {
-  position: absolute; right: 0; top: calc(100% + 5px); z-index: 30; width: 230px; padding: 5px;
-  display: flex; flex-direction: column; gap: 2px; background: var(--surface);
-  border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
-.ph-mi {
-  display: flex; align-items: center; gap: 7px; width: 100%; min-height: 30px; padding: 6px 8px;
-  border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-2);
-  font-family: inherit; font-size: var(--fs-sub); text-align: left; cursor: pointer;
-}
-.ph-mi:hover { background: var(--surface-2); color: var(--text); }
-.ph-diag { padding: 4px 3px; border-top: 1px solid var(--border); margin-top: 2px; }
 
 /* ── 泳道区（横向容器；泳道本体在 CompassPanoLane）── */
 .lanes {

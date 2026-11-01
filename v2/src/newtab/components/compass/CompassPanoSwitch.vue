@@ -94,9 +94,12 @@ function onFocusout(e: FocusEvent) {
   font-size: var(--fs-micro); font-weight: 600; cursor: pointer;
 }
 .ps-back:hover { color: var(--accent-ink); border-color: var(--accent); }
+/* V3.9.31（F2 缺陷修复）：锚定由 right 改 left —— 触发按钮恒在画布左上（贴视口左缘），
+   right:0 会把 420px 面板整体推出视口左缘、项目行被截断（用户 2026-10-31 实拍）。
+   左对齐后面板向右展开；宽度自身已有 calc(100vw - 32px) 视口钳制，高度加同款防御。 */
 .ps-menu {
-  position: absolute; right: 0; top: calc(100% + 5px); z-index: 30;
-  width: min(420px, calc(100vw - 32px)); max-height: 320px; overflow-y: auto;
+  position: absolute; left: 0; top: calc(100% + 5px); z-index: 30;
+  width: min(420px, calc(100vw - 32px)); max-height: min(320px, calc(100vh - 140px)); overflow-y: auto;
   padding: 5px; background: var(--surface); border: 1px solid var(--border-strong);
   border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
 }
@@ -121,7 +124,8 @@ function onFocusout(e: FocusEvent) {
 .ps-empty { font-size: var(--fs-micro); color: var(--text-3); }
 
 @media (max-width: 800px) {
-  .ps-menu { right: 0; }
+  /* V3.9.31：随基础锚定一并左对齐（旧 right:0 在窄屏会把面板推出现口左缘） */
+  .ps-menu { left: 0; }
 }
 @media (max-width: 480px) {
   .pano-switch { gap: 2px; }

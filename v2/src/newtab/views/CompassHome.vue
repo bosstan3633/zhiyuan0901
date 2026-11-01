@@ -352,7 +352,7 @@ const {
 
         <section class="rail-panel rail-panel-recent desk-row desk-row-secondary">
           <header class="rail-head">
-            <b>最近调出</b>
+            <b>常调 Top 10</b>
             <button class="rail-chip" type="button" title="口径：本周一 0 点起被打开过的资源卡（wrr 周戳）；跨周清零" @click="openStatusDetail('reuse')">本周 {{ weeklyReuse }} 次</button>
             <button type="button" @click="goDeck('resource')">全部</button>
           </header>

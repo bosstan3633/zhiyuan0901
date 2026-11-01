@@ -71,7 +71,7 @@ export function tasksOfProject(proj: Project, tasks: TaskCard[]): TaskCard[] {
 /** 指标任务唯一口径：task.metricId / metric.taskIds 双路并集，按 id 去重。 */
 export function tasksOfMetric(metric: Metric, tasks: TaskCard[]): TaskCard[] {
   const linkedIds = new Set(metric.taskIds || [])
-  return dedupeSorted(tasks.filter(t => !t.deletedAt && (t.metricId === metric.id || linkedIds.has(t.id))))
+  return dedupeSorted(tasks.filter(t => !t.deletedAt && (t.metricId === metric.id || linkedIds.has(t.id))), metric)
 }
 
 /** 项目“下一步”唯一口径：用户填写 → 进行中任务 → 未完成任务 → 空态；只读，自动推导不反写 nextStep。 */
@@ -112,12 +112,9 @@ export interface CompassMeta {
   byProject: Map<string, ProjectMeta>
 }
 
-/**
- * 任务去重双保险。
- * ★为什么不能省：REQ-034 记录过同一个 task.id 在库里出现两次的历史脏数据，
- * 少了这层会让进度条 done+total 大于项目实际任务数。
- */
-function dedupeSorted(tasks: TaskCard[]): TaskCard[] {
+/** 任务去重双保险（REQ-034 历史重复 id）。V3.9.31（F4-C1）：有 metric 时按其 taskIds 轨道序排——
+ *  塔/全景与展板三处同源、拖拽排序才可见；不在轨者（仅 metricId 关联）createdAt 兜底；新数组 sort 不违红线。 */
+function dedupeSorted(tasks: TaskCard[], metric?: Metric): TaskCard[] {
   const seen = new Set<string>()
   const out: TaskCard[] = []
   for (const t of tasks) {
@@ -125,13 +122,17 @@ function dedupeSorted(tasks: TaskCard[]): TaskCard[] {
     seen.add(t.id)
     out.push(t)
   }
-  // 新数组上的 sort，不违反"渲染 computed 禁原地 sort"红线
-  return out.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+  const rank = metric ? new Map((metric.taskIds || []).map((id, i) => [id, i] as const)) : null
+  return out.sort((a, b) => {
+    const ra = rank?.get(a.id)
+    const rb = rank?.get(b.id)
+    return ra !== undefined && rb !== undefined ? ra - rb : ra !== undefined ? -1 : rb !== undefined ? 1 : (a.createdAt || 0) - (b.createdAt || 0)
+  })
 }
 
 /** 单指标聚合：双路关联会重复入桶，按 id 去重。 */
 function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
-  const uniqueTasks = dedupeSorted(tasks)
+  const uniqueTasks = dedupeSorted(tasks, m)
   const total = uniqueTasks.length
   const done = uniqueTasks.filter(t => t.status === 'done').length
   const anyDoing = uniqueTasks.some(t => t.status === 'doing')

@@ -1,0 +1,14 @@
+/* V3.9.31（F4）：任务拖拽视觉 —— 项目塔（.tk-row / .metric-list）与项目全景（.ltask / .lane）
+   两条泳道共用一份（两组件 scoped 互不可见，故走全局小样式表，同 hotzone.css 惯例）。
+   源行半透明；落点用强调色上下沿指示（t / b）；泳道 in 态整块淡底。
+   只吃 tokens.css 令牌，六主题逐一走查。拖拽口径见 views/useTaskRelocationDnd.ts。 */
+.ltask[draggable="true"],
+.tk-row[draggable="true"] { cursor: grab; }
+.ltask.ltask-drag,
+.tk-row.tk-drag { opacity: .4; }
+.ltask.dnd-tip-t,
+.tk-row.dnd-tip-t { box-shadow: inset 0 2px 0 var(--accent); }
+.ltask.dnd-tip-b,
+.tk-row.dnd-tip-b { box-shadow: inset 0 -2px 0 var(--accent); }
+.lane.dnd-tip-in,
+.metric-list.dnd-tip-in { background: var(--accent-light); }

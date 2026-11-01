@@ -13,11 +13,13 @@
  * 层级：指标名 --fs-sub(12px)、任务 --fs-body，与项目名 --fs-title(15px) 严格拉开。
  */
 import Icon from '@/shared/components/Icon.vue'
-import { ref } from 'vue'
+import { inject, ref } from 'vue'
+import './taskdnd.css'
 import CompassLevelTag from './CompassLevelTag.vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
+import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
 
 const props = defineProps<{
   m: MetricMeta
@@ -28,6 +30,9 @@ const props = defineProps<{
   /** 多泳道时保留完整指标名；宽度加大后允许自然换行，不再两行截断。 */
   dense?: boolean
 }>()
+
+/** V3.9.31（F4）：共享任务拖拽态（Tree provide / 泳道 inject；缺省 null = 不启用拖拽） */
+const taskDnd = inject(TASK_DND_KEY, null)
 
 const emit = defineEmits<{
   (e: 'toggleTask', taskId: string): void
@@ -84,7 +89,8 @@ function priOf(t: TaskCard): string {
 </script>
 
 <template>
-  <section class="lane" :class="{ single: single, dense: dense }" :data-metric="m.id">
+  <section class="lane" :class="{ single: single, dense: dense, 'dnd-tip-in': taskDnd && taskDnd.dropTip?.id === m.id && taskDnd.dropTip.mode === 'in' }" :data-metric="m.id"
+    @dragover.prevent="taskDnd?.onLaneDragOver($event, m.id)" @dragleave="taskDnd?.onLaneDragLeave($event, m.id)" @drop.prevent="taskDnd?.onLaneDrop($event, m.id)">
     <header class="lane-h">
       <div class="lane-top">
         <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
@@ -122,7 +128,14 @@ function priOf(t: TaskCard): string {
              原状泳道里指标头与任务行是各自独立的块，"这条任务属于哪个指标"只能靠"它们在同一条泳道里"
              推断——层级是排列出来的，不是连出来的。现给任务区加一条左轨 + 每行一个分支点，
              让归属成为视觉事实（与项目塔 W11 已有的「归属轨道」同一套语言）。 -->
-        <div v-for="t in m.tasks" :key="t.id" class="ltask" :class="statusOf(t)" :data-task="t.id">
+        <!-- V3.9.31（F4）：任务行可拖拽 —— 同指标上下排序 / 跨泳道改归属（双写口径见 useTaskRelocationDnd） -->
+        <div v-for="t in m.tasks" :key="t.id" class="ltask"
+          :class="[statusOf(t), { 'ltask-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
+          :data-task="t.id" :draggable="taskDnd ? true : undefined"
+          @dragstart="taskDnd?.onTaskDragStart($event, t)"
+          @dragover.stop.prevent="taskDnd?.onRowDragOver($event, t)"
+          @drop.stop.prevent="taskDnd?.onRowDrop($event, t, m.id)"
+          @dragend="taskDnd?.onDragEnd()">
           <button
             class="ltask-box" :class="statusOf(t)"
             :aria-pressed="t.status === 'done'"

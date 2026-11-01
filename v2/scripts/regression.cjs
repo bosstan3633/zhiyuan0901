@@ -69,6 +69,7 @@ const SHARDS = [
   '114-v3928-curation-head',
   '115-v3929-curation-head-prototype',
   '116-v3930-profile-curation-perf',
+  '117-v3931-user-feedback-five',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

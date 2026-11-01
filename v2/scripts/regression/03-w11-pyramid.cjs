@@ -195,7 +195,8 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
   /* ② 全景层出口 + 透传（泳道的三项必须转发上来） */
   const panoOwn = [
     ['加指标', "emit('addMetric', current.proj.id)"],
-    ['AI 建议指标', "emit('aiMetric', current.proj.id)"],
+    /* ★V3.9.31 重指备案（W11-12 拆件）：AI 建议指标随「⋯」菜单迁入 CompassPanoMore，宿主只留转发 */
+    ['AI 建议指标（CompassPanoMore 转发）', "@ai-metric=\"p => emit('aiMetric', p)\""],
     ['挂指标', "emit('bindOrphan', t.id, current.proj.id)"],
     ['回项目塔', "<CompassPanoSwitch"],
     ['换主体', "emit('pick', r.proj.id)"],
@@ -322,10 +323,12 @@ check('W11-14 ★任务归属只有一个解析口径：项目、指标聚合、
     && buildSeg.includes('for (const t of live) if (t.metricId) addToBucket(t.metricId, t)')
     && buildSeg.includes('for (const taskId of metric.taskIds || [])')
     && buildSeg.includes('addToBucket(metric.id, task)')
-    && CMETA.includes('const uniqueTasks = dedupeSorted(tasks)')
+    /* ★V3.9.31 重指备案（F4-C1）：dedupeSorted 增加可选 metric 参——按 taskIds 轨道序排，
+       塔/全景与展板三处渲染序同源（拖拽排序可见）；去重口径与"聚合必须真去重"一字未动。 */
+    && CMETA.includes('const uniqueTasks = dedupeSorted(tasks, m)')
     /* 桶内容仍需去重：覆盖 REQ-034 的历史重复 id 脏数据 */
     && buildSeg.includes('aggMetric(m, bucket.get(m.id) || [])')
-    && CMETA.includes('function dedupeSorted(tasks: TaskCard[]): TaskCard[]')
+    && CMETA.includes('function dedupeSorted(tasks: TaskCard[], metric?: Metric): TaskCard[]')
     && CMETA.includes('const ownedTaskIds = new Set(metrics.flatMap(mm => mm.tasks.map(t => t.id)))')
     && CMETA.includes('projTasks.filter(t => !ownedTaskIds.has(t.id))')
     && pd.includes('tasksOfMetric(metric, d.value.tasks)')

@@ -229,14 +229,16 @@ check('W17-17 ★V3.9.22 重指：二级页页头只保留返回 + 类型 tab；
 /* ══════════════ V3.9.7 · 调度台与卡池收口 ══════════════ */
 console.log('【V3.9.7 · 手边卡密度、项目详情、卡池切换】');
 
-check('V3.9.7-1 ★手边的卡三类各 5 行；V3.9.23 右栏只保留今天的状态 / 最近调出，最近调出固定 6 条（不再按高度在 5–7 条间浮动）', () => {
+/* ★V3.9.31 重指备案（F3 用户拍板 2026-11-01）：右栏上限随「常调 Top 10」由 6 改 10；
+   手边的卡三类各 5 行与"不再按高度浮动"的口径一字未动。 */
+check('V3.9.7-1 ★手边的卡三类各 5 行；V3.9.31 右栏只保留今天的状态 / 常调 Top 10，固定 10 条（不再按高度在 5–7 条间浮动）', () => {
   const tasks = PI.slice(PI.indexOf('const previewTasks'), PI.indexOf('const liveCuriosities'));
   const curios = PI.slice(PI.indexOf('const previewCuriosities'), PI.indexOf('const liveResources'));
   const resources = PI.slice(PI.indexOf('const previewResources'), PI.indexOf('const hasAnyPreview'));
   return /\.slice\(0, 5\)/.test(tasks)
     && /\.slice\(0, 5\)/.test(curios)
     && /\.slice\(0, 5\)/.test(resources)
-    && PI.includes('const recentLimit = computed(() => 6)')
+    && PI.includes('const recentLimit = computed(() => 10)')
     && PI.includes('.slice(0, recentLimit.value)')
     && !PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
 });

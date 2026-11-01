@@ -56,7 +56,7 @@ const {
   allExpanded, toggleAllNodes, projMenu, toggleProjMenu, closeProjMenu,
   onDocClickCloseProjMenu, dragProj, dropTargetId, onProjDragStart, onProjDragOver,
   onProjDragLeave, onProjDragEnd, onProjDrop, toggleProjectPin, visibleProjectsOf,
-  treeStats, projMeta, compassMeta, viewMode, panoId,
+  treeStats, projMeta, compassMeta, viewMode, panoId, exportProjectPanorama,
   openPano, panoEffectiveId, backToTower, dirFilter, layerOpen,
   layerView, riskOnly, dirFilterName, clearFilters, HUES,
   hueAt, towerGroups, focusTower, gotoFocusTower, findProject,
@@ -328,6 +328,7 @@ const {
               :diag-stale="diagStale(panoEffectiveId)"
               @pick="panoId = $event"
               @to-tower="backToTower"
+              @export-project="fmt => exportProjectPanorama(panoEffectiveId, fmt)"
               @toggle-task="toggleTask"
               @task-grade="showTaskGrade"
               @open-detail="openTaskDetail"

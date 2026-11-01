@@ -584,14 +584,18 @@ function openReview(): void { battleHost.value?.openToday() }
 const focusDoneCount = computed(() => todayFocusList.value.filter(s => s.done).length)
 const mainFocus = computed<Project | null>(() => focusedProjects.value[0] || null)
 const extraFocus = computed<Project | null>(() => focusedProjects.value[1] || null)
-/* 右栏已收口为「今天的状态」「最近调出」两块。保留最近调出上限的稳定口径；
- * 不再用等高测量把两块面板强行拉成左栏高度，左右列只保证顶部与模块间距一致。 */
+/* 右栏已收口为「今天的状态」「常调 Top 10」两块；不再用等高测量把两块面板强行拉成
+ * 左栏高度，左右列只保证顶部与模块间距一致。 */
 const RECENT_ROW_H = 44
-const recentLimit = computed(() => 6)
+const recentLimit = computed(() => 10)
+/* 右栏已收口为「今天的状态」「常调 Top 10」两块。V3.9.31（F3 拍板：频率优先·全窗口）：
+ * 排序由「最近调出时间降序」改为「调用次数降序 → 同频按最近调出时间降序」，上限 6 → 10；
+ * 在新数组上 sort，不违反「渲染 computed 禁原地 sort」红线。仅资源卡——调出计次只经
+ * recordResourceOpen 落在资源卡（红线 #3），任务卡/好奇心卡无「调出」概念。 */
 const recentResources = computed<ResourceCard[]>(() =>
   (d.value.resources || [])
     .filter(r => !r.deletedAt && r.lastCalledAt)
-    .sort((a, b) => (b.lastCalledAt || 0) - (a.lastCalledAt || 0))
+    .sort((a, b) => ((b.callCount || 0) - (a.callCount || 0)) || ((b.lastCalledAt || 0) - (a.lastCalledAt || 0)))
     .slice(0, recentLimit.value)
 )
 const workBoardRef = ref<HTMLElement | null>(null)

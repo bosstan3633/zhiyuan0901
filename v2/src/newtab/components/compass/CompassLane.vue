@@ -14,10 +14,12 @@
  */
 import Icon from '@/shared/components/Icon.vue'
 import './hotzone.css'
-import { computed, ref } from 'vue'
+import './taskdnd.css'
+import { computed, inject, ref } from 'vue'
 import CompassLevelTag from './CompassLevelTag.vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
+import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
 
 const props = defineProps<{
   m: MetricMeta
@@ -32,6 +34,8 @@ const props = defineProps<{
   /** 是否处于就地改名态（由父组件的 editingField 单一真源驱动） */
   editing?: boolean
 }>()
+
+const taskDnd = inject(TASK_DND_KEY, null)
 
 const emit = defineEmits<{
   (e: 'toggle', metricId: string): void
@@ -132,9 +136,15 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       <span class="mc-acc-l">验收</span>{{ m.acceptance }}
     </p>
 
-    <!-- 任务列表：内嵌 + 分叉连线；★容器不可省（见文件头陷阱说明） -->
-    <ul v-if="open && m.tasks.length" class="metric-list">
-      <li v-for="t in m.tasks" :key="t.id" class="tk-row" :class="t.status" :data-task="t.id" :title="`归属：${crumb}`">
+    <!-- 任务列表：内嵌 + 分叉连线；★容器不可省（见文件头陷阱说明）。V3.9.31（F4）：行可拖拽 -->
+    <ul v-if="open && m.tasks.length" class="metric-list" :class="{ 'dnd-tip-in': taskDnd && taskDnd.dropTip?.id === m.id && taskDnd.dropTip.mode === 'in' }"
+      @dragover.prevent="taskDnd?.onLaneDragOver($event, m.id)"
+      @dragleave="taskDnd?.onLaneDragLeave($event, m.id)"
+      @drop.prevent="taskDnd?.onLaneDrop($event, m.id)">
+      <li v-for="t in m.tasks" :key="t.id" class="tk-row" :data-task="t.id" :title="`归属：${crumb}`" :draggable="taskDnd ? true : undefined"
+        :class="[t.status, { 'tk-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
+        @dragstart="taskDnd?.onTaskDragStart($event, t)" @dragover.stop.prevent="taskDnd?.onRowDragOver($event, t)"
+        @drop.stop.prevent="taskDnd?.onRowDrop($event, t, m.id)" @dragend="taskDnd?.onDragEnd()">
         <button
           class="tk-box"
           :class="t.status"

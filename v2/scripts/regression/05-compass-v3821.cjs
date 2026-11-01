@@ -79,8 +79,12 @@ check('F2-2 ★项目层模板导入的入口有两处且都接真源（用户�
   const pa = codeOnly(PANO)
   const tr = codeOnly(CT_W11)
   const modalInst = CT_W11.slice(CT_W11.indexOf('mode="project"') - 400, CT_W11.indexOf('mode="project"') + 400)
+  /* ★V3.9.31 重指备案（W11-12 拆件）：全景的导入入口随「⋯」菜单迁入 CompassPanoMore，
+     宿主只留 @import-template 转发——两入口各一次 emit 的口径不变，判据跟着组件走。 */
+  const panoMore = codeOnly(read('/newtab/components/compass/CompassPanoMore.vue'))
   return (tw.match(/emit\('importTemplate', proj\.id\)/g) || []).length === 1
-    && (pa.match(/emit\('importTemplate', current\.proj\.id\)/g) || []).length === 1
+    && (panoMore.match(/emit\('importTemplate', projId\)/g) || []).length === 1
+    && pa.includes('@import-template="p => emit(\'importTemplate\', p)"')
     && (tr.match(/@import-template="openProjImport"/g) || []).length === 2
     && tr.includes('function openProjImport(')
     && tr.includes('projImport.value = { open: true, projId, projName: proj.name }')
