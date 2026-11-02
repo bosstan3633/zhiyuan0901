@@ -133,3 +133,11 @@
 .gs-switch-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 2px; top: 2px; background: var(--text); border-radius: 50%; transition: .2s; }
 .gs-switch input:checked + .gs-switch-slider { background: var(--accent); }
 .gs-switch input:checked + .gs-switch-slider::before { transform: translateX(16px); background: #fff; }
+
+
+/* ===== R176：AI 助手连接错误分类显示 + 重试链接 ===== */
+.ai-form-row { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
+.ai-msg { font-size: var(--fs-caption); color: var(--danger); line-height: 1.5; max-width: 100%; overflow-wrap: break-word; }
+.ai-retry-link { font-size: var(--fs-caption); color: var(--accent); text-decoration: none; cursor: pointer; white-space: nowrap; padding: 0 2px; }
+.ai-retry-link:hover { text-decoration: underline; }
+.ai-retry-link.disabled { opacity: var(--opacity-disabled); cursor: not-allowed; pointer-events: none; }

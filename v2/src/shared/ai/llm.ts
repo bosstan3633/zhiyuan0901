@@ -60,6 +60,7 @@ async function apiError(res: Response): Promise<never> {
     try { detail = JSON.parse(t)?.error?.message || t.slice(0, 200) } catch { detail = t.slice(0, 200) }
   } catch { /* ignore */ }
   const hint = res.status === 401 || res.status === 403 ? '（API Key 无效或过期）'
+    : res.status === 402 ? '（账户余额不足，请充值后重试）'
     : res.status === 404 ? '（地址或模型名不存在，请核对 baseUrl 与 model）'
     : res.status === 429 ? '（触发限流，稍后再试）' : ''
   throw new Error(`HTTP ${res.status}${hint}${detail ? ' · ' + detail : ''}`)

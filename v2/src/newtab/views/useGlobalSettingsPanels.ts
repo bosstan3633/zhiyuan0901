@@ -123,6 +123,22 @@ function aiDeliver() {
 }
 
 function aiErr(e: unknown): string { return (e as Error)?.message || String(e) }
+/** 错误信息美化与分类显示：在错误前加上图标前缀（网络 vs API 业务） */
+function aiErrDisplay(text: string): string {
+  const t = text.trim()
+  // 402 余额不足
+  if (t.includes('402') || t.includes('余额')) return '⚠️ ' + t
+  // 401/403 凭证问题
+  if (t.includes('401') || t.includes('403') || t.includes('无效')) return '🔑 ' + t
+  // 404 地址/模型不存在
+  if (t.includes('404') || t.includes('不存在')) return '🔗 ' + t
+  // 429 限流
+  if (t.includes('429') || t.includes('限流')) return '⏳ ' + t
+  // 网络错误
+  if (t.includes('Network') || t.includes('fetch') || t.includes('timeout') || t.includes('DNS')) return '🌐 ' + t
+  // 默认
+  return '❌ ' + t
+}
 function aiGuard(): boolean {
   if (!aiReady.value) { showToast('请先在「AI 助手」页填好 API 地址 / Key / 模型并测试连接'); activePage.value = 'ai'; return false }
   return true
@@ -501,6 +517,6 @@ const activeManualSec = ref('quick-1')
 
 
   return {
-    onTtRowClick, ttAllChecked, toggleTtAll, ttDragId, ttCardDragIds, aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiGenre, aiPersonas, aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona, aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise, aiJobClosed, aiCheckReviseBak, aiRestoreRevise, aiTrashRescue, aiWeeklyReview, aiDeliver, aiErr, aiGuard, aiFetchModels, aiTestConn, aiTogglePersona, aiCatVocab, aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick, onTtRowDragStart, onTtRowDragEnd, ttMoveCards, openCardLink, ttRename, ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd, ttDrop, ttUnnest, ttCollectFromCards, activeManualSec,
+    onTtRowClick, ttAllChecked, toggleTtAll, ttDragId, ttCardDragIds, aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiGenre, aiPersonas, aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona, aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise, aiJobClosed, aiCheckReviseBak, aiRestoreRevise, aiTrashRescue, aiWeeklyReview, aiDeliver, aiErr, aiErrDisplay, aiGuard, aiFetchModels, aiTestConn, aiTogglePersona, aiCatVocab, aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick, onTtRowDragStart, onTtRowDragEnd, ttMoveCards, openCardLink, ttRename, ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd, ttDrop, ttUnnest, ttCollectFromCards, activeManualSec,
   }
 }

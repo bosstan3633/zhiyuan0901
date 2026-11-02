@@ -55,6 +55,16 @@ const allTasks = computed(() =>
                     <b>{{ M.metric.title || '未命名指标' }}</b>
                     <small :class="{ warn: !M.totalCount }">{{ M.totalCount ? M.doneCount + '/' + M.totalCount + ' · ' + M.progress + '%' : '⚠ 缺任务' }}</small>
                     <small v-if="M.metric.target" class="target" :title="M.metric.target">{{ M.metric.target }}</small>
+                    <!-- 挂载的任务列表 -->
+                    <template v-if="M.tasksOfMetric.length">
+                      <div class="met-tasks">
+                        <div v-for="(t, ti) in M.tasksOfMetric.slice(0, 4)" :key="t.task.id" class="met-task-item" draggable="true"
+                          @dragstart="$event.dataTransfer.setData('taskId', t.task.id)">
+                          {{ ti + 1 }}. {{ t.task.name }}
+                        </div>
+                        <div v-if="M.tasksOfMetric.length > 4" class="met-more">+{{ M.tasksOfMetric.length - 4 }} 更多</div>
+                      </div>
+                    </template>
                   </div>
                 </li>
               </ul>
@@ -64,9 +74,16 @@ const allTasks = computed(() =>
       </ul>
     </div>
 
+    <!-- 未归档任务区 -->
     <div v-if="tree.orphans.length" class="tier">
-      <div class="cv-card orph" role="button" tabindex="0" @click="emit('open', { kind: 'orphans' })" @keydown.enter="emit('open', { kind: 'orphans' })">
-        <b>散叶 · 未归档任务</b><small>{{ tree.orphans.length }} 件 · 挂上指标即上枝</small>
+      <div class="orph-drop-zone">
+        <div class="orph-title">散叶 · 未归档任务 <span class="count">{{ tree.orphans.length }}</span></div>
+        <div class="orph-tasks" role="list">
+          <div v-for="(t, ti) in tree.orphans" :key="t.id" class="orph-task-item" draggable="true"
+            role="listitem" @dragstart="$event.dataTransfer.setData('taskId', t.id)" title="拖到金字塔里的指标节点以归位">
+            {{ ti + 1 }}. {{ t.name }}
+          </div>
+        </div>
       </div>
     </div>
     <p class="cap">连线即隶属：战略目标 → 项目 → 成功指标 · 任务 ×{{ allTasks }}（明细切「树状」）· 横向滚动查看全局 · 点击节点看只读详情</p>
@@ -74,9 +91,9 @@ const allTasks = computed(() =>
 </template>
 
 <style scoped>
-.cpl { max-width: 100%; padding: 4px 0 40px; overflow-x: auto; }
+.cpl { max-width: 100%; padding: 4px 0 40px; overflow-x: auto; overflow-y: hidden; }
 .tier { display: flex; justify-content: center; margin: 0 0 6px; }
-.cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 10px); padding: 8px 12px; cursor: pointer; transition: border-color var(--dur-fast, 120ms), background var(--dur-fast, 120ms); }
+.cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 10px); padding: 8px 12px; cursor: pointer; transition: border-color var(--dur-fast, 120ms), background var(--dur-fast, 120ms); white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
 .cv-card:hover { border-color: var(--accent); background: var(--surface-2); }
 .cv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .hero { max-width: 460px; width: 100%; text-align: center; border-color: var(--border-strong); }
@@ -101,7 +118,7 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 
 .node { display: flex; flex-direction: column; gap: 3px; min-width: 168px; max-width: 250px; }
 .node.goal { border-left: 3px solid var(--accent); min-width: 200px; }
-.node.goal b, .node.proj b, .node.met b { color: var(--text); font-size: var(--fs-body); overflow-wrap: anywhere; }
+.node.goal b, .node.proj b, .node.met b { color: var(--text); font-size: var(--fs-body); overflow-wrap: anywhere; word-break: break-word; }
 .node.proj .np { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .badge { flex: none; font-size: 10px; font-weight: 700; color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; }
 .node small { color: var(--text-3); font-size: var(--fs-caption); }
@@ -113,4 +130,19 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .orph b { color: var(--text); font-size: var(--fs-body); }
 .orph small { color: var(--text-3); font-size: var(--fs-caption); }
 .cap { text-align: center; color: var(--text-4); font-size: var(--fs-caption); margin: 22px 0 0; }
+
+/* ===== 成功指标下的任务列表与未归档任务拖拽区 ===== */
+.met-tasks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; margin-top: 4px; }
+.met-task-item, .orph-task-item { 
+  font-size: var(--fs-caption); color: var(--text-3); 
+  padding: 3px 5px; background: var(--surface-3); border-radius: 4px; 
+  cursor: grab; overflow-wrap: break-word; word-break: break-word;
+}
+.met-task-item:hover, .orph-task-item:hover { background: var(--surface-4); }
+.met-more { grid-column: 1 / -1; text-align: center; color: var(--text-3); font-size: var(--fs-micro); }
+
+.orph-drop-zone { max-width: 800px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-sm); }
+.orph-title { font-size: var(--fs-body); color: var(--text); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.orph-title .count { font-size: var(--fs-caption); color: var(--text-3); font-weight: normal; }
+.orph-tasks { display: flex; gap: 6px; flex-wrap: wrap; }
 </style>

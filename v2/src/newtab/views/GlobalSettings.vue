@@ -243,9 +243,12 @@
               <datalist id="ai-model-list"><option v-for="m in aiModels" :key="m" :value="m" /></datalist>
             </label>
             <div class="ai-form-row">
-              <button class="gs-btn" :disabled="aiBusy !== '' || !aiConfig.baseUrl || !aiConfig.apiKey" @click="aiFetchModels"><Icon v-if="aiBusy !== 'models'" name="download" :size="13"/>{{ aiBusy === 'models' ? '拉取中…' : '拉取模型列表' }}</button>
-              <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn"><Icon v-if="aiBusy !== 'test'" name="zap" :size="13"/>{{ aiBusy === 'test' ? '测试中…' : '测试连接' }}</button>
-              <span v-if="aiMsg" class="ai-msg" :class="{ err: aiMsg.startsWith('') }">{{ aiMsg }}</span>
+                          <button class="gs-btn" :disabled="aiBusy !== '' || !aiConfig.baseUrl || !aiConfig.apiKey" @click="aiFetchModels"><Icon v-if="aiBusy !== 'models'" name="download" :size="13"/> {{ aiBusy === 'models' ? '拉取中…' : '拉取模型列表' }}</button>
+              <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn"><Icon v-if="aiBusy !== 'test'" name="zap" :size="13"/> {{ aiBusy === 'test' ? '测试中…' : '测试连接' }}</button>
+              <template v-if="aiMsg">
+                <span class="ai-msg" :class="{ err: aiMsg.startsWith('') }">{{ aiErrDisplay(aiMsg) }}</span>
+                <a class="ai-retry-link" :class="{ disabled: aiBusy !== '' }" @click="aiTestConn">再次测试</a>
+              </template>
             </div>
           </div>
         </div>
