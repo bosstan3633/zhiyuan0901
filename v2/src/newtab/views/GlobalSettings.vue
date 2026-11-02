@@ -420,7 +420,7 @@ const {
   aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray,
   aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise,
   aiJobClosed, aiRestoreRevise, aiTrashRescue, aiWeeklyReview,
-  aiDeliver, aiFetchModels, aiTestConn, aiTogglePersona,
+  aiDeliver, aiErrDisplay, aiFetchModels, aiTestConn, aiTogglePersona,
   aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick,
   onTtRowDragStart, onTtRowDragEnd, openCardLink, ttRename,
   ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd,

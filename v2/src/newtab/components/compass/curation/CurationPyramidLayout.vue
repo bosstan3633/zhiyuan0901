@@ -3,10 +3,18 @@
  * V3.9.33（批 A 用户反馈）：策展模式 · 金字塔布局 = **隶属关系结构图**。
  * 愿景 → 使命 → 战略目标 → 项目 → 成功指标：五级 org-chart 连线（横轨 + 垂直落线），
  * 谁属于谁一眼可辨——不再只是「按层平铺」；任务明细切「树状」布局看。
- * 与树状布局消费同一棵 CurationTree（同源）；点击节点开只读抽屉；零写库。
+ * 与树状布局消费同一棵 CurationTree（同源）；点击节点开只读抽屉。
+ *
+ * V3.9.33+（本次修复）：任务在金字塔上可拖拽——指标卡直接列出前 4 条任务（可拖）、
+ * 未归档任务以列表呈现（可拖到任意指标卡上归位）；数据落盘沿用与方向台相同的
+ * useTaskRelocationDnd 双写归属（task.metricId + metric.taskIds + updatedAt + persist）。
+ * 仍守住「跨项目拒绝」红线。
  */
-import { computed } from 'vue'
-import type { CurationSel, CurationTree } from '@/shared/utils/compassCurationModel'
+import { computed, reactive } from 'vue'
+import type { CurationSel, CurationTree, CurationMetricNode } from '@/shared/utils/compassCurationModel'
+import { useAppStore } from '@/newtab/stores/app'
+import { useTaskRelocationDnd } from '@/newtab/views/useTaskRelocationDnd'
+import type { TaskCard } from '@/shared/models'
 
 const props = defineProps<{ tree: CurationTree }>()
 const emit = defineEmits<{ (e: 'open', sel: CurationSel): void }>()
@@ -15,6 +23,29 @@ const allMetrics = computed(() =>
   props.tree.goals.flatMap(g => g.projects.flatMap(P => P.metrics)))
 const allTasks = computed(() =>
   allMetrics.value.reduce((s, M) => s + M.totalCount, 0) + props.tree.orphans.length)
+
+/* ===== 任务拖拽归位（与方向台同一套口径） ===== */
+const store = useAppStore()
+const dnd = reactive(useTaskRelocationDnd({ d: () => store.data!, persist: () => store.persist() }))
+
+function onTaskDragStart(e: DragEvent, t: TaskCard) {
+  e.stopPropagation()
+  dnd.onTaskDragStart(e, t)
+}
+function onMetricDragOver(e: DragEvent, m: CurationMetricNode) {
+  if (!dnd.dragTaskId) return
+  e.preventDefault()
+  e.stopPropagation()
+  dnd.onLaneDragOver(e, m.metric.id)
+}
+function onMetricDragLeave(e: DragEvent, m: CurationMetricNode) {
+  dnd.onLaneDragLeave(e, m.metric.id)
+}
+function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
+  e.preventDefault()
+  e.stopPropagation()
+  dnd.onLaneDrop(e, m.metric.id)
+}
 </script>
 
 <template>
@@ -51,18 +82,22 @@ const allTasks = computed(() =>
               <ul class="org-lv" v-if="P.metrics.length">
                 <li v-for="M in P.metrics" :key="M.metric.id">
                   <div class="cv-card node met" role="button" tabindex="0"
-                    @click="emit('open', { kind: 'metric', node: M })" @keydown.enter="emit('open', { kind: 'metric', node: M })">
+                    :class="{ 'drop-target': dnd.dropTip && dnd.dropTip.id === M.metric.id && dnd.dropTip.mode === 'in' }"
+                    @click="emit('open', { kind: 'metric', node: M })" @keydown.enter="emit('open', { kind: 'metric', node: M })"
+                    @dragover="onMetricDragOver($event, M)" @dragleave="onMetricDragLeave($event, M)" @drop="onMetricDrop($event, M)">
                     <b>{{ M.metric.title || '未命名指标' }}</b>
                     <small :class="{ warn: !M.totalCount }">{{ M.totalCount ? M.doneCount + '/' + M.totalCount + ' · ' + M.progress + '%' : '⚠ 缺任务' }}</small>
                     <small v-if="M.metric.target" class="target" :title="M.metric.target">{{ M.metric.target }}</small>
-                    <!-- 挂载的任务列表 -->
-                    <template v-if="M.tasksOfMetric.length">
-                      <div class="met-tasks">
-                        <div v-for="(t, ti) in M.tasksOfMetric.slice(0, 4)" :key="t.task.id" class="met-task-item" draggable="true"
-                          @dragstart="$event.dataTransfer.setData('taskId', t.task.id)">
-                          {{ ti + 1 }}. {{ t.task.name }}
+                    <!-- 挂载的任务列表（可拖拽改归属） -->
+                    <template v-if="M.tasks.length">
+                      <div class="met-tasks" @click.stop>
+                        <div v-for="(tn, ti) in M.tasks.slice(0, 4)" :key="tn.task.id" class="met-task-item" draggable="true"
+                          :class="{ dragging: dnd.dragTaskId === tn.task.id }"
+                          @dragstart="onTaskDragStart($event, tn.task)" @dragend="dnd.onDragEnd()"
+                          @click.stop="emit('open', { kind: 'task', node: tn })" :title="tn.task.title">
+                          {{ ti + 1 }}. {{ tn.task.title }}
                         </div>
-                        <div v-if="M.tasksOfMetric.length > 4" class="met-more">+{{ M.tasksOfMetric.length - 4 }} 更多</div>
+                        <div v-if="M.tasks.length > 4" class="met-more" @click.stop="emit('open', { kind: 'metric', node: M })">+{{ M.tasks.length - 4 }} 更多</div>
                       </div>
                     </template>
                   </div>
@@ -74,14 +109,18 @@ const allTasks = computed(() =>
       </ul>
     </div>
 
-    <!-- 未归档任务区 -->
+    <!-- 未归档任务区：明细罗列 + 可拖入上方任意指标卡归位 -->
     <div v-if="tree.orphans.length" class="tier">
       <div class="orph-drop-zone">
-        <div class="orph-title">散叶 · 未归档任务 <span class="count">{{ tree.orphans.length }}</span></div>
+        <div class="orph-title" role="button" tabindex="0" @click="emit('open', { kind: 'orphans' })" @keydown.enter="emit('open', { kind: 'orphans' })">
+          散叶 · 未归档任务 <span class="count">{{ tree.orphans.length }} 件 · 拖到上方指标卡即归位</span>
+        </div>
         <div class="orph-tasks" role="list">
-          <div v-for="(t, ti) in tree.orphans" :key="t.id" class="orph-task-item" draggable="true"
-            role="listitem" @dragstart="$event.dataTransfer.setData('taskId', t.id)" title="拖到金字塔里的指标节点以归位">
-            {{ ti + 1 }}. {{ t.name }}
+          <div v-for="(tn, ti) in tree.orphans" :key="tn.task.id" class="orph-task-item" draggable="true"
+            role="listitem" :class="{ dragging: dnd.dragTaskId === tn.task.id }"
+            @dragstart="onTaskDragStart($event, tn.task)" @dragend="dnd.onDragEnd()"
+            @click="emit('open', { kind: 'task', node: tn })" :title="tn.task.title">
+            {{ ti + 1 }}. {{ tn.task.title }}
           </div>
         </div>
       </div>
@@ -145,4 +184,9 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .orph-title { font-size: var(--fs-body); color: var(--text); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .orph-title .count { font-size: var(--fs-caption); color: var(--text-3); font-weight: normal; }
 .orph-tasks { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* 拖拽反馈：落点高亮 + 拖拽源半透明 */
+.node.met.drop-target { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-glow); }
+.met-task-item.dragging, .orph-task-item.dragging { opacity: .4; }
+.orph-task-item { max-width: 240px; }
 </style>
