@@ -14,6 +14,8 @@ import type { CurationCanvasLayout } from '@/newtab/composables/useCurationMindM
 const props = defineProps<{
   layout: CurationCanvasLayout
   thesis: ResourceCard | null
+  /** 需求2：中心论点卡挂载的关联资源（L1 突出显示 + 可解除） */
+  thesisCards: ResourceCard[]
   nodes: Category[]
   roots: Category[]
   selectedId: string
@@ -48,7 +50,10 @@ const emit = defineEmits<{
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
   'open-thesis': []
   'open-create-thesis': []
+  'link-thesis': []
+  'unlink-thesis': [card: ResourceCard]
   move: [sourceId: string, targetId: string]
+  'reorder-sibling': [id: string, dir: -1 | 1]
   cut: [id: string]
   paste: [id: string]
   'keyboard-drag-start': [id: string]
@@ -424,7 +429,8 @@ onBeforeUnmount(() => {
     </div>
     <div class="mindmap-help" aria-label="思维导图快捷操作">
       <span><kbd>Tab</kbd> 创建子分支</span>
-      <span><kbd>Enter</kbd> 创建同级</span>
+      <span><kbd>Ctrl+Enter</kbd> 创建同级</span>
+      <span><kbd>Enter</kbd> 编辑标题</span>
       <span><kbd>拖拽</kbd> 移动整棵子树</span>
       <span><kbd>⌘/Ctrl+X</kbd> 剪切</span>
       <span><kbd>⌘/Ctrl+V</kbd> 粘贴为子级</span>
@@ -469,9 +475,25 @@ onBeforeUnmount(() => {
               <Icon name="landmark" :size="15"/>
               <span><b>确立中心论点</b><small>先写结论，再长出支撑分支</small></span>
             </button>
+            <!-- 需求2：中心论点的关联资源（突出显示 + 可解除关联） -->
+            <div v-if="thesis && thesisCards.length" class="thesis-resources">
+              <span v-for="card in thesisCards" :key="card.id" class="mind-resource thesis-resource" v-pressable
+                :data-rid="card.id"
+                :title="card.title + '；单击打开详情，双击打开链接'"
+                @click.stop="emit('open-resource', card)"
+                @dblclick.stop="emit('open-resource-link', card)">
+                <span class="mind-resource-dot" :data-source="card.sourceType || 'personal'"></span>
+                <span class="mind-resource-title">{{ card.title }}</span>
+                <button class="mind-resource-remove" type="button" title="解除与中心论点的关联（资源卡池源卡保留）"
+                  aria-label="解除关联" @click.stop="emit('unlink-thesis', card)">×</button>
+              </span>
+            </div>
             <div class="mind-node-foot">
               <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('open-thesis')">
                 <Icon name="filetext" :size="13"/> 论点卡详情
+              </button>
+              <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('link-thesis')">
+                <Icon name="link" :size="13"/> 关联资源
               </button>
               <span class="mind-foot-spacer"></span>
               <span class="mind-shortcut"><kbd>Tab</kbd> 创建二级分支</span>
@@ -498,6 +520,7 @@ onBeforeUnmount(() => {
               @keyboard-drag-target="emit('keyboard-drag-target', $event)"
               @keyboard-drag-confirm="emit('keyboard-drag-confirm')"
               @keyboard-drag-cancel="emit('keyboard-drag-cancel')"
+              @reorder-sibling="(id, dir) => emit('reorder-sibling', id, dir)"
               @focus-node="onNodeFocusRequest"
               @cut="emit('cut', $event)" @paste="emit('paste', $event)"
               @remove-node="emit('remove-node', $event)" />

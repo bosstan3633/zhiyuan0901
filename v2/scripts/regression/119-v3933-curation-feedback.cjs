@@ -54,9 +54,17 @@ check('R190-5 ★手册旧内容零删（增量口径抽检）：五篇篇名 / 
     && MANUAL.includes('常调 Top 10（按调用频率排序的前十张资源卡）')
 })
 
-check('R190-6 ★策展页只读红线复验（V3.9.33 增量后）：页面/双布局/抽屉零 persist', () => {
-  const files = [PAGE, read('/newtab/components/compass/curation/CurationTreeLayout.vue'),
-    read('/newtab/components/compass/curation/CurationPyramidLayout.vue'),
+check('R190-6 ★策展页只读红线复验（V3.9.33 增量后）：页面/双布局/抽屉零 persist。★V3.9.34 重指带备案（用户 2026-11-02 拍板，同 R189-4）：金字塔布局允许任务拖拽归位，但写库只经 useTaskRelocationDnd（persist 由宿主以 onTaskPersist 回调注入）；页面/树布局/抽屉仍零 persist，金字塔禁止直调 store.persist/saveData/.mutate。', () => {
+  const strict = [read('/newtab/components/compass/curation/CurationTreeLayout.vue'),
     read('/newtab/components/compass/CurationReadDrawer.vue')]
-  return files.every(src => !src.includes('persist') && !src.includes('saveData') && !src.includes('.mutate'))
+  const pyr = read('/newtab/components/compass/curation/CurationPyramidLayout.vue')
+  const strictOk = strict.every(src => !src.includes('persist') && !src.includes('saveData') && !src.includes('.mutate'))
+    // PAGE 宿主：落盘集中在具名 handler，零 saveData/.mutate 直调
+    && !PAGE.includes('saveData') && !PAGE.includes('.mutate')
+    && PAGE.includes('function onTaskRelocated')
+  // 金字塔：persist 仅以回调形参出现（onTaskPersist），不得直调 store.persist()
+  const pyrOk = !pyr.includes('.mutate') && !pyr.includes('saveData')
+    && !pyr.includes('store.persist()') && !pyr.includes('appStore.persist()')
+    && pyr.includes('onTaskPersist') && pyr.includes('useTaskRelocationDnd')
+  return strictOk && pyrOk
 })

@@ -72,7 +72,7 @@ export function usePyramid(ctx: PyramidCtx) {
   // ===== R65-F3：节点关联资源卡（资源台全量卡选择器 → 镜像到节点）=====
   const linkCardsModal = ref<{ catId: string; catName: string; picked: Set<string> } | null>(null)
   const linkCardsQ = ref('')
-  function openLinkCards(cat: Category) {
+  function openLinkCards(cat: Category | { id: string; name: string }) {
     linkCardsQ.value = ''
     linkCardsModal.value = { catId: cat.id, catName: cat.name, picked: new Set() }
   }

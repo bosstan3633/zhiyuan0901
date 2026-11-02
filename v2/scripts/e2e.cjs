@@ -1048,10 +1048,13 @@ async function main() {
   report('E2E-18 策展画布拖拽真值+改父级落库（R111 承接 R57-F1）', dragAttr === 'true' && seedOk && areaDrop === 'dispatched' && movedParent === 'e2e-drag-c2',
     'draggable=' + dragAttr + ' seed=' + seedOk + ' area=' + areaDrop + ' parent=e2e-drag-c2→' + movedParent)
 
-  // E2E-45（V3.9.10）：节点聚焦后的思维导图键位必须跨层级成立。
+  // E2E-45（V3.9.10；V3.9.34 随迁）：节点聚焦后的思维导图键位必须跨层级成立。
   //   旧实现用 `closest([role=button])` 跳过交互元素，节点自身拖拽把手也命中，
   //   L2/L3 节点得到焦点后 Tab/Enter 被静默吞掉。这里从真实 L2 节点出发，
-  //   一路按 Enter / Tab / Tab / Enter 建到 L4，再以数据层 parentId 验证树形。
+  //   一路按 Ctrl+Enter / Tab / Tab / Ctrl+Enter 建到 L4，再以数据层 parentId 验证树形。
+  //   ★V3.9.34 键位语义调整：Enter = 修改/确认当前节点标题，Ctrl+Enter = 创建同级，
+  //   本用例随迁改用 Ctrl+Enter（focus → Ctrl+Enter 会先进入编辑态，编辑态内
+  //   再按 Ctrl+Enter = 确认并建同级，两步合一照旧收敛到同一等待点）。
   const keySeed = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
     const d = r['zy_data_v2']
     if (!d) return false
@@ -1064,7 +1067,8 @@ async function main() {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '[data-mind-node="e2e-key-root"]', { visible: true, timeout: 10000 })
   await page.locator('[data-mind-node="e2e-key-root"]').focus()
-  await page.keyboard.press('Enter')
+  await page.keyboard.press('Control+Enter')
+  await page.keyboard.press('Control+Enter')
   await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
   await page.locator('.mind-edit-title').fill('E2E 键位二级同级')
   await page.keyboard.press('Tab')
@@ -1073,7 +1077,7 @@ async function main() {
   await page.keyboard.press('Tab')
   await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
   await page.locator('.mind-edit-title').fill('E2E 键位四级子级')
-  await page.keyboard.press('Enter')
+  await page.keyboard.press('Control+Enter')
   await waitForLocator(page, '.mind-edit-title', { visible: true, timeout: 5000 })
   await page.locator('.mind-edit-title').fill('E2E 键位四级同级')
   await page.locator('.mindmap-title').click()
@@ -1096,7 +1100,7 @@ async function main() {
       labels: [...document.querySelectorAll('[data-mind-node] .mind-level')].map(x => x.textContent.trim()),
     }
   }))
-  report('E2E-45 V3.9.10 节点聚焦键位跨层级：L2 Enter 建同级 → Tab 建 L3 → Tab 建 L4 → Enter 建 L4 同级',
+  report('E2E-45 V3.9.10 节点聚焦键位跨层级（V3.9.34 随迁 Ctrl+Enter）：L2 Ctrl+Enter 建同级 → Tab 建 L3 → Tab 建 L4 → Ctrl+Enter 建 L4 同级',
     keySeed && keyTree.l2 && keyTree.l3 && keyTree.l4 && keyTree.l4s && keyTree.labels.includes('L4'),
     JSON.stringify(keyTree))
 

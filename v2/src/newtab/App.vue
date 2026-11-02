@@ -116,6 +116,7 @@ const activeWorkspaceId = computed(() => {
 // 当前所在台在前 5 之外时始终显示（"我在哪"不可丢）。与既有 «/» 手动折叠（仅工作台页生效）正交。
 const E2_TAB_MAX = 5
 const wsOverflowOpen = ref(false)
+const hiddenMenuOpen = ref(false)
 const wsOverflow = computed(() => store.workspaces.length > E2_TAB_MAX)
 const visibleWorkspaces = computed(() => {
   if (workspacesCollapsed.value && activeWorkspaceId.value) {
@@ -235,6 +236,29 @@ function onTabContextMenu(e: MouseEvent, ws: Workspace) {
   menuPos.value = { x: e.clientX, y: e.clientY }
 }
 function closeMenu() { menuWs.value = null }
+
+/** 需求1：隐藏台——从顶栏与快捷键中摘除，汇聚到「隐藏台」下拉 */
+function hideDeckFromTab() {
+  const ws = menuWs.value
+  if (!ws) return
+  const live = store.data!.workspaces.find(w => w.id === ws.id)
+  if (live) {
+    live.hidden = true
+    store.persist()
+    showToast(`已隐藏「${wsDisplayNameOf(ws)}」· 在顶栏「隐藏台」中可重新展示`)
+    if (activeTab.value === ws.id) navigate('/')
+  }
+  closeMenu()
+}
+function showDeck(id: string) {
+  const live = store.data!.workspaces.find(w => w.id === id)
+  if (live) {
+    live.hidden = false
+    store.persist()
+    showToast(`已展示「${wsDisplayNameOf(live)}」`)
+  }
+  hiddenMenuOpen.value = false
+}
 
 function startRename() {
   if (!menuWs.value) return
@@ -505,7 +529,7 @@ const backupReminderDot = computed(() => {
 </script>
 
 <template>
-  <div class="app-shell" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false)">
+  <div class="app-shell" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false); hiddenMenuOpen && (hiddenMenuOpen = false)">
     <!-- R168：AI 徽标的图形定义，全站只挂这一份（各入口走 `<use href="#zy-ai-mark">`）——
          见 AiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
     <AiMarkSymbol />
@@ -560,6 +584,13 @@ const backupReminderDot = computed(() => {
           :title="`其余 ${hiddenWsCount} 个策展台`"
           @mouseenter="wsOverflowOpen = true" @click.stop="wsOverflowOpen = !wsOverflowOpen">
           ≪ {{ hiddenWsCount }}
+        </div>
+
+        <!-- 需求1：隐藏台汇聚下拉（眼睛=重新展示） -->
+        <div v-if="store.hiddenWorkspaces.length" class="tab tab-hidden-ws"
+          v-pressable :title="`${store.hiddenWorkspaces.length} 个隐藏台`"
+          @click.stop="hiddenMenuOpen = !hiddenMenuOpen">
+          <Icon name="eyeoff" :size="13"/> {{ store.hiddenWorkspaces.length }}
         </div>
 
         <!-- 新增策展台 -->
@@ -648,8 +679,20 @@ const backupReminderDot = computed(() => {
 
     <!-- 右键菜单 -->
     <Teleport to="body">
+      <div v-if="hiddenMenuOpen" class="ctx-menu hidden-ws-menu" data-a11y-container style="top: 52px; right: 180px; position: fixed" @click.stop>
+        <div class="ctx-title">隐藏台 · {{ store.hiddenWorkspaces.length }}</div>
+        <div v-for="ws in store.hiddenWorkspaces" :key="ws.id" class="ctx-item hidden-ws-row">
+          <button class="hidden-ws-name" type="button" @click="hiddenMenuOpen = false; showDeck(ws.id); navigate('/workspace/' + ws.id)">
+            <template v-if="ws.icon">{{ ws.icon }}</template><Icon v-else name="folder" :size="13"/> {{ wsDisplayNameOf(ws) }}
+          </button>
+          <button class="hidden-ws-eye" type="button" title="重新展示到顶栏" @click="showDeck(ws.id)">
+            <Icon name="eye" :size="13"/> 展示
+          </button>
+        </div>
+      </div>
       <div v-if="menuWs" class="ctx-menu" data-a11y-container :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" v-pressable @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
+        <div class="ctx-item" v-pressable @click="hideDeckFromTab"><Icon name="eyeoff" :size="13"/> 隐藏（收进顶栏「隐藏台」）</div>
         <div class="ctx-item danger" v-pressable @click="deleteDeckFromTab"><Icon name="trash" :size="13"/> 删除策展台</div>
       </div>
     </Teleport>
@@ -756,6 +799,16 @@ const backupReminderDot = computed(() => {
 .page-container { flex: 1; }
 
 
+
+/* 需求1：隐藏台汇聚下拉 */
+.tab-hidden-ws { color: var(--text-3); }
+.hidden-ws-menu { min-width: 220px; }
+.ctx-title { padding: 5px 9px 7px; font-size: var(--fs-caption); color: var(--text-4); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.hidden-ws-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hidden-ws-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; font: inherit; color: inherit; text-align: left; }
+.hidden-ws-name:hover { color: var(--accent); }
+.hidden-ws-eye { display: inline-flex; align-items: center; gap: 3px; flex: none; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); cursor: pointer; font-family: inherit; }
+.hidden-ws-eye:hover { border-color: var(--accent); color: var(--accent); }
 .ctx-menu { position: fixed; z-index: var(--z-modal); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 5px; min-width: 140px; }
 .ctx-item { padding: 8px 12px; border-radius: 7px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all .1s; }
 .ctx-item:hover { background: var(--surface-3); color: var(--text); }

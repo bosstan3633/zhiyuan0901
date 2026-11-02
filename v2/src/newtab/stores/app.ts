@@ -21,7 +21,11 @@ export const useAppStore = defineStore('app', () => {
   // R61 后资源台是真实 Workspace 实体，顶栏以固定「资源台」Tab 呈现（/curation 路由），
   // 采集/移动/检索等全量枚举点（遍历 data.workspaces）自然包含资源台。
   const workspaces = computed<Workspace[]>(() =>
-    data.value?.workspaces.filter((w) => !w.archived && w.id !== CURATION_WS_ID).sort((a, b) => a.order - b.order) || []
+    data.value?.workspaces.filter((w) => !w.archived && !w.hidden && w.id !== CURATION_WS_ID).sort((a, b) => a.order - b.order) || []
+  )
+  /** 需求1：隐藏台列表（顶栏不呈现、不占快捷键槽位；汇聚到下拉里可恢复展示） */
+  const hiddenWorkspaces = computed<Workspace[]>(() =>
+    data.value?.workspaces.filter((w) => !w.archived && w.hidden && w.id !== CURATION_WS_ID).sort((a, b) => a.order - b.order) || []
   )
   // R156：默认值由历史遗留 'green' 校正为 'linear'（green 早于 R53-D 退役，此处只是没跟上）
   const theme = computed(() => ui.value?.theme || 'linear')
@@ -171,5 +175,5 @@ export const useAppStore = defineStore('app', () => {
     if (data.value) writeHot(data.value, immediate)
   }
 
-  return { data, ui, workspaces, theme, init, setTheme, persist, persistHot }
+  return { data, ui, workspaces, hiddenWorkspaces, theme, init, setTheme, persist, persistHot }
 })

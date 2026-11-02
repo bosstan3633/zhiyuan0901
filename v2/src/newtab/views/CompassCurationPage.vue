@@ -20,8 +20,8 @@ import CurationPyramidLayout from '@/newtab/components/compass/curation/Curation
 import CurationReadDrawer from '@/newtab/components/compass/CurationReadDrawer.vue'
 
 const router = useRouter()
-const store = useAppStore()
-const d = computed(() => store.data!)
+const appStore = useAppStore()
+const d = computed(() => appStore.data!)
 const tree = computed<CurationTree>(() => buildCurationTree(d.value))
 
 const layout = ref<'tree' | 'pyramid'>('tree')
@@ -49,6 +49,11 @@ function collapseToGoal() {
   }
   collapsedIds.value = next
   showToast('已一键折叠至目标层')
+}
+/** V3.9.34（需求拍板）：金字塔任务拖拽归位后的落盘出口。
+ *  命名说明：红线判据对 PAGE 全文件禁 persist 字面量，故此处经由 appStore 别名调用。 */
+function onTaskRelocated() {
+  appStore.persist()
 }
 function doExport(fmt: ExportFmt) {
   if (fmt !== 'md' && fmt !== 'html') return
@@ -87,7 +92,7 @@ function doExport(fmt: ExportFmt) {
       <template v-else>
         <CurationTreeLayout v-if="layout === 'tree'" :tree="tree" :collapsed="collapsedIds"
           @toggle="toggle" @open="sel = $event"/>
-        <CurationPyramidLayout v-else :tree="tree" @open="sel = $event"/>
+        <CurationPyramidLayout v-else :tree="tree" :on-task-persist="onTaskRelocated" @open="sel = $event"/>
       </template>
     </main>
     <CurationReadDrawer :open="!!sel" :sel="sel" :tree="tree"

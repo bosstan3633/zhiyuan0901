@@ -42,6 +42,7 @@ const emit = defineEmits<{
   'keyboard-drag-confirm': []
   'keyboard-drag-cancel': []
   'focus-node': [key: string, id: string]
+  'reorder-sibling': [id: string, dir: -1 | 1]
   cut: [id: string]
   paste: [id: string]
   'remove-node': [id: string]
@@ -148,7 +149,8 @@ function onEditKeydown(e: KeyboardEvent): void {
   if (e.key === 'Enter' && !e.shiftKey && editingField.value === 'title') {
     e.preventDefault()
     commitEdit()
-    emit('create-sibling', props.node.id)
+    // 编辑中按 Ctrl+Enter = 确认并建同级；纯 Enter 仅确认
+    if (e.metaKey || e.ctrlKey) emit('create-sibling', props.node.id)
   }
 }
 
@@ -177,7 +179,9 @@ function onNodeKeydown(e: KeyboardEvent): void {
     emit('create-child', props.node.id)
   } else if (e.key === 'Enter') {
     e.preventDefault()
-    emit('create-sibling', props.node.id)
+    // V3.9.34（需求4）：L2 起 Enter = 修改/确认当前节点标题；Ctrl+Enter = 创建同级
+    if (e.metaKey || e.ctrlKey) emit('create-sibling', props.node.id)
+    else beginEdit('title')
   } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'x') {
     e.preventDefault()
     emit('cut', props.node.id)
@@ -185,6 +189,25 @@ function onNodeKeydown(e: KeyboardEvent): void {
     e.preventDefault()
     emit('paste', props.node.id)
   }
+}
+
+function siblingIndex(): number {
+  return props.nodes
+    .filter(n => (n.parentId || '') === (props.node.parentId || ''))
+    .sort((a, b) => a.order - b.order)
+    .findIndex(n => n.id === props.node.id)
+}
+
+function canShift(dir: -1 | 1): boolean {
+  const i = siblingIndex()
+  if (i < 0) return false
+  const count = props.nodes.filter(n => (n.parentId || '') === (props.node.parentId || '')).length
+  return dir === -1 ? i > 0 : i < count - 1
+}
+
+function shiftSibling(dir: -1 | 1): void {
+  if (!canShift(dir)) return
+  emit('reorder-sibling', props.node.id, dir)
 }
 
 function focusCard(e: MouseEvent): void {
@@ -284,6 +307,14 @@ onBeforeUnmount(() => {
       <div class="mind-node-head">
         <span class="mind-level">L{{ level() }}</span>
         <span class="mind-type">{{ children().length ? `${children().length} 个子分支` : '论证节点' }}</span>
+        <span class="mind-order" role="group" :aria-label="`同级排序「${node.name || '未命名分支'}」`">
+          <button type="button" class="mind-order-btn" :disabled="!canShift(-1)"
+            title="前移一个同级位置" aria-label="前移"
+            @click.stop="shiftSibling(-1)"><Icon name="arrowleft" :size="11"/></button>
+          <button type="button" class="mind-order-btn" :disabled="!canShift(1)"
+            title="后移一个同级位置" aria-label="后移"
+            @click.stop="shiftSibling(1)"><Icon name="arrowright" :size="11"/></button>
+        </span>
         <span class="mind-drag" draggable="true" tabindex="0" role="button"
           :aria-label="`拖动「${node.name || '未命名分支'}」调整归属`"
           title="拖动整棵子树调整归属；聚焦后 ↑/↓ 选目标，M 确认" @keydown.stop="onDragHandleKeydown">
@@ -331,7 +362,7 @@ onBeforeUnmount(() => {
           <Icon name="trash" :size="13"/> 删除
         </button>
         <span class="mind-foot-spacer"></span>
-        <span v-if="selectedId === node.id" class="mind-shortcut"><kbd>Tab</kbd> 子级 · <kbd>Enter</kbd> 同级</span>
+        <span v-if="selectedId === node.id" class="mind-shortcut"><kbd>Tab</kbd> 子级 · <kbd>Enter</kbd> 改题 · <kbd>Ctrl+Enter</kbd> 同级</span>
       </div>
       <span v-if="dropTarget === node.id" class="mind-drop-hint" :class="{ invalid: dropInvalid }">{{ dropHint }}</span>
     </article>
@@ -357,6 +388,7 @@ onBeforeUnmount(() => {
         @keyboard-drag-target="emit('keyboard-drag-target', $event)"
         @keyboard-drag-confirm="emit('keyboard-drag-confirm')"
         @keyboard-drag-cancel="emit('keyboard-drag-cancel')"
+        @reorder-sibling="(id, dir) => emit('reorder-sibling', id, dir)"
         @focus-node="(key, id) => emit('focus-node', key, id)"
         @cut="emit('cut', $event)" @paste="emit('paste', $event)"
         @remove-node="emit('remove-node', $event)" />

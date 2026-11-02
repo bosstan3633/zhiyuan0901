@@ -371,6 +371,9 @@ export interface Workspace {
   /** R47-B4：被打开次数与最近打开时间——全局检索无输入时策展台参与热度排序 */
   callCount?: number
   lastCalledAt?: number
+  /** 需求1（2026-11-02）：隐藏台——不呈现在顶栏标签页、不占快捷键槽位；
+   *  汇聚到顶栏「隐藏台」下拉里，点「展示」即恢复。区别于 archived（归档是退役态，不参与业务枚举）。 */
+  hidden?: boolean
 }
 
 /** N4：树状标签节点。R151：definition = 这个标签收什么卡（整体梳理蓝图落盘的判据，旧数据无此字段=空） */

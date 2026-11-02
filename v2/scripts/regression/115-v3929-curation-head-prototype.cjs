@@ -89,7 +89,7 @@ check('R186-5（V3.9.30 重指）★布局切换只保留一个普通视图入�
     && MIND.includes("@click=\"$emit('update:layout', 'tree')\"")
 })
 
-check('R186-6 ★V3.9.29 全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / v2 README / 根 README / 架构总览一致，更新日志首条为本版', () => {
+check('R186-6（V3.9.34 重指）★全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / v2 README / 根 README / 架构总览一致，更新日志首条为现行版本', () => {
   const pkg = require('../../package.json')
   const lock = require('../../package-lock.json')
   const manifest = read('/manifest.ts')
@@ -108,8 +108,8 @@ check('R186-6 ★V3.9.29 全版本同步：manifest / package / lock 双行 / �
     && v2Readme.includes(`产品版本**：${CUR_VTAG}`)
     && rootReadme.includes(`当前版本 ${CUR_VTAG}`)
     && arch.includes(`版本**：${CUR_VTAG}`)
-    && log.indexOf("version: '3.9.29'") >= 0
-    && log.indexOf("version: '3.9.29'") < log.indexOf("version: '3.9.28'")
+    && log.indexOf(`version: '${CUR_VER}'`) >= 0
+    && log.indexOf(`version: '${CUR_VER}'`) < log.indexOf("version: '3.9.33'")
     && reg.includes("'115-v3929-curation-head-prototype'")
 })
 

@@ -59,6 +59,14 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     return 1 + Math.max(...kids.map(nodeHeight))
   }
 
+  /** 需求2：中心论点卡（L1）挂载的关联资源——论点卡本身是一张 ResourceCard，
+   *  挂在它下面的资源走同一条 categoryId 口径（key = thesisCard.id）。 */
+  const thesisCards = computed<ResourceCard[]>(() => {
+    const t = thesisCard.value
+    if (!t) return []
+    return allResources.value.filter(r => !r.isThesis && !r.deletedAt && (r.categoryId || '') === t.id)
+  })
+
   const cardsByCat = computed<Map<string, ResourceCard[]>>(() => {
     const out = new Map<string, ResourceCard[]>()
     for (const r of allResources.value) {
@@ -183,6 +191,22 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     if (edit) focusEdit(cat.id)
     else selectedId.value = cat.id
     return cat
+  }
+
+  /** 需求3：同层级前后移动（互换 order 并全量规整，与 App.vue 台签拖拽同口径） */
+  function reorderSibling(id: string, dir: -1 | 1): void {
+    const cur = wsCats.value.find(c => c.id === id)
+    if (!cur) return
+    const parentId = cur.parentId || ''
+    const siblings = wsCats.value
+      .filter(c => (c.parentId || '') === parentId)
+      .sort((a, b) => a.order - b.order)
+    const idx = siblings.findIndex(c => c.id === id)
+    const swapWith = idx + dir
+    if (idx < 0 || swapWith < 0 || swapWith >= siblings.length) return
+    ;[siblings[idx].order, siblings[swapWith].order] = [siblings[swapWith].order, siblings[idx].order]
+    siblings.forEach((c, i) => { c.order = i })
+    persist()
   }
 
   function renameNode(cat: Category, raw: string): void {
@@ -399,6 +423,7 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     nodeLevel,
     nodeHeight,
     cardsByCat,
+    thesisCards,
     nodeCount,
     rootBranchCount,
     linkedResourceCount,
@@ -422,6 +447,7 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     createChild,
     createSibling,
     renameNode,
+    reorderSibling,
     updateDescription,
     validateDrop,
     moveNode,

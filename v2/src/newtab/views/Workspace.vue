@@ -186,6 +186,7 @@
       :edit-request-id="mind.editRequestId.value"
       :edit-request-seq="mind.editRequestSeq.value"
       :cards-by-cat="mind.cardsByCat.value"
+      :thesis-cards="mind.thesisCards.value"
       :search-query="debouncedQuery"
       :keyboard-drag-source="mind.keyboardDragSource.value"
       :keyboard-drag-target="mind.keyboardDragTarget.value"
@@ -201,12 +202,15 @@
       @paste="mind.pasteInto"
       @rename="mind.renameNode"
       @update-description="mind.updateDescription"
+      @reorder-sibling="mind.reorderSibling"
       @link-resource="openLinkCards"
       @unlink-resource="onUnlinkResource"
       @open-resource="onCardClick"
       @open-resource-link="openResourceLink"
       @open-resource-context="openResCtx"
       @open-thesis="openThesisCard"
+      @link-thesis="openThesisLink"
+      @unlink-thesis="onUnlinkThesis"
       @open-create-thesis="openThesisCreate"
       @move="mind.moveNode"
       @keyboard-drag-start="mind.startKeyboardDrag"
@@ -526,6 +530,28 @@ function saveThesisCard(patch: { title: string; description: string }): void {
 }
 
 /** 资源 chip 的 × 只解除当前节点关联：镜像删投射记录，台内原生卡回到未分类；池卡本体不改。 */
+/** 需求2：中心论点卡的关联资源——入口复用同一个关联弹窗（伪节点 id=thesisCard.id），
+ *  解除时直接把卡的 categoryId 从论点 id 清空（与节点解除同口径）。 */
+function openThesisLink(): void {
+  const t = thesisCard.value
+  if (!t) return
+  openLinkCards({ id: t.id, name: `中心论点 · ${t.title}` } as never)
+}
+function onUnlinkThesis(card: ResourceCard): void {
+  const t = thesisCard.value
+  if (!t) return
+  if (isMirrorView(card)) { removeMirror(card); return }
+  const live = d.value.resources.find(r => r.id === card.id && !r.deletedAt)
+  if (!live || (live.categoryId || '') !== t.id) {
+    showToast('ℹ 这张资源卡已不在中心论点下')
+    return
+  }
+  live.categoryId = ''
+  live.updatedAt = Date.now()
+  store.persist()
+  showToast('已解除与中心论点的关联；资源卡仍在资源卡池')
+}
+
 function onUnlinkResource(nodeId: string, card: ResourceCard): void {
   if (isMirrorView(card)) {
     removeMirror(card)

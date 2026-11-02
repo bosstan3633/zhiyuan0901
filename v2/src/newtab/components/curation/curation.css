@@ -466,3 +466,18 @@
   .mindmap-canvas { min-height: 520px; padding: 22px 14px 58px; }
   .mindmap-canvas[data-layout="pyramid"] .mind-stage { justify-content: flex-start; }
 }
+
+/* ===== 需求3：同级排序箭头组（L2+ 节点右上角，拖拽把手旁） ===== */
+.mind-order { display: inline-flex; gap: 1px; flex: none; }
+.mind-order-btn { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+  border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-3);
+  cursor: pointer; padding: 0; transition: all var(--dur-fast, 120ms); }
+.mind-order-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.mind-order-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.mind-order-btn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+
+/* ===== 需求2：中心论点卡的关联资源（L1 突出显示） ===== */
+.thesis-resources { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 4px;
+  padding: 7px 8px; background: var(--accent-light); border: 1px dashed var(--accent); border-radius: 8px; }
+.thesis-resource { background: var(--surface); }
+.thesis-resource .mind-resource-title { font-weight: 600; }

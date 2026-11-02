@@ -104,7 +104,7 @@ check('R187-6 ★重复动态 import 已清零：撤销窗口常量走顶部静�
     && !APP.includes("const { DECK_DELETE_UNDO_WINDOW_MS } = await import('@/shared/utils/undo')")
 })
 
-check('R187-7 ★V3.9.30 全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / 两份 README / 架构总览一致，更新日志首条为本版', () => {
+check('R187-7（V3.9.34 重指）★全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / 两份 README / 架构总览一致，更新日志首条为现行版本', () => {
   const pkg = require('../../package.json')
   const lock = require('../../package-lock.json')
   const manifest = read('/manifest.ts')
@@ -125,6 +125,6 @@ check('R187-7 ★V3.9.30 全版本同步：manifest / package / lock 双行 / �
     && rootReadme.includes(`当前版本 ${CUR_VTAG}`)
     && arch.includes(`版本**：${CUR_VTAG}`)
     && log.indexOf(current) >= 0
-    && log.indexOf(current) < log.indexOf("version: '3.9.29'")
+    && log.indexOf(current) < log.indexOf("version: '3.9.33'")
     && reg.includes("'116-v3930-profile-curation-perf'")
 })

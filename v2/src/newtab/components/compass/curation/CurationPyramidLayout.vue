@@ -7,7 +7,7 @@
  *
  * V3.9.33+（本次修复）：任务在金字塔上可拖拽——指标卡直接列出前 4 条任务（可拖）、
  * 未归档任务以列表呈现（可拖到任意指标卡上归位）；数据落盘沿用与方向台相同的
- * useTaskRelocationDnd 双写归属（task.metricId + metric.taskIds + updatedAt + persist）。
+ * useTaskRelocationDnd 双写归属（task.metricId + metric.taskIds + updatedAt + 落盘回调）。
  * 仍守住「跨项目拒绝」红线。
  */
 import { computed, reactive } from 'vue'
@@ -16,8 +16,14 @@ import { useAppStore } from '@/newtab/stores/app'
 import { useTaskRelocationDnd } from '@/newtab/views/useTaskRelocationDnd'
 import type { TaskCard } from '@/shared/models'
 
-const props = defineProps<{ tree: CurationTree }>()
-const emit = defineEmits<{ (e: 'open', sel: CurationSel): void }>()
+const props = defineProps<{
+  tree: CurationTree
+  /** V3.9.34（需求拍板）：任务拖拽归位的落盘回调由宿主传入——本组件不直调 store 落盘，
+   *  与「策展页零直写」红线（R189-4 重指口径）保持一致：所有写库只经 useTaskRelocationDnd。 */
+  onTaskPersist: () => void
+}>()
+
+const emit = defineEmits<{ open: [sel: CurationSel] }>()
 
 const allMetrics = computed(() =>
   props.tree.goals.flatMap(g => g.projects.flatMap(P => P.metrics)))
@@ -25,8 +31,8 @@ const allTasks = computed(() =>
   allMetrics.value.reduce((s, M) => s + M.totalCount, 0) + props.tree.orphans.length)
 
 /* ===== 任务拖拽归位（与方向台同一套口径） ===== */
-const store = useAppStore()
-const dnd = reactive(useTaskRelocationDnd({ d: () => store.data!, persist: () => store.persist() }))
+const appStore = useAppStore()
+const dnd = reactive(useTaskRelocationDnd({ d: () => appStore.data!, persist: props.onTaskPersist }))
 
 function onTaskDragStart(e: DragEvent, t: TaskCard) {
   e.stopPropagation()
