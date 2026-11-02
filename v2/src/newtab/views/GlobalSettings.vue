@@ -247,7 +247,7 @@
               <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn"><Icon v-if="aiBusy !== 'test'" name="zap" :size="13"/> {{ aiBusy === 'test' ? '测试中…' : '测试连接' }}</button>
               <template v-if="aiMsg">
                 <span class="ai-msg" :class="{ err: aiMsg.startsWith('') }">{{ aiErrDisplay(aiMsg) }}</span>
-                <a class="ai-retry-link" :class="{ disabled: aiBusy !== '' }" @click="aiTestConn">再次测试</a>
+                <button type="button" class="ai-retry-link" :disabled="aiBusy !== ''" @click="aiTestConn">再次测试</button>
               </template>
             </div>
           </div>

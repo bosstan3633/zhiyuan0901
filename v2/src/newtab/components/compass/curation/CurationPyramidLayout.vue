@@ -96,14 +96,14 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
                     <small v-if="M.metric.target" class="target" :title="M.metric.target">{{ M.metric.target }}</small>
                     <!-- 挂载的任务列表（可拖拽改归属） -->
                     <template v-if="M.tasks.length">
-                      <div class="met-tasks" @click.stop>
-                        <div v-for="(tn, ti) in M.tasks.slice(0, 4)" :key="tn.task.id" class="met-task-item" draggable="true"
+                      <div class="met-tasks" data-a11y-container @click.stop>
+                        <button v-for="(tn, ti) in M.tasks.slice(0, 4)" :key="tn.task.id" type="button" class="met-task-item" draggable="true"
                           :class="{ dragging: dnd.dragTaskId === tn.task.id }"
                           @dragstart="onTaskDragStart($event, tn.task)" @dragend="dnd.onDragEnd()"
                           @click.stop="emit('open', { kind: 'task', node: tn })" :title="tn.task.title">
                           {{ ti + 1 }}. {{ tn.task.title }}
-                        </div>
-                        <div v-if="M.tasks.length > 4" class="met-more" @click.stop="emit('open', { kind: 'metric', node: M })">+{{ M.tasks.length - 4 }} 更多</div>
+                        </button>
+                        <button v-if="M.tasks.length > 4" type="button" class="met-more" @click.stop="emit('open', { kind: 'metric', node: M })">+{{ M.tasks.length - 4 }} 更多</button>
                       </div>
                     </template>
                   </div>
@@ -122,12 +122,12 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
           散叶 · 未归档任务 <span class="count">{{ tree.orphans.length }} 件 · 拖到上方指标卡即归位</span>
         </div>
         <div class="orph-tasks" role="list">
-          <div v-for="(tn, ti) in tree.orphans" :key="tn.task.id" class="orph-task-item" draggable="true"
+          <button v-for="(tn, ti) in tree.orphans" :key="tn.task.id" type="button" class="orph-task-item" draggable="true"
             role="listitem" :class="{ dragging: dnd.dragTaskId === tn.task.id }"
             @dragstart="onTaskDragStart($event, tn.task)" @dragend="dnd.onDragEnd()"
             @click="emit('open', { kind: 'task', node: tn })" :title="tn.task.title">
             {{ ti + 1 }}. {{ tn.task.title }}
-          </div>
+          </button>
         </div>
       </div>
     </div>
@@ -182,9 +182,11 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
   font-size: var(--fs-caption); color: var(--text-3); 
   padding: 3px 5px; background: var(--surface-3); border-radius: 4px; 
   cursor: grab; overflow-wrap: break-word; word-break: break-word;
+  border: none; font-family: inherit; text-align: left; display: block; width: 100%; min-width: 0;
 }
 .met-task-item:hover, .orph-task-item:hover { background: var(--surface-4); }
-.met-more { grid-column: 1 / -1; text-align: center; color: var(--text-3); font-size: var(--fs-micro); }
+.met-more { grid-column: 1 / -1; text-align: center; color: var(--text-3); font-size: var(--fs-micro); border: none; background: none; font-family: inherit; cursor: pointer; padding: 2px 0; }
+.met-more:hover { color: var(--accent); }
 
 .orph-drop-zone { max-width: 800px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-sm); }
 .orph-title { font-size: var(--fs-body); color: var(--text); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
@@ -195,4 +197,5 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .node.met.drop-target { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-glow); }
 .met-task-item.dragging, .orph-task-item.dragging { opacity: .4; }
 .orph-task-item { max-width: 240px; }
+.orph-tasks .orph-task-item { width: auto; }
 </style>
