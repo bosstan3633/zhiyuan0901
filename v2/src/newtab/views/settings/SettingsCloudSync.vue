@@ -11,6 +11,9 @@ import { saveDataNow as persistNow } from '@/shared/storage/repository'
 
 const store = useAppStore()
 const env = ref<{ url: string; anonKey: string } | null>(null)
+const cfgUrl = ref('')
+const cfgKey = ref('')
+const cfgSaved = ref(false)
 const meta = ref<{ userId: string; email: string; revision: number; lastUploadAt?: number; lastDownloadAt?: number; lastCheckedAt?: number; checkOnStart: boolean } | null>(null)
 const email = ref('')
 const password = ref('')
@@ -27,11 +30,28 @@ const pwaUrl = 'https://bosstan3633.github.io/zhiyuan0901/'
 
 async function loadCloud() {
   const c = await import('@/shared/cloud/client')
-  env.value = c.cloudEnv()
+  env.value = await c.cloudEnv()
+  const def = c.cloudEnvDefaults()
+  cfgUrl.value = env.value?.url || def.url
+  cfgKey.value = env.value?.anonKey || def.anonKey
   const s = await import('@/shared/cloud/sync')
   meta.value = await s.getCloudMeta()
 }
 onMounted(() => { void loadCloud() })
+
+async function saveConfig() {
+  const c = await import('@/shared/cloud/client')
+  const url = cfgUrl.value.trim().replace(/\/$/, '')
+  const anonKey = cfgKey.value.trim()
+  const ok = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) && anonKey.startsWith('sb_publishable_')
+  if (!ok) { showToast('请填写 Supabase 项目地址与 publishable key'); return }
+  const s = await import('@/shared/cloud/sync')
+  await s.setCloudEnv({ url, anonKey })
+  env.value = { url, anonKey }
+  cfgSaved.value = true
+  setTimeout(() => cfgSaved.value = false, 2000)
+  showToast('云端配置已保存')
+}
 
 async function doLogin() {
   if (!env.value) { showToast('云端未配置'); return }
@@ -159,8 +179,22 @@ async function importAll() {
     </div>
     <div class="gs-card-body">
       <div v-if="!env" class="gs-setting-row">
-        <span class="gs-sr-label">配置状态</span>
-        <div class="gs-sr-control gs-sr-note gs-sr-note--danger">云端未配置（缺少 VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY）</div>
+        <span class="gs-sr-label">Supabase 地址</span>
+        <div class="gs-sr-control gs-sr-control-wrap">
+          <input class="gs-input gs-input--ident" v-model="cfgUrl" placeholder="https://你的项目.supabase.co" />
+          <span class="gs-sr-hint">A/B 两台设备填同一份地址与 key 才能互相同步</span>
+        </div>
+      </div>
+      <div v-if="!env" class="gs-setting-row">
+        <span class="gs-sr-label">Publishable key</span>
+        <div class="gs-sr-control gs-sr-control-wrap">
+          <input class="gs-input gs-input--ident" v-model="cfgKey" placeholder="sb_publishable_…" />
+          <span class="gs-sr-hint">publishable key 可公开，secret/service_role 严禁填入</span>
+        </div>
+      </div>
+      <div v-if="!env" class="gs-setting-row">
+        <span class="gs-sr-label"></span>
+        <div class="gs-sr-control"><button class="gs-btn gs-btn-primary" @click="saveConfig">{{ cfgSaved ? '已保存' : '保存云端配置' }}</button></div>
       </div>
       <template v-else-if="!loggedIn">
         <div class="gs-setting-row"><span class="gs-sr-label">邮箱</span><div class="gs-sr-control"><input class="gs-input" v-model="email" type="email" autocomplete="username" placeholder="你被邀请的邮箱" /></div></div>

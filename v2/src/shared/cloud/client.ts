@@ -6,12 +6,42 @@
 
 export interface CloudEnv { url: string; anonKey: string }
 
-/** 从 Vite 环境读取；未配置时返回 null（设置页显示「云端未配置」） */
-export function cloudEnv(): CloudEnv | null {
+const OVERRIDE_KEY = 'zy_cloud_env'
+
+/** 读取构建时环境（供初始默认值）；未配置时返回 null */
+function buildEnv(): CloudEnv | null {
   const url = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_URL?.trim()
   const anonKey = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
   if (!url || !anonKey || !anonKey.startsWith('sb_publishable_')) return null
   return { url: url.replace(/\/$/, ''), anonKey }
+}
+
+/** 用户可在设置页覆盖（跨设备时 A/B 都填同一份才能互相同步） */
+export async function setCloudEnvOverride(env: CloudEnv | null): Promise<void> {
+  try {
+    const cs = chrome?.storage?.local
+    if (!cs) return
+    if (env?.url && env?.anonKey) await cs.set({ [OVERRIDE_KEY]: env })
+    else await cs.remove([OVERRIDE_KEY])
+  } catch { /* noop */ }
+}
+
+/** 当前生效环境 = 设置页覆盖优先，其次构建时 env */
+export async function cloudEnv(): Promise<CloudEnv | null> {
+  try {
+    const cs = chrome?.storage?.local
+    if (cs) {
+      const raw = (await cs.get([OVERRIDE_KEY]))[OVERRIDE_KEY] as CloudEnv | undefined
+      if (raw?.url && raw?.anonKey && raw.anonKey.startsWith('sb_publishable_')) return raw
+    }
+  } catch { /* noop */ }
+  return buildEnv()
+}
+
+/** 初始默认值用于设置页回填（同步读取构建 env，失败为空串） */
+export function cloudEnvDefaults(): { url: string; anonKey: string } {
+  const e = buildEnv()
+  return { url: e?.url || '', anonKey: e?.anonKey || '' }
 }
 
 export class CloudError extends Error {

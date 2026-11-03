@@ -2,6 +2,14 @@ import type { ChangelogEntry } from './types'
 
 export const CHANGELOG_V4: ChangelogEntry[] = [
   {
+    version: '4.0.2', date: '2026-11-03', title: '云端配置入口 · 跨设备登录说明',
+    points: [
+      '**云同步设置页新增「云端配置」表单**。没有构建期环境变量时也能用：填 Supabase 项目地址与 publishable key 保存后，即可登录邀请账号并手动上传/下载',
+      '**跨设备同步用法**。A 设备手动上传后，在 B 设备的云同步页填同一套地址与 key，登录同一邀请账号，点「从云端恢复」即可——修订版本有护栏，冲突会先提示再覆盖',
+    ],
+    kinds: ['add', 'opt'],
+  },
+  {
     version: '4.0.1', date: '2026-11-03', title: 'Supabase 云同步 · 移动端采集 PWA · Airtable 退役',
     points: [
       '**跨设备手动云同步上线（Supabase）**。设置 → 数据管理 → 云同步：邀请制邮箱登录后手动「上传到云端 / 从云端恢复」，覆盖卡片池、调度台、方向台、策展台与界面偏好；附件本体与 AI 凭据不进云端',
