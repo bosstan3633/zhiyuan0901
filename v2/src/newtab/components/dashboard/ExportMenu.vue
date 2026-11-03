@@ -49,7 +49,7 @@ onBeforeUnmount(() => {
   <span class="dz-exp-wrap">
     <button class="dz-exp-trigger dz-btn sm" :aria-expanded="open" :title="`导出当前视图（${labels.join(' / ')}）`" @click="open = !open"><Icon name="download" :size="13"/> 导出</button>
     <div v-if="open" class="dz-exp-menu dz-exp" :class="props.align === 'start' ? 'align-start' : 'align-end'" role="menu">
-      <button v-if="props.formats.includes('csv')" class="dz-exp-item" role="menuitem" @click="pick('csv')">▤ CSV 表格<span class="hint">Excel / Airtable 可开</span></button>
+      <button v-if="props.formats.includes('csv')" class="dz-exp-item" role="menuitem" @click="pick('csv')">▤ CSV 表格<span class="hint">Excel 可开</span></button>
       <button v-if="props.formats.includes('md')" class="dz-exp-item" role="menuitem" @click="pick('md')">¶ 导出为 Markdown<span class="hint">贴进笔记即成形</span></button>
       <button v-if="props.formats.includes('png')" class="dz-exp-item" role="menuitem" @click="pick('png')">▦ PNG 图片<span class="hint">当前主题配色</span></button>
       <button v-if="props.formats.includes('html')" class="dz-exp-item" role="menuitem" @click="pick('html')">◈ 导出为 HTML<span class="hint">任何人浏览器打开即看</span></button>

@@ -172,7 +172,7 @@ export interface ResourceCard extends CardBase {
    *
    * 语义（关键，别改）：`linkType` 仍是"当前用哪一槽"，`link` 仍是"**当前槽的值**"。
    * 本字段只装**非当前槽**，所以全站约 30 处消费点（双击打开 / 筛选 / 卡片徽标 / AI 抓正文 /
-   * CSV·Airtable·MD 导出）一字不改照常工作 —— 若把它做成"三槽各自为真、读时选一条"，
+   * CSV·MD 导出）一字不改照常工作 —— 若把它做成"三槽各自为真、读时选一条"，
    * 那 30 处全要跟着改判据，一处漏改就是一张卡两个答案。
    *
    * 切槽 = `switchLinkSlot()`：先把当前 `link` 存回它所属的槽，再把目标槽的值取进 `link`
@@ -509,10 +509,6 @@ export interface AppData {
   hubMigratedAt?: number
   /** R64：旧工作台并入资源台完成时间戳（幂等标记；迁移前自动备份下载由调用方执行） */
   hubMergedAt?: number
-  /** R63：Airtable 单向同步配置与状态（知源 → Airtable，PAT 明文随设备不跨端） */
-  airtableSync?: AirtableSyncState
-  /** R63：知源卡 id ↔ Airtable recordId 映射表（同步成功后写回；导入合并按 id 取并集） */
-  airtableMap?: Record<string, AirtableMapEntry>
   /** R80（R1 遗留）：资源卡标签默认可见迁移完成时间戳（幂等标记——有值即跳过） */
   /** R148-P0b：热度统计拆独立键（zy_stats_v1）的落戳——有戳=已拆分，启动期不再重复抽取 */
   hotStatsSplitAt?: number
@@ -547,56 +543,8 @@ export interface CatsMigrateReport {
 }
 
 /** R1.5：catsMigrateReport 已迁独立小键 K.MIGRATE_REPORT（红线更正：报告不进 zy_data_v2 主根）；接口 CatsMigrateReport 保留供键值类型 */
-/** R63：Airtable 单向同步配置 + 状态（存 AppData 单根内，随导出带走） */
-export interface AirtableSyncState {
-  /** Personal Access Token（明文存 chrome.storage.local，零云端立场） */
-  pat: string
-  /** Base ID（app 开头） */
-  baseId: string
-  /** Table ID（tbl 开头，连接测试后自动回填） */
-  tableId: string
-  /** 表名（回显用） */
-  tableName?: string
-  /** R4-Dd：标签写到哪一列（留空 = 默认「标签」）。列类型由同步时读远端实际类型自适应
-   *  （multipleSelects 发数组、文本列发分号串），所以这里只存列名、不存类型——
-   *  存了就会和远端真值漂移，而漂移的代价是把一批 422 当成成功。 */
-  tagColumn?: string
-  /** 3 小时轮询开关（默认关，R63-10） */
-  pollEnabled?: boolean
-  /** 上次同步完成时间戳 */
-  lastSyncAt?: number
-  /** 上次同步耗时 ms */
-  lastSyncMs?: number
-  /** 上次同步消耗的 API 调用次数 */
-  lastSyncCalls?: number
-  /** 上次同步推送的记录数（含新建+更新） */
-  lastSyncedCount?: number
-  /** 上次同步后仍待推送的卡片数（失败/未扫到的） */
-  pendingCount?: number
-  /** 增量游标：只推 updatedAt > cursorAt 的卡片 */
-  cursorAt?: number
-  /** 累计 API 调用计数（配额提示用，自用户配置起算） */
-  totalApiCalls?: number
-  /** 最近同步日志（尾部追加，最多 40 条） */
-  log?: AirtableLogEntry[]
-  /** 上次同步错误摘要（空串=无错误） */
-  lastError?: string
-}
 
-/** R63：同步日志条目 */
-export interface AirtableLogEntry {
-  at: number
-  /** pushed=成功推送条数 fields=补建字段数 error=错误摘要 */
-  msg: string
-  kind: 'ok' | 'error' | 'info'
-}
 
-/** R63：映射表条目 */
-export interface AirtableMapEntry {
-  recordId: string
-  /** 该卡上次同步成功时本地updatedAt */
-  syncedAt: number
-}
 
 export interface ActivityLog {
   id: ID

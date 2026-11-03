@@ -37,7 +37,7 @@ export interface MergeImportResult {
   eventKept: number
 }
 
-/** 导出载荷：剥离 Airtable 凭证与映射，只带业务数据和事件日志。 */
+/** 导出载荷：剥离云端凭据，只带业务数据和事件日志（兼容旧字段名）。 */
 export function buildDataPackage(
   data: AppData,
   eventLog: CardEvent[],

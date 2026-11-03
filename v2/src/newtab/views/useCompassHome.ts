@@ -7,7 +7,6 @@ import { visibleFields } from '@/shared/utils/fields'
 import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
-import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
 import type { TaskCard, Project, FocusSlot, CuriosityCard, ResourceCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
@@ -507,7 +506,7 @@ function fmtRecentTime(ts?: number): string {
 }
 
 // ---- 附件字段可见性（三件事卡正面徽章显隐） ----
-  const { tFields, taskAssetsOn, onDateKey, gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub, storageTimer, storageOk, ERR_LABEL, storageText, timeAgo, onStorageClick, atSync, atConfigured, atSyncErr, atPending, atChipText, atChipTitle, atSyncing, onSyncChipClick } = useCompassHomeStorage({ d, pickerOpen, exportOpen, whyOpen, focusMoreOpen, shiftDate, route, router, onDocClickCloseWhy, store })
+  const { tFields, taskAssetsOn, onDateKey, gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub, storageTimer, storageOk, ERR_LABEL, storageText, timeAgo, onStorageClick } = useCompassHomeStorage({ d, pickerOpen, exportOpen, whyOpen, focusMoreOpen, shiftDate, route, router, onDocClickCloseWhy, store })
 const focusMeta = computed(() => {
   const m = new Map<string, { pct: number; stall: boolean; finished: boolean; open: number }>()
   for (const p of focusedProjects.value) {
@@ -681,8 +680,7 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
     fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
     gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
     storageTimer, storageOk, ERR_LABEL, storageText, timeAgo,
-    onStorageClick, atSync, atConfigured, atSyncErr, atPending,
-    atChipText, atChipTitle, atSyncing, onSyncChipClick, focusMeta,
+    onStorageClick, focusMeta,
     readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
     todayOutCount, todayOutOps, todayCallCounts, refreshTodayOutOps, battleHost, openReview, focusDoneCount,
     mainFocus, extraFocus, RECENT_ROW_H, recentLimit,

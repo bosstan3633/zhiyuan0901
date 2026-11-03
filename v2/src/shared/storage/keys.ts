@@ -15,6 +15,8 @@ export const K = {
   UI: 'zy_ui_v2',
   /** 卡片操作事件日志 */
   EVENT_LOG: 'zy_event_log',
+  /** 云同步元数据（登录态/版本/上次上传下载时间；不含主数据） */
+  CLOUD_META: 'zy_cloud_meta_v1',
   /** 好奇心探索累计起算时刻 */
   CURIO_SINCE: 'zy_curio_cum_since',
   /** 运行期错误日志 */

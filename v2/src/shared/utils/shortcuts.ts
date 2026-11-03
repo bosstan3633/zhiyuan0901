@@ -119,7 +119,6 @@ export const MANUAL_ASSIGN_COMMANDS: string[] = [
   '全局设置',
   '打开完整方向树',
   '快速采集任务',
-  '同步到 Airtable',
   '直达好奇心培养模块',
   '直达任务调度模块',
 ]

@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '3.9.34',
+  version: '4.0.1',
   description: '你在浏览器里的个人调度中台 · 万千可调用，自有我方向 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads', 'alarms'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -48,10 +48,6 @@ export default defineManifest({
     // R55-C：快速采集任务（无默认键，chrome://extensions/shortcuts 自定义）
     'open-tasks': {
       description: '快速采集任务'
-    },
-    // R63-8：Airtable 手动同步（无默认键，不占 4 键上限）
-    'sync-airtable': {
-      description: '同步到 Airtable'
     },
     // R67-F4 + R68-F3：模块直达（无默认键，chrome://extensions/shortcuts 自定义；打开目标台并滚动定位+高亮）
     'goto-curiosity': {

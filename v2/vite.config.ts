@@ -132,12 +132,12 @@ function compactChangelogData() {
     },
     transform(code: string, id: string) {
       const rel = id.replace(/\\/g, '/')
-      if (!build || !/(?:entries-v2|entries-v3)\.ts$/.test(rel)) return null
+      if (!build || !/(?:entries-v2|entries-v3|entries-v4)\.ts$/.test(rel)) return null
       const sf = ts.createSourceFile(rel, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
       let target: ts.ArrayLiteralExpression | null = null
       const visit = (node: ts.Node) => {
         if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
-          && (node.name.text === 'CHANGELOG_V2' || node.name.text === 'CHANGELOG_V3')
+          && (node.name.text === 'CHANGELOG_V2' || node.name.text === 'CHANGELOG_V3' || node.name.text === 'CHANGELOG_V4')
           && node.initializer && ts.isArrayLiteralExpression(node.initializer)) {
           target = node.initializer
           return

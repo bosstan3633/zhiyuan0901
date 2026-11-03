@@ -207,7 +207,7 @@ function exportCsv() {
       <!-- F20 容量提示：与 EVENT_LOG_CAP 同源 -->
       <div class="dz-log-foot">
         <Icon name="package" :size="13"/> 日志容量 <b>{{ events.length }}</b> / {{ EVENT_LOG_CAP }} 条滚动保留（含恢复与永久删除）；老数据无日志时自动回退为卡片时间派生。<br>
-        导出为 UTF-8+BOM CSV，可直接导入 Airtable。
+        导出为 UTF-8+BOM CSV，可用 Excel / 多维表格打开。
       </div>
     </div>
   </Drawer>

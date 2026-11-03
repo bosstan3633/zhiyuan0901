@@ -95,7 +95,7 @@ export function useWsMeta(ctx: WsMetaCtx) {
     // R56-I：改为 AppData 子集同构导出——旧自定义形状 {workspace,categories,resources} 缺 version/tagTree/
     // tasks/curiosities/compass/stats，导入端版本校验直接拒绝，标签体系等全局数据随之丢失。
     // 现为 ...d 全量展开（全局段随行）+ 策展台段按当前台过滤；导出物可直接走「导入数据」并集合并。
-    // R70：剥离 Airtable 凭证与映射——导出物会被分享/传网盘，明文 PAT 泄露＝对方可读写用户 Base。
+    // 剥离云端凭据——导出物会被分享/传网盘。
     // 与设置页「导出数据」同口径：数据可带走，凭证不随行。
     const rootForExport = { ...d.value } as Record<string, unknown>
     delete rootForExport.airtableSync

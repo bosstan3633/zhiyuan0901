@@ -325,7 +325,7 @@
 
 
 
-      <!-- ===== 数据管理 ===== 原导入/导出/Airtable 三页合并为一个子域；内部用分段切换。 -->
+      <!-- ===== 数据管理 ===== 数据包 / 附件 / 云同步 合并单页；内部用分段切换。 -->
       <SettingsDataManagement v-if="activePage === 'data'"
         :format-bytes="formatBytes" :ai-ready="aiReady" :ai-enrich-ids="aiEnrichIds"
         :initial-tab="dataManagementTab" />

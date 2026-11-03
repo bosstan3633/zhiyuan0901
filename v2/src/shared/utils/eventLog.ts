@@ -109,6 +109,19 @@ export function takeEventLogPatch(): Record<string, unknown> | null {
   return { [EVENT_LOG_KEY]: logCache }
 }
 
+/** 等待队列中的日志全部落盘（云恢复/采集消费前调用，防 lost-write） */
+export async function flushEventQueue(): Promise<void> {
+  try { await writeQueue } catch { /* noop */ }
+  try { await flushEventLogNow() } catch { /* noop */ }
+}
+
+/** 云恢复整体替换：直接覆盖事件日志并重置脏标记（不产生 diff 事件） */
+export async function replaceEventLog(events: CardEvent[]): Promise<void> {
+  logCache = trimLog([...events])
+  dirty = false
+  try { await chromeStore()?.set({ [EVENT_LOG_KEY]: logCache }) } catch { dirty = true }
+}
+
 /** R160（P5）：外部写入（onChanged）刷新缓存——本地有待写事件时不覆盖 */
 export function initEventLog(raw: unknown): void {
   if (!dirty && Array.isArray(raw)) logCache = raw as CardEvent[]

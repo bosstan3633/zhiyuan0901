@@ -144,6 +144,11 @@ function navigate(path: string) { router.push(path) }
 let prefetchTimer: ReturnType<typeof setTimeout> | null = null
 let prefetchIdle: number | null = null
 function scheduleInteractionPrefetch(): void {
+  // v4.0.1 低配门控：弱设备/省流模式跳过非必要预取，优先保启动流畅
+  const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } }
+  if ((nav.deviceMemory != null && nav.deviceMemory <= 4)
+    || (navigator.hardwareConcurrency != null && navigator.hardwareConcurrency <= 4)
+    || nav.connection?.saveData) return
   prefetchTimer = setTimeout(() => {
     prefetchTimer = null
     const run = () => {
@@ -152,6 +157,7 @@ function scheduleInteractionPrefetch(): void {
         loadGlobalPopups(),
         import('./views/CompassTree.vue'),
         import('./views/Workspace.vue'),
+        import('@/shared/cloud/sync'),
       ])
     }
     if ('requestIdleCallback' in window) prefetchIdle = window.requestIdleCallback(run, { timeout: 2000 })
@@ -391,6 +397,15 @@ function onGlobalKeydown(e: KeyboardEvent) {
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
   scheduleInteractionPrefetch()
+  // v4.0.1：启动后非阻塞检查云端版本（不打断首屏，仅在顶部 Toast 提示）
+  setTimeout(() => {
+    import('@/shared/cloud/sync').then(async (m) => {
+      const meta = await m.getCloudMeta()
+      if (!meta?.checkOnStart) return
+      const r = await m.checkRemote()
+      if (r.kind === 'remote_new') showToast(`云端有新版本（修订 ${r.remoteRevision}），可到 设置 → 数据管理 → 云同步 恢复`)
+    }).catch(() => { /* 云端不可达静默 */ })
+  }, 2500)
   // R131-C6a：启动 idle 预热退役——每开一个新标签页都后台拉 ~312KB 拼音字典，与「按需加载」交付口径相悖；
   // 字典改由搜索面板打开时 ensurePinyin（GlobalPopups）/ 网页浮层唤起时（overlay-impl）加载，
   // pinyinReady 就绪后结果链自动补跑拼音命中（V2.21 既有机制），首屏与多标签页内存不再为该预热买单。
@@ -461,15 +476,7 @@ onMounted(async () => {
       const p = String(msg.panel || '')
       if (p === 'capture' || p === 'curio' || p === 'taskcapture') gpOpen(p)
     }
-    // R63-8/63-10：background 触发 Airtable 同步（命令/轮询）——只在 newtab 上下文写数据
-    else if (msg?.type === 'zy-airtable-sync') {
-      runAirtableSync(msg.silent !== false)
-    }
   })
-  // R63-8：background 开的新页带自动同步标记 → 挂载后执行一次
-  if (new URLSearchParams(location.search).has('zy-autosync')) {
-    setTimeout(() => runAirtableSync(new URLSearchParams(location.search).get('zy-autosync') === '1'), 1500)
-  }
   // R67-F4：background 开的新页带模块直达标记（?zy-anchor=curiosity|project）→ 视图挂载后定位闪烁
   const zyAnchor = new URLSearchParams(location.search).get('zy-anchor')
   if (zyAnchor) setTimeout(() => window.dispatchEvent(new CustomEvent('zy-goto-anchor', { detail: zyAnchor })), 900)
@@ -478,27 +485,6 @@ onMounted(async () => {
   if (zyPanel === 'capture' || zyPanel === 'curio' || zyPanel === 'taskcapture') setTimeout(() => gpOpen(zyPanel), 700)
 })
 
-// ---- R63：Airtable 同步执行器（单例防重入；配置缺失静默跳过，手动触发给 toast） ----
-let atSyncBusy = false
-async function runAirtableSync(withToast: boolean): Promise<void> {
-  if (atSyncBusy) return
-  const s = store.data?.airtableSync
-  if (!s?.pat || !s.baseId || !s.tableId) {
-    if (withToast) showToast('请先在 设置 → Airtable 同步 完成连接配置')
-    return
-  }
-  atSyncBusy = true
-  try {
-    // R160（P1）：Airtable 同步器（17.6KB 源）改动态加载——仅真正同步时入内存
-    const { runSync } = await import('@/shared/storage/airtable')
-    const r = await runSync(store.data!)
-    store.persist()
-    if (withToast) showToast(`Airtable 同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
-  } catch (e) {
-    store.persist()
-    if (withToast) showToast('Airtable 同步失败：' + (e instanceof Error ? e.message : String(e)))
-  } finally { atSyncBusy = false }
-}
 onUnmounted(() => {
   window.removeEventListener('keydown', onGlobalKeydown, true)
   if (prefetchTimer) { clearTimeout(prefetchTimer); prefetchTimer = null }

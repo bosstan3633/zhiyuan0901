@@ -1,0 +1,22 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: radial-gradient(1200px 600px at 80% -10%, #1b2140 0%, #0c0e13 55%, #08090c 100%); color: #eef1f7; min-height: 100vh; }
+.m-shell { max-width: 520px; margin: 0 auto; min-height: 100vh; padding: 18px 16px 40px; }
+.m-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.m-brand { display: flex; align-items: center; gap: 12px; }
+.m-logo { width: 36px; height: 36px; border-radius: 10px; }
+.m-title { font-size: 17px; font-weight: 800; letter-spacing: .02em; }
+.m-sub { font-size: 12px; color: #98a1b3; margin-top: 2px; }
+.m-main { display: flex; flex-direction: column; gap: 14px; }
+.m-card { background: rgb(255 255 255 / .04); border: 1px solid rgb(255 255 255 / .08); border-radius: 18px; padding: 18px; backdrop-filter: blur(10px); box-shadow: 0 16px 40px rgb(0 0 0 / .35); }
+.m-card-t { font-size: 14px; font-weight: 700; color: #cfd6e6; margin-bottom: 12px; }
+.m-input, .m-textarea { width: 100%; background: rgb(255 255 255 / .05); border: 1px solid rgb(255 255 255 / .1); color: #f2f5fb; border-radius: 12px; padding: 13px 14px; font-size: 15px; margin-bottom: 10px; outline: none; }
+.m-textarea { min-height: 84px; resize: vertical; }
+.m-input:focus, .m-textarea:focus { border-color: #6d7de0; }
+.m-btn { width: 100%; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #5E6AD2, #3f8cff); color: #fff; }
+.m-btn:disabled { opacity: .6; }
+.m-ghost { background: none; border: 1px solid rgb(255 255 255 / .16); color: #cfd6e6; border-radius: 10px; padding: 7px 12px; font-size: 13px; }
+.m-err { color: #ff7a90; font-size: 13px; margin: 6px 0; }
+.m-ok { color: #7fe3a9; font-size: 13px; margin: 6px 0; }
+.m-tip { color: #8b94a8; font-size: 12px; margin-top: 10px; }
+.m-pending { text-align: center; color: #ffd27a; font-size: 12px; }

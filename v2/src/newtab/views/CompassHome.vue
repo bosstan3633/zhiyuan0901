@@ -26,7 +26,6 @@ import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
-import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
 import type { TaskCard, Project, FocusSlot, CuriosityCard, ResourceCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
@@ -66,8 +65,7 @@ const {
   fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
   gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
   storageTimer, storageOk, ERR_LABEL, storageText, timeAgo,
-  onStorageClick, atSync, atConfigured, atSyncErr, atPending,
-  atChipText, atChipTitle, atSyncing, onSyncChipClick, focusMeta,
+  onStorageClick, focusMeta,
   readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
   todayOutCount, todayOutOps, battleHost, openReview, focusDoneCount,
   mainFocus, extraFocus, recentLimit,
@@ -376,12 +374,6 @@ const {
         </button>
         <span class="local-note"><Icon name="shield" :size="12" /> 只存本机 · 无账号 · 可随时导出</span>
       </div>
-      <span class="foot-sync">
-        <button class="foot-status" :class="{ error: !!atSyncErr }" type="button" :title="atChipTitle" @click="onSyncChipClick">
-          <span>{{ atChipText }}</span>
-        </button>
-        <button class="foot-gear" type="button" title="Airtable 同步设置" aria-label="Airtable 同步设置" @click="router.push('/settings?page=airtable')"><Icon name="settings" :size="12" /></button>
-      </span>
     </footer>
 
     <TodayBattleHost ref="battleHost" />

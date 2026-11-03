@@ -52,7 +52,7 @@
      shortcutsUrl 被 shortcuts 子域的两处链接共用——复制一份就是两处都得改的隐患。
    ★抓取偏好（capturePref）随迁：它只服务本子域的「自动取文件夹名」开关，
      留在宿主就得为一个开关专设一条 props 通道（关于 shared 也只有本组件写）。
-   ★样式：本子域**没有私有样式**——状态徽章 / 按键帽 / 快捷键链接都与 Airtable、快捷键子域共用，
+   ★样式：本子域**没有私有样式**——状态徽章 / 按键帽 / 快捷键链接都与快捷键子域共用，
      已随第三批并入共享基类 settings/base.css（全局表）。 */
 import Icon from '@/shared/components/Icon.vue'
 import { reactive } from 'vue'

@@ -5,7 +5,6 @@ import { useAppStore } from '../stores/app'
 import { saveUIPrefs, loadUIPrefs, getBytesInUse, subscribeSaveError, getLastSaveError, clearLastSaveError, hasUnlimitedStorage, stripRetiredCardKeys, normalizeLegacyCards } from '@/shared/storage/repository'
 import { useConfirm } from '@/shared/components/confirm'
 import { showToast } from '@/shared/components/toast'
-import { testConnection, runSync, quotaHint, catPathOf, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
 import { CHANGELOG, kindGroupsOf } from '../changelog-data'
 import { uid, dateKey, weekStartKey } from '@/shared/utils'
 import { getMutationSeq } from '@/shared/storage/repository'
@@ -34,7 +33,6 @@ export interface TtRow { kind: 'resource' | 'task' | 'curiosity'; id: string; ti
 
 export function useGlobalSettings() {
 const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
-// R63-4：Airtable 单向同步（连接测试 / 立即同步 / 配额提示）
 // V3.8.42 P0-3：「一封信」子域随迁（letter-data 仍留在原处，仅模板与下载函数搬出）
 // V3.8.42 P0-3：已搬出的子域组件（判据锚点由 helpers 的设置页聚合读取层接住，214 处读设置页正文的判据零改动）
 // R63-1/63-2：全景两级（资源台/策展台）与导出镜像卡适配
@@ -68,22 +66,20 @@ const exportRef = ref<{ handleAssetPackImport?: (e: Event) => void } | null>(nul
 function onAssetPack(e: Event) { exportRef.value?.handleAssetPackImport?.(e) }
 
 const activePage = ref('resource')
-type DataManagementTab = 'package' | 'assets' | 'airtable'
+type DataManagementTab = 'package' | 'assets' | 'cloud'
 const dataManagementTab = ref<DataManagementTab>('package')
 /** 深链：/settings?page=tags 直达指定面板（TagPicker 空体系引导跳转用） */
 function pageFromQuery(): string | null {
   const p = route.query.page
   if (typeof p !== 'string') return null
-  // 旧版导入 / 导出 / Airtable 深链统一落到「数据管理」的对应分段。
+  // 旧版导入 / 导出 深链统一落到「数据管理」的对应分段。
   if (p === 'import' || p === 'export' || p === 'airtable') {
-    dataManagementTab.value = p === 'airtable' ? 'airtable' : 'package'
+    dataManagementTab.value = p === 'airtable' ? 'cloud' : 'package'
     return 'data'
   }
   if (p === 'data') {
     const rawTab = route.query.tab
-    dataManagementTab.value = rawTab === 'assets' || rawTab === 'airtable'
-      ? rawTab
-      : 'package'
+    dataManagementTab.value = rawTab === 'assets' || rawTab === 'cloud' ? rawTab : 'package'
   }
   return navGroups.some(g => g.items.some(i => i.key === p && !i.route)) ? p : null
 }
@@ -282,126 +278,6 @@ const resourcePreviewHtml = computed(() => {
 
 
 
-// ---- Airtable 同步（R63-4） ----
-const atBusy = ref(false)
-const atTableName = ref('')
-const atPat = ref('')
-const atBaseId = ref('')
-const atTableId = ref('')
-const atTagColumn = ref('')
-const atTagColumnDefault = DEFAULT_TAG_COLUMN
-/* ★标签列名是改完即写的，与 PAT/Base/Table 三条不同：那三条是半成品凭据，存一半会污染连接测试；
-   列名不存在「半截」这件事，且同步只在点「立即同步」时发生，失焦即写是唯一不丢改动的做法。 */
-let atTagTouched = false
-function applyTagColumn() {
-  const st = store.data?.airtableSync
-  atTagTouched = true
-  if (!st) return
-  st.tagColumn = atTagColumn.value.trim()
-  store.persist()
-}
-// 配置回填（不在模板直接 v-model 到 storage——「改完即写」会把半截 PAT 存库；失焦/操作时统一写回）
-/* ★S3（V3.8.29）：PAT 不再回填进输入框。原先那段回填把存储里的明文塞回 DOM，
-   `type=password` 只是把它画成圆点——value 仍是明文，选中即可复制，开发者工具里也直接可见。
-   规范要求「不显示密钥明文 + 已保存替换需重填」，因此改为：storage 里有凭据时只置 atPatSaved，
-   输入框留空并以提示说明「已保存，替换请重填」；syncAtConfig 遇空不回写，避免把旧密钥清掉。 */
-const atPatSaved = ref(false)
-watchEffect(() => {
-  const s = store.data?.airtableSync
-  if (!s) return
-  if (s.pat) atPatSaved.value = true
-  if (!atBaseId.value) atBaseId.value = s.baseId
-  if (!atTableId.value) atTableId.value = s.tableId
-  if (s.tableName && !atTableName.value) atTableName.value = s.tableName
-  /* ★只在用户没碰过这一栏时回填。加了「改完即写」之后这条必须带 touched 门，否则：
-     用户把列名清空的那一刻，watchEffect 看见空值就把 storage 里的旧列名灌回输入框，
-     清空这个动作被静默撤销（E2E-34 首轮就是这么抓到的）。 */
-  if (!atTagTouched && s.tagColumn) atTagColumn.value = s.tagColumn
-})
-function syncAtConfig() {
-  const s = store.data!.airtableSync!
-  // 空 = 用户没填新密钥（沿用已保存的），不是「要清空」
-  const typedPat = atPat.value.trim()
-  if (typedPat) s.pat = typedPat
-  s.baseId = atBaseId.value.trim()
-  s.tableId = atTableId.value.trim()
-  store.persist()
-}
-/** 连接凭据是否可用：已存过 PAT，或本次填了新的 */
-const atCredReady = computed(() => !!atPat.value.trim() || atPatSaved.value)
-const atPatPlaceholder = computed(() => atPatSaved.value
-  ? '已保存（不回显）· 替换请直接重填'
-  : 'pat…（需 data.records 读写 + schema.bases 写权限）')
-/** 字段级内联校验：只在「填了东西但格式不对」时报，未填交给三态徽章说「未连接」 */
-const atFieldErr = computed<Record<string, string>>(() => {
-  const e: Record<string, string> = {}
-  const pat = atPat.value.trim(), base = atBaseId.value.trim(), tbl = atTableId.value.trim()
-  if (pat && !pat.startsWith('pat')) e.pat = 'PAT 以 pat 开头——请从 Airtable 账户页「创建令牌」后整段复制'
-  if (base && !base.startsWith('app')) e.base = 'Base ID 以 app 开头——在表 URL 的 /appXXXX/ 段里'
-  if (tbl && !tbl.startsWith('tbl')) e.tbl = 'Table ID 以 tbl 开头——在表 URL 的 /tblXXXX/ 段里'
-  return e
-})
-const atState = computed(() => store.data!.airtableSync!)
-const atPoll = computed(() => !!atState.value.pollEnabled)
-const atLog = computed(() => atState.value.log || [])
-const quotaText = computed(() => quotaHint(atState.value))
-const atStatusText = computed(() => {
-  const s = atState.value
-  if (!s.lastSyncAt) return ''
-  const parts = [new Date(s.lastSyncAt).toLocaleString('zh-CN')]
-  if (s.lastSyncedCount != null) parts.push(`推送 ${s.lastSyncedCount} 条`)
-  if (s.lastSyncMs != null) parts.push(`耗时 ${(s.lastSyncMs / 1000).toFixed(1)}s`)
-  if (s.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
-  return parts.join('· ')
-})
-const atErrorText = computed(() => atState.value.lastError || '')
-/* ★S3（V3.8.29）：三态徽章。优先级 异常 > 已连接 > 未连接 —— 一次推送失败比"上次连通过"更该先说。
-   绿只给"已连接"、琥珀只给"推送异常"，这两个是状态而非评价（同 B3 的镜子口径）。 */
-const atBadge = computed(() => {
-  if (atErrorText.value) return { cls: 'error', label: '推送异常', tip: atErrorText.value }
-  if (atTableName.value) return { cls: 'connected', label: '已连接', tip: `已连上「${atTableName.value}」` }
-  return { cls: 'idle', label: '未连接', tip: '填好 PAT / Base ID / Table ID 后点「测试连接」' }
-})
-
-async function testAtConnection() {
-  if (atBusy.value) return
-  atBusy.value = true
-  try {
-    syncAtConfig()
-    const name = await testConnection(atState.value)
-    atTableName.value = name
-    atState.value.tableName = name
-    store.persist()
-    showToast('连接成功：' + name)
-  } catch (e) {
-    showToast('' + (e instanceof Error ? e.message : String(e)))
-  } finally { atBusy.value = false }
-}
-
-async function runAtSync() {
-  if (atBusy.value) return
-  if (!atCredReady.value || !atBaseId.value.trim() || !atTableId.value.trim()) { showToast('请先填写完整连接配置'); return }
-  atBusy.value = true
-  try {
-    syncAtConfig()
-    const r = await runSync(store.data!)
-    store.persist()
-    showToast(`同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
-  } catch (e) {
-    store.persist()
-    showToast('同步失败：' + (e instanceof Error ? e.message : String(e)))
-  } finally { atBusy.value = false }
-}
-
-function toggleAtPoll() {
-  const s = atState.value
-  s.pollEnabled = !s.pollEnabled
-  store.persist()
-  // 轮询注册由 background 监听 storage 变化自管（63-10）
-  showToast(s.pollEnabled ? '已开启 3 小时自动轮询' : '已关闭自动轮询')
-}
-
-
 // ---- N4 标签管理 ----
 const tagTree = computed<TagNodeLite[]>(() => (store.data?.tagTree || []).filter(n => n && typeof n.id === 'string'))
 const ttCollapsed = ref<Set<string>>(new Set())
@@ -565,11 +441,7 @@ const ttRows = computed<TtRow[]>(() => {
     refreshStorage, markSaveErrorRead, formatBytes, saveErrorLabel, navGroups,
     fields, onFieldChange, onFieldNotify, gd, gWsName,
     gCatName, previewMode, previewModes, previewModeLabel, resourcePreviewHtml,
-    atBusy, atTableName, atPat, atBaseId, atTableId,
-    atTagColumn, atTagColumnDefault, atTagTouched, applyTagColumn, atPatSaved,
-    syncAtConfig, atCredReady, atPatPlaceholder, atFieldErr, atState,
-    atPoll, atLog, quotaText, atStatusText, atErrorText,
-    atBadge, testAtConnection, runAtSync, toggleAtPoll, tagTree,
+    tagTree,
     ttCollapsed, ttEditing, ttFlashId, ttFlash, ttDragId,
     vFocus, safeNodes, tagFlat, tagDepth, safeChildren,
     findTagNode, tagSubtreeIds, cardHasTag, tagUseCache, tagUsageMap,

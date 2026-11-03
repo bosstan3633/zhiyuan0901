@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/mobile/**/*.ts", "src/mobile/**/*.vue", "src/shared/cloud/**/*.ts", "src/shared/models/**/*.ts"],
+  "compilerOptions": { "types": ["vite/client"] }
+}

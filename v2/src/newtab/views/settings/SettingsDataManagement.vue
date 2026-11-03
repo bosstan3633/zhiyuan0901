@@ -2,8 +2,8 @@
 /**
  * 设置 · 数据管理（V3.9.23）
  *
- * 合并原「导入数据 / 导出数据 / Airtable 同步」三个一级导航，内部用分段切换：
- * 数据包 / 附件管理 / Airtable。书签导入并入数据包，导入后直接进入资源卡池；
+ * 合并原「导入数据 / 导出数据」等一级导航，内部用分段切换：
+ * 数据包 / 附件管理 / 云同步。书签导入并入数据包，导入后直接进入资源卡池；
  * 附件本体只在「附件管理」读取，普通数据包不碰 Blob。
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -11,7 +11,7 @@ import { useAppStore } from '../../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { saveUIPrefs, loadUIPrefs } from '@/shared/storage/repository'
-import { testConnection, runSync, quotaHint, DEFAULT_TAG_COLUMN } from '@/shared/storage/airtable'
+import SettingsCloudSync from './SettingsCloudSync.vue'
 import { getAllAssetIndex, clearAllAssets, clearAllAssetReferences } from '@/shared/storage/assets'
 import Icon from '@/shared/components/Icon.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
@@ -48,11 +48,11 @@ const props = defineProps<{
   formatBytes: (n: number) => string
   aiReady: boolean
   aiEnrichIds: (ids: Set<string>) => void
-  initialTab?: 'package' | 'assets' | 'airtable'
+  initialTab?: 'package' | 'assets' | 'cloud'
 }>()
 
 const store = useAppStore()
-type DataTab = 'package' | 'assets' | 'airtable'
+type DataTab = 'package' | 'assets' | 'cloud'
 const tab = ref<DataTab>(props.initialTab || 'package')
 const gd = computed(() => store.data!)
 watch(() => props.initialTab, v => { if (v) tab.value = v })
@@ -287,99 +287,6 @@ async function clearAssetsEverywhere() {
   }
 }
 
-// ---- Airtable ----
-const atBusy = ref(false)
-const atTableName = ref('')
-const atPat = ref('')
-const atBaseId = ref('')
-const atTableId = ref('')
-const atTagColumn = ref('')
-const atTagColumnDefault = DEFAULT_TAG_COLUMN
-let atTagTouched = false
-function applyTagColumn() {
-  const st = store.data?.airtableSync
-  atTagTouched = true
-  if (!st) return
-  st.tagColumn = atTagColumn.value.trim()
-  store.persist()
-}
-const atPatSaved = ref(false)
-watch(() => store.data?.airtableSync, s => {
-  if (!s) return
-  if (s.pat) atPatSaved.value = true
-  if (!atBaseId.value) atBaseId.value = s.baseId
-  if (!atTableId.value) atTableId.value = s.tableId
-  if (s.tableName && !atTableName.value) atTableName.value = s.tableName
-  if (!atTagTouched && s.tagColumn) atTagColumn.value = s.tagColumn
-}, { immediate: true })
-function syncAtConfig() {
-  const s = store.data!.airtableSync!
-  const typedPat = atPat.value.trim()
-  if (typedPat) s.pat = typedPat
-  s.baseId = atBaseId.value.trim()
-  s.tableId = atTableId.value.trim()
-  store.persist()
-}
-const atCredReady = computed(() => !!atPat.value.trim() || atPatSaved.value)
-/** 只在「填了但格式不对」时提示；未填交给徽章显示未连接，不制造噪声。 */
-const atFieldErr = computed<Record<string, string>>(() => {
-  const e: Record<string, string> = {}
-  const pat = atPat.value.trim()
-  const base = atBaseId.value.trim()
-  const tbl = atTableId.value.trim()
-  if (pat && !pat.startsWith('pat')) e.pat = 'PAT 以 pat 开头——请从 Airtable 账户页「创建令牌」后整段复制'
-  if (base && !base.startsWith('app')) e.base = 'Base ID 以 app 开头——在表 URL 的 /appXXXX/ 段里'
-  if (tbl && !tbl.startsWith('tbl')) e.tbl = 'Table ID 以 tbl 开头——在表 URL 的 /tblXXXX/ 段里'
-  return e
-})
-const atPoll = computed(() => !!store.data?.airtableSync?.pollEnabled)
-const atLog = computed(() => store.data?.airtableSync?.log || [])
-const quotaText = computed(() => quotaHint(store.data!.airtableSync!))
-const atStatusText = computed(() => {
-  const s = store.data!.airtableSync
-  if (!s?.lastSyncAt) return ''
-  const parts = [new Date(s.lastSyncAt).toLocaleString('zh-CN')]
-  if (s.lastSyncedCount != null) parts.push(`推送 ${s.lastSyncedCount} 条`)
-  if (s.lastSyncMs != null) parts.push(`耗时 ${(s.lastSyncMs / 1000).toFixed(1)}s`)
-  if (s.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
-  return parts.join('· ')
-})
-const atBadge = computed(() => {
-  const s = store.data!.airtableSync
-  if (s?.lastError) return { cls: 'error', label: '推送异常' }
-  if (atTableName.value || s?.tableName) return { cls: 'connected', label: '已连接' }
-  return { cls: 'idle', label: '未连接' }
-})
-async function testAtConnection() {
-  if (atBusy.value) return
-  atBusy.value = true
-  try {
-    syncAtConfig()
-    const name = await testConnection(store.data!.airtableSync!)
-    atTableName.value = name
-    store.data!.airtableSync!.tableName = name
-    store.persist()
-    showToast('连接成功：' + name)
-  } catch (e) { showToast(String(e instanceof Error ? e.message : e)) } finally { atBusy.value = false }
-}
-async function runAtSync() {
-  if (atBusy.value) return
-  if (!atCredReady.value || !atBaseId.value.trim() || !atTableId.value.trim()) { showToast('请先填写完整连接配置'); return }
-  atBusy.value = true
-  try {
-    syncAtConfig()
-    const r = await runSync(store.data!)
-    store.persist()
-    showToast(`同步完成：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
-  } catch (e) { store.persist(); showToast('同步失败：' + String(e instanceof Error ? e.message : e)) } finally { atBusy.value = false }
-}
-function toggleAtPoll() {
-  const s = store.data!.airtableSync!
-  s.pollEnabled = !s.pollEnabled
-  store.persist()
-  showToast(s.pollEnabled ? '已开启 3 小时自动轮询' : '已关闭自动轮询')
-}
-
 // ---- 备份提醒 ----
 const backupReminderEnabled = ref(store.ui?.backupReminderEnabled !== false)
 const lastBackupAt = ref<number | undefined>(store.ui?.lastBackupAt)
@@ -404,13 +311,13 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
 <div class="gs-panel">
   <div class="gs-page-header">
     <div class="gs-page-title"><Icon name="database" :size="13"/> 数据管理</div>
-    <div class="gs-page-desc">数据包备份迁移 · 书签直接入池 · 附件整体迁移 · Airtable 单向同步</div>
+    <div class="gs-page-desc">数据包备份迁移 · 书签直接入池 · 附件整体迁移 · Supabase 云同步</div>
   </div>
 
   <div class="dm-tabs">
     <button class="dm-tab" :class="{ on: tab === 'package' }" @click="tab = 'package'">数据包</button>
     <button class="dm-tab" :class="{ on: tab === 'assets' }" @click="tab = 'assets'">附件管理</button>
-    <button class="dm-tab" :class="{ on: tab === 'airtable' }" @click="tab = 'airtable'">Airtable</button>
+    <button class="dm-tab" :class="{ on: tab === 'cloud' }" @click="tab = 'cloud'">云同步</button>
   </div>
 
   <!-- 数据包 -->
@@ -428,7 +335,7 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
       </div>
     </div>
     <div class="gs-card">
-      <div class="gs-card-header"><span class="gs-card-title">知源调度台数据包</span><span class="gs-card-desc">唯一通用导出；含最近 5000 条事件，不含附件本体与 Airtable 凭证</span></div>
+      <div class="gs-card-header"><span class="gs-card-title">知源调度台数据包</span><span class="gs-card-desc">唯一通用导出；含最近 5000 条事件，不含附件本体与云端凭据</span></div>
       <div class="gs-card-body">
         <div class="gs-setting-row">
           <span class="gs-sr-label">导出数据包</span>
@@ -439,7 +346,7 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
         <div class="gs-setting-row gs-setting-row--top">
           <span class="gs-sr-label">导入数据包</span>
           <div class="gs-sr-control gs-sr-control-wrap">
-            <span class="gs-sr-hint">JSON 全量包；按 ID 并集合并。导入前会自动下载当前数据备份（不含 Airtable 凭证）。</span>
+            <span class="gs-sr-hint">JSON 全量包；按 ID 并集合并。导入前会自动下载当前数据备份（不含云端凭据）。</span>
             <button class="gs-btn" @click="triggerPackageImport">选择文件</button>
           </div>
         </div>
@@ -510,42 +417,9 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
     </div>
   </template>
 
-  <!-- Airtable -->
+  <!-- 云同步 -->
   <template v-else>
-    <div class="gs-card">
-      <div class="gs-card-header">
-        <span class="gs-card-title">连接配置</span>
-        <span class="gs-status-badge" :class="atBadge.cls"><span class="gs-status-dot"></span>{{ atBadge.label }}</span>
-        <span class="gs-card-desc">PAT 仅存本机，数据包永不携带</span>
-      </div>
-      <div class="gs-card-body">
-        <div class="gs-setting-row"><span class="gs-sr-label">Personal Access Token</span><div class="gs-sr-control gs-sr-control-wrap"><input class="gs-input gs-input--pat" :class="{ 'is-invalid': atFieldErr.pat }" type="password" v-model="atPat" :placeholder="atPatSaved ? '已保存（不回显）· 替换请直接重填' : 'pat…（需 data.records 读写 + schema.bases 写权限）'" /><span v-if="atFieldErr.pat" class="gs-field-err">{{ atFieldErr.pat }}</span><span v-else-if="atPatSaved && !atPat" class="gs-sr-hint">已保存，替换需重填（原值不回显，避免凭据被复制）</span></div></div>
-        <div class="gs-setting-row"><span class="gs-sr-label">Base ID</span><div class="gs-sr-control gs-sr-control-wrap"><input class="gs-input gs-input--ident" :class="{ 'is-invalid': atFieldErr.base }" v-model="atBaseId" placeholder="app 开头" /><span v-if="atFieldErr.base" class="gs-field-err">{{ atFieldErr.base }}</span></div></div>
-        <div class="gs-setting-row"><span class="gs-sr-label">Table ID</span><div class="gs-sr-control gs-sr-control-wrap"><input class="gs-input gs-input--ident" :class="{ 'is-invalid': atFieldErr.tbl }" v-model="atTableId" placeholder="tbl 开头（表 URL 中获取）" /><span v-if="atFieldErr.tbl" class="gs-field-err">{{ atFieldErr.tbl }}</span></div></div>
-        <div class="gs-setting-row"><span class="gs-sr-label">标签列名</span><div class="gs-sr-control"><input class="gs-input gs-input--ident" v-model="atTagColumn" :placeholder="atTagColumnDefault" @change="applyTagColumn" /></div></div>
-        <div class="gs-setting-row"><span class="gs-sr-label">连接测试</span><div class="gs-sr-control gs-sr-control--inline"><button class="gs-btn" :disabled="atBusy || !atCredReady || !atBaseId || !atTableId" @click="testAtConnection">{{ atBusy ? '测试中…' : '测试连接' }}</button><span v-if="atTableName" class="gs-sr-ok"><Icon name="check" :size="13"/> 已连上「{{ atTableName }}」</span></div></div>
-      </div>
-    </div>
-    <div class="gs-card">
-      <div class="gs-card-header"><span class="gs-card-title">同步范围与触发</span></div>
-      <div class="gs-card-body">
-        <div class="gs-setting-row"><span class="gs-sr-label">同步范围</span><div class="gs-sr-control gs-sr-note gs-sr-note--wrap">调度台好奇心卡 · 方向台任务卡 · 资源卡池资源卡 · 各策展台镜像卡；单向知源 → Airtable，不回写本地</div></div>
-        <div class="gs-setting-row"><span class="gs-sr-label">3 小时自动轮询</span><div class="gs-sr-control"><label class="gs-switch"><input type="checkbox" :checked="atPoll" @change="toggleAtPoll" /><span class="gs-switch-slider"></span></label></div></div>
-        <div class="gs-setting-row"><span class="gs-sr-label">立即同步</span><div class="gs-sr-control gs-sr-control--inline"><button class="gs-btn gs-btn-primary" :disabled="atBusy || !atCredReady || !atBaseId || !atTableId" @click="runAtSync">{{ atBusy ? '同步中…' : '立即同步' }}</button><span v-if="quotaText" class="gs-sr-note gs-sr-note--muted">{{ quotaText }}</span></div></div>
-        <div class="gs-setting-row" v-if="atStatusText"><span class="gs-sr-label">上次同步</span><div class="gs-sr-control gs-sr-note">{{ atStatusText }}</div></div>
-        <div class="gs-setting-row" v-if="store.data?.airtableSync?.lastError"><span class="gs-sr-label">上次错误</span><div class="gs-sr-control gs-sr-note gs-sr-note--danger">{{ store.data.airtableSync.lastError }}</div></div>
-      </div>
-    </div>
-    <div class="gs-card">
-      <div class="gs-card-header"><span class="gs-card-title">同步日志</span><span class="gs-card-desc">最近 {{ atLog.length }} 条</span></div>
-      <div class="gs-card-body">
-        <EmptyState v-if="!atLog.length" size="inline" icon="refresh" title="暂无同步记录" hint="配好连接后点「立即同步」" />
-        <div v-for="(l, i) in atLog" :key="i" class="gs-setting-row gs-setting-row--top">
-          <span class="gs-sr-label gs-sr-label--nowrap">{{ new Date(l.at).toLocaleString('zh-CN') }}</span>
-          <div class="gs-sr-control gs-sr-note gs-sr-note--log"><Icon v-if="l.kind === 'ok'" name="check" :size="12" class="gs-log-ico ok" /><Icon v-else-if="l.kind === 'error'" name="warn" :size="12" class="gs-log-ico err" /><span>{{ l.msg }}</span></div>
-        </div>
-      </div>
-    </div>
+    <SettingsCloudSync />
   </template>
 
   <input ref="packageInput" type="file" accept=".json" class="gs-file-hidden" @change="handlePackageImport" />

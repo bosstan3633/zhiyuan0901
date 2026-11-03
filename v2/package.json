@@ -1,11 +1,12 @@
 {
   "name": "zhiyuan-workbench-v2",
-  "version": "3.9.34",
+  "version": "4.0.1",
   "description": "知源调度台 · AI 时代的个人资源调度层与认知增强系统 · Chrome MV3 · 本地优先",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
+    "build:pwa": "vite build --config vite.mobile.config.ts",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "pack": "node scripts/pack.cjs",

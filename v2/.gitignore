@@ -3,6 +3,8 @@
 .DS_Store
 Thumbs.db
 .vite/
+.env*
+!.env.example
 .r55-*.cjs
 .e2e-fix*
 .dbg-*.cjs
@@ -12,6 +14,8 @@ Thumbs.db
 
 # 本地构建/采样产物（可随时重建，不入库）
 dist_old_*/
+.env.local
+dist-pwa/
 .prof-report.json
 .theme-audit/
 

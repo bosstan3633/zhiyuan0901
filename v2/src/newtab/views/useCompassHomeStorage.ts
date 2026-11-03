@@ -3,7 +3,6 @@ import type { Ref, ComputedRef } from 'vue'
 import { visibleFields } from '@/shared/utils/fields'
 import type { FieldDef } from '@/shared/models'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
-import { pendingRows, runSync } from '@/shared/storage/airtable'
 import type { SaveError } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import type { useCompassHome } from './useCompassHome'
@@ -23,14 +22,6 @@ export function useCompassHomeStorage(deps: Pick<ReturnType<typeof useCompassHom
   storageText: ComputedRef<string>
   timeAgo: (ts: number) => string
   onStorageClick: () => Promise<void>
-  atSync: ComputedRef<{ pat: string; baseId: string; tableId: string; tableName?: string; tagColumn?: string; pollEnabled?: boolean; lastSyncAt?: number; lastSyncMs?: number; lastSyncCalls?: number; lastSyncedCount?: number; pendingCount?: number; cursorAt?: number; totalApiCalls?: number; log?: { at: number; msg: string; kind: 'ok' | 'error' | 'info' }[]; lastError?: string } | undefined>
-  atConfigured: ComputedRef<boolean>
-  atSyncErr: ComputedRef<string>
-  atPending: ComputedRef<number>
-  atChipText: ComputedRef<string>
-  atChipTitle: ComputedRef<string>
-  atSyncing: boolean
-  onSyncChipClick: () => Promise<void>
 } {
   const { d, pickerOpen, exportOpen, whyOpen, focusMoreOpen, shiftDate, route, router, onDocClickCloseWhy, store } = deps
 const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
@@ -132,47 +123,6 @@ async function onStorageClick() {
   showToast(`存储正常 · 已用 ${(bytes / 1024).toFixed(0)} KB${hasUnlimitedStorage() ? ' · 不限容量' : ''}`)
 }
 
-// ================= Airtable 同步状态卡（R63-9） =================
-const atSync = computed(() => store.data?.airtableSync)
-const atConfigured = computed(() => !!(atSync.value?.pat && atSync.value?.baseId && atSync.value?.tableId))
-const atSyncErr = computed(() => atSync.value?.lastError || '')
-const atPending = computed(() => {
-  if (!atConfigured.value) return 0
-  return pendingRows(store.data!).rows.length
-})
-const atChipText = computed(() => {
-  const s = atSync.value
-  if (!atConfigured.value) return '⇄ 未配置同步'
-  if (atSyncErr.value) return '⇄ 同步出错'
-  if (!s?.lastSyncAt) return `⇄ 待同步 ${atPending.value}`
-  const ago = Date.now() - s.lastSyncAt
-  const agoText = ago < 3600_000 ? Math.max(1, Math.round(ago / 60000)) + '分钟前' : ago < 86400_000 ? Math.round(ago / 3600_000) + '小时前' : Math.round(ago / 86400_000) + '天前'
-  return `⇄ ${agoText}同步${atPending.value ? ` · 待推 ${atPending.value}`: ''}`
-})
-const atChipTitle = computed(() => {
-  const s = atSync.value
-  if (!atConfigured.value) return '点击完成 Airtable 连接配置'
-  const parts = ['点击立即同步到 Airtable']
-  if (s?.lastSyncedCount != null) parts.push(`上次推送 ${s.lastSyncedCount} 条`)
-  if (s?.lastSyncCalls != null) parts.push(`调用 ${s.lastSyncCalls} 次`)
-  return parts.join('· ')
-})
-let atSyncing = false
-async function onSyncChipClick() {
-  // R64-F5：出错态点击 → 直落设置同步分区归因（日志含具体原因），不再盲目重试
-  if (!atConfigured.value || atSyncErr.value) { router.push('/settings?page=airtable'); return }
-  if (atSyncing) return
-  atSyncing = true
-  try {
-    const r = await runSync(store.data!)
-    store.persist()
-    showToast(`已同步到 Airtable：推送 ${r.pushed} 条 · 调用 ${r.calls} 次`)
-  } catch (e) {
-    store.persist()
-    showToast('同步失败：' + (e instanceof Error ? e.message : String(e)))
-  } finally { atSyncing = false }
-}
-
 // R51-F10：恢复上下联动布局——三件事居上（视觉焦点），项目调度联动在下；原左右分栏拖拽移除
 
 // ================= R91：主攻速览条（手册「直通调度台速览」的落点） =================
@@ -183,6 +133,6 @@ async function onSyncChipClick() {
  */
 
   return {
-    tFields, taskAssetsOn, onDateKey, gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub, storageTimer, storageOk, ERR_LABEL, storageText, timeAgo, onStorageClick, atSync, atConfigured, atSyncErr, atPending, atChipText, atChipTitle, atSyncing, onSyncChipClick,
+    tFields, taskAssetsOn, onDateKey, gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub, storageTimer, storageOk, ERR_LABEL, storageText, timeAgo, onStorageClick,
   }
 }

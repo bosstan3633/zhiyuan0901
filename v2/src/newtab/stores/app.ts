@@ -154,6 +154,13 @@ export const useAppStore = defineStore('app', () => {
       unwatchSystem = null
     }
   }
+
+  /** 云恢复后刷新 store（data/ui 整体重挂 + 主题密度应用） */
+  async function refreshAfterCloudRestore(d: AppData | null, nextUi?: UIPrefs | null): Promise<void> {
+    if (d) data.value = d
+    if (nextUi) ui.value = nextUi
+    applyTheme(ui.value?.theme || 'linear')
+  }
   function setTheme(t: string) {
     if (!ui.value) return
     ui.value.theme = t
@@ -175,5 +182,5 @@ export const useAppStore = defineStore('app', () => {
     if (data.value) writeHot(data.value, immediate)
   }
 
-  return { data, ui, workspaces, hiddenWorkspaces, theme, init, setTheme, persist, persistHot }
+  return { data, ui, workspaces, hiddenWorkspaces, theme, init, setTheme, persist, persistHot, refreshAfterCloudRestore }
 })

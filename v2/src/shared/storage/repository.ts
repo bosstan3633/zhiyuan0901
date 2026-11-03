@@ -196,18 +196,9 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   }
   // R58-B5：activityLogs 已无写入方（事件日志迁 zy_event_log 独立键）——启动期清空瘦身
   if (Array.isArray(data.activityLogs) && data.activityLogs.length) data.activityLogs = []
-  // R63：Airtable 同步状态归一化（老数据无则补默认；log 截断防膨胀；map 保证为对象）
-  if (!data.airtableSync) {
-    data.airtableSync = { pat: '', baseId: '', tableId: '', pollEnabled: false }
-  } else {
-    const s = data.airtableSync
-    if (typeof s.pat !== 'string') s.pat = ''
-    if (typeof s.baseId !== 'string') s.baseId = ''
-    if (typeof s.tableId !== 'string') s.tableId = ''
-    if (!s.pollEnabled) s.pollEnabled = false
-    if (Array.isArray(s.log) && s.log.length > 40) s.log = s.log.slice(-40)
-  }
-  if (!data.airtableMap || typeof data.airtableMap !== 'object') data.airtableMap = {}
+  // AeroTable 已退役（v4.0.1）——启动期静默剥离存量字段，防旧凭据随云快照外发
+  delete (data as unknown as Record<string, unknown>).airtableSync
+  delete (data as unknown as Record<string, unknown>).airtableMap
   // R70：悬空投射清理——源卡被硬删（回收站清空）后指向它的投射记录会永久留存、无界增长。幂等，启动期一次。
   try { pruneDanglingProjections(data) } catch { /* noop */ }
   // R110-BUG1：资源台镜像标记净化——视图模型标记（__mirrorProjId/__mirrorCat）误持久化 + 指向资源台的投射
@@ -400,6 +391,53 @@ export function syncCache(newData: AppData): void {
   markStorageMirror(newData)
   // 第卌四轮 T-05：外部写入静默重建快照——事件由执行写入的上下文记录，避免双记
   rebuildEventSnapshot(newData)
+}
+
+/** 取消挂起的防抖保存（云恢复前调用，防 pending 写覆盖刚恢复的云端树） */
+export function cancelPendingSave(): void {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+}
+
+/**
+ * 云恢复原子替换：整树 + UI 偏好 + 事件日志一次性落盘，不产事件 diff、
+ * 不触发本端 listeners 二次持久化链（调用方随后自行刷新 store）。
+ * prefix_/login 上下文都是动态 import 云模块，主链不受影响。
+ */
+export async function cloudRestoreAtomic(opts: {
+  nextData: AppData
+  nextUi?: UIPrefs | null
+  eventLog?: import('@/shared/utils/eventLog').CardEvent[]
+  beforeApply?: () => Promise<void> | void
+}): Promise<void> {
+  cancelPendingSave()
+  emitSaveState('saving')
+  await opts.beforeApply?.()
+  cache = opts.nextData
+  mutationSeq++
+  dataVersion++
+  markStorageMirror(opts.nextData)
+  rebuildEventSnapshot(opts.nextData)
+  const cs = chromeStore()
+  const wid = SELF_CTX_ID + '-' + (++selfWriteSeq)
+  lastSelfWriteId = wid
+  if (opts.nextUi && typeof opts.nextUi === 'object') {
+    uiCache = { ...uiCache, ...opts.nextUi } as UIPrefs
+    setCoolingDefaultDays(uiCache.coolingDaysDefault ?? 30)
+  }
+  if (opts.eventLog) await import('@/shared/utils/eventLog').then(m => m.replaceEventLog(opts.eventLog!))
+  if (cs) {
+    const payload: Record<string, unknown> = {
+      [STORAGE_KEY]: Object.assign(JSON.parse(JSON.stringify(opts.nextData)), { __wid: wid }),
+      [HOT_KEY]: extractHot(opts.nextData),
+      ...(opts.nextUi ? { [UI_KEY]: uiCache } : {}),
+    }
+    await cs.set(payload)
+  }
+  lastPersistedJson = JSON.stringify(cache)
+  markSaveOk()
+  clearLastSaveError()
+  emitSaveState('saved')
+  if (cache) listeners.forEach(fn => fn(cache!))
 }
 
 // ============ R58-B2 · 跨上下文并发写合并 ============

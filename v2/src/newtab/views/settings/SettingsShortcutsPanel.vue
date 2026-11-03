@@ -70,7 +70,7 @@
    ★store / saveUIPrefs 由本组件直接取 —— wsMod 是本子域私有的偏好开关，
      留在宿主就得为一个下拉专设一条通道（先例：extension 子域的 capturePref 随迁）。
    ★样式：本子域**没有私有样式** —— 键帽 .gs-keycap / 行 .gs-setting-row / 下拉 .gs-select /
-     快捷键链接 .gs-shortcut-link 与 Airtable、扩展子域共用，已在 settings/base.css（全局表）。 */
+     快捷键链接 .gs-shortcut-link 与扩展子域共用，已在 settings/base.css（全局表）。 */
 import { computed, ref } from "vue"
 import Icon from "@/shared/components/Icon.vue"
 import { useAppStore } from '../../stores/app'
