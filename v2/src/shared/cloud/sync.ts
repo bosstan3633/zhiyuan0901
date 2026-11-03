@@ -5,7 +5,7 @@
 import type { AppData, UIPrefs, AssetMeta } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
-import { cloudEnv, cloud, type CloudEnv } from './client'
+import { cloudEnv, cloud, type CloudEnv, setCloudEnvOverride } from './client'
 import { K } from '@/shared/storage/keys'
 
 export interface CloudMeta {
@@ -44,6 +44,10 @@ export async function setCheckOnStart(v: boolean): Promise<CloudMeta> {
   return writeMeta({ checkOnStart: v })
 }
 
+export async function setCloudEnv(env: CloudEnv | null): Promise<void> {
+  return setCloudEnvOverride(env)
+}
+
 /** 脱敏：去附件元数据/AI、__wid、Airtable；本次只同步 UIPrefs 里安全子集（不落 AI/云元数据） */
 function sanitize(data: AppData, ui: UIPrefs | null, eventLog: CardEvent[]): SnapshotState {
   const d = JSON.parse(JSON.stringify(data)) as AppData & Record<string, unknown>
@@ -71,7 +75,7 @@ async function accessToken(env: CloudEnv, meta: CloudMeta, force = false): Promi
 }
 
 export async function login(email: string, password: string): Promise<CloudMeta> {
-  const env = cloudEnv()
+  const env = await cloudEnv()
   if (!env) throw new Error('云端未配置')
   const r = await cloud.login(env, email.trim(), password)
   const meta = await writeMeta({
@@ -82,7 +86,7 @@ export async function login(email: string, password: string): Promise<CloudMeta>
 }
 
 export async function logout(): Promise<void> {
-  const env = cloudEnv(); const meta = await readMeta()
+  const env = await cloudEnv(); const meta = await readMeta()
   if (env && meta && tokenCache) { try { await cloud.logout(env, tokenCache.accessToken) } catch { /* noop */ } }
   tokenCache = null
   try { await chrome?.storage?.local?.remove([META_KEY]) } catch { /* noop */ }
@@ -90,7 +94,7 @@ export async function logout(): Promise<void> {
 
 /** 启动非阻塞检查：与云端 revision 比对 */
 export async function checkRemote(): Promise<CloudCheckResult> {
-  const env = cloudEnv(); const meta = await readMeta()
+  const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) return { kind: 'idle', remoteRevision: 0 }
   try {
     const token = await accessToken(env, meta)
@@ -105,7 +109,7 @@ export async function checkRemote(): Promise<CloudCheckResult> {
 }
 
 export async function uploadNow(snap: SnapshotState, onConflict: (r: number) => Promise<boolean>): Promise<{ revision: number }> {
-  const env = cloudEnv(); const meta = await readMeta()
+  const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
   const clean = sanitize(snap.data, snap.ui, snap.eventLog)
@@ -132,7 +136,7 @@ export async function uploadNow(snap: SnapshotState, onConflict: (r: number) => 
 }
 
 export async function downloadNow(): Promise<{ state: SnapshotState; revision: number }> {
-  const env = cloudEnv(); const meta = await readMeta()
+  const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
   const rows = await cloud.getSnapshot(env, token, meta.userId)
@@ -150,7 +154,7 @@ export async function markDownloaded(revision: number): Promise<void> {
 export interface CaptureItem { id: string; url: string; title?: string; note?: string; tags: string[]; createdAt: number }
 
 export async function listCaptures(): Promise<CaptureItem[]> {
-  const env = cloudEnv(); const meta = await readMeta()
+  const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) return []
   const token = await accessToken(env, meta)
   const rows = await cloud.listCaptures(env, token)
@@ -158,7 +162,7 @@ export async function listCaptures(): Promise<CaptureItem[]> {
 }
 
 export async function consumeCapture(id: string): Promise<void> {
-  const env = cloudEnv(); const meta = await readMeta()
+  const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) return
   const token = await accessToken(env, meta)
   await cloud.consumeCapture(env, token, id)

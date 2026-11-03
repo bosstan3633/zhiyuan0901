@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { cloudEnv } from '@/shared/cloud/client'
 
-const env = ref(cloudEnv())
+
+const env = ref<{ url: string; anonKey: string } | null>(null)
 const email = ref('')
 const password = ref('')
 const session = ref<{ accessToken: string; refreshToken: string; email: string } | null>(null)
@@ -81,6 +81,11 @@ function logout() {
   localStorage.removeItem('zy_mobile_session')
 }
 onMounted(() => {
+  try {
+    const u = (import.meta as unknown as { env?: Record<string,string|undefined> }).env?.VITE_SUPABASE_URL
+    const k = (import.meta as unknown as { env?: Record<string,string|undefined> }).env?.VITE_SUPABASE_PUBLISHABLE_KEY
+    if (u && k && k.startsWith('sb_publishable_')) env.value = { url: u.replace(/\/$/,''), anonKey: k }
+  } catch { /* noop */ }
   const s = localStorage.getItem('zy_mobile_session')
   if (s) { try { session.value = JSON.parse(s) } catch { /* noop */ } }
   const p = localStorage.getItem(PENDING_KEY)
