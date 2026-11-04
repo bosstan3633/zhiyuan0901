@@ -29,7 +29,7 @@
         <div class="gs-about-row">
           <span class="label">数据存储</span>
           <span class="value">
-            全部在本地，不上传云端
+            默认本机 · 手动云同步 · 可随时导出
             <span v-if="bytesInUse > 0" class="gs-storage-detail">
               · 当前占 {{ formatBytes(bytesInUse) }}
               <template v-if="!unlimitedStorage"> / 配额上限 10 MB</template>

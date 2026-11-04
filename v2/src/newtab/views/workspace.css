@@ -34,44 +34,50 @@
 /* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
 .wsh-upd { cursor: pointer; }
 .wsh-upd:hover { color: var(--accent); }
-/* V3.9.29：中心论点按审核原型恢复为“镇台主舞台”——大留白、轻渐变、无左侧色条，
-   让论点标题成为页头唯一主句；整卡只负责打开详情，不在卡内再造动作入口。 */
+/* V4.0.3：中心论点卡承载论点正文、卡片读数与详情入口。
+   卡片本身不再是按钮，避免内部读数按钮与整卡点击争夺事件。 */
 .thesis-banner {
-  display: flex; min-width: 0; align-items: stretch;
+  display: flex; min-width: 0; align-items: stretch; justify-content: space-between; gap: 22px;
   padding: 18px 20px 16px;
   background:
     radial-gradient(600px 160px at 12% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
     var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  transition: border-color var(--dur), box-shadow var(--dur);
-  cursor: pointer;
 }
-.thesis-banner:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong)); }
 .thesis-banner.empty {
   min-height: 42px; align-items: center;
   padding: 10px 16px;
   background: var(--surface-2);
   border-color: var(--border);
 }
-.thesis-banner.empty:hover { border-color: var(--border-strong); }
 .tb-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .tb-kicker { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--accent-ink); font-size: var(--fs-caption); font-weight: 600; letter-spacing: .02em; }
 .tb-kicker-label { white-space: nowrap; }
 .tb-kicker-sep { color: var(--text-3); font-weight: 400; }
 .tb-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); font-weight: 600; letter-spacing: .05em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 16%, transparent); padding: 1px 7px; border-radius: 4px; }
 .tb-title { min-width: 0; max-width: none; font-size: 22px; line-height: 1.3; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.02em; }
-.tb-title:hover { color: var(--accent); }
 .tb-desc-row { min-width: 0; display: flex; align-items: center; }
 .tb-desc { min-width: 0; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tb-open { color: var(--text-2); font-size: inherit; white-space: nowrap; }
-.thesis-banner:hover .tb-open { color: var(--accent-ink); }
-.thesis-empty-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; color: var(--text-3); }
+.tb-side { flex: none; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.tb-detail {
+  min-height: 28px; display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  border-radius: 7px; background: var(--surface); color: var(--accent-ink);
+  cursor: pointer; font: inherit; font-size: var(--fs-caption); font-weight: 600;
+}
+.tb-detail:hover { border-color: var(--accent); background: var(--accent-light); }
+.tb-detail:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+.thesis-empty-inner {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
+  padding: 0; border: 0; background: transparent; color: var(--text-3);
+  cursor: pointer; font: inherit; text-align: left;
+}
+.thesis-empty-inner:hover .tb-btn { color: var(--accent-ink); }
 .thesis-empty-pill { flex: none; width: 22px; height: 22px; display: inline-grid; place-items: center; border: 1px dashed var(--border-strong); border-radius: 7px; background: var(--surface-3); color: var(--text-3); }
 .tb-hint { min-width: 0; font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-hint b { color: var(--text-2); font-weight: 600; }
 .tb-btn { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-caption); font-weight: 500; white-space: nowrap; }
-.thesis-banner.empty:hover .tb-btn { color: var(--accent-ink); }
 .icon-pick-mask { position: fixed; inset: 0; z-index: var(--z-popover); }
 .icon-pick { position: fixed; z-index: calc(var(--z-popover) + 1); width: 272px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 14px; animation: ipIn .18s var(--ease-emphasis); }
 @keyframes ipIn { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
@@ -108,37 +114,10 @@
 /* V3.9.10：指标 + 操作合并为一排；V3.9.30 起作为页头第三层，不再单独吸附。 */
 .ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .ws-head > .cur-toolbar { position: static; z-index: auto; margin-top: 2px; }
-.cur-layout {
-  flex: none; display: inline-flex; align-items: center; gap: 2px;
-  min-height: 32px; padding: 3px;
-  border: 1px solid var(--border); border-radius: 8px;
-  background: var(--surface-2);
-}
-.cur-layout-label {
-  display: inline-flex; align-items: center; gap: 5px;
-  min-height: 26px; padding: 0 7px;
-  color: var(--text-2); font-size: var(--fs-caption); font-weight: 600;
-  white-space: nowrap;
-}
-.cur-layout button {
-  min-height: 26px; display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; border: 0; border-radius: 6px;
-  background: transparent; color: var(--text-3);
-  cursor: pointer; font: inherit; font-size: var(--fs-caption);
-  white-space: nowrap;
-}
-.cur-layout button:hover { color: var(--text); background: var(--surface); }
-.cur-layout button.on {
-  color: var(--accent-ink); background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--border-strong), var(--shadow-sm);
-  font-weight: 600;
-}
 .cur-toolbar .hero-btn { flex-shrink: 0; white-space: nowrap; }
 .cur-toolbar .share-action { margin-left: 0; }
-.cur-toolbar-lead { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.cur-sep { flex: none; width: 1px; height: 18px; background: var(--border); }
-.cur-metrics { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: stretch; gap: 6px; }
-.cur-metric { min-width: 0; min-height: 30px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; transition: border-color var(--dur-fast), background var(--dur-fast); }
+.cur-metrics { min-width: 0; display: inline-flex; align-items: stretch; gap: 6px; }
+.cur-metric { min-width: 0; min-height: 32px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); cursor: pointer; font: inherit; white-space: nowrap; transition: border-color var(--dur-fast), background var(--dur-fast); }
 .cur-metric:hover { border-color: var(--border-strong); background: var(--surface-3); }
 .cur-metric .mbox-label { font-size: var(--fs-caption); }
 .cur-metric .mbox-value { font-size: var(--fs-sub); }
@@ -294,15 +273,13 @@
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
   .wsh-name { font-size: 17px; }
   .wsh-desc { display: none; }
-  .thesis-banner:not(.empty) { padding: 16px; }
+  .thesis-banner:not(.empty) { flex-direction: column; padding: 16px; }
+  .tb-side { width: 100%; flex-direction: row; align-items: center; }
+  .tb-detail { margin-left: auto; }
   .tb-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .tb-desc { min-width: 0; }
   .tb-hint { white-space: normal; line-height: 1.55; }
   .ws-toolbar { flex-wrap: wrap; gap: 7px; padding: 8px 10px; }
-  .cur-toolbar-lead { width: 100%; flex-wrap: wrap; }
-  .cur-layout { width: 100%; }
-  .cur-layout-label { flex: 1; }
-  .cur-sep { display: none; }
   .cur-metrics { flex: 1 1 auto; }
   .cur-metric { flex: 1; justify-content: space-between; }
   .cur-import-popover { left: 0; right: auto; width: min(250px, calc(100vw - 40px)); }

@@ -186,7 +186,7 @@ check('XM-08 ★附件管理：附件行打开所属卡片详情；任务详情�
 check('XM-09 ★书签导入并入数据包：无目标策展台选择；解析后直接写资源卡池；不建台/分类；文件夹路径只转标签', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   const bk = read('/newtab/composables/useBookmarkImport.ts');
-  return dm.includes("type DataTab = 'package' | 'assets' | 'airtable'")
+  return dm.includes("type DataTab = 'package' | 'assets' | 'cloud'")
     && dm.includes("tab === 'package'") && dm.includes('浏览器书签')
     && dm.includes('解析后直接进入资源卡池；文件夹路径转为资源标签')
     && !dm.includes("tab === 'bookmark'")
@@ -201,10 +201,12 @@ check('XM-09 ★书签导入并入数据包：无目标策展台选择；解析�
     && !bk.includes('categories.push');
 });
 
-check('XM-10 ★数据管理信息架构：只保留数据包 / 附件管理 / Airtable 三个页签，旧独立书签页签零残留', () => {
+check('XM-10 ★数据管理信息架构：只保留数据包 / 附件管理 / 云同步三个页签，旧独立书签页签与 Airtable 页签零残留', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   return (dm.match(/class="dm-tab"/g) || []).length === 3
-    && dm.includes("tab = 'package'") && dm.includes("tab = 'assets'") && dm.includes("tab = 'airtable'")
+    && dm.includes("tab = 'package'") && dm.includes("tab = 'assets'") && dm.includes("tab = 'cloud'")
+    && dm.includes('>数据包</button>') && dm.includes('>附件管理</button>') && dm.includes('>云同步</button>')
+    && !dm.includes("tab = 'airtable'")
     && !dm.includes('书签导入</button>')
     && !dm.includes('targetWorkspace')
     && !dm.includes('folderPicker');

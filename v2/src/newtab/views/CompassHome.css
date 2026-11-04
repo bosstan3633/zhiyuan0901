@@ -549,7 +549,40 @@
 }
 .foot-status:hover { background: var(--surface-2); color: var(--text-2); }
 .foot-status.error { color: var(--danger); }
-.foot-sync { display: inline-flex; align-items: center; gap: 2px; }
+.foot-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+  transition: border-color var(--dur), background var(--dur), color var(--dur);
+}
+.foot-sync:hover,
+.foot-sync:focus-visible {
+  border-color: var(--border);
+  outline: none;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.cloud-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 99px;
+  background: var(--warning);
+}
+.foot-sync.connected .cloud-dot { background: var(--success); }
+.foot-sync.error .cloud-dot { background: var(--danger); }
+.foot-sync.disabled .cloud-dot,
+.foot-sync.signed_out .cloud-dot { background: var(--text-3); }
+.cloud-detail { color: var(--text-3); white-space: nowrap; }
 .save-dot {
   width: 6px;
   height: 6px;
@@ -559,17 +592,6 @@
 }
 .foot-status.error .save-dot { background: var(--danger); animation: savePulse 1.2s ease-in-out infinite; }
 @keyframes savePulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-.foot-gear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 3px;
-}
-.foot-gear:hover { background: var(--surface-3); color: var(--text); }
-
 /* ── 右侧案头栏 ──
    V3.9.26：右栏不再整列吸附。底轨是页面内容的一部分，吸附栏会在短视口
    滚到底部时与底轨发生视觉重叠；对齐由共享网格行承担，不靠 fixed/sticky。 */
@@ -939,6 +961,8 @@
   .board-foot-spacer { display: none; }
   .side-rail { grid-template-columns: minmax(0, 1fr); }
   .desk-status-rail { align-items: flex-start; flex-direction: column; }
+  .foot-sync { flex-wrap: wrap; white-space: normal; }
+  .cloud-detail { white-space: normal; }
   .pm-filters { align-items: stretch; flex-direction: column; }
   .pm-select { width: 100%; max-width: none; }
   .pm-summary span:last-child { display: none; }

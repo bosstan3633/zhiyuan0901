@@ -179,15 +179,21 @@ const DASH_SCENES = [
       const resources = document.querySelectorAll('.mind-resource').length
       /* 节点内资源必须穷尽展示，「+N」入口已按产品要求退役。 */
       const more = document.querySelector('.mind-resource-more')
+      /* V4.0.3：节点不再渲染「缺证据」；无资源节点只保留标题、描述与头部关联入口，
+         不得残留空资源区或空底栏。布局切换也已从页头迁回高频操作的画布工具条。 */
       const gap = document.querySelector('.evidence-gap')
-      const layouts = document.querySelectorAll('.ws-head .cur-layout button').length
-      const hot = ['.mind-resource', '.mind-resource-more', '.evidence-gap']
-        .flatMap(sel => [...document.querySelectorAll(sel)])
+      const layouts = document.querySelectorAll('.mindmap-shell .mindmap-layout button').length
+      const headLayouts = document.querySelectorAll('.ws-head .cur-layout button').length
+      const emptyNodes = [...document.querySelectorAll('.mind-node:not(.mind-root):not(.resource-bearing)')]
+      const emptyFocused = emptyNodes.length > 0 && emptyNodes.every(node =>
+        !node.querySelector('.mind-resources, .mind-node-foot, .evidence-gap'))
+      const hot = [...document.querySelectorAll('.mind-resource')]
         .map(el => el.getBoundingClientRect().height)
       const minHot = hot.length ? Math.min(...hot) : 0
       return {
-        ok: !!shell && !!root && nodes >= 5 && resources >= 2 && !more && !!gap && layouts === 2 && minHot >= 28,
-        txt: `画布=${!!shell} 根=${!!root} 分支=${nodes}(应≥5) 资源=${resources}(应≥2) 更多=${!!more}(应无) 缺证据=${!!gap} 布局=${layouts}/2 证据热区=${hot.length ? Math.round(minHot) : '无'}px`
+        ok: !!shell && !!root && nodes >= 5 && resources >= 2 && !more && !gap
+          && layouts === 2 && headLayouts === 0 && emptyFocused && minHot >= 28,
+        txt: `画布=${!!shell} 根=${!!root} 分支=${nodes}(应≥5) 资源=${resources}(应≥2) 更多=${!!more}(应无) 缺证据=${!!gap}(应无) 画布布局=${layouts}/2 页头旧布局=${headLayouts}(应0) 无资源聚焦=${emptyFocused} 资源热区=${hot.length ? Math.round(minHot) : '无'}px`
       }
     })
   },
@@ -445,34 +451,41 @@ const DASH_SCENES = [
     })
   },
   {
-    /* R4-Dd：⇄ Airtable 同步面板从未进过视觉审计。这一屏要看的不是好看，是两件安全/可用事实：
-       ① 标签列那一行真的渲染出来了（本轮新加的控件）；② PAT 输入框仍是 password 型——
-       凭据以明文出现在输入框里是这一屏最坏的失效，而它在源码文本断言里表现为「什么都没变」。 */
-    id: 'st-airtable', name: 'Airtable 面板', hash: '#/settings?page=airtable',
+    /*
+     * V4.0.3：Airtable 已从产品下线，视觉审计改守现行云同步面板。
+     * 构建环境已配置 Supabase 时，配置输入会收起而直接显示登录表单；
+     * 因此只要求「配置表单 / 登录表单」至少出现一套，避免把合法环境判红。
+     */
+    id: 'st-cloud', name: '云同步面板', hash: '#/settings?page=data&tab=cloud',
+    act: async (page) => {
+      await page.waitForTimeout(600)
+    },
     judge: async (page) => page.evaluate(() => {
-      const rows = [...document.querySelectorAll('.gs-setting-row')]
-      const tagRow = rows.find(r => (r.textContent || '').includes('标签列名'))
-      const pat = rows.find(r => (r.textContent || '').includes('Personal Access Token'))?.querySelector('input')
-      const syncBtn = rows.some(r => (r.textContent || '').includes('立即同步'))
-      /* ★同类输入框必须看起来是同一个东西：这一屏的输入框原先靠一个**全站没有定义**的
-         .gs-input 类名撑着（和 .gs-panel 一样是死类名），实际观感来自别处的选择器——
-         新加一行时最容易"功能对、长得不对"，而文本断言看不见。按计算样式核同一性。
-         ★R4-Dh 补第二条判据，它当场抓到了那条死类名的代价：四主题下这排输入框全是
-         浏览器默认白底（rgb(255,255,255) + 黑字 + 2px 灰框），在 linear/raycast 两个深色主题里是白块，
-         其中一枚是 PAT 凭据框。核法＝输入框底色必须等于所在卡片的底色（两者同取 var(--surface)），
-         这样浅色主题不会被误判，而"没走主题 token"一定红。 */
-      const ins = [...document.querySelectorAll('.gs-setting-row input[type="text"], .gs-setting-row input:not([type]), .gs-setting-row input[type="password"]')]
-      const bgs = Array.from(new Set(ins.map(i => getComputedStyle(i).backgroundColor)))
-      /* ★V3.8.33（B5-c）修：这里原来对 querySelector 的结果裸调 getComputedStyle —— 页面没进到
-         设置页（路由未落地 / 上一场景把弹层留开 / 卡片尚未挂载）时参数是 null，直接抛 TypeError，
-         **整个审计脚本当场中断**：本轮实测 linear 主题跑到这一屏就崩，后面三个主题与十余场景一张都没拍。
-         一张截图失败的代价是"少一张"，脚本崩掉的代价是"整轮审计不存在"——后者更危险，因为它不产出红。 */
-      const card = document.querySelector('.gs-card')
+      const panel = document.querySelector('.gs-panel')
+      const card = [...document.querySelectorAll('.gs-card')]
+        .find(c => (c.querySelector('.gs-card-title')?.textContent || '').includes('云端账号'))
+      const status = card?.querySelector('.gs-status-badge')
+      const statusText = (status?.textContent || '').trim()
+      const tabs = [...document.querySelectorAll('.dm-tab')].map(x => (x.textContent || '').trim())
+      const activeCloudTab = [...document.querySelectorAll('.dm-tab.on')]
+        .some(x => (x.textContent || '').trim() === '云同步')
+      const hasConfig = !!(card?.querySelector('input[placeholder="https://your-project.supabase.co"]'))
+        && !!(card?.querySelector('input[placeholder="sb_publishable_..."]'))
+      const hasLogin = !!(card?.querySelector('input[type="email"]'))
+        && !!(card?.querySelector('input[type="password"]'))
+      const ins = [...(card?.querySelectorAll('input') || [])]
       const cardBg = card ? getComputedStyle(card).backgroundColor : ''
-      const offToken = card ? ins.filter(i => getComputedStyle(i).backgroundColor !== cardBg) : ins
-      return { ok: !!card && !!tagRow && !!pat && pat.getAttribute('type') === 'password' && syncBtn
-          && bgs.length === 1 && offToken.length === 0,
-        txt: `卡片=${!!card} 标签列行=${!!tagRow} PAT型=${pat ? pat.getAttribute('type') : '无'} 同步钮=${syncBtn} 输入框底色=${bgs.length}种/${ins.length}枚 与卡同色=${!!card && offToken.length === 0}(卡=${cardBg || '无'})` }
+      const offToken = card
+        ? ins.filter(i => getComputedStyle(i).backgroundColor !== cardBg)
+        : ins
+      return {
+        ok: !!panel && !!card && !!status && ['未连接', '已连接', '连接异常'].includes(statusText)
+          && tabs.join('/') === '数据包/附件管理/云同步' && activeCloudTab
+          && (hasConfig || hasLogin) && offToken.length === 0,
+        txt: `面板=${!!panel} 云端卡=${!!card} 状态=${statusText || '无'} 页签=${tabs.join('/') || '无'} `
+          + `云页签选中=${activeCloudTab} 配置表单=${hasConfig} 登录表单=${hasLogin} `
+          + `输入框与卡同色=${!!card && offToken.length === 0}(卡=${cardBg || '无'})`
+      }
     })
   },
   {
@@ -925,7 +938,7 @@ if (argv.scenes) {
   const raw = JSON.parse(fs.readFileSync(dataFile, 'utf8'))
   const data = raw.zy_data_v2 || raw
   /* 策展台视觉镜头需要一份真实渲染的数据前置；备份里只有资源池时，给本轮审计临时种一台，
-     让画布的四级结构、资源关联、缺证据态与 28px 热区都进入 DOM。只写本次 Chromium 的
+     让画布的四级结构、资源关联、无资源节点与 28px 热区都进入 DOM。只写本次 Chromium 的
      storage，不回写 --data 指向的备份文件。 */
   const AUDIT_WS_ID = 'zy-audit-curation'
   if (!(data.workspaces || []).some(w => w.id === AUDIT_WS_ID)) {
@@ -1956,6 +1969,15 @@ if (argv.scenes) {
   if (frameFail.length) {
     console.log(`❌ 取景框守卫未过 ${frameFail.length} 项（判据可能又量在了视口外）：\n  ` + frameFail.join('\n  '))
     process.exit(3)
+  }
+  if (!SCENES && !argv.only) {
+    /* 全量跑成功后清掉本批不再产出的旧图，保证“日期目录 PNG 数 = 本次普查场景数”。
+       部分跑绝不清：它本来就不会更新权威普查，清理会把其它主题的历史证据一并带走。 */
+    const expected = new Set(shots.map(f => path.basename(f)))
+    const stale = fs.readdirSync(outDir)
+      .filter(f => f.endsWith('.png') && !expected.has(f))
+    for (const f of stale) fs.rmSync(path.join(outDir, f))
+    if (stale.length) console.log(`· 清理本批未产出的旧图 ${stale.length} 张：${stale.join(' / ')}`)
   }
 }
 main().catch(e => { console.error('theme-audit 失败：', e); process.exit(2) })

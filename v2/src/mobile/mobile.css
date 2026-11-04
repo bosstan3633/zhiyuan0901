@@ -14,7 +14,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
 .m-textarea { min-height: 84px; resize: vertical; }
 .m-input:focus, .m-textarea:focus { border-color: #6d7de0; }
 .m-btn { width: 100%; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #5E6AD2, #3f8cff); color: #fff; }
-.m-btn:disabled { opacity: .6; }
+.m-btn:disabled { opacity: var(--opacity-disabled); }
 .m-ghost { background: none; border: 1px solid rgb(255 255 255 / .16); color: #cfd6e6; border-radius: 10px; padding: 7px 12px; font-size: 13px; }
 .m-err { color: #ff7a90; font-size: 13px; margin: 6px 0; }
 .m-ok { color: #7fe3a9; font-size: 13px; margin: 6px 0; }

@@ -9,7 +9,7 @@
  * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
+  fs, path, base, check, runGateSync, gateSha, readGateCache, srcFileEntries, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
 console.log('【R3-F38 · 高亮可交互】');
 // ★W9 退役重指带备案：原判据守的是「仪表盘『👁 高亮可交互』开关三件齐全」——页头工具条按钮 +
 // UIPrefs.dzHl 持久化（saveUIPrefs，不是会话态）+ 面板根挂 dz-hl 类，外加 dashboard.css 两条
@@ -323,7 +323,7 @@ check('R4-Dc ★V3.9.24 重指：孤儿清理仍共用 keepIds 单源；设置�
 });
 check('R4-Dc ★V3.9.24 重指：设置页「清理」= 清空全部附件。必须先盘点数量与体积、再二次确认，然后解除四类卡引用并删除全部 Blob', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
-  const seg = fnBody(dm, 'async function clearAssetsEverywhere()', '// ---- Airtable ----');
+  const seg = fnBody(dm, 'async function clearAssetsEverywhere()', '// ---- 备份提醒 ----');
   return seg.includes('getAllAssetIndex()')
     && seg.includes('await useConfirm({')
     && seg.includes('永久清空 ${index.length} 个')
@@ -339,32 +339,39 @@ check('R4-Dc ★只删 IndexedDB 本体的那条动作不许多写一遍主 JSON
 
 // ============== R4-Dd · 旧世界清账：Airtable 标签列映射 ==============
 console.log('【R4-Dd · Airtable 标签列映射】');
-check('R4-Dd ★标签列名可配且按远端实际类型落值：数组流到写出处才来得及决定发什么（多选发数组、文本发分号串），且两种都无条件写含空值', () => {
-  const a = read('/shared/storage/airtable.ts');
-  const m = read('/shared/models/index.ts');
-  return a.includes("export const DEFAULT_TAG_COLUMN = '\u6807\u7b7e'") && a.includes('export function tagColumnOf(')
-    && a.includes('tags: string[]') && !a.includes("tags: (c.tags || []).join(';')") && !a.includes("tags: (r.tags || []).join(';')")
-    && a.includes("tagType === 'multipleSelects' ? row.tags : row.tags.join(';')")
-    && a.includes('[tagCol]: tagsCell') && !a.includes("if (row.tags) f[tagCol]")
-    && a.includes('const { created: createdCols, fields: remoteFields } = await ensureColumns(state)')
-    && m.includes('tagColumn?: string');
+check('R4-Dd（V4.0.3 重指）★Airtable 标签列映射已整体退役：运行时模块与列类型探测代码不得回流，云快照仍负责剥离旧同步字段', () => {
+  const legacy = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return e.rel === 'shared/storage/airtable.ts'
+      || /DEFAULT_TAG_COLUMN|tagColumnOf|ensureColumns|multipleSelects|api\.airtable\.com/.test(c);
+  });
+  const s = read('/shared/cloud/sync.ts');
+  return legacy.length === 0
+    && s.includes('delete d.airtableSync')
+    && s.includes('delete d.airtableMap');
 });
-check('R4-Dd ★只读计算列当场报错中止，不推一批注定失败的记录；列名与实际类型每轮只读一次远端真值（不落地存类型，存了必与 Airtable 漂移）', () => {
-  const a = read('/shared/storage/airtable.ts');
-  const gs = read('/newtab/views/GlobalSettings.vue');
-  const seg = a.slice(a.indexOf('const { created: createdCols'), a.indexOf('// 2) 远端索引'));
-  return seg.includes("tagType === 'formula' || tagType === 'rollup' || tagType === 'lookup'")
-    && seg.includes('throw new Error(') && seg.includes('只读计算列')
-    && seg.includes("remoteFields.get(tagCol)?.type")
-    && gs.includes('@change="applyTagColumn"') && gs.includes('st.tagColumn = atTagColumn.value.trim()')
-    && !gs.includes('tagColumnType');
+check('R4-Dd（V4.0.3 重指）★Airtable 只读计算列探测链已退役：旧列元数据、远端字段类型与设置页列名编辑全部不得回流，现行云同步入口保持在位', () => {
+  const legacy = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return /formula' \|\| tagType === 'rollup|tagType === 'lookup'|remoteFields|tagColumnType|只读计算列/.test(c);
+  });
+  const gs = codeOnly(read('/newtab/views/GlobalSettings.vue'));
+  const cs = codeOnly(read('/newtab/views/settings/SettingsCloudSync.vue'));
+  return legacy.length === 0
+    && !gs.includes('applyTagColumn')
+    && cs.includes("import('@/shared/cloud/sync')")
+    && cs.includes('从云端恢复');
 });
-check('R4-Dd ★422 不等于「记录被删」：写值错误（INVALID_VALUE_FOR_COLUMN 等）不得触发自愈重建，否则一次类型不匹配会变成表里一批重复行', () => {
-  const a = read('/shared/storage/airtable.ts');
-  const seg = a.slice(a.indexOf('const isMissingRecord = (msg: string) =>'), a.indexOf('const createOne'));
-  return !/\|422\|/.test(seg) && !/422\//.test(seg)
-    && seg.includes('INVALID_VALUE_FOR_COLUMN') && seg.includes('record (was )?not found')
-    && seg.includes('UNKNOWN_RECORD') && a.includes('isMissingRecord(batchMsg)') && a.includes('isMissingRecord(oneMsg)');
+check('R4-Dd（V4.0.3 重指）★Airtable 422/记录自愈链已退役：旧 record-not-found 特殊分支不得回流，云端 HTTP 错误由统一 CloudError 承接', () => {
+  const legacy = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return /INVALID_VALUE_FOR_COLUMN|UNKNOWN_RECORD|isMissingRecord|record \(was \)\?not found|const createOne/.test(c);
+  });
+  const c = codeOnly(read('/shared/cloud/client.ts'));
+  return legacy.length === 0
+    && c.includes('export class CloudError extends Error')
+    && c.includes('if (!res.ok)')
+    && c.includes('throw new CloudError(res.status');
 });
 
 // ============== R4-De · 旧世界清账：池卡定位落点收进唯一算式 ==============
@@ -416,7 +423,7 @@ const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '
 check('R4-Df ★手册命令表必须跟 manifest 真值一致：无默认键的每条命令都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流。★不硬编码条数——名单与条数都从 manifest 现算，将来加/删命令时这条自动要求同步手册', () => {
   const m = read('/newtab/manual-data.ts');
   const noKey = noKeyCmds();
-  return noKey.length === 6 && noKey.every(k => m.includes(k))
+  return noKey.length === 5 && noKey.every(k => m.includes(k))
     && m.includes('chrome://extensions/shortcuts')
     && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')
     && !m.includes('打开设置 / 方向台 / 资源台 / 完整方向树 / 任务调度 / 同步到 Airtable');
@@ -484,9 +491,8 @@ check('R4-Df ★章节标题本身不许带退役物：手册目录是用户唯�
   const m = read('/newtab/manual-data.ts');
   const titles = [...m.matchAll(/\{ id: '[\w-]+', title: '([^']+)'/g)].map(x => x[1]);
   const banned = ['资源台', '项目调度', '项目总览', '主航线', '灯塔', '策展中心'];
-  /* ★V3.9.33 重指备案（批 C）：方法篇新增 mid-9「方向树策展模式」与 mid-10「导出与分享」两节（24 → 26），
-     负锚禁词清单与「标题不许带退役物」口径一字未动 */
-  return titles.length === 26 && titles.every(t => !banned.some(b => t.includes(b)))
+  /* ★V4.0.3 随迁备案：Airtable 运行时退役后手册收敛为 25 节，负锚禁词清单与原口径不变 */
+  return titles.length === 25 && titles.every(t => !banned.some(b => t.includes(b)))
     && titles.some(t => t.includes('资源卡池')) && titles.some(t => t.includes('三大台面'));
 });
 check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台面 / 主航线 / 项目总览 / 项目调度面板 / 今日记录四格 / 策展主题格 六件各自点名，且手册必须明说它们去哪了（只删不说＝用户按旧记忆找而手册沉默，等于没写）（★W1.1 随迁：V3.8.1 三张卡改名，「唯一管理面是调度台底部默认打开的『资源卡池』tab」→「唯一管理面是调度台底部『资源卡』tab」——默认档由池切任务卡，锚句改指现役句）', () => {
@@ -581,25 +587,25 @@ check('R4-Dh ★`.gs-input` 必须有自有规则且全部取令牌：此前全�
     && gs.includes('.gs-input::placeholder') && gs.includes('var(--text-4)')
     && i < gs.search(/^\.gs-select \{/m);
 });
-check('R4-Dh ★视觉门禁必须真的在量这件事：theme-audit 的 st-airtable 场景要把输入框底色与所在卡片底色对比（同取 var(--surface)），并把 PAT 框纳入取样——这条场景改动若被悄悄删掉，回归与截图都不会红，只有这一条会', () => {
+check('R4-Dh（V4.0.3 重指）★视觉门禁必须真的在量这件事：Airtable 退役后，theme-audit 的 st-cloud 场景要把云同步输入框底色与所在卡片底色对比（同取 var(--surface)），并把密码框纳入取样——这条场景改动若被悄悄删掉，回归与截图都不会红，只有这一条会', () => {
   const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
-  const seg = t.slice(t.indexOf("id: 'st-airtable'"), t.indexOf("id: 'st-manual'"));
+  const seg = t.slice(t.indexOf("id: 'st-cloud'"), t.indexOf("id: 'st-manual'"));
   return seg.includes('cardBg') && seg.includes('offToken.length === 0') && seg.includes('input[type="password"]')
     && seg.includes('与卡同色');
 });
 
 // ============== R4-Di · 推给 Airtable 的台名列也走单源（用户拍板：值改「资源卡池」） ==============
 console.log('【R4-Di · Airtable「所属工作台」列值 = 资源卡池】');
-check('R4-Di ★池卡推给 Airtable 的「所属工作台」列值必须走显示名单源，不许再取那枚历史实体的名字：改前 `hubName = d.workspaces.find(w => w.id === CURATION_WS_ID)?.name || \'资源台\'` 有两个错法——存量库里那枚实体（R61 建、store getter 过滤）名字仍叫「资源台」，推过去的就是已退役的台面名，而设置页同步范围早就写着「资源卡池资源卡」，界面与数据互相打脸；新库没有那枚实体，只剩兜底字面量。★值口径变更由用户 2026-10-01 拍板（代价：Base 里按该列筛选/分组/着色的视图需同步改条件，已在交付说明点名）· ★R4-Fc 随迁备案：同一条 import 被加了 wsNameById（列值统一剥图标），原先钉整行 import 的逐字锚当场红——随迁是锚到本条真正在守的那件事（hubName 走 POOL_DISPLAY_NAME、不许退役字面量），不是放宽', () => {
-  const a = codeOnly(read('/shared/storage/airtable.ts'));
-  /* ★R4-Fc 随迁备案：这条的正锚原本钉整行 `import { POOL_DISPLAY_NAME } from '../utils/wsName'`，
-     而 R4-Fc 把同一条 import 加了 wsNameById（列值统一走剥图标显示名）⇒ 逐字锚点当场红。
-     随迁的做法是把锚收到"这条判据真正在守的那件事"（hubName 用 POOL_DISPLAY_NAME、不许出现退役字面量），
-     不是放宽也不是删——判据体其余部分一字未动。 */
-  return a.includes("import { POOL_DISPLAY_NAME, wsNameById } from '../utils/wsName'")
-    && a.includes('const hubName = POOL_DISPLAY_NAME') && a.includes("wsName: hubName")
-    && !a.includes("?.name || '资源台'") && !a.includes("'资源台'")
-    && a.includes('if (r.workspaceId === CURATION_WS_ID)');
+check('R4-Di（V4.0.3 重指）★Airtable「所属工作台」旧映射链已退役：hubName / wsName 出网列代码不得回流，云快照继续剥离 airtableMap', () => {
+  const legacy = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return e.rel === 'shared/storage/airtable.ts'
+      || /const hubName =|wsName:\s*hubName|POOL_DISPLAY_NAME,\s*wsNameById/.test(c);
+  });
+  const s = read('/shared/cloud/sync.ts');
+  return legacy.length === 0
+    && s.includes('delete d.airtableSync')
+    && s.includes('delete d.airtableMap');
 });
 
 // ============== R4-Ea（挂账 #84）· 浏览器回落链合一 ==============
@@ -647,25 +653,32 @@ check('R4-Dj ★两条"被自动判据误杀"的规则必须在位：`body .modu
 
 // ============== R4-Fa · 微缺陷清账（同步引擎两处口径 + setThesis + 过期注释） ==============
 console.log('【R4-Fa · 待推集合单源 / syncedAt 单一时钟 / 论点软删口径】');
-check('R4-Fa ★「待推」只允许一个算式（todoRows）：pendingRows 此前只按游标筛，runSync 在其之上多过一层 map[key].syncedAt < updatedAt ⇒ 首页与同步 chip 的「待推 N」把"游标之后动过但早已同步"的行全算进来，系统性高估。★判据要同时钉"两边都走它"和"谁也不许再自己筛一遍"——只判前者，下次谁在 pendingRows 里加一个 filter 就又把口径分叉了', () => {
-  const a = codeOnly(read('/shared/storage/airtable.ts'));
-  const iP = a.indexOf('export function pendingRows');
-  const pendBody = a.slice(iP, a.indexOf('}', a.indexOf('return { rows, unsynced', iP)));
-  const iR = a.indexOf('export async function runSync');
-  const seg = a.slice(iR, a.indexOf('for (let i = 0', iR));
-  return a.includes('export function todoRows(d: AppData): SyncRow[]')
-    && iP > 0 && pendBody.includes('todoRows(d)') && !pendBody.includes('.filter(')
-    && seg.includes('const todo = todoRows(d)') && !seg.includes('.filter(r => !cursor')
-    && !seg.includes('const all = collectSyncRows(d)')
-    && seg.includes('const cursor = state.cursorAt || 0');
+check('R4-Fa（V4.0.3 重指）★Airtable 逐行「待推」同步引擎已退役：todoRows / pendingRows / runSync 不得回流，现行 Supabase 改为整包快照写入', () => {
+  const legacy = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return /export function todoRows|export function pendingRows|export async function runSync|collectSyncRows/.test(c);
+  });
+  const c = codeOnly(read('/shared/cloud/client.ts'));
+  const s = codeOnly(read('/shared/cloud/sync.ts'));
+  return legacy.length === 0
+    && c.includes('/rest/v1/cloud_snapshots')
+    && s.includes('const clean = sanitize(snap.data, snap.ui, snap.eventLog)')
+    && s.includes('cloud.insertSnapshot(env, token, meta.userId, clean)')
+    && s.includes('cloud.updateSnapshot(env, token, meta.userId, base, clean)');
 });
-check('R4-Fa ★syncedAt 只能是版本戳（该行推送时的 updatedAt），全站三处写入口径统一：原先 POST 成功与自愈重建两处写 Date.now()，墙钟必然 ≥ 任何本地编辑时间 ⇒ "发起同步后紧接着改卡"会被下一轮判成已同步而永久漏推（models 里那句注释早就写明是"本地 updatedAt"，是代码没照做）', () => {
-  const a = codeOnly(read('/shared/storage/airtable.ts'));
-  const m = read('/shared/models/index.ts');
-  return !a.includes('syncedAt: Date.now()')
-    && a.includes('syncedAt: row.updatedAt') && a.includes('syncedAt: creates[idx].updatedAt') && a.includes('syncedAt: u.updatedAt')
-    && a.includes('key: string; updatedAt: number')
-    && m.includes('/** 该卡上次同步成功时本地updatedAt */');
+check('R4-Fa（V4.0.3 重指）★sync 行级时间戳已退役，现行云端冲突语义由 revision 乐观锁承接：先读 revision、冲突必须确认，PATCH 同时限定 user_id 与 expected revision', () => {
+  const legacy = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return /syncedAt:\s*(Date\.now\(\)|row\.updatedAt|creates\[idx\]\.updatedAt|u\.updatedAt)/.test(c);
+  });
+  const c = codeOnly(read('/shared/cloud/client.ts'));
+  const s = codeOnly(read('/shared/cloud/sync.ts'));
+  return legacy.length === 0
+    && c.includes('select=revision,updated_at,state')
+    && c.includes('user_id=eq.${encodeURIComponent(userId)}&revision=eq.${expectedRevision}')
+    && s.includes('const rows = await cloud.getSnapshot(env, token, meta.userId)')
+    && s.includes('if (remote.revision !== (meta.revision || 0))')
+    && s.includes('const ok = await onConflict(remote.revision)');
 });
 check('R4-Fa ★setThesis 摘标不许碰回收站里的卡：同文件 countThesisDuplicates / sanitizeThesisDuplicates 的口径写死"软删卡不计入、恢复后语义不变"，唯独 setThesis 的清除循环漏判 deletedAt ⇒ 用户恢复一张旧论点卡，回来的是没有论点头衔的普通卡且无提示', () => {
   const h = read('/shared/storage/hub.ts');

@@ -4,7 +4,7 @@
  * 五项：
  *   S1 导航当前态（形状信号，不只靠底色深浅）
  *   S2 表单五件（输入框/开关/主行动/组标题/字段级错误）
- *   S3 Airtable 三态（未连接/已连接/推送异常 + 凭据不回显 + 回执）
+ *   S3 云同步三态（未连接/已连接/连接异常 + 凭据不回显 + 回执）
  *   S4 主题选择器（三色样例卡 + 当前态双信号）
  *   D2 破坏性确认（无原生确认、必经弹层、计数可读）
  *
@@ -66,12 +66,16 @@ check('S2-2 错误字段级内联：有 is-invalid 与 gs-field-err 两条规则
     && GS.includes('gs-field-err');
 });
 
-check('S2-3 字段级校验有真规则：PAT 以 pat / Base 以 app / Table 以 tbl 三条前缀判据都在脚本里（且只在「填了但格式错」时触发）', () => {
-  return DM.includes("!pat.startsWith('pat')")
-    && DM.includes("!base.startsWith('app')")
-    && DM.includes("!tbl.startsWith('tbl')")
-    && DM.includes('if (pat && !pat.startsWith')
-    && DM.includes('gs-field-err');
+check('S2-3 云配置字段级校验有真规则：Supabase 项目根地址 + publishable key 前缀都逐字段提示', () => {
+  const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
+  return CLOUD.includes('/^https:\\/\\/[a-z0-9-]+\\.supabase\\.co$/i.test(url)')
+    && CLOUD.includes("anonKey.startsWith('sb_publishable_')")
+    && CLOUD.includes('cfgUrlErr')
+    && CLOUD.includes('cfgKeyErr')
+    && CLOUD.includes('gs-field-err')
+    && !DM.includes("!pat.startsWith('pat')")
+    && !DM.includes("!base.startsWith('app')")
+    && !DM.includes("!tbl.startsWith('tbl')");
 });
 
 check('S2-4 主行动唯一 accent：八区的主按钮一律 gs-btn-primary（危险区走 gs-btn-danger），不存在第二种主行动样式', () => {
@@ -112,15 +116,18 @@ check('S2-7 页标题归位令牌：gs-page-title 取 --fs-headline，字阶表�
   return rule.includes('font-size: var(--fs-headline)') && !rule.includes('18px');
 });
 
-/* ============ S3 · Airtable 三态 ============ */
-check('S3-1 三态徽章齐全：atBadge 三支（error / connected / idle）都在，且优先级是「异常 > 已连接 > 未连接」', () => {
-  const i = GS.indexOf('const atBadge = computed');
-  const seg = i >= 0 ? GS.slice(i, i + 420) : '';
-  if (!seg) { console.log('     atBadge 缺失'); return false; }
-  const iErr = seg.indexOf("cls: 'error'");
-  const iOk = seg.indexOf("cls: 'connected'");
-  const iIdle = seg.indexOf("cls: 'idle'");
-  return iErr > 0 && iOk > iErr && iIdle > iOk;
+/* ============ S3 · 云同步三态 ============ */
+check('S3-1 三态徽章齐全：cloudState 的 error / connected / idle 都在，且文案优先级是「异常 > 已连接 > 未连接」', () => {
+  const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
+  const i = CLOUD.indexOf('const statusText = computed');
+  const seg = i >= 0 ? CLOUD.slice(i, i + 260) : '';
+  if (!seg) { console.log('     statusText 缺失'); return false; }
+  const iErr = seg.indexOf("=== 'error'");
+  const iOk = seg.indexOf("=== 'connected'");
+  const iIdle = seg.indexOf("'未连接'");
+  return CLOUD.includes("ref<'idle' | 'connected' | 'error'>('idle')")
+    && iErr > 0 && iOk > iErr && iIdle > iOk
+    && CLOUD.includes(':class="cloudState"');
 });
 
 check('S3-2 三态各有配色且不越权：idle 中性 surface-3 / connected 绿 / error 才用琥珀', () => {
@@ -134,25 +141,32 @@ check('S3-2 三态各有配色且不越权：idle 中性 surface-3 / connected �
     && err.includes('var(--tag-warn-text)');
 });
 
-check('S3-3 凭据不回显：不再把 storage 里的 PAT 灌回输入框（type=password 只遮字，value 仍是明文），改置「已保存」标记 + 空值不覆盖旧密钥', () => {
-  const bad = [];
-  if (GS.includes('atPat.value = s.pat')) bad.push('回填明文');
-  if (!GS.includes('if (s.pat) atPatSaved.value = true')) bad.push('缺已保存标记');
-  if (!GS.includes('if (typedPat) s.pat = typedPat')) bad.push('空值会覆盖旧密钥');
-  if (bad.length) console.log('     ' + bad.join(' / '));
-  return bad.length === 0;
+check('S3-3 登录凭据不回显：密码框只用于本次登录，登录成功后立即清空；旧同步凭据字段零回流', () => {
+  const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
+  return CLOUD.includes('v-model="password"')
+    && CLOUD.includes('type="password"')
+    && CLOUD.includes('password.value = \'\'')
+    && !CLOUD.includes('atPat.value')
+    && !CLOUD.includes('s.pat')
+    && !DM.includes('atPat.value');
 });
 
-check('S3-4 已保存要说得出来：输入框 placeholder 在已存过凭据时改为「不回显 · 替换请重填」，并有一行说明为什么', () => {
-  return DM.includes('已保存（不回显）· 替换请直接重填')
-    && DM.includes('已保存，替换需重填（原值不回显，避免凭据被复制）')
-    && DM.includes('type="password"');
+check('S3-4 云配置错误就地说明：地址与 key 都有内联错误文案，不把格式问题只丢到卡片底部', () => {
+  const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
+  return CLOUD.includes('v-if="cfgUrlErr" class="gs-field-err"')
+    && CLOUD.includes('v-if="cfgKeyErr" class="gs-field-err"')
+    && CLOUD.includes('请填写项目根地址')
+    && CLOUD.includes('请填写 Supabase publishable key')
+    && CLOUD.includes(':aria-invalid="!!cfgUrlErr"')
+    && CLOUD.includes(':aria-invalid="!!cfgKeyErr"');
 });
 
-check('S3-5 按钮可用性跟着凭据走：测试与同步在「已存过 PAT」时也可点（不能要求每次重填才能测），未填且未存才禁用', () => {
-  const n = (GS.match(/!atCredReady/g) || []).length;
-  if (n < 3) console.log('     当前 ' + n + ' 处引用（期望 ≥3：两个 disabled + 一处前置检查）');
-  return n >= 3 && GS.includes('const atCredReady = computed');
+check('S3-5 云操作共用忙碌锁：登录、检查、上传、恢复在请求期间统一禁用，避免重复提交', () => {
+  const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
+  const disabled = (CLOUD.match(/:disabled="busy"/g) || []).length;
+  return disabled >= 4
+    && CLOUD.includes('const busy = ref(false)')
+    && !CLOUD.includes('atCredReady');
 });
 
 /* ============ S4 · 主题选择器 ============ */

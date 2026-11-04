@@ -7,9 +7,9 @@
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
-    <!-- V3.9.30：策展台页头严格按审核原型收成一个连续结构。
-         ① 台身份 ≤40px；② 中心论点主舞台；③ 页面级行动条。
-         金字塔 / 树状切换归行动条唯一入口；画布头只在全屏模式补一个回程入口。 -->
+    <!-- V4.0.3：页头保持三段式，但职责重新分层。
+         ① 台身份只保留分类与更新时间；② 中心论点卡承载论点信息、卡片读数和详情入口；
+         ③ 页面行动条只保留导入、检索、设置与分享。画布布局切换回到高频操作的画布工具条。 -->
     <div class="ws-head">
       <div class="ws-id-head">
         <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
@@ -18,65 +18,50 @@
         <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
         <span class="wsh-spacer" />
         <span class="wsh-summary">
-          <b>{{ categories.length }}</b> 个分类 · 论据卡 <b>{{ metrics.total }}</b> · 附件 <b>{{ metrics.attachmentCount }}</b>
+          <b>{{ categories.length }}</b> 个分类
           <span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新于 <b>{{ lastUpdateText }}</b></span>
         </span>
       </div>
-      <!-- R126（原型还原）：中心论点横幅常驻；V3.9.28 起作为镇台卡呈现 L1 / 论点卡 / 金字塔根节点三层语义。
-           整卡只负责打开详情，编辑、AI 与分享继续留在各自唯一入口。 -->
-      <div class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"
-        :aria-label="thesisCard ? '打开中心论点卡详情' : '确立中心论点'"
-        @click="thesisCard ? openThesisCard() : openThesisCreate()"
-        @keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"
-        @keydown.space.prevent="thesisCard ? openThesisCard() : openThesisCreate()">
+      <!-- 中心论点卡是信息主舞台，不再整卡承担按钮语义。
+           读数与详情是并列的独立控件，避免整卡点击与内部入口互相抢事件。 -->
+      <div class="thesis-banner" :class="{ empty: !thesisCard }">
         <template v-if="thesisCard">
           <span class="tb-content">
             <span class="tb-kicker"><span class="tb-badge"><Icon name="landmark" :size="11"/> L1</span><span class="tb-kicker-label">中心论点 · 论点卡</span><span class="tb-kicker-sep">·</span><span class="tb-kicker-label">金字塔根节点</span></span>
             <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
             <span class="tb-desc-row">
               <span class="tb-desc" :title="thesisCard.description || ''">
-                {{ thesisCard.description || '先写结论，再长出支撑分支' }}<span class="tb-open"> · 点击查看论点详情</span>
+                {{ thesisCard.description || '先写结论，再长出支撑分支' }}
               </span>
             </span>
           </span>
+          <span class="tb-side">
+            <span class="cur-metrics" data-curation-metrics="2">
+              <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
+                <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡</span>
+                <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（镜像 <Icon name="satellite" :size="12"/> {{ metrics.mirrored }}）</span></span>
+              </button>
+              <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
+                <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件</span>
+                <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
+              </button>
+            </span>
+            <button class="tb-detail" type="button" @click="openThesisCard">
+              查看论点详情 <Icon name="arrowright" :size="12"/>
+            </button>
+          </span>
         </template>
         <template v-else>
-          <span class="thesis-empty-inner">
+          <button class="thesis-empty-inner" type="button" @click="openThesisCreate">
             <span class="thesis-empty-pill" aria-hidden="true"><Icon name="landmark" :size="12"/></span>
             <span class="tb-hint">点击确立本策展台的 <b>L1 中心论点</b>，让研究从判断出发</span>
             <span class="tb-btn">开始确立 <Icon name="arrowright" :size="12"/></span>
-          </span>
+          </button>
         </template>
       </div>
 
-      <!-- ③ 行动条：画布布局、读数、导入、检索、设置与分享在一条内收口。
-           布局切换是这里唯一的普通视图入口；CurationMindMap 内只在全屏时补回切换。 -->
-      <div class="ws-toolbar cur-toolbar" data-curation-metrics="2">
-        <div class="cur-toolbar-lead">
-          <div class="cur-layout" role="group" aria-label="切换策展画布布局">
-            <span class="cur-layout-label"><Icon name="tree" :size="13"/> 策展画布</span>
-            <button type="button" :class="{ on: mind.layout.value === 'pyramid' }"
-              title="金字塔：向下展开，适合阅读与演示" @click="mind.setLayout('pyramid')">
-              <Icon name="layers" :size="13"/> 金字塔
-            </button>
-            <button type="button" :class="{ on: mind.layout.value === 'tree' }"
-              title="树状：向右展开，适合密集整理" @click="mind.setLayout('tree')">
-              <Icon name="branch" :size="13"/> 树状
-            </button>
-          </div>
-          <span class="cur-sep" aria-hidden="true"></span>
-          <div class="cur-metrics" data-curation-metrics="2">
-            <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
-              <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡片总数</span>
-              <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（源卡镜像 <Icon name="satellite" :size="13"/> {{ metrics.mirrored }}）</span></span>
-            </button>
-            <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
-              <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件数量</span>
-              <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
-            </button>
-          </div>
-        </div>
-        <span class="cur-sep" aria-hidden="true"></span>
+      <!-- ③ 行动条：只保留页面级动作。画布布局切换位于画布工具条，始终可见。 -->
+      <div class="ws-toolbar cur-toolbar">
         <!-- V3.9.29：两种导入合并为一个菜单入口，降低行动条噪声；两项能力保持一级可达。 -->
         <div class="cur-import" :class="{ open: importMenuOpen }" @keydown.esc.stop="closeImportMenu">
           <button class="hero-btn ghost cur-import-trigger" type="button"
@@ -93,7 +78,6 @@
             </button>
           </div>
         </div>
-        <span class="cur-sep" aria-hidden="true"></span>
         <div class="toolbar-spacer"></div>
         <div class="toolbar-search">
           <span class="s-icon"><Icon name="search" :size="13"/></span>

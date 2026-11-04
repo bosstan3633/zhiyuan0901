@@ -6,12 +6,12 @@
  * 数据包 / 附件管理 / 云同步。书签导入并入数据包，导入后直接进入资源卡池；
  * 附件本体只在「附件管理」读取，普通数据包不碰 Blob。
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { saveUIPrefs, loadUIPrefs } from '@/shared/storage/repository'
-import SettingsCloudSync from './SettingsCloudSync.vue'
+const SettingsCloudSync = defineAsyncComponent(() => import('./SettingsCloudSync.vue'))
 import { getAllAssetIndex, clearAllAssets, clearAllAssetReferences } from '@/shared/storage/assets'
 import Icon from '@/shared/components/Icon.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'

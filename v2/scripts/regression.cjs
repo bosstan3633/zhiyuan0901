@@ -72,6 +72,8 @@ const SHARDS = [
   '117-v3931-user-feedback-five',
   '118-v3932-curation-mode',
   '119-v3933-curation-feedback',
+  '120-v403-curation-usability',
+  '121-v403-cloud-sync-contract',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

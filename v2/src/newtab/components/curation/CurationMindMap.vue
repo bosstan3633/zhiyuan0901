@@ -408,9 +408,8 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <div class="mindmap-bar-spacer"></div>
-      <!-- 普通视图的布局入口唯一归页头行动条。画布进入真全屏后页头不可见，
-           这里才补一个全屏专用切换，避免用户失去布局能力。 -->
-      <div v-if="fullscreen" class="mindmap-layout" role="group" aria-label="切换画布布局">
+      <!-- V4.0.3：金字塔 / 树状是画布高频操作，普通视图与全屏都固定在画布工具条。 -->
+      <div class="mindmap-layout" role="group" aria-label="切换画布布局">
         <button type="button" :class="{ on: layout === 'pyramid' }" title="金字塔：向下展开，适合阅读与演示"
           @click="$emit('update:layout', 'pyramid')"><Icon name="layers" :size="13"/> 金字塔</button>
         <button type="button" :class="{ on: layout === 'tree' }" title="树状：向右展开，适合密集整理"
@@ -495,8 +494,6 @@ onBeforeUnmount(() => {
               <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('link-thesis')">
                 <Icon name="link" :size="13"/> 关联资源
               </button>
-              <span class="mind-foot-spacer"></span>
-              <span class="mind-shortcut"><kbd>Tab</kbd> 创建二级分支</span>
             </div>
           </article>
           <div v-if="roots.length" class="mind-children">
@@ -543,7 +540,7 @@ onBeforeUnmount(() => {
       <span><b>{{ nodeCount }}</b> 个论证节点</span>
       <span><b>{{ linkedResourceCount }}</b> 张资源已挂到分支</span>
       <span class="mindmap-status-spacer"></span>
-      <span>无资源叶节点会标为“缺证据”</span>
+      <span>标题与说明是节点主信息，资源卡按需挂载</span>
     </div>
   </section>
 </template>

@@ -65,7 +65,7 @@ const {
   fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
   gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
   storageTimer, storageOk, ERR_LABEL, storageText, timeAgo,
-  onStorageClick, focusMeta,
+  onStorageClick, cloudState, cloudStatusText, cloudStatusDetail, onCloudStatusClick, focusMeta,
   readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
   todayOutCount, todayOutOps, battleHost, openReview, focusDoneCount,
   mainFocus, extraFocus, recentLimit,
@@ -372,8 +372,14 @@ const {
         <button class="foot-status" :class="{ error: !storageOk }" type="button" :title="storageOk ? '点击查看存储用量' : '点击重试写入'" @click="onStorageClick">
           <span class="save-dot" /><span>{{ storageText }}</span>
         </button>
-        <span class="local-note"><Icon name="shield" :size="12" /> 只存本机 · 无账号 · 可随时导出</span>
+        <span class="local-note"><Icon name="shield" :size="12" /> 默认本机 · 手动云同步 · 可随时导出</span>
       </div>
+      <button class="foot-sync" :class="cloudState" data-testid="cloud-sync-status" type="button" :title="`${cloudStatusText} · ${cloudStatusDetail} · 打开云同步设置`" @click="onCloudStatusClick">
+        <span class="cloud-dot" />
+        <Icon name="plug" :size="13" />
+        <span>{{ cloudStatusText }}</span>
+        <span class="cloud-detail">{{ cloudStatusDetail }}</span>
+      </button>
     </footer>
 
     <TodayBattleHost ref="battleHost" />

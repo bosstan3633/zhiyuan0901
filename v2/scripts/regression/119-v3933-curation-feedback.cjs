@@ -42,7 +42,7 @@ check('R190-3 ★三模式自由切换：项目全景页头「策展模式」直
 check('R190-4 ★手册增量官网化：三张 mnz 真实界面示意 + mid-9 策展模式 / mid-10 导出与分享两新节', () => {
   return (MANUAL.match(/mnz-mock/g) || []).length >= 6
     && MANUAL.includes("id: 'mid-9'") && MANUAL.includes("id: 'mid-10'")
-    && MANUAL.includes('方向树策展模式（全屏只读全景）')
+    && MANUAL.includes('方向树策展模式（全景查看 + 任务归位）')
     && MANUAL.includes('导出与分享：给人看，也给 AI 读')
     && MANUAL.includes('可直接投喂 AI 作上下文')
 })

@@ -115,10 +115,10 @@ check('W1-2（V3.9.23 随迁）中轴与层级连接线随内容走：总线、�
     && rule(MIND_CSS, '.mindmap-canvas').includes('overflow: auto');
 });
 
-check('W1-3（V3.9.8 随迁）圆角层级三档：分支节点 11px / 资源 chip 5px / 画布根节点 lg，层级逐级可辨', () => {
+check('W1-3（V4.0.3 重指）圆角层级三档：分支节点 11px / 资源 chip 5px / 画布根节点 lg，层级逐级可辨', () => {
   const node = rule(MIND_CSS, '.mind-node');
   const root = rule(MIND_CSS, '.mind-node.mind-root');
-  const resources = MIND_CSS.slice(MIND_CSS.indexOf('.mind-resource,'), MIND_CSS.indexOf('.mind-resource-dot'));
+  const resources = MIND_CSS.slice(MIND_CSS.indexOf('.mind-resource {'), MIND_CSS.indexOf('.mind-resource-title'));
   if (!node || !resources || !root) { console.log('     规则缺失'); return false; }
   return node.includes('border-radius: 11px')
     && resources.includes('border-radius: 5px')
@@ -180,14 +180,17 @@ check('W2-3（V3.9.8 随迁）只读合同没被画布改版碰坏：镜像资�
 });
 
 /* ============ W3 · 台头信息行弱化 ============ */
-check('W3-1（V3.9.30 重指）页头读数行降 caption：分类 / 论据卡 / 附件 / 更新统一为一行可忽略的读数，「更新于」tooltip 与流水下钻仍在', () => {
+check('W3-1（V4.0.3 重指）页头读数行降 caption：分类与更新时间留在身份行，论据卡 / 佐证附件收进中心论点卡，「更新于」tooltip 与流水下钻仍在', () => {
   const sum = rule(CSS, '.wsh-summary');
   const i = WSV.indexOf('class="wsh-summary"');
   const seg = i >= 0 ? WSV.slice(i, WSV.indexOf('</div>', i)) : '';
+  const banner = WSV.slice(WSV.indexOf('class="thesis-banner"'), WSV.indexOf('<!-- ③ 行动条'));
   if (!sum || !seg) { console.log('     规则或模板缺失'); return false; }
   return sum.includes('font-size: var(--fs-caption)')
     && sum.includes('color: var(--text-3)')
-    && seg.includes('个分类') && seg.includes('论据卡') && seg.includes('附件') && seg.includes('更新于')
+    && seg.includes('个分类') && seg.includes('更新于')
+    && !seg.includes('论据卡') && !seg.includes('佐证附件')
+    && banner.includes('论据卡') && banner.includes('佐证附件')
     && seg.includes('title="查看最近更新流水"') && seg.includes('openDrill(\'recent\')');
 });
 

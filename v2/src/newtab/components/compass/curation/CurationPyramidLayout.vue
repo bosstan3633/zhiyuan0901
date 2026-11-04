@@ -136,7 +136,13 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
 </template>
 
 <style scoped>
-.cpl { max-width: 100%; padding: 4px 0 40px; overflow-x: auto; overflow-y: hidden; }
+/* 宽树只在金字塔自己的横向滚动域里展开，不能把页面撑出屏幕。 */
+.cpl {
+  width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
+  padding: 4px 0 40px;
+  overflow-x: auto; overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+}
 .tier { display: flex; justify-content: center; margin: 0 0 6px; }
 .cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 10px); padding: 8px 12px; cursor: pointer; transition: border-color var(--dur-fast, 120ms), background var(--dur-fast, 120ms); white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
 .cv-card:hover { border-color: var(--accent); background: var(--surface-2); }
@@ -147,8 +153,12 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
 .vline { width: 1px; height: 26px; margin: 0 auto; background: var(--border-strong); }
 
 /* ── org-chart 连线（经典 CSS 树）：横轨 + 垂直落线 + 父级中缝引用线 ── */
-.org { padding: 0 12px; }
-ul.org-lv { display: flex; justify-content: center; list-style: none; margin: 0; padding: 26px 0 0; position: relative; }
+.org { width: max-content; min-width: 100%; box-sizing: border-box; padding: 0 12px; }
+ul.org-lv {
+  width: max-content; min-width: 100%; box-sizing: border-box;
+  display: flex; justify-content: center; list-style: none;
+  margin: 0; padding: 26px 0 0; position: relative;
+}
 ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0; height: 26px; border-left: 1px solid var(--border-strong); }
 .org-lv li { display: flex; flex-direction: column; align-items: center; position: relative; padding: 26px 12px 0; }
 .org-lv li::before, .org-lv li::after { content: ''; position: absolute; top: 0; right: 50%; width: 50%; height: 26px; border-top: 1px solid var(--border-strong); }

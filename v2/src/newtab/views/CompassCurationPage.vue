@@ -101,7 +101,11 @@ function doExport(fmt: ExportFmt) {
 </template>
 
 <style scoped>
-.cmp-page { min-height: 100vh; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.cmp-page {
+  width: 100%; max-width: 100%; min-width: 0; min-height: 100vh;
+  background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; overflow-x: hidden;
+}
 .cmp-head { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 22px;
   background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 .cmp-back { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; }
@@ -116,7 +120,7 @@ function doExport(fmt: ExportFmt) {
 .seg button:hover:not(.on) { color: var(--text-2); }
 .cmp-tool { padding: 5px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-caption); font-weight: 600; cursor: pointer; font-family: inherit; }
 .cmp-tool:hover { border-color: var(--accent); color: var(--accent-ink); }
-.cmp-body { flex: 1; padding: 18px 22px 30px; }
+.cmp-body { flex: 1; min-width: 0; max-width: 100%; padding: 18px 22px 30px; overflow-x: hidden; }
 @media (max-width: 900px) {
   .cmp-head { flex-wrap: wrap; padding: 8px 14px; }
   .cmp-sub { display: none; }

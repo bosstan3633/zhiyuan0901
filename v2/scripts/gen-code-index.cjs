@@ -92,7 +92,7 @@ const MANUAL_NOTES = {
   'newtab/router.ts': '路由表（hash 模式）',
   'newtab/manual-data.ts': '内置使用手册的章节数据（另可导出独立 HTML）',
   // ---- 视图（路由级）----
-  'newtab/views/GlobalSettings.vue': '全局设置页（全仓最大文件）：手册 / 导入导出 / Airtable 同步 / AI 配置 / 标签管理 / 字段设计 / 仪表盘 / 快捷键',
+  'newtab/views/GlobalSettings.vue': '全局设置页（全仓最大文件）：手册 / 数据包与云同步 / AI 配置 / 标签管理 / 字段设计 / 仪表盘 / 快捷键',
   'newtab/views/Workspace.vue': '策展台单一画布（论点卡 + 金字塔/树状思维导图 + 资源证据 + 指标下钻 + 分享）',
   'newtab/views/CompassHome.vue': '调度台首页：方向状态四指标 + 今日三件事 + 底部三张卡（任务卡 / 好奇心卡 / 资源卡）',
   'newtab/views/CompassTree.vue': '完整方向树（战略目标 → 项目 → 指标 → 任务）',

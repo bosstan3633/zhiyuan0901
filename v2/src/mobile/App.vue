@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { LOCAL_KEYS } from '@/shared/storage/keys'
 
 
 const env = ref<{ url: string; anonKey: string } | null>(null)
@@ -15,7 +16,7 @@ const err = ref('')
 const pending = ref<{ url: string; title?: string; note?: string }[]>([])
 
 const logged = computed(() => !!session.value?.accessToken)
-const PENDING_KEY = 'zy_mobile_pending'
+const PENDING_KEY = LOCAL_KEYS.MOBILE_PENDING
 
 async function api(path: string, init: RequestInit, token?: string) {
   if (!env.value) throw new Error('云端未配置')
@@ -31,7 +32,7 @@ async function login() {
     const r = await api('/auth/v1/token?grant_type=password',
       { method: 'POST', body: JSON.stringify({ email: email.value.trim(), password: password.value }) })
     session.value = { accessToken: r.access_token, refreshToken: r.refresh_token, email: r.user?.email || email.value.trim() }
-    localStorage.setItem('zy_mobile_session', JSON.stringify(session.value))
+    localStorage.setItem(LOCAL_KEYS.MOBILE_SESSION, JSON.stringify(session.value))
     password.value = ''
     msg.value = '已登录'
     await flushPending()
@@ -45,9 +46,9 @@ async function refreshToken() {
       { method: 'POST', body: JSON.stringify({ refresh_token: session.value.refreshToken }) })
     session.value.accessToken = r.access_token
     if (r.refresh_token) session.value.refreshToken = r.refresh_token
-    localStorage.setItem('zy_mobile_session', JSON.stringify(session.value))
+    localStorage.setItem(LOCAL_KEYS.MOBILE_SESSION, JSON.stringify(session.value))
     return true
-  } catch { session.value = null; localStorage.removeItem('zy_mobile_session'); return false }
+  } catch { session.value = null; localStorage.removeItem(LOCAL_KEYS.MOBILE_SESSION); return false }
 }
 function savePending() { localStorage.setItem(PENDING_KEY, JSON.stringify(pending.value)) }
 async function submit() {
@@ -78,7 +79,7 @@ async function flushPending() {
 }
 function logout() {
   session.value = null
-  localStorage.removeItem('zy_mobile_session')
+  localStorage.removeItem(LOCAL_KEYS.MOBILE_SESSION)
 }
 onMounted(() => {
   try {
@@ -86,7 +87,7 @@ onMounted(() => {
     const k = (import.meta as unknown as { env?: Record<string,string|undefined> }).env?.VITE_SUPABASE_PUBLISHABLE_KEY
     if (u && k && k.startsWith('sb_publishable_')) env.value = { url: u.replace(/\/$/,''), anonKey: k }
   } catch { /* noop */ }
-  const s = localStorage.getItem('zy_mobile_session')
+  const s = localStorage.getItem(LOCAL_KEYS.MOBILE_SESSION)
   if (s) { try { session.value = JSON.parse(s) } catch { /* noop */ } }
   const p = localStorage.getItem(PENDING_KEY)
   if (p) { try { pending.value = JSON.parse(p) } catch { /* noop */ } }

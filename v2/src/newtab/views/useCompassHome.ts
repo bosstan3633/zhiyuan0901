@@ -506,7 +506,7 @@ function fmtRecentTime(ts?: number): string {
 }
 
 // ---- 附件字段可见性（三件事卡正面徽章显隐） ----
-  const { tFields, taskAssetsOn, onDateKey, gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub, storageTimer, storageOk, ERR_LABEL, storageText, timeAgo, onStorageClick } = useCompassHomeStorage({ d, pickerOpen, exportOpen, whyOpen, focusMoreOpen, shiftDate, route, router, onDocClickCloseWhy, store })
+  const { tFields, taskAssetsOn, onDateKey, gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub, storageTimer, storageOk, ERR_LABEL, storageText, timeAgo, onStorageClick, cloudState, cloudStatusText, cloudStatusDetail, onCloudStatusClick } = useCompassHomeStorage({ d, pickerOpen, exportOpen, whyOpen, focusMoreOpen, shiftDate, route, router, onDocClickCloseWhy, store })
 const focusMeta = computed(() => {
   const m = new Map<string, { pct: number; stall: boolean; finished: boolean; open: number }>()
   for (const p of focusedProjects.value) {
@@ -680,7 +680,7 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
     fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
     gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
     storageTimer, storageOk, ERR_LABEL, storageText, timeAgo,
-    onStorageClick, focusMeta,
+    onStorageClick, cloudState, cloudStatusText, cloudStatusDetail, onCloudStatusClick, focusMeta,
     readonlyProjectOpen, readonlyProjectId, openFocusProject, handTab, todayInCount,
     todayOutCount, todayOutOps, todayCallCounts, refreshTodayOutOps, battleHost, openReview, focusDoneCount,
     mainFocus, extraFocus, RECENT_ROW_H, recentLimit,

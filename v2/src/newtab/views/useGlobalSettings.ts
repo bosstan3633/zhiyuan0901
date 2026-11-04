@@ -81,6 +81,10 @@ function pageFromQuery(): string | null {
     const rawTab = route.query.tab
     dataManagementTab.value = rawTab === 'assets' || rawTab === 'cloud' ? rawTab : 'package'
   }
+  if (p === 'cloud') {
+    dataManagementTab.value = 'cloud'
+    return 'data'
+  }
   return navGroups.some(g => g.items.some(i => i.key === p && !i.route)) ? p : null
 }
 onMounted(() => {

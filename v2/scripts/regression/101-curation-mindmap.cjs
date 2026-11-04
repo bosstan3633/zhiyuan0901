@@ -2,10 +2,10 @@
  * V3.9.8 · 策展台成果态：单一画布、思维导图键位、拖拽与分享合同。
  *
  * 这一片不锁像素，只锁“改版后仍然成立的产品行为”：
- * - 顶部论点卡是唯一 L1 入口，点击打开专用抽屉；
+ * - 顶部论点卡是唯一 L1 入口，详情按钮打开专用抽屉；
  * - 金字塔 / 树状共享同一份 Category 父子树；
- * - Tab 建子级、Enter 建同级、拖拽改父级，且不超过四级；
- * - 关联资源、缺证据、镜像证据、分享 HTML 都有明确出口；
+ * - Tab 建子级、Enter 改题、Ctrl+Enter 建同级、拖拽改父级，且不超过四级；
+ * - 关联资源、镜像证据、分享 HTML 都有明确出口；
  * - 旧四视图与左侧论证目录真正退役，不靠隐藏模板假绿。
  */
 const {
@@ -25,10 +25,11 @@ const CSS = read('/newtab/components/curation/curation.css');
 
 console.log('【V3.9.8 · 策展台成果态与思维导图】');
 
-check('C101-1 顶部论点卡是 L1 唯一入口：整卡可点、键盘可开、空态可创建，打开专用论点卡抽屉', () => {
+check('C101-1（V4.0.3 重指）顶部论点卡是 L1 唯一入口：详情按钮与空态创建按钮各自可达，打开专用论点卡抽屉', () => {
   return WS.includes('class="thesis-banner"')
-    && WS.includes('@click="thesisCard ? openThesisCard() : openThesisCreate()"')
-    && WS.includes('@keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"')
+    && WS.includes('class="tb-detail" type="button" @click="openThesisCard"')
+    && WS.includes('<button class="thesis-empty-inner" type="button" @click="openThesisCreate">')
+    && (WS.match(/class="thesis-banner"/g) || []).length === 1
     && WS.includes('<CurationThesisDrawer')
     && THESIS.includes('中心论点卡')
     && THESIS.includes('论点标题')
@@ -37,14 +38,16 @@ check('C101-1 顶部论点卡是 L1 唯一入口：整卡可点、键盘可开�
     && THESIS.includes('最近更新');
 });
 
-check('C101-2 指标条恰两格，论证深度 / 来源覆盖真正退役，且两格都可下钻', () => {
-  const s = WS.indexOf('<div class="cur-metrics" data-curation-metrics="2">');
+check('C101-2（V4.0.3 重指）中心论点卡读数恰两格，论证深度 / 来源覆盖真正退役，且两格都可下钻', () => {
+  const s = WS.indexOf('<span class="cur-metrics" data-curation-metrics="2">');
   const e = WS.indexOf('<CurationDrillDrawer', s);
   if (s < 0 || e < 0) return false;
   const block = WS.slice(s, e);
   return (block.match(/class="cur-metric"/g) || []).length === 2
-    && block.includes('论据卡片总数')
-    && block.includes('佐证附件数量')
+    && block.includes('论据卡')
+    && block.includes('佐证附件')
+    && block.includes('{{ metrics.total }}')
+    && block.includes('{{ metrics.attachmentCount }}')
     && block.includes("openDrill('total')")
     && block.includes("openDrill('assets')")
     && !block.includes('论证深度')
@@ -180,14 +183,16 @@ check('C101-10 拖拽反馈完整：拖动源淡出、合法 / 非法落点异�
     && MAP.includes("canvasRef.value?.scrollTo({ top: 0, left: 0 })");
 });
 
-check('C101-11 节点关联资源与证据缺口：按钮文案明确为“关联资源”，无资源叶节点可一键补证据', () => {
-  return NODE.includes('关联资源')
+check('C101-11（V4.0.3 重指）节点关联资源：无资源时只在头部保留轻量入口，资源区与底栏按挂卡数条件渲染；不出现「缺证据」', () => {
+  return NODE.includes('title="关联资源"')
     && NODE.includes("emit('link-resource', node)")
-    && NODE.includes('缺证据 · 关联')
-    && NODE.includes('cards().length')
+    && NODE.includes("'resource-bearing': cards().length > 0")
+    && NODE.includes('<div v-if="cards().length" class="mind-resources">')
+    && NODE.includes('<div v-if="cards().length" class="mind-node-foot">')
     && MAP.includes("emit('link-resource', $event)")
     && WS.includes(':list="linkShowList"')
-    && WS.includes('@confirm="confirmLinkCards"');
+    && WS.includes('@confirm="confirmLinkCards"')
+    && [NODE, MAP, HOOK, CSS, WS].every(src => !src.includes('缺证据'));
 });
 
 check('C101-12 分享收集全部非论点证据（含镜像），不再把镜像卡漏出分享内容', () => {

@@ -3,10 +3,11 @@
  * 不引入 Supabase SDK，直接用 fetch 打 GoTrue/PostgREST；模块在设置页/启动检查时才动态加载。
  * 仅使用 publishable（anon）key + 用户 access token；严禁 service-role/secret。
  */
+import { K } from '@/shared/storage/keys'
 
 export interface CloudEnv { url: string; anonKey: string }
 
-const OVERRIDE_KEY = 'zy_cloud_env'
+const OVERRIDE_KEY = K.CLOUD_ENV
 
 /** 读取构建时环境（供初始默认值）；未配置时返回 null */
 function buildEnv(): CloudEnv | null {
@@ -49,10 +50,31 @@ export class CloudError extends Error {
   constructor(status: number, msg: string) { super(msg); this.status = status }
 }
 
+const RATE_LIMIT_MAX_RETRY = 3
+const RATE_LIMIT_BASE_MS = 300
+const RATE_LIMIT_CAP_MS = 4_000
+
+function retryAfterMs(res: Response, attempt: number): number {
+  const fallback = Math.min(RATE_LIMIT_BASE_MS * (2 ** attempt), RATE_LIMIT_CAP_MS)
+  const seconds = Number(res.headers.get('retry-after'))
+  if (!Number.isFinite(seconds) || seconds <= 0) return fallback
+  return Math.min(seconds * 1_000, RATE_LIMIT_CAP_MS)
+}
+
+function retry429(res: Response, attempt: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, retryAfterMs(res, attempt)))
+}
+
 async function req<T>(env: CloudEnv, path: string, init: RequestInit, token?: string): Promise<T> {
   const headers: Record<string, string> = { apikey: env.anonKey, 'Content-Type': 'application/json' }
   if (token) headers.Authorization = 'Bearer ' + token
-  const res = await fetch(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
+  let res: Response | undefined
+  for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRY; attempt += 1) {
+    res = await fetch(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
+    if (res.status !== 429 || attempt === RATE_LIMIT_MAX_RETRY) break
+    await retry429(res, attempt)
+  }
+  if (!res) throw new CloudError(0, '云端请求未发出')
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new CloudError(res.status, `云端请求失败 ${res.status}：${text.slice(0, 200)}`)

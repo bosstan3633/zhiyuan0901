@@ -310,9 +310,15 @@ check('R70-13 P2 主数据只有一个写口 ★R4-Fb 重指带备案：原锚�
 check('R70-14 P2 链接协议黑名单（javascript/data/vbscript/blob）', () => {
   return read('/shared/utils/link.ts').includes('javascript|data|vbscript|blob');
 });
-check('R70-15 P2 weekStartKey 本地时区 + uid randomUUID + 429 指数退避', () => {
-  const u = read('/shared/utils/index.ts'); const a = read('/shared/storage/airtable.ts');
-  return u.includes('crypto.randomUUID') && u.includes('new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))') && a.includes('RATE_LIMIT_MAX_RETRY') && a.includes('retry429');
+check('R70-15（V4.0.3 重指）P2 weekStartKey 本地时区 + uid randomUUID + 429 指数退避：Airtable 退役后，429 重试语义由 Supabase 云客户端承接', () => {
+  const u = read('/shared/utils/index.ts');
+  const c = read('/shared/cloud/client.ts');
+  return u.includes('crypto.randomUUID')
+    && u.includes('new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))')
+    && c.includes('const RATE_LIMIT_MAX_RETRY = 3')
+    && c.includes('function retry429(res: Response, attempt: number)')
+    && c.includes('if (res.status !== 429 || attempt === RATE_LIMIT_MAX_RETRY) break')
+    && c.includes('await retry429(res, attempt)');
 });
 check('R70-16 P2 搜索高亮先定位后转义（AT&T 不再渲染成实体）', () => {
   const g = read('/newtab/components/GlobalPopups.vue');
@@ -748,15 +754,7 @@ check('R75-4 指标条样式（V3.9.10 重指：资源台退役 + 策展台指�
     && c.includes('.cur-metrics {') && c.includes('.cur-metric {')
     && c.includes('border: 1px solid var(--border)');
 });
-check('R75-5（V3.9.8 重指：策展台只保留可统计的两格——论据卡片总数 / 佐证附件数量；“论证深度”与“来源覆盖”按用户决策退役）', () => {
-  const w = read('/newtab/views/Workspace.vue');
-  const s = w.indexOf('<div class="cur-metrics"');
-  if (s < 0) return false;
-  const e = w.indexOf('<CurationDrillDrawer', s);
-  if (e < 0) return false;
-  const blk = w.slice(s, e);
-  return (blk.match(/class="cur-metric"/g) || []).length === 2 && blk.includes('论据卡片总数') && blk.includes('佐证附件数量') && !blk.includes('论证深度') && !blk.includes('来源覆盖');
-});
+// R75-5 已原样迁入 120-v403-curation-usability.cjs：中心论点读数属于本轮策展台收口。
 // R75-6 已原样迁入 116-v3930-profile-curation-perf.cjs；本分片回到 900 行闸内。
 check('R75-7 hub 三格复用既有下钻（V3.7.0 重指：hub 块退役；下钻组件与模式不新增——CurationDrillDrawer 仍是唯一 Driller）', () => {
   const w = read('/newtab/views/Workspace.vue');

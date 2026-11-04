@@ -53,18 +53,9 @@
 /* R4-Dd：带说明文字的setting行——说明占满余下宽度并允许换行，输入框不被挤扁 */
 .gs-sr-control-wrap { gap: 10px; flex-wrap: wrap; }
 .gs-sr-hint { font-size: var(--fs-caption); color: var(--text-3); flex: 1; min-width: 220px; }
-/* ★V3.8.25（B1-a）：设置行右侧的说明性文字（同步范围 / 增量游标 / 上次同步 / 扩展版本）
-   原先每处各写一份内联 `font-size + color`，现归成一个基类 + 三个修饰。 */
+/* 设置行右侧的说明性文字；危险态仍由 settings 页面共用。 */
 .gs-sr-note { font-size: var(--fs-sub); color: var(--text-2); }
-.gs-sr-note--muted { color: var(--text-3); }
 .gs-sr-note--danger { color: var(--danger); }
-.gs-sr-note--wrap { max-width: 380px; line-height: 1.7; text-align: left; }
-.gs-sr-note--log { max-width: 420px; text-align: left; }
-/* 连接测试成功态：原先是 `var(--ok, var(--info-green, #3A6B4C))`，两个令牌都不存在 ⇒ 四主题一律吃硬编码 */
-.gs-sr-ok { font-size: var(--fs-sub); color: var(--success); }
-.gs-log-ico { flex-shrink: 0; }
-.gs-log-ico.ok { color: var(--success); }
-.gs-log-ico.err { color: var(--danger); }
 /* 开关 */
 .gs-toggle { width: 38px; height: 21px; border-radius: 99px; background: var(--border-strong); cursor: pointer; position: relative; transition: background .2s; flex-shrink: 0; }
 .gs-toggle.on { background: var(--accent); }
@@ -79,9 +70,7 @@
 .gs-input::placeholder { color: var(--text-4); }
 .gs-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-sub); color: var(--text); background: var(--surface); outline: none; transition: all var(--dur); font-family: inherit; }
 .gs-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-/* ★V3.8.25（B1-a）：连接区输入框宽度（原先写在模板内联 style 上）。
-   `--pat` 是 PAT 凭据框（占位提示最长，320）；`--ident` 是 Base/Table/标签列名（260）。 */
-.gs-input--pat { width: 320px; }
+/* 连接区身份字段宽度。 */
 .gs-input--ident { width: 260px; }
 /* 隐藏的原生 file input（导入 JSON / 附件包 / 书签 HTML 三个触发器） */
 .gs-file-hidden { display: none; }

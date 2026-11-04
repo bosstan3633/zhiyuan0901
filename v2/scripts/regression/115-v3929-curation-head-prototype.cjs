@@ -24,20 +24,20 @@ const mindmapStart = WS.indexOf('<CurationMindMap', toolbarStart)
 const banner = WS.slice(bannerStart, bannerEnd)
 const toolbar = WS.slice(toolbarStart, mindmapStart)
 
-check('R186-1 ★空论点态按原型收成单行轻引导：虚线 L1 图标 + 一行说明 + 文本式开始提示；整卡负责创建，卡内不再出现按钮', () => {
+check('R186-1（V4.0.3 重指）★空论点态按原型收成单行轻引导：虚线 L1 图标 + 一行说明 + 原生创建按钮；不再用整卡伪造按钮语义', () => {
   const emptyCss = (CSS.match(/\.thesis-banner\.empty\s*\{([^}]*)\}/) || [])[1] || ''
-  return WS.includes('class="thesis-empty-inner"')
+  return WS.includes('<button class="thesis-empty-inner" type="button" @click="openThesisCreate">')
     && WS.includes('class="thesis-empty-pill"')
     && WS.includes('点击确立本策展台的 <b>L1 中心论点</b>')
     && WS.includes('class="tb-btn"')
     && !WS.includes('<button class="tb-btn"')
-    && WS.includes('@click="thesisCard ? openThesisCard() : openThesisCreate()"')
+    && WS.includes('<div class="thesis-banner" :class="{ empty: !thesisCard }">')
     && /min-height:\s*42px/.test(emptyCss)
     && /padding:\s*10px 16px/.test(emptyCss)
     && /background:\s*var\(--surface-2\)/.test(emptyCss)
 })
 
-check('R186-2 ★有论点态是镇台主舞台：22px 主句、600 字重、径向渐变、14px 圆角与大留白；移除左侧粗色条和卡内第二动作', () => {
+check('R186-2（V4.0.3 重指）★有论点态是镇台主舞台：22px 主句、600 字重、径向渐变、14px 圆角与大留白；卡片读数与详情同卡，但不混入分享和布局切换', () => {
   const stageCss = (CSS.match(/\.thesis-banner\s*\{([^}]*)\}/) || [])[1] || ''
   const titleCss = (CSS.match(/\.tb-title\s*\{([^}]*)\}/) || [])[1] || ''
   return stageCss.includes('radial-gradient(600px 160px')
@@ -47,9 +47,13 @@ check('R186-2 ★有论点态是镇台主舞台：22px 主句、600 字重、径
     && titleCss.includes('font-size: 22px')
     && titleCss.includes('font-weight: 600')
     && WS.includes('class="tb-desc-row"')
-    && WS.includes('class="tb-open"')
-    && WS.includes('点击查看论点详情')
-    && !banner.includes('<button')
+    && WS.includes('class="tb-detail" type="button" @click="openThesisCard"')
+    && WS.includes('查看论点详情')
+    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
+    && banner.includes('论据卡')
+    && banner.includes('佐证附件')
+    && !banner.includes('分享成果')
+    && !banner.includes('update:layout')
 })
 
 check('R186-3 ★分享只有一个入口且是行尾主行动：页头“分享成果”恰好一次，class 为 hero-btn primary，论点卡内不重复', () => {
@@ -79,17 +83,16 @@ check('R186-4 ★两个导入能力收进一个菜单且触发器阻止冒泡：
     && WSC.includes('function importPyramidTemplateFromMenu()')
 })
 
-check('R186-5（V3.9.30 重指）★布局切换只保留一个普通视图入口：页头行动条承接金字塔 / 树状切换，CurationMindMap 只在全屏补位', () => {
-  return toolbar.includes('class="cur-layout"')
-    && toolbar.includes("@click=\"mind.setLayout('pyramid')\"")
-    && toolbar.includes("@click=\"mind.setLayout('tree')\"")
-    && !MIND.includes('<div class="mindmap-layout"')
-    && MIND.includes('v-if="fullscreen" class="mindmap-layout"')
+check('R186-5（V4.0.3 重指）★布局切换只保留一个高频入口：金字塔 / 树状固定归画布工具条，普通视图与全屏常驻', () => {
+  return !toolbar.includes('class="cur-layout"')
+    && !toolbar.includes('mind.setLayout(')
+    && MIND.includes('<div class="mindmap-layout" role="group" aria-label="切换画布布局">')
+    && !MIND.includes('v-if="fullscreen" class="mindmap-layout"')
     && MIND.includes("@click=\"$emit('update:layout', 'pyramid')\"")
     && MIND.includes("@click=\"$emit('update:layout', 'tree')\"")
 })
 
-check('R186-6（V3.9.34 重指）★全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / v2 README / 根 README / 架构总览一致，更新日志首条为现行版本', () => {
+check('R186-6（V4.0.3 重指）★全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / v2 README / 根 README / 架构总览一致，V4 更新日志首条为现行版本', () => {
   const pkg = require('../../package.json')
   const lock = require('../../package-lock.json')
   const manifest = read('/manifest.ts')
@@ -97,7 +100,7 @@ check('R186-6（V3.9.34 重指）★全版本同步：manifest / package / lock 
   const v2Readme = read('/../../v2/README.md')
   const rootReadme = read('/../../README.md')
   const arch = read('/../../文档中心/00_架构总览.md')
-  const log = read('/newtab/changelog-data/entries-v3.ts')
+  const log = read('/newtab/changelog-data/entries-v4.ts')
   const reg = read('/../scripts/regression.cjs')
   return pkg.version === CUR_VER
     && lock.version === CUR_VER
@@ -109,7 +112,7 @@ check('R186-6（V3.9.34 重指）★全版本同步：manifest / package / lock 
     && rootReadme.includes(`当前版本 ${CUR_VTAG}`)
     && arch.includes(`版本**：${CUR_VTAG}`)
     && log.indexOf(`version: '${CUR_VER}'`) >= 0
-    && log.indexOf(`version: '${CUR_VER}'`) < log.indexOf("version: '3.9.33'")
+    && log.indexOf(`version: '${CUR_VER}'`) < log.indexOf("version: '4.0.2'")
     && reg.includes("'115-v3929-curation-head-prototype'")
 })
 

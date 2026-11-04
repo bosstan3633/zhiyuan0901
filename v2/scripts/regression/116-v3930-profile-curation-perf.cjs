@@ -38,25 +38,31 @@ check('R187-1 ★策展台页头收成一个连续三层：台身份 → 中心�
     && /margin-top:\s*2px/.test(toolbarCss)
 })
 
-check('R187-2 ★普通视图的布局切换与分享各只有一个入口：布局在页头行动条，画布仅在全屏补位；分享固定行尾一次', () => {
+check('R187-2（V4.0.3 重指）★布局切换与分享各只有一个入口：布局固定在画布工具条，分享固定页面行动条行尾一次', () => {
   const toolbarStart = WS.indexOf('<div class="ws-toolbar cur-toolbar"')
   const mindStart = WS.indexOf('<CurationMindMap', toolbarStart)
   const toolbar = WS.slice(toolbarStart, mindStart)
-  return toolbar.includes('class="cur-layout"')
-    && (toolbar.match(/mind\.setLayout\('pyramid'\)/g) || []).length === 1
-    && (toolbar.match(/mind\.setLayout\('tree'\)/g) || []).length === 1
+  return !toolbar.includes('class="cur-layout"')
+    && !toolbar.includes('mind.setLayout(')
     && (WSC.match(/分享成果/g) || []).length === 1
     && toolbar.includes('class="hero-btn primary share-action"')
     && toolbar.lastIndexOf('分享成果') > toolbar.lastIndexOf('class="toolbar-search"')
-    && !MIND.includes('<div class="mindmap-layout"')
-    && MIND.includes('<div v-if="fullscreen" class="mindmap-layout"')
+    && MIND.includes('<div class="mindmap-layout" role="group" aria-label="切换画布布局">')
+    && !MIND.includes('v-if="fullscreen" class="mindmap-layout"')
 })
 
-check('R75-6（V3.9.30 重指）hub 卡片总数补充口径退役：分类 / 论据卡 / 附件读数并入页头，指标格无「镜像异常」分支', () => {
+check('R75-6（V4.0.3 重指）hub 卡片总数补充口径退役：台身份只留分类与更新时间，论据卡 / 附件读数收进中心论点卡，指标格无「镜像异常」分支', () => {
+  const summaryStart = WSC.indexOf('class="wsh-summary"')
+  const summary = summaryStart >= 0 ? WSC.slice(summaryStart, WSC.indexOf('</div>', summaryStart)) : ''
+  const bannerStart = WSC.indexOf('class="thesis-banner"')
+  const banner = bannerStart >= 0 ? WSC.slice(bannerStart, WSC.indexOf('<!-- ③ 行动条', bannerStart)) : ''
   return !WSC.includes('hubCountHint')
-    && WSC.includes('<b>{{ categories.length }}</b> 个分类')
-    && WSC.includes('论据卡 <b>{{ metrics.total }}</b>')
-    && WSC.includes('附件 <b>{{ metrics.attachmentCount }}</b>')
+    && summary.includes('<b>{{ categories.length }}</b> 个分类')
+    && !summary.includes('论据卡')
+    && !summary.includes('佐证附件')
+    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
+    && banner.includes('{{ metrics.total }}')
+    && banner.includes('{{ metrics.attachmentCount }}')
 })
 
 check('R187-3 ★今日高亮不再是静默失效：状态类以空格分隔，今日格带 today / aria-current，月份标题也有「今天」标记', () => {
@@ -104,7 +110,7 @@ check('R187-6 ★重复动态 import 已清零：撤销窗口常量走顶部静�
     && !APP.includes("const { DECK_DELETE_UNDO_WINDOW_MS } = await import('@/shared/utils/undo')")
 })
 
-check('R187-7（V3.9.34 重指）★全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / 两份 README / 架构总览一致，更新日志首条为现行版本', () => {
+check('R187-7（V4.0.3 重指）★全版本同步：manifest / package / lock 双行 / 手册 / 回归锚 / 两份 README / 架构总览一致，V4 更新日志首条为现行版本', () => {
   const pkg = require('../../package.json')
   const lock = require('../../package-lock.json')
   const manifest = read('/manifest.ts')
@@ -112,7 +118,7 @@ check('R187-7（V3.9.34 重指）★全版本同步：manifest / package / lock 
   const v2Readme = read('/../../v2/README.md')
   const rootReadme = read('/../../README.md')
   const arch = read('/../../文档中心/00_架构总览.md')
-  const log = read('/newtab/changelog-data/entries-v3.ts')
+  const log = read('/newtab/changelog-data/entries-v4.ts')
   const reg = read('/../scripts/regression.cjs')
   const current = `version: '${CUR_VER}'`
   return pkg.version === CUR_VER
@@ -125,6 +131,6 @@ check('R187-7（V3.9.34 重指）★全版本同步：manifest / package / lock 
     && rootReadme.includes(`当前版本 ${CUR_VTAG}`)
     && arch.includes(`版本**：${CUR_VTAG}`)
     && log.indexOf(current) >= 0
-    && log.indexOf(current) < log.indexOf("version: '3.9.33'")
+    && log.indexOf(current) < log.indexOf("version: '4.0.2'")
     && reg.includes("'116-v3930-profile-curation-perf'")
 })

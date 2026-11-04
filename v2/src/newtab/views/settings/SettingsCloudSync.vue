@@ -7,18 +7,22 @@ import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { saveDataNow, loadUIPrefs, cloudRestoreAtomic } from '@/shared/storage/repository'
 import { flushEventQueue, readEventLog } from '@/shared/utils/eventLog'
-import { saveDataNow as persistNow } from '@/shared/storage/repository'
 
 const store = useAppStore()
 const env = ref<{ url: string; anonKey: string } | null>(null)
+const cfgOpen = ref(false)
 const cfgUrl = ref('')
 const cfgKey = ref('')
+const cfgUrlErr = ref('')
+const cfgKeyErr = ref('')
 const cfgSaved = ref(false)
 const meta = ref<{ userId: string; email: string; revision: number; lastUploadAt?: number; lastDownloadAt?: number; lastCheckedAt?: number; checkOnStart: boolean } | null>(null)
 const email = ref('')
 const password = ref('')
 const busy = ref(false)
 const checkResult = ref<string>('')
+const cloudState = ref<'idle' | 'connected' | 'error'>('idle')
+const cloudError = ref('')
 const conflictRemoteRev = ref(0)
 const conflictOpen = ref(false)
 let pendingUploadResolve: ((ok: boolean) => void) | null = null
@@ -26,16 +30,40 @@ const captures = ref<{ id: string; url: string; title?: string; note?: string; t
 const capturesBusy = ref(false)
 
 const loggedIn = computed(() => !!meta.value?.userId)
+const statusText = computed(() => cloudState.value === 'error' ? '连接异常' : cloudState.value === 'connected' ? '已连接' : '未连接')
 const pwaUrl = 'https://bosstan3633.github.io/zhiyuan0901/'
 
+function errText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
+function setCloudError(prefix: string, e: unknown): void {
+  cloudState.value = 'error'
+  cloudError.value = prefix + '：' + errText(e)
+  showToast(cloudError.value)
+}
+
+function setCloudOk(keepCheck = false): void {
+  cloudState.value = loggedIn.value ? 'connected' : 'idle'
+  cloudError.value = ''
+  if (!keepCheck) checkResult.value = ''
+}
+
 async function loadCloud() {
-  const c = await import('@/shared/cloud/client')
-  env.value = await c.cloudEnv()
-  const def = c.cloudEnvDefaults()
-  cfgUrl.value = env.value?.url || def.url
-  cfgKey.value = env.value?.anonKey || def.anonKey
-  const s = await import('@/shared/cloud/sync')
-  meta.value = await s.getCloudMeta()
+  try {
+    const c = await import('@/shared/cloud/client')
+    const current = await c.cloudEnv()
+    env.value = current
+    cfgOpen.value = !current
+    const def = c.cloudEnvDefaults()
+    cfgUrl.value = env.value?.url || def.url
+    cfgKey.value = env.value?.anonKey || def.anonKey
+    const s = await import('@/shared/cloud/sync')
+    meta.value = await s.getCloudMeta()
+    setCloudOk()
+  } catch (e) {
+    setCloudError('读取云端配置失败', e)
+  }
 }
 onMounted(() => { void loadCloud() })
 
@@ -43,18 +71,34 @@ async function saveConfig() {
   const c = await import('@/shared/cloud/client')
   const url = cfgUrl.value.trim().replace(/\/$/, '')
   const anonKey = cfgKey.value.trim()
-  const ok = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) && anonKey.startsWith('sb_publishable_')
-  if (!ok) { showToast('请填写 Supabase 项目地址与 publishable key'); return }
-  const s = await import('@/shared/cloud/sync')
-  await s.setCloudEnv({ url, anonKey })
-  env.value = { url, anonKey }
-  cfgSaved.value = true
-  setTimeout(() => cfgSaved.value = false, 2000)
-  showToast('云端配置已保存')
+  cfgUrlErr.value = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) ? '' : '请填写项目根地址，例如 https://your-project.supabase.co'
+  cfgKeyErr.value = anonKey.startsWith('sb_publishable_') ? '' : '请填写 Supabase publishable key（以 sb_publishable_ 开头）'
+  if (cfgUrlErr.value || cfgKeyErr.value) {
+    cloudState.value = 'error'
+    cloudError.value = '云端配置字段有误，请按提示修正'
+    return
+  }
+  try {
+    const s = await import('@/shared/cloud/sync')
+    await s.setCloudEnv({ url, anonKey })
+    env.value = { url, anonKey }
+    cfgOpen.value = false
+    cfgSaved.value = true
+    setTimeout(() => cfgSaved.value = false, 2000)
+    setCloudOk()
+    showToast('云端配置已保存')
+  } catch (e) {
+    setCloudError('保存云端配置失败', e)
+  }
 }
 
 async function doLogin() {
-  if (!env.value) { showToast('云端未配置'); return }
+  if (!env.value) {
+    cloudState.value = 'error'
+    cloudError.value = '云端未配置，请先填写项目地址与 publishable key'
+    showToast(cloudError.value)
+    return
+  }
   if (!email.value.trim() || !password.value) { showToast('请输入邮箱与密码'); return }
   busy.value = true
   try {
@@ -62,8 +106,9 @@ async function doLogin() {
     meta.value = await s.login(email.value, password.value)
     password.value = ''
     showToast('云端登录成功')
+    setCloudOk()
     await refreshCaptures()
-  } catch (e) { showToast('登录失败：' + (e instanceof Error ? e.message : String(e))) }
+  } catch (e) { setCloudError('登录失败', e) }
   finally { busy.value = false }
 }
 
@@ -73,18 +118,33 @@ async function doLogout() {
   await s.logout()
   meta.value = null
   captures.value = []
+  cloudState.value = 'idle'
+  cloudError.value = ''
+  checkResult.value = ''
+  conflictOpen.value = false
+  pendingUploadResolve?.(false)
+  pendingUploadResolve = null
   showToast('已退出云端账号')
 }
 
 async function doCheck() {
-  const s = await import('@/shared/cloud/sync')
-  const r = await s.checkRemote()
-  const m = { idle: '未登录或云端不可达', none: '云端暂无可下载版本', same: '与云端版本一致', remote_new: '云端有更新版本' } as Record<string, string>
-  checkResult.value = m[r.kind] + (r.remoteUpdatedAt ? `（云端修订 ${r.remoteRevision} · ${new Date(r.remoteUpdatedAt).toLocaleString('zh-CN')}）` : '')
+  busy.value = true
+  try {
+    const s = await import('@/shared/cloud/sync')
+    const r = await s.checkRemote()
+    const m = { idle: '未登录或云端未配置', none: '云端暂无可恢复版本', same: '与云端版本一致', remote_new: '云端有更新版本', remote_diff: '与云端版本不同' } as Record<string, string>
+    checkResult.value = m[r.kind] + (r.remoteUpdatedAt ? `（云端修订 ${r.remoteRevision} · ${new Date(r.remoteUpdatedAt).toLocaleString('zh-CN')}）` : '')
+    setCloudOk(true)
+  } catch (e) {
+    checkResult.value = ''
+    setCloudError('检查云端版本失败', e)
+  } finally {
+    busy.value = false
+  }
 }
 
 async function snapshotNow() {
-  await persistNow()
+  await saveDataNow()
   await flushEventQueue()
   const [data, ui, eventLog] = [store.data!, await loadUIPrefs(), await readEventLog()]
   return { data, ui, eventLog }
@@ -102,8 +162,9 @@ async function doUpload() {
       pendingUploadResolve = resolve
     }))
     meta.value = await s.getCloudMeta()
+    setCloudOk()
     showToast(`已上传到云端（修订 ${r.revision}）`)
-  } catch (e) { showToast(String(e instanceof Error ? e.message : e)) }
+  } catch (e) { setCloudError('上传失败', e) }
   finally { busy.value = false; conflictOpen.value = false; pendingUploadResolve = null }
 }
 
@@ -138,8 +199,9 @@ async function doDownload() {
     await store.refreshAfterCloudRestore(store.data!, store.ui)
     await s.markDownloaded(r.revision)
     meta.value = await s.getCloudMeta()
+    setCloudOk()
     showToast(`已恢复到本机（云端修订 ${r.revision}）`)
-  } catch (e) { showToast('下载失败：' + (e instanceof Error ? e.message : String(e))) }
+  } catch (e) { setCloudError('恢复失败', e) }
   finally { busy.value = false }
 }
 
@@ -149,7 +211,9 @@ async function refreshCaptures() {
   try {
     const s = await import('@/shared/cloud/sync')
     captures.value = await s.listCaptures()
-  } catch { /* noop */ } finally { capturesBusy.value = false }
+  } catch (e) {
+    setCloudError('读取移动端采集失败', e)
+  } finally { capturesBusy.value = false }
 }
 
 async function importOne(id: string) {
@@ -174,29 +238,54 @@ async function importAll() {
   <div class="gs-card">
     <div class="gs-card-header">
       <span class="gs-card-title">云端账号</span>
-      <span class="gs-status-badge" :class="{ connected: loggedIn, idle: !loggedIn }"><span class="gs-status-dot"></span>{{ loggedIn ? '已登录' : '未登录' }}</span>
+      <span class="gs-status-badge" :class="cloudState"><span class="gs-status-dot"></span>{{ statusText }}</span>
       <span class="gs-card-desc">仅限邀请账号；附件本体与 AI 凭据不进云端</span>
     </div>
     <div class="gs-card-body">
-      <div v-if="!env" class="gs-setting-row">
-        <span class="gs-sr-label">Supabase 地址</span>
-        <div class="gs-sr-control gs-sr-control-wrap">
-          <input class="gs-input gs-input--ident" v-model="cfgUrl" placeholder="https://你的项目.supabase.co" />
-          <span class="gs-sr-hint">A/B 两台设备填同一份地址与 key 才能互相同步</span>
+      <div class="gs-setting-row">
+        <span class="gs-sr-label">连接配置</span>
+        <div class="gs-sr-control gs-sr-control--inline">
+          <span class="gs-sr-note">{{ env ? '已配置云端项目' : '尚未配置云端项目' }}</span>
+          <button class="gs-btn" type="button" @click="cfgOpen = !cfgOpen">{{ cfgOpen ? '收起配置' : '查看/修改云端配置' }}</button>
         </div>
       </div>
-      <div v-if="!env" class="gs-setting-row">
-        <span class="gs-sr-label">Publishable key</span>
-        <div class="gs-sr-control gs-sr-control-wrap">
-          <input class="gs-input gs-input--ident" v-model="cfgKey" placeholder="sb_publishable_…" />
-          <span class="gs-sr-hint">publishable key 可公开，secret/service_role 严禁填入</span>
+      <template v-if="cfgOpen">
+        <div class="gs-setting-row">
+          <span class="gs-sr-label">Supabase 地址</span>
+          <div class="gs-sr-control gs-sr-control-wrap">
+            <input
+              class="gs-input gs-input--ident"
+              :class="{ 'is-invalid': cfgUrlErr }"
+              v-model="cfgUrl"
+              :aria-invalid="!!cfgUrlErr"
+              placeholder="https://your-project.supabase.co"
+              @input="cfgUrlErr = ''"
+            />
+            <span class="gs-sr-hint">A/B 两台设备填同一份地址与 key 才能互相同步</span>
+            <span v-if="cfgUrlErr" class="gs-field-err">{{ cfgUrlErr }}</span>
+          </div>
         </div>
-      </div>
-      <div v-if="!env" class="gs-setting-row">
-        <span class="gs-sr-label"></span>
-        <div class="gs-sr-control"><button class="gs-btn gs-btn-primary" @click="saveConfig">{{ cfgSaved ? '已保存' : '保存云端配置' }}</button></div>
-      </div>
-      <template v-else-if="!loggedIn">
+        <div class="gs-setting-row">
+          <span class="gs-sr-label">Publishable key</span>
+          <div class="gs-sr-control gs-sr-control-wrap">
+            <input
+              class="gs-input gs-input--ident"
+              :class="{ 'is-invalid': cfgKeyErr }"
+              v-model="cfgKey"
+              :aria-invalid="!!cfgKeyErr"
+              placeholder="sb_publishable_..."
+              @input="cfgKeyErr = ''"
+            />
+            <span class="gs-sr-hint">publishable key 可公开，secret/service_role 严禁填入</span>
+            <span v-if="cfgKeyErr" class="gs-field-err">{{ cfgKeyErr }}</span>
+          </div>
+        </div>
+        <div class="gs-setting-row">
+          <span class="gs-sr-label"></span>
+          <div class="gs-sr-control"><button class="gs-btn gs-btn-primary" @click="saveConfig">{{ cfgSaved ? '已保存' : '保存云端配置' }}</button></div>
+        </div>
+      </template>
+      <template v-if="env && !loggedIn">
         <div class="gs-setting-row"><span class="gs-sr-label">邮箱</span><div class="gs-sr-control"><input class="gs-input" v-model="email" type="email" autocomplete="username" placeholder="你被邀请的邮箱" /></div></div>
         <div class="gs-setting-row"><span class="gs-sr-label">密码</span><div class="gs-sr-control"><input class="gs-input" v-model="password" type="password" autocomplete="current-password" placeholder="账号密码" @keydown.enter="doLogin" /></div></div>
         <div class="gs-setting-row"><span class="gs-sr-label"></span><div class="gs-sr-control gs-sr-control--inline">
@@ -204,17 +293,18 @@ async function importAll() {
           <span class="gs-sr-hint">账号为邀请制，无公开注册</span>
         </div></div>
       </template>
-      <template v-else>
+      <template v-if="loggedIn">
         <div class="gs-setting-row"><span class="gs-sr-label">当前账号</span><div class="gs-sr-control gs-sr-note">{{ meta?.email }} · 修订 {{ meta?.revision || 0 }}{{ meta?.lastUploadAt ? ' · 最近上传 ' + new Date(meta.lastUploadAt).toLocaleString('zh-CN') : '' }}</div></div>
         <div class="gs-setting-row"><span class="gs-sr-label">启动检查</span><div class="gs-sr-control"><label class="gs-switch"><input type="checkbox" :checked="meta?.checkOnStart !== false" @change="async (e) => { const s = await import('@/shared/cloud/sync'); meta = await s.setCheckOnStart((e.target as HTMLInputElement).checked) }" /><span class="gs-switch-slider"></span></label></div></div>
         <div class="gs-setting-row"><span class="gs-sr-label"></span><div class="gs-sr-control gs-sr-control--inline">
-          <button class="gs-btn" @click="doCheck">检查云端版本</button>
+          <button class="gs-btn" :disabled="busy" @click="doCheck">检查云端版本</button>
           <button class="gs-btn gs-btn-primary" :disabled="busy" @click="doUpload">{{ busy ? '处理中…' : '手动上传到云端' }}</button>
           <button class="gs-btn" :disabled="busy" @click="doDownload">从云端恢复</button>
           <button class="gs-btn" @click="doLogout">退出登录</button>
         </div></div>
         <div v-if="checkResult" class="gs-setting-row"><span class="gs-sr-label">检查结果</span><div class="gs-sr-control gs-sr-note">{{ checkResult }}</div></div>
       </template>
+      <div v-if="cloudError" class="gs-setting-row"><span class="gs-sr-label">连接诊断</span><div class="gs-sr-control gs-sr-note gs-sr-note--danger">{{ cloudError }}</div></div>
     </div>
   </div>
 
@@ -251,8 +341,10 @@ async function importAll() {
 </div>
 </template>
 
+<style src="./base.css"></style>
+
 <style scoped>
-.cs-confirm-mask { position: fixed; inset: 0; background: rgb(0 0 0 / .45); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.cs-confirm-mask { position: fixed; inset: 0; background: rgb(0 0 0 / .45); display: flex; align-items: center; justify-content: center; z-index: var(--z-confirm); }
 .cs-confirm { width: 420px; max-width: calc(100vw - 48px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; box-shadow: var(--shadow-lg); }
 .cs-confirm-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .cs-confirm-body { font-size: 13px; color: var(--text-3); line-height: 1.6; margin-bottom: 16px; }

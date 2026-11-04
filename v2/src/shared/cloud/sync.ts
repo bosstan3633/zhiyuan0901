@@ -1,6 +1,6 @@
 /**
  * 知源 · 云同步协调层（v4.0.1）
- * 手动上传/下载 + 启动检查；冲突必须用户确认；远端附件/AI 凭据不进云。
+ * 手动上传/下载 + 启动检查；冲突必须用户确认；附件本体与 AI 凭据不进云。
  */
 import type { AppData, UIPrefs, AssetMeta } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -48,14 +48,22 @@ export async function setCloudEnv(env: CloudEnv | null): Promise<void> {
   return setCloudEnvOverride(env)
 }
 
-/** 脱敏：去附件元数据/AI、__wid、Airtable；本次只同步 UIPrefs 里安全子集（不落 AI/云元数据） */
+/** 脱敏：保留附件元数据供跨设备索引；去附件本体、AI 凭据、__wid、Airtable 与云元数据 */
 function sanitize(data: AppData, ui: UIPrefs | null, eventLog: CardEvent[]): SnapshotState {
   const d = JSON.parse(JSON.stringify(data)) as AppData & Record<string, unknown>
   delete d.airtableSync
   delete d.airtableMap
   delete (d as Record<string, unknown>).__wid
+  const safeAsset = (a: AssetMeta): AssetMeta => ({
+    id: a.id,
+    kind: a.kind,
+    name: a.name,
+    size: a.size,
+    mime: a.mime,
+    createdAt: a.createdAt,
+  })
   const stripAssets = (cards?: { assets?: AssetMeta[] }[]) => {
-    for (const c of cards || []) if (c && c.assets && c.assets.length) c.assets = c.assets.map(a => ({ ...a }))
+    for (const c of cards || []) if (c && c.assets && c.assets.length) c.assets = c.assets.map(safeAsset)
   }
   stripAssets(d.resources); stripAssets(d.tasks); stripAssets(d.curiosities)
   if (d.argCards) stripAssets(d.argCards as unknown as { assets?: AssetMeta[] }[])
@@ -96,16 +104,14 @@ export async function logout(): Promise<void> {
 export async function checkRemote(): Promise<CloudCheckResult> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) return { kind: 'idle', remoteRevision: 0 }
-  try {
-    const token = await accessToken(env, meta)
-    const rows = await cloud.getSnapshot(env, token, meta.userId)
-    await writeMeta({ lastCheckedAt: Date.now() })
-    if (!rows.length) return { kind: 'none', remoteRevision: 0 }
-    const rem = rows[0]
-    const localRev = meta.revision || 0
-    const kind: CloudCheckResult['kind'] = rem.revision === localRev ? 'same' : 'remote_new'
-    return { kind, remoteRevision: rem.revision, remoteUpdatedAt: rem.updated_at }
-  } catch { return { kind: 'idle', remoteRevision: 0 } }
+  const token = await accessToken(env, meta)
+  const rows = await cloud.getSnapshot(env, token, meta.userId)
+  await writeMeta({ lastCheckedAt: Date.now() })
+  if (!rows.length) return { kind: 'none', remoteRevision: 0 }
+  const rem = rows[0]
+  const localRev = meta.revision || 0
+  const kind: CloudCheckResult['kind'] = rem.revision === localRev ? 'same' : 'remote_new'
+  return { kind, remoteRevision: rem.revision, remoteUpdatedAt: rem.updated_at }
 }
 
 export async function uploadNow(snap: SnapshotState, onConflict: (r: number) => Promise<boolean>): Promise<{ revision: number }> {
@@ -143,7 +149,9 @@ export async function downloadNow(): Promise<{ state: SnapshotState; revision: n
   if (!rows.length) throw new Error('云端暂无快照')
   const st = (rows[0].state as SnapshotState) || null
   if (!st || !st.data || st.data.version !== 2) throw new Error('云端快照格式不兼容')
-  return { state: { data: st.data, ui: st.ui || null, eventLog: st.eventLog || [] }, revision: rows[0].revision }
+  // 旧云快照可能仍带 Airtable 凭据/映射或本机写锁；恢复到本机前走与上传同一条脱敏边界。
+  const safe = sanitize(st.data, st.ui || null, st.eventLog || [])
+  return { state: safe, revision: rows[0].revision }
 }
 
 export async function markDownloaded(revision: number): Promise<void> {

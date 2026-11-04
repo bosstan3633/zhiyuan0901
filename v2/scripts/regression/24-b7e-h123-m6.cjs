@@ -269,7 +269,7 @@ check(NAME(
     ['App.vue 顶栏', APPC, /\.brand-chip \{ min-height: 28px;/, '顶栏 chip'],
     ['CompassHome 存储状态', CHC, /\.foot-status \{[^}]*min-height: 28px/, 'foot-status'],
     ['CompassHome 战报钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
-    ['CompassHome 页脚齿轮', CHC, /\.foot-gear \{[^}]*width: 28px;[\s\S]*?height: 28px/, 'foot-gear'],
+    ['CompassHome 云同步状态', CHC, /\.foot-sync \{[^}]*min-height: 28px/, 'foot-sync'],
     ['CompassHome 右栏文字钮', CHC, /\.rail-head button \{[^}]*min-height: 28px/, 'rail-head button'],
     ['CompassHome 推荐依据钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
   ]

@@ -95,7 +95,24 @@ check('R121-12 树内能力保留：编辑 + 节点操作 hover + 指标折叠 +
     && /function collapseAllNodes/.test(CT_W11);
 });
 
-check('R122-1（V3.9.30 重指）页头摘要：自写描述内联 + 分类 / 论据卡 / 附件读数 + 更新流水入口；提示条/教学气泡退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('v-if="wsHeadDescOwn"') && w.includes('<b>{{ categories.length }}</b> 个分类') && w.includes('论据卡 <b>{{ metrics.total }}</b>') && w.includes('附件 <b>{{ metrics.attachmentCount }}</b>') && w.includes('class="wsh-upd"') && !w.includes('wsh-tip') && !w.includes('wsh-help') && !w.includes('资源卡唯一存储'); });
+check('R122-1（V4.0.3 重指）页头摘要分层：身份行保留自写描述 / 分类 / 更新流水，论据卡与佐证附件读数归中心论点卡；提示条/教学气泡退役', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  const summaryStart = w.indexOf('class="wsh-summary"');
+  const summary = summaryStart >= 0 ? w.slice(summaryStart, w.indexOf('</div>', summaryStart)) : '';
+  const bannerStart = w.indexOf('class="thesis-banner"');
+  const banner = bannerStart >= 0 ? w.slice(bannerStart, w.indexOf('<!-- ③ 行动条', bannerStart)) : '';
+  return w.includes('v-if="wsHeadDescOwn"')
+    && summary.includes('<b>{{ categories.length }}</b> 个分类')
+    && !summary.includes('论据卡')
+    && !summary.includes('佐证附件')
+    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
+    && banner.includes('{{ metrics.total }}')
+    && banner.includes('{{ metrics.attachmentCount }}')
+    && w.includes('class="wsh-upd"')
+    && !w.includes('wsh-tip')
+    && !w.includes('wsh-help')
+    && !w.includes('资源卡唯一存储');
+});
 // V3.7.0（R179）退役：hub 横排指标盒（ws-metrics hub3 flat）随资源台退役——指标条单形态（cur3 三格）由 R75-5 承接。
 check('R122-2 指标条横排盒（V3.7.0 退役）：hub3 flat 形态零残留', () => { const w = read('/newtab/views/Workspace.vue'); return !w.includes('ws-metrics hub3') && !w.includes('hub3'); });
 check('R122-3（V3.9.29 重指）工具条提权：策展画布保留单一导入菜单与分享成果；建支只走节点 Tab / Enter，旧「＋ 新建分支」「＋ 新建论证卡」与画布批量栏均已退役，不得回流', () => {
@@ -165,13 +182,14 @@ check('R122-8（V3.9.8 随迁）资源池动作收敛：列表与网格均以 Ca
     && !w.includes('rc-action mount');
 });
 // V3.7.0（R179）随迁重写：hub 门控随资源台退役——论点横幅无门控常驻（全台唯一一处），空态/有论点两态保留。
-check('R122-9（V3.9.8 随迁备案）论点横幅：无 isHub 门控、全页唯一一处；同一横幅承载已设/未设两态，整卡可点且支持键盘打开论点详情或创建', () => {
+check('R122-9（V4.0.3 重指）论点横幅：无 isHub 门控、全页唯一一处；有论点走原生详情按钮，空态走原生创建按钮，不再用整卡伪造按钮语义', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
-  return w.includes('class="thesis-banner" :class="{ empty: !thesisCard }" role="button" tabindex="0"')
+  return w.includes('<div class="thesis-banner" :class="{ empty: !thesisCard }">')
+    && !w.includes('class="thesis-banner" :class="{ empty: !thesisCard }" role="button"')
     && w.includes('点击确立本策展台的 <b>L1 中心论点</b>')
-    && w.includes('class="tb-title"') && w.includes('class="tb-open"')
-    && w.includes('@click="thesisCard ? openThesisCard() : openThesisCreate()"')
-    && w.includes('@keydown.enter.prevent="thesisCard ? openThesisCard() : openThesisCreate()"')
+    && w.includes('class="tb-title"')
+    && w.includes('<button class="thesis-empty-inner" type="button" @click="openThesisCreate">')
+    && w.includes('<button class="tb-detail" type="button" @click="openThesisCard">')
     && (w.match(/<div class="thesis-banner"/g) || []).length === 1
     && !w.includes('!isHub');
 });
@@ -182,7 +200,7 @@ console.log('【R123 · V2.91.0：设计系统对齐 + 资源台卡片精修 + �
 check('R123-1 字体栈按原型完全采纳（系统字体优先 + Hiragino）+ 全局 tnum', () => { const t = read('/shared/styles/tokens.css'); return t.includes('-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC",') && t.includes('"Hiragino Sans GB"') && t.includes('font-feature-settings: "tnum";') && !t.includes('letter-spacing: -0.011em'); });
 check('R123-2（R155 令牌化备案；R171 重指：tab active 文字随 --accent-ink 令牌，淡底深字对比度 ≥4.5）顶栏 48px + tab active 填充块（accent-light + accent-ink 600，下划线退役）', () => { const a = read('/newtab/App.vue'); return a.includes('.topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px;') && a.includes('.tab.active { color: var(--accent-ink); background: var(--accent-light); font-weight: 600; }') && !a.includes('.tab.active::after'); });
 check('R123-3（R125 重指 · ★R3-B1 随宿主改靶）容器 1440 + 36px：ws-page / align-page(0 36px) / 四页页边距（方向台侧由 CompassShell 换成方向树 .compass-layout）★R175 重指带备案：调度台 .page 随原型改 18px 顶距/72px 收尾', () => { const c = read('/newtab/views/workspace.css'); const app = read('/newtab/App.vue'); const h = read('/newtab/views/CompassHome.vue'); const ct = CT_ALL; const pc = read('/newtab/views/ProjectCuration.vue'); return c.includes('.ws-page { min-height: 100vh; background: var(--bg); max-width: 1440px; margin: 0 auto; }') && app.includes('.topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }') && h.includes('padding: 18px 36px 72px') && ct.includes('max-width: 1440px') && ct.includes('padding: 20px 36px 64px') && pc.includes('padding: 20px 36px 64px'); });
-check('R123-4（V3.9.30 重指）指标与操作单行工具条 + 布局切换段控件 active 强调：普通视图归页头 .cur-layout，全屏补位仍由画布 .mindmap-layout 承担', () => { const c = read('/newtab/views/workspace.css'); const cc = read('/newtab/components/curation/curation.css'); return c.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 9px; margin-top: 10px;') && c.includes('.cur-metrics {') && c.includes('.cur-layout button.on') && cc.includes('.mindmap-layout button') && cc.includes('.mindmap-layout button.on'); });
+check('R123-4（V4.0.3 重指）页面行动条与画布工具条职责分离：页面保留导入/检索/分享，布局段控件固定在画布 .mindmap-layout 并保留 active 强调', () => { const w = read('/newtab/views/Workspace.vue'); const c = read('/newtab/views/workspace.css'); const cc = read('/newtab/components/curation/curation.css'); return c.includes('.ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 9px; margin-top: 10px;') && c.includes('.cur-metrics {') && !w.includes('class="cur-layout"') && cc.includes('.mindmap-layout button') && cc.includes('.mindmap-layout button.on'); });
 check('R123-5（V3.9.8 随迁）资源池卡片尺寸：12×14 内边距 / 富卡 min 94px / 网格 12px / hover 上浮；画布节点自有边界与 hover 反馈', () => { const cc = read('/newtab/components/curation/curation.css'); const pool = read('/newtab/components/compass/PoolCardsPanel.vue'); return pool.includes('.pcp-grid { display: grid;') && pool.includes('gap: 12px; }') && pool.includes('padding: 12px 14px;') && pool.includes('min-height: 94px;') && pool.includes('transform: translateY(-1px); box-shadow: var(--shadow-sm);') && cc.includes('.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }'); });
 check('R123-6（V3.9.8 随迁）资源池卡面动作：列表/网格均给 AI、置顶、镜像、删除；镜像态有常驻徽标，入口统一打开共享 ResourceMirrorModal；旧 Workspace 移动/断链/更多动作与镜像虚线卡零残留', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
@@ -198,7 +216,7 @@ check('R123-6（V3.9.8 随迁）资源池卡面动作：列表/网格均给 AI�
     && !w.includes("'mirror-card': isMirrorView(r)");
 });
 check('R123-7（V3.9.8 随迁）旧侧栏卡片盒退役：页面不再渲染 210px 分类侧栏，兼容偏好仍保留；画布占满宿主宽度', () => { const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')); const u = read('/newtab/composables/useCatSidebar.ts'); const cc = read('/newtab/components/curation/curation.css'); return !host.includes('class="ws-sidebar"') && u.includes('const SIDE_W_DEF = 210') && cc.includes('.mindmap-shell {') && cc.includes('width: 100%;'); });
-check('R123-8（V3.9.10 重指）策展台：论点大横幅（tb-badge/tb-open）+ 工具条内两格读数 + 论证深度计算退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="tb-badge"') && w.includes('class="tb-open"') && w.includes('class="cur-metrics" data-curation-metrics="2"') && !w.includes('const pyramidDepth = computed('); });
+check('R123-8（V4.0.3 重指）策展台：论点卡（tb-badge/tb-detail）+ 卡内两格读数 + 论证深度计算退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="tb-badge"') && w.includes('class="tb-detail"') && w.includes('class="cur-metrics" data-curation-metrics="2"') && !w.includes('const pyramidDepth = computed('); });
 check('R123-9（V3.9.8 随迁）资源池分组白盒 + 镜像徽标：列表分组用 pcp-group-sec / pcp-group-h，镜像态用 pcp-mirror-badge；旧 group-box / rc-type-chip 宿主零残留', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue');

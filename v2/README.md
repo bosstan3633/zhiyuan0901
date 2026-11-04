@@ -1,6 +1,6 @@
 ﻿---
 created: 2026-08-28 21:52:09
-updated: 2026-10-28 15:30:00
+updated: 2026-11-04
 ---
 # 知源调度台（Ownway）
 
@@ -8,13 +8,13 @@ updated: 2026-10-28 15:30:00
 >
 > AI 让"产出"变得前所未有的廉价，于是个人认知的真正瓶颈不再是"能不能创造"，而是"能不能把散落各处的产出，在正确的时刻重新调度回来"。
 
-知源调度台是一套以人的认知主权为边界、以好奇心为探索起点、以源头资源为事实底盘、以六层思维链贯通方向与行动、并通过「项目」承接战略与日常的**个人增强系统**。它是一个 Chrome 浏览器扩展（MV3），接管新标签页，100% 本地运行。
+知源调度台是一套以人的认知主权为边界、以好奇心为探索起点、以源头资源为事实底盘、以六层思维链贯通方向与行动、并通过「项目」承接战略与日常的**个人增强系统**。它是一个 Chrome 浏览器扩展（MV3），接管新标签页；默认本地优先运行，可选择登录邀请制 Supabase 云同步做跨设备手动备份与采集。
 
 **对外面向受众**：AI 重度使用的"独立深度研究者 / 咨询顾问"（也覆盖创作者、终身学习者）。**不面向**：已有完整 Notion/Obsidian 工作流且满意的人、换电脑无所谓反正有云同步的人。
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-- **产品版本**：V3.9.34（策展台隐藏与画布交互）——策展台可右键隐藏、汇聚顶栏「隐藏台」下拉一键恢复；中心论点卡支持关联资源（突出显示、可解除）；L2 起节点同级排序箭头与 Enter（改题）/ Ctrl+Enter（同级）键盘语义调整。上一版 V3.9.33（策展模式反馈三连）详见根 `README.md` 与更新日志。
+- **产品版本**：V4.0.3（策展台页头与方向树全景）——论据卡 / 佐证附件读数收进中心论点卡，金字塔 / 树状切换回到画布高频工具条；修复同级排序箭头；方向树宽内容画布内横滚，详情抽屉展示下属项目、指标、任务与未归档任务；无资源节点不再显示「缺证据」。上一版 V4.0.2 的云端配置入口与 V4.0.1 的云同步 / 移动端采集能力继续保留。
 
 > **品牌隔离提醒**：本产品的目标用户是知识工作者，与作者个人的"高考志愿规划师"IP 是两个独立受众体系——前者用本账号运营，后者用独立账号/笔名，否则互相污染定位。
 
@@ -53,11 +53,11 @@ updated: 2026-10-28 15:30:00
 
 | # | 规则 | 说明 |
 |---|------|------|
-| 1 | 版本号唯一来源 = `src/manifest.ts` | 改版本必须同步 `package.json`、设置页关于（动态）、手册页、`regression.cjs` 版本锚、本文件版本行共 **6 处**（R96 起本文件纳入门禁） |
+| 1 | 版本号唯一来源 = `src/manifest.ts` | 改版本必须同步 `package.json`、`package-lock.json`（2 行）、设置页关于（动态读取）、手册页、`regression/helpers.cjs` 版本锚、根 README、本文件版本行，共 **7 处**（R96 起本文件纳入门禁） |
 | 2 | 卡间零挂载红线 | 三卡（Resource/Task/Curiosity）**互不持有对方 id**（R162 退任务↔资源、R165 退任务↔好奇与好奇↔资源、R166 退溯源引用 fromCuriosityId）；明文豁免独立记录表的 `CurationProjection`（策展镜像）与 `SupportLink`（任务→资源支持记录）；六层归属（projectId/metricId）不受限 |
 | 3 | 删除一律软删 | 任何删除只写 `deletedAt`，可进回收站恢复；`stats.lastVisits` 只经 `recordResourceOpen` 更新 |
 | 4 | 排序 computed 禁止 `.sort()` | 支持拖拽排序的列表，其渲染 computed 不得原地 sort，否则拖拽错乱 |
-| 5 | 样式只用 tokens.css 令牌 | 禁止硬编码色值；新增 UI 须在六主题下逐一走查 |
+| 5 | 样式只用 tokens.css 令牌 | 禁止硬编码色值；新增 UI 须在四主题下逐一走查 |
 | 6 | 定位不走 tabs.query 的 hash | chrome.tabs.query 返回不含 hash，页面内定位走 zy-where 询问链路 |
 | 7 | 新增功能同步追加回归 | 每轮新功能必须在 `scripts/regression.cjs` 追加断言项，交付前全绿 |
 | 8 | 构建前清空 dist | vite 配置 `emptyOutDir:false`，不清理会累积多轮构建残留 |
@@ -99,7 +99,7 @@ updated: 2026-10-28 15:30:00
 
 - 视觉基准为 **Linear 结构语言**（近黑画布、发丝线、克制装饰、键盘优先），规范见 `../docs/设计规范_Linear.md`
 - 所有组件只用 tokens.css 语义令牌，禁止硬编码色值
-- 六套主题下均需保证文本可读、色彩搭配合理（新界面逐一走查）
+- 四套主题下均需保证文本可读、色彩搭配合理（新界面逐一走查）
 - **交互三戒**：原生 prompt/confirm 全面禁用；路由切换零动画；删除可撤销
 
 ---
@@ -115,7 +115,7 @@ updated: 2026-10-28 15:30:00
 | 构建 | Vite 5 + @crxjs/vite-plugin | HMR + MV3 打包 |
 | 状态管理 | Pinia | `useAppStore` 单一数据仓 + `useCompass`/`useCuriosity` |
 | 路由 | Vue Router (hash mode) | 新标签页内路由 |
-| 样式 | 原生 CSS Variables（tokens.css）+ scoped CSS | 六主题语义令牌；`data-density` 三档密度 |
+| 样式 | 原生 CSS Variables（tokens.css）+ scoped CSS | 四主题语义令牌 + 自动跟随系统；`data-density` 三档密度 |
 | 存储 | chrome.storage.local 单根 JSON（主数据）+ IndexedDB `zy_assets`（附件二进制，单文件 ≤20MB） | 300ms 防抖合并写；主 JSON 绝不存 base64 |
 | 搜索 | pinyin-pro | 全拼/首字母命中中文标题 |
 | 扩展规范 | Manifest V3 | Service Worker + Content Script（纯 Vanilla JS，不引入 Vue 运行时） |
@@ -136,7 +136,7 @@ updated: 2026-10-28 15:30:00
 │  设置）    │              │                       │
 ├───────────┴──────────────┴───────────────────────┤
 │        chrome.storage.local（zy_data / zy_ui 等） │
-│              100% 本地，无云端、无账号              │
+│       本地优先 · 云端仅由用户主动上传快照           │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -161,11 +161,11 @@ v2/
 │   ├── shared/
 │   │   ├── models/index.ts            # 全部 TS 类型（唯一数据规范来源）
 │   │   ├── storage/                   # repository（防抖持久化）/ defaults / migration / assets
-│   │   │                              # stats（recordResourceOpen 统一入口）/ hub / airtable（单向同步）
+│   │   │                              # stats（recordResourceOpen 统一入口）/ hub / cloud（邀请制 Supabase 手动同步）
 │   │   ├── utils/                     # uid/dateKey/normalizeUrl/fields/pinyin/link/marksort
 │   │   │                              # assetKind（附件三档）/cardCols（列数）/wsView（台视图）/bus（zy-open-drawer）
 │   │   ├── components/                # Toast/Drawer/ConfirmDialog/ContextMenu/TagPicker/AssetBadge/ColsPicker…
-│   │   └── styles/tokens.css          # 六主题语义令牌 + 三档密度 + 全局排版
+│   │   └── styles/tokens.css          # 四主题语义令牌 + 三档密度 + 全局排版
 │   └── newtab/
 │       ├── main.ts                    # 引导：并行加载→store.init→挂载→固定回调度台（应用 data-density）
 │       ├── router.ts                  # / 、/compass(projects|tree)、/workspace/:id、/curation(redirect)
@@ -233,7 +233,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,206 项�
 | 资源卡池（原资源台） | `/workspace/zy-curation`（`/curation` redirect 而来） | 资源卡**唯一真身居所与镜像源头**（隐藏实体 `zy-curation`，经 ⌘K / 底部 Tab / 采集浮层进入）：卡片/列表/看板三视图 + 排序/筛选/搜索（`#标签` 直筛）+ 批量管理 + 📥 导入资源（书签 HTML / 本地文件一文件一卡）+ 页头读数。分类控件已随 V3.7.0 池语义退役，归属由标签与策展投射表达 |
 | 策展台 ×N | `/workspace/:id` | 页头连续三层（台身份 + 中心论点主舞台 + 行动条，V3.9.28–30 按审核原型收口）+ 金字塔 / 树状画布（布局切换唯一入口在画布头）+ 节点双入口 + 镜像引用（只读三件套）+ 论证节点卡（第 4 种卡，随台存亡、不进三卡池）+ 分享成果 HTML（行动条行尾唯一 primary） |
 | 全部卡片 deck | `/deck/:kind(task｜curiosity｜resource)` | 任务卡 / 好奇心卡 / 资源卡三类卡池的全量管理页（任务侧即全域任务管理三视图）；深链 `hl/hk` 可定位单卡 |
-| 设置中心 | `/settings` | 数据管理（数据包导入导出 / 附件管理 / Airtable 单向同步三页签，V3.9.22 合并）、字段设计编辑器、标签管理（3 级树）、快捷键中心、密度、主题、手册入口、重置回滚；支持 `?page=<key>` 深链 |
+| 设置中心 | `/settings` | 数据管理（数据包导入导出 / 附件管理 / 邀请制 Supabase 云同步三页签）、字段设计编辑器、标签管理（3 级树）、快捷键中心、密度、主题、手册入口、重置回滚；支持 `?page=<key>` 深链 |
 | 回收站 | `/settings?page=recycle`（旧 `/recycle` 兼容重定向） | 资源/任务/好奇心三类卡软删集中管理：列表、恢复、永久删除（清附件）、分区清空；设置页右侧内嵌呈现，已无独立页面 |
 | 使用手册 | `/manual` | 五篇富文本独立页，可下载分享版 HTML |
 
@@ -246,7 +246,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,206 项�
 完整定义见 `src/shared/models/index.ts`（唯一数据规范来源）。
 
 - **存储键**：`zy_data_v2`（AppData 单根 JSON）/ `zy_ui_v2`（UI 偏好）/ `zy_capture_pref`（采集偏好）/ `zy_event_log`（事件日志）/ IndexedDB `zy_assets`（附件 Blob）；V1 旧数据 `lm_data_v5` 检测到自动迁移并备份
-- **AppData**：compass（vision/mission + directions→projects→metrics）/ workspaces（含资源台真身 hub，对外 getter 排除）/ categories（parentId ≤4 级树）/ resources / tasks / curiosities / **curationProjections**（策展台镜像记录）/ dailyFocus / tagTree（3 级）/ fieldConfig / stats / activityLogs / **airtableSync**（单向同步配置，导出/备份时剥离）
+- **AppData**：compass（vision/mission + directions→projects→metrics）/ workspaces（含资源台真身 hub，对外 getter 排除）/ categories（parentId ≤4 级树）/ resources / tasks / curiosities / **curationProjections**（策展台镜像记录）/ dailyFocus / tagTree（3 级）/ fieldConfig / stats / activityLogs；旧版残留的 `airtableSync` / `airtableMap` 只在载入时清理，不再作为现役配置
 - **UIPrefs**：主题、密度（compact/cozy）、sortPrefs（三视图排序）、**cardCols**（R72 列数偏好）、**wsViewMode**（R84 台视图记忆）、快捷键自定义、抽屉宽度/文本框高度记忆等，存 `zy_ui_v2`
 - **双标记体系**：`pinned`（置顶）+ `starred`（星标），排序统一走 `utils/marksort.ts`，权重 置顶 > 星标 > 命中度
 - **卡间零挂载红线**（R162→R165→R166 全量收口）：三卡互不持有对方 id——R162 退任务↔资源、R165 退任务↔好奇与好奇↔资源、R166 退卡→好奇溯源引用 `fromCuriosityId`（溯源由 `link=sourceUrl` 与描述文字承担）；明文豁免独立记录表的 `CurationProjection`（策展镜像）与 `SupportLink`（任务→资源支持记录）；愿景/使命 `linked*`、任务父子软层级与六层归属（projectId/metricId）不受限
@@ -278,19 +278,18 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,206 项�
 
 ## 八、主题系统
 
-六套主题经 `data-theme` 属性切换（tokens.css 全量语义令牌），默认 **深空薰衣草**（Linear 近黑画布）；另有 `data-density` 三档密度（紧凑/舒适/宽敞）：
+四套主题经 `data-theme` 属性切换（tokens.css 全量语义令牌），另可设「跟随系统」（`auto`）自动选用浅色或深色主题；默认 **深空薰衣草**（Linear 近黑画布）。`data-density` 提供三档密度（紧凑/舒适/宽敞）：
 
 | id | 名称 | 说明 |
 |---|---|---|
-| linear | 深空薰衣草 | 默认；近黑画布 #010102 + 表面阶梯 + 薰衣草蓝 #5E6AD2 |
-| green | 原野绿 | Linear 结构绿调变体 |
-| night | 暗夜红 | 深色高对比 |
-| apple | 极简白 | 浅色反相阶梯 |
-| raycast | 光速黑 | 深色 |
-| notion | 纸墨白 | 暖白纸面 |
+| auto | 跟随系统 | 按系统配色在 linear / apple 间自动切换 |
+| linear | 深空薰衣草 | 默认；中性近黑画布 + 表面阶梯 + 薰衣草蓝 #5E6AD2 |
+| raycast | 光速黑 | 高对比纯黑 + 冷蓝 #1E6FD9 |
+| apple | 极简白 | 冷灰白阶梯 + 冷紫 #8452E0 |
+| notion | 纸墨白 | 暖纸白阶梯 + 暖紫 #9E3FAF |
 
 - 新增 UI 必须只用令牌（`--bg/--surface*/--border/--text*/--accent*/--radius*/--shadow*` 等），禁止硬编码色值
-- 每个新界面必须在六主题下逐一走查（重点：深色下禁止白底白字、浅色块突兀）
+- 每个新界面必须在四主题下逐一走查（重点：深色下禁止白底白字、浅色块突兀）
 - 圆角体系 12/8/6；阴影弱化为「1px 边框 + 深投影」；Inter + 系统中文字体；tabular-nums 全局
 
 ---
@@ -299,11 +298,11 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,206 项�
 
 | 方向 | 方式 | 说明 |
 |------|------|------|
-| 导入 | 数据包 JSON | 并集合并（同 ID 更新，不同 ID 新增）；导入前自动备份（剥离 `airtableSync`） |
+| 导入 | 数据包 JSON | 并集合并（同 ID 更新，不同 ID 新增）；导入前自动备份并剥离旧同步字段 |
 | 导入 | 书签 HTML | 浏览器导出的书签文件（资源台「📥 导入资源」） |
 | 导入 | 本地文件 | **一文件一张附件卡**（图片/HTML/PDF 同规则，R80；附件进 IndexedDB，不支持类型跳过并汇总提示） |
-| 导出 | JSON 全量 / 指定工作台 JSON / Markdown / 按工作台 CSV | 全量导出并入 `uiPrefs` 界面偏好包（含 cardCols/wsViewMode）；**剥离 `airtableSync` 令牌**（R70，令牌不出包）；CSV 含 UTF-8 BOM |
-| 同步 | Airtable 单向推送 | 设置→Airtable 同步，用户自备 Token 手动触发；知源→用户自己的 Base，**绝不回写本地** |
+| 导出 | 知源调度台数据包 JSON | 唯一通用导出；包含主数据、界面偏好与最近 5,000 条事件日志，**不含附件本体、AI 凭据和旧同步字段** |
+| 同步 | Supabase 手动云同步 | 设置→云同步，仅限邀请账号；用户手动「上传到云端 / 从云端恢复」，默认不自动同步；云端冲突需确认，附件本体与 AI 凭据不上云 |
 | 迁移 | V1 → V2 | 检测到 `lm_data_v5` 自动迁移并备份为 `lm_data_v5_backup`；已迁移用户跳过检测 |
 | 重置 | 一键回滚 | 输入「回滚」确认后恢复初始状态 |
 
@@ -436,7 +435,7 @@ A: 系统级四键在 `chrome://extensions/shortcuts` 确认绑定；网页浮�
 A: 需在扩展详情页开启「允许访问文件网址」；本地文件卡片需补全完整路径。
 
 ### Q: 数据存在哪里？会上传吗？
-A: 所有数据 100% 存储在浏览器本地（chrome.storage.local），不会上传到任何服务器；代码内无任何 http 数据上传。
+A: 默认本地优先，主数据存于 `chrome.storage.local`，附件本体存于 IndexedDB。只有你在「设置 → 数据管理 → 云同步」主动点击上传时，业务快照才会写入 Supabase；附件本体和 AI 凭据不上云，默认也不会自动同步。
 
 ### Q: 如何备份数据？
 A: 设置 → 导出数据 → JSON 全量，建议定期备份；换机通过导出→导入并集完成。

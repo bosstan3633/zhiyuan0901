@@ -17,6 +17,8 @@ export const K = {
   EVENT_LOG: 'zy_event_log',
   /** 云同步元数据（登录态/版本/上次上传下载时间；不含主数据） */
   CLOUD_META: 'zy_cloud_meta_v1',
+  /** 设置页覆盖的 Supabase 项目地址与 publishable key */
+  CLOUD_ENV: 'zy_cloud_env',
   /** 好奇心探索累计起算时刻 */
   CURIO_SINCE: 'zy_curio_cum_since',
   /** 运行期错误日志 */
@@ -50,6 +52,14 @@ export const K = {
   PROJ_DIAG: 'zy_proj_diag_v1',
   /** R159 启动期清理的遗留键（V1 时代） */
   LEGACY: ['lm_data_v5', 'lm_data_v5_backup'] as readonly string[]
+} as const
+
+/** localStorage 专属键（移动端 PWA；不属于 chrome.storage 语义） */
+export const LOCAL_KEYS = {
+  /** 移动端待提交链接 */
+  MOBILE_PENDING: 'zy_mobile_pending',
+  /** 移动端登录会话 */
+  MOBILE_SESSION: 'zy_mobile_session'
 } as const
 
 /**

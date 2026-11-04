@@ -443,7 +443,7 @@ check('R32-3 REQ-004 资源详情抽屉所属工作台字段+迁移反馈（R165
 check('R32-4 REQ-005 分类随工作台联动重置（V3.7.0 重指）：分类控件整体下线——表单零 select/CatPicker/catOptions，标签独任组织', () => { const f = codeOnly(read('/newtab/components/ResourceEditForm.vue')); return !f.includes('catOptions') && !f.includes('CatPicker') && !f.includes('<select') && f.includes('<TagPicker') && f.includes('model.tags'); });
 check('R32-5 ★随迁备案：REQ-006 的更新时间读数仍在卡片详情；设置页 CSV 已退役（唯一通用导出=数据包）', () => {
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
-  return dm.includes('唯一通用导出') && dm.includes('不含附件本体与 Airtable 凭证')
+  return dm.includes('唯一通用导出') && dm.includes('不含附件本体与云端凭据')
     && !dm.includes('更新时间') && !dm.includes('导出 CSV') && !dm.includes('resCsvValue')
     && read('/newtab/components/ResourceEditForm.vue').includes('fmtTs')
     && !exists('/newtab/views/settings/SettingsExportPanel.vue');
@@ -571,14 +571,15 @@ check('R34-7（V3.9.9 随迁）分组折叠退役，画布用节点展开表达�
     && !host.includes('collapsedGroups');
 });
 /* V3.7.0（R179）退役 R34-8：卡面分类全路径徽标随 hub 分类退役（池语义，卡面组织=标签）；原断言锚 catIdx.pathOf(r.categoryId) 已改写并将于 R1-3 随分类树 UI 一并移除。 */
-check('R34-9（V3.9.8 随迁）旧分区标题与折叠箭头退役，节点层级、选中态、搜索命中、证据缺口四类状态各自可见', () => {
+check('R34-9（V4.0.3 重指）旧分区标题与折叠箭头退役，节点层级、选中态、搜索命中三类状态各自可见；「缺证据」字段与样式零残留', () => {
   const n = read('/newtab/components/curation/CurationMindNode.vue');
   const css = read('/newtab/components/curation/curation.css');
   return n.includes('class="mind-level"')
     && n.includes("selected: selectedId === node.id")
     && n.includes("'search-hit': isHit()")
-    && n.includes('class="evidence-gap"')
     && css.includes('.mind-node.selected') && css.includes('.mind-node.search-hit')
+    && !n.includes('evidence-gap') && !n.includes('缺证据')
+    && !css.includes('.evidence-gap')
     && !read('/newtab/views/Workspace.vue').includes('ws-cat-head');
 });
 
@@ -652,7 +653,7 @@ check('R35-11 REQ-033 底部冗余状态条彻底移除（ns-summary/summaryText
 check('R35-12 REQ-033 2×3 指标网格撑满对齐（grid-auto-rows:1fr + flex:1 + 卡片居中留白）', () => read('/newtab/components/compass/NorthStarPanel.vue').includes('grid-auto-rows: 1fr') && read('/newtab/components/compass/NorthStarPanel.vue').includes('justify-content: center'));
 
 console.log('【第卅五轮 · V2.14 需求包第六批：REQ-037 浏览器快捷键新增「打开全局设置」命令】');
-check('R35-13/R49-I1（R68 修订）manifest 命令：仅 description 不配 suggested_key；open-compass/open-resource 已退役，goto/采集系命令在位', () => { const m = read('/manifest.ts'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && m.includes("'open-settings'") && m.includes("'open-tasks'") && m.includes("'sync-airtable'") && m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes("description: '全局设置'"); });
+check('R35-13/R49-I1（R68 修订 · V4.0.3 随迁）manifest 命令：仅 description 不配 suggested_key；open-compass/open-resource 已退役，goto/采集系命令在位，Airtable 同步命令零回流', () => { const m = read('/manifest.ts'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && m.includes("'open-settings'") && m.includes("'open-tree'") && m.includes("'open-tasks'") && !m.includes("'sync-airtable'") && m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes("description: '全局设置'"); });
 check('R35-14 REQ-037 background 监听 open-settings（复用聚焦 + zy-route /settings；新建标签 #/settings 直达）', () => { const src = read('/background/index.ts'); return src.includes("case 'open-settings':") && src.includes("route: '/settings'") && src.includes("index.html#/settings"); });
 
 // ============== 第卅六轮 · V2.14.1 数据持久化加固 + 全局搜索交互统一（REQ-038~041） ==============

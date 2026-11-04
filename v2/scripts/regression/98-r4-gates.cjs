@@ -302,19 +302,24 @@ check('R4-Eq ★AI 侧文案必须说今天的落点：三张报告卡（每周�
     && pr.includes('【资源卡池目录（') && pr.includes('（资源卡池是空的——无卡可佐证）')
     && sc.includes('必须来自资源卡池（zy-curation）的卡') && sc.includes('"srcId":"资源卡池卡 id"');
 });
-check('R4-Eq ★界面指位类文案不许再指向已退役的台面：采集的重复收录确认改走 POOL_DISPLAY_NAME 常量（这一处在网页浮层里，用户每天看见）；镜像卡打包提示不再承诺一个不存在的落位（改成"在它的源卡上做"）；池实体的删除守卫与 Airtable 字段说明都改口「资源卡池」。四条旧串逐条钉住不许回流', () => {
+check('R4-Eq（V4.0.3 重指）★界面指位类文案不许再指向已退役的台面：采集的重复收录确认改走 POOL_DISPLAY_NAME 常量；镜像卡与池实体提示继续使用「资源卡池」；Airtable 字段说明链已随运行时整体退役且不得回流', () => {
   const ov = read('/content/overlay-impl.ts');
   const iDup = ov.indexOf('function showDupConfirm');
   const segDup = codeOnly(ov).slice(codeOnly(ov).indexOf('function showDupConfirm'));
   const link = codeOnly(read('/newtab/components/LinkCardsModal.vue'));
   const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
   const wm = codeOnly(read('/newtab/composables/useWsMeta.ts'));
-  const at = codeOnly(read('/shared/storage/airtable.ts'));
+  const atRuntime = srcFileEntries().filter(e => {
+    const c = codeOnly(e.text);
+    return e.rel === 'shared/storage/airtable.ts'
+      || c.includes('调度台/方向台/资源台/策展台名')
+      || c.includes('api.airtable.com');
+  });
   return iDup > 0 && segDup.includes('已经收过了（在「${POOL_DISPLAY_NAME}」里）') && !segDup.includes('已存在于资源台')
     && !link.includes('全部分类（资源卡池）') && link.includes('从资源卡池可镜像的卡') && !link.includes('从资源台可镜像的卡')
     && pool.includes('源卡仍留在资源卡池；目标台只是新增引用') && !pool.includes('打包请在资源台操作')
     && wm.includes('「资源卡池」是系统空间，不在此删除') && !wm.includes('资源台为系统空间')
-    && at.includes('调度台/方向台/资源卡池/策展台名') && !at.includes('调度台/方向台/资源台/策展台名');
+    && atRuntime.length === 0;
 });
 check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：V3.9.8 退役左树后，关联资源弹窗的「资源卡池」分类口径、镜像只读横幅的编辑去向、池卡投射说明都必须继续指向资源卡池；对应旧拼法各一条负锚', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
@@ -405,9 +410,12 @@ check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同�
   const atLineStart = (re) => re.test(t);
   const dir = path.resolve(SCRIPTS_DIR, '..', '..', 'docs', '视觉归档');
   const day = fs.readdirSync(dir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().pop();
-  const dd = path.join(dir, day);
-  const c = JSON.parse(fs.readFileSync(path.join(dd, 'class-census.json'), 'utf8'));
-  const pngs = fs.readdirSync(dd).filter(f => f.endsWith('.png')).length;
+  const dd = day ? path.join(dir, day) : null;
+  /* V4.0.3：日期目录里的 census 是历史快照，可能没有全量标记与源码新鲜度；
+     唯一权威件固定住 _census。这里只拿最新日期目录核对“图数与普查同批”，
+     不再为了让旧副本过关而回退读取日期目录。 */
+  const c = JSON.parse(fs.readFileSync(path.join(dir, '_census', 'class-census.json'), 'utf8'));
+  const pngs = dd ? fs.readdirSync(dd).filter(f => f.endsWith('.png')).length : 0;
   return atLineStart(/^\s*fs\.writeFileSync\(path\.join\(outDir, 'class-census\.json'\)/m)
     && atLineStart(/^\s*const censusOf = /m)
     /* ★R4-Fe 随迁备案：两个包装行各多挂了一次 stateOf（截图时同时记 DOM 态），锚跟着盘上真实语句走。
@@ -415,7 +423,8 @@ check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同�
        锚取的是整行形态，所以加东西必然红——这是设计（要人来确认加的正是这件事），不是锚写坏了。 */
     && atLineStart(/^\s*page\.screenshot = async \(opt\) => \{ const r = await orig\(opt\); await censusOf\(page\); await stateOf\(page, opt && opt\.path\); return r \}/m)
     && atLineStart(/^\s*ovPage\.screenshot = async \(opt\) => \{ const r = await os\(opt\); await censusOf\(ovPage\); await stateOf\(ovPage, opt && opt\.path\); return r \}/m)
-    && c.场景数 === pngs && pngs > 90 && Object.keys(c.计数).length === c.token数 && c.token数 > 700
+    && c.全量 === true && c.src最新 > 0 && c.场景数 > 90 && c.场景数 === pngs
+    && Object.keys(c.计数).length === c.token数 && c.token数 > 700
     && !!c.计数['thesis-banner'] && !c.计数['ts-note'] && !c.计数['goal-node'] && !c.计数['metric-item'] && !c.计数['gs-mc-section'];
 });
 const ET_RETIRE = {

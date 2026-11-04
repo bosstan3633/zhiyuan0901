@@ -142,6 +142,7 @@ const COMPONENT_AGGREGATES = {
   '/newtab/components/AiSuggestionDrawer.vue': ['/newtab/components/AiSuggestionDrawer.css'],
   '/newtab/changelog-data.ts': [
     '/newtab/changelog-data/types.ts',
+    '/newtab/changelog-data/entries-v4.ts',
     '/newtab/changelog-data/entries-v3.ts',
     '/newtab/changelog-data/entries-v2.ts',
   ],
@@ -345,7 +346,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '3.9.34'";
+const VER_ANCHOR_LITERAL = "version: '4.0.3'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -393,9 +394,10 @@ const POOL_ROW_ACTIONS = segOf(POOL_PANEL, '<span class="pcp-r-acts">', '</span>
 const POOL_GRID_ACTIONS = segOf(POOL_PANEL, '<template v-else>\n            <CardAiEntry :card="r" />', '</template>');
 const POOL_CONTROLS = segOf(POOL_PANEL, '<DeckControls panel="pool"', '</DeckControls>');
 const CURATION_TOOLBAR = segOf(read('/newtab/views/Workspace.vue'), '<div class="ws-toolbar cur-toolbar"', '<CurationMindMap');
-/* V3.9.30：普通视图布局切换归页头行动条；画布内只保留全屏专用切换。 */
-const MIND_ACTIONS = segOf(CURATION_MAP, '<div v-if="fullscreen" class="mindmap-layout"', '<div class="mindmap-status">');
-const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div class="mind-node-foot">', '</div>');
+/* V4.0.3：布局切换迁回画布工具条这一高频操作位；节点动作组增加空态/选中态样式。 */
+const MIND_ACTIONS = segOf(CURATION_MAP, '<div class="mindmap-layout" role="group"', '<div class="mindmap-selection"');
+// ★V4.0.3 随迁备案：节点底栏改为仅在挂资源时渲染，切片起点随之改指现役 `v-if` 边界。
+const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div v-if="cards().length" class="mind-node-foot">', '</div>');
 // 兼容旧导出名：语义已迁到资源池两视图。KANBAN 在池里没有第三种视图，
 // 以“分组列表”的同一动作区承接，避免旧切片静默为空。
 const RES_CARD_ACTIONS = POOL_GRID_ACTIONS;

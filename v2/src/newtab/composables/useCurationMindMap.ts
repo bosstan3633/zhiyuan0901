@@ -193,7 +193,8 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     return cat
   }
 
-  /** 需求3：同层级前后移动（互换 order 并全量规整，与 App.vue 台签拖拽同口径） */
+  /** 同层级前后移动：先移动数组位置，再全量规整 order。
+   *  不能只交换两个 order 值——历史数据常有重复/缺失 order，交换后视觉顺序仍不变。 */
   function reorderSibling(id: string, dir: -1 | 1): void {
     const cur = wsCats.value.find(c => c.id === id)
     if (!cur) return
@@ -204,7 +205,8 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     const idx = siblings.findIndex(c => c.id === id)
     const swapWith = idx + dir
     if (idx < 0 || swapWith < 0 || swapWith >= siblings.length) return
-    ;[siblings[idx].order, siblings[swapWith].order] = [siblings[swapWith].order, siblings[idx].order]
+    const [moving] = siblings.splice(idx, 1)
+    siblings.splice(swapWith, 0, moving)
     siblings.forEach((c, i) => { c.order = i })
     persist()
   }

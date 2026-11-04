@@ -297,7 +297,8 @@ onBeforeUnmount(() => {
         'search-hit': isHit(),
         'drop-target': dropTarget === node.id && !dropInvalid,
         'drop-invalid': dropTarget === node.id && dropInvalid,
-        'keyboard-target': keyboardDragSource && keyboardDragTarget === node.id
+        'keyboard-target': keyboardDragSource && keyboardDragTarget === node.id,
+        'resource-bearing': cards().length > 0
       }"
       :data-mind-node="node.id" tabindex="0" :aria-label="`L${level()} ${node.name}`"
       draggable="true" @click="focusCard" @focus="emit('select', node.id)" @keydown="onNodeKeydown"
@@ -307,6 +308,16 @@ onBeforeUnmount(() => {
       <div class="mind-node-head">
         <span class="mind-level">L{{ level() }}</span>
         <span class="mind-type">{{ children().length ? `${children().length} 个子分支` : '论证节点' }}</span>
+        <button v-if="!cards().length" class="mind-head-action" type="button"
+          title="关联资源" aria-label="关联资源" @click.stop="emit('link-resource', node)">
+          <Icon name="link" :size="12"/>
+        </button>
+        <button v-if="selectedId === node.id && !cards().length" class="mind-head-action danger" type="button"
+          :disabled="children().length > 0"
+          :title="children().length ? '先移走或删除子分支' : '删除这个空分支'"
+          aria-label="删除这个空分支" @click.stop="emit('remove-node', node.id)">
+          <Icon name="trash" :size="12"/>
+        </button>
         <span class="mind-order" role="group" :aria-label="`同级排序「${node.name || '未命名分支'}」`">
           <button type="button" class="mind-order-btn" :disabled="!canShift(-1)"
             title="前移一个同级位置" aria-label="前移"
@@ -318,7 +329,7 @@ onBeforeUnmount(() => {
         <span class="mind-drag" draggable="true" tabindex="0" role="button"
           :aria-label="`拖动「${node.name || '未命名分支'}」调整归属`"
           title="拖动整棵子树调整归属；聚焦后 ↑/↓ 选目标，M 确认" @keydown.stop="onDragHandleKeydown">
-          <Icon name="arrowupdown" :size="13"/>
+          <Icon name="grip" :size="13"/>
         </span>
       </div>
       <input v-if="editingField === 'title'" ref="titleRef" v-model="titleDraft" class="mind-edit-title"
@@ -333,7 +344,7 @@ onBeforeUnmount(() => {
         @dblclick.stop="beginEdit('desc')" title="单击选中；双击编辑分支说明">
         {{ node.description || '双击补充分支说明' }}
       </span>
-      <div class="mind-resources">
+      <div v-if="cards().length" class="mind-resources">
         <span v-for="card in cards()" :key="card.id" class="mind-resource" v-pressable
           :class="{ 'search-hit': cardMatches(card) }"
           :data-rid="card.id"
@@ -346,12 +357,8 @@ onBeforeUnmount(() => {
           <button class="mind-resource-remove" type="button" title="解除与当前节点的关联（资源卡池源卡保留）"
             aria-label="解除关联" @click="onResourceRemove($event, card)">×</button>
         </span>
-        <button v-if="!children().length && !cards().length" class="evidence-gap"
-          type="button" @click.stop="emit('link-resource', node)">
-          <Icon name="alert" :size="12"/> 缺证据 · 关联
-        </button>
       </div>
-      <div class="mind-node-foot">
+      <div v-if="cards().length" class="mind-node-foot">
         <button class="mind-add" type="button" @click.stop="emit('link-resource', node)">
           <Icon name="link" :size="13"/> 关联资源
         </button>
@@ -361,8 +368,6 @@ onBeforeUnmount(() => {
           @click.stop="emit('remove-node', node.id)">
           <Icon name="trash" :size="13"/> 删除
         </button>
-        <span class="mind-foot-spacer"></span>
-        <span v-if="selectedId === node.id" class="mind-shortcut"><kbd>Tab</kbd> 子级 · <kbd>Enter</kbd> 改题 · <kbd>Ctrl+Enter</kbd> 同级</span>
       </div>
       <span v-if="dropTarget === node.id" class="mind-drop-hint" :class="{ invalid: dropInvalid }">{{ dropHint }}</span>
     </article>
