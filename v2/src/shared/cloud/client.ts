@@ -112,9 +112,21 @@ export const cloud = {
   // ---- 移动采集 inbox ----
   listCaptures: (env: CloudEnv, token: string) =>
     req<{ id: string; url: string; title: string | null; note: string | null; tags: string[]; created_at: string }[]>(
-      env, '/rest/v1/capture_inbox?select=id,url,title,note,tags,created_at&consumed_at=is.null&order=created_at.asc',
+      env, '/rest/v1/capture_inbox?select=id,url,title,note,tags,created_at&consumed_at=is.null&order=created_at.desc',
       { method: 'GET' }, token),
   consumeCapture: (env: CloudEnv, token: string, id: string) =>
     req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
       { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ consumed_at: new Date().toISOString() }) }, token),
+  deleteCapture: (env: CloudEnv, token: string, id: string) =>
+    req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
+      { method: 'DELETE', headers: { Prefer: 'return=minimal' } }, token),
+  deleteAllCaptures: async (env: CloudEnv, token: string, ids: string[]) => {
+    // PostgREST 的 in.() 条件在 URL 上传输；分批可避免采集记录较多时撞到代理/浏览器 URL 上限。
+    const BATCH_SIZE = 50
+    for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+      const batch = ids.slice(start, start + BATCH_SIZE)
+      await req<void>(env, `/rest/v1/capture_inbox?id=in.(${batch.map(encodeURIComponent).join(',')})`,
+        { method: 'DELETE', headers: { Prefer: 'return=minimal' } }, token)
+    }
+  },
 }

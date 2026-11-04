@@ -7,7 +7,7 @@
  *   E2E-3  ★R4-Da 改靶：全景整页退役归零 + 标签管理双栏仍两列（连带 CSS 的活性证据）
  *   E2E-32 ★R4-Db 书签导入唯一路线（真喂书签 HTML 跑一次导入）
  *   E2E-33 ★R4-Dc 附件 keepIds 单源（活卡/软删卡/论证卡引用必留，仅孤儿被删）
- *   E2E-34 ★R4-Dd Airtable 标签列名落盘（不碰网络，核配置链与 PAT 遮罩）
+ *   E2E-34 ★V4.0.4 旧 Airtable 深链归并到云同步关系总览
  *   E2E-35 ★R4-De 池卡定位落调度台卡池（采集后 Enter 那条链路不再跳死页）
  *   E2E-36 ★R4-Dg 导出 Markdown 含池卡 + 台名走单源（「资源卡池」）
  *   E2E-4  ★W17-C01 重指：调度台右栏「未归档」→ 中央只读明细弹窗（原地不改路由 / 只读 / Esc 可关 / 焦点回归）
@@ -1104,11 +1104,14 @@ async function main() {
     keySeed && keyTree.l2 && keyTree.l3 && keyTree.l4 && keyTree.l4s && keyTree.labels.includes('L4'),
     JSON.stringify(keyTree))
 
-  // E2E-50（V3.9.14）：树状布局的连线不是装饰伪元素，而是按真实父子节点盒
-  //   生成的正交 SVG。每条有子节点的分支，每个直接子节点都必须对应一条非空路径。
-  await page.evaluate(() => document.querySelectorAll('.ws-head .cur-layout button')[1]?.click())
-  await page.waitForTimeout(900)
-  const connectorContract = await page.evaluate(() => {
+  // E2E-50（V4.0.4）：树状布局切换器已迁入画布工具条。连线不是装饰伪元素，
+  //   而是按真实父子节点盒生成的正交 SVG；每个直接子节点对应一条非空路径。
+  await page.locator('.mindmap-layout button').filter({ hasText: '树状' }).first().click()
+  const treeLayoutReady = await pollUntil(
+    () => page.locator('.mindmap-canvas[data-layout="tree"]').count().then(Boolean),
+    { timeout: 5000, label: '树状画布布局生效' },
+  )
+  const readConnectorContract = () => page.evaluate(() => {
     const svg = document.querySelector('.mind-connectors')
     const paths = [...document.querySelectorAll('.mind-connectors path')]
     const branches = [...document.querySelectorAll('.mind-stage [data-mind-branch]')]
@@ -1124,8 +1127,16 @@ async function main() {
       txt: `SVG=${!!svg} 期望=${expected} 路径=${paths.length} 非空=${nonEmpty} 舞台定位=${stage ? getComputedStyle(stage).position : '无'}`,
     }
   })
-  report('E2E-50 V3.9.14 树状画布的 SVG 正交连线按真实父子分支数量生成',
-    connectorContract.ok, connectorContract.txt)
+  let connectorContract = await readConnectorContract()
+  if (!connectorContract.ok) {
+    await pollUntil(async () => {
+      connectorContract = await readConnectorContract()
+      return connectorContract.ok
+    }, { timeout: 5000, label: '树状 SVG 连线完成绘制' })
+  }
+  report('E2E-50 V4.0.4 画布工具条切换树状布局后，SVG 正交连线按真实父子分支数量生成',
+    treeLayoutReady && connectorContract.ok,
+    `布局=${treeLayoutReady} ${connectorContract.txt}`)
 
   // E2E-51（V3.9.17）：空间树导航只移动焦点，不改变 Tab / Enter 的建支语义。
   //   从 L1 出发验证右进首子、左回父级、上下按可见顺序移动、Home/End 到首尾；
@@ -1178,29 +1189,65 @@ async function main() {
       + `right=${rightToChild} left=${leftToRoot} down=${downToSecond} up=${upToRoot} `
       + `end=${endToLast} home=${homeToFirst} count=${navBefore.count}→${navAfter.count} editing=${navAfter.editing}`)
 
-  // E2E-46（V3.9.10）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
-  //   预览按真实 Category 树递归平铺到 L4，且画布工具栏在 1440 宽保持单行、分享在行尾。
+  // E2E-46（V4.0.4）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
+  //   预览按真实 Category 树递归平铺到 L4。V4.0.3 起两项读数归中心论点卡，
+  //   分享与设置留在页面行动条，测试按当前信息层级分别验证。
+  // 分享用例同时验证“有中心论点”的信息层级：先种入论点卡，避免空态下
+  // 误把“读数依法不渲染”当成组件缺席。
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(async (r) => {
+    const data = r['zy_data_v2']
+    const thesisId = 'e2e-v404-thesis'
+    data.resources = (data.resources || []).filter(card => card.id !== thesisId)
+    data.resources.push({
+      id: thesisId,
+      kind: 'resource',
+      title: 'E2E V4.0.4 中心论点',
+      description: '中心论点卡的读数层级验收',
+      workspaceId: 'e2e-main-board',
+      categoryId: '',
+      tags: [],
+      isThesis: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await pollUntil(
+    () => page.locator('.thesis-banner:not(.empty) .cur-metric').count().then(n => n === 2),
+    { timeout: 10000, label: '中心论点卡两项读数上屏' },
+  )
   await page.locator('.share-action').first().click()
   await waitForLocator(page, '.cs-paper', { visible: true, timeout: 10000 })
   const sharePreview = await page.evaluate(() => {
     const paper = document.querySelector('.cs-paper')
     const text = paper ? paper.textContent : ''
     const iframes = document.querySelectorAll('.drawer iframe').length
-    const metrics = [...document.querySelectorAll('.cur-metric')].map(el => el.getBoundingClientRect())
-    const share = document.querySelector('.share-action')?.getBoundingClientRect()
-    const settings = document.querySelector('button.hero-btn.settings[title="策展台设置"]')?.getBoundingClientRect()
+    const banner = document.querySelector('.thesis-banner')
+    const toolbar = document.querySelector('.ws-toolbar.cur-toolbar')
+    const metrics = [...document.querySelectorAll('.cur-metric')]
+    const shareAction = document.querySelector('.share-action')
+    const settingsButton = document.querySelector('button.hero-btn.settings[title="策展台设置"]')
+    const share = shareAction?.getBoundingClientRect()
+    const settings = settingsButton?.getBoundingClientRect()
+    const toolbarButtons = toolbar ? [...toolbar.querySelectorAll('button')] : []
     return {
       visible: !!paper && paper.getBoundingClientRect().height > 50,
       levels: ['L2', 'L3', 'L4'].filter(l => text.includes(l + ' · 论证节点')),
       hasNodes: ['E2E 键位二级同级', 'E2E 键位三级子级', 'E2E 键位四级子级'].every(n => text.includes(n)),
       iframes,
-      singleRow: metrics.length === 2 && !!share && Math.abs(metrics[0].top - share.top) < 8,
-      shareLast: !!(share && settings && share.left >= settings.left),
+      metricsInBanner: metrics.length === 2 && metrics.every(metric => !!banner && metric.closest('.thesis-banner') === banner),
+      shareInToolbar: !!toolbar && !!shareAction && shareAction.closest('.ws-toolbar.cur-toolbar') === toolbar,
+      settingsInToolbar: !!toolbar && !!settingsButton && settingsButton.closest('.ws-toolbar.cur-toolbar') === toolbar,
+      shareRightOfSettings: !!(share && settings && share.left >= settings.left),
+      shareIsToolbarLast: toolbarButtons.length > 0 && toolbarButtons[toolbarButtons.length - 1] === shareAction,
     }
   })
-  report('E2E-46 V3.9.10 分享预览原生可读且递归呈现 L2–L4；分享按钮在工具栏行尾',
+  report('E2E-46 V4.0.4 分享预览原生可读且递归呈现 L2–L4；读数归中心论点卡，分享与设置归页面行动条',
     sharePreview.visible && sharePreview.levels.length === 3 && sharePreview.hasNodes
-      && sharePreview.iframes === 0 && sharePreview.singleRow && sharePreview.shareLast,
+      && sharePreview.iframes === 0 && sharePreview.metricsInBanner
+      && sharePreview.shareInToolbar && sharePreview.settingsInToolbar
+      && sharePreview.shareRightOfSettings && sharePreview.shareIsToolbarLast,
     JSON.stringify(sharePreview))
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(500)
@@ -2009,30 +2056,31 @@ async function main() {
     await chrome.storage.local.set({ zy_data_v2: d0 })
   })
 
-  // E2E-34 ★R4-Dd Airtable 标签列映射：这一轮不碰网络（真推要用户 PAT，测试里绝不引入凭据），
-  //   但配置链路本身此前零覆盖——列名改了到底落没落库、PAT 是不是仍然按密码框呈现，都只靠文本断言。
-  //   这里真点真读：改列名 → 失焦即写 → 回读 zy_data_v2.airtableSync.tagColumn；顺带核 PAT 输入框是 password。
+  // E2E-34 ★V4.0.4：Airtable 已在 V4.0.1 正式退役，旧深链仍要兼容，但必须落到
+  //   数据管理的「云同步」页签。这里验关系总览、建议动作与四项同步事实，不允许旧配置回流。
   await page.goto(base + '#/settings?page=airtable', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2600)
-  const atTagInput = page.locator('.gs-setting-row').filter({ hasText: '标签列名' }).locator('input.gs-input')
-  const atTagVisible = await atTagInput.isVisible().catch(() => false)
-  await atTagInput.fill('Tags（知源同步）').catch(() => {})
-  await atTagInput.blur().catch(() => {})
-  await page.waitForTimeout(900)
-  const atPatType = await page.locator('.gs-setting-row').filter({ hasText: 'Personal Access Token' })
-    .locator('input').first().getAttribute('type').catch(() => '')
-  const atStored = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
-    .then(r => (r['zy_data_v2'].airtableSync || {}).tagColumn))
-  /* 清空要回落默认列名：留空不是"没配"，是"用默认"，这条也得是真跑过的 */
-  await atTagInput.fill('').catch(() => {})
-  await atTagInput.blur().catch(() => {})
-  await page.waitForTimeout(900)
-  const atCleared = await page.evaluate(() => chrome.storage.local.get('zy_data_v2')
-    .then(r => (r['zy_data_v2'].airtableSync || {}).tagColumn))
-  report('E2E-34 ★R4-Dd 标签列名落盘 + 留空回落 + PAT 仍按密码框呈现',
-    atTagVisible && atStored === 'Tags（知源同步）' && (atCleared === '' || atCleared === undefined) && atPatType === 'password',
-    `列名框=${atTagVisible} 落库="${atStored}" 清空后="${atCleared}" PAT型=${atPatType}`)
+  await waitForLocator(page, '[data-testid="cloud-relation-overview"]', { visible: true, timeout: 10000 })
+  const cloudRetirement = await page.evaluate(() => {
+    const activeTab = (document.querySelector('.dm-tabs .dm-tab.on')?.textContent || '').trim()
+    const relation = document.querySelector('[data-testid="cloud-relation-overview"]')
+    const recommendation = (relation?.querySelector('.cloud-recommend')?.textContent || '').trim()
+    const relationText = relation?.textContent || ''
+    const settingsMain = document.querySelector('.gs-panel')?.textContent || ''
+    const facts = ['本机同步基线', '云端当前修订', '最近实际同步', '最近检查']
+    return {
+      activeTab,
+      relationVisible: !!relation && relation.getBoundingClientRect().height > 0,
+      recommendation,
+      facts: facts.filter(text => relationText.includes(text)),
+      legacyConfigAbsent: !/Airtable|Personal Access Token|标签列名/.test(settingsMain),
+    }
+  })
+  report('E2E-34 ★V4.0.4 旧 Airtable 深链兼容落到云同步：关系总览与建议动作可见，旧配置入口零回流',
+    cloudRetirement.activeTab === '云同步' && cloudRetirement.relationVisible
+      && cloudRetirement.recommendation.startsWith('建议：')
+      && cloudRetirement.facts.length === 4 && cloudRetirement.legacyConfigAbsent,
+    JSON.stringify(cloudRetirement))
 
   // E2E-35 ★R4-De 池卡定位不许落死页：真发一次 background 的单例定位消息（采集后按 Enter 走的就是这条），
   //   核三件事：① 落点是调度台资源卡池（URL 带 hl + hk=res）而不是 /workspace/zy-curation；
@@ -2649,64 +2697,47 @@ await paOpen()
     qCurio === true && msgOk === true && capHead.includes('快速采集资源卡'),
     `查询入口=好奇面板 ${qCurio} ｜ 消息入口回执=${JSON.stringify(msgOk)} 面板标题="${capHead}"`)
 
-  // ══════════ E2E-44（R4-Fc）★Airtable「所属工作台」列值真出网形态：不许带图标前缀 ══════════
-  // 这条量的是**离开机器那一列的值**，不是源码字符串：`Workspace.name` 存的是「icon + 空格 + 名称」，
-  // 台内卡与镜像行改前各自 `find(w => w.id === …)?.name` 原样取实体名 ⇒ 同一列混着两种形态
-  // （台内卡 `💼 事业策展台`、池卡/调度台/方向台不带图标），而下游按这列筛选分组的人得同时匹配两种写法。
-  // 取证姿势：给 api.airtable.com 挂 route 桩（**绝不碰真网络、绝不引入真 PAT**），种一枚带图标的探针台 +
-  // 一枚池卡投射到它，真点「立即同步」，把 POST/PATCH 的 fields 收进 Node 侧数组逐条判。
-  const AT_FIELDS = [
-    ['知源ID', 'singleLineText'], ['标题', 'singleLineText'], ['卡片类型', 'singleSelect'], ['所属工作台', 'singleLineText'],
-    ['分类路径', 'singleLineText'], ['层级', 'number'], ['是否中心论点', 'checkbox'], ['链接', 'url'],
-    ['描述', 'multilineText'], ['标签', 'singleLineText'], ['状态', 'singleLineText'], ['优先级', 'singleLineText'],
-    ['截止日期', 'singleLineText'], ['已删除', 'checkbox'], ['更新时间', 'singleLineText']
-  ].map(([name, type], i) => ({ id: 'fldE2E' + i, name, type }))
-  const atCells = []
-  await page.route('**://api.airtable.com/**', (route) => {
-    const req = route.request()
-    const u = req.url(), m = req.method()
-    const body = (m === 'POST' || m === 'PATCH') ? (() => { try { return JSON.parse(req.postData() || '{}') } catch { return {} } })() : {}
-    if ((m === 'POST' || m === 'PATCH') && /\/appE2EPROBE\/tblE2EPROBE/.test(u)) {
-      for (const r of body.records || []) atCells.push(r.fields)
-      const recs = (body.records || []).map((r, i) => ({ id: r.id || 'recE2E' + m + i }))
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ records: recs }) })
+  // ══════════ E2E-44（V4.0.4）★顶栏云同步入口：状态、最近同步与一键落点 ══════════
+  // 顶栏按钮是跨页常驻入口，必须同时让用户看见当前关系和最近同步时间；
+  // 未配置 / 未登录时点击也必须进入云同步模块，而不是只给一条转瞬即逝的 toast。
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-testid="topbar-cloud-sync"]', { visible: true, timeout: 10000 })
+  const topbarCloud = await page.evaluate(() => {
+    const button = document.querySelector('[data-testid="topbar-cloud-sync"]')
+    const rect = button?.getBoundingClientRect()
+    return {
+      visible: !!button && !!rect && rect.width > 0 && rect.height > 0,
+      enabled: button instanceof HTMLButtonElement && !button.disabled,
+      label: (button?.querySelector('.cloud-sync-label')?.textContent || '').trim(),
+      ariaLabel: button?.getAttribute('aria-label') || '',
+      title: button?.getAttribute('title') || '',
     }
-    if (u.includes('/meta/bases/')) {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tables: [{ id: 'tblE2EPROBE', name: '知源同步（E2E 桩）', fields: AT_FIELDS }] }) })
-    }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ records: [] }) })
   })
-  const seedNote = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
-    const d = r['zy_data_v2'] || {}
-    const now = Date.now()
-    const next = {
-      ...d,
-      workspaces: [{ id: 'ws-e2e-fc', name: '🧪 探针策展台', icon: '🧪' }],
-      resources: [
-        { id: 'card-e2e-fc', title: 'E2E-44 台内探针卡', workspaceId: 'ws-e2e-fc', categoryId: '', tags: [], updatedAt: now },
-        { id: 'card-e2e-fc2', title: 'E2E-44 池卡（投射真身）', workspaceId: 'zy-curation', categoryId: '', tags: [], updatedAt: now }
-      ],
-      tasks: [], curiosities: [],
-      curationProjections: [{ kind: 'card', cardId: 'card-e2e-fc2', targetWsId: 'ws-e2e-fc', targetCatId: '' }],
-      airtableSync: { ...(d.airtableSync || {}), pat: 'pat-e2e-stub-only', baseId: 'appE2EPROBE', tableId: 'tblE2EPROBE', pollEnabled: false, cursorAt: 0, log: [] },
-      airtableMap: {}
+  await page.locator('[data-testid="topbar-cloud-sync"]').first().click()
+  const cloudRouteReady = await pollUntil(
+    () => Promise.resolve(page.url().includes('#/settings?page=cloud')),
+    { timeout: 8000, label: '顶栏云同步进入云同步模块' },
+  )
+  await waitForLocator(page, '[data-testid="cloud-relation-overview"]', { visible: true, timeout: 10000 })
+  const cloudEntry = await page.evaluate(() => {
+    const activeTab = (document.querySelector('.dm-tabs .dm-tab.on')?.textContent || '').trim()
+    const relation = document.querySelector('[data-testid="cloud-relation-overview"]')
+    const recommend = (relation?.querySelector('.cloud-recommend')?.textContent || '').trim()
+    const facts = relation?.textContent || ''
+    return {
+      activeTab,
+      relationVisible: !!relation && relation.getBoundingClientRect().height > 0,
+      recommend,
+      hasRecentSync: facts.includes('最近实际同步'),
     }
-    return chrome.storage.local.set({ zy_data_v2: next }).then(() => ({ hadRealWorkspaces: (d.workspaces || []).length }))
-  }))
-  await page.goto(base + '#/settings?page=airtable', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
-  await page.locator('button.gs-btn-primary:has-text("立即同步")').first().click().catch(() => {})
-  await page.waitForTimeout(2500)
-  const atVals = atCells.map(f => String(f['所属工作台'] ?? ''))
-  const cellOf = (id) => { const hit = atCells.find(f => f['知源ID'] === id); return hit ? String(hit['所属工作台']) : '(没推到)' }
-  const iconRows = atVals.filter(v => /^\p{Extended_Pictographic}/u.test(v))
-  report('E2E-44 ★R4-Fc 真点「立即同步」收到出网那一列的值（route 桩、零真网络、零真凭据）：台内卡与镜像行的「所属工作台」必须是剥图标的显示名，同一列不许两种形态',
-    atCells.length > 0 && iconRows.length === 0
-    && cellOf('card-e2e-fc') === '探针策展台' && cellOf('card-e2e-fc2:m:ws-e2e-fc') === '探针策展台'
-    && cellOf('card-e2e-fc2') === '资源卡池',
-    `出网 ${atCells.length} 行 · 带图标前缀 ${iconRows.length} 行${iconRows.length ? '（' + JSON.stringify(iconRows) + '）' : ''} ｜ 台内卡="${cellOf('card-e2e-fc')}" 镜像行="${cellOf('card-e2e-fc2:m:ws-e2e-fc')}" 池卡="${cellOf('card-e2e-fc2')}" ｜ 桩前真实台面数=${seedNote.hadRealWorkspaces}`)
-  // 不用清场：ctx 是 launchPersistentContext('')——每次跑都是临时新 profile，探针库随进程结束一起没。
-  await page.unroute('**://api.airtable.com/**').catch(() => {})
+  })
+  report('E2E-44 ★V4.0.4 顶栏云同步常驻显示状态与最近同步时间；点击进入云同步模块并呈现关系与建议动作',
+    topbarCloud.visible && topbarCloud.enabled && topbarCloud.label.length > 0
+      && topbarCloud.ariaLabel.includes('最近实际同步') && topbarCloud.title.includes('最近实际同步')
+      && cloudRouteReady && cloudEntry.activeTab === '云同步' && cloudEntry.relationVisible
+      && cloudEntry.recommend.startsWith('建议：') && cloudEntry.hasRecentSync,
+    `顶栏=${JSON.stringify(topbarCloud)} 落点=${cloudRouteReady} 模块=${JSON.stringify(cloudEntry)}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

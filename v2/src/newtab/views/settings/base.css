@@ -91,6 +91,7 @@
 /* 状态徽章 */
 .gs-status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: var(--fs-caption); font-weight: 500; }
 .gs-status-badge.connected { background: var(--tag-ok-bg); color: var(--success); }
+.gs-status-badge.checking { background: var(--surface-3); color: var(--text-2); }
 /* ★S3（V3.8.29）：三态补齐。未连接走中性 surface-3（不是灰字压白底——那在 notion 下几乎看不见）；
    「推送异常」才用琥珀，且只在真有 lastError 时出现，不做常驻警示。 */
 .gs-status-badge.idle { background: var(--surface-3); color: var(--text-2); }

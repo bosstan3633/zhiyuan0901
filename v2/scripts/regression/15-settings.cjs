@@ -117,17 +117,22 @@ check('S2-7 页标题归位令牌：gs-page-title 取 --fs-headline，字阶表�
 });
 
 /* ============ S3 · 云同步三态 ============ */
-check('S3-1 三态徽章齐全：cloudState 的 error / connected / idle 都在，且文案优先级是「异常 > 已连接 > 未连接」', () => {
+check('S3-1 云状态徽章齐全：状态类覆盖异常 / 已连接 / 未配置 / 未登录，文案优先级仍是「异常 > 忙碌 > 已连接」', () => {
   const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
-  const i = CLOUD.indexOf('const statusText = computed');
-  const seg = i >= 0 ? CLOUD.slice(i, i + 260) : '';
-  if (!seg) { console.log('     statusText 缺失'); return false; }
-  const iErr = seg.indexOf("=== 'error'");
-  const iOk = seg.indexOf("=== 'connected'");
-  const iIdle = seg.indexOf("'未连接'");
-  return CLOUD.includes("ref<'idle' | 'connected' | 'error'>('idle')")
-    && iErr > 0 && iOk > iErr && iIdle > iOk
-    && CLOUD.includes(':class="cloudState"');
+  const badge = CLOUD.slice(CLOUD.indexOf('const badgeState = computed'), CLOUD.indexOf('const relationTitle = computed'));
+  const text = CLOUD.slice(CLOUD.indexOf('const badgeText = computed'), CLOUD.indexOf('const relationTitle = computed'));
+  const iErr = text.indexOf("=== 'error'");
+  const iBusy = text.indexOf("=== 'checking'");
+  const iOk = text.indexOf("return '已连接'");
+  return badge.includes("return 'error'")
+    && badge.includes("return 'idle'")
+    && badge.includes("return 'checking'")
+    && badge.includes("return 'connected'")
+    && text.includes("=== 'disabled'")
+    && text.includes("=== 'signed_out'")
+    && iErr > 0 && iBusy > iErr && iOk > iBusy
+    && CLOUD.includes(':class="badgeState"')
+    && CLOUD.includes('{{ badgeText }}');
 });
 
 check('S3-2 三态各有配色且不越权：idle 中性 surface-3 / connected 绿 / error 才用琥珀', () => {
@@ -165,7 +170,9 @@ check('S3-5 云操作共用忙碌锁：登录、检查、上传、恢复在请�
   const CLOUD = read('/newtab/views/settings/SettingsCloudSync.vue');
   const disabled = (CLOUD.match(/:disabled="busy"/g) || []).length;
   return disabled >= 4
-    && CLOUD.includes('const busy = ref(false)')
+    && CLOUD.includes('const busy = computed(() =>')
+    && CLOUD.includes("sharedCloud.state.value === 'checking'")
+    && CLOUD.includes("sharedCloud.state.value === 'syncing'")
     && !CLOUD.includes('atCredReady');
 });
 

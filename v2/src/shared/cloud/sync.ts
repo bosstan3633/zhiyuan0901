@@ -13,6 +13,7 @@ export interface CloudMeta {
   email: string
   refreshToken: string
   revision: number
+  syncedFingerprint?: string
   lastUploadAt?: number
   lastDownloadAt?: number
   lastCheckedAt?: number
@@ -20,9 +21,30 @@ export interface CloudMeta {
 }
 
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
-export interface CloudCheckResult { kind: 'idle' | 'same' | 'remote_new' | 'remote_diff' | 'none'; remoteRevision: number; remoteUpdatedAt?: string }
+export type CloudUploadDecision = 'upload' | 'download' | 'cancel'
+export type UploadNowResult =
+  | { kind: 'uploaded'; revision: number; fingerprint: string }
+  | { kind: 'cancelled'; remoteRevision: number }
+  | { kind: 'download_requested'; remoteRevision: number }
+export type CloudRelation =
+  | 'unknown'
+  | 'in_sync'
+  | 'local_changed'
+  | 'remote_changed'
+  | 'both_changed'
+  | 'empty_remote'
+
+export interface CloudCheckResult {
+  kind: 'idle' | CloudRelation
+  relation: 'idle' | CloudRelation
+  remoteRevision: number
+  remoteUpdatedAt?: string
+  localFingerprint?: string
+  remoteFingerprint?: string
+}
 
 const META_KEY = K.CLOUD_META
+const REVISION_CONFLICT_MAX_RETRIES = 2
 
 async function readMeta(): Promise<CloudMeta | null> {
   try {
@@ -49,11 +71,12 @@ export async function setCloudEnv(env: CloudEnv | null): Promise<void> {
 }
 
 /** 脱敏：保留附件元数据供跨设备索引；去附件本体、AI 凭据、__wid、Airtable 与云元数据 */
-function sanitize(data: AppData, ui: UIPrefs | null, eventLog: CardEvent[]): SnapshotState {
+export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: CardEvent[]): SnapshotState {
   const d = JSON.parse(JSON.stringify(data)) as AppData & Record<string, unknown>
   delete d.airtableSync
   delete d.airtableMap
   delete (d as Record<string, unknown>).__wid
+  delete (d as Record<string, unknown>).__cloud
   const safeAsset = (a: AssetMeta): AssetMeta => ({
     id: a.id,
     kind: a.kind,
@@ -68,8 +91,45 @@ function sanitize(data: AppData, ui: UIPrefs | null, eventLog: CardEvent[]): Sna
   stripAssets(d.resources); stripAssets(d.tasks); stripAssets(d.curiosities)
   if (d.argCards) stripAssets(d.argCards as unknown as { assets?: AssetMeta[] }[])
   const safeUi = ui ? JSON.parse(JSON.stringify(ui)) as UIPrefs : null
-  if (safeUi) delete (safeUi as unknown as Record<string, unknown>).__cloud
+  if (safeUi) {
+    delete (safeUi as unknown as Record<string, unknown>).__cloud
+    delete (safeUi as unknown as Record<string, unknown>).__wid
+  }
   return { data: d, ui: safeUi, eventLog: [...eventLog] }
+}
+
+/** 稳定序列化：对象键固定排序，数组顺序保留，保证两台设备对同一内容得到同一指纹。 */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(item => stableStringify(item)).join(',')}]`
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(',')}}`
+}
+
+function fallbackHash(input: string): string {
+  let h1 = 0x811c9dc5
+  let h2 = 0x9e3779b9
+  for (let i = 0; i < input.length; i += 1) {
+    const code = input.charCodeAt(i)
+    h1 ^= code
+    h1 = Math.imul(h1, 0x01000193)
+    h2 ^= code + i
+    h2 = Math.imul(h2, 0x85ebca6b)
+  }
+  return `fnv:${(h1 >>> 0).toString(16).padStart(8, '0')}${(h2 >>> 0).toString(16).padStart(8, '0')}`
+}
+
+/** 对干净快照做内容指纹；只排除附件本体/凭据等不进云内容，不依赖 revision。 */
+export async function fingerprintSnapshot(snapshot: SnapshotState): Promise<string> {
+  const clean = sanitizeSnapshot(snapshot.data, snapshot.ui, snapshot.eventLog)
+  const input = stableStringify(clean)
+  try {
+    if (globalThis.crypto?.subtle) {
+      const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+      return `sha256:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`
+    }
+  } catch { /* 降级到确定性哈希 */ }
+  return fallbackHash(input)
 }
 
 let tokenCache: { accessToken: string; exp: number } | null = null
@@ -100,48 +160,94 @@ export async function logout(): Promise<void> {
   try { await chrome?.storage?.local?.remove([META_KEY]) } catch { /* noop */ }
 }
 
-/** 启动非阻塞检查：与云端 revision 比对 */
-export async function checkRemote(): Promise<CloudCheckResult> {
+/** 比较本机、上次成功同步基线与云端三份干净快照。 */
+export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCheckResult> {
   const env = await cloudEnv(); const meta = await readMeta()
-  if (!env || !meta?.refreshToken) return { kind: 'idle', remoteRevision: 0 }
+  if (!env || !meta?.refreshToken) return { kind: 'idle', relation: 'idle', remoteRevision: 0 }
+  const localFingerprint = await fingerprintSnapshot(localSnapshot)
   const token = await accessToken(env, meta)
   const rows = await cloud.getSnapshot(env, token, meta.userId)
-  await writeMeta({ lastCheckedAt: Date.now() })
-  if (!rows.length) return { kind: 'none', remoteRevision: 0 }
+  if (!rows.length) {
+    await writeMeta({ lastCheckedAt: Date.now() })
+    return { kind: 'empty_remote', relation: 'empty_remote', remoteRevision: 0, localFingerprint }
+  }
   const rem = rows[0]
-  const localRev = meta.revision || 0
-  const kind: CloudCheckResult['kind'] = rem.revision === localRev ? 'same' : 'remote_new'
-  return { kind, remoteRevision: rem.revision, remoteUpdatedAt: rem.updated_at }
+  const remoteState = (rem.state as SnapshotState) || null
+  if (!remoteState?.data || remoteState.data.version !== 2) throw new Error('云端快照格式不兼容')
+  const remoteFingerprint = await fingerprintSnapshot({
+    data: remoteState.data,
+    ui: remoteState.ui || null,
+    eventLog: remoteState.eventLog || [],
+  })
+  // 只有完整读取并验证成功后才记录检查时间，格式异常不能留下“已检查”的假信号。
+  await writeMeta({ lastCheckedAt: Date.now() })
+  const baseline = meta.syncedFingerprint
+  let relation: CloudRelation
+  if (localFingerprint === remoteFingerprint) {
+    relation = 'in_sync'
+    // 升级后首次检查若两端内容一致，直接建立基线，不必让用户做一次无意义的选择。
+    if (!baseline || meta.revision !== rem.revision) {
+      await writeMeta({ syncedFingerprint: localFingerprint, revision: rem.revision })
+    }
+  } else if (!baseline) relation = 'unknown'
+  else if (localFingerprint !== baseline && remoteFingerprint === baseline) relation = 'local_changed'
+  else if (localFingerprint === baseline && remoteFingerprint !== baseline) relation = 'remote_changed'
+  else relation = 'both_changed'
+  return {
+    kind: relation,
+    relation,
+    remoteRevision: rem.revision,
+    remoteUpdatedAt: rem.updated_at,
+    localFingerprint,
+    remoteFingerprint,
+  }
 }
 
-export async function uploadNow(snap: SnapshotState, onConflict: (r: number) => Promise<boolean>): Promise<{ revision: number }> {
+export async function uploadNow(
+  snap: SnapshotState,
+  onConflict: (remoteRevision: number) => Promise<CloudUploadDecision>,
+  approvedRemoteRevision?: number,
+): Promise<UploadNowResult> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
-  const clean = sanitize(snap.data, snap.ui, snap.eventLog)
-  const rows = await cloud.getSnapshot(env, token, meta.userId)
-  const remote = rows[0]
-  if (!remote) {
-    const ins = await cloud.insertSnapshot(env, token, meta.userId, clean)
-    const rev = ins[0]?.revision ?? 1
-    await writeMeta({ revision: rev, lastUploadAt: Date.now() })
-    return { revision: rev }
+  const clean = sanitizeSnapshot(snap.data, snap.ui, snap.eventLog)
+  const fingerprint = await fingerprintSnapshot(clean)
+  const localRevision = meta.revision || 0
+  let initialApproval = approvedRemoteRevision
+
+  for (let attempt = 0; attempt <= REVISION_CONFLICT_MAX_RETRIES; attempt += 1) {
+    const rows = await cloud.getSnapshot(env, token, meta.userId)
+    const remote = rows[0]
+    if (!remote) {
+      const ins = await cloud.insertSnapshot(env, token, meta.userId, clean)
+      const rev = ins[0]?.revision ?? 1
+      await writeMeta({ revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date.now() })
+      return { kind: 'uploaded', revision: rev, fingerprint }
+    }
+
+    // 用户在前面“检查关系”里已经明确选了上传时，只允许初检修订直接续用一次。
+    // PATCH 失败后的任何重试都必须重新确认，哪怕云端修订号碰巧没变。
+    const canUseInitialApproval = attempt === 0 && initialApproval === remote.revision
+    if ((remote.revision !== localRevision || attempt > 0) && !canUseInitialApproval) {
+      const decision = await onConflict(remote.revision)
+      if (decision === 'cancel') return { kind: 'cancelled', remoteRevision: remote.revision }
+      if (decision === 'download') return { kind: 'download_requested', remoteRevision: remote.revision }
+    }
+    initialApproval = undefined
+
+    const upd = await cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)
+    if (upd.length) {
+      const rev = upd[0].revision
+      await writeMeta({ revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date.now() })
+      return { kind: 'uploaded', revision: rev, fingerprint }
+    }
   }
-  if (remote.revision !== (meta.revision || 0)) {
-    const ok = await onConflict(remote.revision)
-    if (!ok) throw new Error('已取消上传（云端版本更高）')
-    // 用户确认以本地覆盖云端：先对齐基线
-    await writeMeta({ revision: remote.revision })
-  }
-  const base = (await readMeta())!.revision || remote.revision
-  const upd = await cloud.updateSnapshot(env, token, meta.userId, base, clean)
-  if (!upd.length) throw new Error('上传冲突：云端更新被另一设备抢先')
-  const rev = upd[0].revision
-  await writeMeta({ revision: rev, lastUploadAt: Date.now() })
-  return { revision: rev }
+
+  throw new Error('上传冲突：云端连续更新，已停止自动重试，请重新检查后再同步')
 }
 
-export async function downloadNow(): Promise<{ state: SnapshotState; revision: number }> {
+export async function downloadNow(): Promise<{ state: SnapshotState; revision: number; fingerprint: string }> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
@@ -150,12 +256,13 @@ export async function downloadNow(): Promise<{ state: SnapshotState; revision: n
   const st = (rows[0].state as SnapshotState) || null
   if (!st || !st.data || st.data.version !== 2) throw new Error('云端快照格式不兼容')
   // 旧云快照可能仍带 Airtable 凭据/映射或本机写锁；恢复到本机前走与上传同一条脱敏边界。
-  const safe = sanitize(st.data, st.ui || null, st.eventLog || [])
-  return { state: safe, revision: rows[0].revision }
+  const safe = sanitizeSnapshot(st.data, st.ui || null, st.eventLog || [])
+  const fingerprint = await fingerprintSnapshot(safe)
+  return { state: safe, revision: rows[0].revision, fingerprint }
 }
 
-export async function markDownloaded(revision: number): Promise<void> {
-  await writeMeta({ revision, lastDownloadAt: Date.now() })
+export async function markDownloaded(revision: number, fingerprint: string): Promise<void> {
+  await writeMeta({ revision, syncedFingerprint: fingerprint, lastDownloadAt: Date.now() })
 }
 
 // ---- 移动采集 ----
@@ -166,7 +273,21 @@ export async function listCaptures(): Promise<CaptureItem[]> {
   if (!env || !meta?.refreshToken) return []
   const token = await accessToken(env, meta)
   const rows = await cloud.listCaptures(env, token)
-  return rows.map(r => ({ id: r.id, url: r.url, title: r.title || undefined, note: r.note || undefined, tags: r.tags || [], createdAt: Date.parse(r.created_at) || Date.now() }))
+  const seen = new Set<string>()
+  return rows
+    .filter(row => {
+      if (seen.has(row.id)) return false
+      seen.add(row.id)
+      return true
+    })
+    .map(r => ({
+      id: r.id,
+      url: r.url,
+      title: r.title || undefined,
+      note: r.note || undefined,
+      tags: r.tags || [],
+      createdAt: Date.parse(r.created_at) || 0,
+    }))
 }
 
 export async function consumeCapture(id: string): Promise<void> {
@@ -174,6 +295,21 @@ export async function consumeCapture(id: string): Promise<void> {
   if (!env || !meta?.refreshToken) return
   const token = await accessToken(env, meta)
   await cloud.consumeCapture(env, token, id)
+}
+
+export async function deleteCapture(id: string): Promise<void> {
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) return
+  const token = await accessToken(env, meta)
+  await cloud.deleteCapture(env, token, id)
+}
+
+export async function deleteCaptures(ids: string[]): Promise<void> {
+  if (!ids.length) return
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) return
+  const token = await accessToken(env, meta)
+  await cloud.deleteAllCaptures(env, token, ids)
 }
 
 /** 把采集链接落成资源卡（由设置页在 saveDataNow 成功后调用 consumeCapture） */
@@ -188,7 +324,7 @@ export function buildCapturedResource(meta: CaptureItem): import('@/shared/model
     categoryId: '',
     description: meta.note,
     tags: meta.tags,
-    customFields: {},
+    customFields: { captureInboxId: meta.id },
     pinned: false,
     callCount: 0,
     createdAt: meta.createdAt,

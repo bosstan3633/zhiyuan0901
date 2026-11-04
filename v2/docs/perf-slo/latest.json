@@ -1,17 +1,20 @@
 {
-  "generatedAt": "2026-10-28T06:57:13.000Z",
+  "generatedAt": "2026-11-04T13:08:11.845Z",
   "source": "real-local-browser",
-  "dist": "/Users/beantan/.codex/worktrees/ownway-unified-roadmap/zhiyuan0904/v2/dist",
-  "manifestVersion": "3.9.27",
+  "dist": "/Users/beantan/Downloads/zhiyuan0904/v2/dist",
+  "manifestVersion": "4.0.4",
   "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1148/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
   "platform": "darwin-arm64",
-  "node": "v22.23.1",
-  "host": "beandeMac-mini.local",
+  "node": "v26.0.0",
+  "host": "Macmini",
   "budgets": {
     "overlay_open": 800,
     "cmdk_first_open": 1500,
     "search_type": 400,
     "page_switch": 800,
+    "pool_switch": 800,
+    "pool_filter": 500,
+    "pool_detail": 1200,
     "share_drawer": 1000,
     "long_image": 4000
   },
@@ -21,136 +24,485 @@
       "label": "网页浮层唤起",
       "unit": "ms",
       "samples": [
-        122,
-        11,
-        12,
-        12,
-        16
+        127,
+        9,
+        9,
+        10,
+        9
       ],
       "sampleCount": 5,
-      "p50": 12,
-      "p95": 122,
+      "p50": 9,
+      "p95": 127,
       "budgetP95": 800,
       "pass": true,
       "notes": [
         "从 background 发出 zy-open-search 到宿主页搜索输入框出现；包含 content UI 就绪。"
       ],
-      "error": null
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 1,
+        "p95": 51,
+        "max": 51,
+        "samples": [
+          51
+        ]
+      }
     },
     "cmdk_first_open": {
       "key": "cmdk_first_open",
       "label": "⌘K / Ctrl+K 首屏",
       "unit": "ms",
       "samples": [
-        111,
-        58,
-        42,
+        180,
+        51,
         47,
-        39
+        54,
+        43
       ],
       "sampleCount": 5,
-      "p50": 47,
-      "p95": 111,
+      "p50": 51,
+      "p95": 180,
       "budgetP95": 1500,
       "pass": true,
       "notes": [
         "每个样本都从整页重载后的首次打开计时，计到检索面板与结果容器出现。"
       ],
-      "error": null
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 1,
+        "p95": 84,
+        "max": 84,
+        "samples": [
+          84
+        ]
+      }
     },
     "search_type": {
       "key": "search_type",
       "label": "搜索键入到结果更新",
       "unit": "ms",
       "samples": [
-        108.6,
-        108.4,
-        109.7,
-        108.3,
-        106.4
+        97,
+        95,
+        98,
+        99,
+        96
       ],
       "sampleCount": 5,
-      "p50": 108.4,
-      "p95": 109.7,
+      "p50": 97,
+      "p95": 99,
       "budgetP95": 400,
       "pass": true,
       "notes": [
         "从最终查询词触发 input 到 .gp-results 实际发生 DOM 更新；包含 120ms 输入防抖与 Vue 渲染。"
       ],
-      "error": null
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
+      }
     },
     "page_switch": {
       "key": "page_switch",
       "label": "调度台 / 方向台切换",
       "unit": "ms",
       "samples": [
-        86,
-        55,
-        47,
-        54,
-        45,
-        52,
+        96,
+        66,
         48,
+        61,
         52,
         46,
-        54
+        49,
+        48,
+        52,
+        63
       ],
       "sampleCount": 10,
       "p50": 52,
-      "p95": 86,
+      "p95": 96,
       "budgetP95": 800,
       "pass": true,
       "notes": [
         "每轮记录两次真实导航：调度台→方向台、方向台→调度台；计到目标页根节点出现。"
       ],
-      "error": null
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
+      }
+    },
+    "pool_switch": {
+      "key": "pool_switch",
+      "label": "任务 / 好奇心 / 资源卡池切换",
+      "unit": "ms",
+      "samples": [
+        200,
+        173,
+        175,
+        224,
+        190,
+        188,
+        220,
+        180,
+        189,
+        227,
+        168,
+        192,
+        227,
+        185,
+        190
+      ],
+      "sampleCount": 15,
+      "p50": 190,
+      "p95": 227,
+      "budgetP95": 800,
+      "pass": true,
+      "notes": [
+        "每轮真实点击任务→好奇心→资源→任务三次 Tab；计到目标卡池列表首行出现，采样前已用真实「列表」按钮建立视图。"
+      ],
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 15,
+        "p95": 140,
+        "max": 140,
+        "samples": [
+          133,
+          59,
+          96,
+          128,
+          68,
+          105,
+          140,
+          69,
+          104,
+          138,
+          60,
+          105,
+          136,
+          68,
+          106
+        ]
+      }
+    },
+    "pool_filter": {
+      "key": "pool_filter",
+      "label": "卡池状态 / 标签筛选",
+      "unit": "ms",
+      "samples": [
+        20,
+        44,
+        66,
+        18,
+        36,
+        86,
+        15,
+        42,
+        129,
+        30,
+        50,
+        82,
+        15,
+        44,
+        159
+      ],
+      "sampleCount": 15,
+      "p50": 44,
+      "p95": 159,
+      "budgetP95": 500,
+      "pass": true,
+      "notes": [
+        "每轮真实操作任务「推进中」、好奇心「探索中」、资源池「待打标」三次筛选；每次计到列表 DOM 实际变化。"
+      ],
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
+      }
+    },
+    "pool_detail": {
+      "key": "pool_detail",
+      "label": "三卡池详情打开",
+      "unit": "ms",
+      "samples": [
+        337,
+        318,
+        330,
+        333,
+        323,
+        336,
+        328,
+        353,
+        476,
+        316,
+        328,
+        330,
+        327,
+        337,
+        331
+      ],
+      "sampleCount": 15,
+      "p50": 330,
+      "p95": 476,
+      "budgetP95": 1200,
+      "pass": true,
+      "notes": [
+        "每轮真实单击任务、好奇心、资源池列表行，计到对应详情标题可见；包含真实 260ms 双击去重等待。"
+      ],
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
+      }
     },
     "share_drawer": {
       "key": "share_drawer",
       "label": "分享抽屉打开",
       "unit": "ms",
       "samples": [
-        171,
-        139,
-        159,
-        119,
-        126
+        377,
+        227,
+        289,
+        207,
+        262
       ],
       "sampleCount": 5,
-      "p50": 139,
-      "p95": 171,
+      "p50": 262,
+      "p95": 377,
       "budgetP95": 1000,
       "pass": true,
       "notes": [
         "从点击分享成果到分享抽屉内原生预览 .cs-paper 可见。"
       ],
-      "error": null
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 5,
+        "p95": 287,
+        "max": 287,
+        "samples": [
+          287,
+          173,
+          235,
+          159,
+          194
+        ]
+      }
     },
     "long_image": {
       "key": "long_image",
       "label": "高清长图生成完成",
       "unit": "ms",
       "samples": [
-        180,
-        175,
-        159
+        282,
+        273,
+        314
       ],
       "sampleCount": 3,
-      "p50": 175,
-      "p95": 180,
+      "p50": 282,
+      "p95": 314,
       "budgetP95": 4000,
       "pass": true,
       "notes": [
         "从点击分享成果到完整 PNG 数据 URL 已回填、界面显示「已嵌入分享 HTML」。"
       ],
-      "error": null
+      "error": null,
+      "longTasks": {
+        "supported": true,
+        "sampleCount": 3,
+        "p95": 216,
+        "max": 216,
+        "samples": [
+          187,
+          176,
+          216
+        ]
+      }
     }
+  },
+  "alignment": {
+    "tolerancePx": 1,
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 900,
+        "bounds": {
+          "head": {
+            "left": 36,
+            "right": 1404,
+            "width": 1368
+          },
+          "thesis": {
+            "left": 36,
+            "right": 1404,
+            "width": 1368
+          },
+          "toolbar": {
+            "left": 36,
+            "right": 1404,
+            "width": 1368
+          },
+          "canvas": {
+            "left": 36,
+            "right": 1404,
+            "width": 1368
+          }
+        },
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "maxEdgeDelta": 0,
+        "overflowPx": 0,
+        "pass": true
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "bounds": {
+          "head": {
+            "left": 36,
+            "right": 1244,
+            "width": 1208
+          },
+          "thesis": {
+            "left": 36,
+            "right": 1244,
+            "width": 1208
+          },
+          "toolbar": {
+            "left": 36,
+            "right": 1244,
+            "width": 1208
+          },
+          "canvas": {
+            "left": 36,
+            "right": 1244,
+            "width": 1208
+          }
+        },
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "maxEdgeDelta": 0,
+        "overflowPx": 0,
+        "pass": true
+      },
+      {
+        "width": 1024,
+        "height": 900,
+        "bounds": {
+          "head": {
+            "left": 36,
+            "right": 988,
+            "width": 952
+          },
+          "thesis": {
+            "left": 36,
+            "right": 988,
+            "width": 952
+          },
+          "toolbar": {
+            "left": 36,
+            "right": 988,
+            "width": 952
+          },
+          "canvas": {
+            "left": 36,
+            "right": 988,
+            "width": 952
+          }
+        },
+        "innerWidth": 1024,
+        "scrollWidth": 1024,
+        "maxEdgeDelta": 0,
+        "overflowPx": 0,
+        "pass": true
+      },
+      {
+        "width": 768,
+        "height": 900,
+        "bounds": {
+          "head": {
+            "left": 18,
+            "right": 750,
+            "width": 732
+          },
+          "thesis": {
+            "left": 18,
+            "right": 750,
+            "width": 732
+          },
+          "toolbar": {
+            "left": 18,
+            "right": 750,
+            "width": 732
+          },
+          "canvas": {
+            "left": 18,
+            "right": 750,
+            "width": 732
+          }
+        },
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "maxEdgeDelta": 0,
+        "overflowPx": 0,
+        "pass": true
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "bounds": {
+          "head": {
+            "left": 18,
+            "right": 372,
+            "width": 354
+          },
+          "thesis": {
+            "left": 18,
+            "right": 372,
+            "width": 354
+          },
+          "toolbar": {
+            "left": 18,
+            "right": 372,
+            "width": 354
+          },
+          "canvas": {
+            "left": 18,
+            "right": 372,
+            "width": 354
+          }
+        },
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "maxEdgeDelta": 0,
+        "overflowPx": 0,
+        "pass": true
+      }
+    ]
   },
   "failures": [],
   "overallPass": true,
   "fixture": {
     "boardId": "perf-slo-board",
     "resourceCount": 19,
-    "categoryCount": 3
+    "categoryCount": 3,
+    "taskCount": 120,
+    "curiosityCount": 120,
+    "poolCount": 240
   }
 }

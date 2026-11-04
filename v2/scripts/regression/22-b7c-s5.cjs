@@ -22,6 +22,7 @@ const { read, codeOnly, check } = require('./helpers.cjs')
 
 const CD = read('/newtab/changelog-data.ts')
 const GS = read('/newtab/views/GlobalSettings.vue')
+const CLP = read('/newtab/views/settings/SettingsChangelogPanel.vue')
 const RT = read('/newtab/components/RichText.vue')
 const CDO = codeOnly(CD)
 /* ★凡判「不得出现某字面量」的负锚，一律读 codeOnly 而不是自己写剥注释正则——
@@ -31,6 +32,7 @@ const RTC = codeOnly(RT)
 /* 同理：GlobalSettings 里也写了「置顶不靠运气」这类说明性 HTML 注释，
    模板正锚必须走 GSO，否则注释里复述的模板写法会让判据假绿。 */
 const GSO = codeOnly(GS)
+const CLPO = codeOnly(CLP)
 
 const NAME = (...p) => p.join('')
 
@@ -108,13 +110,14 @@ check(NAME(
 
 check(NAME(
   'S5-4 四条验收（V3.9.14 重指）：版本号等宽 + 日期 caption + 三段式分组 + 单列正文铺满并两端对齐。'), () => {
-  const ver = /\.gs-cl-ver \{[^}]*font-family:\s*ui-monospace/.exec(GS)
+  const ver = /\.gs-cl-ver \{[^}]*font-family:\s*ui-monospace/.exec(CLP)
   if (!ver) { console.log('版本号未走等宽字体'); return false }
-  if (!/\.gs-cl-date \{[^}]*font-size:\s*var\(--fs-caption\)/.test(GS)) { console.log('日期非 caption'); return false }
-  if (!/\.gs-cl-points \{[^}]*max-width:\s*none/.test(GSO)) { console.log('正文未取消固定 68ch 行宽'); return false }
-  if (!/\.gs-cl-points \{[^}]*text-align:\s*justify/.test(GSO)) { console.log('单列正文未两端对齐'); return false }
-  if (/grid-template-columns:\s*repeat\(2/.test(GSO)) { console.log('版本正文回流成双列'); return false }
-  if (!GSO.includes('v-for="g in kindGroupsOf(e)"')) { console.log('模板未按三段分组渲染'); return false }
+  if (!/\.gs-cl-date \{[^}]*font-size:\s*var\(--fs-caption\)/.test(CLP)) { console.log('日期非 caption'); return false }
+  if (!/\.gs-cl-points \{[^}]*max-width:\s*none/.test(CLPO)) { console.log('正文未取消固定 68ch 行宽'); return false }
+  if (!/\.gs-cl-points \{[^}]*text-align:\s*justify/.test(CLPO)) { console.log('单列正文未两端对齐'); return false }
+  if (/grid-template-columns:\s*repeat\(2/.test(CLPO)) { console.log('版本正文回流成双列'); return false }
+  if (!CLPO.includes('v-for="g in kindGroupsOf(e)"')) { console.log('模板未按三段分组渲染'); return false }
+  if (!GSO.includes('<SettingsChangelogPanel')) { console.log('设置页未挂载更新日志面板'); return false }
   return true;
 });
 

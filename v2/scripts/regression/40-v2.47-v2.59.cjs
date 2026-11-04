@@ -468,12 +468,12 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
     && !WS84.includes('wsHeadDescFallback')
     && body.includes('workspace.value?.desc');
 });
-check('R84-3 W1 页头 ≤40px（V3.9.30 重指：台身份标题行保持 ≤40px；中心论点独占下一层全宽舞台，页头三层共处连续 10px 节奏）', () => {
+check('R84-3 W1 页头 ≤40px（V4.0.4 重指：台身份标题行保持 ≤40px；中心论点独占下一层全宽舞台，页头三层共处连续 10px 节奏；页头横向缩进归零，与画布同轴）', () => {
   const c = read('/newtab/views/workspace.css');
   return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 36px;[^}]*max-height: 40px;/.test(c)
     && !/\.ws-id-head \{[^}]*min-width: 220px;/.test(c)
     && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
-    && /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 10px;[^}]*padding-left: 22px;/.test(c);
+    && /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 10px;[^}]*padding-left: 0;/.test(c);
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')

@@ -45,6 +45,8 @@ const props = withDefaults(defineProps<{
 }>(), { secondaryMode: false })
 
 const query = ref('')
+const freshMode = ref(false)
+const rootEl = ref<HTMLElement | null>(null)
 /** R3-Ca：视图两档（网格/列表）——与任务、好奇面板同口径存组件内 ref，不落盘（三面板一致，别在这里单开持久化）
  *  ★W15-T2（用户拍板 2026-10-16）：**默认改列表** —— 池卡 261 张，网格一屏只放得下十几张且标签要折行，
  *  列表才是一屏看更多的那个（网格保留为可选视图，不删）。 */
@@ -75,11 +77,27 @@ const POOL_GROUP_KEYS: string[] = ['file', 'url', 'obsidian', 'none']
 const groupBy = ref<'' | PoolGroup>(savedPoolGroup && POOL_GROUP_KEYS.includes(savedPoolGroup) ? savedPoolGroup as PoolGroup : '')
 
 watch([sortBy, sortDir, groupBy], () => {
+  if (freshMode.value) return
   const sp = { ...(store.ui?.sortPrefs || {}), pool: { by: sortBy.value, dir: sortDir.value, group: groupBy.value } }
   if (store.ui) store.ui.sortPrefs = sp
   saveUIPrefs({ sortPrefs: sp })
 })
-function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
+function changeViewMode(next: 'card' | 'list') {
+  freshMode.value = false
+  viewMode.value = next
+}
+function changeSortBy(next: string) {
+  freshMode.value = false
+  sortBy.value = next as PoolSortBy
+}
+function changeGroupBy(next: string) {
+  freshMode.value = false
+  groupBy.value = next as '' | PoolGroup
+}
+function toggleSortDir() {
+  freshMode.value = false
+  sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+}
 const poolCards = computed(() => {
   const q = query.value.trim().toLowerCase()
   const dirMul = sortDir.value === 'asc' ? 1 : -1
@@ -87,12 +105,13 @@ const poolCards = computed(() => {
     sortBy.value === 'created' ? (r.createdAt || 0)
     : sortBy.value === 'called' ? (r.callCount || 0)
     : (r.updatedAt || 0)
-  return (store.data?.resources || [])
+  const list = (store.data?.resources || [])
     .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .filter(r => !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
     .filter(r => !onlyUntagged.value || !(r.tags || []).length)
     .filter(r => calledFilter.value === 'all' || (calledFilter.value === 'called' ? !!r.lastCalledAt : !r.lastCalledAt))
-    .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (keyOf(b) - keyOf(a)) * dirMul)
+  if (freshMode.value) return list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+  return list.sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (keyOf(b) - keyOf(a)) * dirMul)
 })
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
 const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
@@ -314,7 +333,6 @@ function openDetail(id: string) {
   const r = (store.data?.resources || []).find(x => x.id === id && !x.deletedAt)
   if (r) emitOpenDrawer({ kind: 'res', id: r.id })
 }
-defineExpose({ openDetail })
 function openCardLink(r: ResourceCard) {
   openResourceLink(r)
 }
@@ -341,6 +359,7 @@ const ctxItems = ref<{ label: string; icon?: string; danger?: boolean; cb: () =>
 /** ★W17-C07：置顶切换的唯一出口（右键 · 列表行末图钉 · 网格图钉共三处）——
  *  原先只有右键一处，行末图钉是纯展示 span、网格根本没有，用户找不到「取消置顶」的按键。 */
 function togglePin(r: ResourceCard) {
+  freshMode.value = false
   const { label } = togglePinOf({ card: r, persist: () => store.persist() })
   showToast(label)
 }
@@ -406,6 +425,23 @@ const { fileImportInput, fileImport, handleFileImport } = useWorkspaceImport({
 /* ===== R2-⑧ 批量 → R3-Cb 选择与打标口径收归 useBatchSelect 一份实现 ===== */
 const batchMode = ref(false)
 const { selected, size: selSize, allSelected, toggle: toggleSel, selectAll, invert: invertSel, clear: clearSel, setMode } = useBatchSelect(() => poolCards.value.map(r => r.id))
+async function resetForFresh() {
+  freshMode.value = true
+  viewMode.value = 'list'
+  query.value = ''
+  onlyUntagged.value = false
+  calledFilter.value = 'all'
+  sortBy.value = 'created'
+  sortDir.value = 'desc'
+  groupBy.value = ''
+  collapsedGroups.value = new Set()
+  clearSel()
+  batchMode.value = setMode(false)
+  visibleCount.value = PAGE
+  await nextTick()
+  rootEl.value?.scrollIntoView({ block: 'start' })
+}
+defineExpose({ openDetail, resetForFresh })
 function toggleBatch() { batchMode.value = setMode(!batchMode.value) }
 function applyTagToSelected(t: string) {
   const n = addTagToCards(store.data!.resources, selected.value, t)
@@ -427,14 +463,14 @@ function deleteSelected() {
 </script>
 
 <template>
-  <div class="pcp">
+  <div ref="rootEl" class="pcp">
     <!-- R3-Cc2：控制行收归 DeckControls——顺序/样式一份实现，池的值域（两档视图 + 全部/待打标）以数据传入 -->
     <DeckControls panel="pool" search search-ph="快速过滤标题 / 标签..." :query="query" @search="query = $event"
       :filters="poolFilters" :filter="activeFilter" @filter="onPoolFilter"
-      :views="poolViews" :view="viewMode" @view="viewMode = $event as 'card' | 'list'"
-      :sorts="POOL_SORTS" :sort="sortBy" @sort="sortBy = $event as PoolSortBy"
+      :views="poolViews" :view="viewMode" @view="changeViewMode($event as 'card' | 'list')"
+      :sorts="POOL_SORTS" :sort="sortBy" @sort="changeSortBy"
       :sort-dir="sortDir" :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
-      :groups="viewMode === 'list' ? POOL_GROUP_OPTIONS : []" :group="groupBy" @group="groupBy = $event as '' | PoolGroup"
+      :groups="viewMode === 'list' ? POOL_GROUP_OPTIONS : []" :group="groupBy" @group="changeGroupBy"
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
       :new-label="secondaryMode ? '' : '＋ 新建卡'" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
       <button v-if="!secondaryMode" class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()"><Icon name="inbox" :size="13"/> 导入本地文件</button>

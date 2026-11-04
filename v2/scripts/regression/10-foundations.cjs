@@ -654,7 +654,7 @@ check('R35-12 REQ-033 2×3 指标网格撑满对齐（grid-auto-rows:1fr + flex:
 
 console.log('【第卅五轮 · V2.14 需求包第六批：REQ-037 浏览器快捷键新增「打开全局设置」命令】');
 check('R35-13/R49-I1（R68 修订 · V4.0.3 随迁）manifest 命令：仅 description 不配 suggested_key；open-compass/open-resource 已退役，goto/采集系命令在位，Airtable 同步命令零回流', () => { const m = read('/manifest.ts'); return !m.includes("'open-compass'") && !m.includes("'open-resource'") && m.includes("'open-settings'") && m.includes("'open-tree'") && m.includes("'open-tasks'") && !m.includes("'sync-airtable'") && m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes("description: '全局设置'"); });
-check('R35-14 REQ-037 background 监听 open-settings（复用聚焦 + zy-route /settings；新建标签 #/settings 直达）', () => { const src = read('/background/index.ts'); return src.includes("case 'open-settings':") && src.includes("route: '/settings'") && src.includes("index.html#/settings"); });
+check('R35-14 REQ-037 background 监听 open-settings（统一 openNewtabRoute：复用当前窗新标签 + zy-route /settings；新建标签亦经同一深链 helper）', () => { const src = read('/background/index.ts'); return src.includes("case 'open-settings':") && src.includes("await openNewtabRoute('/settings')") && src.includes('async function openNewtabRoute(route: string): Promise<void>') && src.includes("type: 'zy-route', route"); });
 
 // ============== 第卅六轮 · V2.14.1 数据持久化加固 + 全局搜索交互统一（REQ-038~041） ==============
 console.log('【第卅六轮 · V2.14.1 第一批：REQ-038 数据持久化加固】');

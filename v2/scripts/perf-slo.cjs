@@ -2,7 +2,7 @@
 /**
  * 知源本地性能 SLO 采样。
  *
- * 真实加载 dist 扩展，用 Playwright 驱动六类高频路径，输出 P50/P95 与预算判定。
+ * 真实加载 dist 扩展，用 Playwright 驱动九类高频路径，输出 P50/P95 与预算判定。
  * 不读取历史报告、不生成模拟样本；任一采样失败或 P95 超预算，退出码为 1。
  *
  * 用法：
@@ -30,12 +30,17 @@ const OUT_DIR = path.join(ROOT, 'docs', 'perf-slo')
 const EXT_INDEX = 'src/newtab/index.html'
 const SAMPLE_COUNT = 5
 const IMAGE_SAMPLE_COUNT = 3
+const ALIGNMENT_VIEWPORTS = [1440, 1280, 1024, 768, 390]
+const ALIGNMENT_TOLERANCE = 1
 
 const BUDGETS = {
   overlay_open: 800,
   cmdk_first_open: 1500,
   search_type: 400,
   page_switch: 800,
+  pool_switch: 800,
+  pool_filter: 500,
+  pool_detail: 1200,
   share_drawer: 1000,
   long_image: 4000,
 }
@@ -45,6 +50,9 @@ const LABELS = {
   cmdk_first_open: '⌘K / Ctrl+K 首屏',
   search_type: '搜索键入到结果更新',
   page_switch: '调度台 / 方向台切换',
+  pool_switch: '任务 / 好奇心 / 资源卡池切换',
+  pool_filter: '卡池状态 / 标签筛选',
+  pool_detail: '三卡池详情打开',
   share_drawer: '分享抽屉打开',
   long_image: '高清长图生成完成',
 }
@@ -71,7 +79,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function buildMetric(key, samples, notes, error) {
+function summarizeLongTasks(samples, supported) {
+  const clean = samples.filter((value) => Number.isFinite(value) && value >= 0).map((value) => round(value))
+  return {
+    supported,
+    sampleCount: clean.length,
+    p95: percentile(clean, 0.95),
+    max: clean.length ? Math.max(...clean) : 0,
+    samples: clean,
+  }
+}
+
+function buildMetric(key, samples, notes, error, longTasks = [], longTaskSupported = false) {
   const clean = samples.filter((value) => Number.isFinite(value) && value >= 0).map((value) => round(value))
   const p50 = percentile(clean, 0.5)
   const p95 = percentile(clean, 0.95)
@@ -88,17 +107,25 @@ function buildMetric(key, samples, notes, error) {
     pass: !error && clean.length > 0 && p95 != null && p95 <= budget,
     notes: notes || [],
     error: error || null,
+    longTasks: summarizeLongTasks(longTasks, longTaskSupported),
   }
 }
 
 function markdown(report) {
   const rows = Object.values(report.metrics).map((metric) => {
     const status = metric.pass ? 'PASS' : 'FAIL'
-    return `| ${metric.label} | ${metric.sampleCount} | ${metric.p50 ?? '-'} | ${metric.p95 ?? '-'} | ${metric.budgetP95} | ${status} |`
+    const longTaskMax = metric.longTasks.supported ? metric.longTasks.max : '-'
+    const longTaskCount = metric.longTasks.supported ? metric.longTasks.sampleCount : '-'
+    return `| ${metric.label} | ${metric.sampleCount} | ${metric.p50 ?? '-'} | ${metric.p95 ?? '-'} | ${metric.budgetP95} | ${longTaskMax} | ${longTaskCount} | ${status} |`
   })
   const failures = report.failures.length
     ? report.failures.map((item) => `- ${item}`).join('\n')
     : '- 无'
+  const alignmentRows = (report.alignment?.viewports || []).map((item) => {
+    const bounds = item.bounds || {}
+    const fmt = (value) => Number.isFinite(value) ? `${value}px` : '-'
+    return `| ${item.width}px | ${fmt(bounds.head?.left)} / ${fmt(bounds.head?.right)} | ${fmt(bounds.canvas?.left)} / ${fmt(bounds.canvas?.right)} | ${fmt(item.maxEdgeDelta)} | ${fmt(item.overflowPx)} | ${item.pass ? 'PASS' : 'FAIL'} |`
+  })
   return `# 知源性能 SLO · 最新实测
 
 > 生成时间：${report.generatedAt}
@@ -106,9 +133,17 @@ function markdown(report) {
 > 构建版本：\`${report.manifestVersion}\`
 > 总体判定：**${report.overallPass ? 'PASS' : 'FAIL'}**
 
-| 路径 | 样本数 | P50 (ms) | P95 (ms) | P95 预算 (ms) | 判定 |
-|---|---:|---:|---:|---:|---|
+| 路径 | 样本数 | P50 (ms) | P95 (ms) | P95 预算 (ms) | Long Task 峰值 (ms) | Long Task 样本 | 判定 |
+|---|---:|---:|---:|---:|---:|---:|---|
 ${rows.join('\n')}
+
+## 策展台横向对齐
+
+容差：页头、中心论点卡、页内工具条相对画布的左右边界最大误差 ≤ ${report.alignment?.tolerancePx ?? ALIGNMENT_TOLERANCE}px；同时要求页面无横向溢出。
+
+| 视口 | 页头左 / 右 | 画布左 / 右 | 最大边界误差 | 横向溢出 | 判定 |
+|---:|---:|---:|---:|---:|---|
+${alignmentRows.length ? alignmentRows.join('\n') : '| - | - | - | - | - | FAIL |'}
 
 ## 失败项
 
@@ -116,10 +151,42 @@ ${failures}
 
 ## 说明
 
-- 计时从真实用户入口触发开始，到目标 UI 可消费（浮层输入框、搜索首屏、结果更新、目标页根节点、分享抽屉、长图完成信号）为止。
+- 计时从真实用户入口触发开始，到目标 UI 可消费（浮层输入框、搜索首屏、结果更新、目标页根节点、卡池列表 / 筛选结果 / 详情标题、分享抽屉、长图完成信号）为止。
 - 样本为本机实际观测值；P50/P95 使用升序样本的最近秩计算。
+- Long Task 由 Chromium \`PerformanceObserver({ type: 'longtask' })\` 在每次动作窗口内采集；它只用于暴露主线程阻塞，不参与路径 P95 判定。
 - 任一采样报错或 P95 超预算，脚本以非零退出码结束。
 `
+}
+
+async function armLongTasks(page) {
+  return page.evaluate(() => {
+    if (!Array.isArray(window.__zyPerfSloLongTasks)) window.__zyPerfSloLongTasks = []
+    window.__zyPerfSloLongTasks.length = 0
+    return window.__zyPerfSloLongTaskSupported === true
+  }).catch(() => false)
+}
+
+async function drainLongTasks(page) {
+  // PerformanceObserver 的交付发生在任务结束后的微任务/后续任务；动作计时已经停止，
+  // 这里的短暂等待只用于完整收齐观测值，不计入路径耗时。
+  await sleep(40)
+  return page.evaluate(() => {
+    const rows = Array.isArray(window.__zyPerfSloLongTasks) ? window.__zyPerfSloLongTasks : []
+    return rows.filter((value) => Number.isFinite(value) && value >= 0)
+  }).catch(() => [])
+}
+
+async function captureAction(page, action) {
+  const supported = await armLongTasks(page)
+  const started = Date.now()
+  try {
+    const result = await action()
+    const elapsed = Date.now() - started
+    return { elapsed, longTasks: await drainLongTasks(page), supported, result }
+  } catch (error) {
+    await drainLongTasks(page)
+    throw error
+  }
 }
 
 async function waitForContentChange(page, selector, previousText, timeout = 6000) {
@@ -162,6 +229,117 @@ async function waitForText(page, selector, pattern, timeout = 20000) {
   throw new Error(`等待文案超时：${selector} ${pattern}`)
 }
 
+async function waitForDeckPanel(page, panel, timeout = 10000) {
+  await page.waitForSelector(`.dk-row[data-panel="${panel}"]`, { state: 'visible', timeout })
+}
+
+async function ensureDeckList(page, panel) {
+  const listButton = page.locator(`.dk-row[data-panel="${panel}"] .dk-view`).filter({ hasText: '列表' }).first()
+  await listButton.waitFor({ state: 'visible', timeout: 10000 })
+  const className = await listButton.getAttribute('class')
+  if (!/\bon\b/.test(className || '')) await listButton.click()
+}
+
+async function clickDeckTab(page, label) {
+  await page.locator('.deck-kind-seg button').filter({ hasText: label }).first().click()
+}
+
+async function measureDeckDetail(page, base, path, panel, rowSelector, titleSelector) {
+  const separator = path.includes('?') ? '&' : '?'
+  await page.goto(base + `#${path}${separator}fresh=1&freshAt=${Date.now()}`, { waitUntil: 'domcontentloaded' })
+  await waitForDeckPanel(page, panel)
+  await ensureDeckList(page, panel)
+  const row = page.locator(rowSelector).first()
+  await row.waitFor({ state: 'visible', timeout: 10000 })
+
+  const measured = await captureAction(page, async () => {
+    await row.click()
+    await page.waitForSelector(titleSelector, { state: 'visible', timeout: 12000 })
+  })
+
+  await page.locator('.drawer-close').first().click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
+  return measured
+}
+
+async function measureAlignment(page, base, boardId) {
+  const viewports = []
+  for (const width of ALIGNMENT_VIEWPORTS) {
+    try {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(base + `#/workspace/${boardId}`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('.curation-workspace', { state: 'visible', timeout: 20000 })
+      await page.waitForSelector('.ws-head', { state: 'visible', timeout: 10000 })
+      await page.waitForSelector('.thesis-banner', { state: 'visible', timeout: 10000 })
+      await page.waitForSelector('.cur-toolbar', { state: 'visible', timeout: 10000 })
+      await sleep(120)
+
+      const measured = await page.evaluate(() => {
+        const selectors = {
+          head: '.ws-head',
+          thesis: '.thesis-banner',
+          toolbar: '.cur-toolbar',
+          canvas: '.curation-workspace',
+        }
+        const bounds = {}
+        for (const [name, selector] of Object.entries(selectors)) {
+          const element = document.querySelector(selector)
+          if (!element) continue
+          const rect = element.getBoundingClientRect()
+          bounds[name] = {
+            left: Math.round(rect.left * 10) / 10,
+            right: Math.round(rect.right * 10) / 10,
+            width: Math.round(rect.width * 10) / 10,
+          }
+        }
+        return {
+          bounds,
+          innerWidth: window.innerWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+        }
+      })
+      const canvas = measured.bounds.canvas
+      const compared = ['head', 'thesis', 'toolbar']
+        .map((name) => measured.bounds[name])
+        .filter(Boolean)
+      const maxEdgeDelta = canvas && compared.length
+        ? Math.max(...compared.flatMap((rect) => [
+          Math.abs(rect.left - canvas.left),
+          Math.abs(rect.right - canvas.right),
+        ]))
+        : null
+      const overflowPx = Math.max(0, measured.scrollWidth - measured.innerWidth)
+      viewports.push({
+        width,
+        height: 900,
+        bounds: measured.bounds,
+        innerWidth: measured.innerWidth,
+        scrollWidth: measured.scrollWidth,
+        maxEdgeDelta: Number.isFinite(maxEdgeDelta) ? round(maxEdgeDelta) : null,
+        overflowPx: round(overflowPx),
+        pass: Number.isFinite(maxEdgeDelta)
+          && maxEdgeDelta <= ALIGNMENT_TOLERANCE
+          && overflowPx <= 1,
+      })
+    } catch (error) {
+      viewports.push({
+        width,
+        height: 900,
+        bounds: {},
+        maxEdgeDelta: null,
+        overflowPx: null,
+        pass: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  return {
+    tolerancePx: ALIGNMENT_TOLERANCE,
+    viewports,
+  }
+}
+
 async function seedPerfBoard(page) {
   return page.evaluate(async () => {
     const raw = await chrome.storage.local.get('zy_data_v2')
@@ -171,6 +349,12 @@ async function seedPerfBoard(page) {
     const now = Date.now()
     const boardId = 'perf-slo-board'
     const catIds = ['perf-slo-l2', 'perf-slo-l3', 'perf-slo-l4']
+    // 这是「迁移早已完成」的现役策展台夹具。若不落这些幂等戳，刷新后会被真实的
+    // hub-merge / board-card-pool 启动迁移当成存量数据消费掉，分享入口也就不存在了。
+    data.hubMigratedAt ||= now
+    data.hubMergedAt ||= now
+    data.catsMigratedAt ||= now
+    data.boardCardsPooledAt ||= now
     if (!data.workspaces.some((item) => item.id === boardId)) {
       data.workspaces.push({
         id: boardId,
@@ -192,7 +376,11 @@ async function seedPerfBoard(page) {
       { id: catIds[2], workspaceId: boardId, name: '案例与边界', description: '第三论证层', parentId: catIds[1], order: 0 },
     )
 
-    data.resources = (data.resources || []).filter((item) => item.workspaceId !== boardId)
+    // 只清脚本自己的夹具。真实卡即使也存在同一个性能台，也不会被误删。
+    data.resources = (data.resources || []).filter((item) => !String(item.id).startsWith('perf-slo-'))
+    data.tasks = (data.tasks || []).filter((item) => !String(item.id).startsWith('perf-slo-'))
+    data.curiosities = (data.curiosities || []).filter((item) => !String(item.id).startsWith('perf-slo-'))
+
     data.resources.push({
       id: 'perf-slo-thesis',
       kind: 'resource',
@@ -233,9 +421,95 @@ async function seedPerfBoard(page) {
       })
     }
 
+    const taskCount = 120
+    const taskStatuses = ['todo', 'doing', 'done']
+    const priorities = ['high', 'medium', 'low']
+    for (let index = 0; index < taskCount; index++) {
+      data.tasks.push({
+        id: `perf-slo-task-${index}`,
+        kind: 'task',
+        title: index % 4 === 0 ? `性能验收任务 · 深度工作 ${index}` : `性能验收任务 ${index}`,
+        description: `用于任务卡池真实性能采样的任务 ${index}`,
+        status: taskStatuses[index % taskStatuses.length],
+        priority: priorities[index % priorities.length],
+        tags: index % 6 === 0 ? [] : ['性能', `任务组-${index % 8}`],
+        pinned: false,
+        customFields: {},
+        createdAt: now - index * 1000,
+        updatedAt: now - index * 1000,
+      })
+    }
+
+    const curiosityCount = 120
+    const curioStatuses = ['todo', 'doing', 'done', 'shelf']
+    for (let index = 0; index < curiosityCount; index++) {
+      data.curiosities.push({
+        id: `perf-slo-curio-${index}`,
+        kind: 'curiosity',
+        question: index % 5 === 0 ? `为什么知识调度比继续生产更重要？· ${index}` : `性能验收好奇心 ${index}`,
+        description: `用于好奇心卡池真实性能采样的卡片 ${index}`,
+        status: curioStatuses[index % curioStatuses.length],
+        pinned: false,
+        tags: index % 7 === 0 ? [] : ['性能', `好奇组-${index % 6}`],
+        customFields: {},
+        createdAt: now - index * 1000,
+        updatedAt: now - index * 1000,
+      })
+    }
+
+    const poolCount = 240
+    for (let index = 0; index < poolCount; index++) {
+      const linkType = index % 11 === 0 ? 'obsidian' : index % 7 === 0 ? 'file' : 'url'
+      const link = linkType === 'obsidian'
+        ? `obsidian://open?vault=zhiyuan&file=perf-${index}`
+        : linkType === 'file'
+          ? `性能夹具-${index}.pdf`
+          : `https://example.com/pool/${index}`
+      data.resources.push({
+        id: `perf-slo-pool-${index}`,
+        kind: 'resource',
+        title: index % 4 === 0 ? `知识调度性能验收资源 ${index}` : `性能验收资源卡 ${index}`,
+        description: `用于资源卡池真实性能采样的池卡 ${index}`,
+        linkType,
+        link,
+        workspaceId: 'zy-curation',
+        categoryId: '',
+        tags: index % 5 === 0 ? [] : ['性能', `资源组-${index % 8}`],
+        pinned: false,
+        callCount: index % 6,
+        lastCalledAt: index % 6 ? now - index * 1000 : undefined,
+        customFields: {},
+        createdAt: now - index * 1000,
+        updatedAt: now - index * 1000,
+      })
+    }
+
     await chrome.storage.local.set({ zy_data_v2: data })
-    return { boardId, resourceCount: 19, categoryCount: 3 }
+    return {
+      boardId,
+      resourceCount: 19,
+      categoryCount: 3,
+      taskCount,
+      curiosityCount,
+      poolCount,
+    }
   })
+}
+
+async function inspectPerfBoard(page, boardId) {
+  return page.evaluate(async (id) => {
+    const raw = await chrome.storage.local.get('zy_data_v2')
+    const data = raw.zy_data_v2
+    const board = data?.workspaces?.find((item) => item.id === id)
+    const cards = (data?.resources || []).filter((item) => item.workspaceId === id && !item.deletedAt)
+    return {
+      hash: location.hash,
+      boardExists: !!board,
+      boardArchived: !!board?.archived,
+      cardCount: cards.length,
+      bodyText: (document.body?.innerText || '').slice(0, 600),
+    }
+  }, boardId)
 }
 
 async function main() {
@@ -254,8 +528,15 @@ async function main() {
     host: os.hostname(),
     budgets: BUDGETS,
     metrics: {},
+    alignment: null,
     failures: [],
     overallPass: false,
+  }
+  const longTaskSamples = Object.fromEntries(Object.keys(BUDGETS).map((key) => [key, []]))
+  let longTaskSupported = false
+  function recordAction(key, measured) {
+    longTaskSupported ||= measured.supported === true
+    if (measured.longTasks.length) longTaskSamples[key].push(...measured.longTasks)
   }
 
   const ctx = await chromium.launchPersistentContext('', {
@@ -280,6 +561,23 @@ async function main() {
     const base = `chrome-extension://${extId}/${EXT_INDEX}`
     const page = await ctx.newPage()
     page.setDefaultTimeout(20000)
+    await page.addInitScript(() => {
+      window.__zyPerfSloLongTasks = []
+      window.__zyPerfSloLongTaskSupported = typeof PerformanceObserver !== 'undefined'
+        && Array.isArray(PerformanceObserver.supportedEntryTypes)
+        && PerformanceObserver.supportedEntryTypes.includes('longtask')
+      if (!window.__zyPerfSloLongTaskSupported) return
+      try {
+        window.__zyPerfSloLongTaskObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            window.__zyPerfSloLongTasks.push(entry.duration)
+          }
+        })
+        window.__zyPerfSloLongTaskObserver.observe({ type: 'longtask', buffered: true })
+      } catch {
+        window.__zyPerfSloLongTaskSupported = false
+      }
+    })
 
     await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.page .desk-head', { timeout: 20000 })
@@ -302,14 +600,16 @@ async function main() {
     let overlayError = ''
     try {
       for (let index = 0; index < SAMPLE_COUNT; index++) {
-        const start = Date.now()
-        await worker.evaluate(async ({ port }) => {
-          const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${port}/*` })
-          if (!tabs[0]?.id) throw new Error('宿主页 tab 未找到')
-          await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-search' })
-        }, { port })
-        await page.waitForSelector('#__zy_si__', { timeout: 8000 })
-        overlaySamples.push(Date.now() - start)
+        const measured = await captureAction(page, async () => {
+          await worker.evaluate(async ({ port }) => {
+            const tabs = await chrome.tabs.query({ url: `http://127.0.0.1:${port}/*` })
+            if (!tabs[0]?.id) throw new Error('宿主页 tab 未找到')
+            await chrome.tabs.sendMessage(tabs[0].id, { type: 'zy-open-search' })
+          }, { port })
+          await page.waitForSelector('#__zy_si__', { timeout: 8000 })
+        })
+        overlaySamples.push(measured.elapsed)
+        recordAction('overlay_open', measured)
         await page.keyboard.press('Escape')
         await page.waitForFunction(() => !document.querySelector('#__zy_si__'), null, { timeout: 5000 })
         await sleep(120)
@@ -322,6 +622,8 @@ async function main() {
       overlaySamples,
       ['从 background 发出 zy-open-search 到宿主页搜索输入框出现；包含 content UI 就绪。'],
       overlayError,
+      longTaskSamples.overlay_open,
+      longTaskSupported,
     )
 
     // 2) ⌘K 首屏：每次整页重载后首次打开，避免把已挂载组件当成"首屏"。
@@ -332,10 +634,12 @@ async function main() {
         await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
         await page.waitForSelector('.page .desk-head', { timeout: 20000 })
         await sleep(250)
-        const start = Date.now()
-        await page.locator('.icon-btn[title*="全局搜索"]').first().click()
-        await page.waitForSelector('.gp-overlay.open .gp-results', { timeout: 12000 })
-        cmdkSamples.push(Date.now() - start)
+        const measured = await captureAction(page, async () => {
+          await page.locator('.icon-btn[title*="全局搜索"]').first().click()
+          await page.waitForSelector('.gp-overlay.open .gp-results', { timeout: 12000 })
+        })
+        cmdkSamples.push(measured.elapsed)
+        recordAction('cmdk_first_open', measured)
         await page.keyboard.press('Escape')
         await page.waitForSelector('.gp-overlay.open', { state: 'detached', timeout: 5000 }).catch(() => {})
       }
@@ -347,6 +651,8 @@ async function main() {
       cmdkSamples,
       ['每个样本都从整页重载后的首次打开计时，计到检索面板与结果容器出现。'],
       cmdkError,
+      longTaskSamples.cmdk_first_open,
+      longTaskSupported,
     )
 
     // 3) 搜索键入：从最后按键派发到结果区域真实变化。
@@ -360,26 +666,21 @@ async function main() {
       for (let index = 0; index < SAMPLE_COUNT; index++) {
         await page.locator('.gp-search-input').fill('')
         await sleep(180)
-        const started = await page.evaluate(() => {
-          const input = document.querySelector('.gp-search-input')
-          const results = document.querySelector('.gp-results')
-          if (!(input instanceof HTMLInputElement) || !results) return null
-          window.__perfSloSearch = {
-            previousText: results.textContent || '',
-            startedAt: performance.now(),
-          }
-          input.value = '知识库'
-          input.dispatchEvent(new Event('input', { bubbles: true }))
-          return window.__perfSloSearch.startedAt
+        const previousText = await page.locator('.gp-results').textContent()
+        const measured = await captureAction(page, async () => {
+          const started = await page.evaluate(() => {
+            const input = document.querySelector('.gp-search-input')
+            if (!(input instanceof HTMLInputElement)) return false
+            input.value = '知识库'
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+            return true
+          })
+          if (!started) throw new Error('搜索输入框不存在')
+          const changed = await waitForContentChange(page, '.gp-results', previousText || '')
+          if (!changed.ok) throw new Error(changed.reason || '搜索结果没有更新')
         })
-        if (started == null) throw new Error('搜索输入框或结果容器不存在')
-        const changed = await waitForContentChange(
-          page,
-          '.gp-results',
-          await page.evaluate(() => window.__perfSloSearch.previousText),
-        )
-        if (!changed.ok) throw new Error(changed.reason || '搜索结果没有更新')
-        typeSamples.push(await page.evaluate(() => performance.now() - window.__perfSloSearch.startedAt))
+        typeSamples.push(measured.elapsed)
+        recordAction('search_type', measured)
       }
     } catch (error) {
       typeError = error instanceof Error ? error.message : String(error)
@@ -389,6 +690,8 @@ async function main() {
       typeSamples,
       ['从最终查询词触发 input 到 .gp-results 实际发生 DOM 更新；包含 120ms 输入防抖与 Vue 渲染。'],
       typeError,
+      longTaskSamples.search_type,
+      longTaskSupported,
     )
     await page.keyboard.press('Escape').catch(() => {})
 
@@ -399,15 +702,19 @@ async function main() {
       await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('.page .desk-head', { timeout: 12000 })
       for (let index = 0; index < SAMPLE_COUNT; index++) {
-        let start = Date.now()
-        await page.locator('.tabs .tab').filter({ hasText: '方向台' }).first().click()
-        await page.waitForSelector('.compass-layout', { timeout: 10000 })
-        switchSamples.push(Date.now() - start)
+        const toCompass = await captureAction(page, async () => {
+          await page.locator('.tabs .tab').filter({ hasText: '方向台' }).first().click()
+          await page.waitForSelector('.compass-layout', { timeout: 10000 })
+        })
+        switchSamples.push(toCompass.elapsed)
+        recordAction('page_switch', toCompass)
 
-        start = Date.now()
-        await page.locator('.tabs .tab').filter({ hasText: '调度台' }).first().click()
-        await page.waitForSelector('.page .desk-head', { timeout: 10000 })
-        switchSamples.push(Date.now() - start)
+        const toDesk = await captureAction(page, async () => {
+          await page.locator('.tabs .tab').filter({ hasText: '调度台' }).first().click()
+          await page.waitForSelector('.page .desk-head', { timeout: 10000 })
+        })
+        switchSamples.push(toDesk.elapsed)
+        recordAction('page_switch', toDesk)
       }
     } catch (error) {
       switchError = error instanceof Error ? error.message : String(error)
@@ -417,55 +724,255 @@ async function main() {
       switchSamples,
       ['每轮记录两次真实导航：调度台→方向台、方向台→调度台；计到目标页根节点出现。'],
       switchError,
+      longTaskSamples.page_switch,
+      longTaskSupported,
     )
 
-    // 5) 分享抽屉：真实进入夹具策展台，点击「分享成果」，等到原生预览纸面可见。
+    // 5) 三卡池切换：在同一二级页里真实点击类型 Tab，计到目标列表的首行出现。
+    const poolSwitchSamples = []
+    let poolSwitchError = ''
+    try {
+      await page.goto(base + '#/deck/task', { waitUntil: 'domcontentloaded' })
+      await waitForDeckPanel(page, 'task')
+      await ensureDeckList(page, 'task')
+      await page.waitForSelector('.trow[data-tid]', { state: 'visible', timeout: 10000 })
+
+      await clickDeckTab(page, '好奇心卡')
+      await waitForDeckPanel(page, 'curio')
+      await ensureDeckList(page, 'curio')
+      await page.waitForSelector('.cz-list-item[data-czid]', { state: 'visible', timeout: 10000 })
+
+      await clickDeckTab(page, '资源卡')
+      await waitForDeckPanel(page, 'pool')
+      await ensureDeckList(page, 'pool')
+      await page.waitForSelector('.pcp-row[data-rid]', { state: 'visible', timeout: 10000 })
+
+      await clickDeckTab(page, '任务卡')
+      await waitForDeckPanel(page, 'task')
+      await page.waitForSelector('.trow[data-tid]', { state: 'visible', timeout: 10000 })
+
+      for (let index = 0; index < SAMPLE_COUNT; index++) {
+        const transitions = [
+          ['好奇心卡', 'curio', '.cz-list-item[data-czid]'],
+          ['资源卡', 'pool', '.pcp-row[data-rid]'],
+          ['任务卡', 'task', '.trow[data-tid]'],
+        ]
+        for (const [label, panel, rowSelector] of transitions) {
+          const measured = await captureAction(page, async () => {
+            await clickDeckTab(page, label)
+            await waitForDeckPanel(page, panel)
+            await page.waitForSelector(rowSelector, { state: 'visible', timeout: 10000 })
+          })
+          poolSwitchSamples.push(measured.elapsed)
+          recordAction('pool_switch', measured)
+        }
+      }
+    } catch (error) {
+      poolSwitchError = error instanceof Error ? error.message : String(error)
+    }
+    report.metrics.pool_switch = buildMetric(
+      'pool_switch',
+      poolSwitchSamples,
+      ['每轮真实点击任务→好奇心→资源→任务三次 Tab；计到目标卡池列表首行出现，采样前已用真实「列表」按钮建立视图。'],
+      poolSwitchError,
+      longTaskSamples.pool_switch,
+      longTaskSupported,
+    )
+
+    // 6) 卡池筛选：任务状态下拉、好奇心状态胶囊、资源池标签胶囊各走一遍真实控件。
+    const poolFilterSamples = []
+    let poolFilterError = ''
+    try {
+      for (let index = 0; index < SAMPLE_COUNT; index++) {
+        await page.goto(base + '#/deck/task', { waitUntil: 'domcontentloaded' })
+        await waitForDeckPanel(page, 'task')
+        await ensureDeckList(page, 'task')
+        await page.waitForSelector('.task-list', { state: 'visible', timeout: 10000 })
+
+        let previousText = await page.locator('.task-list').textContent()
+        let measured = await captureAction(page, async () => {
+          await page.locator('.dk-row[data-panel="task"] .dk-filters select').selectOption('doing')
+          const changed = await waitForContentChange(page, '.task-list', previousText || '')
+          if (!changed.ok) throw new Error(`任务状态筛选：${changed.reason || '列表未更新'}`)
+        })
+        poolFilterSamples.push(measured.elapsed)
+        recordAction('pool_filter', measured)
+        previousText = await page.locator('.task-list').textContent()
+        await page.locator('.dk-row[data-panel="task"] .dk-filters select').selectOption('all')
+        const taskRestored = await waitForContentChange(page, '.task-list', previousText || '')
+        if (!taskRestored.ok) throw new Error('任务状态筛选恢复失败')
+        await page.waitForSelector('.trow[data-tid]', { state: 'visible', timeout: 10000 })
+
+        await clickDeckTab(page, '好奇心卡')
+        await waitForDeckPanel(page, 'curio')
+        await ensureDeckList(page, 'curio')
+        await page.waitForSelector('.cz-list', { state: 'visible', timeout: 10000 })
+        previousText = await page.locator('.cz-list').textContent()
+        measured = await captureAction(page, async () => {
+          await page.locator('.dk-row[data-panel="curio"] .dk-pill').filter({ hasText: '探索中' }).first().click()
+          const changed = await waitForContentChange(page, '.cz-list', previousText || '')
+          if (!changed.ok) throw new Error(`好奇心状态筛选：${changed.reason || '列表未更新'}`)
+        })
+        poolFilterSamples.push(measured.elapsed)
+        recordAction('pool_filter', measured)
+        previousText = await page.locator('.cz-list').textContent()
+        await page.locator('.dk-row[data-panel="curio"] .dk-pill').filter({ hasText: '全部' }).first().click()
+        const curioRestored = await waitForContentChange(page, '.cz-list', previousText || '')
+        if (!curioRestored.ok) throw new Error('好奇心状态筛选恢复失败')
+        await page.waitForSelector('.cz-list-item[data-czid]', { state: 'visible', timeout: 10000 })
+
+        await clickDeckTab(page, '资源卡')
+        await waitForDeckPanel(page, 'pool')
+        await ensureDeckList(page, 'pool')
+        await page.waitForSelector('.pcp-list', { state: 'visible', timeout: 10000 })
+        previousText = await page.locator('.pcp-list').textContent()
+        measured = await captureAction(page, async () => {
+          await page.locator('.dk-row[data-panel="pool"] .dk-pill').filter({ hasText: '待打标' }).first().click()
+          const changed = await waitForContentChange(page, '.pcp-list', previousText || '')
+          if (!changed.ok) throw new Error(`资源池标签筛选：${changed.reason || '列表未更新'}`)
+        })
+        poolFilterSamples.push(measured.elapsed)
+        recordAction('pool_filter', measured)
+        previousText = await page.locator('.pcp-list').textContent()
+        await page.locator('.dk-row[data-panel="pool"] .dk-pill').filter({ hasText: '全部' }).first().click()
+        const poolRestored = await waitForContentChange(page, '.pcp-list', previousText || '')
+        if (!poolRestored.ok) throw new Error('资源池标签筛选恢复失败')
+        await page.waitForSelector('.pcp-row[data-rid]', { state: 'visible', timeout: 10000 })
+      }
+    } catch (error) {
+      poolFilterError = error instanceof Error ? error.message : String(error)
+    }
+    report.metrics.pool_filter = buildMetric(
+      'pool_filter',
+      poolFilterSamples,
+      ['每轮真实操作任务「推进中」、好奇心「探索中」、资源池「待打标」三次筛选；每次计到列表 DOM 实际变化。'],
+      poolFilterError,
+      longTaskSamples.pool_filter,
+      longTaskSupported,
+    )
+
+    // 7) 三卡池详情：真实单击列表行，必须穿过现有的 260ms 双击去重等待。
+    const poolDetailSamples = []
+    let poolDetailError = ''
+    try {
+      for (let index = 0; index < SAMPLE_COUNT; index++) {
+        let measured = await measureDeckDetail(
+          page,
+          base,
+          '/deck/task',
+          'task',
+          '.trow[data-tid^="perf-slo-task-"]',
+          '.drawer .ts-title',
+        )
+        poolDetailSamples.push(measured.elapsed)
+        recordAction('pool_detail', measured)
+        measured = await measureDeckDetail(
+          page,
+          base,
+          '/deck/curiosity',
+          'curio',
+          '.cz-list-item[data-czid^="perf-slo-curio-"]',
+          '.drawer .cz-h1q',
+        )
+        poolDetailSamples.push(measured.elapsed)
+        recordAction('pool_detail', measured)
+        measured = await measureDeckDetail(
+          page,
+          base,
+          '/deck/resource',
+          'pool',
+          '.pcp-row[data-rid^="perf-slo-pool-"]',
+          '.drawer .ds-h1',
+        )
+        poolDetailSamples.push(measured.elapsed)
+        recordAction('pool_detail', measured)
+      }
+    } catch (error) {
+      poolDetailError = error instanceof Error ? error.message : String(error)
+    }
+    report.metrics.pool_detail = buildMetric(
+      'pool_detail',
+      poolDetailSamples,
+      ['每轮真实单击任务、好奇心、资源池列表行，计到对应详情标题可见；包含真实 260ms 双击去重等待。'],
+      poolDetailError,
+      longTaskSamples.pool_detail,
+      longTaskSupported,
+    )
+
+    // 8) 五档横向对齐：与分享路径同一夹具策展台，在真实布局完成后逐档测量。
     const boardId = seeded.boardId
+    report.alignment = await measureAlignment(page, base, boardId)
+    for (const viewport of report.alignment.viewports) {
+      if (!viewport.pass) {
+        const reason = viewport.error
+          ? viewport.error
+          : `边界误差 ${viewport.maxEdgeDelta ?? '-'}px、横向溢出 ${viewport.overflowPx ?? '-'}px`
+        report.failures.push(`策展台横向对齐 ${viewport.width}px：${reason}`)
+      }
+    }
+
+    // 9) 分享抽屉：真实进入夹具策展台，点击「分享成果」，等到原生预览纸面可见。
     const drawerSamples = []
     let drawerError = ''
     try {
       for (let index = 0; index < SAMPLE_COUNT; index++) {
         await page.goto(base + `#/workspace/${boardId}`, { waitUntil: 'domcontentloaded' })
         await page.waitForSelector('.share-action', { timeout: 15000 })
-        const start = Date.now()
-        await page.locator('.share-action').first().click()
-        await page.waitForSelector('.drawer .cs-paper', { state: 'visible', timeout: 12000 })
-        drawerSamples.push(Date.now() - start)
+        const measured = await captureAction(page, async () => {
+          await page.locator('.share-action').first().click()
+          await page.waitForSelector('.drawer .cs-paper', { state: 'visible', timeout: 12000 })
+        })
+        drawerSamples.push(measured.elapsed)
+        recordAction('share_drawer', measured)
         await page.locator('.drawer-close').first().click()
         await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
       }
     } catch (error) {
       drawerError = error instanceof Error ? error.message : String(error)
+      const diagnostic = await inspectPerfBoard(page, boardId).catch((inspectError) => ({
+        inspectError: inspectError instanceof Error ? inspectError.message : String(inspectError),
+      }))
+      drawerError += `；夹具诊断=${JSON.stringify(diagnostic)}`
     }
     report.metrics.share_drawer = buildMetric(
       'share_drawer',
       drawerSamples,
       ['从点击分享成果到分享抽屉内原生预览 .cs-paper 可见。'],
       drawerError,
+      longTaskSamples.share_drawer,
+      longTaskSupported,
     )
 
-    // 6) 长图生成：同一真实抽屉的完整生成链，等到 imageDataUrl 已回填的状态文案。
+    // 10) 长图生成：同一真实抽屉的完整生成链，等到 imageDataUrl 已回填的状态文案。
     const imageSamples = []
     let imageError = ''
     try {
       for (let index = 0; index < IMAGE_SAMPLE_COUNT; index++) {
         await page.goto(base + `#/workspace/${boardId}`, { waitUntil: 'domcontentloaded' })
         await page.waitForSelector('.share-action', { timeout: 15000 })
-        const start = Date.now()
-        await page.locator('.share-action').first().click()
-        await waitForText(page, '.cs-image-state small', /已嵌入分享 HTML/, 20000)
-        imageSamples.push(Date.now() - start)
+        const measured = await captureAction(page, async () => {
+          await page.locator('.share-action').first().click()
+          await waitForText(page, '.cs-image-state small', /已嵌入分享 HTML/, 20000)
+        })
+        imageSamples.push(measured.elapsed)
+        recordAction('long_image', measured)
         await page.locator('.drawer-close').first().click()
         await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
       }
     } catch (error) {
       imageError = error instanceof Error ? error.message : String(error)
+      const diagnostic = await inspectPerfBoard(page, boardId).catch((inspectError) => ({
+        inspectError: inspectError instanceof Error ? inspectError.message : String(inspectError),
+      }))
+      imageError += `；夹具诊断=${JSON.stringify(diagnostic)}`
     }
     report.metrics.long_image = buildMetric(
       'long_image',
       imageSamples,
       ['从点击分享成果到完整 PNG 数据 URL 已回填、界面显示「已嵌入分享 HTML」。'],
       imageError,
+      longTaskSamples.long_image,
+      longTaskSupported,
     )
 
     for (const metric of Object.values(report.metrics)) {

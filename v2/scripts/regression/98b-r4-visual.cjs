@@ -123,8 +123,8 @@ check('R4-Fb② ★降级出口的两种入口各有一条真跑的 e2e（E2E-43
     && e.includes('qCurio === true && msgOk === true');
 });
 
-// ============== R4-Fc 推给 Airtable 的「所属工作台」列值 = 剥图标的显示名（用户 2026-10-04 拍板"全站去前缀"） ==============
-console.log('【R4-Fc · Airtable「所属工作台」出网值形态】');
+// ============== R4-Fc 云同步现行入口与 Airtable 深链退役 ==============
+console.log('【R4-Fc · 云同步入口与退役深链】');
 check('R4-Fc①（V4.0.3 重指）★Airtable 出网台名列链路已整体退役：rowToFields / ensureColumns / wsName 映射不得回流；云快照上传与恢复都必须剥离旧 airtableMap / airtableSync', () => {
   const legacy = srcFileEntries().filter(e => {
     const c = codeOnly(e.text);
@@ -135,17 +135,22 @@ check('R4-Fc①（V4.0.3 重指）★Airtable 出网台名列链路已整体退�
   return legacy.length === 0
     && s.includes('delete d.airtableSync')
     && s.includes('delete d.airtableMap')
-    && s.includes('const clean = sanitize(snap.data, snap.ui, snap.eventLog)')
-    && s.includes('const safe = sanitize(st.data, st.ui || null, st.eventLog || [])');
+    && s.includes('const clean = sanitizeSnapshot(snap.data, snap.ui, snap.eventLog)')
+    && s.includes('const safe = sanitizeSnapshot(st.data, st.ui || null, st.eventLog || [])');
 });
-check('R4-Fc② ★这条链的运行时证据必须真在跑且不许退化成"只看同步成功回执"：E2E-44 的三条腿缺一不可——① 拦 `**://api.airtable.com/**` 并把 POST/PATCH 的 fields 逐条收进 Node 侧数组（量的是**离开机器那一列的值**，源码断言看不到 rowToFields 之后的形态）；② 判据是「带图标前缀 0 行」**加上三格各自点名**（台内卡 / 镜像行 / 池卡各自的值），只判有无图标会放过"整列取错字段"；③ 桩对 /meta/bases/ 返回 15 列全名——少一列 ensureColumns 就会去 POST 建列，测试就变成了改远端结构。凭据一律是明写的桩值 pat-e2e-stub-only，不许出现真 PAT 的形状', () => {
+check('R4-Fc②（V4.0.4 重指）★Airtable 退役后，旧深链兼容与顶栏云同步入口必须有两条真跑的浏览器证据：E2E-34 从 `page=airtable` 进入后必须落在「云同步」页签，关系总览、建议动作和四项同步事实可见且旧配置入口零回流；E2E-44 必须从常驻顶栏按钮真点击进入 `page=cloud`，同时核对状态、最近实际同步文案与关系卡。只删旧 Airtable 测试或只做源码字符串断言不算通过', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));
-  return e.includes("page.route('**://api.airtable.com/**'") && e.includes('atCells.push(r.fields)')
-    && e.includes('iconRows.length === 0') && e.includes('/^\\p{Extended_Pictographic}/u')
-    && e.includes("cellOf('card-e2e-fc') === '探针策展台'") && e.includes("cellOf('card-e2e-fc2:m:ws-e2e-fc') === '探针策展台'")
-    && e.includes("cellOf('card-e2e-fc2') === '资源卡池'") && e.includes("u.includes('/meta/bases/')")
-    && e.includes('fields: AT_FIELDS')
-    && e.includes("atCells.length > 0") && e.includes("pat: 'pat-e2e-stub-only'");
+  return e.includes("base + '#/settings?page=airtable'")
+    && e.includes('[data-testid="cloud-relation-overview"]')
+    && e.includes("activeTab === '云同步'") && e.includes("recommendation.startsWith('建议：')")
+    && e.includes("cloudRetirement.facts.length === 4")
+    && e.includes('cloudRetirement.legacyConfigAbsent')
+    && e.includes('[data-testid="topbar-cloud-sync"]')
+    && e.includes("page.url().includes('#/settings?page=cloud')")
+    && e.includes("topbarCloud.ariaLabel.includes('最近实际同步')")
+    && e.includes("cloudEntry.activeTab === '云同步'")
+    && e.includes("cloudEntry.recommend.startsWith('建议：')")
+    && e.includes('cloudEntry.hasRecentSync');
 });
 
 // ============== R4-Fd 同构建跳变两族归因 + 把"归因"做成尺子的一部分（#130 关闭 / #127 推进） ==============

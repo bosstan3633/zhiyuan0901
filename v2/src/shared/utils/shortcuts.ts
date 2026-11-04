@@ -117,10 +117,11 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
  */
 export const MANUAL_ASSIGN_COMMANDS: string[] = [
   '全局设置',
-  '打开完整方向树',
+  '直达资源卡池',
   '快速采集任务',
-  '直达好奇心培养模块',
-  '直达任务调度模块',
+  '直达好奇心卡池',
+  '直达任务卡池',
+  '打开云同步',
 ]
 
 /** 扁平化全量清单（设置页「应用内快捷键」等场景按组过滤用） */

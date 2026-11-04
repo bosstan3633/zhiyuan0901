@@ -314,12 +314,20 @@ check('R160-3 增量渲染份额收紧：列表/卡片 RENDER_STEP=32（原 80�
 check('R160-4 A7 深链保全：main.ts 不再强制回首页（全路由保留）', () => { const m = read('/newtab/main.ts'); return m.includes('R160（A7）深链保全') && !m.includes("router.replace('/')"); });
 check('R160-5 ★P1 懒挂载（★V3.9.24 随迁）：GlobalPopups 仍走 defineAsyncComponent，首次呼出才挂载（gpOpen 收口，热键/顶栏/消息/问号四处全走）· 面板在 chunk 就绪后自动打开。loader 独立命名以支持高频预取，组件本身仍不在首屏同步加载', () => { const a = read('/newtab/App.vue'); return a.includes("const loadGlobalPopups = () => import('./components/GlobalPopups.vue')") && a.includes('const GlobalPopups = defineAsyncComponent(loadGlobalPopups)') && a.includes('const gpMounted = ref(false)') && a.includes('watch(globalPopups, (v) => { if (v && pendingPanel)') && !a.includes("globalPopups.value?.openPanel") && !a.includes("globalPopups?.openPanel") && a.includes('<GlobalPopups v-if="gpMounted" ref="globalPopups" />') });
 check('R160-6 ★P1 懒挂载：详情抽屉 defineAsyncComponent + 首个 bus 事件挂载 + setPendingDrawer/consumePendingDrawer 回放（异步 chunk 加载期间不丢事件）', () => { const a = read('/newtab/App.vue'); const b = read('/shared/utils/bus.ts'); const d = read('/newtab/components/ResourceDetailDrawer.vue'); return a.includes("defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))") && a.includes('setPendingDrawer(p)') && a.includes('<ResourceDetailDrawer v-if="detailDrawerMounted" />') && b.includes('export function consumePendingDrawer') && d.includes('const p = consumePendingDrawer(); if (p) onBus(p)') });
-check('R160-7（V4.0.3 重指）★P1 懒挂载：Airtable 同步器退役后，云同步协调层仍只在真正检查/同步时动态 import，入口零静态引用', () => {
+check('R160-7（V4.0.4 重指）★P1 懒挂载：云同步入口与顶栏按钮零静态运行时引用；网络执行器只在共享 composable 真正检查/同步时动态 import，App 仅保留空闲预取', () => {
   const a = read('/newtab/App.vue');
+  const button = read('/newtab/components/CloudSyncButton.vue');
+  const useCloud = read('/newtab/composables/useCloudSync.ts');
+  const runtimeCloudImport = source => source.split('\n').some(line =>
+    /^\s*import\s+(?!type\b)/.test(line)
+    && /['"]@\/shared\/cloud\/(?:client|sync)['"]/.test(line),
+  );
   return !a.includes('@/shared/storage/airtable')
-    && (a.match(/import\('@\/shared\/cloud\/sync'\)/g) || []).length >= 2
-    && !a.includes("import { checkRemote } from '@/shared/cloud/sync'")
-    && !a.includes("import { uploadNow } from '@/shared/cloud/sync'");
+    && !runtimeCloudImport(a) && !runtimeCloudImport(button)
+    && a.includes("import('@/shared/cloud/sync')")
+    && useCloud.includes("import('@/shared/cloud/client')")
+    && useCloud.includes("import('@/shared/cloud/sync')")
+    && useCloud.includes('await sync.checkRemote');
 });
 check('R160-8 ★P6 boot 四键同批读：main 一次 get（主数据+V1+热度+UI）· loadData 复用热度键不再补读 · loadUIPrefs(prefetchedUI) 省一次往返', () => { const m = read('/newtab/main.ts'); const r = read('/shared/storage/repository.ts'); return m.includes('cs.get([STORAGE_KEY, K.LEGACY[0], HOT_KEY, UI_KEY])') && m.includes('loadUIPrefs(boot.ui)') && r.includes('prefetched[HOT_KEY] !== undefined ? prefetched : await cs.get([HOT_KEY])') && r.includes('loadUIPrefs(prefetchedUI?: unknown)') });
 check('R160-9 ★P5 写盘合并：整库 set 同批带热度键与待写事件日志（1 次 IPC）· 日志内存缓存 + 冷路径自愈落盘 + 外部写入刷缓存', () => { const r = read('/shared/storage/repository.ts'); const e = read('/shared/utils/eventLog.ts'); return (r.match(/\[HOT_KEY\]: extractHot\(cache!?\)/g) || []).length === 2 && r.includes('...(takeEventLogPatch() || {})') && !r.includes('writeHot(cache)') && e.includes('export function takeEventLogPatch') && e.includes('let logCache: CardEvent[] | null = null') && e.includes('export function initEventLog') && e.includes('flushEventLogNow') });

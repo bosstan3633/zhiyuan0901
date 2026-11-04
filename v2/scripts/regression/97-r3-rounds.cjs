@@ -420,10 +420,10 @@ function noKeyCmds() {
   return out;
 }
 const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
-check('R4-Df ★手册命令表必须跟 manifest 真值一致：无默认键的每条命令都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流。★不硬编码条数——名单与条数都从 manifest 现算，将来加/删命令时这条自动要求同步手册', () => {
+check('R4-Df ★手册命令表必须跟 manifest 真值一致：当前 V4.0.4 恰有 6 条无默认键命令，每条都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流', () => {
   const m = read('/newtab/manual-data.ts');
   const noKey = noKeyCmds();
-  return noKey.length === 5 && noKey.every(k => m.includes(k))
+  return noKey.length === 6 && noKey.every(k => m.includes(k))
     && m.includes('chrome://extensions/shortcuts')
     && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')
     && !m.includes('打开设置 / 方向台 / 资源台 / 完整方向树 / 任务调度 / 同步到 Airtable');
@@ -662,9 +662,9 @@ check('R4-Fa（V4.0.3 重指）★Airtable 逐行「待推」同步引擎已退�
   const s = codeOnly(read('/shared/cloud/sync.ts'));
   return legacy.length === 0
     && c.includes('/rest/v1/cloud_snapshots')
-    && s.includes('const clean = sanitize(snap.data, snap.ui, snap.eventLog)')
+    && s.includes('const clean = sanitizeSnapshot(snap.data, snap.ui, snap.eventLog)')
     && s.includes('cloud.insertSnapshot(env, token, meta.userId, clean)')
-    && s.includes('cloud.updateSnapshot(env, token, meta.userId, base, clean)');
+    && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)');
 });
 check('R4-Fa（V4.0.3 重指）★sync 行级时间戳已退役，现行云端冲突语义由 revision 乐观锁承接：先读 revision、冲突必须确认，PATCH 同时限定 user_id 与 expected revision', () => {
   const legacy = srcFileEntries().filter(e => {
@@ -677,8 +677,9 @@ check('R4-Fa（V4.0.3 重指）★sync 行级时间戳已退役，现行云端�
     && c.includes('select=revision,updated_at,state')
     && c.includes('user_id=eq.${encodeURIComponent(userId)}&revision=eq.${expectedRevision}')
     && s.includes('const rows = await cloud.getSnapshot(env, token, meta.userId)')
-    && s.includes('if (remote.revision !== (meta.revision || 0))')
-    && s.includes('const ok = await onConflict(remote.revision)');
+    && s.includes('const localRevision = meta.revision || 0')
+    && s.includes('if ((remote.revision !== localRevision || attempt > 0) && !canUseInitialApproval)')
+    && s.includes('const decision = await onConflict(remote.revision)');
 });
 check('R4-Fa ★setThesis 摘标不许碰回收站里的卡：同文件 countThesisDuplicates / sanitizeThesisDuplicates 的口径写死"软删卡不计入、恢复后语义不变"，唯独 setThesis 的清除循环漏判 deletedAt ⇒ 用户恢复一张旧论点卡，回来的是没有论点头衔的普通卡且无提示', () => {
   const h = read('/shared/storage/hub.ts');

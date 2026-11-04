@@ -79,8 +79,8 @@ export const MANUAL: ManualPart[] = [
           <tr><td>5</td><td>方向管理</td><td>方向台（愿景 / 使命 / 战略目标 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
-        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定无默认键命令（全局设置 / 打开完整方向树 / 快速采集任务 / 直达好奇心培养模块 / 直达任务调度模块）</div>
-        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「全局设置」「打开完整方向树」「快速采集任务」「直达好奇心培养模块」「直达任务调度模块」五条命令无默认键——按需分配；后两条分配键位后一键打开调度台并<strong>滚动定位 + 高亮闪烁</strong>对应模块。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
+        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定无默认键命令（全局设置 / 直达资源卡池 / 快速采集任务 / 直达好奇心卡池 / 直达任务卡池 / 打开云同步）</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「全局设置」「直达资源卡池」「快速采集任务」「直达好奇心卡池」「直达任务卡池」「打开云同步」六条命令无默认键——按需分配；三个卡池命令会一键打开对应池的<strong>最新列表</strong>，云同步命令直达同步设置。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
         <h4>每天的节奏 · 4 步闭环</h4>
         <div class="mc-steps">
           <div class="mc-step"><b class="mc-n">1</b><span>刷新 → 调度台：方向状态一栏看今日记录，今日三件事（最多 3 件），30 秒方向确认</span></div>

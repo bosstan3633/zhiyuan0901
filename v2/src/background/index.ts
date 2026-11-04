@@ -90,6 +90,23 @@ function isNewtabTab(tab: chrome.tabs.Tab | null): boolean {
   return tab.url.startsWith(chrome.runtime.getURL('src/newtab/index.html'))
 }
 
+/** 复用已打开的新标签页；每次都用路由消息，确保 KeepAlive 页面也会重新响应。 */
+async function openNewtabRoute(route: string): Promise<void> {
+  const base = chrome.runtime.getURL('src/newtab/index.html')
+  const tabs = await chrome.tabs.query({ url: base + '*' })
+  const active = await getActiveTab()
+  const existing = tabs.find(t => t.id != null && t.windowId === active?.windowId) || tabs.find(t => t.id != null)
+  if (existing?.id != null) {
+    if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
+    await chrome.tabs.update(existing.id, { active: true })
+    const sent = await chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route })
+      .then(() => true).catch(() => false)
+    if (!sent) await chrome.tabs.update(existing.id, { url: `${base}#${route}` })
+    return
+  }
+  await chrome.tabs.create({ url: `${base}#${route}` })
+}
+
 /** 快捷键监听 */
 chrome.commands.onCommand.addListener(async (command) => {
   const tab = await getActiveTab()
@@ -97,81 +114,36 @@ chrome.commands.onCommand.addListener(async (command) => {
   switch (command) {
     case 'open-dashboard': {
       // B10：已有新标签页则聚焦回归（回首页），避免重复开 tab
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/' }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html') })
-      }
+      await openNewtabRoute('/')
       break
     }
     case 'open-settings': {
       // 第卅五轮 REQ-037：一键直达全局设置（复用 open-dashboard 聚焦模式，路由指向 /settings）
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/settings' }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/settings') })
-      }
+      await openNewtabRoute('/settings')
       break
     }
     // R68-F3：「打开方向台」「打开资源台」两命令退役（open-compass/open-resource 已从 manifest 下架）——改由应用内 Alt+数字（台签顺序）切台，见 App.vue switchToIndex
     case 'open-resource': {
       // R50-F3 启用 + R61 资源台转正 + R65-F6：命令口径改「打开资源台」（/curation 即资源台路由）
       // R68-F3：本 case 保留兜底（历史已分配键位不失效），但 manifest 已下架不再出现在快捷键设置页
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/curation' }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/curation') })
-      }
+      await openNewtabRoute('/curation')
       break
     }
     case 'open-tree': {
-      // R50-F8：完整方向树浏览器级命令（chrome://extensions/shortcuts 自定义键位）
-      // R3-B1：树即方向台一级——命令名 open-tree 保留（用户可能已把它绑到自定义键位），目的地改投 /compass
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route: '/compass' }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html#/compass') })
-      }
+      // V4.0.4：保留历史命令 ID，落点改为资源卡池默认最新列表。
+      await openNewtabRoute(`/deck/resource?fresh=1&freshAt=${Date.now()}`)
       break
     }
-    case 'goto-curiosity':
+    case 'goto-curiosity': {
+      await openNewtabRoute(`/deck/curiosity?fresh=1&freshAt=${Date.now()}`)
+      break
+    }
     case 'goto-tasks': {
-      // R68-F3：直达「任务调度」/「好奇心培育」模块
-      // R117（04-61 C1）：任务调度面板由方向台迁入**调度台底部 tab**（与好奇心培育并列），
-      // 两命令因此同落调度台（/），靠 anchor 切到对应 tab；不再指向 /compass。
-      const anchor = command === 'goto-curiosity' ? 'curiosity' : 'task'
-      const route = '/'
-      const hash = '#/'
-      const base = chrome.runtime.getURL('src/newtab/index.html')
-      const tabs = await chrome.tabs.query({ url: base + '*' })
-      const existing = tabs.find(t => t.id != null && t.windowId === tab?.windowId) || tabs.find(t => t.id != null)
-      if (existing?.id != null) {
-        if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
-        await chrome.tabs.update(existing.id, { active: true })
-        chrome.tabs.sendMessage(existing.id, { type: 'zy-route', route, anchor }).catch(() => {})
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html?zy-anchor=' + anchor + hash) })
-      }
+      await openNewtabRoute(`/deck/task?fresh=1&freshAt=${Date.now()}`)
+      break
+    }
+    case 'open-cloud-sync': {
+      await openNewtabRoute('/settings?page=cloud')
       break
     }
     case 'open-tasks': {

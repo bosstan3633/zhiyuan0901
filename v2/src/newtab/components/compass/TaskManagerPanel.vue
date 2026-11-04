@@ -62,6 +62,9 @@ const {
   savedFilter,
   filterBy,
   toggleSortDir,
+  changeViewMode,
+  changeSortBy,
+  changeGroupMode,
   searchQuery,
   TASK_VIEWS,
   TASK_FILTERS,
@@ -74,6 +77,7 @@ const {
   totalTaskCount,
   archivedHintCount,
   clearTaskFilter,
+  prepareFreshView,
   groupedTasks,
   todoTasks,
   doingTasks,
@@ -159,22 +163,29 @@ const {
   taskNavIndex,
   onTaskNavKey,
 } = useTaskManagerPanel(props)
-defineExpose({ openDetail })
+
+const rootEl = ref<HTMLElement | null>(null)
+async function resetForFresh() {
+  prepareFreshView()
+  await nextTick()
+  rootEl.value?.scrollIntoView({ block: 'start' })
+}
+defineExpose({ openDetail, resetForFresh })
 </script>
 
 <template>
   <!-- R176（原型 1:1）：模块标题行退役（原型工作台面板直接以工具条开篇）；批量管理/新建任务移入工具条右端 -->
   <ModuleCard title="">
 
-    <div class="mgr-body" :class="{batch: batchMode}">
+    <div ref="rootEl" class="mgr-body" :class="{batch: batchMode}">
       <!-- R3-Cc2：控制行收归 DeckControls——顺序与样式一份实现，任务的值域（三视图 / 五状态 / 三排序 / 三分组）以数据传入 -->
       <DeckControls panel="task" search :query="searchQuery" @search="searchQuery = $event"
         :filters="TASK_FILTERS" filter-kind="select" :filter="filterBy" @filter="filterBy = $event as TaskFilter" filter-title="状态筛选"
-        :views="TASK_VIEWS" :view="viewMode" @view="viewMode = $event as 'card' | 'list' | 'kanban'"
-        :sorts="TASK_SORTS" :sort="sortBy" @sort="sortBy = $event"
+        :views="TASK_VIEWS" :view="viewMode" @view="changeViewMode($event as 'card' | 'list' | 'kanban')"
+        :sorts="TASK_SORTS" :sort="sortBy" @sort="changeSortBy"
         :sort-dir="(sortBy === 'recent' || sortBy === 'priority') ? sortDir : ''"
         :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
-        :groups="viewMode === 'list' ? TASK_GROUPS : []" :group="groupMode" @group="groupMode = $event as TaskGroupMode"
+        :groups="viewMode === 'list' ? TASK_GROUPS : []" :group="groupMode" @group="changeGroupMode($event as TaskGroupMode)"
         :batch-on="batchMode" @batch="toggleBatchMode" :new-label="secondaryMode ? '' : '＋新建任务'" @create="createNewTask">
         <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
         <ColsPicker v-if="viewMode === 'card'" v-model="taskCols" label="列数" />

@@ -453,6 +453,8 @@ const DASH_SCENES = [
   {
     /*
      * V4.0.3：Airtable 已从产品下线，视觉审计改守现行云同步面板。
+     * V4.0.4：顶栏与设置页都要先说清「本机 ↔ 云端」的同步方向。这里同时
+     * 守关系概览卡与账号卡；状态词从旧的连接三态扩为现行六态。
      * 构建环境已配置 Supabase 时，配置输入会收起而直接显示登录表单；
      * 因此只要求「配置表单 / 登录表单」至少出现一套，避免把合法环境判红。
      */
@@ -462,10 +464,14 @@ const DASH_SCENES = [
     },
     judge: async (page) => page.evaluate(() => {
       const panel = document.querySelector('.gs-panel')
-      const card = [...document.querySelectorAll('.gs-card')]
+      const relationCard = document.querySelector('[data-testid="cloud-relation-overview"].cloud-relation-card')
+      const card = [...document.querySelectorAll('.gs-card:not(.cloud-relation-card)')]
         .find(c => (c.querySelector('.gs-card-title')?.textContent || '').includes('云端账号'))
-      const status = card?.querySelector('.gs-status-badge')
+      const status = relationCard?.querySelector('.gs-status-badge')
       const statusText = (status?.textContent || '').trim()
+      const relationTitle = (relationCard?.querySelector('h3')?.textContent || '').trim()
+      const recommended = (relationCard?.querySelector('.cloud-recommend')?.textContent || '').trim()
+      const relationFacts = relationCard?.querySelectorAll('.cloud-relation-facts > div').length || 0
       const tabs = [...document.querySelectorAll('.dm-tab')].map(x => (x.textContent || '').trim())
       const activeCloudTab = [...document.querySelectorAll('.dm-tab.on')]
         .some(x => (x.textContent || '').trim() === '云同步')
@@ -479,10 +485,13 @@ const DASH_SCENES = [
         ? ins.filter(i => getComputedStyle(i).backgroundColor !== cardBg)
         : ins
       return {
-        ok: !!panel && !!card && !!status && ['未连接', '已连接', '连接异常'].includes(statusText)
+        ok: !!panel && !!relationCard && !!card && !!status
+          && ['未配置', '未登录', '异常', '检查中', '同步中', '已连接'].includes(statusText)
+          && !!relationTitle && recommended.startsWith('建议：') && relationFacts === 4
           && tabs.join('/') === '数据包/附件管理/云同步' && activeCloudTab
           && (hasConfig || hasLogin) && offToken.length === 0,
-        txt: `面板=${!!panel} 云端卡=${!!card} 状态=${statusText || '无'} 页签=${tabs.join('/') || '无'} `
+        txt: `面板=${!!panel} 关系卡=${!!relationCard} 关系=${relationTitle || '无'} 云端卡=${!!card} `
+          + `状态=${statusText || '无'} 建议=${recommended || '无'} 事实=${relationFacts} 页签=${tabs.join('/') || '无'} `
           + `云页签选中=${activeCloudTab} 配置表单=${hasConfig} 登录表单=${hasLogin} `
           + `输入框与卡同色=${!!card && offToken.length === 0}(卡=${cardBg || '无'})`
       }

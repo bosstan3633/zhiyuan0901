@@ -45,8 +45,8 @@ export interface TaskManagerPanelProps {
   secondaryMode?: boolean
 }
 
-/** R127：分组三档（默认按项目；列表视图用） */ // R181：模板以 as TaskGroupMode 断言，需模块级导出
-export type TaskGroupMode = 'project' | 'status' | 'pin'
+/** R127：分组三档（默认按项目；列表视图用）；V4.0.4 加「不分组」承接快捷直达的最新列表。 */
+export type TaskGroupMode = 'project' | 'status' | 'pin' | 'none'
 /** R58-O2：状态筛选五档（含「未归档」快速采集沉淀池入口） */ // R181：同上
 export type TaskFilter = 'all' | 'todo' | 'doing' | 'done' | 'unarchived'
 
@@ -65,7 +65,12 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 const viewMode = ref<'card' | 'list' | 'kanban'>('list')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
 const taskCols = useCardCols('task', store.ui)
-const groupMode = ref<TaskGroupMode>((store.ui?.sortPrefs?.task as { group?: TaskGroupMode } | undefined)?.group || 'project')
+const savedGroup = (store.ui?.sortPrefs?.task as { group?: TaskGroupMode } | undefined)?.group
+const groupMode = ref<TaskGroupMode>(
+  savedGroup === 'status' || savedGroup === 'pin' || savedGroup === 'none' ? savedGroup : 'project'
+)
+/** V4.0.4：快捷直达时的一次性呈现上下文。退出后按用户刚选的控件继续，不污染原偏好。 */
+const freshMode = ref(false)
 /** 看板沿用「按项目分组」开关语义（映射自 groupMode） */
 const groupByProject = computed(() => groupMode.value === 'project')
 const sortBy = ref('manual')
@@ -78,17 +83,27 @@ const filterBy = ref<TaskFilter>(savedFilter === 'todo' || savedFilter === 'doin
 // V3.9.1：首页「未归档」读数进入二级页时带筛选，不把用户丢在全量列表里再找一次。
 if (route.query.filter === 'unarchived') filterBy.value = 'unarchived'
 watch([sortBy, sortDir, filterBy, groupMode], () => {
+  if (freshMode.value) return
   const sp = { ...(store.ui?.sortPrefs || {}), task: { by: sortBy.value, dir: sortDir.value, filter: filterBy.value, group: groupMode.value } }
   if (store.ui) store.ui.sortPrefs = sp
   saveUIPrefs({ sortPrefs: sp })
 })
-function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
+function exitFreshMode() { freshMode.value = false }
+function changeViewMode(next: 'card' | 'list' | 'kanban') { exitFreshMode(); viewMode.value = next }
+function changeSortBy(next: string) { exitFreshMode(); sortBy.value = next }
+function changeGroupMode(next: TaskGroupMode) { exitFreshMode(); groupMode.value = next }
+function toggleSortDir() { exitFreshMode(); sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
 const searchQuery = ref('')
 /** R3-Cc2：控制行值域配置（视图/筛选/排序/分组），模板里不再各写一份 option 列表 */
 const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }]
 const TASK_FILTERS = [{ id: 'all', label: '全部状态' }, { id: 'todo', label: '待办' }, { id: 'doing', label: '推进中' }, { id: 'done', label: '已完成' }, { id: 'unarchived', label: '未归档' }]
 const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }, { id: 'priority', label: '优先级' }]
-const TASK_GROUPS = [{ id: 'project', label: '按项目分组' }, { id: 'status', label: '按任务状态分组' }, { id: 'pin', label: '按置顶与否分组' }]
+const TASK_GROUPS = [
+  { id: 'none', label: '不分组（最新采集）' },
+  { id: 'project', label: '按项目分组' },
+  { id: 'status', label: '按任务状态分组' },
+  { id: 'pin', label: '按置顶与否分组' }
+]
 const batchMode = ref(false)
 
 function toggleBatchMode() { batchMode.value = setBatchMode(!batchMode.value) }
@@ -108,6 +123,9 @@ function applyTaskFilters(list: TaskCard[]): TaskCard[] {
 const filteredTasks = computed(() => {
   // R110-LC（T3）：默认视图排除已归档任务（只在 ⏳ 生命周期面板中查看 / 恢复）
   let tasks = applyTaskFilters(d.value.tasks || []).filter(t => !t.lifecycleArchived)
+  if (freshMode.value) {
+    return [...tasks].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+  }
   // 第卅二轮 REQ-007 + bug 修复：排序下拉实际生效
   // R56-V1：manual（默认）= 拖拽序（sortOrder）优先，无拖拽序 = 最新创建在前；选其他排序即覆盖
   if (sortBy.value !== 'manual') {
@@ -178,6 +196,9 @@ watch([groupMode, viewMode], () => { collapsedGroups.value = new Set() })
 /** R127：列表视图三档分组（按项目 / 按任务状态 / 按置顶与否） */
 const listGroups = computed<{ key: string; name: string; icon: string; pct: number; tasks: TaskCard[] }[]>(() => {
   const tasks = filteredTasks.value
+  if (groupMode.value === 'none') {
+    return [{ key: '__fresh__', name: '最新采集', icon: '◷', pct: -1, tasks }]
+  }
   if (groupMode.value === 'project') {
     return groupedTasks.value.map(g => ({ key: g.key, name: g.name, icon: '', pct: g.pct, tasks: g.tasks }))
   }
@@ -203,6 +224,21 @@ const listGroups = computed<{ key: string; name: string; icon: string; pct: numb
    函数体却只做满选↔清空（反选从来没实现过）。 */
 const { selected: selectedTaskIds, allSelected: allTasksSelected, toggle: toggleSelect, selectAll, invert: invertSelect, clear: clearSelection, setMode: setBatchMode } =
   useBatchSelect(() => filteredTasks.value.map(t => t.id))
+
+/** 快捷入口的硬复位：列表、全量、最新在前，并退出批量选择。 */
+function prepareFreshView() {
+  freshMode.value = true
+  viewMode.value = 'list'
+  sortBy.value = 'recent'
+  sortDir.value = 'desc'
+  filterBy.value = 'all'
+  groupMode.value = 'none'
+  searchQuery.value = ''
+  collapsedGroups.value = new Set()
+  subExpanded.value = new Set()
+  clearSelection()
+  batchMode.value = setBatchMode(false)
+}
 // R181：批量操作 + 批量挂载子域外提（见 taskPanelBatch.ts）
 const { batchAddTag, batchDelete, batchSetStatus, batchSetPriority, mountModalOpen, mountProjId, mountMetId, mountProjectOptions, mountMetricOptions, openBatchMount, confirmBatchMount } =
   useTaskPanelBatch({ d, store, allProjects, selectedTaskIds })
@@ -300,6 +336,7 @@ function writeSubtasks(t: TaskCard, v: Subtask[]) {
 // ---- 拖拽：列表排序 / 看板跨列 ----
 let draggedTask: TaskCard | null = null
 function onTaskDragStart(e: DragEvent, t: TaskCard) {
+  exitFreshMode()
   draggedTask = t
   e.dataTransfer?.setData('text/plain', t.id)
 }
@@ -652,6 +689,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     taskArchiveIssue,
     drawerRef,
     viewMode,
+    freshMode,
     taskCols,
     groupMode,
     groupByProject,
@@ -660,6 +698,9 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     savedFilter,
     filterBy,
     toggleSortDir,
+    changeViewMode,
+    changeSortBy,
+    changeGroupMode,
     searchQuery,
     TASK_VIEWS,
     TASK_FILTERS,
@@ -672,6 +713,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     totalTaskCount,
     archivedHintCount,
     clearTaskFilter,
+    prepareFreshView,
     groupedTasks,
     todoTasks,
     doingTasks,

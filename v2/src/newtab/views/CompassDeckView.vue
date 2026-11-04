@@ -59,6 +59,18 @@ watch(
   },
   { immediate: true }
 )
+
+watch(
+  () => [kind.value, route.query.fresh, route.query.freshAt] as const,
+  async ([k, fresh]) => {
+    if (fresh !== '1') return
+    await nextTick()
+    if (k === 'task') await taskPanel.value?.resetForFresh()
+    else if (k === 'curiosity') await curiosityPanel.value?.resetForFresh()
+    else await resourcePanel.value?.resetForFresh()
+  },
+  { immediate: true, flush: 'post' }
+)
 </script>
 
 <template>

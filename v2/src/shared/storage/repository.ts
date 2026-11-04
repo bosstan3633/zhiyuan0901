@@ -19,6 +19,7 @@ import { RETIRED_CARD_KEYS, stripRetiredCardKeys, normalizeLegacyCards, foldPare
 
 type Listener = (data: AppData) => void
 type ErrorListener = (err: SaveError) => void
+type MutationListener = (seq: number) => void
 
 /** 第卅六轮 REQ-038：保存失败事件总线（配额超限 / 序列化失败 / 未知 IO 错误） */
 export interface SaveError {
@@ -31,6 +32,7 @@ export interface SaveError {
 let cache: AppData | null = null
 const listeners = new Set<Listener>()
 const errorListeners = new Set<ErrorListener>()
+const mutationListeners = new Set<MutationListener>()
 let lastSaveError: SaveError | null = null
 /** R159（T3）：落盘状态（顶栏极轻量状态点消费）——idle/saving/saved/error */
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -48,7 +50,17 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
  */
 let mutationSeq = 0
 export function getMutationSeq(): number { return mutationSeq }
-export function markDataDirty(): void { mutationSeq++ }
+/** O(1) 数据/UI 变更订阅：只广播脏计数，不读取或比较整棵数据。 */
+export function subscribeDataMutation(fn: MutationListener): () => void {
+  mutationListeners.add(fn)
+  return () => mutationListeners.delete(fn)
+}
+export function markDataDirty(): void {
+  mutationSeq++
+  mutationListeners.forEach((fn) => {
+    try { fn(mutationSeq) } catch { /* 订阅方异常不得阻断保存链 */ }
+  })
+}
 
 // REQ-031 P-031-6 + R70 + R131-C1a：自身写入标记。
 // 原实现是时间戳比较（守卫从未生效），R70 改内容指纹（每次 onChanged 对整树 stringify 一次，千卡 40–100ms）。
@@ -413,7 +425,7 @@ export async function cloudRestoreAtomic(opts: {
   emitSaveState('saving')
   await opts.beforeApply?.()
   cache = opts.nextData
-  mutationSeq++
+  markDataDirty()
   dataVersion++
   markStorageMirror(opts.nextData)
   rebuildEventSnapshot(opts.nextData)
@@ -617,7 +629,10 @@ function mergeExternalUIPrefs(ext: UIPrefs | undefined): void {
     }
     if (extJson !== JSON.stringify(next[k])) { next[k] = src[k]; changed = true }
   }
-  if (changed) uiCache = next as unknown as UIPrefs
+  if (changed) {
+    uiCache = next as unknown as UIPrefs
+    markDataDirty()
+  }
 }
 
 export async function loadUIPrefs(prefetchedUI?: unknown): Promise<UIPrefs> {
@@ -652,7 +667,14 @@ export function getUIPrefs(): UIPrefs {
 
 export function saveUIPrefs(patch: Partial<UIPrefs>): void {
   if (!uiCache) return
+  const current = uiCache as unknown as Record<string, unknown>
+  const changed = Object.keys(patch).some((key) => {
+    const nextValue = (patch as Record<string, unknown>)[key]
+    try { return JSON.stringify(current[key]) !== JSON.stringify(nextValue) } catch { return true }
+  })
+  if (!changed) return
   uiCache = { ...uiCache, ...patch }
+  markDataDirty()
   // R128-A1：记下我方写过的键与值，供 mergeExternalUIPrefs 判定「哪些键不许被外部旧值回退」
   for (const k of Object.keys(patch)) {
     try { uiSelfWritten.set(k, JSON.stringify((uiCache as unknown as Record<string, unknown>)[k])) } catch { /* 不可序列化值不保护 */ }

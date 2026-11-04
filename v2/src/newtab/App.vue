@@ -14,6 +14,7 @@ const loadGlobalPopups = () => import('./components/GlobalPopups.vue')
 const GlobalPopups = defineAsyncComponent(loadGlobalPopups)
 import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import { useConfirm } from '@/shared/components/confirm'
+import CloudSyncButton from './components/CloudSyncButton.vue'
 // R146（回退契约）：策展台「归档 / 删除」两语义真源
 import Icon from '@/shared/components/Icon.vue'
 // R168：AI 徽标图形只挂一份（各入口走 <use>）——组件本体零依赖零状态，挂在根上即全站可用
@@ -397,15 +398,6 @@ function onGlobalKeydown(e: KeyboardEvent) {
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown, true)
   scheduleInteractionPrefetch()
-  // v4.0.1：启动后非阻塞检查云端版本（不打断首屏，仅在顶部 Toast 提示）
-  setTimeout(() => {
-    import('@/shared/cloud/sync').then(async (m) => {
-      const meta = await m.getCloudMeta()
-      if (!meta?.checkOnStart) return
-      const r = await m.checkRemote()
-      if (r.kind === 'remote_new') showToast(`云端有新版本（修订 ${r.remoteRevision}），可到 设置 → 数据管理 → 云同步 恢复`)
-    }).catch(() => { /* 云端不可达静默 */ })
-  }, 2500)
   // R131-C6a：启动 idle 预热退役——每开一个新标签页都后台拉 ~312KB 拼音字典，与「按需加载」交付口径相悖；
   // 字典改由搜索面板打开时 ensurePinyin（GlobalPopups）/ 网页浮层唤起时（overlay-impl）加载，
   // pinyinReady 就绪后结果链自动补跑拼音命中（V2.21 既有机制），首屏与多标签页内存不再为该预热买单。
@@ -604,6 +596,7 @@ const backupReminderDot = computed(() => {
 
       <div class="topbar-right">
         <!-- 全局调出快捷键在设置页维护；顶部不重复展示提示入口。 -->
+        <CloudSyncButton />
         <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
         <span class="save-dot" v-pressable :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="theme-select">

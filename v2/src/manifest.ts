@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '4.0.3',
+  version: '4.0.4',
   description: '你在浏览器里的个人调度中台 · 万千可调用，自有我方向 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -43,7 +43,7 @@ export default defineManifest({
     // R49-I1 + R50-F3/F8 + R65-F6：浏览器级命令（无默认键，chrome://extensions/shortcuts 自定义）
     // R68-F3：「打开方向台」「打开资源台」退役——方向台/资源台/策展台改由应用内 Alt+数字（台签顺序）切台
     'open-tree': {
-      description: '打开完整方向树'
+      description: '直达资源卡池'
     },
     // R55-C：快速采集任务（无默认键，chrome://extensions/shortcuts 自定义）
     'open-tasks': {
@@ -51,10 +51,13 @@ export default defineManifest({
     },
     // R67-F4 + R68-F3：模块直达（无默认键，chrome://extensions/shortcuts 自定义；打开目标台并滚动定位+高亮）
     'goto-curiosity': {
-      description: '直达好奇心培养模块'
+      description: '直达好奇心卡池'
     },
     'goto-tasks': {
-      description: '直达任务调度模块'
+      description: '直达任务卡池'
+    },
+    'open-cloud-sync': {
+      description: '打开云同步'
     }
   },
   content_scripts: [

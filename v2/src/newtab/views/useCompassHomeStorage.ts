@@ -5,6 +5,7 @@ import type { FieldDef } from '@/shared/models'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
 import type { SaveError } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
+import { useCloudSync, type CloudState } from '../composables/useCloudSync'
 import type { useCompassHome } from './useCompassHome'
 
 export function useCompassHomeStorage(deps: Pick<ReturnType<typeof useCompassHome>, 'd' | 'pickerOpen' | 'exportOpen' | 'whyOpen' | 'focusMoreOpen' | 'shiftDate' | 'route' | 'router' | 'onDocClickCloseWhy' | 'store'>): {
@@ -22,7 +23,7 @@ export function useCompassHomeStorage(deps: Pick<ReturnType<typeof useCompassHom
   storageText: ComputedRef<string>
   timeAgo: (ts: number) => string
   onStorageClick: () => Promise<void>
-  cloudState: Ref<'checking' | 'disabled' | 'signed_out' | 'connected' | 'error'>
+  cloudState: Ref<CloudState>
   cloudStatusText: ComputedRef<string>
   cloudStatusDetail: ComputedRef<string>
   onCloudStatusClick: () => void
@@ -30,6 +31,7 @@ export function useCompassHomeStorage(deps: Pick<ReturnType<typeof useCompassHom
   const { d, pickerOpen, exportOpen, whyOpen, focusMoreOpen, shiftDate, route, router, onDocClickCloseWhy, store } = deps
 const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
 const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
+const cloud = useCloudSync()
 
 // ================= R2-②：项目调度卡退役 =================
 // 指标结构管理归方向台（ProjectCuration 展板 metric-head2 ＋/🗑/AI 与完整方向树指标行齐全，
@@ -90,10 +92,6 @@ onMounted(() => {
   storageTimer = window.setInterval(() => {
     lastOkTick.value = getLastSaveOkAt()
   }, 30000)
-  void refreshCloudStatus(true)
-  cloudTimer = window.setInterval(() => {
-    void refreshCloudStatus(false)
-  }, 60000)
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onDateKey, true)
@@ -101,7 +99,6 @@ onUnmounted(() => {
   window.removeEventListener('zy-goto-anchor', onAnchorEvt)
   if (saveErrSub) saveErrSub()
   if (storageTimer) clearInterval(storageTimer)
-  if (cloudTimer) clearInterval(cloudTimer)
 })
 
 // ================= 数据存储状态栏（R50-F2） =================
@@ -132,85 +129,11 @@ async function onStorageClick() {
   showToast(`存储正常 · 已用 ${(bytes / 1024).toFixed(0)} KB${hasUnlimitedStorage() ? ' · 不限容量' : ''}`)
 }
 
-// ================= 云同步状态（V4.0.3） =================
-// 首页只做非阻塞状态读数；云端模块按需加载，不把 Supabase 客户端带进启动链。
-type CloudState = 'checking' | 'disabled' | 'signed_out' | 'connected' | 'error'
-interface CloudStatusMeta {
-  userId: string
-  refreshToken: string
-  lastUploadAt?: number
-  lastCheckedAt?: number
-  checkOnStart: boolean
-}
-const cloudState = ref<CloudState>('checking')
-const cloudMeta = ref<CloudStatusMeta | null>(null)
-let cloudTimer = 0
-let cloudLoading = false
-
-async function refreshCloudStatus(probeRemote = false): Promise<void> {
-  if (cloudLoading) return
-  cloudLoading = true
-  try {
-    const [client, sync] = await Promise.all([
-      import('@/shared/cloud/client'),
-      import('@/shared/cloud/sync'),
-    ])
-    const env = await client.cloudEnv()
-    let meta = await sync.getCloudMeta() as CloudStatusMeta | null
-    if (!env) {
-      cloudMeta.value = meta
-      cloudState.value = 'disabled'
-      return
-    }
-    if (!meta?.refreshToken) {
-      cloudMeta.value = meta
-      cloudState.value = 'signed_out'
-      return
-    }
-    cloudMeta.value = meta
-    cloudState.value = 'connected'
-    if (probeRemote && meta.checkOnStart) {
-      await sync.checkRemote()
-      meta = await sync.getCloudMeta() as CloudStatusMeta | null
-      cloudMeta.value = meta
-      cloudState.value = 'connected'
-    }
-  } catch {
-    cloudState.value = 'error'
-  } finally {
-    cloudLoading = false
-  }
-}
-
-function cloudTime(ts?: number): string {
-  if (!ts) return ''
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return `${Math.floor(diff / 86_400_000)} 天前`
-}
-
-const cloudStatusText = computed(() => {
-  if (cloudState.value === 'disabled') return '云端未配置'
-  if (cloudState.value === 'signed_out') return '云端未登录'
-  if (cloudState.value === 'connected') return '已连接'
-  if (cloudState.value === 'error') return '检查异常'
-  return '检查云端…'
-})
-
-const cloudStatusDetail = computed(() => {
-  if (cloudState.value === 'disabled') return '点击配置'
-  if (cloudState.value === 'signed_out') return '点击登录'
-  if (cloudState.value === 'error') return '点击诊断'
-  if (cloudState.value !== 'connected') return '请稍候'
-  const checked = cloudTime(cloudMeta.value?.lastCheckedAt)
-  const uploaded = cloudTime(cloudMeta.value?.lastUploadAt)
-  if (checked && uploaded) return `检查 ${checked} · 上传 ${uploaded}`
-  if (checked) return `检查 ${checked}`
-  if (uploaded) return `上传 ${uploaded}`
-  return '点击查看'
-})
+// ================= 云同步状态（V4.0.4） =================
+// 顶栏、首页、设置页共用同一份非阻塞状态；首页不再独立探测或维护第二套时间口径。
+const cloudState = cloud.state
+const cloudStatusText = cloud.statusText
+const cloudStatusDetail = cloud.statusDetail
 
 function onCloudStatusClick(): void {
   void router.push('/settings?page=cloud')

@@ -16,6 +16,7 @@ const KEYS = read('/shared/storage/keys.ts')
 const CLIENT = read('/shared/cloud/client.ts')
 const SYNC = read('/shared/cloud/sync.ts')
 const SETTINGS = read('/newtab/views/settings/SettingsCloudSync.vue')
+const USECLOUD = read('/newtab/composables/useCloudSync.ts')
 const DATA_MANAGEMENT = read('/newtab/views/settings/SettingsDataManagement.vue')
 const MOBILE = read('/mobile/App.vue')
 const MANIFEST = read('/manifest.ts')
@@ -58,22 +59,29 @@ check('R192-4 ★快照写入返回 representation：插入与更新都带 Prefe
     && SYNC.includes('const rev = upd[0].revision')
 })
 
-check('R192-5 ★PATCH 乐观锁：按 user_id + revision 双条件更新，基线不符时先要求用户确认', () => {
+check('R192-5（V4.0.4 重指）★PATCH 乐观锁：按 user_id + revision 双条件更新，基线不符时先要求用户确认；取消或拉回均不得静默覆盖', () => {
   return CLIENT.includes('&revision=eq.${expectedRevision}')
     && CLIENT.includes('method: \'PATCH\'')
-    && SYNC.includes('remote.revision !== (meta.revision || 0)')
-    && SYNC.includes('const ok = await onConflict(remote.revision)')
-    && SYNC.includes("if (!ok) throw new Error('已取消上传（云端版本更高）')")
-    && SETTINGS.includes('resolveConflict(true)')
-    && SETTINGS.includes('云端版本更高')
+    && SYNC.includes('remote.revision !== localRevision')
+    && SYNC.includes('const decision = await onConflict(remote.revision)')
+    && SYNC.includes("if (decision === 'cancel') return { kind: 'cancelled'")
+    && SYNC.includes("if (decision === 'download') return { kind: 'download_requested'")
+    && SYNC.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)')
+    && USECLOUD.includes("choice === 'cancel'")
+    && USECLOUD.includes("choice === 'download'")
+    && SETTINGS.includes("resolveConflict('upload')")
+    && SETTINGS.includes('未选中的一端会被覆盖')
 })
 
-check('R192-6 ★快照结构与格式校验：data + ui + eventLog 三件，恢复只接受 version === 2', () => {
+check('R192-6（V4.0.4 重指）★快照结构与格式校验：data + ui + eventLog 三件，恢复只接受 version === 2；原子恢复下沉到共享云状态', () => {
   return SYNC.includes('export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }')
     && SYNC.includes('return { data: d, ui: safeUi, eventLog: [...eventLog] }')
     && SYNC.includes("st.data.version !== 2")
     && SYNC.includes("throw new Error('云端快照格式不兼容')")
-    && SETTINGS.includes('cloudRestoreAtomic({ nextData: remote, nextUi: r.state.ui, eventLog: r.state.eventLog })')
+    && USECLOUD.includes('repository.cloudRestoreAtomic({')
+    && USECLOUD.includes('nextData,')
+    && USECLOUD.includes('nextUi: downloaded.state.ui')
+    && USECLOUD.includes('eventLog: downloaded.state.eventLog')
 })
 
 check('R192-7 ★出云清理：旧同步映射、工作台内部字段、界面云字段剥离，附件按六字段白名单脱敏', () => {
@@ -95,12 +103,19 @@ check('R192-7 ★出云清理：旧同步映射、工作台内部字段、界面
     && !SYNC.includes('blob')
 })
 
-check('R192-8 ★移动采集 inbox：只拉未消费记录并按 created_at 升序，消费用 PATCH 写 consumed_at', () => {
-  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,url,title,note,tags,created_at&consumed_at=is.null&order=created_at.asc'")
+check('R192-8（V4.0.4 重指）★移动采集 inbox：只拉未消费记录并按 created_at 倒序，支持消费、单删与批量清空', () => {
+  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,url,title,note,tags,created_at&consumed_at=is.null&order=created_at.desc'")
     && CLIENT.includes("`/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`")
     && CLIENT.includes('body: JSON.stringify({ consumed_at: new Date().toISOString() })')
-    && SYNC.includes('rows.map(r => ({ id: r.id, url: r.url')
+    && CLIENT.includes('deleteCapture:')
+    && CLIENT.includes('deleteAllCaptures:')
+    && CLIENT.includes("method: 'DELETE'")
+    && SYNC.includes('.map(r => ({')
+    && SYNC.includes('id: r.id')
+    && SYNC.includes('url: r.url')
     && SETTINGS.includes('consumeCapture')
+    && SETTINGS.includes('deleteCapture')
+    && SETTINGS.includes('deleteCaptures')
 })
 
 check('R192-9 ★429 有界退避：最多重试 3 次、基础 300ms、封顶 4000ms，并优先读取 retry-after', () => {
@@ -128,14 +143,14 @@ check('R192-10 ★Airtable 零回流负向守卫：运行时代码、manifest �
     && DATA_MANAGEMENT.includes("<button class=\"dm-tab\" :class=\"{ on: tab === 'cloud' }\" @click=\"tab = 'cloud'\">云同步</button>")
 })
 
-check('R192-11 ★已有构建 env 仍可覆盖：配置入口常显，展开字段与登录区解耦', () => {
+check('R192-11（V4.0.4 重指）★已有构建 env 仍可覆盖：配置入口常显，展开字段与登录区解耦', () => {
   return SETTINGS.includes('const cfgOpen = ref(false)')
     && SETTINGS.includes('cfgOpen.value = !current')
     && SETTINGS.includes('cfgOpen.value = false')
     && SETTINGS.includes('@click="cfgOpen = !cfgOpen"')
     && SETTINGS.includes('<template v-if="cfgOpen">')
     && SETTINGS.includes('<template v-if="env && !loggedIn">')
-    && SETTINGS.includes('await s.setCloudEnv({ url, anonKey })')
+    && SETTINGS.includes('await client.setCloudEnvOverride({ url, anonKey })')
     && !SETTINGS.includes('v-if="!env"')
     && !SETTINGS.includes('v-else-if="!loggedIn"')
 })
@@ -172,13 +187,13 @@ check('R63-4（V4.0.3 重指）★跨设备同步范围统一为云快照三件�
     && s.includes('return { data: d, ui: safeUi, eventLog: [...eventLog] }')
     && c.includes('state: unknown') && !s.includes('collectSyncRows') && !s.includes('targetWsId');
 });
-check('R63-5（V4.0.3 重指）★软删语义保留在本地数据树内：云快照不按已删除状态裁剪卡片，恢复时整棵 AppData 原样回灌；旧 Airtable「已删除」checkbox 不再存在', () => {
+check('R63-5（V4.0.4 重指）★软删语义保留在本地数据树内：云快照不按已删除状态裁剪卡片，恢复时整棵 AppData 原样回灌；旧 Airtable「已删除」checkbox 不再存在', () => {
   const s = read('/shared/cloud/sync.ts');
-  const set = read('/newtab/views/settings/SettingsCloudSync.vue');
   return s.includes('const d = JSON.parse(JSON.stringify(data)) as AppData')
     && !s.includes('deletedAt') && !s.includes("'已删除'")
-    && set.includes('cloudRestoreAtomic({ nextData: remote')
-    && set.includes('await store.refreshAfterCloudRestore(store.data!, store.ui)');
+    && USECLOUD.includes('repository.cloudRestoreAtomic({')
+    && USECLOUD.includes('await store.refreshAfterCloudRestore(nextData, downloaded.state.ui)')
+    && USECLOUD.includes('meta.value = await sync.getCloudMeta()');
 });
 check('R63-6（V4.0.3 重指）★数据管理只保留三页签：数据包 / 附件管理 / 云同步；书签导入并入数据包，旧 Airtable 配置、轮询、日志与配额入口零回流', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
@@ -196,23 +211,42 @@ check('R63-7（V4.0.3 重指）★manifest 与 background 的 Airtable 运行时
   return !m.includes("'sync-airtable'") && !m.includes("'alarms'")
     && !b.includes("case 'sync-airtable'") && !b.includes('triggerAirtableSync') && !b.includes('zy-autosync');
 });
-check('R63-8（V4.0.3 重指）★后台轮询退役：background 不再注册 Airtable alarm、storage.onChanged 对齐或无页跳过逻辑；云端只在启动非阻塞检查与用户主动操作时访问', () => {
+check('R63-8（V4.0.4 重指）★后台轮询退役：background 不再注册 Airtable alarm、storage.onChanged 对齐或无页跳过逻辑；启动检查只由常驻顶栏按钮触发一次，App 不重复探测', () => {
   const b = read('/background/index.ts');
   const a = read('/newtab/App.vue');
+  const button = read('/newtab/components/CloudSyncButton.vue');
   return !b.includes("const AT_POLL_ALARM = 'airtable-poll'") && !b.includes('periodInMinutes: 180')
     && !b.includes('alignAirtableAlarm') && !b.includes('轮询跳过：无已开新标签页')
-    && a.includes("import('@/shared/cloud/sync')") && a.includes('meta?.checkOnStart');
+    && a.includes("import('@/shared/cloud/sync')")
+    && !a.includes('useCloudSync')
+    && !a.includes('cloudSync.refreshCloudStatus')
+    && button.includes('onMounted(() =>')
+    && button.includes('void cloud.refreshCloudStatus(true, store)')
+    && USECLOUD.includes('await refreshCloudStatus(false)')
+    && USECLOUD.includes('if (!force && !current.checkOnStart) return checkResult.value')
 });
-check('R63-9（V4.0.3 重指）★newtab 云同步执行器按需加载：App.vue 无旧 Airtable 消息、单例或查询参数自启；启动检查与空闲预取只动态导入 shared/cloud/sync', () => {
+check('R63-9（V4.0.4 重指）★newtab 云同步执行器按需加载：入口与顶栏零静态运行时代码引用，App 只保留空闲预取动态 import，网络读写集中在共享 composable 的动态加载中', () => {
   const a = read('/newtab/App.vue');
+  const button = read('/newtab/components/CloudSyncButton.vue');
+  const runtimeCloudImport = source => source.split('\n').some(line =>
+    /^\s*import\s+(?!type\b)/.test(line)
+    && /['"]@\/shared\/cloud\/(?:client|sync)['"]/.test(line),
+  );
   return !a.includes("msg?.type === 'zy-airtable-sync'") && !a.includes('runAirtableSync') && !a.includes('atSyncBusy')
     && !a.includes('zy-autosync') && !a.includes('@/shared/storage/airtable')
-    && a.includes("import('@/shared/cloud/sync')") && a.includes('await m.checkRemote()');
+    && a.includes("import('@/shared/cloud/sync')")
+    && !runtimeCloudImport(a) && !runtimeCloudImport(button)
+    && USECLOUD.includes("import('@/shared/cloud/client')")
+    && USECLOUD.includes("import('@/shared/cloud/sync')")
+    && USECLOUD.includes('const result = await sync.checkRemote(captured.snapshot)');
 });
-check('R63-10（V4.0.3 重指）★首页云同步状态：页脚 foot-sync 承接未配置 / 未登录 / 已连接 / 异常读数；状态点击统一进入数据管理的云同步页签，不再保留旧 Airtable 立即同步入口', () => {
+check('R63-10（V4.0.4 重指）★首页云同步状态：页脚 foot-sync 复用共享六态关系；状态点击统一进入数据管理的云同步页签，不再保留旧 Airtable 立即同步入口', () => {
   const c = read('/newtab/views/CompassHome.vue');
   return c.includes('class="foot-sync"') && c.includes('data-testid="cloud-sync-status"')
-    && c.includes("'disabled'") && c.includes("'signed_out'") && c.includes("'connected'") && c.includes("'error'")
+    && c.includes(':class="cloudState"')
+    && c.includes('const cloudState = cloud.state')
+    && c.includes('const cloudStatusText = cloud.statusText')
+    && c.includes('const cloudStatusDetail = cloud.statusDetail')
     && c.includes('function onCloudStatusClick()') && c.includes("router.push('/settings?page=cloud')")
     && !c.includes('pendingRows(store.data!)') && !c.includes("router.push('/settings?page=airtable')");
 });
@@ -248,29 +282,31 @@ check('R63-13 导出适配随统一数据包收口：CSV/指定台导出退役�
 check('R63-14 导入兼容：mergeImport 四字段组（含 thesis）合并保留 R62 语义', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)") && g.includes('if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()'); });
 
 // ============ R64：资源台归一 + 同步自愈 + 界面瘦身（V2.34.0） ============
-check('R64-1（V4.0.3 重指）★云同步冲突判定以远端 revision 为权威：每次上传先 GET 当前快照，远端修订与本地基线不一致时不得直接覆盖', () => {
+check('R64-1（V4.0.4 重指）★云同步冲突判定以远端 revision 为权威：每次上传先 GET 当前快照，远端修订与本地基线不一致时不得直接覆盖', () => {
   const c = read('/shared/cloud/client.ts');
   const s = read('/shared/cloud/sync.ts');
   return c.includes('select=revision,updated_at,state') && c.includes('&limit=1')
     && s.includes('const rows = await cloud.getSnapshot(env, token, meta.userId)')
-    && s.includes('if (remote.revision !== (meta.revision || 0))');
+    && s.includes('const localRevision = meta.revision || 0')
+    && s.includes('if ((remote.revision !== localRevision || attempt > 0) && !canUseInitialApproval)');
 });
-check('R64-2（V4.0.3 重指）★冲突必须用户确认后再条件更新：onConflict 返回 false 时取消；确认后以远端修订为新基线，PATCH 仍带 revision 条件防另一设备抢先', () => {
+check('R64-2（V4.0.4 重指）★冲突必须用户确认后再条件更新：onConflict 可取消或改走拉回；确认上传后仍以 PATCH revision 条件防另一设备抢先', () => {
   const s = read('/shared/cloud/sync.ts');
   const c = read('/shared/cloud/client.ts');
-  return s.includes('const ok = await onConflict(remote.revision)')
-    && s.includes("if (!ok) throw new Error('已取消上传（云端版本更高）')")
-    && s.includes('await writeMeta({ revision: remote.revision })')
-    && s.includes('cloud.updateSnapshot(env, token, meta.userId, base, clean)')
+  return s.includes('const decision = await onConflict(remote.revision)')
+    && s.includes("if (decision === 'cancel') return { kind: 'cancelled'")
+    && s.includes("if (decision === 'download') return { kind: 'download_requested'")
+    && s.includes('const canUseInitialApproval = attempt === 0 && initialApproval === remote.revision')
+    && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)')
     && c.includes('user_id=eq.${encodeURIComponent(userId)}&revision=eq.${expectedRevision}');
 });
-check('R64-3（V4.0.3 重指）★快照写入返回 representation：插入与更新都读取服务端 revision 并回写本机基线，避免下一次同步误判冲突', () => {
+check('R64-3（V4.0.4 重指）★快照写入返回 representation：插入与更新都读取服务端 revision 并回写本机基线，避免下一次同步误判冲突', () => {
   const c = read('/shared/cloud/client.ts');
   const s = read('/shared/cloud/sync.ts');
   return (c.match(/Prefer: 'return=representation'/g) || []).length === 2
     && s.includes('const rev = ins[0]?.revision ?? 1')
     && s.includes('const rev = upd[0].revision')
-    && (s.match(/revision: rev, lastUploadAt: Date.now\(\)/g) || []).length === 2;
+    && (s.match(/revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date\.now\(\)/g) || []).length === 2;
 });
 check('R64-4（V4.0.3 重指）★设置文案完成云同步换轨：无 Free 配额旧口径，数据管理页明确说明数据包、附件、Supabase 云同步，且云端只存附件元数据与脱敏快照', () => {
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
@@ -283,12 +319,12 @@ check('R64-5 方向状态新口径：战略目标=非归档 Direction 数 + 推�
 check('R64-6（R120-TB1 修订）方向状态 5 格平铺：战略目标 + 推进项目（各自数值，均下钻 dhi 明细）', () => { const m = read('/newtab/components/compass/MetricBar.vue'); return m.includes('战略目标') && m.includes('推进项目') && m.includes('pushingMain') && m.includes('m.value.dhi.goals') && m.includes('m.value.dhi.pushing') && !m.includes('DHI 方向契合度'); });
 check('R64-7 下钻抽屉同步口径：各行=项目数/推进中项目数（挂有非软删任务即推进）', () => { const d = read('/newtab/components/compass/MetricDrillDrawer.vue'); return d.includes('推进中 = 该项目下挂有任务') && d.includes('任务数 ≠ 0'); });
 check('R64-8 三件事瘦身：满员提示条与副文案删除 + lock-bar 样式清理', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('lock-bar') && !h.includes('锁定今日最重要的 3 件事') && !h.includes('已满 3/3'); });
-check('R64-9（V4.0.3 重指）云状态 chip 归因：未配置 / 未登录 / 异常读数统一可点，跳转设置页云同步分区', () => {
+check('R64-9（V4.0.4 重指）云状态 chip 归因：共享关系文案统一可点，跳转设置页云同步分区', () => {
   const h = read('/newtab/views/CompassHome.vue');
   return h.includes('data-testid="cloud-sync-status"')
-    && h.includes("if (cloudState.value === 'disabled') return '云端未配置'")
-    && h.includes("if (cloudState.value === 'signed_out') return '云端未登录'")
-    && h.includes("if (cloudState.value === 'error') return '检查异常'")
+    && h.includes('<span>{{ cloudStatusText }}</span>')
+    && h.includes('<span class="cloud-detail">{{ cloudStatusDetail }}</span>')
+    && h.includes('const cloudStatusText = cloud.statusText')
     && h.includes("void router.push('/settings?page=cloud')");
 });
 check('R64-10 hub-merge 迁移：旧台树挂资源台同名根分类 + 原生卡平移 + 实体删除 + 幂等 hubMergedAt', () => { const m = read('/shared/storage/curationMigration.ts'); const mod = read('/shared/models/index.ts'); return m.includes('export function migrateHubMerge') && m.includes('hubMergedAt') && m.includes('name === b.name') && m.includes("d.workspaces = d.workspaces.filter(w => w.id !== b.id)") && mod.includes('hubMergedAt?'); });

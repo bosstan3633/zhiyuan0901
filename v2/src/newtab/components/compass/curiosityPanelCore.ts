@@ -15,11 +15,15 @@ export function filterCuriosities(
   statusFilter: CuriStatus | 'all',
   searchQuery: string,
   sortDir: 'asc' | 'desc',
+  freshMode = false,
 ): CuriosityCard[] {
   const alive = curiosities.filter(c => !c.lifecycleArchived)
   let list = statusFilter === 'all' ? alive : alive.filter(c => c.status === statusFilter)
   const q = searchQuery.trim().toLowerCase()
   if (q) list = list.filter(c => c.question.toLowerCase().includes(q))
+  if (freshMode) {
+    return [...list].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+  }
   const dirMul = sortDir === 'asc' ? 1 : -1
   return [...list].sort((a, b) => {
     const rank = markRank(b) - markRank(a)
@@ -42,7 +46,8 @@ export function statusCountsOf(curiosities: CuriosityCard[]): Record<string, num
   return counts
 }
 
-export function groupCuriosities(filtered: CuriosityCard[]): CurioGroup[] {
+export function groupCuriosities(filtered: CuriosityCard[], freshMode = false): CurioGroup[] {
+  if (freshMode) return filtered.length ? [{ id: 'fresh', name: '最新采集', items: filtered }] : []
   return [
     { id: 'pin', name: '已置顶', items: filtered.filter(c => c.pinned) },
     { id: 'rest', name: '全部好奇心', items: filtered.filter(c => !c.pinned) },

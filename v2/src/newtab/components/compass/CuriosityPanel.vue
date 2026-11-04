@@ -74,6 +74,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ closed: [] }>()
 
 const searchQuery = ref('')
+const freshMode = ref(false)
+const rootEl = ref<HTMLElement | null>(null)
 
 // 高亮定位（B4：搜索好奇卡结果跳转；R51：声明顺序修复——viewMode/statusFilter 须先于 immediate watcher）
 const highlightId = ref<string | null>(null)
@@ -81,6 +83,7 @@ const viewMode = ref<'card' | 'list' | 'kanban'>(
   store.ui?.curioViewMode || (props.secondaryMode ? 'list' : 'card')
 )
 function setViewMode(next: 'card' | 'list' | 'kanban'): void {
+  freshMode.value = false
   viewMode.value = next
   if (store.ui) store.ui.curioViewMode = next
   saveUIPrefs({ curioViewMode: next })
@@ -129,17 +132,21 @@ onMounted(() => {
 // 第卅二轮 REQ-007：好奇心时间排序方向（默认倒序=新捕获在前）+ 偏好本地记忆（UIPrefs.sortPrefs.curio）
 const sortDir = ref<'asc' | 'desc'>((store.ui?.sortPrefs?.curio?.dir === 'asc') ? 'asc' : 'desc')
 watch(sortDir, () => {
+  if (freshMode.value) return
   const sp = { ...(store.ui?.sortPrefs || {}), curio: { by: 'createdAt', dir: sortDir.value } }
   if (store.ui) store.ui.sortPrefs = sp
   saveUIPrefs({ sortPrefs: sp })
 })
-function toggleSortDir() { sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
+function toggleSortDir() {
+  freshMode.value = false
+  sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+}
 
 /** 置顶优先分组：markRank 分区（置顶 > 星标 > 普通）不变；
  *  第卅五轮 REQ-035：组内 sortOrder 优先、未拖拽的卡（无 sortOrder）回退捕获时间方向排序
  *  —— 拖拽写入的自定义顺序不再被时间排序覆盖 */
 const filtered = computed(() => {
-  return filterCuriosities(curiosities.value, statusFilter.value, searchQuery.value, sortDir.value)
+  return filterCuriosities(curiosities.value, statusFilter.value, searchQuery.value, sortDir.value, freshMode.value)
 })
 /** R110-LC（T3）：当前筛选口径下的归档卡数——底部降级提示（≥1 才显示） */
 const archivedHintCount = computed(() => archivedHintCountOf(curiosities.value, statusFilter.value))
@@ -150,7 +157,7 @@ const pinnedCount = computed(() => filtered.value.filter(c => c.pinned).length)
 /* ★W17-C05（2026-10-20 用户拍板）：两段文字标签升级为可折叠组头——
  * 组 = 已置顶 / 全部好奇心（数据源仍是 pinnedCount 分区），折叠状态只存在组件内、不持久化。 */
 const curioGroups = computed(() => {
-  return groupCuriosities(filtered.value)
+  return groupCuriosities(filtered.value, freshMode.value)
 })
 const collapsedGroups = ref<Set<string>>(new Set())
 const allGroupsCollapsed = computed(() => curioGroups.value.length > 0 && curioGroups.value.every(g => collapsedGroups.value.has(g.id)))
@@ -213,7 +220,6 @@ function openDetail(id: string) {
     store.persistHot()
   }
 }
-defineExpose({ openDetail })
 function closeDetail() {
   if (!detailId.value) return
   detailId.value = null
@@ -328,6 +334,7 @@ async function deleteCard(c: CuriosityCard) {
 // ---- O5：拖拽（卡片排序 + 看板跨状态列改状态） ----
 let dragCzId: string | null = null
 function onCzDragStart(e: DragEvent, id: string) {
+  freshMode.value = false
   dragCzId = id
   ;(e.currentTarget as HTMLElement).classList.add('dragging')
   e.dataTransfer!.effectAllowed = 'move'
@@ -419,6 +426,19 @@ const batchMode = ref(false)
    下一轮进来上一轮的勾选还在（两次之间可见集合可能已变），而批量动作里就有删除。 */
 const { selected, allSelected: allCurioSelected, toggle: toggleSelect, selectAll, invert: invertSelect, clear: clearSelection, setMode: setBatchMode } =
   useBatchSelect(() => filtered.value.map(c => c.id))
+async function resetForFresh() {
+  freshMode.value = true
+  viewMode.value = 'list'
+  statusFilter.value = 'all'
+  searchQuery.value = ''
+  sortDir.value = 'desc'
+  collapsedGroups.value = new Set()
+  clearSelection()
+  batchMode.value = setBatchMode(false)
+  await nextTick()
+  rootEl.value?.scrollIntoView({ block: 'start' })
+}
+defineExpose({ openDetail, resetForFresh })
 function batchAddTag(t: string) {
   const n = addTagToCards(d.value.curiosities, selected.value, t)
   store.persist()
@@ -462,7 +482,7 @@ function srcShort(url: string): string {
 <template>
   <ModuleCard icon-name="bulb" title="好奇心卡" en="CURIOSITY" :bare="detailsOnly">
 
-    <div v-if="!detailsOnly" class="cz-body">
+    <div v-if="!detailsOnly" ref="rootEl" class="cz-body">
       <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->
       <DeckControls panel="curio" search search-ph="搜索好奇心..." :query="searchQuery" @search="searchQuery = $event"
         :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
