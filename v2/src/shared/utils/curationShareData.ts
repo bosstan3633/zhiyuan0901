@@ -61,12 +61,20 @@ export interface CurationRenderCard {
   }>
 }
 
+export interface CurationRenderAsset {
+  id: string
+  name: string
+  kind: string
+  size: number
+}
+
 export interface CurationRenderNode {
   id: string
   path: string
   title: string
   description?: string
   level: number
+  assets: CurationRenderAsset[]
   cards: CurationRenderCard[]
   children: CurationRenderNode[]
 }
@@ -140,7 +148,7 @@ export function buildCurationRenderTree(input: {
   const walk = (node: Category, level: number, parentPath: string): CurationRenderNode => {
     const path = parentPath ? `${parentPath}/${node.name || '未命名分支'}` : (node.name || '未命名分支')
     if (visiting.has(node.id)) {
-      return { id: node.id, path, title: node.name || '未命名分支', level, cards: [], children: [] }
+      return { id: node.id, path, title: node.name || '未命名分支', level, assets: [], cards: [], children: [] }
     }
     visiting.add(node.id)
     const cards = (cardsByCat.get(node.id) || []).map(card => ({
@@ -162,6 +170,12 @@ export function buildCurationRenderTree(input: {
       title: node.name || '未命名分支',
       description: node.description || undefined,
       level,
+      assets: (node.assets || []).map(asset => ({
+        id: asset.id,
+        name: asset.name || '',
+        kind: asset.kind || '',
+        size: asset.size || 0,
+      })),
       cards,
       children: [],
     }
@@ -174,7 +188,7 @@ export function buildCurationRenderTree(input: {
   const roots = (byParent.get('') || []).map(node => walk(node, 2, ''))
   const nodeCount = flat.length
   const cardCount = flat.reduce((n, node) => n + node.cards.length, 0)
-  const attachmentCount = flat.reduce((n, node) => n + node.cards.reduce((m, c) => m + c.assets.length, 0), 0)
+  const attachmentCount = flat.reduce((n, node) => n + node.assets.length + node.cards.reduce((m, c) => m + c.assets.length, 0), 0)
   const maxLevel = flat.reduce((n, node) => Math.max(n, node.level), input.thesis ? 1 : 0)
   const tree = { roots, flat, nodeCount, cardCount, attachmentCount, maxLevel }
   assertCurationRenderLimits(tree)

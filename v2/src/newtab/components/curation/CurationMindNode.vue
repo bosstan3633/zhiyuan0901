@@ -33,6 +33,8 @@ const emit = defineEmits<{
   'open-resource': [card: ResourceCard]
   'open-resource-link': [card: ResourceCard]
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
+  'open-assets': [id: string]
+  'drop-asset-files': [id: string, files: File[]]
   'drag-start': [id: string]
   'drag-over': [event: DragEvent, id: string]
   'drag-leave': []
@@ -223,6 +225,17 @@ function onResourceRemove(e: MouseEvent, card: ResourceCard): void {
   emit('unlink-resource', props.node.id, card)
 }
 
+function onNodeDrop(e: DragEvent): void {
+  const files = Array.from(e.dataTransfer?.files || [])
+  if (files.length) {
+    e.preventDefault()
+    e.stopPropagation()
+    emit('drop-asset-files', props.node.id, files)
+    return
+  }
+  emit('drop', e, props.node.id)
+}
+
 function onDragHandleKeydown(e: KeyboardEvent): void {
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
     e.preventDefault()
@@ -304,7 +317,7 @@ onBeforeUnmount(() => {
       draggable="true" @click="focusCard" @focus="emit('select', node.id)" @keydown="onNodeKeydown"
       @dragstart="dragStart"
       @dragover="emit('drag-over', $event, node.id)" @dragleave="emit('drag-leave')"
-      @drop="emit('drop', $event, node.id)">
+      @drop="onNodeDrop">
       <div class="mind-node-head">
         <span class="mind-level">L{{ level() }}</span>
         <span class="mind-type">{{ children().length ? `${children().length} 个子分支` : '论证节点' }}</span>
@@ -312,10 +325,14 @@ onBeforeUnmount(() => {
           title="关联资源" aria-label="关联资源" @click.stop="emit('link-resource', node)">
           <Icon name="link" :size="12"/>
         </button>
-        <button v-if="selectedId === node.id && !cards().length" class="mind-head-action danger" type="button"
-          :disabled="children().length > 0"
-          :title="children().length ? '先移走或删除子分支' : '删除这个空分支'"
-          aria-label="删除这个空分支" @click.stop="emit('remove-node', node.id)">
+        <button class="mind-head-action" type="button"
+          :title="node.assets?.length ? `附件 ${node.assets.length} 个` : '添加节点附件'"
+          aria-label="节点附件" @click.stop="emit('open-assets', node.id)">
+          <Icon name="paperclip" :size="12"/><span v-if="node.assets?.length" class="mind-asset-count">{{ node.assets.length }}</span>
+        </button>
+        <button v-if="selectedId === node.id" class="mind-head-action danger" type="button"
+          title="删除整棵分支（移入回收站）"
+          aria-label="删除整棵分支" @click.stop="emit('remove-node', node.id)">
           <Icon name="trash" :size="12"/>
         </button>
         <span class="mind-order" role="group" :aria-label="`同级排序「${node.name || '未命名分支'}」`">
@@ -363,8 +380,7 @@ onBeforeUnmount(() => {
           <Icon name="link" :size="13"/> 关联资源
         </button>
         <button v-if="selectedId === node.id" class="mind-add danger" type="button"
-          :disabled="children().length > 0 || cards().length > 0"
-          :title="children().length ? '先移走或删除子分支' : cards().length ? '先解除节点下的资源关联' : '删除这个空分支'"
+          title="删除整棵分支（移入回收站）"
           @click.stop="emit('remove-node', node.id)">
           <Icon name="trash" :size="13"/> 删除
         </button>
@@ -387,6 +403,8 @@ onBeforeUnmount(() => {
         @open-resource="emit('open-resource', $event)"
         @open-resource-link="emit('open-resource-link', $event)"
         @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
+        @open-assets="emit('open-assets', $event)"
+        @drop-asset-files="(id, files) => emit('drop-asset-files', id, files)"
         @drag-start="emit('drag-start', $event)" @drag-over="(e, id) => emit('drag-over', e, id)"
         @drag-leave="emit('drag-leave')" @drop="(e, id) => emit('drop', e, id)"
         @keyboard-drag-start="emit('keyboard-drag-start', $event)"

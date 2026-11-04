@@ -5,9 +5,13 @@ import Drawer from '@/shared/components/Drawer.vue'
 import Icon from '@/shared/components/Icon.vue'
 import { downloadBlob, downloadText, stampDay } from '@/shared/utils/download'
 import { showToast } from '@/shared/components/toast'
+import { useConfirm } from '@/shared/components/confirm'
 import { buildCurationShareHtml, type CurationShareOptions } from '@/shared/utils/curationShare'
 import { renderCurationImage } from '@/shared/utils/curationImage'
 import { buildCurationRenderTree } from '@/shared/utils/curationShareData'
+import { buildZipFromBlobs } from '@/shared/utils/zip'
+import { getAssetBlob } from '@/shared/storage/assets'
+import { downloadCurationAsset } from '@/shared/cloud/sync'
 import type { Category, ResourceCard } from '@/shared/models'
 
 const props = defineProps<{
@@ -38,21 +42,33 @@ const roots = computed(() => renderTree.value.roots.length)
 const attachmentCount = computed(() => renderTree.value.attachmentCount)
 const imageDataUrl = ref('')
 const imageBusy = ref(false)
+const nodeAssetDataUrls = ref<Record<string, string>>({})
+const nodeAssetBlobs = ref<Record<string, Blob>>({})
+const assetBusy = ref(false)
+const downloadBusy = ref(false)
 let imageSeq = 0
+let assetSeq = 0
 
 const previewFlatNodes = computed(() => renderTree.value.flat)
 
 const previewTitle = computed(() => props.thesis?.title || `${props.workspaceName} · 策展成果`)
 const previewDescription = computed(() => props.thesis?.description || '这份策展成果尚未补充中心论点说明。')
+const nodeAssetList = computed(() => [
+  ...(props.thesis?.assets || []),
+  ...props.nodes.flatMap(node => node.assets || []),
+])
+const nodeAssetBytes = computed(() => nodeAssetList.value.reduce((sum, asset) => sum + (asset.size || 0), 0))
+const exportMode = computed<'single' | 'large' | 'zip'>(() => {
+  if (!options.attachments) return 'single'
+  if (nodeAssetBytes.value <= 100 * 1024 * 1024) return 'single'
+  if (nodeAssetBytes.value <= 300 * 1024 * 1024) return 'large'
+  return 'zip'
+})
+const exportModeLabel = computed(() => exportMode.value === 'single'
+  ? '单文件 HTML'
+  : exportMode.value === 'large' ? '大文件提醒后单文件 HTML' : 'HTML + attachments ZIP')
+const exportButtonLabel = computed(() => exportMode.value === 'zip' ? '下载 HTML + 附件 ZIP' : '下载 HTML')
 
-const html = computed(() => buildCurationShareHtml({
-  workspaceName: props.workspaceName,
-  thesis: props.thesis,
-  nodes: props.nodes,
-  cards: props.cards,
-  options: { ...options },
-  imageDataUrl: imageDataUrl.value || undefined,
-}))
 const filename = computed(() => {
   const title = (props.thesis?.title || props.workspaceName || '策展成果').replace(/[\\/:*?"<>|]/g, '_').slice(0, 48)
   return `${title}_策展分享_${stampDay()}.html`
@@ -62,8 +78,29 @@ const imageFilename = computed(() => {
   return `${title}_高清长图_${stampDay()}.png`
 })
 
-function download(): void {
-  downloadText(filename.value, html.value, 'html')
+function fmtBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(0, bytes / 1024).toFixed(0)}KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`
+}
+
+function buildShareHtml(nodeAssetDataUrlsForExport: Record<string, string>): string {
+  return buildCurationShareHtml({
+    workspaceName: props.workspaceName,
+    thesis: props.thesis,
+    nodes: props.nodes,
+    cards: props.cards,
+    options: { ...options },
+    nodeAssetDataUrls: nodeAssetDataUrlsForExport,
+    imageDataUrl: imageDataUrl.value || undefined,
+  })
+}
+
+function safeAttachmentName(asset: { id: string; name: string; kind: string }, index: number): string {
+  const original = (asset.name || `${asset.kind}-${asset.id}`).replace(/[\\/:*?"<>|]/g, '_').trim()
+  const extMatch = original.match(/\.[a-z0-9]{1,8}$/i)
+  const ext = extMatch?.[0] || (asset.kind === 'image' ? '.png' : asset.kind === 'pdf' ? '.pdf' : '.html')
+  const base = (extMatch ? original.slice(0, -ext.length) : original).slice(0, 72) || `${asset.kind}-${asset.id}`
+  return `${String(index + 1).padStart(3, '0')}_${base}${ext}`
 }
 
 async function buildImage(): Promise<string> {
@@ -109,6 +146,109 @@ async function downloadImage(): Promise<void> {
   }
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('附件读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+function nodeAssets() {
+  return [
+    ...(props.thesis?.assets || []),
+    ...props.nodes.flatMap(node => node.assets || []),
+  ]
+}
+
+async function loadNodeAssetData(): Promise<void> {
+  if (!props.open || !options.attachments) {
+    assetSeq += 1
+    nodeAssetDataUrls.value = {}
+    nodeAssetBlobs.value = {}
+    assetBusy.value = false
+    return
+  }
+  const seq = ++assetSeq
+  assetBusy.value = true
+  const nextBlobs: Record<string, Blob> = {}
+  const nextUrls: Record<string, string> = {}
+  try {
+    for (const asset of nodeAssets()) {
+      let blob = await getAssetBlob(asset.id)
+      if (!blob) {
+        try { blob = await downloadCurationAsset(asset) } catch { blob = null }
+      }
+      if (!blob) continue
+      nextBlobs[asset.id] = blob
+      // ZIP mode keeps only Blob references; converting every attachment to a data URL
+      // would duplicate the whole package in memory before the browser downloads it.
+      if (exportMode.value !== 'zip') nextUrls[asset.id] = await blobToDataUrl(blob)
+    }
+    if (seq === assetSeq) {
+      nodeAssetBlobs.value = nextBlobs
+      nodeAssetDataUrls.value = nextUrls
+    }
+  } catch (error) {
+    if (seq === assetSeq) showToast('节点附件读取失败：' + ((error as Error).message || '未知错误'))
+  } finally {
+    if (seq === assetSeq) assetBusy.value = false
+  }
+}
+
+async function ensureNodeAssetBlobs(): Promise<void> {
+  if (!options.attachments || !nodeAssetList.value.length) return
+  if (Object.keys(nodeAssetBlobs.value).length < nodeAssetList.value.length) await loadNodeAssetData()
+}
+
+async function downloadSingleHtml(): Promise<void> {
+  await ensureNodeAssetBlobs()
+  downloadText(filename.value, buildShareHtml(nodeAssetDataUrls.value), 'html')
+}
+
+async function downloadAttachmentZip(): Promise<void> {
+  await ensureNodeAssetBlobs()
+  const assets = nodeAssets()
+  const paths: Record<string, string> = {}
+  const entries: { name: string; data: Blob }[] = []
+  assets.forEach((asset, index) => {
+    const blob = nodeAssetBlobs.value[asset.id]
+    if (!blob) return
+    const name = safeAttachmentName(asset, index)
+    paths[asset.id] = `attachments/${name}`
+    entries.push({ name: paths[asset.id], data: blob })
+  })
+  const htmlBlob = new Blob([buildShareHtml(paths)], { type: 'text/html;charset=utf-8' })
+  const zip = await buildZipFromBlobs([{ name: 'index.html', data: htmlBlob }, ...entries])
+  const title = (props.thesis?.title || props.workspaceName || '策展成果').replace(/[\\/:*?"<>|]/g, '_').slice(0, 48)
+  downloadBlob(`${title}_策展分享_${stampDay()}.zip`, zip)
+  if (entries.length < assets.length) showToast('部分节点附件未能读取，已跳过并保留在 HTML 清单中')
+}
+
+async function download(): Promise<void> {
+  if (downloadBusy.value || imageBusy.value || assetBusy.value) return
+  downloadBusy.value = true
+  try {
+    if (exportMode.value === 'large') {
+      const ok = await useConfirm({
+        title: '导出大文件提醒',
+        message: `节点附件约 ${fmtBytes(nodeAssetBytes.value)}，单文件 HTML 可能会让浏览器占用较多内存。确认继续生成吗？`,
+        confirmText: '继续导出',
+        danger: false,
+      })
+      if (!ok) return
+    }
+    if (exportMode.value === 'zip') await downloadAttachmentZip()
+    else await downloadSingleHtml()
+    showToast(exportMode.value === 'zip' ? '已下载 HTML + 附件 ZIP' : '已下载策展分享 HTML')
+  } catch (error) {
+    showToast('导出失败：' + ((error as Error).message || '未知错误'))
+  } finally {
+    downloadBusy.value = false
+  }
+}
+
 watch(
   () => [props.open, options.format, options.theme, props.nodes, props.cards, props.thesis] as const,
   () => {
@@ -122,12 +262,18 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => [props.open, options.attachments, props.thesis?.assets, ...props.nodes.map(node => node.assets)] as const,
+  () => { void loadNodeAssetData() },
+  { immediate: true },
+)
 </script>
 
 <template>
   <Drawer :open="open" width="640px" @close="emit('close')">
     <template #title><Icon name="share" :size="15"/> 分享这份策展</template>
-    <div class="cs-kicker">自包含单文件 HTML · 接收方无需安装知源 · 不托管、不统计访问</div>
+    <div class="cs-kicker">{{ exportMode === 'zip' ? '离线 HTML + 附件包' : '自包含单文件 HTML' }} · 接收方无需安装知源 · 不托管、不统计访问</div>
     <div class="cs-section">
       <div class="cs-label">分享版式</div>
       <div class="cs-format-grid">
@@ -144,7 +290,7 @@ watch(
     <div class="cs-section">
       <div class="cs-label">分享内容</div>
       <label class="cs-toggle"><input v-model="options.links" type="checkbox"><span><b>资源原文链接</b><small>只输出 http(s) 链接，不输出本地路径。</small></span></label>
-      <label class="cs-toggle"><input v-model="options.attachments" type="checkbox"><span><b>附件清单</b><small>只输出名称、类型和大小。</small></span></label>
+      <label class="cs-toggle"><input v-model="options.attachments" type="checkbox"><span><b>节点附件清单</b><small>节点附件会随 HTML 一起可打开；普通资源卡附件只输出名称、类型和大小。</small></span></label>
       <label class="cs-toggle"><input v-model="options.sources" type="checkbox"><span><b>来源徽标</b><small>官方 / 学术 / 媒体 / 个人成果。</small></span></label>
       <label class="cs-toggle"><input v-model="options.date" type="checkbox"><span><b>生成日期</b><small>页脚保留版本与日期，便于追溯。</small></span></label>
     </div>
@@ -156,7 +302,8 @@ watch(
       </div>
     </div>
     <div class="cs-summary">
-      将导出 <b>{{ options.format === 'reading' ? '阅读长文' : '论证树' }}</b> · {{ cards.length }} 张资源卡 · {{ roots }} 个一级节点 · {{ attachmentCount }} 个附件 · {{ options.links ? '资源链接可点击' : '不含资源链接' }}
+      将导出 <b>{{ options.format === 'reading' ? '阅读长文' : '论证树' }}</b> · {{ cards.length }} 张资源卡 · {{ roots }} 个一级节点 · {{ attachmentCount }} 个附件（{{ fmtBytes(nodeAssetBytes) }}） · {{ exportModeLabel }} · {{ options.links ? '资源链接可点击' : '不含资源链接' }}
+      <span v-if="assetBusy"> · 正在嵌入节点附件…</span>
     </div>
     <div class="cs-section cs-preview-section" :class="{ ink: options.theme === 'ink' }">
       <div class="cs-preview-heading">
@@ -208,7 +355,7 @@ watch(
     </div>
     <template #footer>
       <button type="button" class="cs-btn" @click="emit('close')">取消</button>
-      <button type="button" class="cs-btn primary" :disabled="imageBusy" @click="download"><Icon name="download" :size="13"/> 下载 HTML</button>
+      <button type="button" class="cs-btn primary" :disabled="imageBusy || assetBusy || downloadBusy" @click="download"><Icon name="download" :size="13"/> {{ downloadBusy ? '正在导出…' : exportButtonLabel }}</button>
     </template>
   </Drawer>
 </template>

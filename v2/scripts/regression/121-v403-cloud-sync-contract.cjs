@@ -16,6 +16,8 @@ const KEYS = read('/shared/storage/keys.ts')
 const CLIENT = read('/shared/cloud/client.ts')
 const SYNC = read('/shared/cloud/sync.ts')
 const SETTINGS = read('/newtab/views/settings/SettingsCloudSync.vue')
+const INBOX = read('/newtab/composables/useInbox.ts')
+const INBOX_UI = read('/newtab/components/compass/InboxPanel.vue')
 const USECLOUD = read('/newtab/composables/useCloudSync.ts')
 const DATA_MANAGEMENT = read('/newtab/views/settings/SettingsDataManagement.vue')
 const MOBILE = read('/mobile/App.vue')
@@ -84,7 +86,7 @@ check('R192-6（V4.0.4 重指）★快照结构与格式校验：data + ui + eve
     && USECLOUD.includes('eventLog: downloaded.state.eventLog')
 })
 
-check('R192-7 ★出云清理：旧同步映射、工作台内部字段、界面云字段剥离，附件按六字段白名单脱敏', () => {
+check('R192-7（V4.1.0 重指）★出云清理：旧同步映射与内部字段剥离；普通卡附件六字段白名单，策展节点附件额外保留 Storage 元数据，正文仍不含 Blob', () => {
   const assetStart = SYNC.indexOf('const safeAsset =')
   const assetEnd = SYNC.indexOf('const stripAssets', assetStart)
   const assetBody = assetStart >= 0 && assetEnd > assetStart ? SYNC.slice(assetStart, assetEnd) : ''
@@ -100,22 +102,49 @@ check('R192-7 ★出云清理：旧同步映射、工作台内部字段、界面
     && assetBody.includes('createdAt: a.createdAt')
     && !assetBody.includes('...a')
     && SYNC.includes('c.assets = c.assets.map(safeAsset)')
-    && !SYNC.includes('blob')
+    && !assetBody.includes('blob')
+    && SYNC.includes('SAFE_CURATION_UPLOAD_STATES')
+    && SYNC.includes('storagePath: asset.storagePath')
+    && SYNC.includes('uploadState: SAFE_CURATION_UPLOAD_STATES.has(asset.uploadState')
 })
 
-check('R192-8（V4.0.4 重指）★移动采集 inbox：只拉未消费记录并按 created_at 倒序，支持消费、单删与批量清空', () => {
-  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,url,title,note,tags,created_at&consumed_at=is.null&order=created_at.desc'")
+check('R192-8（V4.1.0 重指）★移动采集 Inbox：只拉未删除记录并按 created_at 倒序，支持文本、三卡转化、镜像入口与软删除撤销；设置页不再维护第二套列表', () => {
+  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&order=created_at.desc'")
     && CLIENT.includes("`/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`")
-    && CLIENT.includes('body: JSON.stringify({ consumed_at: new Date().toISOString() })')
+    && CLIENT.includes('converted_at: new Date().toISOString()')
+    && CLIENT.includes('converted_kind: convertedKind')
+    && CLIENT.includes('converted_card_id: convertedCardId')
+    && CLIENT.includes('body: JSON.stringify({ dismissed_at: new Date().toISOString() })')
     && CLIENT.includes('deleteCapture:')
     && CLIENT.includes('deleteAllCaptures:')
     && CLIENT.includes("method: 'DELETE'")
     && SYNC.includes('.map(r => ({')
     && SYNC.includes('id: r.id')
-    && SYNC.includes('url: r.url')
-    && SETTINGS.includes('consumeCapture')
-    && SETTINGS.includes('deleteCapture')
-    && SETTINGS.includes('deleteCaptures')
+    && SYNC.includes('contentKind: r.content_kind')
+    && SYNC.includes('text: r.text_content')
+    && SYNC.includes('convertedKind: r.converted_kind')
+    && !SETTINGS.includes('consumeCapture')
+    && !SETTINGS.includes('deleteCaptures')
+    && INBOX.includes('async function convert(')
+    && INBOX.includes('async function dismiss(')
+    && INBOX.includes('async function restore(')
+    && INBOX_UI.includes('转化为任务卡')
+    && INBOX_UI.includes('目标卡暂不可用')
+    && INBOX_UI.includes("label: '撤销'")
+})
+
+check('R192-12（V4.1.0）★今日三件事随主快照同步：dailyFocus 全槽位字段不裁剪，focusAutoDate / focusMutedDate 同行进入指纹与恢复链', () => {
+  const start = SYNC.indexOf('function preserveDailyFocus')
+  const end = SYNC.indexOf('/** 脱敏：普通卡附件只保留索引', start)
+  const body = start >= 0 && end > start ? SYNC.slice(start, end) : ''
+  return body.includes('Object.entries(source || {})')
+    && body.includes('(slots || []).map(slot => ({ ...slot }))')
+    && SYNC.includes('dailyFocus: preserveDailyFocus(d.dailyFocus)')
+    && SYNC.includes('focusAutoDate: d.focusAutoDate')
+    && SYNC.includes('focusMutedDate: d.focusMutedDate')
+    && SYNC.includes('return { data: d, ui: safeUi, eventLog: [...eventLog] }')
+    && USECLOUD.includes('repository.cloudRestoreAtomic({')
+    && USECLOUD.includes('nextData,')
 })
 
 check('R192-9 ★429 有界退避：最多重试 3 次、基础 300ms、封顶 4000ms，并优先读取 retry-after', () => {
@@ -189,8 +218,11 @@ check('R63-4（V4.0.3 重指）★跨设备同步范围统一为云快照三件�
 });
 check('R63-5（V4.0.4 重指）★软删语义保留在本地数据树内：云快照不按已删除状态裁剪卡片，恢复时整棵 AppData 原样回灌；旧 Airtable「已删除」checkbox 不再存在', () => {
   const s = read('/shared/cloud/sync.ts');
-  return s.includes('const d = JSON.parse(JSON.stringify(data)) as AppData')
-    && !s.includes('deletedAt') && !s.includes("'已删除'")
+  const start = s.indexOf('export function sanitizeSnapshot')
+  const end = s.indexOf('/** 稳定序列化', start)
+  const body = start >= 0 && end > start ? s.slice(start, end) : ''
+  return body.includes('const d = JSON.parse(JSON.stringify(data)) as AppData')
+    && !body.includes('deletedAt') && !body.includes("'已删除'")
     && USECLOUD.includes('repository.cloudRestoreAtomic({')
     && USECLOUD.includes('await store.refreshAfterCloudRestore(nextData, downloaded.state.ui)')
     && USECLOUD.includes('meta.value = await sync.getCloudMeta()');
@@ -308,12 +340,15 @@ check('R64-3（V4.0.4 重指）★快照写入返回 representation：插入与�
     && s.includes('const rev = upd[0].revision')
     && (s.match(/revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date\.now\(\)/g) || []).length === 2;
 });
-check('R64-4（V4.0.3 重指）★设置文案完成云同步换轨：无 Free 配额旧口径，数据管理页明确说明数据包、附件、Supabase 云同步，且云端只存附件元数据与脱敏快照', () => {
+check('R64-4（V4.1.0 重指）★设置文案完成云同步换轨：无 Free 配额旧口径，明确普通卡片附件本机保存、策展节点附件进入私有 Storage，云端不写入 Blob', () => {
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
   const cloud = codeOnly(read('/newtab/views/settings/SettingsCloudSync.vue'));
   return !dm.includes('Free 版配额') && !g.includes('Free 版配额') && !dm.includes('quotaHint')
-    && dm.includes('Supabase 云同步') && cloud.includes('附件本体与 AI 凭据不进云端');
+    && dm.includes('Supabase 云同步')
+    && cloud.includes('普通卡片附件留在本机')
+    && cloud.includes('策展节点附件进入你的私有 Storage')
+    && cloud.includes('附件本体和 AI 凭据不会进入云端');
 });
 check('R64-5 方向状态新口径：战略目标=非归档 Direction 数 + 推进中项目=任务数≠0（不再计算 DHI 百分比）', () => { const c = read('/newtab/stores/compass.ts'); return c.includes('pushing') && c.includes('goals') && !c.includes('dhiPct'); });
 check('R64-6（R120-TB1 修订）方向状态 5 格平铺：战略目标 + 推进项目（各自数值，均下钻 dhi 明细）', () => { const m = read('/newtab/components/compass/MetricBar.vue'); return m.includes('战略目标') && m.includes('推进项目') && m.includes('pushingMain') && m.includes('m.value.dhi.goals') && m.includes('m.value.dhi.pushing') && !m.includes('DHI 方向契合度'); });

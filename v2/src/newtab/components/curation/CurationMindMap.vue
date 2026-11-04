@@ -34,6 +34,10 @@ const props = defineProps<{
   revealId: string
   fullscreen: boolean
   fullscreenFallback: boolean
+  canUndo: boolean
+  canRedo: boolean
+  undoLabel: string
+  redoLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -48,6 +52,8 @@ const emit = defineEmits<{
   'open-resource': [card: ResourceCard]
   'open-resource-link': [card: ResourceCard]
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
+  'open-node-assets': [id: string]
+  'drop-node-asset-files': [id: string, files: File[]]
   'open-thesis': []
   'open-create-thesis': []
   'link-thesis': []
@@ -62,6 +68,8 @@ const emit = defineEmits<{
   'keyboard-drag-cancel': []
   'remove-node': [id: string]
   'update:fullscreen': [payload: { on: boolean; fallback: boolean }]
+  undo: []
+  redo: []
 }>()
 
 const dragSource = ref('')
@@ -151,6 +159,16 @@ function onDrop(e: DragEvent, id: string): void {
   const check = validate(source, id)
   clearDrag()
   if (check.ok) emit('move', source, id)
+}
+
+function onRootDrop(e: DragEvent): void {
+  const files = Array.from(e.dataTransfer?.files || [])
+  if (files.length) {
+    e.preventDefault()
+    emit('drop-node-asset-files', 'root', files)
+    return
+  }
+  onDrop(e, 'root')
 }
 
 function clearDrag(): void {
@@ -248,7 +266,14 @@ function onCanvasKeydown(e: KeyboardEvent): void {
   const target = e.target as HTMLElement | null
   if (target?.closest('input,textarea,select,[contenteditable="true"]')) return
   if (!(e.metaKey || e.ctrlKey)) return
-  if (e.key.toLowerCase() === 'x' && props.selectedId !== 'root') {
+  if (e.key.toLowerCase() === 'z') {
+    e.preventDefault()
+    if (e.shiftKey) emit('redo')
+    else emit('undo')
+  } else if (e.key.toLowerCase() === 'y') {
+    e.preventDefault()
+    emit('redo')
+  } else if (e.key.toLowerCase() === 'x' && props.selectedId !== 'root') {
     e.preventDefault()
     emit('cut', props.selectedId)
   } else if (e.key.toLowerCase() === 'v' && props.selectedId) {
@@ -415,6 +440,14 @@ onBeforeUnmount(() => {
         <button type="button" :class="{ on: layout === 'tree' }" title="树状：向右展开，适合密集整理"
           @click="$emit('update:layout', 'tree')"><Icon name="branch" :size="13"/> 树状</button>
       </div>
+      <div class="mindmap-history" role="group" aria-label="画布历史">
+        <button type="button" :disabled="!canUndo" :title="canUndo ? `撤销：${undoLabel}` : '没有可撤销的操作'" @click="emit('undo')">
+          <Icon name="arrowleft" :size="12"/> 上一步
+        </button>
+        <button type="button" :disabled="!canRedo" :title="canRedo ? `重做：${redoLabel}` : '没有可重做的操作'" @click="emit('redo')">
+          下一步 <Icon name="arrowright" :size="12"/>
+        </button>
+      </div>
       <div class="mindmap-selection" :class="{ muted: selectedId === 'root' }" aria-live="polite">
         <span>当前</span>
         <b>L{{ selectedLevel }} · {{ selectedLabel }}</b>
@@ -435,6 +468,8 @@ onBeforeUnmount(() => {
       <span><kbd>⌘/Ctrl+V</kbd> 粘贴为子级</span>
       <span><kbd>↑↓←→</kbd> 节点导航</span>
       <span><kbd>双击</kbd> 就地编辑</span>
+      <span><kbd>⌘/Ctrl+Z</kbd> 上一步</span>
+      <span><kbd>⇧⌘/Ctrl+Shift+Z</kbd> 下一步</span>
       <span><kbd>↑↓ + M</kbd> 键盘移动</span>
       <span class="mindmap-help-spacer"></span>
       <span class="mindmap-layout-note">{{ layoutLabel }}布局 · 同一份论证结构</span>
@@ -453,7 +488,7 @@ onBeforeUnmount(() => {
           <article class="mind-node mind-root" :class="{ selected: selectedId === 'root' }" data-mind-node="root"
             tabindex="0" aria-label="L1 中心论点" @click="emit('select', 'root')"
             @keydown="onRootKeydown"
-            @dragover="onDragOver($event, 'root')" @dragleave="dropTarget = ''" @drop="onDrop($event, 'root')">
+            @dragover="onDragOver($event, 'root')" @dragleave="dropTarget = ''" @drop="onRootDrop">
             <div class="mind-node-head">
               <span class="mind-level">L1</span>
               <span class="mind-type">中心论点 · 论点卡</span>
@@ -494,6 +529,9 @@ onBeforeUnmount(() => {
               <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('link-thesis')">
                 <Icon name="link" :size="13"/> 关联资源
               </button>
+              <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('open-node-assets', 'root')">
+                <Icon name="paperclip" :size="13"/> 附件<span v-if="thesis.assets?.length">{{ thesis.assets.length }}</span>
+              </button>
             </div>
           </article>
           <div v-if="roots.length" class="mind-children">
@@ -512,6 +550,8 @@ onBeforeUnmount(() => {
               @open-resource="emit('open-resource', $event)"
               @open-resource-link="emit('open-resource-link', $event)"
               @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
+              @open-assets="emit('open-node-assets', $event)"
+              @drop-asset-files="(id, files) => emit('drop-node-asset-files', id, files)"
               @drag-start="onDragStart" @drag-over="onDragOver" @drag-leave="dropTarget = ''" @drop="onDrop"
               @keyboard-drag-start="emit('keyboard-drag-start', $event)"
               @keyboard-drag-target="emit('keyboard-drag-target', $event)"

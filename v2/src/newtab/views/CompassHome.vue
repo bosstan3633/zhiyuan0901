@@ -72,7 +72,7 @@ const {
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks,
   previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-  hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
+  previewInbox, inbox, hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
   openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
@@ -232,7 +232,7 @@ const {
               <span class="board-ico"><Icon name="layers" :size="18" /></span>
               <div>
                 <h2 id="handTitle">手边的卡</h2>
-                <span class="hand-kicker">三池 · 只预览最近在用的 · 新建走扩展快捷键</span>
+                <span class="hand-kicker">四池 · 只预览最近在用的 · 新建走扩展快捷键</span>
               </div>
             </div>
             <!-- V3.9.18：三列改三池页签（原型手边的卡）——列结构与字符串锚保留，仅显示态切换 -->
@@ -240,6 +240,9 @@ const {
               <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">任务</button>
               <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">好奇心</button>
               <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">资源</button>
+              <button class="hand-tab hand-tab-inbox" :class="{ on: handTab === 'inbox' }" role="tab" :aria-selected="handTab === 'inbox'" type="button" @click="handTab = 'inbox'">
+                Inbox <span v-if="inbox.connected.value && inbox.untransformedCount.value" class="hand-inbox-badge">{{ inbox.untransformedCount.value }}</span>
+              </button>
             </div>
           </header>
 
@@ -297,6 +300,28 @@ const {
                   <span class="mini-side">{{ r.callCount || 0 }}</span>
                 </button>
                 <div v-if="!previewResources.length" class="mini-empty">还没有资源卡</div>
+              </div>
+            </section>
+
+            <section v-show="handTab === 'inbox'" class="hand-col" aria-labelledby="inboxColTitle">
+              <header class="hand-col-head">
+                <Icon name="inbox" :size="14" />
+                <b id="inboxColTitle">Inbox</b>
+                <span class="hand-count">{{ inbox.untransformedCount.value }}</span>
+                <button class="hand-link" type="button" @click="goDeck('inbox')">查看全部 <Icon name="arrowright" :size="12" /></button>
+              </header>
+              <div class="mini-list">
+                <button v-for="item in previewInbox" :key="item.id" class="mini-item" type="button" @click="goDeck('inbox')">
+                  <Icon :name="item.contentKind === 'link' ? 'link' : 'filetext'" :size="13" class="mini-leading" />
+                  <span class="mini-copy">
+                    <span class="mini-title">{{ item.title || item.text || item.url || '未命名采集' }}</span>
+                    <span class="mini-meta">{{ item.contentKind === 'link' ? '链接采集' : '文本采集' }} · {{ fmtShortDate(item.createdAt) }}</span>
+                  </span>
+                  <span class="mini-side">待转化</span>
+                </button>
+                <div v-if="!previewInbox.length" class="mini-empty">
+                  {{ inbox.connected.value ? 'Inbox 里没有未转化内容' : '连接云同步后可查看移动采集' }}
+                </div>
               </div>
             </section>
           </div>

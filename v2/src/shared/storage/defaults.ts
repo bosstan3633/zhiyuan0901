@@ -55,6 +55,11 @@ function defaultFieldDefs() {
   return { resource, task, curiosity, thesis, argument }
 }
 
+/** 老库/裁剪夹具缺失整块字段配置时的默认组；与首次安装共用同一份定义。 */
+export function defaultFieldConfig() {
+  return defaultFieldDefs()
+}
+
 /** R62-3：老数据归一化用——thesis 字段组缺省补齐 */
 export function defaultThesisFieldDefs(): FieldDef[] {
   return defaultFieldDefs().thesis!

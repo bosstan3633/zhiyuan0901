@@ -163,7 +163,7 @@ check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：p
     && pcp.includes("const poolCards = computed(")
     && ch.includes('const previewResources = computed<ResourceCard[]>(')
     && ch.includes('const liveResources = computed<ResourceCard[]>(')
-    && ch.includes("function goDeck(kind: 'task' | 'curiosity' | 'resource')")
+    && ch.includes("function goDeck(kind: HandKind)")
     && read('/shared/models/index.ts').includes("export const CURATION_WS_ID = 'zy-curation'");
 });
 check('R67-7（V4.0.4 重指）卡池直达快捷键：goto-curiosity / goto-tasks 保留，并直接进入对应二级页的最新列表；首页锚点分发正式退役', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); return m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes("description: '直达好奇心卡池'") && m.includes("description: '直达任务卡池'") && !m.includes('直达项目调度模块') && b.includes("case 'goto-curiosity':") && b.includes("await openNewtabRoute(`/deck/curiosity?fresh=1&freshAt=${Date.now()}`)") && b.includes("case 'goto-tasks':") && b.includes("await openNewtabRoute(`/deck/task?fresh=1&freshAt=${Date.now()}`)") && !b.includes('zy-anchor='); });
@@ -567,7 +567,7 @@ check('R73-8（V3.9.8 重指）画布补齐落点：根节点可承接拖拽、�
     && map.includes('function onDrop(e: DragEvent, id: string): void')
     && map.includes('function clearDrag(): void')
     && map.includes('@dragend="clearDrag"')
-    && map.includes("@drop=\"onDrop($event, 'root')\"")
+    && map.includes('@drop="onRootDrop"')
     && hook.includes('function moveNode(dragId: string, targetId: string): boolean')
     && hook.includes('normalizeSiblings(oldParent)')
     && hook.includes('normalizeSiblings(target.id)');
@@ -670,7 +670,7 @@ check('R74-9（V3.9.8 重指）画布拖拽落点 + 移动后重编号 + 拖拽�
     && !host.includes('clearDragState')
     && map.includes('@dragend="clearDrag"')
     && node.includes('@dragover="emit(\'drag-over\', $event, node.id)"')
-    && node.includes('@drop="emit(\'drop\', $event, node.id)"')
+    && node.includes('@drop="onNodeDrop"')
     && hook.includes('function moveNode(dragId: string, targetId: string): boolean')
     && hook.includes('normalizeSiblings(oldParent)')
     && hook.includes('normalizeSiblings(target.id)');
@@ -687,7 +687,7 @@ check('R74-10（V3.9.8 重指）画布节点拖拽体系：dragstart/dragover/dr
     && !w.includes('openCreateCat')
     && node.includes('@dragstart="dragStart"')
     && node.includes('@dragover="emit(\'drag-over\', $event, node.id)"')
-    && node.includes('@drop="emit(\'drop\', $event, node.id)"')
+    && node.includes('@drop="onNodeDrop"')
     && map.includes('function onDragStart(id: string): void')
     && map.includes('function onDragOver(e: DragEvent, id: string): void')
     && map.includes('function onDrop(e: DragEvent, id: string): void')

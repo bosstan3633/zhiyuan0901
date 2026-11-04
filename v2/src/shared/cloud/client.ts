@@ -84,6 +84,20 @@ async function req<T>(env: CloudEnv, path: string, init: RequestInit, token?: st
   return (ct.includes('application/json') ? await res.json() : await res.text()) as T
 }
 
+function storagePath(path: string): string {
+  return path.split('/').map(part => encodeURIComponent(part)).join('/')
+}
+
+async function rawRequest(env: CloudEnv, path: string, init: RequestInit, token: string): Promise<Response> {
+  const headers: Record<string, string> = { apikey: env.anonKey, Authorization: 'Bearer ' + token }
+  const res = await fetch(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new CloudError(res.status, `云端存储请求失败 ${res.status}：${text.slice(0, 200)}`)
+  }
+  return res
+}
+
 export const cloud = {
   // ---- Auth ----
   login: (env: CloudEnv, email: string, password: string) =>
@@ -111,9 +125,45 @@ export const cloud = {
 
   // ---- 移动采集 inbox ----
   listCaptures: (env: CloudEnv, token: string) =>
-    req<{ id: string; url: string; title: string | null; note: string | null; tags: string[]; created_at: string }[]>(
-      env, '/rest/v1/capture_inbox?select=id,url,title,note,tags,created_at&consumed_at=is.null&order=created_at.desc',
+    req<{
+      id: string; content_kind: 'link' | 'text' | null; url: string | null; text_content: string | null
+      title: string | null; note: string | null; tags: string[]; created_at: string
+      converted_at: string | null; converted_kind: 'task' | 'curiosity' | 'resource' | null
+      converted_card_id: string | null; dismissed_at: string | null
+    }[]>(
+      env, '/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&order=created_at.desc',
       { method: 'GET' }, token),
+  convertCapture: (
+    env: CloudEnv,
+    token: string,
+    id: string,
+    convertedKind: 'task' | 'curiosity' | 'resource',
+    convertedCardId: string,
+  ) =>
+    req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}&converted_at=is.null`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          converted_at: new Date().toISOString(),
+          converted_kind: convertedKind,
+          converted_card_id: convertedCardId,
+        }),
+      }, token),
+  dismissCapture: (env: CloudEnv, token: string, id: string) =>
+    req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ dismissed_at: new Date().toISOString() }),
+      }, token),
+  restoreCapture: (env: CloudEnv, token: string, id: string) =>
+    req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ dismissed_at: null }),
+      }, token),
   consumeCapture: (env: CloudEnv, token: string, id: string) =>
     req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
       { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ consumed_at: new Date().toISOString() }) }, token),
@@ -129,4 +179,23 @@ export const cloud = {
         { method: 'DELETE', headers: { Prefer: 'return=minimal' } }, token)
     }
   },
+
+  // ---- Curation Storage ----
+  uploadStorageObject: async (env: CloudEnv, token: string, bucket: string, path: string, blob: Blob) => {
+    await rawRequest(env, `/storage/v1/object/${encodeURIComponent(bucket)}/${storagePath(path)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'application/octet-stream', 'x-upsert': 'true' },
+      body: blob,
+    }, token)
+  },
+  downloadStorageObject: async (env: CloudEnv, token: string, bucket: string, path: string) => {
+    const res = await rawRequest(env, `/storage/v1/object/${encodeURIComponent(bucket)}/${storagePath(path)}`, { method: 'GET' }, token)
+    return res.blob()
+  },
+  deleteStorageObject: (env: CloudEnv, token: string, bucket: string, path: string) =>
+    req<void>(env, `/storage/v1/object/${encodeURIComponent(bucket)}`, {
+      method: 'DELETE',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ prefixes: [path] }),
+    }, token),
 }

@@ -95,7 +95,7 @@ check('C101-5 根节点键盘事件先排除内部控件：按钮 / 输入框不
     && !MAP.includes('@keydown.enter.prevent="emit(\'create-child\', \'root\')"');
 });
 
-check('C101-6 节点键位合同：标题输入中 Tab=提交并建子级、Enter=提交并建同级；节点聚焦时同样支持；Esc 取消', () => {
+check('C101-6（V4.1.0 重指）节点键位合同：标题输入中 Tab=提交并建子级、Enter=确认标题、Ctrl/Cmd+Enter=建同级；节点聚焦时同样支持；Esc 取消', () => {
   const body = NODE.slice(NODE.indexOf('function onEditKeydown'), NODE.indexOf('function onNodeKeydown'));
   const node = NODE.slice(NODE.indexOf('function onNodeKeydown'), NODE.indexOf('function onDragHandleKeydown'));
   return body.includes("if (e.key === 'Escape')")
@@ -104,10 +104,12 @@ check('C101-6 节点键位合同：标题输入中 Tab=提交并建子级、Ente
     && body.includes("emit('create-child', props.node.id)")
     && body.includes("editingField.value === 'title'")
     && body.includes("emit('create-sibling', props.node.id)")
+    && body.includes('if (e.metaKey || e.ctrlKey) emit')
     && node.includes("if (e.key === 'Tab')")
     && node.includes("emit('create-child', props.node.id)")
     && node.includes("} else if (e.key === 'Enter')")
-    && node.includes("emit('create-sibling', props.node.id)");
+    && node.includes("if (e.metaKey || e.ctrlKey) emit('create-sibling', props.node.id)")
+    && node.includes("else beginEdit('title')");
 });
 
 check('C101-6b ★树画布空间导航（V3.9.17）：↑↓ 按可见节点顺序移动，← 回父级，→ 进第一个子级，Home/End 到首尾；导航只移焦点，不改变 Tab/Enter 建支语义。子节点把自身 id 一并上抛，避免选中态与焦点态不同步时导航跳到别处', () => {
@@ -191,7 +193,7 @@ check('C101-11（V4.0.3 重指）节点关联资源：无资源时只在头部�
     && NODE.includes('<div v-if="cards().length" class="mind-node-foot">')
     && MAP.includes("emit('link-resource', $event)")
     && WS.includes(':list="linkShowList"')
-    && WS.includes('@confirm="confirmLinkCards"')
+    && WS.includes('@confirm="onConfirmLinkCards"')
     && [NODE, MAP, HOOK, CSS, WS].every(src => !src.includes('缺证据'));
 });
 
@@ -220,7 +222,10 @@ check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链�
     && SHARE_UI.includes('const previewFlatNodes = computed(() => renderTree.value.flat)')
     && !SHARE_UI.includes('flattenPreviewNodes')
     && SHARE_UI.includes('v-for="node in previewFlatNodes"')
-    && SHARE_UI.includes("downloadText(filename.value, html.value, 'html')");
+    && SHARE_UI.includes('async function ensureNodeAssetBlobs()')
+    && SHARE_UI.includes('downloadText(filename.value, buildShareHtml(nodeAssetDataUrls.value), \'html\')')
+    && SHARE_UI.includes("const exportMode = computed<'single' | 'large' | 'zip'>")
+    && SHARE_UI.includes('downloadAttachmentZip');
 });
 
 check('C101-14 分享 HTML 安全边界与真实层级：自包含、无可执行脚本、无外链资源；仅输出 http(s)，按 node.level 输出 L1–L4，不泄露内部 ID / 路径', () => {
@@ -251,8 +256,8 @@ check('C101-14 分享 HTML 安全边界与真实层级：自包含、无可执�
 check('C101-15 分享两种版式都按节点挂卡：阅读长文与论证树都消费同一规范树、保留真实 L1–L4，空证据有明确文案', () => {
   return SHARE.includes('function nodeReadingHtml')
     && SHARE.includes('function nodeTreeHtml')
-    && SHARE.includes('${node.children.map((child, i) => nodeReadingHtml(child, options, `${index}-${i + 1}`)).join(\'\')}')
-    && SHARE.includes('${node.children.map(child => nodeTreeHtml(child, options)).join(\'\')}')
+    && SHARE.includes('${node.children.map((child, i) => nodeReadingHtml(child, options, `${index}-${i + 1}`, dataUrls)).join(\'\')}')
+    && SHARE.includes('${node.children.map(child => nodeTreeHtml(child, options, dataUrls)).join(\'\')}')
     && SHARE.includes('const renderTree = buildCurationRenderTree({ nodes, cards, thesis })')
     && !SHARE.includes('const byParent = new Map<string, Category[]>')
     && SHARE.includes('这个节点暂未挂资源卡')

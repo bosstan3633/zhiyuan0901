@@ -16,12 +16,13 @@ import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
+import { useInbox } from '@/newtab/composables/useInbox'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 import { useCompassHomeStorage } from './useCompassHomeStorage'
 import { useCompassHomeDetail } from './useCompassHomeDetail'
 
 export interface FocusCell { idx: number; slot?: FocusSlot; task?: TaskCard }
-export type HandKind = 'task' | 'curiosity' | 'resource'
+export type HandKind = 'task' | 'curiosity' | 'resource' | 'inbox'
 
 export function useCompassHome() {
 const router = useRouter()
@@ -625,7 +626,18 @@ const previewResources = computed<ResourceCard[]>(() =>
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.lastCalledAt || b.updatedAt || 0) - (a.lastCalledAt || a.updatedAt || 0))
     .slice(0, 5)
 )
-const hasAnyPreview = computed(() => !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length)
+const inbox = useInbox()
+const previewInbox = computed(() =>
+  [...inbox.items.value]
+    .filter(item => !item.convertedKind)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 5)
+)
+onMounted(() => { void inbox.refresh() })
+const hasAnyPreview = computed(() =>
+  !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
+  || !!previewInbox.value.length || inbox.connected.value || inbox.loading.value
+)
 const weeklyReuse = computed(() => weekUsageOf(d.value))
 const archivedCount = computed(() => unarchivedTaskCount())
 
@@ -651,7 +663,7 @@ function openRecentResource(r: ResourceCard): void {
   }
   openResourcePreview(r)
 }
-function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
+function goDeck(kind: HandKind): void {
   void router.push(`/deck/${kind}`)
 }
 /* ★W17-C01（2026-10-20 用户拍板）「今天的状态」三行 → 中央只读明细弹窗。
@@ -687,7 +699,7 @@ function goDeck(kind: 'task' | 'curiosity' | 'resource'): void {
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,
     previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-    hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
+    previewInbox, inbox, hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
     openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,

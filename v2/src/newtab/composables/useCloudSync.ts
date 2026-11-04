@@ -306,6 +306,7 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
   if (!store.data) throw new Error('本机数据尚未就绪')
   const downloaded = await sync.downloadNow()
   const localAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
+  const localCategoryAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
   for (const cards of [
     store.data.resources,
     store.data.tasks,
@@ -316,7 +317,23 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
       if (card.assets?.length) localAssets.set(card.id, card.assets)
     }
   }
+  for (const category of store.data.categories || []) {
+    if (category.assets?.length) localCategoryAssets.set(category.id, category.assets)
+  }
   const nextData = downloaded.state.data
+  const mergeAssetMeta = (
+    remote: import('@/shared/models').AssetMeta[] | undefined,
+    local: import('@/shared/models').AssetMeta[] | undefined,
+  ): import('@/shared/models').AssetMeta[] => {
+    const remoteRows = remote || []
+    const localRows = local || []
+    const localById = new Map(localRows.map(asset => [asset.id, asset]))
+    const remoteIds = new Set(remoteRows.map(asset => asset.id))
+    return [
+      ...remoteRows.map(asset => ({ ...(localById.get(asset.id) || {}), ...asset })),
+      ...localRows.filter(asset => !remoteIds.has(asset.id)),
+    ]
+  }
   for (const cards of [
     nextData.resources,
     nextData.tasks,
@@ -325,8 +342,13 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
   ]) {
     for (const card of cards || []) {
       const assets = localAssets.get(card.id)
-      if (assets) card.assets = assets
+      if (assets) card.assets = ('isThesis' in card && card.isThesis) ? mergeAssetMeta(card.assets, assets) : assets
     }
+  }
+  for (const category of nextData.categories || []) {
+    const local = localCategoryAssets.get(category.id)
+    if (!local?.length) continue
+    category.assets = mergeAssetMeta(category.assets, local)
   }
   await repository.cloudRestoreAtomic({
     nextData,
@@ -334,6 +356,7 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
     eventLog: downloaded.state.eventLog,
   })
   await store.refreshAfterCloudRestore(nextData, downloaded.state.ui)
+  try { window.dispatchEvent(new CustomEvent('zy:curation-history-reset')) } catch { /* 非浏览器上下文无画布历史 */ }
   await sync.markDownloaded(downloaded.revision, downloaded.fingerprint)
   await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq())
   return { revision: downloaded.revision }

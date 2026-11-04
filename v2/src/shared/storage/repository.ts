@@ -8,7 +8,7 @@ import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 import { HOT_KEY, applyHot, pickHot, writeHot, extractHot } from './hotStats'
 import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
 import { K } from './keys'
-import { createDefaultData, defaultThesisFieldDefs } from './defaults'
+import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
@@ -160,6 +160,9 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
      ★纪律：**归一化必须挂在"数据入库的那一层"，不能挂在"某条读路径上"**——
        挂在读路径上，每新增一个读入口就漏一个；而入库层是唯一的。 */
   normalizeLegacyCards(data)
+  // 老库或外部导入可能整块没有 fieldConfig；设置页字段组依赖 resource/task/curiosity，
+  // 缺失时会在渲染期抛错。入库层补默认组，确保所有读入口得到同一套可用结构。
+  if (!data.fieldConfig) data.fieldConfig = defaultFieldConfig()
   // R162/R165：卡间挂载全量退役——清存量字段（幂等；旧库/旧导出包里可能残留，D4 静默剥离不弹迁移提示）
   // R166：清单与"导入那条路"共用 RETIRED_CARD_KEYS 单一真源（见文件头 stripRetiredCardKeys 备案）
   stripRetiredCardKeys(data.tasks)

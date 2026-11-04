@@ -554,14 +554,14 @@ check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模�
     && mb.includes('.mb-metrics {') && !!gapM && Number(gapM[1]) <= 8
     && !mb.includes('.mb-divider');
 });
-check('W5-2（V3.9.1 重指 · ★V3.9.18 再重指带备案：英文全大写副标按 04-73 T-5「禁全大写 eyebrow」治理，kicker 改中文「三池 · 只预览最近在用的」；board-ico + kicker 的形态契约不变）标题形态统一「图标 + kicker 副标」：今日三件事与手边的卡都用 board-ico + kicker，旧 decks-title / 底部三卡 tab 退役', () => {
+check('W5-2（V4.1.0 重指 · ★V3.9.18 再重指带备案：英文全大写副标按 04-73 T-5「禁全大写 eyebrow」治理，kicker 改中文「四池 · 只预览最近在用的」；board-ico + kicker 的形态契约不变）标题形态统一「图标 + kicker 副标」：今日三件事与手边的卡都用 board-ico + kicker，旧 decks-title / 底部三卡 tab 退役', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   return hm.includes('dz-n dz-ico') && hm.includes('<svg viewBox="0 0 24 24"')
     && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
     && ch.includes('class="board-ico"') && ch.includes('class="board-title"')
-    && ch.includes('class="hand-heading"') && ch.includes('三池 · 只预览最近在用的')
+    && ch.includes('class="hand-heading"') && ch.includes('四池 · 只预览最近在用的')
     && !ch.includes('decks-title') && !ch.includes('bottom-tabs')
     && css.includes('.dz-n.dz-ico') && css.includes('.dz-sec-h .dz-t');
 });
@@ -705,12 +705,12 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
 });
-check('W6-2（V3.9.1 重指 · ★V3.9.18 再重指带备案：V3.9.18 原型迭代把手边的卡改三池页签（hand-tabs，v-show 切换），hand-grid/hand-col/mini-list×3 与 goDeck 字符串锚全保留；kicker 同 W5-2 改中文；负锚 bt-tab 保持——页签类名用 hand-tab，不与旧底部 tab 混淆）手边三卡入一张框：任务 / 好奇心 / 资源三池共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
+check('W6-2（V4.1.0 重指 · ★V3.9.18 再重指带备案：手边的卡改为四池页签（hand-tabs，v-show 切换），hand-grid/hand-col/mini-list×4 与 goDeck 字符串锚全保留；Inbox 作为第四池并列；kicker 同步改中文；负锚 bt-tab 保持——页签类名用 hand-tab，不与旧底部 tab 混淆）手边四池入一张框：任务 / 好奇心 / 资源 / Inbox 共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
     && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
-    && (ch.match(/class="mini-list"/g) || []).length === 3
-    && ch.includes('三池 · 只预览最近在用的')
+    && (ch.match(/class="mini-list"/g) || []).length === 4
+    && ch.includes('四池 · 只预览最近在用的')
     && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');
 });
 check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角直跑补全（用户拍板：点图标直接跑补全，不弹菜单）：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner（列表/看板/项目页保留 TaskAiMenu）；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskEnrich + buildTaskEnrichJob + AiDrawer 懒栈）；手册默认视图文案同步；R147-5 判据按 9+3 拆分', () => {

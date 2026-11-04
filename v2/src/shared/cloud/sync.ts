@@ -1,12 +1,14 @@
 /**
  * 知源 · 云同步协调层（v4.0.1）
- * 手动上传/下载 + 启动检查；冲突必须用户确认；附件本体与 AI 凭据不进云。
+ * 手动上传/下载 + 启动检查；冲突必须用户确认。
+ * 普通卡附件与 AI 凭据不进云；策展节点附件只把 Blob 放入用户私有 Storage。
  */
 import type { AppData, UIPrefs, AssetMeta } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { cloudEnv, cloud, type CloudEnv, setCloudEnvOverride } from './client'
-import { K } from '@/shared/storage/keys'
+import { K, LOCAL_KEYS } from '@/shared/storage/keys'
+import { getAssetBlob } from '@/shared/storage/assets'
 
 export interface CloudMeta {
   userId: string
@@ -18,6 +20,8 @@ export interface CloudMeta {
   lastDownloadAt?: number
   lastCheckedAt?: number
   checkOnStart: boolean
+  /** 策展节点附件默认静默上传；关闭后新附件只留本机。 */
+  assetSyncEnabled?: boolean
 }
 
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
@@ -66,17 +70,42 @@ export async function setCheckOnStart(v: boolean): Promise<CloudMeta> {
   return writeMeta({ checkOnStart: v })
 }
 
+export async function setCurationAssetSyncEnabled(v: boolean): Promise<CloudMeta> {
+  return writeMeta({ assetSyncEnabled: v })
+}
+
 export async function setCloudEnv(env: CloudEnv | null): Promise<void> {
   return setCloudEnvOverride(env)
 }
 
-/** 脱敏：保留附件元数据供跨设备索引；去附件本体、AI 凭据、__wid、Airtable 与云元数据 */
+const CURATION_ASSET_BUCKET = 'curation-assets'
+const SAFE_CURATION_UPLOAD_STATES = new Set(['local', 'pending', 'synced', 'failed'])
+
+/**
+ * 今日三件事是主快照中的业务数据，不经过附件白名单。
+ * 槽位用对象展开保留现有与未来字段（id / source / text / done / doneAt / auto 等）。
+ */
+function preserveDailyFocus(source: AppData['dailyFocus'] | undefined): AppData['dailyFocus'] {
+  const out: AppData['dailyFocus'] = {}
+  for (const [date, slots] of Object.entries(source || {})) {
+    out[date] = (slots || []).map(slot => ({ ...slot }))
+  }
+  return out
+}
+
+/** 脱敏：普通卡附件只保留索引；L1 论点卡与 L2–L4 分类附件额外保留云对象元数据。今日三件事等主数据字段原样保留。 */
 export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: CardEvent[]): SnapshotState {
   const d = JSON.parse(JSON.stringify(data)) as AppData & Record<string, unknown>
   delete d.airtableSync
   delete d.airtableMap
   delete (d as Record<string, unknown>).__wid
   delete (d as Record<string, unknown>).__cloud
+  // 今日三件事使用显式白名单边界：dailyFocus 的槽位字段整体保留，自动推荐/静音日期随主快照同行。
+  Object.assign(d, {
+    dailyFocus: preserveDailyFocus(d.dailyFocus),
+    focusAutoDate: d.focusAutoDate,
+    focusMutedDate: d.focusMutedDate,
+  })
   const safeAsset = (a: AssetMeta): AssetMeta => ({
     id: a.id,
     kind: a.kind,
@@ -85,11 +114,33 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
     mime: a.mime,
     createdAt: a.createdAt,
   })
+  const curationAsset = (asset: AssetMeta): AssetMeta => ({
+    id: asset.id,
+    kind: asset.kind,
+    name: asset.name,
+    size: asset.size,
+    mime: asset.mime,
+    createdAt: asset.createdAt,
+    storagePath: asset.storagePath,
+    uploadState: SAFE_CURATION_UPLOAD_STATES.has(asset.uploadState || '') ? asset.uploadState : 'local',
+    checksum: asset.checksum,
+    uploadedAt: asset.uploadedAt,
+    lastError: asset.lastError,
+    retryCount: asset.retryCount,
+  })
   const stripAssets = (cards?: { assets?: AssetMeta[] }[]) => {
     for (const c of cards || []) if (c && c.assets && c.assets.length) c.assets = c.assets.map(safeAsset)
   }
-  stripAssets(d.resources); stripAssets(d.tasks); stripAssets(d.curiosities)
+  stripAssets(d.tasks); stripAssets(d.curiosities)
   if (d.argCards) stripAssets(d.argCards as unknown as { assets?: AssetMeta[] }[])
+  for (const resource of d.resources || []) {
+    if (!resource.assets?.length) continue
+    resource.assets = resource.assets.map(resource.isThesis ? curationAsset : safeAsset)
+  }
+  for (const category of d.categories || []) {
+    if (!category.assets?.length) continue
+    category.assets = category.assets.map(curationAsset)
+  }
   const safeUi = ui ? JSON.parse(JSON.stringify(ui)) as UIPrefs : null
   if (safeUi) {
     delete (safeUi as unknown as Record<string, unknown>).__cloud
@@ -261,12 +312,211 @@ export async function downloadNow(): Promise<{ state: SnapshotState; revision: n
   return { state: safe, revision: rows[0].revision, fingerprint }
 }
 
+export interface CurationAssetContext {
+  workspaceId: string
+  nodeId: string
+}
+
+function assetExt(meta: AssetMeta): string {
+  const byName = meta.name.match(/\.([a-z0-9]{1,8})$/i)?.[1]
+  if (byName) return byName.toLowerCase()
+  return meta.kind === 'image' ? 'png' : meta.kind === 'pdf' ? 'pdf' : 'html'
+}
+
+async function checksumOf(blob: Blob): Promise<string> {
+  try {
+    if (!globalThis.crypto?.subtle) return ''
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+  } catch { return '' }
+}
+
+/** 本地优先上传单个策展节点附件；直接更新传入的元数据对象供 Vue 界面即时显示状态。 */
+export async function uploadCurationAsset(meta: AssetMeta, blob: Blob, ctx: CurationAssetContext): Promise<AssetMeta> {
+  meta.uploadState = 'pending'
+  meta.lastError = undefined
+  const env = await cloudEnv(); const cloudMeta = await readMeta()
+  if (!env || !cloudMeta?.refreshToken || cloudMeta.assetSyncEnabled === false) {
+    meta.uploadState = 'local'
+    return meta
+  }
+  try {
+    const token = await accessToken(env, cloudMeta)
+    const path = `${cloudMeta.userId}/${ctx.workspaceId}/${ctx.nodeId}/${meta.id}.${assetExt(meta)}`
+    meta.storagePath = path
+    meta.checksum = await checksumOf(blob)
+    await cloud.uploadStorageObject(env, token, CURATION_ASSET_BUCKET, path, blob)
+    meta.uploadState = 'synced'
+    meta.uploadedAt = Date.now()
+    meta.retryCount = 0
+  } catch (error) {
+    meta.uploadState = 'failed'
+    meta.lastError = error instanceof Error ? error.message : String(error)
+    meta.retryCount = (meta.retryCount || 0) + 1
+  }
+  return meta
+}
+
+/** 本地 Blob 缺失时按 storagePath 从私有 Bucket 拉取。 */
+export async function downloadCurationAsset(meta: AssetMeta): Promise<Blob | null> {
+  if (!meta.storagePath) return null
+  const env = await cloudEnv(); const cloudMeta = await readMeta()
+  if (!env || !cloudMeta?.refreshToken) return null
+  const token = await accessToken(env, cloudMeta)
+  return cloud.downloadStorageObject(env, token, CURATION_ASSET_BUCKET, meta.storagePath)
+}
+
+interface PendingAssetDelete {
+  path: string
+  queuedAt: number
+  attempts: number
+  lastError?: string
+}
+
+function readDeleteQueue(): PendingAssetDelete[] {
+  try {
+    const raw = globalThis.localStorage?.getItem(LOCAL_KEYS.CURATION_ASSET_DELETE_QUEUE)
+    const rows = raw ? JSON.parse(raw) as PendingAssetDelete[] : []
+    return Array.isArray(rows) ? rows.filter(row => typeof row?.path === 'string' && row.path) : []
+  } catch { return [] }
+}
+
+function writeDeleteQueue(rows: PendingAssetDelete[]): void {
+  try {
+    if (rows.length) globalThis.localStorage?.setItem(LOCAL_KEYS.CURATION_ASSET_DELETE_QUEUE, JSON.stringify(rows))
+    else globalThis.localStorage?.removeItem(LOCAL_KEYS.CURATION_ASSET_DELETE_QUEUE)
+  } catch { /* 隐私模式写不进时仍保留当前调用链错误提示 */ }
+}
+
+function enqueueAssetDelete(path: string, error?: unknown): void {
+  const rows = readDeleteQueue()
+  const current = rows.find(row => row.path === path)
+  if (current) {
+    current.attempts += 1
+    current.lastError = error instanceof Error ? error.message : error ? String(error) : current.lastError
+  } else {
+    rows.push({
+      path,
+      queuedAt: Date.now(),
+      attempts: 0,
+      lastError: error instanceof Error ? error.message : error ? String(error) : undefined,
+    })
+  }
+  writeDeleteQueue(rows)
+}
+
+function dequeueAssetDelete(path: string): void {
+  writeDeleteQueue(readDeleteQueue().filter(row => row.path !== path))
+}
+
+/** 永久删除策展附件时尽力清理远端；未登录或失败会进入持久重试队列，不阻塞本地删除。 */
+export async function deleteCurationAsset(meta: AssetMeta): Promise<void> {
+  if (!meta.storagePath) return
+  const env = await cloudEnv(); const cloudMeta = await readMeta()
+  if (!env || !cloudMeta?.refreshToken) {
+    enqueueAssetDelete(meta.storagePath, '等待登录云端后重试')
+    return
+  }
+  try {
+    const token = await accessToken(env, cloudMeta)
+    await cloud.deleteStorageObject(env, token, CURATION_ASSET_BUCKET, meta.storagePath)
+    dequeueAssetDelete(meta.storagePath)
+  } catch (error) {
+    enqueueAssetDelete(meta.storagePath, error)
+    throw error
+  }
+}
+
+let retryingCurationAssets: Promise<number> | null = null
+
+/**
+ * 应用启动/联网恢复时补传未完成附件。
+ * 覆盖 L1 论点卡与 L2–L4 分类节点；普通卡片附件仍严格留在本机。
+ */
+export async function retryPendingCurationAssets(data: AppData): Promise<number> {
+  if (retryingCurationAssets) return retryingCurationAssets
+  retryingCurationAssets = (async () => {
+    const cloudMeta = await readMeta()
+    if (!cloudMeta?.refreshToken || cloudMeta.assetSyncEnabled === false) return 0
+    let changed = 0
+    const retryOwner = async (assets: AssetMeta[] | undefined, ctx: CurationAssetContext) => {
+      for (const asset of assets || []) {
+        if (asset.uploadState === 'synced') continue
+        const blob = await getAssetBlob(asset.id)
+        if (!blob) continue
+        const before = asset.uploadState
+        await uploadCurationAsset(asset, blob, ctx)
+        if (asset.uploadState !== before) changed++
+      }
+    }
+    for (const category of data.categories || []) {
+      if (category.deletedAt) continue
+      await retryOwner(category.assets, {
+        workspaceId: category.workspaceId,
+        nodeId: category.id,
+      })
+    }
+    for (const resource of data.resources || []) {
+      if (!resource.isThesis || resource.deletedAt || !resource.workspaceId) continue
+      await retryOwner(resource.assets, {
+        workspaceId: resource.workspaceId,
+        nodeId: resource.id,
+      })
+    }
+    return changed
+  })()
+  try {
+    return await retryingCurationAssets
+  } finally {
+    retryingCurationAssets = null
+  }
+}
+
+/** 联网或重新登录后补做远端删除；返回本次成功清理的对象数。 */
+export async function retryPendingCurationAssetDeletes(): Promise<number> {
+  const queue = readDeleteQueue()
+  if (!queue.length) return 0
+  const env = await cloudEnv(); const cloudMeta = await readMeta()
+  if (!env || !cloudMeta?.refreshToken) return 0
+  const token = await accessToken(env, cloudMeta)
+  const failed: PendingAssetDelete[] = []
+  let done = 0
+  for (const row of queue) {
+    try {
+      await cloud.deleteStorageObject(env, token, CURATION_ASSET_BUCKET, row.path)
+      done += 1
+    } catch (error) {
+      failed.push({
+        ...row,
+        attempts: row.attempts + 1,
+        lastError: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  writeDeleteQueue(failed)
+  return done
+}
+
 export async function markDownloaded(revision: number, fingerprint: string): Promise<void> {
   await writeMeta({ revision, syncedFingerprint: fingerprint, lastDownloadAt: Date.now() })
 }
 
 // ---- 移动采集 ----
-export interface CaptureItem { id: string; url: string; title?: string; note?: string; tags: string[]; createdAt: number }
+export type CaptureKind = 'link' | 'text'
+export type CaptureConvertedKind = 'task' | 'curiosity' | 'resource'
+export interface CaptureItem {
+  id: string
+  contentKind: CaptureKind
+  url?: string
+  text?: string
+  title?: string
+  note?: string
+  tags: string[]
+  createdAt: number
+  convertedAt?: number
+  convertedKind?: CaptureConvertedKind
+  convertedCardId?: string
+}
 
 export async function listCaptures(): Promise<CaptureItem[]> {
   const env = await cloudEnv(); const meta = await readMeta()
@@ -282,12 +532,38 @@ export async function listCaptures(): Promise<CaptureItem[]> {
     })
     .map(r => ({
       id: r.id,
-      url: r.url,
+      contentKind: r.content_kind || (r.url ? 'link' : 'text'),
+      url: r.url || undefined,
+      text: r.text_content || undefined,
       title: r.title || undefined,
       note: r.note || undefined,
       tags: r.tags || [],
       createdAt: Date.parse(r.created_at) || 0,
+      convertedAt: r.converted_at ? Date.parse(r.converted_at) || undefined : undefined,
+      convertedKind: r.converted_kind || undefined,
+      convertedCardId: r.converted_card_id || undefined,
     }))
+}
+
+export async function convertCapture(id: string, kind: CaptureConvertedKind, cardId: string): Promise<void> {
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
+  const token = await accessToken(env, meta)
+  await cloud.convertCapture(env, token, id, kind, cardId)
+}
+
+export async function dismissCapture(id: string): Promise<void> {
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
+  const token = await accessToken(env, meta)
+  await cloud.dismissCapture(env, token, id)
+}
+
+export async function restoreCapture(id: string): Promise<void> {
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
+  const token = await accessToken(env, meta)
+  await cloud.restoreCapture(env, token, id)
 }
 
 export async function consumeCapture(id: string): Promise<void> {
@@ -319,7 +595,7 @@ export function buildCapturedResource(meta: CaptureItem): import('@/shared/model
     kind: 'resource',
     title: (meta.title || meta.url || '未命名链接').slice(0, 200),
     linkType: 'url',
-    link: meta.url,
+    link: meta.url || '',
     workspaceId: CURATION_WS_ID,
     categoryId: '',
     description: meta.note,

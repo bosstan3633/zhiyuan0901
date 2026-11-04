@@ -10,6 +10,13 @@ check('卡间零挂载红线（R165 立 · R166 收口 fromCuriosityId + 明文�
 check('单向挂载：Curiosity 无 taskId', () => !/taskId\??\s*:/.test(read('/shared/models/index.ts').split('interface CuriosityCard')[1].split('}')[0]));
 check('单向挂载：Resource 无 taskId', () => !/taskId\??\s*:/.test(read('/shared/models/index.ts').split('interface ResourceCard')[1].split('}')[0]));
 check('数据 100% 本地：无 http 数据上传', () => !/\bfetch\(|XMLHttpRequest/.test(read('/newtab/App.vue')));
+check('V4.1.0 老库缺整块 fieldConfig 时在入库层补默认组，设置页不再渲染崩溃', () => {
+  const d = read('/shared/storage/defaults.ts');
+  const r = read('/shared/storage/repository.ts');
+  return d.includes('export function defaultFieldConfig()')
+    && r.includes('defaultFieldConfig')
+    && r.includes('if (!data.fieldConfig) data.fieldConfig = defaultFieldConfig()');
+});
 
 console.log('【架构检查】');
 check('路由：首页/方向台一级（★R3-B1 树即首屏：/compass 直挂 CompassTree、/compass/tree 转带 query 重定向、/compass/projects 平铺成一级）/工作台/设置（R49：actions 子页退役）', () => { const r = read('/newtab/router.ts'); return r.includes("name: 'compass'") && r.includes("import('./views/CompassTree.vue')") && count('/newtab/router.ts', "path: '/compass/projects'") === 1 && count('/newtab/router.ts', "path: '/compass/tree'") === 1 && count('/newtab/router.ts', "path: 'actions'") === 0 && r.includes("redirect: to => ({ path: '/compass', query: to.query })"); });
@@ -138,14 +145,14 @@ check('W2（V3.9.8 随迁）分类新建 / 改名统一收进思维导图画布�
     && n.includes("emit('create-sibling', props.node.id)") && n.includes("beginEdit('title')")
     && !w.includes('confirmCatModal') && !w.includes('catModal.open') && !w.includes('prompt(');
 });
-check('W3（V3.9.8 随迁）分类删除由画布空分支入口承接：有子级或有资源时拒绝并说明原因，空分支软删除；旧侧栏删除链退役', () => {
+check('W3（V4.1.0）分类删除由画布节点承接：整棵子树软删并保留附件，恢复批次一致；旧侧栏删除链退役', () => {
   const h = read('/newtab/composables/useCurationMindMap.ts');
   const n = read('/newtab/components/curation/CurationMindNode.vue');
   return h.includes('async function removeNode(id: string)')
-    && h.includes('下还有 ${children.length} 个子分支')
-    && h.includes('下还关联着 ${n} 张资源卡')
-    && h.includes('node.deletedAt = Date.now()')
-    && n.includes('删除这个空分支') && n.includes("emit('remove-node', node.id)")
+    && h.includes('catIdx.value.descendants(id)')
+    && h.includes('cat.deletionBatchId = batchId')
+    && h.includes('附件和分支会保留在回收站')
+    && n.includes('删除整棵分支') && n.includes("emit('remove-node', node.id)")
     && !read('/newtab/views/Workspace.vue').includes('deleteCategory');
 });
 check('W4（V3.9.8 随迁）左栏树退役，递归结构改由画布节点承载：Category.parentId 树 + 子节点递归 + 每节点资源计数，旧侧栏/置顶分区/聚合计数零回流', () => {
@@ -179,7 +186,7 @@ check('W6（V3.9.8 随迁）分类拖拽升级为整棵子树移动：拖到节�
     && h.includes('catIdx.value.descendants(dragId).includes(targetId)')
     && h.includes('if (targetId === \'root\')')
     && h.includes('dragged.parentId = target.id')
-    && m.includes("@drop=\"onDrop($event, 'root')\"")
+    && m.includes('@drop="onRootDrop"')
     && !codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')).includes('onCatRootDrop');
 });
 check('W7（V3.9.8 随迁）池卡批量语义改为“引用投射”，不再搬动源卡：批量栏提供打开 / 投射 / 删除，目标台只列现役策展台且允许多选，旧移动分类入口零回流', () => {
@@ -363,7 +370,7 @@ check('R28-1（V3.9.8 随迁）资源四视图拖拽退役，策展画布节点�
   return n.includes('draggable="true"')
     && n.includes('@dragstart="dragStart"')
     && n.includes('@dragover="emit(\'drag-over\', $event, node.id)"')
-    && n.includes('@drop="emit(\'drop\', $event, node.id)"')
+    && n.includes('@drop="onNodeDrop"')
     && m.includes('@drag-start="onDragStart"') && m.includes('@drop="onDrop"')
     && !read('/newtab/views/Workspace.vue').includes(':draggable="!batchMode"');
 });
@@ -542,12 +549,13 @@ check('R33-17b（V3.9.8 随迁）卡片密度档位从策展宿主退役：画�
 });
 
 console.log('【第卅四轮 · V2.13 需求包第一批：REQ-030 撤销修复 + Toast 四套收敛】');
-check('R34-1（V3.9.8 随迁）资源卡撤销仍按 id 定位当前真源：单卡删除/抽屉删除均按卡 id 找活卡；策展画布删除改为空分支软删，不再走卡片批量撤销链', () => {
+check('R34-1（V4.1.0）资源卡撤销仍按 id 定位当前真源：单卡删除/抽屉删除均按卡 id 找活卡；策展画布删除改为整棵子树软删并保留撤销历史', () => {
   const d = read('/newtab/composables/useResourceDrawer.ts');
   const h = read('/newtab/composables/useCurationMindMap.ts');
   return d.includes('d.value.resources.find(x => x.id === r.id)')
     && d.includes('d.value.resources.find(x => x.id === editingResource.id)')
-    && h.includes('node.deletedAt = Date.now()')
+    && h.includes('cat.deletedAt = now')
+    && h.includes('cat.deletionBatchId = batchId')
     && !read('/newtab/views/Workspace.vue').includes('natives.forEach(r => {');
 });
 check('R34-2 REQ-030 任务卡撤销按 id（单删 taskId + 批量删）+ 指标 taskIds 回填保留', () => read('/newtab/components/compass/TaskManagerPanel.vue').includes('d.value.tasks.find(x => x.id === taskId)') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('removed.forEach(t => {') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('m.id === cur.metricId'));

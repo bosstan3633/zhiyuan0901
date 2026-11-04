@@ -95,7 +95,7 @@ check(NAME(
   const r = fnBody(RBC, 'function restored')
   if (!/label: '撤销'/.test(r)) { console.log('restored() 回执未挂撤销动作'); return false }
   // 撤销回调必须走 rollback()（整笔回滚），不能是就地改一个字段
-  if (!/rollback\(s\)/.test(r)) { console.log('撤销回调未走 rollback()'); return false }
+  if (!/rollback\((?:s|snap)\)/.test(r)) { console.log('撤销回调未走 rollback()'); return false }
   // 恢复路径零确认弹层：恢复是安全动作，弹确认会让「即时」变成两拍
   if (/useConfirm/.test(fnBody(RBC, 'function restoreRes(') + fnBody(RBC, 'function restoreTask('))) {
     console.log('恢复路径出现确认弹层，破坏「点击即生效」'); return false
@@ -145,7 +145,7 @@ check(NAME(
   '界面说撤销成功、数据里卡却真没了——这是回执撒谎，比撤销失败严重得多。',
   '批量恢复更要说清数：可能只有部分条目还能撤，报告要说 n 而不是含糊的「已撤销」。'), () => {
   const r = fnBody(RBC, 'function restored')
-  if (!/if \(rollback\(s\)\)/.test(r)) { console.log('未按 rollback 返回值分支'); return false }
+  if (!/if \(rollback\((?:s|snap)\)\)/.test(r)) { console.log('未按 rollback 返回值分支'); return false }
   if (!/无法撤销/.test(RBC)) { console.log('缺「无法撤销」失败口径'); return false }
   const all = fnBody(RBC, 'function restoreAll')
   if (!/for \(const s of snaps\) \{ unmarkLeaving\(s\.id\); if \(rollback\(s\)\) n\+\+ \}/.test(all)) {
@@ -205,8 +205,8 @@ check(NAME(
   '这是一条**时序**断言，不是存在性断言：unmarkLeaving 与 rollback 的先后顺序错了，',
   '功能都在、判据都绿，但用户体感是撤销失灵——只有实拍才看得出来，所以在这里钉死。'), () => {
   const r = fnBody(RBC, 'function restored')
-  const u = r.indexOf('unmarkLeaving(s.id)')
-  const b = r.indexOf('rollback(s)')
+  const u = r.indexOf('unmarkLeaving(snap.id)')
+  const b = r.indexOf('rollback(snap)')
   if (u < 0) { console.log('撤销未摘淡出缓冲'); return false }
   if (b < 0) { console.log('撤销未走 rollback'); return false }
   if (u > b) { console.log('顺序反了：应先 unmarkLeaving 再 rollback'); return false }

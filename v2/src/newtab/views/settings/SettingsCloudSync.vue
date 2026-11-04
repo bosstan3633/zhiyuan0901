@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
-import EmptyState from '@/shared/components/EmptyState.vue'
-import { saveDataNow } from '@/shared/storage/repository'
-import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { useFocusTrap } from '@/shared/utils/focusTrap'
 import {
   useCloudSync,
   type CloudConflictChoice,
   type CloudDecisionInfo,
 } from '../../composables/useCloudSync'
-import type { CaptureItem } from '@/shared/cloud/sync'
 
 const store = useAppStore()
+const router = useRouter()
 const sharedCloud = useCloudSync()
 const env = ref<{ url: string; anonKey: string } | null>(null)
 const cfgOpen = ref(false)
@@ -27,19 +25,9 @@ const configSaving = ref(false)
 const email = ref('')
 const password = ref('')
 const pageBusy = ref(false)
-const captures = ref<CaptureItem[]>([])
-const capturesBusy = ref(false)
-const capturesImporting = ref(false)
-const captureDeletingId = ref('')
-const capturesClearing = ref(false)
 const conflictOpen = ref(false)
 const conflictPanel = ref<HTMLElement | null>(null)
 const conflictInfo = ref<CloudDecisionInfo | null>(null)
-const importedCaptureIds = computed(() => new Set(
-  (store.data?.resources || [])
-    .map(card => card.customFields?.captureInboxId || card.customFields?.capture_inbox_id)
-    .filter((id): id is string => !!id),
-))
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
 
 useFocusTrap(conflictPanel, () => conflictOpen.value, { initial: 'first' })
@@ -59,9 +47,6 @@ const busy = computed(() =>
   || configSaving.value
   || sharedCloud.state.value === 'checking'
   || sharedCloud.state.value === 'syncing',
-)
-const capturesMutating = computed(() =>
-  capturesImporting.value || capturesClearing.value || !!captureDeletingId.value,
 )
 const badgeState = computed(() => {
   if (sharedCloud.state.value === 'error') return 'error'
@@ -163,7 +148,6 @@ async function loadCloud(): Promise<void> {
     await sharedCloud.refreshCloudStatus(false)
     if (loggedIn.value) {
       await sharedCloud.ensureRelationProbe(store)
-      await refreshCaptures()
     }
   } catch (error) {
     showToast(`读取云端配置失败：${errText(error)}`)
@@ -229,7 +213,6 @@ async function doLogin(): Promise<void> {
     password.value = ''
     await sharedCloud.refreshCloudStatus(false)
     await sharedCloud.ensureRelationProbe(store, true)
-    await refreshCaptures()
     showToast('云端登录成功')
   } catch (error) {
     toastError('登录失败', error)
@@ -248,7 +231,6 @@ async function doLogout(): Promise<void> {
   try {
     const sync = await import('@/shared/cloud/sync')
     await sync.logout()
-    captures.value = []
     conflictResolve?.('cancel')
     conflictResolve = null
     conflictOpen.value = false
@@ -278,6 +260,21 @@ async function updateStartupCheck(checked: boolean): Promise<void> {
     await sharedCloud.refreshCloudStatus(false)
   } catch (error) {
     toastError('保存启动检查设置失败', error)
+  }
+}
+
+async function updateCurationAssetSync(checked: boolean): Promise<void> {
+  try {
+    const sync = await import('@/shared/cloud/sync')
+    const next = await sync.setCurationAssetSyncEnabled(checked)
+    sharedCloud.meta.value = next
+    if (checked && store.data) {
+      const changed = await sync.retryPendingCurationAssets(store.data)
+      if (changed) store.persist()
+    }
+    showToast(checked ? '已开启策展节点附件云同步' : '已关闭策展节点附件云同步；新附件仅保存在本机')
+  } catch (error) {
+    toastError('保存附件同步设置失败', error)
   }
 }
 
@@ -324,150 +321,18 @@ async function downloadOnly(): Promise<void> {
   if (busy.value || !loggedIn.value) return
   const ok = await useConfirm({
     title: '从云端拉回本机',
-    message: '将用云端快照整体覆盖本机卡片、方向、策展台与事件日志。附件本体保留在本机，云端不含附件与 AI 凭据。',
+    message: '将用云端快照整体覆盖本机卡片、方向、策展台与事件日志。普通卡片附件本体保留在本机；策展节点附件元数据随快照恢复，缺失的附件会在打开时从私有 Storage 下载。AI 凭据不上云。',
     confirmText: '用云端覆盖本机',
   })
   if (!ok) return
   try {
     const result = await sharedCloud.downloadCurrent(store)
-    await refreshCaptures()
     showToast(`已从云端恢复到本机 · 修订 ${result.revision}`)
   } catch (error) {
     toastError('恢复失败', error)
   }
 }
 
-async function refreshCaptures(): Promise<void> {
-  if (!loggedIn.value) {
-    captures.value = []
-    return
-  }
-  if (capturesBusy.value || capturesMutating.value) return
-  capturesBusy.value = true
-  try {
-    const sync = await import('@/shared/cloud/sync')
-    captures.value = (await sync.listCaptures()).sort((a, b) => b.createdAt - a.createdAt)
-  } catch (error) {
-    toastError('读取移动端采集失败', error)
-  } finally {
-    capturesBusy.value = false
-  }
-}
-
-function isImported(item: CaptureItem): boolean {
-  return importedCaptureIds.value.has(item.id)
-}
-
-async function importCaptured(items: CaptureItem[]): Promise<void> {
-  if (!store.data || capturesMutating.value || !items.length) return
-  capturesImporting.value = true
-  const importedIds = new Set(items.map(item => item.id))
-  try {
-    const sync = await import('@/shared/cloud/sync')
-    let added = 0
-    for (const item of items) {
-      if (isImported(item)) continue
-      store.data.resources.push(sync.buildCapturedResource(item))
-      added += 1
-    }
-    if (added) await saveDataNow()
-
-    const consumed = new Set<string>()
-    const failed: string[] = []
-    for (const item of items) {
-      try {
-        await sync.consumeCapture(item.id)
-        consumed.add(item.id)
-      } catch {
-        failed.push(item.id)
-      }
-    }
-    captures.value = captures.value.filter(item =>
-      importedIds.has(item.id) ? !consumed.has(item.id) : true,
-    )
-    if (failed.length) {
-      showToast(`已写入 ${added} 张资源卡；${failed.length} 条采集记录暂未清理，可再次导入重试`)
-    } else {
-      showToast(added ? `已采集 ${added} 张资源卡到资源池` : '这些采集已在资源池中，已清理待导入记录')
-    }
-  } catch (error) {
-    toastError('导入移动端采集失败', error)
-  } finally {
-    capturesImporting.value = false
-  }
-}
-
-async function importOne(item: CaptureItem): Promise<void> {
-  await importCaptured([item])
-}
-
-async function importAll(): Promise<void> {
-  await importCaptured([...captures.value])
-}
-
-function openCapture(item: CaptureItem): void {
-  const url = toOpenableRawLink(item.url)
-  if (!url) {
-    showToast('该采集链接格式不可直接打开')
-    return
-  }
-  openExternalLink(url)
-}
-
-function onCaptureKeydown(event: KeyboardEvent, item: CaptureItem): void {
-  if (event.target !== event.currentTarget) return
-  if (event.key !== 'Enter' && event.key !== ' ') return
-  event.preventDefault()
-  openCapture(item)
-}
-
-async function deleteOne(item: CaptureItem): Promise<void> {
-  if (capturesMutating.value) return
-  const ok = await useConfirm({
-    title: '删除采集记录',
-    message: `将从云端永久删除「${item.title || item.url}」这条待导入记录，删除后不可恢复。已导入本机的资源卡不受影响。`,
-    confirmText: '删除记录',
-  })
-  if (!ok) return
-  captureDeletingId.value = item.id
-  try {
-    const sync = await import('@/shared/cloud/sync')
-    await sync.deleteCapture(item.id)
-    captures.value = captures.value.filter(capture => capture.id !== item.id)
-    showToast('已删除采集记录')
-  } catch (error) {
-    toastError('删除采集记录失败', error)
-  } finally {
-    captureDeletingId.value = ''
-  }
-}
-
-async function clearAll(): Promise<void> {
-  if (!captures.value.length || capturesMutating.value) return
-  const ok = await useConfirm({
-    title: '清空全部待导入',
-    message: `将从云端永久删除当前 ${captures.value.length} 条移动端待导入记录，删除后不可恢复。已导入本机的资源卡不受影响。`,
-    confirmText: '全部清空',
-  })
-  if (!ok) return
-  capturesClearing.value = true
-  const ids = captures.value.map(item => item.id)
-  let clearFailed = false
-  try {
-    const sync = await import('@/shared/cloud/sync')
-    await sync.deleteCaptures(ids)
-    captures.value = []
-    showToast(`已清空 ${ids.length} 条待导入记录`)
-  } catch (error) {
-    clearFailed = true
-    toastError('清空待导入记录失败', error)
-  } finally {
-    capturesClearing.value = false
-  }
-  // 批量删除按 50 条分批执行；中途失败时可能已经删掉前几批。
-  // 此时必须回读云端真值，不能继续展示可能已被删除的旧列表。
-  if (clearFailed) await refreshCaptures()
-}
 </script>
 
 <template>
@@ -504,12 +369,9 @@ async function clearAll(): Promise<void> {
     <div class="gs-card-header">
       <span class="gs-card-title">云端账号</span>
       <span class="gs-status-badge" :class="badgeState"><span class="gs-status-dot"></span>{{ badgeText }}</span>
-      <span class="gs-card-desc">仅限邀请账号；附件本体与 AI 凭据不进云端</span>
+      <span class="gs-card-desc">仅限邀请账号；普通卡片附件留在本机，策展节点附件进入你的私有 Storage；AI 凭据不上云</span>
     </div>
     <div class="gs-card-body">
-      <p v-if="captures.length" class="capture-delete-warning" role="note" data-testid="capture-delete-warning">
-        <b>删除说明：</b>单条删除与全部清空都会永久删除云端待导入记录，删除后不可恢复；已导入本机的资源卡不受影响。
-      </p>
       <div class="gs-setting-row">
         <span class="gs-sr-label">连接配置</span>
         <div class="gs-sr-control gs-sr-control--inline">
@@ -593,6 +455,16 @@ async function clearAll(): Promise<void> {
           </div>
         </div>
         <div class="gs-setting-row">
+          <span class="gs-sr-label">策展附件云同步</span>
+          <div class="gs-sr-control gs-sr-control--inline">
+            <label class="gs-switch">
+              <input type="checkbox" :checked="meta?.assetSyncEnabled !== false" @change="updateCurationAssetSync(($event.target as HTMLInputElement).checked)" />
+              <span class="gs-switch-slider"></span>
+            </label>
+            <span class="gs-sr-hint">默认开启；关闭后新附件只保存本机，重新开启会自动补传。</span>
+          </div>
+        </div>
+        <div class="gs-setting-row">
           <span class="gs-sr-label"></span>
           <div class="gs-sr-control gs-sr-control--inline">
             <button class="gs-btn gs-btn-danger" :disabled="busy" @click="doLogout">退出登录</button>
@@ -609,8 +481,8 @@ async function clearAll(): Promise<void> {
 
   <div v-if="loggedIn" class="gs-card" data-testid="mobile-capture-inbox">
     <div class="gs-card-header">
-      <span class="gs-card-title">移动端采集</span>
-      <span class="gs-card-desc">手机浏览器打开 PWA 提交链接，稍后在此导入资源卡池</span>
+      <span class="gs-card-title">移动端采集 · Inbox</span>
+      <span class="gs-card-desc">手机提交链接或文本后，统一到 Inbox 池按时间盘点与转化</span>
     </div>
     <div class="gs-card-body">
       <div class="gs-setting-row">
@@ -618,57 +490,13 @@ async function clearAll(): Promise<void> {
         <div class="gs-sr-control gs-sr-note"><a :href="pwaUrl" target="_blank" rel="noopener">{{ pwaUrl }}</a></div>
       </div>
       <div class="gs-setting-row">
-        <span class="gs-sr-label">待导入</span>
+        <span class="gs-sr-label">Inbox 池</span>
         <div class="gs-sr-control gs-sr-control--inline">
-          <button class="gs-btn" :disabled="capturesBusy || capturesMutating" @click="refreshCaptures">
-            {{ capturesBusy ? '读取中…' : '刷新采集列表' }}
-          </button>
-          <button v-if="captures.length" class="gs-btn gs-btn-primary" :disabled="capturesMutating" @click="importAll">
-            {{ capturesImporting ? '导入中…' : `全部导入（${captures.length}）` }}
-          </button>
-          <button v-if="captures.length" class="gs-btn gs-btn-danger" :disabled="capturesBusy || capturesMutating" @click="clearAll">
-            {{ capturesClearing ? '正在清空…' : '全部清空' }}
-          </button>
+          <button class="gs-btn gs-btn-primary" @click="router.push('/deck/inbox')">打开 Inbox 池</button>
+          <span class="gs-sr-hint">设置页不再维护第二套采集列表；未转化计数与删除、转化都在 Inbox 完成。</span>
         </div>
       </div>
-      <EmptyState v-if="!captures.length" size="inline" icon="link" title="暂无待导入链接" hint="在手机 PWA 里提交后点「刷新采集列表」" />
-      <div
-        v-for="item in captures"
-        :key="item.id"
-        class="gs-setting-row gs-setting-row--top capture-row"
-        tabindex="0"
-        :aria-label="`${item.title || item.url}，双击、按回车或空格打开链接`"
-        @dblclick.self="openCapture(item)"
-        @keydown="onCaptureKeydown($event, item)"
-      >
-        <span class="gs-sr-label gs-sr-label--nowrap">{{ new Date(item.createdAt).toLocaleDateString('zh-CN') }}</span>
-        <div class="gs-sr-control gs-sr-control-wrap capture-control">
-          <div class="gs-sr-note capture-copy" @dblclick="openCapture(item)">
-            <b>{{ item.title || item.url }}</b>
-            <span class="gs-sr-hint">{{ item.url }}</span>
-            <span v-if="item.note"> · {{ item.note }}</span>
-            <span class="capture-open-meta">
-              <span class="capture-open-hint">双击、按回车或空格打开</span>
-              <span v-if="isImported(item)" class="capture-imported-badge">已在资源池</span>
-            </span>
-          </div>
-          <div class="capture-actions">
-            <button class="gs-btn" @click.stop="openCapture(item)">打开链接</button>
-            <button
-              class="gs-btn"
-              :class="{ 'gs-btn-primary': !isImported(item) }"
-              :disabled="capturesMutating"
-              :title="isImported(item) ? '资源卡已写入本机，重试清理云端待导入记录' : '导入到资源卡池'"
-              @click.stop="importOne(item)"
-            >
-              {{ capturesImporting ? '处理中…' : isImported(item) ? '重试清理' : '导入资源池' }}
-            </button>
-            <button class="gs-btn gs-btn-danger" :disabled="capturesMutating" @click.stop="deleteOne(item)">
-              {{ captureDeletingId === item.id ? '正在删除…' : '删除' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <p class="gs-sr-hint">策展节点附件使用私有 Supabase Storage；普通卡片附件仍只保留在本机 IndexedDB。</p>
     </div>
   </div>
 </div>
@@ -683,7 +511,7 @@ async function clearAll(): Promise<void> {
         本机同步基线：修订 {{ conflictInfo?.localRevision || 0 }} · 云端当前：修订 {{ conflictInfo?.remoteRevision || 0 }}
       </p>
       <p id="cloud-conflict-body" class="cloud-conflict-body">
-        请明确选择本次保留哪一端。云端在检查后又出现了较新修订时，也会再次在这里确认；未选中的一端会被覆盖，附件本体和 AI 凭据不会进入云端。
+        请明确选择本次保留哪一端。云端在检查后又出现了较新修订时，也会再次在这里确认；未选中的一端会被覆盖。普通卡片附件本体和 AI 凭据不会进入云端；策展节点附件使用你的私有 Storage。
       </p>
       <div class="cloud-conflict-actions">
         <button class="gs-btn" @click="resolveConflict('cancel')">取消</button>
@@ -783,69 +611,6 @@ async function clearAll(): Promise<void> {
   gap: 8px;
   padding: 14px 18px;
 }
-.capture-row {
-  cursor: default;
-}
-.capture-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.capture-control {
-  justify-content: flex-end;
-}
-.capture-copy {
-  min-width: min(420px, 52vw);
-  cursor: text;
-}
-.capture-copy b,
-.capture-copy .gs-sr-hint,
-.capture-open-hint {
-  display: block;
-}
-.capture-open-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.capture-copy .gs-sr-hint {
-  overflow-wrap: anywhere;
-}
-.capture-open-hint {
-  margin-top: 3px;
-  color: var(--text-4);
-  font-size: var(--fs-micro);
-}
-.capture-imported-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 20px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--accent-light);
-  color: var(--accent-ink);
-  font-size: var(--fs-micro);
-  font-weight: 650;
-}
-.capture-delete-warning {
-  margin: 0 0 10px;
-  padding: 9px 12px;
-  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--tag-danger-bg) 72%, var(--surface));
-  color: var(--text-2);
-  font-size: var(--fs-caption);
-  line-height: 1.55;
-}
-.capture-delete-warning b {
-  color: var(--danger);
-}
-.capture-actions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-}
 .cloud-conflict-mask {
   position: fixed;
   inset: 0;
@@ -896,12 +661,6 @@ async function clearAll(): Promise<void> {
   }
   .cloud-relation-facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .capture-copy {
-    min-width: 100%;
-  }
-  .capture-actions {
-    justify-content: flex-start;
   }
 }
 </style>

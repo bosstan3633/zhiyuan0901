@@ -57,6 +57,7 @@ interface RestoreSnap {
   /** 展示名，回执与撤销二次回执共用 */
   name: string
   deletedAt: number | undefined
+  deletionBatchId?: ID
   updatedAt: number | undefined
   /** 仅资源卡：rehomeIfOrphan 可能改过归属，撤销要把原值还回去 */
   workspaceId?: string
@@ -71,7 +72,7 @@ interface RestoreSnap {
  * 所以这里按「至少有 id 与可选 deletedAt」的最宽结构声明，具体字段走 `as` 取。
  * 与其写四份重载，不如承认它们的公共面就这么窄。
  */
-type RestoreSnapSource = { id: ID; deletedAt?: number }
+type RestoreSnapSource = { id: ID; deletedAt?: number; deletionBatchId?: ID }
 
 /** 取一组快照。必须在**改动之前**调用——它只读，不产生副作用。 */
 function snapOf(x: RestoreSnapSource): RestoreSnap {
@@ -80,6 +81,7 @@ function snapOf(x: RestoreSnapSource): RestoreSnap {
     id: x.id,
     name: '',
     deletedAt: x.deletedAt,
+    deletionBatchId: any.deletionBatchId as ID | undefined,
     updatedAt: any.updatedAt as number | undefined,
     workspaceId: any.workspaceId as ID | undefined,
     categoryId: any.categoryId as string | undefined,
@@ -100,6 +102,9 @@ function rollback(s: RestoreSnap): boolean {
   if (!cur) return false
   const any = cur as unknown as Record<string, unknown>
   cur.deletedAt = s.deletedAt
+  if (any.deletionBatchId !== undefined || s.deletionBatchId !== undefined) {
+    any.deletionBatchId = s.deletionBatchId
+  }
   // 分类没有 updatedAt（见 RestoreSnapSource 注释）⇒ 字段缺失时跳过，不给它凭空造一个
   if (s.updatedAt !== undefined && any.updatedAt !== undefined) any.updatedAt = s.updatedAt
   // 资源卡：归属只在「恢复时确实动过」的情况下回填，避免给从未动过的卡乱写 undefined
@@ -115,14 +120,21 @@ function rollback(s: RestoreSnap): boolean {
   return true
 }
 
-/** 统一的「恢复完成 + 可撤销」回执。★文案按真实归属说话，不一律写「已恢复到原位置」。 */
-function restored(s: RestoreSnap, note: string) {
+/** 统一的「恢复完成 + 可撤销」回执。related 用于分类级联恢复时整批回滚。 */
+function restored(s: RestoreSnap, note: string, related: RestoreSnap[] = []) {
   s.name = s.name || ''
-  showToast(`${s.name ? `已恢复「${s.name}」` : '已恢复'}${note}`, { label: '撤销', cb: () => {
+  const all = [s, ...related]
+  const message = `${s.name ? `已恢复「${s.name}」` : '已恢复'}${note}`
+  showToast(message, { label: '撤销', cb: () => {
     // ★先摘淡出缓冲再回滚：否则用户点撤销时那一行还在 150ms 缓冲里，
     // 看到的是「撤销了却什么都没回来」
-    unmarkLeaving(s.id)
-    if (rollback(s)) show(`↩ 已撤销恢复「${s.name || '该项'}」· 回到回收站`)
+    let n = 0
+    for (const snap of all) {
+      unmarkLeaving(snap.id)
+      if (rollback(snap)) n++
+    }
+    if (n === 1) show(`↩ 已撤销恢复「${s.name || '该项'}」· 回到回收站`)
+    else if (n > 1) show(`↩ 已撤销恢复 ${n} 项 · 回到回收站`)
     else show('⚠ 该项已不在回收站，无法撤销恢复')
   } })
 }
@@ -130,16 +142,29 @@ function restored(s: RestoreSnap, note: string) {
 /** R109（F12-b）：软删分类（删除分类/删除策展台/合并重复 均走 deletedAt）——恢复 = 清 deletedAt */
 const cats = computed(() =>
   d.value.categories.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
-function restoreCat(c: { id: ID; deletedAt?: number }) {
+function restoreCat(c: RestoreSnapSource) {
   const s = snapOf(c)
   // ★注解只写了 id/deletedAt，但运行时传入的就是 Category 本体（见模板 v-for="c in catRows"），
   // 名字与排序锚从实际对象上取。判据 R109-5 锚的就是这串签名，不必为它扩字段。
   const real = c as { id: ID; name?: string; deletedAt?: number }
   s.name = real.name || ''
-  markLeaving(c.id, c, c.deletedAt)
-  c.deletedAt = undefined
+  const batchId = (c as { deletionBatchId?: string }).deletionBatchId
+  const rows = batchId
+    ? d.value.categories.filter(x => x.deletedAt && x.deletionBatchId === batchId)
+    : [c]
+  const snaps = rows.map(row => {
+    const snap = snapOf(row)
+    snap.name = (row as { name?: string }).name || ''
+    return snap
+  })
+  for (const row of rows) {
+    markLeaving(row.id, row, row.deletedAt)
+    row.deletedAt = undefined
+    row.deletionBatchId = undefined
+  }
   store.persist()
-  restored(s, '（其下卡片仍在待分类/回收站，可手动归位）')
+  const related = snaps.filter(snap => snap.id !== s.id)
+  restored(s, rows.length > 1 ? `及其 ${rows.length - 1} 个子分支` : '', related)
 }
 
 /** R2-⑤：论证节点卡（第 4 种卡）进回收站族——R1.5 的「硬删不可恢复」旁路到此为止 */
@@ -347,6 +372,7 @@ function restoreAll() {
   for (const x of list as { id: ID; deletedAt?: number; updatedAt?: number; convertedAt?: number; convertedTo?: 'task' | 'res' }[]) {
     markLeaving(x.id, x, x.deletedAt)
     x.deletedAt = undefined
+    ;(x as { deletionBatchId?: string }).deletionBatchId = undefined
     if (x.updatedAt !== undefined) x.updatedAt = now
     /** R167：批量恢复同样撤销转化戳（只对好奇卡存在这两个字段，其余恒为 undefined，无副作用） */
     x.convertedAt = undefined

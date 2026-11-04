@@ -84,6 +84,7 @@ export function clearAllAssetReferences(d: {
   tasks?: { assets?: { id: string }[] }[]
   curiosities?: { assets?: { id: string }[] }[]
   argCards?: { assets?: { id: string }[] }[]
+  categories?: { assets?: { id: string }[] }[]
 }): number {
   let changed = 0
   const clear = (cards: { assets?: { id: string }[] }[] | undefined) => {
@@ -98,6 +99,7 @@ export function clearAllAssetReferences(d: {
   clear(d.tasks)
   clear(d.curiosities)
   clear(d.argCards)
+  clear(d.categories)
   return changed
 }
 
@@ -197,6 +199,7 @@ export function collectReferencedAssetIds(d: {
   tasks?: { assets?: { id: string }[] }[]
   curiosities?: { assets?: { id: string }[] }[]
   argCards?: { assets?: { id: string }[] }[]
+  categories?: { assets?: { id: string }[] }[]
 }): Set<string> {
   const keep = new Set<string>()
   const collect = (cards: { assets?: { id: string }[] }[] | undefined) =>
@@ -205,6 +208,7 @@ export function collectReferencedAssetIds(d: {
   collect(d.tasks)
   collect(d.curiosities)
   collect(d.argCards)
+  collect(d.categories)
   return keep
 }
 

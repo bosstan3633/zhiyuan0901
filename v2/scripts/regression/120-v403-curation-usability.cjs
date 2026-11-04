@@ -46,7 +46,8 @@ check('R191-3 ★同级箭头直接改真实兄弟数组：先 splice 移出再�
     && body.includes('persist()')
     && NODE.includes("emit('reorder-sibling', props.node.id, dir)")
     && MAP.includes("emit('reorder-sibling', id, dir)")
-    && WORKSPACE.includes('@reorder-sibling="mind.reorderSibling"')
+    && WORKSPACE.includes('@reorder-sibling="onMindReorder"')
+    && WORKSPACE.includes('history.record(dir < 0 ? \'分支前移\' : \'分支后移\'')
 })
 
 check('R191-4 ★方向树宽内容留在自身横向滚动域：页面锁住横向溢出，金字塔/树枝不撑宽视口', () => {

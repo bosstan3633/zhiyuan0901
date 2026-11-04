@@ -146,9 +146,11 @@ function downloadToDisk(meta: AssetMeta, blob: Blob): Promise<{ path: string; id
  * 打开 HTML / PDF 附件（下载本地副本后打开，与双击本地文件等效）。
  * PDF 由浏览器内置 viewer 渲染；返回实际使用的通道：'file'（落盘打开）| 'blob'（降级）| 'missing'（本体缺失）
  */
-export async function openHtmlAsset(meta: AssetMeta): Promise<'file' | 'blob' | 'missing'> {
-  let blob: Blob | null = null
-  try { blob = await getAssetBlob(meta.id) } catch (err) { console.error('[htmlAsset] get failed:', err) }
+export async function openHtmlAsset(meta: AssetMeta, supplied?: Blob | null): Promise<'file' | 'blob' | 'missing'> {
+  let blob: Blob | null = supplied || null
+  if (!blob) {
+    try { blob = await getAssetBlob(meta.id) } catch (err) { console.error('[htmlAsset] get failed:', err) }
+  }
   if (!blob) { showToast('⚠ 附件本体缺失（可能已被清理），请重新上传'); return 'missing' }
 
   if (hasDownloads()) {

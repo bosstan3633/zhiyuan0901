@@ -42,6 +42,14 @@ export interface AssetMeta {
   size: number
   mime: string
   createdAt: number
+  /** 仅策展节点附件使用：Supabase Storage 对象路径；普通卡片附件不写。 */
+  storagePath?: string
+  /** 本地优先上传状态；普通卡片附件保持 undefined。 */
+  uploadState?: 'local' | 'pending' | 'synced' | 'failed'
+  checksum?: string
+  uploadedAt?: number
+  lastError?: string
+  retryCount?: number
 }
 
 // ============ 六层思维链 ============
@@ -159,6 +167,8 @@ export interface CardBase {
   /** R152 起资源卡私有；R165-A 上移基类（三类卡共用，可选零迁移）：最近一次被 AI 采纳写库的时间——
    *  详情标题行的 AI 主上下文入口据此翻「↻ 重新优化/重新拆解/重新研判」并挂 chip，别让同一张卡看起来从没动过。 */
   aiTouchedAt?: number
+  /** V4.1.0：由移动 Inbox 转化生成时记录采集记录 id，用于跨刷新幂等去重。 */
+  sourceCaptureId?: string
 }
 
 /** 资源卡（向源头求证） */
@@ -399,6 +409,10 @@ export interface Category {
   curFrom?: { wsId: ID; catId: ID; projId: ID }
   /** R109（F12-b）：分类软删——删除策展台/分类时置 deletedAt 进回收站，可恢复（卡片软删口径对齐） */
   deletedAt?: number
+  /** V4.1.0：策展节点附件；本体在 IndexedDB，云同步只保存元数据与 storagePath。 */
+  assets?: AssetMeta[]
+  /** V4.1.0：同批级联软删标识；恢复父节点时只恢复同一批次后代。 */
+  deletionBatchId?: ID
 }
 
 // ============ 今日三件事 ============

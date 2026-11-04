@@ -305,6 +305,9 @@ async function deleteDeckFromTab() {
   const snap = deleteDeck(store.data, ws.id)
   if (!snap) { showToast('⚠ 该策展台已不存在'); return }
   store.persist()
+  try {
+    window.dispatchEvent(new CustomEvent('zy:curation-history-reset', { detail: { workspaceId: ws.id } }))
+  } catch { /* 非浏览器上下文无画布历史 */ }
   if (activeWorkspaceId.value === ws.id) navigate('/')
   showToast(`已删除策展台「${wsDisplayNameOf(ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡、${snap.argCardIds.length} 张论证卡进回收站`, {
     label: '撤销',

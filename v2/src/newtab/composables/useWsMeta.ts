@@ -122,6 +122,9 @@ export function useWsMeta(ctx: WsMetaCtx) {
     const snap = deleteDeck(d.value, workspaceId.value)
     if (!snap) { showToast('⚠ 该策展台已不存在'); return }
     store.persist()
+    try {
+      window.dispatchEvent(new CustomEvent('zy:curation-history-reset', { detail: { workspaceId: workspaceId.value } }))
+    } catch { /* 非浏览器上下文无画布历史 */ }
     router.push('/compass')
     showToast(`已删除策展台「${wsDisplayNameOf(snap.ws).slice(0, 14)}」· ${snap.cardIds.length} 张本台卡、${snap.argCardIds.length} 张论证卡进回收站，池卡未受影响`, { label: '撤销', cb: () => {
       restoreDeck(d.value, snap)

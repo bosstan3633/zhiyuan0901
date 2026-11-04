@@ -46,7 +46,6 @@
 .gs-setting-row--gap { margin-top: 6px; }
 .gs-setting-row--top { align-items: flex-start; }
 .gs-sr-label { font-size: var(--fs-body); color: var(--text); min-width: 120px; }
-.gs-sr-label--nowrap { white-space: nowrap; }
 .gs-sr-control { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 /* 按钮 + 状态文字并排：只把 gap 从 8 放大到 10，其余沿用 .gs-sr-control */
 .gs-sr-control--inline { gap: 10px; }

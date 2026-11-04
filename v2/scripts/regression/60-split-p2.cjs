@@ -98,7 +98,8 @@ check('R104-1（V3.9.8 随迁）画布分类 CRUD 收敛：新建/同级/改名/
     && h.includes('async function removeNode(') && h.includes('function moveNode(')
     && h.includes('MIND_TOTAL_LEVEL')
     && host.includes('useCurationMindMap({') && host.includes('@create-child="onMindCreateChild"')
-    && host.includes('@rename="mind.renameNode"') && host.includes('@move="mind.moveNode"')
+    && host.includes('@rename="onMindRename"') && host.includes('@move="onMindMove"')
+    && host.includes("history.record('修改分支标题'") && host.includes("history.record('移动分支'")
     && !host.includes('async function deleteCategory(cat: Category)')
     && !host.includes('async function mergeDupCats()');
 });
@@ -292,7 +293,8 @@ check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并�
     && GS109.includes('dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)')
     && !codeOnly(GS109).includes('!c.parentId && !c.deletedAt')
     && RB109.includes("const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')") // R2-⑤：论证卡入族，分区联合类型随之扩一枚
-    && RB109.includes('function restoreCat(c: { id: ID; deletedAt?: number })')
+    && RB109.includes('function restoreCat(c: RestoreSnapSource)')
+    && RB109.includes('deletionBatchId')
     && RB109.includes('分类分区');
 });
 

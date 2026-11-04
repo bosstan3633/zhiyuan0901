@@ -12,7 +12,7 @@ const router = createRouter({
     {
       // V3.9.1：三类「查看全部」是独立二级路由，浏览器返回直接回调度台原位置。
       // :kind 只收 task/curiosity/resource；深链 hl/hk 统一落这里。
-      path: '/deck/:kind(task|curiosity|resource)',
+      path: '/deck/:kind(task|curiosity|resource|inbox)',
       name: 'deck-all',
       component: () => import('./views/CompassDeckView.vue'),
       meta: { title: '知源调度台 · 全部卡片' }

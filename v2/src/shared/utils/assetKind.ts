@@ -9,11 +9,11 @@ import type { AssetMeta } from '@/shared/models'
 
 export type AssetKind = AssetMeta['kind']
 
-/** 单文件体积上限（MB）——与 AssetManager 既有口径一致：图片 10 / PDF 100 / HTML 20 */
+/** 单文件体积上限（MB）——图片 10 / PDF 50 / HTML 20 */
 export const ASSET_KIND_MB: Record<AssetKind, number> = {
   image: 10,
   html: 20,
-  pdf: 100
+  pdf: 50
 }
 
 /**

@@ -59,7 +59,13 @@ export const LOCAL_KEYS = {
   /** 移动端待提交链接 */
   MOBILE_PENDING: 'zy_mobile_pending',
   /** 移动端登录会话 */
-  MOBILE_SESSION: 'zy_mobile_session'
+  MOBILE_SESSION: 'zy_mobile_session',
+  /** 桌面 Inbox 最近一次成功拉取的本地缓存；断网时仍可按时间盘点 */
+  INBOX_CACHE: 'zy_inbox_cache',
+  /** Inbox 卡片已在本机创建但远端转化状态尚未写回的重试队列 */
+  INBOX_CONVERSION_QUEUE: 'zy_inbox_conversion_queue',
+  /** 策展附件远端删除重试队列；只在本地保存对象路径，不保存凭据 */
+  CURATION_ASSET_DELETE_QUEUE: 'zy_curation_asset_delete_queue'
 } as const
 
 /**

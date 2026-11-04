@@ -178,31 +178,39 @@
       :keyboard-drag-hint="mind.keyboardDragHint.value"
       :fullscreen="mind.fullscreen.value"
       :fullscreen-fallback="mind.fullscreenFallback.value"
+      :can-undo="history.canUndo.value"
+      :can-redo="history.canRedo.value"
+      :undo-label="history.undoLabel.value"
+      :redo-label="history.redoLabel.value"
       @update:layout="mind.setLayout"
       @select="mind.selectNode"
       @create-child="onMindCreateChild"
       @create-sibling="onMindCreateSibling"
       @cut="mind.cutNode"
-      @paste="mind.pasteInto"
-      @rename="mind.renameNode"
-      @update-description="mind.updateDescription"
-      @reorder-sibling="mind.reorderSibling"
+      @paste="onMindPaste"
+      @rename="onMindRename"
+      @update-description="onMindDescription"
+      @reorder-sibling="onMindReorder"
       @link-resource="openLinkCards"
       @unlink-resource="onUnlinkResource"
       @open-resource="onCardClick"
       @open-resource-link="openResourceLink"
       @open-resource-context="openResCtx"
+      @open-node-assets="openNodeAssets"
+      @drop-node-asset-files="ingestAssetFiles"
       @open-thesis="openThesisCard"
       @link-thesis="openThesisLink"
       @unlink-thesis="onUnlinkThesis"
       @open-create-thesis="openThesisCreate"
-      @move="mind.moveNode"
+      @move="onMindMove"
       @keyboard-drag-start="mind.startKeyboardDrag"
       @keyboard-drag-target="mind.moveKeyboardTarget"
-      @keyboard-drag-confirm="mind.confirmKeyboardMove"
+      @keyboard-drag-confirm="onMindConfirmKeyboardMove"
       @keyboard-drag-cancel="mind.cancelKeyboardDrag"
-      @remove-node="mind.removeNode"
-      @update:fullscreen="mind.setFullscreenState($event.on, $event.fallback)" />
+      @remove-node="onMindRemove"
+      @update:fullscreen="mind.setFullscreenState($event.on, $event.fallback)"
+      @undo="history.undo"
+      @redo="history.redo" />
     </div>
 
     <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats" :ws-id="workspaceId" :ws-name="wsDisplayName"
@@ -213,6 +221,14 @@
 
     <CurationShareDrawer :open="shareOpen" :workspace-name="wsDisplayName" :thesis="thesisCard"
       :nodes="wsCats" :cards="shareCards" @close="shareOpen = false" />
+
+    <CurationNodeAssetDrawer :open="assetDrawerOpen" :node-id="assetDrawerNodeId"
+      :node-name="assetDrawerNodeName" :level="assetDrawerLevel" :assets="assetDrawerAssets"
+      :owner-id="assetDrawerOwnerId"
+      :remote-downloader="downloadNodeAsset"
+      @close="assetDrawerOpen = false"
+      @update:assets="saveNodeAssets(assetDrawerNodeId, $event)"
+      @retry-asset="retryNodeAsset" />
 
     <!-- 资源卡详情抽屉（单击打开）
          R168：改 `v-if` 点开才挂——常驻 168 节点（含分类下拉 88 个 `<option>`）是每次进台面的固定成本。
@@ -309,7 +325,7 @@
       :ai-busy="linkAiBusy" :ai-on="linkAiOn" :ai-hits="linkAiHits" :ai-fed="linkAiFed" :ai-took="linkAiTook"
       :ai-scope="linkAiScope" :ai-note="linkAiNote"
       @update:q="linkCardsQ = $event" @toggle-pick="toggleLinkPick"
-      @confirm="confirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
+      @confirm="onConfirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
 
     <!-- N8（V3.8.18）镜像到策展台——推送方向的选台弹窗（与上面的「移动分类」同款 modal 形态）。
          只选台、不选分类：targetCatId 只是"镜像时刻源卡所在分类"的历史快照，不参与任何业务判定
@@ -353,11 +369,11 @@
           </div>
           <div class="share-import-mode">
             <div class="mb-label">导入方式</div>
-            <div class="share-import-option" v-pressable @click="confirmNewShareImport">
+            <div class="share-import-option" v-pressable @click="importShareAsNew">
               <span class="mo-icon"><Icon name="folderopen" :size="13"/></span>
               <span><b>新建一个策展台</b><small>保留成果的 L1–L4 结构，并切换到新台。</small></span>
             </div>
-            <div class="share-import-option" v-pressable @click="confirmMergeShareImport">
+            <div class="share-import-option" v-pressable @click="importShareAsMerge">
               <span class="mo-icon"><Icon name="branch" :size="13"/></span>
               <span><b>合并到当前策展台</b><small>同路径同标题的节点更新，不同则追加；重名自动加序号。</small></span>
             </div>
@@ -423,11 +439,16 @@ import type { DrillCatRow, DrillCardRow } from '@/newtab/components/CurationDril
 import CurationMindMap from '@/newtab/components/curation/CurationMindMap.vue'
 import CurationThesisDrawer from '@/newtab/components/curation/CurationThesisDrawer.vue'
 import CurationShareDrawer from '@/newtab/components/curation/CurationShareDrawer.vue'
+import CurationNodeAssetDrawer from '@/newtab/components/curation/CurationNodeAssetDrawer.vue'
 // R169-老账③：两代抽屉容器合并——资源详情抽屉改走共享壳（Esc/遮罩/Teleport/进出场单源）
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
-import { type ResourceCard, type Category } from '@/shared/models'
+import { type AssetMeta, type ResourceCard, type Category } from '@/shared/models'
+import { uid } from '@/shared/utils'
+import { getAssetBlob, putAsset, deleteAsset } from '@/shared/storage/assets'
+import { ASSET_KIND_MB, guessAssetKind } from '@/shared/utils/assetKind'
+import { deleteCurationAsset, downloadCurationAsset, retryPendingCurationAssetDeletes, retryPendingCurationAssets, uploadCurationAsset } from '@/shared/cloud/sync'
 import { boardCardsOf, isMirrorView, curationMetrics, setThesis } from '@/shared/storage/hub'
 import { useCurationDrill } from '@/newtab/composables/useCurationDrill'
 import { useWorkspaceMirror } from '@/newtab/composables/useWorkspaceMirror'
@@ -437,6 +458,7 @@ import { useWorkspaceImport } from '@/newtab/composables/useWorkspaceImport'
 import { useCurationShareImport } from '@/newtab/composables/useCurationShareImport'
 import { usePyramid } from '@/newtab/composables/usePyramid'
 import { useCurationMindMap } from '@/newtab/composables/useCurationMindMap'
+import { useCurationCanvasHistory } from '@/newtab/composables/useCurationCanvasHistory'
 import { useWsMeta } from '@/newtab/composables/useWsMeta'
 import { useWsAssetHygiene } from '@/newtab/composables/useWsAssetHygiene'
 // R113-N2：LifecyclePanel / useLifecycle 移除——入口收敛到 设置→总览（GlobalSettings）
@@ -497,6 +519,200 @@ const thesisCard = computed<ResourceCard | null>(() => {
 })
 const thesisOpen = ref(false)
 const shareOpen = ref(false)
+const assetDrawerOpen = ref(false)
+const assetDrawerNodeId = ref('root')
+
+const assetDrawerNode = computed<Category | null>(() =>
+  assetDrawerNodeId.value === 'root' ? null : wsCats.value.find(c => c.id === assetDrawerNodeId.value) || null
+)
+const assetDrawerAssets = computed<AssetMeta[]>(() =>
+  assetDrawerNodeId.value === 'root' ? (thesisCard.value?.assets || []) : (assetDrawerNode.value?.assets || [])
+)
+const assetDrawerOwnerId = computed(() =>
+  assetDrawerNodeId.value === 'root' ? (thesisCard.value?.id || 'root') : assetDrawerNodeId.value
+)
+const assetDrawerNodeName = computed(() =>
+  assetDrawerNodeId.value === 'root' ? (thesisCard.value?.title || '中心论点') : (assetDrawerNode.value?.name || '未命名分支')
+)
+const assetDrawerLevel = computed(() =>
+  assetDrawerNodeId.value === 'root' ? 1 : (assetDrawerNode.value ? mind.nodeLevel(assetDrawerNode.value) : 2)
+)
+const pendingAssetCleanup = new Map<string, AssetMeta>()
+
+function openNodeAssets(id: string): void {
+  assetDrawerNodeId.value = id
+  assetDrawerOpen.value = true
+  mind.selectNode(id)
+}
+
+function nodeAssetOwner(id: string): { assets?: AssetMeta[] } | null {
+  if (id === 'root') return thesisCard.value
+  return wsCats.value.find(c => c.id === id) || null
+}
+
+function nodeAssetOwnerId(id: string): string {
+  return id === 'root' ? (thesisCard.value?.id || 'root') : id
+}
+
+function scheduleRemovedAssetCleanup(removed: AssetMeta[]): void {
+  if (!removed.length) return
+  for (const meta of removed) pendingAssetCleanup.set(meta.id, meta)
+  window.setTimeout(() => {
+    cleanupPendingAssets()
+  }, 30_000)
+}
+
+function cleanupPendingAssets(): void {
+  for (const [id, meta] of [...pendingAssetCleanup.entries()]) {
+    const stillUsed = d.value.categories.some(c => (c.assets || []).some(a => a.id === id))
+      || [d.value.resources, d.value.tasks, d.value.curiosities, d.value.argCards || []]
+        .some(list => list.some(c => (c.assets || []).some(a => a.id === id)))
+      || history.hasAssetReference(id)
+    if (stillUsed) continue
+    pendingAssetCleanup.delete(id)
+    void deleteAsset(id).catch(() => {})
+    void deleteCurationAsset(meta).catch(() => {})
+  }
+}
+
+async function queueAssetUpload(id: string, meta: AssetMeta): Promise<void> {
+  const blob = await getAssetBlob(meta.id)
+  if (!blob) {
+    meta.uploadState = 'local'
+    return
+  }
+  meta.uploadState = 'pending'
+  await uploadCurationAsset(meta, blob, { workspaceId: workspaceId.value, nodeId: nodeAssetOwnerId(id) })
+  store.persist()
+}
+
+async function retryNodeAsset(meta: AssetMeta): Promise<void> {
+  const ownerId = thesisCard.value?.assets?.some(a => a.id === meta.id)
+    ? 'root'
+    : d.value.categories.find(c => (c.assets || []).some(a => a.id === meta.id))?.id
+  if (!ownerId) { showToast('附件所属节点已不存在，请刷新后重试'); return }
+  let blob = await getAssetBlob(meta.id)
+  if (!blob && meta.storagePath) blob = await downloadCurationAsset(meta)
+  if (!blob) { showToast('附件本体缺失，无法重试上传'); return }
+  if (!(await getAssetBlob(meta.id))) await putAsset(meta.id, blob)
+  meta.uploadState = 'pending'
+  meta.lastError = undefined
+  store.persist()
+  const uploaded = await uploadCurationAsset(meta, blob, { workspaceId: workspaceId.value, nodeId: nodeAssetOwnerId(ownerId) })
+  store.persist()
+  showToast(uploaded.uploadState === 'synced'
+    ? '附件已同步到云端'
+    : uploaded.uploadState === 'local' ? '附件已保留在本机，开启附件云同步后可补传' : '附件重试上传失败，请稍后再试')
+}
+
+function saveNodeAssets(id: string, next: AssetMeta[]): void {
+  const owner = nodeAssetOwner(id)
+  if (!owner) return
+  const before = owner.assets || []
+  const beforeIds = new Set(before.map(a => a.id))
+  const nextIds = new Set(next.map(a => a.id))
+  const added = next.filter(a => !beforeIds.has(a.id))
+  const removed = before.filter(a => !nextIds.has(a.id))
+  if (!added.length && !removed.length) return
+  const label = added.length && removed.length ? '替换节点附件' : added.length ? '添加节点附件' : '删除节点附件'
+  history.record(label, () => {
+    owner.assets = next
+    store.persist()
+  })
+  for (const meta of added) void queueAssetUpload(id, meta)
+  scheduleRemovedAssetCleanup(removed)
+}
+
+async function downloadNodeAsset(meta: AssetMeta): Promise<Blob | null> {
+  return await downloadCurationAsset(meta)
+}
+
+async function ingestAssetFiles(id: string, input: File[]): Promise<void> {
+  const owner = nodeAssetOwner(id)
+  if (!owner || !input.length) return
+  const next = [...(owner.assets || [])]
+  let imageQuota = 9 - next.filter(a => a.kind === 'image').length
+  for (const file of input) {
+    const kind = guessAssetKind(file.name, file.type)
+    if (!kind) { showToast(`仅支持图片 / HTML / PDF：${file.name.slice(0, 24)}`); continue }
+    if (file.size > ASSET_KIND_MB[kind] * 1024 * 1024) {
+      showToast(`${file.name.slice(0, 24)} 超过 ${ASSET_KIND_MB[kind]}MB 上限`)
+      continue
+    }
+    if (kind === 'image' && imageQuota <= 0) {
+      showToast('图片数量已达上限 9 张')
+      continue
+    }
+    if (kind === 'html' || kind === 'pdf') {
+      const old = next.filter(a => a.kind === kind)
+      if (old.length) {
+        const ok = await useConfirm({
+          title: `替换 ${kind.toUpperCase()} 附件`,
+          message: '当前节点已有同类文件。继续会移除旧文件并上传新文件。',
+          confirmText: '替换',
+        })
+        if (!ok) continue
+        for (let i = next.length - 1; i >= 0; i -= 1) if (next[i].kind === kind) next.splice(i, 1)
+      }
+    }
+    if (kind === 'image') imageQuota -= 1
+    const assetId = uid('at')
+    try { await putAsset(assetId, file) } catch { showToast(`附件写入失败：${file.name.slice(0, 24)}`); continue }
+    next.push({
+      id: assetId,
+      kind,
+      name: file.name,
+      size: file.size,
+      mime: file.type || (kind === 'image' ? 'image/png' : kind === 'pdf' ? 'application/pdf' : 'text/html'),
+      createdAt: Date.now(),
+      uploadState: 'pending',
+    })
+  }
+  if (next.length) saveNodeAssets(id, next)
+  if (next.length !== (owner.assets || []).length) assetDrawerOpen.value = true
+}
+
+function onCanvasImagePaste(event: ClipboardEvent): void {
+  if (!workspace.value) return
+  const target = event.target as HTMLElement | null
+  const inCanvas = !!target?.closest('.mindmap-shell') || !!document.activeElement?.closest('.mindmap-shell')
+  if (!inCanvas) return
+  const data = event.clipboardData
+  const itemFiles = Array.from(data?.items || [])
+    .filter(item => item.kind === 'file')
+    .map(item => item.getAsFile())
+    .filter((file): file is File => !!file && file.type.startsWith('image/'))
+  const files = itemFiles.length
+    ? itemFiles
+    : Array.from(data?.files || []).filter(file => file.type.startsWith('image/'))
+  if (!files.length) return
+  event.preventDefault()
+  event.stopPropagation()
+  const now = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`
+  const extOf = (type: string) => type === 'image/jpeg' ? 'jpg' : type === 'image/gif' ? 'gif' : type === 'image/webp' ? 'webp' : 'png'
+  const named = files.map((file, index) => new File(
+    [file],
+    `粘贴图片_${stamp}_${String(index + 1).padStart(2, '0')}.${extOf(file.type)}`,
+    { type: file.type || 'image/png', lastModified: file.lastModified || Date.now() },
+  ))
+  void ingestAssetFiles(mind.selectedId.value || 'root', named)
+}
+
+async function retryCurationAssets(): Promise<void> {
+  try {
+    const changed = await retryPendingCurationAssets(d.value)
+    await retryPendingCurationAssetDeletes()
+    if (changed) store.persist()
+  } catch { /* 附件补传失败时保留本地状态，下一次联网再试 */ }
+}
+
+function resetCanvasHistory(event?: Event): void {
+  const workspaceIdToReset = (event as CustomEvent<{ workspaceId?: string }> | undefined)?.detail?.workspaceId
+  if (workspaceIdToReset) history.resetWorkspace(workspaceIdToReset)
+  else history.resetAll()
+}
 
 function openThesisCard(): void {
   if (thesisCard.value) thesisOpen.value = true
@@ -506,10 +722,12 @@ function openThesisCard(): void {
 function saveThesisCard(patch: { title: string; description: string }): void {
   const card = thesisCard.value
   if (!card) return
-  card.title = patch.title
-  card.description = patch.description
-  card.updatedAt = Date.now()
-  store.persist()
+  history.record('修改中心论点', () => {
+    card.title = patch.title
+    card.description = patch.description
+    card.updatedAt = Date.now()
+    store.persist()
+  })
   showToast('中心论点卡已保存')
 }
 
@@ -530,9 +748,11 @@ function onUnlinkThesis(card: ResourceCard): void {
     showToast('ℹ 这张资源卡已不在中心论点下')
     return
   }
-  live.categoryId = ''
-  live.updatedAt = Date.now()
-  store.persist()
+  history.record('解除中心论点资源', () => {
+    live.categoryId = ''
+    live.updatedAt = Date.now()
+    store.persist()
+  })
   showToast('已解除与中心论点的关联；资源卡仍在资源卡池')
 }
 
@@ -546,29 +766,63 @@ function onUnlinkResource(nodeId: string, card: ResourceCard): void {
     showToast('ℹ 这张资源卡已不在当前节点')
     return
   }
-  live.categoryId = ''
-  live.updatedAt = Date.now()
-  store.persist()
+  history.record('解除节点资源', () => {
+    live.categoryId = ''
+    live.updatedAt = Date.now()
+    store.persist()
+  })
   showToast('已解除节点关联；资源卡仍在资源卡池')
 }
 
 function onMindCreateChild(id: string): void {
-  mind.createChild(id)
+  history.record('创建子分支', () => mind.createChild(id))
 }
 
 function onMindCreateSibling(id: string): void {
-  mind.createSibling(id)
+  history.record('创建同级分支', () => mind.createSibling(id))
+}
+
+function onMindRename(node: Category, value: string): void {
+  history.record('修改分支标题', () => mind.renameNode(node, value))
+}
+
+function onMindDescription(node: Category, value: string): void {
+  history.record('修改分支说明', () => mind.updateDescription(node, value))
+}
+
+function onMindReorder(id: string, dir: -1 | 1): void {
+  history.record(dir < 0 ? '分支前移' : '分支后移', () => mind.reorderSibling(id, dir))
+}
+
+function onMindMove(source: string, target: string): void {
+  history.record('移动分支', () => mind.moveNode(source, target))
+}
+
+function onMindPaste(target: string): void {
+  history.record('粘贴分支', () => mind.pasteInto(target))
+}
+
+async function onMindRemove(id: string): Promise<void> {
+  await history.recordAsync('删除分支', () => mind.removeNode(id))
+}
+
+function onMindConfirmKeyboardMove(): void {
+  history.record('键盘移动分支', () => mind.confirmKeyboardMove())
 }
 
 function setThesisCard(r: ResourceCard) {
   if (isMirrorView(r)) { showToast('镜像卡不能作为本台中心论点——请先移出镜像或选台内卡'); return }
-  setThesis(d.value, workspaceId.value, r.id)
-  store.persist()
+  history.record('设置中心论点', () => {
+    setThesis(d.value, workspaceId.value, r.id)
+    store.persist()
+  })
   showToast(`「${r.title.slice(0, 16)}」已设为中心论点（金字塔 L1 根）`)
 }
 function unsetThesis() {
-  setThesis(d.value, workspaceId.value, null)
-  store.persist()
+  history.record('取消中心论点', () => {
+    setThesis(d.value, workspaceId.value, null)
+    store.persist()
+  })
   showToast('已取消中心论点')
 }
 /** R64-F12：点击空态 → 弹出新建抽屉（预置 isThesis），保存后自动落为 L1 根节点 */
@@ -613,7 +867,14 @@ const mind = useCurationMindMap({
   thesisCard,
   persist: () => store.persist(),
 })
-watch(workspaceId, () => mind.resetForWorkspace())
+const history = useCurationCanvasHistory({
+  d,
+  workspaceId,
+  thesisCard,
+  persist: () => store.persist(),
+})
+watch(workspaceId, (id) => { mind.resetForWorkspace(); history.switchWorkspace(id) })
+watch(history.historyRevision, cleanupPendingAssets)
 const shareCards = computed(() => allResources.value.filter(r => !r.isThesis))
 const categories = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value).sort((a,b) => a.order - b.order))
 function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean {
@@ -748,6 +1009,10 @@ const {
   linkAiBusy, linkAiHits, linkAiFed, linkAiTook, linkAiOn, linkAiScope, linkAiNote, linkAiRun, linkShowList, linkAiHitOf,
 } = usePyramid({ store, d, workspaceId, thesisCard, mind })
 
+function onConfirmLinkCards(): void {
+  history.record('关联资源卡', () => confirmLinkCards())
+}
+
 // ===== 页头导入菜单 =====
 const importMenuOpen = ref(false)
 function closeImportMenu() { importMenuOpen.value = false }
@@ -758,6 +1023,16 @@ function toggleImportMenu() {
 function importShareHtmlFromMenu() {
   closeImportMenu()
   openShareHtmlImport()
+}
+
+function importShareAsNew(): void {
+  const id = confirmNewShareImport()
+  if (id) history.reset()
+}
+
+function importShareAsMerge(): void {
+  const id = confirmMergeShareImport()
+  if (id) history.reset()
 }
 function importPyramidTemplateFromMenu() {
   closeImportMenu()
@@ -782,6 +1057,10 @@ onMounted(() => {
   document.addEventListener('click', closeSettingsMenu)
   document.addEventListener('click', closeImportMenu)
   document.addEventListener('visibilitychange', onWsOpenVisibility)
+  document.addEventListener('paste', onCanvasImagePaste, true)
+  window.addEventListener('zy:curation-history-reset', resetCanvasHistory)
+  window.addEventListener('online', retryCurationAssets)
+  void retryCurationAssets()
 })
 // R112：同时补一次热度落盘（组件真正卸载时，节流中的待写数据不能丢）
 onUnmounted(() => {
@@ -790,6 +1069,9 @@ onUnmounted(() => {
   document.removeEventListener('click', closeSettingsMenu)
   document.removeEventListener('click', closeImportMenu)
   document.removeEventListener('visibilitychange', onWsOpenVisibility)
+  document.removeEventListener('paste', onCanvasImagePaste, true)
+  window.removeEventListener('zy:curation-history-reset', resetCanvasHistory)
+  window.removeEventListener('online', retryCurationAssets)
 })
 
 // ===== 设置菜单关闭 + 采集跳转高亮 =====

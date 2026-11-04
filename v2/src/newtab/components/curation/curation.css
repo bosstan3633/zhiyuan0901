@@ -78,6 +78,14 @@
 }
 .mindmap-layout button:hover { color: var(--text); background: var(--surface); }
 .mindmap-layout button.on { color: var(--accent-ink); background: var(--surface); box-shadow: var(--shadow-sm); }
+.mindmap-history { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.mindmap-history button {
+  min-height: 28px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer;
+  font: inherit; font-size: var(--fs-caption);
+}
+.mindmap-history button:hover:not(:disabled) { color: var(--text); background: var(--surface); }
+.mindmap-history button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .mindmap-selection {
   display: flex;
   align-items: center;
@@ -211,6 +219,10 @@
 .mind-head-action.danger:hover:not(:disabled) { background: var(--danger-bg-soft); color: var(--danger); }
 .mind-head-action:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .mind-head-action:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+.mind-asset-count {
+  min-width: 12px; height: 12px; margin-left: 1px; padding: 0 3px; border-radius: 999px;
+  background: var(--accent-light); color: var(--accent-ink); font-size: 8px; line-height: 12px;
+}
 .mind-drag {
   width: 28px;
   height: 28px;

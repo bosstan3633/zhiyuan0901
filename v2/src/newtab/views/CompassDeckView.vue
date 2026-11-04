@@ -5,27 +5,33 @@ import Icon from '@/shared/components/Icon.vue'
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
+import InboxPanel from '../components/compass/InboxPanel.vue'
 
 defineOptions({ name: 'CompassDeckView' })
 
-type DeckKind = 'task' | 'curiosity' | 'resource'
+type DeckKind = 'task' | 'curiosity' | 'resource' | 'inbox'
 
 const route = useRoute()
 const router = useRouter()
 const taskPanel = ref<InstanceType<typeof TaskManagerPanel> | null>(null)
 const curiosityPanel = ref<InstanceType<typeof CuriosityPanel> | null>(null)
 const resourcePanel = ref<InstanceType<typeof PoolCardsPanel> | null>(null)
+const inboxPanel = ref<InstanceType<typeof InboxPanel> | null>(null)
 
 const kind = computed<DeckKind>(() => {
   const raw = String(route.params.kind || '')
-  return raw === 'curiosity' || raw === 'resource' ? raw : 'task'
+  return raw === 'curiosity' || raw === 'resource' || raw === 'inbox' ? raw : 'task'
 })
-const title = computed(() => kind.value === 'task' ? '任务卡 · 全部' : kind.value === 'curiosity' ? '好奇心卡 · 全部' : '资源卡 · 全部')
+const title = computed(() =>
+  kind.value === 'task' ? '任务卡 · 全部'
+    : kind.value === 'curiosity' ? '好奇心卡 · 全部'
+      : kind.value === 'resource' ? '资源卡 · 全部' : 'Inbox · 全部采集')
 /** V3.9.22：可见标题块退役；保留一份读屏标题，tab 成为页头唯一导航。 */
 const DECK_TABS: { kind: DeckKind; label: string }[] = [
   { kind: 'task', label: '任务卡' },
   { kind: 'curiosity', label: '好奇心卡' },
   { kind: 'resource', label: '资源卡' },
+  { kind: 'inbox', label: 'Inbox' },
 ]
 /** ★V3.9.7：二级卡池允许在任务 / 好奇心 / 资源之间直接切换。
  *  仍以路由作为唯一状态源：切换 push 新 URL，浏览器返回键自然回到各自类型，
@@ -67,7 +73,8 @@ watch(
     await nextTick()
     if (k === 'task') await taskPanel.value?.resetForFresh()
     else if (k === 'curiosity') await curiosityPanel.value?.resetForFresh()
-    else await resourcePanel.value?.resetForFresh()
+    else if (k === 'resource') await resourcePanel.value?.resetForFresh()
+    else await inboxPanel.value?.refresh(true)
   },
   { immediate: true, flush: 'post' }
 )
@@ -89,7 +96,8 @@ watch(
     <section class="deck-body">
       <TaskManagerPanel v-if="kind === 'task'" ref="taskPanel" secondary-mode />
       <CuriosityPanel v-else-if="kind === 'curiosity'" ref="curiosityPanel" secondary-mode />
-      <PoolCardsPanel v-else ref="resourcePanel" secondary-mode />
+      <PoolCardsPanel v-else-if="kind === 'resource'" ref="resourcePanel" secondary-mode />
+      <InboxPanel v-else ref="inboxPanel" />
     </section>
   </div>
 </template>

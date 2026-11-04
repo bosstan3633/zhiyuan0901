@@ -46,7 +46,7 @@ const conflictBody = computed(() => {
   if (conflictRelation.value === 'remote_changed') return '云端出现了本机没有的新内容。建议拉回云端；若本机这次修改更重要，也可以覆盖云端。'
   if (conflictRelation.value === 'both_changed') return '两端都相对上次同步发生过改动。请先明确保留哪一端，未选中的一端会被覆盖。'
   if (conflictRelation.value === 'unknown') return '这个版本首次加入内容指纹基线，暂时无法判断哪一端更新。请确认要保留本机还是云端。'
-  return '请明确选择保留哪一端。附件本体和 AI 凭据不会进入云端。'
+  return '请明确选择保留哪一端。普通卡片附件和 AI 凭据不会进入云端；策展节点附件会使用你的私有 Storage。'
 })
 const downloadLabel = computed(() => conflictRelation.value === 'remote_changed' ? '拉回云端新增' : '用云端覆盖本机')
 const lastSyncCompact = computed(() => {

@@ -8,6 +8,7 @@
  */
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { showToast } from '@/shared/components/toast'
+import { useConfirm } from '@/shared/components/confirm'
 import { uid } from '@/shared/utils'
 import type { CatIndex } from '@/shared/utils/catIndex'
 import { MAX_CAT_LEVEL } from '@/shared/utils/catTree'
@@ -382,21 +383,25 @@ export function useCurationMindMap(ctx: CurationMindMapCtx) {
     }
     const node = wsCats.value.find(c => c.id === id)
     if (!node) return false
-    const children = childrenOf(id)
-    if (children.length) {
-      showToast(`「${node.name || '未命名分支'}」下还有 ${children.length} 个子分支，请先移走或删除子分支`)
-      return false
+    const descendantIds = catIdx.value.descendants(id)
+    const subtreeIds = new Set([id, ...descendantIds])
+    const subtreeCats = wsCats.value.filter(c => subtreeIds.has(c.id))
+    const cardCount = subtreeCats.reduce((sum, c) => sum + (cardsByCat.value.get(c.id)?.length || 0), 0)
+    if ((descendantIds.length || cardCount) && !(await useConfirm({
+      title: '删除分支子树',
+      message: `删除「${node.name || '未命名分支'}」会同时隐藏其下 ${descendantIds.length} 个子分支${cardCount ? ` 与 ${cardCount} 张关联资源卡` : ''}。\n附件和分支会保留在回收站，恢复后一起回来。`,
+      confirmText: '移入回收站',
+    }))) return false
+    const now = Date.now()
+    const batchId = uid('del')
+    for (const cat of subtreeCats) {
+      cat.deletedAt = now
+      cat.deletionBatchId = batchId
     }
-    const n = cardsByCat.value.get(id)?.length || 0
-    if (n) {
-      showToast(`「${node.name || '未命名分支'}」下还关联着 ${n} 张资源卡，请先在资源卡详情中解除关联`)
-      return false
-    }
-    node.deletedAt = Date.now()
     normalizeSiblings(node.parentId)
     if (selectedId.value === id) selectedId.value = node.parentId || 'root'
     persist()
-    showToast(`已删除分支「${node.name || '未命名分支'}」`)
+    showToast(`已移入回收站「${node.name || '未命名分支'}」${descendantIds.length ? `及 ${descendantIds.length} 个子分支` : ''}`)
     return true
   }
 
