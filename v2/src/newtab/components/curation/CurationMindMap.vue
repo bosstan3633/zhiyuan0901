@@ -11,6 +11,7 @@ import CurationAssetStrip from './CurationAssetStrip.vue'
 import { setOverlayFsHost } from '@/shared/utils/overlayHost'
 import type { Category, ResourceCard } from '@/shared/models'
 import type { CurationCanvasLayout } from '@/newtab/composables/useCurationMindMap'
+import type { CurationHistoryEntry } from '@/newtab/composables/useCurationCanvasHistory'
 
 const props = defineProps<{
   layout: CurationCanvasLayout
@@ -39,6 +40,8 @@ const props = defineProps<{
   canRedo: boolean
   undoLabel: string
   redoLabel: string
+  historyEntries: CurationHistoryEntry[]
+  currentHistoryId: string
   remoteDownloader?: (meta: import('@/shared/models').AssetMeta) => Promise<Blob | null>
 }>()
 
@@ -74,6 +77,7 @@ const emit = defineEmits<{
   'update:fullscreen': [payload: { on: boolean; fallback: boolean }]
   undo: []
   redo: []
+  'open-history': []
 }>()
 
 const dragSource = ref('')
@@ -447,6 +451,10 @@ onBeforeUnmount(() => {
         </button>
         <button type="button" :disabled="!canRedo" :title="canRedo ? `重做：${redoLabel}` : '没有可重做的操作'" @click="emit('redo')">
           下一步 <Icon name="arrowright" :size="12"/>
+        </button>
+        <button type="button" class="mindmap-log-trigger"
+          :title="`查看画布操作记录（本台 ${historyEntries.length} 条）`" @click="emit('open-history')">
+          <Icon name="clock" :size="12"/> 操作记录
         </button>
       </div>
       <div class="mindmap-selection" :class="{ muted: selectedId === 'root' }" aria-live="polite">

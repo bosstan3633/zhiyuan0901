@@ -317,6 +317,7 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
   const downloaded = await sync.downloadNow()
   const localAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
   const localCategoryAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
+  const localCurationAssetsByOwner = new Map<string, import('@/shared/models').AssetMeta[]>()
   for (const cards of [
     store.data.resources,
     store.data.tasks,
@@ -325,10 +326,15 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
   ]) {
     for (const card of cards || []) {
       if (card.assets?.length) localAssets.set(card.id, card.assets)
+      if ('isThesis' in card && card.isThesis && card.assets?.length) {
+        localCurationAssetsByOwner.set(card.id, card.assets)
+      }
     }
   }
   for (const category of store.data.categories || []) {
-    if (category.assets?.length) localCategoryAssets.set(category.id, category.assets)
+    if (!category.assets?.length) continue
+    localCategoryAssets.set(category.id, category.assets)
+    localCurationAssetsByOwner.set(category.id, category.assets)
   }
   const nextData = downloaded.state.data
   const mergeAssetMeta = (
@@ -378,6 +384,15 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
     for (const asset of local) if (!nextIds.has(asset.id)) staleCurationAssets.set(asset.id, asset)
     category.assets = authoritativeCurationAssets(category.assets, local)
   }
+  // 节点已彻底删除（远端连 owner 都不存在）时，本机旧附件也必须进入清理路径。
+  const remoteOwnerIds = new Set([
+    ...(nextData.resources || []).map(card => card.id),
+    ...(nextData.categories || []).map(category => category.id),
+  ])
+  for (const [ownerId, assets] of localCurationAssetsByOwner) {
+    if (remoteOwnerIds.has(ownerId)) continue
+    for (const asset of assets) staleCurationAssets.set(asset.id, asset)
+  }
   await repository.cloudRestoreAtomic({
     nextData,
     nextUi: downloaded.state.ui,
@@ -396,8 +411,10 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
     collect(nextData.argCards)
     collect(nextData.categories)
     const { deleteAsset } = await import('@/shared/storage/assets')
-    for (const id of staleCurationAssets.keys()) {
-      if (!retained.has(id)) await deleteAsset(id).catch(() => {})
+    for (const [id, asset] of staleCurationAssets) {
+      if (retained.has(id)) continue
+      await deleteAsset(id).catch(() => {})
+      await sync.deleteCurationAsset(asset).catch(() => {})
     }
   }
   await sync.markDownloaded(downloaded.revision, downloaded.fingerprint, downloaded.manifest)
@@ -561,7 +578,7 @@ async function loadSyncDetails(store: AppStore): Promise<CloudSyncDetails> {
     meta.value = current
     return {
       localManifest: current?.localManifest || null,
-      currentLocalManifest: sync.buildSyncManifest(captured.snapshot, current?.revision || 0),
+      currentLocalManifest: result.localManifest || sync.buildSyncManifest(captured.snapshot, current?.revision || 0),
       remoteManifest: result.remoteManifest || current?.remoteManifest || null,
       remoteRevision: result.remoteRevision,
       remoteUpdatedAt: result.remoteUpdatedAt,

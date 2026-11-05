@@ -41,11 +41,17 @@ check('R106-3 F4 镜像卡三键：单击只读详情（表单禁交互+只读�
     && WSP106.includes("router.push('/')") && WSP106.includes('↗ 源卡在资源卡池 · ')
     && WSP106.includes("if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); locateMirrorSourceCard() }");
 });
-check('R106-4 F7 一键清理本台镜像卡：只删投射（源卡保留）+ 确认框报数 + 仅策展台入口', () => {
+check('R106-4（V4.1.2 重指）一键清理本台镜像卡：只删投射（源卡保留）+ 确认框报数；台数据菜单与台签右键均可达', () => {
+  const app = read('/newtab/App.vue');
+  const deckData = read('/shared/utils/deckData.ts');
   return WSP106.includes('async function cleanAllMirrors()')
     && WSP106.includes("if (pp.targetWsId === workspaceId.value && removeProjection(d.value, pp.id)) removed++")
-    && WSP106.includes('<Icon name="broom" :size="13"/> 清理本台镜像卡')
-    && WSP106.includes("confirmText: '确认清理'");
+    && WSP106.includes('<b>清理本台镜像卡</b>')
+    && WSP106.includes("confirmText: '确认清理'")
+    && app.includes('cleanDeckMirrorsFromTab')
+    && app.includes('<Icon name="broom" :size="13"/> 清理本台镜像卡')
+    && deckData.includes('export function cleanWorkspaceMirrors')
+    && deckData.includes('removeProjection(data, projection.id)');
 });
 check('R106-5 F5 性能（R128-A1 升级）：content 数据源改走 repository 缓存（TTL 手工缓存与裸 storage 读写退役，新鲜度由仓库统一保活）', () => {
   return OV106.includes("from '@/shared/storage/repository'") && OV106.includes('repoSubscribe(')

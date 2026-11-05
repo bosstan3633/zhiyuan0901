@@ -5,7 +5,7 @@
  */
 import type { AppData, UIPrefs, AssetMeta } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
-import type { CardEvent } from '@/shared/utils/eventLog'
+import { mergeEventLogs, mergeImportedEventLog, type CardEvent } from '@/shared/utils/eventLog'
 import { cloudEnv, cloud, type CloudEnv, setCloudEnvOverride } from './client'
 import { K, LOCAL_KEYS } from '@/shared/storage/keys'
 import { getAssetBlob } from '@/shared/storage/assets'
@@ -41,6 +41,8 @@ export interface SyncManifestRecord {
   updatedAt?: number
   deleted?: boolean
   digest: string
+  /** 少量可读事实；事件详情使用，不保存完整业务对象。 */
+  meta?: Record<string, string | number | boolean>
 }
 export interface SyncManifestCounts {
   workspaces: number
@@ -235,6 +237,7 @@ function manifestRecord(
   raw: unknown,
   updatedAt?: number,
   deleted?: boolean,
+  meta?: Record<string, string | number | boolean>,
 ): SyncManifestRecord {
   return {
     key: `${type}:${id}`,
@@ -244,6 +247,7 @@ function manifestRecord(
     updatedAt: Number.isFinite(updatedAt) ? updatedAt : undefined,
     deleted: deleted || undefined,
     digest: fallbackHash(stableStringify(raw)),
+    ...(meta ? { meta } : {}),
   }
 }
 
@@ -310,7 +314,21 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
     add(manifestRecord('dailyFocus', date, `今日三件事 · ${date}`, slots))
   }
   clean.eventLog.forEach((event, index) => {
-    add(manifestRecord('event', event.id || `${event.ts}-${index}`, `${event.title || event.cardId} · ${event.action}`, event, event.ts))
+    add(manifestRecord(
+      'event',
+      event.id || `${event.ts}-${index}`,
+      `${event.title || event.cardId} · ${event.action}`,
+      event,
+      event.ts,
+      false,
+      {
+        action: event.action,
+        cardKind: event.kind,
+        cardId: event.cardId || '',
+        deviceId: event.deviceId || 'legacy',
+        ...(event.to ? { to: event.to } : {}),
+      },
+    ))
   })
   if (clean.ui) add(manifestRecord('preference', 'ui', '界面与偏好', clean.ui))
 
@@ -351,7 +369,8 @@ export function diffSyncManifests(local: SyncManifest | null, remote: SyncManife
 /** 对干净快照做内容指纹；只排除附件本体/凭据等不进云内容，不依赖 revision。 */
 export async function fingerprintSnapshot(snapshot: SnapshotState): Promise<string> {
   const clean = sanitizeSnapshot(snapshot.data, snapshot.ui, snapshot.eventLog)
-  const input = stableStringify(clean)
+  // 事件是账号级旁路真源，不应让不同设备的本地事件窗口制造业务数据冲突。
+  const input = stableStringify({ data: clean.data, ui: clean.ui })
   try {
     if (globalThis.crypto?.subtle) {
       const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
@@ -369,6 +388,96 @@ async function accessToken(env: CloudEnv, meta: CloudMeta, force = false): Promi
   if (r.refresh_token && r.refresh_token !== meta.refreshToken) await writeMeta({ refreshToken: r.refresh_token })
   tokenCache = { accessToken: r.access_token, exp: now + 55 * 60_000 }
   return r.access_token
+}
+
+const ACCOUNT_EVENT_EPOCH = '1970-01-01T00:00:00.000Z'
+
+function readAccountEventCursors(): Record<string, string> {
+  try {
+    const raw = globalThis.localStorage?.getItem(LOCAL_KEYS.ACCOUNT_EVENT_CURSOR)
+    const parsed = raw ? JSON.parse(raw) as Record<string, unknown> : {}
+    return parsed && typeof parsed === 'object' ? Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) => typeof value === 'string'),
+    ) as Record<string, string> : {}
+  } catch {
+    return {}
+  }
+}
+
+function accountEventCursor(userId: string): string {
+  return readAccountEventCursors()[userId] || ACCOUNT_EVENT_EPOCH
+}
+
+function writeAccountEventCursor(userId: string, cursor: string): void {
+  try {
+    const rows = readAccountEventCursors()
+    rows[userId] = cursor
+    globalThis.localStorage?.setItem(LOCAL_KEYS.ACCOUNT_EVENT_CURSOR, JSON.stringify(rows))
+  } catch { /* 游标失败只会导致下次重叠读取，按事件 ID 去重仍安全 */ }
+}
+
+function accountEventRow(event: CardEvent) {
+  return {
+    id: event.id,
+    device_id: event.deviceId || 'legacy',
+    event_ts: new Date(event.ts || Date.now()).toISOString(),
+    action: event.action,
+    card_kind: event.kind,
+    card_id: event.cardId || null,
+    title_snapshot: (event.title || '').slice(0, 500),
+    to_state: event.to || null,
+    payload: event.to ? { to: event.to } : {},
+  }
+}
+
+/**
+ * 账号级事件收敛：
+ * 1. 本机事件按全局 ID 幂等上传；
+ * 2. 从账号游标补拉其他设备事件；
+ * 3. 返回本地 + 远端并集。
+ * 事件表尚未迁移时回退 snapshot 内事件，绝不让主数据同步整体失败。
+ */
+export async function reconcileAccountEvents(localEvents: CardEvent[]): Promise<CardEvent[]> {
+  const fallback = mergeEventLogs(localEvents)
+  try {
+    const env = await cloudEnv()
+    const meta = await readMeta()
+    if (!env || !meta?.refreshToken) return fallback
+    const token = await accessToken(env, meta)
+    if (localEvents.length) {
+      await cloud.upsertAccountEvents(env, token, meta.userId, localEvents.map(accountEventRow))
+    }
+    const remote: CardEvent[] = []
+    const cursor = accountEventCursor(meta.userId)
+    let offset = 0
+    let maxCreatedAt = cursor
+    const PAGE_SIZE = 1000
+    while (true) {
+      const rows = await cloud.listAccountEvents(env, token, cursor, offset, PAGE_SIZE)
+      if (!rows.length) break
+      for (const row of rows) {
+        remote.push({
+          id: row.id,
+          ts: Date.parse(row.event_ts) || Date.now(),
+          action: row.action,
+          kind: row.card_kind,
+          title: row.title_snapshot || '（无标题）',
+          cardId: row.card_id || '',
+          ...(row.to_state ? { to: row.to_state } : {}),
+          deviceId: row.device_id || 'legacy',
+        })
+        if (row.created_at > maxCreatedAt) maxCreatedAt = row.created_at
+      }
+      if (rows.length < PAGE_SIZE) break
+      offset += rows.length
+    }
+    if (maxCreatedAt !== cursor) writeAccountEventCursor(meta.userId, maxCreatedAt)
+    const merged = mergeEventLogs(localEvents, remote)
+    await mergeImportedEventLog(merged)
+    return merged
+  } catch {
+    return fallback
+  }
 }
 
 export async function login(email: string, password: string): Promise<CloudMeta> {
@@ -408,11 +517,12 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
     ui: remoteState.ui || null,
     eventLog: remoteState.eventLog || [],
   })
-  const localManifest = buildSyncManifest(localSnapshot, meta.revision || 0, localFingerprint)
+  const accountEvents = await reconcileAccountEvents(mergeEventLogs(localSnapshot.eventLog, remoteState.eventLog || []))
+  const localManifest = buildSyncManifest({ ...localSnapshot, eventLog: accountEvents }, meta.revision || 0, localFingerprint)
   const remoteManifest = buildSyncManifest({
     data: remoteState.data,
     ui: remoteState.ui || null,
-    eventLog: remoteState.eventLog || [],
+    eventLog: accountEvents,
   }, rem.revision, remoteFingerprint)
   // 只有完整读取并验证成功后才记录检查时间，格式异常不能留下“已检查”的假信号。
   await writeMeta({ lastCheckedAt: Date.now(), remoteManifest, remoteManifestCachedAt: Date.now() })
@@ -459,6 +569,9 @@ export async function uploadNow(
   const localRevision = meta.revision || 0
   let initialApproval = approvedRemoteRevision
 
+  // 先补传本机离线事件并拉回账号已有事件；事件表异常时自动退回 snapshot 内事件。
+  clean.eventLog = await reconcileAccountEvents(clean.eventLog)
+
   for (let attempt = 0; attempt <= REVISION_CONFLICT_MAX_RETRIES; attempt += 1) {
     const rows = await cloud.getSnapshot(env, token, meta.userId)
     const remote = rows[0]
@@ -475,6 +588,11 @@ export async function uploadNow(
         remoteManifestCachedAt: Date.now(),
       })
       return { kind: 'uploaded', revision: rev, fingerprint }
+    }
+
+    const remoteState = remote.state as SnapshotState | null
+    if (remoteState?.eventLog?.length) {
+      clean.eventLog = await reconcileAccountEvents(mergeEventLogs(clean.eventLog, remoteState.eventLog))
     }
 
     // 用户在前面“检查关系”里已经明确选了上传时，只允许初检修订直接续用一次。
@@ -516,6 +634,8 @@ export async function downloadNow(): Promise<{ state: SnapshotState; revision: n
   if (!st || !st.data || st.data.version !== 2) throw new Error('云端快照格式不兼容')
   // 旧云快照可能仍带 Airtable 凭据/映射或本机写锁；恢复到本机前走与上传同一条脱敏边界。
   const safe = sanitizeSnapshot(st.data, st.ui || null, st.eventLog || [])
+  const localEventLog = await import('@/shared/utils/eventLog').then(module => module.readEventLog())
+  safe.eventLog = await reconcileAccountEvents(mergeEventLogs(localEventLog, safe.eventLog))
   const fingerprint = await fingerprintSnapshot(safe)
   return {
     state: safe,
@@ -779,11 +899,27 @@ export async function dismissCapture(id: string): Promise<void> {
   await cloud.dismissCapture(env, token, id)
 }
 
+export async function dismissCaptures(ids: string[]): Promise<void> {
+  if (!ids.length) return
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
+  const token = await accessToken(env, meta)
+  await cloud.dismissCaptures(env, token, ids)
+}
+
 export async function restoreCapture(id: string): Promise<void> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
   await cloud.restoreCapture(env, token, id)
+}
+
+export async function restoreCaptures(ids: string[]): Promise<void> {
+  if (!ids.length) return
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
+  const token = await accessToken(env, meta)
+  await cloud.restoreCaptures(env, token, ids)
 }
 
 export async function consumeCapture(id: string): Promise<void> {

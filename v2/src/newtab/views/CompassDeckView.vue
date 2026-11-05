@@ -6,6 +6,7 @@ import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
 import InboxPanel from '../components/compass/InboxPanel.vue'
+import InboxCountBadge from '../components/compass/InboxCountBadge.vue'
 import { useInbox } from '@/newtab/composables/useInbox'
 
 defineOptions({ name: 'CompassDeckView' })
@@ -92,7 +93,7 @@ watch(
         <button v-for="tab in DECK_TABS" :key="tab.kind" type="button" role="tab"
           :class="{ on: kind === tab.kind }" :aria-selected="kind === tab.kind"
           @click="switchKind(tab.kind)">
-          {{ tab.label }}<span v-if="tab.kind === 'inbox'" class="deck-inbox-count" :class="{ muted: !inbox.untransformedCount.value }">{{ inbox.untransformedCount.value }}</span>
+          {{ tab.label }}<InboxCountBadge v-if="tab.kind === 'inbox'" :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
         </button>
       </div>
     </header>
@@ -132,8 +133,6 @@ watch(
 }
 .deck-kind-seg button:hover { color: var(--text); background: var(--surface); }
 .deck-kind-seg button.on { color: var(--accent-ink); background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--border)); }
-.deck-inbox-count { min-width: 16px; height: 16px; display: inline-grid; place-items: center; margin-left: 5px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 9px; line-height: 16px; }
-.deck-inbox-count.muted { background: var(--surface-3); color: var(--text-3); }
 .deck-body { min-height: 320px; }
 .deck-body :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
 .deck-body :deep(.module-title) { display: none; }

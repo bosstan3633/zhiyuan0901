@@ -3,12 +3,13 @@
  * 台元信息域 composable——台名/图标/描述编辑、⚙ 菜单动作（重命名/描述/导出/删除）。
  * 实现自 views/Workspace.vue 原位迁出、零行为变更；标识符经解构保留原绑定——模板零改动。
  */
-import { ref, computed, type ComputedRef, type Ref } from 'vue'
+import { ref, computed, type ComputedRef } from 'vue'
 import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { CURATION_WS_ID, type AppData, type Workspace } from '@/shared/models'
 import { wsDisplayNameOf, wsNameWithIcon } from '@/shared/utils/wsName'
+import { buildWorkspaceExportData, workspaceFileName } from '@/shared/utils/deckData'
 // R146（回退契约）：删除策展台走真源（卡与分类软删 + 3 秒整台撤销）
 import { deckCardCount, deleteDeck, restoreDeck } from '@/shared/utils/compassCrud'
 import { DECK_DELETE_UNDO_WINDOW_MS } from '@/shared/utils/undo'
@@ -19,12 +20,11 @@ export interface WsMetaCtx {
   workspaceId: ComputedRef<string>
   workspace: ComputedRef<Workspace | undefined>
   router: Router
-  settingsMenuOpen: Ref<boolean>
   openInputModal: (title: string, value: string, cb: (v: string) => void) => void
 }
 
 export function useWsMeta(ctx: WsMetaCtx) {
-  const { store, d, workspaceId, workspace, router, settingsMenuOpen, openInputModal } = ctx
+  const { store, d, workspaceId, workspace, router, openInputModal } = ctx
 
   /** B32：名称展示统一剥离 icon 前缀（R129-B12：仅当确有 icon 且前缀匹配时才剥） */
   const wsDisplayName = computed(() => wsDisplayNameOf(workspace.value))
@@ -71,7 +71,6 @@ export function useWsMeta(ctx: WsMetaCtx) {
   function onDescEnter(e: KeyboardEvent) { (e.target as HTMLElement).blur() }
   function renameWs() {
     const current = wsDisplayNameOf(workspace.value)
-    settingsMenuOpen.value = false
     openInputModal('✏️ 重命名策展台', current, (v) => {
       if (!workspace.value) return
       workspace.value.name = wsNameWithIcon(workspace.value.icon, v)
@@ -80,7 +79,6 @@ export function useWsMeta(ctx: WsMetaCtx) {
     })
   }
   function editDesc() {
-    settingsMenuOpen.value = false
     openInputModal('📝 编辑策展台描述', workspace.value?.desc || '', (v) => {
       if (!workspace.value) return
       workspace.value.desc = v
@@ -97,21 +95,13 @@ export function useWsMeta(ctx: WsMetaCtx) {
     // 现为 ...d 全量展开（全局段随行）+ 策展台段按当前台过滤；导出物可直接走「导入数据」并集合并。
     // 剥离云端凭据——导出物会被分享/传网盘。
     // 与设置页「导出数据」同口径：数据可带走，凭证不随行。
-    const rootForExport = { ...d.value } as Record<string, unknown>
-    delete rootForExport.airtableSync
-    const data = JSON.parse(JSON.stringify({
-      ...rootForExport,
-      workspaces: [ws],
-      categories: d.value.categories.filter(c => c.workspaceId === wsId),
-      resources: d.value.resources.filter(r => r.workspaceId === wsId)
-    }))
+    const data = buildWorkspaceExportData(d.value, wsId)
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `${ws.name}_数据.json`
+    a.href = url; a.download = workspaceFileName(ws)
     a.click(); URL.revokeObjectURL(url)
     showToast('✓ 策展台数据已导出（含标签树/罗盘/任务/好奇心等全局段）')
-    settingsMenuOpen.value = false
   }
   async function deleteWorkspace() {
     // R58-B1：资源台是全局策展空间，不可从此入口删除

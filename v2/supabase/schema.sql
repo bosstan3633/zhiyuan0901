@@ -1,7 +1,7 @@
--- 知源 · Supabase 云同步初始化脚本（v4.1.0）
+-- 知源 · Supabase 云同步初始化脚本（v4.1.2）
 -- 在 Supabase SQL Editor 中执行一次即可（幂等，可重复执行）。
--- 目标：云快照、移动端 Inbox、策展节点私有附件 Storage。
--- 安全：两表启用 RLS，仅 authenticated 且 auth.uid() = user_id；
+-- 目标：云快照、移动端 Inbox、账号级操作事件、策展节点私有附件 Storage。
+-- 安全：三表启用 RLS，仅 authenticated 且 auth.uid() = user_id；
 --       anon 角色无任何权限。严禁将 service-role key 放进客户端。
 
 -- ============ 1. 云快照 ============
@@ -20,7 +20,7 @@ alter table public.cloud_snapshots add column if not exists updated_at timestamp
 
 -- 通用 updated_at 触发器
 create or replace function public.zy_touch_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = pg_catalog, public as $$
 begin
   new.updated_at = now();
   return new;
@@ -33,7 +33,7 @@ for each row execute function public.zy_touch_updated_at();
 
 -- revision 单调递增（客户端乐观锁 PATCH 的备份保障）
 create or replace function public.zy_bump_snapshot_revision()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = pg_catalog, public as $$
 begin
   new.revision = old.revision + 1;
   return new;
@@ -48,13 +48,13 @@ alter table public.cloud_snapshots enable row level security;
 
 drop policy if exists zy_cloud_snapshots_select on public.cloud_snapshots;
 create policy zy_cloud_snapshots_select on public.cloud_snapshots
-  for select to authenticated using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 drop policy if exists zy_cloud_snapshots_insert on public.cloud_snapshots;
 create policy zy_cloud_snapshots_insert on public.cloud_snapshots
-  for insert to authenticated with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 drop policy if exists zy_cloud_snapshots_update on public.cloud_snapshots;
 create policy zy_cloud_snapshots_update on public.cloud_snapshots
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 revoke all on public.cloud_snapshots from anon;
 
@@ -117,17 +117,55 @@ alter table public.capture_inbox enable row level security;
 
 drop policy if exists zy_capture_inbox_select on public.capture_inbox;
 create policy zy_capture_inbox_select on public.capture_inbox
-  for select to authenticated using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 drop policy if exists zy_capture_inbox_insert on public.capture_inbox;
 create policy zy_capture_inbox_insert on public.capture_inbox
-  for insert to authenticated with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 drop policy if exists zy_capture_inbox_update on public.capture_inbox;
 create policy zy_capture_inbox_update on public.capture_inbox
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 revoke all on public.capture_inbox from anon;
 
--- ============ 3. 策展节点附件私有 Storage ============
+-- ============ 3. 账号级操作事件 ============
+-- 事件 ID 由客户端设备 ID + 时间戳 + 序号生成；服务端只做幂等收编，不重写事件时间。
+create table if not exists public.account_events (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  id text not null,
+  device_id text not null default 'legacy',
+  event_ts timestamptz not null,
+  action text not null check (action in ('create', 'delete', 'restore', 'purge', 'status', 'call')),
+  card_kind text not null check (card_kind in ('resource', 'task', 'curiosity', 'system')),
+  card_id text,
+  title_snapshot text not null default '',
+  to_state text,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+
+create index if not exists account_events_user_time
+  on public.account_events (user_id, event_ts desc);
+create index if not exists account_events_user_created
+  on public.account_events (user_id, created_at);
+
+alter table public.account_events enable row level security;
+
+drop policy if exists zy_account_events_select on public.account_events;
+create policy zy_account_events_select on public.account_events
+  for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists zy_account_events_insert on public.account_events;
+create policy zy_account_events_insert on public.account_events
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists zy_account_events_update on public.account_events;
+create policy zy_account_events_update on public.account_events
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+revoke all on public.account_events from anon;
+
+-- ============ 4. 策展节点附件私有 Storage ============
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('curation-assets', 'curation-assets', false, 52428800)
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit;

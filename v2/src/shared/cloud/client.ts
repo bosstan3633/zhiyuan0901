@@ -123,6 +123,58 @@ export const cloud = {
       env, `/rest/v1/cloud_snapshots?user_id=eq.${encodeURIComponent(userId)}&revision=eq.${expectedRevision}`,
       { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ state }) }, token),
 
+  // ---- 账号级操作事件 ----
+  upsertAccountEvents: async (
+    env: CloudEnv,
+    token: string,
+    userId: string,
+    rows: {
+      id: string
+      device_id: string
+      event_ts: string
+      action: string
+      card_kind: string
+      card_id: string | null
+      title_snapshot: string
+      to_state: string | null
+      payload: Record<string, unknown>
+    }[],
+  ) => {
+    const BATCH_SIZE = 300
+    for (let start = 0; start < rows.length; start += BATCH_SIZE) {
+      const batch = rows.slice(start, start + BATCH_SIZE).map(row => ({ ...row, user_id: userId }))
+      await req<void>(env, '/rest/v1/account_events?on_conflict=user_id,id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(batch),
+      }, token)
+    }
+  },
+  listAccountEvents: (
+    env: CloudEnv,
+    token: string,
+    afterCreatedAt: string,
+    offset: number,
+    limit: number,
+  ) =>
+    req<{
+      id: string
+      device_id: string | null
+      event_ts: string
+      action: 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'
+      card_kind: 'resource' | 'task' | 'curiosity' | 'system'
+      card_id: string | null
+      title_snapshot: string | null
+      to_state: string | null
+      created_at: string
+    }[]>(
+      env,
+      `/rest/v1/account_events?select=id,device_id,event_ts,action,card_kind,card_id,title_snapshot,to_state,created_at`
+        + `&created_at=gt.${encodeURIComponent(afterCreatedAt)}&order=created_at.asc,id.asc&limit=${limit}&offset=${offset}`,
+      { method: 'GET' },
+      token,
+    ),
+
   // ---- 移动采集 inbox ----
   listCaptures: (env: CloudEnv, token: string) =>
     req<{
@@ -157,6 +209,19 @@ export const cloud = {
         headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({ dismissed_at: new Date().toISOString() }),
       }, token),
+  dismissCaptures: async (env: CloudEnv, token: string, ids: string[]) => {
+    const BATCH_SIZE = 50
+    const dismissedAt = new Date().toISOString()
+    for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+      const batch = ids.slice(start, start + BATCH_SIZE)
+      await req<void>(env, `/rest/v1/capture_inbox?id=in.(${batch.map(encodeURIComponent).join(',')})`,
+        {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ dismissed_at: dismissedAt }),
+        }, token)
+    }
+  },
   restoreCapture: (env: CloudEnv, token: string, id: string) =>
     req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
       {
@@ -164,6 +229,18 @@ export const cloud = {
         headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({ dismissed_at: null }),
       }, token),
+  restoreCaptures: async (env: CloudEnv, token: string, ids: string[]) => {
+    const BATCH_SIZE = 50
+    for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+      const batch = ids.slice(start, start + BATCH_SIZE)
+      await req<void>(env, `/rest/v1/capture_inbox?id=in.(${batch.map(encodeURIComponent).join(',')})`,
+        {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ dismissed_at: null }),
+        }, token)
+    }
+  },
   consumeCapture: (env: CloudEnv, token: string, id: string) =>
     req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
       { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ consumed_at: new Date().toISOString() }) }, token),

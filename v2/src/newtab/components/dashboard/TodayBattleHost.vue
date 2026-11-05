@@ -37,6 +37,11 @@ const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').t
 const eventLog = shallowRef<CardEvent[]>([])
 const logEmpty = ref(true)
 async function refreshEventLog() {
+  const local = await readEventLog()
+  try {
+    const { reconcileAccountEvents } = await import('@/shared/cloud/sync')
+    await reconcileAccountEvents(local)
+  } catch { /* 离线或事件表尚未迁移时继续使用本机缓存 */ }
   const log = await readEventLog()
   eventLog.value = log.slice().reverse()
   logEmpty.value = log.length === 0

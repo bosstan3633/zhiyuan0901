@@ -54,18 +54,22 @@ check('R185-A3（V3.9.30 重指）★一个动作一个入口：分享只留行�
     && MIND.includes("@click=\"$emit('update:layout', 'tree')\"");
 })
 
-check('R185-A4（V3.9.29 重指）★行动条按职责分组：画布读数 / 内容导入 / 检索与成果三组；导入 HTML 与模板收进同一菜单并保持一级可达', () => {
+check('R185-A4（V4.1.2 重指）★页面设置退役后数据动作仍可达：台数据菜单集中导入 JSON / 成果 HTML / 模板与导出备份 / 清理镜像，检索与分享保持原位', () => {
   const toolbar = WS.slice(WS.indexOf('<div class="ws-toolbar cur-toolbar"'), WS.indexOf('<CurationMindMap', WS.indexOf('<div class="ws-toolbar cur-toolbar"')))
   return !toolbar.includes('class="cur-toolbar-lead"')
     && !toolbar.includes('class="cur-sep"')
     && !toolbar.includes('class="cur-metrics"')
     && !toolbar.includes('class="cur-layout"')
     && toolbar.includes('class="cur-import"')
+    && !toolbar.includes('class="hero-btn settings"')
+    && toolbar.includes('class="hero-btn ghost cur-import-trigger"')
+    && toolbar.includes('<b>导入 JSON 备份</b>')
     && toolbar.includes('<b>导入成果 HTML</b>')
     && toolbar.includes('<b>导入模板</b>')
+    && toolbar.includes('<b>导出 JSON 备份</b>')
+    && toolbar.includes('<b>清理本台镜像卡</b>')
     && toolbar.includes('class="toolbar-spacer"')
     && toolbar.includes('class="toolbar-search"')
-    && toolbar.includes('class="hero-btn settings"')
     && toolbar.includes('class="hero-btn primary share-action"')
     && toolbar.indexOf('class="cur-import"') < toolbar.indexOf('class="toolbar-search"')
     && toolbar.indexOf('class="toolbar-search"') < toolbar.indexOf('class="hero-btn primary share-action"');

@@ -3,6 +3,7 @@ import { computed, ref, watch, onErrorCaptured, onMounted, onUnmounted, defineAs
 import { K } from '@/shared/storage/keys'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { resourceLocateRoute } from '@/shared/utils/locate'
+import { buildWorkspaceExportData, cleanWorkspaceMirrors, workspaceFileName } from '@/shared/utils/deckData'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
 import { uid } from '@/shared/utils'
@@ -287,6 +288,38 @@ function confirmRename() {
     showToast('已重命名')
   }
   renamingWs.value = null
+}
+function exportDeckFromTab() {
+  const ws = menuWs.value
+  closeMenu()
+  if (!ws || !store.data) return
+  const data = buildWorkspaceExportData(store.data, ws.id)
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = workspaceFileName(ws)
+  a.click()
+  URL.revokeObjectURL(url)
+  showToast('已导出策展台 JSON 备份')
+}
+async function cleanDeckMirrorsFromTab() {
+  const ws = menuWs.value
+  closeMenu()
+  if (!ws || !store.data) return
+  const count = (store.data.curationProjections || []).filter(row => row.targetWsId === ws.id).length
+  if (!count) {
+    showToast('本台没有镜像卡')
+    return
+  }
+  if (!(await useConfirm({
+    title: '清理本台镜像卡',
+    message: `将移出本台全部 ${count} 张镜像卡（只删引用，源卡保留在资源卡池；需要时可在节点重新关联）。继续？`,
+    confirmText: '确认清理',
+  }))) return
+  const removed = cleanWorkspaceMirrors(store.data, ws.id)
+  store.persist()
+  showToast(`已清理 ${removed} 张镜像卡（源卡保留在资源卡池）`)
 }
 /** 台签右键与台内设置共用同一个删除真源：台内卡进回收站，镜像只释放引用。 */
 async function deleteDeckFromTab() {
@@ -675,6 +708,8 @@ const backupReminderDot = computed(() => {
       <div v-if="menuWs" class="ctx-menu" data-a11y-container :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" v-pressable @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
         <div class="ctx-item" v-pressable @click="hideDeckFromTab"><Icon name="eyeoff" :size="13"/> 隐藏（收进顶栏「隐藏台」）</div>
+        <div class="ctx-item" v-pressable @click="exportDeckFromTab"><Icon name="download" :size="13"/> 导出 JSON 备份</div>
+        <div class="ctx-item" v-pressable @click="cleanDeckMirrorsFromTab"><Icon name="broom" :size="13"/> 清理本台镜像卡</div>
         <div class="ctx-item danger" v-pressable @click="deleteDeckFromTab"><Icon name="trash" :size="13"/> 删除策展台</div>
       </div>
     </Teleport>

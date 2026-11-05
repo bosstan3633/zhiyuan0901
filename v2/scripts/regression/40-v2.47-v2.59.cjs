@@ -794,11 +794,14 @@ check('R88-6（V3.9.8 随迁备案）批量开关常驻资源池控制行：批�
     && pool.includes('@invert="invertSel"')
     && !WS88_TPL.includes('toggleBatchMode');
 });
-check('R88-7（V3.9.29 重指）双入口各守其责：⚙ 内导入 JSON 备份（全库合并）；一级工具栏「导入」菜单承接成果 HTML 与模板，并保留分享成果', () => {
-  return SM88.includes('@click="openImport"') && /<Icon name="download"[^>]*\/> 导入 JSON 备份/.test(SM88) && !SM88.includes("isHub ? '⬇ 导入资源'")
-    && WS88.includes('class="cur-import"') && WS88.includes('<b>导入成果 HTML</b>') && WS88.includes('<b>导入模板</b>')
+check('R88-7（V4.1.2 重指）页面设置退役后，台数据菜单承接 JSON/成果 HTML/模板导入、JSON 导出与镜像清理；分享仍独立', () => {
+  return SM88.includes('@click="openImport"') && SM88.includes('<b>导入 JSON 备份</b>') && !SM88.includes("isHub ? '⬇ 导入资源'")
+    && SM88.includes('<b>导入成果 HTML</b>') && SM88.includes('<b>导入模板</b>')
+    && SM88.includes('<b>导出 JSON 备份</b>') && SM88.includes('<b>清理本台镜像卡</b>')
+    && WS88.includes('class="cur-import"')
     && /<Icon name="share"[^>]*\/> 分享成果/.test(WS88)
     && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
+    && !WS88.includes('class="settings-menu"') && !WS88.includes('class="hero-btn settings"')
     && !TB1_88.includes('importModalOpen = true');
 });
 check('R88-8（V3.9.29 重指）策展画布主行动唯一：分享成果恢复为行尾 primary；导入折叠为单个 ghost 菜单触发器，设置保持次级；旧资源池批量与建支 CTA 不回流', () => {

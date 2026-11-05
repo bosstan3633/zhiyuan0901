@@ -12,7 +12,7 @@
 /* V3.9.30：三层共处一个连续页头；不再把行动条漂在页头之外。 */
 .ws-head { display: flex; flex-direction: column; gap: 10px; padding-left: 0; min-width: 0; }
 /* V3.9.28：台身份回到 ≤40px 的紧凑读数行；图标收进 accent 淡底方片，台名回到 19px 页头字阶。 */
-.ws-id-head { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 36px; max-height: 40px; padding: 2px 2px 2px 0; overflow: hidden; }
+.ws-id-head { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 36px; max-height: 40px; padding: 2px 2px 2px 0; overflow: visible; }
 .wsh-icon {
   width: 20px; height: 20px; flex-shrink: 0;
   display: inline-grid; place-items: center;
@@ -25,6 +25,12 @@
 /* 19px 沿用 R51-F11「页头标题统一放大」的既有规范（三主页面 + 项目详情/方向树 crumb 同款），
    不另起字号；19px 行高 ≈23px + padding 14px = 37px，仍在 W1 的 ≤40px 之内 */
 .wsh-name { flex-shrink: 0; font-size: 19px; line-height: 23px; letter-spacing: -.2px; font-weight: 600; color: var(--text); }
+.wsh-name-wrap { position: relative; display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.wsh-info-trigger { width: 22px; height: 22px; flex: none; display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-3); cursor: pointer; }
+.wsh-info-trigger:hover, .wsh-info-trigger[aria-expanded="true"] { border-color: var(--border); background: var(--surface-2); color: var(--text-2); }
+.wsh-info-menu { position: absolute; top: calc(100% + 7px); left: 0; z-index: calc(var(--z-popover) + 1); min-width: 158px; padding: 4px; border: 1px solid var(--border-strong); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.wsh-info-menu button { width: 100%; min-height: 31px; display: flex; align-items: center; gap: 7px; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-caption); text-align: left; cursor: pointer; }
+.wsh-info-menu button:hover, .wsh-info-menu button:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
 .wsh-desc { flex: 1; min-width: 0; padding-left: 10px; border-left: 1px solid var(--border); font-size: var(--fs-sub); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* ★W3（V3.8.34）：分类数 / 镜像数 / 更新流水这一行是"读数"，不是标题——降到 caption 档。
    页头一行可忽略但不缺失：台名仍是 headline 档的 b 标签（.wsh-name 16px 属既有 R123 口径，本批不动），
@@ -103,29 +109,19 @@
 .ip-cell:hover { background: var(--surface-3); }
 .ip-cell.on { background: var(--accent-light); border-color: var(--accent); }
 .ip-custom { display: flex; gap: 6px; margin-bottom: 10px; }
-.ip-input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: var(--fs-body); background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
+.ip-input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: var(--fs-body); background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
 .ip-input:focus { border-color: var(--accent); }
 .ip-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-sub); font-weight: 600; cursor: pointer; font-family: inherit; }
 .ip-btn:hover { background: var(--accent-hover); }
 .ip-btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-2); flex: 1; }
 .ip-btn.ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
-.ip-foot { display: flex; gap: 8px; }/* hero-btn 保留（R64 上移工具条继续使用） */
+.ip-foot { display: flex; gap: 8px; }
+/* hero-btn 保留（工具条主行动继续使用） */
 .hero-btn { padding: 5px 12px; border-radius: var(--radius-xs); font-size: var(--fs-sub); cursor: pointer; transition: all var(--dur); display: flex; align-items: center; gap: 5px; font-weight: 500; border: none; }
 .hero-btn.primary { background: var(--accent); color: #fff; }
 .hero-btn.primary:hover { background: var(--accent-hover); }
 .hero-btn.ghost { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
 .hero-btn.ghost:hover { background: var(--surface-3); color: var(--text); }
-.hero-btn.settings { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); padding: 6px 10px; }
-.hero-btn.settings:hover { background: var(--surface-3); color: var(--text); }
-
-/* 设置菜单（R64：hero 删除后上移至工具条下方） */
-.settings-menu { position: fixed; top: 54px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 36px rgba(0,0,0,.12); z-index: 60; min-width: 190px; overflow: hidden; display: none; }
-.settings-menu.open { display: block; }
-.sm-item { padding: 9px 14px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: all .1s; display: flex; align-items: center; gap: 8px; }
-.sm-item:hover { background: var(--surface-3); color: var(--text); }
-.sm-item.danger { color: var(--danger); }
-.sm-item.danger:hover { background: var(--tag-danger-bg); }
-.sm-divider { height: 1px; background: var(--border); margin: 4px 0; }
 /* 工具条 */
 /* V3.9.10：指标 + 操作合并为一排；V3.9.30 起作为页头第三层，不再单独吸附。 */
 .ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
@@ -160,6 +156,7 @@
 .cur-import-item > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cur-import-item b { font-size: var(--fs-sub); font-weight: 600; }
 .cur-import-item small { font-size: var(--fs-caption); line-height: 1.45; color: var(--text-3); }
+.cur-import-divider { height: 1px; margin: 5px 7px; background: var(--border); }
 /* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
 .ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }

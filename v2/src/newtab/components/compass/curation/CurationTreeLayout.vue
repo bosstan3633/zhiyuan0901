@@ -67,11 +67,12 @@ const priLabel: Record<string, string> = { high: '高', medium: '中', low: '低
                   <button class="cv-fold" type="button" :aria-expanded="!collapsed.has('m' + M.metric.id)"
                     @click.stop="emit('toggle', 'm' + M.metric.id)">{{ collapsed.has('m' + M.metric.id) ? '▸' : '▾' }}</button>
                 </div>
+                <div v-if="M.totalCount" class="cv-track cv-metric-track" aria-hidden="true"><span class="cv-fill" :style="{ width: M.progress + '%' }"></span></div>
                 <p v-if="M.metric.acceptance" class="cv-acc">验收：{{ M.metric.acceptance }}</p>
                 <p v-if="!M.totalCount" class="cv-missing">⚠ 缺任务：验收已定，动作未落</p>
               </div>
               <ul v-if="!collapsed.has('m' + M.metric.id) && M.tasks.length" class="cv-tasks cv-indent">
-                <li v-for="T in M.tasks" :key="T.task.id" class="cv-card cv-t-row" role="button" tabindex="0"
+                <li v-for="T in M.tasks" :key="T.task.id" class="cv-card cv-t-row" :class="'task-' + T.status" role="button" tabindex="0"
                   @click="emit('open', { kind: 'task', node: T })" @keydown.enter="emit('open', { kind: 'task', node: T })">
                   <span class="cv-st" :class="stCls[T.status]" :title="stLabel[T.status]"></span>
                   <span class="cv-tt">{{ T.task.title || '未命名任务' }}</span>
@@ -87,10 +88,20 @@ const priLabel: Record<string, string> = { high: '高', medium: '中', low: '低
     </section>
 
     <!-- 散叶 · 未归档任务 -->
-    <section v-if="tree.orphans.length" class="cv-card cv-orph" role="button" tabindex="0"
-      @click="emit('open', { kind: 'orphans' })" @keydown.enter="emit('open', { kind: 'orphans' })">
-      <b class="cv-t">散叶 · 未归档任务</b>
-      <span class="cv-meta">{{ tree.orphans.length }} 件 · 挂上指标即上枝</span>
+    <section v-if="tree.orphans.length" class="cv-card cv-orph">
+      <div class="cv-orph-head" role="button" tabindex="0"
+        @click="emit('open', { kind: 'orphans' })" @keydown.enter="emit('open', { kind: 'orphans' })">
+        <b class="cv-t">散叶 · 未归档任务</b>
+        <span class="cv-meta">{{ tree.orphans.length }} 件 · 挂上指标即上枝</span>
+      </div>
+      <ul class="cv-tasks">
+        <li v-for="T in tree.orphans" :key="T.task.id" class="cv-card cv-t-row" :class="'task-' + T.status" role="button" tabindex="0"
+          @click.stop="emit('open', { kind: 'task', node: T })" @keydown.enter.stop="emit('open', { kind: 'task', node: T })">
+          <span class="cv-st" :class="stCls[T.status]" :title="stLabel[T.status]"></span>
+          <span class="cv-tt">{{ T.task.title || '未命名任务' }}</span>
+          <span v-if="T.status === 'stale'" class="cv-warn">{{ stLabel.stale }}</span>
+        </li>
+      </ul>
     </section>
   </div>
 </template>
@@ -121,10 +132,16 @@ const priLabel: Record<string, string> = { high: '高', medium: '中', low: '低
 .cv-track { height: 4px; border-radius: 999px; background: var(--surface-3); margin-top: 8px; overflow: hidden; }
 .cv-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
 .cv-m-card { border-left: 3px solid var(--border); }
+.cv-metric-track { margin-top: 7px; }
 .cv-acc { margin: 6px 0 0; font-size: var(--fs-caption); color: var(--text-3); overflow-wrap: anywhere; }
 .cv-missing { margin: 6px 0 0; font-size: var(--fs-caption); color: var(--warning); }
 .cv-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 .cv-t-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
+.cv-t-row.task-done { background: var(--surface-3); color: var(--text-3); }
+.cv-t-row.task-done .cv-tt { color: var(--text-3); }
+.cv-t-row.task-todo { background: var(--tag-info-bg); }
+.cv-t-row.task-doing { border-left: 2px solid var(--accent); background: var(--tag-info-bg); }
+.cv-t-row.task-stale { border-color: color-mix(in srgb, var(--warning) 35%, var(--border)); background: var(--warning-bg-soft); }
 .cv-st { flex: none; width: 8px; height: 8px; border-radius: 50%; }
 .st-done { background: var(--success); }
 .st-doing { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
@@ -132,7 +149,9 @@ const priLabel: Record<string, string> = { high: '高', medium: '中', low: '低
 .st-stale { background: var(--warning); }
 .cv-tt { color: var(--text-2); font-size: var(--fs-body); flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .cv-pri { flex: none; font-size: var(--fs-caption); color: var(--text-3); }
-.cv-orph { display: flex; align-items: center; gap: 10px; margin-top: 18px; border-style: dashed; }
+.cv-orph { display: flex; align-items: stretch; flex-direction: column; gap: 10px; margin-top: 18px; border-style: dashed; cursor: default; }
+.cv-orph-head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.cv-orph-head .cv-meta { margin-left: auto; }
 @media (max-width: 800px) {
   .cv-top { grid-template-columns: 1fr; }
   .cv-target { display: none; }

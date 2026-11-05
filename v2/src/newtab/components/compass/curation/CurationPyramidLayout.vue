@@ -94,14 +94,16 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
                     <b>{{ M.metric.title || '未命名指标' }}</b>
                     <small :class="{ warn: !M.totalCount }">{{ M.totalCount ? M.doneCount + '/' + M.totalCount + ' · ' + M.progress + '%' : '⚠ 缺任务' }}</small>
                     <small v-if="M.metric.target" class="target" :title="M.metric.target">{{ M.metric.target }}</small>
+                    <span class="bar metric" aria-hidden="true"><span :style="{ width: M.progress + '%' }"></span></span>
                     <!-- 挂载的任务列表（可拖拽改归属） -->
                     <template v-if="M.tasks.length">
                       <div class="met-tasks" data-a11y-container @click.stop>
                         <button v-for="(tn, ti) in M.tasks.slice(0, 4)" :key="tn.task.id" type="button" class="met-task-item" draggable="true"
-                          :class="{ dragging: dnd.dragTaskId === tn.task.id }"
+                          :class="['task-' + tn.status, { dragging: dnd.dragTaskId === tn.task.id }]"
                           @dragstart="onTaskDragStart($event, tn.task)" @dragend="dnd.onDragEnd()"
                           @click.stop="emit('open', { kind: 'task', node: tn })" :title="tn.task.title">
-                          {{ ti + 1 }}. {{ tn.task.title }}
+                          <span class="met-task-dot" aria-hidden="true"></span>
+                          <span>{{ ti + 1 }}. {{ tn.task.title }}</span>
                         </button>
                         <button v-if="M.tasks.length > 4" type="button" class="met-more" @click.stop="emit('open', { kind: 'metric', node: M })">+{{ M.tasks.length - 4 }} 更多</button>
                       </div>
@@ -123,10 +125,11 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
         </div>
         <div class="orph-tasks" role="list">
           <button v-for="(tn, ti) in tree.orphans" :key="tn.task.id" type="button" class="orph-task-item" draggable="true"
-            role="listitem" :class="{ dragging: dnd.dragTaskId === tn.task.id }"
+            role="listitem" :class="['task-' + tn.status, { dragging: dnd.dragTaskId === tn.task.id }]"
             @dragstart="onTaskDragStart($event, tn.task)" @dragend="dnd.onDragEnd()"
             @click="emit('open', { kind: 'task', node: tn })" :title="tn.task.title">
-            {{ ti + 1 }}. {{ tn.task.title }}
+            <span class="met-task-dot" aria-hidden="true"></span>
+            <span>{{ ti + 1 }}. {{ tn.task.title }}</span>
           </button>
         </div>
       </div>
@@ -181,6 +184,7 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .node .target { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .node .bar { display: block; height: 3px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .node .bar span { display: block; height: 100%; background: var(--accent); }
+.node .bar.metric { width: 100%; height: 4px; margin-top: 1px; }
 .orph { display: inline-flex; align-items: center; gap: 10px; border-style: dashed; }
 .orph b { color: var(--text); font-size: var(--fs-body); }
 .orph small { color: var(--text-3); font-size: var(--fs-caption); }
@@ -188,13 +192,21 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 
 /* ===== 成功指标下的任务列表与未归档任务拖拽区 ===== */
 .met-tasks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; margin-top: 4px; }
-.met-task-item, .orph-task-item { 
-  font-size: var(--fs-caption); color: var(--text-3); 
-  padding: 3px 5px; background: var(--surface-3); border-radius: 4px; 
+.met-task-item, .orph-task-item {
+  display: flex; align-items: flex-start; gap: 5px;
+  font-size: var(--fs-caption); color: var(--text-2);
+  padding: 4px 6px; background: var(--tag-info-bg); border-radius: 5px;
   cursor: grab; overflow-wrap: break-word; word-break: break-word;
-  border: none; font-family: inherit; text-align: left; display: block; width: 100%; min-width: 0;
+  border: 1px solid transparent; font-family: inherit; text-align: left; width: 100%; min-width: 0;
 }
 .met-task-item:hover, .orph-task-item:hover { background: var(--surface-4); }
+.met-task-dot { flex: none; width: 5px; height: 5px; margin-top: 6px; border-radius: 50%; background: var(--tag-info-text); }
+.met-task-item.task-done, .orph-task-item.task-done { background: var(--surface-3); color: var(--text-3); }
+.met-task-item.task-done .met-task-dot, .orph-task-item.task-done .met-task-dot { background: var(--text-3); }
+.met-task-item.task-doing, .orph-task-item.task-doing { border-left: 2px solid var(--accent); background: var(--tag-info-bg); color: var(--text); }
+.met-task-item.task-doing .met-task-dot, .orph-task-item.task-doing .met-task-dot { background: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.met-task-item.task-stale, .orph-task-item.task-stale { border-color: color-mix(in srgb, var(--warning) 35%, var(--border)); background: var(--warning-bg-soft); }
+.met-task-item.task-stale .met-task-dot, .orph-task-item.task-stale .met-task-dot { background: var(--warning); }
 .met-more { grid-column: 1 / -1; text-align: center; color: var(--text-3); font-size: var(--fs-micro); border: none; background: none; font-family: inherit; cursor: pointer; padding: 2px 0; }
 .met-more:hover { color: var(--accent); }
 
@@ -205,7 +217,7 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 
 /* 拖拽反馈：落点高亮 + 拖拽源半透明 */
 .node.met.drop-target { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-glow); }
-.met-task-item.dragging, .orph-task-item.dragging { opacity: .4; }
+.met-task-item.dragging, .orph-task-item.dragging { opacity: var(--opacity-disabled); }
 .orph-task-item { max-width: 240px; }
 .orph-tasks .orph-task-item { width: auto; }
 </style>

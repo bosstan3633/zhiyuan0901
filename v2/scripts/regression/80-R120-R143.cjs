@@ -407,8 +407,9 @@ check('R129-6（V3.9.8 随迁）监听器/定时器泄漏归零：旧侧栏拖�
     && map.includes("document.addEventListener('keydown', onFallbackKeydown)")
     && map.includes("document.removeEventListener('keydown', onFallbackKeydown)")
     && ws.includes('if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null }')
-    && ws.includes("document.removeEventListener('click', closeSettingsMenu)")
+    && ws.includes("document.removeEventListener('click', closeHeaderMenus)")
     && ws.includes("document.removeEventListener('visibilitychange', onWsOpenVisibility)")
+    && ws.includes('if (pendingAssetCleanupTimer) { clearTimeout(pendingAssetCleanupTimer); pendingAssetCleanupTimer = null }')
     && py.includes('linkAiCtl?.abort()')
     && p.includes('onDocCloseProjMenu')
     && p.includes("document.removeEventListener('click', onDocCloseProjMenu)");

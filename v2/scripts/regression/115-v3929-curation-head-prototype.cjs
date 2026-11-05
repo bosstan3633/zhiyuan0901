@@ -68,18 +68,21 @@ check('R186-3 ★分享只有一个入口且是行尾主行动：页头“分享
     && !banner.includes('分享成果')
 })
 
-check('R186-4 ★两个导入能力收进一个菜单且触发器阻止冒泡：触发器带 .stop，菜单含成果 HTML / 模板两项，document 级关闭监听仍可关闭菜单', () => {
+check('R186-4（V4.1.2 重指）★策展台数据动作收进一个菜单且触发器阻止冒泡：导入 JSON / 成果 HTML / 模板与导出 / 清理镜像五项齐备，document 级监听仍可关闭菜单', () => {
   return toolbar.includes('class="cur-import"')
     && toolbar.includes('@click.stop="toggleImportMenu"')
     && toolbar.includes(':aria-expanded="importMenuOpen"')
     && toolbar.includes('v-if="importMenuOpen" class="cur-import-popover"')
+    && toolbar.includes('<b>导入 JSON 备份</b>')
     && toolbar.includes('<b>导入成果 HTML</b>')
     && toolbar.includes('<b>导入模板</b>')
-    && (toolbar.match(/class="cur-import-item"/g) || []).length === 2
+    && toolbar.includes('<b>导出 JSON 备份</b>')
+    && toolbar.includes('<b>清理本台镜像卡</b>')
+    && (toolbar.match(/class="cur-import-item"/g) || []).length === 5
     && !toolbar.includes('@click="openShareHtmlImport"')
     && !toolbar.includes('@click="pyramidImportOpen = true"')
-    && WSC.includes("document.addEventListener('click', closeImportMenu)")
-    && WSC.includes("document.removeEventListener('click', closeImportMenu)")
+    && WSC.includes("document.addEventListener('click', closeHeaderMenus)")
+    && WSC.includes("document.removeEventListener('click', closeHeaderMenus)")
     && WSC.includes('function importShareHtmlFromMenu()')
     && WSC.includes('function importPyramidTemplateFromMenu()')
 })
@@ -117,9 +120,10 @@ check('R186-6（V4.0.3 重指）★全版本同步：manifest / package / lock �
     && reg.includes("'115-v3929-curation-head-prototype'")
 })
 
-check('R186-7 ★菜单状态互斥且动作先收口：打开导入会关设置，打开设置会关导入；选择导入项时先关闭菜单再打开对应弹窗', () => {
-  return /function toggleImportMenu\(\)[\s\S]*?settingsMenuOpen\.value = false/.test(WSC)
-    && /function toggleSettingsMenu\(\)[\s\S]*?closeImportMenu\(\)/.test(WSC)
+check('R186-7（V4.1.2 重指）★页头菜单互斥且动作先收口：打开台数据会关台名编辑，打开台名编辑会关台数据；选择导入项时先关闭菜单再打开对应弹窗', () => {
+  return /function toggleImportMenu\(\)[\s\S]*?wsInfoMenuOpen\.value = false/.test(WSC)
+    && /function toggleWsInfoMenu\(\)[\s\S]*?importMenuOpen\.value = false/.test(WSC)
     && /function importShareHtmlFromMenu\(\)\s*\{\s*closeImportMenu\(\)\s*openShareHtmlImport\(\)/.test(WSC)
     && /function importPyramidTemplateFromMenu\(\)\s*\{\s*closeImportMenu\(\)\s*pyramidImportOpen\.value = true/.test(WSC)
+    && /function openImport\(\)\s*\{\s*closeImportMenu\(\)\s*wsInfoMenuOpen\.value = false/.test(WSC)
 })

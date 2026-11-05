@@ -56,6 +56,8 @@ export const K = {
 
 /** localStorage 专属键（移动端 PWA；不属于 chrome.storage 语义） */
 export const LOCAL_KEYS = {
+  /** 桌面设备稳定 ID：用于生成跨设备可合并的全局唯一操作事件 ID */
+  DEVICE_ID: 'zy_device_id',
   /** 移动端待提交链接 */
   MOBILE_PENDING: 'zy_mobile_pending',
   /** 移动端登录会话 */
@@ -65,7 +67,9 @@ export const LOCAL_KEYS = {
   /** Inbox 卡片已在本机创建但远端转化状态尚未写回的重试队列 */
   INBOX_CONVERSION_QUEUE: 'zy_inbox_conversion_queue',
   /** 策展附件远端删除重试队列；只在本地保存对象路径，不保存凭据 */
-  CURATION_ASSET_DELETE_QUEUE: 'zy_curation_asset_delete_queue'
+  CURATION_ASSET_DELETE_QUEUE: 'zy_curation_asset_delete_queue',
+  /** 账号操作事件拉取游标；按账号保存最后一条服务端接收时间 */
+  ACCOUNT_EVENT_CURSOR: 'zy_account_event_cursor'
 } as const
 
 /**

@@ -13,7 +13,18 @@
     <div class="ws-head">
       <div class="ws-id-head">
         <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
-        <b class="wsh-name">{{ wsDisplayNameOf(workspace) }}</b>
+        <span class="wsh-name-wrap">
+          <b class="wsh-name">{{ wsDisplayNameOf(workspace) }}</b>
+          <button class="wsh-info-trigger" type="button" title="编辑台名、描述与图标"
+            aria-haspopup="menu" :aria-expanded="wsInfoMenuOpen" @click.stop="toggleWsInfoMenu">
+            <Icon name="edit" :size="11"/>
+          </button>
+          <div v-if="wsInfoMenuOpen" class="wsh-info-menu" role="menu" data-a11y-container @click.stop>
+            <button type="button" role="menuitem" @click="onRenameWorkspace"><Icon name="edit" :size="12"/> 重命名</button>
+            <button type="button" role="menuitem" @click="onEditWorkspaceDesc"><Icon name="filetext" :size="12"/> 编辑描述</button>
+            <button type="button" role="menuitem" @click="onPickWorkspaceIcon"><Icon name="palette" :size="12"/> 更换图标</button>
+          </div>
+        </span>
         <!-- V3.7.0（R179）：资源台页头分支退役——策展台两态描述 + 摘要 + 更新流水入口为唯一形态 -->
         <span v-if="wsHeadDescOwn" class="wsh-desc" :title="wsHeadDescOwn">· {{ wsHeadDescOwn }}</span>
         <span class="wsh-spacer" />
@@ -49,7 +60,7 @@
               </div>
               <CurationAssetStrip v-if="thesisCard.assets?.length" :assets="thesisCard.assets" node-id="root"
                 :remote-downloader="downloadNodeAsset"
-                @open="openNodeAssetPreview" @remove="removeNodeAsset('root', $event)"
+                @open="openNodeAssetPreview($event, 'root')" @remove="removeNodeAsset('root', $event)"
                 @ingest="ingestAssetFiles('root', $event)" />
             </div>
           </div>
@@ -80,12 +91,16 @@
 
       <!-- ③ 行动条：只保留页面级动作。画布布局切换位于画布工具条，始终可见。 -->
       <div class="ws-toolbar cur-toolbar">
-        <!-- V3.9.29：两种导入合并为一个菜单入口，降低行动条噪声；两项能力保持一级可达。 -->
+        <!-- V4.1.2：页面设置退役，必要的数据动作收进一个「台数据」菜单。 -->
         <div class="cur-import" :class="{ open: importMenuOpen }" @keydown.esc.stop="closeImportMenu">
           <button class="hero-btn ghost cur-import-trigger" type="button"
-            title="导入成果 HTML 或金字塔模板" aria-haspopup="menu" :aria-expanded="importMenuOpen"
-            @click.stop="toggleImportMenu"><Icon name="download" :size="13"/> 导入 <span class="cur-import-caret" aria-hidden="true">▾</span></button>
-          <div v-if="importMenuOpen" class="cur-import-popover" role="menu" aria-label="导入内容">
+            title="导入、导出或清理本策展台数据" aria-haspopup="menu" :aria-expanded="importMenuOpen"
+            @click.stop="toggleImportMenu"><Icon name="database" :size="13"/> 台数据 <span class="cur-import-caret" aria-hidden="true">▾</span></button>
+          <div v-if="importMenuOpen" class="cur-import-popover" role="menu" aria-label="策展台数据操作">
+            <button type="button" class="cur-import-item" role="menuitem" @click="openImport">
+              <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
+              <span><b>导入 JSON 备份</b><small>恢复旧版策展台数据包</small></span>
+            </button>
             <button type="button" class="cur-import-item" role="menuitem" @click="importShareHtmlFromMenu">
               <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
               <span><b>导入成果 HTML</b><small>从知源分享产物恢复</small></span>
@@ -93,6 +108,15 @@
             <button type="button" class="cur-import-item" role="menuitem" @click="importPyramidTemplateFromMenu">
               <span class="cur-import-item-icon"><Icon name="filetext" :size="14"/></span>
               <span><b>导入模板</b><small>中心论点 + 论证分支一次生成</small></span>
+            </button>
+            <div class="cur-import-divider" role="separator"></div>
+            <button type="button" class="cur-import-item" role="menuitem" @click="importMenuOpen = false; exportWorkspace()">
+              <span class="cur-import-item-icon"><Icon name="package" :size="14"/></span>
+              <span><b>导出 JSON 备份</b><small>保存本台当前完整数据</small></span>
+            </button>
+            <button type="button" class="cur-import-item" role="menuitem" @click="importMenuOpen = false; cleanAllMirrors()">
+              <span class="cur-import-item-icon"><Icon name="broom" :size="14"/></span>
+              <span><b>清理本台镜像卡</b><small>只移除投射，资源卡池源卡保留</small></span>
             </button>
           </div>
         </div>
@@ -102,18 +126,17 @@
           <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
             title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
         </div>
-        <!-- R110-LC：生命周期面板入口（活跃 / 冷却 / 归档三态；归档卡从默认视图隐藏，在此恢复） -->
-        <button class="hero-btn settings" title="策展台设置" @click.stop="toggleSettingsMenu"><Icon name="settings" :size="13"/></button>
         <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       </div>
     </div>
-    <!-- R64-F13：hero 大标题区删除——重命名/图标/描述编辑收进 ⚙ 菜单，导入/新建按钮上移工具条 -->
+
+    <!-- V4.1.2：页面设置退役后，图标编辑保留为台名区域的轻量浮层。 -->
     <Teleport to="body">
       <div v-if="iconPickOpen" class="icon-pick-mask" @click="iconPickOpen = false" />
       <div v-if="iconPickOpen" class="icon-pick" data-a11y-container :style="{ left: iconPickPos.left + 'px', top: iconPickPos.top + 'px' }" @click.stop>
         <div class="ip-title"><Icon name="palette" :size="13"/> 策展台图标</div>
         <div class="ip-grid">
-          <span v-for="e in WS_ICONS" :key="e" class="ip-cell" v-pressable :class="{on: workspace.icon === e}" @click="setWsIcon(e)">{{ e }}</span>
+          <span v-for="e in WS_ICONS" :key="e" class="ip-cell" v-pressable :class="{ on: workspace.icon === e }" @click="setWsIcon(e)">{{ e }}</span>
         </div>
         <div class="ip-custom">
           <input v-model="iconCustom" class="ip-input" maxlength="4" placeholder="自定义 emoji" @keydown.enter.prevent="setWsIcon(iconCustom.trim())">
@@ -140,26 +163,6 @@
       @close="pyramidImportOpen = false"
       @confirm="confirmPyramidImport"
     />
-
-    <!-- 设置下拉菜单（固定定位，避免被 hero 圆角裁剪） -->
-    <div class="settings-menu" :class="{open: settingsMenuOpen}" data-a11y-container @click.stop>
-      <!-- R88（W6）：「⬇ 导入」自工具条收进此处，并**按台身份改名**消歧义（资源台=导入资源，策展台=导入策展台数据包）。
-           V3.7.0（R179）：资源台退役——「导入」只剩数据包一种，消歧义前提消失，名称不再按台分支。 -->
-      <div class="sm-item" v-pressable @click="openImport"><Icon name="download" :size="13"/> 导入 JSON 备份</div>
-      <!-- V3.9.8：策展画布不再提供卡片批量栏。池卡的批量动作统一在调度台「资源卡池」，
-           本页设置菜单不再保留无落点的“批量管理”入口。 -->
-      <!-- R106（F7）：一键批量清理本台镜像卡（投射记录删除，源卡保留在资源卡池） -->
-      <div class="sm-item" v-pressable @click="cleanAllMirrors"><Icon name="broom" :size="13"/> 清理本台镜像卡</div>
-      <!-- R108（T3）：金字塔 Markdown 模板导入 —— R113-N4 已提到一级工具条（见「📋 导入模板」按钮），此处移除 -->
-      <div class="sm-divider"></div>
-      <div class="sm-item" v-pressable @click="renameWs"><Icon name="edit" :size="13"/> 重命名</div>
-      <div class="sm-item" v-pressable @click="editDesc"><Icon name="filetext" :size="13"/> 编辑描述</div>
-      <div class="sm-item" v-pressable @click="toggleIconPick($event)"><Icon name="palette" :size="13"/> 更换图标</div>
-      <div class="sm-divider"></div>
-      <div class="sm-item" v-pressable @click="exportWorkspace"><Icon name="package" :size="13"/> 导出 JSON 备份</div>
-      <div class="sm-divider"></div>
-      <div class="sm-item danger" v-pressable @click="deleteWorkspace"><Icon name="trash" :size="13"/> 删除策展台</div>
-    </div>
 
     <!-- 下钻抽屉（R62-2） -->
     <CurationDrillDrawer :open="drillOpen" :mode="drillMode" :cat-rows="drillCatRows" :native-cards="drillNative" :mirror-cards="drillMirror" :card-rows="drillCardRows" :asset-rows="metrics.attachmentItems" :recent-rows="drillRecent"
@@ -200,6 +203,8 @@
       :can-redo="history.canRedo.value"
       :undo-label="history.undoLabel.value"
       :redo-label="history.redoLabel.value"
+      :history-entries="history.historyEntries.value"
+      :current-history-id="history.currentHistoryId.value"
       :remote-downloader="downloadNodeAsset"
       @update:layout="mind.setLayout"
       @select="mind.selectNode"
@@ -217,7 +222,7 @@
       @open-resource-context="openResCtx"
       @open-node-assets="openNodeAssets"
       @drop-node-asset-files="ingestAssetFiles"
-      @preview-node-asset="(_id, asset) => openNodeAssetPreview(asset)"
+      @preview-node-asset="(id, asset) => openNodeAssetPreview(asset, id)"
       @remove-node-asset="removeNodeAsset"
       @open-thesis="openThesisCard"
       @link-thesis="openThesisLink"
@@ -231,7 +236,11 @@
       @remove-node="onMindRemove"
       @update:fullscreen="mind.setFullscreenState($event.on, $event.fallback)"
       @undo="history.undo"
-      @redo="history.redo" />
+      @redo="history.redo"
+      @open-history="historyLogOpen = true" />
+    <CurationHistoryDrawer :open="historyLogOpen" :entries="history.historyEntries.value"
+      :current-id="history.currentHistoryId.value"
+      @close="historyLogOpen = false" @rollback="onHistoryRollback" />
     </div>
 
     <CurationThesisDrawer :open="thesisOpen" :card="thesisCard" :nodes="wsCats" :ws-id="workspaceId" :ws-name="wsDisplayName"
@@ -251,7 +260,7 @@
       @update:assets="saveNodeAssets(assetDrawerNodeId, $event)"
       @retry-asset="retryNodeAsset" />
 
-    <CurationAssetPreviewModal :open="nodeAssetPreviewOpen" :asset="nodeAssetPreview"
+    <CurationAssetPreviewModal :open="nodeAssetPreviewOpen" :asset="nodeAssetPreview" :assets="nodeAssetPreviewAssets"
       :remote-downloader="downloadNodeAsset" @close="nodeAssetPreviewOpen = false" />
 
     <!-- 资源卡详情抽屉（单击打开）
@@ -328,7 +337,7 @@
             <span class="mo-icon"><Icon name="puzzle" :size="13"/></span>
             <div>
               <div class="mo-name">导入策展台数据包（JSON）</div>
-              <div class="mo-desc">选择本台「<Icon name="settings" :size="13"/> 导出策展台数据」导出的 JSON 文件：论点分类树 + 论证节点卡 + 镜像投射按 ID 并集合并，现有数据不受影响</div>
+              <div class="mo-desc">选择本台「<Icon name="database" :size="13"/> 台数据 → 导出 JSON 备份」生成的文件：论点分类树 + 论证节点卡 + 镜像投射按 ID 并集合并，现有数据不受影响</div>
             </div>
           </div>
         </div>
@@ -466,6 +475,7 @@ import CurationShareDrawer from '@/newtab/components/curation/CurationShareDrawe
 import CurationNodeAssetDrawer from '@/newtab/components/curation/CurationNodeAssetDrawer.vue'
 import CurationAssetStrip from '@/newtab/components/curation/CurationAssetStrip.vue'
 import CurationAssetPreviewModal from '@/newtab/components/curation/CurationAssetPreviewModal.vue'
+import CurationHistoryDrawer from '@/newtab/components/curation/CurationHistoryDrawer.vue'
 // R169-老账③：两代抽屉容器合并——资源详情抽屉改走共享壳（Esc/遮罩/Teleport/进出场单源）
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
@@ -545,10 +555,12 @@ const thesisCard = computed<ResourceCard | null>(() => {
 })
 const thesisOpen = ref(false)
 const shareOpen = ref(false)
+const historyLogOpen = ref(false)
 const assetDrawerOpen = ref(false)
 const assetDrawerNodeId = ref('root')
 const nodeAssetPreviewOpen = ref(false)
 const nodeAssetPreview = ref<AssetMeta | null>(null)
+const nodeAssetPreviewOwnerId = ref('root')
 
 const assetDrawerNode = computed<Category | null>(() =>
   assetDrawerNodeId.value === 'root' ? null : wsCats.value.find(c => c.id === assetDrawerNodeId.value) || null
@@ -565,7 +577,14 @@ const assetDrawerNodeName = computed(() =>
 const assetDrawerLevel = computed(() =>
   assetDrawerNodeId.value === 'root' ? 1 : (assetDrawerNode.value ? mind.nodeLevel(assetDrawerNode.value) : 2)
 )
+const nodeAssetPreviewAssets = computed<AssetMeta[]>(() => {
+  const ownerId = nodeAssetPreviewOwnerId.value
+  const owner = ownerId === 'root' ? thesisCard.value : wsCats.value.find(category => category.id === ownerId)
+  return (owner?.assets || []).filter(asset => asset.kind === 'image')
+})
 const pendingAssetCleanup = new Map<string, AssetMeta>()
+const ASSET_CLEANUP_DELAY_MS = 30_000
+let pendingAssetCleanupTimer: ReturnType<typeof setTimeout> | null = null
 
 function openNodeAssets(id: string): void {
   assetDrawerNodeId.value = id
@@ -573,7 +592,8 @@ function openNodeAssets(id: string): void {
   mind.selectNode(id)
 }
 
-function openNodeAssetPreview(asset: AssetMeta): void {
+function openNodeAssetPreview(asset: AssetMeta, ownerId = 'root'): void {
+  nodeAssetPreviewOwnerId.value = ownerId
   nodeAssetPreview.value = asset
   nodeAssetPreviewOpen.value = true
 }
@@ -596,21 +616,32 @@ function nodeAssetOwnerId(id: string): string {
 function scheduleRemovedAssetCleanup(removed: AssetMeta[]): void {
   if (!removed.length) return
   for (const meta of removed) pendingAssetCleanup.set(meta.id, meta)
-  window.setTimeout(() => {
+  armAssetCleanup()
+}
+
+function armAssetCleanup(): void {
+  if (pendingAssetCleanupTimer) clearTimeout(pendingAssetCleanupTimer)
+  pendingAssetCleanupTimer = setTimeout(() => {
+    pendingAssetCleanupTimer = null
     cleanupPendingAssets()
-  }, 30_000)
+  }, ASSET_CLEANUP_DELAY_MS)
 }
 
 function cleanupPendingAssets(): void {
+  let retained = false
   for (const [id, meta] of [...pendingAssetCleanup.entries()]) {
     const stillUsed = d.value.categories.some(c => (c.assets || []).some(a => a.id === id))
       || [d.value.resources, d.value.tasks, d.value.curiosities, d.value.argCards || []]
         .some(list => list.some(c => (c.assets || []).some(a => a.id === id)))
       || history.hasAssetReference(id)
-    if (stillUsed) continue
+    if (stillUsed) {
+      retained = true
+      continue
+    }
     pendingAssetCleanup.delete(id)
-    void deleteAsset(id).catch(() => {})
+    void Promise.allSettled([deleteAsset(id), deleteCurationAsset(meta)])
   }
+  if (retained && pendingAssetCleanup.size) armAssetCleanup()
 }
 
 async function queueAssetUpload(id: string, meta: AssetMeta): Promise<void> {
@@ -657,9 +688,11 @@ function saveNodeAssets(id: string, next: AssetMeta[]): void {
     owner.assets = next
     store.persist()
   })
-  for (const meta of added) void queueAssetUpload(id, meta)
-  // 远端删除与本地 10 步撤销解耦：历史栈只保留 Blob 供撤销，不能让云端对象一直悬挂。
-  for (const meta of removed) void deleteCurationAsset(meta).catch(() => {})
+  for (const meta of added) {
+    pendingAssetCleanup.delete(meta.id)
+    void queueAssetUpload(id, meta)
+  }
+  // 历史仍可能回滚到附件存在态；本地 Blob 与云端对象都等所有历史快照不再引用后再清。
   scheduleRemovedAssetCleanup(removed)
 }
 
@@ -725,6 +758,58 @@ function isTextEditingTarget(target: EventTarget | null): boolean {
   return !!el?.closest('input,textarea,select,[contenteditable="true"]')
 }
 
+function clipboardImageFiles(data: DataTransfer | null): File[] {
+  const itemFiles = Array.from(data?.items || [])
+    .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+    .map(item => item.getAsFile())
+    .filter((file): file is File => !!file)
+  if (itemFiles.length) return itemFiles
+  return Array.from(data?.files || []).filter(file => file.type.startsWith('image/'))
+}
+
+function hasImageClipboardPayload(data: DataTransfer | null): boolean {
+  return clipboardImageFiles(data).length > 0
+    || Array.from(data?.items || []).some(item => item.type.startsWith('image/'))
+}
+
+async function readSystemClipboardImages(): Promise<File[]> {
+  if (!navigator.clipboard?.read) return []
+  try {
+    const items = await navigator.clipboard.read()
+    const files: File[] = []
+    for (const item of items) {
+      const imageType = item.types.find(type => type.startsWith('image/'))
+      if (!imageType) continue
+      const blob = await item.getType(imageType)
+      files.push(new File([blob], `clipboard.${imageType.split('/')[1] || 'png'}`, {
+        type: imageType,
+        lastModified: Date.now(),
+      }))
+    }
+    return files
+  } catch {
+    return []
+  }
+}
+
+async function readHtmlDataImages(html: string): Promise<File[]> {
+  if (!html || !/data:image\//i.test(html)) return []
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const files: File[] = []
+  for (const image of Array.from(doc.images)) {
+    if (!image.src.startsWith('data:image/')) continue
+    try {
+      const blob = await fetch(image.src).then(response => response.blob())
+      if (!blob.type.startsWith('image/')) continue
+      files.push(new File([blob], `clipboard.${blob.type.split('/')[1] || 'png'}`, {
+        type: blob.type,
+        lastModified: Date.now(),
+      }))
+    } catch { /* 单个剪贴板图片损坏不影响其余图片 */ }
+  }
+  return files
+}
+
 /** Ctrl/⌘+V 不能提前 preventDefault，否则浏览器不会派发携带图片文件的 paste 事件。
  *  这里只在存在“已剪切分支”时安排兜底；真正 paste 到达后会取消，图片始终优先。 */
 function onCanvasPasteKeydown(event: KeyboardEvent): void {
@@ -740,35 +825,7 @@ function onCanvasPasteKeydown(event: KeyboardEvent): void {
   }, 180)
 }
 
-function onCanvasPaste(event: ClipboardEvent): void {
-  if (!workspace.value) return
-  const target = event.target as HTMLElement | null
-  const inCanvas = inMindCanvas(target) || inMindCanvas(document.activeElement)
-  if (!inCanvas) return
-  if (isTextEditingTarget(target)) return
-  lastCanvasPasteAt = Date.now()
-  if (canvasPasteFallbackTimer) {
-    clearTimeout(canvasPasteFallbackTimer)
-    canvasPasteFallbackTimer = null
-  }
-  const data = event.clipboardData
-  const itemFiles = Array.from(data?.items || [])
-    .filter(item => item.kind === 'file')
-    .map(item => item.getAsFile())
-    .filter((file): file is File => !!file && file.type.startsWith('image/'))
-  const files = itemFiles.length
-    ? itemFiles
-    : Array.from(data?.files || []).filter(file => file.type.startsWith('image/'))
-  if (!files.length) {
-    if (mind.clipboardId.value) {
-      event.preventDefault()
-      event.stopPropagation()
-      onMindPaste(mind.selectedId.value || 'root')
-    }
-    return
-  }
-  event.preventDefault()
-  event.stopPropagation()
+async function ingestClipboardImages(files: File[]): Promise<void> {
   const now = new Date()
   const p = (n: number) => String(n).padStart(2, '0')
   const stamp = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`
@@ -778,7 +835,42 @@ function onCanvasPaste(event: ClipboardEvent): void {
     `粘贴图片_${stamp}_${String(index + 1).padStart(2, '0')}.${extOf(file.type)}`,
     { type: file.type || 'image/png', lastModified: file.lastModified || Date.now() },
   ))
-  void ingestAssetFiles(mind.selectedId.value || 'root', named)
+  await ingestAssetFiles(mind.selectedId.value || 'root', named)
+}
+
+async function onCanvasPaste(event: ClipboardEvent): Promise<void> {
+  if (!workspace.value) return
+  const target = event.target as HTMLElement | null
+  const inCanvas = inMindCanvas(target) || inMindCanvas(document.activeElement)
+  if (!inCanvas) return
+  const editing = isTextEditingTarget(target)
+  const immediateFiles = clipboardImageFiles(event.clipboardData)
+  // 输入框里只有确实携带图片时才拦截；普通文字粘贴继续交给原生输入框。
+  if (editing && !immediateFiles.length && !hasImageClipboardPayload(event.clipboardData)) return
+  lastCanvasPasteAt = Date.now()
+  if (canvasPasteFallbackTimer) {
+    clearTimeout(canvasPasteFallbackTimer)
+    canvasPasteFallbackTimer = null
+  }
+  let files = immediateFiles
+  if (!files.length && !editing) {
+    files = await readSystemClipboardImages()
+    if (!files.length) files = await readHtmlDataImages(event.clipboardData?.getData('text/html') || '')
+  }
+  if (!files.length) {
+    if (editing) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (mind.clipboardId.value) {
+      onMindPaste(mind.selectedId.value || 'root')
+    } else {
+      showToast('没有读取到图片；请复制为图片后再粘贴到节点')
+    }
+    return
+  }
+  event.preventDefault()
+  event.stopPropagation()
+  await ingestClipboardImages(files)
 }
 
 async function retryCurationAssets(): Promise<void> {
@@ -793,6 +885,15 @@ function resetCanvasHistory(event?: Event): void {
   const workspaceIdToReset = (event as CustomEvent<{ workspaceId?: string }> | undefined)?.detail?.workspaceId
   if (workspaceIdToReset) history.resetWorkspace(workspaceIdToReset)
   else history.resetAll()
+}
+
+async function onHistoryRollback(id: string): Promise<void> {
+  if (!(await useConfirm({
+    title: '回滚画布状态',
+    message: '画布会恢复到这条操作完成后的状态。\n回滚本身也会记入操作记录，可以再次撤销。',
+    confirmText: '回滚到此状态',
+  }))) return
+  if (history.rollbackTo(id)) historyLogOpen.value = false
 }
 
 function openThesisCard(): void {
@@ -827,10 +928,16 @@ function openThesisLink(): void {
   if (!t) return
   openLinkCards({ id: t.id, name: `中心论点 · ${t.title}` } as never)
 }
+
+function removeMirrorWithHistory(card: ResourceCard): void {
+  if (!isMirrorView(card)) return
+  history.record('移出镜像卡', () => removeMirror(card))
+}
+
 function onUnlinkThesis(card: ResourceCard): void {
   const t = thesisCard.value
   if (!t) return
-  if (isMirrorView(card)) { removeMirror(card); return }
+  if (isMirrorView(card)) { removeMirrorWithHistory(card); return }
   const live = d.value.resources.find(r => r.id === card.id && !r.deletedAt)
   if (!live || (live.categoryId || '') !== t.id) {
     showToast('ℹ 这张资源卡已不在中心论点下')
@@ -846,7 +953,7 @@ function onUnlinkThesis(card: ResourceCard): void {
 
 function onUnlinkResource(nodeId: string, card: ResourceCard): void {
   if (isMirrorView(card)) {
-    removeMirror(card)
+    removeMirrorWithHistory(card)
     return
   }
   const live = d.value.resources.find(r => r.id === card.id && !r.deletedAt)
@@ -1068,7 +1175,7 @@ const {
 } = useResourceDrawer({
   store, d, workspaceId, router, categories, activeCategory: mind.selectedId, thesisCard,
   openResourceLink, openImageAsset, setThesisCard, unsetThesis,
-  removeMirror, locateMirrorSource,
+  removeMirror: removeMirrorWithHistory, locateMirrorSource,
 })
 
 // ===== R100（纯拆分第一批）：导入三链路（数据包 / 书签 / 本地文件）拆入 useWorkspaceImport =====
@@ -1107,7 +1214,7 @@ const importMenuOpen = ref(false)
 function closeImportMenu() { importMenuOpen.value = false }
 function toggleImportMenu() {
   importMenuOpen.value = !importMenuOpen.value
-  if (importMenuOpen.value) settingsMenuOpen.value = false
+  wsInfoMenuOpen.value = false
 }
 function importShareHtmlFromMenu() {
   closeImportMenu()
@@ -1128,23 +1235,36 @@ function importPyramidTemplateFromMenu() {
   pyramidImportOpen.value = true
 }
 
-// ===== 设置菜单 =====
-const settingsMenuOpen = ref(false)
-function closeSettingsMenu() { settingsMenuOpen.value = false }
-function toggleSettingsMenu() {
-  const next = !settingsMenuOpen.value
-  settingsMenuOpen.value = next
-  if (next) closeImportMenu()
+// ===== 页头轻量菜单 =====
+const wsInfoMenuOpen = ref(false)
+function toggleWsInfoMenu() {
+  wsInfoMenuOpen.value = !wsInfoMenuOpen.value
+  importMenuOpen.value = false
 }
-/** R88（W6）：导入弹窗（自工具条收进 ⚙ 后，入口与弹窗标题同为 mode-aware） */
+function onRenameWorkspace() {
+  wsInfoMenuOpen.value = false
+  renameWs()
+}
+function onEditWorkspaceDesc() {
+  wsInfoMenuOpen.value = false
+  editDesc()
+}
+function onPickWorkspaceIcon(event: MouseEvent) {
+  wsInfoMenuOpen.value = false
+  toggleIconPick(event)
+}
+function closeHeaderMenus() {
+  closeImportMenu()
+  wsInfoMenuOpen.value = false
+}
 function openImport() {
-  settingsMenuOpen.value = false
+  closeImportMenu()
+  wsInfoMenuOpen.value = false
   importModalOpen.value = true
 }
 
 onMounted(() => {
-  document.addEventListener('click', closeSettingsMenu)
-  document.addEventListener('click', closeImportMenu)
+  document.addEventListener('click', closeHeaderMenus)
   document.addEventListener('visibilitychange', onWsOpenVisibility)
   document.addEventListener('keydown', onCanvasPasteKeydown, true)
   document.addEventListener('paste', onCanvasPaste, true)
@@ -1157,13 +1277,17 @@ onUnmounted(() => {
   flushWsOpenPersist()
   if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null }
   if (canvasPasteFallbackTimer) { clearTimeout(canvasPasteFallbackTimer); canvasPasteFallbackTimer = null }
-  document.removeEventListener('click', closeSettingsMenu)
-  document.removeEventListener('click', closeImportMenu)
+  if (pendingAssetCleanupTimer) { clearTimeout(pendingAssetCleanupTimer); pendingAssetCleanupTimer = null }
+  document.removeEventListener('click', closeHeaderMenus)
   document.removeEventListener('visibilitychange', onWsOpenVisibility)
   document.removeEventListener('keydown', onCanvasPasteKeydown, true)
   document.removeEventListener('paste', onCanvasPaste, true)
   window.removeEventListener('zy:curation-history-reset', resetCanvasHistory)
   window.removeEventListener('online', retryCurationAssets)
+})
+
+watch(history.historyRevision, () => {
+  if (pendingAssetCleanup.size) cleanupPendingAssets()
 })
 
 // ===== 设置菜单关闭 + 采集跳转高亮 =====
@@ -1178,10 +1302,10 @@ const { cardExistsGlobally, referencedAssetIds, onDrillLocateAsset, onDrillClean
 // 并统一在做 querySelector 之前调 ensureCardRendered（R112/R116 增量渲染后目标卡可能未进渲染集）。
 // ===== R115 拆分接线：台元信息域（台名/图标/描述/重命名/导出/删除）=====
 const {
-  wsDisplayName, onNameBlur, onNameEnter,
+  wsDisplayName, exportWorkspace,
   WS_ICONS, iconPickOpen, iconCustom, iconPickPos, toggleIconPick, setWsIcon,
-  onDescBlur, onDescEnter, renameWs, editDesc, exportWorkspace, deleteWorkspace,
-} = useWsMeta({ store, d, workspaceId, workspace, router, settingsMenuOpen, openInputModal })
+  renameWs, editDesc,
+} = useWsMeta({ store, d, workspaceId, workspace, router, openInputModal })
 // ===== 分类管理（第八轮：新建/重命名/删除入口统一到左栏与应用内弹窗） =====
 
 </script>

@@ -604,8 +604,22 @@ check('R56-27（R74 重写）无独立「源分类实时镜像」分区（统一
   return !w.includes('源分类实时镜像') && !w.includes('const viewLive = computed');
 });
 // R74 退役 R56-28：随 CurationCenter.vue 删除退役（锁 curFrom 死代码链，见 04-23 §六 A 组）
-check('R56-29 I 工作台导出改 AppData 子集同构（...d 展开 + 全局段随行 + 工作台段按台过滤 + AppData 类型）', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('function exportWorkspace'); const seg = w.slice(i, i + 900); return seg.includes('...d.value') && seg.includes('workspaces: [ws]') && seg.includes("c.workspaceId === wsId") && seg.includes('r.workspaceId === wsId') && w.includes('type AppData'); });
-check('R56-30 I 导出物可导回：含 version:2（导入端版本校验通过），tagTree/compass/tasks/curiosities/stats 全局段随行', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('function exportWorkspace'); const seg = w.slice(i, i + 900); return seg.includes('...d.value') && seg.includes('JSON.parse(JSON.stringify'); });
+check('R56-29（V4.1.2 随迁）工作台导出改 AppData 子集同构：全局段随行 + 工作台段按台过滤，真源下沉到 deckData', () => {
+  const w = read('/newtab/views/Workspace.vue');
+  const u = read('/shared/utils/deckData.ts');
+  return w.includes("buildWorkspaceExportData(d.value, wsId)")
+    && u.includes('...root')
+    && u.includes('workspaces: workspace ? [workspace] : []')
+    && u.includes('row.workspaceId === workspaceId')
+    && u.includes('export function buildWorkspaceExportData(data: AppData');
+});
+check('R56-30（V4.1.2 随迁）导出物可导回：深拷贝后 version/tagTree/compass/tasks/curiosities/stats 全局段随行，且凭据字段剥离', () => {
+  const u = read('/shared/utils/deckData.ts');
+  return u.includes('JSON.parse(JSON.stringify({')
+    && u.includes('...root')
+    && u.includes('delete root.airtableSync')
+    && u.includes('delete root.airtableMap');
+});
 check('R56-31 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => { const m = read('/manifest.ts'); const pkg = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'package.json'), 'utf8'); const mp = read('/newtab/views/ManualPage.vue'); const reg = fs.readFileSync(ANCHOR_FILE, 'utf8'); return m.includes(VER_ANCHOR_LITERAL) && pkg.includes('"version": "' + CUR_VER + '"') && mp.includes(CUR_VTAG) && reg.includes(VER_ANCHOR_LITERAL); });
 check('R56-32 E2E-17 注册（R2-② 重指：项目调度卡退役改验——四格/下钻/详情抽屉零残留，能力去向方向台展板由 E2E-20/25 覆盖）', () => { const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'); return e.includes('E2E-17 ★R2-② 项目调度卡退役改验') && e.includes('调度台零残留') && !e.includes("csv-cell').nth"); });
 check('R56-33 脚本跨平台：e2e/import-compat Chromium 路径 darwin 分支（Windows 原路径保留）· ★R4-Ea 随迁备案（口径不放宽）：跨平台分支从「两个脚本各自写一份」上收到 scripts/browser.cjs 一处（同一条链抄 7 份，抄出了 img-diff 只认 chromium-1234 的坏工具），所以判据改为三件：① browser.cjs 里 mac/win/linux 三套路径都在；② 两个脚本都从它取；③ 两个脚本自己不许再拼 ms-playwright 路径（防回流）', () => { const b = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'browser.cjs'), 'utf8'); const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'); const k = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'test-import-compat.cjs'), 'utf8'); return b.includes("process.platform === 'darwin'") && b.includes('chrome-win64') && b.includes('chrome-linux') && b.includes('chrome-mac-arm64') && e.includes("require('./browser.cjs')") && k.includes("require('./browser.cjs')") && !codeOnly(e).includes('ms-playwright') && !codeOnly(k).includes('ms-playwright'); });

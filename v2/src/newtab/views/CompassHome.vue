@@ -43,6 +43,7 @@ import { weekUsageOf } from '@/shared/storage/stats'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import AssetPreview from '@/shared/components/AssetPreview.vue'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
+import InboxCountBadge from '../components/compass/InboxCountBadge.vue'
 import { useCompassHome, type FocusCell, type HandKind } from './useCompassHome'
 const {
   router, route, store, d, allProjects,
@@ -239,7 +240,7 @@ const {
             <!-- V3.9.18：三列改三池页签（原型手边的卡）——列结构与字符串锚保留，仅显示态切换 -->
             <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
               <button class="hand-tab hand-tab-inbox" :class="{ on: handTab === 'inbox' }" role="tab" :aria-selected="handTab === 'inbox'" type="button" @click="handTab = 'inbox'">
-                Inbox <span class="hand-inbox-badge" :class="{ muted: !inbox.connected.value || !inbox.untransformedCount.value }">{{ inbox.untransformedCount.value }}</span>
+                Inbox <InboxCountBadge :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
               </button>
               <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">任务</button>
               <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">好奇心</button>
@@ -308,7 +309,7 @@ const {
               <header class="hand-col-head">
                 <Icon name="inbox" :size="14" />
                 <b id="inboxColTitle">Inbox</b>
-                <span class="hand-count">{{ inbox.untransformedCount.value }}</span>
+                <InboxCountBadge :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
                 <button class="hand-link" type="button" @click="goDeck('inbox')">查看全部 <Icon name="arrowright" :size="12" /></button>
               </header>
               <div class="mini-list">

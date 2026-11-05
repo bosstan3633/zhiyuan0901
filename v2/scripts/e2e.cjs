@@ -1189,9 +1189,9 @@ async function main() {
       + `right=${rightToChild} left=${leftToRoot} down=${downToSecond} up=${upToRoot} `
       + `end=${endToLast} home=${homeToFirst} count=${navBefore.count}→${navAfter.count} editing=${navAfter.editing}`)
 
-  // E2E-46（V4.0.4）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
-  //   预览按真实 Category 树递归平铺到 L4。V4.0.3 起两项读数归中心论点卡，
-  //   分享与设置留在页面行动条，测试按当前信息层级分别验证。
+  // E2E-46（V4.1.2 重指）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
+  //   预览按真实 Category 树递归平铺到 L4。两项读数归中心论点卡；页面设置齿轮已退役，
+  //   分享仍是画布行动条最后一枚主按钮，设置能力迁入台数据 / 台签菜单。
   // 分享用例同时验证“有中心论点”的信息层级：先种入论点卡，避免空态下
   // 误把“读数依法不渲染”当成组件缺席。
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(async (r) => {
@@ -1227,9 +1227,7 @@ async function main() {
     const toolbar = document.querySelector('.ws-toolbar.cur-toolbar')
     const metrics = [...document.querySelectorAll('.cur-metric')]
     const shareAction = document.querySelector('.share-action')
-    const settingsButton = document.querySelector('button.hero-btn.settings[title="策展台设置"]')
     const share = shareAction?.getBoundingClientRect()
-    const settings = settingsButton?.getBoundingClientRect()
     const toolbarButtons = toolbar ? [...toolbar.querySelectorAll('button')] : []
     return {
       visible: !!paper && paper.getBoundingClientRect().height > 50,
@@ -1238,16 +1236,16 @@ async function main() {
       iframes,
       metricsInBanner: metrics.length === 2 && metrics.every(metric => !!banner && metric.closest('.thesis-banner') === banner),
       shareInToolbar: !!toolbar && !!shareAction && shareAction.closest('.ws-toolbar.cur-toolbar') === toolbar,
-      settingsInToolbar: !!toolbar && !!settingsButton && settingsButton.closest('.ws-toolbar.cur-toolbar') === toolbar,
-      shareRightOfSettings: !!(share && settings && share.left >= settings.left),
+      settingsRetired: !document.querySelector('button.hero-btn.settings[title="策展台设置"]'),
       shareIsToolbarLast: toolbarButtons.length > 0 && toolbarButtons[toolbarButtons.length - 1] === shareAction,
+      shareHasBox: !!share && share.width > 0 && share.height > 0,
     }
   })
-  report('E2E-46 V4.0.4 分享预览原生可读且递归呈现 L2–L4；读数归中心论点卡，分享与设置归页面行动条',
+  report('E2E-46 V4.1.2 分享预览原生可读且递归呈现 L2–L4；读数归中心论点卡，设置齿轮退役，分享仍为行动条最后一钮',
     sharePreview.visible && sharePreview.levels.length === 3 && sharePreview.hasNodes
       && sharePreview.iframes === 0 && sharePreview.metricsInBanner
-      && sharePreview.shareInToolbar && sharePreview.settingsInToolbar
-      && sharePreview.shareRightOfSettings && sharePreview.shareIsToolbarLast,
+      && sharePreview.shareInToolbar && sharePreview.settingsRetired
+      && sharePreview.shareHasBox && sharePreview.shareIsToolbarLast,
     JSON.stringify(sharePreview))
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(500)
@@ -1472,9 +1470,10 @@ async function main() {
   await page.waitForTimeout(1800)
   await page.evaluate(() => { location.hash = '#/workspace/e2e-del-ws' })
   await page.waitForTimeout(1600)
-  /* 「导入模板」也复用了 .hero-btn.settings，必须按真实入口的 title 定位设置齿轮，否则点到同类按钮。 */
-  await page.locator('button.hero-btn.settings[title="策展台设置"]').click()
-  await page.getByText('删除策展台', { exact: true }).last().click()
+  /* V4.1.2：页面设置齿轮已退役，删除策展台改由顶栏台签右键菜单承接。 */
+  await page.locator('.tabs .tab').filter({ hasText: '待删台' }).first().click({ button: 'right' })
+  await waitForLocator(page, '.ctx-menu .ctx-item.danger', { visible: true, timeout: 5000 })
+  await page.locator('.ctx-menu .ctx-item.danger').filter({ hasText: '删除策展台' }).first().click()
   /* ★R175-补：等确认弹窗真出现再点（原来死等 500ms）。 */
   await page.getByText("移入回收站").first().waitFor({ state: "visible", timeout: 8000 }).catch(() => {})
   const confirmMsg = await page.getByText('移入回收站').first().isVisible().catch(() => false)

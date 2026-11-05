@@ -346,7 +346,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '4.1.1'";
+const VER_ANCHOR_LITERAL = "version: '4.1.2'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -450,7 +450,7 @@ const RES_CARD_IFACE = segOf(read('/shared/models/index.ts'), 'export interface 
 // 引用它们的断言逐条重指到方向台新现实（不再静默指向空串，避免"判据还在、证据已空"）。
 const WS84 = read('/newtab/views/Workspace.vue');
 const WSVIEW = read('/shared/utils/wsView.ts');
-const HEAD_TPL = segOf(WS84, '<div class="ws-id-head">', '</div>');
+const HEAD_TPL = segOf(WS84, '<div class="ws-id-head">', '\n      <!-- 中心论点卡');
 const BANNER_TPL = segOf(WS84, '<div class="thesis-banner"', '</div>');
 const ST85 = read('/newtab/stores/compass.ts');
 const FOCUS_FN = segOf(ST85, 'function toggleFocusProject(', 'function addProjectToDir');
@@ -470,13 +470,15 @@ const WS88_TPL = segOf(WS88, '<template>', '\n</template>');
 const TB88 = segOf(WS88, '<div class="ws-toolbar cur-toolbar"', '<CurationMindMap');
 const POP88 = POOL_CONTROLS;
 const TB1_88 = TB88;
-const SM88 = segOf(WS88, '<div class="settings-menu"', '\n    </div>');
+// ★V4.1.2 随迁备案：页面设置退役，原 88 切片改指「台数据」菜单；导入/导出/清理能力仍在同一现役边界。
+const SM88 = segOf(WS88, '<div class="cur-import"', '<div class="toolbar-spacer">');
 const WS89 = read('/newtab/views/Workspace.vue');
 const WS89_TPL = segOf(WS89, '<template>', '\n</template>');
 const WS90 = read('/newtab/views/Workspace.vue');
 const REF90 = read('/newtab/components/ResourceEditForm.vue');
 const ICON90 = read('/shared/components/Icon.vue');
-const HEAD90 = segOf(WS90, '<div class="ws-id-head">', '</div>');
+// 台名内嵌编辑菜单后，第一个 </div> 已不再是页头边界；改用中心论点注释作为真实终点。
+const HEAD90 = segOf(WS90, '<div class="ws-id-head">', '\n      <!-- 中心论点卡');
 const TB90 = CURATION_TOOLBAR;
 // ★R4-Eu 随迁备案：原终点 `// ===== 拖拽排序` 在 R115 拆分后不再紧跟 openResCtx ⇒ 切片一路到聚合文本末尾，
 // 里面既有 `openMirrorDetail` 又有各域 return —— 三条负锚（isHub / openMirrorCard / icon: 'share'）

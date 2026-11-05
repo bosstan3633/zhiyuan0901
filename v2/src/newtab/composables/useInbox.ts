@@ -6,9 +6,11 @@ import { LOCAL_KEYS } from '@/shared/storage/keys'
 import {
   convertCapture,
   dismissCapture,
+  dismissCaptures,
   getCloudMeta,
   listCaptures,
   restoreCapture,
+  restoreCaptures,
   type CaptureConvertedKind,
   type CaptureItem,
 } from '@/shared/cloud/sync'
@@ -279,6 +281,24 @@ async function restore(item: CaptureItem): Promise<void> {
   writeCache(items.value)
 }
 
+async function clearAll(): Promise<CaptureItem[]> {
+  const snapshot = [...items.value]
+  if (!snapshot.length) return []
+  await dismissCaptures(snapshot.map(item => item.id))
+  items.value = []
+  writeCache(items.value)
+  return snapshot
+}
+
+async function restoreMany(rows: CaptureItem[]): Promise<void> {
+  if (!rows.length) return
+  await restoreCaptures(rows.map(item => item.id))
+  const byId = new Map(items.value.map(item => [item.id, item]))
+  for (const item of rows) byId.set(item.id, item)
+  items.value = [...byId.values()].sort((a, b) => b.createdAt - a.createdAt)
+  writeCache(items.value)
+}
+
 const untransformedCount = computed(() => items.value.filter(item => !item.convertedKind).length)
 const sortedItems = computed(() => items.value)
 
@@ -294,6 +314,8 @@ export function useInbox() {
     convert,
     dismiss,
     restore,
+    clearAll,
+    restoreMany,
     existingCardFor,
     retryPendingConversions,
   }

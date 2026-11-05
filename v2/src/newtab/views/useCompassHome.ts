@@ -637,14 +637,6 @@ const inboxPreviewBusy = ref('')
 
 async function convertInboxPreview(item: { id: string; convertedKind?: string }, kind: 'task' | 'curiosity' | 'resource'): Promise<void> {
   if (inboxPreviewBusy.value) return
-  if (!inbox.connected.value) {
-    showToast('请先连接云同步，再转化 Inbox 采集')
-    return
-  }
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    showToast('当前处于离线状态，联网后再转化')
-    return
-  }
   if (item.convertedKind) {
     showToast('这条采集已经转化')
     return

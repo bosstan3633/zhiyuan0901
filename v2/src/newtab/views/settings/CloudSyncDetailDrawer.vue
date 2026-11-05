@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import Icon from '@/shared/components/Icon.vue'
 import type { CloudSyncDetails } from '@/newtab/composables/useCloudSync'
-import { diffSyncManifests, type SyncManifest, type SyncManifestRecordType } from '@/shared/cloud/sync'
+import { diffSyncManifests, type SyncManifest, type SyncManifestRecord, type SyncManifestRecordType } from '@/shared/cloud/sync'
+import SyncRecordDetailDrawer from './SyncRecordDetailDrawer.vue'
 
 const props = defineProps<{
   open: boolean
@@ -18,7 +19,8 @@ type Tab = 'local' | 'remote'
 const tab = ref<Tab>('local')
 const query = ref('')
 const typeFilter = ref<'all' | SyncManifestRecordType>('all')
-const expandedKey = ref('')
+const detailRecord = ref<SyncManifestRecord | null>(null)
+const detailOpen = ref(false)
 
 const localManifest = computed<SyncManifest | null>(() => props.details?.localManifest || null)
 const currentLocalManifest = computed<SyncManifest | null>(() => props.details?.currentLocalManifest || null)
@@ -44,7 +46,8 @@ watch(() => props.open, open => {
   tab.value = props.initialTab || 'local'
   query.value = ''
   typeFilter.value = 'all'
-  expandedKey.value = ''
+  detailOpen.value = false
+  detailRecord.value = null
 })
 
 function typeLabel(type: SyncManifestRecordType): string {
@@ -67,6 +70,11 @@ function fmtFingerprint(value?: string): string {
 
 function recordLine(row: { type: SyncManifestRecordType; title: string; id: string; status?: string }): string {
   return `${typeLabel(row.type)} · ${row.title || row.id}${row.status === 'added' ? ' · 新增' : row.status === 'removed' ? ' · 删除' : row.status === 'changed' ? ' · 变化' : ''}`
+}
+
+function openRecord(row: SyncManifestRecord): void {
+  detailRecord.value = row
+  detailOpen.value = true
 }
 </script>
 
@@ -156,18 +164,13 @@ function recordLine(row: { type: SyncManifestRecordType; title: string; id: stri
 
       <div v-if="activeManifest" class="csd-records">
         <button v-for="row in shownRecords" :key="row.key" type="button" class="csd-record"
-          :class="{ open: expandedKey === row.key, deleted: row.deleted }"
-          @click="expandedKey = expandedKey === row.key ? '' : row.key">
+          :class="{ deleted: row.deleted }"
+          @click="openRecord(row)">
           <span class="csd-type">{{ typeLabel(row.type) }}</span>
           <span class="csd-title">{{ row.title }}</span>
           <span class="csd-time">{{ fmtTime(row.updatedAt) }}</span>
           <span v-if="row.deleted" class="csd-deleted">已删除</span>
           <Icon name="arrowright" :size="11" class="csd-caret"/>
-          <span v-if="expandedKey === row.key" class="csd-record-detail">
-            <span>ID：<code>{{ row.id }}</code></span>
-            <span>摘要指纹：<code>{{ fmtFingerprint(row.digest) }}</code></span>
-            <span>状态：{{ row.deleted ? '软删除/回收站' : '有效' }}</span>
-          </span>
         </button>
         <div v-if="!filteredRecords.length" class="csd-empty">没有匹配的记录</div>
         <div v-if="filteredRecords.length > shownRecords.length" class="csd-more">
@@ -177,6 +180,8 @@ function recordLine(row: { type: SyncManifestRecordType; title: string; id: stri
       <div v-else class="csd-empty">暂无该端 manifest。成功同步一次后会自动建立。</div>
     </template>
   </Drawer>
+  <SyncRecordDetailDrawer :open="detailOpen" :record="detailRecord" :source="tab"
+    @close="detailOpen = false" />
 </template>
 
 <style scoped>
@@ -224,10 +229,6 @@ function recordLine(row: { type: SyncManifestRecordType; title: string; id: stri
 .csd-title { overflow: hidden; font-size: var(--fs-caption); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .csd-time { color: var(--text-3); font-size: var(--fs-micro); font-variant-numeric: tabular-nums; }
 .csd-deleted { color: var(--danger); font-size: var(--fs-micro); }
-.csd-caret { transform: rotate(0deg); transition: transform var(--dur-fast); }
-.csd-record.open .csd-caret { transform: rotate(90deg); }
-.csd-record-detail { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-3); font-size: var(--fs-micro); }
-.csd-record-detail code { color: var(--text-2); font-family: var(--font-mono); overflow-wrap: anywhere; }
 .csd-more { padding: 7px; color: var(--text-3); font-size: var(--fs-micro); text-align: center; }
 @media (max-width: 720px) {
   .csd-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

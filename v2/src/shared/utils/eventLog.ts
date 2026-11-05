@@ -14,7 +14,7 @@
  *  - 日志为空时（老数据）UI 回退纯派生（createdAt/deletedAt），新旧无缝
  */
 import type { AppData } from '@/shared/models'
-import { K } from '@/shared/storage/keys'
+import { K, LOCAL_KEYS } from '@/shared/storage/keys'
 
 export type CardKind = 'resource' | 'task' | 'curiosity'
 /**
@@ -57,6 +57,8 @@ export interface CardEvent {
    * 是按目标态分档的，而事件原先只记"改过状态"，权重只能取平均 ⇒ 分值失真。
    */
   to?: string
+  /** 产生该事件的设备；旧事件可能没有，合并时由服务端/客户端补为 legacy */
+  deviceId?: string
 }
 
 export const EVENT_LOG_KEY = K.EVENT_LOG
@@ -74,6 +76,45 @@ let logCache: CardEvent[] | null = null
 let dirty = false
 function trimLog(events: CardEvent[]): CardEvent[] {
   return events.length > EVENT_LOG_CAP ? events.slice(events.length - EVENT_LOG_CAP) : events
+}
+
+let deviceIdCache = ''
+
+/** 浏览器内同步生成稳定设备 ID；失败时回落到本次会话的随机值。 */
+export function currentDeviceId(): string {
+  if (deviceIdCache) return deviceIdCache
+  try {
+    const cached = globalThis.localStorage?.getItem(LOCAL_KEYS.DEVICE_ID)
+    if (cached) {
+      deviceIdCache = cached
+      return cached
+    }
+    const next = globalThis.crypto?.randomUUID?.()
+      || `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+    globalThis.localStorage?.setItem(LOCAL_KEYS.DEVICE_ID, next)
+    deviceIdCache = next
+    return next
+  } catch {
+    return 'dev-session'
+  }
+}
+
+function eventId(ts: number, seq: number): string {
+  const nonce = globalThis.crypto?.randomUUID?.().slice(0, 8)
+    || Math.random().toString(36).slice(2, 8)
+  return `${ts}-${currentDeviceId()}-${seq}-${nonce}`
+}
+
+/** 账号级事件按 ID 并集，按时间排序并保留本机最近 5000 条。 */
+export function mergeEventLogs(...sources: unknown[]): CardEvent[] {
+  const byId = new Map<string, CardEvent>()
+  for (const source of sources) {
+    if (!Array.isArray(source)) continue
+    for (const row of source as CardEvent[]) {
+      if (row && typeof row.id === 'string') byId.set(row.id, row)
+    }
+  }
+  return trimLog([...byId.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0) || a.id.localeCompare(b.id)))
 }
 
 function chromeStore(): chrome.storage.StorageArea | null {
@@ -134,10 +175,7 @@ export function initEventLog(raw: unknown): void {
 export async function mergeImportedEventLog(incoming: unknown): Promise<{ imported: number; kept: number }> {
   const incomingList = Array.isArray(incoming) ? incoming as CardEvent[] : []
   const cur = await readEventLog()
-  const byId = new Map<string, CardEvent>()
-  for (const e of cur) if (e && typeof e.id === 'string') byId.set(e.id, e)
-  for (const e of incomingList) if (e && typeof e.id === 'string') byId.set(e.id, e)
-  const merged = trimLog([...byId.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0)))
+  const merged = mergeEventLogs(cur, incomingList)
   logCache = merged
   dirty = true
   await flushEventLogNow()
@@ -201,7 +239,7 @@ export function flushCardEvents(d: AppData): void {
    * 缺 `updatedAt` 的老数据才回落 `now`。批量摘要事件（system）本身没有单卡时间，仍用 `now`。
    */
   const mk = (action: EventAction, kind: CardKind | 'system', title: string, cardId: string, ts = now, to?: string): CardEvent =>
-    ({ id: `${ts}-${++eid}`, ts, action, kind, title, cardId, ...(to ? { to } : {}) })
+    ({ id: eventId(ts, ++eid), ts, action, kind, title, cardId, deviceId: currentDeviceId(), ...(to ? { to } : {}) })
 
   const creates: CardEvent[] = []
   const deletes: CardEvent[] = []
@@ -274,7 +312,15 @@ export function flushCardEvents(d: AppData): void {
  */
 let callSeq = 0
 export function recordCallEvent(kind: CardKind, title: string, cardId: string, ts = Date.now()): void {
-  enqueue([{ id: `${ts}-call-${++callSeq}`, ts, action: 'call', kind, title: title || '（无标题）', cardId }])
+  enqueue([{
+    id: eventId(ts, ++callSeq),
+    ts,
+    action: 'call',
+    kind,
+    title: title || '（无标题）',
+    cardId,
+    deviceId: currentDeviceId(),
+  }])
 }
 
 /* ================= R117（04-61 C3）：好奇心「探索累计」口径 ================= */
