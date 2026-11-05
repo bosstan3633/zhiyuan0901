@@ -480,13 +480,14 @@ check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属
     && WS84.includes('class="ws-id-head"');
 });
 check('R84-5（V4.0.3 重指）论点横幅两态：已设 → 标题 + 查看论点详情；未设 → 单行轻引导 + 文本式开始提示。旧“查看金字塔”不回流', () => {
-  return BANNER_TPL.includes('class="tb-title"')
-    && BANNER_TPL.includes('class="tb-detail"') && BANNER_TPL.includes('查看论点详情')
-    && BANNER_TPL.includes('class="tb-hint"') && BANNER_TPL.includes('点击确立本策展台的')
-    && BANNER_TPL.includes('class="thesis-empty-inner"') && BANNER_TPL.includes('class="tb-btn"')
-    && !BANNER_TPL.includes('<button class="tb-btn"')
-    && BANNER_TPL.includes('@click="openThesisCard"') && BANNER_TPL.includes('@click="openThesisCreate"')
-    && !BANNER_TPL.includes("setViewMode('pyramid')");
+  return WS84.includes('class="tb-title"')
+    && WS84.includes('class="tb-detail"') && WS84.includes('查看论点详情')
+    && WS84.includes('class="tb-hint"') && WS84.includes('点击确立本策展台的')
+    && WS84.includes('class="thesis-empty-inner"') && WS84.includes('class="tb-btn"')
+    && WS84.includes('v-pressable="!!thesisCard"')
+    && !WS84.includes('<button class="tb-btn"')
+    && WS84.includes('@click.stop="openThesisCard"') && WS84.includes('@click.stop="openThesisCreate"')
+    && !WS84.includes("setViewMode('pyramid')");
 });
 check('R84-6（V3.9.8 随迁备案）论点横幅单形态常驻：旧“只在卡片视图出现”随四视图退役；现役页头后只有一处横幅，画布根节点复用同一张论点卡但不再渲染第二份横幅', () => {
   const w = codeOnly(WS84);

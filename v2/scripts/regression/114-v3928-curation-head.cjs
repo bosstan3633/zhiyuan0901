@@ -72,7 +72,8 @@ check('R185-A4（V3.9.29 重指）★行动条按职责分组：画布读数 / �
 })
 
 check('R185-A5（V3.9.29 重指）★未设立论点是单行轻引导：整卡可点创建 + 文本式开始提示，不再显示旧版大灰卡或卡内按钮', () => {
-  return WS.includes('<button class="thesis-empty-inner" type="button" @click="openThesisCreate">')
+  return WS.includes('v-pressable="!!thesisCard"')
+    && WS.includes('<button class="thesis-empty-inner" type="button" @click.stop="openThesisCreate">')
     && WS.includes('class="thesis-empty-pill"')
     && WS.includes('点击确立本策展台的 <b>L1 中心论点</b>')
     && WS.includes('class="tb-btn"')

@@ -5,6 +5,7 @@ import type {
   CloudMeta,
   CloudRelation,
   SnapshotState,
+  SyncManifest,
 } from '@/shared/cloud/sync'
 
 export type CloudState = 'checking' | 'disabled' | 'signed_out' | 'connected' | 'syncing' | 'error'
@@ -24,6 +25,15 @@ export interface CloudDecisionInfo {
   localRevision: number
   remoteFingerprint?: string
   localFingerprint?: string
+}
+export interface CloudSyncDetails {
+  localManifest: SyncManifest | null
+  currentLocalManifest: SyncManifest
+  remoteManifest: SyncManifest | null
+  remoteRevision: number
+  remoteUpdatedAt?: string
+  cachedAt?: number
+  refreshError?: string
 }
 type DecisionHandler = (info: CloudDecisionInfo) => Promise<CloudConflictChoice>
 
@@ -334,6 +344,15 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
       ...localRows.filter(asset => !remoteIds.has(asset.id)),
     ]
   }
+  /** 策展节点以云端成员表为唯一真源；本机只补同 ID 的本地状态。 */
+  const authoritativeCurationAssets = (
+    remote: import('@/shared/models').AssetMeta[] | undefined,
+    local: import('@/shared/models').AssetMeta[] | undefined,
+  ): import('@/shared/models').AssetMeta[] => {
+    const localById = new Map((local || []).map(asset => [asset.id, asset]))
+    return (remote || []).map(asset => ({ ...(localById.get(asset.id) || {}), ...asset }))
+  }
+  const staleCurationAssets = new Map<string, import('@/shared/models').AssetMeta>()
   for (const cards of [
     nextData.resources,
     nextData.tasks,
@@ -342,13 +361,22 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
   ]) {
     for (const card of cards || []) {
       const assets = localAssets.get(card.id)
-      if (assets) card.assets = ('isThesis' in card && card.isThesis) ? mergeAssetMeta(card.assets, assets) : assets
+      if (!assets) continue
+      if ('isThesis' in card && card.isThesis) {
+        const nextIds = new Set((card.assets || []).map(asset => asset.id))
+        for (const asset of assets) if (!nextIds.has(asset.id)) staleCurationAssets.set(asset.id, asset)
+        card.assets = authoritativeCurationAssets(card.assets, assets)
+      } else {
+        card.assets = assets
+      }
     }
   }
   for (const category of nextData.categories || []) {
     const local = localCategoryAssets.get(category.id)
     if (!local?.length) continue
-    category.assets = mergeAssetMeta(category.assets, local)
+    const nextIds = new Set((category.assets || []).map(asset => asset.id))
+    for (const asset of local) if (!nextIds.has(asset.id)) staleCurationAssets.set(asset.id, asset)
+    category.assets = authoritativeCurationAssets(category.assets, local)
   }
   await repository.cloudRestoreAtomic({
     nextData,
@@ -357,7 +385,22 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
   })
   await store.refreshAfterCloudRestore(nextData, downloaded.state.ui)
   try { window.dispatchEvent(new CustomEvent('zy:curation-history-reset')) } catch { /* 非浏览器上下文无画布历史 */ }
-  await sync.markDownloaded(downloaded.revision, downloaded.fingerprint)
+  if (staleCurationAssets.size) {
+    const retained = new Set<string>()
+    const collect = (owners?: { assets?: { id: string }[] }[]) => {
+      for (const owner of owners || []) for (const asset of owner.assets || []) retained.add(asset.id)
+    }
+    collect(nextData.resources)
+    collect(nextData.tasks)
+    collect(nextData.curiosities)
+    collect(nextData.argCards)
+    collect(nextData.categories)
+    const { deleteAsset } = await import('@/shared/storage/assets')
+    for (const id of staleCurationAssets.keys()) {
+      if (!retained.has(id)) await deleteAsset(id).catch(() => {})
+    }
+  }
+  await sync.markDownloaded(downloaded.revision, downloaded.fingerprint, downloaded.manifest)
   await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq())
   return { revision: downloaded.revision }
 }
@@ -509,6 +552,35 @@ async function downloadCurrent(store: AppStore): Promise<{ revision: number }> {
   }
 }
 
+async function loadSyncDetails(store: AppStore): Promise<CloudSyncDetails> {
+  const { sync } = await loadSharedModules()
+  const captured = await captureLocalSnapshot(store)
+  try {
+    const result = await sync.checkRemote(captured.snapshot)
+    const current = await sync.getCloudMeta()
+    meta.value = current
+    return {
+      localManifest: current?.localManifest || null,
+      currentLocalManifest: sync.buildSyncManifest(captured.snapshot, current?.revision || 0),
+      remoteManifest: result.remoteManifest || current?.remoteManifest || null,
+      remoteRevision: result.remoteRevision,
+      remoteUpdatedAt: result.remoteUpdatedAt,
+      cachedAt: current?.remoteManifestCachedAt,
+    }
+  } catch (error) {
+    const current = await sync.getCloudMeta()
+    meta.value = current
+    return {
+      localManifest: current?.localManifest || null,
+      currentLocalManifest: sync.buildSyncManifest(captured.snapshot, current?.revision || 0),
+      remoteManifest: current?.remoteManifest || null,
+      remoteRevision: current?.remoteManifest?.revision || current?.revision || 0,
+      cachedAt: current?.remoteManifestCachedAt,
+      refreshError: messageOf(error),
+    }
+  }
+}
+
 export interface UseCloudSyncReturn {
   state: Ref<CloudState>
   meta: Ref<CloudMeta | null>
@@ -528,6 +600,7 @@ export interface UseCloudSyncReturn {
   manualSync: (store: AppStore, onDecision: DecisionHandler) => Promise<CloudSyncOutcome>
   uploadCurrent: (store: AppStore, onDecision: DecisionHandler) => Promise<CloudSyncOutcome>
   downloadCurrent: (store: AppStore) => Promise<{ revision: number }>
+  loadSyncDetails: (store: AppStore) => Promise<CloudSyncDetails>
 }
 
 export function useCloudSync(): UseCloudSyncReturn {
@@ -550,5 +623,6 @@ export function useCloudSync(): UseCloudSyncReturn {
     manualSync,
     uploadCurrent,
     downloadCurrent,
+    loadSyncDetails,
   }
 }

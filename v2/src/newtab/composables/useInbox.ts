@@ -181,6 +181,10 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
   if (!data) throw new Error('数据尚未加载')
   const existing = existingCardFor(item.id)
   if (existing) {
+    items.value = items.value.map(row => row.id === item.id
+      ? { ...row, convertedKind: existing.kind, convertedCardId: existing.id, convertedAt: row.convertedAt || Date.now() }
+      : row)
+    writeCache(items.value)
     enqueueConversion(item.id, existing.kind, existing.id, new Error('等待补写转化状态'))
     try {
       await convertCapture(item.id, existing.kind, existing.id)

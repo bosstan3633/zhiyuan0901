@@ -5,8 +5,8 @@
  * MD/HTML 全树导出（compassExport，与渲染共用 compassCurationModel 同源 builder）。
  * 只读红线：本页零写库——所有「编辑」诉求导流回方向台。
  */
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { useAppStore } from '@/newtab/stores/app'
@@ -20,11 +20,15 @@ import CurationPyramidLayout from '@/newtab/components/compass/curation/Curation
 import CurationReadDrawer from '@/newtab/components/compass/CurationReadDrawer.vue'
 
 const router = useRouter()
+const route = useRoute()
 const appStore = useAppStore()
 const d = computed(() => appStore.data!)
 const tree = computed<CurationTree>(() => buildCurationTree(d.value))
 
-const layout = ref<'tree' | 'pyramid'>('tree')
+const layout = ref<'tree' | 'pyramid'>(route.query.layout === 'tree' ? 'tree' : 'pyramid')
+watch(() => route.query.layout, value => {
+  layout.value = value === 'tree' ? 'tree' : 'pyramid'
+})
 const collapsedIds = ref<Set<string>>(new Set())
 const sel = ref<CurationSel | null>(null)
 
@@ -76,8 +80,8 @@ function doExport(fmt: ExportFmt) {
       </div>
       <div class="sp"></div>
       <div class="seg" role="tablist" aria-label="策展布局">
-        <button type="button" :class="{ on: layout === 'tree' }" :aria-selected="layout === 'tree'" @click="layout = 'tree'">树状</button>
         <button type="button" :class="{ on: layout === 'pyramid' }" :aria-selected="layout === 'pyramid'" @click="layout = 'pyramid'">金字塔</button>
+        <button type="button" :class="{ on: layout === 'tree' }" :aria-selected="layout === 'tree'" @click="layout = 'tree'">树状</button>
       </div>
       <button class="cmp-tool" type="button" @click="expandAll">全部展开</button>
       <button class="cmp-tool" type="button" @click="collapseToGoal">一键折叠至目标</button>

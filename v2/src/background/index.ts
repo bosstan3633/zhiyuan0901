@@ -146,6 +146,10 @@ chrome.commands.onCommand.addListener(async (command) => {
       await openNewtabRoute('/settings?page=cloud')
       break
     }
+    case 'open-compass-curation': {
+      await openNewtabRoute('/compass/curation?layout=pyramid')
+      break
+    }
     case 'open-tasks': {
       // R55-C：快速采集任务（浏览器级命令，无默认键）——优先页内浮层；不可注入页降级进应用开面板（R4-Fb）
       if (tab?.id) {

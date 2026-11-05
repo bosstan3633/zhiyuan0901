@@ -72,7 +72,7 @@ check('R189-5 ★单一只读抽屉七形态齐备：愿景/使命/目标/项目
 })
 
 check('R189-6 ★双布局 + 折叠双动作：树状（默认）与金字塔消费同一棵树；全部展开 / 一键折叠至目标层在页头', () => {
-  return PAGE.includes("layout = ref<'tree' | 'pyramid'>('tree')")
+  return PAGE.includes("layout = ref<'tree' | 'pyramid'>(route.query.layout === 'tree' ? 'tree' : 'pyramid')")
     && PAGE.includes('expandAll') && PAGE.includes('collapseToGoal')
     && PAGE.includes('collapsedIds')
     && TREE_L.includes("emit('toggle'")

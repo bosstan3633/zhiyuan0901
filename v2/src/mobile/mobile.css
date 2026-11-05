@@ -14,9 +14,12 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
 .m-textarea { min-height: 84px; resize: vertical; }
 .m-textarea-main { min-height: 132px; }
 .m-input:focus, .m-textarea:focus { border-color: #6d7de0; }
-.m-kind-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 10px; padding: 4px; border: 1px solid rgb(255 255 255 / .1); border-radius: 12px; background: rgb(255 255 255 / .04); }
-.m-kind-switch button { min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: #8f9bb3; font: inherit; font-size: 14px; font-weight: 600; }
-.m-kind-switch button.on { background: rgb(109 125 224 / .2); color: #f2f5fb; box-shadow: inset 0 0 0 1px rgb(109 125 224 / .42); }
+.m-capture-main { min-height: 116px; margin-bottom: 10px; font-size: 15px; line-height: 1.65; }
+.m-receipt { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 11px 12px; border: 1px solid rgb(97 205 156 / .38); border-radius: 12px; background: rgb(35 119 83 / .2); }
+.m-receipt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.m-receipt b { color: #c9f5df; font-size: 14px; }
+.m-receipt span { color: #9bcbb8; font-size: 12px; line-height: 1.45; }
+.m-receipt button { flex: none; min-height: 34px; padding: 6px 10px; border: 1px solid rgb(151 226 193 / .4); border-radius: 9px; background: rgb(255 255 255 / .06); color: #d9f8ea; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .m-btn { width: 100%; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #5E6AD2, #3f8cff); color: #fff; }
 .m-btn:disabled { opacity: var(--opacity-disabled); }
 .m-ghost { background: none; border: 1px solid rgb(255 255 255 / .16); color: #cfd6e6; border-radius: 10px; padding: 7px 12px; font-size: 13px; }

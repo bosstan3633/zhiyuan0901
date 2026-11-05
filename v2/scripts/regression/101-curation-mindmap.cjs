@@ -27,8 +27,9 @@ console.log('【V3.9.8 · 策展台成果态与思维导图】');
 
 check('C101-1（V4.0.3 重指）顶部论点卡是 L1 唯一入口：详情按钮与空态创建按钮各自可达，打开专用论点卡抽屉', () => {
   return WS.includes('class="thesis-banner"')
-    && WS.includes('class="tb-detail" type="button" @click="openThesisCard"')
-    && WS.includes('<button class="thesis-empty-inner" type="button" @click="openThesisCreate">')
+    && WS.includes('v-pressable="!!thesisCard"')
+    && WS.includes('class="tb-detail" type="button" @click.stop="openThesisCard"')
+    && WS.includes('<button class="thesis-empty-inner" type="button" @click.stop="openThesisCreate">')
     && (WS.match(/class="thesis-banner"/g) || []).length === 1
     && WS.includes('<CurationThesisDrawer')
     && THESIS.includes('中心论点卡')
@@ -348,7 +349,7 @@ check('C101-21 思维导图编辑闭环：整卡可拖、剪切粘贴共用校�
   return NODE.includes('draggable="true"')
     && NODE.includes("emit('drag-start', props.node.id)")
     && NODE.includes("emit('cut', props.node.id)")
-    && NODE.includes("emit('paste', props.node.id)")
+    && NODE.includes('@paste="emit(\'paste\', $event)"')
     && NODE.includes("emit('unlink-resource', props.node.id, card)")
     && NODE.includes('class="mind-resource-remove"')
     /* V3.9.10：`ARTICLE` 含字母 A，旧的子串正则会把节点自身误判成 `<a>`。
@@ -358,7 +359,10 @@ check('C101-21 思维导图编辑闭环：整卡可拖、剪切粘贴共用校�
     && MAP.includes("if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(tag) || target?.isContentEditable) return")
     && MAP.includes('if (e.defaultPrevented) return')
     && MAP.includes("emit('cut', props.selectedId)")
-    && MAP.includes("emit('paste', props.selectedId)")
+    && MAP.includes('@paste="emit(\'paste\', $event)"')
+    && WS.includes('@paste="onMindPaste"')
+    && WS.includes("if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'v') return")
+    && WS.includes('if (!files.length) {')
     && MAP.includes('<kbd>拖拽</kbd> 移动整棵子树')
     && MAP.includes('<kbd>⌘/Ctrl+X</kbd> 剪切');
 });

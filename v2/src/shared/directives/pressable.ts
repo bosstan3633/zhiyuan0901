@@ -58,7 +58,9 @@ export const vPressable: Directive<PressableElement, unknown> = {
       disabled: false,
       onKeydown: (event: KeyboardEvent) => onKeydown(el, event),
       onClick: (event: MouseEvent) => {
-        if (el.__zyPressable?.disabled) {
+        // A disabled pressable wrapper must not swallow clicks from nested
+        // native controls (for example, an empty-state button inside it).
+        if (el.__zyPressable?.disabled && !isNestedInteractive(event.target, el)) {
           event.preventDefault()
           event.stopImmediatePropagation()
         }

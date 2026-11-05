@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
@@ -21,6 +21,8 @@ const group = ref<Group>('pending')
 const sortOrder = ref<SortOrder>('desc')
 const converting = ref('')
 const deleting = ref('')
+const highlightedId = ref('')
+const successText = ref('')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 const curiosityPanelRef = ref<InstanceType<typeof CuriosityPanel> | null>(null)
@@ -79,14 +81,33 @@ function localCard(item: CaptureItem): { id: string; kind: CaptureConvertedKind 
 }
 
 async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<void> {
-  if (converting.value || item.convertedKind || !inbox.connected.value || !online.value) return
+  if (item.convertedKind) {
+    group.value = item.convertedKind
+    highlightedId.value = item.id
+    showToast(`这条采集已经转化为${kindLabel(item.convertedKind)}`)
+    return
+  }
+  if (!inbox.connected.value) {
+    showToast('请先连接云同步，再转化 Inbox 采集')
+    return
+  }
+  if (!online.value) {
+    showToast('当前处于离线状态，联网后再转化')
+    return
+  }
+  if (converting.value) {
+    showToast('上一条正在转化，请稍候')
+    return
+  }
   converting.value = item.id
   try {
-    await inbox.convert(item, kind)
-    showToast(`已转化为${kindLabel(kind)}，Inbox 会保留镜像入口`, {
-      label: '查看分组',
-      cb: () => { group.value = kind },
-    })
+    const result = await inbox.convert(item, kind)
+    group.value = result.kind
+    highlightedId.value = item.id
+    successText.value = `已转化为${kindLabel(result.kind)}；目标卡已进入对应卡池，Inbox 只保留镜像入口。`
+    showToast(`已转化为${kindLabel(result.kind)}`)
+    await nextTick()
+    document.querySelector<HTMLElement>(`[data-capture-id="${CSS.escape(item.id)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   } catch (error) {
     showToast(`转化失败：${error instanceof Error ? error.message : String(error)}`)
   } finally {
@@ -95,7 +116,15 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<v
 }
 
 async function remove(item: CaptureItem): Promise<void> {
-  if (deleting.value || !inbox.connected.value || !online.value) return
+  if (!inbox.connected.value) {
+    showToast('请先连接云同步，再删除 Inbox 记录')
+    return
+  }
+  if (!online.value) {
+    showToast('当前处于离线状态，联网后再删除')
+    return
+  }
+  if (deleting.value) return
   deleting.value = item.id
   try {
     await inbox.dismiss(item)
@@ -166,6 +195,12 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
       </div>
     </header>
 
+    <div v-if="successText" class="inbox-success" role="status">
+      <Icon name="check" :size="14"/>
+      <span>{{ successText }}</span>
+      <button type="button" @click="successText = ''">知道了</button>
+    </div>
+
     <div v-if="!inbox.connected.value || !online" class="inbox-offline">
       <Icon :name="online ? 'plug' : 'warn'" :size="16"/>
       <div>
@@ -179,32 +214,38 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
     <div class="inbox-groups" role="tablist" aria-label="Inbox 分组">
       <button v-for="item in groups" :key="item.key" type="button" role="tab"
         :aria-selected="group === item.key" :class="{ on: group === item.key }"
-        @click="group = item.key">
+        @click="group = item.key; highlightedId = ''">
         {{ item.label }} <span>{{ groupCount(item.key) }}</span>
       </button>
     </div>
 
     <div v-if="visibleItems.length" class="inbox-list">
-      <article v-for="item in visibleItems" :key="item.id" class="inbox-row" v-pressable
-        :class="{ converted: !!item.convertedKind }" :aria-disabled="!item.convertedKind"
-        :aria-label="item.convertedKind ? `打开${kindLabel(item.convertedKind)}详情` : `${fixedName(item)}，尚未转化`"
-        @click="openConverted(item)">
-        <span class="inbox-leading" :class="item.contentKind">
-          <Icon :name="item.contentKind === 'link' ? 'link' : 'filetext'" :size="15"/>
-        </span>
-        <div class="inbox-copy">
-          <div class="inbox-row-head">
-            <b>{{ fixedName(item) }}</b>
-            <span class="inbox-time"><Icon name="clock" :size="11"/> {{ timeText(item.createdAt) }}</span>
-            <span v-if="item.convertedKind" class="inbox-state">{{ kindLabel(item.convertedKind) }}镜像</span>
-          </div>
-          <p>{{ summary(item) }}</p>
-          <div v-if="item.convertedKind && !localCard(item)" class="inbox-missing">目标卡暂不可用</div>
-        </div>
+      <article v-for="item in visibleItems" :key="item.id" class="inbox-row"
+        :class="{ converted: !!item.convertedKind, 'is-highlighted': highlightedId === item.id }"
+        :data-capture-id="item.id">
+        <button type="button" class="inbox-open"
+          :disabled="!item.convertedKind"
+          :aria-label="item.convertedKind ? `打开${kindLabel(item.convertedKind)}详情` : `${fixedName(item)}，尚未转化`"
+          @click="openConverted(item)">
+          <span class="inbox-leading" :class="item.contentKind">
+            <Icon :name="item.contentKind === 'link' ? 'link' : 'filetext'" :size="15"/>
+          </span>
+          <span class="inbox-copy">
+            <span class="inbox-row-head">
+              <b>{{ summary(item) }}</b>
+              <span class="inbox-kind-tag">{{ fixedName(item) }}</span>
+              <span class="inbox-time"><Icon name="clock" :size="11"/> {{ timeText(item.createdAt) }}</span>
+              <span v-if="item.convertedKind" class="inbox-state">{{ kindLabel(item.convertedKind) }}镜像</span>
+            </span>
+            <span v-if="item.text && item.title" class="inbox-extra">{{ item.text.replace(/\s+/g, ' ').slice(0, 128) }}</span>
+            <span v-if="item.convertedKind && !localCard(item)" class="inbox-missing">目标卡暂不可用</span>
+          </span>
+        </button>
         <div class="inbox-actions">
           <button v-for="option in conversionOptions" :key="option.kind" type="button"
             :class="{ on: item.convertedKind === option.kind }"
             :disabled="!!item.convertedKind || !!converting || !inbox.connected.value || !online"
+            :title="item.convertedKind ? `已转化为${kindLabel(item.convertedKind)}，其余类型不可再选` : !inbox.connected.value ? '请先连接云同步' : !online ? '离线状态不可转化' : converting ? '正在转化另一条记录' : `转化为${option.label}`"
             @click.stop="convert(item, option.kind)">
             {{ option.label }}
           </button>
@@ -231,6 +272,9 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
 <style scoped>
 .inbox-panel { display: flex; flex-direction: column; gap: 14px; }
 .inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, var(--surface), var(--surface-2)); }
+.inbox-success { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--success) 38%, var(--border)); border-radius: 9px; background: var(--success-bg-soft); color: var(--text-2); font-size: var(--fs-caption); }
+.inbox-success span { flex: 1; min-width: 0; }
+.inbox-success button { border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--fs-caption); font-weight: 600; cursor: pointer; }
 .inbox-title-wrap { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .inbox-icon { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 11px; background: var(--accent-light); color: var(--accent-ink); }
 .inbox-title-wrap h2 { margin: 0; font-size: var(--fs-title); }
@@ -252,17 +296,22 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
 .inbox-groups button.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .inbox-list { display: flex; flex-direction: column; gap: 8px; }
 .inbox-row { display: flex; align-items: flex-start; gap: 11px; padding: 12px 13px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-.inbox-row.converted { cursor: pointer; }
+.inbox-open { min-width: 0; flex: 1; display: flex; align-items: flex-start; gap: 11px; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: default; }
+.inbox-open:not(:disabled) { cursor: pointer; }
+.inbox-open:disabled { opacity: 1; }
 .inbox-row.converted:hover { border-color: var(--accent); }
+.inbox-row.is-highlighted { border-color: var(--success); box-shadow: 0 0 0 2px var(--success-bg-soft); animation: inbox-highlight 2.2s ease-out; }
+@keyframes inbox-highlight { 0% { background: var(--success-bg-soft); } 100% { background: var(--surface); } }
 .inbox-leading { width: 31px; height: 31px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--surface-2); color: var(--text-3); }
 .inbox-leading.text { color: var(--accent-ink); background: var(--accent-light); }
-.inbox-copy { flex: 1; min-width: 0; }
+.inbox-copy { flex: 1; min-width: 0; display: block; }
 .inbox-row-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .inbox-row-head b { color: var(--text); font-size: var(--fs-sub); }
+.inbox-kind-tag { padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); }
 .inbox-time { display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-micro); }
 .inbox-state { padding: 1px 6px; border-radius: 999px; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 600; }
-.inbox-copy p { margin: 5px 0 0; color: var(--text-2); font-size: var(--fs-caption); line-height: 1.55; word-break: break-word; }
-.inbox-missing { margin-top: 5px; color: var(--warning); font-size: var(--fs-micro); }
+.inbox-extra { display: block; margin-top: 5px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.55; word-break: break-word; }
+.inbox-missing { display: block; margin-top: 5px; color: var(--warning); font-size: var(--fs-micro); }
 .inbox-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 290px; }
 .inbox-actions button.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .inbox-actions button.danger { color: var(--danger); }
@@ -271,6 +320,7 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
   .inbox-tools { width: 100%; }
   .inbox-tools button { flex: 1; justify-content: center; }
   .inbox-row { flex-wrap: wrap; }
+  .inbox-open { width: 100%; }
   .inbox-copy { min-width: calc(100% - 45px); }
   .inbox-actions { width: 100%; max-width: none; justify-content: flex-start; padding-left: 42px; }
 }

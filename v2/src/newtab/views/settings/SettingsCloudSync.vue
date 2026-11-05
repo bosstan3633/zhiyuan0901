@@ -7,9 +7,11 @@ import { useConfirm } from '@/shared/components/confirm'
 import { useFocusTrap } from '@/shared/utils/focusTrap'
 import {
   useCloudSync,
+  type CloudSyncDetails,
   type CloudConflictChoice,
   type CloudDecisionInfo,
 } from '../../composables/useCloudSync'
+import CloudSyncDetailDrawer from './CloudSyncDetailDrawer.vue'
 
 const store = useAppStore()
 const router = useRouter()
@@ -28,6 +30,11 @@ const pageBusy = ref(false)
 const conflictOpen = ref(false)
 const conflictPanel = ref<HTMLElement | null>(null)
 const conflictInfo = ref<CloudDecisionInfo | null>(null)
+const syncDetailOpen = ref(false)
+const syncDetailTab = ref<'local' | 'remote'>('local')
+const syncDetailLoading = ref(false)
+const syncDetailError = ref('')
+const syncDetails = ref<CloudSyncDetails | null>(null)
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
 
 useFocusTrap(conflictPanel, () => conflictOpen.value, { initial: 'first' })
@@ -253,6 +260,20 @@ async function doCheck(): Promise<void> {
   }
 }
 
+async function openSyncDetails(tab: 'local' | 'remote'): Promise<void> {
+  syncDetailTab.value = tab
+  syncDetailOpen.value = true
+  syncDetailLoading.value = true
+  syncDetailError.value = ''
+  try {
+    syncDetails.value = await sharedCloud.loadSyncDetails(store)
+  } catch (error) {
+    syncDetailError.value = `读取同步明细失败：${errText(error)}`
+  } finally {
+    syncDetailLoading.value = false
+  }
+}
+
 async function updateStartupCheck(checked: boolean): Promise<void> {
   try {
     const sync = await import('@/shared/cloud/sync')
@@ -350,8 +371,12 @@ async function downloadOnly(): Promise<void> {
       </div>
     </div>
     <div class="cloud-relation-facts">
-      <div><span>本机同步基线</span><b>修订 {{ localRevisionText }}</b></div>
-      <div><span>云端当前修订</span><b>修订 {{ remoteRevisionText }}</b></div>
+      <button type="button" class="cloud-fact-button" title="查看本机基线与记录级明细" @click="openSyncDetails('local')">
+        <span>本机同步基线</span><b>修订 {{ localRevisionText }}</b><small>查看明细</small>
+      </button>
+      <button type="button" class="cloud-fact-button" title="查看云端当前修订与记录级明细" @click="openSyncDetails('remote')">
+        <span>云端当前修订</span><b>修订 {{ remoteRevisionText }}</b><small>查看明细</small>
+      </button>
       <div><span>最近实际同步</span><b>{{ lastSyncText }}</b></div>
       <div><span>最近检查</span><b>{{ lastCheckedText }}</b></div>
     </div>
@@ -364,6 +389,10 @@ async function downloadOnly(): Promise<void> {
       <button class="gs-btn" :disabled="busy" @click="doCheck">{{ pageBusy ? '检查中…' : '重新检查' }}</button>
     </div>
   </div>
+
+  <CloudSyncDetailDrawer :open="syncDetailOpen" :loading="syncDetailLoading" :error="syncDetailError"
+    :details="syncDetails" :initial-tab="syncDetailTab"
+    @close="syncDetailOpen = false" @refresh="openSyncDetails(syncDetailTab)" />
 
   <div class="gs-card">
     <div class="gs-card-header">
@@ -584,14 +613,20 @@ async function downloadOnly(): Promise<void> {
   border-block: 1px solid var(--border);
   background: var(--border);
 }
-.cloud-relation-facts > div {
+.cloud-relation-facts > div,
+.cloud-relation-facts > .cloud-fact-button {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
   padding: 13px 18px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
 }
+.cloud-relation-facts > .cloud-fact-button { border: 0; font: inherit; text-align: left; cursor: pointer; }
+.cloud-relation-facts > .cloud-fact-button:hover { background: var(--accent-light); }
+.cloud-relation-facts > .cloud-fact-button:focus-visible { outline: var(--focus-ring); outline-offset: -3px; }
+.cloud-relation-facts > .cloud-fact-button small { color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 600; }
 .cloud-relation-facts span {
   color: var(--text-3);
   font-size: var(--fs-caption);

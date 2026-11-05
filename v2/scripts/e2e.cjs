@@ -2739,6 +2739,159 @@ await paOpen()
       && cloudEntry.recommend.startsWith('建议：') && cloudEntry.hasRecentSync,
     `顶栏=${JSON.stringify(topbarCloud)} 落点=${cloudRouteReady} 模块=${JSON.stringify(cloudEntry)}`)
 
+  // ══════════ E2E-52（V4.1.1）同步记录级明细抽屉 ══════════
+  await page.locator('.cloud-fact-button').first().click()
+  await waitForLocator(page, '.csd-tabs', { visible: true, timeout: 10000 })
+  const syncDetail = await page.evaluate(() => {
+    const tabs = [...document.querySelectorAll('.csd-tabs [role="tab"]')].map(x => (x.textContent || '').trim())
+    const summary = document.querySelector('.csd-summary')?.textContent || ''
+    const rows = document.querySelectorAll('.csd-record').length
+    const fallback = document.querySelector('.csd-note')?.textContent || ''
+    return { tabs, summary: summary.replace(/\s+/g, ' ').trim(), rows, fallback: fallback.replace(/\s+/g, ' ').trim() }
+  })
+  await page.locator('.csd-tabs [role="tab"]').nth(1).click()
+  const remoteTabReady = await page.locator('.csd-tabs [role="tab"]').nth(1).getAttribute('aria-selected')
+  report('E2E-52 ★V4.1.1 本机基线与云端当前可打开记录级同步明细：双页签、摘要、指纹与真实记录行在位，无基线时明确说明',
+    syncDetail.tabs.length === 2 && syncDetail.tabs[0].includes('本机基线') && syncDetail.tabs[1].includes('云端当前')
+      && syncDetail.summary.includes('修订') && syncDetail.summary.includes('记录')
+      && (syncDetail.rows > 0 || syncDetail.fallback.includes('基线明细尚未建立'))
+      && remoteTabReady === 'true',
+    JSON.stringify(syncDetail))
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForTimeout(400)
+
+  // ══════════ E2E-53（V4.1.1）选中节点后直接粘贴图片 ══════════
+  await page.evaluate(async () => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const data = cur['zy_data_v2']
+    const wsId = 'e2e-v411-paste-ws'
+    const nodeId = 'e2e-v411-paste-node'
+    data.workspaces = data.workspaces.filter(w => w.id !== wsId)
+    data.workspaces.push({
+      id: wsId, name: 'E2E V4.1.1 粘贴台', icon: '🧪', color: '#3A6B4C',
+      coverTheme: 'deep-sea', order: 99, archived: false, kind: 'curation',
+    })
+    data.categories = data.categories.filter(c => c.id !== nodeId)
+    data.categories.push({ id: nodeId, workspaceId: wsId, name: 'V4.1.1 粘贴节点', parentId: undefined, order: 0 })
+    await chrome.storage.local.set({ zy_data_v2: data })
+  })
+  await page.goto(base + '#/workspace/e2e-v411-paste-ws', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-mind-node="e2e-v411-paste-node"]', { visible: true, timeout: 12000 })
+  await page.locator('[data-mind-node="e2e-v411-paste-node"]').click()
+  await waitForLocator(page, '[data-mind-node="e2e-v411-paste-node"] .curation-asset-strip', { visible: true, timeout: 5000 })
+  const pasteDispatched = await page.evaluate(() => {
+    const node = document.querySelector('[data-mind-node="e2e-v411-paste-node"]')
+    if (!node) return false
+    const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlQ8WQAAAAASUVORK5CYII='), c => c.charCodeAt(0))
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([bytes], 'clipboard.png', { type: 'image/png' }))
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: transfer })
+    node.dispatchEvent(event)
+    return event.defaultPrevented
+  })
+  const pastedAssetStored = await waitForStorage(page, 'zy_data_v2', raw => {
+    const node = raw?.['zy_data_v2']?.categories?.find(c => c.id === 'e2e-v411-paste-node')
+    return !!node?.assets?.some(a => a.kind === 'image' && /^粘贴图片_/.test(a.name || ''))
+  }, { timeout: 10000 })
+  await waitForLocator(page, '[data-mind-node="e2e-v411-paste-node"] .cas-thumb', { visible: true, timeout: 8000 })
+  await page.locator('[data-mind-node="e2e-v411-paste-node"] .cas-thumb').first().click()
+  await waitForLocator(page, '.capm-stage img', { visible: true, timeout: 8000 })
+  const pastedPreview = await page.evaluate(() => {
+    const img = document.querySelector('.capm-stage img')
+    const title = document.querySelector('.capm-name')?.textContent || ''
+    return { img: !!img && img.getBoundingClientRect().width > 0, title: title.trim(), src: (img?.getAttribute('src') || '').startsWith('blob:') }
+  })
+  report('E2E-53 ★V4.1.1 选中策展节点后粘贴剪贴板图片：图片优先生成自动命名附件、缩略图上屏，点击缩略图直接中央预览',
+    pasteDispatched && !!pastedAssetStored && pastedPreview.img && pastedPreview.src && pastedPreview.title.startsWith('粘贴图片_'),
+    `dispatched=${pasteDispatched} stored=${!!pastedAssetStored} preview=${JSON.stringify(pastedPreview)}`)
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.waitForTimeout(400)
+
+  // ══════════ E2E-54（V4.1.1）Inbox 转化、镜像打开与删除不误伤目标卡 ══════════
+  const inboxRow = {
+    id: 'e2e-v411-capture-1',
+    content_kind: 'text',
+    url: null,
+    text_content: '这是一条来自移动端的 V4.1.1 Inbox 测试采集，应该可以转化为任务卡。',
+    title: 'E2E V4.1.1 Inbox 转化',
+    note: null,
+    tags: [],
+    created_at: new Date().toISOString(),
+    converted_at: null,
+    converted_kind: null,
+    converted_card_id: null,
+    dismissed_at: null,
+  }
+  await ctx.route('**/auth/v1/token**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ access_token: 'e2e-access', refresh_token: 'e2e-refresh', user: { id: 'e2e-user', email: 'e2e@example.com' } }),
+  }))
+  await ctx.route('**/rest/v1/capture_inbox**', route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([inboxRow]) })
+    }
+    return route.fulfill({ status: 204, body: '' })
+  })
+  await page.evaluate(async (row) => {
+    localStorage.setItem('zy_inbox_cache', JSON.stringify([{
+      id: row.id,
+      contentKind: row.content_kind,
+      text: row.text_content,
+      title: row.title,
+      createdAt: Date.now(),
+      tags: [],
+    }]))
+    localStorage.removeItem('zy_inbox_conversion_queue')
+    await chrome.storage.local.set({
+      zy_cloud_env: { url: 'https://e2e.supabase.co', anonKey: 'sb_publishable_e2e' },
+      zy_cloud_meta_v1: {
+        userId: 'e2e-user', email: 'e2e@example.com', refreshToken: 'e2e-refresh',
+        checkOnStart: false, revision: 0, assetSyncEnabled: false,
+      },
+    })
+  }, inboxRow)
+  await page.goto(base + '#/deck/inbox', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, `[data-capture-id="${inboxRow.id}"]`, { visible: true, timeout: 12000 })
+  await page.locator(`[data-capture-id="${inboxRow.id}"] button[title="转化为任务卡"]`).click()
+  await waitForLocator(page, '.inbox-success', { visible: true, timeout: 10000 })
+  const convertedTask = await waitForStorage(page, 'zy_data_v2', raw => {
+    const task = raw?.['zy_data_v2']?.tasks?.find(t => t.sourceCaptureId === inboxRow.id)
+    return task ? { id: task.id, title: task.title } : false
+  }, { timeout: 10000 })
+  const convertedUi = await page.evaluate((captureId) => {
+    const row = document.querySelector(`[data-capture-id="${CSS.escape(captureId)}"]`)
+    const buttons = [...(row?.querySelectorAll('.inbox-actions button') || [])]
+    return {
+      success: (document.querySelector('.inbox-success')?.textContent || '').replace(/\s+/g, ' ').trim(),
+      disabled: buttons.filter(b => b.disabled).length,
+      mirror: buttons.some(b => (b.textContent || '').includes('打开任务卡')),
+      highlighted: row?.classList.contains('is-highlighted') || false,
+    }
+  }, inboxRow.id)
+  await page.locator(`[data-capture-id="${inboxRow.id}"] button`).filter({ hasText: '打开任务卡' }).click()
+  await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
+  const taskDrawerTitle = await page.locator('.drawer .ts-title').first().inputValue().catch(() => '')
+  await page.locator('.drawer .drawer-close').first().click().catch(() => {})
+  await page.waitForTimeout(350)
+  await page.locator(`[data-capture-id="${inboxRow.id}"] button`).filter({ hasText: '删除' }).click()
+  const inboxRowGone = await pollUntil(() => page.locator(`[data-capture-id="${inboxRow.id}"]`).count().then(n => n === 0), { timeout: 8000 })
+  const taskStillThere = await page.evaluate((captureId) => {
+    const data = window.localStorage.getItem('zy_inbox_cache') || ''
+    return !data.includes(captureId)
+  }, inboxRow.id)
+  const taskPreserved = await page.evaluate((captureId) => chrome.storage.local.get('zy_data_v2').then(raw =>
+    !!raw['zy_data_v2']?.tasks?.some(t => t.sourceCaptureId === captureId)
+  ), inboxRow.id)
+  report('E2E-54 ★V4.1.1 Inbox 转化后显示持续成功回执、其余类型置灰并保留任务镜像；打开镜像进入任务详情，删除 Inbox 记录不删除已入池任务',
+    !!convertedTask && convertedUi.success.includes('已转化为任务卡') && convertedUi.disabled >= 3
+      && convertedUi.mirror && convertedUi.highlighted && taskDrawerTitle.includes('E2E V4.1.1 Inbox 转化')
+      && inboxRowGone && taskStillThere && taskPreserved,
+    `task=${JSON.stringify(convertedTask)} ui=${JSON.stringify(convertedUi)} drawer="${taskDrawerTitle.trim()}" gone=${inboxRowGone} cache=${taskStillThere} preserved=${taskPreserved}`)
+
   await ctx.close()
   const fail = results.filter(r => !r.ok).length
   console.log(`\nE2E 结果：${results.length - fail} 通过 / ${fail} 失败`)

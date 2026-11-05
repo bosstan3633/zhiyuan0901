@@ -405,6 +405,7 @@
 .hand-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .hand-tab-inbox { display: inline-flex; align-items: center; gap: 5px; }
 .hand-inbox-badge { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 9px; line-height: 16px; font-weight: 700; text-align: center; }
+.hand-inbox-badge.muted { background: var(--surface-3); color: var(--text-3); }
 .deck-empty {
   display: flex;
   align-items: center;
@@ -478,6 +479,14 @@
 }
 .mini-item:hover { background: var(--surface-2); }
 .mini-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mini-item-inbox { align-items: stretch; gap: 7px; cursor: default; }
+.mini-main { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mini-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-radius: var(--radius-xs); }
+.mini-inbox-actions { flex: none; display: flex; align-items: center; gap: 3px; }
+.mini-inbox-actions button { min-height: 25px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-3); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
+.mini-inbox-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.mini-inbox-actions button.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); background: var(--danger-bg-soft); }
+.mini-inbox-actions button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .mini-check {
   display: grid;
   place-items: center;

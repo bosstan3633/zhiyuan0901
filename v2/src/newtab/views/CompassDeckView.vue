@@ -6,6 +6,7 @@ import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
 import InboxPanel from '../components/compass/InboxPanel.vue'
+import { useInbox } from '@/newtab/composables/useInbox'
 
 defineOptions({ name: 'CompassDeckView' })
 
@@ -17,6 +18,7 @@ const taskPanel = ref<InstanceType<typeof TaskManagerPanel> | null>(null)
 const curiosityPanel = ref<InstanceType<typeof CuriosityPanel> | null>(null)
 const resourcePanel = ref<InstanceType<typeof PoolCardsPanel> | null>(null)
 const inboxPanel = ref<InstanceType<typeof InboxPanel> | null>(null)
+const inbox = useInbox()
 
 const kind = computed<DeckKind>(() => {
   const raw = String(route.params.kind || '')
@@ -28,10 +30,10 @@ const title = computed(() =>
       : kind.value === 'resource' ? '资源卡 · 全部' : 'Inbox · 全部采集')
 /** V3.9.22：可见标题块退役；保留一份读屏标题，tab 成为页头唯一导航。 */
 const DECK_TABS: { kind: DeckKind; label: string }[] = [
+  { kind: 'inbox', label: 'Inbox' },
   { kind: 'task', label: '任务卡' },
   { kind: 'curiosity', label: '好奇心卡' },
   { kind: 'resource', label: '资源卡' },
-  { kind: 'inbox', label: 'Inbox' },
 ]
 /** ★V3.9.7：二级卡池允许在任务 / 好奇心 / 资源之间直接切换。
  *  仍以路由作为唯一状态源：切换 push 新 URL，浏览器返回键自然回到各自类型，
@@ -89,7 +91,9 @@ watch(
       <div class="deck-kind-seg" role="tablist" aria-label="卡片类型">
         <button v-for="tab in DECK_TABS" :key="tab.kind" type="button" role="tab"
           :class="{ on: kind === tab.kind }" :aria-selected="kind === tab.kind"
-          @click="switchKind(tab.kind)">{{ tab.label }}</button>
+          @click="switchKind(tab.kind)">
+          {{ tab.label }}<span v-if="tab.kind === 'inbox'" class="deck-inbox-count" :class="{ muted: !inbox.untransformedCount.value }">{{ inbox.untransformedCount.value }}</span>
+        </button>
       </div>
     </header>
 
@@ -128,6 +132,8 @@ watch(
 }
 .deck-kind-seg button:hover { color: var(--text); background: var(--surface); }
 .deck-kind-seg button.on { color: var(--accent-ink); background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--border)); }
+.deck-inbox-count { min-width: 16px; height: 16px; display: inline-grid; place-items: center; margin-left: 5px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 9px; line-height: 16px; }
+.deck-inbox-count.muted { background: var(--surface-3); color: var(--text-3); }
 .deck-body { min-height: 320px; }
 .deck-body :deep(.module-card) { background: transparent; border: none; box-shadow: none; }
 .deck-body :deep(.module-title) { display: none; }

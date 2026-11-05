@@ -48,11 +48,12 @@ check('D18-3 ★手边的卡四池页签：任务 / 好奇心 / 资源 / Inbox �
   return CH.includes('class="hand-tabs"')
     && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 4
     && CH.includes('role="tablist" aria-label="手边的卡类型"')
+    && CH.includes(`class="hand-tab hand-tab-inbox" :class="{ on: handTab === 'inbox' }"`)
     && CH.includes(`v-show="handTab === 'task'"`)
     && CH.includes(`v-show="handTab === 'curiosity'"`)
     && CH.includes(`v-show="handTab === 'resource'"`)
     && CH.includes(`v-show="handTab === 'inbox'"`)
-    && CH_C.includes(`const handTab = ref<HandKind>('task')`)
+    && CH_C.includes(`const handTab = ref<HandKind>('inbox')`)
     && CH.includes('class="hand-grid"') && CH.includes('class="hand-col"')
     && (CH.match(/class="mini-list"/g) || []).length === 4
     && CH.includes("goDeck('task')") && CH.includes("goDeck('curiosity')") && CH.includes("goDeck('resource')") && CH.includes("goDeck('inbox')")

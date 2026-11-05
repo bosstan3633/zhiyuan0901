@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '4.1.0',
+  version: '4.1.1',
   description: '你在浏览器里的个人调度中台 · 万千可调用，自有我方向 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -58,6 +58,9 @@ export default defineManifest({
     },
     'open-cloud-sync': {
       description: '打开云同步'
+    },
+    'open-compass-curation': {
+      description: '打开方向树策展模式'
     }
   },
   content_scripts: [

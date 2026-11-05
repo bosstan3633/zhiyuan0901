@@ -537,8 +537,8 @@ onDeactivated(() => {
 //  ③ 手边的卡三列改三池页签（hand-grid/hand-col/mini-list×3/goDeck 字符串锚全保留，v-show 切换）；
 //  ④ 右栏状态读数改「今日入台 / 今日调出 / 未归档」（本周复用挪到「最近调出」头部 chip），新增「好奇心培育」面板；
 //  ⑤ 密度令牌接通（04-73 D-1(a)）：主栏行卡读 --card-pad-*/--card-gap，紧凑档真实生效。
-/** 手边的卡三池页签（默认任务池；列结构保留、仅显示态切换） */
-const handTab = ref<HandKind>('task')
+/** 手边的卡四池页签（默认 Inbox；列结构保留、仅显示态切换） */
+const handTab = ref<HandKind>('inbox')
 /** 今日入台：三类卡 createdAt ≥ 今日 0 点（按创建时间派生；战报按事件日志计，两者口径差异在 tooltip 声明，不冒充同源） */
 const todayInCount = computed(() => {
   const t0 = todayStart.value
@@ -633,6 +633,67 @@ const previewInbox = computed(() =>
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5)
 )
+const inboxPreviewBusy = ref('')
+
+async function convertInboxPreview(item: { id: string; convertedKind?: string }, kind: 'task' | 'curiosity' | 'resource'): Promise<void> {
+  if (inboxPreviewBusy.value) return
+  if (!inbox.connected.value) {
+    showToast('请先连接云同步，再转化 Inbox 采集')
+    return
+  }
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    showToast('当前处于离线状态，联网后再转化')
+    return
+  }
+  if (item.convertedKind) {
+    showToast('这条采集已经转化')
+    return
+  }
+  const row = inbox.items.value.find(entry => entry.id === item.id)
+  if (!row) {
+    showToast('采集记录已不存在，请刷新 Inbox')
+    return
+  }
+  inboxPreviewBusy.value = item.id
+  try {
+    const result = await inbox.convert(row, kind)
+    const label = result.kind === 'task' ? '任务卡' : result.kind === 'curiosity' ? '好奇心卡' : '资源卡'
+    showToast(`已转化为${label}`, {
+      label: '查看',
+      cb: () => { void router.push(`/deck/${result.kind}?hl=${encodeURIComponent(result.id)}&open=1`) },
+    })
+  } catch (error) {
+    showToast(`转化失败：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    inboxPreviewBusy.value = ''
+  }
+}
+
+async function removeInboxPreview(item: { id: string }): Promise<void> {
+  if (inboxPreviewBusy.value) return
+  if (!inbox.connected.value) {
+    showToast('请先连接云同步，再删除 Inbox 记录')
+    return
+  }
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    showToast('当前处于离线状态，联网后再删除')
+    return
+  }
+  const row = inbox.items.value.find(entry => entry.id === item.id)
+  if (!row) return
+  inboxPreviewBusy.value = `delete:${item.id}`
+  try {
+    await inbox.dismiss(row)
+    showToast(row.convertedKind ? '已移除 Inbox 镜像入口，目标卡片仍保留' : '已从 Inbox 删除采集', {
+      label: '撤销',
+      cb: () => { void inbox.restore(row).catch(error => showToast(`撤销失败：${error instanceof Error ? error.message : String(error)}`)) },
+    })
+  } catch (error) {
+    showToast(`删除失败：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    inboxPreviewBusy.value = ''
+  }
+}
 onMounted(() => { void inbox.refresh() })
 const hasAnyPreview = computed(() =>
   !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
@@ -699,7 +760,8 @@ function goDeck(kind: HandKind): void {
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,
     previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-    previewInbox, inbox, hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
+    previewInbox, inbox, inboxPreviewBusy, convertInboxPreview, removeInboxPreview,
+    hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
     openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,

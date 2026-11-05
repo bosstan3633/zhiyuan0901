@@ -219,10 +219,6 @@
 .mind-head-action.danger:hover:not(:disabled) { background: var(--danger-bg-soft); color: var(--danger); }
 .mind-head-action:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .mind-head-action:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
-.mind-asset-count {
-  min-width: 12px; height: 12px; margin-left: 1px; padding: 0 3px; border-radius: 999px;
-  background: var(--accent-light); color: var(--accent-ink); font-size: 8px; line-height: 12px;
-}
 .mind-drag {
   width: 28px;
   height: 28px;

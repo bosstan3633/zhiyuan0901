@@ -22,11 +22,14 @@
           <span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新于 <b>{{ lastUpdateText }}</b></span>
         </span>
       </div>
-      <!-- 中心论点卡是信息主舞台，不再整卡承担按钮语义。
-           读数与详情是并列的独立控件，避免整卡点击与内部入口互相抢事件。 -->
-      <div class="thesis-banner" :class="{ empty: !thesisCard }">
+      <!-- 中心论点卡是信息主舞台：有论点时整卡可打开详情，内部控件各自阻止冒泡；
+           空态仍由原生按钮承担创建动作。 -->
+      <div class="thesis-banner" :class="{ empty: !thesisCard }"
+        v-pressable="!!thesisCard"
+        :aria-label="thesisCard ? `打开中心论点详情：${thesisCard.title}` : undefined"
+        @click="onThesisBannerClick">
         <template v-if="thesisCard">
-          <span class="tb-content">
+          <div class="tb-content">
             <span class="tb-kicker"><span class="tb-badge"><Icon name="landmark" :size="11"/> L1</span><span class="tb-kicker-label">中心论点 · 论点卡</span><span class="tb-kicker-sep">·</span><span class="tb-kicker-label">金字塔根节点</span></span>
             <span class="tb-title" :title="thesisCard.title">{{ thesisCard.title }}</span>
             <span class="tb-desc-row">
@@ -34,25 +37,40 @@
                 {{ thesisCard.description || '先写结论，再长出支撑分支' }}
               </span>
             </span>
-          </span>
+            <div v-if="thesisLinkedCards.length || thesisCard.assets?.length" class="tb-adjuncts">
+              <div v-if="thesisLinkedCards.length" class="tb-resource-row">
+                <span class="tb-adjunct-label"><Icon name="link" :size="11"/> 关联资源</span>
+                <button v-for="card in thesisLinkedCards.slice(0, 4)" :key="card.id" class="tb-resource-chip"
+                  type="button" :title="`打开资源卡：${card.title}`" @click.stop="onCardClick(card)">
+                  <span class="tb-resource-dot" :data-source="card.sourceType || 'personal'"></span>
+                  <span>{{ card.title }}</span>
+                </button>
+                <span v-if="thesisLinkedCards.length > 4" class="tb-more">+{{ thesisLinkedCards.length - 4 }}</span>
+              </div>
+              <CurationAssetStrip v-if="thesisCard.assets?.length" :assets="thesisCard.assets" node-id="root"
+                :remote-downloader="downloadNodeAsset"
+                @open="openNodeAssetPreview" @remove="removeNodeAsset('root', $event)"
+                @ingest="ingestAssetFiles('root', $event)" />
+            </div>
+          </div>
           <span class="tb-side">
             <span class="cur-metrics" data-curation-metrics="2">
-              <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click="openDrill('total')">
+              <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click.stop="openDrill('total')">
                 <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡</span>
                 <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（镜像 <Icon name="satellite" :size="12"/> {{ metrics.mirrored }}）</span></span>
               </button>
-              <button class="cur-metric" type="button" title="点击查看附件明细" @click="openDrill('assets')">
+              <button class="cur-metric" type="button" title="点击查看附件明细" @click.stop="openDrill('assets')">
                 <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件</span>
                 <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
               </button>
             </span>
-            <button class="tb-detail" type="button" @click="openThesisCard">
+            <button class="tb-detail" type="button" @click.stop="openThesisCard">
               查看论点详情 <Icon name="arrowright" :size="12"/>
             </button>
           </span>
         </template>
         <template v-else>
-          <button class="thesis-empty-inner" type="button" @click="openThesisCreate">
+          <button class="thesis-empty-inner" type="button" @click.stop="openThesisCreate">
             <span class="thesis-empty-pill" aria-hidden="true"><Icon name="landmark" :size="12"/></span>
             <span class="tb-hint">点击确立本策展台的 <b>L1 中心论点</b>，让研究从判断出发</span>
             <span class="tb-btn">开始确立 <Icon name="arrowright" :size="12"/></span>
@@ -182,6 +200,7 @@
       :can-redo="history.canRedo.value"
       :undo-label="history.undoLabel.value"
       :redo-label="history.redoLabel.value"
+      :remote-downloader="downloadNodeAsset"
       @update:layout="mind.setLayout"
       @select="mind.selectNode"
       @create-child="onMindCreateChild"
@@ -198,6 +217,8 @@
       @open-resource-context="openResCtx"
       @open-node-assets="openNodeAssets"
       @drop-node-asset-files="ingestAssetFiles"
+      @preview-node-asset="(_id, asset) => openNodeAssetPreview(asset)"
+      @remove-node-asset="removeNodeAsset"
       @open-thesis="openThesisCard"
       @link-thesis="openThesisLink"
       @unlink-thesis="onUnlinkThesis"
@@ -229,6 +250,9 @@
       @close="assetDrawerOpen = false"
       @update:assets="saveNodeAssets(assetDrawerNodeId, $event)"
       @retry-asset="retryNodeAsset" />
+
+    <CurationAssetPreviewModal :open="nodeAssetPreviewOpen" :asset="nodeAssetPreview"
+      :remote-downloader="downloadNodeAsset" @close="nodeAssetPreviewOpen = false" />
 
     <!-- 资源卡详情抽屉（单击打开）
          R168：改 `v-if` 点开才挂——常驻 168 节点（含分类下拉 88 个 `<option>`）是每次进台面的固定成本。
@@ -440,6 +464,8 @@ import CurationMindMap from '@/newtab/components/curation/CurationMindMap.vue'
 import CurationThesisDrawer from '@/newtab/components/curation/CurationThesisDrawer.vue'
 import CurationShareDrawer from '@/newtab/components/curation/CurationShareDrawer.vue'
 import CurationNodeAssetDrawer from '@/newtab/components/curation/CurationNodeAssetDrawer.vue'
+import CurationAssetStrip from '@/newtab/components/curation/CurationAssetStrip.vue'
+import CurationAssetPreviewModal from '@/newtab/components/curation/CurationAssetPreviewModal.vue'
 // R169-老账③：两代抽屉容器合并——资源详情抽屉改走共享壳（Esc/遮罩/Teleport/进出场单源）
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
@@ -521,6 +547,8 @@ const thesisOpen = ref(false)
 const shareOpen = ref(false)
 const assetDrawerOpen = ref(false)
 const assetDrawerNodeId = ref('root')
+const nodeAssetPreviewOpen = ref(false)
+const nodeAssetPreview = ref<AssetMeta | null>(null)
 
 const assetDrawerNode = computed<Category | null>(() =>
   assetDrawerNodeId.value === 'root' ? null : wsCats.value.find(c => c.id === assetDrawerNodeId.value) || null
@@ -543,6 +571,17 @@ function openNodeAssets(id: string): void {
   assetDrawerNodeId.value = id
   assetDrawerOpen.value = true
   mind.selectNode(id)
+}
+
+function openNodeAssetPreview(asset: AssetMeta): void {
+  nodeAssetPreview.value = asset
+  nodeAssetPreviewOpen.value = true
+}
+
+function removeNodeAsset(id: string, asset: AssetMeta): void {
+  const owner = nodeAssetOwner(id)
+  if (!owner) return
+  saveNodeAssets(id, (owner.assets || []).filter(row => row.id !== asset.id))
 }
 
 function nodeAssetOwner(id: string): { assets?: AssetMeta[] } | null {
@@ -571,7 +610,6 @@ function cleanupPendingAssets(): void {
     if (stillUsed) continue
     pendingAssetCleanup.delete(id)
     void deleteAsset(id).catch(() => {})
-    void deleteCurationAsset(meta).catch(() => {})
   }
 }
 
@@ -620,6 +658,8 @@ function saveNodeAssets(id: string, next: AssetMeta[]): void {
     store.persist()
   })
   for (const meta of added) void queueAssetUpload(id, meta)
+  // 远端删除与本地 10 步撤销解耦：历史栈只保留 Blob 供撤销，不能让云端对象一直悬挂。
+  for (const meta of removed) void deleteCurationAsset(meta).catch(() => {})
   scheduleRemovedAssetCleanup(removed)
 }
 
@@ -672,11 +712,45 @@ async function ingestAssetFiles(id: string, input: File[]): Promise<void> {
   if (next.length !== (owner.assets || []).length) assetDrawerOpen.value = true
 }
 
-function onCanvasImagePaste(event: ClipboardEvent): void {
+let lastCanvasPasteAt = 0
+let canvasPasteFallbackTimer: ReturnType<typeof setTimeout> | null = null
+
+function inMindCanvas(target: EventTarget | null): boolean {
+  const el = target instanceof HTMLElement ? target : null
+  return !!el?.closest('.mindmap-shell')
+}
+
+function isTextEditingTarget(target: EventTarget | null): boolean {
+  const el = target instanceof HTMLElement ? target : null
+  return !!el?.closest('input,textarea,select,[contenteditable="true"]')
+}
+
+/** Ctrl/⌘+V 不能提前 preventDefault，否则浏览器不会派发携带图片文件的 paste 事件。
+ *  这里只在存在“已剪切分支”时安排兜底；真正 paste 到达后会取消，图片始终优先。 */
+function onCanvasPasteKeydown(event: KeyboardEvent): void {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'v') return
+  if (!workspace.value || !inMindCanvas(event.target) || isTextEditingTarget(event.target)) return
+  if (!mind.clipboardId.value) return
+  if (canvasPasteFallbackTimer) clearTimeout(canvasPasteFallbackTimer)
+  const startedAt = Date.now()
+  canvasPasteFallbackTimer = setTimeout(() => {
+    canvasPasteFallbackTimer = null
+    if (lastCanvasPasteAt >= startedAt) return
+    onMindPaste(mind.selectedId.value || 'root')
+  }, 180)
+}
+
+function onCanvasPaste(event: ClipboardEvent): void {
   if (!workspace.value) return
   const target = event.target as HTMLElement | null
-  const inCanvas = !!target?.closest('.mindmap-shell') || !!document.activeElement?.closest('.mindmap-shell')
+  const inCanvas = inMindCanvas(target) || inMindCanvas(document.activeElement)
   if (!inCanvas) return
+  if (isTextEditingTarget(target)) return
+  lastCanvasPasteAt = Date.now()
+  if (canvasPasteFallbackTimer) {
+    clearTimeout(canvasPasteFallbackTimer)
+    canvasPasteFallbackTimer = null
+  }
   const data = event.clipboardData
   const itemFiles = Array.from(data?.items || [])
     .filter(item => item.kind === 'file')
@@ -685,7 +759,14 @@ function onCanvasImagePaste(event: ClipboardEvent): void {
   const files = itemFiles.length
     ? itemFiles
     : Array.from(data?.files || []).filter(file => file.type.startsWith('image/'))
-  if (!files.length) return
+  if (!files.length) {
+    if (mind.clipboardId.value) {
+      event.preventDefault()
+      event.stopPropagation()
+      onMindPaste(mind.selectedId.value || 'root')
+    }
+    return
+  }
   event.preventDefault()
   event.stopPropagation()
   const now = new Date()
@@ -717,6 +798,13 @@ function resetCanvasHistory(event?: Event): void {
 function openThesisCard(): void {
   if (thesisCard.value) thesisOpen.value = true
   else openThesisCreate()
+}
+
+function onThesisBannerClick(event: MouseEvent): void {
+  const target = event.target as HTMLElement | null
+  const interactive = target?.closest('button,a,input,textarea,select,[role="button"]')
+  if (interactive && interactive !== event.currentTarget) return
+  openThesisCard()
 }
 
 function saveThesisCard(patch: { title: string; description: string }): void {
@@ -867,6 +955,7 @@ const mind = useCurationMindMap({
   thesisCard,
   persist: () => store.persist(),
 })
+const thesisLinkedCards = computed<ResourceCard[]>(() => mind.thesisCards.value)
 const history = useCurationCanvasHistory({
   d,
   workspaceId,
@@ -1057,7 +1146,8 @@ onMounted(() => {
   document.addEventListener('click', closeSettingsMenu)
   document.addEventListener('click', closeImportMenu)
   document.addEventListener('visibilitychange', onWsOpenVisibility)
-  document.addEventListener('paste', onCanvasImagePaste, true)
+  document.addEventListener('keydown', onCanvasPasteKeydown, true)
+  document.addEventListener('paste', onCanvasPaste, true)
   window.addEventListener('zy:curation-history-reset', resetCanvasHistory)
   window.addEventListener('online', retryCurationAssets)
   void retryCurationAssets()
@@ -1066,10 +1156,12 @@ onMounted(() => {
 onUnmounted(() => {
   flushWsOpenPersist()
   if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null }
+  if (canvasPasteFallbackTimer) { clearTimeout(canvasPasteFallbackTimer); canvasPasteFallbackTimer = null }
   document.removeEventListener('click', closeSettingsMenu)
   document.removeEventListener('click', closeImportMenu)
   document.removeEventListener('visibilitychange', onWsOpenVisibility)
-  document.removeEventListener('paste', onCanvasImagePaste, true)
+  document.removeEventListener('keydown', onCanvasPasteKeydown, true)
+  document.removeEventListener('paste', onCanvasPaste, true)
   window.removeEventListener('zy:curation-history-reset', resetCanvasHistory)
   window.removeEventListener('online', retryCurationAssets)
 })

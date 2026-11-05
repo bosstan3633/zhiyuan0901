@@ -7,6 +7,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import CurationMindNode from './CurationMindNode.vue'
+import CurationAssetStrip from './CurationAssetStrip.vue'
 import { setOverlayFsHost } from '@/shared/utils/overlayHost'
 import type { Category, ResourceCard } from '@/shared/models'
 import type { CurationCanvasLayout } from '@/newtab/composables/useCurationMindMap'
@@ -38,6 +39,7 @@ const props = defineProps<{
   canRedo: boolean
   undoLabel: string
   redoLabel: string
+  remoteDownloader?: (meta: import('@/shared/models').AssetMeta) => Promise<Blob | null>
 }>()
 
 const emit = defineEmits<{
@@ -54,6 +56,8 @@ const emit = defineEmits<{
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
   'open-node-assets': [id: string]
   'drop-node-asset-files': [id: string, files: File[]]
+  'preview-node-asset': [id: string, asset: import('@/shared/models').AssetMeta]
+  'remove-node-asset': [id: string, asset: import('@/shared/models').AssetMeta]
   'open-thesis': []
   'open-create-thesis': []
   'link-thesis': []
@@ -276,9 +280,6 @@ function onCanvasKeydown(e: KeyboardEvent): void {
   } else if (e.key.toLowerCase() === 'x' && props.selectedId !== 'root') {
     e.preventDefault()
     emit('cut', props.selectedId)
-  } else if (e.key.toLowerCase() === 'v' && props.selectedId) {
-    e.preventDefault()
-    emit('paste', props.selectedId)
   }
 }
 
@@ -465,7 +466,7 @@ onBeforeUnmount(() => {
       <span><kbd>Enter</kbd> 编辑标题</span>
       <span><kbd>拖拽</kbd> 移动整棵子树</span>
       <span><kbd>⌘/Ctrl+X</kbd> 剪切</span>
-      <span><kbd>⌘/Ctrl+V</kbd> 粘贴为子级</span>
+      <span><kbd>⌘/Ctrl+V</kbd> 粘贴图片 / 剪切分支</span>
       <span><kbd>↑↓←→</kbd> 节点导航</span>
       <span><kbd>双击</kbd> 就地编辑</span>
       <span><kbd>⌘/Ctrl+Z</kbd> 上一步</span>
@@ -529,15 +530,18 @@ onBeforeUnmount(() => {
               <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('link-thesis')">
                 <Icon name="link" :size="13"/> 关联资源
               </button>
-              <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('open-node-assets', 'root')">
-                <Icon name="paperclip" :size="13"/> 附件<span v-if="thesis.assets?.length">{{ thesis.assets.length }}</span>
-              </button>
             </div>
+            <CurationAssetStrip v-if="thesis" :assets="thesis.assets || []" node-id="root" selected
+              :remote-downloader="remoteDownloader"
+              @open="emit('preview-node-asset', 'root', $event)"
+              @remove="emit('remove-node-asset', 'root', $event)"
+              @ingest="emit('drop-node-asset-files', 'root', $event)" />
           </article>
           <div v-if="roots.length" class="mind-children">
             <CurationMindNode v-for="node in roots" :key="node.id" :node="node" :nodes="nodes"
               :selected-id="selectedId" :edit-request-id="editRequestId" :edit-request-seq="editRequestSeq"
               :cards-by-cat="cardsByCat" :search-query="searchQuery"
+              :remote-downloader="remoteDownloader"
               :keyboard-drag-source="keyboardDragSource" :keyboard-drag-target="keyboardDragTarget"
               :reveal-id="revealId"
               :drop-target="dropTarget" :drop-invalid="dropInvalid" :drop-hint="dropHint"
@@ -552,6 +556,8 @@ onBeforeUnmount(() => {
               @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
               @open-assets="emit('open-node-assets', $event)"
               @drop-asset-files="(id, files) => emit('drop-node-asset-files', id, files)"
+              @preview-asset="(id, asset) => emit('preview-node-asset', id, asset)"
+              @remove-asset="(id, asset) => emit('remove-node-asset', id, asset)"
               @drag-start="onDragStart" @drag-over="onDragOver" @drag-leave="dropTarget = ''" @drop="onDrop"
               @keyboard-drag-start="emit('keyboard-drag-start', $event)"
               @keyboard-drag-target="emit('keyboard-drag-target', $event)"

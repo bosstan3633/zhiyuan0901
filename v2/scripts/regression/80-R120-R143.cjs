@@ -184,12 +184,12 @@ check('R122-8（V3.9.8 随迁）资源池动作收敛：列表与网格均以 Ca
 // V3.7.0（R179）随迁重写：hub 门控随资源台退役——论点横幅无门控常驻（全台唯一一处），空态/有论点两态保留。
 check('R122-9（V4.0.3 重指）论点横幅：无 isHub 门控、全页唯一一处；有论点走原生详情按钮，空态走原生创建按钮，不再用整卡伪造按钮语义', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
-  return w.includes('<div class="thesis-banner" :class="{ empty: !thesisCard }">')
-    && !w.includes('class="thesis-banner" :class="{ empty: !thesisCard }" role="button"')
+  return w.includes('<div class="thesis-banner" :class="{ empty: !thesisCard }"')
+    && w.includes('v-pressable="!!thesisCard"')
     && w.includes('点击确立本策展台的 <b>L1 中心论点</b>')
     && w.includes('class="tb-title"')
-    && w.includes('<button class="thesis-empty-inner" type="button" @click="openThesisCreate">')
-    && w.includes('<button class="tb-detail" type="button" @click="openThesisCard">')
+    && w.includes('<button class="thesis-empty-inner" type="button" @click.stop="openThesisCreate">')
+    && w.includes('<button class="tb-detail" type="button" @click.stop="openThesisCard">')
     && (w.match(/<div class="thesis-banner"/g) || []).length === 1
     && !w.includes('!isHub');
 });

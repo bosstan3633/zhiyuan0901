@@ -338,7 +338,7 @@ check('R64-3（V4.0.4 重指）★快照写入返回 representation：插入与�
   return (c.match(/Prefer: 'return=representation'/g) || []).length === 2
     && s.includes('const rev = ins[0]?.revision ?? 1')
     && s.includes('const rev = upd[0].revision')
-    && (s.match(/revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date\.now\(\)/g) || []).length === 2;
+    && (s.match(/revision: rev,\s+syncedFingerprint: fingerprint,\s+lastUploadAt: Date\.now\(\)/g) || []).length === 2;
 });
 check('R64-4（V4.1.0 重指）★设置文案完成云同步换轨：无 Free 配额旧口径，明确普通卡片附件本机保存、策展节点附件进入私有 Storage，云端不写入 Blob', () => {
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));

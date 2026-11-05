@@ -112,7 +112,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
  *
  * ★为什么单列一份而不是塞进 groups：这些命令**在代码里没有按键可写**——
  * 键位由用户在浏览器里自己分配，写死任何一串键都是撒谎。
- * 手册旧文案把六条手写在一句话里，与 manifest.ts 各写一份；这里改为从清单派生，改命令名只改一处。
+ * 手册旧文案把命令手写在一句话里，与 manifest.ts 各写一份；这里改为从清单派生，改命令名只改一处。
  * 口径须与 manifest.ts 的 commands 一致：四条带 suggested_key 的不在此列。
  */
 export const MANUAL_ASSIGN_COMMANDS: string[] = [
@@ -122,6 +122,7 @@ export const MANUAL_ASSIGN_COMMANDS: string[] = [
   '直达好奇心卡池',
   '直达任务卡池',
   '打开云同步',
+  '打开方向树策展模式',
 ]
 
 /** 扁平化全量清单（设置页「应用内快捷键」等场景按组过滤用） */

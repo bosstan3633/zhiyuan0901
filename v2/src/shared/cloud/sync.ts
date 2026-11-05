@@ -22,9 +22,65 @@ export interface CloudMeta {
   checkOnStart: boolean
   /** 策展节点附件默认静默上传；关闭后新附件只留本机。 */
   assetSyncEnabled?: boolean
+  /** 上次成功同步时建立的轻量记录清单；不保存完整快照或附件 Blob。 */
+  localManifest?: SyncManifest
+  /** 最近读取的云端记录清单缓存。 */
+  remoteManifest?: SyncManifest
+  remoteManifestCachedAt?: number
 }
 
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
+export type SyncManifestRecordType =
+  | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'argument'
+  | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'event' | 'preference'
+export interface SyncManifestRecord {
+  key: string
+  type: SyncManifestRecordType
+  id: string
+  title: string
+  updatedAt?: number
+  deleted?: boolean
+  digest: string
+}
+export interface SyncManifestCounts {
+  workspaces: number
+  categories: number
+  resources: number
+  tasks: number
+  curiosities: number
+  arguments: number
+  directions: number
+  projects: number
+  metrics: number
+  dailyFocus: number
+  events: number
+  preferences: number
+  businessTotal: number
+  attachments: number
+  pendingAttachments: number
+  failedAttachments: number
+}
+export interface SyncManifest {
+  revision: number
+  fingerprint: string
+  capturedAt: number
+  records: SyncManifestRecord[]
+  counts: SyncManifestCounts
+}
+export interface SyncManifestDiffRow {
+  key: string
+  type: SyncManifestRecordType
+  id: string
+  title: string
+  status: 'added' | 'removed' | 'changed'
+}
+export interface SyncManifestDiff {
+  local: SyncManifest | null
+  remote: SyncManifest | null
+  added: SyncManifestDiffRow[]
+  removed: SyncManifestDiffRow[]
+  changed: SyncManifestDiffRow[]
+}
 export type CloudUploadDecision = 'upload' | 'download' | 'cancel'
 export type UploadNowResult =
   | { kind: 'uploaded'; revision: number; fingerprint: string }
@@ -45,6 +101,8 @@ export interface CloudCheckResult {
   remoteUpdatedAt?: string
   localFingerprint?: string
   remoteFingerprint?: string
+  localManifest?: SyncManifest
+  remoteManifest?: SyncManifest
 }
 
 const META_KEY = K.CLOUD_META
@@ -170,6 +228,126 @@ function fallbackHash(input: string): string {
   return `fnv:${(h1 >>> 0).toString(16).padStart(8, '0')}${(h2 >>> 0).toString(16).padStart(8, '0')}`
 }
 
+function manifestRecord(
+  type: SyncManifestRecordType,
+  id: string,
+  title: string,
+  raw: unknown,
+  updatedAt?: number,
+  deleted?: boolean,
+): SyncManifestRecord {
+  return {
+    key: `${type}:${id}`,
+    type,
+    id,
+    title: String(title || '未命名').slice(0, 180),
+    updatedAt: Number.isFinite(updatedAt) ? updatedAt : undefined,
+    deleted: deleted || undefined,
+    digest: fallbackHash(stableStringify(raw)),
+  }
+}
+
+/** 构建记录级同步明细：只保留摘要和稳定指纹，不保存第二份完整业务快照。 */
+export function buildSyncManifest(snapshot: SnapshotState, revision: number, fingerprint = ''): SyncManifest {
+  const clean = sanitizeSnapshot(snapshot.data, snapshot.ui, snapshot.eventLog)
+  const data = clean.data
+  const records: SyncManifestRecord[] = []
+  const counts: SyncManifestCounts = {
+    workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, arguments: 0,
+    directions: 0, projects: 0, metrics: 0, dailyFocus: 0, events: clean.eventLog.length,
+    preferences: clean.ui ? 1 : 0, businessTotal: 0, attachments: 0,
+    pendingAttachments: 0, failedAttachments: 0,
+  }
+  const add = (record: SyncManifestRecord) => records.push(record)
+  const collectAssets = (owners: Array<{ assets?: AssetMeta[] }>) => {
+    for (const owner of owners) {
+      for (const asset of owner.assets || []) {
+        counts.attachments += 1
+        if (asset.uploadState === 'pending' || asset.uploadState === 'local') counts.pendingAttachments += 1
+        if (asset.uploadState === 'failed') counts.failedAttachments += 1
+      }
+    }
+  }
+
+  for (const workspace of data.workspaces || []) {
+    counts.workspaces += 1
+    add(manifestRecord('workspace', workspace.id, workspace.name, workspace, workspace.lastCalledAt))
+  }
+  for (const category of data.categories || []) {
+    counts.categories += 1
+    add(manifestRecord('category', category.id, category.name, category, undefined, !!category.deletedAt))
+  }
+  for (const card of data.resources || []) {
+    counts.resources += 1
+    add(manifestRecord('resource', card.id, card.title, card, card.updatedAt, !!card.deletedAt))
+  }
+  for (const card of data.tasks || []) {
+    counts.tasks += 1
+    add(manifestRecord('task', card.id, card.title, card, card.updatedAt, !!card.deletedAt))
+  }
+  for (const card of data.curiosities || []) {
+    counts.curiosities += 1
+    add(manifestRecord('curiosity', card.id, card.question, card, card.updatedAt, !!card.deletedAt))
+  }
+  for (const card of data.argCards || []) {
+    counts.arguments += 1
+    add(manifestRecord('argument', card.id, card.title, card, card.updatedAt, !!card.deletedAt))
+  }
+  for (const direction of data.compass?.directions || []) {
+    counts.directions += 1
+    add(manifestRecord('direction', direction.id, direction.name, direction, direction.calibratedAt))
+    for (const project of direction.projects || []) {
+      counts.projects += 1
+      add(manifestRecord('project', project.id, project.name, project, undefined, project.status === 'archived'))
+      for (const metric of project.metrics || []) {
+        counts.metrics += 1
+        add(manifestRecord('metric', metric.id, metric.title, metric))
+      }
+    }
+  }
+  for (const [date, slots] of Object.entries(data.dailyFocus || {})) {
+    counts.dailyFocus += 1
+    add(manifestRecord('dailyFocus', date, `今日三件事 · ${date}`, slots))
+  }
+  clean.eventLog.forEach((event, index) => {
+    add(manifestRecord('event', event.id || `${event.ts}-${index}`, `${event.title || event.cardId} · ${event.action}`, event, event.ts))
+  })
+  if (clean.ui) add(manifestRecord('preference', 'ui', '界面与偏好', clean.ui))
+
+  collectAssets(data.resources || [])
+  collectAssets(data.categories || [])
+  collectAssets(data.tasks || [])
+  collectAssets(data.curiosities || [])
+  collectAssets(data.argCards || [])
+  counts.businessTotal = counts.workspaces + counts.categories + counts.resources + counts.tasks
+    + counts.curiosities + counts.arguments + counts.directions + counts.projects + counts.metrics + counts.dailyFocus
+
+  return {
+    revision,
+    fingerprint: fingerprint || fallbackHash(stableStringify(clean)),
+    capturedAt: Date.now(),
+    records,
+    counts,
+  }
+}
+
+export function diffSyncManifests(local: SyncManifest | null, remote: SyncManifest | null): SyncManifestDiff {
+  const localByKey = new Map((local?.records || []).map(row => [row.key, row]))
+  const remoteByKey = new Map((remote?.records || []).map(row => [row.key, row]))
+  const added: SyncManifestDiffRow[] = []
+  const removed: SyncManifestDiffRow[] = []
+  const changed: SyncManifestDiffRow[] = []
+  for (const [key, row] of remoteByKey) {
+    const before = localByKey.get(key)
+    if (!before) added.push({ key, type: row.type, id: row.id, title: row.title, status: 'added' })
+    else if (before.digest !== row.digest) changed.push({ key, type: row.type, id: row.id, title: row.title, status: 'changed' })
+  }
+  for (const [key, row] of localByKey) {
+    if (!remoteByKey.has(key)) removed.push({ key, type: row.type, id: row.id, title: row.title, status: 'removed' })
+  }
+  return { local, remote, added, removed, changed }
+}
+
 /** 对干净快照做内容指纹；只排除附件本体/凭据等不进云内容，不依赖 revision。 */
 export async function fingerprintSnapshot(snapshot: SnapshotState): Promise<string> {
   const clean = sanitizeSnapshot(snapshot.data, snapshot.ui, snapshot.eventLog)
@@ -230,15 +408,27 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
     ui: remoteState.ui || null,
     eventLog: remoteState.eventLog || [],
   })
+  const localManifest = buildSyncManifest(localSnapshot, meta.revision || 0, localFingerprint)
+  const remoteManifest = buildSyncManifest({
+    data: remoteState.data,
+    ui: remoteState.ui || null,
+    eventLog: remoteState.eventLog || [],
+  }, rem.revision, remoteFingerprint)
   // 只有完整读取并验证成功后才记录检查时间，格式异常不能留下“已检查”的假信号。
-  await writeMeta({ lastCheckedAt: Date.now() })
+  await writeMeta({ lastCheckedAt: Date.now(), remoteManifest, remoteManifestCachedAt: Date.now() })
   const baseline = meta.syncedFingerprint
   let relation: CloudRelation
   if (localFingerprint === remoteFingerprint) {
     relation = 'in_sync'
     // 升级后首次检查若两端内容一致，直接建立基线，不必让用户做一次无意义的选择。
-    if (!baseline || meta.revision !== rem.revision) {
-      await writeMeta({ syncedFingerprint: localFingerprint, revision: rem.revision })
+    if (!baseline || meta.revision !== rem.revision || !meta.localManifest) {
+      await writeMeta({
+        syncedFingerprint: localFingerprint,
+        revision: rem.revision,
+        localManifest,
+        remoteManifest,
+        remoteManifestCachedAt: Date.now(),
+      })
     }
   } else if (!baseline) relation = 'unknown'
   else if (localFingerprint !== baseline && remoteFingerprint === baseline) relation = 'local_changed'
@@ -251,6 +441,8 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
     remoteUpdatedAt: rem.updated_at,
     localFingerprint,
     remoteFingerprint,
+    localManifest,
+    remoteManifest,
   }
 }
 
@@ -273,7 +465,15 @@ export async function uploadNow(
     if (!remote) {
       const ins = await cloud.insertSnapshot(env, token, meta.userId, clean)
       const rev = ins[0]?.revision ?? 1
-      await writeMeta({ revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date.now() })
+      const manifest = buildSyncManifest(clean, rev, fingerprint)
+      await writeMeta({
+        revision: rev,
+        syncedFingerprint: fingerprint,
+        lastUploadAt: Date.now(),
+        localManifest: manifest,
+        remoteManifest: manifest,
+        remoteManifestCachedAt: Date.now(),
+      })
       return { kind: 'uploaded', revision: rev, fingerprint }
     }
 
@@ -290,7 +490,15 @@ export async function uploadNow(
     const upd = await cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)
     if (upd.length) {
       const rev = upd[0].revision
-      await writeMeta({ revision: rev, syncedFingerprint: fingerprint, lastUploadAt: Date.now() })
+      const manifest = buildSyncManifest(clean, rev, fingerprint)
+      await writeMeta({
+        revision: rev,
+        syncedFingerprint: fingerprint,
+        lastUploadAt: Date.now(),
+        localManifest: manifest,
+        remoteManifest: manifest,
+        remoteManifestCachedAt: Date.now(),
+      })
       return { kind: 'uploaded', revision: rev, fingerprint }
     }
   }
@@ -298,7 +506,7 @@ export async function uploadNow(
   throw new Error('上传冲突：云端连续更新，已停止自动重试，请重新检查后再同步')
 }
 
-export async function downloadNow(): Promise<{ state: SnapshotState; revision: number; fingerprint: string }> {
+export async function downloadNow(): Promise<{ state: SnapshotState; revision: number; fingerprint: string; manifest: SyncManifest }> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
@@ -309,7 +517,12 @@ export async function downloadNow(): Promise<{ state: SnapshotState; revision: n
   // 旧云快照可能仍带 Airtable 凭据/映射或本机写锁；恢复到本机前走与上传同一条脱敏边界。
   const safe = sanitizeSnapshot(st.data, st.ui || null, st.eventLog || [])
   const fingerprint = await fingerprintSnapshot(safe)
-  return { state: safe, revision: rows[0].revision, fingerprint }
+  return {
+    state: safe,
+    revision: rows[0].revision,
+    fingerprint,
+    manifest: buildSyncManifest(safe, rows[0].revision, fingerprint),
+  }
 }
 
 export interface CurationAssetContext {
@@ -497,8 +710,15 @@ export async function retryPendingCurationAssetDeletes(): Promise<number> {
   return done
 }
 
-export async function markDownloaded(revision: number, fingerprint: string): Promise<void> {
-  await writeMeta({ revision, syncedFingerprint: fingerprint, lastDownloadAt: Date.now() })
+export async function markDownloaded(revision: number, fingerprint: string, manifest?: SyncManifest): Promise<void> {
+  await writeMeta({
+    revision,
+    syncedFingerprint: fingerprint,
+    lastDownloadAt: Date.now(),
+    localManifest: manifest,
+    remoteManifest: manifest,
+    remoteManifestCachedAt: manifest ? Date.now() : undefined,
+  })
 }
 
 // ---- 移动采集 ----

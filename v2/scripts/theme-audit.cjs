@@ -471,7 +471,10 @@ const DASH_SCENES = [
       const statusText = (status?.textContent || '').trim()
       const relationTitle = (relationCard?.querySelector('h3')?.textContent || '').trim()
       const recommended = (relationCard?.querySelector('.cloud-recommend')?.textContent || '').trim()
-      const relationFacts = relationCard?.querySelectorAll('.cloud-relation-facts > div').length || 0
+      /* V4.1.1：本机基线 / 云端修订两格升级为可点明细，仍属于同一四格事实带。 */
+      const relationFacts = relationCard?.querySelectorAll(
+        '.cloud-relation-facts > div, .cloud-relation-facts > .cloud-fact-button'
+      ).length || 0
       const tabs = [...document.querySelectorAll('.dm-tab')].map(x => (x.textContent || '').trim())
       const activeCloudTab = [...document.querySelectorAll('.dm-tab.on')]
         .some(x => (x.textContent || '').trim() === '云同步')
@@ -962,7 +965,9 @@ if (argv.scenes) {
         coverTheme: 'deep-sea',
         desc: '把零散信息组织成可被复用、被质疑、被分享的判断。',
         order: 90,
-        archived: false,
+        /* 夹具只供直接深链渲染；标记归档避开 R64 的旧台合并，避免启动迁移把临时台删掉。
+           普通顶栏仍不会出现它，且其余备份数据继续走现行迁移，标签双栏等场景不受影响。 */
+        archived: true,
         kind: 'curation',
         callCount: 0,
         lastCalledAt: at,
@@ -1016,6 +1021,24 @@ if (argv.scenes) {
       card('audit-r3', '复用发生在问题出现时', 'audit-cat-evidence', 'media', '能被快速召回的知识，才会变成能力。'),
       card('audit-r4', '把一次解决变成可交付方案', 'audit-cat-evidence', 'own-work', '结构化成果让经验可以分享，也可以被检验。'),
     ]
+  }
+  /* 三卡详情是固定巡检场景；备份可能没有好奇心卡，补一张只供本次 Chromium 渲染。 */
+  if (!(data.curiosities || []).some(c => c && !c.deletedAt)) {
+    const curioAt = FREEZE_AT + 11 * 60 * 60 * 1000
+    data.curiosities = [{
+      id: 'audit-curio-detail',
+      kind: 'curiosity',
+      question: '当信息随手可得，什么才值得被长期追踪？',
+      sourceUrl: 'https://example.com/audit-curio',
+      status: 'doing',
+      pinned: false,
+      tags: ['认知调度'],
+      customFields: {},
+      assets: [],
+      createdAt: curioAt,
+      updatedAt: curioAt,
+      ...(data.curiosities || []),
+    }]
   }
   /* ★V3.9.16：方向树折叠判据改为**独立夹具**。
      旧逻辑只在备份完全没有项目时才补，真实库有项目时这条分支不会执行，

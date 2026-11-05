@@ -3,6 +3,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import CurationMindNode from './CurationMindNode.vue'
+import CurationAssetStrip from './CurationAssetStrip.vue'
 import type { Category, ResourceCard } from '@/shared/models'
 
 const props = defineProps<{
@@ -20,6 +21,7 @@ const props = defineProps<{
   dropTarget: string
   dropInvalid: boolean
   dropHint: string
+  remoteDownloader?: (meta: import('@/shared/models').AssetMeta) => Promise<Blob | null>
 }>()
 
 const emit = defineEmits<{
@@ -35,6 +37,8 @@ const emit = defineEmits<{
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
   'open-assets': [id: string]
   'drop-asset-files': [id: string, files: File[]]
+  'preview-asset': [id: string, asset: import('@/shared/models').AssetMeta]
+  'remove-asset': [id: string, asset: import('@/shared/models').AssetMeta]
   'drag-start': [id: string]
   'drag-over': [event: DragEvent, id: string]
   'drag-leave': []
@@ -187,9 +191,6 @@ function onNodeKeydown(e: KeyboardEvent): void {
   } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'x') {
     e.preventDefault()
     emit('cut', props.node.id)
-  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v') {
-    e.preventDefault()
-    emit('paste', props.node.id)
   }
 }
 
@@ -325,11 +326,6 @@ onBeforeUnmount(() => {
           title="关联资源" aria-label="关联资源" @click.stop="emit('link-resource', node)">
           <Icon name="link" :size="12"/>
         </button>
-        <button class="mind-head-action" type="button"
-          :title="node.assets?.length ? `附件 ${node.assets.length} 个` : '添加节点附件'"
-          aria-label="节点附件" @click.stop="emit('open-assets', node.id)">
-          <Icon name="paperclip" :size="12"/><span v-if="node.assets?.length" class="mind-asset-count">{{ node.assets.length }}</span>
-        </button>
         <button v-if="selectedId === node.id" class="mind-head-action danger" type="button"
           title="删除整棵分支（移入回收站）"
           aria-label="删除整棵分支" @click.stop="emit('remove-node', node.id)">
@@ -385,12 +381,19 @@ onBeforeUnmount(() => {
           <Icon name="trash" :size="13"/> 删除
         </button>
       </div>
+      <CurationAssetStrip v-if="(node.assets?.length || 0) > 0 || selectedId === node.id"
+        :assets="node.assets || []" :node-id="node.id" :selected="selectedId === node.id"
+        :remote-downloader="remoteDownloader"
+        @open="emit('preview-asset', node.id, $event)"
+        @remove="emit('remove-asset', node.id, $event)"
+        @ingest="emit('drop-asset-files', node.id, $event)" />
       <span v-if="dropTarget === node.id" class="mind-drop-hint" :class="{ invalid: dropInvalid }">{{ dropHint }}</span>
     </article>
     <div v-if="children().length" class="mind-children">
       <CurationMindNode v-for="child in children()" :key="child.id" :node="child" :nodes="nodes"
         :selected-id="selectedId" :edit-request-id="editRequestId" :edit-request-seq="editRequestSeq"
         :cards-by-cat="cardsByCat" :search-query="searchQuery"
+        :remote-downloader="remoteDownloader"
         :keyboard-drag-source="keyboardDragSource" :keyboard-drag-target="keyboardDragTarget"
         :reveal-id="revealId"
         :drop-target="dropTarget" :drop-invalid="dropInvalid" :drop-hint="dropHint"
@@ -405,6 +408,8 @@ onBeforeUnmount(() => {
         @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
         @open-assets="emit('open-assets', $event)"
         @drop-asset-files="(id, files) => emit('drop-asset-files', id, files)"
+        @preview-asset="(id, asset) => emit('preview-asset', id, asset)"
+        @remove-asset="(id, asset) => emit('remove-asset', id, asset)"
         @drag-start="emit('drag-start', $event)" @drag-over="(e, id) => emit('drag-over', e, id)"
         @drag-leave="emit('drag-leave')" @drop="(e, id) => emit('drop', e, id)"
         @keyboard-drag-start="emit('keyboard-drag-start', $event)"

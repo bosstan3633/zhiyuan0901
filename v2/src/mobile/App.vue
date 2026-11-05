@@ -9,15 +9,16 @@ const password = ref('')
 const session = ref<{ accessToken: string; refreshToken: string; email: string } | null>(null)
 type CaptureKind = 'link' | 'text'
 interface PendingCapture { contentKind: CaptureKind; url?: string; text?: string; title?: string; note?: string; createdAt: number }
-const contentKind = ref<CaptureKind>('link')
-const contentText = ref('')
-const url = ref('')
+interface CaptureReceipt { kind: CaptureKind; queued: boolean; at: number }
+const contentInput = ref('')
 const title = ref('')
 const note = ref('')
 const busy = ref(false)
 const msg = ref('')
 const err = ref('')
 const pending = ref<PendingCapture[]>([])
+const receipt = ref<CaptureReceipt | null>(null)
+const mainInputRef = ref<HTMLTextAreaElement | null>(null)
 
 const logged = computed(() => !!session.value?.accessToken)
 const PENDING_KEY = LOCAL_KEYS.MOBILE_PENDING
@@ -59,37 +60,49 @@ async function refreshToken() {
   } catch { session.value = null; localStorage.removeItem(LOCAL_KEYS.MOBILE_SESSION); return false }
 }
 function savePending() { localStorage.setItem(PENDING_KEY, JSON.stringify(pending.value)) }
+function detectKind(raw: string): CaptureKind {
+  return /^https?:\/\/\S+$/i.test(raw.trim()) ? 'link' : 'text'
+}
+function focusMainInput(): void {
+  requestAnimationFrame(() => mainInputRef.value?.focus({ preventScroll: true }))
+}
+function resetComposer(kind: CaptureKind, queued: boolean): void {
+  receipt.value = { kind, queued, at: Date.now() }
+  contentInput.value = ''
+  title.value = ''
+  note.value = ''
+  msg.value = ''
+  busy.value = false
+  focusMainInput()
+}
 async function submit() {
-  const link = url.value.trim()
-  const text = contentText.value.trim()
-  if (contentKind.value === 'link' && (!link || !/^https?:\/\//i.test(link))) {
-    err.value = '请输入完整链接（含 http/https）'
+  const raw = contentInput.value.trim()
+  if (!raw) {
+    err.value = '请输入要采集的链接或文本'
     return
   }
-  if (contentKind.value === 'text' && !text) {
-    err.value = '请输入要采集的文本'
-    return
-  }
+  const kind = detectKind(raw)
   busy.value = true; err.value = ''
   try {
     const item: PendingCapture = {
-      contentKind: contentKind.value,
-      url: contentKind.value === 'link' ? link : undefined,
-      text: contentKind.value === 'text' ? text : undefined,
+      contentKind: kind,
+      url: kind === 'link' ? raw : undefined,
+      text: kind === 'text' ? contentInput.value.trim() : undefined,
       title: title.value.trim() || undefined,
       note: note.value.trim() || undefined,
       createdAt: Date.now(),
     }
     if (!logged.value) {
-      pending.value.push(item); savePending(); msg.value = '已暂存，登录后自动同步'; return
+      pending.value.push(item); savePending()
+      resetComposer(kind, true)
+      return
     }
     try {
       await sendOne(item)
-      msg.value = '已提交到 Inbox'
-      url.value = ''; contentText.value = ''; title.value = ''; note.value = ''
+      resetComposer(kind, false)
     } catch (e) {
       pending.value.push(item); savePending()
-      msg.value = '网络暂不可用，已放入待同步队列，联网登录后自动发送'
+      resetComposer(kind, true)
       return
     }
   } catch (e) { err.value = '提交失败：' + (e instanceof Error ? e.message : String(e)) }
@@ -145,9 +158,8 @@ onMounted(() => {
   const q = new URLSearchParams(location.search)
   const link = q.get('link') || q.get('url') || ''
   const sharedText = q.get('text') || ''
-  if (link && /^https?:\/\//i.test(link)) url.value = link
-  else if (/^https?:\/\/\S+$/i.test(sharedText.trim())) { contentKind.value = 'link'; url.value = sharedText.trim() }
-  else if (sharedText.trim()) { contentKind.value = 'text'; contentText.value = sharedText }
+  if (link && /^https?:\/\//i.test(link)) contentInput.value = link
+  else if (sharedText.trim()) contentInput.value = sharedText
   const t = q.get('title') || ''
   if (t) title.value = t
   window.addEventListener('online', () => { void flushPending() })
@@ -178,17 +190,20 @@ onMounted(() => {
       <template v-else>
         <div class="m-card">
           <div class="m-card-t">采集到 Inbox</div>
-          <div class="m-kind-switch" role="tablist" aria-label="采集类型">
-            <button type="button" :class="{ on: contentKind === 'link' }" @click="contentKind = 'link'">链接</button>
-            <button type="button" :class="{ on: contentKind === 'text' }" @click="contentKind = 'text'">文本</button>
-          </div>
-          <input v-if="contentKind === 'link'" v-model="url" class="m-input" type="url" placeholder="https://…" inputmode="url" />
-          <textarea v-else v-model="contentText" class="m-textarea m-textarea-main" placeholder="粘贴或输入文本、想法、摘录…"></textarea>
+          <textarea ref="mainInputRef" v-model="contentInput" class="m-textarea m-textarea-main m-capture-main"
+            rows="4" placeholder="粘贴链接、想法、摘录或多行文本…"></textarea>
           <input v-model="title" class="m-input" type="text" placeholder="标题（可选）" />
           <textarea v-model="note" class="m-textarea" placeholder="备注（可选）"></textarea>
           <div v-if="err" class="m-err">{{ err }}</div>
           <div v-if="msg" class="m-ok">{{ msg }}</div>
           <button class="m-btn" :disabled="busy" @click="submit">{{ busy ? '提交中…' : '提交到 Inbox' }}</button>
+          <div v-if="receipt" class="m-receipt" role="status">
+            <div class="m-receipt-main">
+              <b>{{ receipt.queued ? '已暂存，等待同步' : '已提交到 Inbox' }}</b>
+              <span>{{ receipt.kind === 'link' ? '链接采集' : '文本采集' }} · {{ receipt.queued ? '联网并登录后自动发出' : '可以继续采集下一条' }}</span>
+            </div>
+            <button type="button" @click="focusMainInput">继续采集</button>
+          </div>
           <div class="m-tip">提交后在电脑端「手边的卡 → Inbox」按时间盘点并转化为任务 / 好奇心 / 资源卡。</div>
         </div>
       </template>
