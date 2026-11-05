@@ -58,9 +58,9 @@ export interface AssetMeta {
 export interface CompassNode {
   content: string
   updatedAt: number
-  /** N1：关联资源卡（愿景/使命为持有方，单向） */
+  /** 历史字段：愿景/使命卡间挂载已退役，仅供旧数据导入与云快照兼容，不再提供 UI 入口。 */
   linkedResourceIds?: ID[]
-  /** N1：关联好奇心卡 */
+  /** 历史字段：仅供旧数据导入与云快照兼容，不再提供 UI 入口。 */
   linkedCuriosityIds?: ID[]
 }
 

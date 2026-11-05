@@ -5,11 +5,13 @@ import Icon from '@/shared/components/Icon.vue'
 import { showToast } from '@/shared/components/toast'
 import { useFocusTrap } from '@/shared/utils/focusTrap'
 import { useAppStore } from '../stores/app'
+import CloudSyncReceiptModal from './cloud/CloudSyncReceiptModal.vue'
 import {
   useCloudSync,
   type CloudConflictChoice,
   type CloudDecisionInfo,
 } from '../composables/useCloudSync'
+import type { CloudSyncReceipt } from '@/shared/cloud/sync'
 
 const router = useRouter()
 const store = useAppStore()
@@ -17,6 +19,14 @@ const cloud = useCloudSync()
 const nowTick = ref(Date.now())
 const conflictOpen = ref(false)
 const conflictPanel = ref<HTMLElement | null>(null)
+const receiptOpen = ref(false)
+const receipt = ref<CloudSyncReceipt | null>(null)
+const LED_CLASSES = {
+  green: 'led-green',
+  yellow: 'led-yellow',
+  red: 'led-red',
+  neutral: 'led-neutral',
+} as const
 const conflictRelation = ref<CloudDecisionInfo['relation']>('both_changed')
 const conflictRemoteRevision = ref(0)
 const conflictLocalRevision = ref(0)
@@ -33,7 +43,7 @@ function onConflictKeydown(event: KeyboardEvent): void {
 useFocusTrap(conflictPanel, () => conflictOpen.value, { initial: 'first' })
 
 const title = computed(() =>
-  `${cloud.statusText.value} · ${cloud.statusDetail.value} · 最近实际同步 ${cloud.lastSyncLabel.value}`,
+  `${cloud.statusText.value} · ${cloud.statusDetail.value} · 最近实际同步 ${cloud.lastSyncLabel.value} · 状态灯：绿=两端一致，黄=有待同步，红=断线`,
 )
 const busy = computed(() => cloud.state.value === 'syncing')
 const conflictTitle = computed(() => {
@@ -74,30 +84,48 @@ function resolveConflict(choice: CloudConflictChoice): void {
   conflictResolve = null
 }
 
+function showReceiptOrToast(fallback: string): void {
+  if (cloud.latestReceipt.value) {
+    receipt.value = cloud.latestReceipt.value
+    receiptOpen.value = true
+  } else {
+    showToast(fallback)
+  }
+}
+
 async function onSyncClick(): Promise<void> {
   if (busy.value) return
   if (cloud.state.value === 'disabled' || cloud.state.value === 'signed_out') {
     await router.push('/settings?page=cloud')
     return
   }
-  const result = await cloud.manualSync(store, requestConflict)
+  const result = await cloud.manualSync(store, requestConflict, 'topbar')
   if (result.kind === 'needs_setup') {
     await router.push('/settings?page=cloud')
     return
   }
-  if (result.kind === 'latest') showToast(`已是最新 · 云端修订 ${result.revision}`)
-  else if (result.kind === 'uploaded') showToast(`已同步到云端 · 修订 ${result.revision}`)
-  else if (result.kind === 'downloaded') showToast(`已从云端恢复到本机 · 修订 ${result.revision}`)
+  if (result.kind === 'latest') showReceiptOrToast(`已是最新 · 云端修订 ${result.revision}`)
+  else if (result.kind === 'uploaded') showReceiptOrToast(`已同步到云端 · 修订 ${result.revision}`)
+  else if (result.kind === 'downloaded') showReceiptOrToast(`已从云端恢复到本机 · 修订 ${result.revision}`)
   else if (result.kind === 'cancelled') showToast('已取消同步，云端与本机均未改变')
   else if (result.kind === 'failed') showToast(`云同步失败：${result.message}`)
 }
 
+function syncNetworkState(): void {
+  cloud.setNetworkOnline(navigator.onLine)
+}
+
 onMounted(() => {
+  window.addEventListener('online', syncNetworkState)
+  window.addEventListener('offline', syncNetworkState)
+  syncNetworkState()
   void cloud.refreshCloudStatus(true, store)
   clockTimer = window.setInterval(() => { nowTick.value = Date.now() }, 60_000)
   document.addEventListener('keydown', onConflictKeydown, true)
 })
 onUnmounted(() => {
+  window.removeEventListener('online', syncNetworkState)
+  window.removeEventListener('offline', syncNetworkState)
   if (clockTimer) clearInterval(clockTimer)
   document.removeEventListener('keydown', onConflictKeydown, true)
   conflictResolve?.('cancel')
@@ -116,8 +144,9 @@ onUnmounted(() => {
     data-testid="topbar-cloud-sync"
     @click="onSyncClick"
   >
+    <span class="cloud-sync-led" :class="LED_CLASSES[cloud.ledTone.value]" aria-hidden="true"></span>
     <span class="cloud-sync-icon" aria-hidden="true">
-      <Icon :name="busy ? 'refresh' : cloud.state.value === 'error' ? 'warn' : 'plug'" :size="14" />
+      <Icon :name="busy ? 'refresh' : cloud.state.value === 'error' ? 'warn' : 'plug'" :size="13" />
     </span>
     <span class="cloud-sync-copy">
       <span class="cloud-sync-label">{{ cloud.statusText.value }}</span>
@@ -144,6 +173,8 @@ onUnmounted(() => {
       </section>
     </div>
   </Teleport>
+
+  <CloudSyncReceiptModal :open="receiptOpen" :receipt="receipt" @close="receiptOpen = false" />
 </template>
 
 <style scoped>
@@ -172,10 +203,46 @@ onUnmounted(() => {
 .cloud-sync-btn.in_sync { color: var(--text-2); }
 .cloud-sync-icon { display: inline-flex; flex: none; }
 .cloud-sync-btn.syncing .cloud-sync-icon { animation: cloud-spin 1.1s linear infinite; }
+.cloud-sync-led {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--text-3);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-3) 14%, transparent);
+}
+.cloud-sync-led.led-green {
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent);
+  animation: cloud-breathe-green 2.8s ease-in-out infinite;
+}
+.cloud-sync-led.led-yellow {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 16%, transparent);
+  animation: cloud-breathe-yellow 1.8s ease-in-out infinite;
+}
+.cloud-sync-led.led-red {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
+  animation: cloud-breathe-red 1.2s ease-in-out infinite;
+}
+.cloud-sync-led.led-neutral { opacity: .58; }
 .cloud-sync-copy { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
 .cloud-sync-label { font-size: var(--fs-caption); font-weight: 650; }
 .cloud-sync-time { font-size: var(--fs-micro); color: var(--text-3); }
 @keyframes cloud-spin { to { transform: rotate(360deg); } }
+@keyframes cloud-breathe-green {
+  0%, 100% { opacity: .62; transform: scale(.88); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@keyframes cloud-breathe-yellow {
+  0%, 100% { opacity: .64; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@keyframes cloud-breathe-red {
+  0%, 100% { opacity: .68; transform: scale(.92); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
 
 .cloud-conflict-mask {
   position: fixed;
@@ -230,5 +297,8 @@ onUnmounted(() => {
   .cloud-sync-btn { min-height: 34px; padding: 4px 8px; }
   .cloud-sync-copy { flex-direction: column; align-items: flex-start; gap: 0; }
   .cloud-sync-time { display: block; font-size: var(--fs-micro); line-height: 1.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cloud-sync-led { animation: none !important; }
 }
 </style>

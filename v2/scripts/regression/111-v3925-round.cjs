@@ -90,21 +90,18 @@ check('R182-C2 ★愿景 / 使命展开紧凑：层级面板采用实体与摘�
     && panel.includes('.lvp-main { grid-template-columns: minmax(0, 1fr); }');
 });
 
-check('R182-C3 ★关联卡片取消只摘关系：愿景 / 使命四类关联芯片都有取消入口；取消不删除来源卡、3 秒内可恢复，恢复后关系写回同一数组', () => {
+check('R182-C3（V4.1.3 退役重指）★愿景/使命关联芯片及其取消/恢复链路整体退役：方向树不再出现 lc-unlink、unlinkChip、chip undo 或关联选择弹层；历史 linked* 字段仅保留导入与云快照兼容', () => {
   const tree = read('/newtab/views/CompassTree.vue');
   const logic = read('/newtab/views/useCompassTree.ts');
-  const unlink = segOf(logic, 'function unlinkChip(', '\nfunction resTitle(');
-  return (tree.match(/class="lc-unlink"/g) || []).length === 4
-    && tree.includes("unlinkChip('vision', 'res', rid)")
-    && tree.includes("unlinkChip('vision', 'curio', cid)")
-    && tree.includes("unlinkChip('mission', 'res', rid)")
-    && tree.includes("unlinkChip('mission', 'curio', cid)")
-    && unlink.includes('c[key] = next')
-    && unlink.includes('store.persist()')
-    && unlink.includes('undoWindowMs: 3000')
-    && unlink.includes('current[key] = [...currentIds, id]')
-    && !unlink.includes('.deletedAt')
-    && !unlink.includes('softDelete');
+  const t = codeOnly(tree);
+  const l = codeOnly(logic);
+  return !t.includes('class="lc-unlink"')
+    && !t.includes('unlinkChip(')
+    && !t.includes('linked-chip')
+    && !l.includes('function unlinkChip(')
+    && !l.includes('linkCandidates')
+    && !l.includes('toggleLinked')
+    && read('/shared/models/index.ts').includes('仅供旧数据导入与云快照兼容');
 });
 
 check('R182-C4 ★第 5/6 层列表进入项目全景定位：行点击先打开所属项目全景，再滚动高亮 data-metric / data-task；行文案同步改为「全景定位」', () => {

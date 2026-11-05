@@ -15,6 +15,7 @@ const emit = defineEmits<{
   close: []
   convert: [kind: CaptureConvertedKind]
   remove: []
+  openSource: []
   openTarget: []
 }>()
 
@@ -62,7 +63,12 @@ function fmtTime(ts?: number): string {
 
       <section v-if="item.url" class="icd-block">
         <span class="icd-label">原始链接</span>
-        <a :href="item.url" target="_blank" rel="noopener noreferrer">{{ item.url }}</a>
+        <div class="icd-link-row">
+          <a :href="item.url" target="_blank" rel="noopener noreferrer">{{ item.url }}</a>
+          <button type="button" @click="emit('openSource')">
+            <Icon name="external" :size="12"/> 打开链接
+          </button>
+        </div>
       </section>
 
       <section v-if="item.text" class="icd-block">
@@ -123,6 +129,9 @@ function fmtTime(ts?: number): string {
 .icd-label { display: block; margin-bottom: 7px; color: var(--text-3); font-size: var(--fs-micro); font-weight: 600; letter-spacing: .03em; }
 .icd-block h3 { margin: 0; color: var(--text); font-size: var(--fs-title); line-height: 1.55; overflow-wrap: anywhere; }
 .icd-block a { color: var(--accent-ink); font-size: var(--fs-caption); line-height: 1.6; overflow-wrap: anywhere; }
+.icd-link-row { display: flex; align-items: flex-start; gap: 9px; }
+.icd-link-row a { flex: 1; min-width: 0; }
+.icd-link-row button { flex: none; min-height: 30px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent-light); color: var(--accent-ink); font: inherit; font-size: var(--fs-caption); cursor: pointer; }
 .icd-block pre, .icd-block .icd-note { max-height: 240px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; color: var(--text-2); font: inherit; font-size: var(--fs-sub); line-height: 1.7; }
 .icd-tags { display: flex; gap: 5px; flex-wrap: wrap; }
 .icd-tags span { padding: 2px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); }

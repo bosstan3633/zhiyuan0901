@@ -660,7 +660,8 @@ async function main() {
   }))
   await page.locator('.drawer .drawer-close').first().click().catch(() => {})
   await page.waitForTimeout(700)
-  // 对照面：同一张卡在资源台是**真身**——AI 行两格必须在、标题必须可写
+  // 对照面：同一张卡在资源台是**真身**——V4.1.3 起只保留「AI 优化」一格；标题必须可写。
+  // 资源侧反向「关联任务」已按挂载白名单退役，因此这里不再要求旧的两格。
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
   await page.locator('.pcp-row[data-rid="e2e-ro-1"]').first().click().catch(() => {})
@@ -681,8 +682,8 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
-  report('E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）+ 真身侧反向对照（AI 行两格 + 标题可写）',
-    mirFound > 0 && mirHeadVisible && mirTitleReadonly && mirBanner && mirAiCells === 0 && mirFootBtns === 2 && mirFootText.includes('定位到源卡') && hubAiCells === 2 && hubTitleEditable && hubTitleValue === 'E2E 只读镜像源卡',
+  report('E2E-24 R167 镜像只读详情边界（标题 readonly / AI 行不给入口 / 页脚两钮是定位）+ V4.1.3 真身侧反向对照（仅 AI 优化一格 + 标题可写）',
+    mirFound > 0 && mirHeadVisible && mirTitleReadonly && mirBanner && mirAiCells === 0 && mirFootBtns === 2 && mirFootText.includes('定位到源卡') && hubAiCells === 1 && hubTitleEditable && hubTitleValue === 'E2E 只读镜像源卡',
     `镜像在位=${mirFound} 头=${mirHeadVisible} 标题只读=${mirTitleReadonly} banner=${mirBanner} AI格=${mirAiCells} 页脚钮=${mirFootBtns}(${mirFootText.slice(0, 24)}) 投射=${mirDiag.proj}/目标台=${roBoardId || '无'} | 真身 AI格=${hubAiCells} 可写=${hubTitleEditable} 值="${hubTitleValue}"`)
 
   // E2E-25（R174-3）：zy_daily_stats 落盘——读合并 + 写链路两端到端。
@@ -2890,6 +2891,190 @@ await paOpen()
       && convertedUi.mirror && convertedUi.highlighted && taskDrawerTitle.includes('E2E V4.1.1 Inbox 转化')
       && inboxRowGone && taskStillThere && taskPreserved,
     `task=${JSON.stringify(convertedTask)} ui=${JSON.stringify(convertedUi)} drawer="${taskDrawerTitle.trim()}" gone=${inboxRowGone} cache=${taskStillThere} preserved=${taskPreserved}`)
+
+  // ══════════ E2E-55（V4.1.3）Inbox 排序、双击 / 键盘打开链接、清空确认 ══════════
+  const inboxRows = [
+    {
+      id: 'e2e-v413-inbox-old',
+      content_kind: 'link',
+      url: 'https://example.com/inbox/e2e-v413-old',
+      text_content: '较早的 Inbox 采集',
+      title: 'E2E V4.1.3 Inbox 较早记录',
+      note: null,
+      tags: ['E2E'],
+      created_at: new Date(Date.now() - 120_000).toISOString(),
+      converted_at: null,
+      converted_kind: null,
+      converted_card_id: null,
+      dismissed_at: null,
+    },
+    {
+      id: 'e2e-v413-inbox-new',
+      content_kind: 'link',
+      url: 'https://example.com/inbox/e2e-v413-new',
+      text_content: '较新的 Inbox 采集',
+      title: 'E2E V4.1.3 Inbox 较新记录',
+      note: null,
+      tags: ['E2E'],
+      created_at: new Date(Date.now() - 30_000).toISOString(),
+      converted_at: null,
+      converted_kind: null,
+      converted_card_id: null,
+      dismissed_at: null,
+    },
+  ]
+  await ctx.unroute('**/rest/v1/capture_inbox**')
+  await ctx.route('**/rest/v1/capture_inbox**', route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(inboxRows) })
+    }
+    return route.fulfill({ status: 204, body: '' })
+  })
+  await page.evaluate((rows) => {
+    localStorage.setItem('zy_inbox_cache', JSON.stringify(rows.map(row => ({
+      id: row.id,
+      contentKind: row.content_kind,
+      url: row.url,
+      text: row.text_content,
+      title: row.title,
+      tags: row.tags,
+      createdAt: Date.parse(row.created_at),
+    }))))
+    localStorage.removeItem('zy_inbox_conversion_queue')
+  }, inboxRows)
+  await page.goto(base + '#/deck/inbox?e2e=55', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, `[data-capture-id="${inboxRows[1].id}"]`, { visible: true, timeout: 12000 })
+  const inboxDefaultOrder = await page.locator('.inbox-row').evaluateAll(rows =>
+    rows.map(row => row.getAttribute('data-capture-id')))
+  await page.locator('.inbox-tools .sort-btn').click()
+  const inboxSorted = await pollUntil(async () => {
+    const ids = await page.locator('.inbox-row').evaluateAll(rows =>
+      rows.map(row => row.getAttribute('data-capture-id')))
+    return ids[0] === inboxRows[0].id ? ids : false
+  }, { timeout: 5000, label: 'Inbox 切换为最早在前' })
+
+  await page.locator(`[data-capture-id="${inboxRows[0].id}"] .inbox-open`).dblclick({ delay: 80 })
+  const openedInboxTab = await pollUntil(async () => {
+    const tabs = await worker.evaluate(() => chrome.tabs.query({}))
+    return tabs.find(tab => (tab.url || '').includes('/inbox/e2e-v413-old')) || false
+  }, { timeout: 6000, label: 'Inbox 双击打开原始链接' })
+  await page.waitForTimeout(300)
+  const dblclickDidNotOpenDrawer = await page.locator('.drawer .icd-head').count().then(count => count === 0)
+  if (openedInboxTab?.id) await worker.evaluate(id => chrome.tabs.remove(id), openedInboxTab.id).catch(() => {})
+
+  await page.locator('.inbox-tools .clear-btn').click()
+  await waitForLocator(page, '.cdf-mask .cdf-btn.ok', { visible: true, timeout: 5000 })
+  const clearConfirmText = (await page.locator('.cdf-msg').textContent() || '').replace(/\s+/g, ' ').trim()
+  await page.locator('.cdf-mask .cdf-btn.ok').click()
+  const inboxCleared = await pollUntil(
+    () => page.locator('.inbox-row').count().then(count => count === 0),
+    { timeout: 8000, label: 'Inbox 清空完成' },
+  )
+  const inboxCacheCleared = await page.evaluate(() => {
+    const rows = JSON.parse(localStorage.getItem('zy_inbox_cache') || 'null')
+    return Array.isArray(rows) && rows.length === 0
+  })
+  report('E2E-55 ★V4.1.3 Inbox 默认最新在前、可切最早在前；双击打开原始链接且不误开详情；清空前确认说明镜像不误删，确认后列表与缓存清空',
+    inboxDefaultOrder[0] === inboxRows[1].id
+      && Array.isArray(inboxSorted) && inboxSorted[0] === inboxRows[0].id
+      && String(openedInboxTab?.url || '').includes('/inbox/e2e-v413-old') && dblclickDidNotOpenDrawer
+      && clearConfirmText.includes('2 条记录') && clearConfirmText.includes('目标卡')
+      && inboxCleared && inboxCacheCleared,
+    `默认=${JSON.stringify(inboxDefaultOrder)} 切序=${JSON.stringify(inboxSorted)} 打开="${openedInboxTab?.url || ''}" 未误开详情=${dblclickDidNotOpenDrawer} 确认="${clearConfirmText}" 清空=${inboxCleared} 缓存=${inboxCacheCleared}`)
+
+  // ══════════ E2E-56（V4.1.3）云同步三事实卡、回执与三色状态灯 ══════════
+  const cloudSnapshotAt = new Date().toISOString()
+  await ctx.unroute('**/rest/v1/cloud_snapshots**').catch(() => {})
+  await ctx.unroute('**/rest/v1/account_events**').catch(() => {})
+  await ctx.route('**/rest/v1/cloud_snapshots**', route => {
+    const method = route.request().method()
+    if (method === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    }
+    if (method === 'POST') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ revision: 1, updated_at: cloudSnapshotAt }]),
+      })
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{ revision: 1, updated_at: cloudSnapshotAt }]),
+    })
+  })
+  await ctx.route('**/rest/v1/account_events**', route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    }
+    return route.fulfill({ status: 204, body: '' })
+  })
+  await page.evaluate(async () => {
+    const current = await chrome.storage.local.get('zy_cloud_env')
+    await chrome.storage.local.set({
+      zy_cloud_env: current.zy_cloud_env,
+      zy_cloud_meta_v1: {
+        userId: 'e2e-user',
+        email: 'e2e@example.com',
+        refreshToken: 'e2e-refresh',
+        checkOnStart: false,
+        revision: 0,
+        assetSyncEnabled: false,
+      },
+    })
+  })
+  await page.goto(base + '#/settings?page=cloud', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-testid="cloud-relation-overview"]', { visible: true, timeout: 12000 })
+  const cloudLedBefore = await page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led').getAttribute('class').catch(() => '')
+
+  await page.locator('[data-testid="cloud-relation-details-trigger"]').click()
+  await waitForLocator(page, '.cscd .cct', { visible: true, timeout: 12000 })
+  const pendingDrawer = await page.evaluate(() => {
+    const groups = [...document.querySelectorAll('.cct-groups [role="tab"]')].map(node => (node.textContent || '').trim())
+    const rows = document.querySelectorAll('.cct-row').length
+    const sort = (document.querySelector('.cct-sort')?.textContent || '').trim()
+    return { groups, rows, sort }
+  })
+  await page.locator('.drawer-close').first().click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
+
+  await page.locator('[data-testid="cloud-sync-now"]').click()
+  await waitForLocator(page, '[data-testid="cloud-sync-receipt-modal"]', { visible: true, timeout: 20000 })
+  const receipt = await page.evaluate(() => {
+    const modal = document.querySelector('[data-testid="cloud-sync-receipt-modal"]')
+    const summary = [...(modal?.querySelectorAll('.csrm-summary b') || [])].map(node => (node.textContent || '').trim())
+    const heading = (modal?.querySelector('.csrm-hero h2')?.textContent || '').trim()
+    return { summary, heading, rows: modal?.querySelectorAll('.cct-row').length || 0 }
+  })
+  const cloudLedAfter = await pollUntil(
+    () => page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led.led-green').count().then(count => count > 0),
+    { timeout: 8000, label: '云同步完成后绿灯' },
+  )
+  await page.locator('.md-close').click()
+  await page.waitForSelector('.md-panel', { state: 'detached', timeout: 5000 }).catch(() => {})
+
+  await page.locator('[data-testid="latest-sync-receipt-trigger"]').click()
+  await waitForLocator(page, '.cscd .cct', { visible: true, timeout: 8000 })
+  const latestReceiptDrawer = await page.evaluate(() => ({
+    title: (document.querySelector('.drawer .drawer-title')?.textContent || '').trim(),
+    rows: document.querySelectorAll('.cct-row').length,
+    hasDirection: (document.querySelector('.cct-row .cct-status')?.textContent || '').trim().length > 0,
+  }))
+
+  report('E2E-56 ★V4.1.3 云同步头部待上传明细可右滑、同步成功弹记录级回执且状态灯转绿，最近实际同步可再次打开同一份内容明细',
+    cloudLedBefore.includes('led-') && pendingDrawer.groups.some(x => x.startsWith('全部'))
+      && pendingDrawer.groups.some(x => x.startsWith('卡片'))
+      && pendingDrawer.groups.some(x => x.startsWith('策展台'))
+      && pendingDrawer.groups.some(x => x.startsWith('今日三件事'))
+      && pendingDrawer.rows > 0 && pendingDrawer.sort.includes('时间倒序')
+      && receipt.summary.length === 4 && receipt.heading.includes('上传到云端')
+      && receipt.rows > 0 && cloudLedAfter
+      && latestReceiptDrawer.title.includes('最近实际同步内容')
+      && latestReceiptDrawer.rows === receipt.rows && latestReceiptDrawer.hasDirection,
+    `灯前=${cloudLedBefore} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 绿灯=${cloudLedAfter} 最近=${JSON.stringify(latestReceiptDrawer)}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

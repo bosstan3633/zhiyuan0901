@@ -89,7 +89,7 @@ check('R146-5 ★AI 入口徽标全站统一（**R155 换骨：emoji → 单色�
     && zm.includes('viewBox') && zm.includes('currentColor') && zm.includes('stroke-width') && !zm.includes('>🤖<') && !zm.includes('fontSize')
     && zm.includes('@keyframes ai-turn') && zm.includes('prefers-reduced-motion')
     && ae.includes("from '@/shared/components/AiMark.vue'") && ae.includes('var(--icon-sm)') && ae.includes('var(--icon-lg)') && !ae.includes(':size=')
-    && read('/newtab/components/ResourceAiStrip.vue').includes("const busy = ref<'' | 'enrich' | 'linkTask'>('')") /* R167：两枚入口的互斥锁随入口一起搬进共享组件 */
+    && read('/newtab/components/ResourceAiStrip.vue').includes('const busy = ref(false)') /* V4.1.3：全字段优化只留一枚入口，互斥锁同步收成布尔态 */
     && read('/newtab/components/CardAiEntry.vue').includes('if (busy.value) return') && read('/newtab/components/EvidenceMenuItem.vue').includes('if (busy.value) return')
     && read('/newtab/components/TaskAddDrawer.vue').includes('if (aiBusy.value || !aiSay.value.trim()) return')
 });
@@ -217,7 +217,7 @@ check('R149-2 ★报告型撤采纳后"只一张卡"：saveReportCard 先按同�
 });
 check('R149-3 ★jobKey 收口在抽屉一处（keyOf = 显式 jobKey > job.key > 空=一次性）：13 个宿主零改动即获得后台化/attach/托盘，工厂加场景不必记着接线；据此每条 build*Job 都必须自带 key（缺 key 就退回"关抽屉=杀任务"，用正则当场点名）· R167：扫描面补上 R166/R167 新增的三个工厂文件（taskEnrich/taskSupport/resourceLinkTask），新文件不并进扫描面=新入口可以无 key 溜过', () => {
   const w = read('/newtab/components/AiSuggestionDrawer.vue'); const j = read('/shared/ai/job.ts')
-  const files = ['select.ts', 'batchG.ts', 'chain.ts', 'govern.ts', 'taskEnrich.ts', 'taskSupport.ts', 'resourceLinkTask.ts'].map(f => '/shared/ai/' + f)
+  const files = ['select.ts', 'batchG.ts', 'chain.ts', 'govern.ts', 'taskEnrich.ts', 'taskSupport.ts'].map(f => '/shared/ai/' + f)
   const noKey = files.flatMap(f => { const s = read(f); return (s.match(/export function build\w+Job[^\n]*\n/g) || []).map(hdr => { const i = s.indexOf(hdr); return /key: /.test(s.slice(i, i + 4000)) ? '' : f + hdr.slice(0, 40) }).filter(Boolean) })
   return w.includes("const keyOf = computed(() => props.jobKey || props.job?.key || '')") && w.includes('const bound = computed<JobState | null>(() => (keyOf.value ? getJobState(keyOf.value) || null : null))')
     && j.includes('key?: string') && noKey.length === 0 && read('/newtab/views/GlobalSettings.vue').includes("key: 'enrich:batch:'") && read('/newtab/components/ResourceAiStrip.vue').includes('buildResourceEnrichJob(card, ctx)')
@@ -290,7 +290,7 @@ check('R151-6（V3.9.8 随迁备案）★AI 入口按“卡种 × 现役视图�
     && ce.includes('class="rc-action ai"') && !ce.includes('dr-footer-btn') && w.includes('<template #title>')
     && curioEntries === 3 && cp.includes('aiTriage(detailItem)') && cp.includes('@click="aiTriage()"') && cp.includes('one.status !== \'todo\'')
     && bg.includes("pool.length < (single ? 1 : 3)") && bg.includes("'triage:' + pool[0].id")
-    && m.includes('镜像卡不给入口') && m.includes('资源卡的补全与关联从资源卡池或卡详情进入') && m.includes('是同一条通道') && m.includes('换一张卡再点就是另起一轮')
+    && m.includes('镜像卡不给入口') && m.includes('资源卡详情只保留一个') && m.includes('卡间挂载只保留两条') && m.includes('是同一条通道') && m.includes('换一张卡再点就是另起一轮')
 });
 
 /* ===== R151-C1/C2 · 门禁与归因工具收口 ===== */
@@ -325,10 +325,10 @@ check('R152-3 ★手势矩阵收口：单击/Enter=打开、Ctrl+单击 与 Ctrl
 check('R152-4 ★"AI 动过"要有凭据：aiTouchedAt 由**每一枚会写卡/写关联的入口**共同盖戳（别做两套定义，也不能有一枚不盖）· R167 备案：资源侧入口从"页脚钮"变成共享 AI 行的两格，凭据据此翻「↻ 重新补全」＋行尾「最近 · 」；入口钮不再均分挤压的口径随版式搬到 .ds-ai-cell（说明行禁折行）；抽屉懒组件提到模块作用域单例（script setup 顶层=setup 函数体，原来每张卡新建一份组件定义）', () => {
   const m = read('/shared/models/index.ts'); const st = read('/newtab/components/ResourceAiStrip.vue'); const css = read('/shared/styles/detail-sheet.css')
   const c = read('/newtab/components/CardAiEntry.vue'); const lz = fs.readFileSync(base + '/newtab/components/lazyAiDrawer.ts', 'utf8')
-  const stampFiles = ['select.ts', 'resourceLinkTask.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts']
+  const stampFiles = ['select.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts']
   const missing = stampFiles.filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt = Date.now()'))
   return m.includes('aiTouchedAt?: number') && missing.length === 0
-    && st.includes("'↻ 重新补全' : 'AI 补全'") && st.includes('ds-ai-when')
+    && st.includes("'↻ 重新优化' : 'AI 优化'") && st.includes('ds-ai-when')
     && css.includes('.ds-ai-cell .tx small') && css.includes('white-space: nowrap')
     && c.includes('class="rc-action ai"') && lz.includes("defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))") && !c.includes('defineAsyncComponent')
 });

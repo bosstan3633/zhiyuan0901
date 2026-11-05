@@ -1,26 +1,19 @@
 /**
- * R181 结构优化：从 CuriosityPanel.vue 抽出的两块自足桥接逻辑——
- *   ① 好奇心「转化」弹窗（选策展台/分类 → 转资源卡，或 选项目/指标 → 转任务）；
- *   ② 好奇心 ↔ 资源卡的「资源支撑」闭环（关联/解绑/打开源卡）。
+ * R181 结构优化：从 CuriosityPanel.vue 抽出的自足桥接逻辑——
+ *   好奇心「转化」弹窗（选策展台/分类 → 转资源卡，或 选项目/指标 → 转任务）。
+ * V4.1.3 关系白名单收口后，好奇心不再提供资源挂载入口；历史记录仍随数据包与云快照保留。
  *
  * 为什么单独成文件：宿主是 ≥800 行结构债务候选，这两块各自只依赖少量外部状态
  * （store / d / detailItem / convertToX / detailId），与面板其余逻辑无耦合。
  * 历史断言凡命中宿主的字符串（如 R4-Ep「默认落点显式写池」、转化双保险注释）随
  * helpers.cjs COMPONENT_AGGREGATES 聚合回读宿主路径，一处不改。
  */
-import { ref, computed, type ComputedRef, type Ref } from 'vue'
-import type { AppData, CuriosityCard, ResourceCard } from '@/shared/models'
+import { ref, computed } from 'vue'
+import type { AppData, CuriosityCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
-import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { selectableWsOptions, wsNameById } from '@/shared/utils/wsName'
-import { recordCardOpen } from '@/shared/storage/stats'
-import { addCurioSupportLink, removeCurioSupportLink } from '@/shared/utils/supportLinks'
-import {
-  flattenProjectOptions,
-  supportCandidatesOf,
-  supportRowsOf,
-} from './curiosityPanelCore'
+import { flattenProjectOptions } from './curiosityPanelCore'
 
 interface CuriosityStore {
   data: AppData | null
@@ -107,70 +100,5 @@ export function useCurioConvert(opts: {
     openConvert,
     onConvertProjChange,
     confirmConvert,
-  }
-}
-
-/* ================= ② 资源支撑闭环 ================= */
-export function useCurioSupport(opts: {
-  store: CuriosityStore
-  d: ComputedRef<AppData>
-  detailItem: Ref<CuriosityCard | null>
-}) {
-  const { store, d, detailItem } = opts
-  /* G-03：好奇心 ↔ 资源卡的「资源支撑」闭环。
-     关联记录住在独立表 curioSupportLinks，好奇卡与资源卡本体都不持有对方 id；
-     解绑只删记录，资源池源卡状态不变。 */
-  const curioSupportDraft = ref('')
-  const curioSupportRows = computed(() => supportRowsOf(d.value, detailItem.value?.id || null))
-  const curioSupportCands = computed(() => {
-    const linked = new Set(curioSupportRows.value.map(row => row.resource.id))
-    return supportCandidatesOf(d.value.resources || [], linked, curioSupportDraft.value)
-  })
-  function addCurioSupport(): void {
-    const curio = detailItem.value
-    const q = curioSupportDraft.value.trim()
-    if (!curio || !q) return
-    const resource = (d.value.resources || []).find(r => !r.deletedAt && r.title === q)
-      || curioSupportCands.value[0]
-    if (!resource) {
-      showToast('没找到匹配的资源卡')
-      return
-    }
-    const out = addCurioSupportLink(d.value, {
-      curioId: curio.id,
-      resourceId: resource.id,
-      from: 'manual',
-    })
-    if (out.dup) {
-      showToast('这张资源卡已经在支撑列表里了')
-      return
-    }
-    curioSupportDraft.value = ''
-    store.persist()
-    showToast(`已关联「${resource.title.slice(0, 12)}」`)
-  }
-  function removeCurioSupport(linkId: string): void {
-    if (!removeCurioSupportLink(d.value, linkId)) return
-    store.persist()
-    showToast('已解除关联（资源卡本体未变动）')
-  }
-  function openCurioSupportResource(resource: ResourceCard): void {
-    recordCardOpen(d.value, resource)
-    store.persistHot()
-    const url = toOpenableRawLink(resource.link)
-    if (!url) {
-      showToast('这张资源卡还没有可打开的链接')
-      return
-    }
-    openExternalLink(url)
-  }
-
-  return {
-    curioSupportDraft,
-    curioSupportRows,
-    curioSupportCands,
-    addCurioSupport,
-    removeCurioSupport,
-    openCurioSupportResource,
   }
 }

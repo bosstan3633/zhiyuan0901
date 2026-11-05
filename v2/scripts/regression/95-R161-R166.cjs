@@ -173,10 +173,10 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2 声明结构完备：kind 三值 job×21 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 26 条（R166 任务侧补全 +2；R169-T3 今日三件事排序 +1；N2 项目诊断 +1；G-04 周期洞察续写 +1 —— 与设置页 diagnose 整库会诊**各走各的**，是新 job 不是改旧的）且 id 唯一（数量锚：增删入口必须连文档一起改；R162 推荐挂载退役 -1）', () => {
+check('R157-2（V4.1.3 重指）声明结构完备：kind 三值 job×20 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 25 条且 id 唯一（资源侧“关联任务”入口随关系白名单收口退役，数量锚同步减 1）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 26
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 21
+  return ids.length === 25
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 20
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
@@ -197,7 +197,8 @@ check('R157-3（R167 重指：名单不再手写）全部 build*Job 工厂必须
     if (!fs.existsSync(path.resolve(base, m[2])) || !read('/' + m[2]).includes(`export function ${m[1]}`)) ghost.push(`${m[1]} → ${m[2]}`)
   }
   return found.length >= 18 && unreg.length === 0 && ghost.length === 0
-    && ['batchG.ts','chain.ts','govern.ts','select.ts','taskEnrich.ts','taskSupport.ts','resourceLinkTask.ts'].every(f => REG_TXT.includes(`factoryFile: 'shared/ai/${f}'`))
+    && ['batchG.ts','chain.ts','govern.ts','select.ts','taskEnrich.ts','taskSupport.ts','projectDiagnose.ts','focusSuggest.ts'].every(f => REG_TXT.includes(`factoryFile: 'shared/ai/${f}'`))
+    && !REG_TXT.includes('resourceLinkTask')
 });
 
 check('R157-4 search 型豁免口径钉住（R154 拍板②「检索不属赋能」）：全局 AI 检索 + R161 镜像弹窗检索两条、caps 为空、宿主指对', () => {
@@ -237,7 +238,7 @@ const SETTINGS_FILE = read('/newtab/views/GlobalSettings.vue');
 check('R158-1 注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；22 条显式 panel + search 型 2 条缺省 hidden（R169-T3 focus-rank 与 G-04 range-insight 均 nav → 23）；popup 只认 ai-advice；nav 必带 route+hint', () => {
   const modes = (REGISTRY_FILE.match(/mode: '(nav|popup|hidden)',/g) || []).length;
   return REGISTRY_FILE.includes('export interface AiPanelDecl')
-    && modes === 23 /* R166 +2：task-enrich / task-support；R169-T3 +1：focus-rank；G-04 +1：range-insight，均 nav */
+    && modes === 22 /* V4.1.3：资源侧关联任务显式 panel 退役；其余显式 nav/popup 声明保持 */
     && (REGISTRY_FILE.match(/popup: 'ai-advice'/g) || []).length === 3
     && REGISTRY_FILE.includes('route?: string')
     && REGISTRY_FILE.includes('hint?: string')
@@ -285,9 +286,9 @@ check('R158-6（V3.9.8 随迁）右键菜单：打开→复制→编辑→置顶
   return iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMirror && iMirror < iThesis && iThesis < iDel
     && !c.includes("label: '移动分类'");
 });
-check('R158-7 ★入口数量锚（V3.7.0 重指 · N2 +1 · G-04 +1）：注册表 26 条（周期洞察续写是画像页新增只读入口，不与任务诊断复用）；命令面板导航改「方向台/项目详情/方向树/回收站/手册/设置」6 条（资源台入口随退役下线）不改 ai-advice 语义', () => {
+check('R158-7（V4.1.3 重指）★入口数量锚：注册表 25 条（资源侧关联任务入口退役）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 26
+  return ids === 25
     && !GP_FILE.includes("label: '打开资源台'")
     && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });
@@ -308,7 +309,7 @@ check('R159-7 遗留键清理：cleanupLegacyKeys（幂等移除 V1 键）+ 启�
 
 // ============== R160（A 批） · 性能收口：拼音两层表 / RENDER_STEP / 深链保全 ==============
 console.log('【R160-A · 性能收口（拼音两层表 · RENDER_STEP 32 · 深链保全）】');
-check('R160-1 拼音两层表替换 pinyin-pro：生成物 + 运行时零依赖（isPinyinReady 恒就绪）（★R4-Da 随迁备案：本条末锚原先借全景右栏的 const PAN_RENDER_STEP = 32 作「运行时调用点在场」的旁证，🗺 全景整页退役后那一行随之消失——判据换成拼音仍然在跑的三个真实调用点（全局搜索浮层 GlobalPopups / 网页浮层 overlay-impl / 方向树 CompassTree 都 import 并调 matchPinyin + isPinyinReady），同时把 PAN_RENDER_STEP 转成 codeOnly 零命中的退役判据防回流；增量渲染 32 档由 R160-3 继续守 useResourceView，不在此条松口）', () => { const t = read('/shared/utils/pinyinTable.ts'); const p = read('/shared/utils/pinyin.ts'); const gc = codeOnly(read('/newtab/views/GlobalSettings.vue')); const gp = read('/newtab/components/GlobalPopups.vue'); const ov = read('/content/overlay-impl.ts'); const ct = read('/newtab/views/CompassTree.vue'); return t.includes('export const INITIALS =') && t.includes('export const FULLS =') && t.includes('export const PINYIN_RANGE_START') && !p.includes("from 'pinyin-pro'") && !p.includes("import('pinyin-pro')") && p.includes('export function isPinyinReady(): boolean {') && p.includes('return true') && !gc.includes('const PAN_RENDER_STEP = 32') && gp.includes("import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'") && gp.includes('const pinyinReady = ref(isPinyinReady())') && gp.includes('matchPinyin(r.title, p)') && ov.includes("matchPinyin(r.title || '', kw)") && ct.includes('const pinyinOn = ref(isPinyinReady())'); });
+check('R160-1（V4.1.3 随迁）拼音两层表替换 pinyin-pro：生成物 + 运行时零依赖（isPinyinReady 恒就绪）；运行时调用点随 GlobalPopups 拆文件迁到 useGlobalPopups 与 overlay-search，方向树不再保留退役关联芯片的拼音调用。PAN_RENDER_STEP 仍走 codeOnly 零命中，增量渲染 32 档由 R160-3 继续守', () => { const t = read('/shared/utils/pinyinTable.ts'); const p = read('/shared/utils/pinyin.ts'); const gc = codeOnly(read('/newtab/views/GlobalSettings.vue')); const gp = read('/newtab/components/GlobalPopups.vue'); const gu = read('/newtab/components/useGlobalPopups.ts'); const ovs = read('/content/overlay-search.ts'); return t.includes('export const INITIALS =') && t.includes('export const FULLS =') && t.includes('export const PINYIN_RANGE_START') && !p.includes("from 'pinyin-pro'") && !p.includes("import('pinyin-pro')") && p.includes('export function isPinyinReady(): boolean {') && p.includes('return true') && !gc.includes('const PAN_RENDER_STEP = 32') && gp.includes("from './useGlobalPopups'") && gu.includes("import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'") && gu.includes('const pinyinReady = ref(isPinyinReady())') && gu.includes('matchPinyin(r.title, p)') && ovs.includes("import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'") && ovs.includes('matchPinyin(') && !codeOnly(read('/newtab/views/CompassTree.vue')).includes('matchPinyin('); });
 check('R160-2 全仓去 pinyin-pro 运行时引用 + 生成脚本入库', () => { const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = []; const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { const s = fs2.readFileSync(p, 'utf8'); if (/from 'pinyin-pro'|import\('pinyin-pro'\)|require\('pinyin-pro'\)/.test(s)) hits.push(p.replace(/\\/g, '/')); } } }; walk(root); const gen = fs2.existsSync(path2.resolve(SCRIPTS_DIR, '..', 'scripts', 'gen-pinyin-table.cjs')); return hits.length === 0 && gen; });
 check('R160-3 增量渲染份额收紧：列表/卡片 RENDER_STEP=32（原 80）', () => { const u = read('/newtab/composables/useResourceView.ts'); return u.includes('const RENDER_STEP = 32') && u.includes('renderLimit.value += RENDER_STEP'); });
 check('R160-4 A7 深链保全：main.ts 不再强制回首页（全路由保留）', () => { const m = read('/newtab/main.ts'); return m.includes('R160（A7）深链保全') && !m.includes("router.replace('/')"); });
@@ -356,8 +357,8 @@ check('R162-3 ★附件双击打开：行级 dblclick + 去抖；打开通道按
 });
 check('R162-4 ★AI 标签优先复用：词表带父/子路径 + 批量/优化提示词硬指令 + canonicalTagsOf 归一（R167 重指：单卡侧两枚工厂并一枚，"三处 parse"改为**按写库文件各自核**——资源 enrich 与任务 enrich 都要 parse 归一 + apply 归一成对出现，批量在设置页；缺一处就是"某一入口写脏标签"的入口）', () => {
   const p = read('/shared/ai/project.ts'); const s = read('/shared/ai/scenarios.ts'); const sel = read('/shared/ai/select.ts'); const te = read('/shared/ai/taskEnrich.ts'); const gs = read('/newtab/views/GlobalSettings.vue'); const tg = read('/shared/utils/tags.ts');
-  return tg.includes('export function canonicalTagOf(') && tg.includes('export function canonicalTagsOf(') && p.includes("prefix + '/' + n.name") && s.includes('优先复用给定标签词表中的写法（含「父/子」路径）') && s.includes('**优先从材料里的【现有标签词表】选**')
-    && (sel.match(/canonicalTagsOf\(/g) || []).length === 2 && (te.match(/canonicalTagsOf\(/g) || []).length === 2
+  return tg.includes('export function canonicalTagOf(') && tg.includes('export function canonicalTagsOf(') && p.includes("prefix + '/' + n.name") && s.includes('优先复用给定标签词表中的写法（含「父/子」路径）') && s.includes('优先从【现有标签词表】选')
+    && (sel.match(/canonicalTagsOf\(/g) || []).length === 3 && (te.match(/canonicalTagsOf\(/g) || []).length === 2
     && gs.includes('canonicalTagsOf(d,') && gs.includes('canonicalTagsOf(dd,');
 });
 check('R162-5 详情底部不再挤压（R165-A 重指：页脚收敛两钮后不再五钮争行 · R167 再重指：AI 入口不再挤页脚/标题行，改为等宽两格 + 说明行禁折行走省略号）：Workspace 动作钮禁折行+最小宽度在位 + Drawer 页脚允许折行 + AI 行省略号在位 + RDD 保存钮禁折行 + 二次确认钮禁折行', () => {
@@ -397,7 +398,7 @@ check('R165-A1 ★统一标准（R167 重指：AI 主上下文入口由"标题�
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue');
   const footAi = (s, seg) => { const i = s.indexOf(seg); return i >= 0 && /<AiEntryButton|CardAiEntry|ResourceAiStrip|ds-ai-cell/.test(s.slice(i, i + 700)); };
   return !f.includes('name="title-extra"') && !f.includes('ref-title-row') && !f.includes('hideTitle')
-    && st.includes('class="ds-ai-strip"') && (st.match(/class="ds-ai-cell"/g) || []).length === 2
+    && st.includes('class="ds-ai-strip"') && (st.match(/class="ds-ai-cell"/g) || []).length === 1
     && r.includes('<ResourceAiStrip') && r.includes('<DetailTitle') && !footAi(r, '<template #footer>')
     && w.includes('<ResourceAiStrip') && w.includes('<DetailTitle') && !footAi(w, '<div class="dr-footer">')
     && t.includes('ts-head-row') && t.includes('ts-ai-row') && (t.match(/class="ts-ai-cell"/g) || []).length === 3 /* R166 定案 6：三入口独立行等宽三格 */ && t.includes('@click="aiBreakdown"') && !footAi(t, '<div class="ts-foot">')
@@ -420,7 +421,7 @@ check('R165-A3 二次确认删除单实现：armed 文案/3s 回落/卸载清定
 check('R165-A4 三态凭据全链：aiTouchedAt 上移 CardBase（三卡共用零迁移）+ 每枚写入口各自落戳（R167 重指：改为**按文件点名六处**，不再用"select×2"这种按次数记账——并入口之后次数会变、"谁没盖戳"不会）+ 凭据可见两条通道都在位（任务抽屉 AiTouchedChip ／ 资源与好奇 AI 行尾「最近 ·」），chip 组件本体走真源零 emoji', () => {
   const m = read('/shared/models/index.ts'); const chip = read('/shared/components/AiTouchedChip.vue'); const st = read('/newtab/components/ResourceAiStrip.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue'); const t = read('/newtab/components/compass/TaskDetailDrawer.vue')
   const base = m.slice(m.indexOf('export interface CardBase'), m.indexOf('export interface ResourceCard'))
-  const missing = ['select.ts', 'resourceLinkTask.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts'].filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt = Date.now()'))
+  const missing = ['select.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts'].filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt = Date.now()'))
   return base.includes('aiTouchedAt?: number') && !m.slice(m.indexOf('export interface ResourceCard')).includes('aiTouchedAt?: number')
     && missing.length === 0
     && chip.includes('AiEntryButton') && !chip.includes('🤖') && t.includes('AiTouchedChip')
@@ -524,10 +525,13 @@ check('R166-6 ★列表就地展开（F2）：胶囊带 ▾/▴ 且点击 stopPr
     && tp.includes('.trow-subs { position: absolute') && tp.includes('function writeSubtasks(t: TaskCard, v: Subtask[])')
     && tp.includes('const subExpanded = ref<Set<string>>(new Set())')
 });
-check('R166-7 ★资源侧只读反查（定案 10）：组件内**没有**解绑通道（removeSupportLink / persist 都不出现），只给"打开该任务归属页"这一读操作；两宿主共用同一组件不各写一套', () => {
-  const sp = read('/shared/components/SupportTasksPanel.vue'); const rdd = read('/newtab/components/ResourceDetailDrawer.vue'); const ws = read('/newtab/views/Workspace.vue')
-  return sp.includes('idx.byResource.get(props.resource.id)') && !sp.includes('removeSupportLink') && !sp.includes('store.persist')
-    && rdd.includes('<SupportTasksPanel') && ws.includes('<SupportTasksPanel')
+check('R166-7（V4.1.3 退役重指）资源侧不提供反向“关联任务”入口：SupportTasksPanel、资源侧 LinkTask 工厂与两代资源详情挂点全部退役；关系白名单只保留任务→资源、策展节点→资源', () => {
+  const rdd = read('/newtab/components/ResourceDetailDrawer.vue'); const ws = read('/newtab/views/Workspace.vue')
+  return !exists('/shared/components/SupportTasksPanel.vue')
+    && !exists('/shared/ai/resourceLinkTask.ts')
+    && !rdd.includes('SupportTasksPanel') && !ws.includes('SupportTasksPanel')
+    && !rdd.includes('resourceLinkTask') && !ws.includes('resourceLinkTask')
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条')
 });
 check('R166-8 ★Esc 分层关闭（定案 7）：AI 弹窗在场时抽屉的 document 级键盘监听必须让位——Modal 的 stopPropagation 挡不住**同一节点上更早注册**的监听，"一次 Esc 只关一层"在两层都挂 document 时不成立，故由下层主动 return', () => {
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue')

@@ -20,7 +20,6 @@ import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { curioMaturity } from '@/shared/utils/maturity'
-import type { ResourceCard } from '@/shared/models'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 // R117（04-61 C3）：当日新增角标（自然日口径）——卡片 / 列表 / 看板三视图同一枚
 import NewBadge from '@/shared/components/NewBadge.vue'
@@ -35,10 +34,6 @@ import { useCardCols } from '@/shared/utils/cardCols'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
-import {
-  addCurioSupportLink,
-  removeCurioSupportLink,
-} from '@/shared/utils/supportLinks'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import {
@@ -52,12 +47,10 @@ import {
   shortDate,
   shortSource,
   statusCountsOf,
-  supportCandidatesOf,
-  supportRowsOf,
   visibleCurioExtFields,
 } from './curiosityPanelCore'
-// R181 结构优化：转化弹窗 + 资源支撑闭环外提
-import { useCurioConvert, useCurioSupport } from './curiosityPanelBridges'
+// R181 结构优化：转化弹窗外提；V4.1.3 起好奇心不再提供资源挂载入口。
+import { useCurioConvert } from './curiosityPanelBridges'
 
 const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
 const store = useAppStore()
@@ -199,16 +192,12 @@ const curioStatusMenuOpen = ref(false)
 /** 第卅三轮 REQ-024：详情文本框高度（默认 180px，拖拽记忆） */
 const { taH: detailH, startTaResize: startDetailResize } = useTaHeight('curio-detail', store.ui)
 const detailItem = computed(() => curiosities.value.find(c => c.id === detailId.value) || null)
-// R181 结构优化：转化弹窗 + 资源支撑闭环外提（历史字符串锚点随聚合表回读宿主）
+// R181 结构优化：转化弹窗外提；历史 curioSupportLinks 仅保留兼容同步。
 const {
   convertOpen, convertTarget, convertItem, convertWsId, convertCatId, convertProjId, convertMetId,
   convWorkspaces, convCategories, convProjects, convMetrics,
   openConvert, onConvertProjChange, confirmConvert,
 } = useCurioConvert({ store, convertToResource, convertToTask, clearDetail: () => closeDetail() })
-const {
-  curioSupportDraft, curioSupportRows, curioSupportCands,
-  addCurioSupport, removeCurioSupport, openCurioSupportResource,
-} = useCurioSupport({ store, d, detailItem })
 const editDraft = ref('')
 function openDetail(id: string) {
   detailId.value = id
@@ -693,26 +682,6 @@ function srcShort(url: string): string {
           <div class="ds-kv"><span class="k">标签</span><span class="v">
             <TagPicker v-model="detailItem.tags" @update:model-value="update(detailItem.id, { tags: $event })" />
           </span></div>
-        </section>
-
-        <section class="ds-pnl">
-          <div class="ds-pnl-h"><b>资源支撑</b><i>点标题打开原文 · 解绑只删关联记录</i><span class="r">{{ curioSupportRows.length }} 张</span></div>
-          <div v-if="curioSupportRows.length" class="ds-sup-list">
-            <div v-for="row in curioSupportRows" :key="row.link.id" class="ds-sup-row">
-              <button type="button" class="ds-sup-name" :title="row.resource.title" @click="openCurioSupportResource(row.resource)">
-                <Icon name="link" :size="12"/> {{ row.resource.title }}
-              </button>
-              <button type="button" class="ds-sup-remove" title="解除关联（资源池源卡状态不变）" aria-label="解除资源关联" @click="removeCurioSupport(row.link.id)">×</button>
-            </div>
-          </div>
-          <div v-else class="ds-sup-empty">还没有资源支撑。可在下方搜索资源池并手动关联。</div>
-          <div class="ds-sup-add">
-            <input v-model="curioSupportDraft" list="curio-support-cands" placeholder="搜索资源标题，回车关联…" @keydown.enter.prevent="addCurioSupport">
-            <datalist id="curio-support-cands">
-              <option v-for="r in curioSupportCands" :key="r.id" :value="r.title" />
-            </datalist>
-            <button type="button" class="mini-btn" :disabled="!curioSupportDraft.trim()" @click="addCurioSupport">关联</button>
-          </div>
         </section>
 
         <!-- 焦点：问题原文整块撑高（R165-A 正名：现状标签「摘录」实绑 question；REQ-015 Ctrl+Enter 保存；REQ-024 高度拖拽记忆） -->

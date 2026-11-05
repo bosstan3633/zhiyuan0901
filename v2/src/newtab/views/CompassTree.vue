@@ -11,18 +11,14 @@ import { wsNameById } from '@/shared/utils/wsName'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { K } from '@/shared/storage/keys'
-import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
-import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm, type CompassNodeKind } from '@/shared/utils/compassCrud'
 import { useConfirm } from '@/shared/components/confirm'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
-import { recordResourceOpen } from '@/shared/storage/stats'
-import Drawer from '@/shared/components/Drawer.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
-import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
+import type { Direction, Project, Metric, TaskCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
@@ -73,10 +69,7 @@ const {
   taskAddMetricTitle, toggleTask, NODE_KIND, nodeNameOf, deleteNode,
   unbindTask, unbindTaskById, isStagnant, activeTowerId, gotoTower,
   activeLayer, canvasEl, ensureTower, onCanvasScroll, dhiStatus,
-  pinyinOn, linkModal, linkQ, toggleLinkPop, closeLinkModal,
-  linkIds, linkCount, isLinked, toggleLinked, unlinkChip, resTitle,
-  curioTitle, peek, openChipLink, peekData, openPeekLink,
-  linkCandidates, projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
+  projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
   scrollParent,
 } = useCompassTree()
 </script>
@@ -226,7 +219,7 @@ const {
           <!-- W11 ★层级展开面板（原型 .lvpanel）：点 1/2/3 摊开该层完整内容 + 推导链 + 下挂实体。
                再点同层收起（判据 W11-3 双向可达，绝不做单向门）。
 
-               ★W12 结构归位（1:1 还原）：第 1/2 层的**正文**（愿景 22px / 使命 / 关联卡片 / 就地编辑）
+               ★W12 结构归位（1:1 还原）：第 1/2 层的**正文**（愿景 22px / 使命 / 就地编辑）
                从"骨架条上方独占一整块常驻卡"搬进本面板的 entity 槽。
                原型的层级关系是 spine → lvpanel → towers，第 1/2 层内容只在 lvpanel 里出现；
                之前把愿景卡摆在 spine 之上，等于在六层链条之外另开了一个平级区块，
@@ -247,7 +240,7 @@ const {
             @dir="onDirFilter"
             @close="layerOpen = null"
           >
-            <!-- ★第 1/2 层正文插槽：就地编辑与关联卡片能力全在这一段（判据随迁备案见上方注释） -->
+            <!-- ★第 1/2 层正文插槽：愿景与使命只保留就地编辑，不提供卡间挂载入口。 -->
             <template #entity>
               <div class="tree-level-card hero" id="layer-1">
                 <template v-if="layerOpen === 1">
@@ -256,26 +249,12 @@ const {
                     <span class="node-title editable" v-pressable :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
                       @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
                   </div>
-                  <div class="tl-links">
-                    <span class="proj-toggle" v-pressable @click.stop="toggleLinkPop('vision')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('vision') }}</span></span>
-                    <template v-if="linkCount('vision')">
-                      <span v-for="rid in linkIds('vision', 'res')" :key="'vr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除资源卡）" aria-label="取消关联" @click.stop="unlinkChip('vision', 'res', rid)">×</button></span>
-                      <span v-for="cid in linkIds('vision', 'curio')" :key="'vc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除好奇心卡）" aria-label="取消关联" @click.stop="unlinkChip('vision', 'curio', cid)">×</button></span>
-                    </template>
-                  </div>
                 </template>
                 <template v-else>
                   <span class="tl-badge ghost" id="layer-2">2 使命 · 行动准则</span>
                   <div class="tl-text sub">
                     <span class="node-title editable" v-pressable :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
                       @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
-                  </div>
-                  <div class="tl-links">
-                    <span class="proj-toggle" v-pressable @click.stop="toggleLinkPop('mission')"><Icon name="link" :size="13"/> 关联卡片 <span class="link-count">{{ linkCount('mission') }}</span></span>
-                    <template v-if="linkCount('mission')">
-                      <span v-for="rid in linkIds('mission', 'res')" :key="'mr' + rid" class="linked-chip" v-pressable :title="resTitle(rid) + '（双击打开链接）'" @click="peek = { kind: 'res', id: rid }" @dblclick="openChipLink('res', rid)"><span class="lc-ico"><Icon name="filetext" :size="13"/></span><span class="lc-text">{{ resTitle(rid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除资源卡）" aria-label="取消关联" @click.stop="unlinkChip('mission', 'res', rid)">×</button></span>
-                      <span v-for="cid in linkIds('mission', 'curio')" :key="'mc' + cid" class="linked-chip" v-pressable :title="curioTitle(cid) + '（双击打开来源）'" @click="peek = { kind: 'curio', id: cid }" @dblclick="openChipLink('curio', cid)"><span class="lc-ico"><Icon name="bulb" :size="13"/></span><span class="lc-text">{{ curioTitle(cid) }}</span><button class="lc-unlink" type="button" title="取消关联（不删除好奇心卡）" aria-label="取消关联" @click.stop="unlinkChip('mission', 'curio', cid)">×</button></span>
-                    </template>
                   </div>
                 </template>
               </div>
@@ -465,56 +444,6 @@ const {
         </div>
       </div>
       </div>
-
-    <!-- R59-T4：关联卡片选择器（居中弹窗：关键词+拼音过滤 / 资源+好奇分区 / 全量滚动 / 勾选即存） -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="linkModal" class="lm-mask" @click.self="closeLinkModal">
-          <div class="lm-box">
-            <div class="lm-head">
-              <span><Icon name="link" :size="13"/> 关联卡片 · {{ linkModal.node === 'vision' ? '愿景' : '使命' }}</span>
-              <span class="lm-count">已选 {{ linkCount(linkModal.node) }}</span>
-      <button class="pm-close" type="button" aria-label="关闭" @click="closeLinkModal">×</button>
-            </div>
-            <div class="lm-body">
-              <input v-model="linkQ" class="lm-search" placeholder="关键词或拼音首字母过滤（如 sj）…" v-focus @keydown.esc.stop="closeLinkModal">
-              <div class="link-pop-sec"><Icon name="filetext" :size="13"/> 资源卡（{{ linkCandidates('res').length }}）</div>
-              <div class="lm-list">
-                <label v-for="r in linkCandidates('res')" :key="r.id" class="link-pop-item">
-                  <input type="checkbox" :checked="isLinked(linkModal.node, 'res', r.id)" @change="toggleLinked(linkModal.node, 'res', r.id)">
-                  <span :title="r.title">{{ r.title }}</span>
-                </label>
-                <div v-if="!linkCandidates('res').length" class="link-pop-empty">无匹配资源卡</div>
-              </div>
-              <div class="link-pop-sec"><Icon name="bulb" :size="13"/> 好奇心卡（{{ linkCandidates('curio').length }}）</div>
-              <div class="lm-list">
-                <label v-for="c in linkCandidates('curio')" :key="c.id" class="link-pop-item">
-                  <input type="checkbox" :checked="isLinked(linkModal.node, 'curio', c.id)" @change="toggleLinked(linkModal.node, 'curio', c.id)">
-                  <span :title="c.title">{{ c.title }}</span>
-                </label>
-                <div v-if="!linkCandidates('curio').length" class="link-pop-empty">无匹配好奇心卡</div>
-              </div>
-            </div>
-            <div class="lm-foot">
-              <span class="lm-tip">勾选即时保存 · 单击已关联卡片可在下方芯片处查看（双击打开）</span>
-              <button class="mini-btn primary" @click="closeLinkModal">完成</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- B24：关联卡片详情抽屉 -->
-    <Drawer :open="!!peekData" :icon="peek?.kind === 'res' ? 'filetext' : 'bulb'" :title="peek?.kind === 'res' ? '资源卡详情' : '好奇心卡详情'" @close="peek = null">
-      <template v-if="peekData">
-        <div class="peek-row"><span class="peek-label">标题</span><div class="peek-val strong">{{ peekData.title }}</div></div>
-        <div class="peek-row"><span class="peek-label">来源</span><div class="peek-val">{{ peekData.kind === 'res' ? peekData.src : '我的好奇心' }}{{ peekData.linkType ? ' · ' + peekData.linkType : '' }}</div></div>
-        <div v-if="peekData.link" class="peek-row"><span class="peek-label">链接</span><div class="peek-val link">{{ peekData.link }}</div></div>
-        <div v-if="peekData.desc" class="peek-row"><span class="peek-label">描述</span><div class="peek-val">{{ peekData.desc }}</div></div>
-        <div v-if="peekData.tags.length" class="peek-row"><span class="peek-label">标签</span><div class="peek-val"><span v-for="t in peekData.tags" :key="t" class="peek-tag">#{{ t }}</span></div></div>
-        <button v-if="peekData.link" class="peek-open" @click="openPeekLink"><Icon name="external" :size="13"/> 打开链接</button>
-      </template>
-    </Drawer>
 
     <!-- 第卅二轮 REQ-003：项目全景透视抽屉 -->
     <ProjectDetailDrawer :open="projDrawerOpen" :project-id="projDrawerId" enable-metric-drill @close="projDrawerOpen = false" />

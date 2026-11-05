@@ -520,7 +520,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onDocKey, true); job
         <!-- 右栏：AI 补全后完整形态 -->
         <div class="ai-col ai-col-r">
           <div class="ai-col-head">
-            <b>AI 补全后完整形态</b>
+            <b>AI 优化后完整形态</b>
           </div>
 
           <div v-if="vPhase === 'running'" class="ai-status">

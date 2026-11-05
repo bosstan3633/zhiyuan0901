@@ -27,12 +27,16 @@ export interface CloudMeta {
   /** 最近读取的云端记录清单缓存。 */
   remoteManifest?: SyncManifest
   remoteManifestCachedAt?: number
+  /** V4.1.3：最近 20 次真实同步的轻量回执；只存记录摘要与字段名，不存完整快照。 */
+  syncReceipts?: CloudSyncReceipt[]
 }
 
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
 export type SyncManifestRecordType =
   | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'argument'
-  | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'event' | 'preference'
+  | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'supportLink'
+  | 'curationProjection' | 'tag' | 'activity' | 'stats' | 'fieldConfig'
+  | 'attachment' | 'event' | 'preference'
 export interface SyncManifestRecord {
   key: string
   type: SyncManifestRecordType
@@ -41,6 +45,8 @@ export interface SyncManifestRecord {
   updatedAt?: number
   deleted?: boolean
   digest: string
+  /** 顶层业务字段的稳定指纹。用于回答“到底改了哪些字段”，不保存字段正文。 */
+  fields?: Record<string, string>
   /** 少量可读事实；事件详情使用，不保存完整业务对象。 */
   meta?: Record<string, string | number | boolean>
 }
@@ -55,6 +61,10 @@ export interface SyncManifestCounts {
   projects: number
   metrics: number
   dailyFocus: number
+  supportLinks: number
+  curationProjections: number
+  tags: number
+  activities: number
   events: number
   preferences: number
   businessTotal: number
@@ -75,6 +85,10 @@ export interface SyncManifestDiffRow {
   id: string
   title: string
   status: 'added' | 'removed' | 'changed'
+  updatedAt?: number
+  deleted?: boolean
+  digest?: string
+  fields?: string[]
 }
 export interface SyncManifestDiff {
   local: SyncManifest | null
@@ -83,9 +97,28 @@ export interface SyncManifestDiff {
   removed: SyncManifestDiffRow[]
   changed: SyncManifestDiffRow[]
 }
+
+export type CloudSyncDirection = 'upload' | 'download' | 'latest'
+export type CloudSyncTrigger = 'topbar' | 'settings'
+
+/** 回执行沿用 manifest diff 的可读摘要；没有字段指纹时不会伪造字段名。 */
+export type CloudSyncReceiptRow = SyncManifestDiffRow
+
+export interface CloudSyncReceipt {
+  id: string
+  at: number
+  direction: CloudSyncDirection
+  trigger: CloudSyncTrigger
+  fromRevision: number
+  toRevision: number
+  added: number
+  changed: number
+  removed: number
+  rows: CloudSyncReceiptRow[]
+}
 export type CloudUploadDecision = 'upload' | 'download' | 'cancel'
 export type UploadNowResult =
-  | { kind: 'uploaded'; revision: number; fingerprint: string }
+  | { kind: 'uploaded'; revision: number; fingerprint: string; manifest: SyncManifest }
   | { kind: 'cancelled'; remoteRevision: number }
   | { kind: 'download_requested'; remoteRevision: number }
 export type CloudRelation =
@@ -230,6 +263,42 @@ function fallbackHash(input: string): string {
   return `fnv:${(h1 >>> 0).toString(16).padStart(8, '0')}${(h2 >>> 0).toString(16).padStart(8, '0')}`
 }
 
+const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>> = {
+  resource: ['title', 'description', 'tags', 'linkType', 'link', 'linkSlots', 'workspaceId', 'categoryId', 'sourceType', 'pinned', 'starred', 'lifecycleArchived', 'customFields'],
+  task: ['title', 'description', 'tags', 'projectId', 'metricId', 'status', 'priority', 'dueDate', 'estimatedMinutes', 'link', 'completedAt', 'subtasks', 'pinned', 'starred', 'customFields'],
+  curiosity: ['question', 'description', 'tags', 'sourceUrl', 'sourceTitle', 'status', 'pinned', 'starred', 'customFields'],
+  argument: ['title', 'content', 'workspaceId', 'order', 'linkedResourceIds', 'assets'],
+  workspace: ['name', 'icon', 'color', 'coverTheme', 'desc', 'order', 'archived', 'kind', 'hidden'],
+  category: ['workspaceId', 'name', 'parentId', 'order', 'icon', 'color', 'desc', 'assets'],
+  direction: ['name', 'term', 'content', 'reason', 'order', 'calibratedAt', 'archivedAt', 'vision', 'mission'],
+  project: ['name', 'goalId', 'status', 'endDate', 'nextStep', 'order', 'content'],
+  metric: ['title', 'target', 'acceptance', 'taskIds', 'order'],
+  supportLink: ['taskId', 'subId', 'resourceId', 'from', 'why', 'createdAt'],
+  curationProjection: ['kind', 'wsId', 'catId', 'cardId', 'targetWsId', 'targetCatId', 'curOrder', 'displayName', 'addedAt'],
+  tag: ['name', 'definition'],
+  activity: ['type', 'entityType', 'entityId', 'timestamp', 'detail'],
+  stats: ['weekly', 'lastReuse', 'lastVisits', 'wrr'],
+  fieldConfig: ['resource', 'task', 'curiosity', 'argument'],
+  attachment: ['name', 'kind', 'size', 'mime', 'storagePath', 'checksum', 'uploadState', 'uploadedAt', 'lastError', 'retryCount'],
+  event: ['ts', 'action', 'kind', 'title', 'cardId', 'deviceId', 'to'],
+  preference: ['theme', 'layout', 'sortPrefs', 'cardCols', 'capturePref'],
+  dailyFocus: [],
+}
+
+function fieldDigests(type: SyncManifestRecordType, raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const source = raw as Record<string, unknown>
+  const keys = MANIFEST_FIELDS[type] || []
+  const out: Record<string, string> = {}
+  for (const key of keys) {
+    if (!(key in source)) continue
+    const value = source[key]
+    if (value === undefined) continue
+    out[key] = fallbackHash(stableStringify(value))
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function manifestRecord(
   type: SyncManifestRecordType,
   id: string,
@@ -239,6 +308,7 @@ function manifestRecord(
   deleted?: boolean,
   meta?: Record<string, string | number | boolean>,
 ): SyncManifestRecord {
+  const fields = fieldDigests(type, raw)
   return {
     key: `${type}:${id}`,
     type,
@@ -247,6 +317,7 @@ function manifestRecord(
     updatedAt: Number.isFinite(updatedAt) ? updatedAt : undefined,
     deleted: deleted || undefined,
     digest: fallbackHash(stableStringify(raw)),
+    ...(fields ? { fields } : {}),
     ...(meta ? { meta } : {}),
   }
 }
@@ -258,17 +329,39 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   const records: SyncManifestRecord[] = []
   const counts: SyncManifestCounts = {
     workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, arguments: 0,
-    directions: 0, projects: 0, metrics: 0, dailyFocus: 0, events: clean.eventLog.length,
+    directions: 0, projects: 0, metrics: 0, dailyFocus: 0, supportLinks: 0,
+    curationProjections: 0, tags: 0, activities: 0, events: clean.eventLog.length,
     preferences: clean.ui ? 1 : 0, businessTotal: 0, attachments: 0,
     pendingAttachments: 0, failedAttachments: 0,
   }
   const add = (record: SyncManifestRecord) => records.push(record)
-  const collectAssets = (owners: Array<{ assets?: AssetMeta[] }>) => {
+  const ownerLabel = (owner: { title?: string; name?: string; question?: string }) =>
+    owner.title || owner.name || owner.question || '未命名记录'
+  const collectAssets = (owners: Array<{
+    id?: string
+    title?: string
+    name?: string
+    question?: string
+    assets?: AssetMeta[]
+  }>) => {
     for (const owner of owners) {
       for (const asset of owner.assets || []) {
         counts.attachments += 1
         if (asset.uploadState === 'pending' || asset.uploadState === 'local') counts.pendingAttachments += 1
         if (asset.uploadState === 'failed') counts.failedAttachments += 1
+        add(manifestRecord(
+          'attachment',
+          asset.id,
+          `${ownerLabel(owner)} · ${asset.name}`,
+          asset,
+          asset.uploadedAt || asset.createdAt,
+          false,
+          {
+            ownerId: owner.id || '',
+            ownerTitle: ownerLabel(owner).slice(0, 120),
+            uploadState: asset.uploadState || 'local',
+          },
+        ))
       }
     }
   }
@@ -313,6 +406,37 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
     counts.dailyFocus += 1
     add(manifestRecord('dailyFocus', date, `今日三件事 · ${date}`, slots))
   }
+  for (const link of data.supportLinks || []) {
+    counts.supportLinks += 1
+    add(manifestRecord('supportLink', link.id, '任务 → 资源关联', link, link.createdAt))
+  }
+  for (const projection of data.curationProjections || []) {
+    counts.curationProjections += 1
+    add(manifestRecord(
+      'curationProjection',
+      projection.id,
+      `策展节点 → 资源 · ${projection.cardId || projection.catId || projection.wsId}`,
+      projection,
+      projection.addedAt,
+    ))
+  }
+  const collectTags = (tags: typeof data.tagTree) => {
+    for (const tag of tags || []) {
+      counts.tags += 1
+      add(manifestRecord('tag', tag.id, tag.name, tag))
+      collectTags(tag.children || [])
+    }
+  }
+  collectTags(data.tagTree || [])
+  for (const activity of data.activityLogs || []) {
+    counts.activities += 1
+    add(manifestRecord('activity', activity.id, activity.detail || activity.type, activity, activity.timestamp))
+  }
+  add(manifestRecord('stats', 'stats', '使用统计', data.stats))
+  add(manifestRecord('fieldConfig', 'fields', '卡片字段配置', data.fieldConfig))
+  if (data.compass) {
+    add(manifestRecord('direction', 'compass-mission', '愿景与使命', data.compass, data.compass.vision?.updatedAt))
+  }
   clean.eventLog.forEach((event, index) => {
     add(manifestRecord(
       'event',
@@ -338,7 +462,9 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   collectAssets(data.curiosities || [])
   collectAssets(data.argCards || [])
   counts.businessTotal = counts.workspaces + counts.categories + counts.resources + counts.tasks
-    + counts.curiosities + counts.arguments + counts.directions + counts.projects + counts.metrics + counts.dailyFocus
+    + counts.curiosities + counts.arguments + counts.directions + counts.projects + counts.metrics
+    + counts.dailyFocus + counts.supportLinks + counts.curationProjections + counts.tags
+    + counts.activities
 
   return {
     revision,
@@ -357,13 +483,74 @@ export function diffSyncManifests(local: SyncManifest | null, remote: SyncManife
   const changed: SyncManifestDiffRow[] = []
   for (const [key, row] of remoteByKey) {
     const before = localByKey.get(key)
-    if (!before) added.push({ key, type: row.type, id: row.id, title: row.title, status: 'added' })
-    else if (before.digest !== row.digest) changed.push({ key, type: row.type, id: row.id, title: row.title, status: 'changed' })
+    if (!before) {
+      added.push({
+        key, type: row.type, id: row.id, title: row.title, status: 'added',
+        updatedAt: row.updatedAt, deleted: row.deleted, digest: row.digest,
+      })
+    } else if (before.digest !== row.digest) {
+      const beforeFields = before.fields || {}
+      const afterFields = row.fields || {}
+      const fields = [...new Set([...Object.keys(beforeFields), ...Object.keys(afterFields)])]
+        .filter(field => beforeFields[field] !== afterFields[field])
+        .sort()
+      changed.push({
+        key, type: row.type, id: row.id, title: row.title, status: 'changed',
+        updatedAt: row.updatedAt, deleted: row.deleted, digest: row.digest,
+        ...(fields.length ? { fields } : {}),
+      })
+    }
   }
   for (const [key, row] of localByKey) {
-    if (!remoteByKey.has(key)) removed.push({ key, type: row.type, id: row.id, title: row.title, status: 'removed' })
+    if (!remoteByKey.has(key)) {
+      removed.push({
+        key, type: row.type, id: row.id, title: row.title, status: 'removed',
+        updatedAt: row.updatedAt, deleted: row.deleted, digest: row.digest,
+      })
+    }
   }
   return { local, remote, added, removed, changed }
+}
+
+/** 统一的界面消费顺序：新增、修改、删除；组件再按时间排序。 */
+export function syncDiffRows(diff: SyncManifestDiff): SyncManifestDiffRow[] {
+  return [...diff.added, ...diff.changed, ...diff.removed]
+}
+
+const RECEIPT_ID_PREFIX = 'sync'
+
+export function buildSyncReceipt(input: {
+  before: SyncManifest | null
+  after: SyncManifest | null
+  direction: CloudSyncDirection
+  trigger: CloudSyncTrigger
+  fromRevision: number
+  toRevision: number
+}): CloudSyncReceipt {
+  const diff = diffSyncManifests(input.before, input.after)
+  const rows: CloudSyncReceiptRow[] = [...diff.added, ...diff.changed, ...diff.removed]
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0) || a.key.localeCompare(b.key))
+  return {
+    id: `${RECEIPT_ID_PREFIX}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    at: Date.now(),
+    direction: input.direction,
+    trigger: input.trigger,
+    fromRevision: input.fromRevision,
+    toRevision: input.toRevision,
+    added: diff.added.length,
+    changed: diff.changed.length,
+    removed: diff.removed.length,
+    rows,
+  }
+}
+
+/** 同步回执只保留最近 20 条；去重按 id，最新在前。 */
+export async function appendSyncReceipt(receipt: CloudSyncReceipt): Promise<CloudMeta> {
+  const current = await readMeta()
+  const rows = [receipt, ...(current?.syncReceipts || [])]
+    .filter((row, index, all) => all.findIndex(item => item.id === row.id) === index)
+    .slice(0, 20)
+  return writeMeta({ syncReceipts: rows })
 }
 
 /** 对干净快照做内容指纹；只排除附件本体/凭据等不进云内容，不依赖 revision。 */
@@ -587,7 +774,7 @@ export async function uploadNow(
         remoteManifest: manifest,
         remoteManifestCachedAt: Date.now(),
       })
-      return { kind: 'uploaded', revision: rev, fingerprint }
+      return { kind: 'uploaded', revision: rev, fingerprint, manifest }
     }
 
     const remoteState = remote.state as SnapshotState | null
@@ -617,7 +804,7 @@ export async function uploadNow(
         remoteManifest: manifest,
         remoteManifestCachedAt: Date.now(),
       })
-      return { kind: 'uploaded', revision: rev, fingerprint }
+      return { kind: 'uploaded', revision: rev, fingerprint, manifest }
     }
   }
 

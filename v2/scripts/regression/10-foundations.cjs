@@ -63,7 +63,14 @@ check('D3 好奇弹窗 640 居中', () => read('/content/search-overlay.ts').inc
 check('D7 采集小窗贴近图标', () => read('/content/search-overlay.ts').includes('corner{display:flex;align-items:flex-start;justify-content:flex-end;padding:10px'));
 
 console.log('【N组 新功能】');
-check('N1 愿景/使命关联卡片入口+选择浮层', () => CT_ALL.includes('toggleLinkPop') && read('/shared/models/index.ts').includes('linkedResourceIds'));
+check('N1（V4.1.3 退役重指）愿景/使命不再提供关联卡片入口或选择浮层：关系白名单只保留任务→资源、策展节点→资源；历史字段仅作导入与云快照兼容', () => {
+  const t = codeOnly(CT_ALL);
+  const m = read('/shared/models/index.ts');
+  return !t.includes('toggleLinkPop') && !t.includes('linkModal') && !t.includes('linked-chip')
+    && m.includes('linkedResourceIds?: ID[]')
+    && m.includes('仅供旧数据导入与云快照兼容')
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
+});
 check('N2 回收站（设置面板）', () => read('/newtab/views/GlobalSettings.vue').includes('emptyRecycleBin'));
 check('N4 标签管理：树CRUD+3级限制+路径', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/shared/components/TagPicker.vue').includes('tp-pathtext'));
 check('N4 标签重命名级联卡片', () => read('/newtab/views/GlobalSettings.vue').includes('级联同步所有卡片'));
@@ -108,8 +115,13 @@ check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 ma
 check('Bug2 标签缩进 !important 兜底', () => read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 
 console.log('【第六轮】');
-check('B24 关联卡片标题 chips + 详情抽屉', () => CT_ALL.includes('linked-chip') && CT_ALL.includes('peekData'));
-check('B24 打开链接含 file:/// 转换（第卅二轮下沉至 shared/utils/link）', () => read('/shared/utils/link.ts').includes('file:///') && CT_ALL.includes('toOpenableRawLink'));
+check('B24（V4.1.3 退役重指）愿景/使命关联芯片与预览抽屉不再存在；打开通道的下沉能力保留并改由移动采集 Inbox 使用', () => {
+  const t = codeOnly(CT_ALL);
+  const inbox = read('/newtab/components/compass/InboxPanel.vue');
+  return !t.includes('linked-chip') && !t.includes('peekData')
+    && read('/shared/utils/link.ts').includes('file:///')
+    && inbox.includes('openSource(item)');
+});
 check('B25 选取弹窗置灰（已完成/已选入）', () => read('/newtab/views/CompassHome.vue').includes('pickerDisabled') && read('/newtab/views/CompassHome.vue').includes('pickedIds'));
 check('B26 方向树默认全局展开', () => CT_ALL.includes('expandAllNodes'));
 check('B27 孤儿任务小节', () => read('/newtab/views/ProjectCuration.vue').includes('orphanTasks') && read('/newtab/views/ProjectCuration.vue').includes('未归类任务'));
@@ -447,7 +459,7 @@ check('R32-3 REQ-004 资源详情抽屉所属工作台字段+迁移反馈（R165
 // R179-MIGRATED R32-4
 // V3.7.0（R179）随迁重写：hub 分类退役后「分类随工作台联动」失去控件载体——分类行（CatPicker/catOptions）
 // 整体下线，卡的组织机制由「标签」（TagPicker）独任；本断言转为守退役边界（负向须先剥注释，R166 纪律）。
-check('R32-4 REQ-005 分类随工作台联动重置（V3.7.0 重指）：分类控件整体下线——表单零 select/CatPicker/catOptions，标签独任组织', () => { const f = codeOnly(read('/newtab/components/ResourceEditForm.vue')); return !f.includes('catOptions') && !f.includes('CatPicker') && !f.includes('<select') && f.includes('<TagPicker') && f.includes('model.tags'); });
+check('R32-4 REQ-005 分类随工作台联动重置（V3.7.0 重指）：分类控件整体下线——表单零 CatPicker/catOptions/分类 v-model，标签独任组织；V4.1.3 的来源类型下拉不属于分类控件', () => { const f = codeOnly(read('/newtab/components/ResourceEditForm.vue')); return !f.includes('catOptions') && !f.includes('CatPicker') && !f.includes('model.categoryId') && f.includes('<TagPicker') && f.includes('model.tags') && f.includes('aria-label="来源类型"'); });
 check('R32-5 ★随迁备案：REQ-006 的更新时间读数仍在卡片详情；设置页 CSV 已退役（唯一通用导出=数据包）', () => {
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
   return dm.includes('唯一通用导出') && dm.includes('不含附件本体与云端凭据')
@@ -463,12 +475,31 @@ check('R32-7b REQ-008 网页浮层搜索命中工作台实体', () => read('/con
 /* V3.7.0（R179）随迁重写：资源卡定位落地调度台（3张卡），不再指向资源台 */
 check('R32-8 REQ-009 搜索打开规则（V3.7.0 重指 → R2-④ 再重指：资源卡结果与 Ctrl+Enter 同一条定位链路，池卡落「资源卡池」并高亮）+ content 端 ?hl 兼容旧深链', () => read('/newtab/components/GlobalPopups.vue').includes('已定位到资源卡池') && !read('/newtab/components/GlobalPopups.vue').includes('资源卡在 3张卡中检索查看') && read('/newtab/router.ts').includes("path: '/curation'") && read('/newtab/router.ts').includes("redirect: () => ({ path: '/' })"));
 check('R32-9 REQ-009 修复：文件类型卡片单击只弹 toast 不打开（旧 bug）', () => !read('/newtab/components/GlobalPopups.vue').includes('打开本地文件：${r.link}'));
-check('R32-10 REQ-010 打开通道统一下沉 shared/utils/link（三处调用方迁移）', () => exists('/shared/utils/link.ts') && read('/newtab/views/Workspace.vue').includes("from '@/shared/utils/link'") && read('/newtab/components/compass/NorthStarPanel.vue').includes("from '@/shared/utils/link'") && CT_ALL.includes("from '@/shared/utils/link'"));
-check('R32-11 REQ-012 关联卡片 chips 双击打开链接（含 WRR 计数口径统一）', () => CT_ALL.includes("openChipLink('res', rid)") && CT_ALL.includes("openChipLink('curio', cid)") && CT_ALL.includes('recordResourceOpen(d.value, r)'));
+check('R32-10（V4.1.3 重指）打开通道统一下沉 shared/utils/link：资源卡池与 Inbox 两条现役入口共同消费同一打开通道；愿景/使命关联芯片入口退役后不再要求方向树参与', () => {
+  const inbox = read('/newtab/components/compass/InboxPanel.vue');
+  const link = read('/shared/utils/link.ts');
+  return exists('/shared/utils/link.ts')
+    && read('/newtab/views/Workspace.vue').includes("from '@/shared/utils/link'")
+    && inbox.includes("from '@/shared/utils/link'")
+    && inbox.includes('openExternalLink(url)')
+    && link.includes('export function toOpenableRawLink')
+    && link.includes('export function openExternalLink');
+});
+check('R32-11（V4.1.3 退役重指）愿景/使命关联芯片双击打开入口随挂载能力退役；移动采集 Inbox 补上单击按钮与双击/Enter/Space 打开源链接', () => {
+  const t = codeOnly(CT_ALL);
+  const inbox = read('/newtab/components/compass/InboxPanel.vue');
+  return !t.includes("openChipLink('res', rid)") && !t.includes("openChipLink('curio', cid)")
+    && inbox.includes('@dblclick.prevent.stop="openSource(item)"')
+    && inbox.includes('打开原始链接：${item.url}');
+});
 check('R32-12 REQ-013/014 模块分组下钻（第卌四轮退役：二级/三级下钻随 wsPopup 移除，由设置页工作台全景承接）', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); return !s.includes('wsPopupLevel') && !s.includes('wsPopupCats') && s.includes("type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'"); });
 check('R32-13 recordResourceOpen 下沉 shared/storage/stats（应用端统一引用）', () => exists('/shared/storage/stats.ts') && read('/newtab/views/Workspace.vue').includes("from '@/shared/storage/stats'") && read('/newtab/components/GlobalPopups.vue').includes("from '@/shared/storage/stats'"));
 check('R32-14 REQ-002 项目层级＋=加指标 / 指标条目＋=加任务（职责单一，防回归）★W11(V3.8.11)随迁带备案：两级加法随结构拆分——项目级 ＋指标 在舱卡头（CompassTower emit addMetric，父组件 @add-metric="addMetric" 承接）；指标级 ＋任务 在指标卡（CompassLane .mc-add → addTask 事件，父组件经 findMetric 补 projId 调 openTaskAdd），本条守「两级出口各在一处、未被合并成同一入口」', () => CT_ALL.includes('@add-metric="addMetric"') && CT_ALL.includes("if (r) openTaskAdd(mid, r.proj.id)") && CT_ALL.includes('class="mc-add"'));
-check('R32-15 REQ-011（R59-T4 修订）关联卡片选择器升级为居中弹窗（实时关键词+拼音过滤、资源/好奇分区、计数徽标、勾选即存）', () => { const t = CT_ALL; return t.includes('lm-mask') && t.includes('lm-search') && t.includes('link-count') && t.includes('function linkCandidates') && t.includes('toggleLinked'); });
+check('R32-15（V4.1.3 退役重指）愿景/使命关联卡片居中选择器整体退役：无 lm-mask / lm-search / link-count / linkCandidates / toggleLinked 回流', () => {
+  const t = codeOnly(CT_ALL);
+  return !t.includes('lm-mask') && !t.includes('lm-search') && !t.includes('link-count')
+    && !t.includes('function linkCandidates') && !t.includes('toggleLinked');
+});
 check('R32-16 REQ-007 三视图均提供排序方向切换按钮', () => read('/newtab/views/Workspace.vue').includes('toggleSortDir') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('toggleSortDir') && read('/newtab/components/compass/CuriosityPanel.vue').includes('toggleSortDir'));
 check('R32-17 REQ-008 工作台实体进入搜索类型 Tab 与分组计数（双端）', () => read('/content/search-overlay.ts').includes("key: 'ws'") && read('/content/overlay-impl.ts').includes("label: '🗂 策展台'") && read('/newtab/components/GlobalPopups.vue').includes("{ type: 'ws', label: '策展台' }"));
 
@@ -514,7 +545,11 @@ check('R33-9 REQ-020 双标记独立可叠加（置顶卡不因星标降级）',
 
 console.log('【第卅三轮 · V2.12 需求包第三批：交互补齐 · REQ-015/017/024】');
 check('R33-10 REQ-015 三卡抽屉 Ctrl+Enter 保存统一（资源标题/好奇/任务 Toast）', () => read('/newtab/components/ResourceEditForm.vue').split('emit(\'save\')').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').includes('@keydown.ctrl.enter.prevent="saveDetail"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('detailId.value = null') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes("showToast('已保存')"));
-check('R33-11 REQ-017 关联卡片卡片化（lc-ico/lc-text 两行截断，非胶囊）', () => CT_ALL.includes('lc-ico') && CT_ALL.includes('-webkit-line-clamp: 2') && CT_ALL.includes('border-radius: var(--radius-sm)'));
+check('R33-11（V4.1.3 退役重指）愿景/使命关联卡片整体退役：旧 lc-ico / lc-text / linked-chip 选择器不得以隐藏入口形式回流；关系白名单仍只允许任务→资源、策展节点→资源', () => {
+  const t = codeOnly(CT_ALL);
+  return !t.includes('lc-ico') && !t.includes('lc-text') && !t.includes('linked-chip')
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
+});
 check('R33-12 REQ-024 文本框高度记忆（UIPrefs.taHeights + 三组件接线）', () => read('/shared/models/index.ts').includes('taHeights?: Record<string, number>') && read('/shared/utils/taHeight.ts').includes('saveUIPrefs') && read('/newtab/components/ResourceEditForm.vue').includes("useTaHeight(props.heightKey") && read('/newtab/views/Workspace.vue').includes('height-key="ws-note"') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") && read('/newtab/components/compass/CuriosityPanel.vue').includes("useTaHeight('curio-detail'"));
 check('R33-12b REQ-024 默认高度加大（180px 起步 + 拖拽手柄三处）', () => read('/shared/utils/taHeight.ts').includes('def = 180') && read('/newtab/components/ResourceEditForm.vue').includes('.ref-ta-resize') && read('/newtab/components/compass/TaskDetailDrawer.vue').split('.ta-resize').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').split('.ta-resize').length >= 2);
 

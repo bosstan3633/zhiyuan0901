@@ -108,7 +108,8 @@ const VIEWPORT = { width: 1440, height: 900 }
  * 每张现场核：抽屉真开 / AI 入口**独立成行且格数对** / 页脚**恰好两钮**（资源卡另核「标题只有一处」）。
  * **任一不过即非零退出**——只出图不核判据的走查是自我安慰：首轮实跑就抓到"以为打开了其实打开的是空页面"。
  *
- * R167 随迁：AI 入口从标题行搬到正文首行 `.ds-ai-cell`（资源 2 格 / 好奇 1 格 / 任务 3 格），
+ * R167 随迁：AI 入口从标题行搬到正文首行 `.ds-ai-cell`（资源 1 格 / 好奇 1 格 / 任务 3 格）；
+ * V4.1.3 起资源侧反向“关联任务”退役，只保留“AI 优化”一格。
  * 主标题搬进抽屉头 `.ds-h1`——所以资源卡这里多核一条"全抽屉只有一处主标题"，
  * 它正是本轮删掉的正向残留（正文里那份 `.ref-title` 若被哪个宿主加回来，这里就红）。
  *
@@ -122,7 +123,7 @@ const VIEWPORT = { width: 1440, height: 900 }
 const DRAWER_VIEWS = [
   {
     id: 'drawer-resource', name: '资源卡详情', hash: '#/deck/resource',
-    card: '.pcp-row, .pcp-card', open: '.drawer .ref-form', ai: '.ds-ai-cell', aiCount: 2, h1: '.ds-h1',
+    card: '.pcp-row, .pcp-card', open: '.drawer .ref-form', ai: '.ds-ai-cell', aiCount: 1, h1: '.ds-h1',
     foot: '.drawer-footer button',
   },
   {

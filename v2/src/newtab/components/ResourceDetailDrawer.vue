@@ -9,14 +9,12 @@
  * R167（OPPO 质感 · 模块化重排）三处结构变更：
  *  ① **主标题搬进抽屉头**（Drawer 的 title 插槽）——原状是头部一份只读、正文一份 textarea，
  *     同屏两处标题且头部那份长标题被截断；现在全抽屉只有一处标题，且就地可编辑。
- *  ② **AI 入口从标题行降到正文首行的「一行两格」**：与 R166 任务卡三入口同语言，
- *     标题行不再被两枚按钮 + chip 挤爆；两枚=「AI 补全」（原补全与全方位优化并成一枚，http(s) 才抓正文）
- *     与「关联任务」（新，资源侧反向写 SupportLink）。
+ *  ② **AI 入口从标题行降到正文首行**：只保留单卡全字段优化，链接是 http(s) 时才抓正文。
+ *     资源侧不提供反向关联任务入口；挂载关系只在任务侧和策展节点侧建立。
  *  ③ 抽屉宽 460 → 520：上半部收紧后腾出的高度给「我的注解」这块焦点区。
  */
 import Icon from '@/shared/components/Icon.vue'
 import { computed, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import Drawer from '@/shared/components/Drawer.vue'
 import ResourceEditForm from './ResourceEditForm.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
@@ -29,16 +27,14 @@ import { togglePinOf } from '@/newtab/composables/useResourcePin'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import type { AppData } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
-import type { ResourceCard, TaskCard } from '@/shared/models'
+import type { ResourceCard } from '@/shared/models'
 import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
-import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
 // R167：主标题与 AI 入口条都换成共享件（两宿主同源）；AI 依赖零静态引用这条由
 // ResourceAiStrip 内部守住（懒评审抽屉 + 点击时 dynamic import），本宿主不再自己拉 AI 栈。
 import DetailTitle from './DetailTitle.vue'
 import ResourceAiStrip from './ResourceAiStrip.vue'
 import ResourceMirrorModal from './ResourceMirrorModal.vue'
 
-const router = useRouter()
 const store = useAppStore()
 const resourceData = computed<AppData>(() => store.data as AppData)
 const { openResourceLink } = useResourceOpen({
@@ -146,10 +142,6 @@ function copyLink() {
    原先本抽屉是「行内选台下拉 + 一枚动作」，与资源卡池的行内浮层各写一套，且都已镜像时还提示成功。
    现在两个宿主（本抽屉 / 资源卡池）共用同一个多选弹窗：勾选=镜像、取消勾选=移出、可多选。 */
 const mirrorOpen = ref(false)
-function gotoTaskOwner(t: TaskCard): void {
-  close()
-  router.push(t.projectId ? `/compass/projects?p=${t.projectId}` : '/compass')
-}
 
 function fmtTs(ts?: number): string {
   return ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '—'
@@ -160,7 +152,7 @@ function onBus(p: DrawerPayload) {
   openFromId(p.id)
 }
 
-// ---- R167：单卡 AI 两枚入口（补全 / 关联任务）已收进共享 ResourceAiStrip ----
+// ---- 单卡 AI 全字段优化入口已收进共享 ResourceAiStrip ----
 /** 采纳后把表单同步成已落库的值（抽屉还开着，不能显示旧字） */
 function syncForm(): void {
   const live = resource.value
@@ -168,7 +160,9 @@ function syncForm(): void {
   editing.title = live.title
   editing.description = live.description
   editing.tags = [...(live.tags || [])]
+  editing.sourceType = live.sourceType
   editing.categoryId = live.categoryId
+  editing.customFields = { ...(live.customFields || {}) }
   editing.aiTouchedAt = live.aiTouchedAt
 }
 
@@ -226,8 +220,6 @@ const kicker = computed(() => {
       <template #extra>
         <ThesisBlock v-if="resource?.isThesis" :text="editing.description" :ws-id="editing.workspaceId" />
         <div class="rd-kv"><span class="k">打开</span><span class="v"><b>{{ resource?.callCount || 0 }}</b> 次<span v-if="resource?.lastCalledAt" class="rd-last"> · 最近 {{ fmtTs(resource.lastCalledAt) }}</span></span></div>
-        <!-- R166 T7：资源侧「支持的任务」只读反查（解绑只在任务侧，定案 10） -->
-        <SupportTasksPanel v-if="resource && store.data" :d="store.data" :resource="resource" @open-task="gotoTaskOwner" />
       </template>
     </ResourceEditForm>
 

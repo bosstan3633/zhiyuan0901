@@ -5,12 +5,15 @@ import { useAppStore } from '../../stores/app'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { useFocusTrap } from '@/shared/utils/focusTrap'
+import { diffSyncManifests, syncDiffRows, type CloudSyncReceipt, type SyncManifestDiffRow } from '@/shared/cloud/sync'
 import {
   useCloudSync,
   type CloudSyncDetails,
   type CloudConflictChoice,
   type CloudDecisionInfo,
 } from '../../composables/useCloudSync'
+import CloudSyncChangesDrawer from '@/newtab/components/cloud/CloudSyncChangesDrawer.vue'
+import CloudSyncReceiptModal from '@/newtab/components/cloud/CloudSyncReceiptModal.vue'
 import CloudSyncDetailDrawer from './CloudSyncDetailDrawer.vue'
 
 const store = useAppStore()
@@ -35,6 +38,14 @@ const syncDetailTab = ref<'local' | 'remote'>('local')
 const syncDetailLoading = ref(false)
 const syncDetailError = ref('')
 const syncDetails = ref<CloudSyncDetails | null>(null)
+const changesOpen = ref(false)
+const changesTitle = ref('')
+const changesIntro = ref('')
+const changesRows = ref<SyncManifestDiffRow[]>([])
+const changesLoading = ref(false)
+const changesError = ref('')
+const receiptOpen = ref(false)
+const receipt = ref<CloudSyncReceipt | null>(null)
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
 
 useFocusTrap(conflictPanel, () => conflictOpen.value, { initial: 'first' })
@@ -274,6 +285,59 @@ async function openSyncDetails(tab: 'local' | 'remote'): Promise<void> {
   }
 }
 
+async function openPendingChanges(): Promise<void> {
+  changesTitle.value = '本机待上传明细'
+  changesIntro.value = '以下记录来自“本机当前内容”与“上次成功同步基线”的差异。同步成功后，这份清单会成为本次上传回执。'
+  changesRows.value = []
+  changesError.value = ''
+  changesOpen.value = true
+  changesLoading.value = true
+  try {
+    const details = await sharedCloud.loadSyncDetails(store)
+    syncDetails.value = details
+    const diff = diffSyncManifests(details?.localManifest || null, details?.currentLocalManifest || null)
+    changesRows.value = syncDiffRows(diff)
+    if (details?.refreshError) {
+      changesIntro.value += ` 云端检查失败，以下仍按本机基线计算：${details.refreshError}`
+    }
+  } catch (error) {
+    changesError.value = `读取本机待上传明细失败：${errText(error)}`
+  } finally {
+    changesLoading.value = false
+  }
+}
+
+function openLatestReceipt(): void {
+  const current = sharedCloud.latestReceipt.value
+  changesTitle.value = '最近实际同步内容'
+  changesIntro.value = current
+    ? `${new Date(current.at).toLocaleString('zh-CN', { hour12: false })} · 修订 ${current.fromRevision} → ${current.toRevision}`
+    : '还没有实际同步回执。成功执行一次上传、拉回或一致性检查后，这里会显示本次同步实际变化的记录。'
+  changesRows.value = current?.rows || []
+  changesError.value = ''
+  changesLoading.value = false
+  changesOpen.value = true
+}
+
+function showReceiptModal(): void {
+  const current = sharedCloud.latestReceipt.value
+  if (!current) return
+  receipt.value = current
+  receiptOpen.value = true
+}
+
+function openRelationDetails(): void {
+  if (sharedCloud.relation.value === 'remote_changed') {
+    void openSyncDetails('remote')
+    return
+  }
+  if (sharedCloud.relation.value === 'in_sync' && sharedCloud.latestReceipt.value) {
+    openLatestReceipt()
+    return
+  }
+  void openPendingChanges()
+}
+
 async function updateStartupCheck(checked: boolean): Promise<void> {
   try {
     const sync = await import('@/shared/cloud/sync')
@@ -315,9 +379,9 @@ function resolveConflict(choice: CloudConflictChoice): void {
 async function syncNow(): Promise<void> {
   if (busy.value) return
   const result = await sharedCloud.manualSync(store, requestConflict)
-  if (result.kind === 'latest') showToast(`已是最新 · 云端修订 ${result.revision}`)
-  else if (result.kind === 'uploaded') showToast(`已同步到云端 · 修订 ${result.revision}`)
-  else if (result.kind === 'downloaded') showToast(`已从云端恢复到本机 · 修订 ${result.revision}`)
+  if (result.kind === 'latest') { showToast(`已是最新 · 云端修订 ${result.revision}`); showReceiptModal() }
+  else if (result.kind === 'uploaded') { showToast(`已同步到云端 · 修订 ${result.revision}`); showReceiptModal() }
+  else if (result.kind === 'downloaded') { showToast(`已从云端恢复到本机 · 修订 ${result.revision}`); showReceiptModal() }
   else if (result.kind === 'cancelled') showToast('已取消同步，云端与本机均未改变')
   else if (result.kind === 'failed') showToast(`云同步失败：${result.message}`)
   else if (result.kind === 'needs_setup') showToast('请先完成云端配置与登录')
@@ -327,8 +391,8 @@ async function uploadOnly(): Promise<void> {
   if (busy.value || !loggedIn.value) return
   try {
     const result = await sharedCloud.uploadCurrent(store, requestConflict)
-    if (result.kind === 'uploaded') showToast(`已上传到云端 · 修订 ${result.revision}`)
-    else if (result.kind === 'downloaded') showToast(`已从云端恢复到本机 · 修订 ${result.revision}`)
+    if (result.kind === 'uploaded') { showToast(`已上传到云端 · 修订 ${result.revision}`); showReceiptModal() }
+    else if (result.kind === 'downloaded') { showToast(`已从云端恢复到本机 · 修订 ${result.revision}`); showReceiptModal() }
     else if (result.kind === 'cancelled') showToast('已取消同步，云端与本机均未改变')
     else if (result.kind === 'failed') showToast(`云同步失败：${result.message}`)
     else if (result.kind === 'needs_setup') showToast('请先完成云端配置与登录')
@@ -349,6 +413,7 @@ async function downloadOnly(): Promise<void> {
   try {
     const result = await sharedCloud.downloadCurrent(store)
     showToast(`已从云端恢复到本机 · 修订 ${result.revision}`)
+    showReceiptModal()
   } catch (error) {
     toastError('恢复失败', error)
   }
@@ -359,7 +424,7 @@ async function downloadOnly(): Promise<void> {
 <template>
 <div>
   <div class="gs-card cloud-relation-card" :class="relationTone" data-testid="cloud-relation-overview">
-    <div class="cloud-relation-head">
+    <button class="cloud-relation-head" type="button" data-testid="cloud-relation-details-trigger" @click="openRelationDetails">
       <div>
         <div class="cloud-relation-kicker">本机 ↔ 云端</div>
         <h3>{{ relationUpdatedText }}</h3>
@@ -369,7 +434,7 @@ async function downloadOnly(): Promise<void> {
         <span class="gs-status-badge" :class="badgeState"><span class="gs-status-dot"></span>{{ badgeText }}</span>
         <span class="cloud-recommend">建议：{{ recommendedAction }}</span>
       </div>
-    </div>
+    </button>
     <div class="cloud-relation-facts">
       <button type="button" class="cloud-fact-button" title="查看本机基线与记录级明细" @click="openSyncDetails('local')">
         <span>本机同步基线</span><b>修订 {{ localRevisionText }}</b><small>查看明细</small>
@@ -377,7 +442,9 @@ async function downloadOnly(): Promise<void> {
       <button type="button" class="cloud-fact-button" title="查看云端当前修订与记录级明细" @click="openSyncDetails('remote')">
         <span>云端当前修订</span><b>修订 {{ remoteRevisionText }}</b><small>查看明细</small>
       </button>
-      <div><span>最近实际同步</span><b>{{ lastSyncText }}</b></div>
+      <button type="button" class="cloud-fact-button" data-testid="latest-sync-receipt-trigger" title="查看最近一次实际同步的内容明细" @click="openLatestReceipt">
+        <span>最近实际同步</span><b>{{ lastSyncText }}</b><small>查看同步内容</small>
+      </button>
       <div><span>最近检查</span><b>{{ lastCheckedText }}</b></div>
     </div>
     <div v-if="loggedIn" class="cloud-relation-actions">
@@ -388,11 +455,26 @@ async function downloadOnly(): Promise<void> {
       <button class="gs-btn" :disabled="busy" @click="downloadOnly">仅拉回云端</button>
       <button class="gs-btn" :disabled="busy" @click="doCheck">{{ pageBusy ? '检查中…' : '重新检查' }}</button>
     </div>
+    <div class="cloud-led-legend" aria-label="顶栏同步状态灯说明">
+      <span class="led green"></span>本地与云端一致
+      <span class="led yellow"></span>有待同步或方向待确认
+      <span class="led red"></span>断线、异常或未启用
+    </div>
   </div>
 
   <CloudSyncDetailDrawer :open="syncDetailOpen" :loading="syncDetailLoading" :error="syncDetailError"
     :details="syncDetails" :initial-tab="syncDetailTab"
     @close="syncDetailOpen = false" @refresh="openSyncDetails(syncDetailTab)" />
+  <CloudSyncChangesDrawer
+    :open="changesOpen"
+    :title="changesTitle"
+    :intro="changesIntro"
+    :rows="changesRows"
+    :loading="changesLoading"
+    :error="changesError"
+    @close="changesOpen = false"
+  />
+  <CloudSyncReceiptModal :open="receiptOpen" :receipt="receipt" @close="receiptOpen = false" />
 
   <div class="gs-card">
     <div class="gs-card-header">
@@ -568,12 +650,21 @@ async function downloadOnly(): Promise<void> {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }
 .cloud-relation-head {
+  width: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
   padding: 22px 22px 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+.cloud-relation-head:hover h3 { color: var(--accent-ink); }
+.cloud-relation-head:focus-visible { outline: var(--focus-ring); outline-offset: -3px; }
 .cloud-relation-kicker {
   margin-bottom: 7px;
   color: var(--accent-ink);
@@ -606,6 +697,25 @@ async function downloadOnly(): Promise<void> {
   font-size: var(--fs-caption);
   white-space: nowrap;
 }
+.cloud-led-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  padding: 0 22px 16px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.cloud-led-legend .led {
+  width: 7px;
+  height: 7px;
+  margin-left: 3px;
+  border-radius: 50%;
+}
+.cloud-led-legend .led:first-child { margin-left: 0; }
+.cloud-led-legend .green { background: var(--success); box-shadow: 0 0 0 3px var(--success-bg-soft); }
+.cloud-led-legend .yellow { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-bg-soft); }
+.cloud-led-legend .red { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-bg-soft); }
 .cloud-relation-facts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

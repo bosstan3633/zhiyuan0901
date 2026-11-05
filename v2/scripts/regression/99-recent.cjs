@@ -7,18 +7,18 @@ const {
 } = require('./helpers.cjs');
 
 console.log('【R167 · 两卡详情 OPPO 质感重排 / AI 入口共享化 / 弹窗下半部主导】');
-check('R167-1 ★分组面板体系是真源不是各写各的：detail-sheet.css 的 ds-* 七件套在位，资源详情三块面板，好奇详情在核心三块之外允许第四块「资源支撑」，焦点面板整块撑高（读起来是"内容区"不是又一个输入框）', () => {
+check('R167-1（V4.1.3 重指）★分组面板体系是真源不是各写各的：detail-sheet.css 的 ds-* 七件套在位，资源详情三块面板，好奇详情收为三块（资源支撑随关系白名单退役），焦点面板整块撑高', () => {
   const css = read('/shared/styles/detail-sheet.css')
   const f = read('/newtab/components/ResourceEditForm.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue')
   const curioPanels = c.match(/class="ds-pnl( hero)?"/g) || []
   return ['.ds-pnl', '.ds-pnl-h', '.ds-kv', '.ds-ai-strip', '.ds-hero-note', '.ds-h1', '.ds-kicker'].every(k => css.includes(k))
     && css.includes('.ds-pnl.hero') && /min-height:\s*34vh/.test(css)
     && (f.match(/class="ds-pnl( hero)?"/g) || []).length === 3
-    && curioPanels.length === 4
-    && curioPanels.filter(x => x === 'class="ds-pnl"').length === 3
+    && curioPanels.length === 3
+    && curioPanels.filter(x => x === 'class="ds-pnl"').length === 2
     && curioPanels.filter(x => x === 'class="ds-pnl hero"').length === 1
     && c.includes('<b>来源与标签</b>')
-    && c.includes('<b>资源支撑</b>')
+    && !c.includes('<b>资源支撑</b>')
     && c.includes('<b>流转与凭证</b>')
     && (c.match(/<b>问题原文<\/b>/g) || []).length === 1
     && f.includes('class="ds-hero-note"') && c.includes('class="ds-hero-note"')
@@ -29,8 +29,8 @@ check('R167-2 ★资源详情 AI 入口全站只有一处实现：ResourceAiStri
   const wsx = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8').replace(/\r\n/g, '\n')
   return r.includes('<ResourceAiStrip') && w.includes('<ResourceAiStrip')
     && !r.includes('/shared/ai/') && !r.includes('AiEntryButton') && !wsx.includes('/shared/ai/') && !wsx.includes('AiEntryButton')
-    && st.includes("import('@/shared/ai/config')") && st.includes('buildResourceLinkTaskJob') && st.includes("buildResourceEnrichJob(card, ctx)")
-    && (st.match(/class="ds-ai-cell"/g) || []).length === 2 && st.includes('if (busy.value) return') && st.includes('props.onAdopted?.()')
+    && st.includes("import('@/shared/ai/config')") && !st.includes('buildResourceLinkTaskJob') && st.includes('buildResourceEnrichJob(card, ctx)')
+    && (st.match(/class="ds-ai-cell"/g) || []).length === 1 && st.includes('if (busy.value) return') && st.includes('props.onAdopted?.()')
 });
 check('R167-3 ★主标题全站只有一处：DetailTitle 单实现（kicker + .ds-h1 + 自增高 + readonly + 回车即保存，IME 合成期不许误存），资源两宿主各挂一份、正文零第二份标题框；好奇标题是「问题原文」的只读截断，故走 .cz-h1q 而非编辑控件', () => {
   const dt = read('/newtab/components/DetailTitle.vue'); const f = read('/newtab/components/ResourceEditForm.vue')
@@ -55,12 +55,13 @@ check('R167-5 ★转化即离场的数据口径：convertedAt/convertedTo 只记
     && (rb.match(/convertedAt = undefined/g) || []).length === 2 && (rb.match(/convertedTo = undefined/g) || []).length === 2
     && rb.includes('rb-conv')
 });
-check('R167-6 ★「关联任务」只写记录不碰卡：apply 段里只有 addSupportLink（零 title/description/tags 写操作）、本地预筛先行且已挂过的排除在模型投料之前、采纳钮说出后果（✓ 关联为支持）', () => {
-  const rl = read('/shared/ai/resourceLinkTask.ts'); const seg = segOf(rl, 'export function buildResourceLinkTaskJob', '\n}')
-  return seg.includes('addSupportLink(') && !seg.includes('.title =') && !seg.includes('.description =') && !seg.includes('.tags =')
-    && seg.includes('prefilterTasks(d,') && rl.includes('function prefilterTasks')
-    && seg.includes('already.has(id)') && seg.includes("adoptLabel: '✓ 关联为支持'")
-    && seg.includes("from: 'ai'")
+check('R167-6（V4.1.3 退役重指）资源侧反向“关联任务”整体退役：不再存在 buildResourceLinkTaskJob / 资源详情入口；任务→资源仍由任务侧 taskSupport 发起并只写独立关系记录，资源卡不出现反向关联按钮', () => {
+  const ts = read('/shared/ai/taskSupport.ts')
+  const st = codeOnly(read('/newtab/components/ResourceAiStrip.vue'))
+  return !exists('/shared/ai/resourceLinkTask.ts')
+    && ts.includes('addSupportLink(') && ts.includes("adoptLabel: '✓ 关联为支持'")
+    && !st.includes('addSupportLink') && !st.includes('关联任务')
+    && read('/newtab/manual-data.ts').includes('资源卡本身不提供反向关联任务入口')
 });
 check('R167-7 ★评审弹窗"下半部主导"：上半部压成一行头 + 三栏一次性指令条，对照区吃满剩余高度（外壳 .md-body 禁滚、由左右两栏各自滚）；分栏把手可拖（22%~70% 夹住，越界会把某一栏拖没）、拖拽靠 mousedown 上的 preventDefault 防选区**而不是给弹窗加 pointer-events:none**（那会让把手自己的 click 复位落空，原型实测踩过）；窄屏退成单列', () => {
   const w = read('/newtab/components/AiSuggestionDrawer.vue')
@@ -86,7 +87,9 @@ check('R167-9 ★抽屉宽度与视觉走查判据同频：两代资源详情与
     && drawer.includes(": { width: `${w.value}px`, zIndex: drawerZ.value })")
     && drawer.includes(':style="panelStyle"')
     && drawer.includes("mode?: 'drawer' | 'modal'")
-    && g.includes("h1: '.ds-h1'") && g.includes('aiCount: 2') && g.includes('aiCount: 1') && g.includes('aiCount: 3')
+    && g.includes("h1: '.ds-h1'")
+    && (g.match(/aiCount: 1/g) || []).length >= 2 /* V4.1.3：资源反向关联任务退役，资源 / 好奇各一格，任务仍三格 */
+    && g.includes('aiCount: 3')
     && g.includes("class=\"ai-dir\"") === false && g.includes('.ai-dir') && g.includes('.ai-drag') && g.includes('if (modalFail.length)')
     && g.includes('const wantDrag = m.width >= 1200') /* 窄屏已降单栏 ⇒ 把手"不该在"也是判据（单栏挂一根拖宽把手=能拖一个不存在的分界） */
 });
@@ -169,12 +172,12 @@ check('R169-7 ★空槽 ≠ 断链：当前槽空走 .ds-slot-empty 中性说明
     && f.includes('v-if="slotEmpty" class="ds-slot-empty"') && f.includes('v-if="linkIncomplete" class="ref-warn"')
     && f.includes("linkStateOf(props.model.linkType, props.model.link) === 'incomplete'")
 });
-check('R169-8 ★linkSlots 这个字段名全仓只出现两处（模型声明 + link.ts 单一真源）：详情表单也只经 slotFillOf/switchLinkSlot/setLinkSlot 间接用，打开/筛选/导出/AI 抓正文一律仍只认 linkType+link ⇒ 全站约 30 处消费点零改动，也不会出现"一张卡两个答案"。第三处想直读字段，先把判据一起搬进 link.ts', () => {
+check('R169-8（V4.1.3 重指）★linkSlots 字段只活在五个明确边界：数据模型、link.ts 单一真源、云快照透传、同步展示字段名与资源卡全字段 AI 投料；详情表单仍经 slotFillOf/switchLinkSlot/setLinkSlot 间接使用，其余打开/筛选/导出/AI 抓正文只认 linkType+link', () => {
   const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = []
   const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { if (codeOnly(fs2.readFileSync(p, 'utf8')).includes('linkSlots')) hits.push(p.replace(/\\/g, '/')) } } }
   walk(root)
   const ref = codeOnly(read('/newtab/components/ResourceEditForm.vue'))
-  return hits.length === 2 && ['shared/models/index.ts', 'shared/utils/link.ts'].every(a => hits.some(h => h.endsWith(a)))
+  return hits.length === 5 && ['shared/models/index.ts', 'shared/utils/link.ts', 'shared/cloud/sync.ts', 'shared/cloud/syncDisplay.ts', 'shared/ai/select.ts'].every(a => hits.some(h => h.endsWith(a)))
     && ref.includes('switchLinkSlot(model,') && ref.includes('setLinkSlot(props.model,') && !ref.includes('linkSlots')
 });
 check('R169-9 ★自动写入的三条边界都在：一天只写一次（focusAutoDate）/ 可"今天别推荐"（focusMutedDate）/ 用户手工选过与已完成的格子永不覆盖。落笔口只有 utils 里的 applyFocusOrder 一处（本地与 AI 共用），判据 `s.auto !== true || s.done` 分两处写就会出现"本地守了、AI 那条忘了"：', () => {
@@ -277,10 +280,10 @@ console.log('【R169-老账闭环】');
 // V3.7.0（R179）退役：分类控件随池语义整体退役（ResourceEditForm 不再有分类行）——
 // 「分类自绘选择器」这条老账随宿主消失而结清；CatPicker 组件本体保留（随 R2 管理面再议），
 // 本断言转守退役边界：表单零分类控件 + 组件本体健在（可直接复用）。
-check('R169-23 老账①（V3.7.0 退役）：ResourceEditForm 分类控件零残留（原生 select 与 CatPicker 一并下线）；CatPicker 组件本体保留待复用', () => {
+check('R169-23 老账①（V3.7.0 退役）：ResourceEditForm 分类控件零残留（分类 select、categoryId 绑定与 CatPicker 一并下线）；V4.1.3 仅新增来源类型下拉；CatPicker 组件本体保留待复用', () => {
   const f = codeOnly(read('/newtab/components/ResourceEditForm.vue'));
   const cp = read('/shared/components/CatPicker.vue').replace(/\r\n/g, '\n');
-  return !f.includes('<select') && !f.includes('CatPicker') && !f.includes('catOptions')
+  return !f.includes('model.categoryId') && !f.includes('CatPicker') && !f.includes('catOptions') && f.includes('aria-label="来源类型"')
     && cp.includes("defineProps<{") && cp.includes('modelValue?: string') && cp.includes("emit('update:modelValue', id)")
     && cp.includes("e.key === 'Escape'") && cp.includes("e.key === 'ArrowDown'") && cp.includes("e.key === 'Enter'")
     && cp.includes('useOverlayTarget');

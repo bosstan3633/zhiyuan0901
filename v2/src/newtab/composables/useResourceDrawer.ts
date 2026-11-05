@@ -209,7 +209,9 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     editingResource.title = live.title
     editingResource.description = live.description
     editingResource.tags = [...(live.tags || [])]
+    editingResource.sourceType = live.sourceType
     editingResource.categoryId = live.categoryId
+    editingResource.customFields = { ...(live.customFields || {}) }
     editingResource.aiTouchedAt = live.aiTouchedAt
   }
 

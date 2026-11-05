@@ -691,7 +691,11 @@ console.log('【第五十九轮 · V2.32.0：十包迭代】');
 check('R59-1 T1 项目详情返回恒「← 返回方向台」', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('← 返回方向台') && !p.includes('返回方向树'); });
 check('R59-2 T2 树投射开关退役（vision/mission/proj 三处函数与 UI 全无）', () => { const t = CT_ALL; return !t.includes('投射至灯塔') && !t.includes('投射至知源灯塔') && !t.includes('toggleProjProjection'); });
 check('R59-3/R121 树内主攻：hover 🚀 切换 + 主攻项目 accent 强化 + 置前排序 ★W11(V3.8.11)随迁带备案：承重处随项目舱结构从「.tree-project-branch.is-focused 边框」迁到「舱卡头 .tw-badge.focus 徽标 + .tw-head 的 is-dragging 无关」；原 is-focused 边框规则随三列网格一并退役。本条守的是「主攻可切 · 一眼可辨 · 恒在前排」三件事，改判：①切换入口在位（父组件 @focus 承接舱 emit）②徽标与色承重在舱组件 ③排序键主攻优先仍在', () => { const t = CT_ALL; return /@focus="onToggleFocus"/.test(t) && t.includes('function onToggleFocus') && TOWER.includes('class="tw-badge focus"') && /\.tw-badge\.focus \{[^}]*accent-ink/.test(TOWER) && t.includes('(Number(b.isFocused) - Number(a.isFocused))'); });
-check('R59-4 T4 关联卡片居中弹窗（lm-mask/lm-search/全量候选+拼音/勾选即存/已选计数）', () => { const t = CT_ALL; return t.includes('lm-mask') && t.includes('关键词或拼音首字母过滤') && t.includes('matchPinyin(text, q)') && !t.includes('.slice(0, 12)') && t.includes('已选 {{ linkCount(linkModal.node) }}'); });
+check('R59-4（V4.1.3 退役重指）愿景/使命关联卡片居中弹窗整体退役；旧选择器与拼音候选代码零残留，避免以隐藏入口绕过关系白名单', () => {
+  const t = codeOnly(CT_ALL);
+  return !t.includes('lm-mask') && !t.includes('关键词或拼音首字母过滤')
+    && !t.includes('matchPinyin(text, q)') && !t.includes('linkCount(linkModal.node)');
+});
 check('R59-5/R121 展板内任务跨指标拖拽链路（onTaskDrop/onMetricDrop + 指标定位闪烁）', () => { const p = read('/newtab/views/ProjectCuration.vue'); return p.includes('function onTaskDrop') && p.includes('function onTaskDragStart') && p.includes('function onMetricDrop') && p.includes('sec-flash'); });
 check('R59-6/R121 锚点条「进入方向树 ›」唯一入口 ★R3-B1 退役重指带备案：树即一级后全站不该再有「跳去方向树」的按钮文案（残留即死链族），页头只留台面身份', () => { const t = CT_ALL; const h = read('/newtab/views/CompassHome.vue'); const gp = read('/newtab/components/GlobalPopups.vue'); return !codeOnly(t).includes('进入方向树') && !codeOnly(h).includes('进入方向树') && !codeOnly(gp).includes('打开方向树'); });
 check('R59-7 T7 项目总览占位卡移除（R117 重写：占位卡随模块退役；零项目兜底仅在真·零项目时出现。★G3(V3.8.27) 重指：裸 empty-state 收进 EmptyState 组件，锚点随迁，语义不变）', () => { const s = read('/newtab/views/ProjectCuration.vue'); return !s.includes('ov-add-card') && s.includes('<EmptyState v-if="!currentProject"') && s.includes('还没有项目'); });

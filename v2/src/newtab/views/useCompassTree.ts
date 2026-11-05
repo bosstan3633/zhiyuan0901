@@ -6,15 +6,11 @@ import { wsNameById } from '@/shared/utils/wsName'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import { K } from '@/shared/storage/keys'
-import { matchPinyin, isPinyinReady, onPinyinReady } from '@/shared/utils/pinyin'
-import { toOpenableRawLink, toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { compassNodeCounts, removeCompassNode, restoreCompassNode, removeMetricWithConfirm, type CompassNodeKind } from '@/shared/utils/compassCrud'
 import { useConfirm } from '@/shared/components/confirm'
 import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
-import { recordResourceOpen } from '@/shared/storage/stats'
-import Drawer from '@/shared/components/Drawer.vue'
-import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
+import type { Direction, Project, Metric, TaskCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../components/TaskAddDrawer.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
@@ -103,8 +99,8 @@ function onPageEsc(e: KeyboardEvent) {
   // R3-B1：一级台面没有上级可回——Esc 交回给浮层/浏览器默认行为
   if (!fromProjId.value) return
   // V3.9.1：全局 GP 浮层恒挂载，不能用裸 `.overlay` 判断——它会让来源感知返回永远让位。
-  // 同时把方向台自己的关联卡片弹窗 `.lm-mask` 与共享抽屉遮罩算进来，Esc 先关上层。
-  if (document.querySelector('.task-sidebar, .overlay:not(.gp-overlay), .modal-mask, .drawer-overlay, .drawer, .picker-modal, .md-panel, .lm-mask')) return
+  // 同时把共享抽屉与弹窗遮罩算进来，Esc 先关上层。
+  if (document.querySelector('.task-sidebar, .overlay:not(.gp-overlay), .modal-mask, .drawer-overlay, .drawer, .picker-modal, .md-panel')) return
   e.preventDefault()
   goBack()
 }
@@ -580,110 +576,6 @@ const dhiStatus = computed(() => {
   return { label: '需聚焦', cls: 'warning' }
 })
 
-// ---- N1：愿景/使命关联资源卡/好奇心卡 ----
-// R59-T4：关联卡片升级为居中弹窗选择器（关键词+拼音过滤、全量滚动、勾选即存）
-const pinyinOn = ref(isPinyinReady())
-onPinyinReady(() => { pinyinOn.value = true })
-const linkModal = ref<{ node: 'vision' | 'mission' } | null>(null)
-const linkQ = ref('')
-function toggleLinkPop(node: 'vision' | 'mission') {
-  linkModal.value = linkModal.value?.node === node ? null : { node }
-  linkQ.value = ''
-}
-function closeLinkModal() { linkModal.value = null }
-function linkIds(node: 'vision' | 'mission', kind: 'res' | 'curio'): ID[] {
-  const c = d.value.compass[node]
-  if (!c) return []
-  return (kind === 'res' ? c.linkedResourceIds : c.linkedCuriosityIds) || []
-}
-function linkCount(node: 'vision' | 'mission'): number {
-  return linkIds(node, 'res').length + linkIds(node, 'curio').length
-}
-function isLinked(node: 'vision' | 'mission', kind: 'res' | 'curio', id: string): boolean {
-  return linkIds(node, kind).includes(id)
-}
-function toggleLinked(node: 'vision' | 'mission', kind: 'res' | 'curio', id: string) {
-  const c = d.value.compass[node]
-  if (!c) return
-  const key = kind === 'res' ? 'linkedResourceIds' : 'linkedCuriosityIds'
-  const arr: ID[] = c[key] || []
-  c[key] = arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id]
-  store.persist()
-}
-/** V3.9.25：关联芯片上的取消入口只摘关系，不删来源卡；3 秒内可恢复。 */
-function unlinkChip(node: 'vision' | 'mission', kind: 'res' | 'curio', id: string) {
-  const c = d.value.compass[node]
-  if (!c) return
-  const key = kind === 'res' ? 'linkedResourceIds' : 'linkedCuriosityIds'
-  const arr: ID[] = c[key] || []
-  if (!arr.includes(id)) return
-  const next = arr.filter(x => x !== id)
-  c[key] = next
-  store.persist()
-  const title = kind === 'res' ? resTitle(id) : curioTitle(id)
-  showToast(`已取消关联「${title.slice(0, 18)}」`, { label: '撤销', cb: () => {
-    const current = d.value.compass[node]
-    if (!current) return
-    const currentIds: ID[] = current[key] || []
-    if (currentIds.includes(id)) return
-    current[key] = [...currentIds, id]
-    store.persist()
-    showToast('✓ 已恢复关联')
-  } }, { undoWindowMs: 3000 })
-}
-function resTitle(id: string): string {
-  return d.value.resources.find(r => r.id === id && !r.deletedAt)?.title || '(已删除资源)'
-}
-function curioTitle(id: string): string {
-  return d.value.curiosities.find(c => c.id === id && !c.deletedAt)?.question || '(已删除好奇)'
-}
-/** B24：点击关联卡片标题 → 右侧滑出通用详情抽屉；第卅二轮 REQ-012：双击按统一通道打开链接 */
-const peek = ref<{ kind: 'res' | 'curio'; id: string } | null>(null)
-function openChipLink(kind: 'res' | 'curio', id: string) {
-  if (kind === 'res') {
-    const r = d.value.resources.find(x => x.id === id && !x.deletedAt)
-    const url = r ? toOpenableUrl(r.linkType, r.link) : ''
-    if (!r || !url) { showToast('该卡片没有可打开的链接'); return }
-    // WRR 口径：关联卡片打开同样计入调用统计（与资源卡池/搜索/北极星一致）
-    recordResourceOpen(d.value, r)
-    store.persistHot()
-    openExternalLink(url)
-  } else {
-    const c = d.value.curiosities.find(x => x.id === id && !x.deletedAt)
-    const url = toOpenableRawLink(c?.sourceUrl)
-    if (!url) { showToast('该好奇心没有来源链接'); return }
-    openExternalLink(url)
-  }
-}
-const peekData = computed(() => {
-  if (!peek.value) return null
-  if (peek.value.kind === 'res') {
-    const r = d.value.resources.find(x => x.id === peek.value!.id && !x.deletedAt)
-    if (!r) return null
-    const lt = r.linkType === 'file' ? '本地文件' : r.linkType === 'obsidian' ? 'Obsidian' : '网页链接'
-    return { kind: 'res' as const, title: r.title, src: wsNameById(d.value.workspaces, r.workspaceId) || '资源卡池', link: r.link || '', linkType: lt, desc: r.description || '', tags: r.tags || [] }
-  }
-  const c = d.value.curiosities.find(x => x.id === peek.value!.id && !x.deletedAt)
-  if (!c) return null
-  const lt = !c.sourceUrl ? '' : c.sourceUrl.startsWith('file:') ? '本地文件' : c.sourceUrl.startsWith('obsidian:') ? 'Obsidian' : '网页链接'
-  return { kind: 'curio' as const, title: c.question, link: c.sourceUrl || '', linkType: lt, desc: '', tags: c.tags || [] }
-})
-/** REQ-010：peek 抽屉链接统一走打开通道（chrome.tabs 优先，file 盘符归一化） */
-function openPeekLink() {
-  const c = peekData.value
-  if (!c || !c.link) return
-  const url = toOpenableRawLink(c.link)
-  if (!url) { showToast('链接不可打开（本地文件缺少完整路径）'); return }
-  openExternalLink(url)
-}
-function linkCandidates(kind: 'res' | 'curio') {
-  const q = linkQ.value.trim().toLowerCase()
-  const hit = (text: string) => !!text && (!q || text.toLowerCase().includes(q) || (pinyinOn.value && matchPinyin(text, q)))
-  if (kind === 'res') {
-    return d.value.resources.filter(r => !r.deletedAt && hit(r.title)).map(r => ({ id: r.id, title: r.title }))
-  }
-  return d.value.curiosities.filter(c => !c.deletedAt && hit(c.question)).map(c => ({ id: c.id, title: c.question }))
-}
 // R60：愿景/使命/项目的「灯塔投射」开关与数据字段均已移除；重心语义由「🚀 主攻 isFocused」承担
 
 // 第卅二轮 REQ-003：项目卡"打开项目"→ 项目全景透视抽屉（可增删改指标与任务，实时同步方向树）
@@ -747,10 +639,7 @@ onUnmounted(() => {
     taskAddMetricTitle, toggleTask, NODE_KIND, nodeNameOf, deleteNode,
     unbindTask, unbindTaskById, isStagnant, activeTowerId, gotoTower,
     activeLayer, canvasEl, ensureTower, onCanvasScroll, dhiStatus,
-    pinyinOn, linkModal, linkQ, toggleLinkPop, closeLinkModal,
-  linkIds, linkCount, isLinked, toggleLinked, unlinkChip, resTitle,
-    curioTitle, peek, openChipLink, peekData, openPeekLink,
-    linkCandidates, projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
+    projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
     scrollParent,
   }
 }

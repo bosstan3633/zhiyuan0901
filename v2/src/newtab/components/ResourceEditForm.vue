@@ -24,7 +24,7 @@ import { useAppStore } from '../stores/app'
 import { useTaHeight } from '@/shared/utils/taHeight'
 // R87（R7）：链接三态判据收敛到 shared/utils/link（此前 isFullPath 是本组件私有函数，卡片视图用不到）
 import { linkStateOf, LINK_SLOT_TABS, linkPlaceholderFor, slotFillOf, switchLinkSlot, setLinkSlot } from '@/shared/utils/link'
-import type { ResourceCard, AssetMeta } from '@/shared/models'
+import type { ResourceCard, AssetMeta, SourceType } from '@/shared/models'
 
 const props = defineProps<{
   /** 编辑中的资源卡（宿主 reactive 对象，字段直接 v-model 生效） */
@@ -39,6 +39,26 @@ const emit = defineEmits<{
 
 const store = useAppStore()
 const { taH: noteH, startTaResize: startNoteResize } = useTaHeight(props.heightKey, store.ui)
+
+const SOURCE_OPTIONS: Array<{ value: SourceType; label: string }> = [
+  { value: 'official', label: '官方' },
+  { value: 'academic', label: '学术' },
+  { value: 'media', label: '媒体' },
+  { value: 'personal', label: '个人' },
+  { value: 'ai-tool', label: 'AI 工具' },
+  { value: 'own-work', label: '自己的成果' },
+]
+const sourceTypeValue = computed({
+  get: () => props.model.sourceType || '',
+  set: (value: string) => { props.model.sourceType = (value || undefined) as SourceType | undefined },
+})
+const customEntries = computed(() => Object.entries(props.model.customFields || {})
+  .filter(([key, value]) => !key.startsWith('__') && key !== 'captureInboxId' && value !== undefined && value !== null)
+  .map(([key, value]) => ({
+    key,
+    label: key.replace(/^custom_/, '').replace(/[_-]+/g, ' '),
+    text: typeof value === 'string' ? value : JSON.stringify(value),
+  })))
 
 /**
  * V3.7.0（R179）：分类行退役（catOptions / treeCatOptions / CatPicker 一并下线）。
@@ -130,6 +150,12 @@ function fmtTs(ts?: number): string {
       <div v-if="linkIncomplete" class="ref-warn">
         <Icon name="warn" :size="13"/> 当前仅存文件名，双击打开前请补全完整路径（如 D:\docs\file.pdf）
       </div>
+      <div class="ds-kv"><span class="k">来源</span><span class="v">
+        <select v-model="sourceTypeValue" class="ds-in ref-source-select" aria-label="来源类型">
+          <option value="">未标注</option>
+          <option v-for="option in SOURCE_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </span></div>
       <!-- V3.7.0（R179）：分类行退役（hub 分类→标签树），卡的组织机制由下行「标签」独任 -->
       <div class="ds-kv"><span class="k">标签</span><span class="v"><TagPicker v-model="model.tags" /></span></div>
     </section>
@@ -155,6 +181,18 @@ function fmtTs(ts?: number): string {
         <!-- R167：附件上限从「? tooltip」搬进展开区（说明该在看得见的地方，不该藏在一次悬停里） -->
         <div class="ref-limits">图片 ≤9 张（单张 ≤10MB）· HTML 单卡 1 个（≤20MB，重复上传=替换）· PDF 单卡 1 份（≤100MB）· 双击文件名在浏览器中打开</div>
       </details>
+      <details v-if="customEntries.length" class="ds-details ref-custom">
+        <summary>自定义字段 <span class="cnt">({{ customEntries.length }})</span>
+          <span class="right">AI 会逐项复核现有字段</span>
+        </summary>
+        <div class="ref-custom-list">
+          <div v-for="entry in customEntries" :key="entry.key">
+            <span>{{ entry.label }}</span>
+            <code :title="entry.text">{{ entry.text }}</code>
+          </div>
+        </div>
+        <p class="ref-custom-note">AI 优化只改写已有键的值，不新增、不删除字段，也不会改字段类型。</p>
+      </details>
       <div v-if="model.createdAt" class="ds-meta ds-meta-top">
         <span>创建 {{ fmtTs(model.createdAt) }}</span>
         <span>更新 {{ fmtTs(model.updatedAt) }}</span>
@@ -178,6 +216,12 @@ function fmtTs(ts?: number): string {
 /* R169-T2：空槽是"还没填"，不是"坏了"——与 .ref-warn 分两档，别用告警色吓人 */
 .ds-slot-empty { margin: 6px 0; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border); padding: 6px 10px; border-radius: 6px; line-height: 1.6; }
 .ref-limits { padding: 6px 0 8px; font-size: var(--fs-caption); color: var(--text-4); line-height: 1.6; }
+.ref-source-select { width: 100%; }
+.ref-custom-list { display: flex; flex-direction: column; gap: 5px; padding: 7px 0; }
+.ref-custom-list > div { min-width: 0; display: grid; grid-template-columns: minmax(88px, .38fr) minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-radius: 6px; background: var(--surface-2); }
+.ref-custom-list span { color: var(--text-3); font-size: var(--fs-caption); }
+.ref-custom-list code { overflow: hidden; color: var(--text-2); font-family: var(--font-mono); font-size: var(--fs-micro); text-overflow: ellipsis; white-space: nowrap; }
+.ref-custom-note { margin: 0 0 7px; color: var(--text-3); font-size: var(--fs-micro); line-height: 1.55; }
 .ref-ta-wrap { position: relative; display: flex; flex: 1; min-height: 0; }
 .ref-ta-resize {
   position: absolute; right: 4px; bottom: 2px; width: 14px; height: 14px; cursor: ns-resize;

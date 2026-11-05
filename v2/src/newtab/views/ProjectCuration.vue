@@ -304,7 +304,7 @@ function onPageEsc(e: KeyboardEvent) {
   // R117（04-61 C）：一级内嵌态没有「上级」可回——Esc 让位抽屉/弹层后不再跳转
   if (props.embedded) return
   // V3.9.1：全局 GP 浮层恒挂载，裸 `.overlay` 会让项目详情的 Esc 返回永远失效。
-  if (document.querySelector('.task-sidebar, .overlay:not(.gp-overlay), .modal-mask, .drawer-overlay, .drawer, .picker-modal, .md-panel, .lm-mask')) return
+  if (document.querySelector('.task-sidebar, .overlay:not(.gp-overlay), .modal-mask, .drawer-overlay, .drawer, .picker-modal, .md-panel')) return
   e.preventDefault()
   goBack()
 }

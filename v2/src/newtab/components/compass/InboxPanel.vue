@@ -11,6 +11,7 @@ import { useConfirm } from '@/shared/components/confirm'
 import { useAppStore } from '@/newtab/stores/app'
 import { useInbox } from '@/newtab/composables/useInbox'
 import { emitOpenDrawer } from '@/shared/utils/bus'
+import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
 import type { CaptureConvertedKind, CaptureItem } from '@/shared/cloud/sync'
 
 defineOptions({ name: 'InboxPanel' })
@@ -31,6 +32,7 @@ const successText = ref('')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 const curiosityPanelRef = ref<InstanceType<typeof CuriosityPanel> | null>(null)
+let openItemTimer: number | null = null
 
 const groups: { key: Group; label: string }[] = [
   { key: 'pending', label: '未转化' },
@@ -87,13 +89,35 @@ function localCard(item: CaptureItem): { id: string; kind: CaptureConvertedKind 
 
 const detailItem = computed(() => inbox.items.value.find(item => item.id === detailId.value) || null)
 
-function openItem(item: CaptureItem): void {
+function openItemNow(item: CaptureItem): void {
   if (item.convertedKind) {
     detailId.value = ''
     openConverted(item)
     return
   }
   detailId.value = item.id
+}
+
+/** Let dblclick cancel the pending single-click branch before it opens a drawer. */
+function openItem(item: CaptureItem): void {
+  if (openItemTimer) window.clearTimeout(openItemTimer)
+  openItemTimer = window.setTimeout(() => {
+    openItemTimer = null
+    openItemNow(item)
+  }, 220)
+}
+
+function openSource(item: CaptureItem): void {
+  if (openItemTimer) {
+    window.clearTimeout(openItemTimer)
+    openItemTimer = null
+  }
+  const url = toOpenableRawLink(item.url)
+  if (!url) {
+    showToast(item.url ? '这条采集链接不可打开（请检查链接格式）' : '这条采集没有原始链接')
+    return
+  }
+  openExternalLink(url)
 }
 
 async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<void> {
@@ -225,6 +249,10 @@ onMounted(() => {
   window.addEventListener('offline', onOffline)
 })
 onBeforeUnmount(() => {
+  if (openItemTimer) {
+    window.clearTimeout(openItemTimer)
+    openItemTimer = null
+  }
   window.removeEventListener('online', onOnline)
   window.removeEventListener('offline', onOffline)
 })
@@ -287,7 +315,10 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
         :data-capture-id="item.id">
         <button type="button" class="inbox-open"
           :aria-label="item.convertedKind ? `打开${kindLabel(item.convertedKind)}详情` : `打开${fixedName(item)}详情`"
-          @click="openItem(item)">
+          :title="item.url ? '单击查看采集详情，双击打开原始链接' : '单击查看采集详情'"
+          @click="openItem(item)" @dblclick.prevent.stop="openSource(item)"
+          @keydown.enter.prevent.stop="openSource(item)"
+          @keydown.space.prevent.stop="openSource(item)">
           <span class="inbox-leading" :class="item.contentKind">
             <Icon :name="item.contentKind === 'link' ? 'link' : 'filetext'" :size="15"/>
           </span>
@@ -313,6 +344,9 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
           <button v-if="item.convertedKind" type="button" class="on" @click.stop="openConverted(item)">
             打开{{ kindLabel(item.convertedKind) }}
           </button>
+          <button v-if="item.url" type="button" :title="`打开原始链接：${item.url}`" @click.stop="openSource(item)">
+            <Icon name="external" :size="12"/> 打开链接
+          </button>
           <button type="button" class="danger" :disabled="deleting === item.id || !inbox.connected.value || !online" @click.stop="remove(item)">
             <Icon name="trash" :size="12"/> 删除
           </button>
@@ -332,6 +366,7 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
       @close="detailId = ''"
       @convert="convertFromDetail"
       @remove="removeFromDetail"
+      @open-source="detailItem && openSource(detailItem)"
       @open-target="openTargetFromDetail" />
   </section>
 </template>

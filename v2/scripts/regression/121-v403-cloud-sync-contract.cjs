@@ -214,7 +214,7 @@ check('R63-4（V4.0.3 重指）★跨设备同步范围统一为云快照三件�
   const c = read('/shared/cloud/client.ts');
   return s.includes('export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }')
     && s.includes('return { data: d, ui: safeUi, eventLog: [...eventLog] }')
-    && c.includes('state: unknown') && !s.includes('collectSyncRows') && !s.includes('targetWsId');
+    && c.includes('state: unknown') && !s.includes('collectSyncRows');
 });
 check('R63-5（V4.0.4 重指）★软删语义保留在本地数据树内：云快照不按已删除状态裁剪卡片，恢复时整棵 AppData 原样回灌；旧 Airtable「已删除」checkbox 不再存在', () => {
   const s = read('/shared/cloud/sync.ts');

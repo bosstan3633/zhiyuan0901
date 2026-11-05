@@ -3,7 +3,7 @@
  * 消费面纪律同 R134/R135：宿主点击时才 dynamic import 本文件；
  * 重排=只读呈现，零写库。（R162：推荐挂载任务书随任务↔资源挂载关系退役）
  */
-import type { AppData, ResourceCard } from '@/shared/models'
+import type { AppData, ResourceCard, SourceType } from '@/shared/models'
 import { freshTagsOf, knownTagSet, canonicalTagsOf } from '@/shared/utils/tags'
 import { withReport } from './reports'
 import type { AiJob, AiPaneLine, AiRow } from './job'
@@ -28,8 +28,25 @@ export interface SelectCtx {
  * R154：右栏标签行显示的是**完整结果**（现有 + 建议），用户改完后要回算增量再交给 apply——
  * 从结果里删掉的建议项就不写，用户自己补的词照写。apply 侧仍是并入语义，不必改。
  */
-function tagDiff(fullText: string | undefined, have: string[]): string[] {
-  return [...new Set(String(fullText || '').split(/[、,，]/).map(s => s.trim()).filter(Boolean))].filter(t => !have.includes(t))
+function tagList(value: string | undefined): string[] {
+  return [...new Set(String(value || '').split(/[、,，]/).map(s => s.trim()).filter(Boolean))]
+}
+
+const SOURCE_TYPE_LABEL: Record<SourceType, string> = {
+  official: '官方',
+  academic: '学术',
+  media: '媒体',
+  personal: '个人',
+  'ai-tool': 'AI 工具',
+  'own-work': '自己的成果',
+}
+
+function sourceTypeLabel(value?: SourceType): string {
+  return value ? SOURCE_TYPE_LABEL[value] || value : '未标注'
+}
+
+function sameList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index])
 }
 
 /**
@@ -291,14 +308,13 @@ function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, to
 
 
 /**
- * R167：资源卡单卡 AI 的**唯一工厂**——把原来的「单卡补全」与「全方位优化」并成一枚入口。
+ * 资源卡单卡 AI 的**唯一工厂**：读取完整卡面与链接正文，对全部可编辑内容字段重新评估。
  *
- * 合并规则（三条都是踩出来的，别再拆回去）：
- * ① **点了才抓**：链接是 http(s) 就顺手把正文抓回来一起补（`linkFetchable` 判，本地/Obsidian 不抓、也不谎称读过）；
- * ② **空字段直接补，已填只给建议**——改写建议一律 `optIn`（默认不勾）：用户写过的字是他自己的判断，
- *    AI 无权默认替换（AI 不替决策）；
- * ③ **R147-a 新词闸与分类消毒必须同装**：新标签单独成行默认不勾；`categoryId` 走 `sanitizeRefs`，
- *    不存在的分类不进候选。原 R165-A 补漏就是栽在"两条工厂口径不一，合并入口留下了没装闸的那条"。
+ * 边界：
+ * ① **点了才抓**：链接是 http(s) 才读取正文，本地/Obsidian 不抓、也不谎称读过；
+ * ② **全字段复核**：已填字段同样给出优化整值，不再只处理空字段；
+ * ③ **用户保留否决权**：建议仍在评审抽屉逐项展示，采纳前可取消任何一项；
+ * ④ **新词隔离**：既有标签之外的新词单独成行、默认不勾；分类引用仍走 `sanitizeRefs`。
  *
  * 三个宿主共用：详情抽屉、卡面动作条（CardAiEntry）、采集浮层（GlobalPopups）。
  */
@@ -306,19 +322,43 @@ export function buildResourceEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJo
   const personaText = chainPersonaText(ctx.personaId || '')
   const known = knownTagSet(ctx.d)
   const catName = () => catPathOf(ctx.d, card.categoryId || "") || '（未分类）'
+  const clip = (value: unknown, max: number): string => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
+  const customFieldsOf = (source: Record<string, unknown>) => Object.entries(source || {})
+    .filter(([key, value]) => !key.startsWith('__') && value !== undefined && value !== null)
+    .map(([key, value]) => ({
+      key,
+      value,
+      text: `${key}: ${clip(typeof value === 'string' ? value : JSON.stringify(value), 600)}`,
+    }))
+  const customFieldsText = customFieldsOf(card.customFields || {}).map(field => field.text).join('\n')
+  const attachmentText = (card.assets || []).map(asset => `${asset.kind} · ${asset.name}`).join('\n')
+  const fullCardFace = [
+    `标题：${card.title || '（空）'}`,
+    `描述：${String(card.description || '（空）').slice(0, 6000)}`,
+    `当前链接：${card.link || '（空）'}`,
+    `链接槽：${Object.entries(card.linkSlots || {}).map(([key, value]) => `${key}=${value || '（空）'}`).join(' · ') || '（无额外槽位）'}`,
+    `标签：${(card.tags || []).join('、') || '（无）'}`,
+    `来源类型：${sourceTypeLabel(card.sourceType)}`,
+    `分类：${catName()}`,
+    `自定义字段：${customFieldsText || '（无）'}`,
+  ].join('\n')
   const job: AiJob = {
     key: 'enrich:' + card.id,
-    title: `AI 补全 · ${card.title.slice(0, 18) || '（无名卡）'}`,
+    title: `AI 全字段优化 · ${card.title.slice(0, 16) || '（无名卡）'}`,
     subject: `📌 资源卡「${card.title.slice(0, 24) || '无名卡'}」`,
-    hint: '点了才抓：链接是 http(s) 就先把网页正文读回来一起补（本地文件 / Obsidian 不抓，抓不到会标「（未读正文）」）。' +
-      '空着的地方直接补；你已经写过的字段只给改写建议、**默认不勾**（勾了才替换）。分类只从本台既有候选里挑。',
+    hint: '读取完整卡面；链接是 http(s) 时同时抓取网页正文。AI 会重新评估标题、描述、标签、来源类型、分类与已有自定义字段并给出最终值，' +
+      '不是只填空缺。链接、附件、置顶、星标与归档状态不改；采纳前可逐项取消。',
+    adoptLabel: '✓ 采纳全字段优化',
     promptScope: 'enrich:card', promptObject: card.id, promptObjectLabel: card.title.slice(0, 14),
     before: () => [
       { key: 'title', label: '标题', main: card.title || '（无名卡）' },
       { key: 'desc', label: '描述', main: card.description || '' },
       { key: 'tags', label: '标签', main: (card.tags || []).join('、') },
+      { key: 'source', label: '来源类型', main: sourceTypeLabel(card.sourceType) },
       { key: 'cat', label: '分类', main: catName() },
       { key: 'link', label: '链接', main: card.link ? card.link.slice(0, 60) : '（无链接）' },
+      { key: 'assets', label: '附件', main: attachmentText || '（无附件）' },
+      { key: 'custom', label: '自定义字段', main: customFieldsText || '（无自定义字段）' },
     ],
     build: async () => {
       const { projectCard } = await import('./project')
@@ -334,33 +374,111 @@ export function buildResourceEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJo
       const catList = cats.slice(0, 60).map(c => `categoryId=${c.id}：${catPathOf(ctx.d, c.id)}`).join('\n')
       return { messages: [
         { role: 'system', content: fullOptimizeSystem({ personaText, hasCats: cats.length > 0 }) },
-        { role: 'user', content: projectCard(ctx.d, card, ctx.depth) + linkBlock + (catList ? `\n\n【分类候选】\n${catList}` : '') },
+        { role: 'user', content: projectCard(ctx.d, card, ctx.depth)
+          + `\n\n【完整卡面（逐字段复核以此为准）】\n${fullCardFace}`
+          + (attachmentText ? `\n\n【附件清单（只用于理解卡片，不许改写）】\n${attachmentText}` : '')
+          + linkBlock
+          + (catList ? `\n\n【分类候选】\n${catList}` : '') },
       ] }
     },
     parse: (raw) => {
-      const s = sanitizeRefs((raw || {}) as { title?: string; description?: string; tags?: string[]; categoryId?: string; assess?: string }, ctx.d)
+      const s = sanitizeRefs((raw || {}) as {
+        title?: string
+        description?: string
+        tags?: string[]
+        sourceType?: string
+        categoryId?: string
+        customFields?: Record<string, unknown>
+        assess?: string
+      }, ctx.d)
       const have = card.tags || []
       const rows: AiRow[] = []
       const title = String(s.title || '').trim().slice(0, 60)
-      if (!card.title && title) rows.push({ key: 'title', badge: '补标题', main: title, pair: 'title', data: { title } })
-      else if (title && title !== card.title) rows.push({ key: 'title', badge: '建议改标题', main: title, sub: '原：' + card.title.slice(0, 40), pair: 'title', optIn: true, edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { title: (t.main || '').trim().slice(0, 60) } }) }, data: { title } })
+      const titleEdit = { main: true, toRow: (r: AiRow, t: { main?: string }) => ({ ...r, main: t.main || '', data: { title: (t.main || '').trim().slice(0, 60) } }) }
+      if (!card.title && title) rows.push({ key: 'title', badge: '补标题', main: title, pair: 'title', edit: titleEdit, data: { title } })
+      else if (title && title !== card.title) rows.push({ key: 'title', badge: '优化标题', main: title, sub: '原：' + card.title.slice(0, 40), pair: 'title', edit: titleEdit, data: { title } })
       else rows.push({ key: 'title:same', badge: '标题', main: card.title || '（无名卡）', sub: 'AI 认为原标题不用改', pair: 'title', changeType: 'same', data: {} })
       const desc = String(s.description || '').trim().slice(0, 300)
       const descEdit = { main: true, toRow: (r: AiRow, t: { main?: string }) => ({ ...r, main: t.main || '', data: { description: (t.main || '').trim() } }) }
       if (desc && !card.description) rows.push({ key: 'desc', badge: '补描述', main: desc, pair: 'desc', edit: descEdit, data: { description: desc } })
-      else if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '建议改描述', main: desc, sub: '原：' + (card.description || '').slice(0, 60), pair: 'desc', optIn: true, edit: descEdit, data: { description: desc } })
+      else if (desc && desc !== card.description) rows.push({ key: 'desc', badge: '优化描述', main: desc, sub: '原：' + (card.description || '').slice(0, 60), pair: 'desc', edit: descEdit, data: { description: desc } })
       else rows.push({ key: 'desc:same', badge: '描述', main: card.description || '（空，AI 没给）', pair: 'desc', changeType: 'same', data: {} })
-      const newTags = canonicalTagsOf(ctx.d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).filter(t => !have.includes(t)).slice(0, 4)
-      const fresh = freshTagsOf(newTags, known)
-      const inSys = newTags.filter(t => fresh.indexOf(t) < 0)
-      const tagsEdit = (base: string[]) => ({ main: true, toRow: (r: AiRow, t: { main?: string }) => ({ ...r, main: t.main || '', data: { tags: tagDiff(t.main, base) } }) })
-      if (inSys.length) rows.push({ key: 'tags', badge: '标签', main: [...have, ...inSys].join('、'), sub: `并入 ${inSys.join('、')}（只加不减，要删去标签管理）`, pair: 'tags', edit: tagsEdit(have), data: { tags: inSys } })
-      else rows.push({ key: 'tags:same', badge: '标签', main: have.join('、') || '（无标签）', pair: 'tags', changeType: 'same', data: {} })
-      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: [...have, ...inSys, ...fresh].join('、'), sub: `新词 ${fresh.join('、')} 不在既有标签体系里（AI 造词）· 勾了才进体系`, pair: 'tags', edit: tagsEdit([...have, ...inSys]), data: { tags: fresh } })
+      const nextTags = canonicalTagsOf(ctx.d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).slice(0, 4)
+      const fresh = freshTagsOf(nextTags, known)
+      const inSys = nextTags.filter(t => fresh.indexOf(t) < 0)
+      const tagsEdit = { main: true, toRow: (r: AiRow, t: { main?: string }) => ({ ...r, main: t.main || '', data: { tags: canonicalTagsOf(ctx.d, tagList(t.main)), replaceTags: true } }) }
+      const added = inSys.filter(t => !have.includes(t))
+      const removed = have.filter(t => !inSys.includes(t))
+      if (!sameList(inSys, have)) {
+        const changeBits = [added.length ? `+${added.join('、')}` : '', removed.length ? `-${removed.join('、')}` : ''].filter(Boolean).join(' · ')
+        rows.push({ key: 'tags', badge: '优化标签', main: inSys.join('、') || '（清空标签）', sub: changeBits || '重排标签', pair: 'tags', edit: tagsEdit, data: { tags: inSys, replaceTags: true } })
+      } else {
+        rows.push({ key: 'tags:same', badge: '标签', main: have.join('、') || '（无标签）', pair: 'tags', changeType: 'same', data: {} })
+      }
+      if (fresh.length) rows.push({ key: 'tags:fresh', badge: '新词', badgeType: 'warn', weak: true, main: [...inSys, ...fresh].join('、'), sub: `新词 ${fresh.join('、')} 不在既有标签体系里（AI 造词）· 勾了才进体系`, pair: 'tags:fresh', edit: tagsEdit, data: { tags: [...inSys, ...fresh], replaceTags: true } })
+      const sourceType = String(s.sourceType || '') as SourceType
+      const validSource = ['official', 'academic', 'media', 'personal', 'ai-tool', 'own-work'].includes(sourceType)
+        ? sourceType
+        : ''
+      if (validSource && validSource !== card.sourceType) rows.push({ key: 'source', badge: '优化来源', main: sourceTypeLabel(validSource as SourceType), sub: `原：${sourceTypeLabel(card.sourceType)}`, pair: 'source', data: { sourceType: validSource } })
+      else rows.push({ key: 'source:same', badge: '来源类型', main: sourceTypeLabel(card.sourceType), pair: 'source', changeType: 'same', data: {} })
       const catTo = s.categoryId && s.categoryId !== card.categoryId && ctx.d.categories.some(c => c.id === s.categoryId && !c.deletedAt) ? s.categoryId : ''
-      if (catTo) rows.push({ key: 'cat', badge: '改挂分类', main: catPathOf(ctx.d, catTo) || catTo, sub: `现：${catName()}`, pair: 'cat', optIn: true, data: { categoryId: catTo } })
+      if (catTo) rows.push({ key: 'cat', badge: '改挂分类', main: catPathOf(ctx.d, catTo) || catTo, sub: `现：${catName()}`, pair: 'cat', data: { categoryId: catTo } })
       else rows.push({ key: 'cat:same', badge: '分类', main: catName(), pair: 'cat', changeType: 'same', data: {} })
+      const currentCustom = customFieldsOf(card.customFields || {})
+      const proposedCustom = s.customFields && typeof s.customFields === 'object' && !Array.isArray(s.customFields)
+        ? s.customFields
+        : {}
+      let customChanged = 0
+      for (const field of currentCustom) {
+        if (!Object.prototype.hasOwnProperty.call(proposedCustom, field.key)) continue
+        const before = field.value
+        const raw = proposedCustom[field.key]
+        let after: string | number | boolean | undefined
+        if (typeof before === 'string') {
+          after = typeof raw === 'string' ? raw.trim().slice(0, 1000) : String(raw ?? '').trim().slice(0, 1000)
+        } else if (typeof before === 'number') {
+          const n = Number(raw)
+          if (Number.isFinite(n)) after = n
+        } else if (typeof before === 'boolean') {
+          if (typeof raw === 'boolean') after = raw
+          else if (raw === 'true' || raw === 'false') after = raw === 'true'
+        }
+        if (after === undefined || JSON.stringify(before) === JSON.stringify(after)) continue
+        customChanged++
+        const toText = (value: unknown) => typeof value === 'string' ? value : JSON.stringify(value)
+        const customEdit = {
+          main: true,
+          toRow: (r: AiRow, t: { main?: string }) => {
+            let value: string | number | boolean | undefined
+            if (typeof before === 'number') {
+              const n = Number(t.main)
+              value = Number.isFinite(n) ? n : undefined
+            } else if (typeof before === 'boolean') {
+              value = /^(true|是|开|yes|1)$/i.test(String(t.main || '').trim())
+            } else {
+              value = String(t.main || '').trim().slice(0, 1000)
+            }
+            return { ...r, main: t.main || '', data: value === undefined ? {} : { customFieldKey: field.key, customFieldValue: value } }
+          },
+        }
+        rows.push({
+          key: `custom:${field.key}`,
+          badge: '优化自定义字段',
+          main: toText(after),
+          sub: `原：${toText(before)}`,
+          pair: 'custom',
+          edit: customEdit,
+          data: { customFieldKey: field.key, customFieldValue: after },
+        })
+      }
+      if (!currentCustom.length) {
+        rows.push({ key: 'custom:same', badge: '自定义字段', main: '（无自定义字段）', pair: 'custom', changeType: 'same', data: {} })
+      } else if (!customChanged) {
+        rows.push({ key: 'custom:same', badge: '自定义字段', main: currentCustom.map(field => field.text).join('；'), sub: 'AI 复盘后建议保留现有值', pair: 'custom', changeType: 'same', data: {} })
+      }
       rows.push({ key: 'link:same', badge: '链接', main: card.link ? card.link.slice(0, 60) : '（无链接）', sub: 'AI 不改链接与附件', pair: 'link', changeType: 'same', data: {} })
+      rows.push({ key: 'assets:same', badge: '附件', main: attachmentText || '（无附件）', sub: '附件本体与清单均保持原样', pair: 'assets', changeType: 'same', data: {} })
       if (s.assess?.trim()) rows.push({ key: 'verdict', badge: '参谋', advisory: true, main: s.assess.trim().slice(0, 120), data: { __verdict: true } })
       return rows
     },
@@ -369,16 +487,43 @@ export function buildResourceEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJo
       if (!live) return '⚠ 卡片已不存在，未写入'
       let n = 0
       for (const r of rows) {
-        const s = r.data as { title?: string; description?: string; tags?: string[]; categoryId?: string; __verdict?: boolean }
+        const s = r.data as {
+          title?: string
+          description?: string
+          tags?: string[]
+          replaceTags?: boolean
+          sourceType?: string
+          categoryId?: string
+          customFieldKey?: string
+          customFieldValue?: string | number | boolean
+          __verdict?: boolean
+        }
         if (s.__verdict) continue
-        if (s.title) live.title = s.title
-        if (s.description) live.description = s.description
-        if (s.tags) live.tags = [...new Set([...(live.tags || []), ...canonicalTagsOf(ctx.d, s.tags)])].slice(0, 10)
-        if (s.categoryId && ctx.d.categories.some(c => c.id === s.categoryId && !c.deletedAt)) live.categoryId = s.categoryId
-        n++
+        let changed = false
+        if (s.title && s.title !== live.title) { live.title = s.title; changed = true }
+        if (s.description && s.description !== live.description) { live.description = s.description; changed = true }
+        if (s.tags) {
+          const tags = canonicalTagsOf(ctx.d, s.tags).slice(0, 10)
+          const nextTags = s.replaceTags ? tags : [...new Set([...(live.tags || []), ...tags])].slice(0, 10)
+          if (JSON.stringify(nextTags) !== JSON.stringify(live.tags || [])) { live.tags = nextTags; changed = true }
+        }
+        if (s.sourceType && ['official', 'academic', 'media', 'personal', 'ai-tool', 'own-work'].includes(s.sourceType) && s.sourceType !== live.sourceType) {
+          live.sourceType = s.sourceType as SourceType
+          changed = true
+        }
+        if (s.categoryId && s.categoryId !== live.categoryId && ctx.d.categories.some(c => c.id === s.categoryId && !c.deletedAt)) {
+          live.categoryId = s.categoryId
+          changed = true
+        }
+        if (s.customFieldKey && Object.prototype.hasOwnProperty.call(live.customFields || {}, s.customFieldKey)
+          && JSON.stringify(live.customFields[s.customFieldKey]) !== JSON.stringify(s.customFieldValue)) {
+          live.customFields[s.customFieldKey] = s.customFieldValue
+          changed = true
+        }
+        if (changed) n++
       }
       if (n) { live.updatedAt = Date.now(); live.aiTouchedAt = Date.now(); ctx.persist() }
-      return `✓ 已补全「${live.title.slice(0, 12)}」（${n} 项）`
+      return `✓ 已优化「${live.title.slice(0, 12)}」（${n} 项）`
     },
   }
   if (ctx.onPersona) {

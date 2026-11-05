@@ -4,6 +4,8 @@ import type {
   CloudCheckResult,
   CloudMeta,
   CloudRelation,
+  CloudSyncReceipt,
+  CloudSyncTrigger,
   SnapshotState,
   SyncManifest,
 } from '@/shared/cloud/sync'
@@ -43,7 +45,9 @@ const envReady = ref<boolean | null>(null)
 const errorMessage = ref('')
 const relation = ref<CloudRelation | null>(null)
 const checkResult = ref<CloudCheckResult | null>(null)
+const networkOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const lastSyncAt = computed(() => Math.max(meta.value?.lastUploadAt || 0, meta.value?.lastDownloadAt || 0))
+const latestReceipt = computed<CloudSyncReceipt | null>(() => meta.value?.syncReceipts?.[0] || null)
 
 let refreshPromise: Promise<void> | null = null
 let activeSync: Promise<CloudSyncOutcome> | null = null
@@ -78,6 +82,7 @@ function formatTime(ts: number): string {
 const lastSyncLabel = computed(() => lastSyncAt.value ? formatTime(lastSyncAt.value) : '尚未同步')
 
 const relationActionLabel = computed(() => {
+  if (!networkOnline.value && meta.value?.refreshToken) return '云同步已断线'
   if (state.value === 'disabled') return '配置云同步'
   if (state.value === 'signed_out') return '登录云同步'
   if (state.value === 'checking') return '检查云同步'
@@ -94,6 +99,7 @@ const relationActionLabel = computed(() => {
 const statusText = relationActionLabel
 
 const statusDetail = computed(() => {
+  if (!networkOnline.value && meta.value?.refreshToken) return '当前浏览器处于离线状态'
   if (state.value === 'disabled') return '点击完成云端配置'
   if (state.value === 'signed_out') return '点击登录云端账号'
   if (state.value === 'checking') return '正在读取云端状态'
@@ -109,6 +115,23 @@ const statusDetail = computed(() => {
 })
 
 const canSync = computed(() => state.value === 'connected' && !!meta.value?.refreshToken && envReady.value === true)
+
+export type CloudLedTone = 'green' | 'yellow' | 'red' | 'neutral'
+const ledTone = computed<CloudLedTone>(() => {
+  if (state.value === 'error') return 'red'
+  if (!networkOnline.value && meta.value?.refreshToken && envReady.value !== false) return 'red'
+  if (state.value === 'disabled' || state.value === 'signed_out') return 'red'
+  if (state.value === 'checking' || state.value === 'syncing') {
+    return 'yellow'
+  }
+  if (relation.value === 'in_sync') return 'green'
+  if (relation.value) return 'yellow'
+  return 'yellow'
+})
+
+function setNetworkOnline(value: boolean): void {
+  networkOnline.value = value
+}
 
 async function loadSharedModules() {
   const [client, sync] = await Promise.all([
@@ -310,10 +333,21 @@ async function refreshCloudStatus(probeRemote = false, store?: AppStore): Promis
 }
 
 /** 恢复时把附件元数据按卡片 ID 重新挂回；附件本体始终留在本机。 */
-async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number }> {
+async function restoreCloudSnapshot(
+  store: AppStore,
+  trigger: CloudSyncTrigger,
+  knownBeforeManifest?: SyncManifest | null,
+): Promise<{ revision: number; receipt: CloudSyncReceipt }> {
   const { sync } = await loadSharedModules()
   const repository = await import('@/shared/storage/repository')
   if (!store.data) throw new Error('本机数据尚未就绪')
+  const beforeMeta = await sync.getCloudMeta()
+  const beforeRevision = beforeMeta?.revision || 0
+  const beforeSnapshot = knownBeforeManifest ? null : await captureLocalSnapshot(store)
+  const beforeManifest = knownBeforeManifest
+    || (beforeSnapshot
+      ? sync.buildSyncManifest(beforeSnapshot.snapshot, beforeRevision, beforeMeta?.syncedFingerprint || '')
+      : beforeMeta?.localManifest || null)
   const downloaded = await sync.downloadNow()
   const localAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
   const localCategoryAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
@@ -418,8 +452,18 @@ async function restoreCloudSnapshot(store: AppStore): Promise<{ revision: number
     }
   }
   await sync.markDownloaded(downloaded.revision, downloaded.fingerprint, downloaded.manifest)
-  await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq())
-  return { revision: downloaded.revision }
+  const receipt = sync.buildSyncReceipt({
+    before: beforeManifest,
+    after: downloaded.manifest,
+    direction: 'download',
+    trigger,
+    fromRevision: beforeRevision,
+    toRevision: downloaded.revision,
+  })
+  await sync.appendSyncReceipt(receipt)
+  await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq()
+  )
+  return { revision: downloaded.revision, receipt }
 }
 
 /**
@@ -450,6 +494,8 @@ async function uploadSnapshot(
   store: AppStore,
   captured: CapturedLocalSnapshot,
   onDecision: DecisionHandler,
+  trigger: CloudSyncTrigger,
+  beforeManifest: SyncManifest | null,
   approvedRemoteRevision?: number,
 ): Promise<CloudSyncOutcome> {
   const { sync } = await loadSharedModules()
@@ -468,14 +514,27 @@ async function uploadSnapshot(
     return { kind: 'cancelled' }
   }
   if (uploaded.kind === 'download_requested') {
-    const restored = await restoreCloudSnapshot(store)
+    const restored = await restoreCloudSnapshot(store, trigger)
     return { kind: 'downloaded', revision: restored.revision }
   }
+  const receipt = sync.buildSyncReceipt({
+    before: beforeManifest,
+    after: uploaded.manifest,
+    direction: 'upload',
+    trigger,
+    fromRevision: current?.revision || 0,
+    toRevision: uploaded.revision,
+  })
+  await sync.appendSyncReceipt(receipt)
   await settleInSync(uploaded.revision, uploaded.fingerprint, captured.mutationSeq)
   return { kind: 'uploaded', revision: uploaded.revision }
 }
 
-async function runManualSync(store: AppStore, onDecision: DecisionHandler): Promise<CloudSyncOutcome> {
+async function runManualSync(
+  store: AppStore,
+  onDecision: DecisionHandler,
+  trigger: CloudSyncTrigger,
+): Promise<CloudSyncOutcome> {
   const { client, sync } = await loadSharedModules()
   const [env, current] = await Promise.all([client.cloudEnv(), sync.getCloudMeta()])
   envReady.value = !!env
@@ -500,6 +559,15 @@ async function runManualSync(store: AppStore, onDecision: DecisionHandler): Prom
     return { kind: 'needs_setup', state: 'signed_out' }
   }
   if (check.kind === 'in_sync') {
+    const receipt = sync.buildSyncReceipt({
+      before: check.localManifest || null,
+      after: check.localManifest || null,
+      direction: 'latest',
+      trigger,
+      fromRevision: current.revision || 0,
+      toRevision: check.remoteRevision,
+    })
+    await sync.appendSyncReceipt(receipt)
     await settleInSync(
       check.remoteRevision,
       check.remoteFingerprint || check.localFingerprint || '',
@@ -508,7 +576,7 @@ async function runManualSync(store: AppStore, onDecision: DecisionHandler): Prom
     return { kind: 'latest', revision: check.remoteRevision }
   }
   if (check.kind === 'empty_remote' || check.kind === 'local_changed') {
-    return uploadSnapshot(store, captured, onDecision)
+    return uploadSnapshot(store, captured, onDecision, trigger, current.localManifest || null)
   }
 
   const choice = await onDecision({
@@ -523,17 +591,21 @@ async function runManualSync(store: AppStore, onDecision: DecisionHandler): Prom
     return { kind: 'cancelled' }
   }
   if (choice === 'download') {
-    const restored = await restoreCloudSnapshot(store)
+    const restored = await restoreCloudSnapshot(store, trigger, check.localManifest || null)
     return { kind: 'downloaded', revision: restored.revision }
   }
-  return uploadSnapshot(store, captured, onDecision, check.remoteRevision)
+  return uploadSnapshot(store, captured, onDecision, trigger, current.localManifest || null, check.remoteRevision)
 }
 
-async function manualSync(store: AppStore, onDecision: DecisionHandler): Promise<CloudSyncOutcome> {
+async function manualSync(
+  store: AppStore,
+  onDecision: DecisionHandler,
+  trigger: CloudSyncTrigger = 'settings',
+): Promise<CloudSyncOutcome> {
   if (activeSync) return activeSync
   activeSync = (async () => {
     try {
-      return await runManualSync(store, onDecision)
+      return await runManualSync(store, onDecision, trigger)
     } catch (error) {
       state.value = 'error'
       errorMessage.value = messageOf(error)
@@ -548,8 +620,10 @@ async function manualSync(store: AppStore, onDecision: DecisionHandler): Promise
 async function uploadCurrent(store: AppStore, onDecision: DecisionHandler): Promise<CloudSyncOutcome> {
   state.value = 'syncing'
   try {
+    const { sync } = await loadSharedModules()
+    const current = await sync.getCloudMeta()
     const snapshot = await captureLocalSnapshot(store)
-    return await uploadSnapshot(store, snapshot, onDecision)
+    return await uploadSnapshot(store, snapshot, onDecision, 'settings', current?.localManifest || null)
   } catch (error) {
     const message = messageOf(error)
     state.value = 'error'
@@ -561,7 +635,7 @@ async function uploadCurrent(store: AppStore, onDecision: DecisionHandler): Prom
 async function downloadCurrent(store: AppStore): Promise<{ revision: number }> {
   state.value = 'syncing'
   try {
-    return await restoreCloudSnapshot(store)
+    return await restoreCloudSnapshot(store, 'settings')
   } catch (error) {
     state.value = 'error'
     errorMessage.value = messageOf(error)
@@ -605,16 +679,20 @@ export interface UseCloudSyncReturn {
   errorMessage: Ref<string>
   relation: Ref<CloudRelation | null>
   checkResult: Ref<CloudCheckResult | null>
+  networkOnline: Ref<boolean>
   lastSyncAt: ComputedRef<number>
   lastSyncLabel: ComputedRef<string>
+  latestReceipt: ComputedRef<CloudSyncReceipt | null>
   relationActionLabel: ComputedRef<string>
   statusText: ComputedRef<string>
   statusDetail: ComputedRef<string>
   canSync: ComputedRef<boolean>
+  ledTone: ComputedRef<CloudLedTone>
+  setNetworkOnline: (value: boolean) => void
   refreshCloudStatus: (probeRemote?: boolean, store?: AppStore) => Promise<void>
   ensureRelationProbe: (store: AppStore, force?: boolean) => Promise<CloudCheckResult | null>
   checkCloudRelation: (store: AppStore) => Promise<CloudCheckResult | null>
-  manualSync: (store: AppStore, onDecision: DecisionHandler) => Promise<CloudSyncOutcome>
+  manualSync: (store: AppStore, onDecision: DecisionHandler, trigger?: CloudSyncTrigger) => Promise<CloudSyncOutcome>
   uploadCurrent: (store: AppStore, onDecision: DecisionHandler) => Promise<CloudSyncOutcome>
   downloadCurrent: (store: AppStore) => Promise<{ revision: number }>
   loadSyncDetails: (store: AppStore) => Promise<CloudSyncDetails>
@@ -628,12 +706,16 @@ export function useCloudSync(): UseCloudSyncReturn {
     errorMessage,
     relation,
     checkResult,
+    networkOnline,
     lastSyncAt,
     lastSyncLabel,
+    latestReceipt,
     relationActionLabel,
     statusText,
     statusDetail,
     canSync,
+    ledTone,
+    setNetworkOnline,
     refreshCloudStatus,
     ensureRelationProbe,
     checkCloudRelation,

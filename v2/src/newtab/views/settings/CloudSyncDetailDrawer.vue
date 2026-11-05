@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import Icon from '@/shared/components/Icon.vue'
 import type { CloudSyncDetails } from '@/newtab/composables/useCloudSync'
-import { diffSyncManifests, type SyncManifest, type SyncManifestRecord, type SyncManifestRecordType } from '@/shared/cloud/sync'
+import { diffSyncManifests, syncDiffRows, type SyncManifest, type SyncManifestRecord, type SyncManifestRecordType } from '@/shared/cloud/sync'
+import { SYNC_RECORD_GROUPS, syncGroupOf, syncTypeLabel, type SyncRecordGroup } from '@/shared/cloud/syncDisplay'
+import CloudSyncChangeTable from '@/newtab/components/cloud/CloudSyncChangeTable.vue'
 import SyncRecordDetailDrawer from './SyncRecordDetailDrawer.vue'
 
 const props = defineProps<{
@@ -19,6 +21,9 @@ type Tab = 'local' | 'remote'
 const tab = ref<Tab>('local')
 const query = ref('')
 const typeFilter = ref<'all' | SyncManifestRecordType>('all')
+const group = ref<SyncRecordGroup>('all')
+const sortDir = ref<'desc' | 'asc'>('desc')
+const recordMode = ref<'changes' | 'all'>('changes')
 const detailRecord = ref<SyncManifestRecord | null>(null)
 const detailOpen = ref(false)
 
@@ -30,13 +35,27 @@ const activeManifest = computed(() => tab.value === 'local'
   ? (localManifest.value || currentLocalManifest.value)
   : remoteManifest.value)
 const diff = computed(() => diffSyncManifests(localManifest.value, remoteManifest.value))
+const localChanges = computed(() => diffSyncManifests(localManifest.value, currentLocalManifest.value))
+const localChangeRows = computed(() => syncDiffRows(localChanges.value))
 const diffRows = computed(() => [...diff.value.added, ...diff.value.removed, ...diff.value.changed])
+const groupCounts = computed(() => {
+  const counts = Object.fromEntries(SYNC_RECORD_GROUPS.map(item => [item.id, 0])) as Record<SyncRecordGroup, number>
+  for (const row of activeManifest.value?.records || []) counts[syncGroupOf(row.type)] += 1
+  counts.all = activeManifest.value?.records.length || 0
+  return counts
+})
 const filteredRecords = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return (activeManifest.value?.records || []).filter(row => {
+  const rows = (activeManifest.value?.records || []).filter(row => {
+    if (group.value !== 'all' && syncGroupOf(row.type) !== group.value) return false
     if (typeFilter.value !== 'all' && row.type !== typeFilter.value) return false
     if (!needle) return true
     return `${row.title} ${row.id} ${row.type}`.toLowerCase().includes(needle)
+  })
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const delta = ((a.updatedAt || 0) - (b.updatedAt || 0)) * dir
+    return delta || a.key.localeCompare(b.key)
   })
 })
 const shownRecords = computed(() => filteredRecords.value.slice(0, 600))
@@ -44,18 +63,17 @@ const shownRecords = computed(() => filteredRecords.value.slice(0, 600))
 watch(() => props.open, open => {
   if (!open) return
   tab.value = props.initialTab || 'local'
+  recordMode.value = tab.value === 'local' ? 'changes' : 'all'
   query.value = ''
   typeFilter.value = 'all'
+  group.value = 'all'
+  sortDir.value = 'desc'
   detailOpen.value = false
   detailRecord.value = null
 })
 
 function typeLabel(type: SyncManifestRecordType): string {
-  return ({
-    workspace: '策展台', category: '分类', resource: '资源卡', task: '任务卡',
-    curiosity: '好奇心卡', argument: '论证卡', direction: '方向', project: '项目',
-    metric: '成功指标', dailyFocus: '今日三件事', event: '事件', preference: '偏好',
-  } as Record<SyncManifestRecordType, string>)[type]
+  return syncTypeLabel(type)
 }
 
 function fmtTime(ts?: number): string {
@@ -123,6 +141,17 @@ function openRecord(row: SyncManifestRecord): void {
         <small>生成于 {{ fmtTime(activeManifest.capturedAt) }}</small>
       </div>
 
+      <div v-if="tab === 'local'" class="csd-view-switch" role="group" aria-label="本机基线查看方式">
+        <button type="button" :class="{ on: recordMode === 'changes' }" @click="recordMode = 'changes'">本次修订内容 <span>{{ localChangeRows.length }}</span></button>
+        <button type="button" :class="{ on: recordMode === 'all' }" @click="recordMode = 'all'">基线全部记录 <span>{{ activeManifest?.records.length || 0 }}</span></button>
+      </div>
+
+      <CloudSyncChangeTable
+        v-if="tab === 'local' && recordMode === 'changes'"
+        :rows="localChangeRows"
+        empty-text="本机与上次同步基线一致，没有待上传的修订"
+      />
+
       <div v-if="tab === 'local' && localManifest && remoteManifest" class="csd-diff">
         <div class="csd-section-title">
           <b>与云端当前记录的差异</b>
@@ -139,6 +168,21 @@ function openRecord(row: SyncManifestRecord): void {
           </span>
           <small v-if="diffRows.length > 80">另有 {{ diffRows.length - 80 }} 条差异未展开</small>
         </div>
+      </div>
+
+      <template v-if="tab === 'remote' || recordMode === 'all'">
+      <div class="csd-groups" role="tablist" aria-label="基线记录分组">
+        <button
+          v-for="item in SYNC_RECORD_GROUPS"
+          :key="item.id"
+          type="button"
+          role="tab"
+          :aria-selected="group === item.id"
+          :class="{ on: group === item.id }"
+          @click="group = item.id"
+        >
+          {{ item.label }} <span>{{ groupCounts[item.id] }}</span>
+        </button>
       </div>
 
       <div class="csd-tools">
@@ -159,6 +203,9 @@ function openRecord(row: SyncManifestRecord): void {
           <option value="dailyFocus">今日三件事</option>
           <option value="event">事件</option>
         </select>
+        <button class="csd-time-sort" type="button" @click="sortDir = sortDir === 'desc' ? 'asc' : 'desc'">
+          <Icon name="arrowupdown" :size="11" /> {{ sortDir === 'desc' ? '时间倒序' : '时间正序' }}
+        </button>
         <span>{{ filteredRecords.length }} 条</span>
       </div>
 
@@ -178,6 +225,7 @@ function openRecord(row: SyncManifestRecord): void {
         </div>
       </div>
       <div v-else class="csd-empty">暂无该端 manifest。成功同步一次后会自动建立。</div>
+      </template>
     </template>
   </Drawer>
   <SyncRecordDetailDrawer :open="detailOpen" :record="detailRecord" :source="tab"
@@ -202,6 +250,14 @@ function openRecord(row: SyncManifestRecord): void {
 .csd-fingerprint { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; padding: 7px 9px; border-radius: 7px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); }
 .csd-fingerprint code { color: var(--text-2); font-family: var(--font-mono); }
 .csd-fingerprint small { margin-left: auto; }
+.csd-view-switch { display: flex; gap: 4px; margin-bottom: 10px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.csd-view-switch button { min-height: 28px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-caption); cursor: pointer; }
+.csd-view-switch button span { padding: 0 5px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font-size: var(--fs-micro); }
+.csd-view-switch button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.csd-groups { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.csd-groups button { min-height: 28px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-3); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
+.csd-groups button span { color: var(--text-2); font-weight: 700; }
+.csd-groups button.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .csd-diff { margin-bottom: 11px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
 .csd-section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; color: var(--text-2); font-size: var(--fs-caption); }
 .csd-section-title span { color: var(--warning); }
@@ -220,6 +276,7 @@ function openRecord(row: SyncManifestRecord): void {
 .csd-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-3); }
 .csd-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-caption); }
 .csd-tools select { min-height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-caption); }
+.csd-time-sort { min-height: 30px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-micro); white-space: nowrap; cursor: pointer; }
 .csd-tools > span { color: var(--text-3); font-size: var(--fs-micro); white-space: nowrap; }
 .csd-records { display: flex; flex-direction: column; gap: 4px; max-height: 44vh; overflow-y: auto; padding-right: 2px; }
 .csd-record { position: relative; display: grid; grid-template-columns: 74px minmax(0, 1fr) 118px 46px 14px; align-items: center; gap: 7px; min-height: 35px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-2); font: inherit; text-align: left; cursor: pointer; }

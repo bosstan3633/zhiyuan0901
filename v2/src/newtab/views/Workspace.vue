@@ -293,10 +293,6 @@
         height-key="ws-note"
         @save="saveResource"
       >
-        <!-- R166 T7：资源侧「支持的任务」只读反查（与 RDD 同一组件，两宿主同源） -->
-        <template #extra>
-          <SupportTasksPanel v-if="d && editingResource.id" :d="d" :resource="editingResource" @open-task="gotoTaskOwner" />
-        </template>
         <!-- 链接动作贴对象：打开/复制不再放页脚 -->
         <template v-if="!drawerReadonly" #link-actions>
           <button class="ds-ib" title="打开链接" @click="openResourceLink(editingResource)"><Icon name="external" :size="13"/></button>
@@ -464,7 +460,7 @@ import { recordWorkspaceOpen } from '@/shared/storage/stats'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import AssetPreview from '@/shared/components/AssetPreview.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
-import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'; import SupportTasksPanel from '@/shared/components/SupportTasksPanel.vue'
+import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'
 // R161-④：关联资源卡（镜像）弹窗整体抽出（宿主回到 ≤1500 行验收线 + 换 R161 新壳 Modal.vue）
 import LinkCardsModal from '@/newtab/components/LinkCardsModal.vue'
 import CurationDrillDrawer from '@/newtab/components/CurationDrillDrawer.vue'
@@ -505,7 +501,6 @@ const router = useRouter()
 const store = useAppStore()
 const d = computed(() => store.data!)
 /** R166 T7：资源侧反查行点击=去那个任务的归属项目页（只读跳转，不改任何数据；解绑只在任务侧） */
-function gotoTaskOwner(t: { projectId?: string }): void { closeDrawer(); router.push(t.projectId ? `/compass/projects?p=${t.projectId}` : '/compass') }
 /** R113-N5：浮层动态宿主——真全屏时 Teleport 目标指向全屏元素（否则挂 body 的浮层不可见） */
 /** R82（R4）：取项目扁平表（任务的项目名展示）——与方向台共用 useCompass 的口径 */
 const { allProjects } = useCompass()

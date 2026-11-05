@@ -105,48 +105,6 @@
 .compass-layout.is-pano :deep(.spine-risk.zero) { display: none; }
 .compass-layout.is-pano :deep(.spine-dirs) { gap: 5px; }
 .tree-layout { display: flex; gap: 36px; align-items: flex-start; }
-.link-count { font-size: var(--fs-tiny); color: var(--accent-ink); background: var(--accent-light); padding: 1px 7px; border-radius: var(--radius-full); font-weight: 600; }
-/* R59-T4：关联卡片选择器（居中弹窗） */
-.lm-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: var(--z-mask-lg); display: flex; align-items: center; justify-content: center; }
-.lm-box { width: 520px; max-width: 94vw; max-height: 82vh; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
-.lm-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 10px; font-size: 14px; font-weight: 700; color: var(--text); }
-.lm-count { font-size: var(--fs-caption); font-weight: 500; color: var(--accent-ink); background: var(--accent-light); border-radius: var(--radius-full); padding: 2px 10px; }
-.lm-head .pm-close { margin-left: auto; cursor: pointer; color: var(--text-3); font-size: 18px; padding: 0 4px; background: transparent; border: none; }
-.lm-head .pm-close:hover { color: var(--text); }
-.lm-body { padding: 0 18px 8px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; flex: 1; }
-.lm-search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: var(--fs-body); outline: none; font-family: inherit; background: var(--surface-2); color: var(--text); margin-bottom: 6px; }
-.lm-search:focus { border-color: var(--accent); }
-.lm-list { max-height: 30vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 4px; margin-bottom: 6px; }
-.lm-foot { display: flex; align-items: center; gap: 10px; padding: 10px 18px 14px; border-top: 1px solid var(--border); }
-.lm-tip { flex: 1; font-size: var(--fs-caption); color: var(--text-4); }
-.mini-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: inherit; }
-.mini-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.link-pop-sec { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding: 6px 4px 3px; }
-.link-pop-item { display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px; cursor: pointer; font-size: var(--fs-sub); color: var(--text-2); }
-.link-pop-item:hover { background: var(--surface-2); color: var(--text); }
-.link-pop-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.link-pop-empty { padding: 12px; text-align: center; color: var(--text-4); font-size: var(--fs-sub); }
-/* 第卅三轮 REQ-017：关联卡片由胶囊 chip 改为卡片形态（两行截断 + 卡片圆角） */
-.linked-chip { position: relative; display: inline-flex; align-items: flex-start; gap: 5px; width: 186px; min-height: 32px; padding: 5px 27px 5px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--fs-sub); line-height: 1.45; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); overflow: hidden; }
-.linked-chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
-.lc-ico { flex-shrink: 0; font-size: var(--fs-sub); }
-.lc-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
-.lc-unlink {
-  position: absolute; top: 4px; right: 4px;
-  display: inline-grid; place-items: center; width: 22px; height: 22px;
-  padding: 0; border: 0; border-radius: 5px;
-  color: var(--text-2); background: transparent; font-family: inherit;
-  font-size: var(--fs-caption); cursor: pointer; opacity: .78;
-}
-.lc-unlink:hover, .lc-unlink:focus-visible { opacity: 1; color: var(--danger); background: var(--danger-bg-soft); outline: none; }
-.peek-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
-.peek-label { width: 42px; flex-shrink: 0; font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: .5px; padding-top: 2px; }
-.peek-val { flex: 1; min-width: 0; font-size: var(--fs-body); color: var(--text); line-height: 1.6; word-break: break-all; }
-.peek-val.strong { font-weight: 700; font-size: var(--fs-title); }
-.peek-val.link { color: var(--accent); }
-.peek-tag { display: inline-block; font-size: var(--fs-caption); color: var(--accent-ink); background: var(--accent-light); padding: 1px 8px; border-radius: var(--radius-full); margin: 0 4px 4px 0; }
-.peek-open { width: 100%; margin-top: 14px; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; }
-.peek-open:hover { background: var(--accent-hover); }
 .topbar { height: 48px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
 /* ★C1（V3.8.28）：健康度徽章退成药丸形"读数"——中性浅底 + text-2 字，不再用强调色实底；
    warning 态只加深一档表面，不换色相（琥珀是催促，镜面不催促）。 */
@@ -335,12 +293,11 @@
 /* ★W11 随迁清账（2026-10-13）：下方 .task-item/.task-check/.task-text/.task-meta/.task-actions/.empty-sub 六族
    共 15 条是 R3-B2 时期的任务行样式，W11 起任务行已迁到 CompassLane 的 .tk-row（判死 13 + 祖先断 2，
    由 dead-css-scan 实跑坐实）。四票全零 = 模板零引用 + 全站 class 属性零引用 + 全站字符串零引用 + 104 场景普查零命中。
-   同批不删 .metric-*（投影弹窗仍用）与 .proj-toggle/.toggle（R4-Ev① 的活体票载体，删了那条判据会假红）。 */
+   同批不删 .metric-*（投影弹窗仍用）与 .toggle（R4-Ev① 的活体票载体，删了那条判据会假红）。 */
 /* G3（V3.8.27）：零方向兜底原用的裸容器类与图标位样式，随改走 EmptyState 组件一并退役
    —— 留着会让下一个写空态的人"照着旧样式再写一遍"，正是本轮要断的那条路。 */
 
-/* 节点链接弹窗开关（愿景/使命关联资源） */
-.proj-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+/* 通用开关 */
 .toggle { position: relative; width: 30px; height: 16px; border-radius: var(--radius-full); background: var(--border-strong); cursor: pointer; transition: background .2s; flex-shrink: 0; }
 .toggle.on { background: var(--accent); }
 .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
@@ -366,7 +323,6 @@
 .tl-text { font-size: var(--fs-display); font-weight: 700; color: var(--text); letter-spacing: -.02em; line-height: 1.24; }
 /* ② 使命降一档到 headline（它是准则不是方向本身） */
 .tl-text.sub { font-size: var(--fs-headline); font-weight: 500; color: var(--text-2); line-height: 1.4; }
-.tl-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sub); color: var(--text-3); }
 /* ★V3.9.19：view-seg 迁入左栏后的列内形态——两枚等分、字号降一档（左栏 176px 里
    「项目全景」四字 + 默认 padding 放不下 fs-sub，压到 caption 保单行不折）。 */
 .navside .view-seg { width: 100%; }
@@ -459,4 +415,3 @@
 .tree-level-card.hero .tl-text { line-height: 1.25; }
 .tree-level-card.hero .tl-text.sub { line-height: 1.35; }
 .tree-level-card.hero .tl-badge { margin-bottom: 1px; }
-.tree-level-card.hero .tl-links { gap: 6px; }

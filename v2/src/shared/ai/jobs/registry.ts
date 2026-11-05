@@ -209,14 +209,6 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     note: '本地预筛（词面+标签 top N、排除已关联）→ 模型只排序+一句判词；采纳写独立表 supportLinks，两张卡本体零改动（卡间零挂载红线下的记录型关联）',
   },
   {
-    id: 'resource-link-task', title: '关联任务（资源侧）', family: 'proactive', kind: 'job',
-    factory: 'buildResourceLinkTaskJob', factoryFile: 'shared/ai/resourceLinkTask.ts',
-    hosts: ['newtab/components/ResourceAiStrip.vue'],
-    caps: { apply: true, before: true, promptScope: 'linktask:card', persona: true },
-    panel: { icon: 'compass', mode: 'nav', route: '/', hint: '资源详情 AI 行第二枚（两宿主同一组件：内联抽屉与 App 级抽屉）' },
-    note: 'R167：「找资源支持」的反向入口（同一条 SupportLink、同一张表）——扫全量任务卡本地预筛 → 模型只排序+一句判词 → 采纳只写关联记录，两端卡本体零改动；解绑仍只在任务侧（定案 10 的边界不越）',
-  },
-  {
     id: 'task-parse', title: 'AI 建任务', family: 'proactive', kind: 'job',
     factory: 'buildTaskParseJob', factoryFile: 'shared/ai/select.ts',
     hosts: ['newtab/components/TaskAddDrawer.vue'],

@@ -487,7 +487,7 @@ check('R4-Ev① ★"祖先段整段判死"这条口径要能独立站住，就�
     && s.includes('function splitTopLevel') && s.includes('function stripParens')
     && s.includes('interpPrefixes.add') && s.includes('globalTokens.has(tok)')
     && ex('.metric-item.expanded') && ex('.dz-cell.l4') && ex('body .module-title')
-    && ex('.picker-item') && ex('.toggle') && ex('.recon-cell') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在它随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像指标的 scoped 类，顺带证明扫描器在新页的 <style scoped> 上照常工作。★B8 再随迁（V3.8.41）：第二张票随概览带整族判死而失效。★V3.9.7 再重指：抽屉拆成 PiMetricDetailDrawer 后类名改为 `.recon-cell`，不让已退役的 `.pi-recon-cell` 继续充当活性票。教训与头注①同源：**"证明扫描器在某类宿主上工作"的票必须选真正活着的宿主类，不能选一个恰好没被清理的同名残留**——票红时先问"被测物是不是已经退役了"，别急着换锚点。 */;
+    && ex('.picker-item') && ex('.toggle') && ex('.recon-cell') /* ★W9 退役重指带备案：本格原放 ex('.dz-hl')——那张票（运行时插值类名 + 跨文件产出的类名）在它随 R3-F38 开关退役后失去载体。四条票一条没拆：插值前缀票仍由 ex('.dz-cell.l4') 守，全站精确字符串票仍由 ex('.picker-item') / ex('.toggle') 守；本格改放画像指标的 scoped 类，顺带证明扫描器在新页的 <style scoped> 上照常工作。★B8 再随迁（V3.8.41）：第二张票随概览带整族判死而失效。★V3.9.7 再重指：抽屉拆成 PiMetricDetailDrawer 后类名改为 `.recon-cell`，不让已退役的 `.pi-recon-cell` 继续充当活性票。★V4.1.3：愿景 / 使命关联卡片入口退役后 `.proj-toggle` 不再充当活体票，改由现役 `.toggle` 承担。教训与头注①同源：**"证明扫描器在某类宿主上工作"的票必须选真正活着的宿主类，不能选一个恰好没被清理的同名残留**——票红时先问"被测物是不是已经退役了"，别急着换锚点。 */;
 });
 
 // ============== R4-Ew 三条运行时触点进 e2e ==============

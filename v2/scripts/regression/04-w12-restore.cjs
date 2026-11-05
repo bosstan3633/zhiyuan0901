@@ -47,8 +47,9 @@ check('W12-2 ★第 1/2 层正文必须住在**层级面板里**而不是在骨�
     /* 愿景/使命块本体在插槽里 */
     && slot.includes('class="tree-level-card hero" id="layer-1"')
     && slot.includes("startEdit('vision'") && slot.includes("startEdit('mission'")
-    /* 就地编辑与关联卡片能力跟着走（能力保留，不许在搬家过程中丢） */
-    && slot.includes("toggleLinkPop('vision')") && slot.includes("toggleLinkPop('mission')")
+    /* 就地编辑保留；愿景/使命的卡间挂载按 V4.1.3 关系白名单退役 */
+    && !slot.includes("toggleLinkPop('vision')") && !slot.includes("toggleLinkPop('mission')")
+    && !slot.includes('linked-chip')
     /* 面板接收插槽 */
     && PANEL.includes('<slot name="entity">')
     /* 骨架条在面板之前 —— 顺序反了就等于面板挂在骨架条之上，与原型相反 */
