@@ -29,9 +29,11 @@ export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
     const prevDesc = dup.description
     const prevTags = dup.tags
     const prevAt = dup.updatedAt
+    const now = Date.now()
     dup.description = p.description.slice(0, 4000)
     dup.tags = [...new Set([...(dup.tags || []), ...tags])].slice(0, 6)
-    dup.updatedAt = Date.now()
+    dup.updatedAt = now
+    dup.aiTouchedAt = now
     ctx.persist()
     pushUndo(`撤销报告卡刷新「${dup.title.slice(0, 12)}」`, () => {
       const i = d.resources.findIndex(x => x.id === dup.id)
@@ -41,11 +43,12 @@ export function saveReportCard(ctx: ReportCtx, p: ReportPayload): string {
     })
     return `✓ 报告已刷新 资源卡池 › 待分类「${dup.title.slice(0, 18)}」（同日重跑不另起新卡 · Ctrl/Cmd+Z 可撤销）`
   }
+  const now = Date.now()
   const card: ResourceCard = {
     id: uid('res'), kind: 'resource', title, linkType: 'url', link: '',
     workspaceId: CURATION_WS_ID, categoryId: '', description: p.description.slice(0, 4000),
     tags,
-    pinned: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now(), customFields: {},
+    pinned: false, callCount: 0, createdAt: now, updatedAt: now, aiTouchedAt: now, customFields: {},
   } as ResourceCard
   d.resources.unshift(card)
   ctx.persist()

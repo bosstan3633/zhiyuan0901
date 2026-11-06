@@ -26,6 +26,7 @@ import { CURATION_WS_ID, type AppData, type CatsMigrateReport, type ID, type Tag
 import { uid } from '../utils'
 import { TAG_SEP, tagPathOf } from '../utils/tags'
 import { K } from './keys'
+import { cloneResourceMirrorSnapshot } from './resourceMirrors'
 
 function pushTag(map: Map<ID, string[]>, catId: ID, tag: string) {
   const arr = map.get(catId)
@@ -159,7 +160,9 @@ export function migrateBoardCardsToPool(d: AppData): boolean {
     if (!existed) {
       d.curationProjections.push({
         id: uid('curp'), kind: 'card', wsId: CURATION_WS_ID, cardId: r.id,
-        targetWsId: boardId, targetCatId: boardCatId || undefined, addedAt: Date.now()
+        catId: boardCatId || undefined,
+        targetWsId: boardId, targetCatId: boardCatId || undefined, addedAt: Date.now(),
+        snapshot: cloneResourceMirrorSnapshot(r),
       })
     }
     moved++

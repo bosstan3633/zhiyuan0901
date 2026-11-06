@@ -48,21 +48,6 @@
                 {{ thesisCard.description || '先写结论，再长出支撑分支' }}
               </span>
             </span>
-            <div v-if="thesisLinkedCards.length || thesisCard.assets?.length" class="tb-adjuncts">
-              <div v-if="thesisLinkedCards.length" class="tb-resource-row">
-                <span class="tb-adjunct-label"><Icon name="link" :size="11"/> 关联资源</span>
-                <button v-for="card in thesisLinkedCards.slice(0, 4)" :key="card.id" class="tb-resource-chip"
-                  type="button" :title="`打开资源卡：${card.title}`" @click.stop="onCardClick(card)">
-                  <span class="tb-resource-dot" :data-source="card.sourceType || 'personal'"></span>
-                  <span>{{ card.title }}</span>
-                </button>
-                <span v-if="thesisLinkedCards.length > 4" class="tb-more">+{{ thesisLinkedCards.length - 4 }}</span>
-              </div>
-              <CurationAssetStrip v-if="thesisCard.assets?.length" :assets="thesisCard.assets" node-id="root"
-                :remote-downloader="downloadNodeAsset"
-                @open="openNodeAssetPreview($event, 'root')" @remove="removeNodeAsset('root', $event)"
-                @ingest="ingestAssetFiles('root', $event)" />
-            </div>
           </div>
           <span class="tb-side">
             <span class="cur-metrics" data-curation-metrics="2">
@@ -92,33 +77,10 @@
       <!-- ③ 行动条：只保留页面级动作。画布布局切换位于画布工具条，始终可见。 -->
       <div class="ws-toolbar cur-toolbar">
         <!-- V4.1.2：页面设置退役，必要的数据动作收进一个「台数据」菜单。 -->
-        <div class="cur-import" :class="{ open: importMenuOpen }" @keydown.esc.stop="closeImportMenu">
-          <button class="hero-btn ghost cur-import-trigger" type="button"
+        <div class="cur-import" :class="{ open: importMenuOpen }">
+          <button ref="importMenuTrigger" class="hero-btn ghost cur-import-trigger" type="button"
             title="导入、导出或清理本策展台数据" aria-haspopup="menu" :aria-expanded="importMenuOpen"
             @click.stop="toggleImportMenu"><Icon name="database" :size="13"/> 台数据 <span class="cur-import-caret" aria-hidden="true">▾</span></button>
-          <div v-if="importMenuOpen" class="cur-import-popover" role="menu" aria-label="策展台数据操作">
-            <button type="button" class="cur-import-item" role="menuitem" @click="openImport">
-              <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
-              <span><b>导入 JSON 备份</b><small>恢复旧版策展台数据包</small></span>
-            </button>
-            <button type="button" class="cur-import-item" role="menuitem" @click="importShareHtmlFromMenu">
-              <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
-              <span><b>导入成果 HTML</b><small>从知源分享产物恢复</small></span>
-            </button>
-            <button type="button" class="cur-import-item" role="menuitem" @click="importPyramidTemplateFromMenu">
-              <span class="cur-import-item-icon"><Icon name="filetext" :size="14"/></span>
-              <span><b>导入模板</b><small>中心论点 + 论证分支一次生成</small></span>
-            </button>
-            <div class="cur-import-divider" role="separator"></div>
-            <button type="button" class="cur-import-item" role="menuitem" @click="importMenuOpen = false; exportWorkspace()">
-              <span class="cur-import-item-icon"><Icon name="package" :size="14"/></span>
-              <span><b>导出 JSON 备份</b><small>保存本台当前完整数据</small></span>
-            </button>
-            <button type="button" class="cur-import-item" role="menuitem" @click="importMenuOpen = false; cleanAllMirrors()">
-              <span class="cur-import-item-icon"><Icon name="broom" :size="14"/></span>
-              <span><b>清理本台镜像卡</b><small>只移除投射，资源卡池源卡保留</small></span>
-            </button>
-          </div>
         </div>
         <div class="toolbar-spacer"></div>
         <div class="toolbar-search">
@@ -129,6 +91,33 @@
         <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="importMenuOpen" class="cur-import-popover cur-import-portal" :style="importMenuStyle"
+        role="menu" aria-label="策展台数据操作" data-a11y-container @click.stop>
+        <button type="button" class="cur-import-item" role="menuitem" autofocus @click="openImport">
+          <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
+          <span><b>导入 JSON 备份</b><small>恢复旧版策展台数据包</small></span>
+        </button>
+        <button type="button" class="cur-import-item" role="menuitem" @click="importShareHtmlFromMenu">
+          <span class="cur-import-item-icon"><Icon name="download" :size="14"/></span>
+          <span><b>导入成果 HTML</b><small>从知源分享产物恢复</small></span>
+        </button>
+        <button type="button" class="cur-import-item" role="menuitem" @click="importPyramidTemplateFromMenu">
+          <span class="cur-import-item-icon"><Icon name="filetext" :size="14"/></span>
+          <span><b>导入模板</b><small>中心论点 + 论证分支一次生成</small></span>
+        </button>
+        <div class="cur-import-divider" role="separator"></div>
+        <button type="button" class="cur-import-item" role="menuitem" @click="closeImportMenu(); exportWorkspace()">
+          <span class="cur-import-item-icon"><Icon name="package" :size="14"/></span>
+          <span><b>导出 JSON 备份</b><small>保存本台当前完整数据</small></span>
+        </button>
+        <button type="button" class="cur-import-item" role="menuitem" @click="closeImportMenu(); cleanAllMirrors()">
+          <span class="cur-import-item-icon"><Icon name="broom" :size="14"/></span>
+          <span><b>清理本台镜像卡</b><small>只移除投射，资源卡池源卡保留</small></span>
+        </button>
+      </div>
+    </Teleport>
 
     <!-- V4.1.2：页面设置退役后，图标编辑保留为台名区域的轻量浮层。 -->
     <Teleport to="body">
@@ -1206,10 +1195,50 @@ function onConfirmLinkCards(): void {
 
 // ===== 页头导入菜单 =====
 const importMenuOpen = ref(false)
+const importMenuTrigger = ref<HTMLElement | null>(null)
+const importMenuStyle = ref<Record<string, string>>({ left: '12px', top: '52px', maxHeight: '360px' })
 function closeImportMenu() { importMenuOpen.value = false }
+function positionImportMenu() {
+  const rect = importMenuTrigger.value?.getBoundingClientRect()
+  if (!rect) return
+  const gap = 7
+  const viewportPad = 12
+  const estimatedHeight = 334
+  const spaceBelow = window.innerHeight - rect.bottom - viewportPad
+  const placeAbove = spaceBelow < estimatedHeight && rect.top > spaceBelow
+  const maxHeight = Math.max(180, Math.min(estimatedHeight, placeAbove ? rect.top - viewportPad - gap : spaceBelow - gap))
+  const width = Math.min(280, window.innerWidth - viewportPad * 2)
+  const top = placeAbove
+    ? Math.max(viewportPad, rect.top - maxHeight - gap)
+    : Math.min(rect.bottom + gap, window.innerHeight - maxHeight - viewportPad)
+  importMenuStyle.value = {
+    left: `${Math.max(viewportPad, Math.min(rect.left, window.innerWidth - width - viewportPad))}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+    maxHeight: `${maxHeight}px`,
+  }
+}
 function toggleImportMenu() {
   importMenuOpen.value = !importMenuOpen.value
   wsInfoMenuOpen.value = false
+  if (importMenuOpen.value) void nextTick(positionImportMenu)
+}
+function onImportMenuKeydown(event: KeyboardEvent) {
+  if (!importMenuOpen.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeImportMenu()
+    importMenuTrigger.value?.focus()
+    return
+  }
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+  const items = Array.from(document.querySelectorAll<HTMLElement>('.cur-import-portal .cur-import-item'))
+  if (!items.length) return
+  event.preventDefault()
+  const current = items.indexOf(document.activeElement as HTMLElement)
+  const delta = event.key === 'ArrowDown' ? 1 : -1
+  const next = current < 0 ? (delta > 0 ? 0 : items.length - 1) : (current + delta + items.length) % items.length
+  items[next].focus()
 }
 function importShareHtmlFromMenu() {
   closeImportMenu()
@@ -1260,6 +1289,9 @@ function openImport() {
 
 onMounted(() => {
   document.addEventListener('click', closeHeaderMenus)
+  document.addEventListener('keydown', onImportMenuKeydown, true)
+  window.addEventListener('resize', positionImportMenu)
+  window.addEventListener('scroll', positionImportMenu, true)
   document.addEventListener('visibilitychange', onWsOpenVisibility)
   document.addEventListener('keydown', onCanvasPasteKeydown, true)
   document.addEventListener('paste', onCanvasPaste, true)
@@ -1274,6 +1306,9 @@ onUnmounted(() => {
   if (canvasPasteFallbackTimer) { clearTimeout(canvasPasteFallbackTimer); canvasPasteFallbackTimer = null }
   if (pendingAssetCleanupTimer) { clearTimeout(pendingAssetCleanupTimer); pendingAssetCleanupTimer = null }
   document.removeEventListener('click', closeHeaderMenus)
+  document.removeEventListener('keydown', onImportMenuKeydown, true)
+  window.removeEventListener('resize', positionImportMenu)
+  window.removeEventListener('scroll', positionImportMenu, true)
   document.removeEventListener('visibilitychange', onWsOpenVisibility)
   document.removeEventListener('keydown', onCanvasPasteKeydown, true)
   document.removeEventListener('paste', onCanvasPaste, true)

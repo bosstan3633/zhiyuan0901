@@ -10,7 +10,7 @@
 /* R131-N1：V4.0.4 起页头与画布同为 0 横向缩进，左右边缘逐像素对齐；
    旧版单独补的 22px 内缩已退役，避免页头比画布窄一截。 */
 /* V3.9.30：三层共处一个连续页头；不再把行动条漂在页头之外。 */
-.ws-head { display: flex; flex-direction: column; gap: 10px; padding-left: 0; min-width: 0; }
+.ws-head { display: flex; flex-direction: column; gap: 6px; padding-left: 0; min-width: 0; }
 /* V3.9.28：台身份回到 ≤40px 的紧凑读数行；图标收进 accent 淡底方片，台名回到 19px 页头字阶。 */
 .ws-id-head { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 36px; max-height: 40px; padding: 2px 2px 2px 0; overflow: visible; }
 .wsh-icon {
@@ -43,8 +43,8 @@
 /* V4.0.3：中心论点卡承载论点正文、卡片读数与详情入口。
    卡片本身不再是按钮，避免内部读数按钮与整卡点击争夺事件。 */
 .thesis-banner {
-  display: flex; min-width: 0; align-items: stretch; justify-content: space-between; gap: 22px;
-  padding: 18px 20px 16px;
+  display: flex; min-width: 0; min-height: 68px; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 9px 14px;
   background:
     radial-gradient(600px 160px at 12% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
     var(--surface);
@@ -60,28 +60,15 @@
   background: var(--surface-2);
   border-color: var(--border);
 }
-.tb-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.tb-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .tb-kicker { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--accent-ink); font-size: var(--fs-caption); font-weight: 600; letter-spacing: .02em; }
 .tb-kicker-label { white-space: nowrap; }
 .tb-kicker-sep { color: var(--text-3); font-weight: 400; }
 .tb-badge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); font-weight: 600; letter-spacing: .05em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 16%, transparent); padding: 1px 7px; border-radius: 4px; }
-.tb-title { min-width: 0; max-width: none; font-size: 22px; line-height: 1.3; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.02em; }
+.tb-title { min-width: 0; max-width: none; font-size: 20px; line-height: 1.22; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.02em; }
 .tb-desc-row { min-width: 0; display: flex; align-items: center; }
 .tb-desc { min-width: 0; font-size: var(--fs-caption); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tb-adjuncts { min-width: 0; display: flex; flex-direction: column; gap: 5px; margin-top: 1px; }
-.tb-resource-row { min-width: 0; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.tb-adjunct-label { display: inline-flex; align-items: center; gap: 3px; flex: none; color: var(--text-3); font-size: var(--fs-micro); font-weight: 600; }
-.tb-resource-chip { min-width: 0; max-width: 220px; min-height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
-.tb-resource-chip > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tb-resource-chip:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-.tb-resource-chip:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
-.tb-resource-dot { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--text-3); }
-.tb-resource-dot[data-source="official"] { background: var(--accent-ink); }
-.tb-resource-dot[data-source="academic"] { background: var(--success); }
-.tb-resource-dot[data-source="media"] { background: var(--warning); }
-.tb-resource-dot[data-source="own-work"] { background: var(--accent); }
-.tb-more { color: var(--text-3); font-size: var(--fs-micro); }
-.tb-side { flex: none; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.tb-side { flex: none; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; }
 .tb-detail {
   min-height: 28px; display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
@@ -125,7 +112,7 @@
 /* 工具条 */
 /* V3.9.10：指标 + 操作合并为一排；V3.9.30 起作为页头第三层，不再单独吸附。 */
 .ws-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
-.ws-head > .cur-toolbar { position: static; z-index: auto; margin-top: 2px; }
+.ws-head > .cur-toolbar { position: static; z-index: auto; margin-top: 0; }
 .cur-toolbar .hero-btn { flex-shrink: 0; white-space: nowrap; }
 .cur-toolbar .share-action { margin-left: 0; }
 .cur-metrics { min-width: 0; display: inline-flex; align-items: stretch; gap: 6px; }
@@ -143,6 +130,13 @@
   border: 1px solid var(--border-strong); border-radius: 10px;
   background: var(--surface); box-shadow: var(--shadow-lg);
   animation: curImportIn .14s var(--ease-emphasis);
+}
+.cur-import-popover.cur-import-portal {
+  position: fixed;
+  right: auto;
+  z-index: calc(var(--z-popover) + 2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 @keyframes curImportIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .cur-import-item {
@@ -286,7 +280,7 @@
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
   .wsh-name { font-size: 17px; }
   .wsh-desc { display: none; }
-  .thesis-banner:not(.empty) { flex-direction: column; padding: 16px; }
+  .thesis-banner:not(.empty) { min-height: 0; flex-direction: column; align-items: stretch; padding: 11px 13px; }
   .tb-side { width: 100%; flex-direction: row; align-items: center; }
   .tb-detail { margin-left: auto; }
   .tb-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

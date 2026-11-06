@@ -369,7 +369,7 @@ check('R128-8 A2 现役镜像保命：migrateHubStructure 只清旧方向投射�
 console.log('【R128 · A3：永久删除口径合一 + 转卡共享附件保命】');
 check('R128-9 ★ A3 硬删引擎 shared/storage/purge.ts：四类副作用一处收口（附件本体 / metric.taskIds / 数组移除 / 悬空投射剪枝）', () => { const p = read('/shared/storage/purge.ts'); return p.includes('export async function purgeCardsCompletely') && p.includes('m.taskIds = (m.taskIds || []).filter(id => !taskIds.has(id))') && p.includes('d.resources = d.resources.filter(r => !resIds.has(r.id))') && p.includes('pruneDanglingProjections(d)') && p.includes('export function recycledCardsOf'); });
 check('R128-10 ★ A3 设置页「清空回收站」不再裸 filter（改走同一引擎 + recycledCardsOf 全量口径含分类）', () => { const g = read('/newtab/views/GlobalSettings.vue'); const i = g.indexOf('async function emptyRecycleBin'); const seg = g.slice(i, i + 900); return i >= 0 && seg.includes('recycledCardsOf(d)') && seg.includes('purgeCardsCompletely(d, targets)') && !seg.includes('.filter(r => !r.deletedAt)') && !seg.includes('(t as any).deletedAt'); });
-check('R128-11 ★ A3 转卡共享本体保命：keepIds=存活卡（含回收站软删卡）assets 并集，被引用者不删', () => { const p = read('/shared/storage/purge.ts'); const i = p.indexOf('export async function purgeCardsCompletely'); const seg = p.slice(i, i + 1800); return seg.includes('if (!resIds.has(r.id))') && seg.includes('if (!taskIds.has(t.id))') && seg.includes('if (!curioIds.has(c.id))') && seg.includes('if (keep.has(id)) assetsShared++; else doomed.push(id)'); });
+check('R128-11 ★ A3 转卡共享本体保命：keepIds=存活卡（含回收站软删卡）与两类资源镜像快照 assets 并集，被引用者不删', () => { const p = read('/shared/storage/purge.ts'); const i = p.indexOf('export async function purgeCardsCompletely'); const seg = p.slice(i, i + 2600); return seg.includes('if (!resIds.has(r.id))') && seg.includes('if (!taskIds.has(t.id))') && seg.includes('if (!curioIds.has(c.id))') && seg.includes('link.snapshot?.assets') && seg.includes('projection.snapshot?.assets') && seg.includes('if (keep.has(id)) assetsShared++; else doomed.push(id)'); });
 check('R128-12 ★ A3 卡内删附件走 deleteAssetIfOrphan（排除所在卡 selfCardId），三处宿主接入 owner-id', () => { const p = read('/shared/storage/purge.ts'); const a = read('/shared/components/AssetManager.vue'); return p.includes('export async function deleteAssetIfOrphan') && p.includes('c.id !== selfCardId') && a.includes('await dropBlob(meta.id)') && a.includes('deleteAssetIfOrphan(id, props.ownerId') && read('/newtab/components/ResourceEditForm.vue').includes(':owner-id="model.id"') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes(':owner-id="selectedTask.id"') && read('/newtab/components/compass/CuriosityPanel.vue').includes(':owner-id="detailItem.id"'); });
 check('R128-13 A3 附件失效单条清理覆盖三类卡（此前只扫 resources → 任务/好奇侧引用残留死链）', () => { const w = read('/newtab/views/Workspace.vue'); const i = w.indexOf('async function onDrillCleanupAsset'); const seg = w.slice(i, i + 900); return i >= 0 && seg.includes('detachFrom(d.value.resources)') && seg.includes('detachFrom(d.value.tasks)') && seg.includes('detachFrom(d.value.curiosities)'); });
 console.log('【R128 · A4：浮层注入面收口（转义 + 链接协议统一）】');
@@ -460,9 +460,9 @@ check('R130-6 T4 三台左缘对齐线不变量：ws-page 1440 居中 + ws-conte
 
 // ============== R131 · V2.99.0：N1 三台对齐 + N2 项目目录侧栏 + 批次 C 性能 ==============
 console.log('【R131 · V2.99.0：N1/N2 体验修复 + 批次 C 性能】');
-check('R131-1 ★N1 策展台页头与论点带同轴（V4.0.4 重指：台身份 ≤40px、中心论点独占下一行；页头横向缩进归零，三层连续页头与画布共用 ws-content 的 36px 页轴）', () => {
+check('R131-1 ★N1 策展台页头与论点带同轴（V4.2.0 压缩重指：台身份 ≤40px、中心论点独占下一行；页头 6px 连续节奏与零横向缩进，三层页头与画布共用 ws-content 的 36px 页轴）', () => {
   const c = read('/newtab/views/workspace.css');
-  return /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 10px;[^}]*padding-left: 0;/.test(c)
+  return /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 6px;[^}]*padding-left: 0;/.test(c)
     && /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 36px;[^}]*max-height: 40px;/.test(c)
     && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
     && c.includes('.ws-content { flex: 1; min-width: 0; padding: 20px 36px 90px; overflow-y: auto; }')

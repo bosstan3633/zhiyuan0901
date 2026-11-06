@@ -18,6 +18,7 @@ const SYNC = read('/shared/cloud/sync.ts')
 const SETTINGS = read('/newtab/views/settings/SettingsCloudSync.vue')
 const INBOX = read('/newtab/composables/useInbox.ts')
 const INBOX_UI = read('/newtab/components/compass/InboxPanel.vue')
+const INBOX_DRAWER = read('/newtab/components/compass/InboxCaptureDrawer.vue')
 const USECLOUD = read('/newtab/composables/useCloudSync.ts')
 const DATA_MANAGEMENT = read('/newtab/views/settings/SettingsDataManagement.vue')
 const MOBILE = read('/mobile/App.vue')
@@ -108,8 +109,8 @@ check('R192-7（V4.1.0 重指）★出云清理：旧同步映射与内部字段
     && SYNC.includes('uploadState: SAFE_CURATION_UPLOAD_STATES.has(asset.uploadState')
 })
 
-check('R192-8（V4.1.0 重指）★移动采集 Inbox：只拉未删除记录并按 created_at 倒序，支持文本、三卡转化、镜像入口与软删除撤销；设置页不再维护第二套列表', () => {
-  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&order=created_at.desc'")
+check('R192-8（V4.2.0 重指）★移动采集 Inbox：只拉未删除且未转化的记录并按 created_at 倒序，支持文本、三卡转化、镜像入口与软删除撤销；设置页不再维护第二套列表', () => {
+  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&converted_at=is.null&order=created_at.desc'")
     && CLIENT.includes("`/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`")
     && CLIENT.includes('converted_at: new Date().toISOString()')
     && CLIENT.includes('converted_kind: convertedKind')
@@ -128,8 +129,8 @@ check('R192-8（V4.1.0 重指）★移动采集 Inbox：只拉未删除记录并
     && INBOX.includes('async function convert(')
     && INBOX.includes('async function dismiss(')
     && INBOX.includes('async function restore(')
-    && INBOX_UI.includes('转化为任务卡')
-    && INBOX_UI.includes('目标卡暂不可用')
+    && INBOX_DRAWER.includes("label: '任务卡'")
+    && INBOX_UI.includes('目标任务卡暂不可用')
     && INBOX_UI.includes("label: '撤销'")
 })
 
@@ -165,9 +166,12 @@ check('R192-10 ★Airtable 零回流负向守卫：运行时代码、manifest �
       || x.text.includes('sync-airtable')
       || x.text.includes("'package' | 'assets' | 'airtable'")
   })
+  const background = read('/background/index.ts')
   return runtimeRefs.length === 0
     && !MANIFEST.includes("'sync-airtable'")
-    && !MANIFEST.includes("'alarms'")
+    && MANIFEST.includes("'alarms'")
+    && background.includes("const AUTO_SYNC_ALARM = 'zy-cloud-auto-sync'")
+    && !background.includes('airtable-poll')
     && DATA_MANAGEMENT.includes("'package' | 'assets' | 'cloud'")
     && DATA_MANAGEMENT.includes("<button class=\"dm-tab\" :class=\"{ on: tab === 'cloud' }\" @click=\"tab = 'cloud'\">云同步</button>")
 })
@@ -219,7 +223,7 @@ check('R63-4（V4.0.3 重指）★跨设备同步范围统一为云快照三件�
 check('R63-5（V4.0.4 重指）★软删语义保留在本地数据树内：云快照不按已删除状态裁剪卡片，恢复时整棵 AppData 原样回灌；旧 Airtable「已删除」checkbox 不再存在', () => {
   const s = read('/shared/cloud/sync.ts');
   const start = s.indexOf('export function sanitizeSnapshot')
-  const end = s.indexOf('/** 稳定序列化', start)
+  const end = s.indexOf('\nconst MANIFEST_FIELDS', start)
   const body = start >= 0 && end > start ? s.slice(start, end) : ''
   return body.includes('const d = JSON.parse(JSON.stringify(data)) as AppData')
     && !body.includes('deletedAt') && !body.includes("'已删除'")
@@ -237,11 +241,14 @@ check('R63-6（V4.0.3 重指）★数据管理只保留三页签：数据包 / �
     && dm.includes('浏览器书签') && dm.includes('SettingsCloudSync')
     && !codeOnly(dm).includes('testAtConnection') && !codeOnly(dm).includes('runAtSync') && !codeOnly(dm).includes('toggleAtPoll');
 });
-check('R63-7（V4.0.3 重指）★manifest 与 background 的 Airtable 运行时零回流：无 sync-airtable 命令、无 alarms 权限、无命令转发或后台触发入口', () => {
+check('R63-7（V4.2.0 重指）★manifest 与 background 的 Airtable 运行时零回流：无 sync-airtable 命令、无旧轮询或命令转发；alarms 仅允许 V4.2.0 的云同步自动上传', () => {
   const m = read('/manifest.ts');
   const b = read('/background/index.ts');
-  return !m.includes("'sync-airtable'") && !m.includes("'alarms'")
-    && !b.includes("case 'sync-airtable'") && !b.includes('triggerAirtableSync') && !b.includes('zy-autosync');
+  return !m.includes("'sync-airtable'") && m.includes("'alarms'")
+    && !b.includes("case 'sync-airtable'") && !b.includes('triggerAirtableSync') && !b.includes('zy-autosync')
+    && b.includes("const AUTO_SYNC_ALARM = 'zy-cloud-auto-sync'")
+    && b.includes('periodInMinutes: AUTO_SYNC_PERIOD_MINUTES')
+    && !b.includes('airtable-poll');
 });
 check('R63-8（V4.0.4 重指）★后台轮询退役：background 不再注册 Airtable alarm、storage.onChanged 对齐或无页跳过逻辑；启动检查只由常驻顶栏按钮触发一次，App 不重复探测', () => {
   const b = read('/background/index.ts');

@@ -10,6 +10,7 @@ import { showToast } from '@/shared/components/toast'
 import { uid } from '@/shared/utils'
 import { CURATION_WS_ID, type AppData, type Category, type ResourceCard, type Workspace } from '@/shared/models'
 import { wsDisplayNameOf, wsNameWithIcon } from '@/shared/utils/wsName'
+import { cloneResourceMirrorSnapshot } from '@/shared/storage/resourceMirrors'
 import {
   parseCurationShareHtml,
   snapshotNodeCount,
@@ -99,6 +100,8 @@ function findPoolCard(d: AppData, raw: CurationShareCard): ResourceCard | undefi
 /** 同一张池卡可以投射到多个台；同一台内则复用一条投射，并更新到目标节点。 */
 function ensureProjection(d: AppData, cardId: string, workspaceId: string, categoryId: string): boolean {
   d.curationProjections = d.curationProjections || []
+  const source = d.resources.find(resource => resource.id === cardId && !resource.deletedAt)
+  if (!source) return false
   const existed = d.curationProjections.find(p =>
     p.kind === 'card' && p.cardId === cardId && p.targetWsId === workspaceId
   )
@@ -116,6 +119,7 @@ function ensureProjection(d: AppData, cardId: string, workspaceId: string, categ
     targetWsId: workspaceId,
     targetCatId: categoryId,
     addedAt: Date.now(),
+    snapshot: cloneResourceMirrorSnapshot(source),
   })
   return true
 }

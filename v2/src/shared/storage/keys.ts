@@ -17,6 +17,10 @@ export const K = {
   EVENT_LOG: 'zy_event_log',
   /** 云同步元数据（登录态/版本/上次上传下载时间；不含主数据） */
   CLOUD_META: 'zy_cloud_meta_v1',
+  /** 云同步回执的本机私有动作载荷；不进云端快照，最多保留 30 天 */
+  CLOUD_SYNC_ACTIONS: 'zy_cloud_sync_actions_v1',
+  /** 跨页面/后台的云同步互斥锁，避免手动与自动任务同时覆盖 */
+  CLOUD_SYNC_LOCK: 'zy_cloud_sync_lock_v1',
   /** 设置页覆盖的 Supabase 项目地址与 publishable key */
   CLOUD_ENV: 'zy_cloud_env',
   /** 好奇心探索累计起算时刻 */
@@ -66,6 +70,8 @@ export const LOCAL_KEYS = {
   INBOX_CACHE: 'zy_inbox_cache',
   /** Inbox 卡片已在本机创建但远端转化状态尚未写回的重试队列 */
   INBOX_CONVERSION_QUEUE: 'zy_inbox_conversion_queue',
+  /** Inbox 元数据已在本机更新但尚未写回云端的重试队列 */
+  INBOX_EDIT_QUEUE: 'zy_inbox_edit_queue',
   /** 策展附件远端删除重试队列；只在本地保存对象路径，不保存凭据 */
   CURATION_ASSET_DELETE_QUEUE: 'zy_curation_asset_delete_queue',
   /** 账号操作事件拉取游标；按账号保存最后一条服务端接收时间 */

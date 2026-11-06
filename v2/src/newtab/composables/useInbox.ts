@@ -11,6 +11,8 @@ import {
   listCaptures,
   restoreCapture,
   restoreCaptures,
+  updateCapture,
+  type CapturePatch,
   type CaptureConvertedKind,
   type CaptureItem,
 } from '@/shared/cloud/sync'
@@ -19,6 +21,13 @@ interface PendingConversion {
   captureId: string
   kind: CaptureConvertedKind
   cardId: string
+  queuedAt: number
+  attempts: number
+  lastError?: string
+}
+interface PendingEdit {
+  captureId: string
+  patch: CapturePatch
   queuedAt: number
   attempts: number
   lastError?: string
@@ -63,10 +72,47 @@ function removeQueuedConversion(captureId: string): void {
   writeConversionQueue(readConversionQueue().filter(row => row.captureId !== captureId))
 }
 
+function readEditQueue(): PendingEdit[] {
+  try {
+    const rows = JSON.parse(globalThis.localStorage?.getItem(LOCAL_KEYS.INBOX_EDIT_QUEUE) || '[]') as PendingEdit[]
+    return Array.isArray(rows) ? rows.filter(row => row?.captureId && row.patch && typeof row.patch === 'object') : []
+  } catch { return [] }
+}
+
+function writeEditQueue(rows: PendingEdit[]): void {
+  try {
+    if (rows.length) globalThis.localStorage?.setItem(LOCAL_KEYS.INBOX_EDIT_QUEUE, JSON.stringify(rows))
+    else globalThis.localStorage?.removeItem(LOCAL_KEYS.INBOX_EDIT_QUEUE)
+  } catch { /* 隐私模式下仍保留本轮内存状态 */ }
+}
+
+function enqueueEdit(captureId: string, patch: CapturePatch, error?: unknown): void {
+  const rows = readEditQueue()
+  const current = rows.find(row => row.captureId === captureId)
+  if (current) {
+    current.patch = { ...current.patch, ...patch }
+    current.attempts += 1
+    current.lastError = error instanceof Error ? error.message : error ? String(error) : current.lastError
+  } else {
+    rows.push({
+      captureId,
+      patch,
+      queuedAt: Date.now(),
+      attempts: 0,
+      lastError: error instanceof Error ? error.message : error ? String(error) : undefined,
+    })
+  }
+  writeEditQueue(rows)
+}
+
+function removeQueuedEdit(captureId: string): void {
+  writeEditQueue(readEditQueue().filter(row => row.captureId !== captureId))
+}
+
 function readCache(): CaptureItem[] {
   try {
     const rows = JSON.parse(globalThis.localStorage?.getItem(LOCAL_KEYS.INBOX_CACHE) || '[]') as CaptureItem[]
-    return Array.isArray(rows) ? rows.filter(row => !!row?.id).slice(0, 500) : []
+    return Array.isArray(rows) ? rows.filter(row => !!row?.id && !row.convertedKind).slice(0, 500) : []
   } catch { return [] }
 }
 
@@ -81,6 +127,7 @@ const error = ref('')
 const loadedOnce = ref(false)
 let refreshPromise: Promise<void> | null = null
 let retryPromise: Promise<number> | null = null
+let editRetryPromise: Promise<number> | null = null
 
 function firstLine(capture: CaptureItem): string {
   const raw = capture.title?.trim() || capture.text?.trim() || capture.url?.trim() || '未命名采集'
@@ -145,6 +192,38 @@ async function retryPendingConversions(): Promise<number> {
   }
 }
 
+async function retryPendingEdits(): Promise<number> {
+  if (editRetryPromise) return editRetryPromise
+  const queue = readEditQueue()
+  if (!queue.length) return 0
+  const meta = await getCloudMeta()
+  if (!meta?.refreshToken) return 0
+  editRetryPromise = (async () => {
+    let done = 0
+    const failed: PendingEdit[] = []
+    for (const row of queue) {
+      try {
+        await updateCapture(row.captureId, row.patch)
+        done++
+        removeQueuedEdit(row.captureId)
+      } catch (error) {
+        failed.push({
+          ...row,
+          attempts: row.attempts + 1,
+          lastError: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+    writeEditQueue(failed)
+    return done
+  })()
+  try {
+    return await editRetryPromise
+  } finally {
+    editRetryPromise = null
+  }
+}
+
 async function refresh(force = false): Promise<void> {
   if (refreshPromise) return refreshPromise
   if (loadedOnce.value && !force) return
@@ -154,15 +233,21 @@ async function refresh(force = false): Promise<void> {
     try {
       const meta = await getCloudMeta()
       connected.value = !!meta?.refreshToken
-      if (connected.value) await retryPendingConversions()
+      if (connected.value) {
+        await retryPendingEdits()
+        await retryPendingConversions()
+      }
       const rows = connected.value ? await listCaptures() : readCache()
-      items.value = rows.map(item => {
+      const live: CaptureItem[] = []
+      for (const item of rows) {
         const decorated = decorate(item)
         if (!item.convertedKind && decorated.convertedKind && decorated.convertedCardId) {
           enqueueConversion(item.id, decorated.convertedKind, decorated.convertedCardId, new Error('等待补写转化状态'))
+          continue
         }
-        return decorated
-      })
+        if (!decorated.convertedKind) live.push(decorated)
+      }
+      items.value = live
       writeCache(items.value)
       if (connected.value) await retryPendingConversions()
       loadedOnce.value = true
@@ -183,9 +268,7 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
   if (!data) throw new Error('数据尚未加载')
   const existing = existingCardFor(item.id)
   if (existing) {
-    items.value = items.value.map(row => row.id === item.id
-      ? { ...row, convertedKind: existing.kind, convertedCardId: existing.id, convertedAt: row.convertedAt || Date.now() }
-      : row)
+    items.value = items.value.filter(row => row.id !== item.id)
     writeCache(items.value)
     enqueueConversion(item.id, existing.kind, existing.id, new Error('等待补写转化状态'))
     try {
@@ -222,7 +305,7 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
       link: item.url,
       callCount: 0,
     }
-    data.tasks.push(card)
+    data.tasks.unshift(card)
     cardId = card.id
   } else if (kind === 'curiosity') {
     const card: CuriosityCard = {
@@ -236,7 +319,7 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
       pinned: false,
       callCount: 0,
     }
-    data.curiosities.push(card)
+    data.curiosities.unshift(card)
     cardId = card.id
   } else {
     const card: ResourceCard = {
@@ -252,13 +335,11 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
       pinned: false,
       callCount: 0,
     }
-    data.resources.push(card)
+    data.resources.unshift(card)
     cardId = card.id
   }
   store.persist()
-  items.value = items.value.map(row => row.id === item.id
-    ? { ...row, convertedKind: kind, convertedCardId: cardId, convertedAt: now }
-    : row)
+  items.value = items.value.filter(row => row.id !== item.id)
   writeCache(items.value)
   try {
     await convertCapture(item.id, kind, cardId)
@@ -267,6 +348,27 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
     error.value = `卡片已在本机生成，转化状态待同步：${err instanceof Error ? err.message : String(err)}`
   }
   return { kind, id: cardId }
+}
+
+async function update(item: CaptureItem, patch: CapturePatch): Promise<CaptureItem> {
+  const normalized: CapturePatch = {
+    ...(patch.title !== undefined ? { title: patch.title.trim() } : {}),
+    ...(patch.url !== undefined ? { url: patch.url.trim() } : {}),
+    ...(patch.text !== undefined ? { text: patch.text } : {}),
+    ...(patch.note !== undefined ? { note: patch.note.trim() } : {}),
+    ...(patch.tags !== undefined ? { tags: patch.tags.map(tag => tag.trim()).filter(Boolean) } : {}),
+  }
+  const next = { ...item, ...normalized }
+  items.value = items.value.map(row => row.id === item.id ? next : row)
+  writeCache(items.value)
+  try {
+    await updateCapture(item.id, normalized)
+    removeQueuedEdit(item.id)
+  } catch (err) {
+    enqueueEdit(item.id, normalized, err)
+    error.value = `采集已在本机更新，等待联网补写：${err instanceof Error ? err.message : String(err)}`
+  }
+  return next
 }
 
 async function dismiss(item: CaptureItem): Promise<void> {
@@ -299,7 +401,7 @@ async function restoreMany(rows: CaptureItem[]): Promise<void> {
   writeCache(items.value)
 }
 
-const untransformedCount = computed(() => items.value.filter(item => !item.convertedKind).length)
+const untransformedCount = computed(() => items.value.length)
 const sortedItems = computed(() => items.value)
 
 export function useInbox() {
@@ -311,6 +413,7 @@ export function useInbox() {
     error,
     untransformedCount,
     refresh,
+    update,
     convert,
     dismiss,
     restore,

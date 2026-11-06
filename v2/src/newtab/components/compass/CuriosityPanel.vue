@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import Icon from '@/shared/components/Icon.vue'
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, defineAsyncComponent, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
-// R129-B12：台名剥图标走全站唯一口径（此处原为 /[^s]+s/ 漏写转义，图标一直在下拉里重复显示）
-// R4-Ep：可选台列表与「id→展示名」都走 wsName.ts 单源，不再从这里自己 filter 原始 workspaces 数组
-import { selectableWsOptions, wsNameById } from '@/shared/utils/wsName'
-import { CURATION_WS_ID } from '@/shared/models'
 // R129-B5：链接协议白名单与打开通道全站唯一实现
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { useAppStore } from '../../stores/app'
@@ -34,7 +30,6 @@ import { useCardCols } from '@/shared/utils/cardCols'
 import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import {
   archivedHintCount as archivedHintCountOf,
@@ -49,10 +44,7 @@ import {
   statusCountsOf,
   visibleCurioExtFields,
 } from './curiosityPanelCore'
-// R181 结构优化：转化弹窗外提；V4.1.3 起好奇心不再提供资源挂载入口。
-import { useCurioConvert } from './curiosityPanelBridges'
-
-const { curiosities, STATUS_MAP, update, setStatus, remove, convertToTask, convertToResource } = useCuriosity()
+const { curiosities, STATUS_MAP, update, setStatus, remove } = useCuriosity()
 const store = useAppStore()
 const d = computed(() => store.data!)
 const route = useRoute()
@@ -170,13 +162,6 @@ function toggleAllGroups(): void {
 const statusCounts = computed(() => {
   return statusCountsOf(curiosities.value)
 })
-/**
- * R167：「已转化」计数——转化即出路的卡当场软删离场，池里（含四个状态 chip）再也数不到它，
- * 探索有没有产出必须换个地方记账。口径：**转任务与归档资源都算一条**；
- * 回收站里点"恢复"= 撤销这次转化（戳记同时清除，本计数随之回落）。
- */
-const convertedCount = computed(() => (d.value.curiosities || []).filter(c => c.convertedAt).length)
-
 function clearCurioFilter(): void {
   statusFilter.value = 'all'
   searchQuery.value = ''
@@ -192,12 +177,6 @@ const curioStatusMenuOpen = ref(false)
 /** 第卅三轮 REQ-024：详情文本框高度（默认 180px，拖拽记忆） */
 const { taH: detailH, startTaResize: startDetailResize } = useTaHeight('curio-detail', store.ui)
 const detailItem = computed(() => curiosities.value.find(c => c.id === detailId.value) || null)
-// R181 结构优化：转化弹窗外提；历史 curioSupportLinks 仅保留兼容同步。
-const {
-  convertOpen, convertTarget, convertItem, convertWsId, convertCatId, convertProjId, convertMetId,
-  convWorkspaces, convCategories, convProjects, convMetrics,
-  openConvert, onConvertProjChange, confirmConvert,
-} = useCurioConvert({ store, convertToResource, convertToTask, clearDetail: () => closeDetail() })
 const editDraft = ref('')
 function openDetail(id: string) {
   detailId.value = id
@@ -253,7 +232,6 @@ function openCurioCtx(e: MouseEvent, c: CuriosityCard) {
     { label: '打开详情', icon: 'arrowright', cb: () => openDetail(c.id) },
     { label: c.pinned ? '取消置顶' : '置顶', icon: 'pin', cb: () => togglePin(c.id) },
     { label: c.starred ? '取消星标' : '星标', icon: 'star', cb: () => toggleStar(c.id) },
-    { label: '转为任务', icon: 'check', cb: () => openConvert(c, 'task') },
     { label: '删除', icon: 'trash', danger: true, cb: () => deleteCard(c) }
   ]
   ctx.value = { open: true, x: Math.min(e.clientX, window.innerWidth - 190), y: Math.min(e.clientY, window.innerHeight - 220) }
@@ -374,36 +352,6 @@ function onCzKanbanDrop(e: DragEvent, status: CuriStatus) {
   dragCzId = null
 }
 
-// ---- 转化（选策展台/分类 或 项目/指标）---- 已外提见 curiosityPanelBridges.ts useCurioConvert
-
-/* ===== R144 · G2：转化研判（批量=当前筛选口径下的待探索池；R151 起同一通道支持单卡入口） ===== */
-const AiDrawer = defineAsyncComponent(() => import('../AiSuggestionDrawer.vue'))
-const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
-// R165-A（方案 A 标准）：单卡研判入口从页脚升头部标题行右侧；busy 防重复起任务，三态凭 aiTouchedAt（batchG 采纳时落戳）
-const aiBusy = ref(false)
-async function aiTriage(one?: CuriosityCard) {
-  const d = store.data
-  if (!d || aiBusy.value) return
-  const pool = one ? [one] : filtered.value.filter(c => c.status === 'todo' || c.status === 'doing')
-  if (!one && pool.length < 3) { showToast('待探索池少于 3 条——先多攒几条好奇心再研判'); return }
-  if (one && one.status !== 'todo' && one.status !== 'doing') { showToast('这条已是「已转任务」或「已搁置」——先改回待探索再研判'); return }
-  aiBusy.value = true
-  try {
-    const [{ loadAiConfig, aiReady, aiConfig }, { buildCurioTriageJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/batchG')])
-    await loadAiConfig()
-    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-    aiJob.value = buildCurioTriageJob({
-      d, depth: aiConfig.value.depth, persist: () => store.persist(), pool, single: !!one,
-      onConvert: (c, title) => {
-        if (c.deletedAt) return false
-        const t = convertToTask(c)
-        t.title = title.slice(0, 40)
-        t.description = ((t.description ? t.description + '\n\n' : '') + '源自好奇研判：' + c.question.slice(0, 80))
-        return true
-      },
-    })
-  } finally { aiBusy.value = false }
-}
 /** R165-A：来源链接动作贴对象 */
 function copySourceUrl(c: CuriosityCard) {
   if (!c.sourceUrl) { showToast('来源为空'); return }
@@ -479,9 +427,6 @@ function srcShort(url: string): string {
         :sort-dir="sortDir" :sort-dir-titles="['捕获时间倒序（新→旧），点击切换正序', '捕获时间正序（旧→新），点击切换倒序']" @sort-dir="toggleSortDir"
         :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
         <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
-        <!-- R167：转化即出路的账——离场的卡只能在这里被看见 -->
-        <span class="cz-converted" :title="convertedCount ? `已转出 ${convertedCount} 条（转任务 / 归档资源都算）· 在回收站点「恢复」即撤销这次转化` : '还没有好奇心被转出'">› 已转化 <b>{{ convertedCount }}</b></span>
-        <button class="cz-batch-btn ai" title="AI 逐条研判待探索池：哪些值得转成任务、哪些继续养着、哪些可以放下（勾选采纳才写库）" @click="aiTriage()"><AiEntryButton variant="inline" label="转化研判" /></button>
       </DeckControls>
 
       <Transition name="expand">
@@ -552,9 +497,6 @@ function srcShort(url: string): string {
             <!-- R117（04-61 D）：创建时间受字段设置控制（原为硬编码 unconditional 渲染） -->
             <div v-if="cShow('createdAt')" class="cz-meta"><Icon name="calendar" :size="13"/> {{ fmtDate(c.createdAt) }}</div>
             <div class="cz-hover-bar">
-              <button class="cz-hover-btn primary" @click.stop="openConvert(c, 'task')">转为任务</button>
-              <button class="cz-hover-btn" @click.stop="openConvert(c, 'res')">归档资源</button>
-              <button class="cz-hover-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务（判据=对不对得上愿景与活跃目标）"><AiEntryButton variant="inline" label="研判" /></button>
               <button class="cz-hover-btn danger" @click.stop="deleteCard(c)" title="删除"><Icon name="trash" :size="13"/></button>
             </div>
           </div>
@@ -594,9 +536,6 @@ function srcShort(url: string): string {
             <div class="cz-list-actions">
               <button class="mini-btn" :class="{pinon: c.pinned}" @click.stop="togglePin(c.id)" title="置顶"><Icon name="pin" :size="13"/></button>
               <button class="mini-btn" :class="{pinon: c.starred}" @click.stop="toggleStar(c.id)" title="星标"><Icon name="star" :size="13"/></button>
-              <button class="mini-btn" @click.stop="openConvert(c, 'task')">转任务</button>
-              <button class="mini-btn" @click.stop="openConvert(c, 'res')">归档</button>
-              <button class="mini-btn ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><AiEntryButton /></button>
               <button class="mini-btn danger" @click.stop="deleteCard(c)"><Icon name="trash" :size="13"/></button>
             </div>
           </div>
@@ -626,7 +565,6 @@ function srcShort(url: string): string {
               <div class="cz-kanban-meta">
                 <AssetBadge v-if="curioExtFields.some(f => f.key === 'assets')" :assets="c.assets" />
                 <span>{{ fmtDate(c.createdAt) }}</span>
-                <button class="cz-kb-ai" @click.stop="aiTriage(c)" title="AI 研判这条好奇：值不值得转成任务"><AiEntryButton /></button>
                 <button class="cz-kb-del" @click.stop="deleteCard(c)" title="删除"><Icon name="trash" :size="13"/></button>
               </div>
             </div>
@@ -661,18 +599,8 @@ function srcShort(url: string): string {
         <MaturityBadge v-if="detailItem" lg :m="curioMaturity(detailItem)" />
       </template>
       <template v-if="detailItem">
-        <!-- AI 入口：一枚（研判）。判词写进详情是**弹窗内的次级动作**（job.secondary），
-             不在这里并列——它只在"刚跑完一次研判"的上下文里才有意义。 -->
-        <div class="ds-ai-strip one">
-          <button class="ds-ai-cell" :disabled="aiBusy" title="AI 研判这条好奇：值不值得转成任务（判据对得上愿景与活跃目标；勾选采纳才落库）。判词可另存进正文，不动状态。" @click="aiTriage(detailItem)">
-            <span class="ico"><AiEntryButton variant="icon" :spin="aiBusy" /></span>
-            <span class="tx"><b>{{ detailItem.aiTouchedAt ? '↻ 重新研判' : '研判要不要转' }}</b><small>比对愿景与活跃目标 · 勾选才动卡</small></span>
-          </button>
-          <span v-if="detailItem.aiTouchedAt" class="ds-ai-when">最近 · {{ new Date(detailItem.aiTouchedAt).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</span>
-        </div>
-
         <section class="ds-pnl">
-          <div class="ds-pnl-h"><b>来源与标签</b><i>转任务时来源随卡带走</i><span class="r" v-if="detailItem.callCount">打开 {{ detailItem.callCount }} 次</span></div>
+          <div class="ds-pnl-h"><b>来源与标签</b><i>编辑后自动保存</i><span class="r" v-if="detailItem.callCount">打开 {{ detailItem.callCount }} 次</span></div>
           <div class="ds-kv"><span class="k">来源</span><span class="v">
             <input v-model="detailItem.sourceUrl" placeholder="来源链接（网页 / 本地路径 / obsidian://，失焦即保存）…" class="ds-in"
               @change="update(detailItem.id, { sourceUrl: detailItem.sourceUrl })" />
@@ -696,8 +624,6 @@ function srcShort(url: string): string {
 
         <section class="ds-pnl">
           <div class="ds-pnl-h"><b>流转与凭证</b><i>都有后果，不静默</i></div>
-          <div class="ds-kv clk" v-pressable @click="openConvert(detailItem, 'task')"><span class="k">转任务</span><span class="v">建 1 张任务卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
-          <div class="ds-kv clk" v-pressable @click="openConvert(detailItem, 'res')"><span class="k">归档资源</span><span class="v">建 1 张资源卡 · 本条<b class="cz-strong">从池中离场</b>（回收站可撤）· 已转化 +1<span class="go">›</span></span></div>
           <details class="ds-details">
             <summary>附件 · 时间 <span v-if="detailItem.assets?.length" class="cnt">({{ detailItem.assets.length }})</span><span class="right">捕获 {{ new Date(detailItem.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span></summary>
             <AssetManager v-model="detailItem.assets" :owner-id="detailItem.id" @update:model-value="onCurioAssetsChange" @html-added="onCurioHtmlAdded" />
@@ -715,54 +641,7 @@ function srcShort(url: string): string {
       </template>
     </Drawer>
 
-    <!-- 转化弹窗：选目标位置 -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="convertOpen" class="cz-modal-overlay" @click.self="convertOpen = false">
-          <div class="cz-modal">
-            <div class="cz-modal-head">
-              <span><Icon :name="convertTarget === 'task' ? 'branch' : 'save'" :size="13"/> {{ convertTarget === 'task' ? '转为任务' : '归档为资源' }}</span>
-              <button class="mini-btn" @click="convertOpen = false">×</button>
-            </div>
-            <div class="cz-modal-sub">{{ convertItem?.question }}</div>
-
-            <template v-if="convertTarget === 'res'">
-              <label class="cz-modal-label">存入位置</label>
-              <select v-model="convertWsId" class="cz-modal-select">
-                <option v-for="w in convWorkspaces" :key="w.id" :value="w.id">{{ w.label }}</option>
-              </select>
-              <label class="cz-modal-label">分类（默认待分类）</label>
-              <select v-model="convertCatId" class="cz-modal-select">
-                <option value=""><Icon name="inbox" :size="13"/> 待分类</option>
-                <option v-for="cat in convCategories" :key="cat.id" :value="cat.id"><Icon name="folderopen" :size="13"/> {{ cat.name }}</option>
-              </select>
-            </template>
-
-            <template v-else>
-              <label class="cz-modal-label">所属攻坚项目（可选）</label>
-              <!-- R70：项目变更时复位指标（见 onConvertProjChange）——此前只 disabled 不清空，可提交出「有指标无项目」的非法任务 -->
-              <select v-model="convertProjId" class="cz-modal-select" @change="onConvertProjChange">
-                <option value="">暂不归属</option>
-                <option v-for="p in convProjects" :key="p.id" :value="p.id"><Icon name="package" :size="13"/> {{ p.name }}（{{ p.dir }}）</option>
-              </select>
-              <label class="cz-modal-label">成功指标（可选）</label>
-              <select v-model="convertMetId" class="cz-modal-select" :disabled="!convertProjId">
-                <option value="">暂不归属</option>
-                <option v-for="m in convMetrics" :key="m.id" :value="m.id"><Icon name="target" :size="13"/> {{ m.title }}</option>
-              </select>
-            </template>
-
-            <div class="cz-modal-foot">
-              <button class="mini-btn" @click="convertOpen = false">取消</button>
-              <button class="mini-btn primary" @click="confirmConvert"><Icon name="check" :size="13"/> 确认转化</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
     <ContextMenu :state="ctx" :items="ctxItems" @close="ctx.open = false" />
-    <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
   </ModuleCard>
 </template>
 

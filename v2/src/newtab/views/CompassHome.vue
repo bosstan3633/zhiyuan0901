@@ -73,7 +73,7 @@ const {
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks,
   previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-  previewInbox, inbox, inboxPreviewBusy, convertInboxPreview, removeInboxPreview,
+  previewInbox, inbox,
   hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
@@ -321,12 +321,7 @@ const {
                       <span class="mini-meta">{{ item.contentKind === 'link' ? '链接采集' : '文本采集' }} · {{ fmtShortDate(item.createdAt) }}</span>
                     </span>
                   </button>
-                  <div class="mini-inbox-actions" aria-label="Inbox 快捷操作">
-                    <button type="button" :disabled="!!inboxPreviewBusy" title="转化为任务卡" @click="convertInboxPreview(item, 'task')">任务</button>
-                    <button type="button" :disabled="!!inboxPreviewBusy" title="转化为好奇心卡" @click="convertInboxPreview(item, 'curiosity')">好奇</button>
-                    <button type="button" :disabled="!!inboxPreviewBusy" title="转化为资源卡" @click="convertInboxPreview(item, 'resource')">资源</button>
-                    <button type="button" class="danger" :disabled="!!inboxPreviewBusy" title="删除 Inbox 采集" @click="removeInboxPreview(item)">删除</button>
-                  </div>
+                  <span class="mini-inbox-hint">进入 Inbox 处理</span>
                 </div>
                 <div v-if="!previewInbox.length" class="mini-empty">
                   {{ inbox.connected.value ? 'Inbox 里没有未转化内容' : '连接云同步后可查看移动采集' }}

@@ -28,7 +28,6 @@ import PiHero from '@/newtab/components/profile/PiHero.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
 import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
 import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
-import { useCuriosity } from '@/newtab/stores/curiosity'
 import type {
   PiYearCardRow,
   PiYearDayRow
@@ -51,7 +50,7 @@ import { useProfileInsightsMonth } from './useProfileInsightsMonth'
 
 export type GFlat = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
 export type StatDrawerType = '' | 'all' | 'support' | 'goal-week'
-  | 'curio-conv' | 'curated' | 'mo-support' | 'topic'
+  | 'curated' | 'mo-support' | 'topic'
   | 'ammo' | 'cooling' | 'today-in' | 'today-call'
 export type StatRow = PiStatRow
 export type TagOptimizeJob = import('@/shared/ai/job').AiJob
@@ -259,7 +258,6 @@ const conciseCtx = computed<ConciseCtx>(() => {
   const weekWin = windowOf('week', {})
   const wAgg = aggregateRange(dashStats.value, weekWin.s, weekWin.e)
   const objs = objectivesOf(dashDirections.value, dashTasks.value, weekWin)
-  const cutoff14 = Date.now() - 14 * 86400000
   return {
     today: {
       freeCount: need.length,
@@ -280,9 +278,6 @@ const conciseCtx = computed<ConciseCtx>(() => {
     month: {
       entropyFrom: mEntTrend.value.from,
       entropyTo: mEntTrend.value.to,
-      oldCurio: gd.value.curiosities.filter(c =>
-        !c.deletedAt && !c.convertedAt && c.status === 'doing' && (c.createdAt || 0) <= cutoff14).length,
-      matureMatched: mMature.value.length,
       projected: mProjected.value
     },
     year: { coolingHigh: yCoolHigh.value, dirFitText: yDirFit.value }
@@ -310,7 +305,7 @@ const concise = computed(() => {
     四组件条带全部走这一个出口——原先四段各写各的 onXxxInsightAction，现按键分派）。
     键 → 动作：openFocusBoard 去排三件事 / bindFocus 归位首件游离 / callSupport 调出支撑卡 /
     openBattle 今日战报 / openObjectives 头号战略目标产出明细 / openLog 全量记录 /
-    convertCurio 批量转化成熟好奇卡 / wakeCooling · openLifecycle 冷却区唤醒复温。 */
+    wakeCooling · openLifecycle 冷却区唤醒复温。 */
 function onConciseAction(action: string) {
   if (action === 'openFocusBoard') { void router.push('/'); showToast('已跳调度台 · 排一排今日三件事'); return }
   /* ★W17-C09：画像页不再提供就地归位（三件事能力唯一归调度台），CTA 改为跳过去处理 */
@@ -330,13 +325,6 @@ function onConciseAction(action: string) {
     return
   }
   if (action === 'openLog') { openLog('log'); return }
-  if (action === 'convertCurio') {
-    const list = mMature.value
-    if (!list.length) { showToast('没有可转化的成熟好奇卡'); return }
-    for (const c of [...list]) curioApi.convertToTask(c)
-    showToast(`已将 ${list.length} 张成熟好奇卡转化为任务`)
-    return
-  }
   if (action === 'wakeCooling' || action === 'openLifecycle') wakeCooling()
 }
 
@@ -375,7 +363,6 @@ const {
     todayCalled: todayCalled.value,
     todayFilled: todayFilled.value,
     todayAmmo: todayAmmo.value,
-    monthCurioConv: mCurioConv.value,
     monthProjected: mProjected.value,
     monthTopics: mTopics.value,
     yearCoolingHigh: yCoolHigh.value,
@@ -456,13 +443,6 @@ const statList = computed<StatRow[]>(() => {
           owner: t.completedAt ? '本周完成' : '＋ 本周新建'
         }))
       : []
-    /* F17：本月转化离场的好奇卡（R167 convertedAt 记账戳，含软删离场卡——池里数不到靠它计数） */
-    case 'curio-conv': return gd.value.curiosities
-      .filter(c => c.convertedAt && c.convertedAt >= gStartOfMonth)
-      .map(c => ({
-        kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', ts: c.convertedAt || 0,
-        owner: c.convertedTo === 'task' ? '→ 转任务' : '→ 归资源'
-      }))
     /* F17/F19：策展金字塔现存量（投射卡 + 论点卡两段拼一张清单，owner 标来源） */
     case 'curated': return [
       ...(gd.value.curationProjections || []).filter(p => p.kind === 'card' && p.cardId).map(p => {
@@ -816,7 +796,7 @@ function onRhythmDrill(k: 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace') {
 /* ---- T5 月度派生（宿主推导，PiMonth props-only 红线 R172-9）---- */
 /* F16 知识熵变化：to=当前全库；from=上月底快照口径（存活卡中 createdAt 在本月初之前的子集——
    历史时点的真实全量已不可回放，以现存活卡按 createdAt 截断作诚实近似） */
-  const { mEntTrend, mTopics, mUntagged, mFunnel, mCurioConv, mProjected, curioApi, mMature, onMonthDrill } = useProfileInsightsMonth({ gd, gStartOfMonth, heroEntropy, gResLive, projNameById, gCurioLive, gTaskLive, openLog, openStatDrawer })
+  const { mEntTrend, mTopics, mUntagged, mFunnel, mProjected, onMonthDrill } = useProfileInsightsMonth({ gd, gStartOfMonth, heroEntropy, gResLive, projNameById, gCurioLive, gTaskLive, openLog, openStatDrawer })
 function onMonthTopic(tag: string) { topicTag.value = tag; openStatDrawer('topic') }
 /* F15：战略目标点行 → 该方向本周产出任务明细（原跳调度台首页，随 F13 浅化为就地抽屉） */
 function onGoalDrill(dirId: string) {
@@ -883,8 +863,8 @@ onUnmounted(() => { offErrLog() })
     yDirFit, wakeCooling, yearMetricDrawer, yearMetricMode, yearMetricTitle, yearMetricNote,
     yearMetricDays, yearMetricCardRows, openYearMetricDay, openYearMetricCard, onYearDrill,
     openTodayBattle, openDayBattle, onHeroDrill, onHeroRefresh, gotoCompass, onHeroExport,
-    onTodayDrill, onRhythmDrill, mEntTrend, mTopics, mUntagged, mFunnel, mCurioConv, mProjected, curioApi,
-    mMature, onMonthDrill, onMonthTopic, onGoalDrill, errorLogCount, refreshErrorCount, offErrLog, exportErrorLog, fmtDayKey,
+    onTodayDrill, onRhythmDrill, mEntTrend, mTopics, mUntagged, mFunnel, mProjected,
+    onMonthDrill, onMonthTopic, onGoalDrill, errorLogCount, refreshErrorCount, offErrLog, exportErrorLog, fmtDayKey,
     fmtDay,
   }
 }

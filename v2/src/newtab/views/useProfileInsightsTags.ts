@@ -34,7 +34,6 @@ const statDrawerTitle = computed(() => ({
   'today-in': `今日入台的卡（${statList.value.length} 张）`,
   'today-call': `↗ 今日调出的卡（${statList.value.length} 张）`,
   'goal-week': `${dashDirections.value.find(d => d.id === goalDirId.value)?.name || '方向'} · 本周产出任务（${statList.value.length}）`,
-  'curio-conv': `本月转化的好奇卡（${statList.value.length}）`,
   'curated': `入策展金字塔明细（${statList.value.length} · 投射 + 论点）`,
   'mo-support': `本月支撑任务明细（${statList.value.length}）`,
   topic: `#${topicTag.value} 本月新增卡片（${statList.value.length}）`,

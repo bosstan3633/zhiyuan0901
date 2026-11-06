@@ -3,7 +3,7 @@
  * W13-T5（2026-10-16 · D2/F16~F19）PiMonth —— 时间轴模块③ 本月 · MONTH（三段式）。
  *   ① #ins-month `.one-insight` 一句人话诊断条（F16：Top 标签集中度/知识熵变化 × 超 14 天
  *      老好奇卡 × 入策展金字塔，宿主推导好传入）+ 模块头「知识熵 X.X → Y.Y bit」变化徽标
- *   ② `.strip4` 四格：本月入池 / 本月调出 / 好奇心转化 / 入策展金字塔（F17 月度专属口径）
+ *   ② `.strip4` 四格：本月入池 / 本月调出 / 本月新增任务 / 入策展金字塔（F17 月度专属口径）
  *   ③ `.light-split` 双栏（拒绝克隆本周柱状图）：左 Top 3 输入主题 → 攻坚项目映射（F18）；
  *      右 `.funnel3` 捕捉入池 → 支撑任务 → 策展表达 三步转化漏斗（F19）
  *
@@ -28,14 +28,12 @@ const props = defineProps<{
   topics: MonthTopic[]
   untagged: number
   funnel: { pool: number; support: number; curate: number; convPct: number; sinkPct: number }
-  /** 好奇心转化率（%）：本月转化离场 ÷ 本月入池 */
-  curioConv: number
   /** 策展金字塔现存量（全量口径，projection 表无时间戳，见宿主注释） */
   projected: number
 }>()
 
 const emit = defineEmits<{
-  (e: 'drill', k: 'mo-add' | 'mo-call' | 'mo-support' | 'mo-conv' | 'mo-curate'): void
+  (e: 'drill', k: 'mo-add' | 'mo-call' | 'mo-support' | 'mo-curate'): void
   (e: 'topic', tag: string): void
   (e: 'insight-action', action: string): void
   (e: 'ai-insight'): void
@@ -45,6 +43,7 @@ const emit = defineEmits<{
 const win = computed(() => windowOf('month', {}))
 const agg = computed(() => aggregateRange(props.stats, win.value.s, win.value.e))
 const cTotal = computed(() => agg.value.c.res + agg.value.c.curio + agg.value.c.task)
+const taskCreated = computed(() => agg.value.c.task)
 
 const entDelta = computed(() => Math.round((props.ent.to - props.ent.from) * 10) / 10)
 const entState = computed(() => entDelta.value === 0 ? '持平' : entDelta.value > 0 ? '更发散' : '更聚焦')
@@ -89,8 +88,8 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
           <button class="pi-chip" title="本月调出 = 窗口内卡片被打开次数" @click="emit('drill', 'mo-call')">
             <span class="v">{{ agg.u }}<small>次</small></span><span class="l">本月调出</span><span class="ar">▸</span>
           </button>
-          <button class="pi-chip acc" title="好奇心转化 = 本月转化离场的好奇卡 ÷ 本月入池好奇卡" @click="emit('drill', 'mo-conv')">
-            <span class="v">{{ curioConv }}<small>%</small></span><span class="l">好奇心转化</span><span class="ar">▸</span>
+          <button class="pi-chip acc" title="本月新增任务 = 本月新建的任务卡数量" @click="emit('drill', 'mo-add')">
+            <span class="v">{{ taskCreated }}<small>张</small></span><span class="l">本月新增任务</span><span class="ar">▸</span>
           </button>
           <button class="pi-chip warn" title="入策展金字塔 = 当前投射入策展台的卡片总数（全量现存量）" @click="emit('drill', 'mo-curate')">
             <span class="v">{{ projected }}<small>张</small></span><span class="l">入策展金字塔</span><span class="ar">▸</span>

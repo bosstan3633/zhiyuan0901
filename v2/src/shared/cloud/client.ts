@@ -183,8 +183,26 @@ export const cloud = {
       converted_at: string | null; converted_kind: 'task' | 'curiosity' | 'resource' | null
       converted_card_id: string | null; dismissed_at: string | null
     }[]>(
-      env, '/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&order=created_at.desc',
+      env, '/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&converted_at=is.null&order=created_at.desc',
       { method: 'GET' }, token),
+  updateCapture: (
+    env: CloudEnv,
+    token: string,
+    id: string,
+    patch: Partial<Pick<{
+      title: string
+      url: string
+      text_content: string
+      note: string
+      tags: string[]
+    }, 'title' | 'url' | 'text_content' | 'note' | 'tags'>>,
+  ) =>
+    req<void>(env, `/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify(patch),
+      }, token),
   convertCapture: (
     env: CloudEnv,
     token: string,

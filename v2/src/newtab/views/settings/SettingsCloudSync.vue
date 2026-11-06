@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
+import Icon from '@/shared/components/Icon.vue'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { useFocusTrap } from '@/shared/utils/focusTrap'
@@ -14,6 +15,7 @@ import {
 } from '../../composables/useCloudSync'
 import CloudSyncChangesDrawer from '@/newtab/components/cloud/CloudSyncChangesDrawer.vue'
 import CloudSyncReceiptModal from '@/newtab/components/cloud/CloudSyncReceiptModal.vue'
+import CloudSyncHistoryDrawer from '@/newtab/components/cloud/CloudSyncHistoryDrawer.vue'
 import CloudSyncDetailDrawer from './CloudSyncDetailDrawer.vue'
 
 const store = useAppStore()
@@ -46,6 +48,7 @@ const changesLoading = ref(false)
 const changesError = ref('')
 const receiptOpen = ref(false)
 const receipt = ref<CloudSyncReceipt | null>(null)
+const historyOpen = ref(false)
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
 
 useFocusTrap(conflictPanel, () => conflictOpen.value, { initial: 'first' })
@@ -145,6 +148,17 @@ const relationUpdatedText = computed(() => {
   if (sharedCloud.state.value === 'error') return sharedCloud.errorMessage.value || '云端连接异常'
   return relationTitle.value
 })
+const autoSyncStatusText = computed(() => {
+  if (meta.value?.lastAutoResult === 'uploaded') return `最近自动上传成功 · ${meta.value.lastAutoSyncAt ? new Date(meta.value.lastAutoSyncAt).toLocaleString('zh-CN', { hour12: false }) : ''}`
+  if (meta.value?.lastAutoResult === 'latest') return '最近自动检查时已是最新'
+  if (meta.value?.lastAutoResult === 'blocked') return '自动同步已暂停：云端或两端均有变化，等待人工选择'
+  if (meta.value?.lastAutoResult === 'failed') return `最近自动同步失败：${meta.value.lastAutoError || '未知错误'}`
+  if (meta.value?.lastAutoResult === 'signed_out') return '账号登录状态失效，自动同步已暂停'
+  return '默认关闭；启用后约每 60 分钟只自动上传本机改动，不自动拉回云端'
+})
+const nextAutoSyncText = computed(() => meta.value?.autoSyncEnabled && meta.value?.nextAutoSyncAt
+  ? `下一次预计检查：${new Date(meta.value.nextAutoSyncAt).toLocaleString('zh-CN', { hour12: false })}`
+  : '')
 
 function errText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -231,6 +245,9 @@ async function doLogin(): Promise<void> {
     password.value = ''
     await sharedCloud.refreshCloudStatus(false)
     await sharedCloud.ensureRelationProbe(store, true)
+    if (sharedCloud.meta.value?.autoSyncEnabled) {
+      await chrome.runtime.sendMessage({ type: 'zy-auto-sync-config', enabled: true }).catch(() => {})
+    }
     showToast('云端登录成功')
   } catch (error) {
     toastError('登录失败', error)
@@ -249,6 +266,7 @@ async function doLogout(): Promise<void> {
   try {
     const sync = await import('@/shared/cloud/sync')
     await sync.logout()
+    await chrome.runtime.sendMessage({ type: 'zy-auto-sync-config', enabled: false }).catch(() => {})
     conflictResolve?.('cancel')
     conflictResolve = null
     conflictOpen.value = false
@@ -326,6 +344,15 @@ function showReceiptModal(): void {
   receiptOpen.value = true
 }
 
+function openHistory(): void {
+  historyOpen.value = true
+}
+
+function openHistoryReceipt(next: CloudSyncReceipt): void {
+  receipt.value = next
+  receiptOpen.value = true
+}
+
 function openRelationDetails(): void {
   if (sharedCloud.relation.value === 'remote_changed') {
     void openSyncDetails('remote')
@@ -345,6 +372,18 @@ async function updateStartupCheck(checked: boolean): Promise<void> {
     await sharedCloud.refreshCloudStatus(false)
   } catch (error) {
     toastError('保存启动检查设置失败', error)
+  }
+}
+
+async function updateAutoSync(checked: boolean): Promise<void> {
+  try {
+    const sync = await import('@/shared/cloud/sync')
+    const next = await sync.setAutoSyncEnabled(checked)
+    sharedCloud.meta.value = next
+    chrome.runtime.sendMessage({ type: 'zy-auto-sync-config', enabled: checked }).catch(() => {})
+    showToast(checked ? '已开启自动同步：约每 60 分钟检查一次，且只自动上传本机改动' : '已关闭自动同步；登录状态和上次设置会保留')
+  } catch (error) {
+    toastError('保存自动同步设置失败', error)
   }
 }
 
@@ -454,6 +493,7 @@ async function downloadOnly(): Promise<void> {
       <button class="gs-btn" :disabled="busy" @click="uploadOnly">仅上传本机</button>
       <button class="gs-btn" :disabled="busy" @click="downloadOnly">仅拉回云端</button>
       <button class="gs-btn" :disabled="busy" @click="doCheck">{{ pageBusy ? '检查中…' : '重新检查' }}</button>
+      <button class="gs-btn" @click="openHistory"><Icon name="clock" :size="13"/> 同步历史</button>
     </div>
     <div class="cloud-led-legend" aria-label="顶栏同步状态灯说明">
       <span class="led green"></span>本地与云端一致
@@ -475,6 +515,7 @@ async function downloadOnly(): Promise<void> {
     @close="changesOpen = false"
   />
   <CloudSyncReceiptModal :open="receiptOpen" :receipt="receipt" @close="receiptOpen = false" />
+  <CloudSyncHistoryDrawer :open="historyOpen" :receipts="sharedCloud.syncReceipts.value" @close="historyOpen = false" @open-receipt="openHistoryReceipt" />
 
   <div class="gs-card">
     <div class="gs-card-header">
@@ -563,6 +604,16 @@ async function downloadOnly(): Promise<void> {
               <input type="checkbox" :checked="meta?.checkOnStart !== false" @change="updateStartupCheck(($event.target as HTMLInputElement).checked)" />
               <span class="gs-switch-slider"></span>
             </label>
+          </div>
+        </div>
+        <div class="gs-setting-row">
+          <span class="gs-sr-label">自动同步</span>
+          <div class="gs-sr-control gs-sr-control--inline">
+            <label class="gs-switch" :class="{ disabled: !loggedIn }">
+              <input type="checkbox" :disabled="!loggedIn" :checked="meta?.autoSyncEnabled === true" @change="updateAutoSync(($event.target as HTMLInputElement).checked)" />
+              <span class="gs-switch-slider"></span>
+            </label>
+            <span class="gs-sr-hint">{{ autoSyncStatusText }}<template v-if="nextAutoSyncText"><br>{{ nextAutoSyncText }}</template></span>
           </div>
         </div>
         <div class="gs-setting-row">

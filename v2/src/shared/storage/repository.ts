@@ -11,6 +11,7 @@ import { K } from './keys'
 import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
+import { hydrateResourceMirrorSnapshots } from './resourceMirrors'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY } from '@/shared/utils/eventLog'
 // R174-3：按日聚合快照落盘（热力图不褪色的数据地基，时间闸小载荷，见 dailyStatsStore.ts）
@@ -214,6 +215,9 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   // AeroTable 已退役（v4.0.1）——启动期静默剥离存量字段，防旧凭据随云快照外发
   delete (data as unknown as Record<string, unknown>).airtableSync
   delete (data as unknown as Record<string, unknown>).airtableMap
+  // V4.2.0：旧任务支持 / 策展投射只要真身仍在，就幂等补一份独立快照。
+  // 必须在悬空投射清理之前执行，否则旧记录会被误判为失去来源。
+  try { hydrateResourceMirrorSnapshots(data) } catch { /* noop */ }
   // R70：悬空投射清理——源卡被硬删（回收站清空）后指向它的投射记录会永久留存、无界增长。幂等，启动期一次。
   try { pruneDanglingProjections(data) } catch { /* noop */ }
   // R110-BUG1：资源台镜像标记净化——视图模型标记（__mirrorProjId/__mirrorCat）误持久化 + 指向资源台的投射

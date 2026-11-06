@@ -17,7 +17,6 @@ export function profileRangeFacts(range: InsightRange, input: AggregateRangeInpu
   todayCalled: number
   todayFilled: number
   todayAmmo: number
-  monthCurioConv: number
   monthProjected: number
   monthTopics: MonthTopic[]
   yearCoolingHigh: number
@@ -37,7 +36,7 @@ export function profileRangeFacts(range: InsightRange, input: AggregateRangeInpu
   } else if (range === 'month') {
     const win = windowOf('month', {})
     const agg = aggregateRange(input.stats, win.s, win.e)
-    out.push(`本月入池 ${agg.c.res + agg.c.curio + agg.c.task} 张；本月调出 ${agg.u} 次；好奇心转化率 ${input.monthCurioConv}%；已入策展 ${input.monthProjected} 张。`)
+    out.push(`本月入池 ${agg.c.res + agg.c.curio + agg.c.task} 张；本月调出 ${agg.u} 次；已入策展 ${input.monthProjected} 张。`)
     if (input.monthTopics[0]) out.push(`本月最高频主题是「${input.monthTopics[0].tag}」：${input.monthTopics[0].n} 张。`)
   } else {
     out.push(`本年高价值冷却卡 ${input.yearCoolingHigh} 张；方向适配：${input.yearDirFit.replace(/<[^>]+>/g, '')}。`)

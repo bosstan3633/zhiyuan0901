@@ -231,13 +231,17 @@ check('R114-2 技术债59-B 构建期修复：modulePreload 禁用（content 隔
   const v = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'vite.config.ts'), 'utf8');
   return v.includes('modulePreload: false') && v.includes('fix-content-dynamic-imports') && v.includes('chrome.runtime.getURL');
 });
-check('R114-3（V3.9.8 随迁）画布热路径：旧 drawPyLinks 的逐节点 rect 测量与 O(节点×分类) 查找退役，资源按 categoryId 一次建桶、子节点由 CatIndex 索引读取', () => {
+check('R114-3（V4.2.0 随迁）画布热路径：旧 drawPyLinks 的逐节点分类查找退役，资源按 categoryId 一次建桶、子节点由 CatIndex 索引读取；树状正交线只由 CurationMindMap 读取真实节点盒坐标', () => {
   const h = read('/newtab/composables/useCurationMindMap.ts');
   const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
+  const map = read('/newtab/components/curation/CurationMindMap.vue');
   return h.includes('const cardsByCat = computed<Map<string, ResourceCard[]>>')
     && h.includes('const key = r.categoryId || \'\'')
     && h.includes('return catIdx.value.childrenOf.get(catId) || []')
-    && !host.includes('function drawPyLinks(') && !host.includes('getBoundingClientRect()');
+    && !host.includes('function drawPyLinks(')
+    && map.includes('parent.getBoundingClientRect()')
+    && map.includes('childNode.getBoundingClientRect()')
+    && !map.includes('drawPyLinks(');
 });
 
 // ===== 第 115 轮 · 架构拆分 + 骨架屏就绪即过渡（04-59 第三批） =====

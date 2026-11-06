@@ -19,6 +19,7 @@ import {
   type AnyCard
 } from '../models'
 import { uid } from '../utils'
+import { cloneResourceMirrorSnapshot } from './resourceMirrors'
 
 // ===== 台类型判定 =====
 
@@ -67,16 +68,23 @@ export function projectCardToBoardEx(d: AppData, cardId: ID, toWsId: ID, targetC
   if (!src) return { id: null, created: false }
   if (toWsId === CURATION_WS_ID) return { id: null, created: false }
   d.curationProjections = d.curationProjections || []
-  const existed = d.curationProjections.find(p => p.kind === 'card' && p.cardId === cardId && p.targetWsId === toWsId)
+  const existed = d.curationProjections.find(p =>
+    p.kind === 'card'
+    && p.cardId === cardId
+    && p.targetWsId === toWsId
+    && (p.targetCatId || '') === (targetCatId || '')
+  )
   if (existed) {
     existed.targetCatId = targetCatId || undefined
+    if (!existed.snapshot) existed.snapshot = cloneResourceMirrorSnapshot(src)
     return { id: existed.id, created: false }
   }
   const rec: CurationProjection = {
     id: uid('curp'), kind: 'card', wsId: CURATION_WS_ID, cardId,
-    // R70 说明：catId 是「镜像时刻源卡所在分类」的历史快照，不参与任何业务判定——
-    // 渲染与计数一律以源卡实时的 categoryId 为准（见 boardCardsOf），源卡换分类后此字段陈旧无害。
-    catId: src.categoryId, targetWsId: toWsId, targetCatId: targetCatId || undefined, addedAt: Date.now()
+    // V4.2.0：catId 仅记录挂载时源卡分类；渲染统一读取 snapshot，
+    // 之后源卡改分类、编辑、软删或硬删都不会传播到这个独立镜像。
+    catId: src.categoryId, targetWsId: toWsId, targetCatId: targetCatId || undefined, addedAt: Date.now(),
+    snapshot: cloneResourceMirrorSnapshot(src),
   }
   d.curationProjections.push(rec)
   return { id: rec.id, created: true }
@@ -123,6 +131,8 @@ export function mirrorCategoryToBoard(d: AppData, hubCatId: ID, toWsId: ID): str
  */
 export interface MirrorView extends ResourceCard {
   __mirrorProjId: ID
+  /** 原资源真身 id；镜像自己的 id 只负责视图身份。 */
+  __mirrorSourceId: ID
 }
 
 export function isMirrorView(r: ResourceCard): r is MirrorView {
@@ -149,9 +159,15 @@ export function boardCardsOf(d: AppData, wsId: ID): ResourceCard[] {
   if (projs) {
     for (const p of projs) {
       if (p.kind !== 'card' || p.targetWsId !== wsId) continue
-      const src = byId.get(p.cardId || '')
+      const src = p.snapshot || (p.cardId ? byId.get(p.cardId) : undefined)
       if (!src || ownIds.has(src.id)) continue
-      mirrors.push({ ...src, categoryId: p.targetCatId || '', __mirrorProjId: p.id })
+      mirrors.push({
+        ...src,
+        id: p.id,
+        categoryId: p.targetCatId || '',
+        __mirrorProjId: p.id,
+        __mirrorSourceId: src.id,
+      })
     }
   }
   return [...own, ...mirrors]
@@ -317,19 +333,19 @@ export function sanitizeThesisDuplicates(d: AppData): { wsCount: number; cleared
 
 /**
  * R70：悬空投射清理（幂等）。
- * 源卡被**硬删**（回收站清空）后，指向它的 curationProjections 记录会永久留存、数组无界增长；
- * 目标策展台被删除时同理。注意：软删的卡仍留在 resources 数组里（只是带 deletedAt），
- * 因此本函数**不影响**「回收站恢复后镜像自动回来」的语义。
+ * V4.2.0：资源真身被硬删后，只要投射已有独立快照且目标台仍存在，镜像继续保留；
+ * 目标策展台被删除时，投射失去展示位置，随台一起清理。旧记录没有快照时无法独立存活。
  * @returns 本次清理掉的记录数
  */
 export function pruneDanglingProjections(d: AppData): number {
   const arr = d.curationProjections
   if (!Array.isArray(arr) || !arr.length) return 0
   // R1.5：第 4 卡种 argument 台内原生（argCards）——投射虽只指向池卡，alive 集合仍纳入，防未来引用误剪
-  const aliveCards = new Set([...d.resources.map(r => r.id), ...(d.argCards || []).map(a => a.id)])
   const aliveWs = new Set(d.workspaces.map(w => w.id))
   const before = arr.length
-  d.curationProjections = arr.filter(p => p.kind === 'card' ? (aliveCards.has(p.cardId || '') && aliveWs.has(p.targetWsId || '')) : true)
+  d.curationProjections = arr.filter(p => p.kind === 'card'
+    ? (!!p.snapshot && !!p.targetWsId && aliveWs.has(p.targetWsId))
+    : true)
   return before - d.curationProjections.length
 }
 
@@ -349,6 +365,7 @@ export function scrubHubMirrorMarkers(d: AppData): number {
   for (const r of d.resources) {
     if (r.workspaceId !== CURATION_WS_ID) continue
     if ('__mirrorProjId' in r) { delete (r as Record<string, unknown>).__mirrorProjId; n++ }
+    if ('__mirrorSourceId' in r) delete (r as Record<string, unknown>).__mirrorSourceId
     if ('__mirrorCat' in r) delete (r as Record<string, unknown>).__mirrorCat
   }
   if (Array.isArray(d.curationProjections) && d.curationProjections.length) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
@@ -12,52 +12,31 @@ import { useAppStore } from '@/newtab/stores/app'
 import { useInbox } from '@/newtab/composables/useInbox'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
-import type { CaptureConvertedKind, CaptureItem } from '@/shared/cloud/sync'
+import type { CaptureConvertedKind, CaptureItem, CapturePatch } from '@/shared/cloud/sync'
 
 defineOptions({ name: 'InboxPanel' })
 
-type Group = 'pending' | CaptureConvertedKind
 type SortOrder = 'desc' | 'asc'
 
 const store = useAppStore()
 const inbox = useInbox()
-const group = ref<Group>('pending')
 const sortOrder = ref<SortOrder>('desc')
 const converting = ref('')
 const deleting = ref('')
+const saving = ref(false)
 const clearing = ref(false)
 const detailId = ref('')
-const highlightedId = ref('')
 const successText = ref('')
+const successTarget = ref<{ kind: CaptureConvertedKind; id: string } | null>(null)
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 const curiosityPanelRef = ref<InstanceType<typeof CuriosityPanel> | null>(null)
 let openItemTimer: number | null = null
 
-const groups: { key: Group; label: string }[] = [
-  { key: 'pending', label: '未转化' },
-  { key: 'task', label: '转化为任务卡' },
-  { key: 'curiosity', label: '转化为好奇心卡' },
-  { key: 'resource', label: '转化为资源卡' },
-]
-const conversionOptions: { kind: CaptureConvertedKind; label: string }[] = [
-  { kind: 'curiosity', label: '好奇心卡' },
-  { kind: 'task', label: '任务卡' },
-  { kind: 'resource', label: '资源卡' },
-]
-
-function itemGroup(item: CaptureItem): Group {
-  return item.convertedKind || 'pending'
-}
-
-const visibleItems = computed(() => {
-  const rows = inbox.items.value.filter(item => itemGroup(item) === group.value)
-  return [...rows].sort((a, b) => sortOrder.value === 'desc' ? b.createdAt - a.createdAt : a.createdAt - b.createdAt)
-})
-
-function groupCount(key: Group): number {
-  return inbox.items.value.filter(item => itemGroup(item) === key).length
-}
+const visibleItems = computed(() => [...inbox.items.value].sort((a, b) =>
+  sortOrder.value === 'desc' ? b.createdAt - a.createdAt : a.createdAt - b.createdAt,
+))
+const detailItem = computed(() => inbox.items.value.find(item => item.id === detailId.value) || null)
 
 function fixedName(item: CaptureItem): string {
   return item.contentKind === 'link' ? '链接采集' : '文本采集'
@@ -65,40 +44,27 @@ function fixedName(item: CaptureItem): string {
 
 function summary(item: CaptureItem): string {
   const raw = item.title?.trim() || item.text?.trim() || item.url || '无标题'
-  return raw.replace(/\s+/g, ' ').slice(0, 96)
+  return raw.replace(/\s+/g, ' ').slice(0, 110)
 }
 
 function timeText(ts: number): string {
-  return new Date(ts).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return new Date(ts).toLocaleString('zh-CN', {
+    hour12: false,
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function kindLabel(kind: CaptureConvertedKind): string {
   return kind === 'task' ? '任务卡' : kind === 'curiosity' ? '好奇心卡' : '资源卡'
 }
 
-function localCard(item: CaptureItem): { id: string; kind: CaptureConvertedKind } | null {
-  const data = store.data
-  if (!data || !item.convertedCardId || !item.convertedKind) return null
-  const exists = item.convertedKind === 'task'
-    ? data.tasks.some(card => card.id === item.convertedCardId && !card.deletedAt)
-    : item.convertedKind === 'curiosity'
-      ? data.curiosities.some(card => card.id === item.convertedCardId && !card.deletedAt)
-      : data.resources.some(card => card.id === item.convertedCardId && !card.deletedAt)
-  return exists ? { id: item.convertedCardId, kind: item.convertedKind } : null
-}
-
-const detailItem = computed(() => inbox.items.value.find(item => item.id === detailId.value) || null)
-
 function openItemNow(item: CaptureItem): void {
-  if (item.convertedKind) {
-    detailId.value = ''
-    openConverted(item)
-    return
-  }
   detailId.value = item.id
 }
 
-/** Let dblclick cancel the pending single-click branch before it opens a drawer. */
 function openItem(item: CaptureItem): void {
   if (openItemTimer) window.clearTimeout(openItemTimer)
   openItemTimer = window.setTimeout(() => {
@@ -107,26 +73,42 @@ function openItem(item: CaptureItem): void {
   }, 220)
 }
 
-function openSource(item: CaptureItem): void {
+function openSource(item: CaptureItem, overrideUrl?: string): void {
   if (openItemTimer) {
     window.clearTimeout(openItemTimer)
     openItemTimer = null
   }
-  const url = toOpenableRawLink(item.url)
+  const raw = overrideUrl ?? item.url
+  const url = toOpenableRawLink(raw)
   if (!url) {
-    showToast(item.url ? '这条采集链接不可打开（请检查链接格式）' : '这条采集没有原始链接')
+    showToast(raw ? '这条采集链接不可打开（请检查链接格式）' : '这条采集没有原始链接')
     return
   }
   openExternalLink(url)
 }
 
-async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<void> {
-  if (item.convertedKind) {
-    group.value = item.convertedKind
-    highlightedId.value = item.id
-    showToast(`这条采集已经转化为${kindLabel(item.convertedKind)}`)
+function openTarget(kind: CaptureConvertedKind, id: string): void {
+  if (!id) return
+  if (kind === 'task') {
+    const task = store.data?.tasks.find(row => row.id === id && !row.deletedAt)
+    if (task) taskDetailRef.value?.open(task)
+    else showToast('目标任务卡暂不可用')
     return
   }
+  if (kind === 'curiosity') {
+    curiosityPanelRef.value?.openDetail(id)
+    return
+  }
+  emitOpenDrawer({ kind: 'res', id })
+}
+
+function openSuccessTarget(): void {
+  const target = successTarget.value
+  if (!target) return
+  openTarget(target.kind, target.id)
+}
+
+async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<void> {
   if (converting.value) {
     showToast('上一条正在转化，请稍候')
     return
@@ -134,16 +116,31 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<v
   converting.value = item.id
   try {
     const result = await inbox.convert(item, kind)
-    group.value = result.kind
-    highlightedId.value = item.id
-    successText.value = `已转化为${kindLabel(result.kind)}；目标卡已进入对应卡池，Inbox 只保留镜像入口。${inbox.connected.value && online.value ? '' : '转化状态会在联网后自动同步。'}`
-    showToast(`已转化为${kindLabel(result.kind)}`)
-    await nextTick()
-    document.querySelector<HTMLElement>(`[data-capture-id="${CSS.escape(item.id)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    detailId.value = ''
+    successTarget.value = result
+    successText.value = `已转化为${kindLabel(result.kind)}，并已离开 Inbox。${inbox.connected.value && online.value ? '' : '云端转化状态会在联网后自动补写。'}`
+    showToast(`已转化为${kindLabel(result.kind)}`, {
+      label: '打开',
+      cb: () => openTarget(result.kind, result.id),
+    })
   } catch (error) {
     showToast(`转化失败：${error instanceof Error ? error.message : String(error)}`)
   } finally {
     converting.value = ''
+  }
+}
+
+async function saveFromDetail(patch: CapturePatch): Promise<void> {
+  const item = detailItem.value
+  if (!item || saving.value) return
+  saving.value = true
+  try {
+    await inbox.update(item, patch)
+    showToast(inbox.error.value ? '已保存到本机，等待联网补写云端' : '采集修改已保存')
+  } catch (error) {
+    showToast(`保存失败：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -161,10 +158,13 @@ async function remove(item: CaptureItem): Promise<void> {
   try {
     await inbox.dismiss(item)
     if (detailId.value === item.id) detailId.value = ''
-    const converted = !!item.convertedKind
-    showToast(converted ? '已移除 Inbox 镜像入口，目标卡片仍保留' : '已从 Inbox 删除采集', {
+    showToast('已从 Inbox 删除采集', {
       label: '撤销',
-      cb: () => { void inbox.restore(item).catch(error => showToast(`撤销失败：${error instanceof Error ? error.message : String(error)}`)) },
+      cb: () => {
+        void inbox.restore(item).catch(error => {
+          showToast(`撤销失败：${error instanceof Error ? error.message : String(error)}`)
+        })
+      },
     })
   } catch (error) {
     showToast(`删除失败：${error instanceof Error ? error.message : String(error)}`)
@@ -183,11 +183,6 @@ async function removeFromDetail(): Promise<void> {
   await remove(detailItem.value)
 }
 
-function openTargetFromDetail(): void {
-  if (!detailItem.value) return
-  openItem(detailItem.value)
-}
-
 async function clearInbox(): Promise<void> {
   if (!inbox.connected.value) {
     showToast('请先连接云同步，再清空 Inbox')
@@ -198,10 +193,9 @@ async function clearInbox(): Promise<void> {
     return
   }
   if (!inbox.items.value.length || clearing.value) return
-  const converted = inbox.items.value.filter(item => !!item.convertedKind).length
   const ok = await useConfirm({
     title: '清空 Inbox',
-    message: `确定清空 Inbox 里的全部 ${inbox.items.value.length} 条记录？${converted ? `\n其中 ${converted} 条已转化记录只会移除 Inbox 镜像入口，任务卡、好奇心卡、资源卡池中的目标卡都会保留。` : '\n已入池的目标卡不会受到任何影响。'}`,
+    message: `确定清空 Inbox 里全部 ${inbox.items.value.length} 条未转化采集？已生成的任务卡、好奇心卡和资源卡不会受到影响。`,
     confirmText: '清空 Inbox',
   })
   if (!ok) return
@@ -209,10 +203,12 @@ async function clearInbox(): Promise<void> {
   try {
     const rows = await inbox.clearAll()
     detailId.value = ''
-    showToast(`已清空 Inbox ${rows.length} 条记录，目标卡均已保留`, {
+    showToast(`已清空 Inbox ${rows.length} 条记录`, {
       label: '撤销',
       cb: () => {
-        void inbox.restoreMany(rows).catch(error => showToast(`撤销失败：${error instanceof Error ? error.message : String(error)}`))
+        void inbox.restoreMany(rows).catch(error => {
+          showToast(`撤销失败：${error instanceof Error ? error.message : String(error)}`)
+        })
       },
     }, { duration: 5000, undoWindowMs: 5000 })
   } catch (error) {
@@ -222,26 +218,14 @@ async function clearInbox(): Promise<void> {
   }
 }
 
-function openConverted(item: CaptureItem): void {
-  if (!item.convertedKind) return
-  const card = localCard(item)
-  if (!card) { showToast('目标卡暂不可用（可能尚未同步到本机）'); return }
-  if (card.kind === 'task') {
-    const task = store.data?.tasks.find(row => row.id === card.id)
-    if (task) taskDetailRef.value?.open(task)
-  } else if (card.kind === 'curiosity') {
-    curiosityPanelRef.value?.openDetail(card.id)
-  } else {
-    emitOpenDrawer({ kind: 'res', id: card.id })
-  }
-}
-
 function onOnline(): void {
   online.value = true
   void inbox.refresh(true)
 }
 
-function onOffline(): void { online.value = false }
+function onOffline(): void {
+  online.value = false
+}
 
 onMounted(() => {
   void inbox.refresh(true)
@@ -267,7 +251,7 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
         <span class="inbox-icon"><Icon name="inbox" :size="18"/></span>
         <div>
           <h2>Inbox</h2>
-          <p>移动端先收进来，再在这里判断它该成为哪一种卡。</p>
+          <p>唯一转化入口：先收进来，再决定它成为任务、好奇心还是资源。</p>
         </div>
         <InboxCountBadge :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
       </div>
@@ -280,7 +264,7 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
         </button>
         <button v-if="inbox.items.value.length" type="button" class="clear-btn"
           :disabled="clearing || !inbox.connected.value || !online" @click="clearInbox">
-          <Icon name="trash" :size="13"/> {{ clearing ? '清空中…' : '清空 Inbox' }}
+          <Icon name="trash" :size="13"/> {{ clearing ? '清空中…' : '全部清空' }}
         </button>
       </div>
     </header>
@@ -288,6 +272,7 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
     <div v-if="successText" class="inbox-success" role="status">
       <Icon name="check" :size="14"/>
       <span>{{ successText }}</span>
+      <button v-if="successTarget" type="button" @click="openSuccessTarget">打开{{ kindLabel(successTarget.kind) }}</button>
       <button type="button" @click="successText = ''">知道了</button>
     </div>
 
@@ -295,27 +280,17 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
       <Icon :name="online ? 'plug' : 'warn'" :size="16"/>
       <div>
         <b>{{ online ? '云端未连接' : '当前处于离线状态' }}</b>
-        <span>{{ online ? 'Inbox 由云端账号承载。当前可使用本机缓存转化，状态会在连接后补写。' : '可查看并转化本机缓存记录；转化状态会在网络恢复后自动同步。删除与清空需联网。' }}</span>
+        <span>{{ online ? 'Inbox 由云端账号承载。当前可使用本机缓存编辑与转化，云端状态会在连接后补写。' : '可查看、编辑并转化本机缓存；删除与清空需联网，编辑会在联网后自动补写。' }}</span>
       </div>
       <button v-if="!inbox.connected.value" type="button" @click="$router.push('/settings?page=data')">去连接</button>
     </div>
     <div v-else-if="inbox.error.value" class="inbox-error">{{ inbox.error.value }}</div>
 
-    <div class="inbox-groups" role="tablist" aria-label="Inbox 分组">
-      <button v-for="item in groups" :key="item.key" type="button" role="tab"
-        :aria-selected="group === item.key" :class="{ on: group === item.key }"
-        @click="group = item.key; highlightedId = ''">
-        {{ item.label }} <span>{{ groupCount(item.key) }}</span>
-      </button>
-    </div>
-
     <div v-if="visibleItems.length" class="inbox-list">
-      <article v-for="item in visibleItems" :key="item.id" class="inbox-row"
-        :class="{ converted: !!item.convertedKind, 'is-highlighted': highlightedId === item.id }"
-        :data-capture-id="item.id">
+      <article v-for="item in visibleItems" :key="item.id" class="inbox-row" :data-capture-id="item.id">
         <button type="button" class="inbox-open"
-          :aria-label="item.convertedKind ? `打开${kindLabel(item.convertedKind)}详情` : `打开${fixedName(item)}详情`"
-          :title="item.url ? '单击查看采集详情，双击打开原始链接' : '单击查看采集详情'"
+          :aria-label="`打开${fixedName(item)}详情`"
+          :title="item.url ? '单击查看并编辑详情，双击打开原始链接' : '单击查看并编辑详情'"
           @click="openItem(item)" @dblclick.prevent.stop="openSource(item)"
           @keydown.enter.prevent.stop="openSource(item)"
           @keydown.space.prevent.stop="openSource(item)">
@@ -327,47 +302,32 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
               <b>{{ summary(item) }}</b>
               <span class="inbox-kind-tag">{{ fixedName(item) }}</span>
               <span class="inbox-time"><Icon name="clock" :size="11"/> {{ timeText(item.createdAt) }}</span>
-              <span v-if="item.convertedKind" class="inbox-state">{{ kindLabel(item.convertedKind) }}镜像</span>
             </span>
-            <span v-if="item.text && item.title" class="inbox-extra">{{ item.text.replace(/\s+/g, ' ').slice(0, 128) }}</span>
-            <span v-if="item.convertedKind && !localCard(item)" class="inbox-missing">目标卡暂不可用</span>
+            <span v-if="item.text && item.title" class="inbox-extra">{{ item.text.replace(/\s+/g, ' ').slice(0, 150) }}</span>
+            <span v-else-if="item.note" class="inbox-extra">{{ item.note.replace(/\s+/g, ' ').slice(0, 150) }}</span>
+            <span v-if="item.tags?.length" class="inbox-tags">
+              <i v-for="tag in item.tags.slice(0, 6)" :key="tag">{{ tag }}</i>
+            </span>
           </span>
+          <span class="inbox-open-hint">查看详情 <Icon name="arrowright" :size="11"/></span>
         </button>
-        <div class="inbox-actions">
-          <button v-for="option in conversionOptions" :key="option.kind" type="button"
-            :class="{ on: item.convertedKind === option.kind }"
-            :disabled="!!item.convertedKind || !!converting"
-            :title="item.convertedKind ? `已转化为${kindLabel(item.convertedKind)}，其余类型不可再选` : converting ? '正在转化另一条记录' : `转化为${option.label}`"
-            @click.stop="convert(item, option.kind)">
-            {{ option.label }}
-          </button>
-          <button v-if="item.convertedKind" type="button" class="on" @click.stop="openConverted(item)">
-            打开{{ kindLabel(item.convertedKind) }}
-          </button>
-          <button v-if="item.url" type="button" :title="`打开原始链接：${item.url}`" @click.stop="openSource(item)">
-            <Icon name="external" :size="12"/> 打开链接
-          </button>
-          <button type="button" class="danger" :disabled="deleting === item.id || !inbox.connected.value || !online" @click.stop="remove(item)">
-            <Icon name="trash" :size="12"/> 删除
-          </button>
-        </div>
       </article>
     </div>
 
     <EmptyState v-else-if="!inbox.loading.value" size="page" icon="inbox"
-      :title="group === 'pending' ? 'Inbox 暂时没有未转化内容' : '这个分组还没有记录'"
-      :desc="group === 'pending' ? '从移动端提交链接或文本后，会按采集时间出现在这里。' : '完成对应类型的转化后，记录会作为镜像入口保留。'"
+      title="Inbox 已经清空"
+      desc="从移动端提交链接或文本后会按采集时间出现在这里；转化或删除后即离开本列表。"
       hint="默认最新在前，可切换为最早在前。" />
 
     <TaskDetailDrawer ref="taskDetailRef" />
     <CuriosityPanel ref="curiosityPanelRef" details-only />
     <InboxCaptureDrawer :open="!!detailItem" :item="detailItem"
-      :busy="!!converting" :deleting="deleting === detailItem?.id"
+      :busy="!!converting" :saving="saving" :deleting="deleting === detailItem?.id"
       @close="detailId = ''"
+      @save="saveFromDetail"
       @convert="convertFromDetail"
       @remove="removeFromDetail"
-      @open-source="detailItem && openSource(detailItem)"
-      @open-target="openTargetFromDetail" />
+      @open-source="detailItem && openSource(detailItem, $event)" />
   </section>
 </template>
 
@@ -376,31 +336,25 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
 .inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, var(--surface), var(--surface-2)); }
 .inbox-success { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--success) 38%, var(--border)); border-radius: 9px; background: var(--success-bg-soft); color: var(--text-2); font-size: var(--fs-caption); }
 .inbox-success span { flex: 1; min-width: 0; }
-.inbox-success button { border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--fs-caption); font-weight: 600; cursor: pointer; }
+.inbox-success button { border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
 .inbox-title-wrap { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .inbox-icon { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 11px; background: var(--accent-light); color: var(--accent-ink); }
 .inbox-title-wrap h2 { margin: 0; font-size: var(--fs-title); }
 .inbox-title-wrap p { margin: 2px 0 0; color: var(--text-3); font-size: var(--fs-caption); }
 .inbox-tools { display: flex; gap: 7px; flex: none; }
-.inbox-tools button, .inbox-actions button, .inbox-offline button { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-caption); cursor: pointer; }
-.inbox-tools button:hover, .inbox-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.inbox-tools button:disabled, .inbox-actions button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.inbox-tools button, .inbox-offline button { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-caption); cursor: pointer; }
+.inbox-tools button:hover { border-color: var(--accent); color: var(--accent); }
+.inbox-tools button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .inbox-tools button.clear-btn { color: var(--danger); }
 .inbox-offline { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--warning-bg-soft); color: var(--text-2); }
 .inbox-offline > div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .inbox-offline b { font-size: var(--fs-sub); }
 .inbox-offline span { color: var(--text-3); font-size: var(--fs-caption); }
 .inbox-error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg-soft); color: var(--danger); font-size: var(--fs-caption); }
-.inbox-groups { display: flex; gap: 6px; flex-wrap: wrap; }
-.inbox-groups button { min-height: 34px; padding: 6px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-3); font: inherit; font-size: var(--fs-caption); cursor: pointer; }
-.inbox-groups button span { margin-left: 4px; color: var(--text-2); font-weight: 700; }
-.inbox-groups button.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .inbox-list { display: flex; flex-direction: column; gap: 8px; }
-.inbox-row { display: flex; align-items: flex-start; gap: 11px; padding: 12px 13px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-.inbox-open { min-width: 0; flex: 1; display: flex; align-items: flex-start; gap: 11px; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.inbox-row:hover { border-color: var(--accent); }
-.inbox-row.is-highlighted { border-color: var(--success); box-shadow: 0 0 0 2px var(--success-bg-soft); animation: inbox-highlight 2.2s ease-out; }
-@keyframes inbox-highlight { 0% { background: var(--success-bg-soft); } 100% { background: var(--surface); } }
+.inbox-row { padding: 12px 13px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); transition: border-color var(--dur-fast), background var(--dur-fast); }
+.inbox-open { width: 100%; min-width: 0; display: flex; align-items: flex-start; gap: 11px; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.inbox-row:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent-light) 25%, var(--surface)); }
 .inbox-leading { width: 31px; height: 31px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--surface-2); color: var(--text-3); }
 .inbox-leading.text { color: var(--accent-ink); background: var(--accent-light); }
 .inbox-copy { flex: 1; min-width: 0; display: block; }
@@ -408,19 +362,16 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
 .inbox-row-head b { color: var(--text); font-size: var(--fs-sub); }
 .inbox-kind-tag { padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); }
 .inbox-time { display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-micro); }
-.inbox-state { padding: 1px 6px; border-radius: 999px; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 600; }
 .inbox-extra { display: block; margin-top: 5px; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.55; word-break: break-word; }
-.inbox-missing { display: block; margin-top: 5px; color: var(--warning); font-size: var(--fs-micro); }
-.inbox-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 290px; }
-.inbox-actions button.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
-.inbox-actions button.danger { color: var(--danger); }
+.inbox-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.inbox-tags i { padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); font-style: normal; }
+.inbox-open-hint { flex: none; align-self: center; display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-micro); }
+.inbox-row:hover .inbox-open-hint { color: var(--accent-ink); }
 @media (max-width: 760px) {
   .inbox-head { align-items: flex-start; flex-direction: column; }
   .inbox-tools { width: 100%; }
   .inbox-tools button { flex: 1; justify-content: center; }
-  .inbox-row { flex-wrap: wrap; }
-  .inbox-open { width: 100%; }
-  .inbox-copy { min-width: calc(100% - 45px); }
-  .inbox-actions { width: 100%; max-width: none; justify-content: flex-start; padding-left: 42px; }
+  .inbox-open-hint { display: none; }
+  .inbox-panel { gap: 10px; }
 }
 </style>

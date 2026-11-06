@@ -26,7 +26,7 @@ check('V411-1 移动端统一采集栏：单一输入判断链接或文本，成
     && app.includes('requestAnimationFrame(() => mainInputRef.value?.focus')
 })
 
-check('V411-2（V4.1.2 重指）Inbox 首页优先与转化闭环：Inbox 排第一并默认显示，轻量角标在 0 时隐藏、99+ 截断，预览行可直接转化 / 删除，成功后可打开镜像', () => {
+check('V411-2（V4.2.0 重指）Inbox 首页优先与转化闭环：Inbox 排第一并默认显示，首页预览进入完整 Inbox；清单单击抽屉编辑、抽屉内转三卡，转化后立即离场并可打开目标卡', () => {
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
   const panel = read('/newtab/components/compass/InboxPanel.vue')
@@ -40,22 +40,20 @@ check('V411-2（V4.1.2 重指）Inbox 首页优先与转化闭环：Inbox 排第
     && badge.includes('v-if="count > 0"')
     && badge.includes("props.count > 99 ? '99+' : String(props.count)")
     && badge.includes('background: var(--accent-light)')
-    && home.includes('@click="convertInboxPreview(item, \'task\')"')
-    && home.includes('@click="convertInboxPreview(item, \'curiosity\')"')
-    && home.includes('@click="convertInboxPreview(item, \'resource\')"')
-    && home.includes('@click="removeInboxPreview(item)"')
+    && home.includes('进入 Inbox 处理')
+    && home.includes('@click="goDeck(\'inbox\')"')
     && hook.includes("const handTab = ref<HandKind>('inbox')")
-    && hook.includes('const inboxPreviewBusy = ref')
-    && hook.includes('await inbox.convert(row, kind)')
-    && hook.includes('await inbox.dismiss(row)')
     && hook.includes('previewInbox.value.length')
-    && panel.includes('await inbox.convert(item, kind)')
-    && panel.includes('group.value = result.kind')
-    && panel.includes('successText.value =')
-    && panel.includes(':disabled="!!item.convertedKind || !!converting')
-    && panel.includes('打开{{ kindLabel(item.convertedKind) }}')
+    && panel.includes('@click="openItem(item)" @dblclick.prevent.stop="openSource(item)"')
+    && panel.includes('<InboxCaptureDrawer')
+    && panel.includes('@convert="convertFromDetail"')
+    && panel.includes('const result = await inbox.convert(item, kind)')
+    && panel.includes('打开{{ kindLabel(successTarget.kind) }}')
+    && panel.includes('@click="openSuccessTarget"')
     && inbox.includes('function existingCardFor(captureId: string)')
     && inbox.includes('sourceCaptureId === captureId')
+    && inbox.includes('items.value = items.value.filter(row => row.id !== item.id)')
+    && inbox.includes('return { kind, id: cardId }')
 })
 
 check('V411-3（V4.1.2 重指）云同步记录级明细：本机基线与云端当前均可打开抽屉，记录可继续下钻事实摘要，实时失败回退缓存', () => {
@@ -91,20 +89,17 @@ check('V411-3（V4.1.2 重指）云同步记录级明细：本机基线与云端
     && recordDrawer.includes('云端当前修订')
 })
 
-check('V411-4（V4.1.2 重指）中心论点模块整体可打开详情：卡片键盘可达，内部资源 / 读数 / 详情动作全部阻止冒泡，并直出资源与附件缩略图', () => {
+check('V411-4（V4.2.0 压缩重指）中心论点模块整体可打开详情：卡片键盘可达，内部读数 / 详情动作全部阻止冒泡；压缩页头不再重复渲染资源与附件缩略图', () => {
   const ws = read('/newtab/views/Workspace.vue')
   return ws.includes('v-pressable="!!thesisCard"')
     && ws.includes('@click="onThesisBannerClick"')
     && ws.includes('function onThesisBannerClick')
     && ws.includes('interactive !== event.currentTarget')
-    && ws.includes('class="tb-resource-chip"')
-    && ws.includes('@click.stop="onCardClick(card)"')
     && ws.includes('@click.stop="openDrill(\'total\')"')
     && ws.includes('@click.stop="openDrill(\'assets\')"')
     && ws.includes('@click.stop="openThesisCard"')
-    && ws.includes('<CurationAssetStrip')
-    && ws.includes('@open="openNodeAssetPreview($event, \'root\')"')
-    && ws.includes('const thesisLinkedCards = computed<ResourceCard[]>')
+    && ws.includes('class="cur-metrics" data-curation-metrics="2"')
+    && ws.includes('class="tb-detail" type="button"')
 })
 
 check('V411-5（V4.1.2 重指）节点附件行是直接操作面：缩略图预览与删除各自为独立原生按钮，支持添加与拖入，不再从节点头部绕行', () => {

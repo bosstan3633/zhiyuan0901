@@ -146,13 +146,18 @@ async function main() {
     }
     const cardId = 'e2e-res-1'
     data.resources = data.resources.filter(r => r.id !== cardId)
-    data.resources.push({
+    const seededCard = {
       id: cardId, kind: 'resource', title: 'E2E PDF 测试卡', linkType: 'file', link: 'zy-asset://e2e-pdf-1',
       workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, starred: false, callCount: 0, createdAt: Date.now(), updatedAt: Date.now(),
       notes: '', customFields: {}, assets: [{ id: 'e2e-pdf-1', kind: 'pdf', name: 'e2e-test.pdf', size: 300, mime: 'application/pdf', createdAt: Date.now() }]
-    })
+    }
+    data.resources.push(seededCard)
     data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== cardId)
-    data.curationProjections.push({ id: 'e2e-seed-proj', kind: 'card', wsId: 'zy-curation', cardId, catId: '', targetWsId: wsId, targetCatId: catId, addedAt: Date.now() })
+    data.curationProjections.push({
+      id: 'e2e-seed-proj', kind: 'card', wsId: 'zy-curation', cardId, catId: '',
+      targetWsId: wsId, targetCatId: catId, addedAt: Date.now(),
+      snapshot: JSON.parse(JSON.stringify(seededCard)),
+    })
     await chrome.storage.local.set({ zy_data_v2: data })
     return wsId
   })
@@ -382,8 +387,10 @@ async function main() {
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   if (!page.url().includes('/workspace/')) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, seedWsId); await page.waitForTimeout(1500) }
-  await waitForLocator(page, '.mind-resource[data-rid="e2e-res-1"]', { visible: true, timeout: 10000 })
-  const card = page.locator('.mind-resource[data-rid="e2e-res-1"]').first()
+  // V4.2.0 镜像渲染身份是投射记录 id；源卡 id 仍住在 __mirrorSourceId，
+  // 不能继续拿源卡 id 找画布 chip（否则会把正确渲染误判成卡片消失）。
+  await waitForLocator(page, '.mind-resource[data-rid="e2e-seed-proj"]', { visible: true, timeout: 10000 })
+  const card = page.locator('.mind-resource[data-rid="e2e-seed-proj"]').first()
   const cardVisible = await card.isVisible().catch(() => false)
   // R110 修漂移：卡片右上角 hover 动作条（.rc-action）在 Playwright dblclick 的「先 hover 再按中心取点」流程下
   //   会覆盖标题中心，pointer 拦截导致 actionability 检查超时（TimeoutError 30s）。
@@ -624,11 +631,17 @@ async function main() {
     if (!data.categories.some(c => c.id === catId)) {
       data.categories.push({ id: catId, workspaceId: boardId, name: 'E2E 只读镜像分支', order: 0 })
     }
-    if (!data.resources.some(r => r.id === 'e2e-ro-1')) {
-      data.resources.push({ id: 'e2e-ro-1', kind: 'resource', title: 'E2E 只读镜像源卡', linkType: 'url', link: 'https://example.com/e2e-ro', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() })
+    let mirrorSource = data.resources.find(r => r.id === 'e2e-ro-1')
+    if (!mirrorSource) {
+      mirrorSource = { id: 'e2e-ro-1', kind: 'resource', title: 'E2E 只读镜像源卡', linkType: 'url', link: 'https://example.com/e2e-ro', workspaceId: 'zy-curation', categoryId: '', tags: [], pinned: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now() }
+      data.resources.push(mirrorSource)
     }
     data.curationProjections = (data.curationProjections || []).filter(p => p.cardId !== 'e2e-ro-1')
-    data.curationProjections.push({ id: 'e2e-ro-proj', kind: 'card', wsId: 'zy-curation', cardId: 'e2e-ro-1', catId: '', targetWsId: boardId, targetCatId: catId, addedAt: Date.now() })
+    data.curationProjections.push({
+      id: 'e2e-ro-proj', kind: 'card', wsId: 'zy-curation', cardId: 'e2e-ro-1', catId: '',
+      targetWsId: boardId, targetCatId: catId, addedAt: Date.now(),
+      snapshot: JSON.parse(JSON.stringify(mirrorSource)),
+    })
     return chrome.storage.local.set({ zy_data_v2: data }).then(() => boardId)
   }))  /* 直种存储后必须整页重载：app 运行中 store 不会回读 chrome.storage，
      而且随后的 persist 会把内存态盖回磁盘（E2E-10 同一手法） */
@@ -637,8 +650,8 @@ async function main() {
   await page.goto(base + '#/workspace/' + roBoardId, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
   if (!page.url().includes('/workspace/' + roBoardId)) { await page.evaluate((id) => { location.hash = '#/workspace/' + id }, roBoardId); await page.waitForTimeout(1800) }
-  await waitForLocator(page, '.mind-resource[data-rid="e2e-ro-1"]', { visible: true, timeout: 10000 })
-  const mirCard = page.locator('.mind-resource[data-rid="e2e-ro-1"]').first()
+  await waitForLocator(page, '.mind-resource[data-rid="e2e-ro-proj"]', { visible: true, timeout: 10000 })
+  const mirCard = page.locator('.mind-resource[data-rid="e2e-ro-proj"]').first()
   const mirFound = await mirCard.count()
   await mirCard.click().catch(() => {})
   await page.waitForTimeout(1300) /* 单击有 260ms 双击判别延时 + 抽屉进场动效 */
@@ -2263,10 +2276,9 @@ async function main() {
     paNone.titles.length === 0 && paPreMissing && paAfterCreate.length === 1 && paAfterCreate[0].includes('E2E-Pa 新建缓存卡'),
     `六档：全量=${paAll.titles.length}（归档提示「${paAll.hint}」）拼音 zshz=${paHits(paPy, paTitles.py)} 归一「db skill」=${paHits(paNorm, paTitles.norm)} 数字「12 号」=${paHits(paDigit, paTitles.digit)} AND=${paAnd.titles.length} 零命中=${paNone.titles.length} ｜ 缓存失效：建前搜不到=${paPreMissing} 建后搜到=${paAfterCreate.length}`)
 
-  // E2E-38（R4-Dk）★⌘K 面板「转化为资源卡」真点一次：落点、公共字段、出路记账、回执与「查看」落点
-  //   为什么必须真点：这条路径的三种库形状差异（默认库落进事业策展台 / 存量库落到退役的「资源台」空台面 /
-  //   没有 hub 实体的库点「查看」是「策展台不存在」）与字段搬运，只有运行时看得见——源码里它就是一行 workspaces[0]。
-  const dkQ = 'R4-Dk 转化探针好奇心'
+  // E2E-38（V4.2.0 重指）：好奇心卡不再是转化入口。⌘K 搜到好奇心行时不得出现转化菜单，
+  // 更不能在后台生成资源卡或把原卡软删——Inbox 是唯一三卡转化入口。
+  const dkQ = 'V4.2.0 好奇心零转化探针'
   await page.evaluate((q) => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']
     d.curiosities = (d.curiosities || []).filter(c => !String(c.question || '').startsWith(q))
@@ -2286,23 +2298,8 @@ async function main() {
   await page.locator('.gp-search-input').fill(dkQ)
   await page.waitForTimeout(500)
   const dkRowFound = await page.locator('.gp-result-item', { hasText: dkQ }).count()
-  // .gp-ri-actions 在面板里被 tab 条挡住命中（真机靠 hover 露出），这里点 handler 而不是坐标
-  const dkMenuHit = (await page.locator('.gp-result-item', { hasText: dkQ }).first().locator('.convert span').count())
-    ? await page.evaluate((q) => {
-      const row = [...document.querySelectorAll('.gp-result-item')].find(e => (e.textContent || '').includes(q))
-      const sp = row && row.querySelector('.convert span')
-      if (!sp) return false
-      sp.click()
-      return true
-    }, dkQ) : false
-  await page.waitForTimeout(350)
-  const dkItemHit = await page.evaluate((q) => {
-    const it = [...document.querySelectorAll('.gp-convert-menu-item')].find(e => (e.textContent || '').includes('转化为资源卡'))
-    if (!it) return false
-    it.click()
-    return true
-  }, dkQ)
-  await page.waitForTimeout(900)
+  const dkRow = page.locator('.gp-result-item', { hasText: dkQ }).first()
+  const dkConvertControls = await dkRow.locator('.convert, .gp-convert-menu-item').count()
   const dkAfter = await page.evaluate((q) => {
     const app = document.querySelector('#app').__vue_app__
     const prov = app && app._context && app._context.provides
@@ -2313,41 +2310,19 @@ async function main() {
     const r = (dd.resources || []).find(x => String(x.title).startsWith(q))
     const c = (dd.curiosities || []).find(x => x.id === 'e2e-dk-1')
     return {
-      有卡: !!r, ws: r ? r.workspaceId : '', cat: r ? r.categoryId : '',
-      tags: r ? JSON.stringify(r.tags) : '', 描述: r ? r.description === 'DK 描述必须活着' : false,
-      附件: r ? (r.assets || []).length === 1 : false, 自定义: r ? r.customFields && r.customFields.custom_dk === '带过来的值' : false,
-      星标: r ? !!r.starred : false, 置顶: r ? !!r.pinned : false,
-      软删好奇: !!(c && c.deletedAt), 出路: c ? c.convertedTo : ''
+      有卡: !!r,
+      软删好奇: !!(c && c.deletedAt),
+      出路: c ? c.convertedTo || '' : 'missing',
+      原卡在: !!(c && !c.deletedAt),
     }
   }, dkQ)
-  const dkToast = (await page.locator('.toast-msg', { hasText: '已转化为资源卡' }).count()) > 0
-  const dkPoolReceipt = (await page.locator('.toast-msg', { hasText: '存入资源卡池' }).count()) > 0
-  const dkView = (await page.locator('.toast-action', { hasText: '查看' }).count()) > 0
-    ? await page.locator('.toast-action', { hasText: '查看' }).first().click({ force: true }).then(() => true).catch(() => false) : false
-  await page.waitForTimeout(1300)
-  const dkLanding = await page.evaluate((q) => ({
-    hash: location.hash,
-    死页: document.body.innerText.includes('策展台不存在'),
-    旧台面: document.body.innerText.includes('中心论点') && document.body.innerText.includes('个分类'),
-    高亮: document.querySelectorAll('.pcp-card.flash, .pcp-row.flash').length,
-    池面可见: [...document.querySelectorAll('.pcp-card, .pcp-row')].some(e => (e.textContent || '').includes(q))
-  }), dkQ)
-  report('E2E-38 ★R4-Dk ⌘K 面板真点「转化为资源卡」：落点=资源卡池（不是 workspaces[0] 那枚恰好排第一的台）、标签/描述/附件/自定义字段/星标/置顶整片带过来、写 convertedTo=res、回执改口「存入资源卡池」、「查看」落调度台卡池并高亮（不进死页也不进退役空台面）',
-    dkRowFound === 1 && dkMenuHit && dkItemHit && dkAfter.有卡 && dkAfter.ws === 'zy-curation' && dkAfter.cat === ''
-    && dkAfter.tags === '["DK 标签","AI"]' && dkAfter.描述 && dkAfter.附件 && dkAfter.自定义 && dkAfter.星标 && dkAfter.置顶
-    && dkAfter.软删好奇 && dkAfter.出路 === 'res' && dkToast && dkPoolReceipt && dkView
-    // ★落点判"没去策展台"而不是"hash 里带 hl="：消费端（CompassHome/PoolCardsPanel）定位后会清掉 query
-    //   （R2-④ 那条"定位不清过滤即落空"），1.3 秒后读到的 hash 就是 #/ ——拿 ?hl 当证据会假红。
-    && !dkLanding.hash.startsWith('#/workspace/') && !dkLanding.死页 && !dkLanding.旧台面
-    && dkLanding.池面可见 && dkLanding.高亮 >= 1,
-    `搜到=${dkRowFound} 菜单=${dkMenuHit}/${dkItemHit} 落点=${dkAfter.ws} 分类=${JSON.stringify(dkAfter.cat)} 标签=${dkAfter.tags} 描述/附件/自定义/星标/置顶=${dkAfter.描述}/${dkAfter.附件}/${dkAfter.自定义}/${dkAfter.星标}/${dkAfter.置顶} 出路=${dkAfter.出路} 回执含「资源卡池」=${dkPoolReceipt} ｜ 查看→${dkLanding.hash} 死页=${dkLanding.死页} 旧台面=${dkLanding.旧台面} 高亮=${dkLanding.高亮} 池面可见=${dkLanding.池面可见}`)
+  report('E2E-38 ★V4.2.0 ⌘K 好奇心零转化：搜索结果仍可检索，但不出现转化控件、不生成资源卡、不软删原卡，convertedTo 保持为空',
+    dkRowFound === 1 && dkConvertControls === 0 && !dkAfter.有卡 && !dkAfter.软删好奇
+      && dkAfter.原卡在 && dkAfter.出路 === '',
+    `搜到=${dkRowFound} 转化控件=${dkConvertControls} 资源卡生成=${dkAfter.有卡} 原卡在=${dkAfter.原卡在} 软删=${dkAfter.软删好奇} 出路=${JSON.stringify(dkAfter.出路)}`)
 
-  // E2E-39（R4-Ep）★好奇心「归档为资源」弹窗在两种库形状下真点一次。
-  //   起因（/tmp/zy_ep_probe.cjs 实测改前）：下拉的可选台列表由本组件自己从**原始 d.workspaces** filter，
-  //   存量库第一枚是 R61 留下的 hub 实体 ⇒ 选项印「🗂 资源台」且是默认项，确认后回执印成
-  //   「✓ 已归档至「🗂 资源台」资源台」（台名 + 硬后缀撞成两个旧世界词）；新库没有那枚实体 ⇒ 同一个动作默认落进「💼 事业策展台」。
-  //   ★这条为什么值得运行时覆盖：源码文本断言里"下拉印什么名、默认选谁"表现为什么都没变，而它是用户每天点的动作。
-  const epQ = 'R4-Ep 归档探针好奇心'
+  // E2E-39（V4.2.0 重指）★好奇心详情零 AI 研判、零转化：只读事实与编辑正常，不出现归档 / 转三卡入口。
+  const epQ = 'V4.2.0 好奇心零转化详情探针'
   const epSnapshot = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(c => JSON.stringify(c['zy_data_v2'])))
   async function epRun(label, wsList) {
     await page.evaluate(({ ws, q }) => chrome.storage.local.get('zy_data_v2').then(cur => {
@@ -2364,73 +2339,41 @@ async function main() {
     await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2400)
-    /* ★点的是探针那张卡所在的行，不是"第一行"：面板默认按创建时间排，硬造的探针卡不一定排最前——
-       取第一行会转化到别人的卡上，toast 照样绿、落库核收空（第一版就红在这）。 */
-    await page.locator('.cz-list-item, .cz-card', { hasText: epQ }).first().click().catch(() => {})
-    await page.waitForTimeout(800)
-    const kv = page.locator('.ds-kv', { hasText: '归档资源' }).first()
-    if (await kv.count()) await kv.click().catch(() => {})
-    else await page.locator('button', { hasText: '归档' }).first().click({ force: true }).catch(() => {})
-    await page.waitForTimeout(900)
-    const form = await page.evaluate(() => {
-      const m = document.querySelector('.cz-modal')
-      const sel = document.querySelector('.cz-modal-select')
-      const labels = m ? [...m.querySelectorAll('.cz-modal-label')].map(l => (l.textContent || '').trim()) : []
+    const row = page.locator('.cz-list-item, .cz-card', { hasText: epQ }).first()
+    const rowFound = await row.count()
+    await row.click().catch(() => {})
+    await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
+    const detail = await page.evaluate(() => {
+      const drawer = document.querySelector('.drawer')
+      const text = drawer ? (drawer.textContent || '') : ''
+      const buttons = drawer ? [...drawer.querySelectorAll('button')] : []
+      const convertWords = ['归档资源', '转化为资源卡', '转任务卡', '转为任务卡', '转为好奇心卡', 'AI 研判', 'AI研判']
       return {
-        开: !!m && !!sel,
-        选项: sel ? [...sel.options].map(o => (o.textContent || '').trim() + '→' + o.value) : [],
-        文本: sel ? [...sel.options].map(o => (o.textContent || '').trim()) : [],
-        默认: sel ? sel.value : '',
-        标签: labels
+        drawerOpen: !!drawer,
+        aiCells: drawer ? drawer.querySelectorAll('.ds-ai-cell').length : -1,
+        conversionControls: buttons.filter(btn => convertWords.some(word => (btn.textContent || '').includes(word))).length,
+        modalOpen: !!document.querySelector('.cz-modal'),
+        conversionText: convertWords.filter(word => text.includes(word)),
       }
     })
-    await page.locator('.cz-modal-foot button', { hasText: '确认转化' }).first().click().catch(() => {})
-    await page.waitForTimeout(1300)
-    const toast = await page.evaluate(() => {
-      const t = document.querySelector('[class*=toast]')
-      return t ? (t.textContent || '').trim() : ''
-    })
-    /* 读**内存态 store**而不是 chrome.storage：转化走 store.persist()，落盘是异步的（E2E-38 同一取证面，
-       拿 storage 当证据会把"已转化"读成"无卡"——我第一次就踩了这个）。 */
-    await page.waitForFunction((q) => {
-      const app = document.querySelector('#app').__vue_app__
-      const prov = app && app._context && app._context.provides
-      let pinia = null
-      for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
-      const dd = pinia && pinia._s.get('app') && pinia._s.get('app').data
-      return !!dd && (dd.resources || []).some(x => String(x.title || '').includes(q))
-    }, epQ, { timeout: 5000 }).catch(() => {})
-    const after = await page.evaluate((q) => {
-      const app = document.querySelector('#app').__vue_app__
-      const prov = app && app._context && app._context.provides
-      let pinia = null
-      for (const k of Object.getOwnPropertySymbols(prov || {})) { const v = prov[k]; if (v && v._s && v.state) pinia = v }
-      const dd = pinia && pinia._s.get('app') && pinia._s.get('app').data
-      const r = dd ? (dd.resources || []).find(x => String(x.title || '').includes(q)) : null
-      return { 有卡: !!r, ws: r ? r.workspaceId : '无', cat: r ? JSON.stringify(r.categoryId) : '-' }
-    }, epQ)
-    return { label, form, toast, after }
+    await page.locator('.drawer .drawer-close').first().click().catch(() => {})
+    await page.waitForSelector('.drawer', { state: 'detached', timeout: 4000 }).catch(() => {})
+    return { label, rowFound, detail }
   }
-  const epHub = await epRun('存量库（hub 实体排第一）', [
-    { id: 'zy-curation', name: '🗂 资源台', icon: '🗂', order: -1, archived: false, kind: 'resource' },
+  const epHub = await epRun('存量库', [
+    { id: 'zy-curation', name: '🗂 资源卡池', icon: '🗂', order: -1, archived: false, kind: 'resource' },
     { id: 'ws-biz-000', name: '💼 事业策展台', icon: '💼', order: 0, archived: false }
-  ])
-  const epFresh = await epRun('新库（无 hub 实体）', [
-    { id: 'ws-biz-000', name: '💼 事业策展台', icon: '💼', order: 0, archived: false },
-    { id: 'ws-b-1', name: '🧪 另一个台', icon: '🧪', order: 1, archived: false }
   ])
   // 还原快照，别把后面的用例建在同一份改造过的库上
   await page.evaluate((raw) => chrome.storage.local.set({ zy_data_v2: JSON.parse(raw) }), epSnapshot)
   await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2000)
-  const epOk = (r) => r.form.开 && r.form.文本[0] === '资源卡池' && r.form.选项[0].endsWith('→zy-curation')
-    && r.form.文本.filter(t => t.includes('资源台')).length === 0 && r.form.默认 === 'zy-curation'
-    && r.form.标签.includes('存入位置') && r.toast.includes('已归档至「资源卡池」') && !r.toast.includes('资源台')
-    && r.after.有卡 && r.after.ws === 'zy-curation'
-  report('E2E-39 ★R4-Ep 好奇心归档弹窗真点（两种库形状）：下拉首项=「资源卡池」且退役名残留 0、默认选中=zy-curation（不再随实体顺序漂移）、标签=「存入位置」、回执=「已归档至「资源卡池」」且不含「资源台」、落库 workspaceId=zy-curation',
-    epOk(epHub) && epOk(epFresh),
-    `${epHub.label} 开=${epHub.form.开} 选项=${JSON.stringify(epHub.form.选项)} 默认=${epHub.form.默认} 标签=${JSON.stringify(epHub.form.标签)} 退役名残留=${epHub.form.文本.filter(t => t.includes('资源台')).length} toast=${JSON.stringify(epHub.toast)} 落点=${epHub.after.ws} ｜ ${epFresh.label} 选项=${JSON.stringify(epFresh.form.选项)} 默认=${epFresh.form.默认} toast=${JSON.stringify(epFresh.toast)} 落点=${epFresh.after.ws}`)
+  report('E2E-39 ★V4.2.0 好奇心详情零 AI 研判、零转化：抽屉正常打开，AI 格 0、转化 / 归档控件 0、转化弹窗不出现',
+    epHub.rowFound > 0 && epHub.detail.drawerOpen && epHub.detail.aiCells === 0
+      && epHub.detail.conversionControls === 0 && !epHub.detail.modalOpen
+      && epHub.detail.conversionText.length === 0,
+    `${epHub.label} 行=${epHub.rowFound} ${JSON.stringify(epHub.detail)}`)
 
   // E2E-28（R4-a）：迁移报告卡与整库回退出口——种备份+报告 → 设置页出卡 → 回退（确认框）→ 停用键落、报告清、卡片转停用态
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -2809,16 +2752,30 @@ await paOpen()
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(400)
 
-  // ══════════ E2E-54（V4.1.1）Inbox 转化、镜像打开与删除不误伤目标卡 ══════════
+  // ══════════ E2E-54（V4.2.0）Inbox 唯一转化入口：详情编辑 → 转任务 → 离场 → 打开目标 ══════════
   const inboxRow = {
     id: 'e2e-v411-capture-1',
     content_kind: 'text',
     url: null,
-    text_content: '这是一条来自移动端的 V4.1.1 Inbox 测试采集，应该可以转化为任务卡。',
-    title: 'E2E V4.1.1 Inbox 转化',
+    text_content: '这是一条来自移动端的 V4.2.0 Inbox 测试采集，应该可以转化为任务卡。',
+    title: 'E2E V4.2.0 Inbox 转化',
     note: null,
     tags: [],
     created_at: new Date().toISOString(),
+    converted_at: null,
+    converted_kind: null,
+    converted_card_id: null,
+    dismissed_at: null,
+  }
+  const inboxResourceRow = {
+    id: 'e2e-v411-capture-resource',
+    content_kind: 'link',
+    url: 'https://example.com/e2e/inbox-resource',
+    text_content: '这是一条应该转为资源卡的 Inbox 采集。',
+    title: 'E2E V4.2.0 Inbox 转资源卡',
+    note: null,
+    tags: ['E2E', '资源'],
+    created_at: new Date(Date.now() - 1_000).toISOString(),
     converted_at: null,
     converted_kind: null,
     converted_card_id: null,
@@ -2831,19 +2788,20 @@ await paOpen()
   }))
   await ctx.route('**/rest/v1/capture_inbox**', route => {
     if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([inboxRow]) })
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([inboxRow, inboxResourceRow]) })
     }
     return route.fulfill({ status: 204, body: '' })
   })
-  await page.evaluate(async (row) => {
-    localStorage.setItem('zy_inbox_cache', JSON.stringify([{
+  await page.evaluate(async ({ rows }) => {
+    localStorage.setItem('zy_inbox_cache', JSON.stringify(rows.map(row => ({
       id: row.id,
       contentKind: row.content_kind,
+      url: row.url || undefined,
       text: row.text_content,
       title: row.title,
+      tags: row.tags || [],
       createdAt: Date.now(),
-      tags: [],
-    }]))
+    }))))
     localStorage.removeItem('zy_inbox_conversion_queue')
     await chrome.storage.local.set({
       zy_cloud_env: { url: 'https://e2e.supabase.co', anonKey: 'sb_publishable_e2e' },
@@ -2852,11 +2810,14 @@ await paOpen()
         checkOnStart: false, revision: 0, assetSyncEnabled: false,
       },
     })
-  }, inboxRow)
+  }, { rows: [inboxRow, inboxResourceRow] })
   await page.goto(base + '#/deck/inbox', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, `[data-capture-id="${inboxRow.id}"]`, { visible: true, timeout: 12000 })
-  await page.locator(`[data-capture-id="${inboxRow.id}"] button[title="转化为任务卡"]`).click()
+  await page.locator(`[data-capture-id="${inboxRow.id}"] .inbox-open`).click()
+  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
+  const inboxDrawerTitle = await page.locator('#inbox-edit-title').inputValue()
+  await page.locator('.icd-actions button').filter({ hasText: '任务卡' }).click()
   await waitForLocator(page, '.inbox-success', { visible: true, timeout: 10000 })
   const convertedTask = await waitForStorage(page, 'zy_data_v2', raw => {
     const task = raw?.['zy_data_v2']?.tasks?.find(t => t.sourceCaptureId === inboxRow.id)
@@ -2864,35 +2825,51 @@ await paOpen()
   }, { timeout: 10000 })
   const convertedUi = await page.evaluate((captureId) => {
     const row = document.querySelector(`[data-capture-id="${CSS.escape(captureId)}"]`)
-    const buttons = [...(row?.querySelectorAll('.inbox-actions button') || [])]
+    const drawer = document.querySelector('.drawer .icd-head')
     return {
       success: (document.querySelector('.inbox-success')?.textContent || '').replace(/\s+/g, ' ').trim(),
-      disabled: buttons.filter(b => b.disabled).length,
-      mirror: buttons.some(b => (b.textContent || '').includes('打开任务卡')),
-      highlighted: row?.classList.contains('is-highlighted') || false,
+      rowGone: !row,
+      drawerClosed: !drawer,
+      openTarget: [...(document.querySelectorAll('.inbox-success button') || [])]
+        .some(b => (b.textContent || '').includes('打开任务卡')),
+      cache: JSON.parse(localStorage.getItem('zy_inbox_cache') || '[]').some(item => item.id === captureId),
     }
   }, inboxRow.id)
-  await page.locator(`[data-capture-id="${inboxRow.id}"] button`).filter({ hasText: '打开任务卡' }).click()
+  await page.locator('.inbox-success button').filter({ hasText: '打开任务卡' }).click()
   await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
   const taskDrawerTitle = await page.locator('.drawer .ts-title').first().inputValue().catch(() => '')
   await page.locator('.drawer .drawer-close').first().click().catch(() => {})
   await page.waitForTimeout(350)
-  await page.locator(`[data-capture-id="${inboxRow.id}"] button`).filter({ hasText: '删除' }).click()
-  const inboxRowGone = await pollUntil(() => page.locator(`[data-capture-id="${inboxRow.id}"]`).count().then(n => n === 0), { timeout: 8000 })
-  const taskStillThere = await page.evaluate((captureId) => {
-    const data = window.localStorage.getItem('zy_inbox_cache') || ''
-    return !data.includes(captureId)
-  }, inboxRow.id)
   const taskPreserved = await page.evaluate((captureId) => chrome.storage.local.get('zy_data_v2').then(raw =>
     !!raw['zy_data_v2']?.tasks?.some(t => t.sourceCaptureId === captureId)
   ), inboxRow.id)
-  report('E2E-54 ★V4.1.1 Inbox 转化后显示持续成功回执、其余类型置灰并保留任务镜像；打开镜像进入任务详情，删除 Inbox 记录不删除已入池任务',
-    !!convertedTask && convertedUi.success.includes('已转化为任务卡') && convertedUi.disabled >= 3
-      && convertedUi.mirror && convertedUi.highlighted && taskDrawerTitle.includes('E2E V4.1.1 Inbox 转化')
-      && inboxRowGone && taskStillThere && taskPreserved,
-    `task=${JSON.stringify(convertedTask)} ui=${JSON.stringify(convertedUi)} drawer="${taskDrawerTitle.trim()}" gone=${inboxRowGone} cache=${taskStillThere} preserved=${taskPreserved}`)
 
-  // ══════════ E2E-55（V4.1.3）Inbox 排序、双击 / 键盘打开链接、清空确认 ══════════
+  await page.locator(`[data-capture-id="${inboxResourceRow.id}"] .inbox-open`).click()
+  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
+  await page.locator('.icd-actions button').filter({ hasText: '资源卡' }).click()
+  await pollUntil(async () => {
+    const text = (await page.locator('.inbox-success').textContent().catch(() => '') || '').replace(/\s+/g, ' ')
+    return text.includes('已转化为资源卡')
+  }, { timeout: 10000, label: 'Inbox 转资源卡完成' })
+  const convertedResource = await waitForStorage(page, 'zy_data_v2', raw => {
+    const resource = raw?.['zy_data_v2']?.resources?.find(r => r.sourceCaptureId === inboxResourceRow.id)
+    return resource ? { id: resource.id, workspaceId: resource.workspaceId, title: resource.title } : false
+  }, { timeout: 10000 })
+  const resourceUi = await page.evaluate((captureId) => ({
+    rowGone: !document.querySelector(`[data-capture-id="${CSS.escape(captureId)}"]`),
+    cache: JSON.parse(localStorage.getItem('zy_inbox_cache') || '[]').some(item => item.id === captureId),
+  }), inboxResourceRow.id)
+  report('E2E-54 ★V4.2.0 Inbox 唯一转化：单击打开详情、抽屉内可转任务卡与资源卡；成功后立即离场并清缓存，持续回执可打开目标任务卡，资源卡固定落资源卡池',
+    inboxDrawerTitle.includes('E2E V4.2.0 Inbox 转化')
+      && !!convertedTask && convertedUi.success.includes('已转化为任务卡')
+      && convertedUi.rowGone && convertedUi.drawerClosed && convertedUi.openTarget && !convertedUi.cache
+      && taskDrawerTitle.includes('E2E V4.2.0 Inbox 转化') && taskPreserved
+      && convertedResource?.workspaceId === 'zy-curation'
+      && convertedResource.title.includes('Inbox 转资源卡')
+      && resourceUi.rowGone && !resourceUi.cache,
+    `drawer="${inboxDrawerTitle}" task=${JSON.stringify(convertedTask)} ui=${JSON.stringify(convertedUi)} taskDrawer="${taskDrawerTitle.trim()}" preserved=${taskPreserved} resource=${JSON.stringify(convertedResource)} resourceUi=${JSON.stringify(resourceUi)}`)
+
+  // ══════════ E2E-55（V4.2.0）Inbox 排序、详情、双击 / 键盘打开、删除撤销与清空 ══════════
   const inboxRows = [
     {
       id: 'e2e-v413-inbox-old',
@@ -2954,6 +2931,16 @@ await paOpen()
     return ids[0] === inboxRows[0].id ? ids : false
   }, { timeout: 5000, label: 'Inbox 切换为最早在前' })
 
+  await page.locator(`[data-capture-id="${inboxRows[0].id}"] .inbox-open`).click()
+  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
+  const singleClickDetail = await page.evaluate(() => ({
+    title: document.querySelector('#inbox-edit-title')?.value || '',
+    editable: !!document.querySelector('#inbox-edit-note'),
+    convertButtons: document.querySelectorAll('.icd-actions button').length,
+  }))
+  await page.locator('.drawer .drawer-close').first().click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 6000 })
+
   await page.locator(`[data-capture-id="${inboxRows[0].id}"] .inbox-open`).dblclick({ delay: 80 })
   const openedInboxTab = await pollUntil(async () => {
     const tabs = await worker.evaluate(() => chrome.tabs.query({}))
@@ -2962,6 +2949,31 @@ await paOpen()
   await page.waitForTimeout(300)
   const dblclickDidNotOpenDrawer = await page.locator('.drawer .icd-head').count().then(count => count === 0)
   if (openedInboxTab?.id) await worker.evaluate(id => chrome.tabs.remove(id), openedInboxTab.id).catch(() => {})
+
+  await page.locator(`[data-capture-id="${inboxRows[1].id}"] .inbox-open`).focus()
+  await page.keyboard.press('Enter')
+  const openedByEnter = await pollUntil(async () => {
+    const tabs = await worker.evaluate(() => chrome.tabs.query({}))
+    return tabs.find(tab => (tab.url || '').includes('/inbox/e2e-v413-new')) || false
+  }, { timeout: 6000, label: 'Inbox Enter 打开原始链接' })
+  if (openedByEnter?.id) await worker.evaluate(id => chrome.tabs.remove(id), openedByEnter.id).catch(() => {})
+
+  await page.locator(`[data-capture-id="${inboxRows[1].id}"] .inbox-open`).click()
+  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
+  await page.locator('.drawer .icd-danger').click()
+  const deletedRowGone = await pollUntil(
+    () => page.locator(`[data-capture-id="${inboxRows[1].id}"]`).count().then(count => count === 0),
+    { timeout: 8000, label: 'Inbox 单条删除完成' },
+  )
+  await waitForLocator(page, '.toast-action', { visible: true, timeout: 5000 })
+  const deleteToastNode = page.locator('.toast-msg', { hasText: '已从 Inbox 删除采集' }).last()
+  const deleteToastMatched = await deleteToastNode.count().then(count => count > 0).catch(() => false)
+  const deleteToast = (await deleteToastNode.textContent().catch(() => '') || '').replace(/\s+/g, ' ').trim()
+  await page.locator('.toast-action').filter({ hasText: '撤销' }).last().click()
+  const restoredAfterUndo = await pollUntil(
+    () => page.locator(`[data-capture-id="${inboxRows[1].id}"]`).count().then(count => count > 0),
+    { timeout: 8000, label: 'Inbox 删除撤销恢复' },
+  )
 
   await page.locator('.inbox-tools .clear-btn').click()
   await waitForLocator(page, '.cdf-mask .cdf-btn.ok', { visible: true, timeout: 5000 })
@@ -2975,13 +2987,26 @@ await paOpen()
     const rows = JSON.parse(localStorage.getItem('zy_inbox_cache') || 'null')
     return Array.isArray(rows) && rows.length === 0
   })
-  report('E2E-55 ★V4.1.3 Inbox 默认最新在前、可切最早在前；双击打开原始链接且不误开详情；清空前确认说明镜像不误删，确认后列表与缓存清空',
-    inboxDefaultOrder[0] === inboxRows[1].id
-      && Array.isArray(inboxSorted) && inboxSorted[0] === inboxRows[0].id
-      && String(openedInboxTab?.url || '').includes('/inbox/e2e-v413-old') && dblclickDidNotOpenDrawer
-      && clearConfirmText.includes('2 条记录') && clearConfirmText.includes('目标卡')
-      && inboxCleared && inboxCacheCleared,
-    `默认=${JSON.stringify(inboxDefaultOrder)} 切序=${JSON.stringify(inboxSorted)} 打开="${openedInboxTab?.url || ''}" 未误开详情=${dblclickDidNotOpenDrawer} 确认="${clearConfirmText}" 清空=${inboxCleared} 缓存=${inboxCacheCleared}`)
+  const inboxE2eChecks = {
+    默认最新: inboxDefaultOrder[0] === inboxRows[1].id,
+    切换最早: Array.isArray(inboxSorted) && inboxSorted[0] === inboxRows[0].id,
+    详情标题: singleClickDetail.title.includes('E2E V4.1.3 Inbox 较早记录'),
+    详情可编辑: singleClickDetail.editable,
+    三卡转化: singleClickDetail.convertButtons === 3,
+    双击打开: String(openedInboxTab?.url || '').includes('/inbox/e2e-v413-old'),
+    双击不误开抽屉: dblclickDidNotOpenDrawer,
+    Enter打开: String(openedByEnter?.url || '').includes('/inbox/e2e-v413-new'),
+    单条删除: deletedRowGone,
+    删除回执: deleteToastMatched,
+    撤销恢复: restoredAfterUndo,
+    清空条数: clearConfirmText.includes('2 条未转化采集'),
+    清空不误删目标卡: clearConfirmText.includes('任务卡、好奇心卡和资源卡不会受到影响'),
+    清空完成: inboxCleared,
+    缓存清空: inboxCacheCleared,
+  }
+  report('E2E-55 ★V4.2.0 Inbox 默认最新在前、可切最早在前；单击进详情，双击与 Enter 打开原始链接；单条删除可撤销，清空前说明目标卡不受影响，确认后列表与缓存清空',
+    Object.values(inboxE2eChecks).every(Boolean),
+    `检查=${JSON.stringify(inboxE2eChecks)} 默认=${JSON.stringify(inboxDefaultOrder)} 切序=${JSON.stringify(inboxSorted)} 详情=${JSON.stringify(singleClickDetail)} 双击="${openedInboxTab?.url || ''}" Enter="${openedByEnter?.url || ''}" 回执=${JSON.stringify(deleteToast)} 确认="${clearConfirmText}"`)
 
   // ══════════ E2E-56（V4.1.3）云同步三事实卡、回执与三色状态灯 ══════════
   const cloudSnapshotAt = new Date().toISOString()
@@ -3049,11 +3074,37 @@ await paOpen()
     const heading = (modal?.querySelector('.csrm-hero h2')?.textContent || '').trim()
     return { summary, heading, rows: modal?.querySelectorAll('.cct-row').length || 0 }
   })
-  const cloudLedAfter = await pollUntil(
+  const cloudLedAfterSync = await pollUntil(
     () => page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led.led-green').count().then(count => count > 0),
     { timeout: 8000, label: '云同步完成后绿灯' },
   )
-  await page.locator('.md-close').click()
+
+  const actionableRow = page.locator('[data-testid="cloud-sync-receipt-modal"] .cct-row:has(.cct-action.available)').first()
+  const actionableCount = await actionableRow.count()
+  let receiptActionCheck = { count: actionableCount, initial: '', operation: '', after: '', message: '' }
+  if (actionableCount > 0) {
+    await actionableRow.click()
+    await waitForLocator(page, '[data-testid="cloud-sync-record-detail"]', { visible: true, timeout: 6000 })
+    receiptActionCheck.initial = (await page.locator('.csrd-state').textContent() || '').trim()
+    receiptActionCheck.operation = (await page.locator('.csrd-btn.primary').textContent() || '').replace(/\s+/g, ' ').trim()
+    await page.locator('.csrd-btn.primary').click()
+    await waitForLocator(page, '.cdf-mask .cdf-btn.ok', { visible: true, timeout: 5000 })
+    await page.locator('.cdf-mask .cdf-btn.ok').click()
+    await pollUntil(async () => {
+      const state = (await page.locator('.csrd-state').textContent() || '').trim()
+      return state && state !== '可处理'
+    }, { timeout: 8000, label: '同步明细逐行操作完成' })
+    receiptActionCheck.after = (await page.locator('.csrd-state').textContent() || '').trim()
+    receiptActionCheck.message = (await page.locator('.csrd-result').textContent().catch(() => '') || '').trim()
+    await page.locator('.md-panel').last().locator('.csrd-btn').filter({ hasText: '关闭' }).click()
+    await page.waitForSelector('[data-testid="cloud-sync-record-detail"]', { state: 'detached', timeout: 5000 })
+  }
+
+  const cloudLedAfterAction = await pollUntil(
+    () => page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led.led-yellow').count().then(count => count > 0),
+    { timeout: 8000, label: '逐行操作后回到待同步黄灯' },
+  )
+  await page.locator('.md-panel').last().locator('.md-close').click()
   await page.waitForSelector('.md-panel', { state: 'detached', timeout: 5000 }).catch(() => {})
 
   await page.locator('[data-testid="latest-sync-receipt-trigger"]').click()
@@ -3063,18 +3114,47 @@ await paOpen()
     rows: document.querySelectorAll('.cct-row').length,
     hasDirection: (document.querySelector('.cct-row .cct-status')?.textContent || '').trim().length > 0,
   }))
+  await page.locator('.drawer .drawer-close').first().click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 5000 })
 
-  report('E2E-56 ★V4.1.3 云同步头部待上传明细可右滑、同步成功弹记录级回执且状态灯转绿，最近实际同步可再次打开同一份内容明细',
+  await page.locator('.cloud-relation-actions button').filter({ hasText: '同步历史' }).click()
+  await waitForLocator(page, '[data-testid="cloud-sync-history"]', { visible: true, timeout: 6000 })
+  const settingsHistory = await page.evaluate(() => ({
+    count: document.querySelectorAll('.csh-item').length,
+    note: (document.querySelector('.csh-note')?.textContent || '').replace(/\s+/g, ' ').trim(),
+  }))
+  await page.locator('.csh-item').first().click()
+  await waitForLocator(page, '[data-testid="cloud-sync-receipt-modal"]', { visible: true, timeout: 6000 })
+  const historyReceiptRows = await page.locator('[data-testid="cloud-sync-receipt-modal"] .cct-row').count()
+  await page.locator('.md-panel').last().locator('.md-close').click()
+  await page.waitForSelector('[data-testid="cloud-sync-receipt-modal"]', { state: 'detached', timeout: 5000 })
+  await page.locator('.drawer .drawer-close').first().click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 5000 })
+
+  await page.locator('[data-testid="topbar-cloud-sync-more"]').click()
+  await waitForLocator(page, '.cloud-sync-panel', { visible: true, timeout: 4000 })
+  const topbarHistoryEntry = await page.locator('.cloud-sync-panel .csp-actions button').filter({ hasText: '同步历史' }).count()
+  await page.locator('.cloud-sync-panel .csp-actions button').filter({ hasText: '同步历史' }).click()
+  await waitForLocator(page, '[data-testid="cloud-sync-history"]', { visible: true, timeout: 6000 })
+  const topbarHistoryCount = await page.locator('.csh-item').count()
+
+  report('E2E-56 ★V4.2.0 云同步：待上传明细可右滑，手动同步后弹本次明细并转绿灯；记录可逐行删除/恢复/回退，设置中心与顶栏都能打开最近 20 次 / 30 天的同步历史',
     cloudLedBefore.includes('led-') && pendingDrawer.groups.some(x => x.startsWith('全部'))
       && pendingDrawer.groups.some(x => x.startsWith('卡片'))
       && pendingDrawer.groups.some(x => x.startsWith('策展台'))
       && pendingDrawer.groups.some(x => x.startsWith('今日三件事'))
       && pendingDrawer.rows > 0 && pendingDrawer.sort.includes('时间倒序')
       && receipt.summary.length === 4 && receipt.heading.includes('上传到云端')
-      && receipt.rows > 0 && cloudLedAfter
+      && receipt.rows > 0 && receiptActionCheck.initial === '可处理'
+      && receiptActionCheck.operation.length > 0
+      && ['已删除', '已恢复', '已回退'].includes(receiptActionCheck.after)
+      && receiptActionCheck.message.length > 0 && cloudLedAfterSync && cloudLedAfterAction
       && latestReceiptDrawer.title.includes('最近实际同步内容')
-      && latestReceiptDrawer.rows === receipt.rows && latestReceiptDrawer.hasDirection,
-    `灯前=${cloudLedBefore} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 绿灯=${cloudLedAfter} 最近=${JSON.stringify(latestReceiptDrawer)}`)
+      && latestReceiptDrawer.rows === receipt.rows && latestReceiptDrawer.hasDirection
+      && settingsHistory.count >= 1 && settingsHistory.note.includes('最近 20 次')
+      && settingsHistory.note.includes('最长 30 天') && historyReceiptRows === receipt.rows
+      && topbarHistoryEntry === 1 && topbarHistoryCount >= 1,
+    `灯前=${cloudLedBefore} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后绿灯=${cloudLedAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后黄灯=${cloudLedAfterAction} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

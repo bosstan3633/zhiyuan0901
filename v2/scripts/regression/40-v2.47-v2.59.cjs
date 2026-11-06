@@ -468,12 +468,12 @@ check('R84-2 W1 描述为空不占位（v-if 而非三元）——V3.7.0：hub �
     && !WS84.includes('wsHeadDescFallback')
     && body.includes('workspace.value?.desc');
 });
-check('R84-3 W1 页头 ≤40px（V4.0.4 重指：台身份标题行保持 ≤40px；中心论点独占下一层全宽舞台，页头三层共处连续 10px 节奏；页头横向缩进归零，与画布同轴）', () => {
+check('R84-3 W1 页头 ≤40px（V4.2.0 压缩重指：台身份标题行保持 ≤40px；中心论点独占下一层全宽舞台，页头三层共处连续 6px 节奏；页头横向缩进归零，与画布同轴）', () => {
   const c = read('/newtab/views/workspace.css');
   return /\.ws-id-head \{[^}]*display: flex;[^}]*min-width: 0;[^}]*min-height: 36px;[^}]*max-height: 40px;/.test(c)
     && !/\.ws-id-head \{[^}]*min-width: 220px;/.test(c)
     && !/\.ws-id-head \{[^}]*max-width: 38%;/.test(c)
-    && /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 10px;[^}]*padding-left: 0;/.test(c);
+    && /\.ws-head \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*gap: 6px;[^}]*padding-left: 0;/.test(c);
 });
 check('R84-4 W1 页头对所有台渲染（不再是 v-if="isHub" 的 hub 专属）', () => {
   return !WS84.includes('class="ws-id-head" v-if="isHub"') && !WS84.includes('v-if="isHub" class="ws-id-head"')
@@ -795,13 +795,14 @@ check('R88-6（V3.9.8 随迁备案）批量开关常驻资源池控制行：批�
     && !WS88_TPL.includes('toggleBatchMode');
 });
 check('R88-7（V4.1.2 重指）页面设置退役后，台数据菜单承接 JSON/成果 HTML/模板导入、JSON 导出与镜像清理；分享仍独立', () => {
-  return SM88.includes('@click="openImport"') && SM88.includes('<b>导入 JSON 备份</b>') && !SM88.includes("isHub ? '⬇ 导入资源'")
-    && SM88.includes('<b>导入成果 HTML</b>') && SM88.includes('<b>导入模板</b>')
-    && SM88.includes('<b>导出 JSON 备份</b>') && SM88.includes('<b>清理本台镜像卡</b>')
-    && WS88.includes('class="cur-import"')
-    && /<Icon name="share"[^>]*\/> 分享成果/.test(WS88)
-    && WS88.includes('function openImport(') && WS88.includes('importModalOpen.value = true')
-    && !WS88.includes('class="settings-menu"') && !WS88.includes('class="hero-btn settings"')
+  const ws = read('/newtab/views/Workspace.vue')
+  return ws.includes('@click="openImport"') && ws.includes('<b>导入 JSON 备份</b>') && !ws.includes("isHub ? '⬇ 导入资源'")
+    && ws.includes('<b>导入成果 HTML</b>') && ws.includes('<b>导入模板</b>')
+    && ws.includes('<b>导出 JSON 备份</b>') && ws.includes('<b>清理本台镜像卡</b>')
+    && ws.includes('class="cur-import"')
+    && /<Icon name="share"[^>]*\/> 分享成果/.test(ws)
+    && ws.includes('function openImport(') && ws.includes('importModalOpen.value = true')
+    && !ws.includes('class="settings-menu"') && !ws.includes('class="hero-btn settings"')
     && !TB1_88.includes('importModalOpen = true');
 });
 check('R88-8（V3.9.29 重指）策展画布主行动唯一：分享成果恢复为行尾 primary；导入折叠为单个 ghost 菜单触发器，设置保持次级；旧资源池批量与建支 CTA 不回流', () => {

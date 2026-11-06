@@ -700,8 +700,8 @@ function addTaskFromHeader() {
             hint="在任务详情里上传附件，这里会自动汇总成可检索的资产清单。" />
         </div>
       </div>
-      <!-- R49-D5：好奇心规则提示条（好奇心卡通过「转为任务/归档为资源」进入项目） -->
-      <div class="board-foot-hint"><Icon name="bulb" :size="13"/> 好奇心卡通过「转为任务 / 归档为资源」进入项目 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
+      <!-- V4.2.0：Inbox 是唯一转化入口；好奇心与项目之间没有一键归入通道。 -->
+      <div class="board-foot-hint"><Icon name="bulb" :size="13"/> 只有 Inbox 采集可转为任务卡 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
     </div>
     </div>
 

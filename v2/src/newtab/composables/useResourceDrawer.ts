@@ -10,7 +10,7 @@ import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { uid } from '@/shared/utils'
-import { isMirrorView, removeProjection, projectCardToBoard } from '@/shared/storage/hub'
+import { isMirrorView, removeProjection, projectCardToBoard, type MirrorView } from '@/shared/storage/hub'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
 import type { AppData, ResourceCard, ArgumentCard, Category, AssetMeta } from '@/shared/models'
@@ -184,10 +184,15 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
     showToast(`✓ 已清理 ${removed} 张镜像卡（源卡保留在资源卡池）`)
   }
   function locateMirrorSourceCard() {
+    const mirrorSourceId = isMirrorView(editingResource)
+      ? (editingResource as MirrorView).__mirrorSourceId
+      : editingResource.id
     drawerReadonly.value = false
     closeDrawer()
     router.push('/')
-    showToast(`↗ 源卡在资源卡池 · ${editingResource.title.slice(0, 20)}`)
+    const source = d.value.resources.find(resource => resource.id === mirrorSourceId && !resource.deletedAt)
+    if (!source) { showToast('ℹ 源卡已删除'); return }
+    showToast(`↗ 源卡在资源卡池 · ${source.title.slice(0, 20)}`)
   }
   function openResource(r: ResourceCard) {
     drawerReadonly.value = false

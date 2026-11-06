@@ -100,6 +100,7 @@ const FIELD_LABEL: Record<string, string> = {
   curOrder: '策展顺序',
   displayName: '显示名',
   addedAt: '加入时间',
+  snapshot: '挂载时快照',
   definition: '收卡定义',
   type: '操作类型',
   entityType: '对象类型',

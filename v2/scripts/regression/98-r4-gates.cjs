@@ -176,7 +176,7 @@ check('R4-En ★网页 ⌘K 浮层的三条像素事实必须在位：真开 + �
 
 // ============== R4-Ep 「可选台列表」单源：池不再冒充台面（#116） ==============
 console.log('【R4-Ep · 可选台列表单源与形态补盲】');
-check('R4-Ep ★「用户可选台列表」只许有一处构造：selectableWsOptions 显式把池排第一（新资源卡的默认落点，与 R2-⑧ 池内新建 / R4-Dk 面板转化 / R4-Df3 报告卡同口径），boardWsOptions 显式排除池（批量移动只列策展台——把卡"移进池"会顺带造出一枚 workspaceId=zy-curation 的「待分类」分类，而池卡只由标签组织 R179）；三个消费者一律走单源，谁再从原始 d.workspaces 自己 filter 一份当列表即红', () => {
+check('R4-Ep（V4.2.0 重指）「用户可选台列表」仍只有一处构造：selectableWsOptions 显式把池排第一，boardWsOptions 显式排除池；V4.2.0 后好奇心转化与采集目标台下拉全部退役，Inbox 转资源卡直接写 CURATION_WS_ID，不再从实体顺序猜测落点', () => {
   const u = codeOnly(read('/shared/utils/wsName.ts'));
   const iSel = u.indexOf('export function selectableWsOptions');
   const iBr = u.indexOf('export function boardWsOptions');
@@ -185,28 +185,20 @@ check('R4-Ep ★「用户可选台列表」只许有一处构造：selectableWsO
   return iSel > 0 && iBr > iSel
     && bodySel.includes('{ id: CURATION_WS_ID, label: POOL_DISPLAY_NAME, pool: true }') && bodySel.includes('...boardWsOptions(workspaces)')
     && bodyBr.includes('w.id !== CURATION_WS_ID && !w.archived') && bodyBr.includes('wsNameWithIcon(w.icon, wsDisplayNameOf(w))')
-    /* ★W4（V3.8.4）随迁：content 采集浮层的台/分类两枚下拉整体退役（统一入资源卡池，落点写死 CURATION_WS_ID），
-       于是它不再是 selectableWsOptions 的消费者——单源的正锚改由应用内 CuriosityPanel 承接（那条下拉仍在）。
-       overlay 侧改钉负锚：不许再自己 filter 原始数组当"可选台列表"。 */
-    && codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('selectableWsOptions(store.data!.workspaces)')
+    && codeOnly(read('/newtab/composables/useInbox.ts')).includes('workspaceId: CURATION_WS_ID')
     && codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')).includes('boardWsOptions(d.value.workspaces)')
-    // 负判据（走 codeOnly，注释里留着历史说明）：三处都不许再自己 filter 原始数组当"可选台列表"
+    // 负判据（走 codeOnly，注释里留着历史说明）：采集、好奇心与批量三处都不许再自造目标台列表
+    && !codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('selectableWsOptions')
     && !codeOnly(read('/content/overlay-impl.ts')).includes('workspaces?.filter((w: any) => !w.archived)')
     && !codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('workspaces.filter(w => !w.archived)')
     && !codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')).includes('workspaces.filter(w => !w.archived)');
 });
-check('R4-Ep ★好奇心「归档为资源」弹窗的三处实测偏差必须一起修掉：/tmp/zy_ep_probe.cjs 在两种库形状下各真点一次——改前下拉的可选台由本组件自己从**原始 d.workspaces** filter，存量库第一枚是 R61 留下的 hub 实体 ⇒ 选项印「🗂 资源台」且是默认项（同一个动作落进池），新库没有那枚实体 ⇒ 默认落进「💼 事业策展台」，而回执两种形状下都写「已归档至「…」资源台」（存量库实测连印成「已归档至「🗂 资源台」资源台」，台名与硬后缀撞成两个旧世界词），标签还写「存入策展台」而可选项里含池。现要求：默认显式 CURATION_WS_ID、回执走 wsNameById 单源、标签改「存入位置」，旧拼法一律不许回流', () => {
+check('R4-Ep（V4.2.0 退役重指）好奇心「归档为资源」弹窗整体退役：好奇心不转化、不归档，旧可选台、存入位置、归档回执与 converted 字段入口全部零回流；资源落点只由 Inbox 转化固定写资源卡池', () => {
   const c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
-  const iOpen = c.indexOf('function openConvert(');
-  const bodyOpen = c.slice(iOpen, c.indexOf('\n}', iOpen));
-  const iConf = c.indexOf('function confirmConvert(');
-  const bodyConf = c.slice(iConf, c.indexOf('} else {', iConf));
-  return iOpen > 0 && bodyOpen.includes('convertWsId.value = CURATION_WS_ID') && !bodyOpen.includes('convWorkspaces.value[0]')
-    && bodyConf.includes('wsNameById(store.data!.workspaces, convertWsId.value)') && bodyConf.includes('已归档至')
-    && !bodyConf.includes('」资源台') && !bodyConf.includes('ws?.name')
-    && c.includes('请选择存入位置') && !c.includes("showToast('请选择策展台'")
-    && c.includes('<label class="cz-modal-label">存入位置</label>') && !c.includes('存入策展台</label>')
-    && c.includes(':value="w.id">{{ w.label }}</option>');
+  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
+  return !c.includes('openConvert(') && !c.includes('confirmConvert(') && !c.includes('convertWsId')
+    && !c.includes('已归档至') && !c.includes('存入位置') && !c.includes('转为任务') && !c.includes('归档为资源')
+    && inbox.includes('workspaceId: CURATION_WS_ID');
 });
 check('R4-Ep ★"取第一枚实体当默认落点"这一族的扫描形态必须比 R4-Dm 那张表更宽：窄正则 workspaces[0] 对 **`convWorkspaces.value[0]`** 天生失明（别名与 .value 都不匹配），所以 R4-Dm 立表之后同一族又漏出第三个出口——本轮换成宽形态登记表（任何 *orkspaces[.value][数字] 取第 N 枚），现扫条数与表不符即红（多一处红、少一处也红；新增要么改代码要么在 diff 里写明理由）', () => {
   const REG = {
@@ -243,14 +235,13 @@ check('R4-Ep ★V3.9.8 随迁：批量目标只列现役策展台，且语义是
     && !workspace.includes('moveModalOpen')
     && !workspace.includes('目标策展台（含当前策展台，可只换分类）');
 });
-check('R4-Ep ★运行时覆盖补一档：e2e 必须有 E2E-39 真点好奇心归档（存量库/新库两种形状各一次，读下拉选项文本与默认选中、回执 toast、落库 workspaceId）——"下拉印什么名、默认选谁"在源码文本断言里表现为什么都没变，而它是用户每天点的动作', () => {
+check('R4-Ep（V4.2.0 重指）★运行时覆盖补一档：e2e 必须真点 Inbox 转资源卡并核对落点 CURATION_WS_ID，同时守卫好奇心旧归档入口为零', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  /* ★锚点挑"承重的那几行"而不是标题里也出现的词：第一版我拿 `退役名残留` 当锚点，
-     P7 变异把明细里那句删掉后判据照绿——因为同一个串在**判据标题**里也出现一遍（R4-Dl 那条"整段 grep"教训的第三次成形）。 */
-  return e.includes('E2E-39 ★R4-Ep') && e.includes('R4-Ep 归档探针好奇心')
-    && e.includes('epHub') && e.includes('epFresh') && e.includes('cz-modal-select')
-    && e.includes("r.form.文本[0] === '资源卡池'") && e.includes('epOk(epHub) && epOk(epFresh)')
-    && e.includes('epSnapshot') && e.includes('已归档至「资源卡池」') && e.includes('.ds-kv');
+  const drawer = read('/newtab/components/compass/InboxCaptureDrawer.vue');
+  return e.includes('E2E-54 ★V4.2.0') && e.includes('inboxResourceRow')
+    && e.includes("convertedResource?.workspaceId === 'zy-curation'")
+    && drawer.includes('转化成功后，这条采集立即离开 Inbox')
+    && !e.includes("filter({ hasText: '归档资源' })");
 });
 
 // ============== R4-Eq 用户可见文案里的退役台面名清账（#118） ==============

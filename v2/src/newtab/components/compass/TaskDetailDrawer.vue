@@ -15,6 +15,7 @@ import type { AppData, TaskCard, Subtask, SupportLink, ResourceCard, AssetMeta }
 import type { AiDepth } from '@/shared/ai/config'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { buildSupportIndex, listBySub, listByTask, addSupportLink, removeSupportLink } from '@/shared/utils/supportLinks'
+import { resourceOfSupportLink } from '@/shared/storage/resourceMirrors'
 // R152 口径：评审抽屉用模块作用域单例，不在 setup 里现造（此处原为 defineAsyncComponent 自建一份）
 import { AiDrawer } from '../lazyAiDrawer'
 import { showToast } from '@/shared/components/toast'
@@ -176,7 +177,7 @@ const supportRows = computed(() => {
   const t = selectedTask.value
   if (!t) return [] as { link: SupportLink; resource: ResourceCard }[]
   return listByTask(supportIdx.value, t.id)
-    .map(link => ({ link, resource: d.value.resources.find(r => r.id === link.resourceId && !r.deletedAt) }))
+    .map(link => ({ link, resource: resourceOfSupportLink(d.value, link) }))
     .filter((x): x is { link: SupportLink; resource: ResourceCard } => !!x.resource)
 })
 /** 手动关联的候选：按标题子串取前 8 条（本地即得，不为一个输入框去叫模型） */
@@ -187,8 +188,10 @@ const supportDraftCands = computed(() => {
 })
 /** 点行=打开资源链接并计热度（与双击卡片同一条通道，不另立口径） */
 function openSupportResource(r: ResourceCard) {
-  recordCardOpen(d.value, r)
-  store.persistHot()
+  if (d.value.resources.some(card => card.id === r.id && !card.deletedAt)) {
+    recordCardOpen(d.value, r)
+    store.persistHot()
+  }
   const url = toOpenableRawLink(r.link)
   if (!url) { showToast('这张资源还没有可打开的链接'); return }
   openExternalLink(url)
@@ -450,10 +453,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <!-- R166 定案 5/F4：资源支持区——行=资源标题+AI 判词，点行打开链接并计热度，× 只删关联记录。
              两张卡本体互不持有 id（关联住在 AppData.supportLinks 独立表），「卡间零挂载」红线不破。 -->
         <div class="ts-section">
-          <div class="ds-hero-label"><Icon name="compass" :size="13"/> 资源支持 <span class="hint">— 点行打开链接 · 解绑只删记录，不动两张卡</span></div>
+          <div class="ds-hero-label"><Icon name="compass" :size="13"/> 资源镜像 <span class="hint">— 挂载时独立留存 · 删源卡不影响这里 · 解绑不动真身</span></div>
           <div v-if="supportRows.length" class="ts-sup">
             <div v-for="row in supportRows" :key="row.link.id" class="ts-sup-row" :title="row.link.why || '点击打开资源链接'">
               <span class="ts-sup-nm" v-pressable @click="openSupportResource(row.resource)">{{ row.resource.title.slice(0, 40) }}</span>
+              <span class="ts-sup-tag">镜像</span>
               <span v-if="row.link.why" class="ts-sup-why">{{ row.link.why }}</span>
               <span v-if="row.link.from === 'ai'" class="ts-sup-tag">AI</span>
               <span class="ts-sup-x" v-pressable title="解除关联（只删这条记录；资源卡与任务卡都不动）" @click.stop="unlinkSupport(row.link.id)">×</span>

@@ -7,7 +7,9 @@
  * 镜像）同构——红线明文豁免的是"记录型关联"，不是给挂载开口子。
  *
  * 三条口径：
- *  · **软删只隐藏、不删记录**：任一端进回收站 ⇒ 反查看不到；恢复即自动回挂（所以 purge 只服务于硬删）。
+ *  · **挂载后镜像独立**：任务侧保留挂载时的资源快照；资源真身进入回收站或被永久删除，
+ *    都不影响已有镜像的展示与解绑。
+ *  · **软删只隐藏关联**：任务或资源任一端进回收站 ⇒ 反查看不到；恢复即自动回挂。
  *  · **解绑只在任务侧**（定案 10）：资源卡保持"供给方"心智，资源侧反查区是只读的。
  *  · **索引是只读快照**：由 computed 在其依赖的数组变化时重建，消费方不得改它返回的数组。
  *
@@ -15,6 +17,7 @@
  */
 import type { AppData, CurioSupportLink, SupportLink } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { cloneResourceMirrorSnapshot, resourceOfSupportLink } from '@/shared/storage/resourceMirrors'
 
 export interface SupportIndex {
   /** taskId → 该任务的全部关联（含挂在它子任务上的），createdAt 倒序 */
@@ -52,7 +55,7 @@ export function buildSupportIndex(d: AppData): SupportIndex {
     for (const s of t.subtasks || []) liveSub.set(s.id, t.id)
   }
   for (const l of links) {
-    if (!l || !liveTask.has(l.taskId) || !liveRes.has(l.resourceId)) continue
+    if (!l || !liveTask.has(l.taskId) || !resourceOfSupportLink(d, l)) continue
     if (l.subId && liveSub.get(l.subId) !== l.taskId) continue
     push(idx.byTask, l.taskId, l)
     if (l.subId) push(idx.bySub, l.subId, l)
@@ -91,12 +94,15 @@ export function addSupportLink(
   d: AppData,
   input: { taskId: string; subId?: string; resourceId: string; from: 'ai' | 'manual'; why?: string }
 ): { link?: SupportLink; dup: boolean } {
+  const source = (d.resources || []).find(resource => resource.id === input.resourceId && !resource.deletedAt)
+  if (!source) return { dup: false }
   const list = (d.supportLinks = d.supportLinks || [])
   const same = (x: SupportLink) => x.taskId === input.taskId && x.resourceId === input.resourceId && (x.subId || '') === (input.subId || '')
   if (list.some(same)) return { dup: true }
   const link: SupportLink = {
     id: uid('sl'), taskId: input.taskId, resourceId: input.resourceId,
     from: input.from, createdAt: Date.now(),
+    snapshot: cloneResourceMirrorSnapshot(source),
     ...(input.subId ? { subId: input.subId } : {}),
     ...(input.why ? { why: input.why.slice(0, 120) } : {}),
   }
@@ -114,15 +120,16 @@ export function removeSupportLink(d: AppData, id: string): boolean {
 }
 
 /**
- * 硬删卫生：任务/资源被**物理**删除（回收站清空、批量清理）时，指向它的关联必须一起删掉，
- * 否则记录无界增长且反查表里永远挂着死引用（与 `metric.taskIds` 同法，R141 立的规矩）。
+ * 硬删卫生：任务被物理删除时，关系记录随任务一起清理。
+ * 资源被物理删除时只清理没有快照的历史记录；已有快照的镜像是独立副本，必须继续存在。
  * 软删不走这里——软删靠 `buildSupportIndex` 的过滤隐藏，恢复即回挂。
  */
 export function purgeSupportLinks(d: AppData, opt: { taskIds?: Set<string>; resourceIds?: Set<string> }): number {
   const list = d.supportLinks
   if (!Array.isArray(list) || !list.length) return 0
   const dead = (l: SupportLink) =>
-    (opt.taskIds && opt.taskIds.has(l.taskId)) || (opt.resourceIds && opt.resourceIds.has(l.resourceId))
+    (opt.taskIds && opt.taskIds.has(l.taskId))
+    || (opt.resourceIds && opt.resourceIds.has(l.resourceId) && !l.snapshot)
   const kept = list.filter(l => !dead(l))
   const n = list.length - kept.length
   if (n) d.supportLinks = kept

@@ -78,13 +78,15 @@ export async function clearAllAssets(): Promise<number> {
   })
 }
 
-/** 从全库四类卡片清空附件引用；返回受影响的卡片数量。 */
+/** 从全库卡片及独立镜像快照清空附件引用；返回受影响的卡片数量。 */
 export function clearAllAssetReferences(d: {
   resources?: { assets?: { id: string }[] }[]
   tasks?: { assets?: { id: string }[] }[]
   curiosities?: { assets?: { id: string }[] }[]
   argCards?: { assets?: { id: string }[] }[]
   categories?: { assets?: { id: string }[] }[]
+  supportLinks?: { snapshot?: { assets?: { id: string }[] } }[]
+  curationProjections?: { snapshot?: { assets?: { id: string }[] } }[]
 }): number {
   let changed = 0
   const clear = (cards: { assets?: { id: string }[] }[] | undefined) => {
@@ -100,6 +102,8 @@ export function clearAllAssetReferences(d: {
   clear(d.curiosities)
   clear(d.argCards)
   clear(d.categories)
+  clear((d.supportLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
+  clear((d.curationProjections || []).map(projection => projection.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   return changed
 }
 
@@ -200,6 +204,8 @@ export function collectReferencedAssetIds(d: {
   curiosities?: { assets?: { id: string }[] }[]
   argCards?: { assets?: { id: string }[] }[]
   categories?: { assets?: { id: string }[] }[]
+  supportLinks?: { snapshot?: { assets?: { id: string }[] } }[]
+  curationProjections?: { snapshot?: { assets?: { id: string }[] } }[]
 }): Set<string> {
   const keep = new Set<string>()
   const collect = (cards: { assets?: { id: string }[] }[] | undefined) =>
@@ -209,6 +215,8 @@ export function collectReferencedAssetIds(d: {
   collect(d.curiosities)
   collect(d.argCards)
   collect(d.categories)
+  collect((d.supportLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
+  collect((d.curationProjections || []).map(projection => projection.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   return keep
 }
 

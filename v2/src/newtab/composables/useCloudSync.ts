@@ -9,6 +9,14 @@ import type {
   SnapshotState,
   SyncManifest,
 } from '@/shared/cloud/sync'
+import {
+  applyReceiptActionToData,
+  getReceiptActions,
+  saveReceiptActions,
+  setReceiptActionStatus,
+  type CloudSyncReceiptAction,
+} from '@/shared/cloud/syncActions'
+import { K } from '@/shared/storage/keys'
 
 export type CloudState = 'checking' | 'disabled' | 'signed_out' | 'connected' | 'syncing' | 'error'
 export type CloudConflictChoice = 'download' | 'upload' | 'cancel'
@@ -48,6 +56,7 @@ const checkResult = ref<CloudCheckResult | null>(null)
 const networkOnline = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const lastSyncAt = computed(() => Math.max(meta.value?.lastUploadAt || 0, meta.value?.lastDownloadAt || 0))
 const latestReceipt = computed<CloudSyncReceipt | null>(() => meta.value?.syncReceipts?.[0] || null)
+const syncReceipts = computed<CloudSyncReceipt[]>(() => meta.value?.syncReceipts || [])
 
 let refreshPromise: Promise<void> | null = null
 let activeSync: Promise<CloudSyncOutcome> | null = null
@@ -59,6 +68,9 @@ let baselineMutationSeq: number | null = null
 let latestMutationSeq = 0
 let mutationUnsubscribe: (() => void) | null = null
 let mutationSubscriptionPromise: Promise<void> | null = null
+let metaUnsubscribe: (() => void) | null = null
+let metaSubscriptionPromise: Promise<void> | null = null
+let observedAutoSyncAt = 0
 
 export interface CapturedLocalSnapshot {
   snapshot: SnapshotState
@@ -67,6 +79,10 @@ export interface CapturedLocalSnapshot {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function lockOwner(kind: string): string {
+  return `${kind}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`
 }
 
 function formatTime(ts: number): string {
@@ -184,6 +200,69 @@ async function ensureMutationSubscription(): Promise<void> {
   }
 }
 
+/**
+ * 后台自动同步与当前页面属于不同扩展上下文。监听 CloudMeta 的持久化变化，
+ * 让顶栏、最近同步时间和历史记录无需刷新页面即可跟上后台结果。
+ */
+async function ensureMetaSubscription(): Promise<void> {
+  if (metaUnsubscribe) return
+  if (!metaSubscriptionPromise) {
+    metaSubscriptionPromise = (async () => {
+      const storage = chrome?.storage
+      if (!storage?.onChanged) return
+      const current = await storage.local.get([K.CLOUD_META])
+      const initial = current[K.CLOUD_META] as CloudMeta | undefined
+      observedAutoSyncAt = initial?.lastAutoSyncAt || 0
+      const handler = (
+        changes: Record<string, chrome.storage.StorageChange>,
+        areaName: string,
+      ): void => {
+        if (areaName !== 'local' || !changes[K.CLOUD_META]) return
+        const next = changes[K.CLOUD_META].newValue as CloudMeta | undefined
+        if (!next || typeof next !== 'object') {
+          meta.value = null
+          observeAccount(null)
+          state.value = 'signed_out'
+          return
+        }
+        meta.value = next
+        observeAccount(next)
+        if (!next.refreshToken) {
+          state.value = 'signed_out'
+          return
+        }
+        if (!activeSync && !refreshPromise && !relationProbePromise) state.value = 'connected'
+        const autoSyncAt = next.lastAutoSyncAt || 0
+        if (autoSyncAt <= observedAutoSyncAt) return
+        observedAutoSyncAt = autoSyncAt
+        if (next.lastAutoResult === 'uploaded' || next.lastAutoResult === 'latest') {
+          const revision = next.revision || 0
+          const fingerprint = next.syncedFingerprint || ''
+          checkResult.value = {
+            kind: 'in_sync',
+            relation: 'in_sync',
+            remoteRevision: revision,
+            remoteFingerprint: fingerprint,
+            localFingerprint: fingerprint,
+          }
+          setRelation('in_sync')
+          void import('@/shared/storage/repository').then(repository => {
+            baselineMutationSeq = repository.getMutationSeq()
+            latestMutationSeq = baselineMutationSeq
+          }).catch(() => undefined)
+        }
+      }
+      storage.onChanged.addListener(handler)
+      metaUnsubscribe = () => storage.onChanged.removeListener(handler)
+    })()
+  }
+  try {
+    await metaSubscriptionPromise
+  } catch {
+    metaSubscriptionPromise = null
+  }
+}
+
 export async function captureLocalSnapshot(store: AppStore): Promise<CapturedLocalSnapshot> {
   await ensureMutationSubscription()
   const [repository, eventLog] = await Promise.all([
@@ -298,6 +377,7 @@ async function ensureRelationProbe(store: AppStore, force = false): Promise<Clou
 }
 
 async function refreshCloudStatus(probeRemote = false, store?: AppStore): Promise<void> {
+  await ensureMetaSubscription()
   if (activeSync) await activeSync
   if (refreshPromise) {
     await refreshPromise
@@ -343,11 +423,9 @@ async function restoreCloudSnapshot(
   if (!store.data) throw new Error('本机数据尚未就绪')
   const beforeMeta = await sync.getCloudMeta()
   const beforeRevision = beforeMeta?.revision || 0
-  const beforeSnapshot = knownBeforeManifest ? null : await captureLocalSnapshot(store)
+  const beforeSnapshot = await captureLocalSnapshot(store)
   const beforeManifest = knownBeforeManifest
-    || (beforeSnapshot
-      ? sync.buildSyncManifest(beforeSnapshot.snapshot, beforeRevision, beforeMeta?.syncedFingerprint || '')
-      : beforeMeta?.localManifest || null)
+    || sync.buildSyncManifest(beforeSnapshot.snapshot, beforeRevision, beforeMeta?.syncedFingerprint || '')
   const downloaded = await sync.downloadNow()
   const localAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
   const localCategoryAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
@@ -461,6 +539,11 @@ async function restoreCloudSnapshot(
     toRevision: downloaded.revision,
   })
   await sync.appendSyncReceipt(receipt)
+  await saveReceiptActions(receipt, beforeSnapshot.snapshot, {
+    data: store.data!,
+    ui: downloaded.state.ui,
+    eventLog: downloaded.state.eventLog,
+  })
   await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq()
   )
   return { revision: downloaded.revision, receipt }
@@ -526,6 +609,7 @@ async function uploadSnapshot(
     toRevision: uploaded.revision,
   })
   await sync.appendSyncReceipt(receipt)
+  await saveReceiptActions(receipt, uploaded.beforeState, captured.snapshot)
   await settleInSync(uploaded.revision, uploaded.fingerprint, captured.mutationSeq)
   return { kind: 'uploaded', revision: uploaded.revision }
 }
@@ -604,6 +688,14 @@ async function manualSync(
 ): Promise<CloudSyncOutcome> {
   if (activeSync) return activeSync
   activeSync = (async () => {
+    const { sync } = await loadSharedModules()
+    const owner = lockOwner('manual')
+    if (!(await sync.acquireCloudSyncLock(owner))) {
+      state.value = 'error'
+      errorMessage.value = '已有同步任务正在运行，请稍后再试'
+      activeSync = null
+      return { kind: 'failed', message: errorMessage.value } as const
+    }
     try {
       return await runManualSync(store, onDecision, trigger)
     } catch (error) {
@@ -611,6 +703,7 @@ async function manualSync(
       errorMessage.value = messageOf(error)
       return { kind: 'failed', message: errorMessage.value }
     } finally {
+      await sync.releaseCloudSyncLock(owner).catch(() => {})
       activeSync = null
     }
   })()
@@ -619,8 +712,14 @@ async function manualSync(
 
 async function uploadCurrent(store: AppStore, onDecision: DecisionHandler): Promise<CloudSyncOutcome> {
   state.value = 'syncing'
+  const { sync } = await loadSharedModules()
+  const owner = lockOwner('upload')
+  if (!(await sync.acquireCloudSyncLock(owner))) {
+    state.value = 'error'
+    errorMessage.value = '已有同步任务正在运行，请稍后再试'
+    throw new Error(errorMessage.value)
+  }
   try {
-    const { sync } = await loadSharedModules()
     const current = await sync.getCloudMeta()
     const snapshot = await captureLocalSnapshot(store)
     return await uploadSnapshot(store, snapshot, onDecision, 'settings', current?.localManifest || null)
@@ -629,17 +728,28 @@ async function uploadCurrent(store: AppStore, onDecision: DecisionHandler): Prom
     state.value = 'error'
     errorMessage.value = message
     throw error
+  } finally {
+    await sync.releaseCloudSyncLock(owner).catch(() => {})
   }
 }
 
 async function downloadCurrent(store: AppStore): Promise<{ revision: number }> {
   state.value = 'syncing'
+  const { sync } = await loadSharedModules()
+  const owner = lockOwner('download')
+  if (!(await sync.acquireCloudSyncLock(owner))) {
+    state.value = 'error'
+    errorMessage.value = '已有同步任务正在运行，请稍后再试'
+    throw new Error(errorMessage.value)
+  }
   try {
     return await restoreCloudSnapshot(store, 'settings')
   } catch (error) {
     state.value = 'error'
     errorMessage.value = messageOf(error)
     throw error
+  } finally {
+    await sync.releaseCloudSyncLock(owner).catch(() => {})
   }
 }
 
@@ -672,6 +782,26 @@ async function loadSyncDetails(store: AppStore): Promise<CloudSyncDetails> {
   }
 }
 
+async function loadReceiptActions(receiptId: string): Promise<CloudSyncReceiptAction[]> {
+  return getReceiptActions(receiptId)
+}
+
+async function applyReceiptAction(
+  store: AppStore,
+  receiptId: string,
+  key: string,
+): Promise<{ ok: boolean; status: CloudSyncReceiptAction['status']; message: string }> {
+  if (!store.data) return { ok: false, status: 'conflict', message: '本机数据尚未就绪' }
+  const rows = await getReceiptActions(receiptId)
+  const action = rows.find(row => row.key === key)
+  if (!action) return { ok: false, status: 'readonly', message: '没有找到这条记录的本机动作载荷' }
+  const { syncRecordDigest } = await import('@/shared/cloud/sync')
+  const result = applyReceiptActionToData(store.data, action, syncRecordDigest)
+  await setReceiptActionStatus(receiptId, key, result.status, result.ok ? undefined : result.message)
+  if (result.ok) store.persist()
+  return result
+}
+
 export interface UseCloudSyncReturn {
   state: Ref<CloudState>
   meta: Ref<CloudMeta | null>
@@ -683,6 +813,7 @@ export interface UseCloudSyncReturn {
   lastSyncAt: ComputedRef<number>
   lastSyncLabel: ComputedRef<string>
   latestReceipt: ComputedRef<CloudSyncReceipt | null>
+  syncReceipts: ComputedRef<CloudSyncReceipt[]>
   relationActionLabel: ComputedRef<string>
   statusText: ComputedRef<string>
   statusDetail: ComputedRef<string>
@@ -696,6 +827,8 @@ export interface UseCloudSyncReturn {
   uploadCurrent: (store: AppStore, onDecision: DecisionHandler) => Promise<CloudSyncOutcome>
   downloadCurrent: (store: AppStore) => Promise<{ revision: number }>
   loadSyncDetails: (store: AppStore) => Promise<CloudSyncDetails>
+  loadReceiptActions: (receiptId: string) => Promise<CloudSyncReceiptAction[]>
+  applyReceiptAction: (store: AppStore, receiptId: string, key: string) => Promise<{ ok: boolean; status: CloudSyncReceiptAction['status']; message: string }>
 }
 
 export function useCloudSync(): UseCloudSyncReturn {
@@ -710,6 +843,7 @@ export function useCloudSync(): UseCloudSyncReturn {
     lastSyncAt,
     lastSyncLabel,
     latestReceipt,
+    syncReceipts,
     relationActionLabel,
     statusText,
     statusDetail,
@@ -723,5 +857,7 @@ export function useCloudSync(): UseCloudSyncReturn {
     uploadCurrent,
     downloadCurrent,
     loadSyncDetails,
+    loadReceiptActions,
+    applyReceiptAction,
   }
 }

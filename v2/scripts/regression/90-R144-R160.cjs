@@ -18,12 +18,17 @@ check('R144-3 ★G1 论点契约与消毒：提示词要「一句可被反驳的
     && w.includes('<CurationThesisDrawer') && w.includes(':ws-id="workspaceId"') && w.includes(':ws-name="wsDisplayName"')
     && !w.includes('编辑中心论点') && !w.includes('AI 提炼骨架');
 });
-check('R144-4 ★G2 三判决与写入边界：verdict 白名单（第四种全丢）、convert 缺 taskTitle 即丢行、转化只走宿主 convertToTask 唯一通道、drop=置 shelf 不删卡、keep 零写入；投料吃 R142 的 curioRelated 并集', () => {
-  const g = read('/shared/ai/batchG.ts'); const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const p = read('/shared/ai/project.ts');
-  return g.includes("['convert', 'keep', 'drop'].includes(v)") && g.includes("if (v === 'convert' && !title) { drop.noTitle++; return }") && g.includes("c.status = 'shelf'")
-    && !g.includes('deletedAt = Date.now()') && g.includes('ctx.onConvert(c, title)')
-    && cp.includes('convertToTask(c)') && cp.includes('t.title = title.slice(0, 40)') && cp.includes('转化研判') && cp.includes('AiEntryButton')
-    && p.includes('export function projectCurioPool') && !p.includes('curioRelated');
+check('R144-4（V4.2.0 退役重指）★好奇心单卡研判与三判决整体退役：好奇心详情零 AI、零转化；Inbox 成为任务 / 好奇心 / 资源三型的唯一转化入口，转化后本机软删离场并保留来源采集 ID', () => {
+  const cp = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))
+  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'))
+  const p = read('/shared/ai/project.ts')
+  return !cp.includes('aiTriage') && !cp.includes('convertToTask') && !cp.includes('AiEntryButton')
+    && !cp.includes('openConvert(') && !cp.includes('convertedTo =')
+    && inbox.includes('async function convert(item: CaptureItem, kind: CaptureConvertedKind)')
+    && inbox.includes("if (kind === 'task')") && inbox.includes("} else if (kind === 'curiosity')") && inbox.includes('} else {')
+    && inbox.includes('sourceCaptureId: item.id') && inbox.includes('items.value = items.value.filter(row => row.id !== item.id)')
+    && inbox.includes('await convertCapture(item.id, kind, cardId)')
+    && !p.includes('curioTriage') && !p.includes('convertToTask');
 });
 check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮；现役资源入口从画布节点「关联资源」进入 LinkCardsModal，旧 EvidenceMenuItem/nodeMenu 宿主已退役', () => {
   const g = read('/shared/ai/batchG.ts'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = codeOnly(read('/newtab/views/Workspace.vue'));
@@ -133,11 +138,12 @@ check('R147-2 ★投料计数改在线路处结算：chat/chatStream 真正发�
     && DRAWER147.includes('setLlmFeedSink((m) =>') && DRAWER147.includes('f.chars += m.inChars') && DRAWER147.includes('const secs = ref(0)') && DRAWER147.includes('setLlmFeedSink(null)')
     && !DRAWER147.includes('inputChars') && (gv.match(/async run\(\{ signal, onDelta \}\)/g) || []).length === 2
 });
-check('R147-3 消毒账与空态真因点名：AiJob.audit 契约（零参、计数由工厂闭包按次攒）；五处工厂记丢弃原因，抽屉工具条显示一行、空态直接说清"投料多少/丢了几行为什么"；拆解的「思路」行改 advisory（勾了什么都不发生的行不再算采纳项）', () => {
+check('R147-3（V4.2.0 随迁）消毒账与空态真因点名：AiJob.audit 契约（零参、计数由工厂闭包按次攒）；好奇心研判退役后，论点 / 证据两句仍按次记账，抽屉工具条显示一行、空态直接说清"投料多少/丢了几行为什么"；拆解的「思路」行保持 advisory', () => {
   const j = read('/shared/ai/job.ts'); const sel = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts'); const c = read('/shared/ai/chain.ts'); const gs = read('/newtab/views/GlobalSettings.vue')
   return j.includes('audit?: () => string | null') && DRAWER147.includes("auditLine.value = job.audit?.() || ''") && DRAWER147.includes('模型没有给出可采纳的建议')
-    && (sel.match(/audit: \(\) =>/g) || []).length === 0 && sel.includes('searchDropCount') && (g.match(/audit: \(\) =>/g) || []).length === 3 && gs.includes('audit: () =>')
-    && c.includes("key: 'breakdown:plan', badge: '思路', advisory: true") && g.includes('drop.badVerdict++') && g.includes('drop.ghost++')
+    && (sel.match(/audit: \(\) =>/g) || []).length === 0 && sel.includes('searchDropCount') && (g.match(/audit: \(\) =>/g) || []).length === 2
+    && gs.includes('audit: () =>') && c.includes("key: 'breakdown:plan', badge: '思路', advisory: true")
+    && g.includes('drop.ghostCard') && g.includes('drop.ghost++')
 });
 check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行且默认不勾；knownTagSet/freshTagsOf 为唯一口径（树上路径∪叶子名活卡在用），三处消费（单卡补全/批量补全/详情抽屉）同判；RDD 仍零静态引 shared/ai（启动链红线不破）· R167 重指：select 里两枚单卡工厂并成一枚 buildResourceEnrichJob，"每个单卡写库入口都要切这道闸"的判据随之改为**跨文件按工厂分段核**（资源 enrich + 任务 enrich 各一段），合并入口不得再留下"没装闸的那条"', () => {
   const tg = read('/shared/utils/tags.ts'); const sel = read('/shared/ai/select.ts'); const te = read('/shared/ai/taskEnrich.ts'); const rdd = read('/newtab/components/ResourceDetailDrawer.vue'); const st = read('/newtab/components/ResourceAiStrip.vue'); const gs = read('/newtab/views/GlobalSettings.vue')
@@ -274,23 +280,22 @@ check('R151-5 ★角标与预估同源（否则用户没法信方案）：cardHa
 });
 
 /* ===== R151-B2 · 三类卡 × 四视图（卡片/列表/看板 + 详情）AI 入口齐活 ===== */
-check('R151-6（V3.9.8 随迁备案）★AI 入口按“卡种 × 现役视图”点齐：资源卡池列表 / 网格各一 + 策展详情正文首行 ResourceAiStrip（镜像只读不给）；任务卡看板 6 处补齐（见 R147-5 随迁）；好奇卡卡片 hover / 列表 / 看板 / 详情四处单卡研判 + 批量钮走同一条 aiTriage 通道。旧 Workspace 三视图动作条零命中', () => {
+check('R151-6（V4.2.0 退役重指）★AI 入口按现役卡种点齐：资源卡池列表 / 网格各一 + 两处详情共用 ResourceAiStrip（镜像只读不给）；任务卡保留三格 AI 行与卡面角标；好奇心卡的卡片、列表、看板与详情四处单卡研判及批量通道整体退役', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
-  const cp = read('/newtab/components/compass/CuriosityPanel.vue'); const ce = read('/newtab/components/CardAiEntry.vue'); const bg = read('/shared/ai/batchG.ts'); const m = read('/newtab/manual-data.ts')
+  const cp = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')); const ce = read('/newtab/components/CardAiEntry.vue')
+  const task = read('/newtab/components/compass/TaskDetailDrawer.vue')
   // 资源卡现役两视图：列表 / 网格各一；策展台内详情另有 ResourceAiStrip
   const poolListAi = (pool.match(/<CardAiEntry v-if="!batchMode" :card="r" \/>/g) || []).length
   const poolGridAi = (pool.match(/<CardAiEntry :card="r" \/>/g) || []).length
   const lineGate = w.split('\n').length <= 1500
-  // 好奇卡：三视图单卡 + 详情一处；批量钮必须显式空参（否则 MouseEvent 会被当成单卡入参）
-  const curioEntries = (cp.match(/aiTriage\(c\)/g) || []).length
   return poolListAi === 2 && poolGridAi === 1 && lineGate && !ce.includes('label?: string') /* R167：卡面入口只留徽标形态，label 变体随"AI 进标题行"退役 */
     && !w.includes('<CardAiEntry :card="r" />')
     && w.includes('<ResourceAiStrip') && read('/newtab/components/ResourceDetailDrawer.vue').includes('<ResourceAiStrip')
     && ce.includes('class="rc-action ai"') && !ce.includes('dr-footer-btn') && w.includes('<template #title>')
-    && curioEntries === 3 && cp.includes('aiTriage(detailItem)') && cp.includes('@click="aiTriage()"') && cp.includes('one.status !== \'todo\'')
-    && bg.includes("pool.length < (single ? 1 : 3)") && bg.includes("'triage:' + pool[0].id")
-    && m.includes('镜像卡不给入口') && m.includes('资源卡详情只保留一个') && m.includes('卡间挂载只保留两条') && m.includes('是同一条通道') && m.includes('换一张卡再点就是另起一轮')
+    && (task.match(/class="ts-ai-cell"/g) || []).length === 3
+    && !cp.includes('aiTriage') && !cp.includes('AiEntryButton') && !cp.includes('转化研判')
+    && read('/newtab/manual-data.ts').includes('好奇心卡不提供 AI 研判或转化入口')
 });
 
 /* ===== R151-C1/C2 · 门禁与归因工具收口 ===== */
@@ -322,14 +327,16 @@ check('R152-3 ★手势矩阵收口：单击/Enter=打开、Ctrl+单击 与 Ctrl
     && g.includes('const aiHitById = computed') && g.includes('name="sparkle"') && !g.includes('pair.hit.weak')
     && g.includes('rank.has(a.id)') && !g.includes("for (const pair of aiTopRows.value) out.push")
 });
-check('R152-4 ★"AI 动过"要有凭据：aiTouchedAt 由**每一枚会写卡/写关联的入口**共同盖戳（别做两套定义，也不能有一枚不盖）· R167 备案：资源侧入口从"页脚钮"变成共享 AI 行的两格，凭据据此翻「↻ 重新补全」＋行尾「最近 · 」；入口钮不再均分挤压的口径随版式搬到 .ds-ai-cell（说明行禁折行）；抽屉懒组件提到模块作用域单例（script setup 顶层=setup 函数体，原来每张卡新建一份组件定义）', () => {
+check('R152-4（V4.2.0 随迁）★"AI 动过"要有凭据：aiTouchedAt 由每一枚会写卡/写关联的入口共同盖戳；资源 AI 行显示「↻ 重新优化」与最近时间，好奇心零 AI 凭据；入口钮说明行禁折行，评审抽屉仍走模块作用域懒单例', () => {
   const m = read('/shared/models/index.ts'); const st = read('/newtab/components/ResourceAiStrip.vue'); const css = read('/shared/styles/detail-sheet.css')
   const c = read('/newtab/components/CardAiEntry.vue'); const lz = fs.readFileSync(base + '/newtab/components/lazyAiDrawer.ts', 'utf8')
+  const curio = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))
   const stampFiles = ['select.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts']
-  const missing = stampFiles.filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt = Date.now()'))
+  const missing = stampFiles.filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt ='))
   return m.includes('aiTouchedAt?: number') && missing.length === 0
     && st.includes("'↻ 重新优化' : 'AI 优化'") && st.includes('ds-ai-when')
     && css.includes('.ds-ai-cell .tx small') && css.includes('white-space: nowrap')
+    && !curio.includes('ds-ai-when') && !curio.includes('aiTouchedAt')
     && c.includes('class="rc-action ai"') && lz.includes("defineAsyncComponent(() => import('./AiSuggestionDrawer.vue'))") && !c.includes('defineAsyncComponent')
 });
 

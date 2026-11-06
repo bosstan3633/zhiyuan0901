@@ -33,9 +33,9 @@ check('R187-1 ★策展台页头收成一个连续三层：台身份 → 中心�
   const toolbarCss = (WSCSS.match(/\.ws-head\s*>\s*\.cur-toolbar\s*\{([^}]*)\}/) || [])[1] || ''
   return head >= 0 && identity > head && thesis > identity && toolbar > thesis
     && /flex-direction:\s*column/.test(headCss)
-    && /gap:\s*10px/.test(headCss)
+    && /gap:\s*6px/.test(headCss)
     && /position:\s*static/.test(toolbarCss)
-    && /margin-top:\s*2px/.test(toolbarCss)
+    && /margin-top:\s*0/.test(toolbarCss)
 })
 
 check('R187-2（V4.0.3 重指）★布局切换与分享各只有一个入口：布局固定在画布工具条，分享固定页面行动条行尾一次', () => {

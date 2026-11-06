@@ -1,8 +1,7 @@
 import { computed } from 'vue'
 import { useAppStore } from './app'
 import { uid } from '@/shared/utils'
-import type { CuriosityCard, ResourceCard, TaskCard, FieldDef } from '@/shared/models'
-import { convertCard, missingCustomDefs } from '@/shared/utils/cards'
+import type { CuriosityCard } from '@/shared/models'
 
 /** 好奇心状态 → 展示元信息 */
 export const CURIOSITY_STATUS = {
@@ -59,68 +58,8 @@ export function useCuriosity() {
     if (c) { c.deletedAt = Date.now(); store.persist() }
   }
 
-  /**
-   * 第卌轮 REQ-050：源卡在目标型分区缺失的自定义字段 def 注入（保转卡后 label/类型显示不丢）
-   * 仅注入「源卡实际有值」的 custom key，避免空 def 噪音。
-   */
-  function ensureCustomDefs(c: CuriosityCard, targetKind: 'resource' | 'task') {
-    /**
-     * R4-Dk：这里原先直接 `store.data!.fieldConfig.curiosity`。老库/导入合过来的库可以整块没有
-     * fieldConfig（repository 的归一化全都写成 `if (data.fieldConfig && …)`，没有谁负责补这块），
-     * 于是这一行抛 TypeError——而它发生在 convertToResource/convertToTask 的 `store.persist()` **之前**：
-     * 卡进了内存却没落盘、回执 toast 也不弹，界面看上去"转化成功了"但刷新就没了（R4-Dk 把 ⌘K 面板
-     * 接进这条唯一实现时被撞出来）。缺定义只是没得搬，不该让转化整体失败。
-     */
-    const cfg = store.data!.fieldConfig
-    if (!cfg) return
-    const dest = cfg[targetKind] || (cfg[targetKind] = [])
-    const hasValue = (k: string) => Object.prototype.hasOwnProperty.call(c.customFields || {}, k)
-    const srcDefs = (cfg.curiosity || []).filter(f => hasValue(f.key))
-    const missing = missingCustomDefs(srcDefs, dest.map(f => f.key))
-    for (const m of missing) {
-      dest.push({ ...m, visible: true, order: dest.length } as FieldDef)
-    }
-  }
-
-  /** 转化为任务卡 → 进入任务中心（可选归属项目/指标）；公共字段无损（REQ-050） */
-  function convertToTask(c: CuriosityCard, projectId?: string, metricId?: string): TaskCard {
-    // R70-a：归属兜底——「有指标却无项目」是非法态（指标必然隶属某个项目）。
-    // 此前 CuriosityPanel 允许「先选项目+指标、再把项目改回不归属」提交出这种任务，
-    // 会让指标进度/下钻口径统计不到它（视图层已同步加 @change 复位，此处是数据层双保险）。
-    const safeMetricId = projectId ? metricId : undefined
-    const task = convertCard(c, { kind: 'task', projectId, metricId: safeMetricId })
-    d.value.tasks.unshift(task)
-    // R70-b：补写 metric.taskIds——这是全项目唯一漏双写的路径（对比 TaskAddDrawer、
-    // CompassHome.syncMetricTaskIds、TaskManagerPanel），不补会破坏
-    // 「TaskCard.metricId ↔ Metric.taskIds」的双向不变量，让后续以 taskIds 为准的功能踩坑。
-    if (task.metricId) {
-      for (const dir of d.value.compass?.directions || []) for (const prj of dir.projects || []) for (const m of prj.metrics || [])
-        if (m.id === task.metricId && !m.taskIds.includes(task.id)) m.taskIds.push(task.id)
-    }
-    c.deletedAt = Date.now()
-    /** R167：转化即离场——同一刻记转化戳，池头部「已转化」按它计数；回收站恢复会清掉它 */
-    c.convertedAt = Date.now()
-    c.convertedTo = 'task'
-    ensureCustomDefs(c, 'task')
-    store.persist()
-    return task
-  }
-
-  /** 转化为资源卡 → 进入指定策展台/分类；公共字段无损（REQ-050） */
-  function convertToResource(c: CuriosityCard, workspaceId: string, categoryId?: string): ResourceCard {
-    const resource = convertCard(c, { kind: 'resource', workspaceId, categoryId })
-    d.value.resources.unshift(resource)
-    c.deletedAt = Date.now()
-    /** R167：同上——归档为资源也算一次转化出路 */
-    c.convertedAt = Date.now()
-    c.convertedTo = 'res'
-    ensureCustomDefs(c, 'resource')
-    store.persist()
-    return resource
-  }
-
   return {
     curiosities, STATUS_MAP: CURIOSITY_STATUS,
-    add, update, setStatus, remove, convertToTask, convertToResource
+    add, update, setStatus, remove
   }
 }

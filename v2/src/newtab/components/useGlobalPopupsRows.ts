@@ -7,7 +7,7 @@ import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCar
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import type { useGlobalPopups, SearchResult } from './useGlobalPopups'
 
-export function useGlobalPopupsRows(deps: Pick<ReturnType<typeof useGlobalPopups>, 'searchQuery' | 'flatList' | 'runAiEntry' | 'recordSearch' | 'd' | 'store' | 'closeAll' | 'router' | 'currentType' | 'selIndex' | 'syncIdFromIndex' | 'searchQueryRaw' | 'setSearchQuery' | 'typeLabel' | 'resultsEl' | 'selectedId' | 'syncIndexFromId' | 'convertMenuId' | 'convertToResource' | 'convertToTask'>): {
+export function useGlobalPopupsRows(deps: Pick<ReturnType<typeof useGlobalPopups>, 'searchQuery' | 'flatList' | 'runAiEntry' | 'recordSearch' | 'd' | 'store' | 'closeAll' | 'router' | 'currentType' | 'selIndex' | 'syncIdFromIndex' | 'searchQueryRaw' | 'setSearchQuery' | 'typeLabel' | 'resultsEl' | 'selectedId' | 'syncIndexFromId'>): {
   escapeHtmlTitle: (t: string) => string
   hlTitle: (title: string) => string
   runFlat: (index: number) => void
@@ -29,10 +29,8 @@ export function useGlobalPopupsRows(deps: Pick<ReturnType<typeof useGlobalPopups
   isStarred: (item: SearchResult) => boolean
   toggleStar: (item: SearchResult) => void
   deleteItem: (item: SearchResult) => Promise<void>
-  toggleConvertMenu: (id: string) => void
-  convertCurio: (item: SearchResult, target: 'task' | 'res') => void
 } {
-  const { searchQuery, flatList, runAiEntry, recordSearch, d, store, closeAll, router, currentType, selIndex, syncIdFromIndex, searchQueryRaw, setSearchQuery, typeLabel, resultsEl, selectedId, syncIndexFromId, convertMenuId, convertToResource, convertToTask } = deps
+  const { searchQuery, flatList, runAiEntry, recordSearch, d, store, closeAll, router, currentType, selIndex, syncIdFromIndex, searchQueryRaw, setSearchQuery, typeLabel, resultsEl, selectedId, syncIndexFromId } = deps
 function escapeHtmlTitle(t: string): string {
   return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -303,36 +301,7 @@ async function deleteItem(item: SearchResult) {
   } })
 }
 
-function toggleConvertMenu(id: string) {
-  convertMenuId.value = convertMenuId.value === id ? null : id
-}
-
-function convertCurio(item: SearchResult, target: 'res'|'task') {
-  const c = item.raw as CuriosityCard
-  /**
-   * R4-Dk：两个出口都接回唯一实现 `useCuriosity`（此前面板自己手搓一份卡）。改前四处偏差：
-   *  ① 落点写 `d.value.workspaces[0]?.id`——存量库里那枚恰好是 zy-curation，默认库里第一枚是
-   *    「事业策展台」（defaults.ts），所以同一个动作在两种库形状下落进完全不同的台；池才是新卡默认居所（R2-⑧）。
-   *  ② 「查看」直推 `/workspace/${r.workspaceId}`：池 id 自 R179 起恒落 Workspace「策展台不存在」死页。
-   *    R2-④ 清这族死链时判据是**路由字面量扫描**，变量拼法它看不见——本行就是漏网的那一个入口。
-   *  ③ 手搓的卡只带 title：标签/附件/星标/置顶/自定义字段整片丢，任务还不按好奇心状态映射。
-   *  ④ 不写 convertedAt/convertedTo ⇒ 池头部「已转化」计数与 CuriosityPanel 那条路对不上同一个动作。
-   */
-  if (target === 'res') {
-    const r = convertToResource(c, CURATION_WS_ID, '')
-    closeAll()
-    showToast('已转化为资源卡，存入资源卡池', { label: '查看', cb: () => {
-      // 与 locateOnly 同一改靶口径：池卡的居所是调度台「资源卡池」，不是策展台深链
-      router.push({ path: '/deck/resource', query: { hl: r.id, hk: 'res' } })
-    } })
-    return
-  }
-  const t = convertToTask(c)
-  closeAll()
-  showToast('已转化为任务，前往任务调度', { label: '查看', cb: () => router.push({ path: '/deck/task', query: { hl: t.id, hk: 'task' } }) })
-}
-
   return {
-    escapeHtmlTitle, hlTitle, runFlat, runFlatLocator, openLinkOrLocate, locateOnly, runSearch, setType, clearFilter, onSearchKeydown, scrollToSelected, pickRow, selectHover, lastOpenId, lastOpenTs, openItem, openResLink, editItem, isStarred, toggleStar, deleteItem, toggleConvertMenu, convertCurio,
+    escapeHtmlTitle, hlTitle, runFlat, runFlatLocator, openLinkOrLocate, locateOnly, runSearch, setType, clearFilter, onSearchKeydown, scrollToSelected, pickRow, selectHover, lastOpenId, lastOpenTs, openItem, openResLink, editItem, isStarred, toggleStar, deleteItem,
   }
 }

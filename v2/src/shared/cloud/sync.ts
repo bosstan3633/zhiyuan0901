@@ -9,6 +9,10 @@ import { mergeEventLogs, mergeImportedEventLog, type CardEvent } from '@/shared/
 import { cloudEnv, cloud, type CloudEnv, setCloudEnvOverride } from './client'
 import { K, LOCAL_KEYS } from '@/shared/storage/keys'
 import { getAssetBlob } from '@/shared/storage/assets'
+import { pruneReceiptActions } from './syncActions'
+import { fallbackHash, stableStringify, syncRecordDigest } from './digest'
+
+export { syncRecordDigest }
 
 export interface CloudMeta {
   userId: string
@@ -29,6 +33,13 @@ export interface CloudMeta {
   remoteManifestCachedAt?: number
   /** V4.1.3：最近 20 次真实同步的轻量回执；只存记录摘要与字段名，不存完整快照。 */
   syncReceipts?: CloudSyncReceipt[]
+  /** V4.2.0：自动同步默认关闭，仅自动上传本机改动，不自动拉回云端。 */
+  autoSyncEnabled?: boolean
+  lastAutoAttemptAt?: number
+  lastAutoSyncAt?: number
+  nextAutoSyncAt?: number
+  lastAutoResult?: 'uploaded' | 'latest' | 'blocked' | 'failed' | 'signed_out'
+  lastAutoError?: string
 }
 
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
@@ -99,7 +110,7 @@ export interface SyncManifestDiff {
 }
 
 export type CloudSyncDirection = 'upload' | 'download' | 'latest'
-export type CloudSyncTrigger = 'topbar' | 'settings'
+export type CloudSyncTrigger = 'topbar' | 'settings' | 'auto'
 
 /** 回执行沿用 manifest diff 的可读摘要；没有字段指纹时不会伪造字段名。 */
 export type CloudSyncReceiptRow = SyncManifestDiffRow
@@ -118,7 +129,7 @@ export interface CloudSyncReceipt {
 }
 export type CloudUploadDecision = 'upload' | 'download' | 'cancel'
 export type UploadNowResult =
-  | { kind: 'uploaded'; revision: number; fingerprint: string; manifest: SyncManifest }
+  | { kind: 'uploaded'; revision: number; fingerprint: string; manifest: SyncManifest; beforeState: SnapshotState | null }
   | { kind: 'cancelled'; remoteRevision: number }
   | { kind: 'download_requested'; remoteRevision: number }
 export type CloudRelation =
@@ -141,6 +152,7 @@ export interface CloudCheckResult {
 }
 
 const META_KEY = K.CLOUD_META
+const LOCK_KEY = K.CLOUD_SYNC_LOCK
 const REVISION_CONFLICT_MAX_RETRIES = 2
 
 async function readMeta(): Promise<CloudMeta | null> {
@@ -159,12 +171,56 @@ async function writeMeta(patch: Partial<CloudMeta>): Promise<CloudMeta> {
 }
 export const getCloudMeta = readMeta
 
+export async function acquireCloudSyncLock(owner: string, leaseMs = 120_000): Promise<boolean> {
+  try {
+    const now = Date.now()
+    const current = (await chrome.storage.local.get([LOCK_KEY]))[LOCK_KEY] as { owner?: string; expiresAt?: number } | undefined
+    if (current?.owner && Number(current.expiresAt) > now) return false
+    await chrome.storage.local.set({ [LOCK_KEY]: { owner, expiresAt: now + leaseMs } })
+    const confirmed = (await chrome.storage.local.get([LOCK_KEY]))[LOCK_KEY] as { owner?: string } | undefined
+    return confirmed?.owner === owner
+  } catch {
+    return true
+  }
+}
+
+export async function releaseCloudSyncLock(owner: string): Promise<void> {
+  try {
+    const current = (await chrome.storage.local.get([LOCK_KEY]))[LOCK_KEY] as { owner?: string } | undefined
+    if (current?.owner === owner) await chrome.storage.local.remove(LOCK_KEY)
+  } catch { /* noop */ }
+}
+
 export async function setCheckOnStart(v: boolean): Promise<CloudMeta> {
   return writeMeta({ checkOnStart: v })
 }
 
 export async function setCurationAssetSyncEnabled(v: boolean): Promise<CloudMeta> {
   return writeMeta({ assetSyncEnabled: v })
+}
+
+export async function setAutoSyncEnabled(v: boolean): Promise<CloudMeta> {
+  return writeMeta({
+    autoSyncEnabled: v,
+    nextAutoSyncAt: v ? Date.now() + 60 * 60_000 : undefined,
+    ...(v ? {} : { lastAutoError: undefined }),
+  })
+}
+
+export async function markAutoSyncResult(input: {
+  result: NonNullable<CloudMeta['lastAutoResult']>
+  at?: number
+  error?: string
+  nextAt?: number
+}): Promise<CloudMeta> {
+  const at = input.at || Date.now()
+  return writeMeta({
+    lastAutoAttemptAt: at,
+    ...(input.result === 'uploaded' || input.result === 'latest' ? { lastAutoSyncAt: at } : {}),
+    lastAutoResult: input.result,
+    lastAutoError: input.error,
+    nextAutoSyncAt: input.nextAt || at + 60 * 60_000,
+  })
 }
 
 export async function setCloudEnv(env: CloudEnv | null): Promise<void> {
@@ -234,33 +290,20 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
     if (!category.assets?.length) continue
     category.assets = category.assets.map(curationAsset)
   }
+  for (const link of d.supportLinks || []) {
+    if (!link.snapshot?.assets?.length) continue
+    link.snapshot.assets = link.snapshot.assets.map(safeAsset)
+  }
+  for (const projection of d.curationProjections || []) {
+    if (!projection.snapshot?.assets?.length) continue
+    projection.snapshot.assets = projection.snapshot.assets.map(safeAsset)
+  }
   const safeUi = ui ? JSON.parse(JSON.stringify(ui)) as UIPrefs : null
   if (safeUi) {
     delete (safeUi as unknown as Record<string, unknown>).__cloud
     delete (safeUi as unknown as Record<string, unknown>).__wid
   }
   return { data: d, ui: safeUi, eventLog: [...eventLog] }
-}
-
-/** 稳定序列化：对象键固定排序，数组顺序保留，保证两台设备对同一内容得到同一指纹。 */
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(item => stableStringify(item)).join(',')}]`
-  const record = value as Record<string, unknown>
-  return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(',')}}`
-}
-
-function fallbackHash(input: string): string {
-  let h1 = 0x811c9dc5
-  let h2 = 0x9e3779b9
-  for (let i = 0; i < input.length; i += 1) {
-    const code = input.charCodeAt(i)
-    h1 ^= code
-    h1 = Math.imul(h1, 0x01000193)
-    h2 ^= code + i
-    h2 = Math.imul(h2, 0x85ebca6b)
-  }
-  return `fnv:${(h1 >>> 0).toString(16).padStart(8, '0')}${(h2 >>> 0).toString(16).padStart(8, '0')}`
 }
 
 const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>> = {
@@ -273,8 +316,8 @@ const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>
   direction: ['name', 'term', 'content', 'reason', 'order', 'calibratedAt', 'archivedAt', 'vision', 'mission'],
   project: ['name', 'goalId', 'status', 'endDate', 'nextStep', 'order', 'content'],
   metric: ['title', 'target', 'acceptance', 'taskIds', 'order'],
-  supportLink: ['taskId', 'subId', 'resourceId', 'from', 'why', 'createdAt'],
-  curationProjection: ['kind', 'wsId', 'catId', 'cardId', 'targetWsId', 'targetCatId', 'curOrder', 'displayName', 'addedAt'],
+  supportLink: ['taskId', 'subId', 'resourceId', 'from', 'why', 'createdAt', 'snapshot'],
+  curationProjection: ['kind', 'wsId', 'catId', 'cardId', 'targetWsId', 'targetCatId', 'curOrder', 'displayName', 'addedAt', 'snapshot'],
   tag: ['name', 'definition'],
   activity: ['type', 'entityType', 'entityId', 'timestamp', 'detail'],
   stats: ['weekly', 'lastReuse', 'lastVisits', 'wrr'],
@@ -544,13 +587,17 @@ export function buildSyncReceipt(input: {
   }
 }
 
-/** 同步回执只保留最近 20 条；去重按 id，最新在前。 */
+/** 同步回执只保留最近 20 条且最长 30 天；去重按 id，最新在前。 */
 export async function appendSyncReceipt(receipt: CloudSyncReceipt): Promise<CloudMeta> {
   const current = await readMeta()
+  const oldest = Date.now() - 30 * 24 * 60 * 60 * 1000
   const rows = [receipt, ...(current?.syncReceipts || [])]
     .filter((row, index, all) => all.findIndex(item => item.id === row.id) === index)
+    .filter(row => row.at >= oldest)
     .slice(0, 20)
-  return writeMeta({ syncReceipts: rows })
+  const next = await writeMeta({ syncReceipts: rows })
+  await pruneReceiptActions(rows)
+  return next
 }
 
 /** 对干净快照做内容指纹；只排除附件本体/凭据等不进云内容，不依赖 revision。 */
@@ -682,7 +729,26 @@ export async function logout(): Promise<void> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (env && meta && tokenCache) { try { await cloud.logout(env, tokenCache.accessToken) } catch { /* noop */ } }
   tokenCache = null
-  try { await chrome?.storage?.local?.remove([META_KEY]) } catch { /* noop */ }
+  try {
+    // 退出只结束账号会话；自动同步偏好保留，重新登录后可继续使用。
+    if (meta?.autoSyncEnabled) {
+      await chrome.storage.local.set({
+        [META_KEY]: {
+          userId: '',
+          email: '',
+          refreshToken: '',
+          revision: 0,
+          checkOnStart: true,
+          autoSyncEnabled: true,
+          nextAutoSyncAt: undefined,
+          lastAutoResult: 'signed_out',
+          lastAutoError: '账号已退出，自动同步已暂停',
+        },
+      })
+    } else {
+      await chrome?.storage?.local?.remove([META_KEY])
+    }
+  } catch { /* noop */ }
 }
 
 /** 比较本机、上次成功同步基线与云端三份干净快照。 */
@@ -774,10 +840,13 @@ export async function uploadNow(
         remoteManifest: manifest,
         remoteManifestCachedAt: Date.now(),
       })
-      return { kind: 'uploaded', revision: rev, fingerprint, manifest }
+      return { kind: 'uploaded', revision: rev, fingerprint, manifest, beforeState: null }
     }
 
     const remoteState = remote.state as SnapshotState | null
+    const beforeState = remoteState?.data?.version === 2
+      ? sanitizeSnapshot(remoteState.data, remoteState.ui || null, remoteState.eventLog || [])
+      : null
     if (remoteState?.eventLog?.length) {
       clean.eventLog = await reconcileAccountEvents(mergeEventLogs(clean.eventLog, remoteState.eventLog))
     }
@@ -804,7 +873,7 @@ export async function uploadNow(
         remoteManifest: manifest,
         remoteManifestCachedAt: Date.now(),
       })
-      return { kind: 'uploaded', revision: rev, fingerprint, manifest }
+      return { kind: 'uploaded', revision: rev, fingerprint, manifest, beforeState }
     }
   }
 
@@ -1044,6 +1113,13 @@ export interface CaptureItem {
   convertedKind?: CaptureConvertedKind
   convertedCardId?: string
 }
+export interface CapturePatch {
+  title?: string
+  url?: string
+  text?: string
+  note?: string
+  tags?: string[]
+}
 
 export async function listCaptures(): Promise<CaptureItem[]> {
   const env = await cloudEnv(); const meta = await readMeta()
@@ -1077,6 +1153,19 @@ export async function convertCapture(id: string, kind: CaptureConvertedKind, car
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
   await cloud.convertCapture(env, token, id, kind, cardId)
+}
+
+export async function updateCapture(id: string, patch: CapturePatch): Promise<void> {
+  const env = await cloudEnv(); const meta = await readMeta()
+  if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
+  const token = await accessToken(env, meta)
+  await cloud.updateCapture(env, token, id, {
+    ...(patch.title !== undefined ? { title: patch.title } : {}),
+    ...(patch.url !== undefined ? { url: patch.url } : {}),
+    ...(patch.text !== undefined ? { text_content: patch.text } : {}),
+    ...(patch.note !== undefined ? { note: patch.note } : {}),
+    ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+  })
 }
 
 export async function dismissCapture(id: string): Promise<void> {

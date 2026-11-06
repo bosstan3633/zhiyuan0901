@@ -38,14 +38,15 @@ check('R186-1（V4.0.3 重指）★空论点态按原型收成单行轻引导：
     && /background:\s*var\(--surface-2\)/.test(emptyCss)
 })
 
-check('R186-2（V4.0.3 重指）★有论点态是镇台主舞台：22px 主句、600 字重、径向渐变、14px 圆角与大留白；卡片读数与详情同卡，但不混入分享和布局切换', () => {
+check('R186-2（V4.2.0 压缩重指）★有论点态是镇台主舞台：20px 主句、600 字重、径向渐变、14px 圆角与 68px 紧凑基线；卡片读数与详情同卡，但不混入分享和布局切换', () => {
   const stageCss = (CSS.match(/\.thesis-banner\s*\{([^}]*)\}/) || [])[1] || ''
   const titleCss = (CSS.match(/\.tb-title\s*\{([^}]*)\}/) || [])[1] || ''
   return stageCss.includes('radial-gradient(600px 160px')
     && stageCss.includes('border-radius: 14px')
-    && stageCss.includes('padding: 18px 20px 16px')
+    && stageCss.includes('min-height: 68px')
+    && stageCss.includes('padding: 9px 14px')
     && !stageCss.includes('inset 3px 0 0')
-    && titleCss.includes('font-size: 22px')
+    && titleCss.includes('font-size: 20px')
     && titleCss.includes('font-weight: 600')
     && WS.includes('class="tb-desc-row"')
     && WS.includes('class="tb-detail" type="button" @click.stop="openThesisCard"')
@@ -72,13 +73,14 @@ check('R186-4（V4.1.2 重指）★策展台数据动作收进一个菜单且触
   return toolbar.includes('class="cur-import"')
     && toolbar.includes('@click.stop="toggleImportMenu"')
     && toolbar.includes(':aria-expanded="importMenuOpen"')
-    && toolbar.includes('v-if="importMenuOpen" class="cur-import-popover"')
-    && toolbar.includes('<b>导入 JSON 备份</b>')
-    && toolbar.includes('<b>导入成果 HTML</b>')
-    && toolbar.includes('<b>导入模板</b>')
-    && toolbar.includes('<b>导出 JSON 备份</b>')
-    && toolbar.includes('<b>清理本台镜像卡</b>')
-    && (toolbar.match(/class="cur-import-item"/g) || []).length === 5
+    && WS.includes('<Teleport to="body">')
+    && WS.includes('v-if="importMenuOpen" class="cur-import-popover cur-import-portal"')
+    && WS.includes('<b>导入 JSON 备份</b>')
+    && WS.includes('<b>导入成果 HTML</b>')
+    && WS.includes('<b>导入模板</b>')
+    && WS.includes('<b>导出 JSON 备份</b>')
+    && WS.includes('<b>清理本台镜像卡</b>')
+    && (WS.match(/class="cur-import-item"/g) || []).length === 5
     && !toolbar.includes('@click="openShareHtmlImport"')
     && !toolbar.includes('@click="pyramidImportOpen = true"')
     && WSC.includes("document.addEventListener('click', closeHeaderMenus)")

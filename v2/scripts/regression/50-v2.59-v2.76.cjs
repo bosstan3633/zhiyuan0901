@@ -22,10 +22,13 @@ check('R90-2 R8-①（V3.7.0 退役）：HUB_HELP_TEXT 四段文案现行源码�
   return !WS90.includes('HUB_HELP_TEXT') && !WS90.includes('卡片在此存储为真身')
     && !WS90.includes('📡 单卡') && !WS90.includes('📤 分类');
 });
-check('R90-3（V3.9.9 随迁）工具栏只承担成果导入 / 分享 / 搜索；建支无按钮，统一走节点 Tab / Enter 与 useCurationMindMap.createChild', () => {
-  return !TB90.includes("mind.createChild('root')")
-    && TB90.indexOf('导入成果 HTML') < TB90.indexOf('class="toolbar-search"')
-    && !TB90.includes('openNewArgument')
+check('R90-3（V4.2.0 随迁）工具栏只承担成果导入 / 分享 / 搜索；台数据菜单经 Teleport 渲染，建支无按钮，统一走节点 Tab / Enter 与 useCurationMindMap.createChild', () => {
+  const ws = read('/newtab/views/Workspace.vue')
+  return !ws.includes("mind.createChild('root')")
+    && ws.indexOf('class="cur-import"') < ws.indexOf('class="toolbar-search"')
+    && ws.indexOf('导入成果 HTML') > ws.indexOf('class="toolbar-search"')
+    && ws.includes('<Teleport to="body">')
+    && !ws.includes('@click="openNewArgument')
     && read('/newtab/components/curation/CurationMindMap.vue').includes("emit('create-child', 'root')");
 });
 check('R90-4 R8-②：右推职责交给 .toolbar-spacer（.toolbar-search 不再自带 margin-left:auto）', () => {

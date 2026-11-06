@@ -238,17 +238,6 @@ export const thesisDraftSystem = () => withAboutMe(
   '输出 JSON：{"thesis":"中心论点","why":"证据来路","parts":[{"name":"分论点","definition":"这一支论证什么","cardIds":["卡 id"]}]}。只输出 JSON。'
 )
 
-export interface CurioTriage { cardId?: string; verdict?: string; taskTitle?: string; dueDate?: string; why?: string }
-export interface CurioTriageOut { items?: CurioTriage[] }
-
-export const curioTriageSystem = () => withAboutMe(
-  '你是研究参谋，逐条研判用户「待探索池」里的好奇心卡该不该转成行动。用户给你每张卡的提问、来源、已挂资源数、成熟度评级与近期动静（读过的正文会注明）。三种判决：' +
-  'convert=值得做——必须同时给 taskTitle（≤20字、动词开头、有可验收结果的任务标题，不是把问题原样抄一遍）和 why（≤18字说清为什么现在做）；' +
-  'keep=问题好但条件未到/还需沉淀——只给 why；drop=与愿景使命和活跃目标无关、或已被更具体问题取代——只给 why（≤16字，直说为什么可以放下）。' +
-  '三选一，不许造第四种；不要为了凑数把一半以上判 convert，转化是有成本的。' +
-  '输出 JSON：{"items":[{"cardId":"原样回填","verdict":"convert|keep|drop","taskTitle":"仅 convert 时给","why":"判定理由"}]}。只输出 JSON。'
-)
-
 export interface EvidencePick { cardId?: string; why?: string }
 export interface EvidenceOut { items?: EvidencePick[] }
 

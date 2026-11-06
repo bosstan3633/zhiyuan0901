@@ -88,12 +88,8 @@
 .ds-kv > .k { flex-shrink: 0; width: 34px; font-size: var(--fs-caption); color: var(--text-4); letter-spacing: var(--tracking-sm); }
 .ds-kv > .v { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ds-kv > .v .go { margin-left: auto; color: var(--text-4); }
-.ds-kv.clk { cursor: pointer; }
-.ds-kv.clk:hover > .v { color: var(--accent-2); }
-
 /* AI 入口一行并列（与 R166 任务卡三入口同语言：独立成行，不挤标题行） */
 .ds-ai-strip { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2); align-items: stretch; margin-bottom: var(--sp-3); }
-.ds-ai-strip.one { grid-template-columns: 1fr auto; }
 .ds-ai-cell {
   display: flex; align-items: center; gap: 9px; min-width: 0; text-align: left; padding: 9px 11px;
   border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2);

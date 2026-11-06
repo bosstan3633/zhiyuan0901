@@ -179,7 +179,6 @@ const MANUAL_NOTES = {
   'shared/utils/drillRows.ts': '事件 → 下钻行的单一分组实现（同卡多次聚合 ×N，日详情与复盘段共用）',
   'shared/utils/mdImport.ts': 'Markdown 模板解析（方向树 goal / 策展台 pyramid 两个纯函数）',
   'shared/utils/zip.ts': '零依赖 ZIP 读写（STORE 模式，附件包导出 / 导入）',
-  'shared/utils/cards.ts': '转卡统一引擎（单向唯一：好奇心 → 任务 / 资源）',
   'shared/utils/taskLinks.ts': '任务与指标的挂载 / 解绑（解绑不删本体）',
   'shared/utils/fields.ts': '字段配置 → 视图渲染助手（排序 / 显隐 / 取值）',
   'shared/utils/locate.ts': '定位能力统一出口（三处生产端共用一个口径）',

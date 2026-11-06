@@ -108,7 +108,7 @@ const VIEWPORT = { width: 1440, height: 900 }
  * 每张现场核：抽屉真开 / AI 入口**独立成行且格数对** / 页脚**恰好两钮**（资源卡另核「标题只有一处」）。
  * **任一不过即非零退出**——只出图不核判据的走查是自我安慰：首轮实跑就抓到"以为打开了其实打开的是空页面"。
  *
- * R167 随迁：AI 入口从标题行搬到正文首行 `.ds-ai-cell`（资源 1 格 / 好奇 1 格 / 任务 3 格）；
+ * R167 随迁：AI 入口从标题行搬到正文首行 `.ds-ai-cell`（资源 1 格 / 好奇 0 格 / 任务 3 格）；
  * V4.1.3 起资源侧反向“关联任务”退役，只保留“AI 优化”一格。
  * 主标题搬进抽屉头 `.ds-h1`——所以资源卡这里多核一条"全抽屉只有一处主标题"，
  * 它正是本轮删掉的正向残留（正文里那份 `.ref-title` 若被哪个宿主加回来，这里就红）。
@@ -137,7 +137,7 @@ const DRAWER_VIEWS = [
   {
     id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
     /* 二级页默认列表视图；卡片视图只是用户可选形态，巡检必须点默认态真实存在的列表行。 */
-    card: '.cz-list-item', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 1, foot: '.drawer-footer button',
+    card: '.cz-list-item', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 0, foot: '.drawer-footer button',
   },
 ]
 
@@ -628,14 +628,14 @@ const DASH_SCENES = [
     hash: '#/profile',
     act: async (page) => {
       // 幂等：已经开着就不再点（再点等于关掉 —— 见 closeOverlays 里的交替红说明）
-      if ((await page.locator('.theme-dropdown').count()) === 0) {
-        await page.locator('.theme-btn').first().click({ timeout: 6000 }).catch(() => {})
+      if ((await page.locator('.more-menu .theme-dropdown').count()) === 0) {
+        await page.locator('.more-control > .icon-btn').click({ timeout: 6000 }).catch(() => {})
       }
       await page.waitForTimeout(280)
     },
     judge: async (page) => {
       const r = await page.evaluate(() => {
-        const cards = [...document.querySelectorAll('.theme-dropdown .theme-option')]
+        const cards = [...document.querySelectorAll('.more-menu .theme-dropdown .theme-option')]
         const act = cards.filter((c) => c.classList.contains('active'))
         const dots = cards.map((c) => c.querySelectorAll('.theme-swatch i').length)
         return {
@@ -750,8 +750,8 @@ async function closeOverlays(page) {
      st-airtable 截图里就挂着一块打开的主题菜单）。泄漏还会反向打断下一个主题：act 再点一次
      等于关掉，于是 dz-theme-menu 在 raycast/notion 上判 0、linear/apple 上判 5——**交替红**。
      这里按「点同一个按钮收回」处理，同时 act 侧也做幂等保护。 */
-  if (await page.locator('.theme-dropdown').count()) {
-    await page.locator('.theme-btn').first().click({ timeout: 3000 }).catch(() => {})
+  if (await page.locator('.more-menu').count()) {
+    await page.locator('.more-control > .icon-btn').click({ timeout: 3000 }).catch(() => {})
     await page.waitForTimeout(120)
   }
   for (let i = 0; i < 3; i++) {
@@ -1610,10 +1610,12 @@ if (argv.scenes) {
       }
       await resetView(page)
       const opened = await page.locator(v.open).first().isVisible().catch(() => false)
-      /* R166 定案 6 / R167：AI 入口一律**独立成行**，格数按卡种固定（任务 3 / 资源 2 / 好奇 1）
-         ⇒ 声明 aiCount 时要求"恰好 N 格"，少一格（合并回单枚钮）或多一格都算不过；未声明的按"≥1 枚"判。 */
+      /* R166 定案 6 / R167：AI 入口一律**独立成行**，格数按卡种固定（V4.2.0：任务 3 / 资源 1 / 好奇 0）
+         ⇒ 声明 aiCount 时要求"恰好 N 格"，少一格（合并回单枚钮）或多一格都算不过；未声明的按"≥1 枚"判。
+         aiCount=0 是现行正向判据，不能被 `|| 1` 吞成旧口径。 */
       const aiCount = await page.locator(v.ai).count().catch(() => 0)
-      const aiInRow = v.aiCount ? aiCount === v.aiCount : aiCount > 0
+      const aiExpectDeclared = Object.prototype.hasOwnProperty.call(v, 'aiCount')
+      const aiInRow = aiExpectDeclared ? aiCount === v.aiCount : aiCount > 0
       /* R167 红线：主标题只准出现在抽屉头一处（正文里那份 .ref-title 已退役，加回来即红） */
       const h1Count = v.h1 ? await page.locator(v.h1).count().catch(() => -1) : 1
       const footCount = await page.locator(v.foot).count().catch(() => -1)
@@ -1639,8 +1641,8 @@ if (argv.scenes) {
       const kb = Math.round(fs.statSync(file).size / 1024)
       shots.push(file)
       const ok = opened && aiInRow && footCount === 2 && h1Count === 1 && invertOk
-      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI入口行=${aiInRow ? '是' : '否'}(${aiCount}${v.aiCount ? '/' + v.aiCount : ''}) 主标题=${h1Count === 1 ? '一处' : h1Count + ' 处'} 页脚钮=${footCount}${invertInfo}   → ${path.basename(file)} (${kb}KB)`)
-      if (!ok && (footCount !== 2 || h1Count !== 1 || !opened || !aiInRow)) drawerFail.push(`${theme}/${v.id}：开=${opened} AI入口行=${aiInRow}(计${aiCount}，应${v.aiCount || '≥1'}) 主标题处数=${h1Count}（应为 1） 页脚钮数=${footCount}（应为 2）`)
+      console.log(`  ${ok ? '✓' : '✗'} ${theme.padEnd(8)} ${v.name.padEnd(6)} 开=${opened ? '是' : '否'} AI入口行=${aiInRow ? '是' : '否'}(${aiCount}${aiExpectDeclared ? '/' + v.aiCount : ''}) 主标题=${h1Count === 1 ? '一处' : h1Count + ' 处'} 页脚钮=${footCount}${invertInfo}   → ${path.basename(file)} (${kb}KB)`)
+      if (!ok && (footCount !== 2 || h1Count !== 1 || !opened || !aiInRow)) drawerFail.push(`${theme}/${v.id}：开=${opened} AI入口行=${aiInRow}(计${aiCount}，应${aiExpectDeclared ? v.aiCount : '≥1'}) 主标题处数=${h1Count}（应为 1） 页脚钮数=${footCount}（应为 2）`)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(400)
       await closeOverlays(page)

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import type { SyncManifestDiffRow } from '@/shared/cloud/sync'
+import type { CloudSyncReceiptAction } from '@/shared/cloud/syncActions'
 import {
   SYNC_RECORD_GROUPS,
   syncFieldLabel,
@@ -12,12 +13,14 @@ import {
 
 const props = withDefaults(defineProps<{
   rows: SyncManifestDiffRow[]
+  actions?: CloudSyncReceiptAction[]
   emptyText?: string
   initialGroup?: SyncRecordGroup
 }>(), {
   emptyText: '没有可展示的同步变化',
   initialGroup: 'all',
 })
+const emit = defineEmits<{ open: [row: SyncManifestDiffRow] }>()
 
 const group = ref<SyncRecordGroup>(props.initialGroup)
 const sortDir = ref<'desc' | 'asc'>('desc')
@@ -28,11 +31,26 @@ watch(() => props.rows, () => {
   if (!groupCounts.value[group.value] && group.value !== 'all') group.value = 'all'
 })
 
-const normalized = computed(() => props.rows.map(row => ({
-  ...row,
-  group: syncGroupOf(row.type),
-  statusLabel: row.status === 'added' ? '新增' : row.status === 'removed' ? '删除' : '修改',
-})))
+const actionByKey = computed(() => new Map((props.actions || []).map(action => [action.key, action])))
+const ACTION_LABEL: Record<CloudSyncReceiptAction['status'], string> = {
+  available: '可处理',
+  deleted: '已删除',
+  restored: '已恢复',
+  rolled_back: '已回退',
+  conflict: '需复核',
+  expired: '已过期',
+  readonly: '只读',
+}
+const normalized = computed(() => props.rows.map(row => {
+  const action = actionByKey.value.get(row.key)
+  return {
+    ...row,
+    group: syncGroupOf(row.type),
+    statusLabel: row.status === 'added' ? '新增' : row.status === 'removed' ? '删除' : '修改',
+    action,
+    actionLabel: action ? ACTION_LABEL[action.status] : '只读',
+  }
+}))
 
 const groupCounts = computed(() => {
   const counts = Object.fromEntries(SYNC_RECORD_GROUPS.map(item => [item.id, 0])) as Record<SyncRecordGroup, number>
@@ -100,13 +118,27 @@ function fmtTime(ts?: number): string {
       <span>类型</span><span>记录</span><span>状态</span><span>变更字段</span><span>时间</span>
     </div>
     <div v-if="visibleRows.length" class="cct-list">
-      <article v-for="row in visibleRows" :key="`${row.status}:${row.key}`" class="cct-row">
+      <article
+        v-for="row in visibleRows"
+        :key="`${row.status}:${row.key}`"
+        class="cct-row"
+        :class="{ actionable: !!row.action && row.action.status !== 'readonly' }"
+        role="button"
+        tabindex="0"
+        :aria-label="`查看${syncTypeLabel(row.type)} ${row.title || row.id} 的同步记录详情`"
+        @click="emit('open', row)"
+        @keydown.enter.prevent="emit('open', row)"
+        @keydown.space.prevent="emit('open', row)"
+      >
         <span class="cct-type">{{ syncTypeLabel(row.type) }}</span>
         <span class="cct-main">
           <b>{{ row.title || row.id }}</b>
           <code>{{ row.id }}</code>
         </span>
-        <span class="cct-status" :class="row.status">{{ row.statusLabel }}</span>
+        <span class="cct-status-wrap">
+          <span class="cct-status" :class="row.status">{{ row.statusLabel }}</span>
+          <small v-if="row.action" class="cct-action" :class="row.action.status">{{ row.actionLabel }}</small>
+        </span>
         <span class="cct-fields">
           <i v-for="field in row.fields || []" :key="field">{{ syncFieldLabel(field) }}</i>
           <i v-if="!(row.fields || []).length" class="whole">整条记录</i>
@@ -138,11 +170,18 @@ function fmtTime(ts?: number): string {
 .cct-head { padding: 0 9px 5px; color: var(--text-3); font-size: var(--fs-micro); }
 .cct-list { display: flex; flex-direction: column; gap: 5px; }
 .cct-row { padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.cct-row.actionable { cursor: pointer; }
+.cct-row.actionable:hover, .cct-row.actionable:focus-visible { border-color: var(--accent); background: var(--accent-light); outline: none; }
 .cct-type { padding: 2px 5px; border-radius: 5px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); text-align: center; }
 .cct-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cct-main b { overflow: hidden; color: var(--text); font-size: var(--fs-caption); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .cct-main code { overflow: hidden; color: var(--text-3); font-family: var(--font-mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .cct-status { justify-self: start; padding: 2px 6px; border-radius: 999px; font-size: var(--fs-micro); font-weight: 700; }
+.cct-status-wrap { min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.cct-action { padding: 1px 5px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: 9px; }
+.cct-action.available { color: var(--accent-ink); background: var(--accent-light); }
+.cct-action.deleted, .cct-action.conflict { color: var(--danger); background: var(--danger-bg-soft); }
+.cct-action.restored, .cct-action.rolled_back { color: var(--success); background: var(--success-bg-soft); }
 .cct-status.added { color: var(--success); background: var(--success-bg-soft); }
 .cct-status.removed { color: var(--danger); background: var(--danger-bg-soft); }
 .cct-status.changed { color: var(--warning); background: var(--warning-bg-soft); }

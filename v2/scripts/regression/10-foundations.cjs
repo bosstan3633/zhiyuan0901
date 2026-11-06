@@ -485,12 +485,17 @@ check('R32-10（V4.1.3 重指）打开通道统一下沉 shared/utils/link：资
     && link.includes('export function toOpenableRawLink')
     && link.includes('export function openExternalLink');
 });
-check('R32-11（V4.1.3 退役重指）愿景/使命关联芯片双击打开入口随挂载能力退役；移动采集 Inbox 补上单击按钮与双击/Enter/Space 打开源链接', () => {
+check('R32-11（V4.2.0 重指）愿景/使命关联芯片双击打开入口随挂载能力退役；Inbox 的单击负责详情编辑，双击 / Enter / Space 负责打开源链接，详情抽屉内另有独立「打开链接」按钮', () => {
   const t = codeOnly(CT_ALL);
   const inbox = read('/newtab/components/compass/InboxPanel.vue');
+  const drawer = read('/newtab/components/compass/InboxCaptureDrawer.vue');
   return !t.includes("openChipLink('res', rid)") && !t.includes("openChipLink('curio', cid)")
     && inbox.includes('@dblclick.prevent.stop="openSource(item)"')
-    && inbox.includes('打开原始链接：${item.url}');
+    && inbox.includes('@keydown.enter.prevent.stop="openSource(item)"')
+    && inbox.includes('@keydown.space.prevent.stop="openSource(item)"')
+    && inbox.includes('单击查看并编辑详情，双击打开原始链接')
+    && drawer.includes('@click="openSource"')
+    && drawer.includes('打开');
 });
 check('R32-12 REQ-013/014 模块分组下钻（第卌四轮退役：二级/三级下钻随 wsPopup 移除，由设置页工作台全景承接）', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); return !s.includes('wsPopupLevel') && !s.includes('wsPopupCats') && s.includes("type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'"); });
 check('R32-13 recordResourceOpen 下沉 shared/storage/stats（应用端统一引用）', () => exists('/shared/storage/stats.ts') && read('/newtab/views/Workspace.vue').includes("from '@/shared/storage/stats'") && read('/newtab/components/GlobalPopups.vue').includes("from '@/shared/storage/stats'"));

@@ -1,7 +1,6 @@
-import type { AppData, CuriosityCard, Direction, FieldConfig, FieldDef, ResourceCard } from '@/shared/models'
+import type { CuriosityCard, Direction, FieldConfig, FieldDef } from '@/shared/models'
 import { markRank } from '@/shared/utils/marksort'
 import { visibleFields } from '@/shared/utils/fields'
-import { buildSupportIndex, listByCurio } from '@/shared/utils/supportLinks'
 import type { CuriStatus } from '@/newtab/stores/curiosity'
 
 export interface CurioGroup {
@@ -101,24 +100,6 @@ export function shortSource(url: string): string {
   } catch {
     return url.slice(0, 42)
   }
-}
-
-export function supportRowsOf(d: AppData, curioId: string | null) {
-  if (!curioId) return [] as Array<{ link: ReturnType<typeof listByCurio>[number]; resource: ResourceCard }>
-  return listByCurio(buildSupportIndex(d), curioId)
-    .map(link => ({
-      link,
-      resource: (d.resources || []).find(r => r.id === link.resourceId && !r.deletedAt),
-    }))
-    .filter((row): row is { link: ReturnType<typeof listByCurio>[number]; resource: ResourceCard } => !!row.resource)
-}
-
-export function supportCandidatesOf(resources: ResourceCard[], linkedIds: Set<string>, query: string): ResourceCard[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return []
-  return resources
-    .filter(r => !r.deletedAt && !linkedIds.has(r.id) && (r.title || '').toLowerCase().includes(q))
-    .slice(0, 8)
 }
 
 export interface FlatProjectOption {

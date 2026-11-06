@@ -107,8 +107,8 @@ const {
   yearMetricDays, yearMetricCardRows, openYearMetricDay, openYearMetricCard,
   openTodayBattle, openDayBattle, onHeroDrill, onHeroRefresh,
   gotoCompass, onHeroExport, onTodayDrill, onRhythmDrill, mEntTrend,
-  mTopics, mUntagged, mFunnel, mCurioConv, mProjected,
-  curioApi, mMature, onMonthDrill, onMonthTopic, onGoalDrill,
+  mTopics, mUntagged, mFunnel, mProjected,
+  onMonthDrill, onMonthTopic, onGoalDrill,
   errorLogCount, refreshErrorCount, offErrLog, exportErrorLog, fmtDayKey,
   fmtDay,
 } = useProfileInsights()
@@ -154,7 +154,7 @@ const {
         <PiMonth v-else-if="activeRange === 'month'"
           :stats="dashStats" :insight="concise.month" :ent="mEntTrend"
           :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
-          :curio-conv="mCurioConv" :projected="mProjected"
+          :projected="mProjected"
           @drill="onMonthDrill" @topic="onMonthTopic" @insight-action="onConciseAction" @ai-insight="openRangeAi" />
 
         <PiYear v-else

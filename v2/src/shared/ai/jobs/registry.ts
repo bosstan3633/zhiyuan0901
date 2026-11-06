@@ -100,14 +100,6 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     note: 'persona 走 ctx.personaId/onPersona 条件通道（batchG:188）',
   },
   {
-    id: 'curio-triage', title: '好奇研判', family: 'proactive', kind: 'job',
-    factory: 'buildCurioTriageJob', factoryFile: 'shared/ai/batchG.ts',
-    hosts: ['newtab/components/compass/CuriosityPanel.vue'],
-    caps: { apply: true, secondary: true },
-    panel: { icon: 'bulb', mode: 'nav', route: '/', hint: '在调度台好奇心培育区选中卡后使用' },
-    note: 'R154 记账：采纳内含 status=shelf 副作用（原 R157 口径矛盾项，归 R159）；R167 起单条走「判决卡」版式（layout=verdict，三态由用户点选、模型只给推荐）+ 次级动作「判词写进详情」',
-  },
-  {
     id: 'evidence', title: '找证据', family: 'proactive', kind: 'job',
     factory: 'buildEvidenceJob', factoryFile: 'shared/ai/batchG.ts',
     hosts: ['newtab/components/EvidenceMenuItem.vue'],

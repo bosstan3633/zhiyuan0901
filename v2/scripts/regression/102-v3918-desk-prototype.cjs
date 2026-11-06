@@ -107,11 +107,11 @@ check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'�
 
 check('D18-8 ★三卡挂载口径与原型对齐的任务侧呈现：任务详情抽屉的关联仍走 SupportLink 独立表（卡间零挂载红线），调度台侧不新增任何「挂载」字样的动作入口（好奇心面板只有「转为任务」，资源侧无回显入口）', () => {
   const TD = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  const CUR = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
+  const RES = codeOnly(read('/newtab/components/ResourceAiStrip.vue'));
   return TD.includes('listByTask') && TD.includes('addSupportLink')
-    && !TD_C_hasMount(TD)
-    && !CH_C.includes('挂为任务');
+    && TD.includes('资源镜像') && TD.includes('手动关联') && TD.includes('挂上')
+    && !CH_C.includes('挂为任务')
+    && !CUR.includes('转为任务') && !CUR.includes('挂载')
+    && !RES.includes('关联任务') && !RES.includes('挂载资源');
 });
-function TD_C_hasMount(td) {
-  /* 任务抽屉允许「关联资源」措辞（SupportLink 语义），但旧「挂载」字样零回流 */
-  return /挂载/.test(codeOnly(td));
-}

@@ -633,59 +633,6 @@ const previewInbox = computed(() =>
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5)
 )
-const inboxPreviewBusy = ref('')
-
-async function convertInboxPreview(item: { id: string; convertedKind?: string }, kind: 'task' | 'curiosity' | 'resource'): Promise<void> {
-  if (inboxPreviewBusy.value) return
-  if (item.convertedKind) {
-    showToast('这条采集已经转化')
-    return
-  }
-  const row = inbox.items.value.find(entry => entry.id === item.id)
-  if (!row) {
-    showToast('采集记录已不存在，请刷新 Inbox')
-    return
-  }
-  inboxPreviewBusy.value = item.id
-  try {
-    const result = await inbox.convert(row, kind)
-    const label = result.kind === 'task' ? '任务卡' : result.kind === 'curiosity' ? '好奇心卡' : '资源卡'
-    showToast(`已转化为${label}`, {
-      label: '查看',
-      cb: () => { void router.push(`/deck/${result.kind}?hl=${encodeURIComponent(result.id)}&open=1`) },
-    })
-  } catch (error) {
-    showToast(`转化失败：${error instanceof Error ? error.message : String(error)}`)
-  } finally {
-    inboxPreviewBusy.value = ''
-  }
-}
-
-async function removeInboxPreview(item: { id: string }): Promise<void> {
-  if (inboxPreviewBusy.value) return
-  if (!inbox.connected.value) {
-    showToast('请先连接云同步，再删除 Inbox 记录')
-    return
-  }
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    showToast('当前处于离线状态，联网后再删除')
-    return
-  }
-  const row = inbox.items.value.find(entry => entry.id === item.id)
-  if (!row) return
-  inboxPreviewBusy.value = `delete:${item.id}`
-  try {
-    await inbox.dismiss(row)
-    showToast(row.convertedKind ? '已移除 Inbox 镜像入口，目标卡片仍保留' : '已从 Inbox 删除采集', {
-      label: '撤销',
-      cb: () => { void inbox.restore(row).catch(error => showToast(`撤销失败：${error instanceof Error ? error.message : String(error)}`)) },
-    })
-  } catch (error) {
-    showToast(`删除失败：${error instanceof Error ? error.message : String(error)}`)
-  } finally {
-    inboxPreviewBusy.value = ''
-  }
-}
 onMounted(() => { void inbox.refresh() })
 const hasAnyPreview = computed(() =>
   !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
@@ -752,7 +699,7 @@ function goDeck(kind: HandKind): void {
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,
     previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-    previewInbox, inbox, inboxPreviewBusy, convertInboxPreview, removeInboxPreview,
+    previewInbox, inbox,
     hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,

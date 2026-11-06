@@ -234,6 +234,13 @@ export interface CurationProjection {
   /** R51-F21：分类镜像分组在策展树中的显示名（遗留；迁移时转为策展分类名） */
   displayName?: string
   addedAt: number
+  /**
+   * V4.2.0：挂载时的独立资源快照。
+   *
+   * 新投射必须写入此字段；之后源卡编辑、软删或硬删都不会再影响策展节点上的镜像。
+   * 旧投射没有该字段时，启动期会在源卡仍存在的情况下幂等补水。
+   */
+  snapshot?: ResourceCard
 }
 
 /** 任务卡（行动闭环） */
@@ -295,6 +302,13 @@ export interface SupportLink {
   from: 'ai' | 'manual'
   why?: string
   createdAt: number
+  /**
+   * V4.2.0：任务挂载时的独立资源快照。
+   *
+   * 镜像与资源真身各有生命周期：删真身不级联删除此快照，删此关联也不影响真身。
+   * 旧记录缺字段时，只要真身仍在，启动期会幂等补水。
+   */
+  snapshot?: ResourceCard
 }
 
 /**

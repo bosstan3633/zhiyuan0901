@@ -23,6 +23,7 @@ import { deleteAsset } from './assets'
 import { deleteCurationAsset } from '../cloud/sync'
 import { getData } from './repository'
 import { pruneDanglingProjections } from './hub'
+import { purgeCurioSupportLinks, purgeSupportLinks } from '../utils/supportLinks'
 
 export interface PurgeTargets {
   resources?: ResourceCard[]
@@ -89,6 +90,14 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   for (const t of d.tasks) if (!taskIds.has(t.id)) for (const a of t.assets || []) if (a?.id) keep.add(a.id)
   for (const c of d.curiosities) if (!curioIds.has(c.id)) for (const a of c.assets || []) if (a?.id) keep.add(a.id)
   for (const c of d.categories) if (!cats.some(x => x.id === c.id)) for (const a of c.assets || []) if (a?.id) keep.add(a.id)
+  for (const link of d.supportLinks || []) {
+    if (taskIds.has(link.taskId)) continue
+    if (resIds.has(link.resourceId) && !link.snapshot) continue
+    for (const a of link.snapshot?.assets || []) if (a?.id) keep.add(a.id)
+  }
+  for (const projection of d.curationProjections || []) {
+    for (const a of projection.snapshot?.assets || []) if (a?.id) keep.add(a.id)
+  }
 
   const targeted = new Set<string>()
   for (const s of [assetIdUnion(res), assetIdUnion(tasks), assetIdUnion(curios), assetIdUnion(cats)]) for (const id of s) targeted.add(id)
@@ -133,7 +142,12 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
     d.argCards = (d.argCards || []).filter(a => !argIds.has(a.id))
   }
 
-  // ④ 悬空投射剪枝（幂等；软删卡仍在数组里，故不影响「恢复后镜像自动回来」语义）
+  // ④ 关系卫生：删任务会删除它的挂载记录；删资源真身只清历史无快照记录，
+  //    带独立快照的任务 / 策展镜像继续存在。
+  purgeSupportLinks(d, { taskIds, resourceIds: resIds })
+  purgeCurioSupportLinks(d, { curioIds, resourceIds: resIds })
+
+  // ⑤ 悬空投射剪枝（幂等；带快照的独立镜像不受源卡硬删影响）
   const projectionsPruned = pruneDanglingProjections(d)
 
   return {
@@ -168,6 +182,8 @@ export async function deleteAssetIfOrphan(id: string, selfCardId?: string): Prom
     const heldElsewhere = (arr: { id?: string; assets?: { id: string }[] }[] | undefined) =>
       (arr || []).some(c => c.id !== selfCardId && (c.assets || []).some(a => a?.id === id))
     if (heldElsewhere(d.resources) || heldElsewhere(d.tasks) || heldElsewhere(d.curiosities) || heldElsewhere(d.argCards) || heldElsewhere(d.categories)) return false
+    if ((d.supportLinks || []).some(link => (link.snapshot?.assets || []).some(asset => asset?.id === id))) return false
+    if ((d.curationProjections || []).some(projection => (projection.snapshot?.assets || []).some(asset => asset?.id === id))) return false
   } catch { /* 仓库未加载（如 options 独立上下文）：按原语义直接删 */ }
   await deleteAsset(id)
   return true

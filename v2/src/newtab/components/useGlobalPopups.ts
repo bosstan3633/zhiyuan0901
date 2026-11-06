@@ -2,7 +2,6 @@ import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shall
 import { wsNameById } from '@/shared/utils/wsName'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
-import { useCuriosity } from '@/newtab/stores/curiosity'
 import { showToast } from '@/shared/components/toast'
 import { uid, normalizeUrl } from '@/shared/utils'
 import { CURATION_WS_ID } from '@/shared/models'
@@ -80,7 +79,6 @@ type FlatItem = { kind: 'ai'; entry: AiPanelEntry } | { kind: 'qa'; qa: typeof Q
 
 const router = useRouter()
 const store = useAppStore()
-const { convertToResource, convertToTask } = useCuriosity()
 const d = computed(() => store.data!)
 
 // 弹窗状态
@@ -121,7 +119,6 @@ function closeAll() {
   // R161-②：这次检索真有结果也算"用过"——不是每个人都会点开某一行；同句只记一次（recordSearch 内幂等）
   if (searchQuery.value.trim() && filteredResults.value.length) recordSearch(searchQuery.value)
   activePanel.value = null
-  convertMenuId.value = null
   capSaved.value = false
   if (savedTimer.value) { clearTimeout(savedTimer.value); savedTimer.value = null }
   // B8：焦点返还，关闭浮层后原地继续输入
@@ -211,7 +208,6 @@ function syncIndexFromId() {
   selectedId.value = selectedId.value || ''
   selIndex.value = flatList.value.findIndex(x => (x.kind === 'res' || x.kind === 'result') && x.item.id === selectedId.value)
 }
-const convertMenuId = ref<string | null>(null)
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
   return t === 'res' ? '资源卡' : t === 'task' ? '任务卡' : t === 'curio' ? '好奇心' : t === 'ws' ? '策展台' : t === 'proj' ? '项目' : '搜全部'
@@ -663,17 +659,17 @@ const groupedResults = computed(() => {
   }
   return out
 })
-  const { escapeHtmlTitle, hlTitle, runFlat, runFlatLocator, openLinkOrLocate, locateOnly, runSearch, setType, clearFilter, onSearchKeydown, scrollToSelected, pickRow, selectHover, lastOpenId, lastOpenTs, openItem, openResLink, editItem, isStarred, toggleStar, deleteItem, toggleConvertMenu, convertCurio } = useGlobalPopupsRows({ searchQuery, flatList, runAiEntry, recordSearch, d, store, closeAll, router, currentType, selIndex, syncIdFromIndex, searchQueryRaw, setSearchQuery, typeLabel, resultsEl, selectedId, syncIndexFromId, convertMenuId, convertToResource, convertToTask })
+  const { escapeHtmlTitle, hlTitle, runFlat, runFlatLocator, openLinkOrLocate, locateOnly, runSearch, setType, clearFilter, onSearchKeydown, scrollToSelected, pickRow, selectHover, lastOpenId, lastOpenTs, openItem, openResLink, editItem, isStarred, toggleStar, deleteItem } = useGlobalPopupsRows({ searchQuery, flatList, runAiEntry, recordSearch, d, store, closeAll, router, currentType, selIndex, syncIdFromIndex, searchQueryRaw, setSearchQuery, typeLabel, resultsEl, selectedId, syncIndexFromId })
   const { capForm, capSaved, savedResourceId, savedWsId, savedTimer, capLinkPlaceholder, resetCaptureForm, saveCapture, AiDrawerGP, aiEnrichJob, aiAdviceJob, gpAiJob, gpAiJobClose, capEnrichOn, capEnrichReady, lastEnrichCard, runCardEnrich, aiReopenEnrich, capEnrichSave, aiAdviceBusy, aiAdviceDormantDays, aiAdviceRun, linkShort, linkIconName, allProjects, isProjectDone } = useGlobalPopupsCapture({ d, closeAll, store, onSavedKeydown })
 
   return {
-    router, store, convertToResource, convertToTask, d,
+    router, store, d,
     activePanel, quickAddRef, panelPrefill, searchInput, capTitleInput,
     resultsEl, lastFocused, openPanel, closeAll, openSavedBoard,
     onSavedKeydown, prefillCapture, searchQueryRaw, searchQuery, qDebounce,
     setSearchQuery, SEARCH_HIST_MAX, searchHistory, topSearches, recordedQ,
     recordSearch, useHistory, searchActive, pinyinReady, currentType,
-    selIndex, selectedId, syncIdFromIndex, syncIndexFromId, convertMenuId,
+    selIndex, selectedId, syncIdFromIndex, syncIndexFromId,
     typeLabel, filterLabel, counts, EMPTY_RESULTS, withMatchFields,
     resultTable, allResults, showDoneProjects, wsTree, wsNameOf,
     locateCat, normKey, blobOf, partsKey, partsNp,
@@ -689,7 +685,7 @@ const groupedResults = computed(() => {
     runSearch, setType, clearFilter, onSearchKeydown, scrollToSelected,
     pickRow, selectHover, lastOpenId, lastOpenTs, openItem,
     openResLink, editItem, isStarred, toggleStar, deleteItem,
-    toggleConvertMenu, convertCurio, capForm, capSaved, savedResourceId,
+    capForm, capSaved, savedResourceId,
     savedWsId, savedTimer, capLinkPlaceholder, resetCaptureForm, saveCapture,
     AiDrawerGP, aiEnrichJob, aiAdviceJob, gpAiJob, gpAiJobClose,
     capEnrichOn, capEnrichReady, lastEnrichCard, runCardEnrich, aiReopenEnrich,

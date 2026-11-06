@@ -100,6 +100,7 @@ const topbarAlign = computed(() => {
 // 策展台折叠状态
 const workspacesCollapsed = ref(false)
 const themeOpen = ref(false)
+const moreOpen = ref(false)
 
 function toggleTheme(e: MouseEvent) {
   e.stopPropagation()
@@ -109,6 +110,17 @@ function selectTheme(id: string) {
   store.setTheme(id)
   themeOpen.value = false
 }
+
+function toggleMore(e: MouseEvent): void {
+  e.stopPropagation()
+  moreOpen.value = !moreOpen.value
+  themeOpen.value = false
+}
+
+function openMoreSettings(): void {
+  moreOpen.value = false
+  navigate('/settings')
+}
 const activeWorkspaceId = computed(() => {
   const match = route.path.match(/^\/workspace\/(.+)/)
   return match ? match[1] : null
@@ -117,14 +129,14 @@ const activeWorkspaceId = computed(() => {
 // R105（E2）：策展台 >5 时页签收起——默认只显示前 5 个 + 「≪ N」溢出指示，hover/点击「≪ N」展开全部；
 // 当前所在台在前 5 之外时始终显示（"我在哪"不可丢）。与既有 «/» 手动折叠（仅工作台页生效）正交。
 const E2_TAB_MAX = 5
-const wsOverflowOpen = ref(false)
-const hiddenMenuOpen = ref(false)
+const deckLibraryOpen = ref(false)
+const deckLibraryPos = ref({ left: 16, top: 52 })
 const wsOverflow = computed(() => store.workspaces.length > E2_TAB_MAX)
 const visibleWorkspaces = computed(() => {
   if (workspacesCollapsed.value && activeWorkspaceId.value) {
     return store.workspaces.filter(w => w.id === activeWorkspaceId.value)
   }
-  if (wsOverflow.value && !wsOverflowOpen.value) {
+  if (wsOverflow.value) {
     const active = activeWorkspaceId.value
     const head = store.workspaces.slice(0, E2_TAB_MAX)
     if (active && !head.some(w => w.id === active)) {
@@ -135,9 +147,21 @@ const visibleWorkspaces = computed(() => {
   }
   return store.workspaces
 })
-const hiddenWsCount = computed(() => (wsOverflow.value && !wsOverflowOpen.value)
-  ? store.workspaces.length - visibleWorkspaces.value.length
-  : 0)
+const deckOverflowWorkspaces = computed(() => {
+  const visible = new Set(visibleWorkspaces.value.map(ws => ws.id))
+  return store.workspaces.filter(ws => !visible.has(ws.id))
+})
+const deckLibraryCount = computed(() => deckOverflowWorkspaces.value.length + store.hiddenWorkspaces.length)
+
+function toggleDeckLibrary(event: MouseEvent): void {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const width = 268
+  deckLibraryPos.value = {
+    left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)),
+    top: rect.bottom + 6,
+  }
+  deckLibraryOpen.value = !deckLibraryOpen.value
+}
 
 function navigate(path: string) { router.push(path) }
 
@@ -253,7 +277,7 @@ function hideDeckFromTab() {
   if (live) {
     live.hidden = true
     store.persist()
-    showToast(`已隐藏「${wsDisplayNameOf(ws)}」· 在顶栏「隐藏台」中可重新展示`)
+    showToast(`已隐藏「${wsDisplayNameOf(ws)}」· 在顶栏「策展台库」中可重新展示`)
     if (activeTab.value === ws.id) navigate('/')
   }
   closeMenu()
@@ -265,7 +289,7 @@ function showDeck(id: string) {
     store.persist()
     showToast(`已展示「${wsDisplayNameOf(live)}」`)
   }
-  hiddenMenuOpen.value = false
+  deckLibraryOpen.value = false
 }
 
 function startRename() {
@@ -543,13 +567,13 @@ const backupReminderDot = computed(() => {
 </script>
 
 <template>
-  <div class="app-shell" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false); hiddenMenuOpen && (hiddenMenuOpen = false)">
+  <div class="app-shell" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false); moreOpen && (moreOpen = false); deckLibraryOpen && (deckLibraryOpen = false)">
     <!-- R168：AI 徽标的图形定义，全站只挂这一份（各入口走 `<use href="#zy-ai-mark">`）——
          见 AiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
     <AiMarkSymbol />
     <header class="topbar">
       <div class="topbar-inner" :class="topbarAlign">
-      <nav class="tabs" @mouseleave="wsOverflowOpen = false">
+      <nav class="tabs">
         <!-- 品牌位 = logo + 知源 ownway。
              W5（V3.8.5）#6：点击 = 打开今日战报（脉冲动画 + HeatmapModule 消费请求） -->
         <div class="brand-chip" :class="{ pulsing: brandPulse, active: activeTab === 'profile' }" title="画像洞察 · 点击查看我的画像与洞察"
@@ -592,19 +616,13 @@ const backupReminderDot = computed(() => {
           </template>
         </div>
 
-        <!-- R105（E2）：溢出指示——hover 展开（离开顶栏自动收起），点击亦可保持展开 -->
-        <div v-if="hiddenWsCount > 0" class="tab tab-overflow"
-          v-pressable
-          :title="`其余 ${hiddenWsCount} 个策展台`"
-          @mouseenter="wsOverflowOpen = true" @click.stop="wsOverflowOpen = !wsOverflowOpen">
-          ≪ {{ hiddenWsCount }}
-        </div>
-
-        <!-- 需求1：隐藏台汇聚下拉（眼睛=重新展示） -->
-        <div v-if="store.hiddenWorkspaces.length" class="tab tab-hidden-ws"
-          v-pressable :title="`${store.hiddenWorkspaces.length} 个隐藏台`"
-          @click.stop="hiddenMenuOpen = !hiddenMenuOpen">
-          <Icon name="eyeoff" :size="13"/> {{ store.hiddenWorkspaces.length }}
+        <!-- V4.2.0：溢出台与隐藏台合并为建设性的「策展台库」，不再各自争抢导航位置。 -->
+        <div v-if="deckLibraryCount > 0" class="tab tab-deck-library"
+          v-pressable :class="{ active: deckLibraryOpen }"
+          :title="`策展台库 · ${deckLibraryCount} 个台可展开或恢复`"
+          @click.stop="toggleDeckLibrary">
+          <Icon name="layers" :size="13"/> 策展台库
+          <span class="tab-count-badge">{{ deckLibraryCount }}</span>
         </div>
 
         <!-- 新增策展台 -->
@@ -631,35 +649,34 @@ const backupReminderDot = computed(() => {
       </nav>
 
       <div class="topbar-right">
-        <!-- 全局调出快捷键在设置页维护；顶部不重复展示提示入口。 -->
+        <!-- 高频入口只保留：云同步 / 搜索 / 更多。保存点仅异常时短暂出现。 -->
         <CloudSyncButton />
-        <!-- R159（T3）：落盘状态点（极轻量；error 可点击查看） -->
-        <span class="save-dot" v-pressable :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
-        <div class="theme-select">
-          <button class="theme-btn" @click="toggleTheme">
-            <span class="theme-dot" :style="{ background: themes.find(t => t.id === store.theme)?.dot }"></span>
-            {{ themes.find(t => t.id === store.theme)?.name }}
-            <span class="theme-caret">▾</span>
-          </button>
+        <span v-if="saveState === 'saving' || saveState === 'error'" class="save-dot" v-pressable :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
+        <div class="icon-btn" v-pressable title="全局搜索 (Ctrl+K)" @click="gpOpen('search')"><Icon name="search" :size="16" /></div>
+        <div class="more-control">
+          <div class="icon-btn icon-btn-bell" v-pressable :class="{ 'has-dot': backupReminderDot, active: moreOpen }" title="更多" :aria-expanded="moreOpen" @click="toggleMore">
+            <Icon name="menu" :size="16" />
+            <span v-if="backupReminderDot" class="bell-dot" title="建议导出备份" />
+          </div>
           <Transition name="fade">
-            <div v-if="themeOpen" class="theme-dropdown">
-              <button
-                v-for="t in themes" :key="t.id"
-                class="theme-option" :class="{ active: store.theme === t.id }"
-                :title="t.name"
-                @click="selectTheme(t.id)"
-              >
-                <span class="theme-swatch" aria-hidden="true"><i :style="{ background: t.palette[0] }"></i><i :style="{ background: t.palette[1] }"></i><i :style="{ background: t.palette[2] }"></i></span>
-                <span class="theme-name">{{ t.name }}</span>
-                <span v-if="store.theme === t.id" class="theme-check"><Icon name="check" :size="12"/></span>
-              </button>
+            <div v-if="moreOpen" class="more-menu" data-a11y-container @click.stop>
+              <div class="more-section-title">外观主题</div>
+              <div class="theme-dropdown more-theme-grid">
+                <button
+                  v-for="t in themes" :key="t.id"
+                  class="theme-option" :class="{ active: store.theme === t.id }"
+                  :title="t.name"
+                  @click="selectTheme(t.id)"
+                >
+                  <span class="theme-swatch" aria-hidden="true"><i :style="{ background: t.palette[0] }"></i><i :style="{ background: t.palette[1] }"></i><i :style="{ background: t.palette[2] }"></i></span>
+                  <span class="theme-name">{{ t.name }}</span>
+                  <span v-if="store.theme === t.id" class="theme-check"><Icon name="check" :size="12"/></span>
+                </button>
+              </div>
+              <div class="more-divider" />
+              <button class="more-item" type="button" @click="openMoreSettings"><Icon name="settings" :size="14"/> 全局设置 <span v-if="backupReminderDot" class="more-hint">建议导出备份</span></button>
             </div>
           </Transition>
-        </div>
-        <div class="icon-btn" v-pressable title="全局搜索 (Ctrl+K)" @click="gpOpen('search')"><Icon name="search" :size="16" /></div>
-        <div class="icon-btn icon-btn-bell" v-pressable :class="{ 'has-dot': backupReminderDot }" title="设置" @click="navigate('/settings')">
-          <Icon name="settings" :size="16" />
-          <span v-if="backupReminderDot" class="bell-dot" title="建议导出备份" />
         </div>
       </div>
       </div><!-- /topbar-inner（R105-F2：顶栏与正文容器对齐） -->
@@ -694,20 +711,36 @@ const backupReminderDot = computed(() => {
 
     <!-- 右键菜单 -->
     <Teleport to="body">
-      <div v-if="hiddenMenuOpen" class="ctx-menu hidden-ws-menu" data-a11y-container style="top: 52px; right: 180px; position: fixed" @click.stop>
-        <div class="ctx-title">隐藏台 · {{ store.hiddenWorkspaces.length }}</div>
-        <div v-for="ws in store.hiddenWorkspaces" :key="ws.id" class="ctx-item hidden-ws-row">
-          <button class="hidden-ws-name" type="button" @click="hiddenMenuOpen = false; showDeck(ws.id); navigate('/workspace/' + ws.id)">
-            <template v-if="ws.icon">{{ ws.icon }}</template><Icon v-else name="folder" :size="13"/> {{ wsDisplayNameOf(ws) }}
-          </button>
-          <button class="hidden-ws-eye" type="button" title="重新展示到顶栏" @click="showDeck(ws.id)">
-            <Icon name="eye" :size="13"/> 展示
-          </button>
+      <div v-if="deckLibraryOpen" class="ctx-menu deck-library-menu" data-a11y-container
+        :style="{ left: deckLibraryPos.left + 'px', top: deckLibraryPos.top + 'px', position: 'fixed' }" @click.stop>
+        <div class="deck-library-head">
+          <span><Icon name="layers" :size="13"/> 策展台库</span>
+          <small>{{ deckLibraryCount }} 个</small>
         </div>
+        <template v-if="deckOverflowWorkspaces.length">
+          <div class="ctx-title">已展示 · 收在库中</div>
+          <div v-for="ws in deckOverflowWorkspaces" :key="ws.id" class="ctx-item hidden-ws-row">
+            <button class="hidden-ws-name" type="button" @click="deckLibraryOpen = false; navigate('/workspace/' + ws.id)">
+              <template v-if="ws.icon">{{ ws.icon }}</template><Icon v-else name="folder" :size="13"/> {{ wsDisplayNameOf(ws) }}
+            </button>
+          </div>
+        </template>
+        <template v-if="store.hiddenWorkspaces.length">
+          <div class="ctx-title">已隐藏</div>
+          <div v-for="ws in store.hiddenWorkspaces" :key="ws.id" class="ctx-item hidden-ws-row">
+            <button class="hidden-ws-name" type="button" @click="showDeck(ws.id); navigate('/workspace/' + ws.id)">
+              <template v-if="ws.icon">{{ ws.icon }}</template><Icon v-else name="folder" :size="13"/> {{ wsDisplayNameOf(ws) }}
+            </button>
+            <button class="hidden-ws-eye" type="button" title="重新展示到顶栏" @click="showDeck(ws.id)">
+              <Icon name="eye" :size="13"/> 展示
+            </button>
+          </div>
+        </template>
+        <div class="deck-library-empty" v-if="!deckOverflowWorkspaces.length && !store.hiddenWorkspaces.length">所有策展台都已在顶栏展示</div>
       </div>
       <div v-if="menuWs" class="ctx-menu" data-a11y-container :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }" @click.stop>
         <div class="ctx-item" v-pressable @click="startRename"><Icon name="edit" :size="13"/> 重命名</div>
-        <div class="ctx-item" v-pressable @click="hideDeckFromTab"><Icon name="eyeoff" :size="13"/> 隐藏（收进顶栏「隐藏台」）</div>
+        <div class="ctx-item" v-pressable @click="hideDeckFromTab"><Icon name="eyeoff" :size="13"/> 隐藏（收进顶栏「策展台库」）</div>
         <div class="ctx-item" v-pressable @click="exportDeckFromTab"><Icon name="download" :size="13"/> 导出 JSON 备份</div>
         <div class="ctx-item" v-pressable @click="cleanDeckMirrorsFromTab"><Icon name="broom" :size="13"/> 清理本台镜像卡</div>
         <div class="ctx-item danger" v-pressable @click="deleteDeckFromTab"><Icon name="trash" :size="13"/> 删除策展台</div>
@@ -765,8 +798,6 @@ const backupReminderDot = computed(() => {
 .tab-add { padding: 8px 12px; color: var(--text-3); font-size: 16px; font-weight: 300; }
 .tab-add:hover { color: var(--accent); }
 .tab-collapse { padding: 8px 10px; color: var(--text-3); font-size: var(--fs-body); }
-/* R105（E2）：溢出指示页签——accent 提示可展开 */
-.tab-overflow { color: var(--accent-ink); background: var(--accent-light); font-variant-numeric: tabular-nums; }
 .tab-rename-input { border: 1px solid var(--accent); border-radius: 6px; padding: 2px 8px; font-size: var(--fs-body); font-family: inherit; outline: none; width: 100px; background: var(--surface); color: var(--text); box-shadow: 0 0 0 3px var(--accent-glow); }
 .tab.adding { padding: 4px 10px; }
 /* B30a：错误边界卡片 */
@@ -780,6 +811,26 @@ const backupReminderDot = computed(() => {
 .render-error .re-hint { font-size: var(--fs-caption); color: var(--text-3); }
 
 .topbar-right { display: flex; align-items: center; gap: 8px; }
+.more-control { position: relative; }
+.more-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: var(--z-overlay);
+  width: 276px;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.more-section-title { padding: 3px 5px 7px; color: var(--text-3); font-size: var(--fs-micro); font-weight: 650; letter-spacing: .04em; }
+.more-menu .more-theme-grid { position: static; width: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.more-divider { height: 1px; margin: 7px 4px; background: var(--border); }
+.more-item { width: 100%; min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-caption); text-align: left; cursor: pointer; }
+.more-item:hover, .more-item:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
+.more-hint { margin-left: auto; color: var(--accent-ink); font-size: var(--fs-micro); }
+.icon-btn.active { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
 /* R159（T3）：落盘状态点 */
 /* 保存状态点：视觉仍是 7px，命中盒 28px；错误态可点进设置，不能让 7px 圆点成为唯一入口。 */
 .save-dot { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; background: transparent; cursor: default; }
@@ -790,11 +841,6 @@ const backupReminderDot = computed(() => {
 .save-dot.error { cursor: pointer; }
 .save-dot.error::before { background: var(--danger); opacity: 1; }
 @keyframes savePulse { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
-.theme-select { position: relative; }
-.theme-btn { border: 1px solid transparent; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; background: var(--surface); transition: all var(--dur); font-family: inherit; }
-.theme-btn:hover { border-color: var(--border-strong); }
-.theme-caret { font-size: var(--fs-micro); opacity: .6; }
-.theme-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; width: 276px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; z-index: var(--z-overlay); }
 /* ★S4：选项从「一行文字 + 单色圆点」改成样例卡——三色圆点给出"换过去是什么样"的信息，
    当前态靠 accent 描边 + ✓ 双信号（只描边在浅色主题里偏弱）。用原生 button 顺带把
@@ -817,9 +863,17 @@ const backupReminderDot = computed(() => {
 
 
 
-/* 需求1：隐藏台汇聚下拉 */
-.tab-hidden-ws { color: var(--text-3); }
-.hidden-ws-menu { min-width: 220px; }
+/* V4.2.0：溢出台与隐藏台统一收进「策展台库」。 */
+.tab-deck-library { color: var(--text-3); }
+.tab-deck-library.active { color: var(--accent-ink); background: var(--accent-light); }
+.tab-count-badge { min-width: 16px; height: 16px; display: inline-grid; place-items: center; padding: 0 4px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: 9px; font-variant-numeric: tabular-nums; }
+.tab-deck-library.active .tab-count-badge { background: var(--surface); color: var(--accent-ink); }
+.deck-library-menu { width: 268px; max-height: min(440px, calc(100vh - 64px)); overflow-y: auto; padding: 6px; }
+.deck-library-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 8px; color: var(--text); font-size: var(--fs-caption); font-weight: 700; }
+.deck-library-head span { display: inline-flex; align-items: center; gap: 5px; }
+.deck-library-head small { color: var(--text-3); font-size: var(--fs-micro); font-weight: 500; }
+.deck-library-menu .ctx-title { margin-top: 3px; }
+.deck-library-empty { padding: 18px 8px; color: var(--text-3); font-size: var(--fs-caption); text-align: center; }
 .ctx-title { padding: 5px 9px 7px; font-size: var(--fs-caption); color: var(--text-4); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .hidden-ws-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hidden-ws-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; font: inherit; color: inherit; text-align: left; }

@@ -195,7 +195,7 @@ check('W3-1（V4.0.3 重指）页头读数行降 caption：分类与更新时间
 });
 
 /* ============ W5 · 中心论点层级 ============ */
-check('W5-1（V3.9.29 重指）论点卡仍是题眼：顶部论点标题使用 22px 主句与径向渐变舞台，不再使用左侧粗色条；画布 L1 节点标题高于说明一档，标题与说明分行且由发丝线分隔', () => {
+check('W5-1（V4.2.0 压缩重指）论点卡仍是题眼：顶部论点标题使用 20px 主句与径向渐变舞台，页头高度压缩到 68px 基线；画布 L1 节点标题仍高于说明一档，标题与说明分行且由发丝线分隔', () => {
   const banner = rule(CSS, '.thesis-banner');
   const tbt = rule(CSS, '.tb-title');
   const root = rule(MIND_CSS, '.mind-node.mind-root');
@@ -204,7 +204,7 @@ check('W5-1（V3.9.29 重指）论点卡仍是题眼：顶部论点标题使用 
   /* V3.9.13：.mind-desc 先有共用输入控件基础规则，后有说明行语义规则；判据按层叠后的最后一条取证。 */
   const nodeDesc = lastRule(MIND_CSS, '.mind-desc');
   if (!banner || !tbt || !root || !rtitle) { console.log('     规则缺失'); return false; }
-  return tbt.includes('font-size: 22px')
+  return tbt.includes('font-size: 20px')
     && rtitle.includes('calc(var(--fs-body) + 1px)')
     && nodeTitle.includes('display: block')
     && nodeTitle.includes('var(--fs-body)')
@@ -213,6 +213,8 @@ check('W5-1（V3.9.29 重指）论点卡仍是题眼：顶部论点标题使用 
     && nodeDesc.includes('var(--fs-caption)')
     && banner.includes('radial-gradient(')
     && banner.includes('border-radius: 14px')
+    && banner.includes('min-height: 68px')
+    && banner.includes('padding: 9px 14px')
     && !banner.includes('inset 3px 0 0 var(--accent)')
     && root.includes('inset 3px 0 0 var(--accent)')
     && !root.includes('border-left')

@@ -191,13 +191,6 @@
               </template>
               <template v-else-if="item.type==='curio'">
                 <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
-                <div class="gp-ri-act convert" title="转化为...">
-                  <span v-pressable aria-label="转换卡片类型" @click.stop="toggleConvertMenu(item.id)"><Icon name="refresh" :size="13"/>▾</span>
-                  <div class="gp-convert-menu" :class="{open: convertMenuId===item.id}" data-a11y-container @click.stop>
-                    <div class="gp-convert-menu-item" role="menuitem" v-pressable @click="convertCurio(item, 'res')"><Icon name="filetext" :size="13"/> 转化为资源卡</div>
-                    <div class="gp-convert-menu-item" role="menuitem" v-pressable @click="convertCurio(item, 'task')"><Icon name="check" :size="13"/> 转化为任务卡</div>
-                  </div>
-                </div>
                 <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
               </template>
             </div>
@@ -374,13 +367,13 @@ import GlobalPopupsQuickAdd from './GlobalPopupsQuickAdd.vue'
 import { AI_ENTRIES } from '@/shared/ai/jobs/registry'
 import { useGlobalPopups, type PanelType, type SearchResult, type SearchResultSeed, type AiCand, type AiHit, type AiOut, type PaletteToggle, type AiPanelEntry, type BrowseTab, type DormantVerdictGP } from './useGlobalPopups'
 const {
-  router, store, convertToResource, convertToTask, d,
+  router, store, d,
   activePanel, quickAddRef, panelPrefill, searchInput, capTitleInput,
   resultsEl, lastFocused, openPanel, closeAll, openSavedBoard,
   onSavedKeydown, prefillCapture, searchQueryRaw, searchQuery, qDebounce,
   setSearchQuery, SEARCH_HIST_MAX, searchHistory, topSearches, recordedQ,
   recordSearch, useHistory, searchActive, pinyinReady, currentType,
-  selIndex, selectedId, syncIdFromIndex, syncIndexFromId, convertMenuId,
+  selIndex, selectedId, syncIdFromIndex, syncIndexFromId,
   typeLabel, filterLabel, counts, EMPTY_RESULTS, withMatchFields,
   resultTable, allResults, showDoneProjects, wsTree, wsNameOf,
   locateCat, normKey, blobOf, partsKey, partsNp,
@@ -396,7 +389,7 @@ const {
   runSearch, setType, clearFilter, onSearchKeydown, scrollToSelected,
   pickRow, selectHover, lastOpenId, lastOpenTs, openItem,
   openResLink, editItem, isStarred, toggleStar, deleteItem,
-  toggleConvertMenu, convertCurio, capForm, capSaved, savedResourceId,
+  capForm, capSaved, savedResourceId,
   savedWsId, savedTimer, capLinkPlaceholder, resetCaptureForm, saveCapture,
   AiDrawerGP, aiEnrichJob, aiAdviceJob, gpAiJob, gpAiJobClose,
   capEnrichOn, capEnrichReady, lastEnrichCard, runCardEnrich, aiReopenEnrich,

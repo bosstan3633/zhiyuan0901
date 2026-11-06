@@ -110,7 +110,7 @@ check('W13-8 ★本批改动的反漂纪律：索引生成物由 R163-1 守、�
 
 console.log('【W13-T7 · 抽屉收口与诊断统一（T7a~T7d）】');
 
-check('W13-F28 ★事件类下钻必须收进全页唯一的三维筛选抽屉（DashboardLogDrawer），卡片语义下钻才留 statDrawer 单抽屉：动态条明细抽屉 dynDrawer 已整删（T7b）—— 迁移后的三处入口对账：① 本月入池 → openLog 的 month-in 键（action=create · from=月初 · 含导入）② 近30天主攻动作 → openLogFocus（LogPreset.focusOnly，主攻集口径 = isFocused 且未归档，只留 create/call/status 三类动作）③ 四类记录入口四键齐全。抽屉侧 focusOnly 的过滤与主攻集在抽屉内自算（props.data.compass，组件零 store）', () => {
+check('W13-F28（V4.2.0 重指）★事件类下钻必须收进全页唯一的三维筛选抽屉（DashboardLogDrawer），卡片语义下钻才留 statDrawer 单抽屉：动态条明细抽屉 dynDrawer 已整删（T7b）—— 迁移后的三处入口对账：① 本月入池 → openLog 的 month-in 键（action=create · from=月初 · 含导入）② 近30天主攻动作 → openLogFocus（LogPreset.focusOnly，主攻集口径 = isFocused 且未归档，只留 create/call/status 三类动作）③ 四类记录入口四键齐全；好奇心转化退役后 curio-conv 入口同步下线。抽屉侧 focusOnly 的过滤与主攻集在抽屉内自算（props.data.compass，组件零 store）', () => {
   return !PI_C.includes('openDynDrawer') && !PI_C.includes('dynDrawer')
     && PI.includes('function openLogFocus()') && PI.includes("openLog('month-in')")
     && PI.includes("k === 'month-in'") && PI.includes('fmtDayKey(gStartOfMonth)')
@@ -122,7 +122,8 @@ check('W13-F28 ★事件类下钻必须收进全页唯一的三维筛选抽屉�
     /* statDrawer 只剩八类活键（卡片语义：F15 目标对账 / F17 转化 / F18 主题 / F19 策展·支撑） */
     && PI.includes("type StatDrawerType = '' | 'all' | 'support' | 'goal-week'")
     && !PI_C.includes("case 'resource':") && !PI_C.includes("case 'task':") && !PI_C.includes("case 'curiosity':") && !PI_C.includes("case 'link':")
-    && ["openStatDrawer('all')", "openStatDrawer('support')", "openStatDrawer('goal-week')", "openStatDrawer('mo-support')", "openStatDrawer('curio-conv')", "openStatDrawer('topic')"]
+    && !PI_C.includes("openStatDrawer('curio-conv')")
+    && ["openStatDrawer('all')", "openStatDrawer('support')", "openStatDrawer('goal-week')", "openStatDrawer('mo-support')", "openStatDrawer('topic')"]
       .every(k => PI.includes(k));
 });
 
@@ -140,8 +141,9 @@ check('W13-T7d ★现役三段诊断的 CTA 走同一个分发出口：八个 ct
   /* ★V3.9.23：年度段只删提示条，四格与热力图保留；三条现役诊断仍只有一个分发器。 */
   const REPORT = read('/newtab/views/profileInsightsReport.ts')
   return PI.includes('function onConciseAction(action: string)')
-    && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'convertCurio'", "'wakeCooling'", "'openLifecycle'"]
+    && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'wakeCooling'", "'openLifecycle'"]
       .every(k => PI.includes(k))
+    && !PI_C.includes("'convertCurio'")
     && (PI.match(/@insight-action="onConciseAction"/g) || []).length === 3
     && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 0
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')

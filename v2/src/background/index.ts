@@ -9,6 +9,136 @@
 import { K } from '@/shared/storage/keys'
 import { resourceLocateRoute } from '@/shared/utils/locate'
 
+const AUTO_SYNC_ALARM = 'zy-cloud-auto-sync'
+const AUTO_SYNC_PERIOD_MINUTES = 60
+let autoSyncRunning = false
+
+async function configureAutoSyncAlarm(enabled: boolean): Promise<void> {
+  try {
+    if (!enabled) {
+      await chrome.alarms.clear(AUTO_SYNC_ALARM)
+      return
+    }
+    const current = await chrome.alarms.get(AUTO_SYNC_ALARM)
+    if (current?.periodInMinutes === AUTO_SYNC_PERIOD_MINUTES) return
+    await chrome.alarms.create(AUTO_SYNC_ALARM, {
+      delayInMinutes: AUTO_SYNC_PERIOD_MINUTES,
+      periodInMinutes: AUTO_SYNC_PERIOD_MINUTES,
+    })
+  } catch { /* 开发环境或权限未就绪时不影响手动同步 */ }
+}
+
+async function runAutoSync(): Promise<void> {
+  if (autoSyncRunning) return
+  autoSyncRunning = true
+  let releaseLock: (() => Promise<void>) | null = null
+  try {
+    const sync = await import('@/shared/cloud/sync')
+    const meta = await sync.getCloudMeta()
+    if (!meta?.autoSyncEnabled) {
+      await configureAutoSyncAlarm(false)
+      return
+    }
+    if (!meta.refreshToken) {
+      await configureAutoSyncAlarm(false)
+      await sync.markAutoSyncResult({ result: 'signed_out', error: '账号登录状态失效' })
+      return
+    }
+    const owner = `auto:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`
+    if (!(await sync.acquireCloudSyncLock(owner))) {
+      await sync.markAutoSyncResult({ result: 'blocked', error: '已有同步任务正在运行' })
+      return
+    }
+    releaseLock = () => sync.releaseCloudSyncLock(owner)
+    const [repository, eventLog] = await Promise.all([
+      import('@/shared/storage/repository'),
+      import('@/shared/utils/eventLog'),
+    ])
+    const data = await repository.loadData()
+    const ui = await repository.loadUIPrefs()
+    const snapshot = { data, ui, eventLog: await eventLog.readEventLog() }
+    const beforeMeta = await sync.getCloudMeta()
+    const check = await sync.checkRemote(snapshot)
+
+    if (check.kind === 'idle') {
+      await sync.markAutoSyncResult({ result: 'failed', error: '云端未配置，无法自动同步' })
+      return
+    }
+    if (check.kind === 'in_sync') {
+      const receipt = sync.buildSyncReceipt({
+        before: check.localManifest || null,
+        after: check.localManifest || null,
+        direction: 'latest',
+        trigger: 'auto',
+        fromRevision: beforeMeta?.revision || 0,
+        toRevision: check.remoteRevision,
+      })
+      await sync.appendSyncReceipt(receipt)
+      await sync.markAutoSyncResult({ result: 'latest' })
+      return
+    }
+    if (check.kind !== 'empty_remote' && check.kind !== 'local_changed') {
+      const reason = check.kind === 'remote_changed'
+        ? '云端有新版本，自动同步不会拉回'
+        : check.kind === 'both_changed'
+          ? '本机与云端都有改动，需人工选择'
+          : '同步方向待人工确认'
+      await sync.markAutoSyncResult({ result: 'blocked', error: reason })
+      return
+    }
+
+    const uploaded = await sync.uploadNow(snapshot, async () => 'cancel')
+    if (uploaded.kind !== 'uploaded') {
+      await sync.markAutoSyncResult({
+        result: 'blocked',
+        error: uploaded.kind === 'cancelled' ? '检查后发现云端修订已变化，已停止自动上传' : '自动上传未完成',
+      })
+      return
+    }
+    const receipt = sync.buildSyncReceipt({
+      before: beforeMeta?.localManifest || null,
+      after: uploaded.manifest,
+      direction: 'upload',
+      trigger: 'auto',
+      fromRevision: beforeMeta?.revision || 0,
+      toRevision: uploaded.revision,
+    })
+    await sync.appendSyncReceipt(receipt)
+    const { saveReceiptActions } = await import('@/shared/cloud/syncActions')
+    await saveReceiptActions(receipt, uploaded.beforeState, snapshot)
+    await sync.markAutoSyncResult({ result: 'uploaded' })
+  } catch (error) {
+    try {
+      const sync = await import('@/shared/cloud/sync')
+      await sync.markAutoSyncResult({
+        result: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      })
+    } catch { /* noop */ }
+  } finally {
+    if (releaseLock) await releaseLock().catch(() => {})
+    autoSyncRunning = false
+  }
+}
+
+async function bootstrapAutoSync(): Promise<void> {
+  try {
+    const sync = await import('@/shared/cloud/sync')
+    const meta = await sync.getCloudMeta()
+    await configureAutoSyncAlarm(!!meta?.autoSyncEnabled && !!meta.refreshToken)
+    if (!meta?.autoSyncEnabled || !meta.refreshToken) return
+    const lastAttempt = meta.lastAutoAttemptAt || 0
+    if (Date.now() - lastAttempt >= AUTO_SYNC_PERIOD_MINUTES * 60_000) {
+      void runAutoSync()
+    }
+  } catch { /* noop */ }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_SYNC_ALARM) void runAutoSync()
+})
+chrome.runtime.onStartup.addListener(() => { void bootstrapAutoSync() })
+chrome.runtime.onInstalled.addListener(() => { void bootstrapAutoSync() })
 
 /** 获取 content script 文件路径（从 manifest 动态读取，兼容构建 hash） */
 function getContentScriptFiles(): string[] {
@@ -209,6 +339,12 @@ chrome.action.onClicked.addListener(async () => {
  *   未命中 → 发送方是新标签页则本页跳转；否则新建
  */
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'zy-auto-sync-config') {
+    void configureAutoSyncAlarm(msg.enabled === true)
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }))
+    return true
+  }
   if (msg?.type === 'zy-locate-workspace') {
     const wsId: string = msg.wsId || ''
     const hl: string = msg.hl || ''

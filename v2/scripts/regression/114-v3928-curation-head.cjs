@@ -22,7 +22,7 @@ check('R185-A1 ★三层页头成立：台身份 ≤40px → 中心论点主舞�
     && (WS.match(/<div class="thesis-banner"/g) || []).length === 1;
 })
 
-check('R185-A2（V4.0.3 重指）★中心论点成为镇台舞台：L1 / 论点卡 / 金字塔根节点三层语义、22px 主句、卡片读数与详情入口同卡；卡内不再放金字塔或分享按钮', () => {
+check('R185-A2（V4.2.0 压缩重指）★中心论点成为镇台舞台：L1 / 论点卡 / 金字塔根节点三层语义、20px 主句、68px 基线高度、卡片读数与详情入口同卡；卡内不再放金字塔或分享按钮', () => {
   const start = WS.indexOf('<div class="thesis-banner"')
   const banner = WS.slice(start, WS.indexOf('<!-- ③ 行动条', start))
   return banner.includes('class="tb-kicker"')
@@ -33,7 +33,8 @@ check('R185-A2（V4.0.3 重指）★中心论点成为镇台舞台：L1 / 论点
     && banner.includes('class="tb-desc"')
     && banner.includes('class="cur-metrics" data-curation-metrics="2"')
     && banner.includes('class="tb-detail" type="button"')
-    && CSS.includes('font-size: 22px')
+    && CSS.includes('font-size: 20px')
+    && CSS.includes('min-height: 68px')
     && CSS.includes('radial-gradient(600px 160px')
     && !banner.includes('分享成果')
     && !banner.includes("update:layout")
@@ -90,13 +91,12 @@ check('R185-A5（V3.9.29 重指）★未设立论点是单行轻引导：整卡�
 check('R185-A6 ★窄屏可读：描述让位、论点标题最多两行、行动条分组换行且分隔线隐藏', () => {
   const mobile = CSS.slice(CSS.indexOf('@media (max-width: 900px)'))
   return mobile.includes('.wsh-desc { display: none; }')
+    && mobile.includes('.tb-title { white-space: normal;')
     && mobile.includes('-webkit-line-clamp: 2')
-    && mobile.includes('.thesis-banner:not(.empty) { flex-direction: column;')
+    && mobile.includes('.thesis-banner:not(.empty) { min-height: 0; flex-direction: column;')
     && mobile.includes('.tb-side { width: 100%; flex-direction: row;')
     && mobile.includes('.ws-toolbar { flex-wrap: wrap;')
-    && mobile.includes('.toolbar-spacer { display: none; }')
-    && !mobile.includes('.cur-toolbar-lead')
-    && !mobile.includes('.cur-sep');
+    && mobile.includes('.toolbar-spacer { display: none; }');
 })
 
 check('R185-V1（V3.9.29 重指）V3.9.28 历史记录仍在：更新日志保留页头重设计条目，当前版本同步由 115 分片承接', () => {

@@ -1,13 +1,12 @@
 /**
- * R144 · 批次 G 场景工厂：论点提炼（G1）/ 好奇研判（G2）/ 找佐证（G3′）/ 成果文稿（G4）。
+ * R144 · 批次 G 场景工厂：论点提炼（G1）/ 找佐证（G3′）/ 成果文稿（G4）。
  * 与 govern.ts 同骨架「投影→chat→行→采纳」，采纳全部走既有字段通道，零新增数据模型：
  *  G1=写主题卡（isThesis）标题与 🤖 论点块；次通道=分论点落成一级分类并归架佐证卡
- *  G2=convert 交宿主 convertToTask / drop=status 'shelf' / keep 只读
  *  G3=hub.ts projectCardToBoard（只投射资源卡池的源卡，源数据零影响）
  *  G4=存一张「成果文稿」资源卡；次通道=下载 .md
  * 链接正文抽样复用 govern 的 reviseSnips 会话缓存（R143 抓过的零重抓）。
  */
-import type { AppData, Category, CuriosityCard, ResourceCard } from '@/shared/models'
+import type { AppData, Category, ResourceCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { THESIS_MARK, THESIS_PARTS_MARK, THESIS_WHY_MARK } from '@/shared/models/aiMarks'
@@ -16,12 +15,12 @@ import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
 import { fetchLinkText, linkFetchable } from './linkFetch'
-import { projectDeckThesis, projectCurioPool, projectEvidenceFor, projectDeliverMaterial } from './project'
+import { projectDeckThesis, projectEvidenceFor, projectDeliverMaterial } from './project'
 import { reviseSnips, SNIP_CAP, type GovernCtx } from './govern'
 import {
-  thesisDraftSystem, curioTriageSystem, evidenceSystem, deliverSystem,
+  thesisDraftSystem, evidenceSystem, deliverSystem,
   allPersonas, personaOverrides, chainPersonaText,
-  type ThesisPart, type CurioTriage, type EvidencePick,
+  type ThesisPart, type EvidencePick,
 } from './scenarios'
 import { withReport } from './reports'
 
@@ -155,9 +154,11 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
       if (!thesis) return '⚠ 没勾选中心论点，未改动（可只勾分论点走底部「🗂 建成分类」）'
       const { card, created } = ensureThesisCard(d, ctx.wsId)
       const keep = (card.description || '').replace(THESIS_BLOCK, '').trim()
+      const now = Date.now()
       card.title = thesis.slice(0, 30)
       card.description = (keep ? keep + '\n\n' : '') + thesisBody(thesis, String((th?.data as { __why?: string }).__why || ''), parts)
-      card.updatedAt = Date.now()
+      card.updatedAt = now
+      card.aiTouchedAt = now
       ctx.persist()
       return `✓ 中心论点「${card.title}」${created ? '已新建为主题卡' : '已更新'}${parts.length ? ` · 骨架 ${parts.length} 支 · 挂佐证 ${parts.reduce((s, p) => s + (p.cardIds?.length || 0), 0)} 卡次` : ''}（分类与卡片归属未动）`
     },
@@ -187,115 +188,6 @@ export function buildThesisDraftJob(ctx: ThesisGenCtx): AiJob | null {
   }
   if (ctx.onPersona) job.persona = personaPicker(ctx.personaId || 'default', id => ctx.onPersona?.(id))
   return job
-}
-
-// ============== G2 · 好奇心转化研判 ==============
-
-export interface CurioTriageCtx extends GovernCtx {
-  pool: CuriosityCard[]
-  /** R151：单卡入口为真——「3 条才够比较」是批量口径，套到单卡上会变成"点研判被拒"；单卡的 jobKey 必须带卡 id，否则换一张卡会 attach 到上一张的结果 */
-  single?: boolean
-  /** 转化动作由宿主提供（走既有 convertToTask：字段随迁 + 落任务 + 源卡软删） */
-  onConvert: (c: CuriosityCard, taskTitle: string) => boolean | string
-}
-
-export function buildCurioTriageJob(ctx: CurioTriageCtx): AiJob | null {
-  const single = !!ctx.single
-  const pool = ctx.pool.filter(c => !c.deletedAt && (c.status === 'todo' || c.status === 'doing')).slice(0, SNIP_CAP[ctx.depth])
-  if (pool.length < (single ? 1 : 3)) return null
-  const byId = new Map(pool.map(c => [c.id, c]))
-  const drop = { ghost: 0, badVerdict: 0, noTitle: 0, noWhy: 0 }
-  const parseRows = (bag: { items?: CurioTriage[] }): AiRow[] => {
-    const rows: AiRow[] = []
-    const seen = new Set<string>()
-    ;(bag.items || []).forEach((it, i) => {
-      const c = byId.get(String(it?.cardId))
-      if (!c || seen.has(c.id)) { drop.ghost++; return }
-      const v = String(it.verdict || '')
-      if (!['convert', 'keep', 'drop'].includes(v)) { drop.badVerdict++; return }
-      const title = v === 'convert' ? String(it.taskTitle || '').replace(/\s+/g, ' ').trim().slice(0, 30) : ''
-      if (v === 'convert' && !title) { drop.noTitle++; return } // 没给可执行标题的「值得做」不予采纳
-      seen.add(c.id)
-      const reason = String(it.why || '').trim()
-      if (!reason) drop.noWhy++
-      rows.push({
-        key: `ct:${c.id}:${i}`, badge: v === 'convert' ? '→ 转任务' : v === 'drop' ? '可搁置' : '继续养',
-        badgeType: v === 'convert' ? 'ok' : v === 'drop' ? 'warn' : 'neutral',
-        main: c.question.slice(0, 40),
-        sub: [v === 'convert' ? `建议任务：${title}` : '', reason.slice(0, 60) || '（模型没给判词）'].filter(Boolean).join(' · '),
-        // R147-a：没判词的「转任务/搁置」会真的动卡，默认不勾
-        weak: !reason,
-        data: { __cardId: c.id, __verdict: v, __title: title, __why: reason, __card: c },
-      })
-    })
-    return rows
-  }
-  const user = () => projectCurioPool(ctx.d, pool.map(c => c.id), ctx.depth, reviseSnips)
-  return {
-    key: single ? 'triage:' + pool[0].id : 'triage',
-    /** R167：单条研判走「判决卡」版式（一条建议摊成左右对照会空半屏）；批量仍是逐条勾选的对照表 */
-    ...(single ? { layout: 'verdict' as const } : {}),
-    title: single ? '💡 这条好奇要不要转任务' : '💡 好奇心转化研判',
-    subject: single ? `💡 单条研判「${pool[0].question.slice(0, 28)}」` : `💡 待探索池 ${pool.length} 条`,
-    hint: single
-      ? '只判这一条：转任务 / 继续养 / 可搁置，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。'
-      : '逐条判「转任务 / 继续养 / 可搁置」，判据是对不对得上愿景与活跃目标。采纳：转=按建议标题走既有转化通道；搁置=置为「已搁置」（不删卡，随时可改回）；继续养=只看不写。',
-    build: () => ({ messages: [{ role: 'system', content: curioTriageSystem() }, { role: 'user', content: user() }] }),
-    parse: raw => parseRows((raw || {}) as { items?: CurioTriage[] }),
-    audit: () => {
-      const bits = [drop.ghost ? `${drop.ghost} 行 id 不在研判池或重复点名` : '', drop.badVerdict ? `${drop.badVerdict} 行判决不在白名单` : '', drop.noTitle ? `${drop.noTitle} 行说要转任务却没给标题` : '', drop.noWhy ? `${drop.noWhy} 行没判词（已判弱）` : ''].filter(Boolean)
-      return bits.length ? bits.join('、') : null
-    },
-    async run({ signal, onDelta }) {
-      await sampleSnips(pool.map(c => ({ id: c.id, link: c.sourceUrl, description: c.question })), ctx.depth, signal, onDelta, '转化研判')
-      if (signal.aborted) return []
-      onDelta(`⏳ 参谋逐条研判 ${pool.length} 条好奇心中…`)
-      const text = await chatStream({
-        messages: [{ role: 'system', content: curioTriageSystem() }, { role: 'user', content: user() }],
-        signal, onDelta: t => onDelta('⏳ 研判中…' + t.slice(-200).replace(/\s+/g, ' ')),
-      })
-      if (signal.aborted) return []
-      return parseRows((extractJson(text) || {}) as { items?: CurioTriage[] })
-    },
-    apply: (rows) => {
-      let conv = 0, shelf = 0, keep = 0, fail = 0
-      for (const r of rows) {
-        const { __cardId: id, __verdict: v, __title: title } = r.data as { __cardId: string; __verdict: string; __title: string }
-        const c = byId.get(id)
-        if (!c) continue
-        // R165-A（方案 A 三态凭据）：研判判决被采纳（转/搁置）即视为 AI 动过本卡；「继续养」不写卡也不落戳
-        if (v === 'convert' || v === 'drop') c.aiTouchedAt = Date.now()
-        if (v === 'convert') { const ok = ctx.onConvert(c, title); if (ok) conv++; else fail++ }
-        else if (v === 'drop') { c.status = 'shelf'; c.updatedAt = Date.now(); shelf++ }
-        else keep++
-      }
-      if (shelf) ctx.persist()
-      return `✓ 转化 ${conv} 条为任务 · 搁置 ${shelf} 条${keep ? ` · ${keep} 条继续养着（未改动）` : ''}${fail ? ` · ${fail} 条转化失败（已转或目标变更）` : ''}`
-    },
-    /**
-     * R167：次级动作「判词写进详情」——只把判词追加进正文，**不改状态、不建卡**。
-     * 立它的理由：研判最有用的往往是那句判词本身（"先养一周看是否真天天用"），
-     * 但用户未必想现在就转/搁置；没有这一条，判词跑完就散了。
-     */
-    secondary: {
-      label: '📝 判词写进详情',
-      apply: (rows) => {
-        let n = 0
-        for (const r of rows) {
-          const c = byId.get((r.data as { __cardId: string }).__cardId)
-          const why = (r.sub || '').replace(/^（模型没给判词）$/, '').trim()
-          if (!c || !why) continue
-          if ((c.question || '').includes(why.slice(0, 12))) continue
-          c.question = `${c.question}\n\n 研判判词：${why}`
-          c.updatedAt = Date.now()
-          n++
-        }
-        if (!n) return '⚠ 没有可写入的判词（模型没给理由，或正文里已有）'
-        ctx.persist()
-        return `✓ 判词已写进 ${n} 条好奇的正文末段（状态未改）`
-      },
-    },
-  }
 }
 
 // ============== G3′ · 金字塔分支找佐证 ==============
@@ -363,7 +255,7 @@ function boardCardsInCat(d: AppData, wsId: string, catId: string): ResourceCard[
   const mirrored: ResourceCard[] = []
   for (const p of d.curationProjections || []) {
     if (p.kind !== 'card' || p.targetWsId !== wsId || p.targetCatId !== catId) continue
-    const src = (d.resources || []).find(r => r.id === p.cardId && !r.deletedAt)
+    const src = p.snapshot || (d.resources || []).find(r => r.id === p.cardId && !r.deletedAt)
     if (src && !ownIds.has(src.id)) mirrored.push({ ...src, categoryId: catId })
   }
   return [...own, ...mirrored]

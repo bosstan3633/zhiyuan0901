@@ -48,7 +48,8 @@ export function useWorkspaceMirror(ctx: WorkspaceMirrorCtx) {
   }
   /** R61：定位到源卡（V3.7.0：资源台页退役，池管理面归调度台「3张卡」——先回落首页） */
   function locateMirrorSource(r: ResourceCard) {
-    const src = d.value.resources.find(x => x.id === r.id)
+    if (!isMirrorView(r)) return
+    const src = d.value.resources.find(x => x.id === r.__mirrorSourceId)
     if (!src) { showToast('ℹ 源卡已删除'); return }
     router.push('/')
     showToast(`↗ 源卡在资源卡池 · ${src.title.slice(0, 20)}`)

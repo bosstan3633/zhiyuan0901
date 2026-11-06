@@ -78,7 +78,7 @@ check('G102-5（V4.1.3 退役重指）好奇详情“资源支撑”入口整体
     && !CURIO.includes('curioSupportDraft')
     && !CURIO.includes('removeCurioSupport')
     && !CURIO.includes('openCurioSupportResource')
-    && !read('/newtab/components/compass/curiosityPanelBridges.ts').includes('useCurioSupport')
+    && !read('/newtab/components/compass/curiosityPanelCore.ts').includes('useCurioSupport')
     && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
 });
 

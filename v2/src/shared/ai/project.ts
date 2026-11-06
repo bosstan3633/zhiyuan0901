@@ -339,32 +339,6 @@ export function projectDeckThesis(d: AppData, wsId: string, depth: AiDepth, snip
   return L.join('\n\n')
 }
 
-/** R144 · G2 好奇研判投料：待探索池逐条（含动静/来源）+ 愿景使命与活跃目标做「值不值得转」的参照（R165：挂资源数随卡间挂载退役） */
-export function projectCurioPool(d: AppData, ids: string[], depth: AiDepth, snips: Map<string, string>): string {
-  const c = CAP[depth]
-  const want = new Set(ids)
-  const pool = (d.curiosities || []).filter(x => want.has(x.id) && !x.deletedAt).slice(0, c.cards)
-  if (!pool.length) return ''
-  const L: string[] = []
-  L.push(`【愿景】${cut(d.compass.vision?.content, 120) || '（未填）'}\n【使命】${cut(d.compass.mission?.content, 120) || '（未填）'}`)
-  const dirs = (d.compass.directions || []).filter(x => x.status === 'active').slice(0, 6)
-    .map(x => `- ${x.name}（${x.term || '未分期'}）：${x.projects.map(p => cut(p.name, 16)).join('、') || '无项目'}`)
-  L.push(`【活跃战略目标】\n${dirs.join('\n') || '（暂无活跃目标）'}`)
-  const day = 86400000
-  const rows = pool.map(x => {
-    let host = ''
-    try { host = new URL(x.sourceUrl || '').host } catch { /* 无来源链接留空 */ }
-    const age = Math.max(0, Math.round((Date.now() - (x.lastCalledAt || x.updatedAt || x.createdAt)) / day))
-    return `- curioId=${x.id} 「${cut(x.question, 60)}」 ${x.status === 'doing' ? '探索中' : '待探索'}${host ? ` 来源:${host}` : ''} 打开${x.callCount || 0}次 ${age}天没动过`
-  })
-  L.push(`【待探索池（${pool.length} 条）】\n${rows.join('\n')}`)
-  const mine = [...snips.entries()].filter(([id]) => pool.some(x => x.id === id))
-  L.push(mine.length
-    ? `【来源正文抽样（${mine.length} 篇）】\n${mine.map(([id, t]) => `· curioId=${id} 正文节选：${t.replace(/\n/g, ' ')}`).join('\n')}`
-    : '【来源正文抽样】（未补读正文——只据卡面研判，别假装有读过）')
-  return L.join('\n\n')
-}
-
 /** R144 · G3 找佐证投料：目标分支（名称/定义/现有卡）+ 资源台全库目录（镜像机制只接受资源台源卡） */
 export function projectEvidenceFor(
   d: AppData, depth: AiDepth, branch: { name: string; definition?: string; path: string },

@@ -447,7 +447,7 @@ export interface ConciseInsight {
    *   「调出 N 张支撑卡」给的是**卡片清单**（ammo），不是「今日调出事件流水」；
    *   「看可调出的旧卡」给的是**冷却区卡片清单**（cooling），不是全量记录。
    *   键集：openFocusBoard / bindFocus / callSupport→ammo / openBattle / openObjectives /
-   *        openLog（= 全部记录，仅页头用）/ cooling / convertCurio / wakeCooling / openLifecycle
+   *        openLog（= 全部记录，仅页头用）/ cooling / wakeCooling / openLifecycle
    */
   ctaAction: string
 }
@@ -482,10 +482,6 @@ export interface ConciseCtx {
   month: {
     entropyFrom: number
     entropyTo: number
-    /** 停留 exploring 超 14 天的好奇心卡数 */
-    oldCurio: number
-    /** 其中已有同标签资源卡支撑、可一键转化的成熟张数 */
-    matureMatched: number
     /** 本月投射入策展台金字塔张数 */
     projected: number
   }
@@ -557,24 +553,14 @@ export function buildConciseInsights(c: ConciseCtx): Record<'today' | 'week' | '
     }
   }
 
-  /* ---- 本月（F16）：聚焦度变化 + 超期好奇转化 ---- */
+  /* ---- 本月（F16）：聚焦度变化 + 策展沉淀 ---- */
   const dH = Math.round((c.month.entropyTo - c.month.entropyFrom) * 10) / 10
   const trend = dH > 0 ? `发散 +${dH} bit` : dH < 0 ? `聚焦 ${dH} bit` : '持平'
-  let month: ConciseInsight
-  if (c.month.oldCurio > 0 && c.month.matureMatched > 0) {
-    month = {
-      html: `知识熵 <b>${c.month.entropyFrom} → ${c.month.entropyTo} bit（${trend}）</b>；<b>${c.month.oldCurio}</b> 张好奇心卡停在探索中超 14 天，其中 <b>${c.month.matureMatched}</b> 张已有同标签资源卡支撑——就差临门一脚。`,
-      warn: true,
-      ctaLabel: `一键转化 ${c.month.matureMatched} 张成熟好奇卡 ›`,
-      ctaAction: 'convertCurio'
-    }
-  } else {
-    month = {
-      html: `知识熵 <b>${c.month.entropyFrom} → ${c.month.entropyTo} bit（${trend}）</b>，本月入策展金字塔 <b>${c.month.projected}</b> 张——采集正在变成表达。`,
-      warn: false,
-      ctaLabel: '🗂️ 全部记录 ›',
-      ctaAction: 'openLog'
-    }
+  const month: ConciseInsight = {
+    html: `知识熵 <b>${c.month.entropyFrom} → ${c.month.entropyTo} bit（${trend}）</b>，本月入策展金字塔 <b>${c.month.projected}</b> 张——采集正在变成表达。`,
+    warn: false,
+    ctaLabel: '🗂️ 全部记录 ›',
+    ctaAction: 'openLog'
   }
 
   /* ---- 本年度（F20）：双轮愿景契合 + 唤醒核心冷却卡 ---- */

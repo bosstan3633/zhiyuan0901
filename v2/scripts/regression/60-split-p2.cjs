@@ -23,8 +23,10 @@ console.log('【第一百零六轮 · V2.75.0：生产反馈首批（F1 乱码 +
  *  F5 = content 数据缓存 TTL 1.5s → 300s（onChanged 已兜底，消除每次开浮层全量重读整库）+ 测量脚本入仓；
  *  F7 = 一键清理本台镜像卡（只删投射，源卡保留）。 */
 check('R106-1 ★ F1 乱码修复：mouseleave 回到 nav 开标签内，文本节点残留零命中', () => {
-  return APP106.includes('<nav class="tabs" @mouseleave="wsOverflowOpen = false">')
-    && !APP106.includes('> @mouseleave');
+  const app = read('/newtab/App.vue')
+  return app.includes('<nav class="tabs">')
+    && !app.includes('> @mouseleave')
+    && !app.includes('> @click');
 });
 check('R106-2 F2 顶栏对齐（R108 重指：F10 资源台/策展台容器并入 1440，三档）', () => {
   return APP106.includes('const topbarAlign = computed(')
@@ -79,12 +81,16 @@ check('R105-3 D3 重复卡确认视图第三选项「仍然新建一张」：for
     && OV105.includes('if (!forceNew && linkType === \'url\' && linkInput.value.trim())')
     && OV105.includes("addEventListener('click', () => { void saveCapture() })");
 });
-check('R105-4 E2 策展台 >5 页签收起「≪ N」：溢出指示 + hover/点击展开 + 活动台恒可见', () => {
-  return APP105.includes('const E2_TAB_MAX = 5')
-    && APP105.includes('const wsOverflow = computed(() => store.workspaces.length > E2_TAB_MAX)')
-    && APP105.includes('class="tab tab-overflow"') && APP105.includes('≪ {{ hiddenWsCount }}')
-    && APP105.includes('@mouseleave="wsOverflowOpen = false"')
-    && APP105.includes("if (active && !head.some(w => w.id === active)) {");
+check('R105-4（V4.2.0 重指）E2 策展台 >5 页签统一收入「策展台库」：溢出与隐藏台共用稳定入口、计数徽标与活动台恒可见', () => {
+  const app = read('/newtab/App.vue')
+  return app.includes('const E2_TAB_MAX = 5')
+    && app.includes('const wsOverflow = computed(() => store.workspaces.length > E2_TAB_MAX)')
+    && app.includes('const deckLibraryCount = computed')
+    && app.includes('class="tab tab-deck-library"')
+    && app.includes('class="tab-count-badge"')
+    && app.includes('if (active && !head.some(w => w.id === active)) {')
+    && app.includes('收进顶栏「策展台库」')
+    && !app.includes('≪ {{ hiddenWsCount }}');
 });
 check('R105-5 W10 搜索纳入 link：matchCard 补链接匹配（两台与浮层 res blob 范围统一）', () => {
   return WSP105.includes("if ((r.link || '').toLowerCase().includes(p.kw)) return true");

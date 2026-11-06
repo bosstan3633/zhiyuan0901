@@ -88,7 +88,12 @@ export function usePyramid(ctx: PyramidCtx) {
   const linkBase = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
     if (!linkCardsModal.value) return []
     const mirroredSet = new Set((d.value.curationProjections || [])
-      .filter(p => p.kind === 'card' && p.targetWsId === workspaceId.value).map(p => p.cardId))
+      .filter(p =>
+        p.kind === 'card'
+        && p.targetWsId === workspaceId.value
+        && (p.targetCatId || '') === linkCardsModal.value!.catId
+      )
+      .map(p => p.cardId))
     return d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
@@ -111,7 +116,7 @@ export function usePyramid(ctx: PyramidCtx) {
     }
     store.persist()
     linkCardsModal.value = null
-    showToast(ok ? `📡 已镜像 ${ok} 张资源卡到「${m.catName}」` : 'ℹ 所选卡片均已在该台镜像中')
+    showToast(ok ? `已挂载 ${ok} 个独立资源镜像到「${m.catName}」` : '所选资源已在该节点挂载')
   }
 
   // ===== R161-④：关联资源卡弹窗里的 AI 检索 =====
