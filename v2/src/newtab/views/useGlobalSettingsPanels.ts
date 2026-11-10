@@ -20,7 +20,9 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import type { useGlobalSettings, TtRow } from './useGlobalSettings'
 
-export function useGlobalSettingsPanels(deps: Pick<ReturnType<typeof useGlobalSettings>, 'ttTogglePick' | 'ttRows' | 'ttPicked' | 'activePage' | 'gd' | 'store' | 'ttDetail' | 'ttCardDragging' | 'ttDropTarget' | 'ttActiveTag' | 'findTagNode' | 'ttEditing' | 'tagFlat' | 'ttCollapsed' | 'ttFlash' | 'tagTree' | 'tagSubtreeIds' | 'tagDepth' | 'safeChildren'>): { ttDragId: string | null; ttCardDragIds: string[] | null; onTtRowClick: (row: TtRow) => void; ttAllChecked: ComputedRef<boolean>; toggleTtAll: () => void; aiJob: ShallowRef<AiJob | null, AiJob | null>; aiJobKey: Ref<string, string>; aiModels: Ref<string[], string[]>; aiBusy: Ref<"" | "models" | "test", "" | "models" | "test">; aiMsg: Ref<string, string>; aiGenre: Ref<string, string>; aiPersonas: ComputedRef<AiPersona[]>; aiPersonaSel: Ref<string[], string[]>; aiPersonaSynced: boolean; aiNewP: { name: string; brief: string; focus: string; }; aiAddPersona: () => void; aiRemovePersona: (id: string) => void; aiEditP: Ref<string, string>; aiPersonaCfg: (id: string) => { id: string; enabled: boolean; style: string; brief?: string | undefined; focus?: string | undefined; } | undefined; aiPatchPersona: (id: string, p: Partial<{ enabled: boolean; style: string; brief: string; focus: string; }>) => void; aiCustomPatch: (id: string, k: "name" | "brief" | "focus", v: string) => void; aiOpenJob: (job: AiJob | null, emptyMsg: string) => void; aiTray: ComputedRef<JobState[]>; aiOpenState: (s: JobState) => void; aiTrayClear: () => void; aiTagGovern: () => Promise<void>; aiReviseBak: Ref<{ at: number; } | null, { at: number; } | { at: number; } | null>; aiTagRevise: () => Promise<void>; aiJobClosed: () => void; aiCheckReviseBak: () => Promise<void>; aiRestoreRevise: () => Promise<void>; aiTrashRescue: () => void; aiWeeklyReview: () => void; aiDeliver: () => void; aiErr: (e: unknown) => string; aiErrDisplay: (text: string) => string; aiGuard: () => boolean; aiFetchModels: () => Promise<void>; aiTestConn: () => Promise<void>; aiTogglePersona: (id: string) => void; aiCatVocab: (d: AppData, cards: ResourceCard[]) => string; aiTtEnrich: () => void; aiEnrichIds: (ids: Set<string>) => void; aiDiagnose: () => void; onTtRowDblClick: (row: TtRow) => void; onTtRowDragStart: (e: DragEvent, row: TtRow) => void; onTtRowDragEnd: () => void; ttMoveCards: (targetPath: string) => void; openCardLink: (r: { linkType?: string | undefined; link?: string | undefined; assets?: { id: string; kind: string; }[] | undefined; }) => void; ttRename: (id: string) => void; ttConfirm: () => void; ttCancel: () => void; ttRemove: (id: string) => Promise<void>; ttDragStart: (e: DragEvent, id: string) => void; ttDragEnd: () => void; ttDrop: (e: DragEvent, targetId: string) => void; ttUnnest: (rootId: string, childId: string) => void; ttCollectFromCards: () => void; activeManualSec: Ref<string, string> } {
+export type AiFeedbackKind = 'idle' | 'success' | 'warning' | 'error'
+
+export function useGlobalSettingsPanels(deps: Pick<ReturnType<typeof useGlobalSettings>, 'ttTogglePick' | 'ttRows' | 'ttPicked' | 'activePage' | 'gd' | 'store' | 'ttDetail' | 'ttCardDragging' | 'ttDropTarget' | 'ttActiveTag' | 'findTagNode' | 'ttEditing' | 'tagFlat' | 'ttCollapsed' | 'ttFlash' | 'tagTree' | 'tagSubtreeIds' | 'tagDepth' | 'safeChildren'>): { ttDragId: string | null; ttCardDragIds: string[] | null; onTtRowClick: (row: TtRow) => void; ttAllChecked: ComputedRef<boolean>; toggleTtAll: () => void; aiJob: ShallowRef<AiJob | null, AiJob | null>; aiJobKey: Ref<string, string>; aiModels: Ref<string[], string[]>; aiBusy: Ref<"" | "models" | "test", "" | "models" | "test">; aiMsg: Ref<string, string>; aiMsgKind: Ref<AiFeedbackKind, AiFeedbackKind>; aiGenre: Ref<string, string>; aiPersonas: ComputedRef<AiPersona[]>; aiPersonaSel: Ref<string[], string[]>; aiPersonaSynced: boolean; aiNewP: { name: string; brief: string; focus: string; }; aiAddPersona: () => void; aiRemovePersona: (id: string) => void; aiEditP: Ref<string, string>; aiPersonaCfg: (id: string) => { id: string; enabled: boolean; style: string; brief?: string | undefined; focus?: string | undefined; } | undefined; aiPatchPersona: (id: string, p: Partial<{ enabled: boolean; style: string; brief: string; focus: string; }>) => void; aiCustomPatch: (id: string, k: "name" | "brief" | "focus", v: string) => void; aiOpenJob: (job: AiJob | null, emptyMsg: string) => void; aiTray: ComputedRef<JobState[]>; aiOpenState: (s: JobState) => void; aiTrayClear: () => void; aiTagGovern: () => Promise<void>; aiReviseBak: Ref<{ at: number; } | null, { at: number; } | { at: number; } | null>; aiTagRevise: () => Promise<void>; aiJobClosed: () => void; aiCheckReviseBak: () => Promise<void>; aiRestoreRevise: () => Promise<void>; aiTrashRescue: () => void; aiWeeklyReview: () => void; aiDeliver: () => void; aiErr: (e: unknown) => string; aiErrDisplay: (text: string) => string; aiGuard: () => boolean; aiFetchModels: () => Promise<void>; aiTestConn: () => Promise<void>; aiTogglePersona: (id: string) => void; aiCatVocab: (d: AppData, cards: ResourceCard[]) => string; aiTtEnrich: () => void; aiEnrichIds: (ids: Set<string>) => void; aiDiagnose: () => void; onTtRowDblClick: (row: TtRow) => void; onTtRowDragStart: (e: DragEvent, row: TtRow) => void; onTtRowDragEnd: () => void; ttMoveCards: (targetPath: string) => void; openCardLink: (r: { linkType?: string | undefined; link?: string | undefined; assets?: { id: string; kind: string; }[] | undefined; }) => void; ttRename: (id: string) => void; ttConfirm: () => void; ttCancel: () => void; ttRemove: (id: string) => Promise<void>; ttDragStart: (e: DragEvent, id: string) => void; ttDragEnd: () => void; ttDrop: (e: DragEvent, targetId: string) => void; ttUnnest: (rootId: string, childId: string) => void; ttCollectFromCards: () => void; activeManualSec: Ref<string, string> } {
   const { ttTogglePick, ttRows, ttPicked, activePage, gd, store, ttDetail, ttCardDragging, ttDropTarget, ttActiveTag, findTagNode, ttEditing, tagFlat, ttCollapsed, ttFlash, tagTree, tagSubtreeIds, tagDepth, safeChildren } = deps
 let ttDragId: string | null = null
 let ttCardDragIds: string[] | null = null
@@ -37,6 +39,7 @@ const aiJobKey = ref('')
 const aiModels = ref<string[]>([])
 const aiBusy = ref<'' | 'models' | 'test'>('')
 const aiMsg = ref('')
+const aiMsgKind = ref<AiFeedbackKind>('idle')
 // R158：沉睡天数参数随沉睡扫描入口迁往 GlobalPopups「AI 建议」面板
 const aiGenre = ref('')
 const aiPersonas = computed(() => allPersonas())
@@ -44,6 +47,13 @@ const aiPersonaSel = ref<string[]>([])
 let aiPersonaSynced = false
 const aiNewP = reactive({ name: '', brief: '', focus: '' })
 watch(activePage, async (p) => { if (p === 'ai') { await loadAiConfig(); if (!aiPersonaSynced) { aiPersonaSel.value = aiPersonas.value.map(x => x.id); aiPersonaSynced = true } } if (p === 'tags') void aiCheckReviseBak() })
+watch(
+  () => [aiConfig.value.baseUrl, aiConfig.value.apiKey, aiConfig.value.model].join('\u0000'),
+  () => {
+    aiMsg.value = ''
+    aiMsgKind.value = 'idle'
+  },
+)
 // GS 本身即懒路由：挂载时预载一次，标签管理等页的 AI 钮 disabled 态首帧即正确
 void loadAiConfig()
 
@@ -123,7 +133,7 @@ function aiDeliver() {
 }
 
 function aiErr(e: unknown): string { return (e as Error)?.message || String(e) }
-/** 错误信息美化与分类显示：在错误前加上图标前缀（网络 vs API 业务） */
+/** 错误信息保持可读；成功状态由独立 tone 控制，不能经过错误装饰器。 */
 function aiErrDisplay(text: string): string {
   const t = text.trim()
   // 402 余额不足
@@ -136,24 +146,43 @@ function aiErrDisplay(text: string): string {
   if (t.includes('429') || t.includes('限流')) return '⏳ ' + t
   // 网络错误
   if (t.includes('Network') || t.includes('fetch') || t.includes('timeout') || t.includes('DNS')) return '🌐 ' + t
-  // 默认
-  return '❌ ' + t
+  return t
 }
 function aiGuard(): boolean {
   if (!aiReady.value) { showToast('请先在「AI 助手」页填好 API 地址 / Key / 模型并测试连接'); activePage.value = 'ai'; return false }
   return true
 }
 async function aiFetchModels() {
-  aiBusy.value = 'models'; aiMsg.value = ''
-  try { aiModels.value = await listModels(); aiMsg.value = `拉到 ${aiModels.value.length} 个模型，可直接选用` }
-  catch (e) { aiModels.value = []; aiMsg.value = `列表拉取失败：${aiErr(e)}（模型名可手填）` }
-  aiBusy.value = ''
+  aiBusy.value = 'models'
+  aiMsg.value = ''
+  aiMsgKind.value = 'idle'
+  try {
+    aiModels.value = await listModels()
+    aiMsgKind.value = aiModels.value.length ? 'success' : 'warning'
+    aiMsg.value = aiModels.value.length
+      ? `已获取 ${aiModels.value.length} 个模型，请选择或填写模型`
+      : '接口返回 0 个模型，可直接手填模型名'
+  } catch (e) {
+    aiModels.value = []
+    aiMsgKind.value = 'error'
+    aiMsg.value = `列表拉取失败：${aiErrDisplay(aiErr(e))}（模型名可手填）`
+  } finally {
+    aiBusy.value = ''
+  }
 }
 async function aiTestConn() {
-  aiBusy.value = 'test'; aiMsg.value = ''
-  try { aiMsg.value = `连接成功：${await aiTestConnection()}` }
-  catch (e) { aiMsg.value = `${aiErr(e)}` }
-  aiBusy.value = ''
+  aiBusy.value = 'test'
+  aiMsg.value = ''
+  aiMsgKind.value = 'idle'
+  try {
+    aiMsgKind.value = 'success'
+    aiMsg.value = `连接已验证：${await aiTestConnection()}`
+  } catch (e) {
+    aiMsgKind.value = 'error'
+    aiMsg.value = aiErrDisplay(aiErr(e))
+  } finally {
+    aiBusy.value = ''
+  }
 }
 function aiTogglePersona(id: string) {
   aiPersonaSel.value = aiPersonaSel.value.includes(id) ? aiPersonaSel.value.filter(x => x !== id) : [...aiPersonaSel.value, id]
@@ -517,6 +546,6 @@ const activeManualSec = ref('quick-1')
 
 
   return {
-    onTtRowClick, ttAllChecked, toggleTtAll, ttDragId, ttCardDragIds, aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiGenre, aiPersonas, aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona, aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise, aiJobClosed, aiCheckReviseBak, aiRestoreRevise, aiTrashRescue, aiWeeklyReview, aiDeliver, aiErr, aiErrDisplay, aiGuard, aiFetchModels, aiTestConn, aiTogglePersona, aiCatVocab, aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick, onTtRowDragStart, onTtRowDragEnd, ttMoveCards, openCardLink, ttRename, ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd, ttDrop, ttUnnest, ttCollectFromCards, activeManualSec,
+    onTtRowClick, ttAllChecked, toggleTtAll, ttDragId, ttCardDragIds, aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiMsgKind, aiGenre, aiPersonas, aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona, aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise, aiJobClosed, aiCheckReviseBak, aiRestoreRevise, aiTrashRescue, aiWeeklyReview, aiDeliver, aiErr, aiErrDisplay, aiGuard, aiFetchModels, aiTestConn, aiTogglePersona, aiCatVocab, aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick, onTtRowDragStart, onTtRowDragEnd, ttMoveCards, openCardLink, ttRename, ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd, ttDrop, ttUnnest, ttCollectFromCards, activeManualSec,
   }
 }

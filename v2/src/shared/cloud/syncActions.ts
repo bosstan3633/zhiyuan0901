@@ -54,7 +54,11 @@ function emptyStore(): ActionStore {
   return { version: 1, actions: [] }
 }
 
-function clone<T>(value: T): T {
+function cloneValue<T>(value: T | null | undefined): T | null {
+  // 同步回执行天然可能面对“记录只在同步前/后一端存在”的情况。
+  // undefined 经过 stringify 会直接得到 undefined，旧实现再 parse 就抛
+  // `"undefined" is not valid JSON`，把已经成功的云端上传误判为失败。
+  if (value === null || value === undefined) return null
   return JSON.parse(JSON.stringify(value)) as T
 }
 
@@ -266,8 +270,8 @@ function prepareRestoredValue(
   type: SyncManifestRecordType,
   source: unknown,
 ): unknown | null {
-  if (source === null || source === undefined) return null
-  const next = clone(source)
+  const next = cloneValue(source)
+  if (next === null) return null
   // dailyFocus 是日期到 FocusSlot[] 的映射，恢复/回退时必须保留数组形态。
   if (Array.isArray(next)) return next
   if (!isObject(next)) return null
@@ -363,8 +367,8 @@ function statusOf(operation: CloudSyncActionOperation): CloudSyncActionStatus {
 }
 
 function buildOne(receipt: CloudSyncReceipt, row: CloudSyncReceiptRow, beforeState: SnapshotState | null, afterState: SnapshotState | null): CloudSyncReceiptAction {
-  const before = beforeState ? clone(objectOf(beforeState.data, row.type, row.id)) : null
-  const after = afterState ? clone(objectOf(afterState.data, row.type, row.id)) : null
+  const before = beforeState ? cloneValue(objectOf(beforeState.data, row.type, row.id)) : null
+  const after = afterState ? cloneValue(objectOf(afterState.data, row.type, row.id)) : null
   const operation = operationOf(row.type, row, before, after)
   const expiresAt = receipt.at + ACTION_TTL_MS
   const expired = Date.now() > expiresAt
@@ -381,6 +385,21 @@ function buildOne(receipt: CloudSyncReceipt, row: CloudSyncReceiptRow, beforeSta
     afterDigest: after !== null ? syncRecordDigest(after) : undefined,
     storedAt: Date.now(),
     expiresAt,
+  }
+}
+
+function readonlyOne(receipt: CloudSyncReceipt, row: CloudSyncReceiptRow, error: unknown): CloudSyncReceiptAction {
+  const expiresAt = receipt.at + ACTION_TTL_MS
+  return {
+    receiptId: receipt.id,
+    key: row.key,
+    type: row.type,
+    id: row.id,
+    operation: 'readonly',
+    status: Date.now() > expiresAt ? 'expired' : 'readonly',
+    storedAt: Date.now(),
+    expiresAt,
+    lastError: `动作载荷生成失败：${error instanceof Error ? error.message : String(error)}`,
   }
 }
 
@@ -415,7 +434,15 @@ export async function saveReceiptActions(
 ): Promise<number> {
   if (!receipt.rows.length) return 0
   const current = await readStore()
-  const actions = receipt.rows.map(row => buildOne(receipt, row, beforeState, afterState))
+  // 明细动作是同步后的辅助产物，任何单行载荷异常都只能把该行降级为只读，
+  // 不能反向推翻已经完成的云端写入。
+  const actions = receipt.rows.map(row => {
+    try {
+      return buildOne(receipt, row, beforeState, afterState)
+    } catch (error) {
+      return readonlyOne(receipt, row, error)
+    }
+  })
   const receiptIds = new Set([receipt.id])
   const next = [
     ...actions,

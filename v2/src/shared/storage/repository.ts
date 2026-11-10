@@ -12,6 +12,7 @@ import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs } from '.
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 import { hydrateResourceMirrorSnapshots } from './resourceMirrors'
+import { reconcileCapturedResources } from './captureDedupe'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY } from '@/shared/utils/eventLog'
 // R174-3：按日聚合快照落盘（热力图不褪色的数据地基，时间闸小载荷，见 dailyStatsStore.ts）
@@ -186,6 +187,9 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   fixTagNames(data.resources as { tags?: string[] }[])
   fixTagNames(data.tasks as { tags?: string[] }[])
   fixTagNames(data.curiosities as { tags?: string[] }[])
+  // V4.2.1：V4.1.0 旧导入与后续 Inbox 转化使用两套溯源字段。
+  // 同一 capture id 的两张资源卡在这里合并，避免“同标题一张带链接、一张无链接”。
+  try { reconcileCapturedResources(data) } catch { /* noop */ }
   for (const key of ['task', 'curiosity'] as const) {
     if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'tags')) {
       data.fieldConfig[key].push({ key: 'tags', label: '标签', type: 'tags', visible: false, order: data.fieldConfig[key].length })
@@ -431,6 +435,7 @@ export async function cloudRestoreAtomic(opts: {
   cancelPendingSave()
   emitSaveState('saving')
   await opts.beforeApply?.()
+  try { reconcileCapturedResources(opts.nextData) } catch { /* noop */ }
   cache = opts.nextData
   markDataDirty()
   dataVersion++
@@ -638,7 +643,6 @@ function mergeExternalUIPrefs(ext: UIPrefs | undefined): void {
   }
   if (changed) {
     uiCache = next as unknown as UIPrefs
-    markDataDirty()
   }
 }
 
@@ -681,7 +685,6 @@ export function saveUIPrefs(patch: Partial<UIPrefs>): void {
   })
   if (!changed) return
   uiCache = { ...uiCache, ...patch }
-  markDataDirty()
   // R128-A1：记下我方写过的键与值，供 mergeExternalUIPrefs 判定「哪些键不许被外部旧值回退」
   for (const k of Object.keys(patch)) {
     try { uiSelfWritten.set(k, JSON.stringify((uiCache as unknown as Record<string, unknown>)[k])) } catch { /* 不可序列化值不保护 */ }

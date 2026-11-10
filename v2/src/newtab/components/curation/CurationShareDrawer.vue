@@ -290,7 +290,7 @@ watch(
     <div class="cs-section">
       <div class="cs-label">分享内容</div>
       <label class="cs-toggle"><input v-model="options.links" type="checkbox"><span><b>资源原文链接</b><small>只输出 http(s) 链接，不输出本地路径。</small></span></label>
-      <label class="cs-toggle"><input v-model="options.attachments" type="checkbox"><span><b>节点附件清单</b><small>节点附件会随 HTML 一起可打开；普通资源卡附件只输出名称、类型和大小。</small></span></label>
+      <label class="cs-toggle"><input v-model="options.attachments" type="checkbox"><span><b>策展附件图集</b><small>中心论点与分支附件随 HTML 一起打开；图片可点开大图并左右切换；普通资源卡附件只输出名称、类型和大小。</small></span></label>
       <label class="cs-toggle"><input v-model="options.sources" type="checkbox"><span><b>来源徽标</b><small>官方 / 学术 / 媒体 / 个人成果。</small></span></label>
       <label class="cs-toggle"><input v-model="options.date" type="checkbox"><span><b>生成日期</b><small>页脚保留版本与日期，便于追溯。</small></span></label>
     </div>

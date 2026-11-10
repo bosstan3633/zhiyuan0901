@@ -431,9 +431,11 @@ const DASH_SCENES = [
        ② 点中的标签行底色真的变了（.gs-tt-row.active 那条规则在生效）。两条都可失败，不空转。 */
     id: 'st-tags', name: '标签双栏版式', hash: '#/settings?page=tags',
     act: async (page) => {
-      /* 点第一枚「有名字的」标签行：data-depth 才是真行（首枚可能是就地新建输入行），
-         点完等一拍——Vue 的 class 绑定在下一个 tick 才落 DOM（E2E-29 同一条时序坑） */
-      await page.locator('.gs-tt-row[data-depth]').first().click().catch(() => {})
+      /* 点本次夹具已挂卡的「认知调度」标签：data-depth 才是真行，
+         点完等一拍——Vue 的 class 绑定在下一个 tick 才落 DOM（E2E-29 同一条时序坑）。 */
+      const selected = page.locator('.gs-tt-row[data-depth]').filter({ hasText: '认知调度' }).first()
+      if (await selected.count()) await selected.click().catch(() => {})
+      else await page.locator('.gs-tt-row[data-depth]').first().click().catch(() => {})
       await page.waitForTimeout(900)
     },
     judge: async (page) => page.evaluate(() => {
@@ -1023,6 +1025,30 @@ if (argv.scenes) {
       card('audit-r4', '把一次解决变成可交付方案', 'audit-cat-evidence', 'own-work', '结构化成果让经验可以分享，也可以被检验。'),
     ]
   }
+  /* 标签双栏判据必须有“选中标签下确实有卡”的前置；旧样例备份的 tagTree 为空，
+     实测只能量到单行和无卡片空态。这里只向本次 Chromium 注入两个根标签，
+     并把已知标签挂到一张活资源卡上，不改备份文件。 */
+  const TAG_AUDIT_SELECTED = '认知调度'
+  const TAG_AUDIT_PLAIN = '待验证'
+  const tagRows = Array.isArray(data.tagTree)
+    ? data.tagTree.filter(node => node && typeof node === 'object' && node.id && node.name)
+    : []
+  if (!tagRows.some(node => node.name === TAG_AUDIT_SELECTED)) {
+    tagRows.push({ id: 'audit-tag-selected', name: TAG_AUDIT_SELECTED, children: [] })
+  }
+  if (!tagRows.some(node => node.name === TAG_AUDIT_PLAIN)) {
+    tagRows.push({ id: 'audit-tag-plain', name: TAG_AUDIT_PLAIN, children: [] })
+  }
+  data.tagTree = tagRows
+  const tagTarget = (data.resources || []).find(row => row && !row.deletedAt && !row.isThesis)
+    || (data.resources || []).find(row => row && !row.deletedAt)
+  if (tagTarget) {
+    tagTarget.tags = Array.from(new Set([
+      ...(Array.isArray(tagTarget.tags) ? tagTarget.tags : []),
+      TAG_AUDIT_SELECTED,
+    ]))
+  }
+
   /* 三卡详情是固定巡检场景；备份可能没有好奇心卡，补一张只供本次 Chromium 渲染。 */
   if (!(data.curiosities || []).some(c => c && !c.deletedAt)) {
     const curioAt = FREEZE_AT + 11 * 60 * 60 * 1000

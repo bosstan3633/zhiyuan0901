@@ -135,8 +135,8 @@ check('R4-Fc①（V4.0.3 重指）★Airtable 出网台名列链路已整体退�
   return legacy.length === 0
     && s.includes('delete d.airtableSync')
     && s.includes('delete d.airtableMap')
-    && s.includes('const clean = sanitizeSnapshot(snap.data, snap.ui, snap.eventLog)')
-    && s.includes('const safe = sanitizeSnapshot(st.data, st.ui || null, st.eventLog || [])');
+    && s.includes('const clean = sanitizeCloudSnapshot(snap)')
+    && s.includes('const safe = sanitizeCloudSnapshot({');
 });
 check('R4-Fc②（V4.0.4 重指）★Airtable 退役后，旧深链兼容与顶栏云同步入口必须有两条真跑的浏览器证据：E2E-34 从 `page=airtable` 进入后必须落在「云同步」页签，关系总览、建议动作和四项同步事实可见且旧配置入口零回流；E2E-44 必须从常驻顶栏按钮真点击进入 `page=cloud`，同时核对状态、最近实际同步文案与关系卡。只删旧 Airtable 测试或只做源码字符串断言不算通过', () => {
   const e = codeOnly(fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8'));

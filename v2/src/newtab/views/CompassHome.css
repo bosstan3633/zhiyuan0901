@@ -284,6 +284,24 @@
 .row-check.done::before { border-color: var(--accent); background: var(--accent); }
 .row-main { min-width: 0; }
 .row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.row-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  min-height: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+.row-copy:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.row-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row-copy:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; border-color: var(--border); background: var(--surface); color: var(--text-4); }
 .title-text {
   min-width: 0;
   overflow: hidden;
@@ -480,7 +498,11 @@
 .mini-item-inbox { align-items: stretch; gap: 7px; cursor: default; }
 .mini-main { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .mini-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-radius: var(--radius-xs); }
-.mini-inbox-hint { flex: none; color: var(--text-3); font-size: var(--fs-micro); }
+.mini-inbox-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.mini-inbox-actions button { min-height: 23px; padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-3); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
+.mini-inbox-actions button:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.mini-inbox-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mini-inbox-actions button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; border-color: var(--border); background: var(--surface); color: var(--text-2); }
 .mini-check {
   display: grid;
   place-items: center;
@@ -953,6 +975,7 @@
   .side-rail { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 }
 @media (max-width: 720px) {
+  .row-copy .copy-label { display: none; }
   .page { padding: 14px 16px 48px; }
   .desk-head { align-items: flex-start; flex-direction: column; gap: 14px; }
   .desk-actions { justify-content: flex-start; width: 100%; }

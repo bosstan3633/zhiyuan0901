@@ -20,6 +20,8 @@ export interface CloudMeta {
   refreshToken: string
   revision: number
   syncedFingerprint?: string
+  /** 云同步范围协议；2 起只同步业务数据，界面偏好始终留在本机。 */
+  syncScopeVersion?: number
   lastUploadAt?: number
   lastDownloadAt?: number
   lastCheckedAt?: number
@@ -154,6 +156,7 @@ export interface CloudCheckResult {
 const META_KEY = K.CLOUD_META
 const LOCK_KEY = K.CLOUD_SYNC_LOCK
 const REVISION_CONFLICT_MAX_RETRIES = 2
+const CLOUD_SYNC_SCOPE_VERSION = 2
 
 async function readMeta(): Promise<CloudMeta | null> {
   try {
@@ -306,6 +309,15 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
   return { data: d, ui: safeUi, eventLog: [...eventLog] }
 }
 
+/**
+ * 云快照只承载业务数据。主题、密度、排序筛选、页面布局、抽屉宽度等
+ * UIPrefs 永远留在本机，不参与指纹、清单、回执或恢复。
+ */
+export function sanitizeCloudSnapshot(snapshot: SnapshotState): SnapshotState {
+  const clean = sanitizeSnapshot(snapshot.data, null, snapshot.eventLog)
+  return { data: clean.data, ui: null, eventLog: clean.eventLog }
+}
+
 const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>> = {
   resource: ['title', 'description', 'tags', 'linkType', 'link', 'linkSlots', 'workspaceId', 'categoryId', 'sourceType', 'pinned', 'starred', 'lifecycleArchived', 'customFields'],
   task: ['title', 'description', 'tags', 'projectId', 'metricId', 'status', 'priority', 'dueDate', 'estimatedMinutes', 'link', 'completedAt', 'subtasks', 'pinned', 'starred', 'customFields'],
@@ -367,7 +379,7 @@ function manifestRecord(
 
 /** 构建记录级同步明细：只保留摘要和稳定指纹，不保存第二份完整业务快照。 */
 export function buildSyncManifest(snapshot: SnapshotState, revision: number, fingerprint = ''): SyncManifest {
-  const clean = sanitizeSnapshot(snapshot.data, snapshot.ui, snapshot.eventLog)
+  const clean = sanitizeCloudSnapshot(snapshot)
   const data = clean.data
   const records: SyncManifestRecord[] = []
   const counts: SyncManifestCounts = {
@@ -602,9 +614,9 @@ export async function appendSyncReceipt(receipt: CloudSyncReceipt): Promise<Clou
 
 /** 对干净快照做内容指纹；只排除附件本体/凭据等不进云内容，不依赖 revision。 */
 export async function fingerprintSnapshot(snapshot: SnapshotState): Promise<string> {
-  const clean = sanitizeSnapshot(snapshot.data, snapshot.ui, snapshot.eventLog)
+  const clean = sanitizeCloudSnapshot(snapshot)
   // 事件是账号级旁路真源，不应让不同设备的本地事件窗口制造业务数据冲突。
-  const input = stableStringify({ data: clean.data, ui: clean.ui })
+  const input = stableStringify(clean.data)
   try {
     if (globalThis.crypto?.subtle) {
       const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
@@ -781,12 +793,14 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
   await writeMeta({ lastCheckedAt: Date.now(), remoteManifest, remoteManifestCachedAt: Date.now() })
   const baseline = meta.syncedFingerprint
   let relation: CloudRelation
+  const scopeCurrent = meta.syncScopeVersion === CLOUD_SYNC_SCOPE_VERSION
   if (localFingerprint === remoteFingerprint) {
     relation = 'in_sync'
     // 升级后首次检查若两端内容一致，直接建立基线，不必让用户做一次无意义的选择。
-    if (!baseline || meta.revision !== rem.revision || !meta.localManifest) {
+    if (baseline !== localFingerprint || meta.revision !== rem.revision || !meta.localManifest || !scopeCurrent) {
       await writeMeta({
         syncedFingerprint: localFingerprint,
+        syncScopeVersion: CLOUD_SYNC_SCOPE_VERSION,
         revision: rem.revision,
         localManifest,
         remoteManifest,
@@ -794,6 +808,7 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
       })
     }
   } else if (!baseline) relation = 'unknown'
+  else if (!scopeCurrent) relation = 'both_changed'
   else if (localFingerprint !== baseline && remoteFingerprint === baseline) relation = 'local_changed'
   else if (localFingerprint === baseline && remoteFingerprint !== baseline) relation = 'remote_changed'
   else relation = 'both_changed'
@@ -817,7 +832,7 @@ export async function uploadNow(
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
-  const clean = sanitizeSnapshot(snap.data, snap.ui, snap.eventLog)
+  const clean = sanitizeCloudSnapshot(snap)
   const fingerprint = await fingerprintSnapshot(clean)
   const localRevision = meta.revision || 0
   let initialApproval = approvedRemoteRevision
@@ -835,6 +850,7 @@ export async function uploadNow(
       await writeMeta({
         revision: rev,
         syncedFingerprint: fingerprint,
+        syncScopeVersion: CLOUD_SYNC_SCOPE_VERSION,
         lastUploadAt: Date.now(),
         localManifest: manifest,
         remoteManifest: manifest,
@@ -845,7 +861,11 @@ export async function uploadNow(
 
     const remoteState = remote.state as SnapshotState | null
     const beforeState = remoteState?.data?.version === 2
-      ? sanitizeSnapshot(remoteState.data, remoteState.ui || null, remoteState.eventLog || [])
+      ? sanitizeCloudSnapshot({
+        data: remoteState.data,
+        ui: remoteState.ui || null,
+        eventLog: remoteState.eventLog || [],
+      })
       : null
     if (remoteState?.eventLog?.length) {
       clean.eventLog = await reconcileAccountEvents(mergeEventLogs(clean.eventLog, remoteState.eventLog))
@@ -868,6 +888,7 @@ export async function uploadNow(
       await writeMeta({
         revision: rev,
         syncedFingerprint: fingerprint,
+        syncScopeVersion: CLOUD_SYNC_SCOPE_VERSION,
         lastUploadAt: Date.now(),
         localManifest: manifest,
         remoteManifest: manifest,
@@ -889,7 +910,11 @@ export async function downloadNow(): Promise<{ state: SnapshotState; revision: n
   const st = (rows[0].state as SnapshotState) || null
   if (!st || !st.data || st.data.version !== 2) throw new Error('云端快照格式不兼容')
   // 旧云快照可能仍带 Airtable 凭据/映射或本机写锁；恢复到本机前走与上传同一条脱敏边界。
-  const safe = sanitizeSnapshot(st.data, st.ui || null, st.eventLog || [])
+  const safe = sanitizeCloudSnapshot({
+    data: st.data,
+    ui: st.ui || null,
+    eventLog: st.eventLog || [],
+  })
   const localEventLog = await import('@/shared/utils/eventLog').then(module => module.readEventLog())
   safe.eventLog = await reconcileAccountEvents(mergeEventLogs(localEventLog, safe.eventLog))
   const fingerprint = await fingerprintSnapshot(safe)
@@ -1090,6 +1115,7 @@ export async function markDownloaded(revision: number, fingerprint: string, mani
   await writeMeta({
     revision,
     syncedFingerprint: fingerprint,
+    syncScopeVersion: CLOUD_SYNC_SCOPE_VERSION,
     lastDownloadAt: Date.now(),
     localManifest: manifest,
     remoteManifest: manifest,

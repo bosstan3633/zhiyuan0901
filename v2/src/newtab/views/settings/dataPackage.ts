@@ -9,6 +9,7 @@ import type { CardEvent } from '@/shared/utils/eventLog'
 import { EVENT_LOG_CAP, mergeImportedEventLog, readEventLog } from '@/shared/utils/eventLog'
 import { normalizeLegacyCards, stripRetiredCardKeys } from '@/shared/storage/repository'
 import { saveUIPrefs } from '@/shared/storage/repository'
+import { reconcileCapturedResources } from '@/shared/storage/captureDedupe'
 import { defaultThesisFieldDefs } from '@/shared/storage/defaults'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
@@ -96,6 +97,7 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   d.tasks = mergeById(d.tasks, stripRetiredCardKeys<TaskCard>(imported.tasks).map(t => ({ ...t, importedAt: importedNow })))
   d.curiosities = mergeById(d.curiosities, stripRetiredCardKeys<CuriosityCard>(imported.curiosities).map(c => ({ ...c, importedAt: importedNow })))
   normalizeLegacyCards(d)
+  reconcileCapturedResources(d)
   const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0) + (imported.curiosities?.length || 0)
 
   if (imported.compass) {

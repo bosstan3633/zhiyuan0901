@@ -311,6 +311,27 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
           </span>
           <span class="inbox-open-hint">查看详情 <Icon name="arrowright" :size="11"/></span>
         </button>
+        <div class="inbox-actions" aria-label="Inbox 行内操作">
+          <span class="inbox-actions-label">转为</span>
+          <button type="button" :disabled="!!converting || deleting === item.id"
+            title="把这条采集转化任务卡，转化后离开 Inbox"
+            @click.stop="convert(item, 'task')"><Icon name="check" :size="12"/>任务卡</button>
+          <button type="button" :disabled="!!converting || deleting === item.id"
+            title="把这条采集转化为好奇心卡，转化后离开 Inbox"
+            @click.stop="convert(item, 'curiosity')"><Icon name="bulb" :size="12"/>好奇心卡</button>
+          <button type="button" :disabled="!!converting || deleting === item.id"
+            title="把这条采集转化为资源卡，转化后离开 Inbox"
+            @click.stop="convert(item, 'resource')"><Icon name="package" :size="12"/>资源卡</button>
+          <span class="inbox-actions-spacer" />
+          <button v-if="item.contentKind === 'link' && item.url" type="button"
+            title="打开原始链接"
+            @click.stop="openSource(item)"><Icon name="link" :size="12"/>打开</button>
+          <button type="button" title="打开详情并编辑"
+            @click.stop="openItemNow(item)"><Icon name="edit" :size="12"/>编辑</button>
+          <button type="button" class="danger" :disabled="deleting === item.id || !inbox.connected.value || !online"
+            :title="!inbox.connected.value ? '连接云同步后可删除' : !online ? '离线状态不可删除' : '删除这条采集'"
+            @click.stop="remove(item)"><Icon name="trash" :size="12"/>{{ deleting === item.id ? '删除中…' : '删除' }}</button>
+        </div>
       </article>
     </div>
 
@@ -367,11 +388,21 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
 .inbox-tags i { padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); font-style: normal; }
 .inbox-open-hint { flex: none; align-self: center; display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-micro); }
 .inbox-row:hover .inbox-open-hint { color: var(--accent-ink); }
+.inbox-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); }
+.inbox-actions-label { margin-right: 1px; color: var(--text-2); font-size: var(--fs-micro); }
+.inbox-actions button { min-height: 26px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
+.inbox-actions button:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.inbox-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.inbox-actions button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; border-color: var(--border); background: var(--surface); color: var(--text-2); }
+.inbox-actions button.danger:hover { border-color: var(--danger-border); color: var(--danger); background: var(--danger-bg-soft); }
+.inbox-actions-spacer { flex: 1; min-width: 8px; }
 @media (max-width: 760px) {
   .inbox-head { align-items: flex-start; flex-direction: column; }
   .inbox-tools { width: 100%; }
   .inbox-tools button { flex: 1; justify-content: center; }
   .inbox-open-hint { display: none; }
+  .inbox-actions-label, .inbox-actions-spacer { display: none; }
+  .inbox-actions button { flex: 1 1 calc(33.333% - 5px); justify-content: center; }
   .inbox-panel { gap: 10px; }
 }
 </style>

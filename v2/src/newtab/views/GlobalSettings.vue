@@ -246,8 +246,11 @@
                           <button class="gs-btn" :disabled="aiBusy !== '' || !aiConfig.baseUrl || !aiConfig.apiKey" @click="aiFetchModels"><Icon v-if="aiBusy !== 'models'" name="download" :size="13"/> {{ aiBusy === 'models' ? '拉取中…' : '拉取模型列表' }}</button>
               <button class="gs-btn" :disabled="aiBusy !== '' || !aiReady" @click="aiTestConn"><Icon v-if="aiBusy !== 'test'" name="zap" :size="13"/> {{ aiBusy === 'test' ? '测试中…' : '测试连接' }}</button>
               <template v-if="aiMsg">
-                <span class="ai-msg" :class="{ err: aiMsg.startsWith('') }">{{ aiErrDisplay(aiMsg) }}</span>
-                <button type="button" class="ai-retry-link" :disabled="aiBusy !== ''" @click="aiTestConn">再次测试</button>
+                <span class="ai-msg" :class="aiMsgKind">
+                  <Icon :name="aiMsgKind === 'success' ? 'check' : 'warn'" :size="12" />
+                  {{ aiMsg }}
+                </span>
+                <button v-if="aiMsgKind === 'error' && aiReady" type="button" class="ai-retry-link" :disabled="aiBusy !== ''" @click="aiTestConn">再次测试</button>
               </template>
             </div>
           </div>
@@ -415,7 +418,7 @@ const {
   ttAddChild, ttActiveTag, ttCardKind, ttCardQ, ttPicked,
   ttDropTarget, ttCardDragging, ttDetail, selectTtTag,
   ttTogglePick, ttRows, onTtRowClick, ttAllChecked, toggleTtAll,
-  aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiGenre, aiPersonas,
+  aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiMsgKind, aiGenre, aiPersonas,
   aiPersonaSel, aiNewP, aiAddPersona, aiRemovePersona, aiEditP,
   aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray,
   aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise,

@@ -664,7 +664,7 @@ check('R4-Fa（V4.0.3 重指）★Airtable 逐行「待推」同步引擎已退�
   const s = codeOnly(read('/shared/cloud/sync.ts'));
   return legacy.length === 0
     && c.includes('/rest/v1/cloud_snapshots')
-    && s.includes('const clean = sanitizeSnapshot(snap.data, snap.ui, snap.eventLog)')
+    && s.includes('const clean = sanitizeCloudSnapshot(snap)')
     && s.includes('cloud.insertSnapshot(env, token, meta.userId, clean)')
     && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)');
 });

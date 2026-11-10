@@ -437,7 +437,7 @@ const ttRows = computed<TtRow[]>(() => {
   }
   return q ? out.filter(x => (x.title + '' + x.sub + '' + (x.link || '')).toLowerCase().includes(q)) : out
 })
-  const { onTtRowClick, ttAllChecked, toggleTtAll, ttDragId, ttCardDragIds, aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiGenre, aiPersonas, aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona, aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise, aiJobClosed, aiCheckReviseBak, aiRestoreRevise, aiTrashRescue, aiWeeklyReview, aiDeliver, aiErr, aiErrDisplay, aiGuard, aiFetchModels, aiTestConn, aiTogglePersona, aiCatVocab, aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick, onTtRowDragStart, onTtRowDragEnd, ttMoveCards, openCardLink, ttRename, ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd, ttDrop, ttUnnest, ttCollectFromCards, activeManualSec } = useGlobalSettingsPanels({ ttTogglePick, ttRows, ttPicked, activePage, gd, store, ttDetail, ttCardDragging, ttDropTarget, ttActiveTag, findTagNode, ttEditing, tagFlat, ttCollapsed, ttFlash, tagTree, tagSubtreeIds, tagDepth, safeChildren })
+  const { onTtRowClick, ttAllChecked, toggleTtAll, ttDragId, ttCardDragIds, aiJob, aiJobKey, aiModels, aiBusy, aiMsg, aiMsgKind, aiGenre, aiPersonas, aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona, aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob, aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak, aiTagRevise, aiJobClosed, aiCheckReviseBak, aiRestoreRevise, aiTrashRescue, aiWeeklyReview, aiDeliver, aiErr, aiErrDisplay, aiGuard, aiFetchModels, aiTestConn, aiTogglePersona, aiCatVocab, aiTtEnrich, aiEnrichIds, aiDiagnose, onTtRowDblClick, onTtRowDragStart, onTtRowDragEnd, ttMoveCards, openCardLink, ttRename, ttConfirm, ttCancel, ttRemove, ttDragStart, ttDragEnd, ttDrop, ttUnnest, ttCollectFromCards, activeManualSec } = useGlobalSettingsPanels({ ttTogglePick, ttRows, ttPicked, activePage, gd, store, ttDetail, ttCardDragging, ttDropTarget, ttActiveTag, findTagNode, ttEditing, tagFlat, ttCollapsed, ttFlash, tagTree, tagSubtreeIds, tagDepth, safeChildren })
   return {
     logoUrl, router, route, store, shortcutsUrl,
     onNavClick, activePage, dataManagementTab, pageFromQuery,
@@ -453,7 +453,7 @@ const ttRows = computed<TtRow[]>(() => {
     ttCardKind, ttCardQ, ttPicked, ttDropTarget, ttCardDragging,
     ttDetail, ttCardDragIds, selectTtTag, ttTogglePick, ttRows,
     onTtRowClick, ttAllChecked, toggleTtAll, aiJob, aiJobKey,
-    aiModels, aiBusy, aiMsg, aiGenre, aiPersonas,
+    aiModels, aiBusy, aiMsg, aiMsgKind, aiGenre, aiPersonas,
     aiPersonaSel, aiPersonaSynced, aiNewP, aiAddPersona, aiRemovePersona,
     aiEditP, aiPersonaCfg, aiPatchPersona, aiCustomPatch, aiOpenJob,
     aiTray, aiOpenState, aiTrayClear, aiTagGovern, aiReviseBak,

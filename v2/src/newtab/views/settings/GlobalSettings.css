@@ -166,8 +166,10 @@
 .ai-form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ai-genre { width: 260px; font-size: var(--fs-sub); }
 .ai-depth { width: auto; }
-.ai-msg { font-size: var(--fs-sub); color: var(--success); max-width: 100%; word-break: break-all; }
-.ai-msg.err { color: var(--danger); }
+.ai-msg { display: inline-flex; align-items: flex-start; gap: 4px; font-size: var(--fs-sub); color: var(--text-2); max-width: 100%; word-break: break-all; }
+.ai-msg.success { color: var(--success); }
+.ai-msg.warning { color: var(--warning); }
+.ai-msg.error { color: var(--danger); }
 .ai-textarea { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: var(--fs-body); font-family: inherit; line-height: 1.7; resize: vertical; }
 .ai-textarea:focus { outline: none; border-color: var(--accent); }
 .ai-persona-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; }

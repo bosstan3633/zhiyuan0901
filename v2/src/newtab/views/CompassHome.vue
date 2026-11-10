@@ -63,6 +63,7 @@ const {
   copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
   openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
   projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
+  focusCopyText, focusCopyReason, copyFocusText,
   fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
   gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
   storageTimer, storageOk, ERR_LABEL, storageText, timeAgo,
@@ -73,7 +74,7 @@ const {
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks,
   previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-  previewInbox, inbox,
+  previewInbox, previewInboxBusy, convertPreviewInbox, openPreviewInboxSource, inbox,
   hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
@@ -171,6 +172,13 @@ const {
                     <NewBadge :at="c.task.createdAt" />
                     <span class="title-text">{{ c.slot?.text }}</span>
                     <span v-if="c.slot?.auto === true" class="rec" data-testid="focus-rec"><Icon name="sparkle" :size="11" /> 荐</span>
+                    <button class="row-copy" type="button"
+                      :disabled="!focusCopyText(c)"
+                      :title="focusCopyReason(c)"
+                      :aria-label="focusCopyReason(c)"
+                      @click.stop="copyFocusText(c)">
+                      <Icon name="copy" :size="11" /><span class="copy-label">复制</span>
+                    </button>
                   </div>
                   <div class="row-meta">
                     <span><Icon name="package" :size="12" /> {{ projectName(c.task.projectId) }}</span>
@@ -321,7 +329,21 @@ const {
                       <span class="mini-meta">{{ item.contentKind === 'link' ? '链接采集' : '文本采集' }} · {{ fmtShortDate(item.createdAt) }}</span>
                     </span>
                   </button>
-                  <span class="mini-inbox-hint">进入 Inbox 处理</span>
+                  <div class="mini-inbox-actions" aria-label="Inbox 快速操作">
+                    <button type="button" :disabled="!!previewInboxBusy"
+                      title="转为任务卡"
+                      @click.stop="convertPreviewInbox(item, 'task')">任务</button>
+                    <button type="button" :disabled="!!previewInboxBusy"
+                      title="转为好奇心卡"
+                      @click.stop="convertPreviewInbox(item, 'curiosity')">好奇心</button>
+                    <button type="button" :disabled="!!previewInboxBusy"
+                      title="转为资源卡"
+                      @click.stop="convertPreviewInbox(item, 'resource')">资源</button>
+                    <button v-if="item.contentKind === 'link' && item.url" type="button"
+                      :disabled="!!previewInboxBusy"
+                      title="打开原始链接"
+                      @click.stop="openPreviewInboxSource(item)">打开</button>
+                  </div>
                 </div>
                 <div v-if="!previewInbox.length" class="mini-empty">
                   {{ inbox.connected.value ? 'Inbox 里没有未转化内容' : '连接云同步后可查看移动采集' }}

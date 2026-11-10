@@ -6,7 +6,7 @@
 import { ref, computed, watch, type ComputedRef } from 'vue'
 import { showToast } from '@/shared/components/toast'
 import { uid } from '@/shared/utils'
-import { setThesis, projectCardToBoard } from '@/shared/storage/hub'
+import { setThesis, projectCardToBoardEx, mirroredCardIdsAtNode } from '@/shared/storage/hub'
 import { parsePyramidTemplate, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
 import { CURATION_WS_ID, type AppData, type ResourceCard, type Category } from '@/shared/models'
 import { POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
@@ -87,13 +87,7 @@ export function usePyramid(ctx: PyramidCtx) {
    *  否则"换个说法也能召回"这个功能本身就白做了。 */
   const linkBase = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
     if (!linkCardsModal.value) return []
-    const mirroredSet = new Set((d.value.curationProjections || [])
-      .filter(p =>
-        p.kind === 'card'
-        && p.targetWsId === workspaceId.value
-        && (p.targetCatId || '') === linkCardsModal.value!.catId
-      )
-      .map(p => p.cardId))
+    const mirroredSet = mirroredCardIdsAtNode(d.value, workspaceId.value, linkCardsModal.value.catId)
     return d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
@@ -112,7 +106,7 @@ export function usePyramid(ctx: PyramidCtx) {
     if (!targets.length) { showToast('未选择可镜像的资源卡'); return }
     let ok = 0
     for (const id of targets) {
-      if (projectCardToBoard(d.value, id, workspaceId.value, m.catId)) ok++
+      if (projectCardToBoardEx(d.value, id, workspaceId.value, m.catId).created) ok++
     }
     store.persist()
     linkCardsModal.value = null
@@ -202,7 +196,7 @@ export function usePyramid(ctx: PyramidCtx) {
       return Number(b.r.pinned) - Number(a.r.pinned) || b.r.updatedAt - a.r.updatedAt
     })
   })
-  /** 命中的卡即使当前不可镜像（已在该台）也不该藏起来——用户有权知道"AI 认为该台需要这张" */
+  /** 命中的卡即使当前不可镜像（已在本节点）也不该藏起来——用户有权知道"AI 认为该节点需要这张" */
   function linkAiHitOf(id: string): { why: string; weak: boolean } | null {
     return linkAiHits.value[id] || null
   }

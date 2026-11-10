@@ -82,6 +82,8 @@ export interface CurationRenderNode {
 export interface CurationRenderTree {
   roots: CurationRenderNode[]
   flat: CurationRenderNode[]
+  thesisAssets: CurationRenderAsset[]
+  thesisCards: CurationRenderCard[]
   nodeCount: number
   cardCount: number
   attachmentCount: number
@@ -143,6 +145,20 @@ export function buildCurationRenderTree(input: {
     else cardsByCat.set(card.categoryId, [card])
   }
 
+  const renderCard = (card: ResourceCard): CurationRenderCard => ({
+    id: card.id,
+    title: card.title || '（无标题资源）',
+    description: card.description || undefined,
+    url: safeUrl(card.link) || undefined,
+    sourceType: card.sourceType,
+    tags: (card.tags || []).slice(0, 8),
+    assets: (card.assets || []).map(asset => ({
+      name: asset.name || '',
+      kind: asset.kind || '',
+      size: asset.size || 0,
+    })),
+  })
+
   const flat: CurationRenderNode[] = []
   const visiting = new Set<string>()
   const walk = (node: Category, level: number, parentPath: string): CurationRenderNode => {
@@ -151,19 +167,7 @@ export function buildCurationRenderTree(input: {
       return { id: node.id, path, title: node.name || '未命名分支', level, assets: [], cards: [], children: [] }
     }
     visiting.add(node.id)
-    const cards = (cardsByCat.get(node.id) || []).map(card => ({
-      id: card.id,
-      title: card.title || '（无标题资源）',
-      description: card.description || undefined,
-      url: safeUrl(card.link) || undefined,
-      sourceType: card.sourceType,
-      tags: (card.tags || []).slice(0, 8),
-      assets: (card.assets || []).map(asset => ({
-        name: asset.name || '',
-        kind: asset.kind || '',
-        size: asset.size || 0,
-      })),
-    }))
+    const cards = (cardsByCat.get(node.id) || []).map(renderCard)
     const out: CurationRenderNode = {
       id: node.id,
       path,
@@ -186,11 +190,20 @@ export function buildCurationRenderTree(input: {
   }
 
   const roots = (byParent.get('') || []).map(node => walk(node, 2, ''))
+  const thesisAssets = (input.thesis?.assets || []).map(asset => ({
+    id: asset.id,
+    name: asset.name || '',
+    kind: asset.kind || '',
+    size: asset.size || 0,
+  }))
+  const thesisCards = input.thesis ? (cardsByCat.get(input.thesis.id) || []).map(renderCard) : []
   const nodeCount = flat.length
-  const cardCount = flat.reduce((n, node) => n + node.cards.length, 0)
-  const attachmentCount = flat.reduce((n, node) => n + node.assets.length + node.cards.reduce((m, c) => m + c.assets.length, 0), 0)
+  const cardCount = thesisCards.length + flat.reduce((n, node) => n + node.cards.length, 0)
+  const attachmentCount = thesisAssets.length
+    + thesisCards.reduce((n, card) => n + card.assets.length, 0)
+    + flat.reduce((n, node) => n + node.assets.length + node.cards.reduce((m, c) => m + c.assets.length, 0), 0)
   const maxLevel = flat.reduce((n, node) => Math.max(n, node.level), input.thesis ? 1 : 0)
-  const tree = { roots, flat, nodeCount, cardCount, attachmentCount, maxLevel }
+  const tree = { roots, flat, thesisAssets, thesisCards, nodeCount, cardCount, attachmentCount, maxLevel }
   assertCurationRenderLimits(tree)
   return tree
 }

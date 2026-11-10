@@ -9,15 +9,15 @@ import { assetSummary } from './assetKind'
 export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'thesis'
 
 /** 取某类卡片已启用（可见）的字段，按 order 排序 */
-export function visibleFields(cfg: FieldConfig, type: FieldGroupKind): FieldDef[] {
-  return (cfg[type] || [])
+export function visibleFields(cfg: FieldConfig | null | undefined, type: FieldGroupKind): FieldDef[] {
+  return (cfg?.[type] || [])
     .filter(f => f.visible)
     .sort((a, b) => a.order - b.order)
 }
 
 /** 取某类卡片的全部字段（含隐藏），按 order 排序 */
-export function allFields(cfg: FieldConfig, type: FieldGroupKind): FieldDef[] {
-  return [...(cfg[type] || [])].sort((a, b) => a.order - b.order)
+export function allFields(cfg: FieldConfig | null | undefined, type: FieldGroupKind): FieldDef[] {
+  return [...(cfg?.[type] || [])].sort((a, b) => a.order - b.order)
 }
 
 /** R155-③：标题位字段（资源卡 title / 好奇卡 question）——卡面已有专属标题行 */

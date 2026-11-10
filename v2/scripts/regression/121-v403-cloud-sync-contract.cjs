@@ -76,9 +76,11 @@ check('R192-5（V4.0.4 重指）★PATCH 乐观锁：按 user_id + revision 双�
     && SETTINGS.includes('未选中的一端会被覆盖')
 })
 
-check('R192-6（V4.0.4 重指）★快照结构与格式校验：data + ui + eventLog 三件，恢复只接受 version === 2；原子恢复下沉到共享云状态', () => {
+check('R192-6（V4.2.1 重指）★快照结构与格式校验：SnapshotState 保留 ui 字段兼容旧快照，但云边界 sanitizeCloudSnapshot 固定输出 ui:null；恢复只接受 version === 2，且不覆盖本机界面偏好', () => {
   return SYNC.includes('export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }')
     && SYNC.includes('return { data: d, ui: safeUi, eventLog: [...eventLog] }')
+    && SYNC.includes('export function sanitizeCloudSnapshot(snapshot: SnapshotState): SnapshotState')
+    && SYNC.includes('return { data: clean.data, ui: null, eventLog: clean.eventLog }')
     && SYNC.includes("st.data.version !== 2")
     && SYNC.includes("throw new Error('云端快照格式不兼容')")
     && USECLOUD.includes('repository.cloudRestoreAtomic({')
@@ -213,11 +215,14 @@ check('R63-3（V4.0.3 重指）★增量同步升级为快照 revision：GET 快
     && s.includes('const rows = await cloud.getSnapshot(env, token, meta.userId)')
     && !s.includes('recordId') && !s.includes('cursorAt');
 });
-check('R63-4（V4.0.3 重指）★跨设备同步范围统一为云快照三件：AppData + UIPrefs + eventLog；资源、任务与策展台作为 AppData 子树整体进出云端，不再维护逐行四来源映射', () => {
+check('R63-4（V4.2.1 重指）★跨设备同步只覆盖业务 AppData 与 eventLog：UIPrefs 保留在本机，sanitizeCloudSnapshot 固定 ui:null；资源、任务、方向台、今日三件事与策展台作为业务子树整体进出云端', () => {
   const s = read('/shared/cloud/sync.ts');
   const c = read('/shared/cloud/client.ts');
   return s.includes('export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }')
-    && s.includes('return { data: d, ui: safeUi, eventLog: [...eventLog] }')
+    && s.includes('export function sanitizeCloudSnapshot(snapshot: SnapshotState): SnapshotState')
+    && s.includes('return { data: clean.data, ui: null, eventLog: clean.eventLog }')
+    && s.includes('const input = stableStringify(clean.data)')
+    && s.includes('const clean = sanitizeCloudSnapshot(snapshot)')
     && c.includes('state: unknown') && !s.includes('collectSyncRows');
 });
 check('R63-5（V4.0.4 重指）★软删语义保留在本地数据树内：云快照不按已删除状态裁剪卡片，恢复时整棵 AppData 原样回灌；旧 Airtable「已删除」checkbox 不再存在', () => {
@@ -345,7 +350,7 @@ check('R64-3（V4.0.4 重指）★快照写入返回 representation：插入与�
   return (c.match(/Prefer: 'return=representation'/g) || []).length === 2
     && s.includes('const rev = ins[0]?.revision ?? 1')
     && s.includes('const rev = upd[0].revision')
-    && (s.match(/revision: rev,\s+syncedFingerprint: fingerprint,\s+lastUploadAt: Date\.now\(\)/g) || []).length === 2;
+    && (s.match(/revision: rev,\s+syncedFingerprint: fingerprint,\s+syncScopeVersion: CLOUD_SYNC_SCOPE_VERSION,\s+lastUploadAt: Date\.now\(\)/g) || []).length === 2;
 });
 check('R64-4（V4.1.0 重指）★设置文案完成云同步换轨：无 Free 配额旧口径，明确普通卡片附件本机保存、策展节点附件进入私有 Storage，云端不写入 Blob', () => {
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));

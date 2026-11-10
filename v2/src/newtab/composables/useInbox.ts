@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { CURATION_WS_ID, type CuriosityCard, type ResourceCard, type TaskCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { cardMatchesCaptureId, ensureCaptureIdentity } from '@/shared/utils/captureIdentity'
 import { LOCAL_KEYS } from '@/shared/storage/keys'
 import {
   convertCapture,
@@ -144,11 +145,11 @@ function existingCardFor(captureId: string):
   const store = useAppStore()
   const data = store.data
   if (!data) return null
-  const task = data.tasks.find(card => card.sourceCaptureId === captureId && !card.deletedAt)
+  const task = data.tasks.find(card => !card.deletedAt && cardMatchesCaptureId(card, captureId))
   if (task) return { kind: 'task', id: task.id }
-  const curiosity = data.curiosities.find(card => card.sourceCaptureId === captureId && !card.deletedAt)
+  const curiosity = data.curiosities.find(card => !card.deletedAt && cardMatchesCaptureId(card, captureId))
   if (curiosity) return { kind: 'curiosity', id: curiosity.id }
-  const resource = data.resources.find(card => card.sourceCaptureId === captureId && !card.deletedAt)
+  const resource = data.resources.find(card => !card.deletedAt && cardMatchesCaptureId(card, captureId))
   if (resource) return { kind: 'resource', id: resource.id }
   return null
 }
@@ -242,6 +243,7 @@ async function refresh(force = false): Promise<void> {
       for (const item of rows) {
         const decorated = decorate(item)
         if (!item.convertedKind && decorated.convertedKind && decorated.convertedCardId) {
+          hydrateExistingCard(decorated.convertedKind, decorated.convertedCardId, item)
           enqueueConversion(item.id, decorated.convertedKind, decorated.convertedCardId, new Error('等待补写转化状态'))
           continue
         }
@@ -262,12 +264,67 @@ async function refresh(force = false): Promise<void> {
   return refreshPromise
 }
 
+function hydrateExistingCard(kind: CaptureConvertedKind, id: string, item: CaptureItem): void {
+  const store = useAppStore()
+  const data = store.data
+  if (!data) return
+  const card = kind === 'task'
+    ? data.tasks.find(row => row.id === id && !row.deletedAt)
+    : kind === 'curiosity'
+      ? data.curiosities.find(row => row.id === id && !row.deletedAt)
+      : data.resources.find(row => row.id === id && !row.deletedAt)
+  if (!card) return
+
+  let changed = ensureCaptureIdentity(card, item.id)
+  const description = captureDescription(item)
+  if (!String(card.description || '').trim() && description) {
+    card.description = description
+    changed = true
+  }
+  const tags = [...new Set([...(card.tags || []), ...(item.tags || [])]
+    .map(tag => String(tag || '').trim())
+    .filter(Boolean))]
+  if (tags.length !== (card.tags || []).length) {
+    card.tags = tags
+    changed = true
+  }
+  if (kind === 'resource') {
+    const resource = card as ResourceCard
+    if (!String(resource.link || '').trim() && String(item.url || '').trim()) {
+      resource.linkType = 'url'
+      resource.link = String(item.url).trim()
+      changed = true
+    }
+  } else if (kind === 'task') {
+    const task = card as TaskCard
+    if (!String(task.link || '').trim() && String(item.url || '').trim()) {
+      task.link = String(item.url).trim()
+      changed = true
+    }
+  } else {
+    const curiosity = card as CuriosityCard
+    if (!String(curiosity.sourceUrl || '').trim() && String(item.url || '').trim()) {
+      curiosity.sourceUrl = String(item.url).trim()
+      changed = true
+    }
+    if (!String(curiosity.sourceTitle || '').trim() && String(item.title || '').trim()) {
+      curiosity.sourceTitle = String(item.title).trim()
+      changed = true
+    }
+  }
+  if (changed) {
+    card.updatedAt = Date.now()
+    store.persist()
+  }
+}
+
 async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{ kind: CaptureConvertedKind; id: string }> {
   const store = useAppStore()
   const data = store.data
   if (!data) throw new Error('数据尚未加载')
   const existing = existingCardFor(item.id)
   if (existing) {
+    hydrateExistingCard(existing.kind, existing.id, item)
     items.value = items.value.filter(row => row.id !== item.id)
     writeCache(items.value)
     enqueueConversion(item.id, existing.kind, existing.id, new Error('等待补写转化状态'))

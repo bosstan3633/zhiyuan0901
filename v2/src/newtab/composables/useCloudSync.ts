@@ -417,7 +417,7 @@ async function restoreCloudSnapshot(
   store: AppStore,
   trigger: CloudSyncTrigger,
   knownBeforeManifest?: SyncManifest | null,
-): Promise<{ revision: number; receipt: CloudSyncReceipt }> {
+): Promise<{ revision: number }> {
   const { sync } = await loadSharedModules()
   const repository = await import('@/shared/storage/repository')
   if (!store.data) throw new Error('本机数据尚未就绪')
@@ -530,23 +530,25 @@ async function restoreCloudSnapshot(
     }
   }
   await sync.markDownloaded(downloaded.revision, downloaded.fingerprint, downloaded.manifest)
-  const receipt = sync.buildSyncReceipt({
-    before: beforeManifest,
-    after: downloaded.manifest,
-    direction: 'download',
-    trigger,
-    fromRevision: beforeRevision,
-    toRevision: downloaded.revision,
-  })
-  await sync.appendSyncReceipt(receipt)
-  await saveReceiptActions(receipt, beforeSnapshot.snapshot, {
-    data: store.data!,
-    ui: downloaded.state.ui,
-    eventLog: downloaded.state.eventLog,
-  })
-  await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq()
-  )
-  return { revision: downloaded.revision, receipt }
+  await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq())
+  try {
+    const receipt = sync.buildSyncReceipt({
+      before: beforeManifest,
+      after: downloaded.manifest,
+      direction: 'download',
+      trigger,
+      fromRevision: beforeRevision,
+      toRevision: downloaded.revision,
+    })
+    await recordReceiptBestEffort(receipt, beforeSnapshot.snapshot, {
+      data: store.data!,
+      ui: null,
+      eventLog: downloaded.state.eventLog,
+    })
+  } catch (error) {
+    console.warn('[cloud-sync] 拉回已完成，但同步回执生成失败', error)
+  }
+  return { revision: downloaded.revision }
 }
 
 /**
@@ -571,6 +573,25 @@ async function settleInSync(
   }
   setRelation(latestMutationSeq > mutationSeq ? 'local_changed' : 'in_sync')
   state.value = 'connected'
+  errorMessage.value = ''
+}
+
+/**
+ * 回执与动作载荷属于同步成功后的辅助处理。
+ * 这里任何异常都只能留下“明细不完整”的告警，不能把已经完成的云写入改判为失败。
+ */
+async function recordReceiptBestEffort(
+  receipt: CloudSyncReceipt,
+  before: SnapshotState | null,
+  after: SnapshotState | null,
+): Promise<void> {
+  try {
+    const { sync } = await loadSharedModules()
+    await sync.appendSyncReceipt(receipt)
+    await saveReceiptActions(receipt, before, after)
+  } catch (error) {
+    console.warn('[cloud-sync] 同步已完成，但明细或动作载荷生成失败', error)
+  }
 }
 
 async function uploadSnapshot(
@@ -600,17 +621,20 @@ async function uploadSnapshot(
     const restored = await restoreCloudSnapshot(store, trigger)
     return { kind: 'downloaded', revision: restored.revision }
   }
-  const receipt = sync.buildSyncReceipt({
-    before: beforeManifest,
-    after: uploaded.manifest,
-    direction: 'upload',
-    trigger,
-    fromRevision: current?.revision || 0,
-    toRevision: uploaded.revision,
-  })
-  await sync.appendSyncReceipt(receipt)
-  await saveReceiptActions(receipt, uploaded.beforeState, captured.snapshot)
   await settleInSync(uploaded.revision, uploaded.fingerprint, captured.mutationSeq)
+  try {
+    const receipt = sync.buildSyncReceipt({
+      before: beforeManifest,
+      after: uploaded.manifest,
+      direction: 'upload',
+      trigger,
+      fromRevision: current?.revision || 0,
+      toRevision: uploaded.revision,
+    })
+    await recordReceiptBestEffort(receipt, uploaded.beforeState, captured.snapshot)
+  } catch (error) {
+    console.warn('[cloud-sync] 上传已完成，但同步回执生成失败', error)
+  }
   return { kind: 'uploaded', revision: uploaded.revision }
 }
 
@@ -643,20 +667,24 @@ async function runManualSync(
     return { kind: 'needs_setup', state: 'signed_out' }
   }
   if (check.kind === 'in_sync') {
-    const receipt = sync.buildSyncReceipt({
-      before: check.localManifest || null,
-      after: check.localManifest || null,
-      direction: 'latest',
-      trigger,
-      fromRevision: current.revision || 0,
-      toRevision: check.remoteRevision,
-    })
-    await sync.appendSyncReceipt(receipt)
     await settleInSync(
       check.remoteRevision,
       check.remoteFingerprint || check.localFingerprint || '',
       captured.mutationSeq,
     )
+    try {
+      const receipt = sync.buildSyncReceipt({
+        before: check.localManifest || null,
+        after: check.localManifest || null,
+        direction: 'latest',
+        trigger,
+        fromRevision: current.revision || 0,
+        toRevision: check.remoteRevision,
+      })
+      await recordReceiptBestEffort(receipt, captured.snapshot, captured.snapshot)
+    } catch (error) {
+      console.warn('[cloud-sync] 同步已完成，但“无需变更”回执生成失败', error)
+    }
     return { kind: 'latest', revision: check.remoteRevision }
   }
   if (check.kind === 'empty_remote' || check.kind === 'local_changed') {

@@ -68,7 +68,7 @@ const emit = defineEmits<{
     <div class="lc-list">
       <label v-for="c in list" :key="c.r.id" class="lc-item" :class="{ picked: picked?.has(c.r.id), mirrored: c.mirrored }">
         <input v-if="!c.mirrored" type="checkbox" :checked="picked?.has(c.r.id)" @change="emit('toggle-pick', c.r.id)" />
-        <span v-else class="lc-badge">已在该台</span>
+        <span v-else class="lc-badge">已在本节点</span>
         <span class="lc-title"><Icon v-if="c.r.pinned" name="pin" :size="12"/> {{ c.r.title }}</span>
         <span class="lc-link">{{ c.r.link }}</span>
         <!-- R161-④：命中信息挂在行上（同一张卡只出现一行，与检索面板同一条纪律） -->
@@ -77,6 +77,7 @@ const emit = defineEmits<{
       </label>
       <div v-if="!list.length" class="lc-empty">无匹配的资源卡池卡片（也可以直接点右侧 AI 检索，按语义找）</div>
     </div>
+    <div class="lc-scope-hint">同一资源卡可分别挂到本台的不同节点；这里只拦截当前节点的重复挂载。</div>
     <template #footer>
       <div class="lc-foot">
         <button class="lc-btn" @click="emit('close')">取消</button>
@@ -98,6 +99,7 @@ const emit = defineEmits<{
 .lc-badge { font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; flex-shrink: 0; }
 .lc-title { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lc-link { font-size: var(--fs-tiny); color: var(--text-4); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.lc-scope-hint { margin-top: 8px; padding: 6px 9px; border-radius: 6px; background: var(--surface-2); color: var(--text-4); font-size: var(--fs-tiny); line-height: 1.5; }
 .lc-empty { text-align: center; padding: 24px; font-size: var(--fs-sub); color: var(--text-4); }
 /* ===== R161-④：AI 检索 ===== */
 .lc-ai-btn { flex-shrink: 0; display: inline-flex; align-items: center; padding: 3px 9px; border-radius: var(--radius-xs);

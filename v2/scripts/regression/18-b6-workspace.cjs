@@ -156,7 +156,8 @@ check('W2-2（V3.9.8 随迁）镜像来源与编辑去向仍说清楚：旧三�
   return badges.length >= 2
     && pool.includes("title=\"'已镜像到：' + mirrorNamesOf(r).join('、')\"")
     && link.includes('从资源卡池可镜像的卡')
-    && link.includes('已在该台')
+    && link.includes('已在本节点')
+    && link.includes('同一资源卡可分别挂到本台的不同节点')
     && WSV.includes('镜像卡为引用（只读）——编辑请到资源卡池')
     && WSV.includes('定位到源卡');
 });

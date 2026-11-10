@@ -44,6 +44,20 @@ export function projectionsOf(d: AppData, targetWsId: ID): CurationProjection[] 
   return (d.curationProjections || []).filter(p => p.kind === 'card' && p.targetWsId === targetWsId)
 }
 
+/** 某策展节点当前已挂的资源卡：判重只限“本台 + 本节点”，
+ *  同一张池卡可以分别挂到同台 A/B 节点，不能把整台当成一个判重域。 */
+export function projectionsAtNode(d: AppData, targetWsId: ID, targetCatId?: ID): CurationProjection[] {
+  return projectionsOf(d, targetWsId).filter(p => (p.targetCatId || '') === (targetCatId || ''))
+}
+
+export function mirroredCardIdsAtNode(d: AppData, targetWsId: ID, targetCatId?: ID): Set<ID> {
+  return new Set(
+    projectionsAtNode(d, targetWsId, targetCatId)
+      .map(p => p.cardId)
+      .filter((id): id is ID => !!id)
+  )
+}
+
 /**
  * R61-2：把资源台的一张卡镜像到指定策展台（引用式，源数据零影响）。
  * @returns 投射记录 id；失败返回 null（重复镜像 / 源卡不在资源台）

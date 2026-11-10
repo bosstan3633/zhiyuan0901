@@ -126,7 +126,10 @@
 
 /* ===== R176：AI 助手连接错误分类显示 + 重试链接 ===== */
 .ai-form-row { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
-.ai-msg { font-size: var(--fs-caption); color: var(--danger); line-height: 1.5; max-width: 100%; overflow-wrap: break-word; }
+.ai-msg { display: inline-flex; align-items: flex-start; gap: 4px; font-size: var(--fs-caption); color: var(--text-2); line-height: 1.5; max-width: 100%; overflow-wrap: break-word; }
+.ai-msg.success { color: var(--success); }
+.ai-msg.warning { color: var(--warning); }
+.ai-msg.error { color: var(--danger); }
 .ai-retry-link { font-size: var(--fs-caption); color: var(--accent); text-decoration: none; cursor: pointer; white-space: nowrap; padding: 0 2px; border: none; background: none; font-family: inherit; }
 .ai-retry-link:hover { text-decoration: underline; }
 .ai-retry-link:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }

@@ -17,6 +17,9 @@ import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { useInbox } from '@/newtab/composables/useInbox'
+import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
+import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
+import type { CaptureConvertedKind, CaptureItem } from '@/shared/cloud/sync'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 import { useCompassHomeStorage } from './useCompassHomeStorage'
 import { useCompassHomeDetail } from './useCompassHomeDetail'
@@ -481,6 +484,55 @@ function metricName(metricId?: string): string {
   return '未关联'
 }
 
+function projectTitleOfTask(task?: TaskCard): string {
+  if (!task?.projectId) return ''
+  return allProjects().find(project => project.id === task.projectId)?.name?.trim() || ''
+}
+
+function metricTitleOfTask(task?: TaskCard): string {
+  if (!task?.metricId) return ''
+  for (const direction of d.value.compass.directions) {
+    for (const project of direction.projects) {
+      const metric = project.metrics.find(row => row.id === task.metricId)
+      if (metric) return metric.title.trim()
+    }
+  }
+  return ''
+}
+
+function focusCopyText(cell: FocusCell): string {
+  return buildDailyFocusCopyText({
+    projectName: projectTitleOfTask(cell.task),
+    metricName: metricTitleOfTask(cell.task),
+    taskTitle: cell.task?.title,
+  })
+}
+
+function focusCopyReason(cell: FocusCell): string {
+  if (!cell.task) return '这个计划位没有可复制的任务'
+  if (!projectTitleOfTask(cell.task)) return '任务未关联有效项目，复制内容不可生成'
+  if (!metricTitleOfTask(cell.task)) return '任务未关联有效成功指标，复制内容不可生成'
+  return '复制计划内容'
+}
+
+async function copyFocusText(cell: FocusCell): Promise<void> {
+  const text = focusCopyText(cell)
+  if (!text) {
+    showToast(focusCopyReason(cell))
+    return
+  }
+  if (!navigator.clipboard?.writeText) {
+    showToast('当前浏览器不允许写入剪贴板')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(text)
+    showToast('计划内容已复制')
+  } catch {
+    showToast('复制失败（浏览器未授权剪贴板）')
+  }
+}
+
 function taskStatusLabel(status: TaskCard['status']): string {
   return status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'
 }
@@ -627,6 +679,7 @@ const previewResources = computed<ResourceCard[]>(() =>
     .slice(0, 5)
 )
 const inbox = useInbox()
+const previewInboxBusy = ref<{ id: string; kind: CaptureConvertedKind } | null>(null)
 const previewInbox = computed(() =>
   [...inbox.items.value]
     .filter(item => !item.convertedKind)
@@ -663,6 +716,31 @@ function openRecentResource(r: ResourceCard): void {
   }
   openResourcePreview(r)
 }
+async function convertPreviewInbox(item: CaptureItem, kind: CaptureConvertedKind): Promise<void> {
+  if (previewInboxBusy.value) {
+    showToast('上一条正在转化，请稍候')
+    return
+  }
+  previewInboxBusy.value = { id: item.id, kind }
+  try {
+    await inbox.convert(item, kind)
+    const label = kind === 'task' ? '任务卡' : kind === 'curiosity' ? '好奇心卡' : '资源卡'
+    showToast(`已转化为${label}，并已离开 Inbox`)
+  } catch (error) {
+    showToast(`转化失败：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    previewInboxBusy.value = null
+  }
+}
+function openPreviewInboxSource(item: CaptureItem): void {
+  const raw = item.url || ''
+  const url = toOpenableRawLink(raw)
+  if (!url) {
+    showToast(raw ? '这条采集链接不可打开（请检查链接格式）' : '这条采集没有原始链接')
+    return
+  }
+  openExternalLink(url)
+}
 function goDeck(kind: HandKind): void {
   void router.push(`/deck/${kind}`)
 }
@@ -689,6 +767,7 @@ function goDeck(kind: HandKind): void {
     copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
     openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
     projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
+    focusCopyText, focusCopyReason, copyFocusText,
     fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
     gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
     storageTimer, storageOk, ERR_LABEL, storageText, timeAgo,
@@ -699,7 +778,7 @@ function goDeck(kind: HandKind): void {
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,
     previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-    previewInbox, inbox,
+    previewInbox, previewInboxBusy, convertPreviewInbox, openPreviewInboxSource, inbox,
     hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,

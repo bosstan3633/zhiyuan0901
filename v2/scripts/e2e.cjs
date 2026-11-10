@@ -105,6 +105,7 @@ async function main() {
 
   const page = await ctx.newPage()
   const base = `chrome-extension://${extId}/${EXT_INDEX}`
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(base).origin }).catch(() => {})
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
 
@@ -1267,11 +1268,25 @@ async function main() {
   // E2E-47（V3.9.11 · G-07）：分享 HTML 的真实外部分享验收。
   //   不读生成器源码、也不只看站内抽屉：下载 HTML 后用独立页面打开，检查桌面、移动、
   //   打印三种媒介下的横向树可读性、公开链接、自包含长图下载与页面无横向溢出。
-  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(r => {
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(async (r) => {
     const d = r['zy_data_v2']
     if (!d) return false
     const now = Date.now()
+    const thesis = (d.resources || []).find(x => x.id === 'e2e-v404-thesis' && x.isThesis)
+    const galleryNode = (d.categories || []).find(x => x.id === 'e2e-key-root')
+    const imageMeta = (id, name) => ({
+      id, kind: 'image', name, size: 68, mime: 'image/png', createdAt: now,
+    })
+    if (thesis) thesis.assets = [
+      imageMeta('e2e-thesis-image-1', '中心论点附件一.png'),
+      imageMeta('e2e-thesis-image-2', '中心论点附件二.png'),
+    ]
+    if (galleryNode) galleryNode.assets = [
+      imageMeta('e2e-node-image-1', '分支附件一.png'),
+      imageMeta('e2e-node-image-2', '分支附件二.png'),
+    ]
     d.resources = (d.resources || []).filter(x => x && x.id !== 'e2e-public-res')
+      .filter(x => x && x.id !== 'e2e-thesis-linked-res')
     d.resources.push({
       id: 'e2e-public-res', kind: 'resource', title: 'E2E 公开证据',
       description: '用于验证分享 HTML 的公开资源链接。',
@@ -1280,7 +1295,36 @@ async function main() {
       sourceType: 'official', tags: ['E2E'], pinned: false, callCount: 0,
       customFields: {}, assets: [], createdAt: now, updatedAt: now,
     })
-    return chrome.storage.local.set({ zy_data_v2: d }).then(() => true)
+    if (thesis) {
+      d.resources.push({
+        id: 'e2e-thesis-linked-res', kind: 'resource', title: 'E2E 中心论点关联卡',
+        description: '中心论点关联卡也应进入导出 HTML。',
+        linkType: 'url', link: 'https://example.com/thesis-linked',
+        workspaceId: 'e2e-main-board', categoryId: thesis.id,
+        sourceType: 'academic', tags: ['论点证据'], pinned: false, callCount: 0,
+        customFields: {}, assets: [], createdAt: now, updatedAt: now,
+      })
+    }
+    const png = Uint8Array.from(
+      atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlQ8WQAAAAASUVORK5CYII='),
+      c => c.charCodeAt(0),
+    )
+    const putBlob = (id) => new Promise((resolve, reject) => {
+      const rq = indexedDB.open('zy_assets', 1)
+      rq.onupgradeneeded = () => {
+        if (!rq.result.objectStoreNames.contains('assets')) rq.result.createObjectStore('assets')
+      }
+      rq.onerror = () => reject(rq.error)
+      rq.onsuccess = () => {
+        const tx = rq.result.transaction('assets', 'readwrite')
+        tx.objectStore('assets').put(new Blob([png], { type: 'image/png' }), id)
+        tx.oncomplete = () => resolve(true)
+        tx.onerror = () => reject(tx.error)
+      }
+    })
+    await Promise.all(['e2e-thesis-image-1', 'e2e-thesis-image-2', 'e2e-node-image-1', 'e2e-node-image-2'].map(putBlob))
+    await chrome.storage.local.set({ zy_data_v2: d })
+    return true
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '[data-mind-node="e2e-key-root"]', { visible: true, timeout: 10000 })
@@ -1314,6 +1358,9 @@ async function main() {
     const treeCanvas = document.querySelector('.share-tree')
     const link = document.querySelector('.tree-node a.res-title')
     const image = document.querySelector('.image-download')
+    const thesisLinked = [...document.querySelectorAll('.share-root a.res-title')]
+      .find(a => (a.textContent || '').includes('E2E 中心论点关联卡'))
+    const galleries = [...document.querySelectorAll('.asset-gallery')]
     return {
       title: document.querySelector('.tree-hero h1')?.textContent || '',
       bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -1327,8 +1374,45 @@ async function main() {
       imageData: (image?.getAttribute('href') || '').startsWith('data:image/png;base64,'),
       imageVisible: !!image && getComputedStyle(image).display !== 'none',
       themeBg: getComputedStyle(document.body).backgroundColor,
+      galleryGroups: galleries.length,
+      galleryThumbs: document.querySelectorAll('.gallery-thumb').length,
+      galleryClosed: galleries.length > 0
+        && galleries.every(g => getComputedStyle(g.querySelector('.gallery-lightbox')).display === 'none'),
+      thesisLinkedHref: thesisLinked?.getAttribute('href') || '',
     }
   })
+  let galleryOpened = false
+  let gallerySwitched = false
+  let galleryClosed = false
+  const firstGallery = sharePage.locator('.asset-gallery').first()
+  if (await firstGallery.count()) {
+    await firstGallery.locator('.gallery-thumb').first().click()
+    const opened = await firstGallery.evaluate(gallery => {
+      const lightbox = gallery.querySelector('.gallery-lightbox')
+      const slides = [...gallery.querySelectorAll('.gallery-slide')]
+      const visible = slides.filter(slide => getComputedStyle(slide).display !== 'none')
+      return {
+        dialog: getComputedStyle(lightbox).display === 'flex',
+        visible: visible.length === 1,
+        first: visible[0]?.classList.contains('gallery-slide-1') || false,
+        image: !!visible[0]?.querySelector('img')?.getAttribute('src')?.startsWith('data:image/png;base64,'),
+      }
+    })
+    galleryOpened = opened.dialog && opened.visible && opened.first && opened.image
+    await firstGallery.locator('.gallery-slide:visible .gallery-next').click()
+    gallerySwitched = await firstGallery.evaluate(gallery => {
+      const slides = [...gallery.querySelectorAll('.gallery-slide')]
+      const visible = slides.filter(slide => getComputedStyle(slide).display !== 'none')
+      const checked = gallery.querySelector('.gallery-radio:checked')
+      return visible.length === 1
+        && visible[0]?.classList.contains('gallery-slide-2')
+        && checked?.id.endsWith('-slide-2')
+        && visible[0]?.querySelector('.gallery-count')?.textContent?.trim() === '2 / 2'
+    })
+    await firstGallery.locator('.gallery-close').click()
+    galleryClosed = await firstGallery.evaluate(gallery =>
+      getComputedStyle(gallery.querySelector('.gallery-lightbox')).display === 'none')
+  }
   let sharePopupOpened = false
   await ctx.route('https://example.com/**', route => route.fulfill({
     status: 200,
@@ -1442,6 +1526,9 @@ async function main() {
     && shareDesktop.levels.includes('L4 · 论证节点')
     && shareDesktop.linkHref === 'https://example.com/evidence'
     && shareDesktop.linkTarget === '_blank'
+    && shareDesktop.thesisLinkedHref === 'https://example.com/thesis-linked'
+    && shareDesktop.galleryGroups === 2 && shareDesktop.galleryThumbs === 4
+    && shareDesktop.galleryClosed && galleryOpened && gallerySwitched && galleryClosed
     && sharePopupOpened
     && shareDesktop.imageData && shareDesktop.imageVisible
     && pngOk && imageW >= 1200 && imageH >= 800
@@ -1458,12 +1545,35 @@ async function main() {
     && inkDesktop.imageVisible
     && inkMobile.bodyOverflow <= 1 && inkMobile.titleVisible && inkMobile.linkCount > 0
     && inkPrint.bodyOverflow <= 1 && inkPrint.downloadHidden && inkPrint.treeNodeCount >= 4
-  report('E2E-47 V3.9.11 分享 HTML 外部独立打开：桌面横向树、公开链接、自包含长图下载、移动与打印',
+  report('E2E-47 V4.2.1 分享 HTML 外部独立打开：中心论点关联卡可点击、中心论点与分支附件可打开大图并左右切换、公开链接、自包含长图、移动与打印',
     shareExternalOk,
-    `paper=${Math.round(Buffer.byteLength(shareHtml) / 1024)}KB desktop=${JSON.stringify(shareDesktop)} popup=${sharePopupOpened} png=${imageW}×${imageH}/${Math.round(png.length / 1024)}KB mobile=${JSON.stringify(shareMobile)} print=${JSON.stringify(sharePrint)} ink=${Math.round(Buffer.byteLength(inkHtml) / 1024)}KB desktop=${JSON.stringify(inkDesktop)} mobile=${JSON.stringify(inkMobile)} print=${JSON.stringify(inkPrint)}`)
+    `paper=${Math.round(Buffer.byteLength(shareHtml) / 1024)}KB desktop=${JSON.stringify(shareDesktop)} gallery=${galleryOpened}/${gallerySwitched}/${galleryClosed} popup=${sharePopupOpened} png=${imageW}×${imageH}/${Math.round(png.length / 1024)}KB mobile=${JSON.stringify(shareMobile)} print=${JSON.stringify(sharePrint)} ink=${Math.round(Buffer.byteLength(inkHtml) / 1024)}KB desktop=${JSON.stringify(inkDesktop)} mobile=${JSON.stringify(inkMobile)} print=${JSON.stringify(inkPrint)}`)
   await inkPage.close().catch(() => {})
   inkServer.closeAllConnections?.()
   await new Promise(resolve => inkServer.close(resolve))
+  await page.evaluate(async () => {
+    const ids = new Set(['e2e-thesis-image-1', 'e2e-thesis-image-2', 'e2e-node-image-1', 'e2e-node-image-2'])
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const d = cur['zy_data_v2']
+    if (d) {
+      const thesis = (d.resources || []).find(x => x.id === 'e2e-v404-thesis')
+      if (thesis) thesis.assets = (thesis.assets || []).filter(a => !ids.has(a.id))
+      const node = (d.categories || []).find(x => x.id === 'e2e-key-root')
+      if (node) node.assets = (node.assets || []).filter(a => !ids.has(a.id))
+      d.resources = (d.resources || []).filter(x => x.id !== 'e2e-thesis-linked-res')
+      await chrome.storage.local.set({ zy_data_v2: d })
+    }
+    await new Promise((resolve, reject) => {
+      const rq = indexedDB.open('zy_assets', 1)
+      rq.onerror = () => reject(rq.error)
+      rq.onsuccess = () => {
+        const tx = rq.result.transaction('assets', 'readwrite')
+        for (const id of ids) tx.objectStore('assets').delete(id)
+        tx.oncomplete = () => resolve(true)
+        tx.onerror = () => reject(tx.error)
+      }
+    })
+  }).catch(() => {})
   fs.rmSync(shareTmp, { recursive: true, force: true })
 
 
@@ -2819,6 +2929,7 @@ await paOpen()
   const inboxDrawerTitle = await page.locator('#inbox-edit-title').inputValue()
   await page.locator('.icd-actions button').filter({ hasText: '任务卡' }).click()
   await waitForLocator(page, '.inbox-success', { visible: true, timeout: 10000 })
+  await page.waitForSelector('.drawer .icd-head', { state: 'detached', timeout: 3000 }).catch(() => {})
   const convertedTask = await waitForStorage(page, 'zy_data_v2', raw => {
     const task = raw?.['zy_data_v2']?.tasks?.find(t => t.sourceCaptureId === inboxRow.id)
     return task ? { id: task.id, title: task.title } : false
@@ -3155,6 +3266,339 @@ await paOpen()
       && settingsHistory.note.includes('最长 30 天') && historyReceiptRows === receipt.rows
       && topbarHistoryEntry === 1 && topbarHistoryCount >= 1,
     `灯前=${cloudLedBefore} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后绿灯=${cloudLedAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后黄灯=${cloudLedAfterAction} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
+
+  // ══════════ E2E-57（V4.2.1）今日三件事复制 / Inbox 行内操作 / AI 成功态 ══════════
+  const copyTask = {
+    id: 'e2e-v421-copy-task',
+    kind: 'task',
+    title: '设计解决方案报价模板',
+    projectId: 'e2e-v421-copy-project',
+    metricId: 'e2e-v421-copy-metric',
+    status: 'todo',
+    priority: 'medium',
+    mountedResourceIds: [],
+    mountedCuriosityIds: [],
+    customFields: {},
+    tags: [],
+    pinned: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  }
+  await page.evaluate(async (task) => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const data = cur['zy_data_v2']
+    if (!data) return
+    const now = Date.now()
+    data.compass = data.compass || { vision: { content: '', updatedAt: now }, mission: { content: '', updatedAt: now }, directions: [] }
+    data.compass.directions = (data.compass.directions || []).filter(dir => dir.id !== 'e2e-v421-copy-dir')
+    data.compass.directions.push({
+      id: 'e2e-v421-copy-dir',
+      name: 'E2E V4.2.1 复制方向',
+      status: 'active',
+      term: 'short',
+      projects: [{
+        id: 'e2e-v421-copy-project',
+        name: '软硬一体服务系统解决方案',
+        isFocused: false,
+        progress: 0,
+        status: 'active',
+        metrics: [{ id: 'e2e-v421-copy-metric', title: '产品解决方案', target: '1', acceptance: '', taskIds: [task.id] }],
+      }],
+    })
+    data.tasks = (data.tasks || []).filter(row => row.id !== task.id)
+    data.tasks.push(task)
+    const today = (() => {
+      const d = new Date()
+      const p = n => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    })()
+    data.dailyFocus = data.dailyFocus || {}
+    data.dailyFocus[today] = [{ id: 'e2e-v421-copy-slot', sourceType: 'task', sourceId: task.id, text: task.title, done: false }]
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }, copyTask)
+  /* 无头 Chromium 的 navigator.clipboard.readText() 会等待系统剪贴板权限而挂住；
+     记录页面真正交给 writeText 的文本，既验证精确载荷，也不依赖操作系统剪贴板。 */
+  await page.addInitScript(() => {
+    const clipboard = navigator.clipboard
+    if (!clipboard || typeof clipboard.writeText !== 'function') return
+    const original = clipboard.writeText.bind(clipboard)
+    Object.defineProperty(clipboard, 'writeText', {
+      configurable: true,
+      value: async (text) => {
+        globalThis.__e2eCopiedText = String(text)
+        return original(text)
+      },
+    })
+  })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const copyRow = page.locator('.focus-row').filter({ hasText: copyTask.title }).first()
+  await waitForLocator(page, '.focus-row .row-copy', { visible: true, timeout: 12000 })
+  const copyButton = copyRow.locator('.row-copy')
+  const copyEnabled = await copyButton.isEnabled().catch(() => false)
+  await copyButton.click()
+  const copyToast = await waitForLocator(page, '.toast-msg', { visible: true, timeout: 4000 })
+  const copyToastText = (await page.locator('.toast-msg').last().textContent().catch(() => '') || '').replace(/\s+/g, ' ').trim()
+  const copiedText = await page.evaluate(() => globalThis.__e2eCopiedText || '').catch(() => '')
+  const expectedCopy = '今天计划推进软硬一体服务系统解决方案项目下产品解决方案成功指标的设计解决方案报价模板任务'
+
+  await ctx.unroute('**/rest/v1/capture_inbox**').catch(() => {})
+  const inlineInbox = [{
+    id: 'e2e-v421-inbox-inline',
+    content_kind: 'link',
+    url: 'https://example.com/e2e/v421-inline',
+    text_content: 'V4.2.1 行内操作探针',
+    title: 'E2E V4.2.1 Inbox 行内操作',
+    note: null,
+    tags: ['E2E'],
+    created_at: new Date().toISOString(),
+    converted_at: null,
+    converted_kind: null,
+    converted_card_id: null,
+    dismissed_at: null,
+  }]
+  await ctx.route('**/rest/v1/capture_inbox**', route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(inlineInbox) })
+    }
+    return route.fulfill({ status: 204, body: '' })
+  })
+  await page.evaluate(rows => {
+    localStorage.setItem('zy_inbox_cache', JSON.stringify(rows.map(row => ({
+      id: row.id,
+      contentKind: row.content_kind,
+      url: row.url,
+      text: row.text_content,
+      title: row.title,
+      tags: row.tags,
+      createdAt: Date.parse(row.created_at),
+    }))))
+  }, inlineInbox)
+  await page.goto(base + '#/deck/inbox?e2e=57', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, `.inbox-row[data-capture-id="${inlineInbox[0].id}"]`, { visible: true, timeout: 12000 })
+  const inlineActions = await page.locator(`.inbox-row[data-capture-id="${inlineInbox[0].id}"] .inbox-actions button`).count()
+  await page.locator(`.inbox-row[data-capture-id="${inlineInbox[0].id}"] .inbox-actions button`).filter({ hasText: '编辑' }).click()
+  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
+  const inlineEditDrawer = await page.evaluate(() => ({
+    title: document.querySelector('#inbox-edit-title')?.value || '',
+    directActions: [...document.querySelectorAll('.inbox-actions button')].map(node => (node.textContent || '').trim()),
+  }))
+  await page.locator('.drawer .drawer-close').first().click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 6000 })
+
+  await ctx.route('**/models', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ data: [{ id: 'e2e-model-ok' }] }),
+  }))
+  await page.goto(base + '#/settings?page=ai', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.ai-field input', { visible: true, timeout: 10000 })
+  await page.locator('.ai-field input').nth(0).fill('https://e2e-ai.example/v1')
+  await page.locator('.ai-field input').nth(1).fill('sk-e2e')
+  await page.locator('.ai-field input').nth(1).press('Tab')
+  await page.locator('.ai-form-row button').filter({ hasText: '拉取模型列表' }).click()
+  const aiSuccess = await waitForLocator(page, '.ai-msg.success', { visible: true, timeout: 10000 })
+  const aiState = await page.evaluate(() => ({
+    text: (document.querySelector('.ai-msg')?.textContent || '').replace(/\s+/g, ' ').trim(),
+    success: document.querySelector('.ai-msg')?.classList.contains('success') || false,
+    error: document.querySelector('.ai-msg')?.classList.contains('error') || false,
+    warning: document.querySelector('.ai-msg')?.classList.contains('warning') || false,
+  }))
+  report('E2E-57 ★V4.2.1 今日三件事复制、Inbox 行内处理与 AI 成功态：复制固定句子、行内直接编辑、模型拉取显示成功而非错误',
+    copyEnabled && copyToastText.includes('计划内容已复制') && copiedText === expectedCopy
+      && inlineActions >= 6 && inlineEditDrawer.title.includes('E2E V4.2.1 Inbox 行内操作')
+      && inlineEditDrawer.directActions.some(x => x.includes('任务')) && aiSuccess
+      && aiState.success && !aiState.error && !aiState.warning && aiState.text.includes('已获取 1 个模型'),
+    `复制=${copyEnabled}/${JSON.stringify(copyToastText)} clip=${JSON.stringify(copiedText)} 行内动作=${inlineActions}/${JSON.stringify(inlineEditDrawer)} AI=${JSON.stringify(aiState)}`)
+
+  // ══════════ E2E-58（V4.2.1）同一条采集不得重复生成资源卡 ══════════
+  const dedupeCaptureId = 'e2e-v421-capture-dedupe'
+  const dedupeTitle = 'E2E V4.2.1 采集资源卡去重'
+  const dedupeUrl = 'https://example.com/e2e/v421/dedupe'
+  await ctx.unroute('**/rest/v1/capture_inbox**').catch(() => {})
+  const dedupeInbox = [{
+    id: dedupeCaptureId,
+    content_kind: 'link',
+    url: dedupeUrl,
+    text_content: '同一条采集只能生成一张资源卡',
+    title: dedupeTitle,
+    note: null,
+    tags: ['E2E采集', '资源去重'],
+    created_at: new Date().toISOString(),
+    converted_at: null,
+    converted_kind: null,
+    converted_card_id: null,
+    dismissed_at: null,
+  }]
+  await ctx.route('**/rest/v1/capture_inbox**', route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dedupeInbox) })
+    }
+    return route.fulfill({ status: 204, body: '' })
+  })
+  await page.evaluate(async ({ captureId, title }) => {
+    const cur = await chrome.storage.local.get(['zy_data_v2', 'zy_cloud_meta_v1'])
+    const data = cur.zy_data_v2
+    const meta = cur.zy_cloud_meta_v1
+    if (!data) return
+    data.resources = (data.resources || []).filter(row =>
+      row.customFields?.captureInboxId !== captureId
+      && row.customFields?.capture_inbox_id !== captureId
+      && row.sourceCaptureId !== captureId)
+    data.resources.unshift({
+      id: 'e2e-v421-legacy-captured-resource',
+      kind: 'resource',
+      title,
+      linkType: 'url',
+      link: '',
+      workspaceId: 'zy-curation',
+      categoryId: '',
+      tags: [],
+      pinned: false,
+      callCount: 0,
+      customFields: { captureInboxId: captureId },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    await chrome.storage.local.set({
+      zy_data_v2: data,
+      zy_cloud_meta_v1: {
+        ...(meta || {}),
+        userId: 'e2e-user',
+        email: 'e2e@example.com',
+        refreshToken: 'e2e-refresh',
+        checkOnStart: false,
+        revision: 0,
+        assetSyncEnabled: false,
+      },
+    })
+    localStorage.setItem('zy_inbox_cache', JSON.stringify([]))
+  }, { captureId: dedupeCaptureId, title: dedupeTitle })
+  await page.goto(base + '#/deck/inbox?e2e=58', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const dedupeResult = await pollUntil(async () => {
+    const state = await page.evaluate(async ({ captureId }) => {
+      const rows = (await chrome.storage.local.get('zy_data_v2')).zy_data_v2?.resources || []
+      const matched = rows.filter(row => !row.deletedAt
+        && (row.sourceCaptureId === captureId
+          || row.customFields?.captureInboxId === captureId
+          || row.customFields?.capture_inbox_id === captureId))
+      return {
+        count: matched.length,
+        link: matched[0]?.link || '',
+        tags: matched[0]?.tags || [],
+        sourceCaptureId: matched[0]?.sourceCaptureId || '',
+        inboxRows: document.querySelectorAll(`.inbox-row[data-capture-id="${captureId}"]`).length,
+        queue: JSON.parse(localStorage.getItem('zy_inbox_conversion_queue') || '[]')
+          .some(row => row.captureId === captureId),
+      }
+    }, { captureId: dedupeCaptureId })
+    return state.count === 1 && state.link === dedupeUrl && state.sourceCaptureId === dedupeCaptureId
+      && state.tags.includes('资源去重') && state.inboxRows === 0
+      ? state
+      : false
+  }, { timeout: 10000, label: '采集资源卡去重与旧卡补水' }).catch(() => null)
+  report('E2E-58 ★V4.2.1 同一条 Inbox 采集只生成一张资源卡：启动时识别旧导入只带 captureInboxId 的卡，直接复用并补齐源 URL / 标签，列表自动离场且不新建同标题无链接副本',
+    !!dedupeResult,
+    `结果=${JSON.stringify(dedupeResult)} 标题=${dedupeTitle} URL=${dedupeUrl}`)
+
+  // ══════════ E2E-59（V4.2.1）同一资源卡可在同台不同节点分别挂载 ══════════
+  const multiNodeCard = {
+    id: 'e2e-v421-multinode-card',
+    kind: 'resource',
+    title: 'E2E V4.2.1 同台多节点资源卡',
+    linkType: 'url',
+    link: 'https://example.com/e2e/v421/multinode',
+    workspaceId: 'zy-curation',
+    categoryId: '',
+    tags: ['E2E'],
+    pinned: false,
+    callCount: 0,
+    customFields: {},
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  }
+  await page.evaluate(async (card) => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const data = cur.zy_data_v2
+    if (!data) return
+    data.resources = (data.resources || []).filter(row => row.id !== card.id)
+    data.resources.push(card)
+    data.curationProjections = (data.curationProjections || [])
+      .filter(row => row.cardId !== card.id)
+    for (const node of [
+      { id: 'e2e-v421-node-a', name: 'E2E V4.2.1 节点 A', order: 201 },
+      { id: 'e2e-v421-node-b', name: 'E2E V4.2.1 节点 B', order: 202 },
+    ]) {
+      data.categories = (data.categories || []).filter(row => row.id !== node.id)
+      data.categories.push({ ...node, workspaceId: 'e2e-main-board' })
+    }
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }, multiNodeCard)
+  await page.goto(base + '#/workspace/e2e-main-board', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-mind-node="e2e-v421-node-a"]', { visible: true, timeout: 12000 })
+  await waitForLocator(page, '[data-mind-node="e2e-v421-node-b"]', { visible: true, timeout: 12000 })
+
+  async function linkCardToNode(nodeId) {
+    const node = page.locator(`[data-mind-node="${nodeId}"]`)
+    const headLink = node.locator('button[title="关联资源"]')
+    if (await headLink.count()) await headLink.click()
+    else await node.locator('.mind-node-foot .mind-add').filter({ hasText: '关联资源' }).click()
+    await waitForLocator(page, '.md-panel .lc-item', { visible: true, timeout: 6000 })
+    const row = page.locator('.md-panel .lc-item').filter({ hasText: multiNodeCard.title }).first()
+    const checkbox = row.locator('input[type="checkbox"]')
+    const available = await checkbox.count() > 0
+    if (available) await checkbox.check()
+    return {
+      available,
+      badge: available ? '' : ((await row.locator('.lc-badge').textContent().catch(() => '')) || '').trim(),
+    }
+  }
+
+  const nodeAAvailable = await linkCardToNode('e2e-v421-node-a')
+  await page.locator('.md-panel .lc-btn.primary').click()
+  await page.waitForSelector('.md-panel', { state: 'detached', timeout: 6000 })
+  const nodeALinked = await waitForStorage(page, 'zy_data_v2', raw => {
+    const rows = raw.zy_data_v2?.curationProjections || []
+    return rows.some(row => row.cardId === multiNodeCard.id && row.targetWsId === 'e2e-main-board' && row.targetCatId === 'e2e-v421-node-a')
+  }, { timeout: 8000 })
+
+  const nodeBAvailable = await linkCardToNode('e2e-v421-node-b')
+  await page.locator('.md-panel .lc-btn.primary').click()
+  await page.waitForSelector('.md-panel', { state: 'detached', timeout: 6000 })
+  const bothNodesLinked = await waitForStorage(page, 'zy_data_v2', raw => {
+    const rows = (raw.zy_data_v2?.curationProjections || [])
+      .filter(row => row.cardId === multiNodeCard.id && row.targetWsId === 'e2e-main-board')
+    return rows.length === 2
+      && rows.some(row => row.targetCatId === 'e2e-v421-node-a')
+      && rows.some(row => row.targetCatId === 'e2e-v421-node-b')
+  }, { timeout: 8000 })
+
+  await page.locator('[data-mind-node="e2e-v421-node-a"] .mind-node-foot .mind-add')
+    .filter({ hasText: '关联资源' }).click()
+  await waitForLocator(page, '.md-panel .lc-item', { visible: true, timeout: 6000 })
+  const nodeAAgain = await page.locator('.md-panel .lc-item')
+    .filter({ hasText: multiNodeCard.title }).first()
+    .evaluate(row => ({
+      checkbox: row.querySelectorAll('input[type="checkbox"]').length,
+      badge: (row.querySelector('.lc-badge')?.textContent || '').trim(),
+      mirrored: row.classList.contains('mirrored'),
+    }))
+  await page.locator('.md-panel .md-close').click()
+  await page.waitForSelector('.md-panel', { state: 'detached', timeout: 6000 })
+
+  const multiNodeProjectionCount = await page.evaluate(async (cardId) =>
+    ((await chrome.storage.local.get('zy_data_v2')).zy_data_v2?.curationProjections || [])
+      .filter(row => row.cardId === cardId && row.targetWsId === 'e2e-main-board').length,
+  multiNodeCard.id)
+  report('E2E-59 ★V4.2.1 同一资源卡可在同台不同节点分别挂载：A 挂载后 B 仍可选，回到 A 只标记“已在本节点”，库中恰好两条独立投射',
+    nodeAAvailable.available && nodeALinked && nodeBAvailable.available && bothNodesLinked
+      && nodeAAgain.checkbox === 0 && nodeAAgain.badge === '已在本节点'
+      && nodeAAgain.mirrored && multiNodeProjectionCount === 2,
+    `A=${JSON.stringify(nodeAAvailable)}/${nodeALinked} B=${JSON.stringify(nodeBAvailable)}/${bothNodesLinked} 回A=${JSON.stringify(nodeAAgain)} 投射=${multiNodeProjectionCount}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length
