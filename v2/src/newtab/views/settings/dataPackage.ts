@@ -169,6 +169,12 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   if (imported.curationProjections?.length || d.curationProjections?.length) {
     d.curationProjections = mergeById(d.curationProjections || [], imported.curationProjections || [])
   }
+  if (imported.resourceFolders?.length || d.resourceFolders?.length) {
+    d.resourceFolders = mergeById(d.resourceFolders || [], imported.resourceFolders || [])
+  }
+  if (imported.resourceFolderMirrors?.length || d.resourceFolderMirrors?.length) {
+    d.resourceFolderMirrors = mergeById(d.resourceFolderMirrors || [], imported.resourceFolderMirrors || [])
+  }
   if (imported.supportLinks?.length || d.supportLinks?.length) {
     d.supportLinks = mergeById(d.supportLinks || [], imported.supportLinks || [])
   }

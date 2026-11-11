@@ -493,8 +493,8 @@ check('R4-Df ★章节标题本身不许带退役物：手册目录是用户唯�
   const m = read('/newtab/manual-data.ts');
   const titles = [...m.matchAll(/\{ id: '[\w-]+', title: '([^']+)'/g)].map(x => x[1]);
   const banned = ['资源台', '项目调度', '项目总览', '主航线', '灯塔', '策展中心'];
-  /* ★V4.0.3 随迁备案：Airtable 运行时退役后手册收敛为 25 节，负锚禁词清单与原口径不变 */
-  return titles.length === 25 && titles.every(t => !banned.some(b => t.includes(b)))
+  /* V4.2.2：新增 7 节流程优先导读，书名目录扩为 32 节；负锚禁词清单与原口径不变。 */
+  return titles.length === 32 && titles.every(t => !banned.some(b => t.includes(b)))
     && titles.some(t => t.includes('资源卡池')) && titles.some(t => t.includes('三大台面'));
 });
 check('R4-Df ★退役结构不许作为现役功能写回手册：资源台台面 / 主航线 / 项目总览 / 项目调度面板 / 今日记录四格 / 策展主题格 六件各自点名，且手册必须明说它们去哪了（只删不说＝用户按旧记忆找而手册沉默，等于没写）（★W1.1 随迁：V3.8.1 三张卡改名，「唯一管理面是调度台底部默认打开的『资源卡池』tab」→「唯一管理面是调度台底部『资源卡』tab」——默认档由池切任务卡，锚句改指现役句）', () => {

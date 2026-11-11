@@ -42,6 +42,69 @@ function assignCommandList(): string {
 
 export const MANUAL: ManualPart[] = [
   {
+    title: '流程篇 · 先看这里（V4.2.2）',
+    sections: [
+      { id: 'flow-1', title: '一张图看懂：从采集到行动', html: `
+        <p>先用流程理解产品，再看后面的细节。每一步都只问一个问题：<b>这条信息下一步要去哪里？</b></p>
+        <div class="mc-flow">网页 / 手机采集 → <b>Inbox</b>（先看一遍）→ 选择去向 → 任务卡 / 好奇心卡 / 资源卡</div>
+        <div class="mc-flow">任务卡 → 项目 + 成功指标 + 今日三件事 → 推进与复制计划 ｜ 资源卡 → 常用夹 / 任务镜像 / 策展节点镜像 → 再次调用 ｜ 好奇心卡 → 保留、整理、回看</div>
+        <div class="mc-flow">策展台：中心论点 → 分支节点 → 资源镜像 / 图片附件 → 导出 HTML → 可独立分享</div>
+        <div class="mc-tip">💡 <b>Inbox 是唯一转化入口。</b>采集内容先在 Inbox 决定去向；转化后离开 Inbox，不重复出现在池里。</div>
+      ` },
+      { id: 'flow-2', title: '流程：采集一张卡，应该转成什么？', html: `
+        <div class="mc-steps">
+          <div class="mc-step"><b class="mc-n">1</b><span><b>先确认它是什么：</b>一个需要执行的动作 → 任务卡；一个值得继续想的问题 → 好奇心卡；一份以后要打开的材料 → 资源卡。</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span><b>在 Inbox 操作：</b>打开列表行，直接点“任务 / 好奇 / 资源”。不需要先进入二级详情。</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span><b>转化后：</b>原采集记录从 Inbox 离场，成功回执可打开目标卡；目标卡进入对应卡池。</span></div>
+          <div class="mc-step"><b class="mc-n">4</b><span><b>判断：</b>仍然拿不准就先保留在 Inbox；不要为了清空列表而强行转化。</span></div>
+        </div>
+        <div class="mc-warn">⚠ 好奇心卡只负责保留问题，不做 AI 研判，也不提供转任务或关联资源入口。</div>
+      ` },
+      { id: 'flow-3', title: '流程：今天三件事怎么推进', html: `
+        <div class="mc-flow">任务卡必须有<b>项目</b> + <b>成功指标</b> → 今日三件事槽位 → 点击“复制”→ 粘贴到汇报 / 日志 / Obsidian</div>
+        <p>复制句固定为：</p>
+        <div class="mc-quote">推进[[项目名]]项目，任务内容，助力【指标名】指标落实到位</div>
+        <div class="mc-flow">缺少项目或成功指标 → 复制按钮禁用并说明原因 → 回到任务卡补齐归属</div>
+        <p>槽位左侧勾选完成；点击槽位正文打开任务；今天的行动始终和项目、指标保持一条线。</p>
+      ` },
+      { id: 'flow-4', title: '流程：资源卡复用与常用夹', html: `
+        <div class="mc-flow">资源池 → 选择卡片 → <b>常用夹</b>（独立镜像）→ 一键打开全部原链</div>
+        <div class="mc-steps">
+          <div class="mc-step"><b class="mc-n">1</b><span>资源池控制行点“常用夹”，新建一个分组；名称 1–20 字，分组之间不重名。</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span>在分组内点“添加卡片”，搜索并多选资源；同一张卡可进入多个常用夹。</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span>成员行可直接打开原链或“移出”；移出只改变这个分组，不改变资源池里的真身。</span></div>
+          <div class="mc-step"><b class="mc-n">4</b><span>“一键打开全部”会跳过无链接、重复链接和失效卡片；超过 15 个链接先确认。</span></div>
+        </div>
+        <div class="mc-tip">💡 常用夹是独立资源镜像：删除源卡不影响已有镜像；移出或删除常用夹也不影响源卡、其他常用夹和策展台镜像。</div>
+      ` },
+      { id: 'flow-5', title: '流程：从资源到任务到策展', html: `
+        <div class="mc-flow">资源卡真身 → <b>任务卡资源镜像</b> → 做任务时直接打开 ｜ 资源卡真身 → <b>策展节点镜像</b> → 中心论点 / 分支证据</div>
+        <div class="mc-flow">一张资源卡可以分别镜像到多个任务、多个策展台节点、多个常用夹；每次镜像都是独立快照</div>
+        <div class="mc-warn">⚠ 反向挂载不做：资源卡不提供关联任务入口；只有任务卡和策展节点可以挂资源镜像。</div>
+        <p>策展台节点下可上传图片、HTML、PDF；工具栏“打开全部资源”可一次打开全台去重后的原始链接。图片点击后支持左右切换、缩放、适应窗口与沉浸全屏。导出 HTML 后仍保留同一套图片浏览和原链入口。</p>
+      ` },
+      { id: 'flow-6', title: '流程：云同步怎么判断', html: `
+        <div class="mc-flow">顶栏云同步状态：<b>绿色</b> = 本机与云端一致 ｜ <b>黄色</b> = 有改动待同步 ｜ <b>红色</b> = 断线 / 未登录 / 异常</div>
+        <div class="mc-steps">
+          <div class="mc-step"><b class="mc-n">1</b><span>先看颜色：黄色点开同步面板，确认是本机待上传还是云端待拉回；不要盲点覆盖。</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span>点“同步”或“按当前关系同步”；完成后弹出本次同步明细，逐条查看新增、修改、删除。</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span>同步历史在同步面板和设置中心；最近 20 次、最长 30 天。过期载荷仍可看，但不能操作。</span></div>
+          <div class="mc-step"><b class="mc-n">4</b><span>自动同步默认关闭；开启后约每小时检查一次，只在安全方向上传，遇到云端变化就暂停。</span></div>
+        </div>
+        <p>云端只同步卡片、策展台、方向台项目 / 指标、今日三件事和分支顺序；页面布局、筛选、抽屉宽度只留在本机。</p>
+      ` },
+      { id: 'flow-7', title: '流程：策展成果导出与图片浏览', html: `
+        <div class="mc-flow">策展台 → 中心论点 + 分支节点 → 关联资源 / 上传附件 → 预览检查 → 分享 → 导出 HTML</div>
+        <div class="mc-steps">
+          <div class="mc-step"><b class="mc-n">1</b><span>节点标题与说明先写成一句话判断；资源卡只作为证据镜像，不复制真身。</span></div>
+          <div class="mc-step"><b class="mc-n">2</b><span>图片附件点击后：左右切换、<kbd>+</kbd>/<kbd>-</kbd>缩放、<kbd>0</kbd>适应、<kbd>F</kbd>全屏；切换图片或重开会回到适应窗口。</span></div>
+          <div class="mc-step"><b class="mc-n">3</b><span>导出文件是自包含 HTML，不含脚本和外部依赖；中心论点附件、节点图库和关联资源仍可点击查看。</span></div>
+        </div>
+        <div class="mc-tip">💡 导出的 HTML 可以离线打开；图片缩放和全屏控件用原生 HTML/CSS 实现，不要求安装知源扩展。</div>
+      ` },
+    ]
+  },
+  {
     title: '速览 · 一页上手',
     sections: [
       { id: 'quick-1', title: '它是什么 · 给谁用 · 解决什么', html: `

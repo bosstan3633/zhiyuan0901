@@ -98,6 +98,9 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   for (const projection of d.curationProjections || []) {
     for (const a of projection.snapshot?.assets || []) if (a?.id) keep.add(a.id)
   }
+  for (const mirror of d.resourceFolderMirrors || []) {
+    for (const a of mirror.snapshot?.assets || []) if (a?.id) keep.add(a.id)
+  }
 
   const targeted = new Set<string>()
   for (const s of [assetIdUnion(res), assetIdUnion(tasks), assetIdUnion(curios), assetIdUnion(cats)]) for (const id of s) targeted.add(id)
@@ -184,6 +187,7 @@ export async function deleteAssetIfOrphan(id: string, selfCardId?: string): Prom
     if (heldElsewhere(d.resources) || heldElsewhere(d.tasks) || heldElsewhere(d.curiosities) || heldElsewhere(d.argCards) || heldElsewhere(d.categories)) return false
     if ((d.supportLinks || []).some(link => (link.snapshot?.assets || []).some(asset => asset?.id === id))) return false
     if ((d.curationProjections || []).some(projection => (projection.snapshot?.assets || []).some(asset => asset?.id === id))) return false
+    if ((d.resourceFolderMirrors || []).some(mirror => (mirror.snapshot?.assets || []).some(asset => asset?.id === id))) return false
   } catch { /* 仓库未加载（如 options 独立上下文）：按原语义直接删 */ }
   await deleteAsset(id)
   return true

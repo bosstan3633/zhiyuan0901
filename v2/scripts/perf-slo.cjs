@@ -2,7 +2,7 @@
 /**
  * 知源本地性能 SLO 采样。
  *
- * 真实加载 dist 扩展，用 Playwright 驱动十三类高频路径，输出 P50/P95 与预算判定。
+ * 真实加载 dist 扩展，用 Playwright 驱动十四类高频路径，输出 P50/P95 与预算判定。
  * 不读取历史报告、不生成模拟样本；任一采样失败或 P95 超预算，退出码为 1。
  *
  * 用法：
@@ -41,6 +41,7 @@ const BUDGETS = {
   pool_switch: 800,
   pool_filter: 500,
   pool_detail: 1200,
+  folder_drawer: 800,
   sync_changes_drawer: 1200,
   inbox_sort: 500,
   inbox_detail: 900,
@@ -57,6 +58,7 @@ const LABELS = {
   pool_switch: '任务 / 好奇心 / 资源卡池切换',
   pool_filter: '卡池状态 / 标签筛选',
   pool_detail: '三卡池详情打开',
+  folder_drawer: '资源常用夹抽屉打开',
   sync_changes_drawer: '同步内容明细抽屉',
   inbox_sort: 'Inbox 最新 / 最早排序',
   inbox_detail: 'Inbox 采集详情',
@@ -492,6 +494,30 @@ async function seedPerfBoard(page) {
         createdAt: now - index * 1000,
         updatedAt: now - index * 1000,
       })
+    }
+
+    const folderCount = 6
+    data.resourceFolders = Array.from({ length: folderCount }, (_, index) => ({
+      id: `perf-slo-folder-${index}`,
+      name: `性能常用夹 ${index + 1}`,
+      order: index,
+      createdAt: now - index * 1000,
+      updatedAt: now - index * 1000,
+    }))
+    data.resourceFolderMirrors = []
+    for (let folderIndex = 0; folderIndex < folderCount; folderIndex++) {
+      for (let memberIndex = 0; memberIndex < 40; memberIndex++) {
+        const source = data.resources.find(item => item.id === `perf-slo-pool-${memberIndex}`)
+        if (!source) continue
+        data.resourceFolderMirrors.push({
+          id: `perf-slo-folder-mirror-${folderIndex}-${memberIndex}`,
+          folderId: `perf-slo-folder-${folderIndex}`,
+          resourceId: source.id,
+          order: memberIndex,
+          addedAt: now - memberIndex * 1000,
+          snapshot: JSON.parse(JSON.stringify(source)),
+        })
+      }
     }
 
     const receiptAt = now - 18 * 60 * 1000
@@ -1004,6 +1030,37 @@ async function main() {
       ['每轮真实操作任务「推进中」、好奇心「探索中」、资源池「待打标」三次筛选；每次计到列表 DOM 实际变化。'],
       poolFilterError,
       longTaskSamples.pool_filter,
+      longTaskSupported,
+    )
+
+    // 6.1) 常用夹抽屉：从资源池控制行点击到六组夹具与成员列表可消费。
+    const folderDrawerSamples = []
+    let folderDrawerError = ''
+    try {
+      for (let index = 0; index < SAMPLE_COUNT; index++) {
+        await page.goto(base + `#/deck/resource?perf=folder-${index}`, { waitUntil: 'domcontentloaded' })
+        await waitForDeckPanel(page, 'pool')
+        const entry = page.locator('.pool-controls button, .pcp-toolbar button, button.pcp-btn')
+          .filter({ hasText: /常用夹/ }).first()
+        await entry.waitFor({ state: 'visible', timeout: 10000 })
+        const measured = await captureAction(page, async () => {
+          await entry.click()
+          await page.waitForSelector('.drawer .rfd-folder .rfd-row', { state: 'visible', timeout: 8000 })
+        })
+        folderDrawerSamples.push(measured.elapsed)
+        recordAction('folder_drawer', measured)
+        await page.locator('.drawer-close').first().click()
+        await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
+      }
+    } catch (error) {
+      folderDrawerError = error instanceof Error ? error.message : String(error)
+    }
+    report.metrics.folder_drawer = buildMetric(
+      'folder_drawer',
+      folderDrawerSamples,
+      ['从资源池“常用夹”入口点击到抽屉内六组、每组 40 条镜像成员可消费。'],
+      folderDrawerError,
+      longTaskSamples.folder_drawer,
       longTaskSupported,
     )
 

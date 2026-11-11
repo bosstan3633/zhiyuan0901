@@ -48,7 +48,8 @@ export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: Ca
 export type SyncManifestRecordType =
   | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'argument'
   | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'supportLink'
-  | 'curationProjection' | 'tag' | 'activity' | 'stats' | 'fieldConfig'
+  | 'curationProjection' | 'resourceFolder' | 'resourceFolderMirror'
+  | 'tag' | 'activity' | 'stats' | 'fieldConfig'
   | 'attachment' | 'event' | 'preference'
 export interface SyncManifestRecord {
   key: string
@@ -76,6 +77,8 @@ export interface SyncManifestCounts {
   dailyFocus: number
   supportLinks: number
   curationProjections: number
+  resourceFolders: number
+  resourceFolderMirrors: number
   tags: number
   activities: number
   events: number
@@ -301,6 +304,10 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
     if (!projection.snapshot?.assets?.length) continue
     projection.snapshot.assets = projection.snapshot.assets.map(safeAsset)
   }
+  for (const mirror of d.resourceFolderMirrors || []) {
+    if (!mirror.snapshot?.assets?.length) continue
+    mirror.snapshot.assets = mirror.snapshot.assets.map(safeAsset)
+  }
   const safeUi = ui ? JSON.parse(JSON.stringify(ui)) as UIPrefs : null
   if (safeUi) {
     delete (safeUi as unknown as Record<string, unknown>).__cloud
@@ -330,6 +337,8 @@ const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>
   metric: ['title', 'target', 'acceptance', 'taskIds', 'order'],
   supportLink: ['taskId', 'subId', 'resourceId', 'from', 'why', 'createdAt', 'snapshot'],
   curationProjection: ['kind', 'wsId', 'catId', 'cardId', 'targetWsId', 'targetCatId', 'curOrder', 'displayName', 'addedAt', 'snapshot'],
+  resourceFolder: ['name', 'order', 'createdAt', 'updatedAt'],
+  resourceFolderMirror: ['folderId', 'resourceId', 'order', 'addedAt', 'snapshot'],
   tag: ['name', 'definition'],
   activity: ['type', 'entityType', 'entityId', 'timestamp', 'detail'],
   stats: ['weekly', 'lastReuse', 'lastVisits', 'wrr'],
@@ -385,7 +394,8 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   const counts: SyncManifestCounts = {
     workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, arguments: 0,
     directions: 0, projects: 0, metrics: 0, dailyFocus: 0, supportLinks: 0,
-    curationProjections: 0, tags: 0, activities: 0, events: clean.eventLog.length,
+    curationProjections: 0, resourceFolders: 0, resourceFolderMirrors: 0,
+    tags: 0, activities: 0, events: clean.eventLog.length,
     preferences: clean.ui ? 1 : 0, businessTotal: 0, attachments: 0,
     pendingAttachments: 0, failedAttachments: 0,
   }
@@ -475,6 +485,25 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
       projection.addedAt,
     ))
   }
+  const folderNames = new Map<string, string>()
+  for (const folder of data.resourceFolders || []) {
+    counts.resourceFolders += 1
+    folderNames.set(folder.id, folder.name)
+    add(manifestRecord('resourceFolder', folder.id, folder.name, folder, folder.updatedAt))
+  }
+  const resourcesById = new Map((data.resources || []).map(resource => [resource.id, resource]))
+  for (const mirror of data.resourceFolderMirrors || []) {
+    counts.resourceFolderMirrors += 1
+    const folderName = folderNames.get(mirror.folderId) || '常用夹'
+    const cardTitle = mirror.snapshot?.title || resourcesById.get(mirror.resourceId)?.title || mirror.resourceId
+    add(manifestRecord(
+      'resourceFolderMirror',
+      mirror.id,
+      `${folderName} → ${cardTitle}`,
+      mirror,
+      mirror.addedAt,
+    ))
+  }
   const collectTags = (tags: typeof data.tagTree) => {
     for (const tag of tags || []) {
       counts.tags += 1
@@ -518,7 +547,8 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   collectAssets(data.argCards || [])
   counts.businessTotal = counts.workspaces + counts.categories + counts.resources + counts.tasks
     + counts.curiosities + counts.arguments + counts.directions + counts.projects + counts.metrics
-    + counts.dailyFocus + counts.supportLinks + counts.curationProjections + counts.tags
+    + counts.dailyFocus + counts.supportLinks + counts.curationProjections
+    + counts.resourceFolders + counts.resourceFolderMirrors + counts.tags
     + counts.activities
 
   return {

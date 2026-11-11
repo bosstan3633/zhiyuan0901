@@ -32,6 +32,8 @@ const TYPE_LABEL: Record<SyncManifestRecordType, string> = {
   dailyFocus: '今日三件事',
   supportLink: '任务 → 资源',
   curationProjection: '策展节点 → 资源',
+  resourceFolder: '常用夹',
+  resourceFolderMirror: '常用夹 → 资源镜像',
   tag: '标签',
   activity: '操作记录',
   stats: '使用统计',
@@ -101,6 +103,7 @@ const FIELD_LABEL: Record<string, string> = {
   displayName: '显示名',
   addedAt: '加入时间',
   snapshot: '挂载时快照',
+  folderId: '所属常用夹',
   definition: '收卡定义',
   type: '操作类型',
   entityType: '对象类型',
@@ -149,7 +152,8 @@ export function syncGroupOf(type: SyncManifestRecordType): Exclude<SyncRecordGro
   if (type === 'workspace' || type === 'category' || type === 'argument' || type === 'attachment') return 'curation'
   if (type === 'direction' || type === 'project' || type === 'metric') return 'direction'
   if (type === 'dailyFocus') return 'dailyFocus'
-  if (type === 'supportLink' || type === 'curationProjection') return 'relations'
+  if (type === 'supportLink' || type === 'curationProjection' || type === 'resourceFolderMirror') return 'relations'
+  if (type === 'resourceFolder') return 'cards'
   return 'system'
 }
 

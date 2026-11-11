@@ -32,6 +32,12 @@ import DeckControls from './DeckControls.vue'
 import CardAiEntry from '../CardAiEntry.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { projectCardToBoardEx } from '@/shared/storage/hub'
+import {
+  folderIdsOfResource,
+  resourceFoldersOf,
+} from '@/shared/storage/resourceFolders'
+import ResourceFolderDrawer from './ResourceFolderDrawer.vue'
+import ResourceFolderBatchModal from './ResourceFolderBatchModal.vue'
 
 const store = useAppStore()
 const route = useRoute()
@@ -197,6 +203,52 @@ function mirrorNamesOf(r: ResourceCard): string[] {
 }
 function isMirrored(r: ResourceCard): boolean {
   return (store.data?.curationProjections || []).some(p => p.kind === 'card' && p.cardId === r.id)
+}
+
+/* V4.2.2：常用夹是资源卡的另一种独立镜像。与策展投射共用入口语言，
+ * 但成员关系、快照和生命周期都与策展台镜像分开。 */
+const foldersOpen = ref(false)
+const folderBatchOpen = ref(false)
+const folderBatchIds = ref<string[]>([])
+const folders = computed(() => resourceFoldersOf(store.data!))
+const folderCount = computed(() => (store.data?.resourceFolderMirrors || []).length)
+const folderNamesByResource = computed(() => {
+  const names = new Map<string, string[]>()
+  const byFolder = new Map(folders.value.map(folder => [folder.id, folder.name]))
+  for (const mirror of store.data?.resourceFolderMirrors || []) {
+    const folderName = byFolder.get(mirror.folderId)
+    if (!folderName) continue
+    const list = names.get(mirror.resourceId) || []
+    if (!list.includes(folderName)) list.push(folderName)
+    names.set(mirror.resourceId, list)
+  }
+  return names
+})
+
+function folderNamesOf(r: ResourceCard): string[] {
+  return folderNamesByResource.value.get(r.id) || []
+}
+
+function folderCountOf(r: ResourceCard): number {
+  return folderIdsOfResource(store.data!, r.id).size
+}
+
+function openFolderBatch(ids: string[]): void {
+  if (!ids.length) {
+    showToast('还没选中卡片')
+    return
+  }
+  folderBatchIds.value = [...new Set(ids)]
+  folderBatchOpen.value = true
+}
+
+function openSingleFolder(r: ResourceCard): void {
+  openFolderBatch([r.id])
+}
+
+function folderMirrorCountLabel(r: ResourceCard): string {
+  const count = folderCountOf(r)
+  return count ? `常用夹 · ${count}` : ''
 }
 /** 批量投射：只处理当前选中、仍有可打开链接的池卡；超过 15 张先确认，避免误开一屏标签页。 */
 async function batchOpen() {
@@ -376,6 +428,7 @@ function openCtx(e: MouseEvent, r: ResourceCard) {
     { label: '打开详情', icon: 'eye', cb: () => emitOpenDrawer({ kind: 'res', id: r.id }) },
     { label: r.starred ? '取消星标' : '星标', icon: 'star', cb: () => toggleStar(r) },
     { label: r.pinned ? '取消置顶' : '置顶', cb: () => togglePin(r) },
+    { label: folderCountOf(r) ? `加入其他常用夹（已在 ${folderCountOf(r)} 个）` : '加入常用夹…', icon: 'folder', cb: () => openSingleFolder(r) },
     ...(r.link ? [{ label: '复制链接', cb: () => { void navigator.clipboard?.writeText(r.link).then(() => showToast('链接已复制'), () => showToast('复制失败（浏览器未授权剪贴板）')) } }] : []),
     { label: '删除（进回收站）', icon: 'trash', danger: true, cb: () => removeCard(r) }
   ]
@@ -474,6 +527,9 @@ function deleteSelected() {
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
       :new-label="secondaryMode ? '' : '＋ 新建卡'" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
       <button v-if="!secondaryMode" class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()"><Icon name="inbox" :size="13"/> 导入本地文件</button>
+      <button class="pcp-btn" :title="`打开常用夹 · ${folderCount} 条资源镜像`" @click="foldersOpen = true">
+        <Icon name="folder" :size="13"/> 常用夹 {{ folders.length }}
+      </button>
       <!-- ★W15-T3（用户拍板 2026-10-16）链接类型分组下拉：组序固定 本地文件 → URL → Obsidian → 无链接（垫底）；
            再点一次同一组 = 取消分组（回到平铺）。分组只在列表视图生效（网格不做分组，避免一屏信息过载）。 -->
       <template #count><button v-if="viewMode === 'list' && groupBy && groupSections.length" class="pcp-btn sm"
@@ -486,6 +542,7 @@ function deleteSelected() {
     <DeckBatchBar v-if="batchMode" :size="selSize" :total="poolCards.length" :all-selected="allSelected"
       unit="张" @select-all="selectAll" @invert="invertSel" @apply-tag="applyTagToSelected">
       <button class="pcp-btn sm" :disabled="!selSize" @click="batchOpen"><Icon name="external" :size="13"/> 批量打开</button>
+      <button class="pcp-btn sm" :disabled="!selSize" @click="openFolderBatch(Array.from(selected))"><Icon name="folder" :size="13"/> 加入常用夹</button>
       <button class="pcp-btn sm" :disabled="!selSize" @click="openBatchMirror"><Icon name="mirror" :size="13"/> 投射到策展台</button>
       <button class="pcp-btn sm danger" :disabled="!selSize" @click="deleteSelected"><Icon name="trash" :size="13"/> 删除（进回收站）</button>
     </DeckBatchBar>
@@ -531,7 +588,8 @@ function deleteSelected() {
             @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
             <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
             <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶"><Icon name="pin" :size="13"/></span>{{ r.title }}
-              <span v-if="mirrorNamesOf(r).length" class="pcp-mirror-badge" :title="'已镜像到：' + mirrorNamesOf(r).join('、')"><Icon name="mirror" :size="13"/> 已镜像 · {{ mirrorNamesOf(r).length }}</span></span>
+              <span v-if="mirrorNamesOf(r).length" class="pcp-mirror-badge" :title="'已镜像到：' + mirrorNamesOf(r).join('、')"><Icon name="mirror" :size="13"/> 已镜像 · {{ mirrorNamesOf(r).length }}</span>
+              <span v-if="folderCountOf(r)" class="pcp-folder-badge" :title="'已在常用夹：' + folderNamesOf(r).join('、')"><Icon name="folder" :size="13"/> {{ folderMirrorCountLabel(r) }}</span></span>
             <span class="pcp-r-tags">
               <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
               <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
@@ -551,6 +609,9 @@ function deleteSelected() {
                   :title="isMirrored(r) ? '这张卡已镜像过（点可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
                   @click.stop="openMirror(r)"><Icon name="mirror" :size="13"/></button>
               </span>
+              <button v-if="!batchMode" class="pcp-act" :class="{ on: folderCountOf(r) }"
+                :title="folderCountOf(r) ? `已在 ${folderCountOf(r)} 个常用夹（点可继续加入）` : '加入常用夹（独立镜像，不移动源卡）'"
+                @click.stop="openSingleFolder(r)"><Icon name="folder" :size="13"/></button>
               <button v-if="!batchMode" class="pcp-act pcp-pin-btn" :class="{ on: r.pinned }"
                 :title="r.pinned ? '已置顶，点击取消' : '置顶（排到最前）'" @click.stop="togglePin(r)"><Icon name="pin" :size="13"/></button>
               <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)"><Icon name="trash" :size="13"/></button>
@@ -564,7 +625,8 @@ function deleteSelected() {
         :title="batchMode ? '点击选中 / 取消' : r.title + ' · 单击打开详情 · 双击打开链接 · 右键更多'" @click="openCard(r)" @dblclick="onCardDblClick(r)" @contextmenu="openCtx($event, r)">
         <span v-if="batchMode" class="pcp-check"><Icon v-if="selected.has(r.id)" name="check" :size="12"/></span>
         <span class="pcp-r-title"><NewBadge :at="r.createdAt" /><span v-if="r.pinned" class="pcp-pin" title="已置顶"><Icon name="pin" :size="13"/></span>{{ r.title }}
-          <span v-if="mirrorNamesOf(r).length" class="pcp-mirror-badge" :title="'已镜像到：' + mirrorNamesOf(r).join('、')"><Icon name="mirror" :size="13"/> 已镜像 · {{ mirrorNamesOf(r).length }}</span></span>
+          <span v-if="mirrorNamesOf(r).length" class="pcp-mirror-badge" :title="'已镜像到：' + mirrorNamesOf(r).join('、')"><Icon name="mirror" :size="13"/> 已镜像 · {{ mirrorNamesOf(r).length }}</span>
+          <span v-if="folderCountOf(r)" class="pcp-folder-badge" :title="'已在常用夹：' + folderNamesOf(r).join('、')"><Icon name="folder" :size="13"/> {{ folderMirrorCountLabel(r) }}</span></span>
         <span class="pcp-r-tags">
           <span v-if="!(r.tags || []).length" class="pcp-tag-none" title="无标签——任何筛选都召回不到它">无标签</span>
           <span v-for="t in (r.tags || [])" :key="t" class="pcp-tag">{{ t }}</span>
@@ -584,6 +646,9 @@ function deleteSelected() {
               :title="isMirrored(r) ? '这张卡已镜像过（点可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
               @click.stop="openMirror(r)"><Icon name="mirror" :size="13"/></button>
           </span>
+          <button v-if="!batchMode" class="pcp-act" :class="{ on: folderCountOf(r) }"
+            :title="folderCountOf(r) ? `已在 ${folderCountOf(r)} 个常用夹（点可继续加入）` : '加入常用夹（独立镜像，不移动源卡）'"
+            @click.stop="openSingleFolder(r)"><Icon name="folder" :size="13"/></button>
           <button v-if="!batchMode" class="pcp-act pcp-pin-btn" :class="{ on: r.pinned }"
             :title="r.pinned ? '已置顶，点击取消' : '置顶（排到最前）'" @click.stop="togglePin(r)"><Icon name="pin" :size="13"/></button>
           <button v-if="!batchMode" class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)"><Icon name="trash" :size="13"/></button>
@@ -608,6 +673,9 @@ function deleteSelected() {
             <button class="pcp-del" :class="{ on: mirrorNamesOf(r).length > 0 }"
               :title="mirrorNamesOf(r).length ? '已镜像到：' + mirrorNamesOf(r).join('、') + '（可再镜像到其他台）' : '镜像到策展台（引用投射，源卡仍在池里）'"
               @click.stop="openMirror(r)"><Icon name="mirror" :size="13"/></button>
+            <button class="pcp-del" :class="{ on: folderCountOf(r) }"
+              :title="folderCountOf(r) ? `已在 ${folderCountOf(r)} 个常用夹（点可继续加入）` : '加入常用夹（独立镜像，不移动源卡）'"
+              @click.stop="openSingleFolder(r)"><Icon name="folder" :size="13"/></button>
             <button class="pcp-del pcp-pin-btn" :class="{ on: r.pinned }"
               :title="r.pinned ? '已置顶，点击取消' : '置顶（排到最前）'" @click.stop="togglePin(r)"><Icon name="pin" :size="13"/></button>
             <button class="pcp-del" title="删除（进回收站，可撤销）" @click.stop="removeCard(r)"><Icon name="trash" :size="13"/></button>
@@ -616,6 +684,7 @@ function deleteSelected() {
         <div class="pcp-foot">
           <span v-if="r.link" class="pcp-mark" title="已挂链接"><Icon name="link" :size="13"/></span>
           <span v-if="r.assets?.length" class="pcp-mark" title="有附件"><Icon name="paperclip" :size="13"/></span>
+          <span v-if="folderCountOf(r)" class="pcp-folder-badge" :title="'已在常用夹：' + folderNamesOf(r).join('、')"><Icon name="folder" :size="13"/> {{ folderMirrorCountLabel(r) }}</span>
           <span v-for="t in (r.tags || []).slice(0, 3)" :key="t" class="pcp-tag">{{ t }}</span>
           <span class="pcp-date">{{ new Date(r.updatedAt || r.createdAt || Date.now()).toLocaleDateString('zh-CN') }}</span>
         </div>
@@ -626,6 +695,8 @@ function deleteSelected() {
 
     <!-- ★W17-C06：镜像多选弹窗（列表 / 网格同一入口） -->
     <ResourceMirrorModal :open="mirrorOpen" :card-id="mirrorFor?.id || null" :card-title="mirrorFor?.title || ''" @close="mirrorFor = null" />
+    <ResourceFolderDrawer :open="foldersOpen" @close="foldersOpen = false" />
+    <ResourceFolderBatchModal :open="folderBatchOpen" :card-ids="folderBatchIds" @close="folderBatchOpen = false" />
 
     <!-- 批量投射是“引用复制到台”，不是把池卡搬进某个分类；因此只选台，不选分类。 -->
     <Teleport to="body">
@@ -738,6 +809,7 @@ function deleteSelected() {
 .pcp-top :deep(.rc-action:hover) { color: var(--accent); background: var(--accent-light); }
 .pcp-mirror-wrap { position: relative; display: inline-flex; }
 .pcp-mirror-badge { font-size: var(--fs-micro); color: var(--accent-ink); background: var(--accent-light); border-radius: 99px; padding: 1px 6px; margin-left: 6px; }
+.pcp-folder-badge { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); color: var(--text-2); background: var(--surface-3); border-radius: 99px; padding: 1px 6px; margin-left: 6px; }
 /* ★W15-T3 分组下拉 + 组头 */
 .pcp-group-sec { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .pcp-group-h {

@@ -87,6 +87,7 @@ export function clearAllAssetReferences(d: {
   categories?: { assets?: { id: string }[] }[]
   supportLinks?: { snapshot?: { assets?: { id: string }[] } }[]
   curationProjections?: { snapshot?: { assets?: { id: string }[] } }[]
+  resourceFolderMirrors?: { snapshot?: { assets?: { id: string }[] } }[]
 }): number {
   let changed = 0
   const clear = (cards: { assets?: { id: string }[] }[] | undefined) => {
@@ -104,6 +105,7 @@ export function clearAllAssetReferences(d: {
   clear(d.categories)
   clear((d.supportLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   clear((d.curationProjections || []).map(projection => projection.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
+  clear((d.resourceFolderMirrors || []).map(mirror => mirror.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   return changed
 }
 
@@ -206,6 +208,7 @@ export function collectReferencedAssetIds(d: {
   categories?: { assets?: { id: string }[] }[]
   supportLinks?: { snapshot?: { assets?: { id: string }[] } }[]
   curationProjections?: { snapshot?: { assets?: { id: string }[] } }[]
+  resourceFolderMirrors?: { snapshot?: { assets?: { id: string }[] } }[]
 }): Set<string> {
   const keep = new Set<string>()
   const collect = (cards: { assets?: { id: string }[] }[] | undefined) =>
@@ -217,6 +220,7 @@ export function collectReferencedAssetIds(d: {
   collect(d.categories)
   collect((d.supportLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   collect((d.curationProjections || []).map(projection => projection.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
+  collect((d.resourceFolderMirrors || []).map(mirror => mirror.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   return keep
 }
 

@@ -14,5 +14,5 @@ export function buildDailyFocusCopyText(input: DailyFocusCopyInput): string {
   const metric = cleanPart(input.metricName)
   const task = cleanPart(input.taskTitle)
   if (!project || !metric || !task) return ''
-  return `今天计划推进${project}项目下${metric}成功指标的${task}任务`
+  return `推进[[${project}]]项目，${task}，助力【${metric}】指标落实到位`
 }

@@ -12,6 +12,7 @@ import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs } from '.
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 import { hydrateResourceMirrorSnapshots } from './resourceMirrors'
+import { hydrateResourceFolderMirrorSnapshots, pruneResourceFolderMirrors } from './resourceFolders'
 import { reconcileCapturedResources } from './captureDedupe'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY } from '@/shared/utils/eventLog'
@@ -162,6 +163,9 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
      ★纪律：**归一化必须挂在"数据入库的那一层"，不能挂在"某条读路径上"**——
        挂在读路径上，每新增一个读入口就漏一个；而入库层是唯一的。 */
   normalizeLegacyCards(data)
+  data.resourceFolders = Array.isArray(data.resourceFolders) ? data.resourceFolders : []
+  data.resourceFolderMirrors = Array.isArray(data.resourceFolderMirrors) ? data.resourceFolderMirrors : []
+  pruneResourceFolderMirrors(data)
   // 老库或外部导入可能整块没有 fieldConfig；设置页字段组依赖 resource/task/curiosity，
   // 缺失时会在渲染期抛错。入库层补默认组，确保所有读入口得到同一套可用结构。
   if (!data.fieldConfig) data.fieldConfig = defaultFieldConfig()
@@ -222,6 +226,7 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   // V4.2.0：旧任务支持 / 策展投射只要真身仍在，就幂等补一份独立快照。
   // 必须在悬空投射清理之前执行，否则旧记录会被误判为失去来源。
   try { hydrateResourceMirrorSnapshots(data) } catch { /* noop */ }
+  try { hydrateResourceFolderMirrorSnapshots(data) } catch { /* noop */ }
   // R70：悬空投射清理——源卡被硬删（回收站清空）后指向它的投射记录会永久留存、无界增长。幂等，启动期一次。
   try { pruneDanglingProjections(data) } catch { /* noop */ }
   // R110-BUG1：资源台镜像标记净化——视图模型标记（__mirrorProjId/__mirrorCat）误持久化 + 指向资源台的投射
@@ -563,6 +568,8 @@ export function mergeExternalData(ext: AppData): AppData {
     fieldConfig: jsonEq(cur.fieldConfig, snap.fieldConfig) ? ext.fieldConfig : cur.fieldConfig,
     stats: jsonEq(cur.stats, snap.stats) ? ext.stats : cur.stats,
     curationProjections: mergeByIdArr(cur.curationProjections || [], snap.curationProjections || [], ext.curationProjections || []),
+    resourceFolders: mergeByIdArr(cur.resourceFolders || [], snap.resourceFolders || [], ext.resourceFolders || []),
+    resourceFolderMirrors: mergeByIdArr(cur.resourceFolderMirrors || [], snap.resourceFolderMirrors || [], ext.resourceFolderMirrors || []),
     /* R166 定案 5：SupportLink 是"无 updatedAt 的实体段"，与 curationProjections 同法按 id 取并集。
        不能走卡片那条 LWW 骨架——它没有 updatedAt 可比，按时间戳合并会把另一端的关联整段冲掉。 */
     supportLinks: mergeByIdArr(cur.supportLinks || [], snap.supportLinks || [], ext.supportLinks || []),

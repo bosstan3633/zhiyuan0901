@@ -98,6 +98,8 @@ export function createDefaultData(): AppData {
     tasks: [],
     curiosities: [],
     argCards: [],
+    resourceFolders: [],
+    resourceFolderMirrors: [],
     dailyFocus: {},
     tagTree: [],
     fieldConfig: defaultFieldDefs(),

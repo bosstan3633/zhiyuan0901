@@ -34,6 +34,7 @@ import ThesisBlock from '@/newtab/components/ThesisBlock.vue'
 import DetailTitle from './DetailTitle.vue'
 import ResourceAiStrip from './ResourceAiStrip.vue'
 import ResourceMirrorModal from './ResourceMirrorModal.vue'
+import ResourceFolderBatchModal from './compass/ResourceFolderBatchModal.vue'
 
 const store = useAppStore()
 const resourceData = computed<AppData>(() => store.data as AppData)
@@ -142,6 +143,7 @@ function copyLink() {
    原先本抽屉是「行内选台下拉 + 一枚动作」，与资源卡池的行内浮层各写一套，且都已镜像时还提示成功。
    现在两个宿主（本抽屉 / 资源卡池）共用同一个多选弹窗：勾选=镜像、取消勾选=移出、可多选。 */
 const mirrorOpen = ref(false)
+const folderOpen = ref(false)
 
 function fmtTs(ts?: number): string {
   return ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '—'
@@ -215,6 +217,7 @@ const kicker = computed(() => {
         <template v-if="(store.data?.workspaces || []).some(w => w.kind !== 'resource' && w.id !== CURATION_WS_ID && !w.archived)">
           <button class="ds-ib" title="镜像到策展台（可多选，取消勾选即移出）" @click="mirrorOpen = true"><Icon name="mirror" :size="13"/></button>
         </template>
+        <button class="ds-ib" title="加入常用夹（独立资源镜像，不移动源卡）" @click="folderOpen = true"><Icon name="folder" :size="13"/></button>
       </template>
       <!-- 宿主差异内容：落在「关联与凭证」面板内 -->
       <template #extra>
@@ -232,6 +235,7 @@ const kicker = computed(() => {
 
   <!-- ★W17-C06：与资源卡池同一枚镜像弹窗（一份实现） -->
   <ResourceMirrorModal :open="mirrorOpen" :card-id="resId" :card-title="editing.title" @close="mirrorOpen = false" />
+  <ResourceFolderBatchModal :open="folderOpen" :card-ids="resId ? [resId] : []" @close="folderOpen = false" />
 </template>
 
 <style scoped>

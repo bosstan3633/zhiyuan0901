@@ -243,6 +243,38 @@ export interface CurationProjection {
   snapshot?: ResourceCard
 }
 
+/**
+ * 资源卡常用夹（V4.2.2）。
+ *
+ * 常用夹只保存分组本身；成员关系存独立表 `resourceFolderMirrors`。
+ * 这样同一张资源卡可同时镜像到多个常用夹，且与策展投射完全解耦。
+ */
+export interface ResourceFolder {
+  id: ID
+  name: string
+  order: number
+  createdAt: number
+  updatedAt: number
+}
+
+/**
+ * 常用夹 → 资源卡的引用式资源镜像。
+ *
+ * 与 CurationProjection / SupportLink 同构：
+ * - 挂载时写入独立 snapshot；
+ * - 之后源卡编辑、软删或硬删都不影响镜像；
+ * - 移出镜像或删除常用夹都不影响源卡；
+ * - 同一 (folderId, resourceId) 幂等，不同常用夹可各存一份。
+ */
+export interface ResourceFolderMirror {
+  id: ID
+  folderId: ID
+  resourceId: ID
+  order: number
+  addedAt: number
+  snapshot?: ResourceCard
+}
+
 /** 任务卡（行动闭环） */
 export interface TaskCard extends CardBase {
   kind: 'task'
@@ -527,6 +559,10 @@ export interface AppData {
   projBackfillFixed?: number
   /** R50-F3：策展中心投射清单（引用式镜像；导入合并按 id 取并集）。R61 起方向反转：资源台 → 策展台（targetWsId 标记） */
   curationProjections?: CurationProjection[]
+  /** V4.2.2：资源卡常用夹。数量不限；成员关系另存 resourceFolderMirrors。 */
+  resourceFolders?: ResourceFolder[]
+  /** V4.2.2：常用夹 → 资源卡的独立资源镜像；删除源卡不级联删除镜像。 */
+  resourceFolderMirrors?: ResourceFolderMirror[]
   /** R166 定案 5：任务/子任务 ↔ 资源的「支持」关联记录（独立表，卡对象互不持有 id；导入合并同 `curationProjections` 走 mergeByIdArr） */
   supportLinks?: SupportLink[]
   /** 好奇心卡 ↔ 资源的支撑关联记录（独立表；导入合并按 id 并集） */

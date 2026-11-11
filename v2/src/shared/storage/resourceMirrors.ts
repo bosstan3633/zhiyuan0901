@@ -1,4 +1,4 @@
-import type { AppData, CurationProjection, ResourceCard, SupportLink } from '@/shared/models'
+import type { AppData, CurationProjection, ResourceCard, ResourceFolderMirror, SupportLink } from '@/shared/models'
 
 /** 复制一份与真身脱钩、可独立存活的只读资源快照。 */
 export function cloneResourceMirrorSnapshot(resource: ResourceCard): ResourceCard {
@@ -32,6 +32,13 @@ export function hydrateResourceMirrorSnapshots(d: AppData): number {
     projection.snapshot = cloneResourceMirrorSnapshot(source)
     changed++
   }
+  for (const mirror of d.resourceFolderMirrors || []) {
+    if (mirror.snapshot) continue
+    const source = byId.get(mirror.resourceId)
+    if (!source) continue
+    mirror.snapshot = cloneResourceMirrorSnapshot(source)
+    changed++
+  }
   return changed
 }
 
@@ -50,4 +57,13 @@ export function resourceOfCurationProjection(
   const id = projection.cardId || ''
   if (!id) return null
   return d.resources.find(resource => resource.id === id && !resource.deletedAt) || null
+}
+
+/** 常用夹镜像展示优先使用挂载时快照；源卡已硬删时镜像仍可独立存在。 */
+export function resourceOfFolderMirror(
+  d: AppData,
+  mirror: ResourceFolderMirror,
+): ResourceCard | null {
+  if (mirror.snapshot) return mirror.snapshot
+  return d.resources.find(resource => resource.id === mirror.resourceId && !resource.deletedAt) || null
 }

@@ -1962,7 +1962,7 @@ async function main() {
   const selAfterInvert = parseInt((await page.locator('.pcp .dkb-count').textContent().catch(() => 'x'))?.replace(/\D/g, '') || 'x', 10)
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').includes('退出批量')) b.click() })
   await page.waitForTimeout(400)
-  // 右键取「甲」——它有链接，菜单应是五件：打开详情 / 星标 / 置顶 / 复制链接 / 删除。
+  // 右键取「甲」——它有链接，菜单应是六件：打开详情 / 星标 / 置顶 / 加入常用夹 / 复制链接 / 删除。
   // 无链接的卡会少「复制链接」一项，恰好证明它是条件项，而不是固定渲染空动作。
   const cardA = page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first()
   await cardA.click({ button: 'right' }).catch(() => {})
@@ -1986,7 +1986,7 @@ async function main() {
   )
   report('E2E-30 ★R3-Ca 池面板：网格↔列表同源 → 待打标只留无标签卡 → 全选后反选归零 → 右键菜单置顶落库并出 📌',
     gridCount >= 3 && listCount === gridCount && noTagShown && untaggedIsB && selAll >= 3 && selAfterInvert === 0
-    && ctxItems.length === 5 && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
+    && ctxItems.length === 6 && ctxItems.some(x => x.includes('加入常用夹')) && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
     `网格=${gridCount} 列表=${listCount} 待打标只留乙=${untaggedIsB} 全选=${selAll}→反选=${selAfterInvert} 菜单=${JSON.stringify(ctxItems)} 落库pinned=${pinnedBack.pinned} 徽标=${pinBadge}`)
 
   // E2E-31（R3-Cb）：三张卡批量口径合一——批量栏进来就在、全选/反选可达、退出即清空、任务补批量打标
@@ -3340,7 +3340,7 @@ await paOpen()
   const copyToast = await waitForLocator(page, '.toast-msg', { visible: true, timeout: 4000 })
   const copyToastText = (await page.locator('.toast-msg').last().textContent().catch(() => '') || '').replace(/\s+/g, ' ').trim()
   const copiedText = await page.evaluate(() => globalThis.__e2eCopiedText || '').catch(() => '')
-  const expectedCopy = '今天计划推进软硬一体服务系统解决方案项目下产品解决方案成功指标的设计解决方案报价模板任务'
+  const expectedCopy = '推进[[软硬一体服务系统解决方案]]项目，设计解决方案报价模板，助力【产品解决方案】指标落实到位'
 
   await ctx.unroute('**/rest/v1/capture_inbox**').catch(() => {})
   const inlineInbox = [{
@@ -3599,6 +3599,160 @@ await paOpen()
       && nodeAAgain.checkbox === 0 && nodeAAgain.badge === '已在本节点'
       && nodeAAgain.mirrored && multiNodeProjectionCount === 2,
     `A=${JSON.stringify(nodeAAvailable)}/${nodeALinked} B=${JSON.stringify(nodeBAvailable)}/${bothNodesLinked} 回A=${JSON.stringify(nodeAAgain)} 投射=${multiNodeProjectionCount}`)
+
+  // ══════════ E2E-60/61（V4.2.2）常用夹独立镜像与策展台批量打开原链 ══════════
+  const v422BoardId = 'e2e-v422-board'
+  const v422NodeId = 'e2e-v422-node'
+  const v422FolderName = 'E2E V4.2.2 常用夹'
+  const v422Cards = [
+    {
+      id: 'e2e-v422-card-a', kind: 'resource', title: 'E2E V4.2.2 资源 A', linkType: 'url',
+      link: 'https://example.com/e2e/v422/a', workspaceId: 'zy-curation', categoryId: '', tags: ['E2E'],
+      pinned: false, starred: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id: 'e2e-v422-card-b', kind: 'resource', title: 'E2E V4.2.2 资源 B', linkType: 'url',
+      link: 'https://example.com/e2e/v422/b', workspaceId: 'zy-curation', categoryId: '', tags: ['E2E'],
+      pinned: false, starred: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id: 'e2e-v422-card-a-duplicate', kind: 'resource', title: 'E2E V4.2.2 重复地址 A', linkType: 'url',
+      link: 'https://example.com/e2e/v422/a', workspaceId: 'zy-curation', categoryId: '', tags: ['E2E'],
+      pinned: false, starred: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id: 'e2e-v422-card-no-link', kind: 'resource', title: 'E2E V4.2.2 无链接资源', linkType: 'url',
+      link: '', workspaceId: 'zy-curation', categoryId: '', tags: ['E2E'],
+      pinned: false, starred: false, callCount: 0, customFields: {}, createdAt: Date.now(), updatedAt: Date.now(),
+    },
+  ]
+  await ctx.route('https://example.com/e2e/v422/**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: '<!doctype html><title>V4.2.2 E2E</title><p>V4.2.2 E2E link opened</p>',
+  }))
+  await page.evaluate(async ({ boardId, nodeId, cards }) => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const data = cur.zy_data_v2
+    if (!data) return
+    data.workspaces = (data.workspaces || []).filter(row => row.id !== boardId)
+    data.workspaces.push({
+      id: boardId, name: 'E2E V4.2.2 策展台', icon: '🧪', color: '#3A6B4C',
+      coverTheme: 'deep-sea', order: 120, archived: false, kind: 'curation',
+    })
+    data.categories = (data.categories || []).filter(row => row.id !== nodeId)
+    data.categories.push({ id: nodeId, workspaceId: boardId, name: 'E2E V4.2.2 证据节点', order: 0 })
+    const ids = new Set(cards.map(card => card.id))
+    data.resources = (data.resources || []).filter(row => !ids.has(row.id))
+    data.resources.push(...cards.map(card => ({ ...card })))
+    data.curationProjections = (data.curationProjections || []).filter(row => !ids.has(row.cardId))
+    for (const card of cards) {
+      data.curationProjections.push({
+        id: `e2e-v422-proj-${card.id}`,
+        kind: 'card',
+        wsId: 'zy-curation',
+        cardId: card.id,
+        catId: '',
+        targetWsId: boardId,
+        targetCatId: nodeId,
+        addedAt: Date.now(),
+        snapshot: { ...card },
+      })
+    }
+    data.resourceFolders = []
+    data.resourceFolderMirrors = []
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }, { boardId: v422BoardId, nodeId: v422NodeId, cards: v422Cards })
+
+  const v422PopupUrls = () => ctx.pages()
+    .map(row => row.url())
+    .filter(url => url.startsWith('https://example.com/e2e/v422/'))
+  await page.goto(base + '#/workspace/' + v422BoardId, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, `[data-mind-node="${v422NodeId}"]`, { visible: true, timeout: 12000 })
+  const bulkOpenButton = page.locator('button.hero-btn').filter({ hasText: '打开全部资源' }).first()
+  await bulkOpenButton.waitFor({ state: 'visible', timeout: 8000 })
+  const bulkOpenLabel = ((await bulkOpenButton.innerText()) || '').replace(/\s+/g, ' ').trim()
+  await bulkOpenButton.click()
+  const bulkUrls = await pollUntil(() => {
+    const urls = [...new Set(v422PopupUrls())].sort()
+    return urls.length >= 2 ? urls : false
+  }, { timeout: 8000, label: '策展台批量打开原链' })
+  const bulkUrlList = Array.isArray(bulkUrls) ? bulkUrls : []
+  const bulkOk = /打开全部资源\s*2/.test(bulkOpenLabel)
+    && bulkUrlList.includes('https://example.com/e2e/v422/a')
+    && bulkUrlList.includes('https://example.com/e2e/v422/b')
+    && !bulkUrlList.includes('')
+  report('E2E-61 ★V4.2.2 策展台“打开全部资源”按本台去重打开：重复 A 只开一次、无链接跳过，B 正常打开',
+    bulkOk, `按钮=${JSON.stringify(bulkOpenLabel)} URLs=${JSON.stringify(bulkUrlList)}`)
+  for (const popup of ctx.pages()) {
+    if (popup !== page && popup.url().startsWith('https://example.com/e2e/v422/')) await popup.close().catch(() => {})
+  }
+
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const folderEntry = page.locator('button.pcp-btn').filter({ hasText: /常用夹/ }).first()
+  await folderEntry.waitFor({ state: 'visible', timeout: 10000 })
+  await folderEntry.click()
+  await waitForLocator(page, '.rfd-create input', { visible: true, timeout: 8000 })
+  await page.locator('.rfd-create input').fill(v422FolderName)
+  await page.locator('.rfd-create button').click()
+  const folderCreated = await waitForStorage(page, 'zy_data_v2', raw =>
+    (raw.zy_data_v2?.resourceFolders || []).some(folder => folder.name === v422FolderName),
+  { timeout: 8000 })
+  const folderPanel = page.locator('.rfd-folder').filter({ hasText: v422FolderName }).first()
+  await folderPanel.waitFor({ state: 'visible', timeout: 8000 })
+  await folderPanel.locator('button').filter({ hasText: '添加卡片' }).click()
+  await waitForLocator(page, '.md-panel .rfp-row', { visible: true, timeout: 8000 })
+  await page.locator('.md-panel .rfp-row').filter({ hasText: 'E2E V4.2.2 资源 A' }).first().click()
+  await page.locator('.md-panel .rfp-row').filter({ hasText: 'E2E V4.2.2 资源 B' }).first().click()
+  await page.locator('.md-panel .rfp-btn.primary').filter({ hasText: '添加 2 张' }).click()
+  const twoMirrors = await waitForStorage(page, 'zy_data_v2', raw => {
+    const folders = raw.zy_data_v2?.resourceFolders || []
+    const folder = folders.find(row => row.name === v422FolderName)
+    if (!folder) return false
+    return (raw.zy_data_v2?.resourceFolderMirrors || []).filter(row => row.folderId === folder.id).length === 2
+  }, { timeout: 8000 })
+  const memberTextsAfterAdd = await folderPanel.locator('.rfd-row .rfd-main b').allTextContents()
+  await folderPanel.locator('.rfd-row').filter({ hasText: 'E2E V4.2.2 资源 A' }).first()
+    .locator('button').filter({ hasText: '移出' }).click()
+  const oneMirror = await waitForStorage(page, 'zy_data_v2', raw => {
+    const folder = (raw.zy_data_v2?.resourceFolders || []).find(row => row.name === v422FolderName)
+    if (!folder) return false
+    const mirrors = (raw.zy_data_v2?.resourceFolderMirrors || []).filter(row => row.folderId === folder.id)
+    return mirrors.length === 1 && mirrors[0]?.resourceId === 'e2e-v422-card-b'
+  }, { timeout: 8000 })
+  await page.locator('.drawer .drawer-close').click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 6000 })
+  await page.evaluate(async () => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const data = cur.zy_data_v2
+    const source = (data?.resources || []).find(row => row.id === 'e2e-v422-card-b')
+    if (source) {
+      source.deletedAt = Date.now()
+      source.title = 'E2E V4.2.2 源卡已改名（快照不应跟随）'
+    }
+    await chrome.storage.local.set({ zy_data_v2: data })
+  })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.locator('button.pcp-btn').filter({ hasText: /常用夹/ }).first().click()
+  await waitForLocator(page, '.rfd-folder .rfd-row', { visible: true, timeout: 8000 })
+  const snapFolder = page.locator('.rfd-folder').filter({ hasText: v422FolderName }).first()
+  const snapshotTitle = ((await snapFolder.locator('.rfd-row .rfd-main b').first().innerText()) || '').trim()
+  await snapFolder.locator('.rfd-actions button.primary').filter({ hasText: '一键打开全部' }).click()
+  const folderUrl = await pollUntil(() => {
+    const urls = [...new Set(v422PopupUrls())]
+    return urls.includes('https://example.com/e2e/v422/b') ? urls : false
+  }, { timeout: 8000, label: '常用夹打开快照原链' })
+  const folderUrlList = Array.isArray(folderUrl) ? folderUrl : []
+  const folderOk = !!folderCreated && !!twoMirrors && !!oneMirror
+    && memberTextsAfterAdd.includes('E2E V4.2.2 资源 A')
+    && memberTextsAfterAdd.includes('E2E V4.2.2 资源 B')
+    && snapshotTitle === 'E2E V4.2.2 资源 B'
+    && folderUrlList.includes('https://example.com/e2e/v422/b')
+  report('E2E-60 ★V4.2.2 常用夹在夹内直接添加 / 移出；源卡软删并改名后镜像标题与原始链接仍由独立快照提供',
+    folderOk,
+    `建夹=${folderCreated} 两条=${twoMirrors} 移出后=${oneMirror} 成员=${JSON.stringify(memberTextsAfterAdd)} 快照=${JSON.stringify(snapshotTitle)} URLs=${JSON.stringify(folderUrlList)}`)
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

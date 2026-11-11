@@ -81,6 +81,7 @@ const SHARDS = [
   '126-v421-capture-dedupe',
   '127-v421-curation-export-gallery',
   '128-v421-curation-multinode-link',
+  '129-v422-resource-folders-gallery-manual',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

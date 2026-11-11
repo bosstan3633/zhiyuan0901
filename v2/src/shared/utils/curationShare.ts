@@ -93,6 +93,7 @@ function missingAssetHtml(asset: ShareAsset): string {
 function imageGalleryHtml(images: GalleryImage[], compact: boolean, galleryId: string): string {
   const openId = `${galleryId}-open`
   const name = `${galleryId}-slides`
+  const fullId = `${galleryId}-full`
   const count = images.length
   const thumbs = images.map(({ asset, dataUrl }) => {
     const label = esc(asset.name || '图片附件')
@@ -106,6 +107,25 @@ function imageGalleryHtml(images: GalleryImage[], compact: boolean, galleryId: s
     const radioId = `${galleryId}-slide-${index + 1}`
     const prevId = `${galleryId}-slide-${((index - 1 + count) % count) + 1}`
     const nextId = `${galleryId}-slide-${((index + 1) % count) + 1}`
+    const zoomBase = `${galleryId}-zoom-${index + 1}`
+    const zoomInputs = [
+      ['75', '75%'],
+      ['100', '适应'],
+      ['125', '125%'],
+      ['150', '150%'],
+      ['200', '200%'],
+    ].map(([value, labelText]) =>
+      `<input class="gallery-zoom-input gallery-zoom-${value}" type="radio" name="${zoomBase}" id="${zoomBase}-${value}"${value === '100' ? ' checked' : ''} aria-label="缩放至 ${labelText}">`
+    ).join('')
+    const zoomControls = [
+      ['75', '−'],
+      ['100', '适应'],
+      ['125', '+'],
+      ['150', '150%'],
+      ['200', '200%'],
+    ].map(([value, labelText]) =>
+      `<label class="gallery-zoom-label${value === '100' ? ' reset' : ''}" for="${zoomBase}-${value}" title="缩放至 ${labelText}">${labelText}</label>`
+    ).join('')
     const nav = count > 1
       ? `<div class="gallery-controls">
           <label class="gallery-prev" for="${prevId}" title="上一张" aria-label="上一张">‹ 上一张</label>
@@ -115,9 +135,10 @@ function imageGalleryHtml(images: GalleryImage[], compact: boolean, galleryId: s
       : `<div class="gallery-controls"><span class="gallery-count">1 / 1</span></div>`
     return `<input class="gallery-radio" type="radio" name="${name}" id="${radioId}" aria-label="查看第 ${index + 1} 张图片"${index === 0 ? ' checked' : ''}>
       <figure class="gallery-slide gallery-slide-${index + 1}">
-        <div class="gallery-image-wrap"><img src="${esc(dataUrl)}" alt="${label}"></div>
+        <div class="gallery-image-wrap">${zoomInputs}<img src="${esc(dataUrl)}" alt="${label}"></div>
         <figcaption>
           <span class="gallery-name">${label}</span>
+          <div class="gallery-zoom-controls">${zoomControls}</div>
           ${nav}
           <a class="asset-download gallery-download" href="${esc(dataUrl)}" download="${label}">下载原图</a>
         </figcaption>
@@ -128,9 +149,11 @@ function imageGalleryHtml(images: GalleryImage[], compact: boolean, galleryId: s
     <div class="gallery-thumbs">${thumbs}</div>
     <div class="gallery-lightbox" role="dialog" aria-modal="true" aria-label="附件图集，共 ${count} 张">
       <label class="gallery-backdrop" for="${openId}" aria-label="关闭附件图集"></label>
+      <input class="gallery-full" type="checkbox" id="${fullId}" aria-label="切换全屏浏览">
       <div class="gallery-dialog">
         <div class="gallery-top">
           <span>附件图集 · ${count} 张</span>
+          <label class="gallery-full-btn" for="${fullId}" role="button" title="切换全屏浏览">沉浸全屏</label>
           <label class="gallery-close" for="${openId}" role="button" title="关闭">关闭 ×</label>
         </div>
         <div class="gallery-slides">${slides}</div>
@@ -310,6 +333,16 @@ a{color:inherit;text-decoration:none}.doc-shell{max-width:1220px;margin:0 auto;p
 @media(max-width:900px){.doc-shell{display:block;padding:32px 18px 50px}.toc{position:relative;top:auto;display:none}.article{max-width:none}.hero h1{font-size:34px}.lead{font-size:16px}.depth-1,.depth-2,.depth-3{margin-left:0}.tree-doc{padding:30px 16px 44px}.share-tree{min-width:900px}.share-root{width:250px}}
 @media(max-width:600px){.gallery-lightbox{padding:10px}.gallery-dialog{width:96vw;max-height:94vh}.gallery-slide{padding:8px}.gallery-image-wrap img{max-height:calc(94vh - 132px)}.gallery-slide figcaption{align-items:flex-start}.gallery-name{flex-basis:100%}.gallery-thumb{max-width:100%}}
 @media print{body{background:#fff}.doc-shell{display:block;padding:0}.toc{display:none}.article{max-width:none}.resource,.tree-node{break-inside:avoid}.footer{position:static}.image-download,.gallery-lightbox{display:none!important}}
+.gallery-zoom-input,.gallery-full{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.gallery-image-wrap{position:relative}.gallery-image-wrap img{transition:transform .18s ease,width .18s ease}
+.gallery-zoom-75:checked~img{transform:scale(.75)}.gallery-zoom-100:checked~img{transform:scale(1)}.gallery-zoom-125:checked~img{transform:scale(1.25)}.gallery-zoom-150:checked~img{transform:scale(1.5)}.gallery-zoom-200:checked~img{transform:scale(2)}
+.gallery-zoom-controls{display:flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+.gallery-zoom-label{min-width:28px;min-height:26px;display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:999px;color:var(--ink-3);font-size:11px;font-weight:700;cursor:pointer}
+.gallery-zoom-label:hover{color:var(--accent);background:var(--accent-soft)}
+.gallery-zoom-label.reset{min-width:auto}
+.gallery-full-btn{padding:4px 10px;border:1px solid var(--line);border-radius:999px;cursor:pointer;color:var(--ink-2);font-weight:700;white-space:nowrap}.gallery-full-btn:hover{border-color:var(--accent);color:var(--accent)}
+.gallery-full:checked~.gallery-dialog{width:calc(100vw - 2px);max-width:calc(100vw - 2px);height:calc(100vh - 2px);max-height:calc(100vh - 2px);border-radius:0}
+.gallery-full:checked~.gallery-dialog .gallery-image-wrap img{max-height:calc(100vh - 126px)}
 </style></head><body>${options.format === 'reading' ? reading : treeHtml}${imageLink}
 <script type="application/json" id="zy-curation-share-data">${snapshotJson}</script></body></html>`
 }

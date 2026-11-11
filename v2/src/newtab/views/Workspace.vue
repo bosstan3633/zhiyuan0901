@@ -88,6 +88,11 @@
           <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
             title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
         </div>
+        <button class="hero-btn" type="button" :disabled="!curationOpenableCards.length"
+          :title="curationOpenableCards.length ? `打开本台 ${curationOpenableCards.length} 个资源原始链接` : '本台暂无可打开的资源原始链接'"
+          @click="openAllCurationResources">
+          <Icon name="external" :size="13"/> 打开全部资源<span v-if="curationOpenableCards.length"> {{ curationOpenableCards.length }}</span>
+        </button>
         <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       </div>
     </div>
@@ -465,6 +470,7 @@ import CurationHistoryDrawer from '@/newtab/components/curation/CurationHistoryD
 import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
+import { toOpenableUrl } from '@/shared/utils/link'
 import { type AssetMeta, type ResourceCard, type Category } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import { getAssetBlob, putAsset, deleteAsset } from '@/shared/storage/assets'
@@ -595,6 +601,27 @@ function nodeAssetOwner(id: string): { assets?: AssetMeta[] } | null {
 
 function nodeAssetOwnerId(id: string): string {
   return id === 'root' ? (thesisCard.value?.id || 'root') : id
+}
+
+async function openAllCurationResources(): Promise<void> {
+  const cards = curationOpenableCards.value
+  if (!cards.length) {
+    showToast('本台还没有可打开的资源原始链接')
+    return
+  }
+  if (cards.length > 15 && !(await useConfirm({
+    title: '打开策展台全部资源',
+    message: `即将打开 ${cards.length} 个资源原始链接，确认继续？\n无链接、失效附件和重复地址会被跳过。`,
+    confirmText: '继续打开',
+    danger: false,
+  }))) return
+  let opened = 0
+  for (const card of cards) {
+    if (openResourceLink(card)) opened++
+  }
+  if (store.persistHot) store.persistHot()
+  const skipped = curationResourceCards.value.length - opened
+  showToast(`已打开 ${opened} 个资源链接${skipped ? `，跳过 ${skipped} 张无链接 / 失效 / 重复地址` : ''}${opened > 1 ? '；若未全部出现，请允许弹出窗口' : ''}`)
 }
 
 function scheduleRemovedAssetCleanup(removed: AssetMeta[]): void {
@@ -1056,6 +1083,30 @@ const history = useCurationCanvasHistory({
 watch(workspaceId, (id) => { mind.resetForWorkspace(); history.switchWorkspace(id) })
 watch(history.historyRevision, cleanupPendingAssets)
 const shareCards = computed(() => allResources.value.filter(r => !r.isThesis))
+const curationResourceCards = computed<ResourceCard[]>(() => {
+  const seen = new Set<string>()
+  const out: ResourceCard[] = []
+  const add = (card: ResourceCard | null | undefined) => {
+    if (!card || card.deletedAt || seen.has(card.id)) return
+    seen.add(card.id)
+    out.push(card)
+  }
+  for (const card of allResources.value) {
+    if (!card.isThesis) add(card)
+  }
+  return out
+})
+const curationOpenableCards = computed<ResourceCard[]>(() => {
+  const seenUrl = new Set<string>()
+  const out: ResourceCard[] = []
+  for (const card of curationResourceCards.value) {
+    const url = toOpenableUrl(card.linkType, card.link)
+    if (!url || seenUrl.has(url)) continue
+    seenUrl.add(url)
+    out.push(card)
+  }
+  return out
+})
 const categories = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value).sort((a,b) => a.order - b.order))
 function isUncat(r: ResourceCard, validIds: { has(id: string): boolean }): boolean {
   return !r.categoryId || !validIds.has(r.categoryId)

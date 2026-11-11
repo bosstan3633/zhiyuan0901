@@ -47,6 +47,8 @@ const SUPPORTED_TYPES = new Set<SyncManifestRecordType>([
   'dailyFocus',
   'supportLink',
   'curationProjection',
+  'resourceFolder',
+  'resourceFolderMirror',
   'tag',
 ])
 
@@ -82,6 +84,8 @@ function objectOf(data: AppData, type: SyncManifestRecordType, id: string): unkn
     case 'argument': return byId(data.argCards)
     case 'supportLink': return byId(data.supportLinks)
     case 'curationProjection': return byId(data.curationProjections)
+    case 'resourceFolder': return byId(data.resourceFolders)
+    case 'resourceFolderMirror': return byId(data.resourceFolderMirrors)
     case 'dailyFocus': return data.dailyFocus?.[id]
     case 'direction': {
       if (id === 'compass-mission') return data.compass
@@ -154,6 +158,8 @@ function locationOf(data: AppData, type: SyncManifestRecordType, id: string): Mu
     case 'argument': return arrayLocation(data.argCards as unknown as Array<Record<string, unknown>>, id)
     case 'supportLink': return arrayLocation(data.supportLinks as unknown as Array<Record<string, unknown>>, id)
     case 'curationProjection': return arrayLocation(data.curationProjections as unknown as Array<Record<string, unknown>>, id)
+    case 'resourceFolder': return arrayLocation(data.resourceFolders as unknown as Array<Record<string, unknown>>, id)
+    case 'resourceFolderMirror': return arrayLocation(data.resourceFolderMirrors as unknown as Array<Record<string, unknown>>, id)
     case 'direction': {
       if (!data.compass) return null
       if (id === 'compass-mission') {
