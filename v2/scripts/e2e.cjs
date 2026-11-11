@@ -34,7 +34,7 @@
  *   E2E-26 R2-④⑤ K 定位改靶「资源卡池」（tab 激活 + 目标卡高亮）+ 打开池卡详情记一次「调出」事件
  *   E2E-27 R2-⑧ 池控制行：新建单卡入池 → 批量全选打标签 → 批量软删进回收站
  *   E2E-28 R4-a 迁移报告卡：出卡 → 回退落停用开关并清报告 → 可重新执行迁移
- *   E2E-30 R3-Ca 池面板：列表视图 / 待打标筛选 / 批量反选 / 右键置顶
+ *   E2E-30 R3-Ca（V4.2.3 重指）池面板：列表视图 / 状态筛选下拉 / 批量反选 / 右键置顶
  *   E2E-31 R3-Cb 三张卡批量口径合一：栏即出 / 全选反选可达 / 退出清空 / 任务批量打标
  *   E2E-48 V3.9.11 设置页更新日志：左目录点击定位、右内容滚动同步高亮、720px 单列
  */
@@ -1909,7 +1909,7 @@ async function main() {
     && goneAfterBatch && softDeleted,
     `新建入口归零=${poolNewGone} 种子卡上屏=${seedCardOn} 初始计数=${countBefore} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
 
-  // E2E-30（R3-Ca）：池面板补齐——列表视图 / 待打标筛选 / 批量反选 / 右键菜单置顶
+  // E2E-30（R3-Ca · V4.2.3 重指）：池面板补齐——列表视图 / 状态筛选下拉 / 批量反选 / 右键菜单置顶
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']; if (!d) return
     const mk = (id, title, tags) => ({ id, kind: 'resource', title, linkType: 'url', link: tags.length ? 'https://example.com/' + id : '',
@@ -1936,13 +1936,13 @@ async function main() {
   await waitForLocator(page, '.pcp-row', { timeout: 8000 })
   const listCount = await page.locator('.pcp-row').count()
   const noTagShown = await page.locator('.pcp-row', { hasText: 'E2E 池卡乙' }).first().isVisible().catch(() => false)
-  await page.locator('.dk-row[data-panel="pool"] .dk-pill', { hasText: '待打标' }).click().catch(() => {})
+  await page.locator('.dk-row[data-panel="pool"] .dk-filters.select .dk-select').selectOption('untagged').catch(() => {})
   /* 等筛选真的生效（待打标 ⇒ 只剩无标签那张）——同 R176-补 的理由：不等状态就往下跑 */
   await pollUntil(async () => (await page.locator('.pcp-row').count()) === 1, { timeout: 8000, label: '待打标筛选生效' })
   const untaggedCount = await page.locator('.pcp-row').count()
   const untaggedIsB = untaggedCount === 1 && (await page.locator('.pcp-row').first().textContent() || '').includes('E2E 池卡乙')
-  await page.locator('.dk-row[data-panel="pool"] .dk-pill', { hasText: '待打标' }).click().catch(() => {})
-  /* 等筛选真的退回全部（3 张）——第二次点「待打标」是 toggle，语义是「回到全部」 */
+  await page.locator('.dk-row[data-panel="pool"] .dk-filters.select .dk-select').selectOption('all').catch(() => {})
+  /* 等筛选真的退回全部（3 张）——下拉选中「全部」就是唯一的回到全部路径 */
   await pollUntil(async () => (await page.locator('.pcp-row').count()) >= 3, { timeout: 8000, label: '待打标筛选退回全部' })
   await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b && (b.textContent || '').trim() === '批量') b.click() })
   await page.waitForTimeout(400)
@@ -1984,7 +1984,7 @@ async function main() {
     async () => page.locator('.pcp-row', { hasText: 'E2E 池卡甲' }).first().locator('.pcp-pin').isVisible().catch(() => false),
     { timeout: 8000, label: '置顶徽标重渲染' },
   )
-  report('E2E-30 ★R3-Ca 池面板：网格↔列表同源 → 待打标只留无标签卡 → 全选后反选归零 → 右键菜单置顶落库并出 📌',
+  report('E2E-30 ★R3-Ca（V4.2.3 重指）池面板：网格↔列表同源 → 状态下拉选“待打标”只留无标签卡 → 全选后反选归零 → 右键菜单置顶落库并出 📌',
     gridCount >= 3 && listCount === gridCount && noTagShown && untaggedIsB && selAll >= 3 && selAfterInvert === 0
     && ctxItems.length === 6 && ctxItems.some(x => x.includes('加入常用夹')) && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
     `网格=${gridCount} 列表=${listCount} 待打标只留乙=${untaggedIsB} 全选=${selAll}→反选=${selAfterInvert} 菜单=${JSON.stringify(ctxItems)} 落库pinned=${pinnedBack.pinned} 徽标=${pinBadge}`)
@@ -3340,7 +3340,7 @@ await paOpen()
   const copyToast = await waitForLocator(page, '.toast-msg', { visible: true, timeout: 4000 })
   const copyToastText = (await page.locator('.toast-msg').last().textContent().catch(() => '') || '').replace(/\s+/g, ' ').trim()
   const copiedText = await page.evaluate(() => globalThis.__e2eCopiedText || '').catch(() => '')
-  const expectedCopy = '推进[[软硬一体服务系统解决方案]]项目，设计解决方案报价模板，助力【产品解决方案】指标落实到位'
+  const expectedCopy = '推进[[MOC-软硬一体服务系统解决方案]]项目，设计解决方案报价模板，助力【产品解决方案】指标落实到位'
 
   await ctx.unroute('**/rest/v1/capture_inbox**').catch(() => {})
   const inlineInbox = [{

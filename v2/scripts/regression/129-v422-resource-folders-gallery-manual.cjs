@@ -53,7 +53,7 @@ check('V422-4 ★资源池与资源详情提供常用夹入口：控制行、单
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
   const detail = read('/newtab/components/ResourceDetailDrawer.vue')
   const batch = read('/newtab/components/compass/ResourceFolderBatchModal.vue')
-  return pool.includes('常用夹 {{ folders.length }}')
+  return pool.includes('常用夹 <span class="pcp-folder-entry-n">{{ folders.length }}</span>')
     && pool.includes('加入常用夹')
     && pool.includes('openSingleFolder(r)')
     && pool.includes('openFolderBatch(Array.from(selected))')
@@ -77,11 +77,13 @@ check('V422-5 ★常用夹进入云同步：新增资源夹与镜像关系记录
     && display.includes("resourceFolderMirror: '常用夹 → 资源镜像'")
 })
 
-check('V422-6 ★今日三件事复制模板逐字固定为「推进[[项目]]项目，任务，助力【指标】指标落实到位」，缺有效项目或指标继续禁用', () => {
+check('V422-6（V4.2.3 重指）★今日三件事复制模板逐字固定为「推进[[MOC-项目]]项目，任务，助力【指标】指标落实到位」，已有 MOC- 前缀不重复，缺有效项目或指标继续禁用', () => {
   const copy = read('/shared/utils/focusCopy.ts')
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
-  return copy.includes('推进[[${project}]]项目，${task}，助力【${metric}】指标落实到位')
+  return copy.includes('function mocProjectName')
+    && copy.includes('project.replace(/^MOC-/i')
+    && copy.includes('推进[[${mocProjectName(project)}]]项目，${task}，助力【${metric}】指标落实到位')
     && copy.includes('if (!project || !metric || !task) return')
     && home.includes(':disabled="!focusCopyText(c)"')
     && home.includes('focusCopyReason(c)')
@@ -113,7 +115,7 @@ check('V422-8 ★应用内策展图片预览支持多图切换、缩放、重置
     && preview.includes('下一张')
 })
 
-check('V422-9 ★策展 HTML 导出保持无脚本自包含，同时提供多图左右切换、缩放、重置和沉浸全屏控件', () => {
+check('V422-9（V4.2.3 重指）★策展 HTML 导出保持自包含；只允许一段本地附件下载脚本，同时提供多图左右切换、缩放、重置和沉浸全屏控件', () => {
   const share = read('/shared/utils/curationShare.ts')
   return share.includes('function imageGalleryHtml')
     && share.includes('gallery-zoom-input')
@@ -123,6 +125,7 @@ check('V422-9 ★策展 HTML 导出保持无脚本自包含，同时提供多图
     && share.includes('gallery-prev')
     && share.includes('gallery-next')
     && share.includes('自包含图库使用纯 HTML/CSS')
+    && share.includes("closest('[data-download-open]')")
     && !share.includes('onclick=')
 })
 
@@ -134,7 +137,7 @@ check('V422-10 ★使用手册以流程优先：新增 V4.2.2 总流程与采集
     && manual.includes('流程：资源卡复用与常用夹')
     && manual.includes('流程：策展成果导出与图片浏览')
     && manual.includes('打开全部资源')
-    && manual.includes('推进[[项目名]]项目，任务内容，助力【指标名】指标落实到位')
+    && manual.includes('推进[[MOC-项目名]]项目，任务内容，助力【指标名】指标落实到位')
     && page.includes('buildManualStandaloneHtml')
-    && page.includes('V4.2.2')
+    && page.includes('V4.2.3')
 })

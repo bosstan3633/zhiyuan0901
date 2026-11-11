@@ -4,7 +4,7 @@
  * 三种采集面板：快速采集资源卡（右上角小窗）/ 快速采集任务 / 采集好奇心（居中）。
  * 与宿主 overlay-impl.ts 共同组成同一份浮层运行时（同域、共享模块状态）。
  */
-import { CURATION_WS_ID } from '@/shared/models'
+import { CURATION_WS_ID, type LinkType, type ResourceCard } from '@/shared/models'
 import { POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import { getSelCache, clearSelCache, getSelectionText, resolveSelection } from './selection'
 import {
@@ -12,10 +12,11 @@ import {
   showSaved, setActiveTcSave, resetSavedReceipt
 } from './overlay-impl'
 import { getData, saveData } from './overlay-search'
-import { escapeHtml, normalizeUrl } from './overlay-query'
+import { escapeHtml } from './overlay-query'
+import { canonicalHttpUrl } from '@/shared/utils/url'
 
 // REQ-031 P-031-8：采集去重 Map——打开小窗时构建一次 url→resource，保存时 O(1) 查重（千卡下不再全量扫描）
-let capUrlMap: Map<string, any> | null = null
+let capUrlMap: Map<string, ResourceCard> | null = null
 async function openCapture() {
   resetSavedReceipt()
   // R117（04-61 A）：force=true——分类随时增删改，打开采集浮层必须吃「当前分类」而非旧快照
@@ -23,7 +24,8 @@ async function openCapture() {
   capUrlMap = new Map()
   for (const r of d?.resources || []) {
     if (r.deletedAt || r.linkType !== 'url' || !r.link) continue
-    const fp = normalizeUrl(r.link)
+    const fp = canonicalHttpUrl(r.link)
+    if (!fp) continue
     if (!capUrlMap.has(fp)) capUrlMap.set(fp, r)
   }
   // W4（V3.8.4）：R179 漏网清账——原「存入位置」下拉与「分类」下拉整体退役。
@@ -82,7 +84,7 @@ async function openCapture() {
   `
   root.appendChild(panel)
 
-  let linkType = 'url'
+  let linkType: LinkType = 'url'
   const titleInput = document.getElementById('__zy_cap_title__') as HTMLInputElement
   const linkInput = document.getElementById('__zy_cap_link__') as HTMLInputElement
 
@@ -100,7 +102,7 @@ async function openCapture() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#__zy_seg__ .zy-seg-btn').forEach(b => b.classList.remove('active'))
       btn.classList.add('active')
-      linkType = (btn as HTMLElement).dataset.ltype || 'url'
+      linkType = ((btn as HTMLElement).dataset.ltype || 'url') as LinkType
       linkInput.placeholder = linkType === 'url' ? 'https://…' : linkType === 'file' ? 'D:\\folder\\file.pdf' : 'obsidian://open?vault=…'
     })
   })
@@ -118,27 +120,32 @@ async function openCapture() {
   panel.addEventListener('keydown', onCapEnter)
   document.getElementById('__zy_cap_save__')?.addEventListener('click', () => { void saveCapture() })
 
-  async function saveCapture(forceNew = false) {
+  async function saveCapture() {
     const title = titleInput.value.trim()
     if (!title) { showToast('请输入标题'); return }
     const d2 = await getData()
     if (!d2) { showToast('数据加载失败'); return }
-    // B5 去重：相同归一化链接 → 确认视图（定位原卡 / 仍然新建一张，R105-D3）；forceNew 跳过查重
-    if (!forceNew && linkType === 'url' && linkInput.value.trim()) {
-      const fp = normalizeUrl(linkInput.value.trim())
-      const dup = capUrlMap?.get(fp)
+    // V4.2.3：URL 唯一性是硬约束。即使打开浮层后其他上下文先写入，
+    // 保存前仍从最新数据树复核一次，不再提供“仍然新建一张”的旁路。
+    if (linkType === 'url' && linkInput.value.trim()) {
+      const fp = canonicalHttpUrl(linkInput.value.trim())
+      const latestResources = (d2.resources || []) as ResourceCard[]
+      const dup = fp
+        ? latestResources.find((r: ResourceCard) => !r.deletedAt && r.linkType === 'url' && canonicalHttpUrl(r.link) === fp)
+          || capUrlMap?.get(fp)
+        : null
       if (dup) {
         // B28：面板内自定义确认（替代原生 confirm）
         showDupConfirm(String(dup.title).slice(0, 40), () => {
           safeSend({ type: 'zy-locate-workspace', wsId: dup.workspaceId, hl: dup.id })
           closeOverlay()
           showToast('↗ 已定位到已收录的卡片')
-        }, () => { void saveCapture(true) })
+        })
         return
       }
     }
     const descInput = document.getElementById('__zy_cap_desc__') as HTMLTextAreaElement
-    const resource = {
+    const resource: ResourceCard = {
       id: uid('rc'), kind: 'resource', title,
       linkType, link: linkInput.value.trim(),
       // W4（V3.8.4）：统一入池——与应用内采集同一口径，workspaceId 固定池 id、categoryId 置空（R179 定案）
@@ -151,8 +158,8 @@ async function openCapture() {
     d2.resources?.unshift(resource)
     // REQ-031 P-031-8：新增卡片增量写入去重 Map（保持 O(1) 查重）
     if (capUrlMap && resource.linkType === 'url' && resource.link) {
-      const nfp = normalizeUrl(resource.link)
-      if (!capUrlMap.has(nfp)) capUrlMap.set(nfp, resource)
+      const nfp = canonicalHttpUrl(resource.link)
+      if (nfp && !capUrlMap.has(nfp)) capUrlMap.set(nfp, resource)
     }
     await saveData(d2)
     // W4（V3.8.4）：统一入池后没有「未归档」一说——分类下拉已退役，回执只报入池。
@@ -165,7 +172,7 @@ async function openCapture() {
   }
 }
 /** 采集去重确认视图（B28：替代原生 confirm，复用已保存态的视觉结构） */
-function showDupConfirm(dupTitle: string, onJump: () => void, onForceNew: () => void) {
+function showDupConfirm(dupTitle: string, onJump: () => void) {
   const root = ensureRoot()
   const panel = root.querySelector('.zy-panel') as HTMLElement | null
   if (!panel) return
@@ -173,16 +180,14 @@ function showDupConfirm(dupTitle: string, onJump: () => void, onForceNew: () => 
     <div class="zy-saved">
       <div class="zy-saved-icon warn">⚠️</div>
       <div class="zy-saved-title">该页面已收录</div>
-      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已经收过了（在「${POOL_DISPLAY_NAME}」里）——可定位到原卡，或仍然新建一张（例如要存不同上下文的两份笔记）</div>
+      <div class="zy-saved-sub">「${escapeHtml(dupTitle)}」已经收过了（在「${POOL_DISPLAY_NAME}」里）——资源卡按 URL 唯一收录，可直接定位到原卡。</div>
       <div class="zy-saved-actions">
         <button class="zy-btn zy-btn-ghost" id="__zy_dup_cancel__">取消</button>
-        <button class="zy-btn zy-btn-ghost" id="__zy_dup_force__">仍然新建一张</button>
         <button class="zy-btn zy-btn-primary" id="__zy_dup_jump__">定位到卡片</button>
       </div>
     </div>
   `
   document.getElementById('__zy_dup_cancel__')?.addEventListener('click', closeOverlay)
-  document.getElementById('__zy_dup_force__')?.addEventListener('click', onForceNew)
   document.getElementById('__zy_dup_jump__')?.addEventListener('click', onJump)
 }
 // ============ 采集好奇心（居中，选中文本预填 + O24 自动附带页面来源） ============

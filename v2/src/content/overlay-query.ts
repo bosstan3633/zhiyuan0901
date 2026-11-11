@@ -7,6 +7,7 @@
 import { CURATION_WS_ID } from '@/shared/models'
 import { wsDisplayNameOf, POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import { toOpenableUrl } from '@/shared/utils/link'
+import { normalizeUrlKey } from '@/shared/utils/url'
 import { safeSend, closeOverlay, showToast } from './overlay-impl'
 import { loadData, saveData } from './overlay-search'
 
@@ -204,17 +205,7 @@ function linkShort(link: string) {
   return parts[parts.length - 1].substring(0, 25)
 }
 function normalizeUrl(raw: string): string {
-  try {
-    const u = new URL(raw)
-    u.hostname = u.hostname.toLowerCase()
-    u.hash = ''
-    const utm = ['utm_', 'spm', 'from', 'gclid', 'fbclid']
-    u.searchParams.forEach((_, key) => { if (utm.some(p => key.startsWith(p))) u.searchParams.delete(key) })
-    let path = u.pathname
-    if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
-    u.pathname = path
-    return u.toString()
-  } catch { return raw.trim() }
+  return normalizeUrlKey(raw)
 }
 
 function escapeHtml(s: string) {

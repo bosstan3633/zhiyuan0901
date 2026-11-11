@@ -1713,16 +1713,20 @@ if (argv.scenes) {
       const rows = document.querySelectorAll('.pcp-row').length
       const cards = document.querySelectorAll('.pcp-card').length
       const none = document.querySelectorAll('.pcp-tag-none').length
-      const untaggedBtn = !!document.querySelector('.dk-row[data-panel="pool"] .dk-pill')
+      const filterSelect = document.querySelector('.dk-row[data-panel="pool"] .dk-filters.select .dk-select')
+      const filterOptions = filterSelect ? [...filterSelect.options].map(x => (x.textContent || '').trim()) : []
+      const statusSelect = !!filterSelect
+        && filterSelect.value === 'all'
+        && ['全部', '待打标', '已调出', '从未调出'].every(label => filterOptions.some(x => x.startsWith(label)))
       const deckBack = !!document.querySelector('.deck-back')
-      return { rows, cards, none, untaggedBtn, deckBack }
+      return { rows, cards, none, statusSelect, filterValue: filterSelect?.value || '', deckBack }
     })
     const plFile = path.join(outDir, `${theme}-deck-pool-list.png`)
     await page.screenshot({ path: plFile })
     shots.push(plFile)
-    const plOk = pl.deckBack && pl.rows > 0 && pl.cards === 0 && pl.untaggedBtn
-    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 二级返回=${pl.deckBack ? '是' : '否'} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 待打标钮=${pl.untaggedBtn ? '是' : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
-    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：独立二级页带返回 + 列表有行 + 网格零残留 + 控制行含「待打标」）`)
+    const plOk = pl.deckBack && pl.rows > 0 && pl.cards === 0 && pl.statusSelect
+    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 二级返回=${pl.deckBack ? '是' : '否'} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 状态下拉=${pl.statusSelect ? `是/${pl.filterValue}` : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
+    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：独立二级页带返回 + 列表有行 + 网格零残留 + 状态下拉默认「全部」且含四档筛选项）`)
 
     /* R3-Cc：三张卡共用的批量栏（DeckBatchBar）——池面板这侧底色由 surface-2 换成 accent-light，
        四主题各拍一张，量「栏在 / 全选·反选·应用标签三枚齐 / 卡型动作在槽内」，量完退出批量免得串染。

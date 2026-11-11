@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import { CURATION_WS_ID, type CuriosityCard, type ResourceCard, type TaskCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { canonicalHttpUrl } from '@/shared/utils/url'
 import { cardMatchesCaptureId, ensureCaptureIdentity } from '@/shared/utils/captureIdentity'
 import { LOCAL_KEYS } from '@/shared/storage/keys'
 import {
@@ -154,6 +155,19 @@ function existingCardFor(captureId: string):
   return null
 }
 
+function existingResourceForUrl(item: CaptureItem): { kind: 'resource'; id: string } | null {
+  const urlKey = canonicalHttpUrl(item.url || '')
+  if (!urlKey) return null
+  const store = useAppStore()
+  const resource = (store.data?.resources || []).find(card =>
+    !card.deletedAt
+    && !card.isThesis
+    && card.linkType === 'url'
+    && canonicalHttpUrl(card.link) === urlKey
+  )
+  return resource ? { kind: 'resource', id: resource.id } : null
+}
+
 function decorate(capture: CaptureItem): CaptureItem {
   if (capture.convertedKind) return capture
   const local = existingCardFor(capture.id)
@@ -264,7 +278,7 @@ async function refresh(force = false): Promise<void> {
   return refreshPromise
 }
 
-function hydrateExistingCard(kind: CaptureConvertedKind, id: string, item: CaptureItem): void {
+function hydrateExistingCard(kind: CaptureConvertedKind, id: string, item: CaptureItem, claimCapture = true): void {
   const store = useAppStore()
   const data = store.data
   if (!data) return
@@ -275,7 +289,7 @@ function hydrateExistingCard(kind: CaptureConvertedKind, id: string, item: Captu
       : data.resources.find(row => row.id === id && !row.deletedAt)
   if (!card) return
 
-  let changed = ensureCaptureIdentity(card, item.id)
+  let changed = claimCapture ? ensureCaptureIdentity(card, item.id) : false
   const description = captureDescription(item)
   if (!String(card.description || '').trim() && description) {
     card.description = description
@@ -322,9 +336,10 @@ async function convert(item: CaptureItem, kind: CaptureConvertedKind): Promise<{
   const store = useAppStore()
   const data = store.data
   if (!data) throw new Error('数据尚未加载')
-  const existing = existingCardFor(item.id)
+  const byCapture = existingCardFor(item.id)
+  const existing = byCapture || (kind === 'resource' ? existingResourceForUrl(item) : null)
   if (existing) {
-    hydrateExistingCard(existing.kind, existing.id, item)
+    hydrateExistingCard(existing.kind, existing.id, item, !!byCapture)
     items.value = items.value.filter(row => row.id !== item.id)
     writeCache(items.value)
     enqueueConversion(item.id, existing.kind, existing.id, new Error('等待补写转化状态'))

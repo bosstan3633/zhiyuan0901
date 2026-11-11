@@ -1,7 +1,8 @@
 import { ref, computed, reactive, watch, nextTick, onMounted, onUnmounted, shallowRef, defineAsyncComponent } from 'vue'
 import type { Ref, ComputedRef, ShallowRef, DefineComponent } from 'vue'
 import { showToast } from '@/shared/components/toast'
-import { uid, normalizeUrl } from '@/shared/utils'
+import { uid } from '@/shared/utils'
+import { canonicalHttpUrl } from '@/shared/utils/url'
 import { CURATION_WS_ID } from '@/shared/models'
 import { toOpenableUrl, toOpenableRawLink, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
@@ -67,10 +68,12 @@ async function saveCapture() {
   if (!capForm.title.trim()) { showToast('请输入标题'); return }
   // B5 去重：相同归一化链接 → 只能跳转，不新建副本
   if (capForm.linkType === 'url' && capForm.link.trim()) {
-    const fp = normalizeUrl(capForm.link.trim())
-    const dup = d.value.resources.find(r => !r.deletedAt && r.linkType === 'url' && r.link && normalizeUrl(r.link) === fp)
+    const fp = canonicalHttpUrl(capForm.link.trim())
+    const dup = fp
+      ? d.value.resources.find(r => !r.deletedAt && r.linkType === 'url' && canonicalHttpUrl(r.link) === fp)
+      : undefined
     if (dup) {
-      if (!(await useConfirm({ title: '重复采集', message: `该页面已收录为「${dup.title.slice(0, 40)}」。\n点击确认将定位到已有卡片。`, confirmText: '定位到卡片' }))) { return }
+      if (!(await useConfirm({ title: '重复采集', message: `资源卡按 URL 唯一收录。\n该页面已收录为「${dup.title.slice(0, 40)}」，可定位到已有卡片。`, confirmText: '定位到卡片' }))) { return }
       chrome.runtime.sendMessage({ type: 'zy-locate-workspace', wsId: dup.workspaceId, hl: dup.id })
       resetCaptureForm()
       closeAll()

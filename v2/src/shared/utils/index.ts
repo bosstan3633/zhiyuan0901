@@ -1,4 +1,8 @@
 ﻿/** 生成唯一 ID（R70：优先 crypto.randomUUID——原实现「毫秒时间戳 + 6 位随机」在同毫秒批量创建/导入时存在碰撞可能） */
+import { normalizeUrlKey } from './url'
+
+export { canonicalHttpUrl, normalizeUrlKey } from './url'
+
 export function uid(prefix = 'id'): string {
   try {
     const c = globalThis.crypto as { randomUUID?: () => string } | undefined
@@ -37,21 +41,7 @@ export function esc(s: unknown): string {
 
 /** URL 归一化：host 小写 + 去 UTM + 去锚点 + 规范尾部斜杠 */
 export function normalizeUrl(raw: string): string {
-  try {
-    const u = new URL(raw)
-    u.hostname = u.hostname.toLowerCase()
-    u.hash = ''
-    const utmPrefixes = ['utm_', 'spm', 'from', 'gclid', 'fbclid']
-    u.searchParams.forEach((_, key) => {
-      if (utmPrefixes.some((p) => key.startsWith(p))) u.searchParams.delete(key)
-    })
-    let path = u.pathname
-    if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
-    u.pathname = path
-    return u.toString()
-  } catch {
-    return raw.trim()
-  }
+  return normalizeUrlKey(raw)
 }
 
 /** 生成 URL 指纹（用于去重） */

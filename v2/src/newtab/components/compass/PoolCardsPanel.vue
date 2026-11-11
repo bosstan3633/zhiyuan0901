@@ -16,6 +16,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { CURATION_WS_ID, type AppData, type ResourceCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { canonicalHttpUrl } from '@/shared/utils/url'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { showToast } from '@/shared/components/toast'
 import { saveUIPrefs } from '@/shared/storage/repository'
@@ -306,10 +307,9 @@ function confirmBatchMirror() {
     ? `已投射 ${created} 条引用${skipped ? `，跳过 ${skipped} 条已有投射` : ''}`
     : '所选卡片在这些策展台里都已经存在，没有新增')
 }
-/** 胶囊组没有"再点一次取消"的语义（点谁选谁），这里补上：再点「待打标」= 回到全部 */
+/** 下拉筛选没有“再点一次取消”的手势：选中项就是当前值。 */
 function onPoolFilter(v: string) {
-  if (v === 'untagged') { onlyUntagged.value = !onlyUntagged.value; calledFilter.value = 'all'; return }
-  onlyUntagged.value = false
+  onlyUntagged.value = v === 'untagged'
   calledFilter.value = v === 'called' || v === 'never' ? v : 'all'
 }
 const poolFilters = computed(() => [
@@ -450,10 +450,27 @@ function createCard() {
   const title = newDraft.value.title.trim()
   if (!title) { showToast('请输入标题'); return }
   const link = newDraft.value.link.trim()
+  const linkType: ResourceCard['linkType'] =
+    /^file:\/\//i.test(link) ? 'file' : /^obsidian:/i.test(link) ? 'obsidian' : 'url'
+  const urlKey = linkType === 'url' ? canonicalHttpUrl(link) : ''
+  if (urlKey) {
+    const duplicate = (store.data?.resources || []).find(resource =>
+      !resource.deletedAt
+      && !resource.isThesis
+      && resource.linkType === 'url'
+      && canonicalHttpUrl(resource.link) === urlKey
+    )
+    if (duplicate) {
+      newOpen.value = false
+      showToast(`该 URL 已收录为「${duplicate.title.slice(0, 24)}」，已打开原卡`)
+      openDetail(duplicate.id)
+      return
+    }
+  }
   const now = Date.now()
   const card: ResourceCard = {
     id: uid('rc'), kind: 'resource', title,
-    linkType: /^file:\/\//i.test(link) ? 'file' : /^obsidian:/i.test(link) ? 'obsidian' : 'url',
+    linkType,
     link, workspaceId: CURATION_WS_ID, categoryId: '',
     description: '', tags: parseTags(newDraft.value.tags), assets: [], customFields: {},
     pinned: false, callCount: 0, createdAt: now, updatedAt: now
@@ -520,6 +537,7 @@ function deleteSelected() {
     <!-- R3-Cc2：控制行收归 DeckControls——顺序/样式一份实现，池的值域（两档视图 + 全部/待打标）以数据传入 -->
     <DeckControls panel="pool" search search-ph="快速过滤标题 / 标签..." :query="query" @search="query = $event"
       :filters="poolFilters" :filter="activeFilter" @filter="onPoolFilter"
+      filter-kind="select" filter-title="筛选资源卡"
       :views="poolViews" :view="viewMode" @view="changeViewMode($event as 'card' | 'list')"
       :sorts="POOL_SORTS" :sort="sortBy" @sort="changeSortBy"
       :sort-dir="sortDir" :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
@@ -527,15 +545,17 @@ function deleteSelected() {
       :batch-labels="['批量', '退出批量']" :batch-on="batchMode" @batch="toggleBatch"
       :new-label="secondaryMode ? '' : '＋ 新建卡'" new-title="新建单张资源卡（采集走 Ctrl+Shift+J）" @create="openNew">
       <button v-if="!secondaryMode" class="pcp-btn" title="图片 / HTML / PDF，一文件一卡（本体存本地 IndexedDB）" @click="fileImport()"><Icon name="inbox" :size="13"/> 导入本地文件</button>
-      <button class="pcp-btn" :title="`打开常用夹 · ${folderCount} 条资源镜像`" @click="foldersOpen = true">
-        <Icon name="folder" :size="13"/> 常用夹 {{ folders.length }}
-      </button>
       <!-- ★W15-T3（用户拍板 2026-10-16）链接类型分组下拉：组序固定 本地文件 → URL → Obsidian → 无链接（垫底）；
            再点一次同一组 = 取消分组（回到平铺）。分组只在列表视图生效（网格不做分组，避免一屏信息过载）。 -->
       <template #count><button v-if="viewMode === 'list' && groupBy && groupSections.length" class="pcp-btn sm"
         :title="allGroupsCollapsed ? '展开全部组' : '收起全部组，只看组头'" @click="toggleAllGroups">
         {{ allGroupsCollapsed ? '▾ 全部展开' : '▸ 全部折叠' }}
       </button><span class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张</span></template>
+      <template #tail>
+        <button class="pcp-btn pcp-folder-entry" :title="`打开常用夹 · ${folderCount} 条资源镜像`" @click="foldersOpen = true">
+          <Icon name="folder" :size="13"/> 常用夹 <span class="pcp-folder-entry-n">{{ folders.length }}</span>
+        </button>
+      </template>
     </DeckControls>
 
     <!-- R3-Cc：批量栏收归 DeckBatchBar 一份实现（全选/反选/打标签三处同源，卡型动作走默认槽） -->
@@ -740,6 +760,9 @@ function deleteSelected() {
 .pcp-btn.on { border-color: var(--text); background: var(--text); color: var(--bg); }
 .pcp-btn.sm { padding: 4px 9px; font-size: var(--fs-caption); }
 .pcp-btn.danger { border-color: var(--danger-border); color: var(--danger); }
+.pcp-folder-entry { display: inline-flex; align-items: center; gap: 6px; border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.pcp-folder-entry:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent-light) 78%, var(--surface)); }
+.pcp-folder-entry-n { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: var(--fs-micro); line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
 .pcp-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; z-index: 60; }
 .pcp-pop { width: min(420px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; box-shadow: var(--shadow-lg); }
 .pcp-pop-h { font-size: var(--fs-body); font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; }

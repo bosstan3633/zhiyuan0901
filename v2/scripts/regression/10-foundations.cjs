@@ -433,7 +433,8 @@ check('R30-4（R73 修订；R100 拆入 composable；V3.9.23 数据管理随迁�
     && bk.includes('b.path.filter(p => p && !BK_ROOT_NAMES.has(p))')
     && bk.includes('workspaceId: CURATION_WS_ID, categoryId: \'\'')
     && bk.includes('data.resources.unshift(card)') && bk.includes('persist()')
-    && bk.includes('已导入 ${items.length} 张资源卡到资源卡池')
+    && bk.includes('已导入 ${ids.length} 张资源卡到资源卡池')
+    && bk.includes('跳过 ${duplicates} 张 URL 重复卡')
     && !imp.includes('CURATION_WS_ID')
     && bk.includes('parseBookmarksHtml') && bk.includes('浏览器导出的书签 HTML')
     && dm.includes("await import('@/newtab/composables/useBookmarkImport')")
@@ -670,7 +671,13 @@ check('R34-22 REQ-031 P-031-6 onChanged 自身写入跳过（R131-C1a 载荷 __w
     && r.includes('isSelfWrite(ext) && !isStampReused(dch)')
 });
 check('R34-23 REQ-031 P-031-7 定位并行化（Promise.all 并行询问 + 150ms 短超时取首个命中）', () => read('/background/index.ts').includes('await Promise.all(tabs.map') && read('/background/index.ts').includes('askRoute(tab.id, 150)') && read('/background/index.ts').includes('hits.find((t) => t !== null)'));
-check('R34-24 REQ-031 P-031-8 采集去重 Map 化（capUrlMap 打开时构建一次 + 保存 O(1) 查重 + 增量写入）', () => read('/content/search-overlay.ts').includes('let capUrlMap: Map<string, any> | null = null') && read('/content/search-overlay.ts').includes('capUrlMap?.get(fp)') && read('/content/search-overlay.ts').includes('capUrlMap.set(nfp, resource)'));
+check('R34-24（V4.2.3 随迁）采集去重 Map 化：capUrlMap 打开时构建一次 + 保存前用最新数据树与 Map 双查 + 增量写入；Map 使用 ResourceCard 类型，不再用 any', () => {
+  const o = read('/content/overlay-capture.ts');
+  return o.includes('let capUrlMap: Map<string, ResourceCard> | null = null')
+    && o.includes('capUrlMap?.get(fp)')
+    && o.includes('latestResources.find')
+    && o.includes('capUrlMap.set(nfp, resource)');
+});
 
 console.log('【第卅五轮 · V2.14 需求包第一批：REQ-034 任务重复项修复】');
 check('R35-1 REQ-034 根因：移除裸 Enter 双重 keydown（仅 ctrl/meta 触发一次保存）', () => !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="createTask"') && !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="linkTasks"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks"'));

@@ -75,11 +75,13 @@ check('R105-2 C3 浮层字号阶梯：--zy-fs-2xs/xs/sm/md/lg 五档定义 + 文
     && !/font-size:1[0-4](\.\d)?px/.test(OV105)
     && OV105.includes('font-size:17px');
 });
-check('R105-3 D3 重复卡确认视图第三选项「仍然新建一张」：forceNew 跳过查重（Event 误传防护：点击监听箭头包装）', () => {
-  return OV105.includes("document.getElementById('__zy_dup_force__')?.addEventListener('click', onForceNew)")
-    && OV105.includes('async function saveCapture(forceNew = false)')
-    && OV105.includes('if (!forceNew && linkType === \'url\' && linkInput.value.trim())')
-    && OV105.includes("addEventListener('click', () => { void saveCapture() })");
+check('R105-3（V4.2.3 重指）重复资源卡硬阻断：取消“仍然新建一张”旁路，保存前按最新数据树与规范 URL 再次查重，只允许定位原卡', () => {
+  const capture = read('/content/overlay-capture.ts');
+  return !capture.includes('__zy_dup_force__')
+    && !capture.includes('saveCapture(forceNew')
+    && capture.includes('latestResources.find')
+    && capture.includes('canonicalHttpUrl(r.link) === fp')
+    && capture.includes("showDupConfirm(String(dup.title).slice(0, 40)");
 });
 check('R105-4（V4.2.0 重指）E2 策展台 >5 页签统一收入「策展台库」：溢出与隐藏台共用稳定入口、计数徽标与活动台恒可见', () => {
   const app = read('/newtab/App.vue')

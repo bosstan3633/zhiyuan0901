@@ -10,6 +10,7 @@ import type { Router } from 'vue-router'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { uid } from '@/shared/utils'
+import { canonicalHttpUrl } from '@/shared/utils/url'
 import { isMirrorView, removeProjection, projectCardToBoard, type MirrorView } from '@/shared/storage/hub'
 import { recordResourceOpen } from '@/shared/storage/stats'
 import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'
@@ -236,6 +237,20 @@ export function useResourceDrawer(ctx: ResourceDrawerCtx) {
   function saveResource() {
     if (drawerReadonly.value) { showToast('📡 镜像卡为引用——编辑请到源卡'); return } // R106（F4）：只读守卫（防 Tab 聚焦写穿）
     if (!editingResource.title.trim()) { showToast('请输入标题'); return }
+    const urlKey = editingResource.linkType === 'url' ? canonicalHttpUrl(editingResource.link) : ''
+    if (urlKey) {
+      const duplicate = d.value.resources.find(resource =>
+        resource.id !== editingResource.id
+        && !resource.deletedAt
+        && !resource.isThesis
+        && resource.linkType === 'url'
+        && canonicalHttpUrl(resource.link) === urlKey
+      )
+      if (duplicate) {
+        showToast(`该 URL 已收录为「${duplicate.title.slice(0, 24)}」，资源卡不重复创建`)
+        return
+      }
+    }
     if (isNewResource.value) {
       d.value.resources.unshift({ ...editingResource })
     } else {

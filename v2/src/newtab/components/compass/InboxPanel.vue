@@ -251,7 +251,7 @@ defineExpose({ refresh: (force = true) => inbox.refresh(force) })
         <span class="inbox-icon"><Icon name="inbox" :size="18"/></span>
         <div>
           <h2>Inbox</h2>
-          <p>唯一转化入口：先收进来，再决定它成为任务、好奇心还是资源。</p>
+          <p>移动采集与待处理收件箱：先收进来，再决定它成为任务、好奇心还是资源。</p>
         </div>
         <InboxCountBadge :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
       </div>

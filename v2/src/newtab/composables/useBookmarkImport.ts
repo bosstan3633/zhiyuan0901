@@ -10,6 +10,7 @@
 import { ref, type ComputedRef } from 'vue'
 import { CURATION_WS_ID, type AppData, type ResourceCard } from '@/shared/models'
 import { uid, safeDecodeText } from '@/shared/utils'
+import { canonicalHttpUrl } from '@/shared/utils/url'
 import { showToast } from '@/shared/components/toast'
 
 interface BkNode { title: string; url: string; path: string[] }
@@ -80,15 +81,31 @@ export function useBookmarkImport(ctx: BookmarkImportCtx) {
     if (!items.length) { showToast('未在文件中解析到书签，请确认是浏览器导出的书签 HTML'); return [] }
     const data = d.value
     const ids: string[] = []
+    let duplicates = 0
     for (const b of items) {
       const tags = Array.from(new Set(b.path.filter(p => p && !BK_ROOT_NAMES.has(p))))
       const linkType: ResourceCard['linkType'] = /^file:/i.test(b.url) ? 'file' : /^obsidian:/i.test(b.url) ? 'obsidian' : 'url'
+      const urlKey = linkType === 'url' ? canonicalHttpUrl(b.url) : ''
+      if (urlKey) {
+        const existing = data.resources.find(resource =>
+          !resource.deletedAt
+          && !resource.isThesis
+          && resource.linkType === 'url'
+          && canonicalHttpUrl(resource.link) === urlKey
+        )
+        if (existing) {
+          existing.tags = [...new Set([...(existing.tags || []), ...tags])]
+          existing.updatedAt = Math.max(existing.updatedAt || 0, Date.now())
+          duplicates++
+          continue
+        }
+      }
       const card = makeBookmarkCard(b.title.substring(0, 120), linkType, b.url, tags)
       ids.push(card.id)
       data.resources.unshift(card)
     }
     persist()
-    showToast(`✓ 已导入 ${items.length} 张资源卡到资源卡池（文件夹已作为标签）`)
+    showToast(`✓ 已导入 ${ids.length} 张资源卡到资源卡池${duplicates ? `，跳过 ${duplicates} 张 URL 重复卡` : ''}（文件夹已作为标签）`)
     return ids
   }
 

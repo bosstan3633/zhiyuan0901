@@ -229,15 +229,20 @@ check('C101-13 分享入口先预览再下载：阅读长文 / 论证树、链�
     && SHARE_UI.includes('downloadAttachmentZip');
 });
 
-check('C101-14 分享 HTML 安全边界与真实层级：自包含、无可执行脚本、无外链资源；仅输出 http(s)，按 node.level 输出 L1–L4，不泄露内部 ID / 路径', () => {
+check('C101-14（V4.2.3 重指）分享 HTML 安全边界与真实层级：自包含、无外链资源；只允许一段处理附件下载的本地内联脚本，成果快照仍为惰性 JSON；仅输出 http(s)，按 node.level 输出 L1–L4，不泄露内部 ID / 路径', () => {
   /* 内部 ID 用于在内存中按节点归属筛选资源，不等于写进分享产物。
      这里守的是输出边界：论证树层级按真实 L1–L4 输出，JSON 快照必须 inert，同时仍钉住自包含与转义。 */
   const scripts = [...SHARE.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
-  const onlyInertSnapshot = scripts.length === 1
-    && /type=["']application\/json["']/i.test(scripts[0][1])
-    && /id=["']zy-curation-share-data["']/i.test(scripts[0][1])
+  const localAttachmentScript = scripts.length === 2
+    && !/\bsrc=/i.test(scripts[0][1])
+    && scripts[0][2].includes("closest('[data-download-open]')")
+    && scripts[0][2].includes("window.open(href,'_blank'")
+  const onlyInertSnapshot = scripts.length === 2
+    && /type=["']application\/json["']/i.test(scripts[1][1])
+    && /id=["']zy-curation-share-data["']/i.test(scripts[1][1])
   return SHARE.includes('<!doctype html>')
     && SHARE.includes('<style>')
+    && localAttachmentScript
     && onlyInertSnapshot
     && !SHARE.includes('http://')
     && SHARE.includes('/^https?:\\/\\//i.test(url)')

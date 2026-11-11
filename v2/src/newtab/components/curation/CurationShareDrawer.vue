@@ -12,7 +12,7 @@ import { buildCurationRenderTree } from '@/shared/utils/curationShareData'
 import { buildZipFromBlobs } from '@/shared/utils/zip'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { downloadCurationAsset } from '@/shared/cloud/sync'
-import type { Category, ResourceCard } from '@/shared/models'
+import type { AssetMeta, Category, ResourceCard } from '@/shared/models'
 
 const props = defineProps<{
   open: boolean
@@ -53,10 +53,33 @@ const previewFlatNodes = computed(() => renderTree.value.flat)
 
 const previewTitle = computed(() => props.thesis?.title || `${props.workspaceName} · 策展成果`)
 const previewDescription = computed(() => props.thesis?.description || '这份策展成果尚未补充中心论点说明。')
-const nodeAssetList = computed(() => [
-  ...(props.thesis?.assets || []),
-  ...props.nodes.flatMap(node => node.assets || []),
-])
+const nodeAssetList = computed<AssetMeta[]>(() => {
+  const byId = new Map<string, AssetMeta>()
+  const remember = (assets: AssetMeta[] | undefined) => {
+    for (const asset of assets || []) byId.set(asset.id, asset)
+  }
+  remember(props.thesis?.assets)
+  for (const node of props.nodes) remember(node.assets)
+  for (const card of props.cards) remember(card.assets)
+
+  const rendered = [
+    ...renderTree.value.thesisAssets,
+    ...renderTree.value.thesisCards.flatMap(card => card.assets),
+    ...renderTree.value.flat.flatMap(node => [
+      ...node.assets,
+      ...node.cards.flatMap(card => card.assets),
+    ]),
+  ]
+  const seen = new Set<string>()
+  const out: AssetMeta[] = []
+  for (const asset of rendered) {
+    if (!asset.id || seen.has(asset.id)) continue
+    seen.add(asset.id)
+    const meta = byId.get(asset.id)
+    if (meta) out.push(meta)
+  }
+  return out
+})
 const nodeAssetBytes = computed(() => nodeAssetList.value.reduce((sum, asset) => sum + (asset.size || 0), 0))
 const exportMode = computed<'single' | 'large' | 'zip'>(() => {
   if (!options.attachments) return 'single'
@@ -156,10 +179,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 function nodeAssets() {
-  return [
-    ...(props.thesis?.assets || []),
-    ...props.nodes.flatMap(node => node.assets || []),
-  ]
+  return nodeAssetList.value
 }
 
 async function loadNodeAssetData(): Promise<void> {
@@ -191,7 +211,7 @@ async function loadNodeAssetData(): Promise<void> {
       nodeAssetDataUrls.value = nextUrls
     }
   } catch (error) {
-    if (seq === assetSeq) showToast('节点附件读取失败：' + ((error as Error).message || '未知错误'))
+    if (seq === assetSeq) showToast('策展附件读取失败：' + ((error as Error).message || '未知错误'))
   } finally {
     if (seq === assetSeq) assetBusy.value = false
   }
@@ -223,7 +243,7 @@ async function downloadAttachmentZip(): Promise<void> {
   const zip = await buildZipFromBlobs([{ name: 'index.html', data: htmlBlob }, ...entries])
   const title = (props.thesis?.title || props.workspaceName || '策展成果').replace(/[\\/:*?"<>|]/g, '_').slice(0, 48)
   downloadBlob(`${title}_策展分享_${stampDay()}.zip`, zip)
-  if (entries.length < assets.length) showToast('部分节点附件未能读取，已跳过并保留在 HTML 清单中')
+  if (entries.length < assets.length) showToast('部分策展附件未能读取，已在 HTML 中标记为本体缺失')
 }
 
 async function download(): Promise<void> {
@@ -233,7 +253,7 @@ async function download(): Promise<void> {
     if (exportMode.value === 'large') {
       const ok = await useConfirm({
         title: '导出大文件提醒',
-        message: `节点附件约 ${fmtBytes(nodeAssetBytes.value)}，单文件 HTML 可能会让浏览器占用较多内存。确认继续生成吗？`,
+        message: `策展附件约 ${fmtBytes(nodeAssetBytes.value)}，单文件 HTML 可能会让浏览器占用较多内存。确认继续生成吗？`,
         confirmText: '继续导出',
         danger: false,
       })
@@ -264,7 +284,7 @@ watch(
 )
 
 watch(
-  () => [props.open, options.attachments, props.thesis?.assets, ...props.nodes.map(node => node.assets)] as const,
+  () => [props.open, options.attachments, nodeAssetList.value.map(asset => asset.id).join('|')] as const,
   () => { void loadNodeAssetData() },
   { immediate: true },
 )
@@ -303,7 +323,7 @@ watch(
     </div>
     <div class="cs-summary">
       将导出 <b>{{ options.format === 'reading' ? '阅读长文' : '论证树' }}</b> · {{ cards.length }} 张资源卡 · {{ roots }} 个一级节点 · {{ attachmentCount }} 个附件（{{ fmtBytes(nodeAssetBytes) }}） · {{ exportModeLabel }} · {{ options.links ? '资源链接可点击' : '不含资源链接' }}
-      <span v-if="assetBusy"> · 正在嵌入节点附件…</span>
+      <span v-if="assetBusy"> · 正在嵌入策展附件…</span>
     </div>
     <div class="cs-section cs-preview-section" :class="{ ink: options.theme === 'ink' }">
       <div class="cs-preview-heading">

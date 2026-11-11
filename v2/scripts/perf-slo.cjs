@@ -1009,14 +1009,14 @@ async function main() {
         await page.waitForSelector('.pcp-list', { state: 'visible', timeout: 10000 })
         previousText = await page.locator('.pcp-list').textContent()
         measured = await captureAction(page, async () => {
-          await page.locator('.dk-row[data-panel="pool"] .dk-pill').filter({ hasText: '待打标' }).first().click()
+          await page.locator('.dk-row[data-panel="pool"] .dk-filters.select .dk-select').selectOption('untagged')
           const changed = await waitForContentChange(page, '.pcp-list', previousText || '')
           if (!changed.ok) throw new Error(`资源池标签筛选：${changed.reason || '列表未更新'}`)
         })
         poolFilterSamples.push(measured.elapsed)
         recordAction('pool_filter', measured)
         previousText = await page.locator('.pcp-list').textContent()
-        await page.locator('.dk-row[data-panel="pool"] .dk-pill').filter({ hasText: '全部' }).first().click()
+        await page.locator('.dk-row[data-panel="pool"] .dk-filters.select .dk-select').selectOption('all')
         const poolRestored = await waitForContentChange(page, '.pcp-list', previousText || '')
         if (!poolRestored.ok) throw new Error('资源池标签筛选恢复失败')
         await page.waitForSelector('.pcp-row[data-rid]', { state: 'visible', timeout: 10000 })
@@ -1027,7 +1027,7 @@ async function main() {
     report.metrics.pool_filter = buildMetric(
       'pool_filter',
       poolFilterSamples,
-      ['每轮真实操作任务「推进中」、好奇心「探索中」、资源池「待打标」三次筛选；每次计到列表 DOM 实际变化。'],
+      ['每轮真实操作任务「推进中」、好奇心「探索中」、资源池状态下拉「待打标」三次筛选；每次计到列表 DOM 实际变化。'],
       poolFilterError,
       longTaskSamples.pool_filter,
       longTaskSupported,

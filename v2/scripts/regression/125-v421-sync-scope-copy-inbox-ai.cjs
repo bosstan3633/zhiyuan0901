@@ -49,14 +49,16 @@ check('V421-2 ★云同步只收业务数据：sanitizeCloudSnapshot 固定 ui:n
     && sync.includes("focusAutoDate: d.focusAutoDate")
 })
 
-check('V421-3 ★今日三件事复制文案逐字固定：只拼接「推进[[{项目}]]项目，{任务}，助力【{指标}】指标落实到位」，缺任一字段返回空串并禁用行内复制', () => {
+check('V421-3（V4.2.3 重指）★今日三件事复制文案逐字固定：只拼接「推进[[MOC-{项目}]]项目，{任务}，助力【{指标}】指标落实到位」，已有 MOC- 不重复；缺任一字段返回空串并禁用行内复制', () => {
   const copy = read('/shared/utils/focusCopy.ts')
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
   return copy.includes('export interface DailyFocusCopyInput')
     && copy.includes('任一层级缺失时返回空串')
     && copy.includes('if (!project || !metric || !task) return')
-    && copy.includes('推进[[${project}]]项目，${task}，助力【${metric}】指标落实到位')
+    && copy.includes('const project = cleanPart(input.projectName)')
+    && copy.includes('project.replace(/^MOC-/i')
+    && copy.includes('推进[[${mocProjectName(project)}]]项目，${task}，助力【${metric}】指标落实到位')
     && hook.includes('projectTitleOfTask')
     && hook.includes('metricTitleOfTask')
     && hook.includes('function focusCopyReason(cell: FocusCell)')

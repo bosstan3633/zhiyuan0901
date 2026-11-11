@@ -162,7 +162,7 @@ check('V421-11 ★同节点多图使用独立图库：中心论点与分支各�
     && html.includes('2 / 2')
     && html.includes('role="dialog"')
     && html.includes('.gallery-open:checked~.gallery-lightbox')
-    && !html.includes('addEventListener')
+    && html.includes("document.addEventListener('click'")
 })
 
 check('V421-12 ★ZIP 图库使用相对附件路径且 HTML 仍只含一份惰性 JSON 数据脚本；附件名与恶意链接正确转义/降级', () => {
@@ -185,9 +185,11 @@ check('V421-12 ★ZIP 图库使用相对附件路径且 HTML 仍只含一份惰�
     },
   })
   const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
-  return scripts.length === 1
-    && /type="application\/json"/i.test(scripts[0][1])
-    && /id="zy-curation-share-data"/i.test(scripts[0][1])
+  return scripts.length === 2
+    && !/\bsrc=/i.test(scripts[0][1])
+    && scripts[0][2].includes("closest('[data-download-open]')")
+    && /type="application\/json"/i.test(scripts[1][1])
+    && /id="zy-curation-share-data"/i.test(scripts[1][1])
     && html.includes('src="attachments/001_图.png"')
     && html.includes('&lt;script&gt;alert(1)&lt;/script&gt;')
     && !html.includes('href="javascript:')

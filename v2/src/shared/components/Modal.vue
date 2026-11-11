@@ -31,7 +31,9 @@ const props = withDefaults(defineProps<{
    * 只加 `max-height` 不加 `height` ⇒ 不传这个 prop 的宿主（周报/回收站等）渲染结果一字不变。
    */
   height?: string
-}>(), { title: '', width: 'min(1200px, 92vw)', maxHeight: '88vh', height: '' })
+  /** 允许宿主在全屏子层打开时暂时接管 Esc，避免一次 Esc 连关两层。 */
+  closeOnEsc?: boolean
+}>(), { title: '', width: 'min(1200px, 92vw)', maxHeight: '88vh', height: '', closeOnEsc: true })
 const emit = defineEmits<{ close: [] }>()
 
 const overlayTarget = useOverlayTarget()
@@ -40,6 +42,7 @@ const panelRef = ref<HTMLElement | null>(null)
 function onKey(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
   e.stopPropagation()
+  if (!props.closeOnEsc) return
   emit('close')
 }
 /**

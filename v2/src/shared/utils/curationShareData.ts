@@ -55,6 +55,7 @@ export interface CurationRenderCard {
   sourceType?: string
   tags: string[]
   assets: Array<{
+    id: string
     name: string
     kind: string
     size: number
@@ -153,6 +154,7 @@ export function buildCurationRenderTree(input: {
     sourceType: card.sourceType,
     tags: (card.tags || []).slice(0, 8),
     assets: (card.assets || []).map(asset => ({
+      id: asset.id,
       name: asset.name || '',
       kind: asset.kind || '',
       size: asset.size || 0,

@@ -545,7 +545,7 @@ check('R73-6（R100 拆入 useWorkspaceImport；V3.9.23 重指）书签导入全
     && bk.includes('async function handleBookmarkImport(')
     && bk.includes("workspaceId: CURATION_WS_ID, categoryId: ''")
     && bk.includes('data.resources.unshift(card)') && bk.includes('persist()')
-    && bk.includes('已导入 ${items.length} 张资源卡到资源卡池')
+    && bk.includes('已导入 ${ids.length} 张资源卡到资源卡池')
     && !bk.includes("name: '待分类'") && !bk.includes("'🔖 书签导入 '")
     && ['function ensureBookmarkCategory', 'function confirmBookmarkImport', 'bkFolders'].every(k => !bk.includes(k) && !imp.includes(k));
 });

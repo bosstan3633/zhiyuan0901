@@ -82,10 +82,14 @@ check('R78-2 A3 自动关闭 5000 → 2500（回执定时器统一走 clearSaved
   return o.includes('savedTimer = setTimeout(clearSavedState, 2500)')
     && !/savedTimer\s*=\s*setTimeout\(\s*clearSavedState\s*,\s*5000\s*\)/.test(o);
 });
-check('R78-3 A3 例外：重复卡确认视图维持整屏（showDupConfirm 未被牵连）', () => {
-  const o = read('/content/overlay-impl.ts');
-  const body = fnBody(o, 'function showDupConfirm(', '/** R78（A3）');
-  return body.includes('zy-saved-title') && body.includes('该页面已收录') && body.includes('可定位到原卡，或仍然新建一张') && body.includes('__zy_dup_force__');
+check('R78-3（V4.2.3 重指）A3 例外：重复卡确认视图维持整屏；资源卡按 URL 唯一，只保留取消 / 定位，不提供重复新建', () => {
+  const o = read('/content/overlay-capture.ts');
+  const body = fnBody(o, 'function showDupConfirm(', '// ============ 采集好奇心');
+  return body.includes('zy-saved-title')
+    && body.includes('该页面已收录')
+    && body.includes('资源卡按 URL 唯一收录')
+    && body.includes('__zy_dup_jump__')
+    && !body.includes('__zy_dup_force__');
 });
 check('R78-4 A7 仅任务卡提供「加入今日三件事」入口（渲染分支带 g.type 守卫）', () => {
   const o = read('/content/overlay-impl.ts');

@@ -84,12 +84,12 @@ check('R169-7 ★空槽 ≠ 断链：当前槽空走 .ds-slot-empty 中性说明
     && f.includes('v-if="slotEmpty" class="ds-slot-empty"') && f.includes('v-if="linkIncomplete" class="ref-warn"')
     && f.includes("linkStateOf(props.model.linkType, props.model.link) === 'incomplete'")
 });
-check('R169-8（V4.1.3 重指）★linkSlots 字段只活在五个明确边界：数据模型、link.ts 单一真源、云快照透传、同步展示字段名与资源卡全字段 AI 投料；详情表单仍经 slotFillOf/switchLinkSlot/setLinkSlot 间接使用，其余打开/筛选/导出/AI 抓正文只认 linkType+link', () => {
+check('R169-8（V4.2.3 重指）★linkSlots 字段只活在六个明确边界：数据模型、link.ts 单一真源、云快照透传、同步展示字段名、资源卡全字段 AI 投料与重复资源合并；详情表单仍经 slotFillOf/switchLinkSlot/setLinkSlot 间接使用，其余打开/筛选/导出/AI 抓正文只认 linkType+link', () => {
   const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = []
   const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { if (codeOnly(fs2.readFileSync(p, 'utf8')).includes('linkSlots')) hits.push(p.replace(/\\/g, '/')) } } }
   walk(root)
   const ref = codeOnly(read('/newtab/components/ResourceEditForm.vue'))
-  return hits.length === 5 && ['shared/models/index.ts', 'shared/utils/link.ts', 'shared/cloud/sync.ts', 'shared/cloud/syncDisplay.ts', 'shared/ai/select.ts'].every(a => hits.some(h => h.endsWith(a)))
+  return hits.length === 6 && ['shared/models/index.ts', 'shared/utils/link.ts', 'shared/cloud/sync.ts', 'shared/cloud/syncDisplay.ts', 'shared/ai/select.ts', 'shared/storage/captureDedupe.ts'].every(a => hits.some(h => h.endsWith(a)))
     && ref.includes('switchLinkSlot(model,') && ref.includes('setLinkSlot(props.model,') && !ref.includes('linkSlots')
 });
 check('R169-9 ★自动写入的三条边界都在：一天只写一次（focusAutoDate）/ 可"今天别推荐"（focusMutedDate）/ 用户手工选过与已完成的格子永不覆盖。落笔口只有 utils 里的 applyFocusOrder 一处（本地与 AI 共用），判据 `s.auto !== true || s.done` 分两处写就会出现"本地守了、AI 那条忘了"：', () => {

@@ -82,6 +82,7 @@ const SHARDS = [
   '127-v421-curation-export-gallery',
   '128-v421-curation-multinode-link',
   '129-v422-resource-folders-gallery-manual',
+  '130-v423-url-inbox-controls-moc-export',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

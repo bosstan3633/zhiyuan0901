@@ -644,7 +644,7 @@ async function downloadOnly(): Promise<void> {
   <div v-if="loggedIn" class="gs-card" data-testid="mobile-capture-inbox">
     <div class="gs-card-header">
       <span class="gs-card-title">移动端采集 · Inbox</span>
-      <span class="gs-card-desc">手机提交链接或文本后，统一到 Inbox 池按时间盘点与转化</span>
+      <span class="gs-card-desc">手机提交的链接或文本进入 Inbox 待处理；桌面端也可用快捷键直接采集到对应卡池</span>
     </div>
     <div class="gs-card-body">
       <div class="gs-setting-row">

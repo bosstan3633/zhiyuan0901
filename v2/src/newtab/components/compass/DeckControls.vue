@@ -74,7 +74,7 @@ const sortDirTitle = computed(() => {
           :title="f.title" @click="emit('filter', f.id)">{{ f.label }}<span v-if="f.count !== undefined" class="dk-pill-n">{{ f.count }}</span></button>
       </template>
       <select v-else class="dk-select" :value="filter" :title="filterTitle" @change="emit('filter', ($event.target as HTMLSelectElement).value)">
-        <option v-for="f in filters" :key="f.id" :value="f.id">{{ f.label }}</option>
+        <option v-for="f in filters" :key="f.id" :value="f.id">{{ f.label }}{{ f.count !== undefined ? `（${f.count}）` : '' }}</option>
       </select>
     </div>
 
@@ -103,6 +103,7 @@ const sortDirTitle = computed(() => {
       <Icon :name="batchOn ? 'checksquare' : 'check'" :size="13" />{{ batchOn ? batchLabels[1] : batchLabels[0] }}
     </button>
     <button v-if="newLabel" class="dk-btn dk-new" :title="newTitle" @click="emit('create')">{{ newLabel }}</button>
+    <slot name="tail" />
   </div>
 </template>
 
