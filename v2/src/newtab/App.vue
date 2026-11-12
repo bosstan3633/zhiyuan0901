@@ -495,6 +495,7 @@ onMounted(async () => {
     else if (msg?.type === 'zy-open-capture') gpOpen('capture')
     else if (msg?.type === 'zy-open-curiosity') gpOpen('curio')
     else if (msg?.type === 'zy-open-task-capture') gpOpen('taskcapture')
+    else if (msg?.type === 'zy-sync-cloud-now') window.dispatchEvent(new CustomEvent('zy:sync-cloud-now'))
     // 策展台单例定位（G）：跳转到目标策展台并高亮资源卡
     // ★R4-E：隐藏池卡（zy-curation）不是一枚 workspace 实体，走 resourceLocateRoute 落调度台资源卡池，
     //   否则跳 /workspace/zy-curation 必落「策展台不存在」死页（采集后按 Enter 就是这条路径）
@@ -535,6 +536,16 @@ onMounted(async () => {
   // R4-Fb：一个已开的新标签页都没有时，background 直接开 ?zy-panel=<capture|curio|taskcapture>
   const zyPanel = new URLSearchParams(location.search).get('zy-panel')
   if (zyPanel === 'capture' || zyPanel === 'curio' || zyPanel === 'taskcapture') setTimeout(() => gpOpen(zyPanel), 700)
+  // 浏览器快捷键“立即同步云端”：无已开知源页时由 background 带一次性动作打开。
+  const zyAction = new URLSearchParams(location.search).get('zy-action')
+  if (zyAction === 'sync-cloud') {
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('zy:sync-cloud-now'))
+      const url = new URL(location.href)
+      url.searchParams.delete('zy-action')
+      history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    }, 850)
+  }
 })
 
 onUnmounted(() => {

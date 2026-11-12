@@ -77,17 +77,13 @@ async function runAutoSync(): Promise<void> {
       await sync.markAutoSyncResult({ result: 'latest' })
       return
     }
-    if (check.kind !== 'empty_remote' && check.kind !== 'local_changed') {
-      const reason = check.kind === 'remote_changed'
-        ? '云端有新版本，自动同步不会拉回'
-        : check.kind === 'both_changed'
-          ? '本机与云端都有改动，需人工选择'
-          : '同步方向待人工确认'
+    if (check.kind === 'remote_changed') {
+      const reason = '云端有新版本，自动同步不会拉回'
       await sync.markAutoSyncResult({ result: 'blocked', error: reason })
       return
     }
 
-    const uploaded = await sync.uploadNow(snapshot, async () => 'cancel')
+    const uploaded = await sync.uploadNow(snapshot, async () => ({ action: 'cancel' }))
     if (uploaded.kind !== 'uploaded') {
       await sync.markAutoSyncResult({
         result: 'blocked',
@@ -95,17 +91,26 @@ async function runAutoSync(): Promise<void> {
       })
       return
     }
+    if (uploaded.merged) {
+      const { reconcileCloudStateAssets } = await import('@/shared/cloud/reconcileAssets')
+      const { nextData } = reconcileCloudStateAssets(data, uploaded.appliedState.data)
+      await repository.cloudRestoreAtomic({
+        nextData,
+        nextUi: null,
+        eventLog: uploaded.appliedState.eventLog,
+      })
+    }
     const receipt = sync.buildSyncReceipt({
       before: beforeMeta?.localManifest || null,
       after: uploaded.manifest,
-      direction: 'upload',
+      direction: uploaded.merged ? 'merge' : 'upload',
       trigger: 'auto',
       fromRevision: beforeMeta?.revision || 0,
       toRevision: uploaded.revision,
     })
     await sync.appendSyncReceipt(receipt)
     const { saveReceiptActions } = await import('@/shared/cloud/syncActions')
-    await saveReceiptActions(receipt, uploaded.beforeState, snapshot)
+    await saveReceiptActions(receipt, uploaded.beforeState, uploaded.appliedState)
     await sync.markAutoSyncResult({ result: 'uploaded' })
   } catch (error) {
     try {
@@ -237,6 +242,26 @@ async function openNewtabRoute(route: string): Promise<void> {
   await chrome.tabs.create({ url: `${base}#${route}` })
 }
 
+/** 快捷键“立即同步云端”：优先通知已开的知源页，没有页时新开并携带一次性动作。 */
+async function triggerCloudSyncNow(): Promise<void> {
+  const base = chrome.runtime.getURL('src/newtab/index.html')
+  try {
+    const tabs = await chrome.tabs.query({ url: base + '*' })
+    const active = await getActiveTab()
+    const existing = tabs.find(t => t.id != null && t.windowId === active?.windowId) || tabs.find(t => t.id != null)
+    if (existing?.id != null) {
+      if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
+      await chrome.tabs.update(existing.id, { active: true })
+      const sent = await chrome.tabs.sendMessage(existing.id, { type: 'zy-sync-cloud-now' })
+        .then(() => true).catch(() => false)
+      if (sent) return
+      await chrome.tabs.update(existing.id, { url: `${base}?zy-action=sync-cloud#/` })
+      return
+    }
+  } catch { /* 查询失败时新开 */ }
+  await chrome.tabs.create({ url: `${base}?zy-action=sync-cloud#/` })
+}
+
 /** 快捷键监听 */
 chrome.commands.onCommand.addListener(async (command) => {
   const tab = await getActiveTab()
@@ -272,8 +297,8 @@ chrome.commands.onCommand.addListener(async (command) => {
       await openNewtabRoute(`/deck/task?fresh=1&freshAt=${Date.now()}`)
       break
     }
-    case 'open-cloud-sync': {
-      await openNewtabRoute('/settings?page=cloud')
+    case 'sync-cloud-now': {
+      await triggerCloudSyncNow()
       break
     }
     case 'open-compass-curation': {

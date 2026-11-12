@@ -25,6 +25,7 @@ const rows = computed(() => {
 function triggerLabel(trigger: CloudSyncReceipt['trigger']): string {
   if (trigger === 'auto') return '自动同步'
   if (trigger === 'topbar') return '顶栏同步'
+  if (trigger === 'shortcut') return '浏览器快捷键'
   return '设置中心'
 }
 
@@ -55,7 +56,7 @@ function fmtTime(ts: number): string {
       <div v-if="rows.length" class="csh-list">
         <button v-for="receipt in rows" :key="receipt.id" class="csh-item" type="button" @click="emit('openReceipt', receipt)">
           <span class="csh-icon" :class="receipt.direction">
-            <Icon :name="receipt.direction === 'upload' ? 'arrowup' : receipt.direction === 'download' ? 'arrowdown' : 'check'" :size="14" />
+            <Icon :name="receipt.direction === 'upload' ? 'arrowup' : receipt.direction === 'download' ? 'arrowdown' : receipt.direction === 'merge' ? 'refresh' : 'check'" :size="14" />
           </span>
           <span class="csh-main">
             <span class="csh-line">

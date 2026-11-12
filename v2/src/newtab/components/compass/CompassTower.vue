@@ -11,7 +11,7 @@ import CompassLane from './CompassLane.vue'
 import CompassTowerNext from './CompassTowerNext.vue'
 import CompassTowerOrphans from './CompassTowerOrphans.vue'
 import CompassTowerStatus from './CompassTowerStatus.vue'
-import CompassLevelTag from './CompassLevelTag.vue'
+import CompassProjectTitle from './CompassProjectTitle.vue'
 import type { Direction, Project, TaskCard } from '@/shared/models'
 import type { ProjectMeta } from '../../views/compassMeta'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
@@ -62,6 +62,9 @@ const emit = defineEmits<{
   (e: 'cancelTitle', metricId: string): void
   (e: 'openMetric', metricId: string): void
   (e: 'editProject'): void
+  (e: 'renameProject', projId: string): void
+  (e: 'renameProjectSave', projId: string, ev: FocusEvent | KeyboardEvent): void
+  (e: 'renameProjectCancel'): void
   (e: 'aiMetric', projId: string): void
   (e: 'openPano', projId: string): void
   (e: 'bindOrphan', taskId: string, projId: string): void
@@ -139,16 +142,16 @@ function hasClue(t: TaskCard): boolean {
     >
       <span class="tw-idx">{{ idx }}</span>
       <div class="tw-id">
-        <h3 class="tw-name">
-          <CompassLevelTag :level="4" kind="project" icon="package" label="项目" />
-          <span class="tw-name-t editable" v-pressable @click.stop="emit('editProject')">{{ proj.name }}</span>
+        <CompassProjectTitle :name="proj.name" :editing="editingField === 'proj-' + proj.id" :field="'proj-' + proj.id"
+          @open="emit('editProject')" @rename="emit('renameProject', proj.id)"
+          @save="emit('renameProjectSave', proj.id, $event)" @cancel="emit('renameProjectCancel')">
           <span class="tw-signals">
             <span v-if="proj.isFocused" class="tw-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
             <span v-if="proj.pinned" class="tw-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
             <span v-if="meta.stall" class="tw-badge stall" title="近 14 天无推进/完成活动"><Icon name="stall" :size="13"/> 停滞</span>
             <span v-if="meta.risk > 0" class="tw-badge risk">{{ meta.risk }} 处断链</span>
           </span>
-        </h3>
+        </CompassProjectTitle>
         <!-- 归属面包屑：点任一段可跳回该层 -->
         <nav class="tw-crumb" aria-label="项目归属">
           <span class="tw-cr" v-pressable @click.stop="emit('openPano', proj.id)">战略目标 · {{ dir.name }}</span>
@@ -183,6 +186,7 @@ function hasClue(t: TaskCard): boolean {
             <button class="twm-item" @click="emit('menu', proj.id); emit('focus', proj.id)">
               <Icon v-if="!proj.isFocused" name="main-focus" :size="13"/>{{ proj.isFocused ? '☆ 取消主攻' : '设为主攻' }}
             </button>
+            <button class="twm-item" @click="emit('menu', proj.id); emit('renameProject', proj.id)"><Icon name="edit" :size="13"/> 重命名项目</button>
             <button class="twm-item" @click="emit('menu', proj.id); emit('pin', dir.id, proj.id)">
               <Icon v-if="!proj.pinned" name="pin" :size="13"/>{{ proj.pinned ? '☆ 取消置顶' : '置顶到本目标前排' }}
             </button>
@@ -274,13 +278,6 @@ function hasClue(t: TaskCard): boolean {
   display: flex; align-items: center; justify-content: center;
 }
 .tw-id { flex: 1; min-width: 200px; }
-.tw-name {
-  display: flex; align-items: center; gap: 7px 10px; flex-wrap: wrap;
-  margin: 0; line-height: 1.35;
-}
-/* ★项目名 --fs-title(15px)：与指标 --fs-sub(12px) 拉开一档，不许抢焦点（愿景才是 display） */
-.tw-name-t { font-size: var(--fs-title); font-weight: 700; color: var(--text); letter-spacing: -.01em; }
-.tw-name-t.editable:hover { text-decoration: underline; text-decoration-style: dotted; }
 .tw-signals { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .tw-badge {
   font-size: var(--fs-micro); color: var(--text-3);

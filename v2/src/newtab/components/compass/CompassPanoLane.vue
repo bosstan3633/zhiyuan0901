@@ -16,6 +16,7 @@ import Icon from '@/shared/components/Icon.vue'
 import { inject, ref } from 'vue'
 import './taskdnd.css'
 import CompassLevelTag from './CompassLevelTag.vue'
+import CompassMetricTitle from './CompassMetricTitle.vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
@@ -29,6 +30,8 @@ const props = defineProps<{
   single?: boolean
   /** 多泳道时保留完整指标名；宽度加大后允许自然换行，不再两行截断。 */
   dense?: boolean
+  /** 指标标题是否处于就地编辑态（由方向台单一编辑真源驱动）。 */
+  editing?: boolean
 }>()
 
 /** V3.9.31（F4）：共享任务拖拽态（Tree provide / 泳道 inject；缺省 null = 不启用拖拽） */
@@ -48,6 +51,9 @@ const emit = defineEmits<{
   (e: 'openMetric', metricId: string): void
   /** ★F1：泳道头删除本指标（走真源 removeMetricWithConfirm，这里只上抛） */
   (e: 'delMetric', metricId: string): void
+  (e: 'editTitle', metricId: string, ev?: Event): void
+  (e: 'saveTitle', metricId: string, ev: FocusEvent | KeyboardEvent): void
+  (e: 'cancelTitle'): void
 }>()
 
 /** ★F1：泳道头「⋯」菜单（当前只有删除一项，与 CompassLane 同语言） */
@@ -94,7 +100,9 @@ function priOf(t: TaskCard): string {
     <header class="lane-h">
       <div class="lane-top">
         <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
-        <span class="lane-n" :title="m.title">{{ m.title }}</span>
+        <CompassMetricTitle class="lane-n" :title="m.title" :metric-id="m.id" variant="pano" :editing="!!editing"
+          @edit="emit('editTitle', m.id, $event)" @save="emit('saveTitle', m.id, $event)"
+          @cancel="emit('cancelTitle')" />
         <span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>
         <span class="lane-dot" :class="dotOf(m).cls" :title="`完成 ${m.done}/${m.total}`">{{ dotOf(m).g }}</span>
         <!-- V3.9.26：指标头保持单行；打开详情与删除都收进「⋯」，序号让位给层级 5。 -->
@@ -102,6 +110,7 @@ function priOf(t: TaskCard): string {
           <button class="lo-more" :class="{ on: menuFor === m.id }" :aria-expanded="menuFor === m.id" aria-haspopup="menu" title="指标操作" @click="toggleMenu(m.id)">⋯</button>
           <span v-if="menuFor === m.id" class="lo-menu" role="menu" data-a11y-container @click.stop>
             <button class="lom-item" role="menuitem" @click="menuFor = null; emit('openMetric', m.id)"><Icon name="target" :size="13"/> 打开指标详情</button>
+            <button class="lom-item" role="menuitem" @click="menuFor = null; emit('editTitle', m.id)"><Icon name="edit" :size="13"/> 重命名指标</button>
             <button class="lom-item danger" role="menuitem" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
           </span>
         </span>

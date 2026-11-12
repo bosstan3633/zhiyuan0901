@@ -32,7 +32,12 @@ const total = computed(() => props.receipt
 const atText = computed(() => props.receipt?.at
   ? new Date(props.receipt.at).toLocaleString('zh-CN', { hour12: false })
   : '—')
-const triggerLabel = computed(() => props.receipt?.trigger === 'auto' ? '自动同步' : props.receipt?.trigger === 'topbar' ? '顶栏同步' : '设置中心')
+const triggerLabel = computed(() => {
+  if (props.receipt?.trigger === 'auto') return '自动同步'
+  if (props.receipt?.trigger === 'topbar') return '顶栏同步'
+  if (props.receipt?.trigger === 'shortcut') return '浏览器快捷键'
+  return '设置中心'
+})
 const actionByKey = computed(() => new Map(actions.value.map(row => [row.key, row])))
 const detailAction = computed(() => detailRow.value ? actionByKey.value.get(detailRow.value.key) || null : null)
 const canOperate = computed(() => !!detailAction.value
@@ -156,7 +161,7 @@ watch(
     <template #title><Icon name="refresh" :size="16" /> 本次同步明细</template>
     <div v-if="receipt" class="csrm" data-testid="cloud-sync-receipt-modal">
       <div class="csrm-hero">
-        <span class="csrm-mark" :class="receipt.direction"><Icon :name="receipt.direction === 'upload' ? 'arrowup' : receipt.direction === 'download' ? 'arrowdown' : 'check'" :size="18" /></span>
+        <span class="csrm-mark" :class="receipt.direction"><Icon :name="receipt.direction === 'upload' ? 'arrowup' : receipt.direction === 'download' ? 'arrowdown' : receipt.direction === 'merge' ? 'refresh' : 'check'" :size="18" /></span>
         <div>
           <h2>{{ syncDirectionLabel(receipt.direction) }}</h2>
           <p>{{ total ? `本次共有 ${total} 条记录变化` : '本次没有记录变化，本机与云端已是最新一致状态' }}</p>
@@ -166,6 +171,7 @@ watch(
           <time>{{ atText }}</time>
         </div>
       </div>
+      <p class="csrm-scope">本次只处理卡片、策展台、方向树、今日三件事与资源镜像关系；主题、页面布局、抽屉宽窄、筛选与排序偏好不会进入云端。</p>
       <div class="csrm-summary">
         <div><span>新增</span><b>{{ receipt.added }}</b></div>
         <div><span>修改</span><b>{{ receipt.changed }}</b></div>
@@ -244,6 +250,7 @@ watch(
 .csrm-mark { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--accent-light); color: var(--accent-ink); }
 .csrm-mark.download { background: var(--tag-info-bg); color: var(--tag-info-text); }
 .csrm-mark.latest { background: var(--success-bg-soft); color: var(--success); }
+.csrm-mark.merge { background: var(--warning-bg-soft); color: var(--warning); }
 .csrm-hero > div:nth-child(2) { flex: 1; min-width: 0; }
 .csrm-hero h2 { margin: 0; color: var(--text); font-size: var(--fs-title); }
 .csrm-hero p { margin: 3px 0 0; color: var(--text-3); font-size: var(--fs-caption); }
@@ -253,6 +260,7 @@ watch(
 .csrm-summary div { padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .csrm-summary span { display: block; color: var(--text-3); font-size: var(--fs-micro); }
 .csrm-summary b { display: block; margin-top: 2px; color: var(--text); font-size: var(--fs-body); }
+.csrm-scope { margin: 0; padding: 8px 10px; border-radius: 7px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); line-height: 1.5; }
 .csrm-note { margin: 0; padding: 8px 10px; border-radius: 7px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); line-height: 1.55; }
 .csrm-note span { display: block; margin-top: 3px; color: var(--accent-ink); }
 .csrm-error { padding: 8px 10px; border-radius: 8px; background: var(--danger-bg-soft); color: var(--danger); font-size: var(--fs-caption); }

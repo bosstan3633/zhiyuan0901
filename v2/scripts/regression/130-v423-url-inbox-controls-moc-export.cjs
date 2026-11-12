@@ -3,7 +3,7 @@
  * 策展图片全屏与 HTML 附件下载、今日复制 MOC 前缀。
  */
 const fs = require('fs')
-const { check, read, path, SCRIPTS_DIR } = require('./helpers.cjs')
+const { check, read, path, SCRIPTS_DIR, CUR_VTAG } = require('./helpers.cjs')
 
 let esbuild = null
 try { esbuild = require('esbuild') } catch { /* source fallback below */ }
@@ -364,9 +364,9 @@ check('V423-9 ★今日三件事复制固定加 MOC- 前缀且不重复：项目
 check('V423-10 ★V4.2.3 手册与应用内版本同源：流程手册写清桌面直达、移动 Inbox、MOC 复制、资源下拉筛选与附件下载打开', () => {
   const manual = read('/newtab/manual-data.ts')
   const page = read('/newtab/views/ManualPage.vue')
-  return manual.includes('V4.2.3')
+  return manual.includes(CUR_VTAG)
     && manual.includes('推进[[MOC-项目名]]项目')
     && manual.includes('状态筛选收进下拉框')
     && manual.includes('附件点击后下载并打开')
-    && page.includes('V4.2.3')
+    && page.includes(CUR_VTAG)
 })

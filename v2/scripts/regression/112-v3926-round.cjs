@@ -77,7 +77,7 @@ check('R183-C2 ★项目全景指标头固定单行：去掉指标序号，层�
     && !lane.includes('class="lane-detail"')
     && !lane.includes('class="lo-del"')
     && lane.includes('<CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />')
-    && lane.includes('<span class="lane-n" :title="m.title">{{ m.title }}</span>')
+    && lane.includes('<CompassMetricTitle class="lane-n" :title="m.title"')
     && lane.includes('white-space: nowrap; overflow: hidden; text-overflow: ellipsis;')
     && lane.includes('aria-haspopup="menu" title="指标操作"')
     && lane.includes("emit('openMetric', m.id)")

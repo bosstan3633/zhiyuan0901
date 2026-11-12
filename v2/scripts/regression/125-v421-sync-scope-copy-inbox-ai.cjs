@@ -21,8 +21,8 @@ check('V421-1 ★同步成功后辅助回执失败仍保持成功：undefined �
     && actions.includes('function readonlyOne(')
     && actions.includes('return readonlyOne(receipt, row, error)')
     && hook.includes('async function recordReceiptBestEffort(')
-    && hook.includes('await settleInSync(uploaded.revision, uploaded.fingerprint, captured.mutationSeq)')
-    && hook.includes('await recordReceiptBestEffort(receipt, uploaded.beforeState, captured.snapshot)')
+    && hook.includes('await settleInSync(uploaded.revision, uploaded.fingerprint, mutationSeq)')
+    && hook.includes('await recordReceiptBestEffort(receipt, uploaded.beforeState, uploaded.appliedState)')
     && hook.includes('await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq())')
     && hook.includes('await recordReceiptBestEffort(receipt, beforeSnapshot.snapshot, {')
     && sync.includes("throw new Error('云端暂无快照')")
@@ -37,7 +37,7 @@ check('V421-2 ★云同步只收业务数据：sanitizeCloudSnapshot 固定 ui:n
   const saveEnd = repo.indexOf('\n}', saveStart)
   const mergeBody = mergeStart >= 0 && mergeEnd > mergeStart ? repo.slice(mergeStart, mergeEnd) : ''
   const saveBody = saveStart >= 0 && saveEnd > saveStart ? repo.slice(saveStart, saveEnd) : ''
-  return sync.includes('const CLOUD_SYNC_SCOPE_VERSION = 2')
+  return sync.includes('const CLOUD_SYNC_SCOPE_VERSION = 3')
     && sync.includes('export function sanitizeCloudSnapshot(snapshot: SnapshotState): SnapshotState')
     && sync.includes('return { data: clean.data, ui: null, eventLog: clean.eventLog }')
     && sync.includes('const input = stableStringify(clean.data)')

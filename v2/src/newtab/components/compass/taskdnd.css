@@ -11,4 +11,5 @@
 .ltask.dnd-tip-b,
 .tk-row.dnd-tip-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .lane.dnd-tip-in,
-.metric-list.dnd-tip-in { background: var(--accent-light); }
+.metric-list.dnd-tip-in,
+.metric-card.dnd-tip-in { background: var(--accent-light); }

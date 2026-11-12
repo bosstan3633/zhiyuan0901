@@ -666,7 +666,7 @@ check('R4-Fa（V4.0.3 重指）★Airtable 逐行「待推」同步引擎已退�
     && c.includes('/rest/v1/cloud_snapshots')
     && s.includes('const clean = sanitizeCloudSnapshot(snap)')
     && s.includes('cloud.insertSnapshot(env, token, meta.userId, clean)')
-    && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)');
+    && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, candidate)');
 });
 check('R4-Fa（V4.0.3 重指）★sync 行级时间戳已退役，现行云端冲突语义由 revision 乐观锁承接：先读 revision、冲突必须确认，PATCH 同时限定 user_id 与 expected revision', () => {
   const legacy = srcFileEntries().filter(e => {
@@ -681,7 +681,10 @@ check('R4-Fa（V4.0.3 重指）★sync 行级时间戳已退役，现行云端�
     && s.includes('const rows = await cloud.getSnapshot(env, token, meta.userId)')
     && s.includes('const localRevision = meta.revision || 0')
     && s.includes('if ((remote.revision !== localRevision || attempt > 0) && !canUseInitialApproval)')
-    && s.includes('const decision = await onConflict(remote.revision)');
+    && s.includes('const decision = await onConflict({')
+    && s.includes("mode: 'merge'")
+    && s.includes('mergeThreeWaySnapshots(baseline?.state || null, localState, beforeState)')
+    && s.includes('decision.action === \'merge\'');
 });
 check('R4-Fa ★setThesis 摘标不许碰回收站里的卡：同文件 countThesisDuplicates / sanitizeThesisDuplicates 的口径写死"软删卡不计入、恢复后语义不变"，唯独 setThesis 的清除循环漏判 deletedAt ⇒ 用户恢复一张旧论点卡，回来的是没有论点头衔的普通卡且无提示', () => {
   const h = read('/shared/storage/hub.ts');

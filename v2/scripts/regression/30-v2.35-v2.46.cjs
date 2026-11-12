@@ -168,7 +168,7 @@ check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：p
 });
 check('R67-7（V4.0.4 重指）卡池直达快捷键：goto-curiosity / goto-tasks 保留，并直接进入对应二级页的最新列表；首页锚点分发正式退役', () => { const m = read('/manifest.ts'); const b = read('/background/index.ts'); return m.includes("'goto-curiosity'") && m.includes("'goto-tasks'") && m.includes("description: '直达好奇心卡池'") && m.includes("description: '直达任务卡池'") && !m.includes('直达项目调度模块') && b.includes("case 'goto-curiosity':") && b.includes("await openNewtabRoute(`/deck/curiosity?fresh=1&freshAt=${Date.now()}`)") && b.includes("case 'goto-tasks':") && b.includes("await openNewtabRoute(`/deck/task?fresh=1&freshAt=${Date.now()}`)") && !b.includes('zy-anchor='); });
 check('R67-8/R121 左栏宽高拖拽随左栏退役（startRailResize/rail-grip 全量零残留）', () => { const p = read('/newtab/views/ProjectCuration.vue'); return !p.includes('startRailResize') && !p.includes('rail-grip'); });
-check('R67-9（V4.0.4 重指）手册口径跟进：三个卡池直达 + 打开云同步；紧凑论点上下文带与三卡手势保持，已退役的独占横幅和四视图说明不许回流', () => { const m = read('/newtab/manual-data.ts'); return m.includes('直达好奇心卡池') && m.includes('直达任务卡池') && m.includes('直达资源卡池') && m.includes('打开云同步') && !m.includes('直达好奇心培养模块') && m.includes('紧凑上下文带') && m.includes('单击开右侧详情') && m.includes('双击打开链接') && !m.includes('大横幅在四档视图常驻') && !m.includes('R67 重排') && !m.includes('战略目标小字在上、项目名称大字在下') && !m.includes('常亮高亮'); });
+check('R67-9（V4.2.4 重指）手册口径跟进：三个卡池直达 + 立即同步云端；紧凑论点上下文带与三卡手势保持，已退役的独占横幅和四视图说明不许回流', () => { const m = read('/newtab/manual-data.ts'); return m.includes('直达好奇心卡池') && m.includes('直达任务卡池') && m.includes('直达资源卡池') && m.includes('立即同步云端') && !m.includes('直达好奇心培养模块') && m.includes('紧凑上下文带') && m.includes('单击开右侧详情') && m.includes('双击打开链接') && !m.includes('大横幅在四档视图常驻') && !m.includes('R67 重排') && !m.includes('战略目标小字在上、项目名称大字在下') && !m.includes('常亮高亮'); });
 
 // ============== 第六十八轮 · R68：搜索遗留实体过滤 + 深色按钮修复 + 快捷键体系改造 + 加载动画美化 + 切台/搜索性能 ==============
 console.log('【第六十八轮 · R68：搜索口径修复 + 深色可见性 + 快捷键改造 + 性能】');
@@ -294,10 +294,12 @@ check('R70-10 P1 多窗口快捷键定位优先当前窗口：所有新标签页
   const b = read('/background/index.ts');
   const helper = b.slice(b.indexOf('async function openNewtabRoute'), b.indexOf('/** 快捷键监听 */'));
   const commands = b.slice(b.indexOf('chrome.commands.onCommand.addListener'), b.indexOf('/** 扩展图标点击'));
-  const routed = ['open-dashboard', 'open-settings', 'open-resource', 'open-tree', 'goto-curiosity', 'goto-tasks', 'open-cloud-sync'];
+  const routed = ['open-dashboard', 'open-settings', 'open-resource', 'open-tree', 'goto-curiosity', 'goto-tasks'];
   return helper.includes('const active = await getActiveTab()')
     && helper.includes('t.windowId === active?.windowId')
-    && routed.every(name => commands.includes(`case '${name}'`) && commands.includes('await openNewtabRoute('));
+    && routed.every(name => commands.includes(`case '${name}'`) && commands.includes('await openNewtabRoute('))
+    && commands.includes("case 'sync-cloud-now'")
+    && commands.includes('await triggerCloudSyncNow()');
 });
 check('R70-11（R131-C1a 重写）isSelfWrite 由内容指纹升级为载荷 __wid（守卫生效且判定 O(1)）', () => {
   const r = read('/shared/storage/repository.ts');

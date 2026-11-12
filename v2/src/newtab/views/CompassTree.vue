@@ -305,6 +305,7 @@ const {
               key="pano"
               :meta="compassMeta"
               :active-id="panoId"
+              :editing-field="editingField"
               :diag="diagFor(panoEffectiveId)"
               :diag-stale="diagStale(panoEffectiveId)"
               @pick="panoId = $event"
@@ -324,6 +325,12 @@ const {
               @import-template="openProjImport"
               @diag-run="(id) => startProjectDiag(id)"
               @diag-report="(id) => openDiagReport(id)"
+              @rename-project="(id) => startEdit('proj-' + id)"
+              @save-project-name="(id, ev) => saveEdit('proj-' + id, ev)"
+              @cancel-project-name="cancelEdit"
+              @edit-metric-title="(id, ev) => startEdit('metric-' + id, ev)"
+              @save-metric-title="(id, ev) => saveEdit('metric-' + id, ev)"
+              @cancel-metric-title="cancelEdit"
             />
 
             <!-- W11（V3.8.11）★纵向项目舱序列 —— 替换原三列并排网格（.tree-columns-grid）
@@ -428,6 +435,9 @@ const {
                   @save-title="(mid, ev) => saveEdit('metric-' + mid, ev)"
                   @cancel-title="cancelEdit"
                   @edit-project="() => openProjectDrawer(row.proj.id)"
+                  @rename-project="(id) => startEdit('proj-' + id)"
+                  @rename-project-save="(id, ev) => saveEdit('proj-' + id, ev)"
+                  @rename-project-cancel="cancelEdit"
                   @ai-metric="(id) => aiChain('metrics', id)"
                   @open-pano="openPano"
                   @bind-orphan="bindOrphan"
@@ -438,7 +448,7 @@ const {
 
           <!-- 底部说明 -->
           <div class="footer-hint">
-            <Icon name="bulb" :size="13"/> 点击标题即可编辑 · Enter 保存 / Esc 取消 · 点击指标展开/收起任务 · 空指标会亮 <Icon name="warn" :size="13"/> 警示
+            <Icon name="bulb" :size="13"/> 项目名悬停铅笔重命名 · 成功指标双击标题重命名 · Enter 保存 / Esc 取消 · 空指标也可直接拖入任务
           </div>
 
         </div>

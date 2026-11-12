@@ -244,7 +244,9 @@ check('W11-11 ★方向台焦点契约：**愿景仍是唯一的主体**。D1 �
   const noHeroUse = !/var\(--fs-hero\)/.test(code);
   const tokens = read('/shared/styles/tokens.css');
   const noHeroToken = !/--fs-hero\s*:/.test(tokens);
-  const projectName = /\.tw-name-t \{[^}]*font-size: var\(--fs-title\)/.test(TOWER);
+  /* V4.2.4 拆件随迁：项目标题移入共享组件，焦点层级不变。 */
+  const projectTitle = read('/newtab/components/compass/CompassProjectTitle.vue');
+  const projectName = /\.tw-name-t \{[^}]*font-size: var\(--fs-title\)/.test(projectTitle);
   const panoName = /\.ph-n \{[^}]*font-size: var\(--fs-title\)/.test(PANO);
   if (visionDisplay && (CT_W11.match(/font-size:\s*var\(--fs-display\)/g) || []).length !== 1) {
     console.error('   · 方向台 fs-display 不止一处（焦点契约要求愿景唯一）');
@@ -375,14 +377,17 @@ check('W11-16 ★项目详情第一版只做「概览 / 指标 / 任务」三页
     && pd.includes("'ArrowLeft', 'ArrowRight', 'Home', 'End'")
 });
 
-check('W11-17 ★指标详情入口不改变既有改名习惯：指标标题单击仍进入就地改名，详情必须由独立按钮触发；项目塔、全景泳道、项目详情三处都要有明确“详情 ›”出口，并跨组件接到同一个 MetricDetailDrawer（按钮在、事件没接 = 死按钮）', () => {
+check('W11-17（V4.2.4 重指）★指标详情入口不改变既有改名习惯：成功指标双击标题进入就地改名，详情由独立按钮触发；项目塔、全景泳道、项目详情三处都有明确入口，并跨组件接到同一个 MetricDetailDrawer', () => {
   const pd = read('/newtab/components/ProjectDetailDrawer.vue')
-  return LANE.includes('class="mc-title editable"')
-    && LANE.includes("@click=\"$emit('editTitle', m.id, $event)\"")
+  const title = read('/newtab/components/compass/CompassMetricTitle.vue')
+  return LANE.includes('<CompassMetricTitle class="mc-title"')
+    && LANE.includes("@edit=\"emit('editTitle', m.id, $event)\"")
+    && title.includes('@dblclick.stop="emit(\'edit\', $event)"')
+    && title.includes(':data-edit="\'metric-\' + metricId"')
     && LANE.includes('class="mc-detail"')
     && LANE.includes("emit('openMetric', m.id)")
+    && PANO_LANE.includes('<CompassMetricTitle class="lane-n"')
     && PANO_LANE.includes('打开指标详情')
-    && PANO_LANE.includes("emit('openMetric', m.id)")
     && PANO_LANE.includes("emit('openMetric', m.id)")
     && pd.includes('class="pd-mini pd-detail"')
     && pd.includes('@click="openMetric(m.id)"')

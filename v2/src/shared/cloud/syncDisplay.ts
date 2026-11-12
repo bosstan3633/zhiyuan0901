@@ -160,5 +160,6 @@ export function syncGroupOf(type: SyncManifestRecordType): Exclude<SyncRecordGro
 export function syncDirectionLabel(direction: CloudSyncDirection): string {
   if (direction === 'upload') return '上传到云端'
   if (direction === 'download') return '从云端拉回'
+  if (direction === 'merge') return '合并同步到云端'
   return '已是最新'
 }

@@ -18,7 +18,9 @@ check('W8-1 ★方向台主角＝愿景（用户2026-10-12 拍板 A 案）：.tl
 check('W8-2 ★六层字阶必须**真的分层**。★W11(V3.8.11)随迁带备案：W11 起六层分居四个文件：使命/战略目标在 CompassTree.vue（.tl-text.sub / .dh-n）、项目与指标在 CompassTower.vue / CompassLane.vue。判据改钉**各层实际字号**而非旧文件位置——本条守的是"层级差真的存在"，不是"样式写在哪个文件"。★取舍备案：层级仍允许使命17 › 项目15 的起伏，这是有意取舍不是失误。★W12 随迁备案：hero 留白锚由 30px 改为 14/16px。★V3.9.25：愿景/使命层级面板以两栏压缩高度，留白锚改为 10px/11px + 8px 内部间距', () => {
   const missionOk = /\.tl-text\.sub \{ font-size: var\(--fs-headline\)/.test(CT_W11);
   const dirOk = /\.dh-n \{ font-size: var\(--fs-title\)/.test(CT_W11);
-  const projOk = /\.tw-name-t \{ font-size: var\(--fs-title\)/.test(TOWER);
+  /* V4.2.4 拆件随迁：项目标题与编辑按钮移入 CompassProjectTitle，字号仍由该组件承担。 */
+  const projTitle = read('/newtab/components/compass/CompassProjectTitle.vue');
+  const projOk = /\.tw-name-t \{[^}]*font-size: var\(--fs-title\)/.test(projTitle);
   const metricOk = /\.mc-title \{[^}]*font-size: var\(--fs-sub\)/.test(LANE);
   const taskOk = /\.tk-title \{[^}]*font-size: var\(--fs-body\)/.test(LANE);
   const noInflate = !/\.mc-title \{[^}]*font-size: var\(--fs-(title|headline|display)\)/.test(LANE)

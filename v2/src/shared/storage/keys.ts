@@ -19,6 +19,8 @@ export const K = {
   CLOUD_META: 'zy_cloud_meta_v1',
   /** 云同步回执的本机私有动作载荷；不进云端快照，最多保留 30 天 */
   CLOUD_SYNC_ACTIONS: 'zy_cloud_sync_actions_v1',
+  /** 最近一次成功同步的完整业务基线；仅本机保存，用于三端字段级合并 */
+  CLOUD_SYNC_BASE: 'zy_cloud_sync_base_v1',
   /** 跨页面/后台的云同步互斥锁，避免手动与自动任务同时覆盖 */
   CLOUD_SYNC_LOCK: 'zy_cloud_sync_lock_v1',
   /** 设置页覆盖的 Supabase 项目地址与 publishable key */

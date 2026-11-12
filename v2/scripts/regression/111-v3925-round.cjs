@@ -72,7 +72,7 @@ check('R182-C1 ★项目全景指标名完整可读：泳道标题不再两行�
   return pano.includes("'lanes-multi': laneCount > 1 && laneCount <= 3")
     && pano.includes("'lanes-scroll': laneCount > 3")
     && pano.includes('flex: 0 0 360px; width: 360px; min-width: 360px;')
-    && lane.includes('<span class="lane-n" :title="m.title">{{ m.title }}</span>')
+    && lane.includes('<CompassMetricTitle class="lane-n" :title="m.title"')
     && lane.includes('<span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>')
     && lane.includes('min-width: 360px')
     && !lane.includes('-webkit-line-clamp: 2')

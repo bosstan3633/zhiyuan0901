@@ -33,7 +33,7 @@ export function useCompassTreeProjects(deps: Pick<ReturnType<typeof useCompassTr
   toggleMetric: (id: string) => void
   editingField: Ref<string | null>
   focusEditField: (field: string) => void
-  startEdit: (field: string, e: MouseEvent) => void
+  startEdit: (field: string, e?: Event) => void
   saveEdit: (field: string, e: FocusEvent | KeyboardEvent) => void
   cancelEdit: () => void
   directionForm: Ref<{ open: boolean; direction: Direction | null }>
@@ -324,8 +324,8 @@ function focusEditField(field: string) {
   })
 }
 
-function startEdit(field: string, e: MouseEvent) {
-  e.stopPropagation()
+function startEdit(field: string, e?: Event) {
+  e?.stopPropagation()
   editingField.value = field
   focusEditField(field)
 }
@@ -343,7 +343,11 @@ function saveEdit(field: string, e: FocusEvent | KeyboardEvent) {
   } else if (field === 'mission') {
     missionText.value = val
   } else {
-    const [type, id] = field.split('-')
+    // IDs routinely contain hyphens. Split only the field-kind prefix so
+    // `proj-e2e-empty-proj` resolves the full ID instead of `e2e`.
+    const separator = field.indexOf('-')
+    const type = separator < 0 ? field : field.slice(0, separator)
+    const id = separator < 0 ? '' : field.slice(separator + 1)
     if (type === 'dir') {
       const dir = d.value.compass.directions.find(x => x.id === id)
       if (dir) dir.name = val

@@ -26,7 +26,7 @@ check('V413-1 ★同步事实卡与回执：本机待上传、本机基线、最
   const table = read('/newtab/components/cloud/CloudSyncChangeTable.vue')
   const display = read('/shared/cloud/syncDisplay.ts')
   const modal = read('/newtab/components/cloud/CloudSyncReceiptModal.vue')
-  return sync.includes('export type CloudSyncDirection = \'upload\' | \'download\' | \'latest\'')
+  return sync.includes('export type CloudSyncDirection = \'upload\' | \'download\' | \'latest\' | \'merge\'')
     && sync.includes('export interface CloudSyncReceipt')
     && sync.includes('syncReceipts?: CloudSyncReceipt[]')
     && sync.includes('export function diffSyncManifests')
@@ -36,7 +36,7 @@ check('V413-1 ★同步事实卡与回执：本机待上传、本机基线、最
     && sync.includes('.slice(0, 20)')
     && hook.includes('const latestReceipt = computed<CloudSyncReceipt | null>')
     && hook.includes("direction: 'latest'")
-    && hook.includes("direction: 'upload'")
+    && hook.includes("direction: uploaded.merged ? 'merge' : 'upload'")
     && hook.includes("direction: 'download'")
     && hook.includes('await sync.appendSyncReceipt(receipt)')
     && view.includes('async function openPendingChanges()')
@@ -207,22 +207,23 @@ check('V413-6 ★资源编辑与两代详情同步新字段：来源类型合法
     && composable.includes('editingResource.customFields')
 })
 
-check('V413-7 ★浏览器快捷键新增“打开云同步”：无默认键、后台直达云同步设置、设置页与手册命令清单同源', () => {
+check('V413-7（V4.2.4 重指）★浏览器快捷键由“打开云同步”改为“立即同步云端”：无默认键、后台直接触发同步动作、设置页与手册命令清单同源', () => {
   const manifest = read('/manifest.ts')
   const background = read('/background/index.ts')
   const shortcuts = read('/shared/utils/shortcuts.ts')
   const shortcutsPanel = read('/newtab/views/settings/SettingsShortcutsPanel.vue')
   const manual = read('/newtab/manual-data.ts')
   const commandBlock = manifest.slice(
-    manifest.indexOf("'open-cloud-sync': {"),
+    manifest.indexOf("'sync-cloud-now': {"),
     manifest.indexOf("'open-compass-curation': {"),
   )
-  return commandBlock.includes("description: '打开云同步'")
+  return commandBlock.includes("description: '立即同步云端'")
     && !commandBlock.includes('suggested_key')
-    && background.includes("case 'open-cloud-sync':")
-    && background.includes("openNewtabRoute('/settings?page=cloud')")
-    && shortcuts.includes("'打开云同步'")
+    && background.includes("case 'sync-cloud-now':")
+    && background.includes('triggerCloudSyncNow()')
+    && background.includes("type: 'zy-sync-cloud-now'")
+    && shortcuts.includes("'立即同步云端'")
     && shortcutsPanel.includes('chrome.commands.getAll')
     && shortcutsPanel.includes('c.description')
-    && manual.includes('打开云同步')
+    && manual.includes('立即同步云端')
 })

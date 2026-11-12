@@ -5,7 +5,6 @@ import { useAppStore } from '../../stores/app'
 import Icon from '@/shared/components/Icon.vue'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
-import { useFocusTrap } from '@/shared/utils/focusTrap'
 import { diffSyncManifests, syncDiffRows, type CloudSyncReceipt, type SyncManifestDiffRow } from '@/shared/cloud/sync'
 import {
   useCloudSync,
@@ -16,6 +15,7 @@ import {
 import CloudSyncChangesDrawer from '@/newtab/components/cloud/CloudSyncChangesDrawer.vue'
 import CloudSyncReceiptModal from '@/newtab/components/cloud/CloudSyncReceiptModal.vue'
 import CloudSyncHistoryDrawer from '@/newtab/components/cloud/CloudSyncHistoryDrawer.vue'
+import CloudMergeConflictModal from '@/newtab/components/cloud/CloudMergeConflictModal.vue'
 import CloudSyncDetailDrawer from './CloudSyncDetailDrawer.vue'
 
 const store = useAppStore()
@@ -33,7 +33,6 @@ const email = ref('')
 const password = ref('')
 const pageBusy = ref(false)
 const conflictOpen = ref(false)
-const conflictPanel = ref<HTMLElement | null>(null)
 const conflictInfo = ref<CloudDecisionInfo | null>(null)
 const syncDetailOpen = ref(false)
 const syncDetailTab = ref<'local' | 'remote'>('local')
@@ -50,15 +49,6 @@ const receiptOpen = ref(false)
 const receipt = ref<CloudSyncReceipt | null>(null)
 const historyOpen = ref(false)
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
-
-useFocusTrap(conflictPanel, () => conflictOpen.value, { initial: 'first' })
-
-function onConflictKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape' || !conflictOpen.value) return
-  event.preventDefault()
-  event.stopPropagation()
-  resolveConflict('cancel')
-}
 
 const pwaUrl = 'https://bosstan3633.github.io/zhiyuan0901/'
 const meta = sharedCloud.meta
@@ -85,24 +75,14 @@ const badgeText = computed(() => {
 })
 
 const relationTitle = computed(() => sharedCloud.relationActionLabel.value)
-const conflictTitle = computed(() => {
-  switch (conflictInfo.value?.relation) {
-    case 'remote_changed': return '云端有新增，待拉回本机'
-    case 'both_changed': return '本机与云端都有改动'
-    case 'unknown': return '首次确认同步方向'
-    case 'local_changed': return '本机有改动，待上传云端'
-    default: return '本机与云端内容不同'
-  }
-})
-
 const relationDetail = computed(() => {
   switch (sharedCloud.relation.value) {
     case 'local_changed': return '建议同步到云端。云端没有比本机更新的内容，可以直接一键上传。'
     case 'remote_changed': return '建议从云端拉回。云端出现了本机没有的新内容，一键同步会先请你确认。'
-    case 'both_changed': return '两边都相对上次同步发生了改动。一键同步会请你选择保留本机还是云端，不能静默覆盖。'
+    case 'both_changed': return '两边都有改动。不同记录与不同字段会自动合并；只有同一字段出现不同值时才请你逐项确认。'
     case 'in_sync': return '当前内容指纹一致，不需要上传或拉回。'
     case 'empty_remote': return '本机已有内容，云端为空。建议将本机内容首次上传到云端。'
-    case 'unknown': return '这是首次建立内容基线，无法自动判断新旧。请确认要保留本机还是云端。'
+    case 'unknown': return '尚未建立共同基线。同步会保守合并不同记录与不同字段；同一字段出现不同值时才请你逐项确认。'
     default: return '点击“重新检查”读取云端与本地的最新关系。'
   }
 })
@@ -126,7 +106,7 @@ const recommendedAction = computed(() => {
     case 'empty_remote': return '同步到云端'
     case 'remote_changed': return '拉回云端新增'
     case 'both_changed':
-    case 'unknown': return '选择保留哪一端'
+    case 'unknown': return '自动合并，冲突时逐项确认'
     case 'in_sync': return '无需同步'
     default: return '先检查云端'
   }
@@ -151,10 +131,10 @@ const relationUpdatedText = computed(() => {
 const autoSyncStatusText = computed(() => {
   if (meta.value?.lastAutoResult === 'uploaded') return `最近自动上传成功 · ${meta.value.lastAutoSyncAt ? new Date(meta.value.lastAutoSyncAt).toLocaleString('zh-CN', { hour12: false }) : ''}`
   if (meta.value?.lastAutoResult === 'latest') return '最近自动检查时已是最新'
-  if (meta.value?.lastAutoResult === 'blocked') return '自动同步已暂停：云端或两端均有变化，等待人工选择'
+  if (meta.value?.lastAutoResult === 'blocked') return `自动同步已暂停：${meta.value.lastAutoError || '存在需要人工确认的变化'}`
   if (meta.value?.lastAutoResult === 'failed') return `最近自动同步失败：${meta.value.lastAutoError || '未知错误'}`
   if (meta.value?.lastAutoResult === 'signed_out') return '账号登录状态失效，自动同步已暂停'
-  return '默认关闭；启用后约每 60 分钟只自动上传本机改动，不自动拉回云端'
+  return '默认关闭；启用后约每 60 分钟安全合并一次，不自动用单端快照覆盖另一端'
 })
 const nextAutoSyncText = computed(() => meta.value?.autoSyncEnabled && meta.value?.nextAutoSyncAt
   ? `下一次预计检查：${new Date(meta.value.nextAutoSyncAt).toLocaleString('zh-CN', { hour12: false })}`
@@ -188,11 +168,9 @@ async function loadCloud(): Promise<void> {
 
 onMounted(() => {
   void loadCloud()
-  document.addEventListener('keydown', onConflictKeydown, true)
 })
 onBeforeUnmount(() => {
-  document.removeEventListener('keydown', onConflictKeydown, true)
-  conflictResolve?.('cancel')
+  conflictResolve?.({ action: 'cancel' })
   conflictResolve = null
   conflictOpen.value = false
   conflictInfo.value = null
@@ -267,7 +245,7 @@ async function doLogout(): Promise<void> {
     const sync = await import('@/shared/cloud/sync')
     await sync.logout()
     await chrome.runtime.sendMessage({ type: 'zy-auto-sync-config', enabled: false }).catch(() => {})
-    conflictResolve?.('cancel')
+    conflictResolve?.({ action: 'cancel' })
     conflictResolve = null
     conflictOpen.value = false
     await sharedCloud.refreshCloudStatus(false)
@@ -381,7 +359,7 @@ async function updateAutoSync(checked: boolean): Promise<void> {
     const next = await sync.setAutoSyncEnabled(checked)
     sharedCloud.meta.value = next
     chrome.runtime.sendMessage({ type: 'zy-auto-sync-config', enabled: checked }).catch(() => {})
-    showToast(checked ? '已开启自动同步：约每 60 分钟检查一次，且只自动上传本机改动' : '已关闭自动同步；登录状态和上次设置会保留')
+    showToast(checked ? '已开启自动同步：约每 60 分钟自动合并，同字段冲突会暂停等待确认' : '已关闭自动同步；登录状态和上次设置会保留')
   } catch (error) {
     toastError('保存自动同步设置失败', error)
   }
@@ -411,6 +389,7 @@ function requestConflict(info: CloudDecisionInfo): Promise<CloudConflictChoice> 
 function resolveConflict(choice: CloudConflictChoice): void {
   if (!conflictOpen.value) return
   conflictOpen.value = false
+  conflictInfo.value = null
   conflictResolve?.(choice)
   conflictResolve = null
 }
@@ -420,6 +399,7 @@ async function syncNow(): Promise<void> {
   const result = await sharedCloud.manualSync(store, requestConflict)
   if (result.kind === 'latest') { showToast(`已是最新 · 云端修订 ${result.revision}`); showReceiptModal() }
   else if (result.kind === 'uploaded') { showToast(`已同步到云端 · 修订 ${result.revision}`); showReceiptModal() }
+  else if (result.kind === 'merged') { showToast(`已合并本机与云端改动 · 修订 ${result.revision}`); showReceiptModal() }
   else if (result.kind === 'downloaded') { showToast(`已从云端恢复到本机 · 修订 ${result.revision}`); showReceiptModal() }
   else if (result.kind === 'cancelled') showToast('已取消同步，云端与本机均未改变')
   else if (result.kind === 'failed') showToast(`云同步失败：${result.message}`)
@@ -431,6 +411,7 @@ async function uploadOnly(): Promise<void> {
   try {
     const result = await sharedCloud.uploadCurrent(store, requestConflict)
     if (result.kind === 'uploaded') { showToast(`已上传到云端 · 修订 ${result.revision}`); showReceiptModal() }
+    else if (result.kind === 'merged') { showToast(`已合并并上传 · 修订 ${result.revision}`); showReceiptModal() }
     else if (result.kind === 'downloaded') { showToast(`已从云端恢复到本机 · 修订 ${result.revision}`); showReceiptModal() }
     else if (result.kind === 'cancelled') showToast('已取消同步，云端与本机均未改变')
     else if (result.kind === 'failed') showToast(`云同步失败：${result.message}`)
@@ -663,26 +644,11 @@ async function downloadOnly(): Promise<void> {
   </div>
 </div>
 
-<Teleport to="body">
-  <div v-if="conflictOpen" class="cloud-conflict-mask" data-a11y-container @click.self="resolveConflict('cancel')">
-    <section ref="conflictPanel" class="cloud-conflict" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="cloud-conflict-title" aria-describedby="cloud-conflict-body">
-      <h2 id="cloud-conflict-title">
-        {{ conflictTitle }}
-      </h2>
-      <p class="cloud-conflict-meta">
-        本机同步基线：修订 {{ conflictInfo?.localRevision || 0 }} · 云端当前：修订 {{ conflictInfo?.remoteRevision || 0 }}
-      </p>
-      <p id="cloud-conflict-body" class="cloud-conflict-body">
-        请明确选择本次保留哪一端。云端在检查后又出现了较新修订时，也会再次在这里确认；未选中的一端会被覆盖。普通卡片附件本体和 AI 凭据不会进入云端；策展节点附件使用你的私有 Storage。
-      </p>
-      <div class="cloud-conflict-actions">
-        <button class="gs-btn" @click="resolveConflict('cancel')">取消</button>
-        <button class="gs-btn" @click="resolveConflict('download')">拉回云端</button>
-        <button class="gs-btn gs-btn-primary" @click="resolveConflict('upload')">本机覆盖云端</button>
-      </div>
-    </section>
-  </div>
-</Teleport>
+<CloudMergeConflictModal
+  :open="conflictOpen"
+  :info="conflictInfo"
+  @resolve="resolveConflict"
+/>
 </template>
 
 <style src="./base.css"></style>
@@ -806,46 +772,6 @@ async function downloadOnly(): Promise<void> {
   flex-wrap: wrap;
   gap: 8px;
   padding: 14px 18px;
-}
-.cloud-conflict-mask {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-confirm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgb(0 0 0 / .44);
-}
-.cloud-conflict {
-  width: min(480px, calc(100vw - 32px));
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-}
-.cloud-conflict h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--fs-title);
-}
-.cloud-conflict-meta {
-  margin: 7px 0 0;
-  color: var(--text-3);
-  font-size: var(--fs-caption);
-}
-.cloud-conflict-body {
-  margin: 16px 0 20px;
-  color: var(--text-2);
-  font-size: var(--fs-sub);
-  line-height: 1.65;
-}
-.cloud-conflict-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 @media (max-width: 760px) {
   .cloud-relation-head {

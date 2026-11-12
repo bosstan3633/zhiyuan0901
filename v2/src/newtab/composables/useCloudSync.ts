@@ -2,13 +2,16 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import type { useAppStore } from '../stores/app'
 import type {
   CloudCheckResult,
+  CloudMergeConflictInfo,
   CloudMeta,
   CloudRelation,
   CloudSyncReceipt,
   CloudSyncTrigger,
+  CloudUploadDecision,
   SnapshotState,
   SyncManifest,
 } from '@/shared/cloud/sync'
+import type { MergeConflict } from '@/shared/cloud/threeWayMerge'
 import {
   applyReceiptActionToData,
   getReceiptActions,
@@ -19,11 +22,12 @@ import {
 import { K } from '@/shared/storage/keys'
 
 export type CloudState = 'checking' | 'disabled' | 'signed_out' | 'connected' | 'syncing' | 'error'
-export type CloudConflictChoice = 'download' | 'upload' | 'cancel'
+export type CloudConflictChoice = CloudUploadDecision
 export type CloudSyncOutcome =
   | { kind: 'needs_setup'; state: 'disabled' | 'signed_out' }
   | { kind: 'latest'; revision: number }
   | { kind: 'uploaded'; revision: number }
+  | { kind: 'merged'; revision: number }
   | { kind: 'downloaded'; revision: number }
   | { kind: 'cancelled' }
   | { kind: 'failed'; message: string }
@@ -35,6 +39,8 @@ export interface CloudDecisionInfo {
   localRevision: number
   remoteFingerprint?: string
   localFingerprint?: string
+  mode?: 'merge' | 'overwrite'
+  conflicts?: MergeConflict[]
 }
 export interface CloudSyncDetails {
   localManifest: SyncManifest | null
@@ -106,7 +112,7 @@ const relationActionLabel = computed(() => {
   if (state.value === 'error') return '同步异常'
   if (relation.value === 'local_changed') return '本机有改动 · 待上传'
   if (relation.value === 'remote_changed') return '云端有新增 · 待拉回'
-  if (relation.value === 'both_changed') return '两端都有改动 · 需选择'
+  if (relation.value === 'both_changed') return '两端都有改动 · 可安全合并'
   if (relation.value === 'in_sync') return '本机与云端一致'
   if (relation.value === 'empty_remote') return '云端尚未备份 · 待上传'
   if (relation.value === 'unknown') return '同步方向待确认'
@@ -123,7 +129,7 @@ const statusDetail = computed(() => {
   if (state.value === 'error') return errorMessage.value || '点击重试'
   if (relation.value === 'local_changed') return '本机改动待上传'
   if (relation.value === 'remote_changed') return '云端新增待拉回本机'
-  if (relation.value === 'both_changed') return '两端都有改动，需选择保留哪端'
+  if (relation.value === 'both_changed') return '不同记录与字段自动合并，同字段冲突再确认'
   if (relation.value === 'in_sync') return '两边内容一致，无须同步'
   if (relation.value === 'empty_remote') return '本机内容可首次上传'
   if (relation.value === 'unknown') return '首次使用请确认同步方向'
@@ -412,6 +418,43 @@ async function refreshCloudStatus(probeRemote = false, store?: AppStore): Promis
   if (probeRemote && store) await startRelationProbe(store, false)
 }
 
+/**
+ * 把云端或合并后的业务快照落回本机。
+ * UI 偏好永远不写入：主题、布局、抽屉宽度仍由本机持有。
+ * 普通卡附件恢复本机同 ID 元数据；策展附件以云端成员表为准，并清理已失去所有者的本机旧附件。
+ */
+async function applyCloudSnapshotToLocal(store: AppStore, snapshot: SnapshotState): Promise<void> {
+  const repository = await import('@/shared/storage/repository')
+  if (!store.data) throw new Error('本机数据尚未就绪')
+  const { reconcileCloudStateAssets } = await import('@/shared/cloud/reconcileAssets')
+  const { nextData, staleCurationAssets } = reconcileCloudStateAssets(store.data, snapshot.data)
+  await repository.cloudRestoreAtomic({
+    nextData,
+    nextUi: null,
+    eventLog: snapshot.eventLog,
+  })
+  await store.refreshAfterCloudRestore(nextData, null)
+  try { window.dispatchEvent(new CustomEvent('zy:curation-history-reset')) } catch { /* 非浏览器上下文无画布历史 */ }
+  if (staleCurationAssets.size) {
+    const retained = new Set<string>()
+    const collect = (owners?: { assets?: { id: string }[] }[]) => {
+      for (const owner of owners || []) for (const asset of owner.assets || []) retained.add(asset.id)
+    }
+    collect(nextData.resources)
+    collect(nextData.tasks)
+    collect(nextData.curiosities)
+    collect(nextData.argCards)
+    collect(nextData.categories)
+    const { deleteAsset } = await import('@/shared/storage/assets')
+    const { sync } = await loadSharedModules()
+    for (const [id, asset] of staleCurationAssets) {
+      if (retained.has(id)) continue
+      await deleteAsset(id).catch(() => {})
+      await sync.deleteCurationAsset(asset).catch(() => {})
+    }
+  }
+}
+
 /** 恢复时把附件元数据按卡片 ID 重新挂回；附件本体始终留在本机。 */
 async function restoreCloudSnapshot(
   store: AppStore,
@@ -427,109 +470,13 @@ async function restoreCloudSnapshot(
   const beforeManifest = knownBeforeManifest
     || sync.buildSyncManifest(beforeSnapshot.snapshot, beforeRevision, beforeMeta?.syncedFingerprint || '')
   const downloaded = await sync.downloadNow()
-  const localAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
-  const localCategoryAssets = new Map<string, import('@/shared/models').AssetMeta[]>()
-  const localCurationAssetsByOwner = new Map<string, import('@/shared/models').AssetMeta[]>()
-  for (const cards of [
-    store.data.resources,
-    store.data.tasks,
-    store.data.curiosities,
-    ...(store.data.argCards ? [store.data.argCards] : []),
-  ]) {
-    for (const card of cards || []) {
-      if (card.assets?.length) localAssets.set(card.id, card.assets)
-      if ('isThesis' in card && card.isThesis && card.assets?.length) {
-        localCurationAssetsByOwner.set(card.id, card.assets)
-      }
-    }
-  }
-  for (const category of store.data.categories || []) {
-    if (!category.assets?.length) continue
-    localCategoryAssets.set(category.id, category.assets)
-    localCurationAssetsByOwner.set(category.id, category.assets)
-  }
-  const nextData = downloaded.state.data
-  const mergeAssetMeta = (
-    remote: import('@/shared/models').AssetMeta[] | undefined,
-    local: import('@/shared/models').AssetMeta[] | undefined,
-  ): import('@/shared/models').AssetMeta[] => {
-    const remoteRows = remote || []
-    const localRows = local || []
-    const localById = new Map(localRows.map(asset => [asset.id, asset]))
-    const remoteIds = new Set(remoteRows.map(asset => asset.id))
-    return [
-      ...remoteRows.map(asset => ({ ...(localById.get(asset.id) || {}), ...asset })),
-      ...localRows.filter(asset => !remoteIds.has(asset.id)),
-    ]
-  }
-  /** 策展节点以云端成员表为唯一真源；本机只补同 ID 的本地状态。 */
-  const authoritativeCurationAssets = (
-    remote: import('@/shared/models').AssetMeta[] | undefined,
-    local: import('@/shared/models').AssetMeta[] | undefined,
-  ): import('@/shared/models').AssetMeta[] => {
-    const localById = new Map((local || []).map(asset => [asset.id, asset]))
-    return (remote || []).map(asset => ({ ...(localById.get(asset.id) || {}), ...asset }))
-  }
-  const staleCurationAssets = new Map<string, import('@/shared/models').AssetMeta>()
-  for (const cards of [
-    nextData.resources,
-    nextData.tasks,
-    nextData.curiosities,
-    ...(nextData.argCards ? [nextData.argCards] : []),
-  ]) {
-    for (const card of cards || []) {
-      const assets = localAssets.get(card.id)
-      if (!assets) continue
-      if ('isThesis' in card && card.isThesis) {
-        const nextIds = new Set((card.assets || []).map(asset => asset.id))
-        for (const asset of assets) if (!nextIds.has(asset.id)) staleCurationAssets.set(asset.id, asset)
-        card.assets = authoritativeCurationAssets(card.assets, assets)
-      } else {
-        card.assets = assets
-      }
-    }
-  }
-  for (const category of nextData.categories || []) {
-    const local = localCategoryAssets.get(category.id)
-    if (!local?.length) continue
-    const nextIds = new Set((category.assets || []).map(asset => asset.id))
-    for (const asset of local) if (!nextIds.has(asset.id)) staleCurationAssets.set(asset.id, asset)
-    category.assets = authoritativeCurationAssets(category.assets, local)
-  }
-  // 节点已彻底删除（远端连 owner 都不存在）时，本机旧附件也必须进入清理路径。
-  const remoteOwnerIds = new Set([
-    ...(nextData.resources || []).map(card => card.id),
-    ...(nextData.categories || []).map(category => category.id),
-  ])
-  for (const [ownerId, assets] of localCurationAssetsByOwner) {
-    if (remoteOwnerIds.has(ownerId)) continue
-    for (const asset of assets) staleCurationAssets.set(asset.id, asset)
-  }
-  await repository.cloudRestoreAtomic({
-    nextData,
-    nextUi: downloaded.state.ui,
-    eventLog: downloaded.state.eventLog,
-  })
-  await store.refreshAfterCloudRestore(nextData, downloaded.state.ui)
-  try { window.dispatchEvent(new CustomEvent('zy:curation-history-reset')) } catch { /* 非浏览器上下文无画布历史 */ }
-  if (staleCurationAssets.size) {
-    const retained = new Set<string>()
-    const collect = (owners?: { assets?: { id: string }[] }[]) => {
-      for (const owner of owners || []) for (const asset of owner.assets || []) retained.add(asset.id)
-    }
-    collect(nextData.resources)
-    collect(nextData.tasks)
-    collect(nextData.curiosities)
-    collect(nextData.argCards)
-    collect(nextData.categories)
-    const { deleteAsset } = await import('@/shared/storage/assets')
-    for (const [id, asset] of staleCurationAssets) {
-      if (retained.has(id)) continue
-      await deleteAsset(id).catch(() => {})
-      await sync.deleteCurationAsset(asset).catch(() => {})
-    }
-  }
-  await sync.markDownloaded(downloaded.revision, downloaded.fingerprint, downloaded.manifest)
+  await applyCloudSnapshotToLocal(store, downloaded.state)
+  await sync.markDownloaded(
+    downloaded.revision,
+    downloaded.fingerprint,
+    downloaded.manifest,
+    downloaded.state,
+  )
   await settleInSync(downloaded.revision, downloaded.fingerprint, repository.getMutationSeq())
   try {
     const receipt = sync.buildSyncReceipt({
@@ -541,7 +488,7 @@ async function restoreCloudSnapshot(
       toRevision: downloaded.revision,
     })
     await recordReceiptBestEffort(receipt, beforeSnapshot.snapshot, {
-      data: store.data!,
+      data: downloaded.state.data,
       ui: null,
       eventLog: downloaded.state.eventLog,
     })
@@ -601,17 +548,21 @@ async function uploadSnapshot(
   trigger: CloudSyncTrigger,
   beforeManifest: SyncManifest | null,
   approvedRemoteRevision?: number,
+  strategy: 'merge' | 'local' = 'merge',
 ): Promise<CloudSyncOutcome> {
   const { sync } = await loadSharedModules()
   const current = await sync.getCloudMeta()
   const uploaded = await sync.uploadNow(
     captured.snapshot,
-    remoteRevision => onDecision({
+    info => onDecision({
       relation: 'both_changed',
-      remoteRevision,
-      localRevision: current?.revision || 0,
+      remoteRevision: info.remoteRevision,
+      localRevision: info.localRevision,
+      mode: info.mode,
+      conflicts: info.conflicts,
     }),
     approvedRemoteRevision,
+    { strategy },
   )
   if (uploaded.kind === 'cancelled') {
     state.value = 'connected'
@@ -621,21 +572,28 @@ async function uploadSnapshot(
     const restored = await restoreCloudSnapshot(store, trigger)
     return { kind: 'downloaded', revision: restored.revision }
   }
-  await settleInSync(uploaded.revision, uploaded.fingerprint, captured.mutationSeq)
+  if (uploaded.merged) {
+    await applyCloudSnapshotToLocal(store, uploaded.appliedState)
+  }
+  const repository = await import('@/shared/storage/repository')
+  const mutationSeq = repository.getMutationSeq()
+  await settleInSync(uploaded.revision, uploaded.fingerprint, mutationSeq)
   try {
     const receipt = sync.buildSyncReceipt({
       before: beforeManifest,
       after: uploaded.manifest,
-      direction: 'upload',
+      direction: uploaded.merged ? 'merge' : 'upload',
       trigger,
       fromRevision: current?.revision || 0,
       toRevision: uploaded.revision,
     })
-    await recordReceiptBestEffort(receipt, uploaded.beforeState, captured.snapshot)
+    await recordReceiptBestEffort(receipt, uploaded.beforeState, uploaded.appliedState)
   } catch (error) {
     console.warn('[cloud-sync] 上传已完成，但同步回执生成失败', error)
   }
-  return { kind: 'uploaded', revision: uploaded.revision }
+  return uploaded.merged
+    ? { kind: 'merged', revision: uploaded.revision }
+    : { kind: 'uploaded', revision: uploaded.revision }
 }
 
 async function runManualSync(
@@ -690,23 +648,20 @@ async function runManualSync(
   if (check.kind === 'empty_remote' || check.kind === 'local_changed') {
     return uploadSnapshot(store, captured, onDecision, trigger, current.localManifest || null)
   }
-
-  const choice = await onDecision({
-    relation: check.kind,
-    remoteRevision: check.remoteRevision,
-    localRevision: current.revision || 0,
-    remoteFingerprint: check.remoteFingerprint,
-    localFingerprint: check.localFingerprint,
-  })
-  if (choice === 'cancel') {
-    state.value = 'connected'
-    return { kind: 'cancelled' }
-  }
-  if (choice === 'download') {
+  if (check.kind === 'remote_changed') {
     const restored = await restoreCloudSnapshot(store, trigger, check.localManifest || null)
     return { kind: 'downloaded', revision: restored.revision }
   }
-  return uploadSnapshot(store, captured, onDecision, trigger, current.localManifest || null, check.remoteRevision)
+  // both_changed / unknown：先做三方合并；只有同一条记录同一字段出现不同值时，
+  // 才把字段级冲突交给用户选择。不同记录、不同字段会直接取并集。
+  return uploadSnapshot(
+    store,
+    captured,
+    onDecision,
+    trigger,
+    current.localManifest || null,
+    check.remoteRevision,
+  )
 }
 
 async function manualSync(
@@ -750,7 +705,15 @@ async function uploadCurrent(store: AppStore, onDecision: DecisionHandler): Prom
   try {
     const current = await sync.getCloudMeta()
     const snapshot = await captureLocalSnapshot(store)
-    return await uploadSnapshot(store, snapshot, onDecision, 'settings', current?.localManifest || null)
+    return await uploadSnapshot(
+      store,
+      snapshot,
+      onDecision,
+      'settings',
+      current?.localManifest || null,
+      undefined,
+      'local',
+    )
   } catch (error) {
     const message = messageOf(error)
     state.value = 'error'

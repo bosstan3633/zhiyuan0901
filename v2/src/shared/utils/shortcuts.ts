@@ -121,7 +121,7 @@ export const MANUAL_ASSIGN_COMMANDS: string[] = [
   '快速采集任务',
   '直达好奇心卡池',
   '直达任务卡池',
-  '打开云同步',
+  '立即同步云端',
   '打开方向树策展模式',
 ]
 

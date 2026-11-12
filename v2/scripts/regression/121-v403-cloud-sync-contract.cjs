@@ -63,17 +63,24 @@ check('R192-4 ★快照写入返回 representation：插入与更新都带 Prefe
 })
 
 check('R192-5（V4.0.4 重指）★PATCH 乐观锁：按 user_id + revision 双条件更新，基线不符时先要求用户确认；取消或拉回均不得静默覆盖', () => {
+  const merge = read('/shared/cloud/threeWayMerge.ts')
+  const modal = read('/newtab/components/cloud/CloudMergeConflictModal.vue')
   return CLIENT.includes('&revision=eq.${expectedRevision}')
     && CLIENT.includes('method: \'PATCH\'')
-    && SYNC.includes('remote.revision !== localRevision')
-    && SYNC.includes('const decision = await onConflict(remote.revision)')
-    && SYNC.includes("if (decision === 'cancel') return { kind: 'cancelled'")
-    && SYNC.includes("if (decision === 'download') return { kind: 'download_requested'")
-    && SYNC.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)')
-    && USECLOUD.includes("choice === 'cancel'")
-    && USECLOUD.includes("choice === 'download'")
-    && SETTINGS.includes("resolveConflict('upload')")
-    && SETTINGS.includes('未选中的一端会被覆盖')
+    && SYNC.includes('const preview = mergeThreeWaySnapshots(baseline?.state || null, localState, beforeState)')
+    && SYNC.includes("if (decision.action === 'cancel') return { kind: 'cancelled'")
+    && SYNC.includes("if (decision.action === 'download') return { kind: 'download_requested'")
+    && SYNC.includes("if (decision.action === 'upload') {")
+    && SYNC.includes("} else if (decision.action === 'merge') {")
+    && SYNC.includes('mergeThreeWaySnapshots(baseline?.state || null, localState, beforeState, decision.choices)')
+    && SYNC.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, candidate)')
+    && merge.includes('baseKnown')
+    && merge.includes('mergeRecordArray(')
+    && USECLOUD.includes('await sync.uploadNow(')
+    && SETTINGS.includes('<CloudMergeConflictModal')
+    && modal.includes("action: 'merge'")
+    && modal.includes("action: 'upload'")
+    && modal.includes("action: 'download'")
 })
 
 check('R192-6（V4.2.1 重指）★快照结构与格式校验：SnapshotState 保留 ui 字段兼容旧快照，但云边界 sanitizeCloudSnapshot 固定输出 ui:null；恢复只接受 version === 2，且不覆盖本机界面偏好', () => {
@@ -84,9 +91,9 @@ check('R192-6（V4.2.1 重指）★快照结构与格式校验：SnapshotState �
     && SYNC.includes("st.data.version !== 2")
     && SYNC.includes("throw new Error('云端快照格式不兼容')")
     && USECLOUD.includes('repository.cloudRestoreAtomic({')
-    && USECLOUD.includes('nextData,')
-    && USECLOUD.includes('nextUi: downloaded.state.ui')
-    && USECLOUD.includes('eventLog: downloaded.state.eventLog')
+    && USECLOUD.includes('nextUi: null')
+    && USECLOUD.includes('await store.refreshAfterCloudRestore(nextData, null)')
+    && USECLOUD.includes('eventLog: snapshot.eventLog')
 })
 
 check('R192-7（V4.1.0 重指）★出云清理：旧同步映射与内部字段剥离；普通卡附件六字段白名单，策展节点附件额外保留 Storage 元数据，正文仍不含 Blob', () => {
@@ -233,7 +240,7 @@ check('R63-5（V4.0.4 重指）★软删语义保留在本地数据树内：云�
   return body.includes('const d = JSON.parse(JSON.stringify(data)) as AppData')
     && !body.includes('deletedAt') && !body.includes("'已删除'")
     && USECLOUD.includes('repository.cloudRestoreAtomic({')
-    && USECLOUD.includes('await store.refreshAfterCloudRestore(nextData, downloaded.state.ui)')
+    && USECLOUD.includes('await store.refreshAfterCloudRestore(nextData, null)')
     && USECLOUD.includes('meta.value = await sync.getCloudMeta()');
 });
 check('R63-6（V4.0.3 重指）★数据管理只保留三页签：数据包 / 附件管理 / 云同步；书签导入并入数据包，旧 Airtable 配置、轮询、日志与配额入口零回流', () => {
@@ -337,11 +344,13 @@ check('R64-1（V4.0.4 重指）★云同步冲突判定以远端 revision 为权
 check('R64-2（V4.0.4 重指）★冲突必须用户确认后再条件更新：onConflict 可取消或改走拉回；确认上传后仍以 PATCH revision 条件防另一设备抢先', () => {
   const s = read('/shared/cloud/sync.ts');
   const c = read('/shared/cloud/client.ts');
-  return s.includes('const decision = await onConflict(remote.revision)')
-    && s.includes("if (decision === 'cancel') return { kind: 'cancelled'")
-    && s.includes("if (decision === 'download') return { kind: 'download_requested'")
+  return s.includes('const decision = await onConflict({')
+    && s.includes("mode: 'merge'")
+    && s.includes("if (decision.action === 'cancel') return { kind: 'cancelled'")
+    && s.includes("if (decision.action === 'download') return { kind: 'download_requested'")
+    && s.includes("if (decision.action === 'merge')")
     && s.includes('const canUseInitialApproval = attempt === 0 && initialApproval === remote.revision')
-    && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)')
+    && s.includes('cloud.updateSnapshot(env, token, meta.userId, remote.revision, candidate)')
     && c.includes('user_id=eq.${encodeURIComponent(userId)}&revision=eq.${expectedRevision}');
 });
 check('R64-3（V4.0.4 重指）★快照写入返回 representation：插入与更新都读取服务端 revision 并回写本机基线，避免下一次同步误判冲突', () => {
@@ -360,7 +369,7 @@ check('R64-4（V4.1.0 重指）★设置文案完成云同步换轨：无 Free �
     && dm.includes('Supabase 云同步')
     && cloud.includes('普通卡片附件留在本机')
     && cloud.includes('策展节点附件进入你的私有 Storage')
-    && cloud.includes('附件本体和 AI 凭据不会进入云端');
+    && cloud.includes('AI 凭据不上云');
 });
 check('R64-5 方向状态新口径：战略目标=非归档 Direction 数 + 推进中项目=任务数≠0（不再计算 DHI 百分比）', () => { const c = read('/newtab/stores/compass.ts'); return c.includes('pushing') && c.includes('goals') && !c.includes('dhiPct'); });
 check('R64-6（R120-TB1 修订）方向状态 5 格平铺：战略目标 + 推进项目（各自数值，均下钻 dhi 明细）', () => { const m = read('/newtab/components/compass/MetricBar.vue'); return m.includes('战略目标') && m.includes('推进项目') && m.includes('pushingMain') && m.includes('m.value.dhi.goals') && m.includes('m.value.dhi.pushing') && !m.includes('DHI 方向契合度'); });

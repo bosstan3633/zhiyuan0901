@@ -11,6 +11,12 @@ import { K, LOCAL_KEYS } from '@/shared/storage/keys'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { pruneReceiptActions } from './syncActions'
 import { fallbackHash, stableStringify, syncRecordDigest } from './digest'
+import {
+  hasConflictChoices,
+  mergeThreeWaySnapshots,
+  type MergeChoices,
+  type MergeConflict,
+} from './threeWayMerge'
 
 export { syncRecordDigest }
 
@@ -114,8 +120,8 @@ export interface SyncManifestDiff {
   changed: SyncManifestDiffRow[]
 }
 
-export type CloudSyncDirection = 'upload' | 'download' | 'latest'
-export type CloudSyncTrigger = 'topbar' | 'settings' | 'auto'
+export type CloudSyncDirection = 'upload' | 'download' | 'latest' | 'merge'
+export type CloudSyncTrigger = 'topbar' | 'settings' | 'auto' | 'shortcut'
 
 /** 回执行沿用 manifest diff 的可读摘要；没有字段指纹时不会伪造字段名。 */
 export type CloudSyncReceiptRow = SyncManifestDiffRow
@@ -132,9 +138,25 @@ export interface CloudSyncReceipt {
   removed: number
   rows: CloudSyncReceiptRow[]
 }
-export type CloudUploadDecision = 'upload' | 'download' | 'cancel'
+export interface CloudMergeConflictInfo {
+  mode: 'merge' | 'overwrite'
+  conflicts: MergeConflict[]
+  remoteRevision: number
+  localRevision: number
+}
+export type CloudUploadDecision =
+  | { action: 'upload' | 'download' | 'cancel' }
+  | { action: 'merge'; choices: MergeChoices }
 export type UploadNowResult =
-  | { kind: 'uploaded'; revision: number; fingerprint: string; manifest: SyncManifest; beforeState: SnapshotState | null }
+  | {
+    kind: 'uploaded'
+    revision: number
+    fingerprint: string
+    manifest: SyncManifest
+    beforeState: SnapshotState | null
+    appliedState: SnapshotState
+    merged: boolean
+  }
   | { kind: 'cancelled'; remoteRevision: number }
   | { kind: 'download_requested'; remoteRevision: number }
 export type CloudRelation =
@@ -154,12 +176,23 @@ export interface CloudCheckResult {
   remoteFingerprint?: string
   localManifest?: SyncManifest
   remoteManifest?: SyncManifest
+  hasBaseline?: boolean
+}
+
+export interface CloudSyncBaseline {
+  version: 1
+  userId: string
+  revision: number
+  fingerprint: string
+  capturedAt: number
+  state: SnapshotState
 }
 
 const META_KEY = K.CLOUD_META
 const LOCK_KEY = K.CLOUD_SYNC_LOCK
+const BASELINE_KEY = K.CLOUD_SYNC_BASE
 const REVISION_CONFLICT_MAX_RETRIES = 2
-const CLOUD_SYNC_SCOPE_VERSION = 2
+const CLOUD_SYNC_SCOPE_VERSION = 3
 
 async function readMeta(): Promise<CloudMeta | null> {
   try {
@@ -176,6 +209,40 @@ async function writeMeta(patch: Partial<CloudMeta>): Promise<CloudMeta> {
   return next
 }
 export const getCloudMeta = readMeta
+
+export async function getSyncBaseline(userId: string): Promise<CloudSyncBaseline | null> {
+  if (!userId) return null
+  try {
+    const raw = (await chrome.storage.local.get([BASELINE_KEY]))[BASELINE_KEY] as CloudSyncBaseline | undefined
+    if (!raw || raw.version !== 1 || raw.userId !== userId || !raw.state?.data) return null
+    return raw
+  } catch {
+    return null
+  }
+}
+
+export async function writeSyncBaseline(
+  userId: string,
+  state: SnapshotState,
+  revision: number,
+  fingerprint: string,
+): Promise<void> {
+  if (!userId) return
+  const clean = sanitizeCloudSnapshot(state)
+  const baseline: CloudSyncBaseline = {
+    version: 1,
+    userId,
+    revision,
+    fingerprint,
+    capturedAt: Date.now(),
+    state: clean,
+  }
+  await chrome.storage.local.set({ [BASELINE_KEY]: baseline })
+}
+
+export async function clearSyncBaseline(): Promise<void> {
+  try { await chrome.storage.local.remove(BASELINE_KEY) } catch { /* noop */ }
+}
 
 export async function acquireCloudSyncLock(owner: string, leaseMs = 120_000): Promise<boolean> {
   try {
@@ -760,6 +827,8 @@ export async function login(email: string, password: string): Promise<CloudMeta>
   const env = await cloudEnv()
   if (!env) throw new Error('云端未配置')
   const r = await cloud.login(env, email.trim(), password)
+  const previous = await readMeta()
+  if (previous?.userId && previous.userId !== r.user.id) await clearSyncBaseline()
   const meta = await writeMeta({
     userId: r.user.id, email: r.user.email || email.trim(), refreshToken: r.refresh_token, checkOnStart: true,
   })
@@ -771,6 +840,7 @@ export async function logout(): Promise<void> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (env && meta && tokenCache) { try { await cloud.logout(env, tokenCache.accessToken) } catch { /* noop */ } }
   tokenCache = null
+  await clearSyncBaseline()
   try {
     // 退出只结束账号会话；自动同步偏好保留，重新登录后可继续使用。
     if (meta?.autoSyncEnabled) {
@@ -798,6 +868,7 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) return { kind: 'idle', relation: 'idle', remoteRevision: 0 }
   const localFingerprint = await fingerprintSnapshot(localSnapshot)
+  const baselineState = await getSyncBaseline(meta.userId)
   const token = await accessToken(env, meta)
   const rows = await cloud.getSnapshot(env, token, meta.userId)
   if (!rows.length) {
@@ -837,6 +908,12 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
         remoteManifestCachedAt: Date.now(),
       })
     }
+    await writeSyncBaseline(
+      meta.userId,
+      { data: remoteState.data, ui: null, eventLog: accountEvents },
+      rem.revision,
+      remoteFingerprint,
+    )
   } else if (!baseline) relation = 'unknown'
   else if (!scopeCurrent) relation = 'both_changed'
   else if (localFingerprint !== baseline && remoteFingerprint === baseline) relation = 'local_changed'
@@ -851,21 +928,23 @@ export async function checkRemote(localSnapshot: SnapshotState): Promise<CloudCh
     remoteFingerprint,
     localManifest,
     remoteManifest,
+    hasBaseline: !!baselineState,
   }
 }
 
 export async function uploadNow(
   snap: SnapshotState,
-  onConflict: (remoteRevision: number) => Promise<CloudUploadDecision>,
+  onConflict: (info: CloudMergeConflictInfo) => Promise<CloudUploadDecision>,
   approvedRemoteRevision?: number,
+  options: { strategy?: 'merge' | 'local' } = {},
 ): Promise<UploadNowResult> {
   const env = await cloudEnv(); const meta = await readMeta()
   if (!env || !meta?.refreshToken) throw new Error('请先登录云端')
   const token = await accessToken(env, meta)
   const clean = sanitizeCloudSnapshot(snap)
-  const fingerprint = await fingerprintSnapshot(clean)
   const localRevision = meta.revision || 0
   let initialApproval = approvedRemoteRevision
+  let forceLocal = options.strategy === 'local'
 
   // 先补传本机离线事件并拉回账号已有事件；事件表异常时自动退回 snapshot 内事件。
   clean.eventLog = await reconcileAccountEvents(clean.eventLog)
@@ -876,6 +955,7 @@ export async function uploadNow(
     if (!remote) {
       const ins = await cloud.insertSnapshot(env, token, meta.userId, clean)
       const rev = ins[0]?.revision ?? 1
+      const fingerprint = await fingerprintSnapshot(clean)
       const manifest = buildSyncManifest(clean, rev, fingerprint)
       await writeMeta({
         revision: rev,
@@ -886,7 +966,16 @@ export async function uploadNow(
         remoteManifest: manifest,
         remoteManifestCachedAt: Date.now(),
       })
-      return { kind: 'uploaded', revision: rev, fingerprint, manifest, beforeState: null }
+      await writeSyncBaseline(meta.userId, clean, rev, fingerprint)
+      return {
+        kind: 'uploaded',
+        revision: rev,
+        fingerprint,
+        manifest,
+        beforeState: null,
+        appliedState: clean,
+        merged: false,
+      }
     }
 
     const remoteState = remote.state as SnapshotState | null
@@ -897,24 +986,104 @@ export async function uploadNow(
         eventLog: remoteState.eventLog || [],
       })
       : null
+    if (!beforeState) throw new Error('云端快照格式不兼容')
     if (remoteState?.eventLog?.length) {
       clean.eventLog = await reconcileAccountEvents(mergeEventLogs(clean.eventLog, remoteState.eventLog))
     }
 
-    // 用户在前面“检查关系”里已经明确选了上传时，只允许初检修订直接续用一次。
-    // PATCH 失败后的任何重试都必须重新确认，哪怕云端修订号碰巧没变。
-    const canUseInitialApproval = attempt === 0 && initialApproval === remote.revision
-    if ((remote.revision !== localRevision || attempt > 0) && !canUseInitialApproval) {
-      const decision = await onConflict(remote.revision)
-      if (decision === 'cancel') return { kind: 'cancelled', remoteRevision: remote.revision }
-      if (decision === 'download') return { kind: 'download_requested', remoteRevision: remote.revision }
+    const baseline = await getSyncBaseline(meta.userId)
+    const localState: SnapshotState = { data: clean.data, ui: null, eventLog: clean.eventLog }
+    let candidate = localState
+    let merged = false
+
+    if (!forceLocal) {
+      if (
+        baseline
+        && stableStringify(localState.data) === stableStringify(baseline.state.data)
+        && stableStringify(beforeState.data) !== stableStringify(baseline.state.data)
+      ) {
+        return { kind: 'download_requested', remoteRevision: remote.revision }
+      }
+      const preview = mergeThreeWaySnapshots(baseline?.state || null, localState, beforeState)
+      if (preview.conflicts.length) {
+        const decision = await onConflict({
+          mode: 'merge',
+          conflicts: preview.conflicts,
+          remoteRevision: remote.revision,
+          localRevision: baseline?.revision || localRevision,
+        })
+        if (decision.action === 'cancel') return { kind: 'cancelled', remoteRevision: remote.revision }
+        if (decision.action === 'download') return { kind: 'download_requested', remoteRevision: remote.revision }
+        if (decision.action === 'upload') {
+          forceLocal = true
+          candidate = localState
+        } else if (decision.action === 'merge') {
+          const resolved = mergeThreeWaySnapshots(baseline?.state || null, localState, beforeState, decision.choices)
+          if (hasConflictChoices(resolved.conflicts, decision.choices)) {
+            throw new Error('仍有同步冲突未选择处理方式，请重新检查后再同步')
+          }
+          candidate = resolved.state
+          merged = true
+        } else {
+          throw new Error('同步冲突选择无效，请重新发起同步')
+        }
+      } else {
+        candidate = preview.state
+        const localChanged = !baseline || stableStringify(localState.data) !== stableStringify(baseline.state.data)
+        const remoteChanged = !baseline || stableStringify(beforeState.data) !== stableStringify(baseline.state.data)
+        merged = localChanged && remoteChanged
+      }
+    } else {
+      const canUseInitialApproval = attempt === 0 && initialApproval === remote.revision
+      if ((remote.revision !== localRevision || attempt > 0) && !canUseInitialApproval) {
+        const decision = await onConflict({
+          mode: 'overwrite',
+          conflicts: [],
+          remoteRevision: remote.revision,
+          localRevision,
+        })
+        if (decision.action === 'cancel') return { kind: 'cancelled', remoteRevision: remote.revision }
+        if (decision.action === 'download') return { kind: 'download_requested', remoteRevision: remote.revision }
+        if (decision.action === 'merge') {
+          throw new Error('当前是整端覆盖操作，不能提交字段级合并选择')
+        }
+      }
     }
     initialApproval = undefined
 
-    const upd = await cloud.updateSnapshot(env, token, meta.userId, remote.revision, clean)
+    candidate = sanitizeCloudSnapshot(candidate)
+    candidate.eventLog = await reconcileAccountEvents(mergeEventLogs(candidate.eventLog, remoteState?.eventLog || []))
+    candidate = { data: candidate.data, ui: null, eventLog: candidate.eventLog }
+    const fingerprint = await fingerprintSnapshot(candidate)
+
+    if (stableStringify(candidate.data) === stableStringify(beforeState.data)) {
+      const remoteFingerprint = await fingerprintSnapshot(beforeState)
+      const manifest = buildSyncManifest(beforeState, remote.revision, remoteFingerprint)
+      await writeMeta({
+        revision: remote.revision,
+        syncedFingerprint: remoteFingerprint,
+        syncScopeVersion: CLOUD_SYNC_SCOPE_VERSION,
+        lastUploadAt: Date.now(),
+        localManifest: manifest,
+        remoteManifest: manifest,
+        remoteManifestCachedAt: Date.now(),
+      })
+      await writeSyncBaseline(meta.userId, beforeState, remote.revision, remoteFingerprint)
+      return {
+        kind: 'uploaded',
+        revision: remote.revision,
+        fingerprint: remoteFingerprint,
+        manifest,
+        beforeState,
+        appliedState: beforeState,
+        merged,
+      }
+    }
+
+    const upd = await cloud.updateSnapshot(env, token, meta.userId, remote.revision, candidate)
     if (upd.length) {
       const rev = upd[0].revision
-      const manifest = buildSyncManifest(clean, rev, fingerprint)
+      const manifest = buildSyncManifest(candidate, rev, fingerprint)
       await writeMeta({
         revision: rev,
         syncedFingerprint: fingerprint,
@@ -924,7 +1093,16 @@ export async function uploadNow(
         remoteManifest: manifest,
         remoteManifestCachedAt: Date.now(),
       })
-      return { kind: 'uploaded', revision: rev, fingerprint, manifest, beforeState }
+      await writeSyncBaseline(meta.userId, candidate, rev, fingerprint)
+      return {
+        kind: 'uploaded',
+        revision: rev,
+        fingerprint,
+        manifest,
+        beforeState,
+        appliedState: candidate,
+        merged,
+      }
     }
   }
 
@@ -1141,7 +1319,12 @@ export async function retryPendingCurationAssetDeletes(): Promise<number> {
   return done
 }
 
-export async function markDownloaded(revision: number, fingerprint: string, manifest?: SyncManifest): Promise<void> {
+export async function markDownloaded(
+  revision: number,
+  fingerprint: string,
+  manifest?: SyncManifest,
+  state?: SnapshotState,
+): Promise<void> {
   await writeMeta({
     revision,
     syncedFingerprint: fingerprint,
@@ -1151,6 +1334,8 @@ export async function markDownloaded(revision: number, fingerprint: string, mani
     remoteManifest: manifest,
     remoteManifestCachedAt: manifest ? Date.now() : undefined,
   })
+  const meta = await readMeta()
+  if (meta?.userId && state) await writeSyncBaseline(meta.userId, state, revision, fingerprint)
 }
 
 // ---- 移动采集 ----

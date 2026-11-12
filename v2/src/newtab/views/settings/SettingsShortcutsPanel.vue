@@ -95,6 +95,7 @@ if (typeof chrome !== 'undefined' && chrome.commands?.getAll) {
         'quick-capture': '快速采集当前浏览的页面',
         'search': '打开全局搜索',
         'inspire': '好奇心采集',
+        'sync-cloud-now': '立即同步云端',
         'open-compass-curation': '打开方向树策展模式'
       } as Record<string, string>)[c.name || ''] || c.description || c.name || ''
       , shortcut: c.shortcut || '未设置'

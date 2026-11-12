@@ -17,6 +17,7 @@ import './hotzone.css'
 import './taskdnd.css'
 import { computed, inject, ref } from 'vue'
 import CompassLevelTag from './CompassLevelTag.vue'
+import CompassMetricTitle from './CompassMetricTitle.vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { gradeColorVar } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
@@ -78,7 +79,15 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 </script>
 
 <template>
-  <section class="metric-card" :style="{ '--hue': hue }" :data-metric="m.id">
+  <section
+    class="metric-card"
+    :class="{ 'dnd-tip-in': taskDnd && taskDnd.dropTip?.id === m.id && taskDnd.dropTip.mode === 'in' }"
+    :style="{ '--hue': hue }"
+    :data-metric="m.id"
+    @dragover.prevent="taskDnd?.onLaneDragOver($event, m.id)"
+    @dragleave="taskDnd?.onLaneDragLeave($event, m.id)"
+    @drop.prevent="taskDnd?.onLaneDrop($event, m.id)"
+  >
     <header class="mc-head">
       <button
         class="mc-dot"
@@ -88,19 +97,9 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         @click="emit('toggle', m.id)"
       >{{ dotGlyph }}</button>
       <CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />
-      <!-- ★指标名就地改名：与树里 战略目标/项目 同一套 contenteditable 机制（父组件 startEdit/saveEdit），
-           不用 prompt —— prompt 会打断「连续改名」的手感，且四层节点的改名口径必须一致。 -->
-      <h4
-        class="mc-title editable"
-        v-pressable
-        :class="{ editing: editing }"
-        :data-edit="'metric-' + m.id"
-        :contenteditable="editing"
-        @click="$emit('editTitle', m.id, $event)"
-        @blur="$emit('saveTitle', m.id, $event)"
-        @keydown.enter.ctrl.prevent="$emit('saveTitle', m.id, $event)"
-        @keydown.esc="$emit('cancelTitle', m.id)"
-      >{{ m.title }}</h4>
+      <CompassMetricTitle class="mc-title" v-pressable :title="m.title" :metric-id="m.id" variant="tower" :editing="!!editing"
+        @edit="emit('editTitle', m.id, $event)" @save="emit('saveTitle', m.id, $event)"
+        @cancel="emit('cancelTitle', m.id)" />
       <span v-if="m.orphanMetric" class="mc-flag warn" title="该指标下没有任何任务，线索断在这"><Icon name="warn" :size="13"/> 缺任务</span>
       <span v-else-if="m.target" class="mc-flag">{{ m.target }}</span>
       <!-- ★指标级进度条：原型 .m-bar 是「轨道 + 数字」一体、margin-left:auto 顶到行尾。
@@ -123,6 +122,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       <span class="mc-ops" data-a11y-container @click.stop>
         <button class="mc-more" :class="{ on: menuFor === m.id }" title="指标更多操作" @click="toggleMenu(m.id)">⋯</button>
         <span v-if="menuFor === m.id" class="mc-menu" data-a11y-container @click.stop>
+          <button class="mcm-item" @click="menuFor = null; emit('editTitle', m.id, undefined)"><Icon name="edit" :size="13"/> 重命名指标</button>
           <button class="mcm-item danger" @click="menuFor = null; emit('delMetric', m.id)"><Icon name="trash" :size="13"/> 删除本指标</button>
         </span>
       </span>
@@ -137,10 +137,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
     </p>
 
     <!-- 任务列表：内嵌 + 分叉连线；★容器不可省（见文件头陷阱说明）。V3.9.31（F4）：行可拖拽 -->
-    <ul v-if="open && m.tasks.length" class="metric-list" :class="{ 'dnd-tip-in': taskDnd && taskDnd.dropTip?.id === m.id && taskDnd.dropTip.mode === 'in' }"
-      @dragover.prevent="taskDnd?.onLaneDragOver($event, m.id)"
-      @dragleave="taskDnd?.onLaneDragLeave($event, m.id)"
-      @drop.prevent="taskDnd?.onLaneDrop($event, m.id)">
+    <ul v-if="open && m.tasks.length" class="metric-list">
       <li v-for="t in m.tasks" :key="t.id" class="tk-row" :data-task="t.id" :title="`归属：${crumb}`" :draggable="taskDnd ? true : undefined"
         :class="[t.status, { 'tk-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
         @dragstart="taskDnd?.onTaskDragStart($event, t)" @dragover.stop.prevent="taskDnd?.onRowDragOver($event, t)"

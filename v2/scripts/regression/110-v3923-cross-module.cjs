@@ -14,12 +14,17 @@ check('XM-01 ★方向层级标签三处接线：战略目标 / 项目 / 指标�
   const lane = read('/newtab/components/compass/CompassLane.vue');
   const pano = read('/newtab/components/compass/CompassPanoLane.vue');
   const tag = read('/newtab/components/compass/CompassLevelTag.vue');
+  const projectTitle = read('/newtab/components/compass/CompassProjectTitle.vue');
+  const metricTitle = read('/newtab/components/compass/CompassMetricTitle.vue');
   const treeCode = codeOnly(tree);
   const treeLogic = read('/newtab/views/useCompassTree.ts');
   return tree.includes("import CompassLevelTag from '../components/compass/CompassLevelTag.vue'")
     && tree.includes('<CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />')
-    && tower.includes('<CompassLevelTag :level="4" kind="project" icon="package" label="项目" />')
+    && tower.includes('<CompassProjectTitle')
+    && projectTitle.includes('<CompassLevelTag :level="4" kind="project" icon="package" label="项目" />')
     && lane.includes('<CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />')
+    && lane.includes('<CompassMetricTitle')
+    && metricTitle.includes(':data-edit="\'metric-\' + metricId"')
     && pano.includes('<CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />')
     && tag.includes("kind: 'direction' | 'project' | 'metric'")
     && tag.includes('.level-tag.direction')

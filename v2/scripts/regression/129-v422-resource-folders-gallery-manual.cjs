@@ -3,7 +3,7 @@
  *
  * 这些断言只锁用户确认过的行为，不把内部组件拆分当成产品承诺。
  */
-const { check, read } = require('./helpers.cjs')
+const { check, read, CUR_VTAG } = require('./helpers.cjs')
 
 console.log('【V4.2.2 · 常用夹 / 策展资源批量打开 / 图片浏览 / 今日复制 / 流程手册】')
 
@@ -139,5 +139,5 @@ check('V422-10 ★使用手册以流程优先：新增 V4.2.2 总流程与采集
     && manual.includes('打开全部资源')
     && manual.includes('推进[[MOC-项目名]]项目，任务内容，助力【指标名】指标落实到位')
     && page.includes('buildManualStandaloneHtml')
-    && page.includes('V4.2.3')
+    && page.includes(CUR_VTAG)
 })

@@ -71,6 +71,8 @@ check('D19-4 ★「当前主攻」独立聚焦条已按跨模块优化清单退�
 check('D19-4b ★方向台三层标题统一层级签（跨模块优化 D-01～D-03）：战略目标 / 项目 / 指标都使用 CompassLevelTag，签面只含层级号 + 图标 + 类型；签本身 aria-hidden 且不可点击 / 不可聚焦；战略目标筛选仍由既有「只看我」承担', () => {
   const TAG = read('/newtab/components/compass/CompassLevelTag.vue');
   const tag = codeOnly(TAG);
+  const projectTitle = codeOnly(read('/newtab/components/compass/CompassProjectTitle.vue'));
+  const metricTitle = codeOnly(read('/newtab/components/compass/CompassMetricTitle.vue'));
   const dir = CT_C.slice(CT_C.indexOf('class="dir-head"'), CT_C.indexOf('<!-- ★项目舱列 -->'));
   return tag.includes('class="level-tag"')
     && tag.includes('aria-hidden="true"')
@@ -79,8 +81,10 @@ check('D19-4b ★方向台三层标题统一层级签（跨模块优化 D-01～D
     && dir.includes('<CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />')
     && dir.includes('class="node-action t3"')
     && dir.includes("onDirFilter(dg.dir.id)")
-    && codeOnly(TOWER).includes('<CompassLevelTag :level="4" kind="project" icon="package" label="项目" />')
-    && codeOnly(LANE).includes('<CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />');
+    && codeOnly(TOWER).includes('<CompassProjectTitle')
+    && projectTitle.includes('<CompassLevelTag :level="4" kind="project" icon="package" label="项目" />')
+    && codeOnly(LANE).includes('<CompassLevelTag :level="5" kind="metric" icon="target" label="指标" />')
+    && metricTitle.includes(':data-edit="\'metric-\' + metricId"');
 });
 
 check('D19-5 ★引导条退役、视图切换迁左栏（原型 .navside 顶部）：tl-head-row 与 gs-* 全族在 CompassTree 零命中（codeOnly 后）；view-seg 在 navside 切片内且项目塔/全景双向按钮俱在', () => {

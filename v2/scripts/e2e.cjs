@@ -1664,6 +1664,56 @@ async function main() {
   report('E2E-20 空指标节点接收任务拖拽（R59-T5）', dropResult === 'dispatched' && moved.metricId === 'e2e-m-empty' && moved.inTaskIds,
     'drag=' + dropResult + ' metricId=' + moved.metricId + ' taskIds双写=' + moved.inTaskIds)
 
+  // E2E-62（V4.2.4）：项目塔和项目全景都能就地改项目名；成功指标双击标题即可改名，且统一走 persist 全局生效。
+  await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1400)
+  const projectTower = page.locator('[data-tower="e2e-empty-proj"]').first()
+  await projectTower.waitFor({ state: 'visible', timeout: 10000 })
+  await projectTower.locator('button.tw-rename').click({ force: true })
+  const towerProjectEditor = page.locator('[data-edit="proj-e2e-empty-proj"]').first()
+  await waitForLocator(page, '[data-edit="proj-e2e-empty-proj"][contenteditable="true"]', { visible: true, timeout: 5000 })
+  await towerProjectEditor.evaluate((el, value) => {
+    el.innerText = value
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }))
+  }, 'E2E 塔内改名项目')
+  const towerProjectSaved = await waitForStorage(page, 'zy_data_v2', raw =>
+    raw.zy_data_v2?.compass?.directions
+      ?.flatMap(direction => direction.projects || [])
+      .some(project => project.id === 'e2e-empty-proj' && project.name === 'E2E 塔内改名项目'),
+  { timeout: 5000 })
+
+  await projectTower.locator('button[title^="横向泳道"]').click()
+  await waitForLocator(page, '.pano .ph-rename', { visible: true, timeout: 8000 })
+  await page.locator('.pano .ph-rename').first().click()
+  const panoProjectEditor = page.locator('.pano [data-edit="proj-e2e-empty-proj"][contenteditable="true"]').first()
+  await panoProjectEditor.waitFor({ state: 'visible', timeout: 5000 })
+  await panoProjectEditor.evaluate((el, value) => {
+    el.innerText = value
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }))
+  }, 'E2E 全景改名项目')
+  const panoProjectSaved = await waitForStorage(page, 'zy_data_v2', raw =>
+    raw.zy_data_v2?.compass?.directions
+      ?.flatMap(direction => direction.projects || [])
+      .some(project => project.id === 'e2e-empty-proj' && project.name === 'E2E 全景改名项目'),
+  { timeout: 5000 })
+
+  const panoMetricTitle = page.locator('.pano [data-edit="metric-e2e-m-empty"]').first()
+  await panoMetricTitle.dblclick()
+  await waitForLocator(page, '.pano [data-edit="metric-e2e-m-empty"][contenteditable="true"]', { visible: true, timeout: 5000 })
+  await panoMetricTitle.evaluate((el, value) => {
+    el.innerText = value
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }))
+  }, 'E2E 全景改名指标')
+  const metricSaved = await waitForStorage(page, 'zy_data_v2', raw =>
+    raw.zy_data_v2?.compass?.directions
+      ?.flatMap(direction => direction.projects || [])
+      .find(project => project.id === 'e2e-empty-proj')
+      ?.metrics?.some(metric => metric.id === 'e2e-m-empty' && metric.title === 'E2E 全景改名指标'),
+  { timeout: 5000 })
+  report('E2E-62 ★V4.2.4 项目塔 / 项目全景项目名可编辑，成功指标双击标题就地改名并持久化',
+    !!towerProjectSaved && !!panoProjectSaved && !!metricSaved,
+    `塔内项目=${!!towerProjectSaved} 全景项目=${!!panoProjectSaved} 指标=${!!metricSaved}`)
+
 
   // E2E-21（V3.9.14 重指）：调度台「今日战报」已从页脚移到页头动作区，与「为什么这样排」并排；
   //   行为不变：不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。

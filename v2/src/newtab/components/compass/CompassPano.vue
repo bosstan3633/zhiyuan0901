@@ -28,6 +28,7 @@ import CompassPanoLane from './CompassPanoLane.vue'
 import CompassPanoSwitch from './CompassPanoSwitch.vue'
 import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
 import CompassPanoMore from './CompassPanoMore.vue'
+import CompassPanoProjectName from './CompassPanoProjectName.vue'
 import type { ProjectDiagnosis } from '@/shared/ai/projectDiagnose'
 
 const props = defineProps<{
@@ -38,6 +39,8 @@ const props = defineProps<{
   diag?: ProjectDiagnosis | null
   /** ★F4：报告指纹过期（数据已变更）→ 标签降亮 */
   diagStale?: boolean
+  /** 当前就地编辑字段（proj-<id> / metric-<id>），由方向台担任单一真源。 */
+  editingField?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -68,6 +71,12 @@ const emit = defineEmits<{
   (e: 'exportProject', fmt: ExportFmt): void
   /** V3.9.33（批 B）：三模式自由切换——全景页头直达策展模式（全景隐藏左栏，入口必须随台自带） */
   (e: 'openCuration'): void
+  (e: 'renameProject', projId: string): void
+  (e: 'saveProjectName', projId: string, ev: FocusEvent | KeyboardEvent): void
+  (e: 'cancelProjectName'): void
+  (e: 'editMetricTitle', metricId: string, ev?: Event): void
+  (e: 'saveMetricTitle', metricId: string, ev: FocusEvent | KeyboardEvent): void
+  (e: 'cancelMetricTitle'): void
 }>()
 
 /** 选择条上的项目序列（扁平成一条，前端不再嵌套遍历） */
@@ -148,7 +157,10 @@ const laneCount = computed(() => {
         </div>
         <div class="ph-b">
           <h3 class="ph-n">
-            {{ current.proj.name }}
+            <CompassPanoProjectName :title="current.proj.name" :editing="editingField === 'proj-' + current.proj.id"
+              :field="'proj-' + current.proj.id"
+              @rename="emit('renameProject', current.proj.id)"
+              @save="emit('saveProjectName', current.proj.id, $event)" @cancel="emit('cancelProjectName')" />
             <span v-if="current.proj.isFocused" class="ph-badge focus" title="主攻项目"><Icon name="main-focus" :size="13"/> 主攻</span>
             <span v-if="current.proj.pinned" class="ph-badge" title="已置顶"><Icon name="pin" :size="13"/> 置顶</span>
             <span v-if="current.pm.stall" class="ph-badge stall" title="近 14 天无推进/完成活动"><Icon name="warn" :size="13"/> 停滞 14 天+</span>
@@ -186,6 +198,7 @@ const laneCount = computed(() => {
           <CompassPanoLane v-for="m in current.pm.metrics" :key="m.id"
             :m="m" :proj-id="current.proj.id"
             :single="laneCount === 1" :dense="laneCount > 1"
+            :editing="editingField === 'metric-' + m.id"
             @toggle-task="emit('toggleTask', $event)"
             @task-grade="emit('taskGrade', $event)"
             @open-detail="emit('openDetail', $event)"
@@ -193,6 +206,9 @@ const laneCount = computed(() => {
             @open-metric="emit('openMetric', $event)"
             @add-task="(mid, pid) => emit('addTask', mid, pid)"
             @del-metric="(mid) => emit('delMetric', mid)"
+            @edit-title="(mid, ev) => emit('editMetricTitle', mid, ev)"
+            @save-title="(mid, ev) => emit('saveMetricTitle', mid, ev)"
+            @cancel-title="emit('cancelMetricTitle')"
           />
 
           <!-- ★无归属收容泳道：在项目内但没挂任何成功指标的任务（判据 W11-8 钉它在泳道区最右侧） -->
