@@ -84,6 +84,7 @@ const SHARDS = [
   '129-v422-resource-folders-gallery-manual',
   '130-v423-url-inbox-controls-moc-export',
   '131-v424-three-way-merge',
+  '132-v425-symbol-safe-merge',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

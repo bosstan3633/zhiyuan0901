@@ -223,6 +223,16 @@ function chooseScalar(
   return chooseConflict(state, ctx, base, local, remote)
 }
 
+/** Derived numeric fields can be absent on either side, especially before a shared baseline exists. */
+function finiteNumber(value: MaybeMissing): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
 function mergeDerivedField(
   state: MutableMergeState,
   ctx: MergeContext,
@@ -235,15 +245,22 @@ function mergeDerivedField(
     if (same(local, base)) return clone(remote)
     if (same(remote, base)) return clone(local)
   }
+  const localNumber = finiteNumber(local)
+  const remoteNumber = finiteNumber(remote)
   if (ctx.field === 'updatedAt' || ctx.field === 'lastCalledAt' || ctx.field === 'uploadedAt' || ctx.field === 'calibratedAt') {
-    return Math.max(Number(local) || 0, Number(remote) || 0)
+    if (localNumber === null) return remoteNumber === null ? MISSING : clone(remote)
+    if (remoteNumber === null) return clone(local)
+    return Math.max(localNumber, remoteNumber)
   }
   if (ctx.field === 'createdAt' || ctx.field === 'addedAt') {
-    const values = [local, remote].map(Number).filter(Number.isFinite)
-    return values.length ? Math.min(...values) : clone(local)
+    if (localNumber === null) return remoteNumber === null ? MISSING : clone(remote)
+    if (remoteNumber === null) return clone(local)
+    return Math.min(localNumber, remoteNumber)
   }
   if (ctx.field === 'callCount' || ctx.field === 'retryCount') {
-    return Math.max(Number(local) || 0, Number(remote) || 0)
+    if (localNumber === null) return remoteNumber === null ? MISSING : clone(remote)
+    if (remoteNumber === null) return clone(local)
+    return Math.max(localNumber, remoteNumber)
   }
   return MISSING
 }
@@ -532,10 +549,10 @@ function normalizeMergedData(data: AppData, local: AppData, remote: AppData): Ap
     metric.taskIds.push(task.id)
   }
 
-  const localRevision = Number(local.tagTreeRevision || 0)
-  const remoteRevision = Number(remote.tagTreeRevision || 0)
+  const localRevision = finiteNumber(local.tagTreeRevision) ?? 0
+  const remoteRevision = finiteNumber(remote.tagTreeRevision) ?? 0
   if (remoteRevision > localRevision) next.tagTreeRevision = remoteRevision
-  else next.tagTreeRevision = Math.max(localRevision, Number(next.tagTreeRevision || 0))
+  else next.tagTreeRevision = Math.max(localRevision, finiteNumber(next.tagTreeRevision) ?? 0)
 
   if (next.dailyFocus && typeof next.dailyFocus === 'object') {
     for (const [date, slots] of Object.entries(next.dailyFocus)) {

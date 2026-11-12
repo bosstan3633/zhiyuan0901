@@ -42,7 +42,7 @@ function assignCommandList(): string {
 
 export const MANUAL: ManualPart[] = [
   {
-    title: '流程篇 · 先看这里（V4.2.4）',
+    title: '流程篇 · 先看这里（V4.2.5）',
     sections: [
       { id: 'flow-1', title: '一张图看懂：从采集到行动', html: `
         <p>先用流程理解产品，再看后面的细节。每一步都只问一个问题：<b>这条信息下一步要去哪里？</b></p>
