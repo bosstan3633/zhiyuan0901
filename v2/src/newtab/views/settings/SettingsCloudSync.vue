@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import Icon from '@/shared/components/Icon.vue'
 import { showToast } from '@/shared/components/toast'
@@ -19,7 +18,6 @@ import CloudMergeConflictModal from '@/newtab/components/cloud/CloudMergeConflic
 import CloudSyncDetailDrawer from './CloudSyncDetailDrawer.vue'
 
 const store = useAppStore()
-const router = useRouter()
 const sharedCloud = useCloudSync()
 const env = ref<{ url: string; anonKey: string } | null>(null)
 const cfgOpen = ref(false)
@@ -50,7 +48,6 @@ const receipt = ref<CloudSyncReceipt | null>(null)
 const historyOpen = ref(false)
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
 
-const pwaUrl = 'https://bosstan3633.github.io/zhiyuan0901/'
 const meta = sharedCloud.meta
 const loggedIn = computed(() => !!meta.value?.refreshToken)
 const busy = computed(() =>
@@ -622,26 +619,6 @@ async function downloadOnly(): Promise<void> {
     </div>
   </div>
 
-  <div v-if="loggedIn" class="gs-card" data-testid="mobile-capture-inbox">
-    <div class="gs-card-header">
-      <span class="gs-card-title">移动端采集 · Inbox</span>
-      <span class="gs-card-desc">手机提交的链接或文本进入 Inbox 待处理；桌面端也可用快捷键直接采集到对应卡池</span>
-    </div>
-    <div class="gs-card-body">
-      <div class="gs-setting-row">
-        <span class="gs-sr-label">PWA 地址</span>
-        <div class="gs-sr-control gs-sr-note"><a :href="pwaUrl" target="_blank" rel="noopener">{{ pwaUrl }}</a></div>
-      </div>
-      <div class="gs-setting-row">
-        <span class="gs-sr-label">Inbox 池</span>
-        <div class="gs-sr-control gs-sr-control--inline">
-          <button class="gs-btn gs-btn-primary" @click="router.push('/deck/inbox')">打开 Inbox 池</button>
-          <span class="gs-sr-hint">设置页不再维护第二套采集列表；未转化计数与删除、转化都在 Inbox 完成。</span>
-        </div>
-      </div>
-      <p class="gs-sr-hint">策展节点附件使用私有 Supabase Storage；普通卡片附件仍只保留在本机 IndexedDB。</p>
-    </div>
-  </div>
 </div>
 
 <CloudMergeConflictModal

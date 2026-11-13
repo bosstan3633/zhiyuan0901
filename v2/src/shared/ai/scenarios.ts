@@ -171,13 +171,16 @@ export const deepInsightSystem = () => withAboutMe(
   '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
 )
 
-/** G-04：画像洞察四段（今天 / 本周 / 本月 / 本年）的 AI 续写。
- *  只基于宿主已算好的本地事实做解释，不重新算数、不改用户决策。 */
-export const rangeInsightSystem = (range: 'today' | 'week' | 'month' | 'year') => withAboutMe(
-  `你是用户的认知参谋。下面是系统在「${{ today: '今天', week: '本周', month: '本月', year: '本年' }[range]}」范围内已经算好的本地事实。` +
-  '请只解释这些事实意味着什么、下一步最值得关注什么；不要复述全部数字，不要重新计算或改写数字，' +
-  '不要虚构材料里没有的卡片、项目、事件。用 2–3 句中文写成一段可直接阅读的续写，总字数 ≤140。' +
-  '若材料不足以判断，明确说“这段材料还看不出”，不要编。直接输出纯文本，不要标题、markdown 标记或代码围栏。'
+/** V4.3.0：画像洞察四段（今天 / 本周 / 本月 / 本年）的 AI 分析。
+ *  输入是账号级战报、方向树与卡片状态的只读结构化摘要；输出是洞察与安全导航建议。 */
+export const periodReviewSystem = (range: 'today' | 'week' | 'month' | 'year') => withAboutMe(
+  `你是用户的周期复盘参谋。现在是「${{ today: '今天', week: '本周', month: '本月', year: '本年' }[range]}」周期。` +
+  '你会收到一份结构化上下文：账号级操作事件、对应时间窗口、方向树（愿景/使命、主攻项目、成功指标、任务状态）、策展台状态和本地活动摘要。' +
+  '请结合方向树解释这些事实意味着什么：用户的时间是否落在当前主攻上、哪些项目或指标正在推进、哪些任务/项目停滞或被忽略、下一步最值得做什么。' +
+  '硬约束：①只使用上下文里有证据的项目、指标、任务、事件与数字，不虚构不存在的对象；②洞察要具体、克制，不喊口号，不把相关性说成因果；' +
+  '③actions 只能从 allowedTargets 里选择，target.type 只能是 battle/log/direction/project/metric/task/resource/curation，id 必须逐字照抄 allowedTargets；' +
+  '④建议只做导航，不要求系统自动改任务归属、自动绑卡或自动完成指标；⑤材料不足时在 dataGaps 明说，不要硬编。' +
+  '输出 JSON：{"headline":"一句总判断(≤80字)","insights":[{"title":"洞察标题(≤18字)","detail":"具体解释(≤120字)","evidence":["依据(≤1条一句)"]}],"actions":[{"title":"下一步动作(≤24字)","reason":"为什么现在做(≤60字)","target":{"type":"battle|log|direction|project|metric|task|resource|curation","id":"可空","label":"可空"}}],"confidence":"high|medium|low","dataGaps":["材料缺口(≤40字)"]}。insights 2–4 条，actions 1–3 条。只输出 JSON。'
 )
 
 // ---------- 资源卡全字段优化（读链接正文后的单卡深度加工） ----------

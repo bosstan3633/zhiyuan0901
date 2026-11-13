@@ -777,40 +777,41 @@ check('R4-Pa ★运行时覆盖补上：e2e 必须有 E2E-37 真开面板逐档�
     && e.includes('E2E-Pa 新建缓存卡') && e.includes("'.gp-result-item .gp-ri-title'");
 });
 
-// ============== R4-Dk 转化入口（V4.2.0 重指：Inbox 唯一） ==============
-console.log('【R4-Dk · 转化入口收口（V4.2.0）】');
-check('R4-Dk（V4.2.0 退役重指）⌘K 面板与好奇心卡不再提供转化；Inbox 是三型转化的唯一入口，转化后立即从 Inbox 列表离场', () => {
+// ============== R4-Dk 转化入口（V4.3.0 重指：Inbox 退役，浏览器直采） ==============
+console.log('【R4-Dk · 转化入口收口（V4.3.0）】');
+check('R4-Dk（V4.3.0 退役重指）⌘K 面板与好奇心卡不提供转化；PC Inbox 中间层物理移除，三型内容只由浏览器采集浮层直接写入对应卡池', () => {
   const g = codeOnly(read('/newtab/components/GlobalPopups.vue'));
   const c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
-  const panel = codeOnly(read('/newtab/components/compass/InboxPanel.vue'));
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
   return !g.includes('convertCurio(') && !g.includes('convertToResource') && !g.includes('convertToTask')
     && !c.includes('openConvert(') && !c.includes('confirmConvert(') && !c.includes('convertWsId')
-    && inbox.includes('async function convert(item: CaptureItem, kind: CaptureConvertedKind)')
-    && inbox.includes('items.value = items.value.filter(row => row.id !== item.id)')
-    && panel.includes('await inbox.convert(item, kind)');
+    && !exists('/newtab/composables/useInbox.ts')
+    && !exists('/newtab/components/compass/InboxPanel.vue')
+    && capture.includes('function openTaskCapture()') && capture.includes('function openCuriosity()') && capture.includes('function openCapture()');
 });
-check('R4-Dk（V4.2.0 重指）Inbox 资源转化固定落资源卡池，任务 / 好奇心 / 资源三型各自带来源采集 ID；旧 workspaces[0] 默认台猜测零回流', () => {
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
-  return inbox.includes('workspaceId: CURATION_WS_ID')
-    && inbox.includes('sourceCaptureId: item.id')
-    && !inbox.includes('workspaces[0]')
-    && !inbox.includes('convWorkspaces');
+check('R4-Dk（V4.3.0 退役重指）浏览器直采资源卡固定落资源卡池，三类采集各自写入对应池；旧 workspaces[0] 默认台猜测零回流', () => {
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
+  return capture.includes('workspaceId: CURATION_WS_ID')
+    && capture.includes('d2.resources?.unshift(resource)')
+    && capture.includes('d2.tasks?.unshift(task)')
+    && capture.includes('d.curiosities?.unshift')
+    && !capture.includes('workspaces[0]')
+    && !capture.includes('convWorkspaces');
 });
-check('R4-Dk（V4.2.0 重指）转化成功后的打开动作按卡种分流：任务进共享任务详情、好奇心进只读详情、资源进资源详情抽屉，不再拼 `/workspace/${workspaceId}` 死页', () => {
-  const panel = codeOnly(read('/newtab/components/compass/InboxPanel.vue'));
-  return panel.includes("if (kind === 'task')") && panel.includes('taskDetailRef.value?.open(task)')
-    && panel.includes("if (kind === 'curiosity')") && panel.includes('curiosityPanelRef.value?.openDetail(id)')
-    && panel.includes("emitOpenDrawer({ kind: 'res', id })")
-    && !panel.includes('`/workspace/${');
+check('R4-Dk（V4.3.0 退役重指）采集完成后的回执仍按卡种分流：任务 / 好奇心 / 资源都不再经过 Inbox 页面，旧 `/deck/inbox` 只回首页', () => {
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
+  const router = codeOnly(read('/newtab/router.ts'));
+  return capture.includes("showSaved('✓ 任务已保存") && capture.includes("showToast('好奇心+1')")
+    && capture.includes("showSaved(`✓ 已入 ${POOL_DISPLAY_NAME}")
+    && router.includes("path: '/deck/inbox'") && router.includes("redirect: '/'")
+    && !router.includes("name: 'inbox'");
 });
-check('R4-Dk（V4.2.0 退役重指）ensureCustomDefs 与好奇心互转迁移链整体退役：Inbox 转卡只写本机卡片与已有标签，缺字段定义不会阻断转化，也没有第二套自定义字段复制器', () => {
+check('R4-Dk（V4.3.0 退役重指）ensureCustomDefs 与好奇心互转迁移链整体退役：浏览器直采只写本机卡片与已有标签，缺字段定义不会阻断采集，也没有第二套自定义字段复制器', () => {
   const c = codeOnly(read('/newtab/stores/curiosity.ts'));
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
   return !c.includes('ensureCustomDefs') && !c.includes('missingCustomDefs')
-    && inbox.includes('tags: [...(item.tags || [])]')
-    && inbox.includes('customFields: { captureInboxId: item.id }')
-    && !inbox.includes('fieldConfig');
+    && capture.includes('customFields: {}') && capture.includes('tags: []')
+    && !capture.includes('fieldConfig');
 });
 check('R4-Dk ★同族的第五个活口：指标下钻抽屉的「点击佐证行定位资源卡」也必须走 `resourceLocateRoute` 那一处算式。locate.ts 的注释早写着 R2-④「漏了这个共享算式本身，修在算式里一次修完所有调用点」——但这个组件当时没接进算式，于是 V3.7.0 起池卡（今天的常态）从这里点出去照样落 `workspace/zy-curation`；兜底 `store.workspaces[0]` 一并删（卡不在库里不该跳去别人的台）', () => {
   const m = codeOnly(read('/newtab/components/compass/MetricDrillDrawer.vue'));
@@ -821,11 +822,13 @@ check('R4-Dk ★同族的第五个活口：指标下钻抽屉的「点击佐证�
     && !body.includes('`/workspace/${wsId}`') && !body.includes('store.workspaces[0]')
     && body.includes("showToast('这张卡已不在库里')");
 });
-check('R4-Pa（V4.2.0 重指）★运行时覆盖补第二档：e2e 必须真点 Inbox 转化与离场，且守卫好奇心 / ⌘K 不再出现旧转化入口', () => {
+check('R4-Pa（V4.3.0 退役重指）★运行时覆盖补第二档：e2e 必须验证旧 Inbox 深链回首页、三池入口、Inbox 请求与 UI 零回流，并继续验证两代 capture 字段在启动时去重', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  return e.includes('E2E-54 ★V4.2.0') && e.includes('E2E-55 ★V4.2.0')
-    && e.includes('.inbox-open') && e.includes('.icd-actions button')
-    && e.includes('convertedUi.rowGone') && e.includes('resourceUi.rowGone')
-    && e.includes('singleClickDetail.convertButtons === 3')
-    && e.includes('deletedRowGone') && e.includes('restoredAfterUndo');
+  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.0') && e.includes('E2E-58 ★V4.3.0')
+    && e.includes("page.goto(base + '#/deck/inbox'")
+    && e.includes('captureInboxRequests.length === 0')
+    && e.includes("page.locator('.inbox-row').count() === 0")
+    && e.includes("JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '好奇心', '资源'])")
+    && e.includes('matched.length === 1')
+    && !e.includes('.icd-actions button');
 });

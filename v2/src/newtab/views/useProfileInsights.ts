@@ -43,8 +43,9 @@ import TodayBattleHost from '@/newtab/components/dashboard/TodayBattleHost.vue'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
-import { useRangeAiInsight } from '@/newtab/composables/useRangeAiInsight'
-import { profileDirectionFitText, profileExportLines, profileRangeFacts } from '@/newtab/views/profileInsightsReport'
+import { usePeriodAiReview } from '@/newtab/composables/usePeriodAiReview'
+import { profileDirectionFitText, profileExportLines } from '@/newtab/views/profileInsightsReport'
+import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
 import { useProfileInsightsTags } from './useProfileInsightsTags'
 import { useProfileInsightsMonth } from './useProfileInsightsMonth'
 
@@ -298,36 +299,6 @@ const concise = computed(() => {
     }
   }
 })
-/* ★W17-C09 退役带备案：空槽推荐（F11）随「今日三件事」整块退出画像页——
-   排今日三件事的唯一入口是调度台，页面不再提供就地补位。todayRows 仍保留：
-   诊断口径（conciseCtx）与「已备弹药」取数都依赖它，只是不再渲染成行。 */
-/** ★W13-T7 · 四条诊断 CTA 的统一动作分发（buildConciseInsights 出 8 个 ctaAction 键，
-    四组件条带全部走这一个出口——原先四段各写各的 onXxxInsightAction，现按键分派）。
-    键 → 动作：openFocusBoard 去排三件事 / bindFocus 归位首件游离 / callSupport 调出支撑卡 /
-    openBattle 今日战报 / openObjectives 头号战略目标产出明细 / openLog 全量记录 /
-    wakeCooling · openLifecycle 冷却区唤醒复温。 */
-function onConciseAction(action: string) {
-  if (action === 'openFocusBoard') { void router.push('/'); showToast('已跳调度台 · 排一排今日三件事'); return }
-  /* ★W17-C09：画像页不再提供就地归位（三件事能力唯一归调度台），CTA 改为跳过去处理 */
-  if (action === 'bindFocus') {
-    void router.push('/')
-    showToast('已跳调度台 · 到今日三件事里完成归位')
-    return
-  }
-  if (action === 'callSupport') { openStatDrawer('ammo'); return }
-  if (action === 'ammo') { openStatDrawer('ammo'); return }
-  if (action === 'cooling') { openStatDrawer('cooling'); return }
-  if (action === 'openBattle') { openTodayBattle(); return }
-  if (action === 'openObjectives') {
-    const rows = objectivesOf(dashDirections.value, dashTasks.value, windowOf('week', {})).rows
-    if (rows[0]) onGoalDrill(rows[0].id)
-    else showToast('还没有战略目标产出可看')
-    return
-  }
-  if (action === 'openLog') { openLog('log'); return }
-  if (action === 'wakeCooling' || action === 'openLifecycle') wakeCooling()
-}
-
 /** 主攻项目详情：Hero 胶囊与今日三件事行共用这一出口，中央弹窗复用 ProjectDetailDrawer。 */
 const projDetailOpen = ref(false)
 const projDetailId = ref<string | null>(null)
@@ -344,33 +315,45 @@ function openProjectDetail(projectId: string) {
 const activeRange = ref<PiRange>('year')
 function setRange(k: PiRange): void { activeRange.value = k }
 
-/* G-04：四段 AI 续写只解释本页已算出的本地事实，不改数字、不改用户决策。
-   动态载入与失败回落统一收在 composable；宿主只提供本地事实。 */
-const {
-  job: rangeAiJob,
-  open: openRangeAi,
-} = useRangeAiInsight({
+/* V4.3.0：四段 AI 复盘读取账号级战报、方向树与本地活动摘要。
+   结果进入页面主内容区；配置、模型调用和缓存全部收在 composable。 */
+const periodAi = usePeriodAiReview({
   activeRange,
   data: gd,
-  persist: () => store.persist(),
-  localInsight: range => concise.value[range],
-  facts: range => profileRangeFacts(range, {
-    concise: concise.value[range],
-    stats: dashStats.value,
-    directions: dashDirections.value,
-    tasks: dashTasks.value,
-    todayAdd: todayAdd.value,
-    todayCalled: todayCalled.value,
-    todayFilled: todayFilled.value,
-    todayAmmo: todayAmmo.value,
-    monthProjected: mProjected.value,
-    monthTopics: mTopics.value,
-    yearCoolingHigh: yCoolHigh.value,
-    yearDirFit: String(yDirFit.value || '暂无'),
-    total: heroTotal.value,
-    kinds: heroKindCounts.value,
-  }),
+  events: timelineEvents,
+  stats: dashStats,
 })
+const currentPeriodAi = periodAi.current
+function regeneratePeriodAi(range: PiRange): void { void periodAi.generate(range, true) }
+function openAiConfig(): void { void router.push('/settings?page=ai') }
+function onPeriodAiAction(target: PeriodReviewTarget): void {
+  if (target.type === 'battle') {
+    const day = target.id || todayKey()
+    if (day === todayKey()) openTodayBattle()
+    else openDayBattle(day)
+    return
+  }
+  if (target.type === 'log') { openLog('log'); return }
+  if (target.type === 'direction' && target.id) { onGoalDrill(target.id); return }
+  if (target.type === 'project' && target.id) { openProjectDetail(target.id); return }
+  if (target.type === 'metric' && target.id) {
+    const project = (gd.value.compass?.directions || [])
+      .flatMap(direction => direction.projects || [])
+      .find(row => (row.metrics || []).some(metric => metric.id === target.id))
+    if (project) openProjectDetail(project.id)
+    else showToast('未找到该成功指标所属项目')
+    return
+  }
+  if (target.type === 'task' && target.id) {
+    const task = gTaskLive.value.find(row => row.id === target.id)
+    if (task) taskDetailRef.value?.open(task)
+    else showToast('该任务已不在库中')
+    return
+  }
+  if (target.type === 'resource' && target.id) { openStatCard({ kind: 'resource', id: target.id }); return }
+  if (target.type === 'curation' && target.id) { void router.push(`/workspace/${target.id}`); return }
+  showToast('该建议暂时没有可用入口')
+}
 
 /* 首屏概览的窗口范围（左栏标题右侧的小日期刻度） */
 const overviewWeekRange = computed(() => {
@@ -853,8 +836,9 @@ onUnmounted(() => { offErrLog() })
     timelineEvents, gResLive, gTaskLive, gCurioLive, linkCardCount, dash, dashYear, dashSelDay, dashStats,
     dashDirections, dashTasks, heroTotal, tagLists, heroEntropy, topTags, heroKindCounts, heroTopTags, heroSupportRate,
     heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds, focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
-    matchResourcesOf, todayRows, todayFilled, todayAmmo, conciseCtx, concise, onConciseAction, projDetailOpen, projDetailId,
-    openProjectDetail, activeRange, setRange, rangeAiJob, openRangeAi, overviewWeekRange, logOpen, logPreset, openLog,
+    matchResourcesOf, todayRows, todayFilled, todayAmmo, conciseCtx, concise, projDetailOpen, projDetailId,
+    openProjectDetail, activeRange, setRange, currentPeriodAi, regeneratePeriodAi, onPeriodAiAction, openAiConfig,
+    overviewWeekRange, logOpen, logPreset, openLog,
     openLogFocus, statDrawer, tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards, statList, todayCreatedEventIds,
     todayCalledIds, todayInCards, todayCalledCards, ammoSplit, ammoCards, coolingCards, STAT_PAGE, statPage, statSearch,
     openStatDrawer, statFiltered, statPageCount, statShown, statGo, openStatCard, openTagDistribution, runTagOptimizeAi, statDrawerTitle,

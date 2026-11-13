@@ -104,17 +104,18 @@ check('V421-7 ★去重只认 capture id，不按标题粗暴合并：两张同�
   return data.resources.filter(row => !row.deletedAt).length === 2
 })
 
-check('V421-8 ★转换前识别两代溯源字段：sourceCaptureId 与 customFields.captureInboxId / capture_inbox_id 任一命中都复用旧卡，并把缺失的链接、标签、描述补回旧卡而不新建第二张', () => {
+check('V421-8（V4.3.0 退役重指）★旧数据兼容仍识别两代溯源字段：sourceCaptureId 与 customFields.captureInboxId / capture_inbox_id 任一命中都在去重合并时复用旧卡，并把缺失的链接、标签、描述补回旧卡而不新建第二张', () => {
   const identity = read('/shared/utils/captureIdentity.ts')
-  const inbox = read('/newtab/composables/useInbox.ts')
+  const dedupe = read('/shared/storage/captureDedupe.ts')
   return identity.includes("const CAPTURE_FIELD_KEYS = ['captureInboxId', 'capture_inbox_id'] as const")
     && identity.includes('export function cardMatchesCaptureId')
     && identity.includes('export function ensureCaptureIdentity')
-    && inbox.includes('cardMatchesCaptureId(card, captureId)')
-    && inbox.includes('function hydrateExistingCard(')
-    && inbox.includes('hydrateExistingCard(decorated.convertedKind, decorated.convertedCardId, item)')
-    && inbox.includes('resource.link = String(item.url).trim()')
-    && inbox.includes('store.persist()')
+    && dedupe.includes('captureIdOfCard')
+    && dedupe.includes('ensureCaptureIdentity(keeper, captureId)')
+    && dedupe.includes('keeper.link = duplicate.link')
+    && dedupe.includes('keeper.description = duplicate.description')
+    && dedupe.includes('keeper.tags = uniqueStrings([keeper.tags, duplicate.tags])')
+    && dedupe.includes('export function reconcileCapturedResources(data: AppData): number')
 })
 
 check('V421-9 ★去重挂在三个入库边界而非单一读路径：启动加载、云恢复与数据包导入都会执行；字段配置缺失也不再触发 visibleFields 运行错误', () => {

@@ -16,17 +16,13 @@ const KEYS = read('/shared/storage/keys.ts')
 const CLIENT = read('/shared/cloud/client.ts')
 const SYNC = read('/shared/cloud/sync.ts')
 const SETTINGS = read('/newtab/views/settings/SettingsCloudSync.vue')
-const INBOX = read('/newtab/composables/useInbox.ts')
-const INBOX_UI = read('/newtab/components/compass/InboxPanel.vue')
-const INBOX_DRAWER = read('/newtab/components/compass/InboxCaptureDrawer.vue')
 const USECLOUD = read('/newtab/composables/useCloudSync.ts')
 const DATA_MANAGEMENT = read('/newtab/views/settings/SettingsDataManagement.vue')
-const MOBILE = read('/mobile/App.vue')
 const MANIFEST = read('/manifest.ts')
 
 const CLOUD_META_KEY = 'zy_cloud_meta_v1'
 const CLOUD_ENV_KEY = 'zy_cloud_env'
-const cloudSources = [CLIENT, SYNC, SETTINGS, DATA_MANAGEMENT, MOBILE].join('\n')
+const cloudSources = [CLIENT, SYNC, SETTINGS, DATA_MANAGEMENT].join('\n')
 
 check('R192-1 ★云存储键唯一真源：cloud meta / env 只在 keys.ts 定义，其他源码不复制字面量', () => {
   const all = srcFileEntries().filter(x => x.rel !== 'shared/storage/keys.ts')
@@ -38,11 +34,11 @@ check('R192-1 ★云存储键唯一真源：cloud meta / env 只在 keys.ts 定�
     && SYNC.includes("const META_KEY = K.CLOUD_META")
 })
 
-check('R192-2 ★只接受 publishable key：构建环境、设置页覆盖和移动端都拒绝 secret / service role', () => {
+check('R192-2（V4.3.0 重指）★只接受 publishable key：构建环境与设置页覆盖都拒绝 secret / service role；移动采集退役后不再保留第二套 PWA 鉴权入口', () => {
   const secretAssignment = /(?:VITE_SUPABASE_(?:SERVICE_ROLE|SECRET)|service_role\s*:|secret\s*:)/.test(cloudSources)
   return CLIENT.includes("anonKey.startsWith('sb_publishable_')")
     && SETTINGS.includes("anonKey.startsWith('sb_publishable_')")
-    && MOBILE.includes("k.startsWith('sb_publishable_')")
+    && !exists('/mobile/App.vue')
     && !secretAssignment
 })
 
@@ -118,29 +114,17 @@ check('R192-7（V4.1.0 重指）★出云清理：旧同步映射与内部字段
     && SYNC.includes('uploadState: SAFE_CURATION_UPLOAD_STATES.has(asset.uploadState')
 })
 
-check('R192-8（V4.2.0 重指）★移动采集 Inbox：只拉未删除且未转化的记录并按 created_at 倒序，支持文本、三卡转化、镜像入口与软删除撤销；设置页不再维护第二套列表', () => {
-  return CLIENT.includes("'/rest/v1/capture_inbox?select=id,content_kind,url,text_content,title,note,tags,created_at,converted_at,converted_kind,converted_card_id,dismissed_at&dismissed_at=is.null&converted_at=is.null&order=created_at.desc'")
-    && CLIENT.includes("`/rest/v1/capture_inbox?id=eq.${encodeURIComponent(id)}`")
-    && CLIENT.includes('converted_at: new Date().toISOString()')
-    && CLIENT.includes('converted_kind: convertedKind')
-    && CLIENT.includes('converted_card_id: convertedCardId')
-    && CLIENT.includes('body: JSON.stringify({ dismissed_at: new Date().toISOString() })')
-    && CLIENT.includes('deleteCapture:')
-    && CLIENT.includes('deleteAllCaptures:')
-    && CLIENT.includes("method: 'DELETE'")
-    && SYNC.includes('.map(r => ({')
-    && SYNC.includes('id: r.id')
-    && SYNC.includes('contentKind: r.content_kind')
-    && SYNC.includes('text: r.text_content')
-    && SYNC.includes('convertedKind: r.converted_kind')
-    && !SETTINGS.includes('consumeCapture')
-    && !SETTINGS.includes('deleteCaptures')
-    && INBOX.includes('async function convert(')
-    && INBOX.includes('async function dismiss(')
-    && INBOX.includes('async function restore(')
-    && INBOX_DRAWER.includes("label: '任务卡'")
-    && INBOX_UI.includes('目标任务卡暂不可用')
-    && INBOX_UI.includes("label: '撤销'")
+check('R192-8（V4.3.0 重指）★移动采集 Inbox 全链退役：PWA、PC 面板、composable、capture_inbox 客户端与设置页入口全部移除；旧深链只做回首页兼容', () => {
+  const ROUTER = read('/newtab/router.ts')
+  return !exists('/mobile/App.vue')
+    && !exists('/newtab/components/compass/InboxPanel.vue')
+    && !exists('/newtab/composables/useInbox.ts')
+    && !CLIENT.includes('/rest/v1/capture_inbox')
+    && !SYNC.includes('listCaptures')
+    && !SETTINGS.includes('mobile-capture-inbox')
+    && !SETTINGS.includes('/deck/inbox')
+    && ROUTER.includes("path: '/deck/inbox'")
+    && ROUTER.includes("redirect: '/'")
 })
 
 check('R192-12（V4.1.0）★今日三件事随主快照同步：dailyFocus 全槽位字段不裁剪，focusAutoDate / focusMutedDate 同行进入指纹与恢复链', () => {
@@ -212,7 +196,7 @@ check('R63-2（V4.0.3 重指）★自动建字段链路退役：旧 ensureColumn
   const c = read('/shared/cloud/client.ts');
   return !exists('/shared/storage/airtable.ts')
     && !c.includes('api.airtable.com') && !c.includes('/meta/bases/') && !c.includes('fields')
-    && c.includes('/rest/v1/cloud_snapshots') && c.includes('/rest/v1/capture_inbox');
+    && c.includes('/rest/v1/cloud_snapshots') && !c.includes('/rest/v1/capture_inbox');
 });
 check('R63-3（V4.0.3 重指）★增量同步升级为快照 revision：GET 快照、POST 首版、PATCH 条件更新三路径齐备；429 改为有界指数退避，不再保留旧 30 秒固定等待与 recordId 映射', () => {
   const c = read('/shared/cloud/client.ts');

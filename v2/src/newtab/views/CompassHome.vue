@@ -43,7 +43,6 @@ import { weekUsageOf } from '@/shared/storage/stats'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import AssetPreview from '@/shared/components/AssetPreview.vue'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
-import InboxCountBadge from '../components/compass/InboxCountBadge.vue'
 import { useCompassHome, type FocusCell, type HandKind } from './useCompassHome'
 const {
   router, route, store, d, allProjects,
@@ -74,7 +73,6 @@ const {
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks,
   previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-  previewInbox, previewInboxBusy, convertPreviewInbox, openPreviewInboxSource, inbox,
   hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
@@ -242,14 +240,11 @@ const {
               <span class="board-ico"><Icon name="layers" :size="18" /></span>
               <div>
                 <h2 id="handTitle">手边的卡</h2>
-                <span class="hand-kicker">四池 · 只预览最近在用的 · 新建走扩展快捷键</span>
+                <span class="hand-kicker">三池 · 只预览最近在用的 · 新建走扩展快捷键</span>
               </div>
             </div>
-            <!-- V3.9.18：三列改三池页签（原型手边的卡）——列结构与字符串锚保留，仅显示态切换 -->
+            <!-- V4.3.0：移动采集与 Inbox 退役，只保留浏览器内三卡池。 -->
             <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
-              <button class="hand-tab hand-tab-inbox" :class="{ on: handTab === 'inbox' }" role="tab" :aria-selected="handTab === 'inbox'" type="button" @click="handTab = 'inbox'">
-                Inbox <InboxCountBadge :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
-              </button>
               <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">任务</button>
               <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">好奇心</button>
               <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">资源</button>
@@ -257,7 +252,7 @@ const {
           </header>
 
           <div v-if="!hasAnyPreview" class="deck-empty">
-            <span class="deck-empty-icon"><Icon name="inbox" :size="22" /></span>
+            <span class="deck-empty-icon"><Icon name="layers" :size="22" /></span>
             <div><b>手边暂时没有卡</b><p>用扩展快捷键采集任务、好奇心或资源，采集后会回到这里展开分类。</p></div>
           </div>
 
@@ -313,43 +308,6 @@ const {
               </div>
             </section>
 
-            <section v-show="handTab === 'inbox'" class="hand-col" aria-labelledby="inboxColTitle">
-              <header class="hand-col-head">
-                <Icon name="inbox" :size="14" />
-                <b id="inboxColTitle">Inbox</b>
-                <InboxCountBadge :count="inbox.untransformedCount.value" :cached="!inbox.connected.value" />
-                <button class="hand-link" type="button" @click="goDeck('inbox')">查看全部 <Icon name="arrowright" :size="12" /></button>
-              </header>
-              <div class="mini-list">
-                <div v-for="item in previewInbox" :key="item.id" class="mini-item mini-item-inbox">
-                  <button class="mini-main" type="button" @click="goDeck('inbox')">
-                    <Icon :name="item.contentKind === 'link' ? 'link' : 'filetext'" :size="13" class="mini-leading" />
-                    <span class="mini-copy">
-                      <span class="mini-title">{{ item.title || item.text || item.url || '未命名采集' }}</span>
-                      <span class="mini-meta">{{ item.contentKind === 'link' ? '链接采集' : '文本采集' }} · {{ fmtShortDate(item.createdAt) }}</span>
-                    </span>
-                  </button>
-                  <div class="mini-inbox-actions" aria-label="Inbox 快速操作">
-                    <button type="button" :disabled="!!previewInboxBusy"
-                      title="转为任务卡"
-                      @click.stop="convertPreviewInbox(item, 'task')">任务</button>
-                    <button type="button" :disabled="!!previewInboxBusy"
-                      title="转为好奇心卡"
-                      @click.stop="convertPreviewInbox(item, 'curiosity')">好奇心</button>
-                    <button type="button" :disabled="!!previewInboxBusy"
-                      title="转为资源卡"
-                      @click.stop="convertPreviewInbox(item, 'resource')">资源</button>
-                    <button v-if="item.contentKind === 'link' && item.url" type="button"
-                      :disabled="!!previewInboxBusy"
-                      title="打开原始链接"
-                      @click.stop="openPreviewInboxSource(item)">打开</button>
-                  </div>
-                </div>
-                <div v-if="!previewInbox.length" class="mini-empty">
-                  {{ inbox.connected.value ? 'Inbox 里没有未转化内容' : '连接云同步后可查看移动采集' }}
-                </div>
-              </div>
-            </section>
           </div>
         </section>
 

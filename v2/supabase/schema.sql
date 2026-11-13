@@ -1,6 +1,6 @@
--- 知源 · Supabase 云同步初始化脚本（v4.1.2）
+-- 知源 · Supabase 云同步初始化脚本（v4.3.0）
 -- 在 Supabase SQL Editor 中执行一次即可（幂等，可重复执行）。
--- 目标：云快照、移动端 Inbox、账号级操作事件、策展节点私有附件 Storage。
+-- 目标：云快照、账号级操作事件、策展节点私有附件 Storage；capture_inbox 仅保留历史兼容，V4.3.0 起停用。
 -- 安全：三表启用 RLS，仅 authenticated 且 auth.uid() = user_id；
 --       anon 角色无任何权限。严禁将 service-role key 放进客户端。
 
@@ -58,7 +58,9 @@ create policy zy_cloud_snapshots_update on public.cloud_snapshots
 
 revoke all on public.cloud_snapshots from anon;
 
--- ============ 2. 移动端采集 inbox ============
+-- ============ 2. 移动端采集 inbox（V4.3.0 已停用，仅历史兼容） ============
+-- 不再 DROP 表：升级前可能已有历史采集记录。客户端与 PWA 已移除，
+-- 本段仅保证旧项目重复执行 schema.sql 时不破坏历史数据。
 create table if not exists public.capture_inbox (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,

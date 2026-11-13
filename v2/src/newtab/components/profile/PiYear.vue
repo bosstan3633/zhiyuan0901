@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * W13-T6（2026-10-16 · D2/D4/F20~F23）PiYear —— 时间轴模块④ 全年 · YEAR（三段式）。
- *   ① `.strip4` 四格（F21 归位版）：本年活跃 / 最长连续 / 活跃期资产 / 高价值冷却卡——
+ *   ① 统一 AI 周期复盘（未配置或失败时回落到本机事实基线）
+ *   ② `.strip4` 四格（F21 归位版）：本年活跃 / 最长连续 / 活跃期资产 / 高价值冷却卡——
  *      原重复摆在 PiHero 的「本年活跃天数 / 最长连续天数」正式归位本段，全页仅此一处
- *   ② 年度热力图（Heatmap：全年 12 个自然月分组 / 近 26 周两态 + 图例；点格 → 该日战报）
+ *   ③ 年度热力图（Heatmap：全年 12 个自然月分组 / 近 26 周两态 + 图例；点格 → 该日战报）
  *      + `#lc-sec` 生命周期模块完整保留（D4/F23：LifecyclePanel 三态圆环 + Tab + 列表 + ⚙ 设置）
- *   ③ 四格全部可下钻：日期型给日级明细，资产型给真实卡片清单。
+ *   ④ 四格全部可下钻：日期型给日级明细，资产型给真实卡片清单。
  *
  * ★W13-F21 退役带备案：原「累计 入台/调出/状态变更/清理」四格（cum 事件流口径）随
  *   F21 归位版定版退役——累计事件在页头「全部记录」抽屉按动作筛选全量可查。
@@ -13,12 +14,15 @@
  *   CSS 双侧清零（迁移期双态结束）。
  */
 import Icon from '@/shared/components/Icon.vue'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed } from 'vue'
 import { yearAgg, longestStreak } from '@/shared/utils/reviewReport'
 import { lifecycleState } from '@/shared/utils/lifecycle'
 import type { DailyStats } from '@/shared/utils/dailyStats'
 import type { CardEvent } from '@/shared/utils/eventLog'
+import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
+import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
+import type { ConciseInsight } from '@/shared/utils/reviewReport'
+import PiAiReview from './PiAiReview.vue'
 import Heatmap from '@/newtab/components/dashboard/Heatmap.vue'
 import LifecyclePanel, { type LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
 
@@ -33,6 +37,8 @@ const props = defineProps<{
   allEvents: CardEvent[]
   /** F20 CTA 联动注入的生命周期 Tab（'cooling' 时 LifecyclePanel 自动切冷却期） */
   focusFilter?: 'active' | 'cooling' | 'archived'
+  insight: ConciseInsight
+  ai: PeriodAiState
 }>()
 
 const emit = defineEmits<{
@@ -49,7 +55,9 @@ const emit = defineEmits<{
   (e: 'lc-settings'): void
   /** F21 四格下钻：日期型给日级明细，资产型给真实卡片清单。 */
   (e: 'drill', k: 'yr-active' | 'yr-streak' | 'yr-assets' | 'yr-high'): void
-  (e: 'ai-insight'): void
+  (e: 'ai-regenerate'): void
+  (e: 'ai-navigate', target: PeriodReviewTarget): void
+  (e: 'ai-configure'): void
 }>()
 
 const ya = computed(() => yearAgg(props.stats, props.year))
@@ -82,13 +90,12 @@ function onHeatmapSel(day: string | null): void {
            后面整段模板（含本枚徽标与整个段体）都被降级成注释文本丢弃。症状极具欺骗性——源码在位、
            vue-tsc 绿、build 绿、regression 也全绿（判据读的是源码不是产物），只有实拍 DOM 才看得出段头右缘仍然是空的。
            纪律：模板区注释里一律不写反引号，更不要把 title 的模板字符串搬进注释。 -->
-      <div class="pi-mod-acts">
-        <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
-          <AiEntryButton variant="inline" label="AI 续写" />
-        </button>
-      </div>
+      <div class="pi-mod-acts"></div>
     </div>
     <div class="pi-mod-b">
+      <PiAiReview id="ins-year" :ai="props.ai" :fallback="props.insight"
+        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
+
       <!-- ① F21 strip4 归位四格（原 PiHero 活跃/最长两枚迁入；累计四格退役） -->
       <div class="pi-strip">
         <span class="pi-strip-lab">本年</span>

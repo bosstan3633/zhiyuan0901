@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-12T10:59:20.474Z",
+  "generatedAt": "2026-11-13T13:44:31.896Z",
   "source": "real-local-browser",
   "dist": "/Users/beantan/Downloads/zhiyuan0904/v2/dist",
-  "manifestVersion": "4.2.5",
+  "manifestVersion": "4.3.0",
   "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1148/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
   "platform": "darwin-arm64",
   "node": "v26.0.0",
@@ -17,9 +17,6 @@
     "pool_detail": 1200,
     "folder_drawer": 800,
     "sync_changes_drawer": 1200,
-    "inbox_sort": 500,
-    "inbox_detail": 900,
-    "inbox_clear": 1500,
     "share_drawer": 1000,
     "long_image": 4000
   },
@@ -29,15 +26,15 @@
       "label": "网页浮层唤起",
       "unit": "ms",
       "samples": [
-        92,
-        13,
-        14,
-        14,
-        29
+        127,
+        12,
+        17,
+        17,
+        16
       ],
       "sampleCount": 5,
-      "p50": 14,
-      "p95": 92,
+      "p50": 17,
+      "p95": 127,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -46,10 +43,12 @@
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 0,
-        "p95": null,
-        "max": 0,
-        "samples": []
+        "sampleCount": 1,
+        "p95": 55,
+        "max": 55,
+        "samples": [
+          55
+        ]
       }
     },
     "cmdk_first_open": {
@@ -57,15 +56,15 @@
       "label": "⌘K / Ctrl+K 首屏",
       "unit": "ms",
       "samples": [
-        138,
-        54,
-        63,
-        38,
-        45
+        142,
+        58,
+        52,
+        67,
+        52
       ],
       "sampleCount": 5,
-      "p50": 54,
-      "p95": 138,
+      "p50": 58,
+      "p95": 142,
       "budgetP95": 1500,
       "pass": true,
       "notes": [
@@ -85,14 +84,14 @@
       "label": "搜索键入到结果更新",
       "unit": "ms",
       "samples": [
-        103,
-        96,
-        96,
         98,
-        95
+        100,
+        103,
+        99,
+        99
       ],
       "sampleCount": 5,
-      "p50": 96,
+      "p50": 99,
       "p95": 103,
       "budgetP95": 400,
       "pass": true,
@@ -113,20 +112,20 @@
       "label": "调度台 / 方向台切换",
       "unit": "ms",
       "samples": [
-        110,
-        51,
-        39,
-        75,
-        41,
-        43,
-        49,
-        60,
-        38,
-        52
+        89,
+        63,
+        50,
+        48,
+        53,
+        61,
+        50,
+        65,
+        48,
+        48
       ],
       "sampleCount": 10,
-      "p50": 49,
-      "p95": 110,
+      "p50": 50,
+      "p95": 89,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -146,25 +145,25 @@
       "label": "任务 / 好奇心 / 资源卡池切换",
       "unit": "ms",
       "samples": [
-        150,
-        171,
-        160,
-        180,
-        192,
-        164,
-        167,
-        148,
-        171,
-        196,
-        140,
+        137,
+        156,
+        156,
+        144,
         162,
-        189,
-        151,
-        179
+        146,
+        158,
+        156,
+        160,
+        178,
+        136,
+        160,
+        154,
+        142,
+        161
       ],
       "sampleCount": 15,
-      "p50": 167,
-      "p95": 196,
+      "p50": 156,
+      "p95": 178,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -174,24 +173,24 @@
       "longTasks": {
         "supported": true,
         "sampleCount": 15,
-        "p95": 106,
-        "max": 106,
+        "p95": 93,
+        "max": 93,
         "samples": [
-          88,
+          80,
+          77,
           87,
-          91,
-          76,
+          84,
+          75,
+          83,
+          87,
           69,
           93,
-          96,
-          75,
-          97,
-          106,
-          70,
           85,
-          78,
-          75,
-          101
+          66,
+          83,
+          69,
+          68,
+          85
         ]
       }
     },
@@ -200,25 +199,25 @@
       "label": "卡池状态 / 标签筛选",
       "unit": "ms",
       "samples": [
-        15,
-        35,
-        46,
-        11,
-        30,
-        49,
-        10,
-        41,
-        46,
-        13,
+        14,
         39,
-        51,
+        43,
+        10,
+        43,
+        43,
         11,
-        36,
-        42
+        47,
+        41,
+        8,
+        40,
+        46,
+        12,
+        31,
+        50
       ],
       "sampleCount": 15,
-      "p50": 36,
-      "p95": 51,
+      "p50": 40,
+      "p95": 50,
       "budgetP95": 500,
       "pass": true,
       "notes": [
@@ -238,15 +237,15 @@
       "label": "资源常用夹抽屉打开",
       "unit": "ms",
       "samples": [
-        158,
-        197,
-        205,
-        198,
-        188
+        146,
+        188,
+        204,
+        233,
+        202
       ],
       "sampleCount": 5,
-      "p50": 197,
-      "p95": 205,
+      "p50": 202,
+      "p95": 233,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -256,14 +255,14 @@
       "longTasks": {
         "supported": true,
         "sampleCount": 5,
-        "p95": 81,
-        "max": 81,
+        "p95": 88,
+        "max": 88,
         "samples": [
-          63,
-          64,
-          78,
-          81,
-          72
+          60,
+          66,
+          66,
+          88,
+          68
         ]
       }
     },
@@ -272,25 +271,25 @@
       "label": "三卡池详情打开",
       "unit": "ms",
       "samples": [
-        348,
-        334,
-        345,
-        329,
+        404,
+        337,
+        358,
         322,
-        347,
-        330,
-        323,
-        344,
+        320,
         327,
-        319,
-        343,
         325,
         325,
-        344
+        332,
+        326,
+        316,
+        333,
+        330,
+        325,
+        331
       ],
       "sampleCount": 15,
-      "p50": 330,
-      "p95": 348,
+      "p50": 327,
+      "p95": 404,
       "budgetP95": 1200,
       "pass": true,
       "notes": [
@@ -311,102 +310,18 @@
       "unit": "ms",
       "samples": [
         61,
-        43,
-        44,
-        38,
-        47
+        53,
+        62,
+        51,
+        46
       ],
       "sampleCount": 5,
-      "p50": 44,
-      "p95": 61,
+      "p50": 53,
+      "p95": 62,
       "budgetP95": 1200,
       "pass": true,
       "notes": [
         "从点击「最近实际同步」到右侧回执抽屉内分组表可见；不包含首次进入设置页的加载。"
-      ],
-      "error": null,
-      "longTasks": {
-        "supported": true,
-        "sampleCount": 0,
-        "p95": null,
-        "max": 0,
-        "samples": []
-      }
-    },
-    "inbox_sort": {
-      "key": "inbox_sort",
-      "label": "Inbox 最新 / 最早排序",
-      "unit": "ms",
-      "samples": [
-        48,
-        53,
-        53,
-        55,
-        44
-      ],
-      "sampleCount": 5,
-      "p50": 53,
-      "p95": 55,
-      "budgetP95": 500,
-      "pass": true,
-      "notes": [
-        "从点击最新 / 最早排序按钮到列表首条记录变化；夹具含 24 条跨时间记录。"
-      ],
-      "error": null,
-      "longTasks": {
-        "supported": true,
-        "sampleCount": 0,
-        "p95": null,
-        "max": 0,
-        "samples": []
-      }
-    },
-    "inbox_detail": {
-      "key": "inbox_detail",
-      "label": "Inbox 采集详情",
-      "unit": "ms",
-      "samples": [
-        310,
-        328,
-        310,
-        415,
-        317
-      ],
-      "sampleCount": 5,
-      "p50": 317,
-      "p95": 415,
-      "budgetP95": 900,
-      "pass": true,
-      "notes": [
-        "从单击 Inbox 列表行到采集详情抽屉内容出现；每次采样前重建 24 条缓存并整页重载。"
-      ],
-      "error": null,
-      "longTasks": {
-        "supported": true,
-        "sampleCount": 0,
-        "p95": null,
-        "max": 0,
-        "samples": []
-      }
-    },
-    "inbox_clear": {
-      "key": "inbox_clear",
-      "label": "Inbox 二次确认后清空",
-      "unit": "ms",
-      "samples": [
-        375,
-        406,
-        272,
-        272,
-        265
-      ],
-      "sampleCount": 5,
-      "p50": 272,
-      "p95": 406,
-      "budgetP95": 1500,
-      "pass": true,
-      "notes": [
-        "从点击「清空 Inbox」到确认弹窗、用户确认、远端软删除回执和列表清空完成；使用脚本专属缓存与假云端。"
       ],
       "error": null,
       "longTasks": {
@@ -422,15 +337,15 @@
       "label": "分享抽屉打开",
       "unit": "ms",
       "samples": [
-        172,
-        144,
-        157,
-        133,
-        145
+        190,
+        165,
+        159,
+        151,
+        149
       ],
       "sampleCount": 5,
-      "p50": 145,
-      "p95": 172,
+      "p50": 159,
+      "p95": 190,
       "budgetP95": 1000,
       "pass": true,
       "notes": [
@@ -440,14 +355,14 @@
       "longTasks": {
         "supported": true,
         "sampleCount": 5,
-        "p95": 119,
-        "max": 119,
+        "p95": 131,
+        "max": 131,
         "samples": [
-          119,
-          78,
-          104,
-          84,
-          77
+          131,
+          81,
+          83,
+          89,
+          78
         ]
       }
     },
@@ -456,13 +371,13 @@
       "label": "高清长图生成完成",
       "unit": "ms",
       "samples": [
-        151,
-        165,
-        167
+        182,
+        190,
+        166
       ],
       "sampleCount": 3,
-      "p50": 165,
-      "p95": 167,
+      "p50": 182,
+      "p95": 190,
       "budgetP95": 4000,
       "pass": true,
       "notes": [
@@ -472,12 +387,12 @@
       "longTasks": {
         "supported": true,
         "sampleCount": 3,
-        "p95": 77,
-        "max": 77,
+        "p95": 78,
+        "max": 78,
         "samples": [
-          73,
-          76,
-          77
+          72,
+          78,
+          73
         ]
       }
     }

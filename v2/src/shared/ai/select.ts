@@ -11,8 +11,9 @@ import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
 import { projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
+import { parsePeriodReview, type PeriodReviewContext } from '@/shared/utils/periodReview'
 import {
-  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, rangeInsightSystem, fullOptimizeSystem,
+  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, periodReviewSystem, fullOptimizeSystem,
   chainPersonaText, allPersonas, personaOverrides,
   type TaskDraft,
 } from './scenarios'
@@ -631,43 +632,30 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
 
 export type InsightRange = 'today' | 'week' | 'month' | 'year'
 
-/** G-04：画像四段的只读 AI 续写。
- *  入参 facts 由 ProfileInsights 从既有本地诊断口径整理；SLO 与统计数字仍以本地为准。
- *  失败由抽屉显示错误，页面原本地 ConciseInsight 不受影响。 */
-export function buildRangeInsightJob(
-  ctx: SelectCtx,
+/** V4.3.0：画像四段的 AI 分析工厂。
+ *  宿主直接消费 build() 与 parse() 的返回值，不打开建议抽屉；所有目标 id 由上下文白名单消毒。 */
+export function buildPeriodReviewJob(
   range: InsightRange,
-  localInsight: { html: string },
-  facts: string[],
+  context: PeriodReviewContext,
 ): AiJob {
   const label = { today: '今天', week: '本周', month: '本月', year: '本年' }[range]
-  const source = [
-    `范围：${label}`,
-    `本地诊断：${String(localInsight.html || '').replace(/<[^>]+>/g, '')}`,
-    ...facts.map(f => `- ${String(f).slice(0, 240)}`),
-  ].join('\n')
+  const source = JSON.stringify(context)
   return {
-    key: `insight-${range}`,
-    title: `${label} · AI 洞察续写`,
-    subject: `📊 ${label}本地事实 · 只读续写`,
-    hint: 'AI 只解释本地已算好的事实，不改数字、不写卡片、不替你做决定。失败时页面仍保留本地诊断。',
-    rawText: true,
+    key: `period-review-${range}`,
+    title: `${label} · AI 复盘`,
+    subject: `📊 ${label} · 账号战报与方向树`,
+    hint: 'AI 只读账号级战报与方向树，给出洞察和导航建议；不自动修改任何卡片或归属。',
     adoptable: false,
-    before: () => digestPane(source),
-    paneMode: 'context',
-    promptScope: `insight:${range}`,
-    build: () => ({ messages: [{ role: 'system', content: rangeInsightSystem(range) }, { role: 'user', content: source }], jsonMode: false }),
+    build: () => ({
+      messages: [
+        { role: 'system', content: periodReviewSystem(range) },
+        { role: 'user', content: source },
+      ],
+      jsonMode: true,
+    }),
     parse: (raw) => {
-      const text = String(raw || '').trim()
-      if (!text) return []
-      return [{
-        key: `insight-${range}`,
-        badge: '续写',
-        main: text,
-        changeType: 'new',
-        edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { text: (t.main || '').trim() } }) },
-        data: { text },
-      }]
+      const result = parsePeriodReview(String(raw || ''), context)
+      return [{ key: `period-review-${range}`, badge: '洞察', main: result.headline, data: result }]
     },
   }
 }

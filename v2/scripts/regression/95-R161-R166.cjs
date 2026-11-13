@@ -434,17 +434,15 @@ check('R165-A5 动作跟着对象走：三卡链接/来源行自带 ↗/⧉（R1
     && t.includes('ts-link-row') && t.includes('openTaskLink') && t.includes('copyTaskLink')
     && c.includes('copySourceUrl') && c.includes('openSourceUrl(detailItem.sourceUrl)') && (c.match(/class="ds-ib"/g) || []).length === 2
 });
-check('R165-A6（V4.2.0 退役重指）好奇心不再承担转化：详情保留问题原文、编辑与删除，但不出现 AI、转化、归档资源或转化状态；Inbox 详情承担唯一三型转化，转化后软删离场并写回云端采集状态', () => {
+check('R165-A6（V4.3.0 退役重指）好奇心不再承担转化：详情保留问题原文、编辑与删除，但不出现 AI、转化、归档资源或转化状态；PC Inbox 详情也已退役，旧数据只保留两代溯源字段兼容读取', () => {
   const c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))
-  const inbox = read('/newtab/composables/useInbox.ts')
-  const drawer = read('/newtab/components/compass/InboxCaptureDrawer.vue')
+  const identity = read('/shared/utils/captureIdentity.ts')
   return !c.includes('openConvert(') && !c.includes('convertedCount') && !c.includes('convertedTo')
     && c.includes('@confirm="detailItem && deleteCard(detailItem)"') && c.includes('问题原文') && c.includes('v-model="editDraft"')
     && !c.includes('.cz-pin-btn {') && c.includes('cz-pin-corner')
-    && drawer.includes("const conversionOptions: { kind: CaptureConvertedKind; label: string; icon: string }[]")
-    && drawer.includes('转化成功后，这条采集立即离开 Inbox')
-    && inbox.includes('await convertCapture(item.id, kind, cardId)')
-    && inbox.includes('items.value = items.value.filter(row => row.id !== item.id)');
+    && !exists('/newtab/components/compass/InboxCaptureDrawer.vue')
+    && !exists('/newtab/composables/useInbox.ts')
+    && identity.includes('sourceCaptureId') && identity.includes('captureInboxId') && identity.includes('capture_inbox_id');
 });
 check('R165-A7 任务详情优先级 3 段 segment（单击直达，语义色 tint 过对比度）+ 项目/指标级联双列保留', () => {
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue');
@@ -474,10 +472,13 @@ check('R165-A10 ★视觉走查覆盖到"本轮真正改的那一面"：theme-au
     && g.includes('const drawerFail = []') && g.includes('drawerFail.push') && g.includes('if (drawerFail.length)')
     && g.includes('drawerViews.length') && g.includes("footCount === 2") && g.includes("'[data-tid]'")
 });
-check('R165-A11 ★手册宣传面与功能现状对账：已退役能力不得留在使用手册里（「🤖 推荐卡」R162 已整体退役、代码全仓零命中，手册却仍挂着这句假承诺四轮）；AI 入口位置措辞须随版式（R165-A 标题行 → R166 任务三入口独立行 → R167 「AI 入口行」）· R167 备案：本条原把"标题行右侧"钉成合格判据，正是它让手册在版式再迁一次后仍显绿——判据改为**只认现行版式词，且旧位置词出现即红**', () => {
+check('R165-A11（V4.3.0 重指）★手册宣传面与功能现状对账：已退役能力不得留在手册；AI 入口位置继续只认现行版式词；采集口径改为浏览器内直接入三卡池，移动 PWA 与 PC Inbox 明确标注退役', () => {
   const m = read('/newtab/manual-data.ts')
   return !m.includes('推荐卡') && !m.includes('按任务挂资源')
-    && m.includes('AI 入口行') && m.includes('三格独立行') && m.includes('转化即离场')
+    && m.includes('AI 入口行') && m.includes('三格独立行')
+    && !m.includes('转化即离场')
+    && m.includes('移动采集与 PC Inbox 已退役')
+    && m.includes('直接进入对应卡池')
     && !m.includes('标题行右侧') && !m.includes('详情抽屉页脚') && !m.includes('任务详情底部')
     /* 手册说的两枚资源入口必须真有对应实现，否则"入口地图"本身就成假承诺 */
     && m.includes('关联任务') && read('/newtab/components/ResourceAiStrip.vue').includes('关联任务')

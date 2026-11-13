@@ -8,7 +8,7 @@
  * - 完整 Inbox 行可直接转化 / 打开 / 编辑 / 删除；
  * - 拉取模型成功时显示成功态，而不是沿用错误态。
  */
-const { check, read } = require('./helpers.cjs')
+const { check, read, exists, codeOnly } = require('./helpers.cjs')
 
 console.log('【V4.2.1 · 云同步边界 / 今日复制 / Inbox 行内操作 / AI 状态】')
 
@@ -69,22 +69,19 @@ check('V421-3（V4.2.3 重指）★今日三件事复制文案逐字固定：只
     && home.includes('@click.stop="copyFocusText(c)"')
 })
 
-check('V421-4 ★Inbox 完整列表行内直接处理：三卡转化、打开原链、编辑、删除都在当前行出现，不需要先进入二级详情', () => {
-  const panel = read('/newtab/components/compass/InboxPanel.vue')
-  const home = read('/newtab/views/CompassHome.vue')
-  return panel.includes('class="inbox-actions"')
-    && panel.includes('@click.stop="convert(item, \'task\')"')
-    && panel.includes('@click.stop="convert(item, \'curiosity\')"')
-    && panel.includes('@click.stop="convert(item, \'resource\')"')
-    && panel.includes('@click.stop="openSource(item)"')
-    && panel.includes('@click.stop="openItemNow(item)"')
-    && panel.includes('@click.stop="remove(item)"')
-    && home.includes('class="mini-inbox-actions"')
-    && home.includes("convertPreviewInbox(item, 'task')")
-    && home.includes("convertPreviewInbox(item, 'curiosity')")
-    && home.includes("convertPreviewInbox(item, 'resource')")
-    && home.includes('openPreviewInboxSource(item)')
-    && !home.includes('进入 Inbox 处理')
+check('V421-4（V4.3.0 退役重指）★PC Inbox 不再作为中间层：旧面板与 composable 物理移除，首页只保留任务 / 好奇心 / 资源三池，浏览器采集直接进入对应卡池', () => {
+  const home = codeOnly(read('/newtab/views/CompassHome.vue'))
+  const hook = read('/newtab/views/useCompassHome.ts')
+  const deck = codeOnly(read('/newtab/views/CompassDeckView.vue'))
+  return !exists('/newtab/components/compass/InboxPanel.vue')
+    && !exists('/newtab/components/compass/InboxCaptureDrawer.vue')
+    && !exists('/newtab/composables/useInbox.ts')
+    && !home.includes('Inbox')
+    && !hook.includes('inbox')
+    && !deck.includes('Inbox')
+    && hook.includes("type HandKind = 'task' | 'curiosity' | 'resource'")
+    && hook.includes("const handTab = ref<HandKind>('task')")
+    && home.includes("handTab === 'task'") && home.includes("handTab === 'curiosity'") && home.includes("handTab === 'resource'")
 })
 
 check('V421-5 ★AI 助手状态与结果分离：成功 / 警告 / 错误有独立 tone，模型列表成功显示绿色勾且不再出现错误 X；只有错误态显示再次测试', () => {

@@ -16,16 +16,13 @@ import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
-import { useInbox } from '@/newtab/composables/useInbox'
 import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
-import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
-import type { CaptureConvertedKind, CaptureItem } from '@/shared/cloud/sync'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 import { useCompassHomeStorage } from './useCompassHomeStorage'
 import { useCompassHomeDetail } from './useCompassHomeDetail'
 
 export interface FocusCell { idx: number; slot?: FocusSlot; task?: TaskCard }
-export type HandKind = 'task' | 'curiosity' | 'resource' | 'inbox'
+export type HandKind = 'task' | 'curiosity' | 'resource'
 
 export function useCompassHome() {
 const router = useRouter()
@@ -589,8 +586,8 @@ onDeactivated(() => {
 //  ③ 手边的卡三列改三池页签（hand-grid/hand-col/mini-list×3/goDeck 字符串锚全保留，v-show 切换）；
 //  ④ 右栏状态读数改「今日入台 / 今日调出 / 未归档」（本周复用挪到「最近调出」头部 chip），新增「好奇心培育」面板；
 //  ⑤ 密度令牌接通（04-73 D-1(a)）：主栏行卡读 --card-pad-*/--card-gap，紧凑档真实生效。
-/** 手边的卡四池页签（默认 Inbox；列结构保留、仅显示态切换） */
-const handTab = ref<HandKind>('inbox')
+/** 手边的卡三池页签（默认从任务卡开始；列结构保留、仅显示态切换） */
+const handTab = ref<HandKind>('task')
 /** 今日入台：三类卡 createdAt ≥ 今日 0 点（按创建时间派生；战报按事件日志计，两者口径差异在 tooltip 声明，不冒充同源） */
 const todayInCount = computed(() => {
   const t0 = todayStart.value
@@ -678,18 +675,8 @@ const previewResources = computed<ResourceCard[]>(() =>
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.lastCalledAt || b.updatedAt || 0) - (a.lastCalledAt || a.updatedAt || 0))
     .slice(0, 5)
 )
-const inbox = useInbox()
-const previewInboxBusy = ref<{ id: string; kind: CaptureConvertedKind } | null>(null)
-const previewInbox = computed(() =>
-  [...inbox.items.value]
-    .filter(item => !item.convertedKind)
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, 5)
-)
-onMounted(() => { void inbox.refresh() })
 const hasAnyPreview = computed(() =>
   !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
-  || !!previewInbox.value.length || inbox.connected.value || inbox.loading.value
 )
 const weeklyReuse = computed(() => weekUsageOf(d.value))
 const archivedCount = computed(() => unarchivedTaskCount())
@@ -715,31 +702,6 @@ function openRecentResource(r: ResourceCard): void {
     return
   }
   openResourcePreview(r)
-}
-async function convertPreviewInbox(item: CaptureItem, kind: CaptureConvertedKind): Promise<void> {
-  if (previewInboxBusy.value) {
-    showToast('上一条正在转化，请稍候')
-    return
-  }
-  previewInboxBusy.value = { id: item.id, kind }
-  try {
-    await inbox.convert(item, kind)
-    const label = kind === 'task' ? '任务卡' : kind === 'curiosity' ? '好奇心卡' : '资源卡'
-    showToast(`已转化为${label}，并已离开 Inbox`)
-  } catch (error) {
-    showToast(`转化失败：${error instanceof Error ? error.message : String(error)}`)
-  } finally {
-    previewInboxBusy.value = null
-  }
-}
-function openPreviewInboxSource(item: CaptureItem): void {
-  const raw = item.url || ''
-  const url = toOpenableRawLink(raw)
-  if (!url) {
-    showToast(raw ? '这条采集链接不可打开（请检查链接格式）' : '这条采集没有原始链接')
-    return
-  }
-  openExternalLink(url)
 }
 function goDeck(kind: HandKind): void {
   void router.push(`/deck/${kind}`)
@@ -778,7 +740,6 @@ function goDeck(kind: HandKind): void {
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,
     previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
-    previewInbox, previewInboxBusy, convertPreviewInbox, openPreviewInboxSource, inbox,
     hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,

@@ -44,19 +44,19 @@ check('D18-2 ★V3.9.22 重指：主栏主攻面板退役；「今天的状态�
     && !CH_C.includes('focusMeta.get(');
 });
 
-check('D18-3 ★手边的卡四池页签：任务 / 好奇心 / 资源 / Inbox 四枚 hand-tab（role=tablist + aria-selected），四段 hand-col 以 v-show 切换显示态；列结构与 goDeck 字符串锚全数保留，旧底部 tab 类名零回流', () => {
+check('D18-3（V4.3.0 退役重指）手边的卡三池页签：任务 / 好奇心 / 资源三枚 hand-tab（role=tablist + aria-selected），三段 hand-col 以 v-show 切换；Inbox 入口与旧底部 tab 零回流', () => {
   return CH.includes('class="hand-tabs"')
-    && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 4
+    && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 3
     && CH.includes('role="tablist" aria-label="手边的卡类型"')
-    && CH.includes(`class="hand-tab hand-tab-inbox" :class="{ on: handTab === 'inbox' }"`)
+    && !CH.includes('hand-tab-inbox')
     && CH.includes(`v-show="handTab === 'task'"`)
     && CH.includes(`v-show="handTab === 'curiosity'"`)
     && CH.includes(`v-show="handTab === 'resource'"`)
-    && CH.includes(`v-show="handTab === 'inbox'"`)
-    && CH_C.includes(`const handTab = ref<HandKind>('inbox')`)
+    && !CH_C.includes(`handTab === 'inbox'`)
+    && CH_C.includes(`const handTab = ref<HandKind>('task')`)
     && CH.includes('class="hand-grid"') && CH.includes('class="hand-col"')
-    && (CH.match(/class="mini-list"/g) || []).length === 4
-    && CH.includes("goDeck('task')") && CH.includes("goDeck('curiosity')") && CH.includes("goDeck('resource')") && CH.includes("goDeck('inbox')")
+    && (CH.match(/class="mini-list"/g) || []).length === 3
+    && CH.includes("goDeck('task')") && CH.includes("goDeck('curiosity')") && CH.includes("goDeck('resource')")
     && !CH_C.includes('bt-tab');
 });
 

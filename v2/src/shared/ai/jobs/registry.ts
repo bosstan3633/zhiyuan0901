@@ -224,12 +224,12 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     panel: { icon: 'flame', mode: 'nav', route: '/', hint: '仪表盘复盘段内发起' },
   },
   {
-    id: 'range-insight', title: '周期洞察续写', family: 'proactive', kind: 'job',
-    factory: 'buildRangeInsightJob', factoryFile: 'shared/ai/select.ts',
-    hosts: ['newtab/composables/useRangeAiInsight.ts'],
-    caps: { before: true, paneMode: 'context', promptScope: true, rawText: true },
-    panel: { icon: 'trendup', mode: 'nav', route: '/profile', hint: '画像洞察 · 今天/本周/本月/本年诊断条右侧「AI 续写」' },
-    note: 'G-04：只解释页面已算好的本地事实，adoptable:false，不自动落卡；配置缺失或调用失败时保留本地规则洞察。',
+    id: 'period-review', title: '周期复盘', family: 'proactive', kind: 'job',
+    factory: 'buildPeriodReviewJob', factoryFile: 'shared/ai/select.ts',
+    hosts: ['newtab/composables/usePeriodAiReview.ts'],
+    caps: {},
+    panel: { icon: 'trendup', mode: 'nav', route: '/profile', hint: '画像洞察 · 今天/本周/本月/本年的 AI 分析区' },
+    note: 'V4.3.0：读取账号级战报、方向树与活动摘要，输出结构化洞察和只读导航动作；目标 id 经白名单消毒，不自动落卡或改库。',
   },
   // ★ R167：原 'card-optimize'（全方位优化）已并入上面的 'card-enrich' —— 两枚入口并成一枚，
   //   注册表 23 → 22；「抓正文」能力随工厂合并迁入，不再存在"两条口径不一的单卡工厂"。

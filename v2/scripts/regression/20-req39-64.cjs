@@ -26,26 +26,25 @@ check('R40-1 REQ-049 字段目录 catalog.ts：FIELD_CATALOG 含 assets、kinds 
 check('R40-2 REQ-049 FieldEditor 手写常量清空（无 curiosity:[\'question\' 特征串；改由 catalogMeta 推导）', () => { const s = read('/newtab/views/FieldEditor.vue'); return !s.includes("curiosity: ['question'") && !s.includes("const LOCKED_KEYS") && !s.includes('ICON_MAP:') && s.includes('catalogMeta') && s.includes('crossFields'); });
 check('R40-3 REQ-049 CardBase 公共基底 + 卡 extends（V3.7.0 备案：三卡 → 四卡，+论证节点卡）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface CardBase') && s.split('extends CardBase').length - 1 === 4 && s.includes('assets?: AssetMeta[]'); });
 console.log('【第卌轮 · V2.16.0 第二批：REQ-050 转卡（V4.2.0 重指：Inbox 唯一入口）】');
-check('R40-4（V4.2.0 重指）Inbox 是唯一转卡入口：旧 cards.ts 引擎与好奇心转化出口整体退役；inbox.convert 明确生成任务 / 好奇心 / 资源三型，公共字段一次搬运', () => {
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
+check('R40-4（V4.3.0 退役重指）旧 cards.ts 引擎、好奇心转化出口与 PC Inbox 中间层整体退役；浏览器采集浮层直接生成任务 / 好奇心 / 资源三型', () => {
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
   const curiosity = codeOnly(read('/newtab/stores/curiosity.ts'));
   return !exists('/shared/utils/cards.ts')
-    && inbox.includes('async function convert(item: CaptureItem, kind: CaptureConvertedKind)')
-    && inbox.includes("if (kind === 'task')") && inbox.includes("else if (kind === 'curiosity')") && inbox.includes('} else {')
-    && inbox.includes("kind: 'task'") && inbox.includes("kind: 'curiosity'") && inbox.includes("kind: 'resource'")
-    && inbox.includes('sourceCaptureId: item.id')
+    && !exists('/newtab/composables/useInbox.ts')
+    && capture.includes('function openTaskCapture()') && capture.includes('function openCuriosity()') && capture.includes('function openCapture()')
+    && capture.includes("kind: 'task'") && capture.includes("kind: 'resource'") && capture.includes('d.curiosities?.unshift')
     && !curiosity.includes('convertToTask') && !curiosity.includes('convertToResource');
 });
-check('R40-5（V4.2.0 重指）Inbox 转卡字段无损：标签 / 自定义字段 / 采集来源统一搬运，三型各自回填链接字段；fromCuriosityId 与目标卡反向引用零回流', () => {
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
-  return inbox.includes('tags: [...(item.tags || [])]')
-    && inbox.includes('customFields: { captureInboxId: item.id }')
-    && inbox.includes('sourceCaptureId: item.id')
-    && inbox.includes('link: item.url')
-    && inbox.includes('sourceUrl: item.url')
-    && inbox.includes("link: item.url || ''")
-    && !inbox.includes('fromCuriosityId')
-    && !inbox.includes('.resourceIds =') && !inbox.includes('.curiosityIds =');
+check('R40-5（V4.3.0 退役重指）浏览器内直采口径不丢：三类采集都落到各自卡池并 unshift，资源卡固定进资源卡池；旧 Inbox 的转卡字段搬运和反向引用字段不回流', () => {
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
+  const identity = codeOnly(read('/shared/utils/captureIdentity.ts'));
+  return capture.includes('workspaceId: CURATION_WS_ID')
+    && capture.includes('d2.resources?.unshift(resource)')
+    && capture.includes('d2.tasks?.unshift(task)')
+    && capture.includes('d.curiosities?.unshift')
+    && identity.includes("const CAPTURE_FIELD_KEYS = ['captureInboxId', 'capture_inbox_id'] as const")
+    && !capture.includes('fromCuriosityId')
+    && !capture.includes('.resourceIds =') && !capture.includes('.curiosityIds =');
 });
 console.log('【第卌轮 · V2.16.0 第三批：REQ-051 附件卡片正面展示（AssetBadge）+ 好奇面板目录消费】');
 check('R40-6 REQ-051 共享组件 AssetBadge：分组计数徽章 + 文件列表 + 预览/打开（第卌二轮：HTML 改 openHtmlAsset + AssetPreview 多图）', () => { const s = read('/shared/components/AssetBadge.vue'); return s.includes('ab-chip ab-img') && s.includes('ab-chip ab-html') && s.includes('getAssetBlob') && s.includes('await openHtmlAsset(meta)') && s.includes('@click.stop') && s.includes('<AssetPreview :open="viewerOpen"'); });
@@ -235,22 +234,23 @@ check('R45-4 TaskManagerPanel 与调度台均接入共享抽屉（V3.9.1 重指�
     && h.includes('<TaskDetailDrawer ref="drawerRef" />')
     && !h.includes('onFocusDetailEdit');
 });
-check('R45-5/R49（V3.9.1 重写）调度台“查看全部”改为独立二级路由：/deck/task、/deck/curiosity、/deck/resource 各自进入 CompassDeckView，底部旧三 tab 退役且浏览器返回可用', () => {
+check('R45-5/R49（V4.3.0 重指）调度台“查看全部”只保留三个现役二级卡池：/deck/task、/deck/curiosity、/deck/resource；Inbox 路由只做旧深链回首页，浏览器返回可用', () => {
   const r = read('/newtab/router.ts');
   const deck = read('/newtab/views/CompassDeckView.vue');
   const h = read('/newtab/views/CompassHome.vue');
   const tm = read('/newtab/components/compass/TaskManagerPanel.vue');
   const cz = read('/newtab/components/compass/CuriosityPanel.vue');
   const pc = read('/newtab/components/compass/PoolCardsPanel.vue');
-  return r.includes("path: '/deck/:kind(task|curiosity|resource|inbox)'")
+  return r.includes("path: '/deck/:kind(task|curiosity|resource)'")
+    && r.includes("path: '/deck/inbox'") && r.includes("redirect: '/'")
     && r.includes("component: () => import('./views/CompassDeckView.vue')")
-    && deck.includes("type DeckKind = 'task' | 'curiosity' | 'resource' | 'inbox'")
+    && deck.includes("type DeckKind = 'task' | 'curiosity' | 'resource'")
     // 三个面板都带 ref，供 ?hl 深链在二级页内展开右侧详情。
     && deck.includes('<TaskManagerPanel v-if="kind === \'task\'" ref="taskPanel" secondary-mode />')
     && deck.includes('<CuriosityPanel v-else-if="kind === \'curiosity\'" ref="curiosityPanel" secondary-mode />')
-    && deck.includes('<PoolCardsPanel v-else-if="kind === \'resource\'" ref="resourcePanel" secondary-mode />')
-    && deck.includes('<InboxPanel v-else ref="inboxPanel" />')
-    && deck.includes('router.back()')
+    && deck.includes('<PoolCardsPanel v-else ref="resourcePanel" secondary-mode />')
+    && !deck.includes('InboxPanel')
+    && deck.includes('router.push(\'/\')')
     && tm.includes('secondaryMode?: boolean')
     && cz.includes('secondaryMode?: boolean')
     && pc.includes('secondaryMode?: boolean')
@@ -310,7 +310,7 @@ check('R49-2 A4 旧今日行动页移除：CompassActions.vue 不存在 + 路由
 check('R49-3 A2/B 调度台首页成立（V3.9.25 再随迁带备案）：旧「今日记录 4 计数 rec-mini + 记录抽屉」仍零残留，完整记录能力继续在画像洞察页；今日战报仍就地弹窗。调度台右栏「今日调出」新增真实操作次数，读取集中在 useCompassHome 取数层，视图不直接解析事件日志', () => { const s = read('/newtab/views/CompassHome.vue'); const homeView = fs.readFileSync(path.resolve(base, 'newtab/views/CompassHome.vue'), 'utf8'); const logic = read('/newtab/views/useCompassHome.ts'); const d = read('/newtab/components/dashboard/DashboardLogDrawer.vue'); const rh = read('/newtab/components/profile/PiRhythm.vue'); const ds = read('/shared/utils/dailyStats.ts'); const p = read('/newtab/views/ProfileInsights.vue'); return !s.includes('rec-mini') && !s.includes('openRec(') && !s.includes('REC_PAGE_SIZE') && !s.includes('recPageCount') && !codeOnly(homeView).includes('readEventLog') && logic.includes('readEventLog') && logic.includes('todayOutOps') && s.includes('todayOutOps') && s.includes('📈 今日战报') && s.includes('battleHost.value?.openToday()') && d.includes('exportCsv') && d.includes('EVENT_LOG_CAP') && ds.includes('export const W_ROWS') && read('/shared/utils/reviewReport.ts').includes('export function kpisOf(') && !codeOnly(rh).includes('kpisOf(') && p.includes("openStatDrawer('today-in')") && p.includes(':open="logOpen"'); });
 check('R49-4（R64 修订）三件事硬上限 3：FOCUS_LIMIT=3 + focusFull 逻辑 + 空位满员隐藏（锁定条已删）', () => { const s = read('/newtab/views/CompassHome.vue'); return s.includes('FOCUS_LIMIT = 3') && s.includes('focusFull') && !s.includes('lock-bar') && s.includes('v-if="!focusFull"'); });
 check('R51-F10 三件事/项目调度上下联动', () => { const s = read('/newtab/views/CompassHome.vue'); const c = codeOnly(s); /* ★P5 翻转带备案（2026-10-16）：原正锚 tc-subs/onSubScroll 随卡内视口退役改负锚（codeOnly 剥注释——退役备案注释里写着旧名，raw 判恒假）；"上下联动"语义现由 FocusDetail 单行 ↔ 抽屉承担（P4-1 钉链） */ return !c.includes('dispatch-split') && !c.includes('class="split"') && !c.includes('class="tc-subs"') && !c.includes('function onSubScroll');  });
-check('R49-6 B7（V4.1.0 重指）底部专区：首页「手边的卡」四池预览同宿；任务/好奇心/资源/Inbox 完整管理面板移入 /deck 二级页，方向台（树）仍不挂任务面板', () => { const s = read('/newtab/views/CompassHome.vue'); const deck = read('/newtab/views/CompassDeckView.vue'); const t = CT_ALL; return /class="[^"]*\bhand-board\b/.test(s) && s.includes('任务卡') && s.includes('好奇心卡') && s.includes('资源卡') && s.includes('Inbox') && s.includes("function goDeck(kind: HandKind)") && deck.includes('<TaskManagerPanel v-if="kind === \'task\'"') && deck.includes('<CuriosityPanel v-else-if="kind === \'curiosity\'"') && deck.includes('<PoolCardsPanel v-else-if="kind === \'resource\'"') && deck.includes('<InboxPanel v-else') && !s.includes('<TaskManagerPanel />') && !s.includes('<CuriosityPanel v-if="curioMounted" />') && !t.includes('TaskManagerPanel'); });
+check('R49-6 B7（V4.3.0 重指）底部专区：首页「手边的卡」只保留任务 / 好奇心 / 资源三池预览；三池完整管理面板移入 /deck 二级页，方向台（树）仍不挂任务面板', () => { const s = read('/newtab/views/CompassHome.vue'); const sc = codeOnly(s); const deck = codeOnly(read('/newtab/views/CompassDeckView.vue')); const t = CT_ALL; return /class="[^"]*\bhand-board\b/.test(sc) && sc.includes('任务卡') && sc.includes('好奇心卡') && sc.includes('资源卡') && !sc.includes('Inbox') && sc.includes("function goDeck(kind: HandKind)") && deck.includes('<TaskManagerPanel v-if="kind === \'task\'"') && deck.includes('<CuriosityPanel v-else-if="kind === \'curiosity\'"') && deck.includes('<PoolCardsPanel v-else ref="resourcePanel" secondary-mode />') && !deck.includes('InboxPanel') && !sc.includes('<TaskManagerPanel />') && !sc.includes('<CuriosityPanel v-if="curioMounted" />') && !t.includes('TaskManagerPanel'); });
 // R179-MIGRATED R49-7
 // V3.7.0（R179）随迁重写：数字槽顺延——1=调度台 2=方向台 3+ 策展台（资源台退役）
 check('R49-7 I2（V3.7.0 重指）数字槽：switchToIndex 1=调度台 2=方向台 3+ 策展台（n-3）按台签顺序', () => { const a = read('/newtab/App.vue'); return a.includes("if (n === 1) { navigate('/'); return }") && a.includes('if (n === 2) { openCompass(); return }') && a.includes('const ws = store.workspaces[n - 3]') && !a.includes('openResource'); });

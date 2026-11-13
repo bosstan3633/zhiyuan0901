@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
  * W13-T4（2026-10-16 · 画像洞察极简认知版 D2/F12~F15）PiRhythm —— 三段式极简法则：
- *   ① #ins-week `.one-insight` 一句人话诊断条（F12：目标分布偏科 / 只推不调 两态 warn +
- *      常态——本周有效动作、调出、目标分布交叉推导，宿主或本组件内算均可，此处内算）
+ *   ① #ins-week 的统一 AI 周期复盘（未配置或失败时回落到本机事实基线）
  *   ② `.strip4` 唯一一行 4 等宽胶囊：有效动作 / 加权得分 / 调出旧卡 / 节奏波动
  *      + 模块头「环比上周 ±X%」徽标（F13）
  *   ③ `.light-split` 左右双栏（F14/F15）：左 `.lbox` 7 日能量密度柱（点柱 → 该日战报）；
@@ -15,7 +14,6 @@
  *   偏离预警（runRules 8 规则）不属于重复读数，保留为独立分段。
  */
 import Icon from '@/shared/components/Icon.vue'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed, ref } from 'vue'
 import {
   windowOf, prevWindow, pct,
@@ -23,6 +21,9 @@ import {
   type DirLike, type TaskLike, type ConciseInsight
 } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
+import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
+import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
+import PiAiReview from './PiAiReview.vue'
 
 const props = defineProps<{
   stats: DailyStats
@@ -31,6 +32,7 @@ const props = defineProps<{
   errorCount: number
   /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 week 段（形状 = ConciseInsight） */
   insight: ConciseInsight
+  ai: PeriodAiState
 }>()
 
 const emit = defineEmits<{
@@ -39,9 +41,9 @@ const emit = defineEmits<{
   /** F13 定版四格：wk-add（采集）随格退役，收窄为 4 键 */
   (e: 'drill', k: 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace'): void
   (e: 'goal-drill', dirId: string): void
-  /** F12 诊断条动作分发（goal:<dirId> / lc / wk-acts） */
-  (e: 'insight-action', action: string): void
-  (e: 'ai-insight'): void
+  (e: 'ai-regenerate'): void
+  (e: 'ai-navigate', target: PeriodReviewTarget): void
+  (e: 'ai-configure'): void
 }>()
 
 /* ===== 窗口固定为本周 ===== */
@@ -116,22 +118,13 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
           :title="`等长窗口对比：本周有效动作 ${agg.acts} vs 上周 ${prevAgg.acts}`">
           环比上周 {{ fmtPct(deltaActs) }}
         </span>
-        <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
-          <AiEntryButton variant="inline" label="AI 续写" />
-        </button>
         <button v-if="errorCount > 0" class="pi-btn sm line pi-btn-warn"
           @click="emit('open-err')"><Icon name="alert" :size="13"/> 错误 {{ errorCount }}</button>
       </div>
     </div>
     <div class="pi-mod-b">
-      <!-- ① F12 诊断条 -->
-      <div id="ins-week" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic"><Icon v-if="insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
-        <span class="oi-text" v-html="insight.html"></span>
-        <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
-          {{ insight.ctaLabel }}
-        </button>
-      </div>
+      <PiAiReview id="ins-week" :ai="props.ai" :fallback="props.insight"
+        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
 
       <!-- ② F13 strip4 四格（采集格随 wk-add 退役） -->
       <div class="pi-strip">

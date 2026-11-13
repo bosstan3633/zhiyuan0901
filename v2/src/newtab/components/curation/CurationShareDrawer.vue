@@ -8,7 +8,7 @@ import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { buildCurationShareHtml, type CurationShareOptions } from '@/shared/utils/curationShare'
 import { renderCurationImage } from '@/shared/utils/curationImage'
-import { buildCurationRenderTree } from '@/shared/utils/curationShareData'
+import { buildCurationRenderTree, type CurationRenderTree } from '@/shared/utils/curationShareData'
 import { buildZipFromBlobs } from '@/shared/utils/zip'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { downloadCurationAsset } from '@/shared/cloud/sync'
@@ -33,11 +33,36 @@ const options = reactive<CurationShareOptions>({
   theme: 'paper',
 })
 
-const renderTree = computed(() => buildCurationRenderTree({
-  nodes: props.nodes,
-  cards: props.cards,
-  thesis: props.thesis,
-}))
+const EMPTY_RENDER_TREE: CurationRenderTree = {
+  roots: [],
+  flat: [],
+  thesisAssets: [],
+  thesisCards: [],
+  nodeCount: 0,
+  cardCount: 0,
+  attachmentCount: 0,
+  maxLevel: 0,
+}
+const renderState = computed<{ tree: CurationRenderTree; error: string }>(() => {
+  if (!props.open) return { tree: EMPTY_RENDER_TREE, error: '' }
+  try {
+    return {
+      tree: buildCurationRenderTree({
+        nodes: props.nodes,
+        cards: props.cards,
+        thesis: props.thesis,
+      }),
+      error: '',
+    }
+  } catch (error) {
+    return {
+      tree: EMPTY_RENDER_TREE,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+})
+const renderTree = computed(() => renderState.value.tree)
+const renderError = computed(() => renderState.value.error)
 const roots = computed(() => renderTree.value.roots.length)
 const attachmentCount = computed(() => renderTree.value.attachmentCount)
 const imageDataUrl = ref('')
@@ -127,7 +152,7 @@ function safeAttachmentName(asset: { id: string; name: string; kind: string }, i
 }
 
 async function buildImage(): Promise<string> {
-  if (!props.open) return ''
+  if (!props.open || renderError.value) return ''
   const seq = ++imageSeq
   imageBusy.value = true
   try {
@@ -247,6 +272,10 @@ async function downloadAttachmentZip(): Promise<void> {
 }
 
 async function download(): Promise<void> {
+  if (renderError.value) {
+    showToast(renderError.value)
+    return
+  }
   if (downloadBusy.value || imageBusy.value || assetBusy.value) return
   downloadBusy.value = true
   try {
@@ -325,6 +354,10 @@ watch(
       将导出 <b>{{ options.format === 'reading' ? '阅读长文' : '论证树' }}</b> · {{ cards.length }} 张资源卡 · {{ roots }} 个一级节点 · {{ attachmentCount }} 个附件（{{ fmtBytes(nodeAssetBytes) }}） · {{ exportModeLabel }} · {{ options.links ? '资源链接可点击' : '不含资源链接' }}
       <span v-if="assetBusy"> · 正在嵌入策展附件…</span>
     </div>
+    <div v-if="renderError" class="cs-limit-error" role="alert">
+      <Icon name="alert" :size="14"/>
+      <span><b>当前策展结构还不能导出</b> {{ renderError }}。请先整理超过 L4 的分支，再回来分享。</span>
+    </div>
     <div class="cs-section cs-preview-section" :class="{ ink: options.theme === 'ink' }">
       <div class="cs-preview-heading">
         <div>
@@ -369,13 +402,13 @@ watch(
         <Icon name="image" :size="14"/>
         <span><b>高清长图</b><small>{{ imageBusy ? '正在生成完整 L1–L4 长图…' : imageDataUrl ? '已嵌入分享 HTML；接收方可直接下载' : '打开分享时可生成' }}</small></span>
       </span>
-      <button type="button" class="cs-btn" :disabled="imageBusy" @click="downloadImage">
+      <button type="button" class="cs-btn" :disabled="imageBusy || !!renderError" @click="downloadImage">
         <Icon name="download" :size="13"/> 下载高清长图
       </button>
     </div>
     <template #footer>
       <button type="button" class="cs-btn" @click="emit('close')">取消</button>
-      <button type="button" class="cs-btn primary" :disabled="imageBusy || assetBusy || downloadBusy" @click="download"><Icon name="download" :size="13"/> {{ downloadBusy ? '正在导出…' : exportButtonLabel }}</button>
+      <button type="button" class="cs-btn primary" :disabled="imageBusy || assetBusy || downloadBusy || !!renderError" @click="download"><Icon name="download" :size="13"/> {{ downloadBusy ? '正在导出…' : exportButtonLabel }}</button>
     </template>
   </Drawer>
 </template>
@@ -405,6 +438,8 @@ watch(
 .cs-themes i.ink { background: #202126; }
 .cs-summary { margin-top: 16px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
 .cs-summary b { color: var(--text-2); }
+.cs-limit-error { margin-top: 10px; display: flex; align-items: flex-start; gap: 7px; padding: 9px 10px; border: 1px solid var(--warning-border); border-radius: 8px; background: var(--warning-bg-soft); color: var(--warning); font-size: var(--fs-caption); line-height: 1.55; }
+.cs-limit-error b { display: block; margin-bottom: 2px; }
 .cs-preview-section { padding: 11px 12px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
 .cs-preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
 .cs-preview-heading .cs-label { margin-bottom: 3px; }

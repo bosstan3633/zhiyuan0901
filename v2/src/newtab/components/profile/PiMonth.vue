@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * W13-T5（2026-10-16 · D2/F16~F19）PiMonth —— 时间轴模块③ 本月 · MONTH（三段式）。
- *   ① #ins-month `.one-insight` 一句人话诊断条（F16：Top 标签集中度/知识熵变化 × 超 14 天
- *      老好奇卡 × 入策展金字塔，宿主推导好传入）+ 模块头「知识熵 X.X → Y.Y bit」变化徽标
+ *   ① #ins-month 的统一 AI 周期复盘（未配置或失败时回落到本机事实基线）
+ *      + 模块头「知识熵 X.X → Y.Y bit」变化徽标
  *   ② `.strip4` 四格：本月入池 / 本月调出 / 本月新增任务 / 入策展金字塔（F17 月度专属口径）
  *   ③ `.light-split` 双栏（拒绝克隆本周柱状图）：左 Top 3 输入主题 → 攻坚项目映射（F18）；
  *      右 `.funnel3` 捕捉入池 → 支撑任务 → 策展表达 三步转化漏斗（F19）
@@ -12,10 +12,12 @@
  * props-only 红线（R172-9）：聚合全在宿主算好传入，本组件零扫 store。
  */
 import Icon from '@/shared/components/Icon.vue'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { computed } from 'vue'
 import { windowOf, type ConciseInsight } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
+import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
+import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
+import PiAiReview from './PiAiReview.vue'
 
 export interface MonthTopic { tag: string; n: number; project: string }
 
@@ -23,6 +25,7 @@ const props = defineProps<{
   stats: DailyStats
   /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 month 段（形状 = ConciseInsight） */
   insight: ConciseInsight
+  ai: PeriodAiState
   /** 知识熵变化（bit，1 位小数）：from=上月底快照口径 → to=当前全库 */
   ent: { from: number; to: number }
   topics: MonthTopic[]
@@ -35,8 +38,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'drill', k: 'mo-add' | 'mo-call' | 'mo-support' | 'mo-curate'): void
   (e: 'topic', tag: string): void
-  (e: 'insight-action', action: string): void
-  (e: 'ai-insight'): void
+  (e: 'ai-regenerate'): void
+  (e: 'ai-navigate', target: PeriodReviewTarget): void
+  (e: 'ai-configure'): void
 }>()
 
 /* ===== 窗口：本月（聚合由宿主与本组件双侧按同口径轻算，stats 为前缀和数据源） ===== */
@@ -63,20 +67,11 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
           :title="`上月底 ${ent.from} bit → 当前 ${ent.to} bit（香农熵：越低越聚焦）`">
           知识熵 {{ ent.from }} › {{ ent.to }} bit · {{ entState }}
         </span>
-        <button class="pi-btn sm line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
-          <AiEntryButton variant="inline" label="AI 续写" />
-        </button>
       </div>
     </div>
     <div class="pi-mod-b">
-      <!-- ① F16 诊断条（宿主确定性推导，三态） -->
-      <div id="ins-month" class="one-insight" :class="insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic"><Icon v-if="insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
-        <span class="oi-text" v-html="insight.html"></span>
-        <button class="act-link" :title="insight.html" @click="emit('insight-action', insight.ctaAction)">
-          {{ insight.ctaLabel }}
-        </button>
-      </div>
+      <PiAiReview id="ins-month" :ai="props.ai" :fallback="props.insight"
+        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
 
       <!-- ② F17 strip4 月度专属四格 -->
       <div class="pi-strip">

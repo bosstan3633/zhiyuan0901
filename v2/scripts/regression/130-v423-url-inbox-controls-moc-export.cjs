@@ -94,31 +94,27 @@ function asset(id, name, kind = 'image') {
 
 console.log('【V4.2.3 · 采集口径 / URL 唯一 / 资源控制行 / 全屏与附件导出 / MOC 复制】')
 
-check('V423-1 ★采集产品口径：桌面端快捷键直接进入三卡池，手机 PWA 进入 Inbox；Inbox 保留三卡转化，但不再宣传为全产品唯一采集入口', () => {
+check('V423-1（V4.3.0 重指）★采集产品口径收敛为浏览器内单一路径：快捷键与浮层直接进入三卡池；移动 PWA 与 PC Inbox 不再出现在手册、设置或现役入口', () => {
   const manual = read('/newtab/manual-data.ts')
-  const inbox = read('/newtab/components/compass/InboxPanel.vue')
   const settings = read('/newtab/views/settings/SettingsCloudSync.vue')
-  return manual.includes('桌面浏览器：快捷键 → 直接采集到')
-    && manual.includes('手机 PWA：文本 / 链接 → <b>Inbox</b>')
-    && manual.includes('Inbox 不是全产品唯一的采集入口')
-    && manual.includes('移动采集与待处理收件箱')
-    && !manual.includes('Inbox 是唯一转化入口')
-    && inbox.includes('移动采集与待处理收件箱')
-    && settings.includes('桌面端也可用快捷键直接采集到对应卡池')
+  return manual.includes('快捷键 / 浮层采集 → 直接进入')
+    && manual.includes('移动采集与 PC Inbox 已退役')
+    && manual.includes('采集结果直接进入对应卡池，不再经过 Inbox 中转')
+    && !manual.includes('手机 PWA：')
+    && !settings.includes('mobile-capture-inbox')
+    && !settings.includes('/deck/inbox')
 })
 
-check('V423-2 ★同一 HTTP(S) 规范 URL 只能存在一张有效资源卡：采集浮层保存前读取最新数据树复核，资源详情新建 / 编辑、移动 Inbox 转化和书签导入共用 canonicalHttpUrl', () => {
+check('V423-2（V4.3.0 重指）★同一 HTTP(S) 规范 URL 只能存在一张有效资源卡：采集浮层保存前读取最新数据树复核，资源详情新建 / 编辑和书签导入共用 canonicalHttpUrl', () => {
   const overlay = read('/content/overlay-capture.ts')
   const popup = read('/newtab/components/useGlobalPopupsCapture.ts')
   const drawer = read('/newtab/composables/useResourceDrawer.ts')
-  const inbox = read('/newtab/composables/useInbox.ts')
   const bookmarks = read('/newtab/composables/useBookmarkImport.ts')
   return overlay.includes('latestResources.find')
     && overlay.includes('canonicalHttpUrl(r.link) === fp')
     && !overlay.includes('__zy_dup_force__')
     && popup.includes('canonicalHttpUrl')
     && drawer.includes('canonicalHttpUrl')
-    && inbox.includes('existingResourceForUrl')
     && bookmarks.includes('canonicalHttpUrl(resource.link) === urlKey')
 })
 

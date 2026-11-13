@@ -46,20 +46,15 @@ check('R167-4 ★镜像只读卡三处不越界：标题 readonly（用 readonly
     && w.includes("@enter=\"drawerReadonly ? locateMirrorSourceCard() : saveResource()\"")
     && dt.includes(':readonly="readonly"') && !dt.includes(':disabled')
 });
-check('R167-5（V4.2.0 退役重指）★转化即离场的数据口径：好奇心不再转化；Inbox 三型转化在目标卡写入 sourceCaptureId，本机列表立即移除，云端采集补写 converted_at / converted_kind / converted_card_id；失败进本地补写队列，后续刷新重试', () => {
+check('R167-5（V4.3.0 退役重指）★转化即离场的数据口径随 Inbox 退役：好奇心不再转化，旧采集面板、本地列表移除与云端 conversion 回写链均物理移除；两代 source capture 字段只保留读取兼容', () => {
   const md = read('/shared/models/index.ts')
   const cp = codeOnly(read('/newtab/stores/curiosity.ts'))
-  const inbox = read('/newtab/composables/useInbox.ts')
-  const client = read('/shared/cloud/client.ts')
+  const identity = read('/shared/utils/captureIdentity.ts')
   return !cp.includes('convertedAt') && !cp.includes('convertedTo')
     && md.includes('sourceCaptureId?: string')
-    && inbox.includes('sourceCaptureId: item.id')
-    && inbox.includes('items.value = items.value.filter(row => row.id !== item.id)')
-    && inbox.includes('enqueueConversion(')
-    && inbox.includes('await retryPendingConversions()')
-    && client.includes('converted_at: new Date().toISOString()')
-    && client.includes('converted_kind: convertedKind')
-    && client.includes('converted_card_id: convertedCardId')
+    && !exists('/newtab/composables/useInbox.ts')
+    && !read('/shared/cloud/client.ts').includes('/rest/v1/capture_inbox')
+    && identity.includes('sourceCaptureId') && identity.includes('captureInboxId') && identity.includes('capture_inbox_id')
 });
 check('R167-6（V4.1.3 退役重指）资源侧反向“关联任务”整体退役：不再存在 buildResourceLinkTaskJob / 资源详情入口；任务→资源仍由任务侧 taskSupport 发起并只写独立关系记录，资源卡不出现反向关联按钮', () => {
   const ts = read('/shared/ai/taskSupport.ts')

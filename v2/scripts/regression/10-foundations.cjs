@@ -115,12 +115,12 @@ check('Bug1 目标卡按钮/箭头不重叠 · ★R4-Et 随迁备案：原锚 ma
 check('Bug2 标签缩进 !important 兜底', () => read('/newtab/views/GlobalSettings.vue').includes('padding-left: 58px !important'));
 
 console.log('【第六轮】');
-check('B24（V4.1.3 退役重指）愿景/使命关联芯片与预览抽屉不再存在；打开通道的下沉能力保留并改由移动采集 Inbox 使用', () => {
+check('B24（V4.3.0 重指）愿景/使命关联芯片与预览抽屉不再存在；打开通道的下沉能力保留并由资源卡池与统一 useResourceOpen 使用', () => {
   const t = codeOnly(CT_ALL);
-  const inbox = read('/newtab/components/compass/InboxPanel.vue');
+  const open = read('/newtab/composables/useResourceOpen.ts');
   return !t.includes('linked-chip') && !t.includes('peekData')
     && read('/shared/utils/link.ts').includes('file:///')
-    && inbox.includes('openSource(item)');
+    && open.includes("from '@/shared/utils/link'") && open.includes('openExternalLink(url)');
 });
 check('B25 选取弹窗置灰（已完成/已选入）', () => read('/newtab/views/CompassHome.vue').includes('pickerDisabled') && read('/newtab/views/CompassHome.vue').includes('pickedIds'));
 check('B26 方向树默认全局展开', () => CT_ALL.includes('expandAllNodes'));
@@ -476,27 +476,26 @@ check('R32-7b REQ-008 网页浮层搜索命中工作台实体', () => read('/con
 /* V3.7.0（R179）随迁重写：资源卡定位落地调度台（3张卡），不再指向资源台 */
 check('R32-8 REQ-009 搜索打开规则（V3.7.0 重指 → R2-④ 再重指：资源卡结果与 Ctrl+Enter 同一条定位链路，池卡落「资源卡池」并高亮）+ content 端 ?hl 兼容旧深链', () => read('/newtab/components/GlobalPopups.vue').includes('已定位到资源卡池') && !read('/newtab/components/GlobalPopups.vue').includes('资源卡在 3张卡中检索查看') && read('/newtab/router.ts').includes("path: '/curation'") && read('/newtab/router.ts').includes("redirect: () => ({ path: '/' })"));
 check('R32-9 REQ-009 修复：文件类型卡片单击只弹 toast 不打开（旧 bug）', () => !read('/newtab/components/GlobalPopups.vue').includes('打开本地文件：${r.link}'));
-check('R32-10（V4.1.3 重指）打开通道统一下沉 shared/utils/link：资源卡池与 Inbox 两条现役入口共同消费同一打开通道；愿景/使命关联芯片入口退役后不再要求方向树参与', () => {
-  const inbox = read('/newtab/components/compass/InboxPanel.vue');
+check('R32-10（V4.3.0 重指）打开通道统一下沉 shared/utils/link：资源卡池与策展资源详情共同消费同一打开通道；愿景/使命关联芯片入口退役后不再要求方向树参与', () => {
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const drawer = read('/newtab/components/ResourceDetailDrawer.vue');
   const link = read('/shared/utils/link.ts');
   return exists('/shared/utils/link.ts')
     && read('/newtab/views/Workspace.vue').includes("from '@/shared/utils/link'")
-    && inbox.includes("from '@/shared/utils/link'")
-    && inbox.includes('openExternalLink(url)')
+    && pool.includes('openResourceLink(r)')
+    && drawer.includes('openResourceLink(editing)')
     && link.includes('export function toOpenableRawLink')
     && link.includes('export function openExternalLink');
 });
-check('R32-11（V4.2.0 重指）愿景/使命关联芯片双击打开入口随挂载能力退役；Inbox 的单击负责详情编辑，双击 / Enter / Space 负责打开源链接，详情抽屉内另有独立「打开链接」按钮', () => {
+check('R32-11（V4.3.0 重指）愿景/使命关联芯片双击打开入口随挂载能力退役；PC Inbox 的详情与键盘打开链一并退役，资源卡池 / 资源详情仍保留统一外链入口', () => {
   const t = codeOnly(CT_ALL);
-  const inbox = read('/newtab/components/compass/InboxPanel.vue');
-  const drawer = read('/newtab/components/compass/InboxCaptureDrawer.vue');
+  const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
+  const drawer = read('/newtab/components/ResourceDetailDrawer.vue');
   return !t.includes("openChipLink('res', rid)") && !t.includes("openChipLink('curio', cid)")
-    && inbox.includes('@dblclick.prevent.stop="openSource(item)"')
-    && inbox.includes('@keydown.enter.prevent.stop="openSource(item)"')
-    && inbox.includes('@keydown.space.prevent.stop="openSource(item)"')
-    && inbox.includes('单击查看并编辑详情，双击打开原始链接')
-    && drawer.includes('@click="openSource"')
-    && drawer.includes('打开');
+    && !exists('/newtab/components/compass/InboxPanel.vue')
+    && !exists('/newtab/components/compass/InboxCaptureDrawer.vue')
+    && pool.includes('openResourceLink(r)')
+    && drawer.includes('打开链接');
 });
 check('R32-12 REQ-013/014 模块分组下钻（第卌四轮退役：二级/三级下钻随 wsPopup 移除，由设置页工作台全景承接）', () => { const s = read('/newtab/components/compass/NorthStarPanel.vue'); return !s.includes('wsPopupLevel') && !s.includes('wsPopupCats') && s.includes("type DrawerType = 'dhi' | 'wce' | 'wrr' | 'today-add' | 'today-del' | 'tasks'"); });
 check('R32-13 recordResourceOpen 下沉 shared/storage/stats（应用端统一引用）', () => exists('/shared/storage/stats.ts') && read('/newtab/views/Workspace.vue').includes("from '@/shared/storage/stats'") && read('/newtab/components/GlobalPopups.vue').includes("from '@/shared/storage/stats'"));

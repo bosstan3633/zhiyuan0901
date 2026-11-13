@@ -39,7 +39,8 @@ check('W15-1 ★两类明细不许混：卡片清单型与事件流水型各有�
     /* 引擎侧 CTA 键改指：callSupport → ammo；「可调出的旧卡」→ cooling（不再落 openLog） */
     && RR.includes("ctaAction: 'ammo'")
     && codeOnly(RR).includes("ctaAction: 'cooling'")
-    && PI.includes("action === 'ammo'") && PI.includes("action === 'cooling'")
+    && PI.includes("k === 'd-ammo'") && PI.includes("openStatDrawer('ammo')")
+    && PI.includes("openStatDrawer('today-call')")
     && !codeOnly(PI).includes("action === 'callSupport') { onTodayDrill")
     /* 事件流水能力未减：全量抽屉仍在，移出与写入记录两枚入口仍在 */
     && PI.includes("openLog('log')") && PI.includes("openLog('out')")

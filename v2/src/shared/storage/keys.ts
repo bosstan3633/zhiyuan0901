@@ -43,6 +43,8 @@ export const K = {
   AI_CAPTURE_ENRICH_MIGRATED: 'zy_ai_capture_enrich_migrated_v1',
   /** AI 一次性指令 */
   AI_DIRECTIVES: 'zy_ai_directives_v1',
+  /** V4.3.0：四周期 AI 复盘缓存（只保存结构化结果，不保存 API Key 或卡片正文） */
+  AI_PERIOD_REVIEW_CACHE: 'zy_ai_period_review_cache_v1',
   /** 标签整体整理备份 */
   TAGREVISE_BACKUP: 'zy_tagrevise_backup_v1',
   /** V3.7.0：分类→标签 + 台内卡收编 迁移前的全量备份（设置页迁移报告卡可下载/回退） */
@@ -60,20 +62,10 @@ export const K = {
   LEGACY: ['lm_data_v5', 'lm_data_v5_backup'] as readonly string[]
 } as const
 
-/** localStorage 专属键（移动端 PWA；不属于 chrome.storage 语义） */
+/** localStorage 专属键（设备运行态与重试队列；不属于 chrome.storage 语义） */
 export const LOCAL_KEYS = {
   /** 桌面设备稳定 ID：用于生成跨设备可合并的全局唯一操作事件 ID */
   DEVICE_ID: 'zy_device_id',
-  /** 移动端待提交链接 */
-  MOBILE_PENDING: 'zy_mobile_pending',
-  /** 移动端登录会话 */
-  MOBILE_SESSION: 'zy_mobile_session',
-  /** 桌面 Inbox 最近一次成功拉取的本地缓存；断网时仍可按时间盘点 */
-  INBOX_CACHE: 'zy_inbox_cache',
-  /** Inbox 卡片已在本机创建但远端转化状态尚未写回的重试队列 */
-  INBOX_CONVERSION_QUEUE: 'zy_inbox_conversion_queue',
-  /** Inbox 元数据已在本机更新但尚未写回云端的重试队列 */
-  INBOX_EDIT_QUEUE: 'zy_inbox_edit_queue',
   /** 策展附件远端删除重试队列；只在本地保存对象路径，不保存凭据 */
   CURATION_ASSET_DELETE_QUEUE: 'zy_curation_asset_delete_queue',
   /** 账号操作事件拉取游标；按账号保存最后一条服务端接收时间 */

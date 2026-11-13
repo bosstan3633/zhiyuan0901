@@ -15,7 +15,9 @@ const MODELS = read('/shared/models/index.ts')
 const REPO = read('/shared/storage/repository.ts')
 const SUPPORT = read('/shared/utils/supportLinks.ts')
 const CURIO = read('/newtab/components/compass/CuriosityPanel.vue')
-const RANGE_AI = read('/newtab/composables/useRangeAiInsight.ts')
+const PERIOD_AI = read('/newtab/composables/usePeriodAiReview.ts')
+const PERIOD_REVIEW = read('/shared/utils/periodReview.ts')
+const PI_AI = read('/newtab/components/profile/PiAiReview.vue')
 const PROFILE = read('/newtab/views/ProfileInsights.vue')
 const REPORT = read('/newtab/views/profileInsightsReport.ts')
 const SELECT = read('/shared/ai/select.ts')
@@ -82,71 +84,67 @@ check('G102-5（V4.1.3 退役重指）好奇详情“资源支撑”入口整体
     && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
 });
 
-check('G102-6 四段 AI 续写入口存在且只在点击后动态载入：today/week/month/year 四段各有一枚，AI 工厂与配置均走 import()', () => {
+check('G102-6（V4.3.0 重指）四段 AI 复盘入口：今天 / 本周 / 本月 / 本年共用 PiAiReview，宿主走 usePeriodAiReview；配置、工厂与 LLM 客户端仍按需动态载入', () => {
   return ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => PROFILE.includes(`<${name}`))
-    && (PROFILE.match(/@ai-insight="openRangeAi"/g) || []).length === 4
-    && PROFILE.includes('useRangeAiInsight({')
-    && RANGE_AI.includes("import('@/shared/ai/config')")
-    && RANGE_AI.includes("import('@/shared/ai/select')")
-    && !/import\s+(?!type\b)[^\n]*from\s+['"]@\/shared\/ai\/select['"]/.test(RANGE_AI)
-    && !RANGE_AI.includes("from '@/shared/ai/config'");
+    && ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => read(`/newtab/components/profile/${name}.vue`).includes('<PiAiReview'))
+    && (PROFILE.match(/@ai-regenerate="regeneratePeriodAi\(activeRange\)"/g) || []).length === 4
+    && (PROFILE.match(/@ai-navigate="onPeriodAiAction"/g) || []).length === 4
+    && PROFILE.includes('usePeriodAiReview({')
+    && PERIOD_AI.includes("import('@/shared/ai/config')")
+    && PERIOD_AI.includes("import('@/shared/ai/select')")
+    && PERIOD_AI.includes("import('@/shared/ai/llm')")
+    && !/import\s+(?!type\b)[^\n]*from\s+['"]@\/shared\/ai\/select['"]/.test(PERIOD_AI)
+    && !PERIOD_AI.includes("from '@/shared/ai/config'");
 });
 
-check('G102-7 四段 AI 只读：buildRangeInsightJob adoptable:false、无 apply、无 withReport，不自动落卡', () => {
-  const body = SELECT.slice(SELECT.indexOf('export function buildRangeInsightJob'), SELECT.indexOf('\nexport function', SELECT.indexOf('export function buildRangeInsightJob') + 10))
+check('G102-7（V4.3.0 重指）四段 AI 只读：buildPeriodReviewJob adoptable:false、输出结构化洞察与导航动作，无 apply / persist / 自动落卡', () => {
+  const start = SELECT.indexOf('export function buildPeriodReviewJob')
+  const body = SELECT.slice(start, SELECT.indexOf('\nexport function', start + 10))
   return body.includes('adoptable: false')
-    && body.includes('rawText: true')
-    && body.includes('promptScope: `insight:${range}`')
+    && body.includes('parsePeriodReview(')
+    && body.includes("badge: '洞察'")
     && !body.includes('withReport(')
     && !body.includes('apply:')
     && !body.includes('persist()');
 });
 
-check('G102-8 四段 AI 入口登记：range-insight 指向 useRangeAiInsight，能力声明与源码一致', () => {
-  const at = REGISTRY.indexOf("id: 'range-insight'")
+check('G102-8（V4.3.0 重指）四段 AI 入口登记：period-review 指向 usePeriodAiReview，能力声明与源码一致', () => {
+  const at = REGISTRY.indexOf("id: 'period-review'")
   const body = REGISTRY.slice(at, REGISTRY.indexOf('\n  },', at) + 4)
   return at >= 0
-    && body.includes("factory: 'buildRangeInsightJob'")
+    && body.includes("factory: 'buildPeriodReviewJob'")
     && body.includes("factoryFile: 'shared/ai/select.ts'")
-    && body.includes("hosts: ['newtab/composables/useRangeAiInsight.ts']")
-    && body.includes('before: true')
-    && body.includes("paneMode: 'context'")
-    && body.includes('rawText: true')
-    && body.includes('adoptable:false')
+    && body.includes("hosts: ['newtab/composables/usePeriodAiReview.ts']")
+    && body.includes('caps: {}')
+    && body.includes('账号级战报')
     && body.includes('不自动落卡');
 });
 
-check('G102-9 四段 AI 失败保留本地：配置缺失与工厂失败只 toast，不覆盖 concise 本地诊断，不写 store', () => {
-  const fn = RANGE_AI.slice(RANGE_AI.indexOf('async function open'), RANGE_AI.indexOf('return { job'))
-  return fn.includes("if (!aiReady.value)")
-    && fn.includes('showToast(')
-    && fn.includes('return')
-    && fn.includes('catch (error)')
-    && fn.includes('showToast(')
-    && !fn.includes('concise')
-    && !fn.includes('persist()')
-    && !fn.includes('job.value = null')
+check('G102-9（V4.3.0 重指）四段 AI 失败保留本地事实基线：未配置 / 调用失败只在 PiAiReview 降级，不覆盖 concise，不写 store', () => {
+  return PERIOD_AI.includes('state.unconfigured = true')
+    && PERIOD_AI.includes("state.error = error instanceof Error ? error.message : String(error)")
+    && !PERIOD_AI.includes('persist()')
+    && !PERIOD_AI.includes('concise')
+    && PI_AI.includes('本地事实基线')
+    && PI_AI.includes('AI 尚未配置')
+    && PI_AI.includes('AI 暂不可用')
     && PROFILE.includes(':insight="concise.today"')
     && PROFILE.includes(':insight="concise.week"')
     && PROFILE.includes(':insight="concise.month"')
-    && !PROFILE.includes(':insight="concise.year"');
+    && PROFILE.includes(':insight="concise.year"');
 });
 
-check('G102-10 四段 AI 事实白名单：事实全部由 profileRangeFacts 产出，函数只读已算好的本地读数，不新增统计口径', () => {
-  const fact = REPORT.slice(REPORT.indexOf('export function profileRangeFacts'), REPORT.indexOf('export function profileExportLines'))
-  return fact.includes("if (range === 'today')")
-    && fact.includes("else if (range === 'week')")
-    && fact.includes("else if (range === 'month')")
-    && fact.includes('本年高价值冷却卡')
-    && fact.includes('本地诊断：')
-    && fact.includes('今日入台')
-    && fact.includes('本周有效动作')
-    && fact.includes('本月入池')
-    && fact.includes('当前存活卡片共')
-    && !fact.includes('fetch(')
-    && !fact.includes('readEventLog')
-    && !fact.includes('useAppStore')
-    && PROFILE.includes('facts: range => profileRangeFacts(range, {');
+check('G102-10（V4.3.0 重指）四段 AI 事实与白名单：上下文同时包含账号级事件、方向树与策展状态；动作目标只能来自 allowedTargets，模型编造 id 会被消毒', () => {
+  return PERIOD_REVIEW.includes('account: {')
+    && PERIOD_REVIEW.includes('directionTree: {')
+    && PERIOD_REVIEW.includes('curation: {')
+    && PERIOD_REVIEW.includes('allowedTargets')
+    && PERIOD_REVIEW.includes('function safeTarget(')
+    && PERIOD_REVIEW.includes('ctx.allowedTargets.find(')
+    && !PERIOD_REVIEW.includes('fetch(')
+    && !PERIOD_REVIEW.includes('useAppStore')
+    && PROFILE.includes('events: timelineEvents')
+    && PROFILE.includes('stats: dashStats');
 });
 
 check('G102-11 V3.9.14 更新日志单列结构：左侧版本目录 + 右侧单列正文 + active/current 双态 + 内容独立滚动', () => {

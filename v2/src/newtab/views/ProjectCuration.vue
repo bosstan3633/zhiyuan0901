@@ -700,8 +700,8 @@ function addTaskFromHeader() {
             hint="在任务详情里上传附件，这里会自动汇总成可检索的资产清单。" />
         </div>
       </div>
-      <!-- V4.2.3：桌面端可直接采集任务；Inbox 保留为移动采集与待处理收件箱的三卡转化面。 -->
-      <div class="board-foot-hint"><Icon name="bulb" :size="13"/> Inbox 中待处理的移动采集可转为任务卡 · 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
+      <!-- V4.3.0：浏览器内直接采集与调度；移动采集和 Inbox 已退役。 -->
+      <div class="board-foot-hint"><Icon name="bulb" :size="13"/> 本页与完整方向树实时双向同步 · 任务完成自动回流指标与战略目标进度</div>
     </div>
     </div>
 

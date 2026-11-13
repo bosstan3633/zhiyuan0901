@@ -191,7 +191,7 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   fixTagNames(data.resources as { tags?: string[] }[])
   fixTagNames(data.tasks as { tags?: string[] }[])
   fixTagNames(data.curiosities as { tags?: string[] }[])
-  // V4.2.1：V4.1.0 旧导入与后续 Inbox 转化使用两套溯源字段。
+  // V4.2.1：旧导入与历史采集转化使用两套溯源字段；仅做兼容读取。
   // 同一 capture id 的两张资源卡在这里合并，避免“同标题一张带链接、一张无链接”。
   try { reconcileCapturedResources(data) } catch { /* noop */ }
   for (const key of ['task', 'curiosity'] as const) {

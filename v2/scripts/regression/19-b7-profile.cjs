@@ -168,7 +168,8 @@ check(NAME(
   const heads = [TODAY, RHY, MONTH, YEAR].map(segHead);
   if (heads.some(s => !s)) { console.log('     段头切片缺失'); return false; }
   return heads.every(s => s.includes('<div class="pi-mod-acts">'))
-    && YEAR.includes('pi-ai-insight')
+    && YEAR.includes('<PiAiReview')
+    && YEAR.includes(':ai="props.ai"')
     && YEAR.includes(':show-summary="false"')
     && !YEAR.includes('本年活跃 {{ ya.act }} 天')
     /* 今日=按钮 / 本周=徽标 / 本月=徽标 / 本年=AI；四段右缘各有自己的实体，年度不再复述活跃读数 */
@@ -180,8 +181,8 @@ check(NAME(
   'A3-6 ★四段内容能力零损失：今天 / 本周 / 本月保留诊断条 + strip4 + 内容；年度段按 V3.9.23 拍板去掉诊断条，',
   '但 strip4 四格与热力图 / 生命周期两个专属出口一个不少；',
   '本批新增的发丝线与徽标不许顶掉任何一个既有出口'), () => {
-  return [TODAY, RHY, MONTH].every(s => (s.match(/class="one-insight"/g) || []).length === 1)
-    && (YEAR.match(/class="one-insight"/g) || []).length === 0
+  return [TODAY, RHY, MONTH, YEAR].every(s => (s.match(/<PiAiReview/g) || []).length === 1)
+    && [TODAY, RHY, MONTH, YEAR].every(s => s.includes(':fallback="props.insight"'))
     && [TODAY, RHY, MONTH, YEAR].every(s => s.includes('class="strip4"'))
     /* ★W17-C09 重指：今日段三行对账退役（bind/归位能力唯一归调度台），',
        改为守「打开战报 + 焦点格去调度台」两个专属出口。 */

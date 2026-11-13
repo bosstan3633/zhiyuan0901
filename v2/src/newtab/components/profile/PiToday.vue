@@ -12,9 +12,11 @@
  *   已排计数，点击跳回调度台。组件零取 store，数值全部由宿主传入。
  */
 import Icon from '@/shared/components/Icon.vue'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import type { ConciseInsight } from '@/shared/utils/reviewReport'
 import type { FocusSlot } from '@/shared/models'
+import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
+import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
+import PiAiReview from './PiAiReview.vue'
 
 /** 今日焦点行的宿主侧形状——★W17-C09 起本组件不再渲染三件事行，但宿主诊断口径仍消费该类型。 */
 export interface TodayRow {
@@ -47,6 +49,8 @@ const props = defineProps<{
   slotCount: number
   /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 today 段（形状 = ConciseInsight） */
   insight: ConciseInsight
+  /** V4.3.0：AI 周期复盘状态；本地事实仍作为失败/未配置时的降级面。 */
+  ai: PeriodAiState
 }>()
 
 const emit = defineEmits<{
@@ -55,9 +59,9 @@ const emit = defineEmits<{
   (e: 'open-battle'): void
   /** 今日焦点格 = 只读计数 + 去调度台调整 */
   (e: 'open-focus'): void
-  /** F7 诊断条动作钮分发 */
-  (e: 'insight-action', action: string): void
-  (e: 'ai-insight'): void
+  (e: 'ai-regenerate'): void
+  (e: 'ai-navigate', target: PeriodReviewTarget): void
+  (e: 'ai-configure'): void
 }>()
 </script>
 
@@ -67,7 +71,7 @@ const emit = defineEmits<{
       <span class="pi-mod-ico i-now"><Icon name="barchart" :size="13"/></span>
       <div class="pi-mod-t">
         <h2>今天的使用情况<span class="en">TODAY</span></h2>
-        <p>当天的四类记录，全部来自本机事件日志。排三件事请去调度台——本页只呈现使用状态。</p>
+        <p>结合账号级战报、方向树与策展状态，给今天的节奏、卡点与下一步建议。</p>
       </div>
       <div class="pi-mod-acts">
         <!-- ★V3.9.6 双口径徽标：今日入台 N 张里，有 M 张是**导入**的（不是今天新建的）。
@@ -76,21 +80,12 @@ const emit = defineEmits<{
           :title="`今日入台 ${props.todayAdd} 张中，${props.todayImport} 张是导入的（导入继承原创建时间，不计入今天新建）`">
           <Icon name="upload" :size="13"/> 导 {{ props.todayImport }}
         </span>
-        <button class="pi-btn line pi-ai-insight" title="AI 只续写本地已算好的事实；失败时保留本地诊断" @click="emit('ai-insight')">
-          <AiEntryButton variant="inline" label="AI 续写" />
-        </button>
         <button class="pi-btn line" @click="emit('open-battle')">打开战报</button>
       </div>
     </div>
     <div class="pi-mod-b">
-      <!-- ① 一句人话诊断条（恒渲染） -->
-      <div id="ins-today" class="one-insight" :class="props.insight.warn ? 'warn' : 'info'">
-        <span class="oi-ic"><Icon v-if="props.insight.warn" name="warn" :size="15"/><Icon v-else name="bulb" :size="15"/></span>
-        <span class="oi-text" v-html="props.insight.html"></span>
-        <button class="act-link" :title="props.insight.html" @click="emit('insight-action', props.insight.ctaAction)">
-          {{ props.insight.ctaLabel }}
-        </button>
-      </div>
+      <PiAiReview id="ins-today" :ai="props.ai" :fallback="props.insight"
+        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
 
       <!-- ② 唯一一行 4 等宽胶囊（F8） -->
       <div class="pi-strip">

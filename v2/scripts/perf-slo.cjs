@@ -2,7 +2,7 @@
 /**
  * 知源本地性能 SLO 采样。
  *
- * 真实加载 dist 扩展，用 Playwright 驱动十四类高频路径，输出 P50/P95 与预算判定。
+ * 真实加载 dist 扩展，用 Playwright 驱动十一类高频路径，输出 P50/P95 与预算判定。
  * 不读取历史报告、不生成模拟样本；任一采样失败或 P95 超预算，退出码为 1。
  *
  * 用法：
@@ -43,9 +43,6 @@ const BUDGETS = {
   pool_detail: 1200,
   folder_drawer: 800,
   sync_changes_drawer: 1200,
-  inbox_sort: 500,
-  inbox_detail: 900,
-  inbox_clear: 1500,
   share_drawer: 1000,
   long_image: 4000,
 }
@@ -60,9 +57,6 @@ const LABELS = {
   pool_detail: '三卡池详情打开',
   folder_drawer: '资源常用夹抽屉打开',
   sync_changes_drawer: '同步内容明细抽屉',
-  inbox_sort: 'Inbox 最新 / 最早排序',
-  inbox_detail: 'Inbox 采集详情',
-  inbox_clear: 'Inbox 二次确认后清空',
   share_drawer: '分享抽屉打开',
   long_image: '高清长图生成完成',
 }
@@ -597,41 +591,6 @@ async function seedPerfBoard(page) {
   })
 }
 
-function perfInboxRows(count = 24) {
-  const now = Date.now()
-  return Array.from({ length: count }, (_, index) => ({
-    id: `perf-inbox-${index}`,
-    content_kind: index % 5 === 0 ? 'text' : 'link',
-    url: index % 5 === 0 ? null : `https://example.com/inbox/${index}`,
-    text_content: `Inbox 性能采样正文 ${index}`,
-    title: `Inbox 性能采样 ${index}`,
-    note: null,
-    tags: ['性能'],
-    created_at: new Date(now - index * 60_000).toISOString(),
-    converted_at: null,
-    converted_kind: null,
-    converted_card_id: null,
-    dismissed_at: null,
-  }))
-}
-
-async function seedInboxCache(page, rows) {
-  const cached = rows.map(row => ({
-    id: row.id,
-    contentKind: row.content_kind,
-    url: row.url || undefined,
-    text: row.text_content || undefined,
-    title: row.title || undefined,
-    note: row.note || undefined,
-    tags: row.tags,
-    createdAt: Date.parse(row.created_at),
-  }))
-  await page.evaluate((items) => {
-    localStorage.setItem('zy_inbox_cache', JSON.stringify(items))
-    localStorage.removeItem('zy_inbox_conversion_queue')
-  }, cached)
-}
-
 async function inspectPerfBoard(page, boardId) {
   return page.evaluate(async (id) => {
     const raw = await chrome.storage.local.get('zy_data_v2')
@@ -719,7 +678,6 @@ async function main() {
     await page.waitForSelector('.page .desk-head', { timeout: 20000 })
     const seeded = await seedPerfBoard(page)
     report.fixture = seeded
-    const inboxFixtures = perfInboxRows()
     await ctx.route('https://perf.invalid/**', async (route) => {
       const request = route.request()
       const url = request.url()
@@ -742,18 +700,6 @@ async function main() {
             user: { id: 'perf-user', email: 'perf@example.invalid' },
           }),
         })
-        return
-      }
-      if (url.includes('/rest/v1/capture_inbox') && request.method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          headers: { ...headers, 'content-type': 'application/json' },
-          body: JSON.stringify(inboxFixtures),
-        })
-        return
-      }
-      if (url.includes('/rest/v1/capture_inbox')) {
-        await route.fulfill({ status: 204, headers })
         return
       }
       await route.fulfill({
@@ -1144,98 +1090,6 @@ async function main() {
       ['从点击「最近实际同步」到右侧回执抽屉内分组表可见；不包含首次进入设置页的加载。'],
       syncDrawerError,
       longTaskSamples.sync_changes_drawer,
-      longTaskSupported,
-    )
-
-    // 7.2) Inbox 排序：默认最新在前，点击一次切到最早在前，计到首行真实换位。
-    const inboxSortSamples = []
-    let inboxSortError = ''
-    try {
-      await seedInboxCache(page, inboxFixtures)
-      await page.goto(base + '#/deck/inbox?perf=sort', { waitUntil: 'domcontentloaded' })
-      await page.reload({ waitUntil: 'domcontentloaded' })
-      await page.waitForSelector('.inbox-row', { state: 'visible', timeout: 12000 })
-      for (let index = 0; index < SAMPLE_COUNT; index++) {
-        const before = await page.locator('.inbox-row').first().getAttribute('data-capture-id')
-        const measured = await captureAction(page, async () => {
-          await page.locator('.inbox-tools .sort-btn').click()
-          await page.waitForFunction((previous) => {
-            const first = document.querySelector('.inbox-row')
-            return !!first && first.getAttribute('data-capture-id') !== previous
-          }, before, { timeout: 5000 })
-        })
-        inboxSortSamples.push(measured.elapsed)
-        recordAction('inbox_sort', measured)
-      }
-    } catch (error) {
-      inboxSortError = error instanceof Error ? error.message : String(error)
-    }
-    report.metrics.inbox_sort = buildMetric(
-      'inbox_sort',
-      inboxSortSamples,
-      ['从点击最新 / 最早排序按钮到列表首条记录变化；夹具含 24 条跨时间记录。'],
-      inboxSortError,
-      longTaskSamples.inbox_sort,
-      longTaskSupported,
-    )
-
-    // 7.3) Inbox 详情：单击真实列表行，计到「Inbox 采集详情」抽屉内容出现。
-    const inboxDetailSamples = []
-    let inboxDetailError = ''
-    try {
-      for (let index = 0; index < SAMPLE_COUNT; index++) {
-        await seedInboxCache(page, inboxFixtures)
-        await page.goto(base + `#/deck/inbox?perf=detail-${index}`, { waitUntil: 'domcontentloaded' })
-        await page.reload({ waitUntil: 'domcontentloaded' })
-        await page.waitForSelector('.inbox-row', { state: 'visible', timeout: 12000 })
-        const measured = await captureAction(page, async () => {
-          await page.locator('.inbox-row .inbox-open').first().click()
-          await page.waitForSelector('.drawer .icd-head', { state: 'visible', timeout: 8000 })
-        })
-        inboxDetailSamples.push(measured.elapsed)
-        recordAction('inbox_detail', measured)
-        await page.locator('.drawer-close').first().click()
-        await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
-      }
-    } catch (error) {
-      inboxDetailError = error instanceof Error ? error.message : String(error)
-    }
-    report.metrics.inbox_detail = buildMetric(
-      'inbox_detail',
-      inboxDetailSamples,
-      ['从单击 Inbox 列表行到采集详情抽屉内容出现；每次采样前重建 24 条缓存并整页重载。'],
-      inboxDetailError,
-      longTaskSamples.inbox_detail,
-      longTaskSupported,
-    )
-
-    // 7.4) Inbox 清空：点击清空 → 确认弹窗 → 二次确认 → 列表清空。这里只操作脚本自己的缓存与假云端。
-    const inboxClearSamples = []
-    let inboxClearError = ''
-    try {
-      for (let index = 0; index < SAMPLE_COUNT; index++) {
-        await seedInboxCache(page, inboxFixtures)
-        await page.goto(base + `#/deck/inbox?perf=clear-${index}`, { waitUntil: 'domcontentloaded' })
-        await page.reload({ waitUntil: 'domcontentloaded' })
-        await page.waitForSelector('.inbox-row', { state: 'visible', timeout: 12000 })
-        const measured = await captureAction(page, async () => {
-          await page.locator('.inbox-tools .clear-btn').click()
-          await page.waitForSelector('.cdf-mask .cdf-btn.ok', { state: 'visible', timeout: 5000 })
-          await page.locator('.cdf-mask .cdf-btn.ok').click()
-          await page.waitForFunction(() => document.querySelectorAll('.inbox-row').length === 0, null, { timeout: 8000 })
-        })
-        inboxClearSamples.push(measured.elapsed)
-        recordAction('inbox_clear', measured)
-      }
-    } catch (error) {
-      inboxClearError = error instanceof Error ? error.message : String(error)
-    }
-    report.metrics.inbox_clear = buildMetric(
-      'inbox_clear',
-      inboxClearSamples,
-      ['从点击「清空 Inbox」到确认弹窗、用户确认、远端软删除回执和列表清空完成；使用脚本专属缓存与假云端。'],
-      inboxClearError,
-      longTaskSamples.inbox_clear,
       longTaskSupported,
     )
 

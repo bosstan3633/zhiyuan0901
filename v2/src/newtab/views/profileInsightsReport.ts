@@ -1,49 +1,5 @@
 import type { InsightRange } from '@/shared/ai/select'
-import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
-import { objectivesOf, windowOf } from '@/shared/utils/reviewReport'
 import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
-import type { MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
-
-interface AggregateRangeInput {
-  stats: DailyStats
-  directions: DirLike[]
-  tasks: TaskLike[]
-}
-
-/** G-04：把宿主已算好的本地读数整理为白名单事实；这里不新增统计口径。 */
-export function profileRangeFacts(range: InsightRange, input: AggregateRangeInput & {
-  concise: { html: string }
-  todayAdd: number
-  todayCalled: number
-  todayFilled: number
-  todayAmmo: number
-  monthProjected: number
-  monthTopics: MonthTopic[]
-  yearCoolingHigh: number
-  yearDirFit: string
-  total: number
-  kinds: { res: number; task: number; curio: number }
-}): string[] {
-  const out = [`本地诊断：${String(input.concise.html || '').replace(/<[^>]+>/g, '')}`]
-  if (range === 'today') {
-    out.push(`今日入台 ${input.todayAdd} 张；今日调出 ${input.todayCalled} 次；今日焦点 ${input.todayFilled}/3；已备弹药 ${input.todayAmmo} 张。`)
-  } else if (range === 'week') {
-    const win = windowOf('week', {})
-    const agg = aggregateRange(input.stats, win.s, win.e)
-    const objs = objectivesOf(input.directions, input.tasks, win)
-    out.push(`本周有效动作 ${agg.acts} 件；调出 ${agg.u} 次；目标产出 ${objs.total} 件；未归属方向 ${objs.unassigned} 件。`)
-    if (objs.rows[0]) out.push(`本周产出最多的是「${objs.rows[0].name}」：${objs.rows[0].v} 件。`)
-  } else if (range === 'month') {
-    const win = windowOf('month', {})
-    const agg = aggregateRange(input.stats, win.s, win.e)
-    out.push(`本月入池 ${agg.c.res + agg.c.curio + agg.c.task} 张；本月调出 ${agg.u} 次；已入策展 ${input.monthProjected} 张。`)
-    if (input.monthTopics[0]) out.push(`本月最高频主题是「${input.monthTopics[0].tag}」：${input.monthTopics[0].n} 张。`)
-  } else {
-    out.push(`本年高价值冷却卡 ${input.yearCoolingHigh} 张；方向适配：${input.yearDirFit.replace(/<[^>]+>/g, '')}。`)
-    out.push(`当前存活卡片共 ${input.total} 张（资源 ${input.kinds.res} / 任务 ${input.kinds.task} / 好奇 ${input.kinds.curio}）。`)
-  }
-  return out
-}
 
 export function profileExportLines(input: {
   mission: string

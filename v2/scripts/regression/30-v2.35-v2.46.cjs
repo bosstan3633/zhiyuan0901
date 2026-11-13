@@ -1,10 +1,8 @@
 /**
- * R174-1 分片 · 30-v2.35-v2.46：由 scripts/regression.cjs 原样搬出（分片是搬运不是重写，断言零丢失）。
- * 依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE（语义=原 scripts/ 根与回归自体）。
+ * R174-1 分片 · 30-v2.35-v2.46：由 scripts/regression.cjs 原样搬出（分片是搬运不是重写，断言零丢失）；依赖基建见 ./helpers.cjs；__dirname/__filename 已换锚为 SCRIPTS_DIR/ANCHOR_FILE。
  */
 const {
-  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, srcFileEntries, HOT148, SCRIPTS_DIR, ANCHOR_FILE,
-} = require('./helpers.cjs');
+  fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT108, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, srcFileEntries, HOT148, SCRIPTS_DIR, ANCHOR_FILE, } = require('./helpers.cjs');
 console.log('【第六十五轮 · V2.35.0：资源台对齐旧工作台 + 金字塔 2~7 列树状自适应 + 节点双入口 + 导入导出语义修正】');
 check('R65-1（V3.9.9 重指）工具能力分宿主保留：策展画布留搜索/成果导入/分享/模板；资源池留搜索/列表·网格/四档筛选/批量/新建/本地导入。旧四视图与工具栏建支按钮退役', () => {
   const host = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8');
@@ -151,7 +149,7 @@ check('R67-1（R120-TB1 修订）方向状态「推进项目」全称标签独�
 check('R67-2 项目调度归属呈现', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('cur-crumb') && !h.includes('cur-progress') && pc.includes('pc-current') && pc.includes('class="pb-crumb"');  });
 check('R67-3（R123 重指）论点入大横幅常亮强调（tb-badge 实底 + tb-btn），原 thesis-hl 指标卡退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="tb-badge"') && w.includes('.tb-badge {') && w.includes('.tb-btn {') && !w.includes('metric-card thesis-hl'); });
 check('R67-4 任务采集弹窗改页面正中（openTaskCapture center，资源采集保持 corner）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R67-F2') && c.split("openOverlay('center', closeOverlay)").length === 4 && c.split("openOverlay('corner', closeOverlay)").length === 2; });
-check('R67-5（V4.2.0 重指）新卡落位口径守护：好奇心新增与 Inbox 三卡转化统一 unshift，marksort 仍按置顶>星标>普通（新卡落置顶之后、普通卡最前）', () => { const cu = read('/newtab/stores/curiosity.ts'); const inbox = read('/newtab/composables/useInbox.ts'); const ms = read('/shared/utils/marksort.ts'); const ov = read('/content/overlay-impl.ts'); return cu.includes('curiosities.unshift') && inbox.includes('tasks.unshift') && inbox.includes('curiosities.unshift') && inbox.includes('resources.unshift') && ms.includes('markRank') && ov.includes('tasks?.unshift'); });
+check('R67-5（V4.3.0 重指）新卡落位口径守护：好奇心新增与浏览器内三类直采统一 unshift，marksort 仍按置顶>星标>普通（新卡落置顶之后、普通卡最前）', () => { const cu = read('/newtab/stores/curiosity.ts'); const cap = read('/content/overlay-capture.ts'); const ms = read('/shared/utils/marksort.ts'); return cu.includes('curiosities.unshift') && cap.includes('d2.tasks?.unshift(task)') && cap.includes('d.curiosities?.unshift') && cap.includes('d2.resources?.unshift(resource)') && ms.includes('markRank'); });
 check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：panHubWss 改读原始 store.data.workspaces 过滤（当时 store.workspaces getter 排除资源台 ⇒ 全景恒空）+ gWsById 全景判定 + 默认选中资源台（const hubWs = panHubWss.value[0]）」——整页退役，但它修的病（数据源走带排除语义的 getter ⇒ 管理面恒空）在现管理面已被结构性避免，判据改认那三处真实锚点：① 池面板与调度台池 tab 都直读原始数组 store.data.resources 并按 workspaceId===CURATION_WS_ID 过滤（不经过任何排除资源台的 getter）② "默认选中资源台" 的现形=调度台底部三张卡默认 tab 就是资源卡池 ③ 池 id 常量仍是模型层唯一真源；panHubWss/gWsById/hubWs 在 GS 按 codeOnly 零命中', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
   const pcp = read('/newtab/components/compass/PoolCardsPanel.vue');
@@ -282,13 +280,15 @@ check('R70-7 P1 任务采集浮层监听器改模块级（不再重复写数据�
   const o = read('/content/overlay-impl.ts');
   return o.includes('let activeTcSave: (() => void) | null = null') && o.includes('function onTcKeydown(e: KeyboardEvent)') && o.includes('activeTcSave = null') && !o.includes('const onTcKey = (e: KeyboardEvent)');
 });
-check('R70-8（V4.2.0 退役重指）好奇心不做转化：旧转任务归属选择器、项目复位与数据层兜底一并退役；Inbox 是唯一转卡入口', () => {
-  const c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')); const s = codeOnly(read('/newtab/stores/curiosity.ts')); const inbox = read('/newtab/composables/useInbox.ts');
-  return !c.includes('onConvertProjChange') && !c.includes('convertProjId') && !c.includes('convertedTo') && !s.includes('safeMetricId') && inbox.includes('async function convert(item: CaptureItem, kind: CaptureConvertedKind)');
+check('R70-8（V4.3.0 退役重指）好奇心不做转化：旧转任务归属选择器、项目复位与数据层兜底一并退役；PC Inbox 中间层也已物理移除，采集直接入对应卡池', () => {
+  const c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')); const s = codeOnly(read('/newtab/stores/curiosity.ts'));
+  return !c.includes('onConvertProjChange') && !c.includes('convertProjId') && !c.includes('convertedTo') && !s.includes('safeMetricId')
+    && !exists('/newtab/composables/useInbox.ts') && read('/newtab/manual-data.ts').includes('采集结果直接进入对应卡池，不再经过 Inbox 中转');
 });
-check('R70-9（V4.2.0 退役重指）好奇心转任务与 metric.taskIds 反向补写整体退役；Inbox 转出的任务默认未归档，后续归属仍只由任务详情/方向台单一路径写入', () => {
-  const s = codeOnly(read('/newtab/stores/curiosity.ts')); const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
-  return !s.includes('metric.taskIds') && !s.includes('convertToTask') && inbox.includes("status: 'todo'") && inbox.includes("metricId: ''") === false;
+check('R70-9（V4.3.0 退役重指）好奇心转任务与 metric.taskIds 反向补写整体退役；浏览器直采任务仍写 status=todo，项目 / 指标只由用户在当前采集面板显式选择', () => {
+  const s = codeOnly(read('/newtab/stores/curiosity.ts')); const cap = codeOnly(read('/content/overlay-capture.ts'));
+  return !s.includes('metric.taskIds') && !s.includes('convertToTask')
+    && cap.includes("status: 'todo'") && cap.includes('projectId: projSel.value || undefined') && cap.includes('metricId: metSel.value || undefined');
 });
 check('R70-10 P1 多窗口快捷键定位优先当前窗口：所有新标签页路由统一走 openNewtabRoute，优先复用当前窗口', () => {
   const b = read('/background/index.ts');

@@ -446,7 +446,7 @@ export interface ConciseInsight {
    * ★W15-T1（2026-10-16 用户拍板）语义校正——**键必须与它承诺的东西同型**：
    *   「调出 N 张支撑卡」给的是**卡片清单**（ammo），不是「今日调出事件流水」；
    *   「看可调出的旧卡」给的是**冷却区卡片清单**（cooling），不是全量记录。
-   *   键集：openFocusBoard / bindFocus / callSupport→ammo / openBattle / openObjectives /
+   *   键集：openFocusBoard / callSupport→ammo / openBattle / openObjectives /
    *        openLog（= 全部记录，仅页头用）/ cooling / wakeCooling / openLifecycle
    */
   ctaAction: string
@@ -501,10 +501,10 @@ export function buildConciseInsights(c: ConciseCtx): Record<'today' | 'week' | '
   let today: ConciseInsight
   if (c.today.freeCount > 0) {
     today = {
-      html: `今天 <b>${c.today.freeCount}</b> 件焦点任务还游离在主攻之外${c.today.freeMatched > 0 ? `，卡池里躺着 <b>${c.today.freeMatched}</b> 张词面匹配的现成支撑卡` : '，卡池里也没有匹配的现成卡'}——先归位再开工。`,
+      html: `今天有 <b>${c.today.freeCount}</b> 件焦点任务还未挂到主攻${c.today.freeMatched > 0 ? `，卡池里有 <b>${c.today.freeMatched}</b> 张可能相关的现成支撑卡` : '，卡池里暂时没有匹配的现成卡'}——先看今日战报核对状态。`,
       warn: true,
-      ctaLabel: c.today.freeMatched > 0 ? `🔗 一键归入主攻 + 绑 ${c.today.freeMatched} 张卡 ›` : '🔗 去方向台挂到主攻 ›',
-      ctaAction: 'bindFocus'
+      ctaLabel: '📊 打开今日战报 ›',
+      ctaAction: 'openBattle'
     }
   } else if (c.today.todayCalled === 0) {
     today = {

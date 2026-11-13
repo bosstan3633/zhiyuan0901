@@ -1,7 +1,7 @@
 /**
  * URL 身份归一化唯一实现。
  *
- * 资源卡去重、采集浮层、数据导入和移动端 Inbox 必须共用这一套口径，
+ * 资源卡去重、采集浮层与数据导入必须共用这一套口径，
  * 否则同一条链接会在不同写入路径得到不同指纹。
  */
 const TRACKING_PARAM_PREFIXES = ['utm_', 'spm', 'from', 'gclid', 'fbclid'] as const

@@ -222,14 +222,6 @@
    ok 用强调色（值得看）、warn 用中性深一档（值得留意），两档只差明度不差色相。 */
 .one-insight.warn { border-left-color: var(--text-3); background: var(--surface-2); }
 .one-insight.ok { border-left-color: var(--accent); }
-/* M6（B7-e · V3.8.40）：热区下限 28px（实测 27px）——只撑盒子，胶囊形态与字号不变 */
-.act-link {
-  flex: none; border: 1px solid var(--accent); background: var(--accent-light); color: var(--accent-ink);
-  font-size: var(--fs-caption); font-weight: 700; padding: 5px 12px; min-height: 28px; border-radius: 999px;
-  cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap;
-}
-.act-link:hover { filter: brightness(1.05); transform: translateY(-1px); }
-
 /* ===== W13-D2 · strip4：唯一一行 4 等宽数字胶囊（W12-B3 终态定版形态：
    均分铺满网格，单元格仍复用 .pi-chip——chip 数定版 4（F8），hover/active 两态不变） ===== */
 .strip4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }

@@ -68,7 +68,8 @@ check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描
     //   2 处（ws 类型行、分类树定位）随行渲染进 useGlobalPopupsRows.ts；三处仍都在 !== CURATION_WS_ID 过滤之后。
     'newtab/components/useGlobalPopups.ts': 1,
     'newtab/components/useGlobalPopupsRows.ts': 2,
-    'newtab/views/Workspace.vue': 1                 // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
+    'newtab/views/Workspace.vue': 1,                // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
+    'newtab/views/useProfileInsights.ts': 1         // V4.3.0 AI 周期建议只导航到真实策展台，目标来自 curation.workspaces 白名单
   };
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
   const found = {};
@@ -176,7 +177,7 @@ check('R4-En ★网页 ⌘K 浮层的三条像素事实必须在位：真开 + �
 
 // ============== R4-Ep 「可选台列表」单源：池不再冒充台面（#116） ==============
 console.log('【R4-Ep · 可选台列表单源与形态补盲】');
-check('R4-Ep（V4.2.0 重指）「用户可选台列表」仍只有一处构造：selectableWsOptions 显式把池排第一，boardWsOptions 显式排除池；V4.2.0 后好奇心转化与采集目标台下拉全部退役，Inbox 转资源卡直接写 CURATION_WS_ID，不再从实体顺序猜测落点', () => {
+check('R4-Ep（V4.3.0 重指）「用户可选台列表」仍只有一处构造：selectableWsOptions 显式把池排第一，boardWsOptions 显式排除池；好奇心转化与采集目标台下拉退役后，浏览器直采资源卡直接写 CURATION_WS_ID，不再从实体顺序猜测落点', () => {
   const u = codeOnly(read('/shared/utils/wsName.ts'));
   const iSel = u.indexOf('export function selectableWsOptions');
   const iBr = u.indexOf('export function boardWsOptions');
@@ -185,7 +186,7 @@ check('R4-Ep（V4.2.0 重指）「用户可选台列表」仍只有一处构造�
   return iSel > 0 && iBr > iSel
     && bodySel.includes('{ id: CURATION_WS_ID, label: POOL_DISPLAY_NAME, pool: true }') && bodySel.includes('...boardWsOptions(workspaces)')
     && bodyBr.includes('w.id !== CURATION_WS_ID && !w.archived') && bodyBr.includes('wsNameWithIcon(w.icon, wsDisplayNameOf(w))')
-    && codeOnly(read('/newtab/composables/useInbox.ts')).includes('workspaceId: CURATION_WS_ID')
+    && codeOnly(read('/content/overlay-capture.ts')).includes('workspaceId: CURATION_WS_ID')
     && codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')).includes('boardWsOptions(d.value.workspaces)')
     // 负判据（走 codeOnly，注释里留着历史说明）：采集、好奇心与批量三处都不许再自造目标台列表
     && !codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('selectableWsOptions')
@@ -193,12 +194,13 @@ check('R4-Ep（V4.2.0 重指）「用户可选台列表」仍只有一处构造�
     && !codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')).includes('workspaces.filter(w => !w.archived)')
     && !codeOnly(read('/newtab/composables/useWorkspaceBatch.ts')).includes('workspaces.filter(w => !w.archived)');
 });
-check('R4-Ep（V4.2.0 退役重指）好奇心「归档为资源」弹窗整体退役：好奇心不转化、不归档，旧可选台、存入位置、归档回执与 converted 字段入口全部零回流；资源落点只由 Inbox 转化固定写资源卡池', () => {
+check('R4-Ep（V4.3.0 退役重指）好奇心「归档为资源」弹窗整体退役：好奇心不转化、不归档，旧可选台、存入位置、归档回执与 converted 字段入口全部零回流；资源落点只由浏览器直采固定写资源卡池', () => {
   const c = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'));
+  const capture = codeOnly(read('/content/overlay-capture.ts'));
   return !c.includes('openConvert(') && !c.includes('confirmConvert(') && !c.includes('convertWsId')
     && !c.includes('已归档至') && !c.includes('存入位置') && !c.includes('转为任务') && !c.includes('归档为资源')
-    && inbox.includes('workspaceId: CURATION_WS_ID');
+    && !exists('/newtab/composables/useInbox.ts')
+    && capture.includes('workspaceId: CURATION_WS_ID');
 });
 check('R4-Ep ★"取第一枚实体当默认落点"这一族的扫描形态必须比 R4-Dm 那张表更宽：窄正则 workspaces[0] 对 **`convWorkspaces.value[0]`** 天生失明（别名与 .value 都不匹配），所以 R4-Dm 立表之后同一族又漏出第三个出口——本轮换成宽形态登记表（任何 *orkspaces[.value][数字] 取第 N 枚），现扫条数与表不符即红（多一处红、少一处也红；新增要么改代码要么在 diff 里写明理由）', () => {
   const REG = {
@@ -235,12 +237,13 @@ check('R4-Ep ★V3.9.8 随迁：批量目标只列现役策展台，且语义是
     && !workspace.includes('moveModalOpen')
     && !workspace.includes('目标策展台（含当前策展台，可只换分类）');
 });
-check('R4-Ep（V4.2.0 重指）★运行时覆盖补一档：e2e 必须真点 Inbox 转资源卡并核对落点 CURATION_WS_ID，同时守卫好奇心旧归档入口为零', () => {
+check('R4-Ep（V4.3.0 重指）★运行时覆盖补一档：e2e 必须验证旧 Inbox 深链回首页、Inbox UI 与 capture_inbox 请求均不回流，并守卫好奇心旧归档入口为零', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  const drawer = read('/newtab/components/compass/InboxCaptureDrawer.vue');
-  return e.includes('E2E-54 ★V4.2.0') && e.includes('inboxResourceRow')
-    && e.includes("convertedResource?.workspaceId === 'zy-curation'")
-    && drawer.includes('转化成功后，这条采集立即离开 Inbox')
+  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.0')
+    && e.includes("page.goto(base + '#/deck/inbox'")
+    && e.includes('captureInboxRequests.length === 0')
+    && e.includes("page.locator('.inbox-row').count() === 0")
+    && !exists('/newtab/components/compass/InboxCaptureDrawer.vue')
     && !e.includes("filter({ hasText: '归档资源' })");
 });
 
@@ -552,7 +555,7 @@ check('W5-2（V4.1.0 重指 · ★V3.9.18 再重指带备案：英文全大写�
   return hm.includes('dz-n dz-ico') && hm.includes('<svg viewBox="0 0 24 24"')
     && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
     && ch.includes('class="board-ico"') && ch.includes('class="board-title"')
-    && ch.includes('class="hand-heading"') && ch.includes('四池 · 只预览最近在用的')
+    && ch.includes('class="hand-heading"') && ch.includes('三池 · 只预览最近在用的')
     && !ch.includes('decks-title') && !ch.includes('bottom-tabs')
     && css.includes('.dz-n.dz-ico') && css.includes('.dz-sec-h .dz-t');
 });
@@ -696,12 +699,13 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
 });
-check('W6-2（V4.1.0 重指 · ★V3.9.18 再重指带备案：手边的卡改为四池页签（hand-tabs，v-show 切换），hand-grid/hand-col/mini-list×4 与 goDeck 字符串锚全保留；Inbox 作为第四池并列；kicker 同步改中文；负锚 bt-tab 保持——页签类名用 hand-tab，不与旧底部 tab 混淆）手边四池入一张框：任务 / 好奇心 / 资源 / Inbox 共用 .hand-board 外壳与框内头部，不再各自套框或使用底部 tab', () => {
+check('W6-2（V4.3.0 退役重指）手边的卡收口为三池页签：任务 / 好奇心 / 资源共用 .hand-board 外壳与框内头部；Inbox 页签、预览列表与入口零回流，旧底部 tab 继续禁止', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
     && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
-    && (ch.match(/class="mini-list"/g) || []).length === 4
-    && ch.includes('四池 · 只预览最近在用的')
+    && (ch.match(/class="mini-list"/g) || []).length === 3
+    && ch.includes('三池 · 只预览最近在用的')
+    && !ch.includes('hand-tab-inbox') && !ch.includes('previewInbox')
     && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');
 });
 check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角直跑补全（用户拍板：点图标直接跑补全，不弹菜单）：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner（列表/看板/项目页保留 TaskAiMenu）；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskEnrich + buildTaskEnrichJob + AiDrawer 懒栈）；手册默认视图文案同步；R147-5 判据按 9+3 拆分', () => {

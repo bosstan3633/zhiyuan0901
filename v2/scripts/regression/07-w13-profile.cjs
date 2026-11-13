@@ -32,16 +32,17 @@ check('W13-1 ★V3.9.3 首屏结构与全页指标零重复：Hero 只保留「�
     && PI_C.includes('heroStreak') === false && PI_C.includes('currentStreak') === false;
 });
 
-check('W13-2 ★现役三段保留「一句人话诊断条」，年度段按 V3.9.23 拍板只删提示条并保留四格与热力图：今天 / 本周 / 本月各恰一枚 .one-insight（恒渲染），文本与 CTA 单一真源 = reviewReport.buildConciseInsights；宿主三段手写 insight 与 PiRhythm 组件内 weekInsight 继续零命中。负锚：PiToday 不许再有 todayAdd === 0 的静默隐藏分支', () => {
-  const c = [TODAY, RHY, MONTH];
-  const oneEach = c.every(s => (s.match(/class="one-insight"/g) || []).length === 1);
-  const injected = c.every(s => (s.includes('insight: ConciseInsight') && s.includes('v-html="insight.html"')) || s.includes('v-html="props.insight.html"'));
-  return oneEach && injected
-    && (YEAR.match(/class="one-insight"/g) || []).length === 0
-    && !YEAR.includes('insight: ConciseInsight') && !YEAR.includes('@insight-action')
+check('W13-2（V4.3.0 重指）四段统一为 AI 周期复盘：今天 / 本周 / 本月 / 本年都挂 PiAiReview，未配置或失败时才显示 reviewReport.buildConciseInsights 的本地事实基线；四段组件不再各写一份诊断条。负锚：PiToday 不许再有 todayAdd === 0 的静默隐藏分支', () => {
+  const c = [TODAY, RHY, MONTH, YEAR];
+  const aiReview = read('/newtab/components/profile/PiAiReview.vue');
+  return c.every(s => (s.match(/<PiAiReview/g) || []).length === 1)
+    && c.every(s => s.includes(':ai="props.ai"'))
+    && ['today', 'week', 'month', 'year'].every(k => PI.includes(`:insight="concise.${k}"`))
+    && (aiReview.match(/class="one-insight"/g) || []).length === 1
+    && aiReview.includes('v-html="props.fallback.html"')
+    && c.every(s => !codeOnly(s).includes('v-html="insight.html"'))
     && PI.includes('buildConciseInsights(') && PI.includes('const conciseCtx') && PI.includes('const concise = computed')
     && ['concise.today', 'concise.week', 'concise.month'].every(k => PI.includes(k))
-    && !PI.includes(':insight="concise.year"')
     && !PI_C.includes('todayInsight') && !PI_C.includes('mInsight') && !PI_C.includes('yInsight')
     && !codeOnly(RHY).includes('weekInsight') && !codeOnly(TODAY).includes('TodayInsight')
     && !codeOnly(MONTH).includes('MonthInsight') && !codeOnly(YEAR).includes('YearInsight')
@@ -137,15 +138,16 @@ check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘�
     && RP.includes('objectivesOf(') && PI.includes("openStatDrawer('goal-week')");
 });
 
-check('W13-T7d ★现役三段诊断的 CTA 走同一个分发出口：八个 ctaAction 键全部在宿主 onConciseAction 一处分派，三组件 @insight-action 全接它；V3.9.23 年度诊断提示条按用户拍板退役后，绑定数由 4 收敛为 3，但分发器和键集合不缩水。F5 导出补四条 strip-html 诊断行 ⇒ 导出与界面同源', () => {
-  /* ★V3.9.23：年度段只删提示条，四格与热力图保留；三条现役诊断仍只有一个分发器。 */
+check('W13-T7d（V4.3.0 重指）四段 AI 复盘动作走同一导航出口：PiAiReview 只发 navigate，宿主 onPeriodAiAction 按 battle / log / direction / project / metric / task / resource / curation 分流；旧「一键归入主攻 + 绑卡」与 onConciseAction 已退役，本地诊断仍只作失败降级', () => {
   const REPORT = read('/newtab/views/profileInsightsReport.ts')
-  return PI.includes('function onConciseAction(action: string)')
-    && ["'openFocusBoard'", "'bindFocus'", "'callSupport'", "'openBattle'", "'openObjectives'", "'openLog'", "'wakeCooling'", "'openLifecycle'"]
+  return PI.includes('function onPeriodAiAction(target: PeriodReviewTarget)')
+    && ["target.type === 'battle'", "target.type === 'log'", "target.type === 'direction'", "target.type === 'project'", "target.type === 'metric'", "target.type === 'task'", "target.type === 'resource'", "target.type === 'curation'"]
       .every(k => PI.includes(k))
     && !PI_C.includes("'convertCurio'")
-    && (PI.match(/@insight-action="onConciseAction"/g) || []).length === 3
-    && (PI.match(/@(?:week|today)-action="onConciseAction"/g) || []).length === 0
+    && !PI_C.includes('function onConciseAction')
+    && !PI_C.includes('一键归入主攻')
+    && !PI_C.includes('bindFocus')
+    && (PI.match(/@ai-regenerate="regeneratePeriodAi\(activeRange\)"/g) || []).length === 4
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')
     && !PI_C.includes('onYearInsightAction') && !PI_C.includes('onRhythmInsight')
     && PI.includes('profileExportLines({') && PI.includes('concise: concise.value')

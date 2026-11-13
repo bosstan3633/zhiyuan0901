@@ -18,16 +18,16 @@ check('R144-3 ★G1 论点契约与消毒：提示词要「一句可被反驳的
     && w.includes('<CurationThesisDrawer') && w.includes(':ws-id="workspaceId"') && w.includes(':ws-name="wsDisplayName"')
     && !w.includes('编辑中心论点') && !w.includes('AI 提炼骨架');
 });
-check('R144-4（V4.2.0 退役重指）★好奇心单卡研判与三判决整体退役：好奇心详情零 AI、零转化；Inbox 成为任务 / 好奇心 / 资源三型的唯一转化入口，转化后本机软删离场并保留来源采集 ID', () => {
+check('R144-4（V4.3.0 退役重指）★好奇心单卡研判与三判决整体退役：好奇心详情零 AI、零转化；PC Inbox 中间层也整体移除，浏览器采集直接生成任务 / 好奇心 / 资源三型', () => {
   const cp = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))
-  const inbox = codeOnly(read('/newtab/composables/useInbox.ts'))
+  const capture = codeOnly(read('/content/overlay-capture.ts'))
   const p = read('/shared/ai/project.ts')
   return !cp.includes('aiTriage') && !cp.includes('convertToTask') && !cp.includes('AiEntryButton')
     && !cp.includes('openConvert(') && !cp.includes('convertedTo =')
-    && inbox.includes('async function convert(item: CaptureItem, kind: CaptureConvertedKind)')
-    && inbox.includes("if (kind === 'task')") && inbox.includes("} else if (kind === 'curiosity')") && inbox.includes('} else {')
-    && inbox.includes('sourceCaptureId: item.id') && inbox.includes('items.value = items.value.filter(row => row.id !== item.id)')
-    && inbox.includes('await convertCapture(item.id, kind, cardId)')
+    && !exists('/newtab/composables/useInbox.ts')
+    && !exists('/newtab/components/compass/InboxPanel.vue')
+    && capture.includes('function openTaskCapture()') && capture.includes('function openCuriosity()') && capture.includes('function openCapture()')
+    && capture.includes("kind: 'task'") && capture.includes("kind: 'resource'") && capture.includes('d.curiosities?.unshift')
     && !p.includes('curioTriage') && !p.includes('convertToTask');
 });
 check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮；现役资源入口从画布节点「关联资源」进入 LinkCardsModal，旧 EvidenceMenuItem/nodeMenu 宿主已退役', () => {

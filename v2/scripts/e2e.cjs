@@ -104,6 +104,10 @@ async function main() {
   report('E2E-1 MV3 扩展加载（service-worker-loader.js）', worker.url().includes('service-worker-loader.js'), extId)
 
   const page = await ctx.newPage()
+  const captureInboxRequests = []
+  ctx.on('request', request => {
+    if (request.url().includes('/rest/v1/capture_inbox')) captureInboxRequests.push(request.url())
+  })
   const base = `chrome-extension://${extId}/${EXT_INDEX}`
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(base).origin }).catch(() => {})
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -2912,262 +2916,45 @@ await paOpen()
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(400)
 
-  // ══════════ E2E-54（V4.2.0）Inbox 唯一转化入口：详情编辑 → 转任务 → 离场 → 打开目标 ══════════
-  const inboxRow = {
-    id: 'e2e-v411-capture-1',
-    content_kind: 'text',
-    url: null,
-    text_content: '这是一条来自移动端的 V4.2.0 Inbox 测试采集，应该可以转化为任务卡。',
-    title: 'E2E V4.2.0 Inbox 转化',
-    note: null,
-    tags: [],
-    created_at: new Date().toISOString(),
-    converted_at: null,
-    converted_kind: null,
-    converted_card_id: null,
-    dismissed_at: null,
-  }
-  const inboxResourceRow = {
-    id: 'e2e-v411-capture-resource',
-    content_kind: 'link',
-    url: 'https://example.com/e2e/inbox-resource',
-    text_content: '这是一条应该转为资源卡的 Inbox 采集。',
-    title: 'E2E V4.2.0 Inbox 转资源卡',
-    note: null,
-    tags: ['E2E', '资源'],
-    created_at: new Date(Date.now() - 1_000).toISOString(),
-    converted_at: null,
-    converted_kind: null,
-    converted_card_id: null,
-    dismissed_at: null,
-  }
-  await ctx.route('**/auth/v1/token**', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ access_token: 'e2e-access', refresh_token: 'e2e-refresh', user: { id: 'e2e-user', email: 'e2e@example.com' } }),
-  }))
-  await ctx.route('**/rest/v1/capture_inbox**', route => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([inboxRow, inboxResourceRow]) })
-    }
-    return route.fulfill({ status: 204, body: '' })
-  })
-  await page.evaluate(async ({ rows }) => {
-    localStorage.setItem('zy_inbox_cache', JSON.stringify(rows.map(row => ({
-      id: row.id,
-      contentKind: row.content_kind,
-      url: row.url || undefined,
-      text: row.text_content,
-      title: row.title,
-      tags: row.tags || [],
-      createdAt: Date.now(),
-    }))))
-    localStorage.removeItem('zy_inbox_conversion_queue')
-    await chrome.storage.local.set({
-      zy_cloud_env: { url: 'https://e2e.supabase.co', anonKey: 'sb_publishable_e2e' },
-      zy_cloud_meta_v1: {
-        userId: 'e2e-user', email: 'e2e@example.com', refreshToken: 'e2e-refresh',
-        checkOnStart: false, revision: 0, assetSyncEnabled: false,
-      },
-    })
-  }, { rows: [inboxRow, inboxResourceRow] })
+  // ══════════ E2E-54（V4.3.0）移动采集与 PC Inbox 退役：旧深链只回调度台 ══════════
   await page.goto(base + '#/deck/inbox', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await waitForLocator(page, `[data-capture-id="${inboxRow.id}"]`, { visible: true, timeout: 12000 })
-  await page.locator(`[data-capture-id="${inboxRow.id}"] .inbox-open`).click()
-  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
-  const inboxDrawerTitle = await page.locator('#inbox-edit-title').inputValue()
-  await page.locator('.icd-actions button').filter({ hasText: '任务卡' }).click()
-  await waitForLocator(page, '.inbox-success', { visible: true, timeout: 10000 })
-  await page.waitForSelector('.drawer .icd-head', { state: 'detached', timeout: 3000 }).catch(() => {})
-  const convertedTask = await waitForStorage(page, 'zy_data_v2', raw => {
-    const task = raw?.['zy_data_v2']?.tasks?.find(t => t.sourceCaptureId === inboxRow.id)
-    return task ? { id: task.id, title: task.title } : false
-  }, { timeout: 10000 })
-  const convertedUi = await page.evaluate((captureId) => {
-    const row = document.querySelector(`[data-capture-id="${CSS.escape(captureId)}"]`)
-    const drawer = document.querySelector('.drawer .icd-head')
-    return {
-      success: (document.querySelector('.inbox-success')?.textContent || '').replace(/\s+/g, ' ').trim(),
-      rowGone: !row,
-      drawerClosed: !drawer,
-      openTarget: [...(document.querySelectorAll('.inbox-success button') || [])]
-        .some(b => (b.textContent || '').includes('打开任务卡')),
-      cache: JSON.parse(localStorage.getItem('zy_inbox_cache') || '[]').some(item => item.id === captureId),
-    }
-  }, inboxRow.id)
-  await page.locator('.inbox-success button').filter({ hasText: '打开任务卡' }).click()
-  await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
-  const taskDrawerTitle = await page.locator('.drawer .ts-title').first().inputValue().catch(() => '')
-  await page.locator('.drawer .drawer-close').first().click().catch(() => {})
+  const retiredInboxHomeReady = await waitForLocator(page, '.desk-head', { visible: true, timeout: 12000 })
   await page.waitForTimeout(350)
-  const taskPreserved = await page.evaluate((captureId) => chrome.storage.local.get('zy_data_v2').then(raw =>
-    !!raw['zy_data_v2']?.tasks?.some(t => t.sourceCaptureId === captureId)
-  ), inboxRow.id)
-
-  await page.locator(`[data-capture-id="${inboxResourceRow.id}"] .inbox-open`).click()
-  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
-  await page.locator('.icd-actions button').filter({ hasText: '资源卡' }).click()
-  await pollUntil(async () => {
-    const text = (await page.locator('.inbox-success').textContent().catch(() => '') || '').replace(/\s+/g, ' ')
-    return text.includes('已转化为资源卡')
-  }, { timeout: 10000, label: 'Inbox 转资源卡完成' })
-  const convertedResource = await waitForStorage(page, 'zy_data_v2', raw => {
-    const resource = raw?.['zy_data_v2']?.resources?.find(r => r.sourceCaptureId === inboxResourceRow.id)
-    return resource ? { id: resource.id, workspaceId: resource.workspaceId, title: resource.title } : false
-  }, { timeout: 10000 })
-  const resourceUi = await page.evaluate((captureId) => ({
-    rowGone: !document.querySelector(`[data-capture-id="${CSS.escape(captureId)}"]`),
-    cache: JSON.parse(localStorage.getItem('zy_inbox_cache') || '[]').some(item => item.id === captureId),
-  }), inboxResourceRow.id)
-  report('E2E-54 ★V4.2.0 Inbox 唯一转化：单击打开详情、抽屉内可转任务卡与资源卡；成功后立即离场并清缓存，持续回执可打开目标任务卡，资源卡固定落资源卡池',
-    inboxDrawerTitle.includes('E2E V4.2.0 Inbox 转化')
-      && !!convertedTask && convertedUi.success.includes('已转化为任务卡')
-      && convertedUi.rowGone && convertedUi.drawerClosed && convertedUi.openTarget && !convertedUi.cache
-      && taskDrawerTitle.includes('E2E V4.2.0 Inbox 转化') && taskPreserved
-      && convertedResource?.workspaceId === 'zy-curation'
-      && convertedResource.title.includes('Inbox 转资源卡')
-      && resourceUi.rowGone && !resourceUi.cache,
-    `drawer="${inboxDrawerTitle}" task=${JSON.stringify(convertedTask)} ui=${JSON.stringify(convertedUi)} taskDrawer="${taskDrawerTitle.trim()}" preserved=${taskPreserved} resource=${JSON.stringify(convertedResource)} resourceUi=${JSON.stringify(resourceUi)}`)
-
-  // ══════════ E2E-55（V4.2.0）Inbox 排序、详情、双击 / 键盘打开、删除撤销与清空 ══════════
-  const inboxRows = [
-    {
-      id: 'e2e-v413-inbox-old',
-      content_kind: 'link',
-      url: 'https://example.com/inbox/e2e-v413-old',
-      text_content: '较早的 Inbox 采集',
-      title: 'E2E V4.1.3 Inbox 较早记录',
-      note: null,
-      tags: ['E2E'],
-      created_at: new Date(Date.now() - 120_000).toISOString(),
-      converted_at: null,
-      converted_kind: null,
-      converted_card_id: null,
-      dismissed_at: null,
-    },
-    {
-      id: 'e2e-v413-inbox-new',
-      content_kind: 'link',
-      url: 'https://example.com/inbox/e2e-v413-new',
-      text_content: '较新的 Inbox 采集',
-      title: 'E2E V4.1.3 Inbox 较新记录',
-      note: null,
-      tags: ['E2E'],
-      created_at: new Date(Date.now() - 30_000).toISOString(),
-      converted_at: null,
-      converted_kind: null,
-      converted_card_id: null,
-      dismissed_at: null,
-    },
-  ]
-  await ctx.unroute('**/rest/v1/capture_inbox**')
-  await ctx.route('**/rest/v1/capture_inbox**', route => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(inboxRows) })
-    }
-    return route.fulfill({ status: 204, body: '' })
-  })
-  await page.evaluate((rows) => {
-    localStorage.setItem('zy_inbox_cache', JSON.stringify(rows.map(row => ({
-      id: row.id,
-      contentKind: row.content_kind,
-      url: row.url,
-      text: row.text_content,
-      title: row.title,
-      tags: row.tags,
-      createdAt: Date.parse(row.created_at),
-    }))))
-    localStorage.removeItem('zy_inbox_conversion_queue')
-  }, inboxRows)
-  await page.goto(base + '#/deck/inbox?e2e=55', { waitUntil: 'domcontentloaded' })
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await waitForLocator(page, `[data-capture-id="${inboxRows[1].id}"]`, { visible: true, timeout: 12000 })
-  const inboxDefaultOrder = await page.locator('.inbox-row').evaluateAll(rows =>
-    rows.map(row => row.getAttribute('data-capture-id')))
-  await page.locator('.inbox-tools .sort-btn').click()
-  const inboxSorted = await pollUntil(async () => {
-    const ids = await page.locator('.inbox-row').evaluateAll(rows =>
-      rows.map(row => row.getAttribute('data-capture-id')))
-    return ids[0] === inboxRows[0].id ? ids : false
-  }, { timeout: 5000, label: 'Inbox 切换为最早在前' })
-
-  await page.locator(`[data-capture-id="${inboxRows[0].id}"] .inbox-open`).click()
-  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
-  const singleClickDetail = await page.evaluate(() => ({
-    title: document.querySelector('#inbox-edit-title')?.value || '',
-    editable: !!document.querySelector('#inbox-edit-note'),
-    convertButtons: document.querySelectorAll('.icd-actions button').length,
+  const retiredInboxRowsZero = await page.locator('.inbox-row').count() === 0
+  const retiredInboxState = await page.evaluate(() => ({
+    hash: location.hash,
+    deskVisible: !!document.querySelector('.desk-head'),
+    deckPage: !!document.querySelector('.deck-page'),
+    captureRows: document.querySelectorAll('[data-capture-id]').length,
+    tabs: [...document.querySelectorAll('.hand-tab')].map(node => (node.textContent || '').replace(/\s+/g, ' ').trim()),
   }))
-  await page.locator('.drawer .drawer-close').first().click()
-  await page.waitForSelector('.drawer', { state: 'detached', timeout: 6000 })
+  report('E2E-54 ★V4.3.0 移动采集与 PC Inbox 退役：旧 #/deck/inbox 深链只回调度台，Inbox 列表、采集行和 capture_inbox 云端请求均不回流',
+    retiredInboxHomeReady && retiredInboxState.hash === '#/' && retiredInboxState.deskVisible
+      && !retiredInboxState.deckPage && retiredInboxRowsZero && retiredInboxState.captureRows === 0
+      && captureInboxRequests.length === 0 && !retiredInboxState.tabs.some(text => /Inbox/i.test(text)),
+    `home=${retiredInboxHomeReady} state=${JSON.stringify(retiredInboxState)} rows0=${retiredInboxRowsZero} requests=${JSON.stringify(captureInboxRequests)}`)
 
-  await page.locator(`[data-capture-id="${inboxRows[0].id}"] .inbox-open`).dblclick({ delay: 80 })
-  const openedInboxTab = await pollUntil(async () => {
-    const tabs = await worker.evaluate(() => chrome.tabs.query({}))
-    return tabs.find(tab => (tab.url || '').includes('/inbox/e2e-v413-old')) || false
-  }, { timeout: 6000, label: 'Inbox 双击打开原始链接' })
-  await page.waitForTimeout(300)
-  const dblclickDidNotOpenDrawer = await page.locator('.drawer .icd-head').count().then(count => count === 0)
-  if (openedInboxTab?.id) await worker.evaluate(id => chrome.tabs.remove(id), openedInboxTab.id).catch(() => {})
-
-  await page.locator(`[data-capture-id="${inboxRows[1].id}"] .inbox-open`).focus()
-  await page.keyboard.press('Enter')
-  const openedByEnter = await pollUntil(async () => {
-    const tabs = await worker.evaluate(() => chrome.tabs.query({}))
-    return tabs.find(tab => (tab.url || '').includes('/inbox/e2e-v413-new')) || false
-  }, { timeout: 6000, label: 'Inbox Enter 打开原始链接' })
-  if (openedByEnter?.id) await worker.evaluate(id => chrome.tabs.remove(id), openedByEnter.id).catch(() => {})
-
-  await page.locator(`[data-capture-id="${inboxRows[1].id}"] .inbox-open`).click()
-  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
-  await page.locator('.drawer .icd-danger').click()
-  const deletedRowGone = await pollUntil(
-    () => page.locator(`[data-capture-id="${inboxRows[1].id}"]`).count().then(count => count === 0),
-    { timeout: 8000, label: 'Inbox 单条删除完成' },
-  )
-  await waitForLocator(page, '.toast-action', { visible: true, timeout: 5000 })
-  const deleteToastNode = page.locator('.toast-msg', { hasText: '已从 Inbox 删除采集' }).last()
-  const deleteToastMatched = await deleteToastNode.count().then(count => count > 0).catch(() => false)
-  const deleteToast = (await deleteToastNode.textContent().catch(() => '') || '').replace(/\s+/g, ' ').trim()
-  await page.locator('.toast-action').filter({ hasText: '撤销' }).last().click()
-  const restoredAfterUndo = await pollUntil(
-    () => page.locator(`[data-capture-id="${inboxRows[1].id}"]`).count().then(count => count > 0),
-    { timeout: 8000, label: 'Inbox 删除撤销恢复' },
-  )
-
-  await page.locator('.inbox-tools .clear-btn').click()
-  await waitForLocator(page, '.cdf-mask .cdf-btn.ok', { visible: true, timeout: 5000 })
-  const clearConfirmText = (await page.locator('.cdf-msg').textContent() || '').replace(/\s+/g, ' ').trim()
-  await page.locator('.cdf-mask .cdf-btn.ok').click()
-  const inboxCleared = await pollUntil(
-    () => page.locator('.inbox-row').count().then(count => count === 0),
-    { timeout: 8000, label: 'Inbox 清空完成' },
-  )
-  const inboxCacheCleared = await page.evaluate(() => {
-    const rows = JSON.parse(localStorage.getItem('zy_inbox_cache') || 'null')
-    return Array.isArray(rows) && rows.length === 0
+  // ══════════ E2E-55（V4.3.0）调度台只保留三卡池，默认任务 ══════════
+  await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.hand-tabs .hand-tab', { visible: true, timeout: 12000 })
+  const homePoolState = await page.evaluate(() => {
+    const tabs = [...document.querySelectorAll('.hand-tabs .hand-tab')]
+    return {
+      labels: tabs.map(node => (node.textContent || '').replace(/\s+/g, ' ').trim()),
+      selected: tabs.filter(node => node.classList.contains('on')).map(node => (node.textContent || '').trim()),
+      ariaSelected: tabs.filter(node => node.getAttribute('aria-selected') === 'true').map(node => (node.textContent || '').trim()),
+      hasInboxClass: !!document.querySelector('.hand-tab-inbox, .mini-item-inbox, .inbox-row'),
+      deckTabs: [...document.querySelectorAll('.deck-kind-seg button')].map(node => (node.textContent || '').trim()),
+    }
   })
-  const inboxE2eChecks = {
-    默认最新: inboxDefaultOrder[0] === inboxRows[1].id,
-    切换最早: Array.isArray(inboxSorted) && inboxSorted[0] === inboxRows[0].id,
-    详情标题: singleClickDetail.title.includes('E2E V4.1.3 Inbox 较早记录'),
-    详情可编辑: singleClickDetail.editable,
-    三卡转化: singleClickDetail.convertButtons === 3,
-    双击打开: String(openedInboxTab?.url || '').includes('/inbox/e2e-v413-old'),
-    双击不误开抽屉: dblclickDidNotOpenDrawer,
-    Enter打开: String(openedByEnter?.url || '').includes('/inbox/e2e-v413-new'),
-    单条删除: deletedRowGone,
-    删除回执: deleteToastMatched,
-    撤销恢复: restoredAfterUndo,
-    清空条数: clearConfirmText.includes('2 条未转化采集'),
-    清空不误删目标卡: clearConfirmText.includes('任务卡、好奇心卡和资源卡不会受到影响'),
-    清空完成: inboxCleared,
-    缓存清空: inboxCacheCleared,
-  }
-  report('E2E-55 ★V4.2.0 Inbox 默认最新在前、可切最早在前；单击进详情，双击与 Enter 打开原始链接；单条删除可撤销，清空前说明目标卡不受影响，确认后列表与缓存清空',
-    Object.values(inboxE2eChecks).every(Boolean),
-    `检查=${JSON.stringify(inboxE2eChecks)} 默认=${JSON.stringify(inboxDefaultOrder)} 切序=${JSON.stringify(inboxSorted)} 详情=${JSON.stringify(singleClickDetail)} 双击="${openedInboxTab?.url || ''}" Enter="${openedByEnter?.url || ''}" 回执=${JSON.stringify(deleteToast)} 确认="${clearConfirmText}"`)
+  report('E2E-55 ★V4.3.0 调度台手边的卡只保留任务 / 好奇心 / 资源三池：默认任务是唯一选中页签，Inbox 入口与行内组件均不回流',
+    JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '好奇心', '资源'])
+      && homePoolState.selected.length === 1 && homePoolState.selected[0] === '任务'
+      && homePoolState.ariaSelected.length === 1 && homePoolState.ariaSelected[0] === '任务'
+      && !homePoolState.hasInboxClass && homePoolState.deckTabs.length === 0,
+    `三池=${JSON.stringify(homePoolState)}`)
 
   // ══════════ E2E-56（V4.1.3）云同步三事实卡、回执与三色状态灯 ══════════
   const cloudSnapshotAt = new Date().toISOString()
@@ -3197,6 +2984,16 @@ await paOpen()
     }
     return route.fulfill({ status: 204, body: '' })
   })
+  await ctx.unroute('**/auth/v1/token?grant_type=refresh_token').catch(() => {})
+  await ctx.route('**/auth/v1/token?grant_type=refresh_token', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      access_token: 'e2e-access',
+      refresh_token: 'e2e-refresh',
+      user: { id: 'e2e-user', email: 'e2e@example.com' },
+    }),
+  }))
   await page.evaluate(async () => {
     const current = await chrome.storage.local.get('zy_cloud_env')
     await chrome.storage.local.set({
@@ -3241,7 +3038,8 @@ await paOpen()
   )
 
   const actionableRow = page.locator('[data-testid="cloud-sync-receipt-modal"] .cct-row:has(.cct-action.available)').first()
-  const actionableCount = await actionableRow.count()
+  const actionableReady = await waitForLocator(page, '[data-testid="cloud-sync-receipt-modal"] .cct-action.available', { visible: true, timeout: 6000 })
+  const actionableCount = actionableReady ? await actionableRow.count() : 0
   let receiptActionCheck = { count: actionableCount, initial: '', operation: '', after: '', message: '' }
   if (actionableCount > 0) {
     await actionableRow.click()
@@ -3265,7 +3063,7 @@ await paOpen()
     () => page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led.led-yellow').count().then(count => count > 0),
     { timeout: 8000, label: '逐行操作后回到待同步黄灯' },
   )
-  await page.locator('.md-panel').last().locator('.md-close').click()
+  await page.locator('.md-panel').filter({ has: page.locator('[data-testid="cloud-sync-receipt-modal"]') }).first().locator('.md-close').click()
   await page.waitForSelector('.md-panel', { state: 'detached', timeout: 5000 }).catch(() => {})
 
   await page.locator('[data-testid="latest-sync-receipt-trigger"]').click()
@@ -3317,7 +3115,7 @@ await paOpen()
       && topbarHistoryEntry === 1 && topbarHistoryCount >= 1,
     `灯前=${cloudLedBefore} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后绿灯=${cloudLedAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后黄灯=${cloudLedAfterAction} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
 
-  // ══════════ E2E-57（V4.2.1）今日三件事复制 / Inbox 行内操作 / AI 成功态 ══════════
+  // ══════════ E2E-57（V4.3.0）今日三件事复制 / AI 成功态 ══════════
   const copyTask = {
     id: 'e2e-v421-copy-task',
     kind: 'task',
@@ -3392,51 +3190,6 @@ await paOpen()
   const copiedText = await page.evaluate(() => globalThis.__e2eCopiedText || '').catch(() => '')
   const expectedCopy = '推进[[MOC-软硬一体服务系统解决方案]]项目，设计解决方案报价模板，助力【产品解决方案】指标落实到位'
 
-  await ctx.unroute('**/rest/v1/capture_inbox**').catch(() => {})
-  const inlineInbox = [{
-    id: 'e2e-v421-inbox-inline',
-    content_kind: 'link',
-    url: 'https://example.com/e2e/v421-inline',
-    text_content: 'V4.2.1 行内操作探针',
-    title: 'E2E V4.2.1 Inbox 行内操作',
-    note: null,
-    tags: ['E2E'],
-    created_at: new Date().toISOString(),
-    converted_at: null,
-    converted_kind: null,
-    converted_card_id: null,
-    dismissed_at: null,
-  }]
-  await ctx.route('**/rest/v1/capture_inbox**', route => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(inlineInbox) })
-    }
-    return route.fulfill({ status: 204, body: '' })
-  })
-  await page.evaluate(rows => {
-    localStorage.setItem('zy_inbox_cache', JSON.stringify(rows.map(row => ({
-      id: row.id,
-      contentKind: row.content_kind,
-      url: row.url,
-      text: row.text_content,
-      title: row.title,
-      tags: row.tags,
-      createdAt: Date.parse(row.created_at),
-    }))))
-  }, inlineInbox)
-  await page.goto(base + '#/deck/inbox?e2e=57', { waitUntil: 'domcontentloaded' })
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await waitForLocator(page, `.inbox-row[data-capture-id="${inlineInbox[0].id}"]`, { visible: true, timeout: 12000 })
-  const inlineActions = await page.locator(`.inbox-row[data-capture-id="${inlineInbox[0].id}"] .inbox-actions button`).count()
-  await page.locator(`.inbox-row[data-capture-id="${inlineInbox[0].id}"] .inbox-actions button`).filter({ hasText: '编辑' }).click()
-  await waitForLocator(page, '.drawer .icd-head', { visible: true, timeout: 6000 })
-  const inlineEditDrawer = await page.evaluate(() => ({
-    title: document.querySelector('#inbox-edit-title')?.value || '',
-    directActions: [...document.querySelectorAll('.inbox-actions button')].map(node => (node.textContent || '').trim()),
-  }))
-  await page.locator('.drawer .drawer-close').first().click()
-  await page.waitForSelector('.drawer', { state: 'detached', timeout: 6000 })
-
   await ctx.route('**/models', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -3456,49 +3209,27 @@ await paOpen()
     error: document.querySelector('.ai-msg')?.classList.contains('error') || false,
     warning: document.querySelector('.ai-msg')?.classList.contains('warning') || false,
   }))
-  report('E2E-57 ★V4.2.1 今日三件事复制、Inbox 行内处理与 AI 成功态：复制固定句子、行内直接编辑、模型拉取显示成功而非错误',
+  report('E2E-57 ★V4.3.0 今日三件事复制与 AI 成功态：复制固定句子，模型拉取显示成功而非错误；Inbox 行内处理已随退役链移除',
     copyEnabled && copyToastText.includes('计划内容已复制') && copiedText === expectedCopy
-      && inlineActions >= 6 && inlineEditDrawer.title.includes('E2E V4.2.1 Inbox 行内操作')
-      && inlineEditDrawer.directActions.some(x => x.includes('任务')) && aiSuccess
-      && aiState.success && !aiState.error && !aiState.warning && aiState.text.includes('已获取 1 个模型'),
-    `复制=${copyEnabled}/${JSON.stringify(copyToastText)} clip=${JSON.stringify(copiedText)} 行内动作=${inlineActions}/${JSON.stringify(inlineEditDrawer)} AI=${JSON.stringify(aiState)}`)
+      && aiSuccess && aiState.success && !aiState.error && !aiState.warning && aiState.text.includes('已获取 1 个模型'),
+    `复制=${copyEnabled}/${JSON.stringify(copyToastText)} clip=${JSON.stringify(copiedText)} AI=${JSON.stringify(aiState)}`)
 
-  // ══════════ E2E-58（V4.2.1）同一条采集不得重复生成资源卡 ══════════
-  const dedupeCaptureId = 'e2e-v421-capture-dedupe'
-  const dedupeTitle = 'E2E V4.2.1 采集资源卡去重'
-  const dedupeUrl = 'https://example.com/e2e/v421/dedupe'
-  await ctx.unroute('**/rest/v1/capture_inbox**').catch(() => {})
-  const dedupeInbox = [{
-    id: dedupeCaptureId,
-    content_kind: 'link',
-    url: dedupeUrl,
-    text_content: '同一条采集只能生成一张资源卡',
-    title: dedupeTitle,
-    note: null,
-    tags: ['E2E采集', '资源去重'],
-    created_at: new Date().toISOString(),
-    converted_at: null,
-    converted_kind: null,
-    converted_card_id: null,
-    dismissed_at: null,
-  }]
-  await ctx.route('**/rest/v1/capture_inbox**', route => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dedupeInbox) })
-    }
-    return route.fulfill({ status: 204, body: '' })
-  })
-  await page.evaluate(async ({ captureId, title }) => {
+  // ══════════ E2E-58（V4.3.0）两代 capture 溯源字段仍可去重，启动不依赖 Inbox 页面 ══════════
+  const dedupeCaptureId = 'e2e-v430-capture-dedupe'
+  const dedupeTitle = 'E2E V4.3.0 采集资源卡去重'
+  const dedupeUrl = 'https://example.com/e2e/v430/dedupe'
+  const captureInboxRequestsBeforeDedupe = captureInboxRequests.length
+  await page.evaluate(async ({ captureId, title, url }) => {
     const cur = await chrome.storage.local.get(['zy_data_v2', 'zy_cloud_meta_v1'])
     const data = cur.zy_data_v2
-    const meta = cur.zy_cloud_meta_v1
     if (!data) return
     data.resources = (data.resources || []).filter(row =>
       row.customFields?.captureInboxId !== captureId
       && row.customFields?.capture_inbox_id !== captureId
       && row.sourceCaptureId !== captureId)
+    const now = Date.now()
     data.resources.unshift({
-      id: 'e2e-v421-legacy-captured-resource',
+      id: 'e2e-v430-legacy-captured-resource',
       kind: 'resource',
       title,
       linkType: 'url',
@@ -3509,50 +3240,77 @@ await paOpen()
       pinned: false,
       callCount: 0,
       customFields: { captureInboxId: captureId },
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now - 1000,
+      updatedAt: now - 1000,
+    })
+    data.resources.unshift({
+      id: 'e2e-v430-new-captured-resource',
+      kind: 'resource',
+      title,
+      linkType: 'url',
+      link: url,
+      description: '同一采集写入的两代字段应在启动时合并为一张卡。',
+      workspaceId: 'zy-curation',
+      categoryId: '',
+      tags: ['E2E采集', '资源去重'],
+      pinned: false,
+      callCount: 0,
+      sourceCaptureId: captureId,
+      customFields: {},
+      createdAt: now,
+      updatedAt: now,
     })
     await chrome.storage.local.set({
       zy_data_v2: data,
       zy_cloud_meta_v1: {
-        ...(meta || {}),
-        userId: 'e2e-user',
-        email: 'e2e@example.com',
-        refreshToken: 'e2e-refresh',
+        ...(cur.zy_cloud_meta_v1 || {}),
         checkOnStart: false,
         revision: 0,
         assetSyncEnabled: false,
       },
     })
-    localStorage.setItem('zy_inbox_cache', JSON.stringify([]))
-  }, { captureId: dedupeCaptureId, title: dedupeTitle })
-  await page.goto(base + '#/deck/inbox?e2e=58', { waitUntil: 'domcontentloaded' })
+  }, { captureId: dedupeCaptureId, title: dedupeTitle, url: dedupeUrl })
+  await page.waitForTimeout(1000)
+  await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  const dedupeResult = await pollUntil(async () => {
-    const state = await page.evaluate(async ({ captureId }) => {
-      const rows = (await chrome.storage.local.get('zy_data_v2')).zy_data_v2?.resources || []
-      const matched = rows.filter(row => !row.deletedAt
-        && (row.sourceCaptureId === captureId
-          || row.customFields?.captureInboxId === captureId
-          || row.customFields?.capture_inbox_id === captureId))
-      return {
-        count: matched.length,
-        link: matched[0]?.link || '',
-        tags: matched[0]?.tags || [],
-        sourceCaptureId: matched[0]?.sourceCaptureId || '',
-        inboxRows: document.querySelectorAll(`.inbox-row[data-capture-id="${captureId}"]`).length,
-        queue: JSON.parse(localStorage.getItem('zy_inbox_conversion_queue') || '[]')
-          .some(row => row.captureId === captureId),
-      }
-    }, { captureId: dedupeCaptureId })
-    return state.count === 1 && state.link === dedupeUrl && state.sourceCaptureId === dedupeCaptureId
-      && state.tags.includes('资源去重') && state.inboxRows === 0
-      ? state
+  await waitForLocator(page, '.pcp-row[data-rid="e2e-v430-new-captured-resource"], .pcp-card[data-rid="e2e-v430-new-captured-resource"]', { visible: true, timeout: 12000 })
+  const dedupeResult = await pollUntil(() => page.evaluate((captureId) => {
+    const app = document.querySelector('#app').__vue_app__
+    const prov = app && app._context && app._context.provides
+    let pinia = null
+    for (const key of Object.getOwnPropertySymbols(prov || {})) {
+      const value = prov[key]
+      if (value && value._s && value.state) pinia = value
+    }
+    const data = pinia && pinia._s.get('app')?.data
+    const rows = data?.resources || []
+    const matched = rows.filter(row => !row.deletedAt
+      && (row.sourceCaptureId === captureId
+        || row.customFields?.captureInboxId === captureId
+        || row.customFields?.capture_inbox_id === captureId))
+    const retired = rows.filter(row => !!row.deletedAt
+      && (row.sourceCaptureId === captureId
+        || row.customFields?.captureInboxId === captureId
+        || row.customFields?.capture_inbox_id === captureId))
+    return matched.length === 1 && retired.length >= 1
+      && matched[0]?.link === 'https://example.com/e2e/v430/dedupe'
+      && matched[0]?.sourceCaptureId === captureId
+      && (matched[0]?.tags || []).includes('资源去重')
+      ? { active: matched.length, retired: retired.length, link: matched[0].link, tags: matched[0].tags }
       : false
-  }, { timeout: 10000, label: '采集资源卡去重与旧卡补水' }).catch(() => null)
-  report('E2E-58 ★V4.2.1 同一条 Inbox 采集只生成一张资源卡：启动时识别旧导入只带 captureInboxId 的卡，直接复用并补齐源 URL / 标签，列表自动离场且不新建同标题无链接副本',
-    !!dedupeResult,
-    `结果=${JSON.stringify(dedupeResult)} 标题=${dedupeTitle} URL=${dedupeUrl}`)
+  }, dedupeCaptureId), { timeout: 12000, label: '两代 capture 溯源字段运行态合并' })
+  const dedupePageState = await page.evaluate((title) => ({
+    hash: location.hash,
+    inboxRows: document.querySelectorAll('.inbox-row').length,
+    activeRows: [...document.querySelectorAll('.pcp-row[data-rid="e2e-v430-new-captured-resource"], .pcp-card[data-rid="e2e-v430-new-captured-resource"]')]
+      .filter(node => (node.textContent || '').includes(title)).length,
+    legacyRows: document.querySelectorAll('.pcp-row[data-rid="e2e-v430-legacy-captured-resource"], .pcp-card[data-rid="e2e-v430-legacy-captured-resource"]').length,
+  }), dedupeTitle)
+  report('E2E-58 ★V4.3.0 两代采集溯源字段仍兼容：旧 customFields.captureInboxId 与新 sourceCaptureId 命中时合并为一张资源卡，补齐链接与标签，全程不启动 Inbox 页面、不发 capture_inbox 请求',
+    !!dedupeResult && dedupePageState.inboxRows === 0
+      && dedupePageState.activeRows === 1 && dedupePageState.legacyRows === 0
+      && captureInboxRequests.length === captureInboxRequestsBeforeDedupe,
+    `结果=${JSON.stringify(dedupeResult)} 页面=${JSON.stringify(dedupePageState)} 请求=${captureInboxRequestsBeforeDedupe}->${captureInboxRequests.length}`)
 
   // ══════════ E2E-59（V4.2.1）同一资源卡可在同台不同节点分别挂载 ══════════
   const multiNodeCard = {
@@ -3717,6 +3475,12 @@ await paOpen()
   const v422PopupUrls = () => ctx.pages()
     .map(row => row.url())
     .filter(url => url.startsWith('https://example.com/e2e/v422/'))
+  const v422ChromeTabs = () => page.evaluate(async () => {
+    const tabs = await chrome.tabs.query({})
+    return tabs
+      .filter(tab => (tab.url || '').startsWith('https://example.com/e2e/v422/'))
+      .map(tab => ({ id: tab.id, url: tab.url || '' }))
+  }).catch(() => [])
   await page.goto(base + '#/workspace/' + v422BoardId, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, `[data-mind-node="${v422NodeId}"]`, { visible: true, timeout: 12000 })
@@ -3724,20 +3488,28 @@ await paOpen()
   await bulkOpenButton.waitFor({ state: 'visible', timeout: 8000 })
   const bulkOpenLabel = ((await bulkOpenButton.innerText()) || '').replace(/\s+/g, ' ').trim()
   await bulkOpenButton.click()
-  const bulkUrls = await pollUntil(() => {
-    const urls = [...new Set(v422PopupUrls())].sort()
+  const bulkUrlsNormalized = await pollUntil(async () => {
+    const chromeTabs = await v422ChromeTabs()
+    const urls = [...new Set([...v422PopupUrls(), ...chromeTabs.map(tab => tab.url)])].sort()
     return urls.length >= 2 ? urls : false
   }, { timeout: 8000, label: '策展台批量打开原链' })
-  const bulkUrlList = Array.isArray(bulkUrls) ? bulkUrls : []
+  const bulkUrlList = Array.isArray(bulkUrlsNormalized) ? bulkUrlsNormalized : []
   const bulkOk = /打开全部资源\s*2/.test(bulkOpenLabel)
     && bulkUrlList.includes('https://example.com/e2e/v422/a')
     && bulkUrlList.includes('https://example.com/e2e/v422/b')
     && !bulkUrlList.includes('')
   report('E2E-61 ★V4.2.2 策展台“打开全部资源”按本台去重打开：重复 A 只开一次、无链接跳过，B 正常打开',
     bulkOk, `按钮=${JSON.stringify(bulkOpenLabel)} URLs=${JSON.stringify(bulkUrlList)}`)
+  const chromeTabIds = (await v422ChromeTabs()).map(tab => tab.id).filter(id => typeof id === 'number')
+  if (chromeTabIds.length) {
+    await page.evaluate(async ids => {
+      await chrome.tabs.remove(ids).catch(() => {})
+    }, chromeTabIds)
+  }
   for (const popup of ctx.pages()) {
     if (popup !== page && popup.url().startsWith('https://example.com/e2e/v422/')) await popup.close().catch(() => {})
   }
+  await page.bringToFront()
 
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })

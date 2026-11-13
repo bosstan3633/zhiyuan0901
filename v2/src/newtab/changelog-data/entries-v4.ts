@@ -2,6 +2,16 @@ import type { ChangelogEntry } from './types'
 
 export const CHANGELOG_V4: ChangelogEntry[] = [
   {
+    version: '4.3.0', date: '2026-11-13', title: 'AI 周期复盘 · 移动采集与 PC Inbox 退役',
+    points: [
+      '**今天 / 本周 / 本月 / 本年统一为 AI 周期复盘**。四个周期共用同一分析入口，读取账号级战报、方向树、成功指标、未归档任务与策展状态，输出带证据的洞察和下一步导航建议。',
+      '**AI 只分析、不替用户改库**。模型只能提出可点击的只读导航动作，目标 id 必须来自当前账号白名单；不再出现“一键归入主攻 + 绑卡”，也不会自动修改任务归属、挂载资源或完成任务。',
+      '**移动采集 PWA 与 PC Inbox 整体退役**。产品重新聚焦浏览器内的采集—调度—策展主线，任务、好奇心与资源直接从扩展采集进入对应卡池；旧 Inbox 深链自动回到调度台。',
+      '**历史采集数据继续兼容**。`sourceCaptureId` 与旧 `captureInboxId / capture_inbox_id` 字段仍会在启动、云恢复和导入时参与去重合并，不会因 Inbox 退役产生第二张重复资源卡。',
+    ],
+    kinds: ['add', 'opt', 'opt', 'fix'],
+  },
+  {
     version: '4.2.5', date: '2026-11-12', title: '首次同步派生字段崩溃修复',
     points: [
       '**修复首次同步 / 无共同基线时的 Symbol 转数字异常**。同一记录两端缺少不同派生字段时，`createdAt`、`updatedAt`、`callCount` 等数值字段改为“保留可用值并取安全极值”，不再把内部缺失占位符传给 `Number()`。',

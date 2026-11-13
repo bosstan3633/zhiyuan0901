@@ -77,8 +77,7 @@ import { emitOpenDrawer } from '@/shared/utils/bus'
 import PiTagDistributionDrawer from '@/newtab/components/profile/PiTagDistributionDrawer.vue'
 import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
 import PiLifecycleSettingsModal from '@/newtab/components/profile/PiLifecycleSettingsModal.vue'
-import { useRangeAiInsight } from '@/newtab/composables/useRangeAiInsight'
-import { profileDirectionFitText, profileExportLines, profileRangeFacts } from '@/newtab/views/profileInsightsReport'
+import { profileDirectionFitText, profileExportLines } from '@/newtab/views/profileInsightsReport'
 import { useProfileInsights, type GFlat, type StatDrawerType, type StatRow, type TagOptimizeJob } from './useProfileInsights'
 const {
   router, store, gd, taskDetailRef, battleHost,
@@ -91,8 +90,8 @@ const {
   heroSupportRate, heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds,
   focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
   matchResourcesOf, todayRows, todayFilled, todayAmmo, conciseCtx,
-  concise, onConciseAction, projDetailOpen, projDetailId, openProjectDetail,
-  activeRange, setRange, rangeAiJob, openRangeAi, overviewWeekRange,
+  concise, projDetailOpen, projDetailId, openProjectDetail,
+  activeRange, setRange, currentPeriodAi, regeneratePeriodAi, onPeriodAiAction, openAiConfig, overviewWeekRange,
   logOpen, logPreset, openLog, openLogFocus, statDrawer,
   tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards,
   statList, todayCreatedEventIds, todayCalledIds, todayInCards, todayCalledCards,
@@ -139,35 +138,35 @@ const {
           :today-add="todayAdd" :today-called="todayCalled"
           :today-import="todayImportCount"
           :focus-filled="todayFilled" :ammo="todayAmmo" :slot-count="3"
-          :insight="concise.today"
+          :insight="concise.today" :ai="currentPeriodAi"
           @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')"
-          @insight-action="onConciseAction" @ai-insight="openRangeAi" />
+          @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
 
         <PiRhythm v-else-if="activeRange === 'week'"
           :stats="dashStats" :directions="dashDirections"
           :tasks="dashTasks" :error-count="errorLogCount"
-          :insight="concise.week"
+          :insight="concise.week" :ai="currentPeriodAi"
           @open-err="exportErrorLog"
           @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
-          @insight-action="onConciseAction" @ai-insight="openRangeAi" />
+          @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
 
         <PiMonth v-else-if="activeRange === 'month'"
-          :stats="dashStats" :insight="concise.month" :ent="mEntTrend"
+          :stats="dashStats" :insight="concise.month" :ai="currentPeriodAi" :ent="mEntTrend"
           :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
           :projected="mProjected"
-          @drill="onMonthDrill" @topic="onMonthTopic" @insight-action="onConciseAction" @ai-insight="openRangeAi" />
+          @drill="onMonthDrill" @topic="onMonthTopic" @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
 
         <PiYear v-else
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
           :events="timelineEvents" :live-link="linkCardCount"
-          :lc-cards="lcCards" :all-events="timelineEvents"
+          :lc-cards="lcCards" :all-events="timelineEvents" :insight="concise.year" :ai="currentPeriodAi"
           :focus-filter="lcFocus"
           @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
           @open-battle="openDayBattle"
           @drill="onYearDrill"
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
-          @lc-settings="lcSetOpen = true" @ai-insight="openRangeAi" />
+          @lc-settings="lcSetOpen = true" @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
     </div>
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。
@@ -196,7 +195,6 @@ const {
       @close="tagInsightOpen = false" @optimize="runTagOptimizeAi" />
 
     <AiDrawer v-if="tagAiJob" :job="tagAiJob" :job-key="tagAiJob.key" @close="tagAiJob = null" />
-    <AiDrawer v-if="rangeAiJob" :job="rangeAiJob" :job-key="rangeAiJob.key" @close="rangeAiJob = null" />
 
     <PiMetricDetailDrawer
       :open="!!statDrawer" :title="statDrawerTitle" :rows="statShown"
