@@ -62,7 +62,7 @@ const FIELD_LABEL: Record<string, string> = {
   metricId: '成功指标',
   status: '状态',
   priority: '优先级',
-  dueDate: '截止日期',
+  dueDate: '计划执行日期',
   estimatedMinutes: '估时',
   completedAt: '完成时间',
   subtasks: '子任务',

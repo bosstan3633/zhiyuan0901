@@ -68,8 +68,8 @@ check('R4-Dm ★把「池卡不许拼出退役台面/死链」从字面量扫描
     //   2 处（ws 类型行、分类树定位）随行渲染进 useGlobalPopupsRows.ts；三处仍都在 !== CURATION_WS_ID 过滤之后。
     'newtab/components/useGlobalPopups.ts': 1,
     'newtab/components/useGlobalPopupsRows.ts': 2,
-    'newtab/views/Workspace.vue': 1,                // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
-    'newtab/views/useProfileInsights.ts': 1         // V4.3.0 AI 周期建议只导航到真实策展台，目标来自 curation.workspaces 白名单
+    'newtab/views/Workspace.vue': 1                 // 分享 HTML 新建策展台后导航：目标来自 importNew 新建实体（kind: curation），不是池 id
+    // ★V4.3.1：周期 AI 建议整体退役，useProfileInsights 的台面导航拼法同步消失；登记表随之收紧。
   };
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
   const found = {};
@@ -273,7 +273,7 @@ check('R4-Eq ★退役台面名「资源台」只许活在带理由的四处：�
   const root = path.resolve(SCRIPTS_DIR, '..', 'src');
   const REG = {
     'shared/storage/curationMigration.ts': 2,   // R61 迁移给 hub 实体写的 name，用户库实测仍叫「资源台」；显示一律走 wsNameById（R4-Dg），这里不许被当文案改
-    'newtab/manual-data.ts': 4,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废"等），R4-De 明确保留这一形态
+    'newtab/manual-data.ts': 5,                 // 手册的退役说明与历史叙述（"早期版本顶部导航里有一个资源台的说法已作废" + "资源台台面"整组退役清单），R4-De 明确保留这一形态
     'newtab/components/MigrateReportCard.vue': 1, // 整库回退确认里的"回退后分类树会回来，但资源台页面已退役"——历史事实陈述
     // ★R181 随迁带备案：`changelog-data.ts` 拆成 `changelog-data/{entries-v2,entries-v3}.ts`（宿主只管聚合与类型），
     //   13 条历史叙述随内容分流为 v2 时代 10 条 + v3 时代 3 条，文本与口径一字未动，改表随 diff 备案。
@@ -548,14 +548,14 @@ check('W5-1 ★指标条三段分组块（用户拍板#1/#5）：MetricBar 模�
     && mb.includes('.mb-metrics {') && !!gapM && Number(gapM[1]) <= 8
     && !mb.includes('.mb-divider');
 });
-check('W5-2（V4.1.0 重指 · ★V3.9.18 再重指带备案：英文全大写副标按 04-73 T-5「禁全大写 eyebrow」治理，kicker 改中文「四池 · 只预览最近在用的」；board-ico + kicker 的形态契约不变）标题形态统一「图标 + kicker 副标」：今日三件事与手边的卡都用 board-ico + kicker，旧 decks-title / 底部三卡 tab 退役', () => {
+check('W5-2（V4.3.1 重指）标题形态统一“图标 + 中文副标”：今日三件事与卡片池都用 board-ico + kicker；卡片池副标说明浏览器采集与任务调度，旧英文 eyebrow / decks-title / 底部三卡 tab 退役', () => {
   const hm = codeOnly(read('/newtab/components/dashboard/Heatmap.vue'));
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   return hm.includes('dz-n dz-ico') && hm.includes('<svg viewBox="0 0 24 24"')
     && !hm.includes('今年第 {{ yearStat.days }}') // dz-n 数字标题退役
     && ch.includes('class="board-ico"') && ch.includes('class="board-title"')
-    && ch.includes('class="hand-heading"') && ch.includes('三池 · 只预览最近在用的')
+    && ch.includes('class="hand-heading"') && ch.includes('采集的起点，任务的调度场')
     && !ch.includes('decks-title') && !ch.includes('bottom-tabs')
     && css.includes('.dz-n.dz-ico') && css.includes('.dz-sec-h .dz-t');
 });
@@ -625,6 +625,7 @@ check('W5-8 ★三卡交互统一「单击详情 / 双击开链接」（V3.9.8 �
   const pc = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
   const ro = codeOnly(read('/newtab/composables/useResourceOpen.ts'));
   const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
+  const taskHost = codeOnly(read('/newtab/components/compass/useTaskManagerPanel.ts'));
   const cz = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
   return pc.includes('pcpClickTimer') && pc.includes('onCardDblClick')
     && pc.includes('const { openResourceLink } = useResourceOpen({ store, d: resourceData })')
@@ -699,12 +700,14 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
 });
-check('W6-2（V4.3.0 退役重指）手边的卡收口为三池页签：任务 / 好奇心 / 资源共用 .hand-board 外壳与框内头部；Inbox 页签、预览列表与入口零回流，旧底部 tab 继续禁止', () => {
+check('W6-2（V4.3.1 重指）卡片池三页签：任务页默认展示完整任务池 + 月历，好奇心与资源按需呈现；三页共用 .hand-board 外壳与框内头部，Inbox 与旧底部 tab 零回流', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
-    && ch.includes('class="hand-grid"') && ch.includes('class="hand-col"')
-    && (ch.match(/class="mini-list"/g) || []).length === 3
-    && ch.includes('三池 · 只预览最近在用的')
+    && ch.includes('class="task-workbench"')
+    && ch.includes('class="hand-grid hand-grid-aux"')
+    && ch.includes('class="hand-col"')
+    && (ch.match(/class="hand-tab(?=[ "])/g) || []).length === 3
+    && ch.includes('采集的起点，任务的调度场')
     && !ch.includes('hand-tab-inbox') && !ch.includes('previewInbox')
     && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');
 });
@@ -712,7 +715,7 @@ check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角�
   const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
   const ca = codeOnly(read('/newtab/components/TaskAiCorner.vue'));
   const m = codeOnly(read('/newtab/manual-data.ts'));
-  return tm.includes("ref<'card' | 'list' | 'kanban'>('list')")
+  return tm.includes("ref<'card' | 'list' | 'kanban' | 'calendar'>('list')")
     && (tm.match(/<TaskAiCorner :task=/g) || []).length === 3
     && (tm.match(/<TaskAiMenu :task=/g) || []).length === 7
     && tm.includes("import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'")

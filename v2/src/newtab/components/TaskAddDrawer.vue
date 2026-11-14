@@ -58,7 +58,7 @@ async function aiParse() {
       if (draft.title) newTitle.value = draft.title
       if (draft.priority === 'high' || draft.priority === 'medium' || draft.priority === 'low') newPriority.value = draft.priority
       aiDraft.value = { dueDate: draft.dueDate, estimatedMinutes: draft.estimatedMinutes, projectId: draft.projectId, metricId: draft.metricId }
-      const extra = [draft.dueDate && `截止 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join('· ')
+      const extra = [draft.dueDate && `计划 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join('· ')
       return '已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
     })
     if (job) aiJob.value = job

@@ -175,7 +175,7 @@ export function projectChain(
     if (!t) return { text: '', missing: '任务已不存在' }
     let met: Metric | undefined; let proj: Project | undefined; let dir: typeof d.compass.directions[number] | undefined
     for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.taskIds.includes(anchorId)); if (m) { met = m; proj = p; dir = x; break } }
-    L.push(`【待拆解任务】「${t.title}」${t.status} 优先级${t.priority}${t.dueDate ? ' 截止' + t.dueDate : ' 无截止日'}${t.estimatedMinutes ? ' 预估' + t.estimatedMinutes + '分钟' : ''}`)
+    L.push(`【待拆解任务】「${t.title}」${t.status} 优先级${t.priority}${t.dueDate ? ' 计划' + t.dueDate : ' 无计划执行日期'}${t.estimatedMinutes ? ' 预估' + t.estimatedMinutes + '分钟' : ''}`)
     if (t.description) L.push(`描述：${cut(t.description, c.desc * 2)}`)
     L.push(`${dir ? dirLine(dir, '【↑】') : ''}`)
     if (proj && met) L.push(`归属：${proj.name} → 指标「${met.title}」（验收:${cut(met.acceptance || met.target, c.desc) || '未写'}）`)
@@ -264,7 +264,7 @@ export function projectTagBlueprint(d: AppData, depth: AiDepth): string {
       try { domain = new URL(r.link || '').host } catch { /* 非网页链接留空 */ }
       return row('res', r.id, r.title, r.description || '', r.tags || [], ` 打开${r.callCount || 0}次${domain ? ' 域名:' + domain : ''}`)
     }),
-    ...tks.map(t => row('task', t.id, t.title, t.description || '', t.tags || [], ` 状态:${t.status || 'todo'} 优先级:${t.priority || '-'}${t.dueDate ? ` 截止:${t.dueDate}` : ''}`)),
+    ...tks.map(t => row('task', t.id, t.title, t.description || '', t.tags || [], ` 状态:${t.status || 'todo'} 优先级:${t.priority || '-'}${t.dueDate ? ` 计划:${t.dueDate}` : ''}`)),
     ...cus.map(x => row('curio', x.id, x.question, x.description || '', x.tags || [], ` 状态:${x.status || 'todo'}`)),
   ]
   L.push(`【全库卡片台账（共 ${lines.length} 张：资源 ${res.length} · 任务 ${tks.length} · 好奇 ${cus.length}；只用卡面字段，不读链接正文）】\n${lines.join('\n')}`)

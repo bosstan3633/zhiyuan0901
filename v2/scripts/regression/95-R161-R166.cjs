@@ -173,10 +173,10 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2（V4.2.0 重指）声明结构完备：kind 三值 job×19 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 24 条且 id 唯一（好奇心单卡研判与资源侧关联任务入口均已退役）', () => {
+check('R157-2（V4.3.1 重指）声明结构完备：kind 三值 job×18 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 23 条且 id 唯一（周期 AI 入口随今日 / 本周 / 本月分析整体退役）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 24
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 19
+  return ids.length === 23
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 18
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
@@ -235,10 +235,10 @@ const REGISTRY_FILE = read('/shared/ai/jobs/registry.ts');
 const GP_FILE = read('/newtab/components/GlobalPopups.vue');
 const SETTINGS_FILE = read('/newtab/views/GlobalSettings.vue');
 
-check('R158-1（V4.2.0 重指）注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；21 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
+check('R158-1（V4.3.1 重指）注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；20 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
   const modes = (REGISTRY_FILE.match(/mode: '(nav|popup|hidden)',/g) || []).length;
   return REGISTRY_FILE.includes('export interface AiPanelDecl')
-    && modes === 21 /* V4.2.0：好奇心单卡研判退役后，显式 panel 再减 1 */
+    && modes === 20 /* V4.3.1：周期 AI 分析入口退役后，显式 panel 再减 1 */
     && (REGISTRY_FILE.match(/popup: 'ai-advice'/g) || []).length === 3
     && REGISTRY_FILE.includes('route?: string')
     && REGISTRY_FILE.includes('hint?: string')
@@ -286,9 +286,9 @@ check('R158-6（V3.9.8 随迁）右键菜单：打开→复制→编辑→置顶
   return iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMirror && iMirror < iThesis && iThesis < iDel
     && !c.includes("label: '移动分类'");
 });
-check('R158-7（V4.2.0 重指）★入口数量锚：注册表 24 条（好奇心研判与资源侧关联任务入口退役）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
+check('R158-7（V4.3.1 重指）★入口数量锚：注册表 23 条（周期 AI 分析入口退役）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 24
+  return ids === 23
     && !GP_FILE.includes("label: '打开资源台'")
     && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });

@@ -43,8 +43,6 @@ export const K = {
   AI_CAPTURE_ENRICH_MIGRATED: 'zy_ai_capture_enrich_migrated_v1',
   /** AI 一次性指令 */
   AI_DIRECTIVES: 'zy_ai_directives_v1',
-  /** V4.3.0：四周期 AI 复盘缓存（只保存结构化结果，不保存 API Key 或卡片正文） */
-  AI_PERIOD_REVIEW_CACHE: 'zy_ai_period_review_cache_v1',
   /** 标签整体整理备份 */
   TAGREVISE_BACKUP: 'zy_tagrevise_backup_v1',
   /** V3.7.0：分类→标签 + 台内卡收编 迁移前的全量备份（设置页迁移报告卡可下载/回退） */

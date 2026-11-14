@@ -84,12 +84,12 @@ const CHAIN_DEF: Record<ChainLevel, { role: string; rules: string; schema: strin
   },
   tasks: {
     role: '你是执行教练，把成功指标的缺口拆成近两周可落地的具体任务。任务=一次能做完的动作，不是目标复读。',
-    rules: 'title 动词开头 ≤24 字；dueDate=YYYY-MM-DD（从今天推算，只给相对日期时自行换算）；priority 三选一 high/medium/low；estimatedMinutes 为 30~480 的整数。',
+    rules: 'title 动词开头 ≤24 字；dueDate=计划执行日期，YYYY-MM-DD（从今天推算，只给相对日期时自行换算）；priority 三选一 high/medium/low；estimatedMinutes 为 30~480 的整数。',
     schema: '输出 JSON：{"items":[{"title":"任务名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"推进指标的哪一步"}]}。3~6 条。只输出 JSON。',
   },
   breakdown: {
     role: '你是执行教练，把一个任务拆成半天内可完成的步骤序列——拆到「打开电脑就能动手」的粒度。',
-    rules: 'steps 按先后顺序排列；title 动词开头 ≤20 字；dueDate 相对原任务截止日/今天推算；estimatedMinutes 每步 30~240。',
+    rules: 'steps 按先后顺序排列；title 动词开头 ≤20 字；dueDate 相对原任务计划执行日期/今天推算；estimatedMinutes 每步 30~240。',
     schema: '输出 JSON：{"plan":"两句话行动思路","steps":[{"title":"步骤名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"这步解锁什么"}],"assess":"先评估这个任务本身定得合不合理（≤40字，过粗/过细/缺验收直说）","recommend":"subtasks|detail","recommendWhy":"为何建议拆成多个任务(subtasks)或只把步骤写进任务详情(detail)，≤30字——任务本身很小或步骤即全部时选 detail"}。steps 3~6。只输出 JSON。',
   },
 }
@@ -153,7 +153,7 @@ export interface TaskDraft {
 }
 
 export const taskParseSystem = () => withAboutMe(
-  '你是任务录入助手，把用户的一句大白话（可能含截止日期、项目名、时长）解析成任务字段。宁缺毋滥：拿不准的字段留空，不编造项目/指标。' +
+  '你是任务录入助手，把用户的一句大白话（可能含计划执行日期、项目名、时长）解析成任务字段。宁缺毋滥：拿不准的字段留空，不编造项目/指标。' +
   'priority 三选一 high/medium/low；dueDate 严格 YYYY-MM-DD（相对日期按给定今天换算，"下班前"=今天）；estimatedMinutes 5~600 整数。' +
   '输出 JSON：{"title":"≤24字动词开头","priority":"...","dueDate":"...","estimatedMinutes":123,"projectId":"仅在候选清单里才填","metricId":"同理"}。只输出 JSON。'
 )
@@ -169,18 +169,6 @@ export const deepInsightSystem = () => withAboutMe(
   '## 下周一个动作（只给一个最值得改的，说清验收）。' +
   '总字数 ≤400；一切结论必须能指回台账里的具体条目，材料不足就直说看不出。' +
   '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
-)
-
-/** V4.3.0：画像洞察四段（今天 / 本周 / 本月 / 本年）的 AI 分析。
- *  输入是账号级战报、方向树与卡片状态的只读结构化摘要；输出是洞察与安全导航建议。 */
-export const periodReviewSystem = (range: 'today' | 'week' | 'month' | 'year') => withAboutMe(
-  `你是用户的周期复盘参谋。现在是「${{ today: '今天', week: '本周', month: '本月', year: '本年' }[range]}」周期。` +
-  '你会收到一份结构化上下文：账号级操作事件、对应时间窗口、方向树（愿景/使命、主攻项目、成功指标、任务状态）、策展台状态和本地活动摘要。' +
-  '请结合方向树解释这些事实意味着什么：用户的时间是否落在当前主攻上、哪些项目或指标正在推进、哪些任务/项目停滞或被忽略、下一步最值得做什么。' +
-  '硬约束：①只使用上下文里有证据的项目、指标、任务、事件与数字，不虚构不存在的对象；②洞察要具体、克制，不喊口号，不把相关性说成因果；' +
-  '③actions 只能从 allowedTargets 里选择，target.type 只能是 battle/log/direction/project/metric/task/resource/curation，id 必须逐字照抄 allowedTargets；' +
-  '④建议只做导航，不要求系统自动改任务归属、自动绑卡或自动完成指标；⑤材料不足时在 dataGaps 明说，不要硬编。' +
-  '输出 JSON：{"headline":"一句总判断(≤80字)","insights":[{"title":"洞察标题(≤18字)","detail":"具体解释(≤120字)","evidence":["依据(≤1条一句)"]}],"actions":[{"title":"下一步动作(≤24字)","reason":"为什么现在做(≤60字)","target":{"type":"battle|log|direction|project|metric|task|resource|curation","id":"可空","label":"可空"}}],"confidence":"high|medium|low","dataGaps":["材料缺口(≤40字)"]}。insights 2–4 条，actions 1–3 条。只输出 JSON。'
 )
 
 // ---------- 资源卡全字段优化（读链接正文后的单卡深度加工） ----------

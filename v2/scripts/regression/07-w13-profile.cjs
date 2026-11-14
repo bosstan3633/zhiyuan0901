@@ -32,20 +32,16 @@ check('W13-1 ★V3.9.3 首屏结构与全页指标零重复：Hero 只保留「�
     && PI_C.includes('heroStreak') === false && PI_C.includes('currentStreak') === false;
 });
 
-check('W13-2（V4.3.0 重指）四段统一为 AI 周期复盘：今天 / 本周 / 本月 / 本年都挂 PiAiReview，未配置或失败时才显示 reviewReport.buildConciseInsights 的本地事实基线；四段组件不再各写一份诊断条。负锚：PiToday 不许再有 todayAdd === 0 的静默隐藏分支', () => {
+check('W13-2（V4.3.1 重指）周期 AI 分析整体退役：今天 / 本周 / 本月 / 本年只保留事实统计、热力图与生命周期，不再挂 PiAiReview 或 AI 状态机', () => {
   const c = [TODAY, RHY, MONTH, YEAR];
-  const aiReview = read('/newtab/components/profile/PiAiReview.vue');
-  return c.every(s => (s.match(/<PiAiReview/g) || []).length === 1)
-    && c.every(s => s.includes(':ai="props.ai"'))
-    && ['today', 'week', 'month', 'year'].every(k => PI.includes(`:insight="concise.${k}"`))
-    && (aiReview.match(/class="one-insight"/g) || []).length === 1
-    && aiReview.includes('v-html="props.fallback.html"')
-    && c.every(s => !codeOnly(s).includes('v-html="insight.html"'))
-    && PI.includes('buildConciseInsights(') && PI.includes('const conciseCtx') && PI.includes('const concise = computed')
-    && ['concise.today', 'concise.week', 'concise.month'].every(k => PI.includes(k))
-    && !PI_C.includes('todayInsight') && !PI_C.includes('mInsight') && !PI_C.includes('yInsight')
-    && !codeOnly(RHY).includes('weekInsight') && !codeOnly(TODAY).includes('TodayInsight')
-    && !codeOnly(MONTH).includes('MonthInsight') && !codeOnly(YEAR).includes('YearInsight')
+  return c.every(s => !s.includes('PiAiReview') && !s.includes(':ai="props.ai"'))
+    && c.every(s => s.includes('class="strip4"'))
+    && YEAR.includes('<Heatmap') && YEAR.includes('<LifecyclePanel')
+    && !PI.includes('currentPeriodAi') && !PI.includes('usePeriodAiReview')
+    && !PI.includes('@ai-regenerate') && !PI.includes('@ai-navigate')
+    && !PI.includes('buildConciseInsights(') && !PI.includes('const conciseCtx') && !PI.includes('const concise = computed')
+    && !PI.includes('concise: concise.value')
+    && !PI_C.includes('periodAi') && !PI_C.includes('onPeriodAiAction')
     && !codeOnly(TODAY).includes('todayAdd === 0');
 });
 
@@ -138,19 +134,20 @@ check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘�
     && RP.includes('objectivesOf(') && PI.includes("openStatDrawer('goal-week')");
 });
 
-check('W13-T7d（V4.3.0 重指）四段 AI 复盘动作走同一导航出口：PiAiReview 只发 navigate，宿主 onPeriodAiAction 按 battle / log / direction / project / metric / task / resource / curation 分流；旧「一键归入主攻 + 绑卡」与 onConciseAction 已退役，本地诊断仍只作失败降级', () => {
+check('W13-T7d（V4.3.1 重指）周期 AI 动作出口彻底退役：宿主不再定义 onPeriodAiAction / openAiConfig，四个周期组件不再发 ai-* 事件；旧「一键归入主攻 + 绑卡」保持退役', () => {
   const REPORT = read('/newtab/views/profileInsightsReport.ts')
-  return PI.includes('function onPeriodAiAction(target: PeriodReviewTarget)')
-    && ["target.type === 'battle'", "target.type === 'log'", "target.type === 'direction'", "target.type === 'project'", "target.type === 'metric'", "target.type === 'task'", "target.type === 'resource'", "target.type === 'curation'"]
-      .every(k => PI.includes(k))
+  return !PI.includes('function onPeriodAiAction')
+    && !PI.includes('function regeneratePeriodAi')
+    && !PI.includes('function openAiConfig')
+    && [TODAY, RHY, MONTH, YEAR].every(s => !s.includes("'ai-"))
     && !PI_C.includes("'convertCurio'")
     && !PI_C.includes('function onConciseAction')
     && !PI_C.includes('一键归入主攻')
     && !PI_C.includes('bindFocus')
-    && (PI.match(/@ai-regenerate="regeneratePeriodAi\(activeRange\)"/g) || []).length === 4
+    && !PI.includes('@ai-regenerate')
     && !PI_C.includes('onTodayInsightAction') && !PI_C.includes('onMonthInsightAction')
     && !PI_C.includes('onYearInsightAction') && !PI_C.includes('onRhythmInsight')
-    && PI.includes('profileExportLines({') && PI.includes('concise: concise.value')
-    && REPORT.includes('const insightLines') && REPORT.includes(".replace(/<[^>]+>/g, '')")
-    && REPORT.includes('input.concise[k].html');
+    && PI.includes('profileExportLines({') && !PI.includes('concise: concise.value')
+    && !REPORT.includes('insightLines') && !REPORT.includes('input.concise')
+    && REPORT.includes('使命主线：') && REPORT.includes('知识熵') && REPORT.includes('近30天精力落主攻');
 });

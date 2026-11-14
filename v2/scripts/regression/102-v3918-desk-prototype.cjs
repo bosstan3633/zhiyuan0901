@@ -21,78 +21,79 @@ const SM = read('/newtab/components/compass/CompassStatusModal.vue');
 
 console.log('【V3.9.18 · 调度台按原型迭代（主攻面板 / 三池页签 / 右栏读数 / 密度接通）】');
 
-check('D18-1 ★V3.9.22 重指：页头主攻锚行退役；主攻只在「今天的状态」保留，名称各自打开可编辑项目详情', () => {
+check('D18-1（V4.3.1 重指）页头保持轻量：旧主攻锚行与“今天的状态”右栏均退役；今日重点、今日战报与任务工作面成为首页主体', () => {
   return CH.includes('调度台 · {{ formatFullDate(todayDate) }}')
     && !CH.includes('TODAY ·')
     && !CH.includes('THREE DECKS')
     && !CH.includes('class="desk-anchor"')
     && !CH.includes('class="da-link"')
     && !CH.includes('class="da-next"')
-    && CH.includes('class="stat-row stat-row-focus"')
-    && CH.includes('打开可编辑项目详情');
+    && CH.includes('class="focus-list"')
+    && CH.includes('class="task-workbench"')
+    && CH.includes('打开任务详情')
+    && !CH.includes('class="side-rail"');
 });
 
-check('D18-2 ★V3.9.22 重指：主栏主攻面板退役；「今天的状态」同一行并列最多两个主攻名，不显示下一步 / 完成度', () => {
-  return CH.includes('class="stat-row stat-row-focus"')
-    && CH.includes('class="stat-focus-links"')
-    && CH.includes('class="stat-focus-link"')
-    && CH.includes('@click="openFocusProject(mainFocus)"')
-    && CH.includes('@click="openFocusProject(extraFocus)"')
+check('D18-2（V4.3.1 重指）主栏主攻面板与右栏均退役；主攻改为任务快捷筛选维度，项目筛选仍保留，不在首页展示下一步 / 完成度', () => {
+  return CH.includes('taskWorkFocusIds')
+    && CH.includes('主攻项目')
+    && CH.includes('taskWorkProjectOptions')
+    && !CH.includes('class="stat-row stat-row-focus"')
+    && !CH.includes('class="stat-focus-links"')
     && !CH.includes('class="focus-projects"')
     && !CH.includes('class="fp-row"')
     && !CH_C.includes('const focusNextOf')
     && !CH_C.includes('focusMeta.get(');
 });
 
-check('D18-3（V4.3.0 退役重指）手边的卡三池页签：任务 / 好奇心 / 资源三枚 hand-tab（role=tablist + aria-selected），三段 hand-col 以 v-show 切换；Inbox 入口与旧底部 tab 零回流', () => {
+check('D18-3（V4.3.1 重指）卡片池三页签：任务 / 好奇心 / 资源三枚 hand-tab（role=tablist + aria-selected）；任务页用完整工作面，另两页按需渲染，Inbox 与旧底部 tab 零回流', () => {
   return CH.includes('class="hand-tabs"')
     && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 3
     && CH.includes('role="tablist" aria-label="手边的卡类型"')
     && !CH.includes('hand-tab-inbox')
-    && CH.includes(`v-show="handTab === 'task'"`)
-    && CH.includes(`v-show="handTab === 'curiosity'"`)
-    && CH.includes(`v-show="handTab === 'resource'"`)
+    && CH.includes(`v-if="handTab === 'task'"`)
+    && CH.includes(`v-else-if="handTab === 'curiosity'"`)
+    && CH.includes(`v-else class="hand-grid hand-grid-aux resource-tab-grid"`)
     && !CH_C.includes(`handTab === 'inbox'`)
     && CH_C.includes(`const handTab = ref<HandKind>('task')`)
-    && CH.includes('class="hand-grid"') && CH.includes('class="hand-col"')
-    && (CH.match(/class="mini-list"/g) || []).length === 3
-    && CH.includes("goDeck('task')") && CH.includes("goDeck('curiosity')") && CH.includes("goDeck('resource')")
+    && CH.includes('class="task-workbench"')
+    && CH.includes('class="hand-grid hand-grid-aux"')
+    && CH.includes('class="hand-col"')
+    && CH.includes('@click="goDeck(handTab)"')
+    && CH.includes("goDeck('curiosity')") && CH.includes("goDeck('resource')")
     && !CH_C.includes('bt-tab');
 });
 
-check('D18-4 ★右栏状态读数改「今日入台 / 今日调出 / 未归档」：入台按三类卡 createdAt ≥ 今日 0 点、调出按资源 lastCalledAt 落在今日（张数口径，不虚报次数）；口径与今日战报（事件日志）不同源——tooltip 与明细 note 必须明示，不许冒充同源；本周复用自状态行迁「最近调出」头部 chip，判据 openStatusDetail(\'reuse\') 不变', () => {
-  return CH.includes(`@click="openStatusDetail('in')"`)
-    && CH.includes(`@click="openStatusDetail('out')"`)
-    && CH_C.includes('const todayInCount = computed')
-    && CH_C.includes('const todayOutCount = computed')
-    && CH_C.includes('if (!c.deletedAt && (c.createdAt || 0) >= t0) n++')
-    && CH_C.includes("filter(r => !r.deletedAt && (r.lastCalledAt || 0) >= t0)")
-    && CH.includes('与今日战报的事件计次口径不同')
-    && CH.includes('class="rail-chip"')
-    && CH.includes(`@click="openStatusDetail('reuse')"`)
+check('D18-4（V4.3.1 重指）右栏状态读数退役：今日事实只由今日战报的事件口径呈现；调度台不再并存“入台/调出”第二套读数；常调 Top 10 迁入资源页签并保留本周复用总量', () => {
+  return CH.includes('@click="openReview"')
+    && CH.includes('class="recent-list resource-recent-list"')
     && CH.includes('本周 {{ weeklyReuse }} 次')
-    /* 负锚：右栏不再放主攻（迁主栏面板后不许回流） */
+    && !CH.includes(`@click="openStatusDetail('in')"`)
+    && !CH.includes(`@click="openStatusDetail('out')"`)
+    && !CH.includes('class="rail-chip"')
     && !CH.includes('class="stat-focus-block"')
     && !CH.includes('class="stat-focus-item"');
 });
 
-check('D18-5 ★V3.9.23 右栏收口：删除“好奇心培育”第三块；左栏好奇心页签与卡池能力保留，右栏只留今天的状态 / 最近调出', () => {
+check('D18-5（V4.3.1 重指）右栏整体退役：好奇心页签与卡池能力保留，资源页签承载常调 Top 10；首页只保留今日重点、卡片池任务工作面与底轨', () => {
   return !CH.includes('class="curio-panel"')
     && !CH_C.includes('nurtureCuriosities')
     && CH.includes('aria-label="手边的卡类型"')
     && CH.includes("handTab = 'curiosity'")
     && CH.includes('@click="goDeck(\'curiosity\')"')
-    && CH.includes('rail-panel rail-panel-recent desk-row desk-row-secondary')
+    && CH.includes('class="task-workbench"')
+    && CH.includes('recent-resource-panel')
+    && !CH.includes('class="side-rail"')
     && !CH.includes('useEqualHeight');
 });
 
-check('D18-6 ★密度令牌接通（04-73 D-1(a)）：主栏行卡内距读 --card-pad-vert / --card-pad-horz、行距读 --card-gap——紧凑密度开关在调度台真实生效；R50-4/R52-6/R56-6 的原字符串锚原样保留（保护性双锚，gap 单列一条不覆盖首行）', () => {
-  const stateRow = CH.slice(CH.indexOf('.stat-row {'), CH.indexOf('.stat-row-focus'));
+check('D18-6（V4.3.1 重指）★密度令牌接通：今日三件事与卡池预览都读取 --card-pad-vert / --card-pad-horz / --card-gap，紧凑密度在任务驱动首页真实生效', () => {
   return CH.includes('.focus-list { display: flex; flex-direction: column; }')
     && CH.includes('.focus-list { gap: var(--card-gap); }')
     && CH.includes('padding: var(--card-pad-vert) var(--card-pad-horz);')
-    && stateRow.includes('padding: var(--card-pad-vert) var(--card-pad-horz);')
-    && CH.includes('.focus-row {') && CH.includes('.stat-row {')
+    && CH.includes('.focus-row {')
+    && /\.focus-row\.focus-card \{[\s\S]*?padding: var\(--card-pad-vert\) var\(--card-pad-horz\)/.test(CH)
+    && /\.focus-list \{[\s\S]*?gap: var\(--card-gap\)/.test(CH)
     && CH.includes('.mini-item') && CH.includes('padding: var(--card-pad-vert) 10px;');
 });
 

@@ -53,7 +53,7 @@ function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   if (t.estimatedMinutes) s += 10; else r.push('未估时')
   const tTitle = String(t.title || '')
   if (tTitle.trim().length >= 2 && tTitle.trim().length <= 24) s += 10; else r.push('标题过长/过空')
-  if (t.dueDate) s += 10; else r.push('无截止日')
+  if (t.dueDate) s += 10; else r.push('无计划执行日期')
   if (t.projectId) s += 8; else r.push('未挂项目')
   if (t.metricId) s += 7; else r.push('未挂指标')
   if ((t.assets || []).length) s += 5

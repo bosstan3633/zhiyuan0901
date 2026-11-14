@@ -3,8 +3,7 @@
  * PiToday —— 今天 · 使用概况（★W17-C09 重构 · 2026-10-20 用户拍板）。
  *
  * 两段式：
- *   ① #ins-today 一句人话诊断条（恒渲染；文案与 CTA 由宿主 buildConciseInsights 注入）
- *   ② `.strip4` 四格：今日入台 / 今日调出 / 今日焦点 (M/3) / 已备弹药
+ *   ① `.strip4` 四格：今日入台 / 今日调出 / 今日焦点 (M/3) / 已备弹药
  *
  * ★退役带备案：原 ③ 紧凑三行对账区块（序号 + 勾选 + 标题 + 项目徽标 + 归位/填入）
  *   整块退役——它与调度台首页的「今日三件事」重复，用户明确要求画像页不再重复列出。
@@ -12,11 +11,7 @@
  *   已排计数，点击跳回调度台。组件零取 store，数值全部由宿主传入。
  */
 import Icon from '@/shared/components/Icon.vue'
-import type { ConciseInsight } from '@/shared/utils/reviewReport'
 import type { FocusSlot } from '@/shared/models'
-import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
-import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
-import PiAiReview from './PiAiReview.vue'
 
 /** 今日焦点行的宿主侧形状——★W17-C09 起本组件不再渲染三件事行，但宿主诊断口径仍消费该类型。 */
 export interface TodayRow {
@@ -47,10 +42,6 @@ const props = defineProps<{
   ammo: number
   /** 固定 3 槽（只用于分母口径，不再渲染行） */
   slotCount: number
-  /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 today 段（形状 = ConciseInsight） */
-  insight: ConciseInsight
-  /** V4.3.0：AI 周期复盘状态；本地事实仍作为失败/未配置时的降级面。 */
-  ai: PeriodAiState
 }>()
 
 const emit = defineEmits<{
@@ -59,9 +50,6 @@ const emit = defineEmits<{
   (e: 'open-battle'): void
   /** 今日焦点格 = 只读计数 + 去调度台调整 */
   (e: 'open-focus'): void
-  (e: 'ai-regenerate'): void
-  (e: 'ai-navigate', target: PeriodReviewTarget): void
-  (e: 'ai-configure'): void
 }>()
 </script>
 
@@ -71,7 +59,7 @@ const emit = defineEmits<{
       <span class="pi-mod-ico i-now"><Icon name="barchart" :size="13"/></span>
       <div class="pi-mod-t">
         <h2>今天的使用情况<span class="en">TODAY</span></h2>
-        <p>结合账号级战报、方向树与策展状态，给今天的节奏、卡点与下一步建议。</p>
+        <p>只陈列今天的使用事实与计划位状态；判断留给用户。</p>
       </div>
       <div class="pi-mod-acts">
         <!-- ★V3.9.6 双口径徽标：今日入台 N 张里，有 M 张是**导入**的（不是今天新建的）。
@@ -84,10 +72,7 @@ const emit = defineEmits<{
       </div>
     </div>
     <div class="pi-mod-b">
-      <PiAiReview id="ins-today" :ai="props.ai" :fallback="props.insight"
-        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
-
-      <!-- ② 唯一一行 4 等宽胶囊（F8） -->
+      <!-- 唯一一行 4 等宽胶囊（F8） -->
       <div class="pi-strip">
         <span class="pi-strip-lab">今日</span>
         <div class="strip4">

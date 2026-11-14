@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
  * W13-T5（2026-10-16 · D2/F16~F19）PiMonth —— 时间轴模块③ 本月 · MONTH（三段式）。
- *   ① #ins-month 的统一 AI 周期复盘（未配置或失败时回落到本机事实基线）
- *      + 模块头「知识熵 X.X → Y.Y bit」变化徽标
+ *   ① 模块头「知识熵 X.X → Y.Y bit」变化徽标
  *   ② `.strip4` 四格：本月入池 / 本月调出 / 本月新增任务 / 入策展金字塔（F17 月度专属口径）
  *   ③ `.light-split` 双栏（拒绝克隆本周柱状图）：左 Top 3 输入主题 → 攻坚项目映射（F18）；
  *      右 `.funnel3` 捕捉入池 → 支撑任务 → 策展表达 三步转化漏斗（F19）
@@ -13,19 +12,13 @@
  */
 import Icon from '@/shared/components/Icon.vue'
 import { computed } from 'vue'
-import { windowOf, type ConciseInsight } from '@/shared/utils/reviewReport'
+import { windowOf } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
-import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
-import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
-import PiAiReview from './PiAiReview.vue'
 
 export interface MonthTopic { tag: string; n: number; project: string }
 
 const props = defineProps<{
   stats: DailyStats
-  /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 month 段（形状 = ConciseInsight） */
-  insight: ConciseInsight
-  ai: PeriodAiState
   /** 知识熵变化（bit，1 位小数）：from=上月底快照口径 → to=当前全库 */
   ent: { from: number; to: number }
   topics: MonthTopic[]
@@ -38,9 +31,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'drill', k: 'mo-add' | 'mo-call' | 'mo-support' | 'mo-curate'): void
   (e: 'topic', tag: string): void
-  (e: 'ai-regenerate'): void
-  (e: 'ai-navigate', target: PeriodReviewTarget): void
-  (e: 'ai-configure'): void
 }>()
 
 /* ===== 窗口：本月（聚合由宿主与本组件双侧按同口径轻算，stats 为前缀和数据源） ===== */
@@ -70,10 +60,7 @@ const topicMax = computed(() => Math.max(1, ...props.topics.map(t => t.n)))
       </div>
     </div>
     <div class="pi-mod-b">
-      <PiAiReview id="ins-month" :ai="props.ai" :fallback="props.insight"
-        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
-
-      <!-- ② F17 strip4 月度专属四格 -->
+      <!-- F17 strip4 月度专属四格 -->
       <div class="pi-strip">
         <span class="pi-strip-lab">本月</span>
         <div class="strip4">

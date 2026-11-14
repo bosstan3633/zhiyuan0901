@@ -11,9 +11,8 @@ import type { AiDepth } from './config'
 import { chatStream, extractJson } from './llm'
 import { projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
-import { parsePeriodReview, type PeriodReviewContext } from '@/shared/utils/periodReview'
 import {
-  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, periodReviewSystem, fullOptimizeSystem,
+  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
   chainPersonaText, allPersonas, personaOverrides,
   type TaskDraft,
 } from './scenarios'
@@ -303,8 +302,6 @@ function finish(one: { items: AiSearchHit[]; note: string }, scanned: number, to
     note: one.note, scanned, total, dropped: searchDropCount, batches, scope,
   }
 }
-
-
 // ---------- R138：一句话智能录入 + 周期回顾 ----------
 
 
@@ -557,7 +554,7 @@ export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft:
       const title = String(s.title || '').trim().slice(0, 40)
       if (title) rows.push({ key: 'title', badge: '标题', main: title })
       const facts: string[] = []
-      if (s.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(s.dueDate))) facts.push('截止 ' + s.dueDate)
+      if (s.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(s.dueDate))) facts.push('计划 ' + s.dueDate)
       const pr = String(s.priority || '')
       if (pr === 'high' || pr === 'medium' || pr === 'low') facts.push({ high: '高优', medium: '中优', low: '低优' }[pr])
       const em = Number(s.estimatedMinutes)
@@ -569,7 +566,7 @@ export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft:
       if (met) rows.push({ key: 'met', badge: '归属', main: `指标「${met.title}」` })
       const draft: TaskDraft = {
         title: title || undefined,
-        dueDate: facts.some(f => f.startsWith('截止')) ? s.dueDate : undefined,
+        dueDate: facts.some(f => f.startsWith('计划')) ? s.dueDate : undefined,
         priority: pr || undefined,
         estimatedMinutes: facts.some(f => f.startsWith('约')) ? Math.round(em) : undefined,
         projectId: proj?.id, metricId: met?.id,
@@ -629,34 +626,3 @@ export function buildInsightJob(ctx: SelectCtx): AiJob | null {
     },
   }, ctx, () => `🗓 深度洞察 ${new Date().toLocaleDateString('zh-CN')}`, (rows) => String((rows[0]?.data as { text?: string })?.text || ''), ['深度洞察'])
 }
-
-export type InsightRange = 'today' | 'week' | 'month' | 'year'
-
-/** V4.3.0：画像四段的 AI 分析工厂。
- *  宿主直接消费 build() 与 parse() 的返回值，不打开建议抽屉；所有目标 id 由上下文白名单消毒。 */
-export function buildPeriodReviewJob(
-  range: InsightRange,
-  context: PeriodReviewContext,
-): AiJob {
-  const label = { today: '今天', week: '本周', month: '本月', year: '本年' }[range]
-  const source = JSON.stringify(context)
-  return {
-    key: `period-review-${range}`,
-    title: `${label} · AI 复盘`,
-    subject: `📊 ${label} · 账号战报与方向树`,
-    hint: 'AI 只读账号级战报与方向树，给出洞察和导航建议；不自动修改任何卡片或归属。',
-    adoptable: false,
-    build: () => ({
-      messages: [
-        { role: 'system', content: periodReviewSystem(range) },
-        { role: 'user', content: source },
-      ],
-      jsonMode: true,
-    }),
-    parse: (raw) => {
-      const result = parsePeriodReview(String(raw || ''), context)
-      return [{ key: `period-review-${range}`, badge: '洞察', main: result.headline, data: result }]
-    },
-  }
-}
-

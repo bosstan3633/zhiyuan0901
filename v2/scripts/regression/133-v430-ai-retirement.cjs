@@ -11,68 +11,61 @@ const { check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【V4.3.0 · AI 周期复盘与 Inbox / PWA 退役】')
 
-check('V430-1 四周期全部挂载同一个 PiAiReview：今天 / 本周 / 本月 / 本年不再各写一套诊断条', () => {
+check('V430-1（V4.3.1 重指）周期 AI 分析整体退役：今天 / 本周 / 本月 / 本年均不挂 PiAiReview，年度热力图与事实统计仍在', () => {
   const files = [
     '/newtab/components/profile/PiToday.vue',
     '/newtab/components/profile/PiRhythm.vue',
     '/newtab/components/profile/PiMonth.vue',
     '/newtab/components/profile/PiYear.vue',
   ]
+  const year = read('/newtab/components/profile/PiYear.vue')
   return files.every(file => {
     const source = read(file)
-    return source.includes("import PiAiReview from './PiAiReview.vue'")
-      && source.includes('<PiAiReview')
-      && source.includes("@navigate=\"emit('ai-navigate', $event)\"")
+    return !source.includes('PiAiReview') && source.includes('class="strip4"')
   })
+    && year.includes('<Heatmap') && year.includes('<LifecyclePanel')
+    && !exists('/newtab/components/profile/PiAiReview.vue')
 })
 
-check('V430-2 周期 AI 由统一状态机驱动：四个 range、按需动态加载 AI、运行结果只进入页面状态与缓存', () => {
-  const source = codeOnly(read('/newtab/composables/usePeriodAiReview.ts'))
-  return source.includes("const RANGES: PeriodReviewRange[] = ['today', 'week', 'month', 'year']")
-    && source.includes("import('@/shared/ai/config')")
-    && source.includes("import('@/shared/ai/select')")
-    && source.includes("import('@/shared/ai/llm')")
-    && source.includes('select.buildPeriodReviewJob(range, context)')
-    && source.includes('loadCached(range, context)')
-    && !source.includes('saveData(')
-    && !source.includes('store.persist(')
-    && !source.includes('applyPeriod')
+check('V430-2（V4.3.1 重指）周期 AI 状态机物理删除：usePeriodAiReview 与 periodReview 工具文件均不存在，宿主零残留', () => {
+  const host = codeOnly(read('/newtab/views/useProfileInsights.ts'))
+  return !exists('/newtab/composables/usePeriodAiReview.ts')
+    && !exists('/shared/utils/periodReview.ts')
+    && !host.includes('usePeriodAiReview')
+    && !host.includes('currentPeriodAi')
+    && !host.includes('onPeriodAiAction')
 })
 
-check('V430-3 AI 工厂明确只读：adoptable:false，输出结构是洞察与导航目标，不暴露采纳写库入口', () => {
+check('V430-3（V4.3.1 重指）周期 AI 工厂整体删除：select 与 scenarios 不再暴露 buildPeriodReviewJob / periodReviewSystem', () => {
   const source = read('/shared/ai/select.ts')
-  const start = source.indexOf('export function buildPeriodReviewJob')
-  const end = source.indexOf('export function buildSearchRerankJob', start)
-  const body = source.slice(start, end > start ? end : source.length)
-  return start > 0
-    && body.includes('adoptable: false')
-    && body.includes('parsePeriodReview(String(raw')
-    && body.includes('badge: \'洞察\'')
-    && !body.includes('apply:')
-    && !body.includes('saveData(')
+  const scenarios = read('/shared/ai/scenarios.ts')
+  return !source.includes('buildPeriodReviewJob')
+    && !source.includes('parsePeriodReview')
+    && !scenarios.includes('periodReviewSystem')
 })
 
-check('V430-4 复盘上下文确由账号级战报、方向树与策展状态组成，动作目标只取白名单并消毒', () => {
-  const source = read('/shared/utils/periodReview.ts')
-  return source.includes('countEvents(input.events, window.start, window.end)')
-    && source.includes('directionTree: {')
-    && source.includes('curation: {')
-    && source.includes('activity: {')
-    && source.includes('allowedTargets: buildAllowedTargets(data, directions)')
-    && source.includes('ctx.allowedTargets.find(')
-    && source.includes('parsePeriodReview')
+check('V430-4（V4.3.1 重指）周期 AI 能力登记清零：jobs registry 无 period-review，画像宿主不再传 insight / ai 事件', () => {
+  const registry = read('/shared/ai/jobs/registry.ts')
+  const profile = read('/newtab/views/ProfileInsights.vue')
+  return !registry.includes("id: 'period-review'")
+    && !registry.includes('buildPeriodReviewJob')
+    && !profile.includes(':insight="concise.')
+    && !profile.includes(':ai="currentPeriodAi"')
 })
 
-check('V430-5 本地降级边界：未配置或失败时 PiAiReview 只显示事实基线，不伪造洞察', () => {
-  const view = read('/newtab/components/profile/PiAiReview.vue')
+check('V430-5（V4.3.1 重指）事实统计保留、AI 分析不回填：四个周期组件均无 ai-* emits，画像页不再出现周期 AI 操作出口', () => {
+  const files = [
+    '/newtab/components/profile/PiToday.vue',
+    '/newtab/components/profile/PiRhythm.vue',
+    '/newtab/components/profile/PiMonth.vue',
+    '/newtab/components/profile/PiYear.vue',
+  ]
   const host = read('/newtab/views/useProfileInsights.ts')
-  return view.includes('本地事实基线')
-    && view.includes('AI 尚未配置')
-    && view.includes('props.fallback')
-    && host.includes('currentPeriodAi')
-    && host.includes('onPeriodAiAction')
+  return files.every(file => !read(file).includes("'ai-"))
+    && !host.includes('currentPeriodAi')
+    && !host.includes('regeneratePeriodAi')
+    && !host.includes('openAiConfig')
     && !host.includes('applyPeriodReview')
-    && !host.includes('autoMount')
 })
 
 check('V430-6 移动采集 PWA 整体退役：源码、静态资源、独立配置与 GitHub Pages 工作流均不存在', () => {

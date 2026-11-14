@@ -64,7 +64,7 @@ check('W17-20 ★时间线退役：宿主零挂载 PiRail，样式零命中，�
     && !PI.includes('class="pi-period-head"');
 });
 
-check('W17-21（V4.3.0 重指）今日对账段与「一键归入主攻 + 绑卡」退役：PiToday 只保留四格读数与 AI 复盘，画像页不再发勾选/归位/填入事件', () => {
+check('W17-21（V4.3.1 重指）今日对账段与「一键归入主攻 + 绑卡」退役：PiToday 只保留四格事实读数，周期 AI 分析也已整体退役', () => {
   const TODAY_C = codeOnly(TODAY);
   /* 注释里保留退役说明不算残留 —— 判定一律剥注释（R166 纪律）。 */
   return !TODAY_C.includes('f3-compact') && !TODAY_C.includes("emit('bind'")
@@ -74,8 +74,9 @@ check('W17-21（V4.3.0 重指）今日对账段与「一键归入主攻 + 绑卡
     && !PI_C.includes('onTodayToggle') && !PI_C.includes('onTodayBind') && !PI_C.includes('onTodayFill')
     && !PI_C.includes('onConciseAction')
     && !PI_C.includes('一键归入主攻')
-    && TODAY_C.includes('<PiAiReview')
-    && PI.includes('function onPeriodAiAction(target: PeriodReviewTarget)');
+    && !TODAY_C.includes('PiAiReview')
+    && !PI_C.includes('onPeriodAiAction')
+    && !PI.includes('@ai-regenerate');
 });
 
 /* ══════════════ W18 · 画像洞察顶部等高 + 卡片化导出（2026-10-20 用户拍板） ══════════════ */

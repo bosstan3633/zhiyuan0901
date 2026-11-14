@@ -86,6 +86,7 @@ const SHARDS = [
   '131-v424-three-way-merge',
   '132-v425-symbol-safe-merge',
   '133-v430-ai-retirement',
+  '134-v431-calendar-focus-retirement',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

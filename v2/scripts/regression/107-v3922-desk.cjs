@@ -5,24 +5,26 @@ const { check, read, codeOnly } = require('./helpers.cjs');
 
 console.log('【V3.9.22 · 调度台】');
 
-check('R180-B1a ★页头主攻锚与主栏主攻面板同时退役；调度台主攻只由「今天的状态」承载', () => {
+check('R180-B1a（V4.3.1 重指）页头主攻锚、主栏主攻面板与“今天的状态”同时退役；主攻改由任务工作面的快捷筛选承载', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
   return !home.includes('class="desk-anchor"')
     && !home.includes('class="da-link"')
     && !home.includes('class="focus-projects"')
     && !home.includes('class="fp-row"')
     && !home.includes('const focusNextOf')
-    && home.includes('class="stat-row stat-row-focus"');
+    && home.includes('taskWorkFocusIds')
+    && home.includes('主攻项目')
+    && !home.includes('class="side-rail"');
 });
 
-check('R180-B1b ★两个主攻同一行并列、各自可点；名称打开同一个可编辑 ProjectDetailDrawer 弹窗', () => {
+check('R180-B1b（V4.3.1 重指）主攻项目进入项目筛选与任务筛选；未归档任务可直接打开同一个任务归位弹窗维护项目与指标', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
-  return home.includes('class="stat-focus-links"')
-    && (home.match(/class="stat-focus-link"/g) || []).length >= 2
-    && home.includes('@click="openFocusProject(mainFocus)"')
-    && home.includes('@click="openFocusProject(extraFocus)"')
-    && home.includes('打开可编辑项目详情')
-    && home.includes('<ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="modal"')
+  return home.includes('taskWorkFocusIds')
+    && home.includes('taskWorkProjectOptions')
+    && home.includes('@assign-task="openTaskAssign"')
+    && home.includes('function saveTaskAssign()')
+    && home.includes('class="picker-modal task-assign-modal"')
+    && !home.includes('class="stat-focus-links"')
     && !home.includes('class="focus-projects"');
 });
 

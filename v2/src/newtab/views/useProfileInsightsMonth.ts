@@ -4,7 +4,7 @@ import type { CuriosityCard, TaskCard, ResourceCard } from '@/shared/models'
 import {
   computeTagEntropy, todayKey,
   computeTaskSupportRate, computeMainFocusShare, windowOf, tasksOfDirection,
-  buildConciseInsights, objectivesOf
+  objectivesOf
 } from '@/shared/utils/reviewReport'
 import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
 import type { useProfileInsights } from './useProfileInsights'

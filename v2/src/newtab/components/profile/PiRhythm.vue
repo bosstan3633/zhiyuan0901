@@ -1,10 +1,9 @@
 <script setup lang="ts">
 /**
  * W13-T4（2026-10-16 · 画像洞察极简认知版 D2/F12~F15）PiRhythm —— 三段式极简法则：
- *   ① #ins-week 的统一 AI 周期复盘（未配置或失败时回落到本机事实基线）
- *   ② `.strip4` 唯一一行 4 等宽胶囊：有效动作 / 加权得分 / 调出旧卡 / 节奏波动
+ *   ① `.strip4` 唯一一行 4 等宽胶囊：有效动作 / 加权得分 / 调出旧卡 / 节奏波动
  *      + 模块头「环比上周 ±X%」徽标（F13）
- *   ③ `.light-split` 左右双栏（F14/F15）：左 `.lbox` 7 日能量密度柱（点柱 → 该日战报）；
+ *   ② `.light-split` 左右双栏（F14/F15）：左 `.lbox` 7 日能量密度柱（点柱 → 该日战报）；
  *      右 `.lbox` 三大战略目标投入占比条（点行 → 该方向本周任务明细）
  *
  * ★W13-D2 三段式 + W13-F13 操作流退役带备案：`.pi-k6`（复盘 6 指标，同屏二次重复）与 `.pi-flow`
@@ -18,21 +17,15 @@ import { computed, ref } from 'vue'
 import {
   windowOf, prevWindow, pct,
   objectivesOf, runRules,
-  type DirLike, type TaskLike, type ConciseInsight
+  type DirLike, type TaskLike
 } from '@/shared/utils/reviewReport'
 import { aggregateRange, type DailyStats } from '@/shared/utils/dailyStats'
-import type { PeriodAiState } from '@/newtab/composables/usePeriodAiReview'
-import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
-import PiAiReview from './PiAiReview.vue'
 
 const props = defineProps<{
   stats: DailyStats
   directions: DirLike[]
   tasks: TaskLike[]
   errorCount: number
-  /** ★W13-T7：诊断条改注入宿主 buildConciseInsights 的 week 段（形状 = ConciseInsight） */
-  insight: ConciseInsight
-  ai: PeriodAiState
 }>()
 
 const emit = defineEmits<{
@@ -41,9 +34,6 @@ const emit = defineEmits<{
   /** F13 定版四格：wk-add（采集）随格退役，收窄为 4 键 */
   (e: 'drill', k: 'wk-acts' | 'wk-w' | 'wk-call' | 'wk-pace'): void
   (e: 'goal-drill', dirId: string): void
-  (e: 'ai-regenerate'): void
-  (e: 'ai-navigate', target: PeriodReviewTarget): void
-  (e: 'ai-configure'): void
 }>()
 
 /* ===== 窗口固定为本周 ===== */
@@ -94,11 +84,6 @@ const barMax = computed(() => Math.max(1, ...bars.value.map(b => b.w)))
 const objectives = computed(() => objectivesOf(props.directions, props.tasks, win.value))
 const goalRows = computed(() => objectives.value.rows.filter(r => r.v > 0 || r.focused).slice(0, 3))
 
-/* ===== F12 一句人话诊断 =====
-   ★W13-T7：原三态推导（weekInsight ~38 行，含目标偏科的具体方向名）上收宿主——
-   四条诊断统一由宿主 reviewReport.buildConciseInsights 产出后经 insight prop 注入，
-   本组件不再自算诊断文本（strip 四格 / 双栏数据仍在本组件自算，props-only 纪律不变）。 */
-
 /* ===== 偏离预警（保留：确定性 8 规则，不属于重复读数） ===== */
 const rules = computed(() => runRules(agg.value, { windowDays: win.value.days }))
 const openRule = ref<string | null>(null)
@@ -123,10 +108,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
       </div>
     </div>
     <div class="pi-mod-b">
-      <PiAiReview id="ins-week" :ai="props.ai" :fallback="props.insight"
-        @regenerate="emit('ai-regenerate')" @navigate="emit('ai-navigate', $event)" @configure="emit('ai-configure')" />
-
-      <!-- ② F13 strip4 四格（采集格随 wk-add 退役） -->
+      <!-- F13 strip4 四格（采集格随 wk-add 退役） -->
       <div class="pi-strip">
         <span class="pi-strip-lab">本周</span>
         <div class="strip4">
@@ -147,7 +129,7 @@ function toggleRule(id: string) { openRule.value = openRule.value === id ? null 
 
       <div class="pi-hair"></div>
 
-      <!-- ③ F14/F15 light-split 左右双栏 -->
+      <!-- F14/F15 light-split 左右双栏 -->
       <div class="light-split">
         <div class="lbox">
           <div class="lbox-h"><b>能量密度</b><span>加权分 · 点柱 › 该日战报</span></div>

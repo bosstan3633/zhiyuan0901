@@ -1673,8 +1673,8 @@ if (argv.scenes) {
       await page.waitForTimeout(400)
       await closeOverlays(page)
     }
-    // V3.9.1 改靶：调度台首页已是两栏工作台——左「今日三件事 + 手边卡」，右「案头栏」。
-    // 旧 DeckTabs 与卡内子任务视口均已退役，不能再用 .bt-tab 给新首页做判据。
+    // V4.3.1 改靶：调度台收为任务驱动的单列工作面。
+    // 今日三件事独占一行，任务页承载完整任务池 + 月历；右侧案头栏已退役。
     await page.setViewportSize(VIEWPORT)
     await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
     await settle(page, 'desk-home')
@@ -1682,11 +1682,13 @@ if (argv.scenes) {
     await resetView(page)
     const spot = await page.evaluate(() => {
       return {
-        layout: !!document.querySelector('.desk-layout'),
+        layout: !!document.querySelector('.desk-layout.desk-layout-single'),
         workBoard: !!document.querySelector('.work-board'),
         focusRows: document.querySelectorAll('.focus-row').length,
         handBoard: !!document.querySelector('.hand-board'),
         handGrid: !!document.querySelector('.hand-grid'),
+        taskWorkbench: !!document.querySelector('.task-workbench'),
+        calendar: !!document.querySelector('.task-calendar'),
         sideRail: !!document.querySelector('.side-rail'),
         oldTabs: document.querySelectorAll('.bt-tab').length,
       }
@@ -1695,9 +1697,9 @@ if (argv.scenes) {
     await page.screenshot({ path: spotFile })
     shots.push(spotFile)
     const spotOk = spot.layout && spot.workBoard && spot.focusRows === 3 && spot.handBoard
-      && spot.handGrid && spot.sideRail && spot.oldTabs === 0
-    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} 两栏=${spot.layout ? '是' : '否'} 工作单=${spot.workBoard ? '是' : '否'} 三件事=${spot.focusRows}/3 手边卡=${spot.handBoard && spot.handGrid ? '是' : '否'} 案头栏=${spot.sideRail ? '是' : '否'} 旧Tab=${spot.oldTabs}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
-    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：两栏工作台 + 恒三行工作单 + 手边卡网格 + 右侧案头栏 + 旧 Tab 为零）`)
+      && spot.taskWorkbench && spot.calendar && !spot.sideRail && spot.oldTabs === 0
+    console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} 单列=${spot.layout ? '是' : '否'} 工作单=${spot.workBoard ? '是' : '否'} 三件事=${spot.focusRows}/3 任务面=${spot.handBoard && spot.taskWorkbench ? '是' : '否'} 月历=${spot.calendar ? '是' : '否'} 案头栏=${spot.sideRail ? '在' : '已退役'} 旧Tab=${spot.oldTabs}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
+    if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：单列工作台 + 恒三格今日焦点 + 完整任务工作面 + 月历 + 旧案头栏与旧 Tab 为零）`)
 
     // 资源卡「查看全部」：独立二级页的列表形态（四主题各一张）
     await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })

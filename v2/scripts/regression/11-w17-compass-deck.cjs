@@ -32,21 +32,16 @@ console.log('【W17 · 调度台侧栏 + 三卡池体验（V3.9.4 / V3.9.5 批�
 
 /* ══════════════ C01 · 三行状态 → 中央只读明细弹窗 ══════════════ */
 
-check('W17-1 ★侧栏主攻行开主攻明细，再由行内「查看项目」进入只读项目详情；未归档 / 本周复用两行开明细清单；全部零 router.push', () => {
-  return PI.includes("function openStatusDetail(k: StatusDetailKey): void { statusDetail.value = k }")
-    && PI.includes('@click="openFocusProject(mainFocus)"')
-    && PI.includes('@click="openFocusProject(extraFocus)"')
-    && PI.includes("action: '查看项目'")
-    && PI.includes("actionKind: 'project'")
-    && PI.includes('readonlyProjectOpen.value = true')
-    && PI.includes("@click=\"openStatusDetail('unarchived')\"")
-    && PI.includes("@click=\"openStatusDetail('reuse')\"")
-    && PI.includes('<CompassStatusModal')
-    /* 负锚：退役的跳转函数不许回来 */
-    && !PI_C.includes('function openUnarchived(')
-    && !PI_C.includes('function openWeeklyReuse(')
-    /* 侧栏入口只切本地状态，不产生路由跳转。 */
-    && !/class="stat-(?:row|focus-item)"[\s\S]{0,260}?router\.push\(/.test(PI);
+check('W17-1（V4.3.1 重指）★“今天的状态”右栏退役：今日事实由今日战报承接，任务全局由任务工作面承接；未归档可直接筛选并就地归位，全程不跳路由', () => {
+  return PI.includes('const taskWorkQuick = ref<TaskWorkQuick>')
+    && PI.includes("quick === 'unarchived'")
+    && PI.includes('function openTaskAssign(')
+    && PI.includes('function saveTaskAssign(')
+    && PI.includes('@assign-task="openTaskAssign"')
+    && PI.includes('@click="openReview"')
+    && !PI.includes('class="side-rail"')
+    && !PI.includes('class="stat-list"')
+    && !/class="cal-assign"[\s\S]{0,260}?router\.push\(/.test(PI);
 });
 
 check('W17-2 ★状态明细整行可下钻但不复用 DrillCardList：★V3.9.25 用户拍板，可操作行整行点击/回车/空格执行同一动作，内层动作退为视觉提示；纯说明行保留可选择文本', () => {
@@ -96,20 +91,16 @@ check('W17-5 ★回落不双计：openResourceLink 记账后置（确认可打�
     && fn.includes('openExternalLink(url)\n    return true');
 });
 
-check('W17-6 ★V3.9.26 版式收口：左右列共享内容网格、18px 间距与底部收口对齐；状态轨移出网格并取消右栏吸附；不强制左右内容等高，最近调出列表仍可内部滚动', () => {
-  return !PI.includes('curio-panel')
+check('W17-6（V4.3.1 重指）★调度台改单列任务驱动版式：去掉右侧状态栏，把宽度交还三件事与任务月历；状态轨仍在内容网格之后，最近调出迁入资源页签', () => {
+  return !PI.includes('class="side-rail"')
+    && PI.includes('class="desk-layout desk-layout-single"')
+    && PI.includes('.desk-layout-single')
+    && PI.includes('class="page-foot desk-status-rail"')
+    && PI.includes('class="task-workbench"')
+    && PI.includes('class="recent-list resource-recent-list"')
     && !PI.includes('useEqualHeight')
     && !PI.includes('--rail-top-h')
-    && !PI.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
-    && PI.includes('.desk-status-rail { position: relative; z-index: 0; }')
-    && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(PI)
-    && PI.includes('.side-rail { position: relative; top: auto; }')
-    && PI.includes('class="page-foot desk-status-rail"')
-    && PI.includes('desk-row-primary')
-    && PI.includes('desk-row-secondary')
-    && /\.rail-panel \{ display: flex; flex-direction: column; \}/.test(PI)
-    && /\.recent-list \{ min-height: 0; overflow-y: auto/.test(PI)
-    && PI.includes('rail-panel rail-panel-recent desk-row desk-row-secondary');
+    && !PI.includes('grid-template-rows: auto minmax(0, 1fr) auto;');
 });
 
 check('W17-7 ★条数不写死 3：最近调出使用稳定上限，不按强制等高测量', () => {

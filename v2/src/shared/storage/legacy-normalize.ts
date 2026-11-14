@@ -164,7 +164,7 @@ export function normalizeLegacyCards(d: AppData): void {
      实测老库里三类卡都带 `desc`，任务卡还带 `dueAt`——不映射的后果有两层：
      ① 摘要位在卡面/导出/AI 投料里全空（用户在老库里明明写过说明）；
      ② 成熟度里 `t.dueDate` 计 10 分，老库字段叫 `dueAt`，**每张老任务卡白丢 10 分**，
-        「无截止日」提示还会误报——这种"分数悄悄少一截"的错比崩溃更难被发现。
+        「无计划执行日期」提示还会误报——这种"分数悄悄少一截"的错比崩溃更难被发现。
      ★三类卡走同一个函数而不是各写一遍：字段重命名是**跨卡型**的规则，
        按卡型各写一份必然漏掉其中一个（第一版就漏了资源卡，回读时才发现）。 */
   const fixCardLegacyFields = (cards: Record<string, unknown>[] | undefined) => (cards || []).forEach((c) => {

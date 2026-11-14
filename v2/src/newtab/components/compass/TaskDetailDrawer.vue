@@ -323,6 +323,45 @@ function onSelMetricChange() {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
 }
+
+function updatePlannedDate(value: string): void {
+  if (!selectedTask.value) return
+  selectedTask.value.dueDate = value || undefined
+  selectedTask.value.updatedAt = Date.now()
+  store.persist()
+  showToast(value ? `计划执行日期已设为 ${value}` : '已取消排期，任务回到卡片池')
+}
+
+function updateEstimatedMinutes(value: string): void {
+  if (!selectedTask.value) return
+  const minutes = Number(value)
+  selectedTask.value.estimatedMinutes = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : undefined
+  selectedTask.value.updatedAt = Date.now()
+  store.persist()
+}
+
+async function addToTodayFocus(): Promise<void> {
+  const task = selectedTask.value
+  if (!task || task.deletedAt) return
+  const today = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const key = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
+  const { addManualFocus } = await import('@/shared/utils/focusSuggest')
+  const result = addManualFocus(d.value, key, task.id)
+  if (result.status === 'exists') {
+    showToast('这张任务已经在今天的三件事里')
+    return
+  }
+  if (result.status === 'full') {
+    showToast('今日三件事已满；请到调度台三件事卡片中替换一格')
+    return
+  }
+  if (result.status === 'added') {
+    store.persist()
+    showToast('已设为今日重点，并锁定为手动选择')
+  }
+}
+
 /** V3.9.31（F1）：一键看所属项目的全景 —— 深链 /compass?pano=1&proj&m&task；
  *  方向台 watch 到查询后复用 onListLocate 既有链路（切全景 → 定位本任务 → 闪烁），不另造定位。
  *  未挂项目时按钮置灰不可点。 */
@@ -420,6 +459,24 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           @click="gotoProjectPano">
           <Icon name="compass" :size="13"/> 查看项目全景（全部指标与任务）›
         </button>
+        <div class="ts-section ts-plan-section">
+          <div class="ds-prop-label"><Icon name="calendar" :size="13"/> 计划与投入</div>
+          <div class="ts-plan-grid">
+            <label class="ts-plan-field">
+              <span>计划执行日期</span>
+              <input type="date" :value="selectedTask.dueDate || ''" @change="updatePlannedDate(($event.target as HTMLInputElement).value)">
+            </label>
+            <label class="ts-plan-field">
+              <span>预计用时（分钟）</span>
+              <input type="number" min="5" step="5" :value="selectedTask.estimatedMinutes ?? ''" placeholder="可选" @change="updateEstimatedMinutes(($event.target as HTMLInputElement).value)">
+            </label>
+          </div>
+          <div class="ts-plan-note">没有“截止日期”字段。留空即未排期；拖入今天也不会自动进入今日三件事。</div>
+          <button class="ts-focus-btn" type="button" @click="addToTodayFocus">
+            <Icon name="target" :size="13" /> 设为今日重点
+            <span>只写今天的计划位，不改状态、日期或归属</span>
+          </button>
+        </div>
         <!-- AI 三入口是同一组工具；导出已上移到标题栏右侧。 -->
         <div class="ts-action-bar">
           <div class="ts-ai-group" role="group" aria-label="AI 任务工具">
@@ -525,6 +582,78 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+.ts-plan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ts-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ts-plan-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+.ts-plan-field input {
+  min-width: 0;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+}
+
+.ts-plan-field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.ts-plan-note {
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  line-height: 1.6;
+}
+
+.ts-focus-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  color: var(--accent-ink);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ts-focus-btn span {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 400;
+}
+
+.ts-focus-btn:hover {
+  border-color: var(--accent);
+}
 
 /* 任务抽屉：外框、标题槽、正文滚动与页脚由 Drawer.vue 统一承担。 */
 .ts-title-wrap { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 8px; }

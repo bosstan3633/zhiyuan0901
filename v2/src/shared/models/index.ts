@@ -472,6 +472,10 @@ export interface FocusSlot {
   text: string
   done: boolean
   doneAt?: number
+  /** V4.3.1：从历史日期复制到今天时保留的完成快照；任务卡仍是当前状态的唯一真源。 */
+  statusSnapshot?: 'todo' | 'doing' | 'done'
+  /** V4.3.1：该槽位是从哪一天复制而来的，仅用于表达来源与只读快照。 */
+  copiedFrom?: string
   /**
    * R169-T3（可选，零迁移）：这一格是**系统自动写入的推荐**，不是用户自己挑的。
    * 只用来显示「✦ 荐」标与"用户动过就不再插手"的判据 —— 用户手工选/改/勾过的格子把它清掉，

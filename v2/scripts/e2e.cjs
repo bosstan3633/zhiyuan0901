@@ -10,7 +10,7 @@
  *   E2E-34 ★V4.0.4 旧 Airtable 深链归并到云同步关系总览
  *   E2E-35 ★R4-De 池卡定位落调度台卡池（采集后 Enter 那条链路不再跳死页）
  *   E2E-36 ★R4-Dg 导出 Markdown 含池卡 + 台名走单源（「资源卡池」）
- *   E2E-4  ★W17-C01 重指：调度台右栏「未归档」→ 中央只读明细弹窗（原地不改路由 / 只读 / Esc 可关 / 焦点回归）
+ *   E2E-4  ★V4.3.1 重指：右栏退役后，「未归档」由任务工作面快捷筛选承接（原地生效 / 不改路由）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
  *   E2E-7  V3.9.1 三类“查看全部”独立二级路由：任务/好奇心/资源各自可直达，二级页无新建入口
@@ -293,47 +293,42 @@ async function main() {
   const treeRows = await page.locator('.gs-tt-row').count()
   report('E2E-3 全景退役归零 + 标签双栏仍两列', panNodes === 0 && navPan === 0 && wrapCols === 2 && treeRows >= 1, `panNodes=${panNodes} navPan=${navPan} cols=${wrapCols} treeRows=${treeRows}`)
 
-  // E2E-4（V3.9.1 重指 → ★W17-C01 再重指，2026-10-21）：右栏「今天的状态」三行不再跳页。
-  //   原用例守的是「未归档读数 → 独立任务二级页 → 状态筛选预选 unarchived」这条跳页链路；
-  //   W17-C01 把三行改成**中央只读明细弹窗**（用户拍板：说 A 给 B），跳页行为已被产品明确废弃。
-  //   ⇒ 判据重指为守**新契约**（纪律：只增不减、重指不删除，理由写进本注释）：
-  //     ① 右栏三行仍在（.stat-row）
-  //     ② 点「未归档」→ 中央弹窗出现，标题含「未归档任务明细」
-  //     ③ **URL 不变**（这是 C01 的核心：原地弹窗，不改路由）
-  //     ④ 明细只读：行内无可点语义（role=button / tabindex=0 / cursor:pointer）
-  //     ⑤ Esc 可关，关闭后焦点回到触发按钮
-  //   任务二级页那条链路已由 E2E-7 覆盖（#/deck/task 直达 + 二级页零新建入口）。
+  // E2E-4（V3.9.1 重指 → W17-C01 → ★V4.3.1 再重指）：右栏「今天的状态」与中央未归档明细弹窗
+  //   均随任务驱动改版退役。能力没有丢，落点改为首页任务工作面的“未归档”快捷筛选：
+  //     ① 右栏 .side-rail 与旧 .stat-row 零回流；
+  //     ② 点「未归档」后按钮原地选中，任务池直接收窄，不跳二级页、不改路由；
+  //     ③ 收窄后的每张任务卡都带“去归位”出口，证明不是只换了高亮而没有真实过滤。
+  //   完整任务盘点仍由 E2E-7 的 #/deck/task 二级工作面覆盖。
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(async (cur) => {
+    const data = cur['zy_data_v2']
+    if (!data) return
+    const now = Date.now()
+    data.tasks = (data.tasks || []).filter(task => task.id !== 'e2e-task-unarchived-filter')
+    data.tasks.push({
+      id: 'e2e-task-unarchived-filter', kind: 'task', title: 'E2E 未归档筛选任务',
+      projectId: '', metricId: '', status: 'todo', priority: 'medium',
+      mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [],
+      subtasks: [], pinned: false, createdAt: now, updatedAt: now,
+    })
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }))
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  const sideRail = page.locator('.side-rail').first()
-  const unarchivedRow = sideRail.locator('.stat-row').filter({ hasText: '未归档' }).first()
-  const sideRailOn = await sideRail.isVisible().catch(() => false)
-  const unarchivedText = ((await unarchivedRow.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  const sideRailGone = (await page.locator('.side-rail, .stat-row').count()) === 0
+  const unarchivedFilter = page.locator('.task-work-quick button').filter({ hasText: '未归档' }).first()
+  const unarchivedText = ((await unarchivedFilter.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
   const urlBeforeClick = page.url()
-  await unarchivedRow.click().catch(() => {})
-  await page.waitForTimeout(1500)
-  const urlAfterClick = page.url()
-  const statusModal = page.locator('.md-panel').filter({ hasText: '未归档任务明细' }).first()
-  const statusModalOn = await statusModal.isVisible().catch(() => false)
-  const urlUnchanged = urlBeforeClick === urlAfterClick
-  /* 只读核验：明细行不得有可点语义（role=button / tabindex=0），且鼠标样式不是 pointer */
-  const detailRows = statusModal.locator('.sd-row')
-  const rowCount = await detailRows.count()
-  const clickableRows = await detailRows.evaluateAll(rows => rows.filter(r =>
-    r.getAttribute('role') === 'button' || r.getAttribute('tabindex') === '0'
-    || getComputedStyle(r).cursor === 'pointer').length).catch(() => -1)
-  /* Esc 可关 + 焦点回归触发按钮 */
-  await page.keyboard.press('Escape')
+  await unarchivedFilter.click().catch(() => {})
   await page.waitForTimeout(700)
-  const closedByEsc = !(await statusModal.isVisible().catch(() => false))
-  const focusBack = await page.evaluate(() => {
-    const el = document.activeElement
-    return !!(el && el.classList && el.classList.contains('stat-row'))
-  })
-  report('E2E-4 ★W17-C01 / V3.9.14 右栏「未归档」→ 中央明细弹窗（原地不改路由 · 文本可选 · 显式动作 · Esc 可关 · 焦点回归）',
-    sideRailOn && unarchivedText.includes('未归档') && statusModalOn && urlUnchanged
-    && rowCount >= 0 && clickableRows === 0 && closedByEsc && focusBack,
-    `rail=${sideRailOn} row="${unarchivedText.slice(0, 32)}" modal=${statusModalOn} url不变=${urlUnchanged} 明细行=${rowCount} 可点行=${clickableRows} Esc关=${closedByEsc} 焦点回归=${focusBack}`)
+  const urlAfterClick = page.url()
+  const unarchivedActive = await unarchivedFilter.evaluate(el => el.classList.contains('on')).catch(() => false)
+  const urlUnchanged = urlBeforeClick === urlAfterClick
+  const unarchivedRows = await page.locator('.cal-pool-task').count()
+  const assignableRows = await page.locator('.cal-pool-task .cal-assign').count()
+  const allRowsUnarchived = unarchivedRows > 0 && assignableRows === unarchivedRows
+  report('E2E-4 ★V4.3.1 右栏退役后「未归档」由任务工作面承接：快捷筛选原地生效、不改路由，结果行均带归位出口',
+    sideRailGone && unarchivedText.includes('未归档') && unarchivedActive && urlUnchanged && allRowsUnarchived,
+    `sideRailGone=${sideRailGone} filter="${unarchivedText.slice(0, 32)}" active=${unarchivedActive} url不变=${urlUnchanged} 行=${unarchivedRows} 归位口=${assignableRows}`)
 
   // E2E-49（V3.9.22）：主攻行点击直接打开可编辑项目详情中央弹窗。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -370,23 +365,30 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1800)
-  /* ★V3.9.22：主攻名回到右栏「今天的状态」同一行常驻；页头锚行和主栏主攻面板均已退役。
-     点击项目名仍直接打开项目详情，但容器改为中央弹窗，且详情可编辑。 */
-  const focusStatusRow = page.locator('.stat-focus-links .stat-focus-link').filter({ hasText: 'E2E 状态主攻项目' }).first()
-  await focusStatusRow.click().catch(() => {})
-  await page.waitForTimeout(1000)
-  const focusDetail = page.locator('.drawer.drawer-mode-modal').filter({ hasText: 'E2E 状态主攻项目' }).first()
-  const focusDetailOn = await focusDetail.isVisible().catch(() => false)
-  const focusDetailEditable = await focusDetail.locator('.pd-name[contenteditable="true"]').first().isVisible().catch(() => false)
-  const focusSideDrawerOn = await page.locator('.drawer:not(.drawer-mode-modal)').filter({ hasText: 'E2E 状态主攻项目' }).first().isVisible().catch(() => false)
-  const oldFocusPanelGone = (await page.locator('.focus-projects').count().catch(() => -1)) === 0
-  const focusCentered = await focusDetail.evaluate((el) => {
-    const r = el.getBoundingClientRect()
-    return Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 40
-  }).catch(() => false)
-  report('E2E-49（V3.9.22 重指）主攻项目直达：右栏「今天的状态」项目名打开可编辑项目详情中央弹窗；主栏旧面板与右侧滑出均不回流',
-    focusDetailOn && focusDetailEditable && !focusSideDrawerOn && oldFocusPanelGone && focusCentered,
-    `中央弹窗=${focusDetailOn} 可编辑=${focusDetailEditable} 右侧抽屉=${focusSideDrawerOn} 旧面板归零=${oldFocusPanelGone} 居中=${focusCentered}`)
+  /* ★V4.3.1 再重指：右栏「今天的状态」退役后，主攻项目不再是独立读数行，而是任务工作面的
+     一等工作口径。本用例守住新链路：主攻快捷筛选 → 只剩该项目任务 → 点任务打开右侧详情。
+     项目详情自身的就地编辑能力仍由 E2E-62 在方向台覆盖，能力没有丢。 */
+  const focusFilter = page.locator('.task-work-quick button').filter({ hasText: '主攻项目' }).first()
+  const focusFilterVisible = await focusFilter.isVisible().catch(() => false)
+  const urlBeforeFocusFilter = page.url()
+  await focusFilter.click().catch(() => {})
+  await page.waitForTimeout(700)
+  const focusFilterActive = await focusFilter.evaluate(el => el.classList.contains('on')).catch(() => false)
+  const focusTaskRow = page.locator('.cal-pool-task').filter({ hasText: 'E2E 状态明细任务' }).first()
+  const focusTaskVisible = await focusTaskRow.isVisible().catch(() => false)
+  const focusTaskShowsProject = ((await focusTaskRow.innerText().catch(() => '')) || '').includes('E2E 状态主攻项目')
+  await focusTaskRow.locator('.cal-task-copy').click().catch(() => {})
+  await waitForLocator(page, '.drawer:not(.drawer-mode-modal)', { visible: true, timeout: 8000 })
+  const focusTaskDrawer = page.locator('.drawer:not(.drawer-mode-modal)').first()
+  const focusTaskDrawerOn = await focusTaskDrawer.isVisible().catch(() => false)
+  const focusTaskDrawerTitle = await focusTaskDrawer.locator('.ts-title').first().inputValue().catch(() => '')
+  const focusFilterKeepsRoute = page.url() === urlBeforeFocusFilter
+  const oldFocusPanelGone = (await page.locator('.focus-projects, .side-rail').count().catch(() => -1)) === 0
+  report('E2E-49 ★V4.3.1 主攻项目改由任务工作面承接：快捷筛选原地生效，主攻任务可见项目归属并可打开任务详情；旧右栏与旧主攻面板零回流',
+    focusFilterVisible && focusFilterActive && focusTaskVisible && focusTaskShowsProject
+      && focusTaskDrawerOn && focusTaskDrawerTitle === 'E2E 状态明细任务'
+      && focusFilterKeepsRoute && oldFocusPanelGone,
+    `筛选=${focusFilterVisible}/${focusFilterActive} 任务=${focusTaskVisible} 项目归属=${focusTaskShowsProject} 详情=${focusTaskDrawerOn}/${focusTaskDrawerTitle} 路由不变=${focusFilterKeepsRoute} 旧面板归零=${oldFocusPanelGone}`)
 
   // E2E-5 PDF 双击 file:// 打开：走策展画布上的资源 chip（现役入口）
   await page.goto(base + '#/workspace/' + seedWsId, { waitUntil: 'domcontentloaded' })
@@ -526,7 +528,7 @@ async function main() {
   }
   const deckOk = deckChecks.every(x => x.panel && x.newButtons === 0 && x.importButton === 0)
   const oldTabsGone = (await page.locator('.bt-tab').count()) === 0
-  // 切换三类卡后，点“返回调度台”必须直达两栏首页，而不是在 /deck 路由之间回退。
+  // 切换三类卡后，点“返回调度台”必须直达单列任务工作面，而不是在 /deck 路由之间回退。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1000)
   await page.evaluate(() => { location.hash = '#/deck/task' })
@@ -542,7 +544,7 @@ async function main() {
     deckOk && oldTabsGone && backHome,
     deckChecks.map(x => `${x.kind}:panel=${x.panel},new=${x.newButtons},import=${x.importButton}`).join(' | ') + ` oldTabs=${oldTabsGone} backHome=${backHome}`)
 
-  // E2E-8 V3.9.1 两栏调度台：左工作单 + 手边卡，右案头栏；旧的纵向卡片堆叠与卡内子任务视口退役。
+  // E2E-8 V4.3.1 任务驱动调度台：今日三件事 + 完整任务池 + 月历；旧双栏案头栏与卡内子任务视口退役。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   /* ★R175-补：两栏骨架出现即继续（不等死 2500ms）。 */
   await waitForLocator(page, '.work-board', { timeout: 10000 })
@@ -551,6 +553,8 @@ async function main() {
     focusRows: document.querySelectorAll('.focus-row').length,
     handBoard: !!document.querySelector('.hand-board'),
     handGrid: !!document.querySelector('.hand-grid'),
+    taskWorkbench: !!document.querySelector('.task-workbench'),
+    calendar: !!document.querySelector('.task-calendar'),
     sideRail: !!document.querySelector('.side-rail'),
     oldCuration: !!document.querySelector('.card.curation'),
     oldSubs: !!document.querySelector('.tc-subs'),
@@ -562,10 +566,10 @@ async function main() {
   /* ★R175-补：抽屉真出现即继续。 */
   await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
   const drawerOpened = await page.locator('.drawer').first().isVisible().catch(() => false)
-  report('E2E-8 V3.9.1 两栏调度台：工作单 + 手边卡预览 + 案头栏；旧纵向卡面退役；整行点击打开右侧任务详情',
-    home.workBoard && home.focusRows === 3 && home.handBoard && home.handGrid && home.sideRail
+  report('E2E-8 V4.3.1 任务驱动调度台：今日三件事 + 完整任务池与月历；旧双栏案头栏退役；整行点击打开任务详情',
+    home.workBoard && home.focusRows === 3 && home.handBoard && home.taskWorkbench && home.calendar && !home.sideRail
       && !home.oldCuration && !home.oldSubs && drawerOpened,
-    `workBoard=${home.workBoard} focusRows=${home.focusRows} handBoard=${home.handBoard} handGrid=${home.handGrid} sideRail=${home.sideRail} oldCuration=${home.oldCuration} oldSubs=${home.oldSubs} drawer=${drawerOpened}`)
+    `workBoard=${home.workBoard} focusRows=${home.focusRows} handBoard=${home.handBoard} taskWorkbench=${home.taskWorkbench} calendar=${home.calendar} handGrid=${home.handGrid} sideRail=${home.sideRail} oldCuration=${home.oldCuration} oldSubs=${home.oldSubs} drawer=${drawerOpened}`)
 
   // E2E-9 存量回填迁移（R46 BUG-2）：重新加载页面触发 init 回填 → task-2 补齐 projectId + projBackfillFixed 记录
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -795,7 +799,7 @@ async function main() {
       && dsAugL2 >= 1 && dsBadge.includes('2026-08-15') && dsWrittenOk && dsWritten.has && dsWritten.add >= 1,
     `年度段=${yearModuleOn} 战报=${heatBattle.open} 战报日=${heatBattle.sub} 点格日=${heatTargetDay} 单行全年=${dsYearOn} 8月l2格=${dsAugL2} note="${(dsBadge || '').replace(/\s+/g, ' ').slice(0, 60)}" 种卡=${dsSeeded.card} 种子写戳=${!!dsSeeded.wid} 卡=${dsCard} 抽屉=${dsDrawer} 保存钮=${dsSaveBtn} 今日落盘=${JSON.stringify(dsWritten)}`)
 
-  // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档格随 MetricBar 迁调度台（E2E-4 已覆盖）
+  // E2E-11 方向台首屏（★R3-B1 树即一级）：项目卡头渲染；未归档入口现由 E2E-4 的调度台任务筛选覆盖
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const data = cur['zy_data_v2']
     if (!data) return
@@ -813,7 +817,7 @@ async function main() {
   await page.waitForSelector('.tw-head', { timeout: 8000 }).catch(() => {})
   const goalChip = await page.locator('.tw-head').first().isVisible().catch(() => false)
   const offCourseGone = !(await page.getByText('偏航行动').first().isVisible().catch(() => false))
-  report('E2E-11 ★R3-B1 方向台首屏=方向台项目舱卡头（.tw-head 可见 · 遗留投射字段不影响呈现 · 未归档格迁调度台由 E2E-4 覆盖）★W12随迁：呈现单位由已退役的 .tp-head 改钉 .tw-head',
+  report('E2E-11 ★R3-B1 方向台首屏=方向台项目舱卡头（.tw-head 可见 · 遗留投射字段不影响呈现 · 未归档入口由 E2E-4 的调度台任务筛选覆盖）★W12随迁：呈现单位由已退役的 .tp-head 改钉 .tw-head',
     goalChip && offCourseGone,
     `heads=${goalChip} offCourseGone=${offCourseGone}`)
 
@@ -1719,14 +1723,16 @@ async function main() {
     `塔内项目=${!!towerProjectSaved} 全景项目=${!!panoProjectSaved} 指标=${!!metricSaved}`)
 
 
-  // E2E-21（V3.9.14 重指）：调度台「今日战报」已从页脚移到页头动作区，与「为什么这样排」并排；
+  // E2E-21（V3.9.14 重指 → ★V4.3.1 随迁）：调度台页头动作区现由「AI 推荐今日重点 / 今日战报 /
+  //   为什么这样排」三枚组成。本条守“今日战报与解释入口同排”，不再把第一枚非战报按钮误认成解释入口。
   //   行为不变：不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。
   // 本用例守「入口真的连到组件」与「位置符合本轮拍板」两件事。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   const battleBtn = page.locator('.desk-actions .battle-trigger').first()
   const battleBesideWhy = await battleBtn.evaluate((el) => {
-    const why = el.parentElement?.querySelector('.why-trigger:not(.battle-trigger)')
+    const why = [...(el.parentElement?.querySelectorAll('.why-trigger:not(.battle-trigger)') || [])]
+      .find(node => (node.textContent || '').includes('为什么这样排'))
     if (!why) return false
     const a = el.getBoundingClientRect(), b = why.getBoundingClientRect()
     return Math.abs(a.top - b.top) <= 2 && a.left < b.left
@@ -1742,7 +1748,7 @@ async function main() {
   await battleCloseBtn.click().catch(() => {})
   await page.waitForTimeout(700)
   const battleClosed = !(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))
-  report('E2E-21 V3.9.14 调度台页头「今日战报」与「为什么这样排」并排，就地开弹窗并可关闭',
+  report('E2E-21 ★V4.3.1 调度台页头「今日战报」与「为什么这样排」同排，就地开弹窗并可关闭',
     battleBtnText.includes('今日战报') && battleBesideWhy && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
     `btn="${battleBtnText}" 并排=${battleBesideWhy} modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
 

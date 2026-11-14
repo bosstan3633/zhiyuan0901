@@ -464,10 +464,12 @@ check('W12-D4 ★V3.9.1 随迁备案：热力图仍不得回调度台；原「�
   return read('/newtab/components/profile/PiYear.vue').includes('Heatmap');
 });
 
-check('W12-D5 ★V3.9.1 随迁备案：空槽仍必须是明确入口，不许静默回落。现役形态为空行「从任务库选取」，点击打开带搜索/项目/状态筛选的弹窗；FocusDetail 的旧空槽分支保留为能力证据，但首页不再以隐式选中态渲染它', () => {
+check('W12-D5（V4.3.1 重指）★空槽仍是明确入口：今日三件事空位直接写“选择第 N 件重点/从任务池选择”，点击打开带搜索、项目、状态筛选的选取弹窗；旧隐式选中态不回流', () => {
   const ch = read('/newtab/views/CompassHome.vue');
   const fd = read('/newtab/components/compass/FocusDetail.vue');
-  if (!ch.includes('class="focus-row empty-row"')) return false;
+  if (!/class="focus-row focus-card empty-row"/.test(ch)) return false;
+  if (!ch.includes('选择第 {{ c.idx + 1 }} 件重点')) return false;
+  if (!ch.includes('从任务池选择')) return false;
   if (!ch.includes('@click="openPicker(c.idx)"')) return false;
   if (!ch.includes('class="picker-modal"')) return false;
   if (!ch.includes('v-model="pickerProject"') || !ch.includes('v-model="pickerStatus"')) return false;

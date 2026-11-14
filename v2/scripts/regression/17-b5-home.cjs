@@ -22,15 +22,13 @@ console.log('【B5-b · V3.8.32：调度台（M3 / M4 / M5）】');
 
 /* ============ M3 · 主角收束 ============ */
 check('M3-1 ★V3.9.1 随迁备案：空计划位仍是「主行动」而不是缺一块。空行走 accent 虚线图标 + 明确文案，整行保持不透明，不用半透明暗示禁用', () => {
-  const rule = (HOME.match(/^\.empty-row \{[^}]*\}/m) || [''])[0];
-  if (!rule) { console.log('     规则缺失'); return false; }
-  const hasOpacity = /opacity:\s*\.?[0-8]/.test(rule);
-  if (hasOpacity) console.log('     仍在整格降透明：' + rule.slice(0, 120));
   const plus = (HOME.match(/^\.empty-plus \{[^}]*\}/m) || [''])[0];
-  return HOME.includes('class="focus-row empty-row"')
+  const emptyRule = (HOME.match(/^\.focus-row\.focus-card\.empty-row,[\s\S]*?\{[^}]*\}/m) || [''])[0];
+  return HOME.includes('class="focus-row focus-card empty-row"')
     && plus.includes('border: 1px dashed')
-    && HOME.includes('从任务库选取')
-    && !hasOpacity;
+    && HOME.includes('从任务池选择')
+    && !!emptyRule
+    && !/opacity:\s*\.?[0-8]/.test(emptyRule);
 });
 
 check('M3-2 ★V3.9.1 随迁备案：三件事工作单只保留一个主行动——空行点开任务库；选中任务后立即转成计划行，不再出现第二枚实底主按钮', () => {
@@ -42,7 +40,7 @@ check('M3-2 ★V3.9.1 随迁备案：三件事工作单只保留一个主行动�
   const seg = i >= 0 && j > i ? HOME.slice(i, j) : '';
   if (!seg) { console.log('     切片为空（模板标记漂移）'); return false; }
   if (seg.includes('mini-btn primary')) console.log('     hero 段内仍有实底主按钮');
-  return seg.includes('class="focus-row empty-row"')
+  return seg.includes('class="focus-row focus-card empty-row"')
     && seg.includes('@click="openPicker(c.idx)"')
     && !seg.includes('mini-btn primary');
 });
@@ -70,12 +68,13 @@ check('M4-2 宿主不渲染常驻卡：TodayBattleHost 的可见内容全部挂�
 });
 
 /* ============ M5 · 三卡同构 ============ */
-check('M5-1 ★V3.9.1 随迁备案：两张主工作板共用 lg 圆角；三张卡不再各自起框，而是同一块手边板内的三列', () => {
+check('M5-1（V4.3.1 重指）两张主工作板共用 lg 圆角；三卡页签共用同一块卡片池，任务页承载完整工作面，另两页仍用 hand-grid / hand-col 承接预览', () => {
   const rule = (HOME.match(/^\.work-board,\n\.hand-board \{[^}]*\}/m) || [''])[0];
   if (!rule) { console.log('     规则缺失'); return false; }
   return rule.includes('border-radius: var(--radius-lg)')
     && rule.includes('background: var(--surface)')
-    && HOME.includes('class="hand-grid"');
+    && HOME.includes('class="hand-grid hand-grid-aux"')
+    && HOME.includes('class="hand-col"');
 });
 
 check('M5-2 卡内单元同圆角：任务卡 / 好奇心卡 / 资源卡的卡片本体都取 md（原来好奇心卡是 sm，差一档就让"同一族的卡"看起来像两套东西）', () => {

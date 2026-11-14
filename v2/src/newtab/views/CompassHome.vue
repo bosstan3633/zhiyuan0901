@@ -3,7 +3,7 @@
 // R65-F7：KeepAlive 缓存实例名（App.vue router-view include）
 // R49（V2.22.0）三大系统页改版：本页 = 调度台（默认首页）
 // - 今日记录条（入台/移出/调出/写入记录，点击开抽屉）
-// - 左右分栏：桌面端按行共用模块边界，左=今日三件事 / 手边的卡，右=今天的状态 / 最近调出
+// - 任务驱动单列工作面：今日三件事 + 完整任务池与月历
 // - 好奇心培育已退役；好奇心入口保留在「手边的卡」页签
 // ★W17-C02（2026-10-20）：本地那份「双击打开链接」小实现退役（不记调出、不分流三态、失败静默），
 // 全库统一走 useResourceOpen —— 同一个动作只允许一个实现，且它返回成败供单击分流。
@@ -30,11 +30,13 @@ import type { SaveError } from '@/shared/storage/repository'
 import type { TaskCard, Project, FocusSlot, CuriosityCard, ResourceCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import TaskCalendarView from '../components/compass/TaskCalendarView.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import { emitOpenDrawer } from '@/shared/utils/bus'
@@ -50,7 +52,8 @@ const {
   refreshWce, unarchivedTaskCount, taskArchiveIssue, openResourceLink, previewOpen,
   previewUrl, previewName, closePreview, drawerRef, formatDate,
   formatFullDate, dateStr, midnightOf, todayStart, midnightTimer,
-  scheduleMidnightRollover, todayDate, shiftDate, todayFocusList, FOCUS_LIMIT,
+  scheduleMidnightRollover, todayDate, shiftDate, setFocusDate, focusDateValue, todayFocusList, FOCUS_LIMIT,
+  focusIsHistorical, focusSlotStatusLabel, focusSlotStatusIcon, focusSlotStatusClass, focusSlotDone,
   focusFull, focusCells, focusCellAt, todayKey, localWhy,
   aiWhy, whyOpen, whyBadge, focusAiBusy, focusMoreOpen,
   whyOf, whyIsAi, focusHasRec, focusWeekTotals, ensureAutoFocus,
@@ -59,7 +62,7 @@ const {
   todayTaskForSlot, toggleSlotSub, pickerOpen, pickerSlot, pickerSearch,
   pickerStatus, pickerProject, openPicker, selectTaskForSlot, pickerCandidates,
   pickerProjectOptions, pickedIds, pickerDisabled, selectTaskGuarded, removeTodaySlot,
-  copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
+  copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
   openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
   projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
   focusCopyText, focusCopyReason, copyFocusText,
@@ -78,6 +81,12 @@ const {
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
   openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
   focusSlotSourceLabel,
+  taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
+  taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
+  taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus,
+  taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
+  taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,
+  focusTaskTarget, requestTaskFocus, replaceTaskFocus, closeTaskFocusReplace,
 } = useCompassHome()
 </script>
 
@@ -86,9 +95,12 @@ const {
     <header class="desk-head">
       <div class="desk-heading">
         <div class="desk-kicker">调度台 · {{ formatFullDate(todayDate) }}</div>
-        <h1>今天，先做这三件。</h1>
+        <h1>调度台</h1>
       </div>
       <div class="desk-actions">
+        <button class="why-trigger focus-ai-trigger" type="button" title="按主攻项目、计划执行日期与任务状态推荐今日重点" @click="reshuffleFocus">
+          <AiEntryButton variant="inline" label="AI 推荐今日重点" />
+        </button>
         <button class="why-trigger battle-trigger" type="button" @click="openReview">
           <Icon name="trendup" :size="13" />
           <span>今日战报</span>
@@ -129,23 +141,25 @@ const {
       </div>
     </header>
 
-    <div ref="deskLayoutRef" class="desk-layout">
+    <div ref="deskLayoutRef" class="desk-layout desk-layout-single">
       <main class="desk-main">
         <section id="zy-mod-tasks" ref="workBoardRef" class="work-board desk-row desk-row-primary" :class="{ 'all-done': focusAllDone }" aria-labelledby="focusTitle">
           <header class="board-head">
             <div class="board-title">
               <span class="board-ico"><Icon name="compass" :size="18" /></span>
               <div>
-                <h2 id="focusTitle">今日三件事</h2>
-                <span class="board-count">{{ focusDoneCount }} / {{ Math.max(todayFocusList.length, 1) }} 完成 · 计划位 {{ todayFocusList.length }}/3</span>
+                <h2 id="focusTitle">今天，先做这三件</h2>
+                <span class="board-count">{{ focusDoneCount }} / 3 完成 · 计划位 {{ todayFocusList.length }}/3 · 手动选择不会被 AI 覆盖</span>
               </div>
             </div>
             <div class="board-tools">
               <button class="icon-btn" type="button" title="前一天" aria-label="前一天" @click="shiftDate(-1)"><Icon name="arrowleft" :size="14" /></button>
-              <button class="date-btn" type="button" title="回到今天" @click="todayDate = new Date()">{{ formatDate(todayDate) }}</button>
+              <input v-model="focusDateValue" class="focus-date-input" type="date" :max="todayKey" aria-label="查看指定日期的三件事" title="查看指定日期的三件事">
               <button class="icon-btn" type="button" title="后一天" aria-label="后一天" @click="shiftDate(1)"><Icon name="arrowright" :size="14" /></button>
+              <button v-if="focusIsHistorical" class="quiet-btn" type="button" title="回到今天" @click="setFocusDate(todayKey)">今天</button>
               <span class="tool-sep" />
-              <button class="quiet-btn" type="button" title="把昨天的三件事复制到今天" @click="copyYesterday"><Icon name="copy" :size="13" /> 复制昨日</button>
+              <button v-if="focusIsHistorical" class="quiet-btn copy-to-today" type="button" title="把当前日期的三件事、状态和复选框快照复制到今天" @click="copyFocusToToday"><Icon name="copy" :size="13" /> 复制到今日</button>
+              <button v-else class="quiet-btn" type="button" title="把昨天的三件事复制到今天" @click="copyYesterday"><Icon name="copy" :size="13" /> 复制昨日</button>
               <div class="focus-more-wrap">
                 <button class="icon-btn" type="button" title="更多" aria-label="更多" :aria-expanded="focusMoreOpen" @click.stop="focusMoreOpen = !focusMoreOpen"><Icon name="menu" :size="14" /></button>
                 <div v-if="focusMoreOpen" class="focus-more-menu" role="presentation" data-a11y-container @click.stop>
@@ -160,23 +174,17 @@ const {
 
           <div class="focus-list">
             <template v-for="c in focusCells" :key="c.idx">
-              <div v-if="c.task" class="focus-row" :class="{ done: c.slot?.done }" role="button" tabindex="0"
+              <article v-if="c.task" class="focus-row focus-card" :class="{ done: c.slot && focusSlotDone(c.slot), historical: focusIsHistorical }" role="button" tabindex="0"
                 @click="openCellTask(c)" @keydown.enter.prevent="openCellTask(c)" @keydown.space.prevent="openCellTask(c)">
-                <button class="row-check" :class="{ done: c.slot?.done }" type="button" :aria-label="c.slot?.done ? '取消完成' : '标记完成'" @click.stop="c.slot && toggleTodayDone(c.slot)">
-                  <Icon v-if="c.slot?.done" name="check" :size="14" />
+                <button class="row-check" :class="{ done: c.slot && focusSlotDone(c.slot), readonly: focusIsHistorical }" type="button" :aria-label="c.slot && focusSlotDone(c.slot) ? '已完成（历史快照只读）' : focusIsHistorical ? '未完成（历史快照只读）' : '切换完成状态'" @click.stop="c.slot && toggleTodayDone(c.slot)">
+                  <Icon v-if="c.slot && focusSlotDone(c.slot)" name="check" :size="14" />
                 </button>
                 <div class="row-main">
+                  <span class="focus-num">{{ String(c.idx + 1).padStart(2, '0') }}</span>
                   <div class="row-title">
                     <NewBadge :at="c.task.createdAt" />
                     <span class="title-text">{{ c.slot?.text }}</span>
-                    <span v-if="c.slot?.auto === true" class="rec" data-testid="focus-rec"><Icon name="sparkle" :size="11" /> 荐</span>
-                    <button class="row-copy" type="button"
-                      :disabled="!focusCopyText(c)"
-                      :title="focusCopyReason(c)"
-                      :aria-label="focusCopyReason(c)"
-                      @click.stop="copyFocusText(c)">
-                      <Icon name="copy" :size="11" /><span class="copy-label">复制</span>
-                    </button>
+                    <span v-if="c.slot?.copiedFrom" class="snapshot-tag" :title="`复制自 ${c.slot.copiedFrom}，保留当时的状态快照`">历史快照</span>
                   </div>
                   <div class="row-meta">
                     <span><Icon name="package" :size="12" /> {{ projectName(c.task.projectId) }}</span>
@@ -185,15 +193,37 @@ const {
                     <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
                     <MaturityBadge :m="taskMaturity(c.task)" />
                   </div>
+                  <div v-if="c.slot?.auto === true" class="focus-reason-line">
+                    {{ whyOf(c.slot) || '主攻项目下可直接推进的事项' }}
+                  </div>
                 </div>
-                <div class="row-side">
-                  <span class="status" :class="taskStatusClass(c.task.status)"><Icon :name="taskStatusIcon(c.task.status)" :size="11" /> {{ taskStatusLabel(c.task.status) }}</span>
-                  <Icon name="arrowright" :size="14" class="row-chevron" />
-                </div>
-                <button class="row-remove" type="button" title="移出今日三件事（任务本体仍在任务库）" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
-              </div>
+                <footer class="focus-card-foot">
+                  <span class="status" :class="c.slot && focusSlotStatusClass(c.slot)"><Icon :name="c.slot ? focusSlotStatusIcon(c.slot) : taskStatusIcon(c.task.status)" :size="11" /> {{ c.slot ? focusSlotStatusLabel(c.slot) : taskStatusLabel(c.task.status) }}</span>
+                  <span class="focus-due"><Icon name="calendar" :size="11" /> {{ taskDueLabel(c.task) }}</span>
+                  <span v-if="c.slot?.auto === true" class="rec" data-testid="focus-rec"><Icon name="sparkle" :size="10" /> AI 荐</span>
+                  <span v-else class="focus-lock">手动锁定</span>
+                  <button class="focus-reason-btn" type="button" title="查看推荐理由" aria-label="查看推荐理由" @click.stop="toggleWhy"><Icon name="info" :size="13" /></button>
+                  <button class="row-copy" type="button"
+                    :disabled="!focusCopyText(c)"
+                    :title="focusCopyReason(c)"
+                    :aria-label="focusCopyReason(c)"
+                    @click.stop="copyFocusText(c)">
+                    <Icon name="copy" :size="11" /><span class="copy-label">复制</span>
+                  </button>
+                  <button v-if="!focusIsHistorical" class="row-remove" type="button" title="移出今日三件事（任务本体仍在任务库）" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
+                </footer>
+              </article>
 
-              <div v-else-if="c.slot && c.slot.sourceType === 'task'" class="focus-row stale-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)">
+              <article v-else-if="c.slot && c.slot.sourceType === 'task' && focusIsHistorical" class="focus-row focus-card stale-row history-row">
+                <span class="row-index">{{ String(c.idx + 1).padStart(2, '0') }}</span>
+                <div class="row-main">
+                  <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || '原任务已失效' }}</span></div>
+                  <div class="row-meta"><span>历史任务快照 · 只读保留当时的完成状态</span></div>
+                </div>
+                <span class="status" :class="focusSlotStatusClass(c.slot)"><Icon :name="focusSlotStatusIcon(c.slot)" :size="11" /> {{ focusSlotStatusLabel(c.slot) }}</span>
+              </article>
+
+              <article v-else-if="c.slot && c.slot.sourceType === 'task'" class="focus-row focus-card stale-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)">
                 <span class="row-index">{{ String(c.idx + 1).padStart(2, '0') }}</span>
                 <div class="row-main">
                   <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || '原任务已失效' }}</span></div>
@@ -201,80 +231,115 @@ const {
                 </div>
                 <span class="stale-action">重新选取 <Icon name="arrowright" :size="13" /></span>
                 <button class="row-remove" type="button" title="移出今日三件事" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
-              </div>
+              </article>
 
-              <div v-else-if="c.slot" class="focus-row non-task-row">
-                <button class="row-check" :class="{ done: c.slot.done }" type="button" :aria-label="c.slot.done ? '取消完成' : '标记完成'" @click.stop="toggleTodayDone(c.slot)">
-                  <Icon v-if="c.slot.done" name="check" :size="14" />
+              <article v-else-if="c.slot" class="focus-row focus-card non-task-row" :class="{ historical: focusIsHistorical }">
+                <button class="row-check" :class="{ done: focusSlotDone(c.slot), readonly: focusIsHistorical }" type="button" :aria-label="focusSlotDone(c.slot) ? '已完成（历史快照只读）' : focusIsHistorical ? '未完成（历史快照只读）' : '切换完成状态'" @click.stop="toggleTodayDone(c.slot)">
+                  <Icon v-if="focusSlotDone(c.slot)" name="check" :size="14" />
                 </button>
                 <div class="row-main">
-                  <div class="row-title"><span class="title-text">{{ c.slot.text }}</span></div>
+                  <span class="focus-num">{{ String(c.idx + 1).padStart(2, '0') }}</span>
+                  <div class="row-title"><span class="title-text">{{ c.slot.text }}</span><span v-if="c.slot.copiedFrom" class="snapshot-tag">历史快照</span></div>
                   <div class="row-meta"><span><Icon :name="c.slot.sourceType === 'text' ? 'edit' : 'package'" :size="12" /> {{ focusSlotSourceLabel(c.slot) }}</span><span>不参与六层链</span></div>
                 </div>
-                <div class="row-side"><span class="status" :class="c.slot.done ? 'done' : 'todo'">{{ c.slot.done ? '已完成' : '未完成' }}</span></div>
-                <button class="row-remove" type="button" title="移出今日三件事" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
-              </div>
+                <div class="focus-card-foot"><span class="status" :class="focusSlotStatusClass(c.slot)">{{ focusSlotStatusLabel(c.slot) }}</span></div>
+                <button v-if="!focusIsHistorical" class="row-remove" type="button" title="移出今日三件事" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
+              </article>
 
-              <div v-else class="focus-row empty-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)" @keydown.space.prevent="openPicker(c.idx)">
+              <article v-else-if="focusIsHistorical" class="focus-row focus-card empty-row history-empty">
+                <span class="focus-num">{{ String(c.idx + 1).padStart(2, '0') }}</span>
+                <div class="row-main">
+                  <div class="row-title empty-title">这一天没有安排</div>
+                  <div class="row-meta"><span>历史日期只读，可点上方“复制到今日”继续推进。</span></div>
+                </div>
+              </article>
+
+              <article v-else class="focus-row focus-card empty-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)" @keydown.space.prevent="openPicker(c.idx)">
                 <span class="empty-plus"><Icon name="plus" :size="14" /></span>
                 <div class="row-main">
-                  <div class="row-title empty-title">从任务库选取</div>
-                  <div class="row-meta"><span>计划位 {{ c.idx + 1 }} · 选中后会立即打开右侧详情</span></div>
+                  <div class="row-title empty-title">选择第 {{ c.idx + 1 }} 件重点</div>
+                  <div class="row-meta"><span>从任务池选择，或让 AI 推荐</span></div>
                 </div>
-                <Icon name="arrowright" :size="14" class="row-chevron" />
-              </div>
+              </article>
             </template>
           </div>
 
           <div v-if="focusAllDone" class="done-banner"><Icon name="check" :size="13" /> 今日三件事已闭环 · 专注带来从容</div>
           <footer class="board-foot">
-            <span><Icon name="clock" :size="12" /> 整行点开详情 · 左侧勾选才算完成</span>
+            <span><Icon name="clock" :size="12" /> {{ focusIsHistorical ? '历史日期只读 · 完成状态按当天快照展示' : '整行点开详情 · 左侧勾选才算完成' }}</span>
             <span class="board-foot-spacer" />
             <span>Ctrl + ← / → 切换日期</span>
           </footer>
         </section>
 
-        <section ref="handBoardRef" class="hand-board desk-row desk-row-secondary" aria-labelledby="handTitle">
+        <section ref="handBoardRef" class="hand-board card-pool-board desk-row desk-row-secondary" aria-labelledby="handTitle">
           <header class="hand-head">
             <div class="hand-heading">
               <span class="board-ico"><Icon name="layers" :size="18" /></span>
               <div>
-                <h2 id="handTitle">手边的卡</h2>
-                <span class="hand-kicker">三池 · 只预览最近在用的 · 新建走扩展快捷键</span>
+                <h2 id="handTitle">卡片池</h2>
+                <span class="hand-kicker">采集的起点，任务的调度场 · 新建走浏览器扩展快捷键</span>
               </div>
             </div>
-            <!-- V4.3.0：移动采集与 Inbox 退役，只保留浏览器内三卡池。 -->
+            <!-- V4.3.0：移动采集入口与采集中转层已退役，只保留浏览器内三卡池。 -->
             <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
               <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">任务</button>
               <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">好奇心</button>
               <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">资源</button>
             </div>
+            <div class="hand-head-actions">
+              <button class="hand-link" type="button" @click="goDeck(handTab)">
+                {{ handTab === 'task' ? '列表 / 卡片 / 看板' : '查看全部' }}
+                <Icon name="arrowright" :size="12" />
+              </button>
+            </div>
           </header>
 
-          <div v-if="!hasAnyPreview" class="deck-empty">
-            <span class="deck-empty-icon"><Icon name="layers" :size="22" /></span>
-            <div><b>手边暂时没有卡</b><p>用扩展快捷键采集任务、好奇心或资源，采集后会回到这里展开分类。</p></div>
+          <div v-if="handTab === 'task'" class="task-workbench">
+            <div class="task-work-toolbar">
+              <label class="task-work-search">
+                <Icon name="search" :size="13" />
+                <input v-model="taskWorkSearch" placeholder="搜索任务、项目或指标" aria-label="搜索任务">
+              </label>
+              <select v-model="taskWorkProject" aria-label="按项目筛选任务">
+                <option value="">全部项目</option>
+                <option v-for="option in taskWorkProjectOptions" :key="option.id" :value="option.id">{{ option.name }}（{{ option.count }}）</option>
+              </select>
+              <select v-model="taskWorkStatus" aria-label="按任务状态筛选">
+                <option value="all">全部状态</option>
+                <option value="todo">待开始</option>
+                <option value="doing">进行中</option>
+                <option value="done">已完成</option>
+              </select>
+              <div class="task-work-quick" role="group" aria-label="任务快捷筛选">
+                <button type="button" :class="{ on: taskWorkQuick === 'all' }" @click="taskWorkQuick = 'all'">全部 <span>{{ taskWorkCounts.all }}</span></button>
+                <button type="button" :class="{ on: taskWorkQuick === 'unscheduled' }" @click="taskWorkQuick = 'unscheduled'">未排期 <span>{{ taskWorkCounts.unscheduled }}</span></button>
+                <button type="button" :class="{ on: taskWorkQuick === 'unarchived' }" @click="taskWorkQuick = 'unarchived'">未归档 <span>{{ taskWorkCounts.unarchived }}</span></button>
+                <button type="button" :class="{ on: taskWorkQuick === 'focus' }" @click="taskWorkQuick = 'focus'">主攻项目 <span>{{ taskWorkCounts.focus }}</span></button>
+                <button type="button" :class="{ on: taskWorkQuick === 'overdue' }" @click="taskWorkQuick = 'overdue'">已逾期 <span>{{ taskWorkCounts.overdue }}</span></button>
+              </div>
+              <label class="task-work-done-toggle">
+                <input v-model="taskWorkShowDone" type="checkbox">
+                显示已完成
+              </label>
+              <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = false">清空筛选</button>
+            </div>
+
+            <TaskCalendarView
+              :tasks="taskWorkFiltered"
+              :project-names="taskWorkProjectNames"
+              :metric-names="taskWorkMetricNames"
+              @open-task="openTaskWork"
+              @toggle-status="toggleTaskWorkStatus"
+              @assign-task="openTaskAssign"
+              @focus-task="requestTaskFocus"
+              @set-due="setTaskWorkDue"
+              @clear-due="clearTaskWorkDue"
+            />
           </div>
 
-          <div v-else class="hand-grid">
-            <section v-show="handTab === 'task'" class="hand-col" aria-labelledby="taskColTitle">
-              <header class="hand-col-head">
-                <Icon name="clipboard" :size="14" />
-                <b id="taskColTitle">任务卡</b>
-                <span class="hand-count">{{ liveTasks.length }}</span>
-                <button class="hand-link" type="button" @click="goDeck('task')">查看全部 <Icon name="arrowright" :size="12" /></button>
-              </header>
-              <div class="mini-list">
-                <button v-for="t in previewTasks" :key="t.id" class="mini-item" type="button" @click="openTaskPreview(t)">
-                  <span class="mini-check" :class="{ done: t.status === 'done' }"><Icon v-if="t.status === 'done'" name="check" :size="9" /></span>
-                  <span class="mini-copy"><span class="mini-title">{{ t.title }}</span><span class="mini-meta">{{ taskDueLabel(t) }}</span></span>
-                  <span class="mini-side" :class="{ 'status-doing': t.status === 'doing' }">{{ taskStatusLabel(t.status) }}</span>
-                </button>
-                <div v-if="!previewTasks.length" class="mini-empty">还没有任务卡</div>
-              </div>
-            </section>
-
-            <section v-show="handTab === 'curiosity'" class="hand-col" aria-labelledby="curioColTitle">
+          <div v-else-if="handTab === 'curiosity'" class="hand-grid hand-grid-aux">
+            <section class="hand-col" aria-labelledby="curioColTitle">
               <header class="hand-col-head">
                 <Icon name="bulb" :size="14" />
                 <b id="curioColTitle">好奇心卡</b>
@@ -290,8 +355,10 @@ const {
                 <div v-if="!previewCuriosities.length" class="mini-empty">还没有好奇心卡</div>
               </div>
             </section>
+          </div>
 
-            <section v-show="handTab === 'resource'" class="hand-col" aria-labelledby="resColTitle">
+          <div v-else class="hand-grid hand-grid-aux resource-tab-grid">
+            <section class="hand-col" aria-labelledby="resColTitle">
               <header class="hand-col-head">
                 <Icon name="filetext" :size="14" />
                 <b id="resColTitle">资源卡</b>
@@ -308,71 +375,25 @@ const {
               </div>
             </section>
 
+            <section class="hand-col recent-resource-panel" aria-labelledby="recentResTitle">
+              <header class="hand-col-head">
+                <Icon name="trendup" :size="14" />
+                <b id="recentResTitle">常调 Top 10</b>
+                <span class="hand-count">本周 {{ weeklyReuse }} 次</span>
+                <button class="hand-link" type="button" @click="goDeck('resource')">全部 <Icon name="arrowright" :size="12" /></button>
+              </header>
+              <div class="recent-list resource-recent-list">
+                <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" :title="r.link ? '单击打开链接 · 打不开则滑出详情' : '单击滑出详情'" @click="openRecentResource(r)">
+                  <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" />
+                  <span class="recent-copy"><span class="recent-title">{{ r.title }}</span><span class="recent-meta">{{ fmtRecentTime(r.lastCalledAt) }} · 打开 {{ r.callCount || 0 }} 次</span></span>
+                </button>
+                <div v-if="!recentResources.length" class="rail-empty">还没有调出记录。打开一张资源卡后，会出现在这里。</div>
+              </div>
+            </section>
           </div>
         </section>
 
       </main>
-
-      <aside class="side-rail" aria-label="案头侧栏">
-        <section class="rail-panel desk-row desk-row-primary">
-          <header class="rail-head">
-            <b>今天的状态</b>
-            <button type="button" @click="openReview">战报</button>
-          </header>
-          <div class="stat-list">
-            <!-- V3.9.18：读数改「今日入台 / 今日调出 / 未归档」（原型右栏）；本周复用挪最近调出头部。
-                 V3.9.22：主攻只在这里保留——页头锚行与主栏面板都已退役。
-                 口径与战报事件日志不同源，tooltip 与明细 note 明示，不冒充同源。 -->
-            <button class="stat-row" type="button" title="口径：今日 0 点起新建的三类卡（按创建时间）；与今日战报的事件计次口径不同" @click="openStatusDetail('in')">
-              <span class="sk">今日入台</span>
-              <span class="sv">{{ todayInCount }} 张</span>
-              <span class="se">明细</span>
-            </button>
-            <button class="stat-row" type="button" title="口径：今日 0 点起 lastCalledAt 落在今日的资源卡张数；与今日战报的事件计次口径不同" @click="openStatusDetail('out')">
-              <span class="sk">今日调出</span>
-              <span class="sv">{{ todayOutOps }} 次操作 <small>/ {{ todayOutCount }} 张卡</small></span>
-              <span class="se">明细</span>
-            </button>
-            <!-- V3.9.22：主攻最多两个，同一行并列。项目名各自可点并打开可编辑项目详情；
-                 不展示「下一步 / 完成度」，也不再恢复主攻卡片面板。 -->
-            <div v-if="mainFocus || extraFocus" class="stat-row stat-row-focus">
-              <span class="sk">主攻</span>
-              <span class="stat-focus-links">
-                <button v-if="mainFocus" class="stat-focus-link" type="button"
-                  :title="`${mainFocus.name} · 打开可编辑项目详情`" @click="openFocusProject(mainFocus)">{{ mainFocus.name }}</button>
-                <button v-if="extraFocus" class="stat-focus-link" type="button"
-                  :title="`${extraFocus.name} · 打开可编辑项目详情`" @click="openFocusProject(extraFocus)">{{ extraFocus.name }}</button>
-              </span>
-            </div>
-            <button v-else class="stat-row stat-row-empty" type="button" @click="router.push('/compass')">
-              <span class="sk">主攻</span>
-              <span class="sv">尚未指定</span>
-              <span class="se">去方向台</span>
-            </button>
-            <button class="stat-row" type="button" @click="openStatusDetail('unarchived')">
-              <span class="sk">未归档</span>
-              <span class="sv">{{ archivedCount }} / {{ liveTasks.length }} 件任务</span>
-              <span class="se">去归位</span>
-            </button>
-          </div>
-        </section>
-
-        <section class="rail-panel rail-panel-recent desk-row desk-row-secondary">
-          <header class="rail-head">
-            <b>常调 Top 10</b>
-            <button class="rail-chip" type="button" title="口径：本周一 0 点起被打开过的资源卡（wrr 周戳）；跨周清零" @click="openStatusDetail('reuse')">本周 {{ weeklyReuse }} 次</button>
-            <button type="button" @click="goDeck('resource')">全部</button>
-          </header>
-          <div v-if="recentResources.length" class="recent-list">
-            <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" :title="r.link ? '单击打开链接 · 打不开则滑出详情' : '单击滑出详情'" @click="openRecentResource(r)">
-              <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" />
-              <span class="recent-copy"><span class="recent-title">{{ r.title }}</span><span class="recent-meta">{{ fmtRecentTime(r.lastCalledAt) }} · 打开 {{ r.callCount || 0 }} 次</span></span>
-            </button>
-          </div>
-          <div v-else class="rail-empty">还没有调出记录。打开一张资源卡后，会出现在这里。</div>
-        </section>
-
-      </aside>
     </div>
 
     <!-- V3.9.26：状态轨移出双列内容网格，滚动时不再与右下模块争用同一吸附层。 -->
@@ -472,6 +493,77 @@ const {
           <div class="pm-export-desc">导出字段：任务内容 / 所属项目 / 项目›成功指标 / 任务状态 / 安排时间 / 创建时间</div>
         </div>
         <footer class="pm-foot"><span>导出为 UTF-8 CSV，可直接用表格软件打开。</span><button class="quiet-btn" type="button" @click="exportOpen = false">取消</button><button class="primary-btn" type="button" :disabled="exportBusy" @click="doExport"><Icon v-if="!exportBusy" name="download" :size="13" />{{ exportBusy ? '导出中…' : '导出 CSV' }}</button></footer>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-if="taskAssignOpen" class="overlay" @click="taskAssignOpen = false" />
+    </Transition>
+    <Transition name="modal">
+      <div v-if="taskAssignOpen && taskAssignTask" class="picker-modal task-assign-modal" role="dialog" aria-modal="true" aria-labelledby="taskAssignTitle">
+        <header class="pm-head">
+          <div>
+            <span id="taskAssignTitle"><Icon name="package" :size="13" /> 任务归位</span>
+            <small>{{ taskAssignTask.title }}</small>
+          </div>
+          <button class="pm-close" type="button" aria-label="关闭" @click="taskAssignOpen = false"><Icon name="x" :size="15" /></button>
+        </header>
+        <div class="pm-body">
+          <div class="task-assign-grid">
+            <label>
+              <span>所属项目</span>
+              <select v-model="taskAssignProject" class="pm-select" @change="changeTaskAssignProject(taskAssignProject)">
+                <option value="">未关联项目</option>
+                <option v-for="project in taskAssignProjects" :key="project.id" :value="project.id">{{ project.name }}<template v-if="project.isFocused"> · 主攻</template></option>
+              </select>
+            </label>
+            <label>
+              <span>成功指标</span>
+              <select v-model="taskAssignMetric" class="pm-select">
+                <option value="">未关联成功指标</option>
+                <option v-for="metric in taskAssignMetrics" :key="metric.id" :value="metric.id">{{ metric.title }}</option>
+              </select>
+            </label>
+          </div>
+          <p class="task-assign-note">缺项目或缺成功指标都会显示“未归档”。归位只更新任务归属，不修改计划执行日期和当前状态。</p>
+        </div>
+        <footer class="pm-foot">
+          <span>项目与成功指标会同步到任务池、月历和今日三件事。</span>
+          <button class="quiet-btn" type="button" @click="taskAssignOpen = false">取消</button>
+          <button class="primary-btn" type="button" @click="saveTaskAssign">保存归位</button>
+        </footer>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-if="focusTaskTarget" class="overlay" @click="closeTaskFocusReplace" />
+    </Transition>
+    <Transition name="modal">
+      <div v-if="focusTaskTarget" class="picker-modal focus-replace-modal" role="dialog" aria-modal="true" aria-labelledby="focusReplaceTitle">
+        <header class="pm-head">
+          <div>
+            <span id="focusReplaceTitle"><Icon name="target" :size="13" /> 替换今日重点</span>
+            <small>{{ focusTaskTarget.title }}</small>
+          </div>
+          <button class="pm-close" type="button" aria-label="关闭" @click="closeTaskFocusReplace"><Icon name="x" :size="15" /></button>
+        </header>
+        <div class="pm-body">
+          <p class="focus-replace-note">今天已有三件事。选择要替换的一格；原任务不会被删除，只会移出今天的计划位。</p>
+          <div class="focus-replace-list">
+            <button v-for="cell in focusCells" :key="'replace-' + cell.idx" type="button" @click="replaceTaskFocus(cell.idx)">
+              <span class="focus-replace-num">{{ String(cell.idx + 1).padStart(2, '0') }}</span>
+              <span class="focus-replace-copy">
+                <b>{{ cell.slot?.text || '空计划位' }}</b>
+                <small>{{ cell.slot?.auto === true ? 'AI 推荐位' : '手动锁定 · 确认后替换' }}</small>
+              </span>
+              <Icon name="arrowright" :size="13" />
+            </button>
+          </div>
+        </div>
+        <footer class="pm-foot">
+          <span>任务当前状态、计划执行日期与项目归属都不会改变。</span>
+          <button class="quiet-btn" type="button" @click="closeTaskFocusReplace">保留原重点</button>
+        </footer>
       </div>
     </Transition>
 

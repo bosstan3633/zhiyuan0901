@@ -103,6 +103,8 @@ const COMPONENT_AGGREGATES = {
     '/newtab/views/useCompassHome.ts',
     '/newtab/views/useCompassHomeStorage.ts',
     '/newtab/views/useCompassHomeDetail.ts',
+    '/newtab/components/compass/TaskCalendarView.vue',
+    '/newtab/components/compass/TaskCalendarView.css',
   ],
   '/newtab/views/CompassTree.vue': [
     '/newtab/views/CompassTree.css',
@@ -345,7 +347,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '4.3.0'";
+const VER_ANCHOR_LITERAL = "version: '4.3.1'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */

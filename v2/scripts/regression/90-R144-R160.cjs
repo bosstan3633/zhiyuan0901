@@ -367,10 +367,10 @@ check('R153-3 ★空态必须能自证：抽屉 0 行时给「看模型原文（
   return d.includes('看模型原文（') && d.includes('function copyRaw()') && d.includes('navigator.clipboard') && d.includes('showRaw.value = false')
 });
 
-check('R153-4（★V3.9.22 再重指带备案：主栏主攻面板退役后不再展示完成度百分比；「今天的状态」只保留并列项目名。指标条分母仍须中性可读，列数钮 24px）', () => {
+check('R153-4（V4.3.1 重指：主攻独立面板与右栏状态均退役；今日重点卡只保留任务语义，不再展示项目完成度百分比。指标条分母仍须中性可读，列数钮 24px）', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const mb = read('/newtab/components/compass/MetricBar.vue'); const cp = read('/shared/components/ColsPicker.vue')
-  return ch.includes('.stat-focus-links {')
-    && ch.includes('.stat-focus-link {')
+  return ch.includes('.focus-row.focus-card {')
+    && ch.includes('.focus-card-foot {')
     && !ch.includes('class="fp-num"')
     && !ch.includes('.fp-num {')
     && !ch.includes('class="fp-bar"')

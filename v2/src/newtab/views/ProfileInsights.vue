@@ -25,7 +25,8 @@
  * 数据桥口径不变：readEventLog 优先，空日志回退卡片时间派生；只读 store.data 快照，
  * 写操作只经 store.persist()（lifecycle 三写 + 报告落卡）。
  */
-/* ★W13-D5：ReviewPanel 弹窗挂载退役（2026-10-16）——组件文件保留待复用，宿主零 import。 */
+/* ★W13-D5：ReviewPanel 弹窗挂载退役（2026-10-16）——组件文件保留待复用，宿主零 import。
+   ★W13-T7：周期四尺度诊断入口随后整体退役，宿主不再构造 concise/conciseCtx，导出只保留事实读数。 */
 
 import Icon from '@/shared/components/Icon.vue'
 import '@/newtab/components/dashboard/dashboard.css'
@@ -51,9 +52,9 @@ import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
 import {
   computeTagEntropy, todayKey,
   computeTaskSupportRate, computeMainFocusShare, windowOf, tasksOfDirection,
-  buildConciseInsights, objectivesOf
+  objectivesOf
 } from '@/shared/utils/reviewReport'
-import type { DirLike, TaskLike, ConciseCtx } from '@/shared/utils/reviewReport'
+import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 import { aggregateRange } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
@@ -71,13 +72,11 @@ import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
 import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
 import TodayBattleHost from '@/newtab/components/dashboard/TodayBattleHost.vue'
-import EmptyState from '@/shared/components/EmptyState.vue'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import PiTagDistributionDrawer from '@/newtab/components/profile/PiTagDistributionDrawer.vue'
 import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
 import PiLifecycleSettingsModal from '@/newtab/components/profile/PiLifecycleSettingsModal.vue'
-import { profileDirectionFitText, profileExportLines } from '@/newtab/views/profileInsightsReport'
 import { useProfileInsights, type GFlat, type StatDrawerType, type StatRow, type TagOptimizeJob } from './useProfileInsights'
 const {
   router, store, gd, taskDetailRef, battleHost,
@@ -89,9 +88,9 @@ const {
   tagLists, heroEntropy, topTags, heroKindCounts, heroTopTags,
   heroSupportRate, heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds,
   focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
-  matchResourcesOf, todayRows, todayFilled, todayAmmo, conciseCtx,
-  concise, projDetailOpen, projDetailId, openProjectDetail,
-  activeRange, setRange, currentPeriodAi, regeneratePeriodAi, onPeriodAiAction, openAiConfig, overviewWeekRange,
+  matchResourcesOf, todayRows, todayFilled, todayAmmo,
+  projDetailOpen, projDetailId, openProjectDetail,
+  activeRange, setRange, overviewWeekRange,
   logOpen, logPreset, openLog, openLogFocus, statDrawer,
   tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards,
   statList, todayCreatedEventIds, todayCalledIds, todayInCards, todayCalledCards,
@@ -138,35 +137,31 @@ const {
           :today-add="todayAdd" :today-called="todayCalled"
           :today-import="todayImportCount"
           :focus-filled="todayFilled" :ammo="todayAmmo" :slot-count="3"
-          :insight="concise.today" :ai="currentPeriodAi"
-          @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')"
-          @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
+          @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')" />
 
         <PiRhythm v-else-if="activeRange === 'week'"
           :stats="dashStats" :directions="dashDirections"
           :tasks="dashTasks" :error-count="errorLogCount"
-          :insight="concise.week" :ai="currentPeriodAi"
           @open-err="exportErrorLog"
-          @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill"
-          @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
+          @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill" />
 
         <PiMonth v-else-if="activeRange === 'month'"
-          :stats="dashStats" :insight="concise.month" :ai="currentPeriodAi" :ent="mEntTrend"
+          :stats="dashStats" :ent="mEntTrend"
           :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
           :projected="mProjected"
-          @drill="onMonthDrill" @topic="onMonthTopic" @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
+          @drill="onMonthDrill" @topic="onMonthTopic" />
 
         <PiYear v-else
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
           :events="timelineEvents" :live-link="linkCardCount"
-          :lc-cards="lcCards" :all-events="timelineEvents" :insight="concise.year" :ai="currentPeriodAi"
+          :lc-cards="lcCards" :all-events="timelineEvents"
           :focus-filter="lcFocus"
           @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
           @open-battle="openDayBattle"
           @drill="onYearDrill"
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
-          @lc-settings="lcSetOpen = true" @ai-regenerate="regeneratePeriodAi(activeRange)" @ai-navigate="onPeriodAiAction" @ai-configure="openAiConfig" />
+          @lc-settings="lcSetOpen = true" />
     </div>
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。

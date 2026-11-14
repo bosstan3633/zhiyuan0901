@@ -8,28 +8,29 @@ const { check, read, codeOnly, segOf, CUR_VER, CUR_VTAG, VER_ANCHOR_LITERAL } = 
 
 console.log('【V3.9.25 · 调度台 / 方向台 / 年度热力图】');
 
-check('R182-D1（V3.9.26 重指）★调度台底轨独立：存储与同步状态移出双列内容网格，右栏取消整列吸附；左右列仍共享同一内容行，滚动时状态轨不再与右下模块叠层', () => {
+check('R182-D1（V4.3.1 重指）★调度台底轨独立：存储与同步状态在单列内容闭合之后独占一行，不再与任务工作面争用滚动层', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const css = read('/newtab/views/CompassHome.css');
   return home.includes('<footer class="page-foot desk-status-rail" aria-label="本机存储与同步状态">')
-    && home.indexOf('class="page-foot desk-status-rail"') > home.indexOf('</aside>')
+    && home.indexOf('class="page-foot desk-status-rail"') > home.indexOf('</main>')
     && !home.includes('class="rail-foot"')
     && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
     && css.includes('.desk-main { grid-column: 1; grid-row: 1; }')
-    && css.includes('.side-rail { grid-column: 2; grid-row: 1; }')
     && css.includes('.desk-status-rail { position: relative; z-index: 0; }')
     && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(css)
     && !/\.page-foot \{[\s\S]*?margin-top: -4px;/.test(css)
-    && css.includes('.side-rail { position: relative; top: auto; }')
-    && !css.includes('.side-rail, .rail-foot');
+    && !css.includes('.side-rail')
+    && !css.includes('.rail-foot');
 });
 
-check('R182-D2 ★状态读数双口径：右栏今日调出同时显示事件操作次数与去重卡张数；操作次数按今日 call 事件计数，明细逐卡显示今日操作次数', () => {
+check('R182-D2（V4.3.1 重指）今日调出的双口径数据仍保留，但不再占用调度台右栏：操作次数与去重卡张数由今日战报承接，任务工作面专注排期与状态', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const logic = read('/newtab/views/useCompassHome.ts');
   const detail = read('/newtab/views/useCompassHomeDetail.ts');
   const refresh = segOf(logic, 'async function refreshTodayOutOps()', '\n}')
-  return home.includes('{{ todayOutOps }} 次操作 <small>/ {{ todayOutCount }} 张卡</small>')
+  return home.includes('<TodayBattleHost ref="battleHost" />')
+    && home.includes('@click="openReview"')
+    && !home.includes('{{ todayOutOps }} 次操作')
     && logic.includes("const events = await readEventLog()")
     && refresh.includes("e.action === 'call'")
     && refresh.includes('e.ts >= t0')

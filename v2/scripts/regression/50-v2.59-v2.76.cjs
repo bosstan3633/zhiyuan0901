@@ -85,40 +85,42 @@ check('R91-1（V3.9.1 重指）调度台消费 focusedProjects：首页主攻胶
     && CH91.includes('useCompass()') && CH91.includes('const mainFocus = computed<Project | null>')
     && CH91.includes('const extraFocus = computed<Project | null>');
 });
-check('R91-2（★V3.9.22 再重指带备案：主栏主攻面板退役，两个主攻回到「今天的状态」同一行并列）主攻摘要：两个项目名都常驻可见、各自可点，不藏进 +1 弹层', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('class="stat-focus-links"') && (h.match(/class="stat-focus-link"/g) || []).length >= 2 && h.includes('openFocusProject(mainFocus)') && h.includes('openFocusProject(extraFocus)') && !h.includes('class="focus-projects"') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"'); });
+check('R91-2（V4.3.1 重指）主攻摘要不占独立模块：所有主攻项目进入任务工作面的“主攻项目”快捷筛选与项目筛选，不再藏进 +1 弹层', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('taskWorkFocusIds') && h.includes('主攻项目') && h.includes('taskWorkProjectOptions') && !h.includes('class="stat-focus-links"') && !h.includes('class="extra-pill"') && !h.includes('class="extra-focus-pop"'); });
 check('R91-3 ★ 性能红线：进度/停滞/待办走预计算索引 focusMeta，模板内不逐项调用遍历型函数', () => {
   const focusRow = segOf(CH91, 'const focusMeta = computed(', '\n})')
-  const focusStatus = segOf(CH91, 'if (k === \'focus\') {', '\n  }')
+  const taskFocus = segOf(CH91, 'const taskWorkFocusIds = computed(', '\n)')
   return CH91.includes('const focusMeta = computed(')
     && !STRIP91_C.includes('projectProgress(') && !STRIP91_C.includes('isProjectStalled(')
     && !STRIP91_C.includes('projectTasksOf(')
-    && CH91.includes('<aside class="side-rail"')
     && focusRow.includes('for (const p of focusedProjects.value)')
-    && focusStatus.includes('focusMeta.value.get(p.id)')
-    && !focusStatus.includes('projectProgress(')
-    && !focusStatus.includes('isProjectStalled(')
-    && !focusStatus.includes('projectTasksOf(');
+    && taskFocus.includes('focusedProjects.value.map(project => project.id)')
+    && !/taskWorkFiltered[\s\S]{0,1200}projectTasksOf\(/.test(CH91)
+    && !CH91.includes('class="side-rail"');
 });
 check('R91-4 手册承诺的「14 天无推进自动亮 ⚠ 停滞」兑现（停滞取既有 isProjectStalled 口径）', () => {
   return stripComments(FOCUS_FN91).includes('isProjectStalled(p)')
     && CH91.includes('stall: isProjectStalled(p)')
     && CH91.includes('focusMeta');
 });
-check('R91-5 ★V3.9.22 重指：调度台主攻就地打开可编辑项目详情中央弹窗，不再跳方向树；方向树侧仍零 projects 跳转', () => {
+check('R91-5（V4.3.1 重指）调度台把主攻变成任务筛选上下文而不是独立详情模块：任务归位弹窗就地维护项目与指标，方向树侧仍零 projects 跳转', () => {
   const t = CT_W11;
-  return CH91.includes('const readonlyProjectOpen = ref(false)')
-    && CH91.includes('<ProjectDetailDrawer :open="readonlyProjectOpen"')
-    && CH91.includes('mode="modal"')
-    && CH91.includes('打开可编辑项目详情')
+  return CH91.includes('function openTaskAssign(task: TaskCard)')
+    && CH91.includes('function saveTaskAssign()')
+    && CH91.includes('taskAssignProjects')
+    && CH91.includes('taskAssignMetrics')
+    && !CH91.includes('stat-focus-links')
     && !CH91.includes("router.push({ path: '/compass/projects', query: { p: p.id } })")
     && !/path: '\/compass\/projects', query: \{ p: [\w.]+, from: 'tree' \}/.test(codeOnly(t))
     && !t.includes('@goto-detail=')
     && require('fs').existsSync(path.resolve(base, 'newtab/views/ProjectCuration.vue'))
     && read('/newtab/components/GlobalPopups.vue').includes('/compass/projects');
 });
-check('R91-6 无主攻时给轻引导，且**可点去方向台**（不是一句死文案）', () => {
-  return CH91.includes('class="stat-row stat-row-empty"') && CH91.includes("router.push('/compass')")
-    && CH91.includes('去方向台');
+check('R91-6（V4.3.1 重指）无主攻时任务工作面仍可用：全部项目、未归档与未排期筛选始终可达，不把“没有主攻”做成死区', () => {
+  return CH91.includes('taskWorkProjectOptions')
+    && CH91.includes("quick === 'unarchived'")
+    && CH91.includes("quick === 'unscheduled'")
+    && CH91.includes('全部项目')
+    && !CH91.includes('class="stat-row stat-row-empty"');
 });
 check('R91-7 models 注释不再把主攻指向已退役的「任务中心顶部」（R49 已删 /tasks 路由）', () => {
   const mi = read('/shared/models/index.ts');
@@ -242,8 +244,11 @@ check('R94-1 B2：curTreeOpen 存在', () => { const h = read('/newtab/views/Com
 check('R94-2 B2：折叠时 .cur-cols 单列', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('curColsStyle') && !h.includes('cur-cols');  });
 check('R94-3 ★ B2：任务树用 v-if 门控', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('curTreeOpen') && pc.includes('class="task-rows"');  });
 check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-split') && !h.includes('startCurSplitDrag');  });
-check('R94-5 B3：focusAllDone = 非空 && every(done)（空列表不算完成）', () => {
-  return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => s.done)');
+check('R94-5（V4.3.1 重指）B3：focusAllDone = 非空 && every(按日期口径读取完成态)（空列表不算完成；今天仍以任务卡为唯一真源）', () => {
+  return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => focusSlotDone(s))')
+    && CH94_C.includes("if (dateStr(todayDate.value) === todayKey.value)")
+    && CH94_C.includes('if (task) return task.status')
+    && CH94_C.includes("return slot.statusSnapshot || (slot.done ? 'done' : 'todo')");
 });
 check('R94-6（V3.9.1 重指）B3：完成态挂在 .work-board.all-done 上，整张工作单轻降饱和，仍低饱和 + 安静收束', () => {
   return /class="work-board[^"]*"\s+:class="\{ 'all-done': focusAllDone \}"/.test(CH94)

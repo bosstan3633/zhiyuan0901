@@ -7,7 +7,7 @@
  * - 更新日志：左目录 / 右内容、可定位、可键盘操作、窄屏单列；
  * - 策展长期夹具：L1–L4、公开/非公开链接、附件、空节点、两种布局、拖拽子树与回导。
  */
-const { check, read, codeOnly } = require('./helpers.cjs')
+const { check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【G-03 / G-04 / G-10 · 长期体验回归】')
 
@@ -15,9 +15,6 @@ const MODELS = read('/shared/models/index.ts')
 const REPO = read('/shared/storage/repository.ts')
 const SUPPORT = read('/shared/utils/supportLinks.ts')
 const CURIO = read('/newtab/components/compass/CuriosityPanel.vue')
-const PERIOD_AI = read('/newtab/composables/usePeriodAiReview.ts')
-const PERIOD_REVIEW = read('/shared/utils/periodReview.ts')
-const PI_AI = read('/newtab/components/profile/PiAiReview.vue')
 const PROFILE = read('/newtab/views/ProfileInsights.vue')
 const REPORT = read('/newtab/views/profileInsightsReport.ts')
 const SELECT = read('/shared/ai/select.ts')
@@ -84,67 +81,45 @@ check('G102-5（V4.1.3 退役重指）好奇详情“资源支撑”入口整体
     && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
 });
 
-check('G102-6（V4.3.0 重指）四段 AI 复盘入口：今天 / 本周 / 本月 / 本年共用 PiAiReview，宿主走 usePeriodAiReview；配置、工厂与 LLM 客户端仍按需动态载入', () => {
+check('G102-6（V4.3.1 重指）周期 AI 分析物理退役：四个周期组件不再挂 PiAiReview，宿主不再持有周期 AI 状态机或分析动作', () => {
   return ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => PROFILE.includes(`<${name}`))
-    && ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => read(`/newtab/components/profile/${name}.vue`).includes('<PiAiReview'))
-    && (PROFILE.match(/@ai-regenerate="regeneratePeriodAi\(activeRange\)"/g) || []).length === 4
-    && (PROFILE.match(/@ai-navigate="onPeriodAiAction"/g) || []).length === 4
-    && PROFILE.includes('usePeriodAiReview({')
-    && PERIOD_AI.includes("import('@/shared/ai/config')")
-    && PERIOD_AI.includes("import('@/shared/ai/select')")
-    && PERIOD_AI.includes("import('@/shared/ai/llm')")
-    && !/import\s+(?!type\b)[^\n]*from\s+['"]@\/shared\/ai\/select['"]/.test(PERIOD_AI)
-    && !PERIOD_AI.includes("from '@/shared/ai/config'");
+    && ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => !read(`/newtab/components/profile/${name}.vue`).includes('PiAiReview'))
+    && !PROFILE.includes('usePeriodAiReview')
+    && !PROFILE.includes('currentPeriodAi')
+    && !PROFILE.includes('regeneratePeriodAi')
+    && !PROFILE.includes('onPeriodAiAction')
+    && !exists('/newtab/components/profile/PiAiReview.vue')
+    && !exists('/newtab/composables/usePeriodAiReview.ts');
 });
 
-check('G102-7（V4.3.0 重指）四段 AI 只读：buildPeriodReviewJob adoptable:false、输出结构化洞察与导航动作，无 apply / persist / 自动落卡', () => {
-  const start = SELECT.indexOf('export function buildPeriodReviewJob')
-  const body = SELECT.slice(start, SELECT.indexOf('\nexport function', start + 10))
-  return body.includes('adoptable: false')
-    && body.includes('parsePeriodReview(')
-    && body.includes("badge: '洞察'")
-    && !body.includes('withReport(')
-    && !body.includes('apply:')
-    && !body.includes('persist()');
+check('G102-7（V4.3.1 重指）周期 AI 工厂与上下文一并退役：select、scenarios、periodReview 工具不留第二套回流入口', () => {
+  return !SELECT.includes('buildPeriodReviewJob')
+    && !SELECT.includes('periodReviewSystem')
+    && !read('/shared/ai/scenarios.ts').includes('periodReviewSystem')
+    && !exists('/shared/utils/periodReview.ts');
 });
 
-check('G102-8（V4.3.0 重指）四段 AI 入口登记：period-review 指向 usePeriodAiReview，能力声明与源码一致', () => {
-  const at = REGISTRY.indexOf("id: 'period-review'")
-  const body = REGISTRY.slice(at, REGISTRY.indexOf('\n  },', at) + 4)
-  return at >= 0
-    && body.includes("factory: 'buildPeriodReviewJob'")
-    && body.includes("factoryFile: 'shared/ai/select.ts'")
-    && body.includes("hosts: ['newtab/composables/usePeriodAiReview.ts']")
-    && body.includes('caps: {}')
-    && body.includes('账号级战报')
-    && body.includes('不自动落卡');
+check('G102-8（V4.3.1 重指）周期 AI 入口登记清零：能力注册表、全量 AI 入口和画像页都不再声明 period-review', () => {
+  return !REGISTRY.includes("id: 'period-review'")
+    && !REGISTRY.includes('buildPeriodReviewJob')
+    && !read('/newtab/components/GlobalPopups.vue').includes('period-review');
 });
 
-check('G102-9（V4.3.0 重指）四段 AI 失败保留本地事实基线：未配置 / 调用失败只在 PiAiReview 降级，不覆盖 concise，不写 store', () => {
-  return PERIOD_AI.includes('state.unconfigured = true')
-    && PERIOD_AI.includes("state.error = error instanceof Error ? error.message : String(error)")
-    && !PERIOD_AI.includes('persist()')
-    && !PERIOD_AI.includes('concise')
-    && PI_AI.includes('本地事实基线')
-    && PI_AI.includes('AI 尚未配置')
-    && PI_AI.includes('AI 暂不可用')
-    && PROFILE.includes(':insight="concise.today"')
-    && PROFILE.includes(':insight="concise.week"')
-    && PROFILE.includes(':insight="concise.month"')
-    && PROFILE.includes(':insight="concise.year"');
+check('G102-9（V4.3.1 重指）画像页保留事实统计：今天 / 本周 / 本月四格仍在，周期 AI 的 insight / ai / regenerate props 全部移除', () => {
+  return ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => read(`/newtab/components/profile/${name}.vue`).includes('class="strip4"'))
+    && !PROFILE.includes(':insight="concise.')
+    && !PROFILE.includes(':ai="currentPeriodAi"')
+    && !PROFILE.includes('@ai-regenerate')
+    && !PROFILE.includes('@ai-navigate')
+    && !PROFILE.includes('@ai-configure');
 });
 
-check('G102-10（V4.3.0 重指）四段 AI 事实与白名单：上下文同时包含账号级事件、方向树与策展状态；动作目标只能来自 allowedTargets，模型编造 id 会被消毒', () => {
-  return PERIOD_REVIEW.includes('account: {')
-    && PERIOD_REVIEW.includes('directionTree: {')
-    && PERIOD_REVIEW.includes('curation: {')
-    && PERIOD_REVIEW.includes('allowedTargets')
-    && PERIOD_REVIEW.includes('function safeTarget(')
-    && PERIOD_REVIEW.includes('ctx.allowedTargets.find(')
-    && !PERIOD_REVIEW.includes('fetch(')
-    && !PERIOD_REVIEW.includes('useAppStore')
-    && PROFILE.includes('events: timelineEvents')
-    && PROFILE.includes('stats: dashStats');
+check('G102-10（V4.3.1 重指）年度热力图仍是年度段唯一主视觉：周期 AI 删除后不误伤热力图、生命周期与年度四格', () => {
+  const YEAR = read('/newtab/components/profile/PiYear.vue')
+  return YEAR.includes('<Heatmap')
+    && YEAR.includes('<LifecyclePanel')
+    && YEAR.includes('class="strip4"')
+    && !YEAR.includes('PiAiReview');
 });
 
 check('G102-11 V3.9.14 更新日志单列结构：左侧版本目录 + 右侧单列正文 + active/current 双态 + 内容独立滚动', () => {

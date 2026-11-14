@@ -756,25 +756,23 @@ check('R175-4 ★调度台三件事恒三槽：focusCells 从 FOCUS_LIMIT 补齐
     && (home.match(/v-for="c in focusCells"/g) || []).length >= 2
     && home.includes('计划位 {{ todayFocusList.length }}/3');
 });
-check('R175-5 ★V3.9.22 重指：主攻 1 / 主攻 2 都调用 openFocusProject，宿主挂可编辑 ProjectDetailDrawer central modal；不跳路由', () => {
+check('R175-5（V4.3.1 重指）主攻不再占用独立详情模块：全部主攻进入任务工作面快捷筛选；“去归位”就地打开项目/指标选择弹窗，不跳路由', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
-  return home.includes('function openFocusProject(p: Project)')
-    && home.includes('readonlyProjectId.value = p.id')
-    && home.includes('readonlyProjectOpen.value = true')
-    && (home.match(/@click="openFocusProject\(/g) || []).length >= 2
-    && home.includes('<ProjectDetailDrawer :open="readonlyProjectOpen"')
-    && home.includes('mode="modal"')
-    && home.includes('@close="readonlyProjectOpen = false"')
+  return home.includes('taskWorkFocusIds')
+    && home.includes('主攻项目')
+    && home.includes('@assign-task="openTaskAssign"')
+    && home.includes('function saveTaskAssign()')
+    && home.includes('class="picker-modal task-assign-modal"')
+    && !home.includes('class="stat-focus-links"')
     && !home.includes("router.push('/compass/projects')");
 });
-check('R175-7 ★V3.9.21 任务 3 覆盖 V3.9.7 旧「只读弹窗」口径：调度台主攻点击打开的是**项目全景 · 只读**——弹窗标题明确全景，且同一份 compassMeta 关系按方向 → 项目 → 指标 → 任务铺开，并给出下一步 / 断链 / 停滞 / 进度；仍不跳路由', () => {
+check('R175-7（V4.3.1 重指）调度台主攻的可见事实收进任务卡：列表面板显示项目与成功指标，缺任一项标为未归档并可“去归位”；归位后任务池、月历与今日三件事同步，仍不跳路由', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
-  return home.includes('class="stat-focus-links"')
-    && home.includes('class="stat-focus-link"')
-    && home.includes('打开可编辑项目详情')
-    && home.includes('<ProjectDetailDrawer :open="readonlyProjectOpen"')
-    && home.includes('mode="modal"')
-    && !home.includes('class="focus-projects"')
+  return home.includes('projectLabel(task)')
+    && home.includes('metricLabel(task)')
+    && home.includes('去归位')
+    && home.includes('task-assign-note')
+    && !home.includes('class="stat-focus-links"')
     && !home.includes("router.push('/compass/projects')");
 });
 check('R175-8 ★V3.9.22 重指：新建 / 编辑战略目标都走同一弹窗，包含名称、期限、状态；保存后保持当前视图', () => {

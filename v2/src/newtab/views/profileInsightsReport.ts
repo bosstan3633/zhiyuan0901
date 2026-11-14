@@ -1,4 +1,3 @@
-import type { InsightRange } from '@/shared/ai/select'
 import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 
 export function profileExportLines(input: {
@@ -8,12 +7,7 @@ export function profileExportLines(input: {
   entropy: number
   supportRate: number | string
   focusShare: number | string
-  concise: Record<InsightRange, { html: string }>
 }): string[] {
-  const insightLines = (['today', 'week', 'month', 'year'] as const).map(k => {
-    const label = { today: '今天', week: '本周', month: '本月', year: '本年' }[k]
-    return `${label}·诊断：${input.concise[k].html.replace(/<[^>]+>/g, '')}`
-  })
   return [
     `画像洞察导出 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
     '',
@@ -22,8 +16,6 @@ export function profileExportLines(input: {
     `知识熵 (聚焦度)：${input.entropy} bit`,
     `任务有证据支撑：${input.supportRate}%`,
     `近30天精力落主攻：${input.focusShare}%`,
-    '',
-    ...insightLines,
   ]
 }
 

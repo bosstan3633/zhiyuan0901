@@ -41,16 +41,15 @@ check('R183-A2 ★任务归属更紧凑且 AI 文案完整：项目 / 指标为�
     && td.includes('white-space: nowrap; overflow: visible;');
 });
 
-check('R183-B1 ★调度台底轨不与右栏滚动重叠：状态轨在双列网格闭合之后，右栏不吸附，网格不再保留底部自动轨道', () => {
+check('R183-B1（V4.3.1 重指）调度台底轨不与任务工作面相争：状态轨在单列网格闭合之后独占全宽，网格不再保留底部自动轨道', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const css = read('/newtab/views/CompassHome.css');
   return home.includes('<footer class="page-foot desk-status-rail" aria-label="本机存储与同步状态">')
-    && home.indexOf('class="page-foot desk-status-rail"') > home.indexOf('</aside>')
+    && home.indexOf('class="page-foot desk-status-rail"') > home.indexOf('</main>')
     && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
-    && css.includes('grid-template-columns: minmax(0, 1fr) 292px;')
+    && css.includes('grid-template-columns: minmax(0, 1fr);')
     && css.includes('.desk-main { grid-column: 1; grid-row: 1; }')
-    && css.includes('.side-rail { grid-column: 2; grid-row: 1; }')
-    && css.includes('.side-rail { position: relative; top: auto; }')
+    && !css.includes('.side-rail')
     && css.includes('.desk-status-rail { position: relative; z-index: 0; }')
     && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(css)
     && !/\.page-foot \{[\s\S]*?margin-top: -4px;/.test(css);

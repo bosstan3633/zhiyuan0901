@@ -262,7 +262,7 @@ check(NAME(
 });
 
 check(NAME(
-  'M6-2 ★V3.9.1 随迁备案：热区下限仍为 28px。顶栏 chip 与两栏首页的页脚状态、战报、推荐依据钮全部用 min-height / 固定盒撑住',
+  'M6-2（V4.3.1 重指）热区下限仍为 28px：顶栏 chip、单列调度台的页脚状态、云同步、战报、推荐依据与卡片池页签全部用 min-height / 固定盒撑住',
   '★为什么用 min-height 而不是加 padding：padding 会把 48px 顶栏顶高、把左右 chip 间距撑散，',
   '那是对"窄窗不破版"这条验收的净损失。min-height 不改变任何相邻元素的排布。'), () => {
   const targets = [
@@ -270,7 +270,7 @@ check(NAME(
     ['CompassHome 存储状态', CHC, /\.foot-status \{[^}]*min-height: 28px/, 'foot-status'],
     ['CompassHome 战报钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
     ['CompassHome 云同步状态', CHC, /\.foot-sync \{[^}]*min-height: 28px/, 'foot-sync'],
-    ['CompassHome 右栏文字钮', CHC, /\.rail-head button \{[^}]*min-height: 28px/, 'rail-head button'],
+    ['CompassHome 卡片池页签', CHC, /\.hand-tab \{[^}]*min-height: 28px/, 'hand-tab'],
     ['CompassHome 推荐依据钮', CHC, /\.why-trigger \{[^}]*min-height: 32px/, 'why-trigger'],
   ]
   for (const [name, src, re, who] of targets) {

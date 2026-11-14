@@ -169,3 +169,50 @@ export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: strin
   d.dailyFocus[anchorKey] = next.slice(0, limit)
   return { changed }
 }
+
+export type ManualFocusResult =
+  | { status: 'added'; index: number }
+  | { status: 'replaced'; index: number }
+  | { status: 'exists'; index: number }
+  | { status: 'full' }
+  | { status: 'invalid' }
+
+/**
+ * 用户从任务菜单或详情主动选择“设为今日重点”。
+ *
+ * 与 AI 推荐严格分开：写入手动格（auto 不置 true），已有三格时由调用方让用户选择
+ * 要替换哪一格，再带着 slotIndex 二次调用。任务本身的状态、日期和归属均不改。
+ */
+export function addManualFocus(
+  d: AppData,
+  anchorKey: string,
+  taskId: string,
+  slotIndex?: number,
+  limit = 3,
+): ManualFocusResult {
+  const task = d.tasks.find(row => !row.deletedAt && row.id === taskId)
+  if (!task || task.status === 'done') return { status: 'invalid' }
+  if (!d.dailyFocus) d.dailyFocus = {}
+  const list = d.dailyFocus[anchorKey] || []
+  const existing = list.findIndex(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
+  if (existing >= 0) return { status: 'exists', index: existing }
+
+  const slot: FocusSlot = {
+    id: uid('focus'),
+    sourceType: 'task',
+    sourceId: task.id,
+    text: task.title,
+    done: false,
+  }
+
+  if (list.length < limit) {
+    list.push(slot)
+    d.dailyFocus[anchorKey] = list.slice(0, limit)
+    return { status: 'added', index: list.length - 1 }
+  }
+
+  if (slotIndex === undefined || slotIndex < 0 || slotIndex >= limit) return { status: 'full' }
+  list[slotIndex] = slot
+  d.dailyFocus[anchorKey] = list.slice(0, limit)
+  return { status: 'replaced', index: slotIndex }
+}

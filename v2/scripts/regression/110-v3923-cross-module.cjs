@@ -147,27 +147,26 @@ check('XM-06 ★策展连线：按真实节点坐标生成正交折线，父右�
     && mm.includes('父右 → 中线 → 子左');
 });
 
-/* ★V3.9.31 重指备案（F3 用户拍板 2026-11-01：频率优先·全窗口）：右栏第二块由「最近调出 6 条」
-   升级为「常调 Top 10」（调用次数降序→同频按最近调出时间，上限 6→10）；本条要守的"右栏只留
-   两块 + 状态轨出网格"口径一字未动，仅随模块名与上限改钉。 */
-check('XM-07 ★V3.9.31 重指：调度台右栏只保留今天状态与常调 Top 10；固定 10 条；左右模块共享内容网格，状态轨移出网格并取消右栏吸附，滚动时不再覆盖', () => {
+/* V4.3.1：旧的右栏状态模型退役。今天事实归今日战报，常调 Top 10 归资源页签；
+   本条继续守“底轨不与主内容争用滚动层”的版式纪律，但不再要求已退役的侧栏。 */
+check('XM-07（V4.3.1 重指）调度台右栏整体退役：今天状态归今日战报，常调 Top 10 归资源页签；主内容改单列任务工作面，底轨在网格之后且不覆盖内容', () => {
   const home = read('/newtab/views/CompassHome.vue');
   const logic = read('/newtab/views/useCompassHome.ts');
   const css = read('/newtab/views/CompassHome.css');
   const homeCode = codeOnly(home);
   return !homeCode.includes('好奇心培育')
-    && home.includes('<b>今天的状态</b>')
-    && home.includes('<b>常调 Top 10</b>')
-    && home.includes('rail-panel-recent')
+    && /<b(?:\s+id="recentResTitle")?>常调 Top 10<\/b>/.test(home)
+    && home.includes('recent-resource-panel')
+    && home.includes('class="task-workbench"')
     && logic.includes('const recentLimit = computed(() => 10)')
     && logic.includes('.slice(0, recentLimit.value)')
     && css.includes('.desk-layout {')
     && !css.includes('grid-template-rows: auto minmax(0, 1fr) auto;')
     && css.includes('.desk-status-rail { position: relative; z-index: 0; }')
     && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(css)
-    && css.includes('.side-rail { position: relative; top: auto; }')
-    && css.includes('左右模块仍保持起点、间距与底部收口一致')
-    && !css.includes('.rail-panel-recent { height: 100%')
+    && css.includes('.desk-layout-single')
+    && !home.includes('<b>今天的状态</b>')
+    && !home.includes('rail-panel-recent')
     && !css.includes('.side-rail { height: 100%')
     && !home.includes('useEqualHeight')
     && !logic.includes('useEqualHeight');

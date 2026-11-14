@@ -20,9 +20,9 @@ import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
 import {
   computeTagEntropy, todayKey,
   computeTaskSupportRate, computeMainFocusShare, windowOf, tasksOfDirection,
-  buildConciseInsights, objectivesOf
+  objectivesOf
 } from '@/shared/utils/reviewReport'
-import type { DirLike, TaskLike, ConciseCtx } from '@/shared/utils/reviewReport'
+import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 import { actsOf, aggregateRange, levelName, levelOf } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
@@ -43,9 +43,7 @@ import TodayBattleHost from '@/newtab/components/dashboard/TodayBattleHost.vue'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
-import { usePeriodAiReview } from '@/newtab/composables/usePeriodAiReview'
 import { profileDirectionFitText, profileExportLines } from '@/newtab/views/profileInsightsReport'
-import type { PeriodReviewTarget } from '@/shared/utils/periodReview'
 import { useProfileInsightsTags } from './useProfileInsightsTags'
 import { useProfileInsightsMonth } from './useProfileInsightsMonth'
 
@@ -250,55 +248,6 @@ const todayFilled = computed(() => todayRows.value.filter(Boolean).length)
     ★W16-T2：与「弹药清单」同源（只算**存活**资源卡）—— 原先这里数的是 SupportLink 里的 id（含已软删），
     弹药卡删掉后数字还是 6、清单只剩 5 行，账对不上。已删的那几张在对账条里单列。 */
 const todayAmmo = computed(() => ammoSplit.value.live.length)
-/** ★W13-T7 · 四尺度一句话诊断统一走 reviewReport.buildConciseInsights（T1 数据层已备，本轮接线）：
-    宿主只负责把四个窗口的口径喂进去，诊断文本与 CTA 单一真源；四组件条带与 F5 导出同源。 */
-const conciseCtx = computed<ConciseCtx>(() => {
-  const rows = todayRows.value.filter(Boolean) as TodayRow[]
-  const need = rows.filter(r => r.canBind)
-  const denom = todayCalled.value + todayAdd.value
-  const weekWin = windowOf('week', {})
-  const wAgg = aggregateRange(dashStats.value, weekWin.s, weekWin.e)
-  const objs = objectivesOf(dashDirections.value, dashTasks.value, weekWin)
-  return {
-    today: {
-      freeCount: need.length,
-      freeMatched: need.reduce((n, r) => n + (r.matchCount || 0), 0),
-      readyCards: todayAmmo.value,
-      todayCalled: todayCalled.value,
-      todayAdd: todayAdd.value,
-      reusePct: denom > 0 ? todayCalled.value / denom : null,
-      focusDone: rows.filter(r => r.slot.done).length,
-      focusTotal: rows.length
-    },
-    week: {
-      acts: wAgg.acts,
-      called: wAgg.u,
-      topShare: objs.rows[0]?.share || 0,
-      zeroTouch: objs.rows.filter(r => r.v === 0).length
-    },
-    month: {
-      entropyFrom: mEntTrend.value.from,
-      entropyTo: mEntTrend.value.to,
-      projected: mProjected.value
-    },
-    year: { coolingHigh: yCoolHigh.value, dirFitText: yDirFit.value }
-  }
-})
-/** 四条诊断（today/week/month/year）· 唯一真源 = buildConciseInsights。
-    唯一特例：今天没排三件事时 ctx 表达不了「去排」这个动作，由宿主覆盖为空态（其余三态一律走引擎）。 */
-const concise = computed(() => {
-  const r = buildConciseInsights(conciseCtx.value)
-  if (todayRows.value.some(r2 => r2)) return r
-  return {
-    ...r,
-    today: {
-      html: '今天还没有排三件事——去调度台排一排，晚上复盘会更清楚。',
-      warn: false,
-      ctaLabel: '＋ 去排今日三件事 ›',
-      ctaAction: 'openFocusBoard'
-    }
-  }
-})
 /** 主攻项目详情：Hero 胶囊与今日三件事行共用这一出口，中央弹窗复用 ProjectDetailDrawer。 */
 const projDetailOpen = ref(false)
 const projDetailId = ref<string | null>(null)
@@ -314,46 +263,6 @@ function openProjectDetail(projectId: string) {
 /* ★W18（2026-10-20 用户拍板）：默认落在「本年」——页面定位是看长期状态，先给全年再逐层下钻。 */
 const activeRange = ref<PiRange>('year')
 function setRange(k: PiRange): void { activeRange.value = k }
-
-/* V4.3.0：四段 AI 复盘读取账号级战报、方向树与本地活动摘要。
-   结果进入页面主内容区；配置、模型调用和缓存全部收在 composable。 */
-const periodAi = usePeriodAiReview({
-  activeRange,
-  data: gd,
-  events: timelineEvents,
-  stats: dashStats,
-})
-const currentPeriodAi = periodAi.current
-function regeneratePeriodAi(range: PiRange): void { void periodAi.generate(range, true) }
-function openAiConfig(): void { void router.push('/settings?page=ai') }
-function onPeriodAiAction(target: PeriodReviewTarget): void {
-  if (target.type === 'battle') {
-    const day = target.id || todayKey()
-    if (day === todayKey()) openTodayBattle()
-    else openDayBattle(day)
-    return
-  }
-  if (target.type === 'log') { openLog('log'); return }
-  if (target.type === 'direction' && target.id) { onGoalDrill(target.id); return }
-  if (target.type === 'project' && target.id) { openProjectDetail(target.id); return }
-  if (target.type === 'metric' && target.id) {
-    const project = (gd.value.compass?.directions || [])
-      .flatMap(direction => direction.projects || [])
-      .find(row => (row.metrics || []).some(metric => metric.id === target.id))
-    if (project) openProjectDetail(project.id)
-    else showToast('未找到该成功指标所属项目')
-    return
-  }
-  if (target.type === 'task' && target.id) {
-    const task = gTaskLive.value.find(row => row.id === target.id)
-    if (task) taskDetailRef.value?.open(task)
-    else showToast('该任务已不在库中')
-    return
-  }
-  if (target.type === 'resource' && target.id) { openStatCard({ kind: 'resource', id: target.id }); return }
-  if (target.type === 'curation' && target.id) { void router.push(`/workspace/${target.id}`); return }
-  showToast('该建议暂时没有可用入口')
-}
 
 /* 首屏概览的窗口范围（左栏标题右侧的小日期刻度） */
 const overviewWeekRange = computed(() => {
@@ -736,7 +645,7 @@ function onHeroRefresh() {
 /** F2 轻引导：使命为空时一键去方向台设定 */
 function gotoCompass() { void router.push('/compass'); showToast('已跳转方向台 · 在骨架条第 1 层设定使命愿景') }
 function onHeroExport(fmt: string) {
-  /* F5：导出 = 使命主线 + 4 项全库底盘指标 + 四尺度一句话诊断（与界面四条同源：strip-html 后落盘） */
+  /* F5：周期分析退役后，导出只保留使命主线与全库事实读数。 */
   const lines = profileExportLines({
     mission: heroMission.value,
     total: heroTotal.value,
@@ -744,7 +653,6 @@ function onHeroExport(fmt: string) {
     entropy: heroEntropy.value,
     supportRate: heroSupportRate.value,
     focusShare: heroFocusShare.value,
-    concise: concise.value,
   })
   if (fmt === 'csv') {
     const csv = '指标,数值\n' + lines.slice(2).map(l => l.replace('：', ',')).join('\n')
@@ -836,8 +744,8 @@ onUnmounted(() => { offErrLog() })
     timelineEvents, gResLive, gTaskLive, gCurioLive, linkCardCount, dash, dashYear, dashSelDay, dashStats,
     dashDirections, dashTasks, heroTotal, tagLists, heroEntropy, topTags, heroKindCounts, heroTopTags, heroSupportRate,
     heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds, focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
-    matchResourcesOf, todayRows, todayFilled, todayAmmo, conciseCtx, concise, projDetailOpen, projDetailId,
-    openProjectDetail, activeRange, setRange, currentPeriodAi, regeneratePeriodAi, onPeriodAiAction, openAiConfig,
+    matchResourcesOf, todayRows, todayFilled, todayAmmo, projDetailOpen, projDetailId,
+    openProjectDetail, activeRange, setRange,
     overviewWeekRange, logOpen, logPreset, openLog,
     openLogFocus, statDrawer, tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards, statList, todayCreatedEventIds,
     todayCalledIds, todayInCards, todayCalledCards, ammoSplit, ammoCards, coolingCards, STAT_PAGE, statPage, statSearch,

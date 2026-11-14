@@ -62,7 +62,7 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 // ---- 视图与工具栏状态 ----
 // 第卌五轮：卡片视图默认（card | list | kanban）
 /** W6（V3.8.6）#3：默认列表视图（用户拍板；R176 曾改 card，本轮随卡片视图 AI 入口重构改回 list） */
-const viewMode = ref<'card' | 'list' | 'kanban'>('list')
+const viewMode = ref<'card' | 'list' | 'kanban' | 'calendar'>('list')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
 const taskCols = useCardCols('task', store.ui)
 const savedGroup = (store.ui?.sortPrefs?.task as { group?: TaskGroupMode } | undefined)?.group
@@ -89,13 +89,13 @@ watch([sortBy, sortDir, filterBy, groupMode], () => {
   saveUIPrefs({ sortPrefs: sp })
 })
 function exitFreshMode() { freshMode.value = false }
-function changeViewMode(next: 'card' | 'list' | 'kanban') { exitFreshMode(); viewMode.value = next }
+function changeViewMode(next: 'card' | 'list' | 'kanban' | 'calendar') { exitFreshMode(); viewMode.value = next }
 function changeSortBy(next: string) { exitFreshMode(); sortBy.value = next }
 function changeGroupMode(next: TaskGroupMode) { exitFreshMode(); groupMode.value = next }
 function toggleSortDir() { exitFreshMode(); sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
 const searchQuery = ref('')
 /** R3-Cc2：控制行值域配置（视图/筛选/排序/分组），模板里不再各写一份 option 列表 */
-const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }]
+const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }, { id: 'calendar', label: '月历' }]
 const TASK_FILTERS = [{ id: 'all', label: '全部状态' }, { id: 'todo', label: '待办' }, { id: 'doing', label: '推进中' }, { id: 'done', label: '已完成' }, { id: 'unarchived', label: '未归档' }]
 const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }, { id: 'priority', label: '优先级' }]
 const TASK_GROUPS = [
@@ -250,6 +250,53 @@ function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   t.completedAt = status === 'done' ? Date.now() : undefined
   t.updatedAt = Date.now()
   store.persist()
+}
+/** 月历排期与取消排期共用唯一字段 dueDate；这里只改计划执行日期，不碰任务归属和状态。 */
+function setTaskDueDate(taskId: string, date: string): void {
+  const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
+  if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
+  const changed = task.dueDate !== date
+  task.dueDate = date
+  task.updatedAt = Date.now()
+  store.persist()
+  if (changed) showToast(`已排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日`)
+}
+function clearTaskDueDate(taskId: string): void {
+  const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
+  if (!task) return
+  if (!task.dueDate) {
+    showToast('该任务本来就在任务池，未安排计划执行日期')
+    return
+  }
+  task.dueDate = undefined
+  task.updatedAt = Date.now()
+  store.persist()
+  showToast('已取消排期，任务回到任务池')
+}
+function toggleTaskCompletion(taskId: string): void {
+  const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
+  if (!task) return
+  setTaskStatusOf(task, task.status === 'done' ? 'todo' : 'done')
+}
+async function addTaskToTodayFocus(task: TaskCard): Promise<void> {
+  if (!task || task.deletedAt) return
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const key = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const { addManualFocus } = await import('@/shared/utils/focusSuggest')
+  const result = addManualFocus(d.value, key, task.id)
+  if (result.status === 'exists') {
+    showToast('这张任务已经在今天的三件事里')
+    return
+  }
+  if (result.status === 'full') {
+    showToast('今日三件事已满；请到调度台三件事卡片中替换一格')
+    return
+  }
+  if (result.status === 'added') {
+    store.persist()
+    showToast('已设为今日重点，并锁定为手动选择')
+  }
 }
 function cycleTaskStatus(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
@@ -520,7 +567,7 @@ function tShort(t: TaskCard, f: FieldDef): string {
 }
 /** 第卌五轮：卡片视图日期角标
  *  R117（04-61 D）：入参放宽到 `number | string`——`dueDate` 是 ISO 日期串（非时间戳），
- *  日期角标优先吃截止时间时必须能吃字符串；顺手挡掉无效日期（渲染出 NaN-NaN 更糟）。 */
+ *  日期角标优先吃计划执行日期时必须能吃字符串；顺手挡掉无效日期（渲染出 NaN-NaN 更糟）。 */
 function fmtCardDate(ts?: number | string): string {
   if (!ts) return ''
   const dt = new Date(ts)
@@ -745,6 +792,10 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     openBatchMount,
     confirmBatchMount,
     setTaskStatusOf,
+    setTaskDueDate,
+    clearTaskDueDate,
+    toggleTaskCompletion,
+    addTaskToTodayFocus,
     cycleTaskStatus,
     deleteTask,
     createNewTask,

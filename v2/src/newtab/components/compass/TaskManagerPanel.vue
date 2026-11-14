@@ -43,6 +43,7 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
 import SubtaskList from '@/shared/components/SubtaskList.vue'
+import TaskCalendarView from './TaskCalendarView.vue'
 import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type TaskGroupMode } from './useTaskManagerPanel'
 const {
   route,
@@ -109,6 +110,10 @@ const {
   openBatchMount,
   confirmBatchMount,
   setTaskStatusOf,
+  setTaskDueDate,
+  clearTaskDueDate,
+  toggleTaskCompletion,
+  addTaskToTodayFocus,
   cycleTaskStatus,
   deleteTask,
   createNewTask,
@@ -181,7 +186,7 @@ defineExpose({ openDetail, resetForFresh })
       <!-- R3-Cc2：控制行收归 DeckControls——顺序与样式一份实现，任务的值域（三视图 / 五状态 / 三排序 / 三分组）以数据传入 -->
       <DeckControls panel="task" search :query="searchQuery" @search="searchQuery = $event"
         :filters="TASK_FILTERS" filter-kind="select" :filter="filterBy" @filter="filterBy = $event as TaskFilter" filter-title="状态筛选"
-        :views="TASK_VIEWS" :view="viewMode" @view="changeViewMode($event as 'card' | 'list' | 'kanban')"
+        :views="TASK_VIEWS" :view="viewMode" @view="changeViewMode($event as 'card' | 'list' | 'kanban' | 'calendar')"
         :sorts="TASK_SORTS" :sort="sortBy" @sort="changeSortBy"
         :sort-dir="(sortBy === 'recent' || sortBy === 'priority') ? sortDir : ''"
         :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
@@ -250,8 +255,8 @@ defineExpose({ openDetail, resetForFresh })
               <div v-if="tListFields.length" class="tm-ext">
                 <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
               </div>
-              <!-- R117（04-61 D）：日期角标优先吃「截止时间」字段（任务卡字段池里没有 createdAt）；
-                   截止时间不可见时回落创建时间（骨架兜底，避免卡片零日期信息） -->
+              <!-- R117（04-61 D）：日期角标优先吃「计划执行日期」字段（任务卡字段池里没有 createdAt）；
+                   计划执行日期不可见时回落创建时间（骨架兜底，避免卡片零日期信息） -->
               <div class="tm-meta">
                 <span v-if="tShow('dueDate') && task.dueDate"><Icon name="calendar" :size="13"/> {{ fmtCardDate(task.dueDate) }}</span>
                 <span v-else><Icon name="calendar" :size="13"/> {{ fmtCardDate(task.createdAt) }}</span>
@@ -285,8 +290,8 @@ defineExpose({ openDetail, resetForFresh })
               <div v-if="tListFields.length" class="tm-ext">
                 <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
               </div>
-              <!-- R117（04-61 D）：日期角标优先吃「截止时间」字段（任务卡字段池里没有 createdAt）；
-                   截止时间不可见时回落创建时间（骨架兜底，避免卡片零日期信息） -->
+              <!-- R117（04-61 D）：日期角标优先吃「计划执行日期」字段（任务卡字段池里没有 createdAt）；
+                   计划执行日期不可见时回落创建时间（骨架兜底，避免卡片零日期信息） -->
               <div class="tm-meta">
                 <span v-if="tShow('dueDate') && task.dueDate"><Icon name="calendar" :size="13"/> {{ fmtCardDate(task.dueDate) }}</span>
                 <span v-else><Icon name="calendar" :size="13"/> {{ fmtCardDate(task.createdAt) }}</span>
@@ -371,7 +376,7 @@ defineExpose({ openDetail, resetForFresh })
       </div>
 
       <!-- 看板视图（跨列改状态 · 列内按项目分组 · 拖拽改归属 O17） -->
-      <div v-else class="kanban-board">
+      <div v-else-if="viewMode==='kanban'" class="kanban-board">
         <div class="kcol" @dragover.prevent @drop="onKanbanDrop('todo')">
           <div class="khead"><span>待开始</span><span class="kcount">{{ todoTasks.length }}</span></div>
           <template v-if="groupByProject">
@@ -472,6 +477,19 @@ defineExpose({ openDetail, resetForFresh })
           </template>
         </div>
       </div>
+
+      <TaskCalendarView
+        v-else
+        :tasks="filteredTasks"
+        :project-names="projNameById"
+        :metric-names="metricTitleById"
+        @open-task="openTaskFromAi"
+        @toggle-status="toggleTaskCompletion"
+        @assign-task="openTaskFromAi"
+        @focus-task="addTaskToTodayFocus"
+        @set-due="setTaskDueDate"
+        @clear-due="clearTaskDueDate"
+      />
     </div>
 
     <!-- ===== 批量挂载弹窗（O3） ===== -->

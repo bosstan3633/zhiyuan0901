@@ -39,12 +39,13 @@ check('R188-1 ★切换项目下拉视口钳制：面板左锚定（left:0）不
 })
 
 // ── F3 常调 Top 10 ──
-check('R188-2 ★常调 Top 10：调用次数降序 → 同频按最近调出时间，上限 6→10；模块更名且手册同步', () => {
+check('R188-2（V4.3.1 重指）常调 Top 10 从调度台右栏迁入资源页签：调用次数降序、同频按最近调出时间、上限 10；手册同步新位置', () => {
   return USE_HOME.includes('recentLimit = computed(() => 10)')
     && USE_HOME.includes('((b.callCount || 0) - (a.callCount || 0)) || ((b.lastCalledAt || 0) - (a.lastCalledAt || 0))')
-    && HOME.includes('<b>常调 Top 10</b>')
+    && /<b(?:\s+id="recentResTitle")?>常调 Top 10<\/b>/.test(HOME)
+    && HOME.includes('recent-resource-panel')
     && !HOME.includes('<b>最近调出</b>')
-    && MANUAL.includes('常调 Top 10（按调用频率排序的前十张资源卡）')
+    && MANUAL.includes('资源页签中的“常调 Top 10')
 })
 
 // ── F1 任务详情 → 项目全景直达 ──

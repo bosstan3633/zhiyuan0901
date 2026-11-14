@@ -69,7 +69,7 @@ console.log('【第一百零五轮 · V2.74.0：P2 收官（B4 + C3 + D3 + E2 + 
  *  直达锚点自动展开）；C3 浮层字号阶梯（文本档全走 --zy-fs-*，输入态 16-17px 保留）；D3 重复卡
  *  确认视图加「仍然新建一张」（整屏例外不变）；E2 策展台 >5 页签收起「≪ N」hover 展开（活动台
  *  恒可见）；W10 搜索纳入 link（两台与浮层范围统一，拍板按提案原文）。 */
-check('R105-1 B4（V3.9.24 重指）手边三卡预览：任务卡 / 好奇心卡 / 资源卡三列在位，查看全部进入独立二级页，旧 tab 挂载状态退役', () => { const h = read('/newtab/views/CompassHome.vue'); return /class="[^"]*\bhand-board\b/.test(h) && h.includes('class="hand-grid"') && h.includes('好奇心卡') && h.includes('任务卡') && h.includes('资源卡') && h.includes("goDeck('task')") && h.includes("goDeck('curiosity')") && h.includes("goDeck('resource')") && !h.includes('curioMounted'); });
+check('R105-1（V4.3.1 重指）B4 卡片池三页签：任务默认展示完整任务池 + 月历，好奇心与资源保留预览；三者都可进入独立二级页，旧 tab 挂载状态退役', () => { const h = read('/newtab/views/CompassHome.vue'); const logic = read('/newtab/views/useCompassHome.ts'); return /class="[^"]*\bhand-board\b/.test(h) && h.includes('class="hand-tabs"') && h.includes('class="task-workbench"') && h.includes('class="hand-grid hand-grid-aux"') && h.includes('好奇心卡') && h.includes('资源卡') && h.includes('@click="goDeck(handTab)"') && h.includes("goDeck('curiosity')") && h.includes("goDeck('resource')") && logic.includes('function goDeck(kind: HandKind)') && logic.includes('router.push(`/deck/${kind}`)') && !h.includes('curioMounted'); });
 check('R105-2 C3 浮层字号阶梯：--zy-fs-2xs/xs/sm/md/lg 五档定义 + 文本档字面量归并（10-14px 零命中）+ 输入态 17px 保留', () => {
   return OV105.includes('--zy-fs-2xs:10.5px;--zy-fs-xs:11px;--zy-fs-sm:12px;--zy-fs-md:13px;--zy-fs-lg:14px;')
     && !/font-size:1[0-4](\.\d)?px/.test(OV105)
@@ -325,7 +325,18 @@ check('R111-4 ★W12-D 再退役重指带备案：调度台入口整合 ——�
 check('R111-5（R172-T9 重指带备案）四大数字下钻能力等价迁入仪表盘：四类记录入口（入台/移出/调出/写入记录）+ 日详情「查看全部记录 ›」按日预筛 + 复盘段 KPI/方向/规则下钻；CompassHome 的旧下钻链（openRec/gotoAnchor）零残留。★W2 重指带备案：日详情宿主自 GlobalSettings.onDashOpenLog 迁至 HeatmapModule.onOpenLog（热力图迁调度台）。★W9 再随迁带备案：四类记录入口的宿主自 GlobalSettings 再迁 ProfileInsights', () => { const h = read('/newtab/views/CompassHome.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const pi = read('/newtab/views/ProfileInsights.vue'); const rp = read('/newtab/components/dashboard/ReviewPanel.vue'); const hmod = read('/newtab/components/dashboard/HeatmapModule.vue'); return !h.includes("openRec('in')") && !h.includes("openRec('called')") && pi.includes("openStatDrawer('today-call')") /* ★W15-T1 再随迁带备案 2026-10-16：调出入口由事件流水改卡片清单 */ && pi.includes("openLog('log')") && !gs.includes('onDashOpenLog') && hmod.includes('onOpenLog') && hmod.includes('logOpen') && hmod.includes(':preset="logPreset"') && rp.includes('DrillCardList') && rp.includes('tasksOfDirection(') && rp.includes('ruleHit'); });
 check('R111-6（R172-T9 重指带备案）卡片行下钻定位的单一实现：TOP5 / 四段式下钻随周报浮层退役 —— 卡片级"单击定位 / 双击开链"收敛到 `DrillCardList.vue`（资源卡带 link 时 `openExternalLink`，否则 `locateTargetOf`），定位落位仍由 `locate.ts` 统一给出 `/workspace/<wsId>?hl=<cardId>`', () => { const c = read('/newtab/components/dashboard/DrillCardList.vue'); const u = read('/shared/utils/locate.ts'); return c.includes('toOpenableUrl(card.linkType, card.link)') && c.includes('openExternalLink(url)') && c.includes('locateTargetOf(store.data!, kind, r.id)') && u.includes('hl: id'); });
 check('R111-7（R172-T9 重指带备案）环比真实聚合：`reviewReport.ts` 走等长窗口环比（`prevWindow` 按 `win.days` 回推）+ `buildReview` 同期算本期与前一期聚合（杜绝"部分月 vs 整月"假下跌）', () => { const rr = read('/shared/utils/reviewReport.ts'); return rr.includes('export function prevWindow(') && rr.includes('const s = addDays(e, -(win.days - 1))') && rr.includes('const prevAgg = aggregateRange(stats, prev.s, prev.e)') && rr.includes('delta: { acts: pct(agg.acts, prevAgg.acts), W: pct(agg.W, prevAgg.W) }'); });
-check('R111-8（R172-T9/T11 重指带备案）手册同步：复盘与热力图章节（入口/位置/下钻/纯读取）——原「调度画像周报」章随浮层退役，判据改认新居所。★W2 重指带备案：热力图迁调度台。★W9 退役重指带备案：仪表盘/复盘段宿主再迁画像洞察页，mid-8 标题由「调度台 + 知源仪表盘」改「调度台 + 画像洞察页」，入口措辞同步（设置→知源仪表盘 已不在手册宣传面）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('复盘与热力图（调度台 + 画像洞察页）') /* R172-T9/T11 重指带备案：周报浮层退役，mid-8 整章重写为「复盘与热力图」；W2 热力图迁调度台；W9 宿主改画像洞察页 */ && m.includes('周 / 月 / 自定义区间 / 项目') /* 同上：窗口切换现为四个范围 */ && m.includes('在<b>调度台</b>，位于今日三件事下方') /* W2：热力图新位置明写 */ && !m.includes('设置 → 知源仪表盘') && !m.includes('设置 → 资源生命周期'); /* W9 负锚：宣传面不许再把仪表盘/生命周期说成设置页 */ });
+check('R111-8（V4.3.1 重指）手册同步：年度热力图、事实统计、日详情与资源生命周期仍在画像洞察页，周期 AI 分析不得回流——原周报浮层已退役，热力图与生命周期能力没有随 AI 删除', () => {
+  const m = read('/newtab/manual-data.ts')
+  return m.includes("id: 'mid-8'")
+    && m.includes('年度热力图与事实统计（画像洞察页）')
+    && m.includes('画像洞察页 → 本年')
+    && m.includes('今日 / 本周 / 本月仍保留可核对的事实统计')
+    && m.includes('不再生成周期 AI 复盘')
+    && m.includes('资源生命周期也继续留在画像洞察页')
+    && !m.includes('PiAiReview')
+    && !m.includes('设置 → 知源仪表盘')
+    && !m.includes('设置 → 资源生命周期')
+})
 
 // ============== 第 110 轮 · V2.79.0（并入 111）：资源生命周期 + BUG×2 + 金字塔全屏 ==============
 console.log('【第 110 轮 · V2.79.0：LC + BUG-1/BUG-2 + FS】');

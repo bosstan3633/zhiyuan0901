@@ -206,22 +206,9 @@
 .pi-hero-range { flex: none; display: flex; align-items: center; }
 .pi-hero-range:empty { display: none; }
 
-/* ===== W13-D2 · 统一「一句人话洞察条」（四模块共用：今天/本周/本月/本年）=====
-   原 `.pi-insight`（今日均线洞察，且 todayAdd===0 时整块消失）与今日三件事 mini 卡
-   `.pi-f3/.pi-fcard/.fc-*` 随 W13-T3 三段式定版退役——诊断恒渲染、三行对账接替。 */
-.one-insight {
-  display: flex; align-items: center; gap: 10px; min-width: 0;
-  padding: 10px 14px; border-radius: var(--radius-md);
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  font-size: var(--fs-sub); color: var(--text-2); line-height: 1.7;
-}
-.one-insight .oi-ic { flex: none; font-size: 14px; }
-.one-insight .oi-text { flex: 1; min-width: 0; }
-/* ★A2（V3.8.28）：洞察卡左边框去红绿 —— 「一条洞察」是提醒你看见什么，不是给你打分。
-   ok 用强调色（值得看）、warn 用中性深一档（值得留意），两档只差明度不差色相。 */
-.one-insight.warn { border-left-color: var(--text-3); background: var(--surface-2); }
-.one-insight.ok { border-left-color: var(--accent); }
+/* ★V4.3.1 退役备案：周期 AI 洞察条 `.one-insight`（含 `.oi-ic` / `.oi-text`）随
+   今日 / 本周 / 本月 / 本年 AI 分析一起删除。洞察结论不再由周期页面渲染；年度页只保留
+   事实统计、热力图与生命周期，避免已退役选择器被同名样式悄悄带回。 */
 /* ===== W13-D2 · strip4：唯一一行 4 等宽数字胶囊（W12-B3 终态定版形态：
    均分铺满网格，单元格仍复用 .pi-chip——chip 数定版 4（F8），hover/active 两态不变） ===== */
 .strip4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
@@ -399,4 +386,3 @@
 
 /* B1-c（V3.8.26）：阈值入口保留；重复色阶图例已随 V3.9.30 年度段减法移除。 */
 .pi-lc-settings { margin-left: auto; }
-.pi-ai-insight { min-height: 28px; }

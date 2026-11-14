@@ -52,7 +52,7 @@ export const FIELD_CATALOG: CatalogField[] = [
   { key: 'projectId', label: '所属项目', type: 'text', scope: 'type', kinds: ['task'], cat: 'system', icon: '📦' },
   { key: 'metricId', label: '成功指标', type: 'text', scope: 'type', kinds: ['task'], cat: 'system', icon: '🎯' },
   { key: 'priority', label: '优先级', type: 'select', options: ['高', '中', '低'], scope: 'type', kinds: ['task'], cat: 'optional', icon: '🔴' },
-  { key: 'dueDate', label: '截止时间', type: 'date', scope: 'type', kinds: ['task'], cat: 'optional', icon: '📅' },
+  { key: 'dueDate', label: '计划执行日期', type: 'date', scope: 'type', kinds: ['task'], cat: 'optional', icon: '📅' },
   { key: 'status', label: '状态', type: 'select', options: ['待办', '进行中', '已完成'], scope: 'type', kinds: ['task'], cat: 'system', icon: '🔄' },
   // ===== type · 好奇心卡 =====
   { key: 'question', label: '问题', type: 'text', scope: 'type', kinds: ['curiosity'], cat: 'required', locked: true, icon: '❓' },
