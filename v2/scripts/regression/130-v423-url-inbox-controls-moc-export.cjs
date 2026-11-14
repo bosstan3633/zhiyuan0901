@@ -357,12 +357,13 @@ check('V423-9 ★今日三件事复制固定加 MOC- 前缀且不重复：项目
     && focusCopy.buildDailyFocusCopyText({ ...input, metricName: '' }) === ''
 })
 
-check('V423-10 ★V4.2.3 手册与应用内版本同源：流程手册写清桌面直达、移动 Inbox、MOC 复制、资源下拉筛选与附件下载打开', () => {
+check('V423-10（V4.3.2 重指）★手册与应用内版本同源：流程手册写清浏览器直达、MOC 复制、资源下拉筛选与附件下载打开，并明确移动采集与 Inbox 已退役', () => {
   const manual = read('/newtab/manual-data.ts')
   const page = read('/newtab/views/ManualPage.vue')
   return manual.includes(CUR_VTAG)
     && manual.includes('推进[[MOC-项目名]]项目')
     && manual.includes('状态筛选收进下拉框')
     && manual.includes('附件点击后下载并打开')
+    && manual.includes('移动采集 PWA 与 PC Inbox 自 V4.3.0 起退役')
     && page.includes(CUR_VTAG)
 })

@@ -824,7 +824,7 @@ check('R4-Dk ★同族的第五个活口：指标下钻抽屉的「点击佐证�
 });
 check('R4-Pa（V4.3.0 退役重指）★运行时覆盖补第二档：e2e 必须验证旧 Inbox 深链回首页、三池入口、Inbox 请求与 UI 零回流，并继续验证两代 capture 字段在启动时去重', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.0') && e.includes('E2E-58 ★V4.3.0')
+  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.2') && e.includes('E2E-58 ★V4.3.0')
     && e.includes("page.goto(base + '#/deck/inbox'")
     && e.includes('captureInboxRequests.length === 0')
     && e.includes("page.locator('.inbox-row').count() === 0")

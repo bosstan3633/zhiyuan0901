@@ -460,7 +460,8 @@ check('C101-24 调度台卡片池返回：三类卡切换后，「返回调度�
   const deck = read('/newtab/views/CompassDeckView.vue');
   const body = deck.slice(deck.indexOf('function goBack()'), deck.indexOf('watch(', deck.indexOf('function goBack()')));
   return deck.includes('function switchKind')
-    && deck.includes('router.push(`/deck/${next}`)')
+    && deck.includes('path: `/deck/${next}`')
+    && deck.includes("query: { fresh: '1', freshAt: String(Date.now()) }")
     && codeOnly(body).includes("void router.push('/')")
     && !codeOnly(body).includes('router.back()');
 });

@@ -239,7 +239,7 @@ check('R4-Ep ★V3.9.8 随迁：批量目标只列现役策展台，且语义是
 });
 check('R4-Ep（V4.3.0 重指）★运行时覆盖补一档：e2e 必须验证旧 Inbox 深链回首页、Inbox UI 与 capture_inbox 请求均不回流，并守卫好奇心旧归档入口为零', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.0')
+  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.2')
     && e.includes("page.goto(base + '#/deck/inbox'")
     && e.includes('captureInboxRequests.length === 0')
     && e.includes("page.locator('.inbox-row').count() === 0")

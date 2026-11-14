@@ -710,14 +710,16 @@ check('R87-8 R7-③：双击打不开的 toast 按三态分流（none / incomple
     && fn.includes('该卡还没填链接') && fn.includes('仅存文件名') && fn.includes('协议不受支持')
     && !fn.includes('请先补全链接（本地文件需完整路径');
 });
-check('R87-9（V3.9.8 随迁备案）资源池筛选为零时空态说明具体原因 + 一键「清空筛选」：搜索词、待打标、已调出 / 从未调出三种空态各自给出口，不让人以为卡丢了', () => {
+check('R87-9（V4.3.2 重指）资源池筛选为零时空态说明具体原因 + 一键「清空筛选」：今日采集、搜索词、待打标、已调出 / 从未调出各自给出口，不让人以为卡丢了', () => {
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue');
-  return pool.includes("query ? `没有匹配「${query}」的资源卡`")
+  return pool.includes("todayOnly ? '今天还没有采集资源卡'")
+    && pool.includes("query ? `没有匹配「${query}」的资源卡`")
     && pool.includes("onlyUntagged ? '池里每张卡都有标签了'")
     && pool.includes("calledFilter !== 'all' ? '这个调用状态没有资源卡'")
-    && pool.includes("(onlyUntagged || query || calledFilter !== 'all') ? '清空筛选'")
+    && pool.includes("(todayOnly || onlyUntagged || query || calledFilter !== 'all') ? '清空筛选'")
     && pool.includes('@action="clearPoolFilter"')
-    && pool.includes('function clearPoolFilter(): void');
+    && pool.includes('function clearPoolFilter(): void')
+    && pool.includes('todayOnly.value = false');
 });
 check('R87-10 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {
   const m = read('/manifest.ts');

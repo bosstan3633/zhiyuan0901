@@ -53,6 +53,7 @@ const props = withDefaults(defineProps<{
 
 const query = ref('')
 const freshMode = ref(false)
+const todayOnly = ref(route.query.today === '1')
 const rootEl = ref<HTMLElement | null>(null)
 /** R3-Ca：视图两档（网格/列表）——与任务、好奇面板同口径存组件内 ref，不落盘（三面板一致，别在这里单开持久化）
  *  ★W15-T2（用户拍板 2026-10-16）：**默认改列表** —— 池卡 261 张，网格一屏只放得下十几张且标签要折行，
@@ -115,6 +116,7 @@ const poolCards = computed(() => {
   const list = (store.data?.resources || [])
     .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
     .filter(r => !q || r.title.toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
+    .filter(r => !todayOnly.value || (r.createdAt || 0) >= startOfToday())
     .filter(r => !onlyUntagged.value || !(r.tags || []).length)
     .filter(r => calledFilter.value === 'all' || (calledFilter.value === 'called' ? !!r.lastCalledAt : !r.lastCalledAt))
   if (freshMode.value) return list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
@@ -122,6 +124,16 @@ const poolCards = computed(() => {
 })
 const poolTotal = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID).length)
 const untaggedCount = computed(() => (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !(r.tags || []).length).length)
+const todayCount = computed(() =>
+  (store.data?.resources || []).filter(r =>
+    !r.deletedAt
+    && r.workspaceId === CURATION_WS_ID
+    && (r.createdAt || 0) >= startOfToday()).length
+)
+function startOfToday(): number {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+}
 /** R3-Cc2：控制行的值域在这里配置，模板里不写第二套按钮 */
 const poolViews = [{ id: 'card', label: '▦ 网格', title: '网格视图' }, { id: 'list', label: '列表', title: '列表视图（一屏看更多，标签全展开）' }]
 
@@ -309,18 +321,21 @@ function confirmBatchMirror() {
 }
 /** 下拉筛选没有“再点一次取消”的手势：选中项就是当前值。 */
 function onPoolFilter(v: string) {
+  todayOnly.value = v === 'today'
   onlyUntagged.value = v === 'untagged'
   calledFilter.value = v === 'called' || v === 'never' ? v : 'all'
 }
 const poolFilters = computed(() => [
   { id: 'all', label: '全部', count: poolTotal.value },
+  { id: 'today', label: '今日采集', count: todayCount.value, title: '今天新进入资源卡池的卡片' },
   { id: 'untagged', label: '待打标', count: untaggedCount.value, title: '无标签的卡在任何筛选下都召回不到——这里单独捞出来补标' },
   { id: 'called', label: '已调出', count: (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && r.lastCalledAt).length, title: '至少被打开过一次' },
   { id: 'never', label: '从未调出', count: (store.data?.resources || []).filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID && !r.lastCalledAt).length, title: '还没有被打开过的卡' }
 ])
-const activeFilter = computed(() => onlyUntagged.value ? 'untagged' : calledFilter.value)
+const activeFilter = computed(() => todayOnly.value ? 'today' : onlyUntagged.value ? 'untagged' : calledFilter.value)
 function clearPoolFilter(): void {
   query.value = ''
+  todayOnly.value = false
   onlyUntagged.value = false
   calledFilter.value = 'all'
 }
@@ -499,6 +514,7 @@ async function resetForFresh() {
   freshMode.value = true
   viewMode.value = 'list'
   query.value = ''
+  todayOnly.value = route.query.today === '1'
   onlyUntagged.value = false
   calledFilter.value = 'all'
   sortBy.value = 'created'
@@ -584,10 +600,10 @@ function deleteSelected() {
     <!-- G3（V3.8.27）：三种"空"收进同一个契约组件——区别只在 是什么/怎么开始/主行动，结构不再各写一套。
          class="pcp-empty" 保留：theme-audit.cjs 的场景探针按这个选择器取面板，不能丢。 -->
     <EmptyState v-if="!poolCards.length" class="pcp-empty" icon="folder"
-      :size="(onlyUntagged || query || calledFilter !== 'all') ? 'inline' : 'section'"
-      :title="onlyUntagged ? '池里每张卡都有标签了' : (query ? `没有匹配「${query}」的资源卡` : (calledFilter !== 'all' ? '这个调用状态没有资源卡' : '资源卡池还空着'))"
-      :hint="onlyUntagged ? '切回「全部」即可看到池里的卡。' : (query ? '清空过滤词，或换个更短的关键词。' : (calledFilter !== 'all' ? '切换到「全部」即可看到池里的卡。' : '用 Ctrl+Shift+J 从任意网页采集第一张卡。'))"
-      :action-label="(onlyUntagged || query || calledFilter !== 'all') ? '清空筛选' : ''" @action="clearPoolFilter" />
+      :size="(todayOnly || onlyUntagged || query || calledFilter !== 'all') ? 'inline' : 'section'"
+      :title="todayOnly ? '今天还没有采集资源卡' : (onlyUntagged ? '池里每张卡都有标签了' : (query ? `没有匹配「${query}」的资源卡` : (calledFilter !== 'all' ? '这个调用状态没有资源卡' : '资源卡池还空着')))"
+      :hint="todayOnly ? '明天会从新一天的采集重新开始，过往资源仍完整保留在全部卡池。' : (onlyUntagged ? '切回「全部」即可看到池里的卡。' : (query ? '清空过滤词，或换个更短的关键词。' : (calledFilter !== 'all' ? '切换到「全部」即可看到池里的卡。' : '用 Ctrl+Shift+J 从任意网页采集第一张卡。')))"
+      :action-label="(todayOnly || onlyUntagged || query || calledFilter !== 'all') ? '清空筛选' : ''" @action="clearPoolFilter" />
 
     <!-- R3-Ca 列表视图：一屏看更多 + 标签全展开（网格留作默认，两档共用同一份 poolCards 与分页） -->
     <div v-else-if="viewMode === 'list'" class="pcp-list">

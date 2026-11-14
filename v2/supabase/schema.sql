@@ -1,4 +1,4 @@
--- 知源 · Supabase 云同步初始化脚本（v4.3.1）
+-- 知源 · Supabase 云同步初始化脚本（v4.3.2）
 -- 在 Supabase SQL Editor 中执行一次即可（幂等，可重复执行）。
 -- 目标：云快照、账号级操作事件、策展节点私有附件 Storage；capture_inbox 仅保留历史兼容，V4.3.0 起停用。
 -- 安全：三表启用 RLS，仅 authenticated 且 auth.uid() = user_id；

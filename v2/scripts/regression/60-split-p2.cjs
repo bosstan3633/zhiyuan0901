@@ -69,7 +69,24 @@ console.log('【第一百零五轮 · V2.74.0：P2 收官（B4 + C3 + D3 + E2 + 
  *  直达锚点自动展开）；C3 浮层字号阶梯（文本档全走 --zy-fs-*，输入态 16-17px 保留）；D3 重复卡
  *  确认视图加「仍然新建一张」（整屏例外不变）；E2 策展台 >5 页签收起「≪ N」hover 展开（活动台
  *  恒可见）；W10 搜索纳入 link（两台与浮层范围统一，拍板按提案原文）。 */
-check('R105-1（V4.3.1 重指）B4 卡片池三页签：任务默认展示完整任务池 + 月历，好奇心与资源保留预览；三者都可进入独立二级页，旧 tab 挂载状态退役', () => { const h = read('/newtab/views/CompassHome.vue'); const logic = read('/newtab/views/useCompassHome.ts'); return /class="[^"]*\bhand-board\b/.test(h) && h.includes('class="hand-tabs"') && h.includes('class="task-workbench"') && h.includes('class="hand-grid hand-grid-aux"') && h.includes('好奇心卡') && h.includes('资源卡') && h.includes('@click="goDeck(handTab)"') && h.includes("goDeck('curiosity')") && h.includes("goDeck('resource')") && logic.includes('function goDeck(kind: HandKind)') && logic.includes('router.push(`/deck/${kind}`)') && !h.includes('curioMounted'); });
+check('R105-1（V4.3.2 重指）B4 卡片池三页签：任务默认展示待排期工作台 + 月历，好奇心保留预览，资源改为常用夹模块；三者都可进入默认列表态二级页，旧 tab 挂载状态退役', () => {
+  const h = read('/newtab/views/CompassHome.vue');
+  const logic = read('/newtab/views/useCompassHome.ts');
+  return /class="[^"]*\bhand-board\b/.test(h)
+    && h.includes('class="hand-tabs"')
+    && h.includes('class="task-workbench"')
+    && h.includes('class="hand-grid hand-grid-aux"')
+    && h.includes('<HomeResourceFolderGrid')
+    && h.includes('好奇心卡')
+    && h.includes('资源卡')
+    && h.includes('@click="goDeck(handTab)"')
+    && h.includes("goDeck('curiosity')")
+    && h.includes("goDeck('resource')")
+    && logic.includes('function goDeck(kind: HandKind)')
+    && logic.includes('path: `/deck/${kind}`')
+    && logic.includes("query: { fresh: '1', freshAt: String(Date.now()) }")
+    && !h.includes('curioMounted');
+});
 check('R105-2 C3 浮层字号阶梯：--zy-fs-2xs/xs/sm/md/lg 五档定义 + 文本档字面量归并（10-14px 零命中）+ 输入态 17px 保留', () => {
   return OV105.includes('--zy-fs-2xs:10.5px;--zy-fs-xs:11px;--zy-fs-sm:12px;--zy-fs-md:13px;--zy-fs-lg:14px;')
     && !/font-size:1[0-4](\.\d)?px/.test(OV105)

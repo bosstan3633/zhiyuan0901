@@ -35,7 +35,10 @@ const DECK_TABS: { kind: DeckKind; label: string }[] = [
  *  不另造一份 activeKind ref 与 URL 竞争。 */
 function switchKind(next: DeckKind): void {
   if (next === kind.value) return
-  void router.push(`/deck/${next}`)
+  void router.push({
+    path: `/deck/${next}`,
+    query: { fresh: '1', freshAt: String(Date.now()) },
+  })
 }
 
 function goBack(): void {

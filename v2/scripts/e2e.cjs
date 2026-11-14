@@ -2941,21 +2941,26 @@ await paOpen()
       && captureInboxRequests.length === 0 && !retiredInboxState.tabs.some(text => /Inbox/i.test(text)),
     `home=${retiredInboxHomeReady} state=${JSON.stringify(retiredInboxState)} rows0=${retiredInboxRowsZero} requests=${JSON.stringify(captureInboxRequests)}`)
 
-  // ══════════ E2E-55（V4.3.0）调度台只保留三卡池，默认任务 ══════════
+  // ══════════ E2E-55（V4.3.2 重指）调度台只保留三卡池，默认任务；角标数字不改变页签身份 ══════════
   await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '.hand-tabs .hand-tab', { visible: true, timeout: 12000 })
   const homePoolState = await page.evaluate(() => {
     const tabs = [...document.querySelectorAll('.hand-tabs .hand-tab')]
+    const labelOf = node => {
+      const badge = node.querySelector('.hand-new-badge')
+      const raw = (node.textContent || '').replace(/\s+/g, ' ').trim()
+      return badge ? raw.slice(0, raw.length - (badge.textContent || '').trim().length).trim() : raw
+    }
     return {
-      labels: tabs.map(node => (node.textContent || '').replace(/\s+/g, ' ').trim()),
-      selected: tabs.filter(node => node.classList.contains('on')).map(node => (node.textContent || '').trim()),
-      ariaSelected: tabs.filter(node => node.getAttribute('aria-selected') === 'true').map(node => (node.textContent || '').trim()),
+      labels: tabs.map(labelOf),
+      selected: tabs.filter(node => node.classList.contains('on')).map(labelOf),
+      ariaSelected: tabs.filter(node => node.getAttribute('aria-selected') === 'true').map(labelOf),
       hasInboxClass: !!document.querySelector('.hand-tab-inbox, .mini-item-inbox, .inbox-row'),
       deckTabs: [...document.querySelectorAll('.deck-kind-seg button')].map(node => (node.textContent || '').trim()),
     }
   })
-  report('E2E-55 ★V4.3.0 调度台手边的卡只保留任务 / 好奇心 / 资源三池：默认任务是唯一选中页签，Inbox 入口与行内组件均不回流',
+  report('E2E-55 ★V4.3.2 调度台手边的卡只保留任务 / 好奇心 / 资源三池：今日新增角标不改变页签身份，默认任务是唯一选中页签，Inbox 入口与行内组件均不回流',
     JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '好奇心', '资源'])
       && homePoolState.selected.length === 1 && homePoolState.selected[0] === '任务'
       && homePoolState.ariaSelected.length === 1 && homePoolState.ariaSelected[0] === '任务'
@@ -3581,6 +3586,146 @@ await paOpen()
   report('E2E-60 ★V4.2.2 常用夹在夹内直接添加 / 移出；源卡软删并改名后镜像标题与原始链接仍由独立快照提供',
     folderOk,
     `建夹=${folderCreated} 两条=${twoMirrors} 移出后=${oneMirror} 成员=${JSON.stringify(memberTextsAfterAdd)} 快照=${JSON.stringify(snapshotTitle)} URLs=${JSON.stringify(folderUrlList)}`)
+
+  // ══════════ E2E-63 / 64（V4.3.2）调度台月历与卡片池入口 ══════════
+  const pad2 = n => String(n).padStart(2, '0')
+  const nowDate = new Date()
+  const todayKey = `${nowDate.getFullYear()}-${pad2(nowDate.getMonth() + 1)}-${pad2(nowDate.getDate())}`
+  const monthPrefix = todayKey.slice(0, 7)
+  const futureDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), Math.min(nowDate.getDate() + 1, 28), 12)
+  const futureKey = `${futureDate.getFullYear()}-${pad2(futureDate.getMonth() + 1)}-${pad2(futureDate.getDate())}`
+  await page.evaluate(async ({ todayKey, futureKey, monthPrefix }) => {
+    const cur = await chrome.storage.local.get('zy_data_v2')
+    const data = cur.zy_data_v2
+    if (!data) return
+    const now = Date.now()
+    const ids = new Set([
+      'e2e-v432-pending', 'e2e-v432-today', 'e2e-v432-future', 'e2e-v432-done',
+      ...Array.from({ length: 18 }, (_, i) => `e2e-v432-pool-${i}`),
+    ])
+    data.tasks = (data.tasks || []).filter(task => !ids.has(task.id))
+    const baseTask = (id, title, status, dueDate) => ({
+      id, kind: 'task', title, projectId: '', metricId: '', status, priority: 'medium',
+      dueDate, mountedResourceIds: [], mountedCuriosityIds: [], customFields: {}, tags: [],
+      subtasks: [], pinned: false, createdAt: now, updatedAt: now,
+    })
+    data.tasks.push(
+      baseTask('e2e-v432-pending', 'E2E V4.3.2 待排期探针', 'todo', undefined),
+      baseTask('e2e-v432-today', 'E2E V4.3.2 今日探针', 'todo', todayKey),
+      baseTask('e2e-v432-future', 'E2E V4.3.2 未来探针', 'todo', futureKey),
+      baseTask('e2e-v432-done', 'E2E V4.3.2 已完成探针', 'done', todayKey),
+    )
+    for (let i = 0; i < 18; i++) {
+      data.tasks.push(baseTask(`e2e-v432-pool-${i}`, `E2E V4.3.2 待排期填充 ${i + 1}`, 'todo', undefined))
+    }
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }, { todayKey, futureKey, monthPrefix })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.task-calendar', { visible: true, timeout: 12000 })
+  const calendarBoxes = await page.evaluate(() => {
+    const pool = document.querySelector('.cal-pool')?.getBoundingClientRect()
+    const board = document.querySelector('.cal-board')?.getBoundingClientRect()
+    const list = document.querySelector('.cal-pool-list')
+    return {
+      poolH: pool?.height || 0,
+      boardH: board?.height || 0,
+      listOverflow: list ? getComputedStyle(list).overflowY : '',
+      listScrollable: !!list && list.scrollHeight > list.clientHeight,
+    }
+  })
+  const pendingTitle = 'E2E V4.3.2 待排期探针'
+  const todayTitle = 'E2E V4.3.2 今日探针'
+  const futureTitle = 'E2E V4.3.2 未来探针'
+  const doneTitle = 'E2E V4.3.2 已完成探针'
+  const leftText = await page.locator('.cal-pool-list').innerText()
+  const scheduledHiddenFromLeft = !leftText.includes(todayTitle)
+    && !leftText.includes(futureTitle)
+    && !leftText.includes(doneTitle)
+  const todayTone = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: todayTitle }).first()
+    .evaluate(el => el.classList.contains('tone-today')).catch(() => false)
+  const futureTone = await page.locator(`.cal-day[data-day="${futureKey}"] .cal-task-chip`).filter({ hasText: futureTitle }).first()
+    .evaluate(el => el.classList.contains('tone-future')).catch(() => false)
+  const doneTone = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: doneTitle }).first()
+    .evaluate(el => el.classList.contains('tone-done')).catch(() => false)
+  await page.locator('.cal-month-picker-trigger').click()
+  const monthPicker = await page.locator('.cal-month-picker').isVisible().catch(() => false)
+  const monthChoices = await page.locator('.cal-month-picker-grid button').count()
+  await page.locator('.cal-month-picker-grid button').first().click()
+  const monthSwitched = ((await page.locator('.cal-month-picker-trigger').innerText().catch(() => '')) || '').includes('1 月')
+  await page.locator('.cal-today').click()
+  await waitForLocator(page, '.md-panel', { visible: true, timeout: 6000 })
+  const dayModal = await page.evaluate(() => {
+    const panel = document.querySelector('.md-panel')
+    const scrim = document.querySelector('.md-scrim')
+    return {
+      open: !!panel,
+      z: panel ? Number(getComputedStyle(panel).zIndex) || 0 : 0,
+      scrimZ: scrim ? Number(getComputedStyle(scrim).zIndex) || 0 : 0,
+    }
+  })
+  await page.locator('.md-close').click()
+  await page.waitForTimeout(250)
+  const pendingRow = page.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
+  const todayCell = page.locator(`.cal-day[data-day="${todayKey}"]`)
+  await pendingRow.dragTo(todayCell)
+  const pendingScheduled = await waitForStorage(page, 'zy_data_v2', raw =>
+    (raw.zy_data_v2?.tasks || []).some(task => task.id === 'e2e-v432-pending' && task.dueDate === todayKey),
+  { timeout: 8000 })
+  const leftAfterDrop = await page.locator('.cal-pool-list').innerText().catch(() => '')
+  const chipAfterDrop = page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: pendingTitle }).first()
+  const chipVisibleAfterDrop = await chipAfterDrop.isVisible().catch(() => false)
+  await chipAfterDrop.locator('button[aria-label="取消排期"]').click()
+  const pendingReturned = await waitForStorage(page, 'zy_data_v2', raw =>
+    (raw.zy_data_v2?.tasks || []).some(task => task.id === 'e2e-v432-pending' && !task.dueDate),
+  { timeout: 8000 })
+  await waitForLocator(page, '.cal-pool-task', { visible: true, timeout: 4000 })
+  const leftAfterCancel = await page.locator('.cal-pool-list').innerText().catch(() => '')
+  const calendarOk = calendarBoxes.poolH > 0
+    && Math.abs(calendarBoxes.poolH - calendarBoxes.boardH) <= 1
+    && calendarBoxes.listOverflow === 'auto'
+    && calendarBoxes.listScrollable
+    && !leftText.includes(todayTitle)
+    && !leftText.includes(futureTitle)
+    && !leftText.includes(doneTitle)
+    && todayTone && futureTone && doneTone
+    && monthPicker && monthChoices === 12 && monthSwitched
+    && dayModal.open && dayModal.z > 0 && dayModal.scrimZ > 0 && dayModal.z > dayModal.scrimZ
+    && !!pendingScheduled && chipVisibleAfterDrop && !leftAfterDrop.includes(pendingTitle)
+    && !!pendingReturned && leftAfterCancel.includes(pendingTitle)
+  report('E2E-63 ★V4.3.2 月历只列未完成未排期任务、左右等高可滚、月份切换与四色状态、今日弹层层级、拖入移出与取消回归全链路',
+    calendarOk,
+    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 左侧隐藏已排=${scheduledHiddenFromLeft} 色调=${todayTone}/${futureTone}/${doneTone} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 拖入=${pendingScheduled}/${chipVisibleAfterDrop}/${!leftAfterDrop.includes(pendingTitle)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
+
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.hand-tabs', { visible: true, timeout: 12000 })
+  const resourceTab = page.locator('.hand-tab').filter({ hasText: '资源' }).first()
+  await resourceTab.click()
+  await waitForLocator(page, '.home-resource-folders', { visible: true, timeout: 6000 })
+  const folderModules = await page.locator('.hrf-folder').count()
+  const todayFolder = page.locator('.hrf-folder.is-today').first()
+  const todayFolderVisible = await todayFolder.isVisible().catch(() => false)
+  const todayFolderCount = ((await todayFolder.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  await page.locator('.hand-head-actions .hand-link').click()
+  await waitForLocator(page, '#deck-pool-root, .pcp-panel, .pool-cards-panel, .deck-body', { visible: true, timeout: 8000 })
+  await page.waitForTimeout(900)
+  const deckFresh = page.url().includes('fresh=1')
+  const deckList = await page.locator('.pcp-list').isVisible().catch(() => false)
+  const poolOk = folderModules >= 2 && todayFolderVisible && /\d+/.test(todayFolderCount)
+    && deckFresh && deckList
+  report('E2E-64 ★V4.3.2 卡片池页签带今日新增角标、资源页常用夹模块与今日采集入口、进入二级页默认列表态',
+    poolOk,
+    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} fresh=${deckFresh} list=${deckList} url=${page.url()}`)
+
+  // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
+  // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。
+  if (process.env.ZY_E2E_EXPORT_DATA) {
+    const exportPath = path.resolve(process.env.ZY_E2E_EXPORT_DATA)
+    const raw = await page.evaluate(() => chrome.storage.local.get('zy_data_v2'))
+    fs.writeFileSync(exportPath, JSON.stringify(raw.zy_data_v2 || {}, null, 2))
+    console.log(`· E2E 视觉夹具已导出：${exportPath}`)
+  }
 
   await ctx.close()
   const fail = results.filter(r => !r.ok).length

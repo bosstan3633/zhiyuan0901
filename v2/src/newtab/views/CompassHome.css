@@ -441,10 +441,25 @@
 .hand-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
 /* V3.9.18：hand-summary 随三列汇总退役（计数入页签与列头）；hand-tabs 为三池页签 */
 .hand-tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
-.hand-tab { min-height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-sub); font-weight: 500; cursor: pointer; transition: background var(--dur), color var(--dur); }
+.hand-tab { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-sub); font-weight: 500; cursor: pointer; transition: background var(--dur), color var(--dur); }
 .hand-tab:hover { color: var(--text); }
 .hand-tab.on { background: var(--surface-2); color: var(--text); }
 .hand-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hand-new-badge {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  place-items: center;
+  padding: 0 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent-light) 72%, var(--surface));
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
 /* V3.9.18：三池页签后单列呈现——三段 hand-col 仍在 DOM（字符串锚保留），v-show 切换显示态 */
 .hand-grid {
   display: grid;

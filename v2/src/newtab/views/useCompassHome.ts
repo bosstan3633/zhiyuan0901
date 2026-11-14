@@ -8,7 +8,7 @@ import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
 import type { SaveError } from '@/shared/storage/repository'
-import type { TaskCard, Project, FocusSlot, CuriosityCard, ResourceCard } from '@/shared/models'
+import { CURATION_WS_ID, type TaskCard, type Project, type FocusSlot, type CuriosityCard, type ResourceCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
@@ -744,7 +744,7 @@ const taskWorkSearch = ref('')
 const taskWorkProject = ref('')
 const taskWorkStatus = ref<'all' | TaskCard['status']>('all')
 const taskWorkQuick = ref<TaskWorkQuick>('all')
-const taskWorkShowDone = ref(false)
+const taskWorkShowDone = ref(true)
 const taskWorkProjectNames = computed(() =>
   new Map(allProjects().map(project => [project.id, project.name])))
 const taskWorkMetricNames = computed(() => {
@@ -770,7 +770,7 @@ const taskWorkCounts = computed(() => {
   const today = todayKey.value
   return {
     all: liveTasks.value.length,
-    unscheduled: liveTasks.value.filter(task => !task.dueDate).length,
+    unscheduled: liveTasks.value.filter(task => task.status !== 'done' && !task.dueDate).length,
     unarchived: liveTasks.value.filter(task => !task.projectId || !task.metricId).length,
     focus: liveTasks.value.filter(task => !!task.projectId && taskWorkFocusIds.value.has(task.projectId)).length,
     overdue: liveTasks.value.filter(task => task.status !== 'done' && !!task.dueDate && task.dueDate < today).length,
@@ -795,7 +795,7 @@ const taskWorkFiltered = computed(() => {
       ].join(' ').toLowerCase()
       if (!haystack.includes(query)) return false
     }
-    if (quick === 'unscheduled' && task.dueDate) return false
+    if (quick === 'unscheduled' && (task.dueDate || task.status === 'done')) return false
     if (quick === 'unarchived' && task.projectId && task.metricId) return false
     if (quick === 'focus' && (!task.projectId || !taskWorkFocusIds.value.has(task.projectId))) return false
     if (quick === 'overdue' && (!task.dueDate || task.dueDate >= today || task.status === 'done')) return false
@@ -961,6 +961,15 @@ const previewResources = computed<ResourceCard[]>(() =>
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.lastCalledAt || b.updatedAt || 0) - (a.lastCalledAt || a.updatedAt || 0))
     .slice(0, 5)
 )
+const handNewCounts = computed(() => {
+  const t0 = todayStart.value
+  return {
+    task: liveTasks.value.filter(task => (task.createdAt || 0) >= t0).length,
+    curiosity: liveCuriosities.value.filter(card => (card.createdAt || 0) >= t0).length,
+    resource: liveResources.value.filter(card =>
+      card.workspaceId === CURATION_WS_ID && (card.createdAt || 0) >= t0).length,
+  }
+})
 const hasAnyPreview = computed(() =>
   !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
 )
@@ -990,7 +999,10 @@ function openRecentResource(r: ResourceCard): void {
   openResourcePreview(r)
 }
 function goDeck(kind: HandKind): void {
-  void router.push(`/deck/${kind}`)
+  void router.push({
+    path: `/deck/${kind}`,
+    query: { fresh: '1', freshAt: String(Date.now()) },
+  })
 }
 /* ★W17-C01（2026-10-20 用户拍板）「今天的状态」三行 → 中央只读明细弹窗。
  * 原行为是 router.push 跳到另一个页面（说 A 给 B）；现改为就地弹窗，不跳路由、不改 URL。
@@ -1026,7 +1038,7 @@ function goDeck(kind: HandKind): void {
     mainFocus, extraFocus, RECENT_ROW_H, recentLimit,
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks,
-    previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
+    previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources, handNewCounts,
     hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,

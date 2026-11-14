@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -20,7 +20,7 @@ import {
 import type { ResourceCard, ResourceFolder, ResourceFolderMirror } from '@/shared/models'
 import ResourceFolderPicker from './ResourceFolderPicker.vue'
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean; initialFolderId?: string }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const store = useAppStore()
@@ -37,6 +37,12 @@ const pickerOpen = computed({
   get: () => !!pickerFolder.value,
   set: (value: boolean) => { if (!value) pickerFolder.value = null },
 })
+
+watch(() => [props.open, props.initialFolderId] as const, async ([open, folderId]) => {
+  if (!open || !folderId) return
+  await nextTick()
+  document.querySelector(`[data-rfd-folder="${folderId}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+}, { immediate: true })
 
 function membersOf(folder: ResourceFolder): ResourceFolderMirror[] {
   return resourceFolderMirrorsOf(store.data!, folder.id)
@@ -193,7 +199,13 @@ function displayLink(card: ResourceCard): string {
       action-label=""
       @action="createFolder" />
 
-    <section v-for="folder in folders" :key="folder.id" class="rfd-folder">
+    <section
+      v-for="folder in folders"
+      :key="folder.id"
+      class="rfd-folder"
+      :class="{ focused: initialFolderId === folder.id }"
+      :data-rfd-folder="folder.id"
+    >
       <header class="rfd-head">
         <span class="rfd-icon"><Icon name="folder" :size="16" /></span>
         <div v-if="renamingId !== folder.id" class="rfd-title">
@@ -249,6 +261,7 @@ function displayLink(card: ResourceCard): string {
 .rfd-create button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent-light); color: var(--accent-ink); font: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
 .rfd-create button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .rfd-folder { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.rfd-folder.focused { border-color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent); }
 .rfd-head { display: flex; align-items: flex-start; gap: 9px; }
 .rfd-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: var(--accent-light); color: var(--accent-ink); flex: none; }
 .rfd-title { flex: 1; min-width: 0; }

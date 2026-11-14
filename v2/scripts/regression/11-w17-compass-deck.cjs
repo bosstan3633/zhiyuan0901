@@ -245,11 +245,12 @@ check('V3.9.13-2 ★V3.9.22 重指：主攻项目点击打开可编辑详情中�
     && !fn.includes('router.push');
 });
 
-check('V3.9.7-3 ★卡池二级页可在任务 / 好奇心 / 资源三类自由切换，切换写路由以保留浏览器返回', () => {
+check('V3.9.7-3（V4.3.2 重指）★卡池二级页可在任务 / 好奇心 / 资源三类自由切换，切换写路由并携带 fresh 重置信号以保留浏览器返回与默认列表口径', () => {
   return DECK.includes('const DECK_TABS')
     && DECK.includes("kind: 'task'") && DECK.includes("kind: 'curiosity'") && DECK.includes("kind: 'resource'")
     && DECK.includes('function switchKind(next: DeckKind): void')
-    && DECK.includes('router.push(`/deck/${next}`)')
+    && DECK.includes('path: `/deck/${next}`')
+    && DECK.includes("query: { fresh: '1', freshAt: String(Date.now()) }")
     && DECK.includes('role="tablist" aria-label="卡片类型"')
     && DECK.includes(':aria-selected="kind === tab.kind"');
 });

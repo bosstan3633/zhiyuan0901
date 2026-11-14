@@ -37,6 +37,7 @@ import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import TaskCalendarView from '../components/compass/TaskCalendarView.vue'
+import HomeResourceFolderGrid from '../components/compass/HomeResourceFolderGrid.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import { emitOpenDrawer } from '@/shared/utils/bus'
@@ -49,7 +50,7 @@ import { useCompassHome, type FocusCell, type HandKind } from './useCompassHome'
 const {
   router, route, store, d, allProjects,
   projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone,
-  refreshWce, unarchivedTaskCount, taskArchiveIssue, openResourceLink, previewOpen,
+  refreshWce, unarchivedTaskCount, taskArchiveIssue, previewOpen,
   previewUrl, previewName, closePreview, drawerRef, formatDate,
   formatFullDate, dateStr, midnightOf, todayStart, midnightTimer,
   scheduleMidnightRollover, todayDate, shiftDate, setFocusDate, focusDateValue, todayFocusList, FOCUS_LIMIT,
@@ -75,7 +76,7 @@ const {
   mainFocus, extraFocus, recentLimit,
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks,
-  previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources,
+  previewTasks, liveCuriosities, previewCuriosities, liveResources, handNewCounts,
   hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
@@ -283,13 +284,19 @@ const {
             </div>
             <!-- V4.3.0：移动采集入口与采集中转层已退役，只保留浏览器内三卡池。 -->
             <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
-              <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">任务</button>
-              <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">好奇心</button>
-              <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">资源</button>
+              <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">
+                任务 <span v-if="handNewCounts.task" class="hand-new-badge" :aria-label="`${handNewCounts.task} 张今日新增任务卡`">{{ handNewCounts.task > 99 ? '99+' : handNewCounts.task }}</span>
+              </button>
+              <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">
+                好奇心 <span v-if="handNewCounts.curiosity" class="hand-new-badge" :aria-label="`${handNewCounts.curiosity} 张今日新增好奇心卡`">{{ handNewCounts.curiosity > 99 ? '99+' : handNewCounts.curiosity }}</span>
+              </button>
+              <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">
+                资源 <span v-if="handNewCounts.resource" class="hand-new-badge" :aria-label="`${handNewCounts.resource} 张今日新增资源卡`">{{ handNewCounts.resource > 99 ? '99+' : handNewCounts.resource }}</span>
+              </button>
             </div>
             <div class="hand-head-actions">
               <button class="hand-link" type="button" @click="goDeck(handTab)">
-                {{ handTab === 'task' ? '列表 / 卡片 / 看板' : '查看全部' }}
+                进入卡片池
                 <Icon name="arrowright" :size="12" />
               </button>
             </div>
@@ -320,9 +327,9 @@ const {
               </div>
               <label class="task-work-done-toggle">
                 <input v-model="taskWorkShowDone" type="checkbox">
-                显示已完成
+                月历显示已完成
               </label>
-              <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = false">清空筛选</button>
+              <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = true">清空筛选</button>
             </div>
 
             <TaskCalendarView
@@ -365,14 +372,7 @@ const {
                 <span class="hand-count">{{ liveResources.length }}</span>
                 <button class="hand-link" type="button" @click="goDeck('resource')">查看全部 <Icon name="arrowright" :size="12" /></button>
               </header>
-              <div class="mini-list">
-                <button v-for="r in previewResources" :key="r.id" class="mini-item" type="button" @click="openResourcePreview(r)" @dblclick="openResourceLink(r)">
-                  <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" class="mini-leading" />
-                  <span class="mini-copy"><span class="mini-title">{{ r.title }}</span><span class="mini-meta">{{ resourceKindLabel(r) }} · {{ fmtShortDate(r.lastCalledAt || r.updatedAt) }}</span></span>
-                  <span class="mini-side">{{ r.callCount || 0 }}</span>
-                </button>
-                <div v-if="!previewResources.length" class="mini-empty">还没有资源卡</div>
-              </div>
+              <HomeResourceFolderGrid :today-start="todayStart" />
             </section>
 
             <section class="hand-col recent-resource-panel" aria-labelledby="recentResTitle">
