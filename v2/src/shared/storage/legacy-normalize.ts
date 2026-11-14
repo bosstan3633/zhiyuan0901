@@ -1,6 +1,21 @@
 import type { AppData } from '@/shared/models'
 import { safeDecodeText } from '@/shared/utils'
 
+/** 老库 dueAt 是毫秒时间戳，现代任务日历只接受 YYYY-MM-DD；统一在载入/导入边界收敛。 */
+function legacyPlanDate(value: unknown): string | undefined {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  const stamp = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim() && Number.isFinite(Number(value))
+      ? Number(value)
+      : NaN
+  if (!Number.isFinite(stamp) || stamp <= 0) return undefined
+  const date = new Date(stamp)
+  if (Number.isNaN(date.getTime())) return undefined
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 /**
  * R162/R165/R166：已退役的卡间关系字段——**载入与导入两条路都要过一遍**。
  *
@@ -170,7 +185,9 @@ export function normalizeLegacyCards(d: AppData): void {
   const fixCardLegacyFields = (cards: Record<string, unknown>[] | undefined) => (cards || []).forEach((c) => {
     if (!c || typeof c !== 'object') return
     if (typeof c.description !== 'string' && typeof c.desc === 'string') c.description = c.desc
-    if (!c.dueDate && typeof c.dueAt === 'number') c.dueDate = c.dueAt
+    const dueDate = legacyPlanDate(c.dueDate) || legacyPlanDate(c.dueAt)
+    if (dueDate) c.dueDate = dueDate
+    else if (c.dueDate !== undefined) c.dueDate = undefined
     if (!c.customFields || typeof c.customFields !== 'object' || Array.isArray(c.customFields)) c.customFields = {}
   })
   fixCardLegacyFields(d.tasks as unknown as Record<string, unknown>[])

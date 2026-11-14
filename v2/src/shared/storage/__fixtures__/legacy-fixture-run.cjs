@@ -30,11 +30,13 @@ const here = __dirname
 const repoTs = path.join(here, '..', 'legacy-normalize.ts')
 const sample = JSON.parse(fs.readFileSync(path.join(here, 'legacy-library.sample.json'), 'utf8'))
 
-/* 1) 从 legacy-normalize.ts 里取出 normalizeLegacyCards 的源码区间 */
+/* 1) 从 legacy-normalize.ts 里取出归一化实现区间。
+   V4.3.3 起 normalizeLegacyCards 依赖同为模块私有的 legacyPlanDate：
+   只切导出函数会让夹具运行器取不到该 helper，所以从 helper 头开始，到文件尾结束。 */
 const repo = fs.readFileSync(repoTs, 'utf8')
-const from = repo.indexOf('export function normalizeLegacyCards')
+const from = repo.indexOf('function legacyPlanDate')
 const to = repo.length
-if (from < 0 || to <= from) { console.error('剥不出 normalizeLegacyCards —— 锚点漂了'); process.exit(2) }
+if (from < 0 || to <= from) { console.error('剥不出 legacyPlanDate / normalizeLegacyCards —— 锚点漂了'); process.exit(2) }
 const body = repo.slice(from, to)
 if (body.length < 3000) { console.error(`切出的函数体过短（${body.length} 字符）——锚点多半没对上`); process.exit(2) }
 

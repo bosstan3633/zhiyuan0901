@@ -27,6 +27,8 @@ const emit = defineEmits<{
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 const monthCursor = ref(startOfMonth(new Date()))
+const weekCursor = ref(startOfWeek(new Date()))
+const calendarMode = ref<'month' | 'week'>('month')
 const monthPickerOpen = ref(false)
 const monthPickerYear = ref(monthCursor.value.getFullYear())
 const selectedDay = ref('')
@@ -40,6 +42,12 @@ let draggingId = ''
 
 function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1, 12)
+}
+
+function startOfWeek(date: Date): Date {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12)
+  next.setDate(next.getDate() - ((next.getDay() + 6) % 7))
+  return next
 }
 
 function dateKey(date: Date): string {
@@ -62,9 +70,42 @@ function shiftMonth(delta: number): void {
   monthPickerYear.value = monthCursor.value.getFullYear()
 }
 
+function shiftPeriod(delta: number): void {
+  if (calendarMode.value === 'month') {
+    shiftMonth(delta)
+    return
+  }
+  const next = new Date(weekCursor.value)
+  next.setDate(next.getDate() + delta * 7)
+  weekCursor.value = next
+  monthCursor.value = startOfMonth(next)
+  monthPickerYear.value = next.getFullYear()
+}
+
+function setCalendarMode(mode: 'month' | 'week'): void {
+  if (calendarMode.value === mode) return
+  closeTaskMenu()
+  monthPickerOpen.value = false
+  if (mode === 'week') {
+    const currentMonth = todayKey.value.slice(0, 7)
+    const monthKey = dateKey(monthCursor.value).slice(0, 7)
+    const base = selectedDay.value
+      ? dateOfKey(selectedDay.value)
+      : monthKey === currentMonth
+        ? new Date()
+        : monthCursor.value
+    weekCursor.value = startOfWeek(base)
+  } else {
+    monthCursor.value = startOfMonth(weekCursor.value)
+    monthPickerYear.value = weekCursor.value.getFullYear()
+  }
+  calendarMode.value = mode
+}
+
 function goToday(): void {
   const now = new Date()
   monthCursor.value = startOfMonth(now)
+  weekCursor.value = startOfWeek(now)
   monthPickerYear.value = now.getFullYear()
   monthPickerOpen.value = false
   closeTaskMenu()
@@ -89,13 +130,22 @@ function selectMonth(month: number): void {
 const todayKey = computed(() => dateKey(new Date()))
 const monthTitle = computed(() =>
   `${monthCursor.value.getFullYear()} 年 ${monthCursor.value.getMonth() + 1} 月`)
+const periodTitle = computed(() => {
+  if (calendarMode.value === 'month') return monthTitle.value
+  const end = new Date(weekCursor.value)
+  end.setDate(end.getDate() + 6)
+  const startMonth = weekCursor.value.getMonth() + 1
+  const endMonth = end.getMonth() + 1
+  const range = startMonth === endMonth
+    ? `${startMonth} 月 ${weekCursor.value.getDate()}–${end.getDate()} 日`
+    : `${startMonth}/${weekCursor.value.getDate()}–${endMonth}/${end.getDate()}`
+  return `${weekCursor.value.getFullYear()} 年 ${range}`
+})
 
 const scheduledTasks = computed(() =>
   props.tasks.filter(task => /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')))
 const pendingPoolTasks = computed(() =>
-  props.tasks.filter(task =>
-    task.status !== 'done'
-    && !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')))
+  props.tasks.filter(task => !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')))
 const monthScheduledTasks = computed(() => {
   const prefix = dateKey(monthCursor.value).slice(0, 7)
   return scheduledTasks.value.filter(task => (task.dueDate || '').startsWith(prefix))
@@ -114,25 +164,32 @@ const tasksByDay = computed(() => {
 })
 
 const calendarDays = computed(() => {
-  const first = monthCursor.value
-  const mondayOffset = (first.getDay() + 6) % 7
-  const gridStart = new Date(first)
-  gridStart.setDate(first.getDate() - mondayOffset)
-  return Array.from({ length: 42 }, (_, index) => {
+  const gridStart = calendarMode.value === 'week'
+    ? new Date(weekCursor.value)
+    : (() => {
+        const first = monthCursor.value
+        const mondayOffset = (first.getDay() + 6) % 7
+        const start = new Date(first)
+        start.setDate(first.getDate() - mondayOffset)
+        return start
+      })()
+  const length = calendarMode.value === 'week' ? 7 : 42
+  return Array.from({ length }, (_, index) => {
     const date = new Date(gridStart)
     date.setDate(gridStart.getDate() + index)
     const key = dateKey(date)
     return {
       key,
       day: date.getDate(),
-      inMonth: date.getMonth() === first.getMonth(),
+      inMonth: calendarMode.value === 'week' || date.getMonth() === monthCursor.value.getMonth(),
       isToday: key === todayKey.value,
       tasks: tasksByDay.value.get(key) || [],
     }
   })
 })
 
-const selectedTasks = computed(() => tasksByDay.value.get(selectedDay.value) || [])
+const selectedTasks = computed(() =>
+  [...(tasksByDay.value.get(selectedDay.value) || [])].sort(taskOrder))
 const selectedTitle = computed(() => {
   if (!selectedDay.value) return ''
   const date = dateOfKey(selectedDay.value)
@@ -146,6 +203,14 @@ function taskOrder(a: TaskCard, b: TaskCard): number {
   return rank[a.status] - rank[b.status]
     || (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
     || (b.updatedAt || 0) - (a.updatedAt || 0)
+}
+
+function visibleCalendarTasks(tasks: TaskCard[]): TaskCard[] {
+  return tasks.slice(0, calendarMode.value === 'week' ? 6 : 3)
+}
+
+function hiddenCalendarTaskCount(tasks: TaskCard[]): number {
+  return Math.max(0, tasks.length - (calendarMode.value === 'week' ? 6 : 3))
 }
 
 function statusLabel(status: TaskCard['status']): string {
@@ -299,14 +364,14 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       <header class="cal-pool-head">
         <div>
           <b>待排期任务</b>
-          <span>{{ poolTasks.length }} 项 · 拖到右侧日期即可排期</span>
+          <span>{{ poolTasks.length }} 项未落图 · 拖到右侧日期即可排期</span>
         </div>
         <span class="cal-pool-stat">{{ monthScheduledTasks.length }} 本月已排</span>
       </header>
 
       <div class="cal-unscheduled" @dragover.prevent @drop="dropUnscheduled">
         <Icon name="calendar" :size="13" />
-        <span><b>{{ pendingPoolTasks.length }} 项待排期</b><small>从月历拖回此处可取消计划执行日期</small></span>
+        <span><b>{{ pendingPoolTasks.length }} 项未落图</b><small>包含已完成任务；上方筛选框决定这里显示哪些任务</small></span>
       </div>
 
       <div class="cal-pool-list">
@@ -377,8 +442,8 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         </div>
         <div v-if="!poolTasks.length" class="cal-empty">
           <Icon name="clipboard" :size="20" />
-          <b>没有待排期任务</b>
-          <span>未完成任务都已进入月历，或当前筛选下没有结果。</span>
+          <b>没有未落图任务</b>
+          <span>当前筛选下的任务都已安排计划执行日期，或筛选结果为空。</span>
         </div>
       </div>
     </section>
@@ -386,10 +451,17 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <section class="cal-board" aria-label="任务月历">
       <header class="cal-board-head">
         <div class="cal-month-title">
-          <button class="cal-month-picker-trigger" type="button" :aria-expanded="monthPickerOpen" @click.stop="toggleMonthPicker">
-            <b>{{ monthTitle }}</b>
-            <Icon name="arrowdown" :size="13" />
-          </button>
+          <div class="cal-title-row">
+            <button v-if="calendarMode === 'month'" class="cal-month-picker-trigger" type="button" :aria-expanded="monthPickerOpen" @click.stop="toggleMonthPicker">
+              <b>{{ periodTitle }}</b>
+              <Icon name="arrowdown" :size="13" />
+            </button>
+            <b v-else class="cal-week-title">{{ periodTitle }}</b>
+            <div class="cal-view-switch" role="group" aria-label="日历视图切换">
+              <button type="button" :class="{ on: calendarMode === 'month' }" :aria-pressed="calendarMode === 'month'" @click="setCalendarMode('month')">月视图</button>
+              <button type="button" :class="{ on: calendarMode === 'week' }" :aria-pressed="calendarMode === 'week'" @click="setCalendarMode('week')">周视图</button>
+            </div>
+          </div>
           <span>拖动任务安排计划执行日期；点任务查看详情</span>
           <div class="cal-tone-legend" aria-label="任务颜色说明">
             <span class="tone-done">已完成</span>
@@ -415,9 +487,9 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
           </div>
         </div>
         <div class="cal-month-actions">
-          <button type="button" title="上个月" aria-label="上个月" @click="shiftMonth(-1)"><Icon name="arrowleft" :size="14" /></button>
+          <button type="button" :title="calendarMode === 'week' ? '上一周' : '上个月'" :aria-label="calendarMode === 'week' ? '上一周' : '上个月'" @click="shiftPeriod(-1)"><Icon name="arrowleft" :size="14" /></button>
           <button class="cal-today" type="button" @click="goToday">今天</button>
-          <button type="button" title="下个月" aria-label="下个月" @click="shiftMonth(1)"><Icon name="arrowright" :size="14" /></button>
+          <button type="button" :title="calendarMode === 'week' ? '下一周' : '下个月'" :aria-label="calendarMode === 'week' ? '下一周' : '下个月'" @click="shiftPeriod(1)"><Icon name="arrowright" :size="14" /></button>
         </div>
       </header>
 
@@ -425,7 +497,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         <span v-for="day in weekdays" :key="day">周{{ day }}</span>
       </div>
 
-      <div class="cal-grid">
+      <div class="cal-grid" :class="{ 'is-week': calendarMode === 'week' }">
         <div
           v-for="cell in calendarDays"
           :key="cell.key"
@@ -444,7 +516,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
           </button>
           <div class="cal-day-list">
             <div
-              v-for="task in cell.tasks.slice(0, 3)"
+              v-for="task in visibleCalendarTasks(cell.tasks)"
               :key="task.id"
               class="cal-task-chip"
               :class="['is-' + task.status, 'tone-' + taskTone(task)]"
@@ -470,8 +542,8 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
                 <Icon name="x" :size="10" />
               </button>
             </div>
-            <button v-if="cell.tasks.length > 3" class="cal-more" type="button" @click="openDay(cell.key)">
-              +{{ cell.tasks.length - 3 }} 更多
+            <button v-if="hiddenCalendarTaskCount(cell.tasks)" class="cal-more" type="button" @click="openDay(cell.key)">
+              +{{ hiddenCalendarTaskCount(cell.tasks) }} 更多
             </button>
           </div>
         </div>
@@ -512,9 +584,11 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             <b>{{ task.title }}</b>
             <small>{{ projectLabel(task) }}<template v-if="metricLabel(task)"> › {{ metricLabel(task) }}</template><template v-if="isOverdue(task)"> · 已逾期</template></small>
           </button>
-          <button v-if="isMissing(task)" class="cal-assign" type="button" @click="emit('assign-task', task)">去归位</button>
-          <em :class="'is-' + task.status">{{ statusLabel(task.status) }}</em>
-          <button type="button" title="取消排期" @click.stop="emit('clear-due', task.id)"><Icon name="x" :size="12" /></button>
+          <span class="cal-modal-side">
+            <button v-if="isMissing(task)" class="cal-assign" type="button" @click="emit('assign-task', task)">去归位</button>
+            <em :class="'is-' + task.status">{{ statusLabel(task.status) }}</em>
+          </span>
+          <button class="cal-modal-close" type="button" title="取消排期" @click.stop="emit('clear-due', task.id)"><Icon name="x" :size="12" /></button>
         </article>
         <div v-if="!selectedTasks.length" class="cal-empty">
           <Icon name="calendar" :size="20" />

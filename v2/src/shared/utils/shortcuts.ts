@@ -122,6 +122,7 @@ export const MANUAL_ASSIGN_COMMANDS: string[] = [
   '直达好奇心卡池',
   '直达任务卡池',
   '立即同步云端',
+  '打开今日战报',
   '打开方向树策展模式',
 ]
 

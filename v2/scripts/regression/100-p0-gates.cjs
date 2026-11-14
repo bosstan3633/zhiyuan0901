@@ -78,7 +78,7 @@ check('P0-C6-B ★AI 字面量入口白名单：系统组件内凡出现 AI 入�
   }
   return viol.length === 0;
 });
-check('P0-A4 ★今日战报入口全局唯一：调度台 MetricBar 右槽 cta（battleHost.openToday）+ 画像洞察页 PiToday「打开战报」+ TodayBattleHost 自包含宿主（dz-battle-host）；全站不得出现第二处「今日战报」按钮入口（codeOnly 负锚，白名单＝宿主/明细/手册/回收站上下文）', () => {
+check('P0-A4（V4.3.3 重指）★今日战报入口全局唯一：调度台页头主按钮（battleHost.openToday）+ 画像洞察页 PiToday「打开战报」+ TodayBattleHost 自包含宿主（dz-battle-host）；快捷键设置只描述命令，不算第二入口。全站不得出现其他「今日战报」按钮入口', () => {
   /* ★R181 随迁带备案（仍守本片"fs 直读"取证纪律，不做 helpers.read 的 Workspace/search-overlay 拼接）：
      `battleHost.openToday` 的调用随域逻辑下沉 useCompassHome.ts，故把宿主 + 该 composable 一起直读，
      等价于"CompassHome 这一面的战报入口"；其余锚点与负锚一字未动。 */
@@ -90,6 +90,7 @@ check('P0-A4 ★今日战报入口全局唯一：调度台 MetricBar 右槽 cta�
     return c.includes('今日战报') && (c.includes('@click') || c.includes('href'))
       && !f.includes('TodayBattleHost') && !f.includes('DayDetail') && !f.includes('CompassHome')
       && !f.includes('ProfileInsights') && !f.includes('PiToday') && !f.includes('GlobalPopups')
+      && !f.includes('SettingsShortcutsPanel')
       && !f.includes('ManualPage') && !f.includes('changelog') && !f.includes('RecycleBin') && !f.includes('manual-data');
   });
   return ch.includes('battleHost.value?.openToday()') && ch.includes('<TodayBattleHost ref="battleHost" />')

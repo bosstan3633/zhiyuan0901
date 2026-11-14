@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import Icon from '@/shared/components/Icon.vue'
 import { useAppStore } from '../../stores/app'
 import { CURATION_WS_ID, type ResourceCard, type ResourceFolder } from '@/shared/models'
@@ -10,12 +9,16 @@ import {
   resourceFoldersOf,
 } from '@/shared/storage/resourceFolders'
 import ResourceFolderDrawer from './ResourceFolderDrawer.vue'
+import ResourceFolderDetailModal from './ResourceFolderDetailModal.vue'
 
 const props = defineProps<{ todayStart: number }>()
 const store = useAppStore()
-const router = useRouter()
 const foldersOpen = ref(false)
 const focusedFolderId = ref('')
+const detailOpen = ref(false)
+const detailKind = ref<'today' | 'folder'>('today')
+const detailFolderId = ref('')
+const detailTitle = ref('今日采集')
 
 const poolResources = computed<ResourceCard[]>(() =>
   (store.data?.resources || [])
@@ -58,14 +61,22 @@ function openFolders(folderId = ''): void {
 }
 
 function openToday(): void {
-  void router.push({
-    path: '/deck/resource',
-    query: {
-      fresh: '1',
-      freshAt: String(Date.now()),
-      today: '1',
-    },
-  })
+  detailKind.value = 'today'
+  detailFolderId.value = ''
+  detailTitle.value = '今日采集'
+  detailOpen.value = true
+}
+
+function openFolderDetail(folder: ResourceFolder): void {
+  detailKind.value = 'folder'
+  detailFolderId.value = folder.id
+  detailTitle.value = folder.name
+  detailOpen.value = true
+}
+
+function manageDetail(): void {
+  detailOpen.value = false
+  openFolders(detailFolderId.value)
 }
 </script>
 
@@ -97,7 +108,7 @@ function openToday(): void {
         :key="item.folder.id"
         class="hrf-folder"
         type="button"
-        @click="openFolders(item.folder.id)"
+        @click="openFolderDetail(item.folder)"
       >
         <span class="hrf-icon"><Icon name="folder" :size="17" /></span>
         <span class="hrf-copy">
@@ -123,6 +134,15 @@ function openToday(): void {
       :open="foldersOpen"
       :initial-folder-id="focusedFolderId"
       @close="foldersOpen = false"
+    />
+    <ResourceFolderDetailModal
+      :open="detailOpen"
+      :title="detailTitle"
+      :kind="detailKind"
+      :folder-id="detailFolderId"
+      :today-start="todayStart"
+      @close="detailOpen = false"
+      @manage="manageDetail"
     />
   </div>
 </template>

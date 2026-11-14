@@ -88,6 +88,7 @@ const SHARDS = [
   '133-v430-ai-retirement',
   '134-v431-calendar-focus-retirement',
   '135-v432-calendar-pool',
+  '136-v433-calendar-week-battle-folder',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

@@ -262,6 +262,26 @@ async function triggerCloudSyncNow(): Promise<void> {
   await chrome.tabs.create({ url: `${base}?zy-action=sync-cloud#/` })
 }
 
+/** 快捷键“打开今日战报”：优先复用已开的知源页，由页面路由到调度台后打开战报弹窗。 */
+async function triggerTodayBattle(): Promise<void> {
+  const base = chrome.runtime.getURL('src/newtab/index.html')
+  try {
+    const tabs = await chrome.tabs.query({ url: base + '*' })
+    const active = await getActiveTab()
+    const existing = tabs.find(t => t.id != null && t.windowId === active?.windowId) || tabs.find(t => t.id != null)
+    if (existing?.id != null) {
+      if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true }).catch(() => {})
+      await chrome.tabs.update(existing.id, { active: true })
+      const sent = await chrome.tabs.sendMessage(existing.id, { type: 'zy-open-today-battle' })
+        .then(() => true).catch(() => false)
+      if (sent) return
+      await chrome.tabs.update(existing.id, { url: `${base}?zy-action=today-battle#/` })
+      return
+    }
+  } catch { /* 查询失败时新开 */ }
+  await chrome.tabs.create({ url: `${base}?zy-action=today-battle#/` })
+}
+
 /** 快捷键监听 */
 chrome.commands.onCommand.addListener(async (command) => {
   const tab = await getActiveTab()
@@ -299,6 +319,10 @@ chrome.commands.onCommand.addListener(async (command) => {
     }
     case 'sync-cloud-now': {
       await triggerCloudSyncNow()
+      break
+    }
+    case 'open-today-battle': {
+      await triggerTodayBattle()
       break
     }
     case 'open-compass-curation': {

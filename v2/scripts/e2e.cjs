@@ -1723,8 +1723,8 @@ async function main() {
     `塔内项目=${!!towerProjectSaved} 全景项目=${!!panoProjectSaved} 指标=${!!metricSaved}`)
 
 
-  // E2E-21（V3.9.14 重指 → ★V4.3.1 随迁）：调度台页头动作区现由「AI 推荐今日重点 / 今日战报 /
-  //   为什么这样排」三枚组成。本条守“今日战报与解释入口同排”，不再把第一枚非战报按钮误认成解释入口。
+  // E2E-21（V3.9.14 重指 → ★V4.3.3 随迁）：调度台页头动作区现由「今日战报 / AI 推荐今日重点 /
+  //   为什么这样排」三枚组成。本条守“今日战报是主入口并与解释入口同排”。
   //   行为不变：不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。
   // 本用例守「入口真的连到组件」与「位置符合本轮拍板」两件事。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -1748,7 +1748,7 @@ async function main() {
   await battleCloseBtn.click().catch(() => {})
   await page.waitForTimeout(700)
   const battleClosed = !(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))
-  report('E2E-21 ★V4.3.1 调度台页头「今日战报」与「为什么这样排」同排，就地开弹窗并可关闭',
+  report('E2E-21 ★V4.3.3 调度台页头「今日战报」是主入口并与「为什么这样排」同排，就地开弹窗并可关闭',
     battleBtnText.includes('今日战报') && battleBesideWhy && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
     `btn="${battleBtnText}" 并排=${battleBesideWhy} modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
 
@@ -3600,7 +3600,7 @@ await paOpen()
     if (!data) return
     const now = Date.now()
     const ids = new Set([
-      'e2e-v432-pending', 'e2e-v432-today', 'e2e-v432-future', 'e2e-v432-done',
+      'e2e-v432-pending', 'e2e-v432-today', 'e2e-v432-future', 'e2e-v432-done', 'e2e-v433-done-unscheduled',
       ...Array.from({ length: 18 }, (_, i) => `e2e-v432-pool-${i}`),
     ])
     data.tasks = (data.tasks || []).filter(task => !ids.has(task.id))
@@ -3614,6 +3614,7 @@ await paOpen()
       baseTask('e2e-v432-today', 'E2E V4.3.2 今日探针', 'todo', todayKey),
       baseTask('e2e-v432-future', 'E2E V4.3.2 未来探针', 'todo', futureKey),
       baseTask('e2e-v432-done', 'E2E V4.3.2 已完成探针', 'done', todayKey),
+      baseTask('e2e-v433-done-unscheduled', 'E2E V4.3.3 已完成未落图探针', 'done', undefined),
     )
     for (let i = 0; i < 18; i++) {
       data.tasks.push(baseTask(`e2e-v432-pool-${i}`, `E2E V4.3.2 待排期填充 ${i + 1}`, 'todo', undefined))
@@ -3638,6 +3639,7 @@ await paOpen()
   const todayTitle = 'E2E V4.3.2 今日探针'
   const futureTitle = 'E2E V4.3.2 未来探针'
   const doneTitle = 'E2E V4.3.2 已完成探针'
+  const doneUnscheduledTitle = 'E2E V4.3.3 已完成未落图探针'
   const leftText = await page.locator('.cal-pool-list').innerText()
   const scheduledHiddenFromLeft = !leftText.includes(todayTitle)
     && !leftText.includes(futureTitle)
@@ -3648,6 +3650,11 @@ await paOpen()
     .evaluate(el => el.classList.contains('tone-future')).catch(() => false)
   const doneTone = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: doneTitle }).first()
     .evaluate(el => el.classList.contains('tone-done')).catch(() => false)
+  const doneUnscheduledInLeft = leftText.includes(doneUnscheduledTitle)
+  await page.locator('.cal-view-switch button').filter({ hasText: '周视图' }).click()
+  const weekCells = await page.locator('.cal-grid.is-week .cal-day').count()
+  const weekTitle = ((await page.locator('.cal-week-title').innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  await page.locator('.cal-view-switch button').filter({ hasText: '月视图' }).click()
   await page.locator('.cal-month-picker-trigger').click()
   const monthPicker = await page.locator('.cal-month-picker').isVisible().catch(() => false)
   const monthChoices = await page.locator('.cal-month-picker-grid button').count()
@@ -3663,6 +3670,16 @@ await paOpen()
       z: panel ? Number(getComputedStyle(panel).zIndex) || 0 : 0,
       scrimZ: scrim ? Number(getComputedStyle(scrim).zIndex) || 0 : 0,
     }
+  })
+  const dayModalRows = await page.evaluate(() => {
+    return [...document.querySelectorAll('.cal-modal-task')].map(row => {
+      const title = row.querySelector('.cal-modal-copy b')?.getBoundingClientRect()
+      const meta = row.querySelector('.cal-modal-copy small')?.getBoundingClientRect()
+      return {
+        height: row.getBoundingClientRect().height,
+        separated: !!title && !!meta && title.bottom <= meta.top + 1,
+      }
+    })
   })
   await page.locator('.md-close').click()
   await page.waitForTimeout(250)
@@ -3689,13 +3706,16 @@ await paOpen()
     && !leftText.includes(futureTitle)
     && !leftText.includes(doneTitle)
     && todayTone && futureTone && doneTone
+    && doneUnscheduledInLeft
+    && weekCells === 7 && /\d{4} 年/.test(weekTitle)
     && monthPicker && monthChoices === 12 && monthSwitched
     && dayModal.open && dayModal.z > 0 && dayModal.scrimZ > 0 && dayModal.z > dayModal.scrimZ
+    && dayModalRows.length >= 2 && dayModalRows.every(row => row.height >= 44 && row.separated)
     && !!pendingScheduled && chipVisibleAfterDrop && !leftAfterDrop.includes(pendingTitle)
     && !!pendingReturned && leftAfterCancel.includes(pendingTitle)
-  report('E2E-63 ★V4.3.2 月历只列未完成未排期任务、左右等高可滚、月份切换与四色状态、今日弹层层级、拖入移出与取消回归全链路',
+  report('E2E-63 ★V4.3.3 月历只按未落图取任务、月/周视图切换、日详情文字不叠压、四色状态与拖入移出取消全链路',
     calendarOk,
-    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 左侧隐藏已排=${scheduledHiddenFromLeft} 色调=${todayTone}/${futureTone}/${doneTone} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 拖入=${pendingScheduled}/${chipVisibleAfterDrop}/${!leftAfterDrop.includes(pendingTitle)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
+    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 左侧隐藏已排=${scheduledHiddenFromLeft} 完成未落图=${doneUnscheduledInLeft} 周视图=${weekCells}/${weekTitle} 色调=${todayTone}/${futureTone}/${doneTone} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖入=${pendingScheduled}/${chipVisibleAfterDrop}/${!leftAfterDrop.includes(pendingTitle)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
 
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -3707,16 +3727,41 @@ await paOpen()
   const todayFolder = page.locator('.hrf-folder.is-today').first()
   const todayFolderVisible = await todayFolder.isVisible().catch(() => false)
   const todayFolderCount = ((await todayFolder.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  const badgeUniform = await page.locator('.hand-new-badge').first().evaluate(el => {
+    const tab = el.closest('.hand-tab')
+    const badgeStyle = getComputedStyle(el)
+    const tabStyle = tab ? getComputedStyle(tab) : null
+    return !!tabStyle
+      && badgeStyle.color === tabStyle.color
+      && (badgeStyle.backgroundColor === 'rgba(0, 0, 0, 0)' || badgeStyle.backgroundColor === 'transparent')
+  }).catch(() => false)
+  await todayFolder.click()
+  await waitForLocator(page, '.md-panel', { visible: true, timeout: 6000 })
+  const todayFolderModal = (await page.locator('.md-panel').innerText().catch(() => '')).includes('今日采集')
+  await page.locator('.md-close').click()
+  await page.waitForTimeout(250)
+  const regularFolders = page.locator('.hrf-folder:not(.is-today):not(.is-create)')
+  const regularFolderCount = await regularFolders.count()
+  let regularFolderModal = regularFolderCount === 0
+  if (regularFolderCount) {
+    await regularFolders.first().click()
+    await waitForLocator(page, '.md-panel', { visible: true, timeout: 6000 })
+    const regularText = await page.locator('.md-panel').innerText().catch(() => '')
+    regularFolderModal = regularText.includes('管理常用夹') && regularText.includes('打开全部')
+    await page.locator('.md-close').click()
+    await page.waitForTimeout(250)
+  }
   await page.locator('.hand-head-actions .hand-link').click()
   await waitForLocator(page, '#deck-pool-root, .pcp-panel, .pool-cards-panel, .deck-body', { visible: true, timeout: 8000 })
   await page.waitForTimeout(900)
   const deckFresh = page.url().includes('fresh=1')
   const deckList = await page.locator('.pcp-list').isVisible().catch(() => false)
   const poolOk = folderModules >= 2 && todayFolderVisible && /\d+/.test(todayFolderCount)
+    && badgeUniform && todayFolderModal && regularFolderModal
     && deckFresh && deckList
-  report('E2E-64 ★V4.3.2 卡片池页签带今日新增角标、资源页常用夹模块与今日采集入口、进入二级页默认列表态',
+  report('E2E-64 ★V4.3.3 卡片池角标与页签同色、今日采集与常用夹直接打开明细弹窗、进入二级页仍默认列表态',
     poolOk,
-    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} fresh=${deckFresh} list=${deckList} url=${page.url()}`)
+    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} 角标同色=${badgeUniform} 今日弹窗=${todayFolderModal} 常用夹弹窗=${regularFolderModal}/${regularFolderCount} fresh=${deckFresh} list=${deckList} url=${page.url()}`)
 
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。

@@ -165,6 +165,18 @@ function toggleDeckLibrary(event: MouseEvent): void {
 
 function navigate(path: string) { router.push(path) }
 
+/** 浏览器快捷键打开今日战报：先确保落在调度台，再由战报宿主消费一次性事件。 */
+function openTodayBattleView(): void {
+  const reveal = () => {
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('zy:open-today-battle'))
+    }, 120)
+  }
+  if (route.path === '/') reveal()
+  else void router.push('/').finally(reveal)
+}
+
+
 /* V3.9.24：首屏稳定后再预取高频交互资源。全局检索与常用台面都是懒加载 chunk；
    在浏览器空闲时提前取回，真实点击时不再等待下载。预取失败不影响主流程。 */
 let prefetchTimer: ReturnType<typeof setTimeout> | null = null
@@ -496,6 +508,7 @@ onMounted(async () => {
     else if (msg?.type === 'zy-open-curiosity') gpOpen('curio')
     else if (msg?.type === 'zy-open-task-capture') gpOpen('taskcapture')
     else if (msg?.type === 'zy-sync-cloud-now') window.dispatchEvent(new CustomEvent('zy:sync-cloud-now'))
+    else if (msg?.type === 'zy-open-today-battle') openTodayBattleView()
     // 策展台单例定位（G）：跳转到目标策展台并高亮资源卡
     // ★R4-E：隐藏池卡（zy-curation）不是一枚 workspace 实体，走 resourceLocateRoute 落调度台资源卡池，
     //   否则跳 /workspace/zy-curation 必落「策展台不存在」死页（采集后按 Enter 就是这条路径）
@@ -536,11 +549,19 @@ onMounted(async () => {
   // R4-Fb：一个已开的新标签页都没有时，background 直接开 ?zy-panel=<capture|curio|taskcapture>
   const zyPanel = new URLSearchParams(location.search).get('zy-panel')
   if (zyPanel === 'capture' || zyPanel === 'curio' || zyPanel === 'taskcapture') setTimeout(() => gpOpen(zyPanel), 700)
-  // 浏览器快捷键“立即同步云端”：无已开知源页时由 background 带一次性动作打开。
+  // 浏览器快捷键：无已开知源页时由 background 带一次性动作打开。
   const zyAction = new URLSearchParams(location.search).get('zy-action')
   if (zyAction === 'sync-cloud') {
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('zy:sync-cloud-now'))
+      const url = new URL(location.href)
+      url.searchParams.delete('zy-action')
+      history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    }, 850)
+  }
+  if (zyAction === 'today-battle') {
+    setTimeout(() => {
+      openTodayBattleView()
       const url = new URL(location.href)
       url.searchParams.delete('zy-action')
       history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`)

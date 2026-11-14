@@ -99,12 +99,12 @@ const {
         <h1>调度台</h1>
       </div>
       <div class="desk-actions">
-        <button class="why-trigger focus-ai-trigger" type="button" title="按主攻项目、计划执行日期与任务状态推荐今日重点" @click="reshuffleFocus">
-          <AiEntryButton variant="inline" label="AI 推荐今日重点" />
-        </button>
         <button class="why-trigger battle-trigger" type="button" @click="openReview">
           <Icon name="trendup" :size="13" />
           <span>今日战报</span>
+        </button>
+        <button class="why-trigger focus-ai-trigger" type="button" title="按主攻项目、计划执行日期与任务状态推荐今日重点" @click="reshuffleFocus">
+          <AiEntryButton variant="inline" label="AI 推荐今日重点" />
         </button>
         <button class="why-trigger" :class="{ on: whyOpen }" data-testid="focus-why-ico" type="button" @click.stop="toggleWhy">
           <Icon name="sparkles" :size="13" />

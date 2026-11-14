@@ -422,7 +422,7 @@ check('W12-D1 ★DayDetail 必须**从 Heatmap 里解耦出去**、且解耦是�
   return true;
 });
 
-check('W12-D2 ★今日战报宿主仍是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在 TodayBattleHost 内，调度台一行挂载。★V3.9.25：调度台状态读数另需读取同一事件日志核对操作次数，读取入口由 useCompassHome 承担；战报宿主自身的五件与刷新链不减', () => {
+check('W12-D2 ★今日战报宿主仍是「自包含」的：数据桥 useDashboardStats + 事件日志读取 readEventLog + 派生回退 + DayDetail + DashboardLogDrawer 五件都在 TodayBattleHost 内，调度台一行挂载。★V4.3.3 重指：刷新链拆为“本地快读先呈现 + 云端校正后台补读”，自包含边界与五件不减', () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
   const ch = read('/newtab/views/CompassHome.vue');
   for (const n of ['useDashboardStats', 'readEventLog', 'derivedEvents', 'DayDetail', 'DashboardLogDrawer', 'useDailyLogRequest']) {
@@ -430,7 +430,8 @@ check('W12-D2 ★今日战报宿主仍是「自包含」的：数据桥 useDashb
   }
   // 派生回退与刷新语义
   if (!tbh.includes('logEmpty.value ? derivedEvents.value : eventLog.value')) return false;
-  if (!tbh.includes('await refreshEventLog()')) return false;
+  if (!tbh.includes('await loadLocalEventLog()')) return false;
+  if (!tbh.includes('void refreshCloudEvents()')) return false;
   // 页面侧只挂一行；状态读数若要读日志必须集中在 useCompassHome，不得在视图模板另造解析。
   if (!ch.includes('<TodayBattleHost ref="battleHost" />')) return false;
   const homeView = fs.readFileSync(path.resolve(base, 'newtab/views/CompassHome.vue'), 'utf8');
@@ -438,12 +439,12 @@ check('W12-D2 ★今日战报宿主仍是「自包含」的：数据桥 useDashb
   return true;
 });
 
-check('W12-D3 ★开战报前必须重读事件日志：外部 pendingDay、openToday、openDay 三条入口都先刷新再消费；onMounted 仍保底刷新一次', () => {
+check('W12-D3（V4.3.3 重指）★开战报零等待：pendingDay、openToday、openDay 三条入口都先应用日期弹窗、再触发日志刷新；本地读取完成首帧，云端校正后台补读，onMounted 仍保底刷新一次', () => {
   const tbh = read('/newtab/components/dashboard/TodayBattleHost.vue');
-  if (!/watch\(pendingDay,[\s\S]{0,400}await refreshEventLog\(\)/.test(tbh)) return false;
+  if (!/watch\(pendingDay,[\s\S]{0,260}applyDay\(consume\(\)!\)[\s\S]{0,120}void refreshEventLog\(\)/.test(tbh)) return false;
   if (!/onMounted\(\(\) => \{[\s\S]{0,120}void refreshEventLog\(\)/.test(tbh)) return false;
-  const openToday = /async function openToday\(\): Promise<void> \{[\s\S]{0,200}await refreshEventLog\(\)[\s\S]{0,120}applyDay\(todayKey\(\)\)/.test(tbh);
-  const openDay = /async function openDay\(day: string\): Promise<void> \{[\s\S]{0,200}await refreshEventLog\(\)[\s\S]{0,80}applyDay\(day\)/.test(tbh);
+  const openToday = /function openToday\(\): void \{[\s\S]{0,120}applyDay\(todayKey\(\)\)[\s\S]{0,80}void refreshEventLog\(\)/.test(tbh);
+  const openDay = /function openDay\(day: string\): void \{[\s\S]{0,100}applyDay\(day\)[\s\S]{0,80}void refreshEventLog\(\)/.test(tbh);
   return openToday && openDay && tbh.includes('defineExpose({ openToday, openDay })');
 });
 

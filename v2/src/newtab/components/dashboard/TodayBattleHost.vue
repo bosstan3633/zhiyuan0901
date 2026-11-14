@@ -15,7 +15,7 @@
  *  · 打开战报前重读事件日志（keep-alive 下本组件只挂载一次，否则快照冻结在首次挂载那一刻）
  */
 import './dashboard.css'
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useAppStore } from '@/newtab/stores/app'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { readEventLog } from '@/shared/utils/eventLog'
@@ -36,15 +36,30 @@ const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').t
 // ---- 事件日志（readEventLog 优先，空日志回退卡片时间派生）----
 const eventLog = shallowRef<CardEvent[]>([])
 const logEmpty = ref(true)
-async function refreshEventLog() {
-  const local = await readEventLog()
-  try {
-    const { reconcileAccountEvents } = await import('@/shared/cloud/sync')
-    await reconcileAccountEvents(local)
-  } catch { /* 离线或事件表尚未迁移时继续使用本机缓存 */ }
+
+async function loadLocalEventLog(): Promise<void> {
   const log = await readEventLog()
   eventLog.value = log.slice().reverse()
   logEmpty.value = log.length === 0
+}
+
+let cloudRefresh: Promise<void> | null = null
+async function refreshCloudEvents(): Promise<void> {
+  if (cloudRefresh) return cloudRefresh
+  cloudRefresh = (async () => {
+    const local = await readEventLog()
+    try {
+      const { reconcileAccountEvents } = await import('@/shared/cloud/sync')
+      await reconcileAccountEvents(local)
+    } catch { /* 离线或事件表尚未迁移时继续使用本机缓存 */ }
+    await loadLocalEventLog()
+  })().finally(() => { cloudRefresh = null })
+  return cloudRefresh
+}
+
+async function refreshEventLog(): Promise<void> {
+  await loadLocalEventLog()
+  void refreshCloudEvents()
 }
 const derivedEvents = computed<CardEvent[]>(() => {
   const out: CardEvent[] = []
@@ -77,9 +92,9 @@ function applyDay(day: string): void {
   if (y >= 2000 && y <= 2100 && y !== dashYear.value) dashYear.value = y
   dashSelDay.value = day
 }
-async function openToday(): Promise<void> {
-  await refreshEventLog()
+function openToday(): void {
   applyDay(todayKey())
+  void refreshEventLog()
 }
 
 /* useDailyLogRequest 是模块级单例：品牌区 / ⌘K 等外部入口发起的「今日战报」请求由此消费。
@@ -87,8 +102,8 @@ async function openToday(): Promise<void> {
 const { pendingDay, consume } = useDailyLogRequest()
 watch(pendingDay, async (d) => {
   if (!d) return
-  await refreshEventLog()
   applyDay(consume()!)
+  void refreshEventLog()
 })
 
 // ---- 日详情「查看全部记录 ›」→ 打开全量抽屉并按该日预筛（先关弹窗再开抽屉，遮罩不叠两层）----
@@ -104,12 +119,21 @@ onMounted(() => {
   void refreshEventLog()
   const d = consume()
   if (d) applyDay(d)
+  window.addEventListener('zy:open-today-battle', onExternalOpenTodayBattle)
 })
 
+onUnmounted(() => {
+  window.removeEventListener('zy:open-today-battle', onExternalOpenTodayBattle)
+})
+
+function onExternalOpenTodayBattle(): void {
+  openToday()
+}
+
 /** 外部按具体日期打开（画像页热力格 / 周节奏共用）；与 openToday 走同一个 applyDay 真源。 */
-async function openDay(day: string): Promise<void> {
-  await refreshEventLog()
+function openDay(day: string): void {
   applyDay(day)
+  void refreshEventLog()
 }
 
 defineExpose({ openToday, openDay })

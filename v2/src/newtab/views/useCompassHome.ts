@@ -770,7 +770,7 @@ const taskWorkCounts = computed(() => {
   const today = todayKey.value
   return {
     all: liveTasks.value.length,
-    unscheduled: liveTasks.value.filter(task => task.status !== 'done' && !task.dueDate).length,
+    unscheduled: liveTasks.value.filter(task => !task.dueDate).length,
     unarchived: liveTasks.value.filter(task => !task.projectId || !task.metricId).length,
     focus: liveTasks.value.filter(task => !!task.projectId && taskWorkFocusIds.value.has(task.projectId)).length,
     overdue: liveTasks.value.filter(task => task.status !== 'done' && !!task.dueDate && task.dueDate < today).length,
@@ -795,7 +795,7 @@ const taskWorkFiltered = computed(() => {
       ].join(' ').toLowerCase()
       if (!haystack.includes(query)) return false
     }
-    if (quick === 'unscheduled' && (task.dueDate || task.status === 'done')) return false
+    if (quick === 'unscheduled' && task.dueDate) return false
     if (quick === 'unarchived' && task.projectId && task.metricId) return false
     if (quick === 'focus' && (!task.projectId || !taskWorkFocusIds.value.has(task.projectId))) return false
     if (quick === 'overdue' && (!task.dueDate || task.dueDate >= today || task.status === 'done')) return false
