@@ -9,7 +9,7 @@
  * 否则它会在一长串任务标题里瞎点，还会顺手发明一个"进度 80%"。
  *
  * ★写入的边界（AI 不替决策，这条比排序本身重要）：
- *  - 只改 `dailyFocus[这一天]` 的**计划位**，任务卡本体一字不动（不改 status / 不改归属 / 不新建卡）；
+ *  - 只改 `dailyFocus[这一天]` 的**计划位**；任务卡状态与归属不动，计划执行日期随槽位同步到当天；
  *  - **用户手工选的那格永不覆盖**（`auto !== true` 即视为人定的），已勾完成的格也不动；
  *  - 同一天只在第一次打开时自动写一次（`focusAutoDate`），之后系统不再插手。
  *
@@ -97,7 +97,7 @@ export function buildFocusSuggestJob(ctx: FocusSuggestCtx): AiJob | null {
     title: `今日三件事 · 排 ${ctx.anchorKey}`,
     subject: `📌 ${ctx.anchorKey} 的 ${limit} 格`,
     hint: '本地先按主攻项目 / 状态 / 顺延 / 到期筛出候选，模型只在这些候选里挑三件并各写一句"今天做它的理由"。' +
-      '采纳**只改这一天的计划位**：任务卡本体、状态、归属一字不动；你自己选过的那格系统不覆盖。',
+      '采纳**只改这一天的计划位**：任务状态与归属不动，计划执行日期随槽位同步到当天；你自己选过的那格系统不覆盖。',
     adoptLabel: '✓ 采纳为今日三件事',
     paneMode: 'context',
     promptScope: 'focus:rank', promptObject: ctx.anchorKey, promptObjectLabel: ctx.anchorKey,

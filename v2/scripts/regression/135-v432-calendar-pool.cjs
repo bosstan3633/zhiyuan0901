@@ -12,20 +12,20 @@ const { fs, path, check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【V4.3.2 · 调度台月历与卡片池入口】')
 
-check('V432-1（V4.3.3 重指）左栏只按“未落图”取任务；完成状态交给上方筛选，任务拖入月历后离开左栏，取消排期后回到左栏', () => {
+check('V432-1（V4.3.4 重指）左栏遵守上方筛选并展示全部结果：未落图任务在前，已落图任务按日期在后；拖入月历或取消排期都只更新同一条任务', () => {
   const calendar = codeOnly(read('/newtab/components/compass/TaskCalendarView.vue'))
-  const pending = calendar.slice(
-    calendar.indexOf('const pendingPoolTasks'),
-    calendar.indexOf('const monthScheduledTasks'),
-  )
-  return !pending.includes("task.status !== 'done'")
-    && pending.includes("!/^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate || '')")
-    && calendar.includes('const poolTasks = computed(() => [...pendingPoolTasks.value].sort(taskOrder))')
+  return calendar.includes('const pendingPoolTasks = computed(() =>')
+    && calendar.includes("props.tasks.filter(task => !/^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate || ''))")
+    && calendar.includes('const poolTasks = computed(() => [...props.tasks].sort(poolOrder))')
+    && calendar.includes('function poolOrder(a: TaskCard, b: TaskCard): number')
+    && calendar.includes('if (!aDate && bDate) return -1')
+    && calendar.includes('if (aDate && !bDate) return 1')
+    && calendar.includes("`落图 ${friendlyDate(task.dueDate)}`")
     && calendar.includes('@drop="dropOnDay($event, cell.key)"')
     && calendar.includes("if (id) emit('set-due', id, day)")
     && calendar.includes('@drop="dropUnscheduled"')
     && calendar.includes("if (id) emit('clear-due', id)")
-    && calendar.includes('当前筛选下的任务都已安排计划执行日期，或筛选结果为空。');
+    && calendar.includes('当前筛选没有任务');
 })
 
 check('V432-2 月历左右栏同高、左栏内部滚动；窄屏降级为单列且不挤压内容', () => {
@@ -76,13 +76,15 @@ check('V432-4 月历任务按状态着色：已完成绿、今日橙、未来灰
     && css.includes('var(--danger)');
 })
 
-check('V432-5（V4.3.3 重指）三池页签今日新增角标：由本地自然日 created 统计、0 不渲染、超过 99 显示 99+，与页签文字同色', () => {
+check('V432-5（V4.3.4 重指）三池页签只统计自然日当天新增：下界含零点、上界不含次日零点；0 不渲染、超过 99 显示 99+，与页签文字同色', () => {
   const home = read('/newtab/views/CompassHome.vue')
   const logic = read('/newtab/views/useCompassHome.ts')
   const css = read('/newtab/views/CompassHome.css')
   return logic.includes('const handNewCounts = computed(() => {')
-    && logic.includes('(task.createdAt || 0) >= t0')
-    && logic.includes('(card.createdAt || 0) >= t0')
+    && logic.includes('nextDay.setDate(nextDay.getDate() + 1)')
+    && logic.includes('const createdToday = (ts?: number)')
+    && logic.includes('liveTasks.value.filter(task => createdToday(task.createdAt))')
+    && logic.includes('liveCuriosities.value.filter(card => createdToday(card.createdAt))')
     && home.includes('v-if="handNewCounts.task"')
     && home.includes("handNewCounts.task > 99 ? '99+'")
     && home.includes('v-if="handNewCounts.curiosity"')

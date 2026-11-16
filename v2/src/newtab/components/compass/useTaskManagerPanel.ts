@@ -286,6 +286,7 @@ async function addTaskToTodayFocus(task: TaskCard): Promise<void> {
   const { addManualFocus } = await import('@/shared/utils/focusSuggest')
   const result = addManualFocus(d.value, key, task.id)
   if (result.status === 'exists') {
+    store.persist()
     showToast('这张任务已经在今天的三件事里')
     return
   }

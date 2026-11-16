@@ -196,7 +196,7 @@ const selectedTitle = computed(() => {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日 · ${weekdays[(date.getDay() + 6) % 7]}`
 })
 
-const poolTasks = computed(() => [...pendingPoolTasks.value].sort(taskOrder))
+const poolTasks = computed(() => [...props.tasks].sort(poolOrder))
 
 function taskOrder(a: TaskCard, b: TaskCard): number {
   const rank: Record<TaskCard['status'], number> = { doing: 0, todo: 1, done: 2 }
@@ -205,12 +205,20 @@ function taskOrder(a: TaskCard, b: TaskCard): number {
     || (b.updatedAt || 0) - (a.updatedAt || 0)
 }
 
+function poolOrder(a: TaskCard, b: TaskCard): number {
+  const aDate = /^\d{4}-\d{2}-\d{2}$/.test(a.dueDate || '') ? a.dueDate as string : ''
+  const bDate = /^\d{4}-\d{2}-\d{2}$/.test(b.dueDate || '') ? b.dueDate as string : ''
+  if (!aDate && bDate) return -1
+  if (aDate && !bDate) return 1
+  return aDate.localeCompare(bDate) || taskOrder(a, b)
+}
+
 function visibleCalendarTasks(tasks: TaskCard[]): TaskCard[] {
-  return tasks.slice(0, calendarMode.value === 'week' ? 6 : 3)
+  return tasks.slice(0, calendarMode.value === 'week' ? 12 : 3)
 }
 
 function hiddenCalendarTaskCount(tasks: TaskCard[]): number {
-  return Math.max(0, tasks.length - (calendarMode.value === 'week' ? 6 : 3))
+  return Math.max(0, tasks.length - (calendarMode.value === 'week' ? 12 : 3))
 }
 
 function statusLabel(status: TaskCard['status']): string {
@@ -363,15 +371,15 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <section class="cal-pool" aria-label="任务池">
       <header class="cal-pool-head">
         <div>
-          <b>待排期任务</b>
-          <span>{{ poolTasks.length }} 项未落图 · 拖到右侧日期即可排期</span>
+          <b>任务清单</b>
+          <span>{{ poolTasks.length }} 项当前筛选结果 · 未落图在前</span>
         </div>
         <span class="cal-pool-stat">{{ monthScheduledTasks.length }} 本月已排</span>
       </header>
 
       <div class="cal-unscheduled" @dragover.prevent @drop="dropUnscheduled">
         <Icon name="calendar" :size="13" />
-        <span><b>{{ pendingPoolTasks.length }} 项未落图</b><small>包含已完成任务；上方筛选框决定这里显示哪些任务</small></span>
+        <span><b>{{ pendingPoolTasks.length }} 项未落图</b><small>已落图任务按日期排在后面；拖回此处可取消排期</small></span>
       </div>
 
       <div class="cal-pool-list">
@@ -401,7 +409,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
               <small>
                 <span>{{ projectLabel(task) }}</span>
                 <span v-if="metricLabel(task)">› {{ metricLabel(task) }}</span>
-                <span>{{ friendlyDate(task.dueDate) }}</span>
+                <span class="cal-pool-plan" :class="{ scheduled: !!task.dueDate }">
+                  <Icon name="calendar" :size="10" />
+                  {{ task.dueDate ? `落图 ${friendlyDate(task.dueDate)}` : '未落图' }}
+                </span>
                 <span v-if="isOverdue(task)" class="cal-warn">已逾期</span>
                 <button v-if="isMissing(task)" class="cal-assign" type="button" @click.stop="emit('assign-task', task)">去归位</button>
               </small>
@@ -442,8 +453,8 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         </div>
         <div v-if="!poolTasks.length" class="cal-empty">
           <Icon name="clipboard" :size="20" />
-          <b>没有未落图任务</b>
-          <span>当前筛选下的任务都已安排计划执行日期，或筛选结果为空。</span>
+          <b>当前筛选没有任务</b>
+          <span>调整上方项目、状态或搜索条件后再看。</span>
         </div>
       </div>
     </section>
@@ -493,58 +504,67 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         </div>
       </header>
 
-      <div class="cal-weekdays" aria-hidden="true">
-        <span v-for="day in weekdays" :key="day">周{{ day }}</span>
-      </div>
+      <div class="cal-board-body">
+        <div class="cal-weekdays" aria-hidden="true">
+          <span v-for="day in weekdays" :key="day">周{{ day }}</span>
+        </div>
 
-      <div class="cal-grid" :class="{ 'is-week': calendarMode === 'week' }">
-        <div
-          v-for="cell in calendarDays"
-          :key="cell.key"
-          class="cal-day"
-          :class="{ outside: !cell.inMonth, today: cell.isToday, over: dragOverDay === cell.key }"
-          :data-day="cell.key"
-          :data-drop="`安排到 ${cell.day} 日`"
-          @dragover.prevent
-          @dragenter.prevent="dragOverDay = cell.key"
-          @dragleave.self="dragOverDay = ''"
-          @drop="dropOnDay($event, cell.key)"
-        >
-          <button class="cal-day-head" type="button" @click="openDay(cell.key)">
-            <span>{{ cell.day }}</span>
-            <small v-if="cell.tasks.length">{{ cell.tasks.length }}</small>
-          </button>
-          <div class="cal-day-list">
-            <div
-              v-for="task in visibleCalendarTasks(cell.tasks)"
-              :key="task.id"
-              class="cal-task-chip"
-              :class="['is-' + task.status, 'tone-' + taskTone(task)]"
-              draggable="true"
-              tabindex="0"
-              :title="task.title"
-              @dragstart="onDragStart($event, task)"
-              @dragend="draggingId = ''; dragOverDay = ''"
-              @click="emit('open-task', task)"
-              @keydown.enter.prevent="emit('open-task', task)"
-            >
-              <button
-                class="cal-chip-check"
-                :class="'is-' + task.status"
-                type="button"
-                :aria-label="task.status === 'done' ? '恢复为待开始' : '标记完成'"
-                @click.stop="emit('toggle-status', task.id)"
+        <div class="cal-grid" :class="{ 'is-week': calendarMode === 'week' }">
+          <div
+            v-for="cell in calendarDays"
+            :key="cell.key"
+            class="cal-day"
+            :class="{ outside: !cell.inMonth, today: cell.isToday, over: dragOverDay === cell.key }"
+            :data-day="cell.key"
+            :data-drop="`安排到 ${cell.day} 日`"
+            @dragover.prevent
+            @dragenter.prevent="dragOverDay = cell.key"
+            @dragleave.self="dragOverDay = ''"
+            @drop="dropOnDay($event, cell.key)"
+          >
+            <button class="cal-day-head" type="button" @click="openDay(cell.key)">
+              <span>{{ cell.day }}</span>
+              <small v-if="cell.tasks.length">{{ cell.tasks.length }}</small>
+            </button>
+            <div class="cal-day-list">
+              <div
+                v-for="task in visibleCalendarTasks(cell.tasks)"
+                :key="task.id"
+                class="cal-task-chip"
+                :class="['is-' + task.status, 'tone-' + taskTone(task)]"
+                draggable="true"
+                tabindex="0"
+                :title="task.title"
+                @dragstart="onDragStart($event, task)"
+                @dragend="draggingId = ''; dragOverDay = ''"
+                @click="emit('open-task', task)"
+                @keydown.enter.prevent="emit('open-task', task)"
               >
-                <Icon v-if="task.status === 'done'" name="check" :size="8" />
-              </button>
-              <span>{{ task.title }}</span>
-              <button type="button" title="取消计划执行日期并回到任务池" aria-label="取消排期" @click.stop="emit('clear-due', task.id)">
-                <Icon name="x" :size="10" />
+                <button
+                  class="cal-chip-check"
+                  :class="'is-' + task.status"
+                  type="button"
+                  :aria-label="task.status === 'done' ? '恢复为待开始' : '标记完成'"
+                  @click.stop="emit('toggle-status', task.id)"
+                >
+                  <Icon v-if="task.status === 'done'" name="check" :size="8" />
+                </button>
+                <span class="cal-chip-copy">
+                  <span class="cal-chip-title">{{ task.title }}</span>
+                  <span v-if="calendarMode === 'week'" class="cal-chip-meta">
+                    <span>{{ projectLabel(task) }}</span>
+                    <span v-if="metricLabel(task)">› {{ metricLabel(task) }}</span>
+                    <em :class="'is-' + task.status">{{ statusLabel(task.status) }}</em>
+                  </span>
+                </span>
+                <button type="button" title="取消计划执行日期并回到任务池" aria-label="取消排期" @click.stop="emit('clear-due', task.id)">
+                  <Icon name="x" :size="10" />
+                </button>
+              </div>
+              <button v-if="hiddenCalendarTaskCount(cell.tasks)" class="cal-more" type="button" @click="openDay(cell.key)">
+                +{{ hiddenCalendarTaskCount(cell.tasks) }} 更多
               </button>
             </div>
-            <button v-if="hiddenCalendarTaskCount(cell.tasks)" class="cal-more" type="button" @click="openDay(cell.key)">
-              +{{ hiddenCalendarTaskCount(cell.tasks) }} 更多
-            </button>
           </div>
         </div>
       </div>
@@ -561,7 +581,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       </template>
       <template #sub>
         <span v-if="selectedDayMode === 'detail'">{{ selectedTasks.length }} 项计划任务 · 日期是计划执行日，不是截止日期</span>
-        <span v-else>只修改计划执行日期，不修改状态、项目归属或今日三件事</span>
+        <span v-else>排到今日会同步进入今日三件事；其他日期只修改计划执行日期</span>
       </template>
 
       <div v-if="selectedDayMode === 'detail'" class="cal-day-modal-body">
@@ -593,7 +613,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         <div v-if="!selectedTasks.length" class="cal-empty">
           <Icon name="calendar" :size="20" />
           <b>这一天还没有安排</b>
-          <span>从左侧待排期任务拖一张卡到该日期。</span>
+          <span>从左侧任务清单拖一张卡到该日期。</span>
         </div>
       </div>
 

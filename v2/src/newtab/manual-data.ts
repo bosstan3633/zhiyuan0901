@@ -42,7 +42,7 @@ function assignCommandList(): string {
 
 export const MANUAL: ManualPart[] = [
   {
-    title: '流程篇 · 先看这里（V4.3.3）',
+    title: '流程篇 · 先看这里（V4.3.4）',
     sections: [
       { id: 'flow-1', title: '一张图看懂：从采集到行动', html: `
         <p>先用流程理解产品，再看后面的细节。每一步都只问一个问题：<b>这条信息下一步要去哪里？</b></p>
@@ -63,7 +63,7 @@ export const MANUAL: ManualPart[] = [
       { id: 'flow-3', title: '流程：今天三件事怎么推进', html: `
         <div class="mc-flow">任务卡必须有<b>项目</b> + <b>成功指标</b> → 今日三件事槽位 → 点击“复制”→ 粘贴到汇报 / 日志 / Obsidian</div>
         <p>复制句固定为：</p>
-        <div class="mc-quote">推进[[MOC-项目名]]项目，任务内容，助力【指标名】指标落实到位</div>
+        <div class="mc-quote">推进[[项目名]]项目，任务内容，助力【指标名】指标落实到位</div>
         <div class="mc-flow">缺少项目或成功指标 → 复制按钮禁用并说明原因 → 回到任务卡补齐归属</div>
         <p>槽位左侧勾选完成；点击槽位正文打开任务；今天的行动始终和项目、指标保持一条线。</p>
       ` },

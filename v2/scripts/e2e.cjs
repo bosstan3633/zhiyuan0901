@@ -3199,7 +3199,7 @@ await paOpen()
   const copyToast = await waitForLocator(page, '.toast-msg', { visible: true, timeout: 4000 })
   const copyToastText = (await page.locator('.toast-msg').last().textContent().catch(() => '') || '').replace(/\s+/g, ' ').trim()
   const copiedText = await page.evaluate(() => globalThis.__e2eCopiedText || '').catch(() => '')
-  const expectedCopy = '推进[[MOC-软硬一体服务系统解决方案]]项目，设计解决方案报价模板，助力【产品解决方案】指标落实到位'
+  const expectedCopy = '推进[[软硬一体服务系统解决方案]]项目，设计解决方案报价模板，助力【产品解决方案】指标落实到位'
 
   await ctx.route('**/models', route => route.fulfill({
     status: 200,
@@ -3619,6 +3619,9 @@ await paOpen()
     for (let i = 0; i < 18; i++) {
       data.tasks.push(baseTask(`e2e-v432-pool-${i}`, `E2E V4.3.2 待排期填充 ${i + 1}`, 'todo', undefined))
     }
+    data.dailyFocus = data.dailyFocus || {}
+    data.dailyFocus[todayKey] = []
+    data.focusMutedDate = todayKey
     await chrome.storage.local.set({ zy_data_v2: data })
   }, { todayKey, futureKey, monthPrefix })
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -3641,19 +3644,25 @@ await paOpen()
   const doneTitle = 'E2E V4.3.2 已完成探针'
   const doneUnscheduledTitle = 'E2E V4.3.3 已完成未落图探针'
   const leftText = await page.locator('.cal-pool-list').innerText()
-  const scheduledHiddenFromLeft = !leftText.includes(todayTitle)
-    && !leftText.includes(futureTitle)
-    && !leftText.includes(doneTitle)
+  const leftOrderOk = leftText.indexOf(pendingTitle) >= 0
+    && leftText.indexOf(doneUnscheduledTitle) >= 0
+    && leftText.indexOf(pendingTitle) < leftText.indexOf(todayTitle)
+    && leftText.indexOf(todayTitle) < leftText.indexOf(futureTitle)
+  const scheduledDateVisible = leftText.includes('落图')
   const todayTone = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: todayTitle }).first()
     .evaluate(el => el.classList.contains('tone-today')).catch(() => false)
   const futureTone = await page.locator(`.cal-day[data-day="${futureKey}"] .cal-task-chip`).filter({ hasText: futureTitle }).first()
     .evaluate(el => el.classList.contains('tone-future')).catch(() => false)
-  const doneTone = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: doneTitle }).first()
-    .evaluate(el => el.classList.contains('tone-done')).catch(() => false)
   const doneUnscheduledInLeft = leftText.includes(doneUnscheduledTitle)
+  const monthChipHeight = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
+    .evaluate(el => el.getBoundingClientRect().height).catch(() => 0)
   await page.locator('.cal-view-switch button').filter({ hasText: '周视图' }).click()
   const weekCells = await page.locator('.cal-grid.is-week .cal-day').count()
   const weekTitle = ((await page.locator('.cal-week-title').innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  const weekChipHeight = await page.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
+    .evaluate(el => el.getBoundingClientRect().height).catch(() => 0)
+  const weekMetaVisible = await page.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-chip-meta`).first()
+    .isVisible().catch(() => false)
   await page.locator('.cal-view-switch button').filter({ hasText: '月视图' }).click()
   await page.locator('.cal-month-picker-trigger').click()
   const monthPicker = await page.locator('.cal-month-picker').isVisible().catch(() => false)
@@ -3678,6 +3687,7 @@ await paOpen()
       return {
         height: row.getBoundingClientRect().height,
         separated: !!title && !!meta && title.bottom <= meta.top + 1,
+        done: row.classList.contains('tone-done'),
       }
     })
   })
@@ -3685,37 +3695,57 @@ await paOpen()
   await page.waitForTimeout(250)
   const pendingRow = page.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
   const todayCell = page.locator(`.cal-day[data-day="${todayKey}"]`)
-  await pendingRow.dragTo(todayCell)
+  // 页面下方日期格可能仍在视口外，浏览器原生 dragTo 会被自动滚动中的相邻日期格截获；
+  // 用真实 DataTransfer 派发同一条 dragstart → dragover → drop 链，验证业务接线本身。
+  const transfer = await page.evaluateHandle(() => new DataTransfer())
+  await pendingRow.dispatchEvent('dragstart', { dataTransfer: transfer })
+  await todayCell.dispatchEvent('dragenter', { dataTransfer: transfer })
+  await todayCell.dispatchEvent('dragover', { dataTransfer: transfer })
+  await todayCell.dispatchEvent('drop', { dataTransfer: transfer })
+  await pendingRow.dispatchEvent('dragend', { dataTransfer: transfer })
   const pendingScheduled = await waitForStorage(page, 'zy_data_v2', raw =>
     (raw.zy_data_v2?.tasks || []).some(task => task.id === 'e2e-v432-pending' && task.dueDate === todayKey),
   { timeout: 8000 })
+  const pendingFocusPublished = await waitForStorage(page, 'zy_data_v2', raw =>
+    (raw.zy_data_v2?.dailyFocus?.[todayKey] || []).some(slot => slot.sourceId === 'e2e-v432-pending'),
+  { timeout: 8000 })
   const leftAfterDrop = await page.locator('.cal-pool-list').innerText().catch(() => '')
-  const chipAfterDrop = page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: pendingTitle }).first()
-  const chipVisibleAfterDrop = await chipAfterDrop.isVisible().catch(() => false)
-  await chipAfterDrop.locator('button[aria-label="取消排期"]').click()
+  const droppedRowText = await page.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
+    .innerText().catch(() => '')
+  // 今日可能已有超过月视图单格上限的任务，拖入后不一定直接露出 chip；
+  // 从日期详情核对它在今日任务列表里，再从同一入口取消排期。
+  await page.locator(`.cal-day[data-day="${todayKey}"] .cal-day-head`).click()
+  await waitForLocator(page, '.md-panel', { visible: true, timeout: 6000 })
+  const droppedModalRow = page.locator('.cal-modal-task').filter({ hasText: pendingTitle }).first()
+  const chipVisibleAfterDrop = await droppedModalRow.isVisible().catch(() => false)
+  await droppedModalRow.locator('.cal-modal-close').click()
   const pendingReturned = await waitForStorage(page, 'zy_data_v2', raw =>
     (raw.zy_data_v2?.tasks || []).some(task => task.id === 'e2e-v432-pending' && !task.dueDate),
   { timeout: 8000 })
+  await page.locator('.md-close').click().catch(() => {})
   await waitForLocator(page, '.cal-pool-task', { visible: true, timeout: 4000 })
   const leftAfterCancel = await page.locator('.cal-pool-list').innerText().catch(() => '')
   const calendarOk = calendarBoxes.poolH > 0
     && Math.abs(calendarBoxes.poolH - calendarBoxes.boardH) <= 1
     && calendarBoxes.listOverflow === 'auto'
     && calendarBoxes.listScrollable
-    && !leftText.includes(todayTitle)
-    && !leftText.includes(futureTitle)
-    && !leftText.includes(doneTitle)
-    && todayTone && futureTone && doneTone
+    && leftOrderOk
+    && scheduledDateVisible
+    && todayTone && futureTone
+    && dayModalRows.some(row => row.done)
     && doneUnscheduledInLeft
     && weekCells === 7 && /\d{4} 年/.test(weekTitle)
+    && weekChipHeight > monthChipHeight + 12
+    && weekMetaVisible
     && monthPicker && monthChoices === 12 && monthSwitched
     && dayModal.open && dayModal.z > 0 && dayModal.scrimZ > 0 && dayModal.z > dayModal.scrimZ
     && dayModalRows.length >= 2 && dayModalRows.every(row => row.height >= 44 && row.separated)
-    && !!pendingScheduled && chipVisibleAfterDrop && !leftAfterDrop.includes(pendingTitle)
+    && !!pendingScheduled && !!pendingFocusPublished && chipVisibleAfterDrop
+    && leftAfterDrop.includes(pendingTitle) && droppedRowText.includes('落图')
     && !!pendingReturned && leftAfterCancel.includes(pendingTitle)
-  report('E2E-63 ★V4.3.3 月历只按未落图取任务、月/周视图切换、日详情文字不叠压、四色状态与拖入移出取消全链路',
+  report('E2E-63 ★V4.3.4 任务清单遵守筛选且未落图优先、拖入今日进入三件事、周视图任务卡自适应、日详情与取消排期全链路',
     calendarOk,
-    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 左侧隐藏已排=${scheduledHiddenFromLeft} 完成未落图=${doneUnscheduledInLeft} 周视图=${weekCells}/${weekTitle} 色调=${todayTone}/${futureTone}/${doneTone} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖入=${pendingScheduled}/${chipVisibleAfterDrop}/${!leftAfterDrop.includes(pendingTitle)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
+    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 顺序=${leftOrderOk} 日期=${scheduledDateVisible} 完成未落图=${doneUnscheduledInLeft} 周视图=${weekCells}/${weekTitle}/${monthChipHeight}->${weekChipHeight}/${weekMetaVisible} 色调=${todayTone}/${futureTone}/${dayModalRows.some(row => row.done)} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖入=${pendingScheduled}/${pendingFocusPublished}/${chipVisibleAfterDrop}/${leftAfterDrop.includes(pendingTitle)}/${JSON.stringify(droppedRowText)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
 
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })

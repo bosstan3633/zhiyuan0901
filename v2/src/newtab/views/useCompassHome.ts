@@ -155,16 +155,25 @@ const focusWeekTotals = computed(() => focusWindowTotals(focusRecentDays(d.value
 async function ensureAutoFocus(): Promise<void> {
   if (!d.value) return /* 数据是异步载入的：onMounted 那一刻 store.data 可能还没到 */
   const key = todayKey.value
-  if (d.value.focusMutedDate === key || d.value.focusAutoDate === key) return
+  const { suggestFocus, applyFocusOrder, syncFocusTasksToSchedule } = await import('@/shared/utils/focusSuggest')
+  const synced = syncFocusTasksToSchedule(d.value, key)
+  if (d.value.focusMutedDate === key || d.value.focusAutoDate === key) {
+    if (synced) store.persist()
+    return
+  }
   const list = d.value.dailyFocus?.[key] || []
-  if (list.length >= FOCUS_LIMIT) { d.value.focusAutoDate = key; return }
-  const { suggestFocus, applyFocusOrder } = await import('@/shared/utils/focusSuggest')
+  if (list.length >= FOCUS_LIMIT) {
+    d.value.focusAutoDate = key
+    if (synced) store.persist()
+    return
+  }
   const cands = suggestFocus(d.value, { anchorKey: key, excludeTaskIds: list.map(s => s.sourceId || ''), limit: FOCUS_LIMIT })
   /* ★库里暂时没有可推荐的事 ⇒ **不盖章**，等数据到位再试（watch 会再来一次）。
      一盖就宣布"今天已经推荐过"，而此刻的"没有"多半只是 store.data 还没载入完 ——
      把读盘时序误当成用户的一天，结果这一整天都不会再有推荐。 */
   if (!cands.length) {
     if ((d.value.tasks || []).some(t => !t.deletedAt && t.status !== 'done')) d.value.focusAutoDate = key
+    if (synced) store.persist()
     return
   }
   applyFocusOrder(d.value, key, cands.map(c => c.taskId), FOCUS_LIMIT)
@@ -359,6 +368,10 @@ function selectTaskForSlot(task: TaskCard) {
     return
   }
   const key = dateStr(todayDate.value)
+  if (task.dueDate !== key) {
+    task.dueDate = key
+    task.updatedAt = Date.now()
+  }
   if (!d.value.dailyFocus[key]) d.value.dailyFocus[key] = []
   const list = d.value.dailyFocus[key]
   const slot: FocusSlot = {
@@ -454,6 +467,8 @@ async function copyFocusToToday() {
       copiedFrom: sourceKey,
     } as FocusSlot
   })
+  const { syncFocusTasksToSchedule } = await import('@/shared/utils/focusSuggest')
+  syncFocusTasksToSchedule(d.value, todayKey.value)
   todayDate.value = new Date()
   store.persist()
   showToast(`已复制 ${sourceKey} 的三件事到今天，进度快照与复选框保持一致`)
@@ -816,6 +831,7 @@ async function requestTaskFocus(task: TaskCard): Promise<void> {
   const { addManualFocus } = await import('@/shared/utils/focusSuggest')
   const result = addManualFocus(d.value, todayKey.value, task.id)
   if (result.status === 'exists') {
+    store.persist()
     showToast('这张任务已经在今天的三件事里')
     return
   }
@@ -845,21 +861,59 @@ function closeTaskFocusReplace(): void {
   focusTaskTargetId.value = ''
 }
 
-function setTaskWorkDue(taskId: string, date: string): void {
+async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
   const previous = task.dueDate
-  if (previous === date) return
-  task.dueDate = date
-  task.updatedAt = Date.now()
+  const dateChanged = previous !== date
+  if (dateChanged) {
+    task.dueDate = date
+    task.updatedAt = Date.now()
+  }
+
+  let focusResult: 'added' | 'exists' | 'full' | 'invalid' = 'invalid'
+  if (date === todayKey.value && task.status !== 'done') {
+    const { addManualFocus } = await import('@/shared/utils/focusSuggest')
+    const result = addManualFocus(d.value, todayKey.value, task.id)
+    if (result.status === 'added' || result.status === 'replaced') focusResult = 'added'
+    else if (result.status === 'exists') focusResult = 'exists'
+    else if (result.status === 'full') focusResult = 'full'
+  }
+
+  if (!dateChanged && focusResult !== 'added') {
+    if (date === todayKey.value && focusResult === 'full') {
+      showToast('已安排在今日日历；今日三件事已满，未自动加入')
+    } else if (date === todayKey.value && focusResult === 'exists') {
+      showToast('已安排在今日日历，且已在今日三件事中')
+    }
+    return
+  }
+
   store.persist()
-  showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日`, {
+  const focusSuffix = focusResult === 'added'
+    ? '，并加入今日三件事'
+    : focusResult === 'exists'
+      ? '，已在今日三件事中'
+      : focusResult === 'full'
+        ? '；今日三件事已满，未自动加入'
+        : ''
+  const message = `已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日${focusSuffix}`
+  if (!dateChanged) {
+    showToast(message)
+    return
+  }
+  showToast(message, {
     label: '撤销',
     cb: () => {
       const current = d.value.tasks.find(row => row.id === taskId)
       if (!current) return
       current.dueDate = previous
       current.updatedAt = Date.now()
+      if (focusResult === 'added') {
+        const slots = d.value.dailyFocus?.[todayKey.value] || []
+        const index = slots.findIndex(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
+        if (index >= 0) slots.splice(index, 1)
+      }
       store.persist()
       showToast('已撤销排期修改')
     },
@@ -963,11 +1017,15 @@ const previewResources = computed<ResourceCard[]>(() =>
 )
 const handNewCounts = computed(() => {
   const t0 = todayStart.value
+  const nextDay = new Date(t0)
+  nextDay.setDate(nextDay.getDate() + 1)
+  const t1 = nextDay.getTime()
+  const createdToday = (ts?: number) => (ts || 0) >= t0 && (ts || 0) < t1
   return {
-    task: liveTasks.value.filter(task => (task.createdAt || 0) >= t0).length,
-    curiosity: liveCuriosities.value.filter(card => (card.createdAt || 0) >= t0).length,
+    task: liveTasks.value.filter(task => createdToday(task.createdAt)).length,
+    curiosity: liveCuriosities.value.filter(card => createdToday(card.createdAt)).length,
     resource: liveResources.value.filter(card =>
-      card.workspaceId === CURATION_WS_ID && (card.createdAt || 0) >= t0).length,
+      card.workspaceId === CURATION_WS_ID && createdToday(card.createdAt)).length,
   }
 })
 const hasAnyPreview = computed(() =>

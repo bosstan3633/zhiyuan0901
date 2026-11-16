@@ -5,18 +5,14 @@ const { check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【V4.3.3 · 月周视图 / 文件夹明细 / 战报入口】')
 
-check('V433-1 待排期任务只按“未落图”判定，已完成任务也交给上方项目与状态筛选决定是否显示', () => {
+check('V433-1（V4.3.4 重指）任务清单展示全部筛选结果，未落图在前、已落图按计划日期在后；已完成任务仍由上方筛选决定', () => {
   const calendar = codeOnly(read('/newtab/components/compass/TaskCalendarView.vue'))
   const logic = codeOnly(read('/newtab/views/useCompassHome.ts'))
-  const pending = calendar.slice(
-    calendar.indexOf('const pendingPoolTasks'),
-    calendar.indexOf('const monthScheduledTasks'),
-  )
-  return !pending.includes("task.status !== 'done'")
-    && pending.includes("!/^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate || '')")
+  return calendar.includes('const poolTasks = computed(() => [...props.tasks].sort(poolOrder))')
+    && calendar.includes('return aDate.localeCompare(bDate) || taskOrder(a, b)')
     && logic.includes("unscheduled: liveTasks.value.filter(task => !task.dueDate).length")
     && logic.includes("if (quick === 'unscheduled' && task.dueDate) return false")
-    && calendar.includes('包含已完成任务；上方筛选框决定这里显示哪些任务')
+    && calendar.includes('已落图任务按日期排在后面')
 })
 
 check('V433-2 日历支持月视图 / 周视图切换，周视图仍复用同一排期与日期详情链路', () => {

@@ -340,28 +340,29 @@ check('V423-8 ★策展 HTML 导出：底部附件清单退役；中心论点 / 
     && !/\bsrc=/i.test(scripts[0][1])
 })
 
-check('V423-9 ★今日三件事复制固定加 MOC- 前缀且不重复：项目名为“workbuddy培训项目”或“MOC-workbuddy培训项目”都输出同一句', () => {
+check('V423-9（V4.3.4 重指）★今日三件事复制使用项目原名，不再自动添加 MOC- 前缀：输入什么项目名就输出什么', () => {
   if (!focusCopy) {
     const src = read('/shared/utils/focusCopy.ts')
-    return src.includes('project.replace(/^MOC-/i')
-      && src.includes('推进[[${mocProjectName(project)}]]项目')
+    return !src.includes('mocProjectName')
+      && src.includes('推进[[${project}]]项目')
   }
   const input = {
     projectName: 'workbuddy培训项目',
     taskTitle: '用workbuddy解决职场办公的100个方案',
     metricName: '教程文章20篇',
   }
-  const expected = '推进[[MOC-workbuddy培训项目]]项目，用workbuddy解决职场办公的100个方案，助力【教程文章20篇】指标落实到位'
+  const expected = '推进[[workbuddy培训项目]]项目，用workbuddy解决职场办公的100个方案，助力【教程文章20篇】指标落实到位'
   return focusCopy.buildDailyFocusCopyText(input) === expected
-    && focusCopy.buildDailyFocusCopyText({ ...input, projectName: 'MOC-workbuddy培训项目' }) === expected
+    && focusCopy.buildDailyFocusCopyText({ ...input, projectName: 'MOC-workbuddy培训项目' })
+      === '推进[[MOC-workbuddy培训项目]]项目，用workbuddy解决职场办公的100个方案，助力【教程文章20篇】指标落实到位'
     && focusCopy.buildDailyFocusCopyText({ ...input, metricName: '' }) === ''
 })
 
-check('V423-10（V4.3.2 重指）★手册与应用内版本同源：流程手册写清浏览器直达、MOC 复制、资源下拉筛选与附件下载打开，并明确移动采集与 Inbox 已退役', () => {
+check('V423-10（V4.3.4 重指）★手册与应用内版本同源：流程手册写清浏览器直达、项目原名复制、资源下拉筛选与附件下载打开，并明确移动采集与 Inbox 已退役', () => {
   const manual = read('/newtab/manual-data.ts')
   const page = read('/newtab/views/ManualPage.vue')
   return manual.includes(CUR_VTAG)
-    && manual.includes('推进[[MOC-项目名]]项目')
+    && manual.includes('推进[[项目名]]项目')
     && manual.includes('状态筛选收进下拉框')
     && manual.includes('附件点击后下载并打开')
     && manual.includes('移动采集 PWA 与 PC Inbox 自 V4.3.0 起退役')

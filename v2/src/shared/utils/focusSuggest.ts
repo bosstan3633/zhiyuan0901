@@ -136,6 +136,32 @@ function taskOf(d: AppData, id: string): TaskCard | undefined {
 }
 
 /**
+ * V4.3.4：今日三件事与计划执行日期保持双向一致。
+ * 只有真正进入某个日期三件事槽位的任务才写回 `dueDate`；留作候选但没占格的任务不动。
+ */
+export function syncFocusTasksToSchedule(
+  d: AppData,
+  anchorKey: string,
+  slots: FocusSlot[] = d.dailyFocus?.[anchorKey] || [],
+): number {
+  const ids = new Set(
+    slots
+      .filter(slot => slot.sourceType === 'task' && slot.sourceId)
+      .map(slot => slot.sourceId as string),
+  )
+  if (!ids.size) return 0
+  const stamp = Date.now()
+  let changed = 0
+  for (const task of d.tasks) {
+    if (task.deletedAt || !ids.has(task.id) || task.dueDate === anchorKey) continue
+    task.dueDate = anchorKey
+    task.updatedAt = stamp
+    changed++
+  }
+  return changed
+}
+
+/**
  * R169-T3：把建议顺序落到某一天的三格里，**永不覆盖人定的格子**。
  *
  * 放在 utils 而不是 ai/：它是纯数据写入，本地推荐与 AI 复核两条路共用同一个落笔口——
@@ -167,6 +193,7 @@ export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: strin
     changed++
   }
   d.dailyFocus[anchorKey] = next.slice(0, limit)
+  syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
   return { changed }
 }
 
@@ -181,7 +208,8 @@ export type ManualFocusResult =
  * 用户从任务菜单或详情主动选择“设为今日重点”。
  *
  * 与 AI 推荐严格分开：写入手动格（auto 不置 true），已有三格时由调用方让用户选择
- * 要替换哪一格，再带着 slotIndex 二次调用。任务本身的状态、日期和归属均不改。
+ * 要替换哪一格，再带着 slotIndex 二次调用。任务状态与归属不改；计划执行日期与
+ * 今日三件事保持同源，进入槽位即落图到当天。
  */
 export function addManualFocus(
   d: AppData,
@@ -195,7 +223,10 @@ export function addManualFocus(
   if (!d.dailyFocus) d.dailyFocus = {}
   const list = d.dailyFocus[anchorKey] || []
   const existing = list.findIndex(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
-  if (existing >= 0) return { status: 'exists', index: existing }
+  if (existing >= 0) {
+    syncFocusTasksToSchedule(d, anchorKey, list)
+    return { status: 'exists', index: existing }
+  }
 
   const slot: FocusSlot = {
     id: uid('focus'),
@@ -208,11 +239,13 @@ export function addManualFocus(
   if (list.length < limit) {
     list.push(slot)
     d.dailyFocus[anchorKey] = list.slice(0, limit)
+    syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
     return { status: 'added', index: list.length - 1 }
   }
 
   if (slotIndex === undefined || slotIndex < 0 || slotIndex >= limit) return { status: 'full' }
   list[slotIndex] = slot
   d.dailyFocus[anchorKey] = list.slice(0, limit)
+  syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
   return { status: 'replaced', index: slotIndex }
 }

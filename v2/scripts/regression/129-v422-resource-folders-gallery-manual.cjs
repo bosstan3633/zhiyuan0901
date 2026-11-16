@@ -77,13 +77,12 @@ check('V422-5 ★常用夹进入云同步：新增资源夹与镜像关系记录
     && display.includes("resourceFolderMirror: '常用夹 → 资源镜像'")
 })
 
-check('V422-6（V4.2.3 重指）★今日三件事复制模板逐字固定为「推进[[MOC-项目]]项目，任务，助力【指标】指标落实到位」，已有 MOC- 前缀不重复，缺有效项目或指标继续禁用', () => {
+check('V422-6（V4.3.4 重指）★今日三件事复制模板逐字固定为「推进[[项目]]项目，任务，助力【指标】指标落实到位」，项目名按原样输出，缺有效项目或指标继续禁用', () => {
   const copy = read('/shared/utils/focusCopy.ts')
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
-  return copy.includes('function mocProjectName')
-    && copy.includes('project.replace(/^MOC-/i')
-    && copy.includes('推进[[${mocProjectName(project)}]]项目，${task}，助力【${metric}】指标落实到位')
+  return !copy.includes('mocProjectName')
+    && copy.includes('推进[[${project}]]项目，${task}，助力【${metric}】指标落实到位')
     && copy.includes('if (!project || !metric || !task) return')
     && home.includes(':disabled="!focusCopyText(c)"')
     && home.includes('focusCopyReason(c)')
@@ -137,7 +136,7 @@ check('V422-10 ★使用手册以流程优先：新增 V4.2.2 总流程与采集
     && manual.includes('流程：资源卡复用与常用夹')
     && manual.includes('流程：策展成果导出与图片浏览')
     && manual.includes('打开全部资源')
-    && manual.includes('推进[[MOC-项目名]]项目，任务内容，助力【指标名】指标落实到位')
+    && manual.includes('推进[[项目名]]项目，任务内容，助力【指标名】指标落实到位')
     && page.includes('buildManualStandaloneHtml')
     && page.includes(CUR_VTAG)
 })
