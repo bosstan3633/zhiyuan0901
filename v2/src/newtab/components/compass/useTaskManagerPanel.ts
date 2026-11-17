@@ -18,6 +18,7 @@ import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import { useTaskPanelBatch } from './taskPanelBatch'
+import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
 import DeckBatchBar from './DeckBatchBar.vue'
 import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
@@ -246,9 +247,7 @@ const { batchAddTag, batchDelete, batchSetStatus, batchSetPriority, mountModalOp
 // ---- 任务操作 ----
 /** B22：状态统一出口（completedAt 卫生清理） */
 function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
-  t.status = status
-  t.completedAt = status === 'done' ? Date.now() : undefined
-  t.updatedAt = Date.now()
+  setTaskStatus(t, status)
   store.persist()
 }
 /** 月历排期与取消排期共用唯一字段 dueDate；这里只改计划执行日期，不碰任务归属和状态。 */
@@ -276,7 +275,8 @@ function clearTaskDueDate(taskId: string): void {
 function toggleTaskCompletion(taskId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task) return
-  setTaskStatusOf(task, task.status === 'done' ? 'todo' : 'done')
+  toggleTaskStatus(task)
+  store.persist()
 }
 async function addTaskToTodayFocus(task: TaskCard): Promise<void> {
   if (!task || task.deletedAt) return

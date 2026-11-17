@@ -17,9 +17,10 @@
  *   · 弹窗宽度 / 字号 / 字间距对齐原型 min(720px,92vw) / 86vh / radius 18px
  */
 import './dashboard.css'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
+import type { AppData, FocusSlot } from '@/shared/models'
 import type { CardEvent, EventAction } from '@/shared/utils/eventLog'
 import { EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
 import {
@@ -29,12 +30,16 @@ import {
 import { hm, dayOfTs, groupEventRows, type DrillRow } from '@/shared/utils/drillRows'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
+import { buildCurationTree } from '@/shared/utils/compassCurationModel'
+import { activeFocusSlots } from '@/shared/utils/focusSlots'
 import DrillCardList from './DrillCardList.vue'
 import ExportMenu, { type ExportFmt } from './ExportMenu.vue'
 import { dailyReportShareHtml, sectionsToMd, exportName } from '@/shared/utils/exportView'
 import { downloadText } from '@/shared/utils/download'
 import { escapeMarkdown, safeExportLink } from '@/shared/utils/cardExport'
 import { showToast } from '@/shared/components/toast'
+import Icon from '@/shared/components/Icon.vue'
+import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 
 const props = defineProps<{
   stats: DailyStats
@@ -66,6 +71,45 @@ const dlSum = computed(() => {
   return { n: evs.length, cards, last }
 })
 
+/** 方向树摘要只作为 AI 阅读上下文，不参与战报统计，也不写回任何业务数据。 */
+const directionContext = computed(() => {
+  const data = store.data
+  if (!data) return '方向树暂不可用。'
+  const tree = buildCurationTree(data)
+  const projects = tree.goals
+    .flatMap(goal => goal.projects.map(project => ({
+      goal: goal.dir.name,
+      name: project.project.name,
+      focused: project.project.isFocused,
+      progress: project.progress,
+      done: project.doneCount,
+      total: project.totalCount,
+      metrics: project.metrics.length,
+    })))
+    .sort((a, b) => Number(b.focused) - Number(a.focused) || b.progress - a.progress)
+    .slice(0, 8)
+    .map(project => `${project.focused ? '[主攻]' : ''}${project.name}（${project.progress}%，任务 ${project.done}/${project.total}，${project.metrics} 个成功指标，归属：${project.goal}）`)
+  const focus = activeFocusSlots(data.dailyFocus?.[props.day])
+    .map(slot => {
+      const status = focusSlotStatusForInsight(data, slot)
+      return `${slot.text || '未命名事项'}（${status}）`
+    })
+  return [
+    `愿景：${tree.vision || '未填写'}`,
+    `使命：${tree.mission || '未填写'}`,
+    `方向进度：${projects.length ? projects.join('；') : '暂无项目'}`,
+    `当日三件事：${focus.length ? focus.join('；') : '未设置'}`,
+  ].join('\n')
+})
+
+function focusSlotStatusForInsight(data: AppData, slot: FocusSlot): string {
+  if (slot.sourceType === 'task' && slot.sourceId) {
+    const task = data.tasks.find(row => !row.deletedAt && row.id === slot.sourceId)
+    if (task) return task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始'
+  }
+  return slot.done ? '已完成' : '未完成'
+}
+
 /** 四格统计（原型 renderStats 口径：create/call/status/delete+purge → 新增/调出/推进/清理）。
  *  ★ W6.1：指标卡可点击下钻——drill 状态 toggle，激活时展开 DrillCardList。 */
 type DrillKey = '' | 'create' | 'call' | 'status' | 'del'
@@ -88,6 +132,76 @@ const statCells = computed(() => {
 function toggleDrill(k: DrillKey) {
   drill.value = drill.value === k ? '' : k
 }
+
+/** AI 洞察只在当前弹窗内临时生成，不写库、不进入战报导出。 */
+const aiInsight = ref('')
+const aiInsightState = ref<'idle' | 'run' | 'done' | 'off'>('idle')
+const aiInsightError = ref('')
+let aiInsightAbort: AbortController | null = null
+
+async function generateAiInsight(): Promise<void> {
+  if (aiInsightState.value === 'run') return
+  aiInsightState.value = 'run'
+  aiInsightError.value = ''
+  aiInsightAbort?.abort()
+  aiInsightAbort = new AbortController()
+  try {
+    const [cfgMod, llm] = await Promise.all([
+      import('@/shared/ai/config'),
+      import('@/shared/ai/llm'),
+    ])
+    await cfgMod.loadAiConfig()
+    if (!cfgMod.aiReady.value) {
+      aiInsightState.value = 'off'
+      showToast('请先在 设置 → AI 助手 完成接入')
+      return
+    }
+    const cells = statCells.value
+    const eventSample = dayEvents.value
+      .slice()
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 30)
+      .map(e => `${hm(e.ts)} ${EVENT_ACT_LABEL[e.action]} ${KIND_LABEL[e.kind] || e.kind}：${e.title}`)
+      .join('\n')
+    const raw = await llm.chat({
+      messages: [
+        {
+          role: 'system',
+          content: '你是一名严谨、克制的中文数据分析师。只根据给定战报事实和方向树上下文分析，不编造数字，不做人格评判；缺少数据时明确说不足，不擅自补零。输出 180—200 字的一段中文，必须依次包含：①一条行为洞察；②对洞察背后原因的深层剖析；③一条结合主攻项目或成功指标的下一步行动建议。不要标题、不要 Markdown、不要客套话。',
+        },
+        {
+          role: 'user',
+          content: [
+            `日期：${props.day}`,
+            `操作总数：${dlSum.value.n}；涉及卡片：${dlSum.value.cards}`,
+            `新增：${cells[0].n}；调出：${cells[1].n}；推进：${cells[2].n}；清理：${cells[3].n}`,
+            `加权活跃分：${rec.value.w}；强度：${intensity.value}%`,
+            `方向树上下文：\n${directionContext.value}`,
+            eventSample ? `主要操作：\n${eventSample}` : '没有操作流水。',
+          ].join('\n'),
+        },
+      ],
+      maxTokens: 420,
+      temperature: 0.35,
+      signal: aiInsightAbort.signal,
+    })
+    const clean = raw.replace(/\s+/g, ' ').trim()
+    aiInsight.value = clean.length > 200 ? `${clean.slice(0, 199)}…` : clean
+    aiInsightState.value = aiInsight.value ? 'done' : 'idle'
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') return
+    aiInsightError.value = error instanceof Error ? error.message : String(error)
+    aiInsightState.value = 'idle'
+  }
+}
+
+watch(() => props.day, () => {
+  aiInsightAbort?.abort()
+  aiInsightAbort = null
+  aiInsight.value = ''
+  aiInsightError.value = ''
+  aiInsightState.value = 'idle'
+})
 /** 下钻行：按四格口径过滤当天事件 → groupEventRows 聚合（同卡多次 ×N，与全库单一实现） */
 const drillRows = computed<{ label: string; rows: DrillRow[]; total: number } | null>(() => {
   if (!drill.value) return null
@@ -277,6 +391,25 @@ function onExport(fmt: ExportFmt): void {
       <template v-else>这一天没有操作记录。</template>
       <div v-if="dlSum.last" class="dz-dl-recent">最近一次操作：{{ hm(dlSum.last) }}<template v-if="dlSum.last">（{{ dayOfTs(dlSum.last) === day ? '' : dayOfTs(dlSum.last) + ' ' }}{{ Math.round((Date.now() - dlSum.last) / 3600000) }} 小时前）</template></div>
     </div>
+
+    <!-- ③ AI 洞察：用户手动触发，只在当前战报弹窗临时展示，不写入任务真源。 -->
+    <section class="dz-ai-insight" :data-state="aiInsightState" aria-label="AI 洞察">
+      <header>
+        <span class="dz-ai-mark" aria-hidden="true"><Icon name="sparkles" :size="15" /></span>
+        <div>
+          <b>AI 洞察</b>
+          <small>从行为洞察到深层原因，再给一条下一步建议</small>
+        </div>
+        <button class="dz-btn sm" type="button" :disabled="aiInsightState === 'run' || !dlSum.n" @click="generateAiInsight">
+          <AiEntryButton variant="inline" :label="aiInsightState === 'run' ? '分析中…' : aiInsightState === 'done' ? '重新分析' : '生成洞察'" />
+        </button>
+      </header>
+      <p v-if="aiInsight" class="dz-ai-copy">{{ aiInsight }}</p>
+      <p v-else-if="aiInsightState === 'run'" class="dz-ai-placeholder">正在读取当天操作结构，分析行为模式与背后的注意力分配…</p>
+      <p v-else-if="aiInsightState === 'off'" class="dz-ai-placeholder">AI 尚未接入。完成设置后，可随时回到这里重新生成。</p>
+      <p v-else-if="aiInsightError" class="dz-ai-placeholder error">生成失败：{{ aiInsightError }}</p>
+      <p v-else class="dz-ai-placeholder">当下方出现操作数据后，可点击“生成洞察”。分析只在本次弹窗内临时展示，不自动保存。</p>
+    </section>
 
     <!-- ③ 四格统计（原型 md-stats：新增 / 调出 / 推进 / 清理，零值压淡；★W6.1 可点击下钻） -->
     <div v-if="dlSum.n" class="dz-stats">

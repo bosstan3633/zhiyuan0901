@@ -13,6 +13,7 @@
  *    （看板里拖完成的卡不会进三件事），混成一个数就会说谎。
  */
 import type { AppData, TaskCard } from '@/shared/models'
+import { activeFocusSlots } from './focusSlots'
 
 const DAY_MS = 86_400_000
 
@@ -33,7 +34,7 @@ export function focusRecentDays(d: AppData, anchorKey: string, n = 7): FocusDayS
   const out: FocusDayStat[] = []
   for (let i = 0; i < n; i++) {
     const key = toKey(start + i * DAY_MS)
-    const slots = d.dailyFocus?.[key] || []
+    const slots = activeFocusSlots(d.dailyFocus?.[key])
     out.push({ date: key, planned: slots.length, done: slots.filter(s => s.done).length })
   }
   return out
@@ -56,7 +57,7 @@ export function focusCarried(d: AppData, anchorKey: string, n = 7): Map<string, 
   for (const key of Object.keys(d.dailyFocus || {}).sort()) {
     const ts = fromKey(key)
     if (ts < start || ts > fromKey(anchorKey)) continue
-    for (const slot of d.dailyFocus[key] || []) {
+    for (const slot of activeFocusSlots(d.dailyFocus[key])) {
       if (slot.done || slot.sourceType !== 'task' || !slot.sourceId) continue
       const t = byId.get(slot.sourceId)
       if (!t || t.status === 'done') continue
@@ -81,7 +82,7 @@ export function focusPlannedCounts(d: AppData, anchorKey: string, n = 7): Map<st
     const ts = fromKey(key)
     if (ts < start || ts > fromKey(anchorKey)) continue
     const seen = new Set<string>()
-    for (const slot of d.dailyFocus[key] || []) {
+    for (const slot of activeFocusSlots(d.dailyFocus[key])) {
       if (slot.sourceType !== 'task' || !slot.sourceId || seen.has(slot.sourceId)) continue
       seen.add(slot.sourceId)
       out.set(slot.sourceId, (out.get(slot.sourceId) || 0) + 1)

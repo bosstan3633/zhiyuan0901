@@ -4,7 +4,7 @@
  *
  * 职责边界：
  * - 指标是项目与任务之间的判断层，详情必须同时回答“怎么算做成”“做到哪”“靠哪些任务”；
- * - 可编辑能力不降级：名称、验收标准、目标值、任务归属都在这里改；
+ * - 可编辑能力不降级：名称、目标值、任务归属都在这里改；
  * - 任务标题继续打开共享 TaskDetailDrawer，形成项目 → 指标 → 任务连续下钻。
  *
  * 取数：ProjectMeta/MetricMeta 由宿主 CompassTree 的 compassMeta 统一传入，
@@ -21,6 +21,7 @@ import { tasksOfMetric } from '../../views/compassMeta'
 import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../TaskAddDrawer.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
+import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 
 const props = defineProps<{
   open: boolean
@@ -59,7 +60,7 @@ const metricMeta = computed<MetricMeta | null>(() => {
   return {
     id: metric.value.id,
     title: metric.value.title,
-    acceptance: metric.value.acceptance || '',
+    acceptance: '',
     target: metric.value.target || '',
     tasks: tasks.value,
     total: tasks.value.length,
@@ -71,9 +72,9 @@ const metricMeta = computed<MetricMeta | null>(() => {
 })
 
 // ---- 就地编辑：失焦保存 / Ctrl+Enter 保存 / Esc 取消 ----
-const edit = ref<'title' | 'acceptance' | 'target' | null>(null)
+const edit = ref<'title' | 'target' | null>(null)
 const draft = ref('')
-function startEdit(field: 'title' | 'acceptance' | 'target') {
+function startEdit(field: 'title' | 'target') {
   if (!metric.value) return
   edit.value = field
   draft.value = metric.value[field] || ''
@@ -96,9 +97,7 @@ function cancelEdit() {
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 function openTask(t: TaskCard) { taskDetailRef.value?.open(t) }
 function toggleTask(t: TaskCard) {
-  t.status = t.status === 'done' ? 'todo' : 'done'
-  t.completedAt = t.status === 'done' ? Date.now() : undefined
-  t.updatedAt = Date.now()
+  toggleTaskStatus(t)
   store.persist()
 }
 const taskAddOpen = ref(false)
@@ -153,18 +152,6 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
 
       <section class="md-section">
         <div class="md-sec-head">
-          <h3><Icon name="clipboard" :size="14"/> 验收标准</h3>
-          <button class="md-edit-btn" @click="startEdit('acceptance')">{{ edit === 'acceptance' ? '编辑中' : '编辑' }}</button>
-        </div>
-        <textarea v-if="edit === 'acceptance'" v-model="draft" class="md-edit md-edit-area" autofocus
-          placeholder="写成可判断的完成条件：谁在什么时间看到什么结果…" @blur="saveEdit" @keydown.esc="cancelEdit" />
-        <p v-else class="md-copy" v-pressable :class="{ empty: !metric.acceptance }" @click="startEdit('acceptance')">
-          {{ metric.acceptance || '还没有验收标准。先写清楚“做到什么算成功”，再拆任务。' }}
-        </p>
-      </section>
-
-      <section class="md-section">
-        <div class="md-sec-head">
           <h3><Icon name="target" :size="14"/> 目标值</h3>
           <button class="md-edit-btn" @click="startEdit('target')">{{ edit === 'target' ? '编辑中' : '编辑' }}</button>
         </div>
@@ -191,7 +178,7 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
           </div>
         </div>
         <div v-else class="md-empty">
-          <b>验收标准已定，动作还没落</b>
+          <b>目标已经明确，动作还没落</b>
           <span>先拆一条最小可执行任务，指标才有推进的可能。</span>
           <button class="md-add" @click="openTaskAdd">＋ 建第一条任务</button>
         </div>
@@ -236,7 +223,6 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
 .md-copy.empty { color: var(--text-3); border: 1px dashed var(--border); background: transparent; }
 .md-edit { width: 100%; box-sizing: border-box; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-sub); padding: 9px 11px; outline: none; }
 .md-edit-title { font-size: var(--fs-title); font-weight: 700; }
-.md-edit-area { min-height: 92px; resize: vertical; line-height: 1.7; }
 .md-add { margin-left: auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: var(--fs-micro); font-weight: 600; cursor: pointer; }
 .md-add:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
 .md-task-list { display: flex; flex-direction: column; gap: 5px; }

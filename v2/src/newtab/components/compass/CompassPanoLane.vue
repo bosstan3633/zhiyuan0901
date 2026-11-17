@@ -60,9 +60,6 @@ const emit = defineEmits<{
 const menuFor = ref<string | null>(null)
 function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : id }
 
-/** V3.9.12：验收标准默认只占一行，需要时再展开——泳道里先读到的是指标与进度，
- *  不是每根泳道都铺两行说明。 */
-const accOpen = ref(false)
 /** 只在焦点离开整个操作区时收菜单：pointerdown 若先卸载菜单，会吃掉随后的 click。 */
 const menuRoot = ref<HTMLElement | null>(null)
 function onMenuFocusout(e: FocusEvent) {
@@ -115,16 +112,6 @@ function priOf(t: TaskCard): string {
           </span>
         </span>
       </div>
-      <div class="lane-acc" :class="{ open: accOpen }">
-        <span class="lane-acc-k">验收</span>
-        <b>{{ m.acceptance || '未写验收标准' }}</b>
-        <button
-          v-if="(m.acceptance || '').length > 28"
-          class="lane-acc-toggle"
-          :aria-expanded="accOpen"
-          @click="accOpen = !accOpen"
-        >{{ accOpen ? '收起' : '展开' }}</button>
-      </div>
       <div class="lane-bar">
         <span class="track"><span class="fill" :style="{ width: m.pct + '%' }" /></span>
         <span class="v">{{ m.pct }}% · {{ m.done }}/{{ m.total }}</span>
@@ -168,7 +155,7 @@ function priOf(t: TaskCard): string {
       <div v-else class="lane-empty">
         <span class="le-i" aria-hidden="true"><Icon name="warn" :size="13"/></span>
         <span class="le-t">零任务</span>
-        <span class="le-d">验收标准已定<br />动作还没落</span>
+        <span class="le-d">目标已经明确<br />动作还没落</span>
         <button class="le-add" @click="emit('addTask', m.id, projId)">＋ 建第一条任务</button>
       </div>
     </div>
@@ -183,7 +170,7 @@ function priOf(t: TaskCard): string {
 /* ★视觉聚焦（与项目塔同一把尺子）：泳道是"分组"不是"卡"。
    原来泳道是 surface 底 + lg 圆角 + 全局阴影，头部分 surface-2、任务再 surface-2 ——
    四层容器叠在一屏里，读者先数框。现在只留一条边界线（横向并排需要它），
-   层级由指标名、验收行、进度条和连接轨承担。 */
+   层级由指标名、进度条和连接轨承担。 */
 .lane {
   /* 基础宽度给旧版静态锚点；父容器 .lanes-* 会按轨道数覆盖它。 */
   flex: 1 1 0; min-width: 360px; flex-direction: column; display: flex;
@@ -242,25 +229,6 @@ function priOf(t: TaskCard): string {
 .lom-item:hover { background: var(--surface-3); }
 .lom-item.danger { color: var(--danger); }
 .lom-item.danger:hover { background: var(--danger-bg-soft); }
-.lane-acc {
-  display: flex; align-items: baseline; gap: 5px; min-width: 0;
-  font-size: var(--fs-tiny); color: var(--text-3); line-height: 1.55; margin-top: 4px;
-}
-.lane-acc-k {
-  flex: none; font-size: var(--fs-tiny); font-weight: 700; letter-spacing: .04em;
-  color: var(--text-4);
-}
-.lane-acc b {
-  min-width: 0; color: var(--text-3); font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.lane-acc.open b { white-space: normal; overflow: visible; }
-.lane-acc-toggle {
-  flex: none; min-height: 28px; padding: 6px 4px; margin: -6px -4px;
-  border: 0; background: transparent;
-  color: var(--text-3); font-family: inherit; font-size: var(--fs-tiny); cursor: pointer;
-}
-.lane-acc-toggle:hover { color: var(--accent-ink); }
 .lane-bar { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
 /* ★W12-F：任务区是连接轨的定位上下文 */
 .lane-b { position: relative; }

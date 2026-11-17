@@ -8,6 +8,7 @@ import { migrateCurationTree, migrateHubStructure, migrateHubMerge, hubMergeWork
 import { migrateCatsToTags, migrateBoardCardsToPool, migratePoolWorkPending, writeMigrateBackup, relocateCatsMigrateReport, hasMigrateOptOut } from '@/shared/storage/poolMigration'
 import { normalizeCardTagPaths } from '@/shared/utils/tags'
 import { sanitizeMetricTaskIds } from '@/shared/utils/taskLinks'
+import { reconcileTodayFocusSchedule } from '@/shared/utils/focusSuggest'
 // R156：主题「跟随系统」——解析 + 系统配色监听
 import { resolveTheme, watchSystemTheme } from '@/shared/utils/theme'
 
@@ -125,6 +126,10 @@ export const useAppStore = defineStore('app', () => {
         migrated = true
       }
     }
+    if (data.value) {
+      const focusFixed = reconcileTodayFocusSchedule(data.value)
+      if (focusFixed > 0) migrated = true
+    }
     if (migrated) saveData()
 
     // 订阅数据变更（跨页面同步）—— 保持同一引用，不做深拷贝
@@ -157,7 +162,10 @@ export const useAppStore = defineStore('app', () => {
 
   /** 云恢复后刷新 store（data/ui 整体重挂 + 主题密度应用） */
   async function refreshAfterCloudRestore(d: AppData | null, nextUi?: UIPrefs | null): Promise<void> {
-    if (d) data.value = d
+    if (d) {
+      data.value = d
+      if (reconcileTodayFocusSchedule(d) > 0) saveData()
+    }
     if (nextUi) ui.value = nextUi
     applyTheme(ui.value?.theme || 'linear')
   }

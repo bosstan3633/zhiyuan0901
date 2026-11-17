@@ -24,6 +24,7 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
+import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 import {
   directionTermLabel,
   goalOfProject,
@@ -393,9 +394,7 @@ function unbindTask(task: TaskCard) {
   showToast(`已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 function toggleTaskDone(task: TaskCard) {
-  task.status = task.status === 'done' ? 'todo' : 'done'
-  task.completedAt = task.status === 'done' ? Date.now() : undefined
-  task.updatedAt = Date.now()
+  toggleTaskStatus(task)
   store.persist()
 }
 

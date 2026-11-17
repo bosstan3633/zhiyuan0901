@@ -2855,6 +2855,12 @@ await paOpen()
   // ══════════ E2E-52（V4.1.1）同步记录级明细抽屉 ══════════
   await page.locator('.cloud-fact-button').first().click()
   await waitForLocator(page, '.csd-tabs', { visible: true, timeout: 10000 })
+  await pollUntil(async () => page.evaluate(() => {
+    const loading = document.querySelector('.csd-loading')
+    const summary = document.querySelector('.csd-summary')?.textContent || ''
+    const note = document.querySelector('.csd-note')?.textContent || ''
+    return !loading && !!(summary.trim() || note.trim())
+  }), { timeout: 10000, label: '同步明细异步加载完成' })
   const syncDetail = await page.evaluate(() => {
     const tabs = [...document.querySelectorAll('.csd-tabs [role="tab"]')].map(x => (x.textContent || '').trim())
     const summary = document.querySelector('.csd-summary')?.textContent || ''
@@ -3619,6 +3625,13 @@ await paOpen()
     for (let i = 0; i < 18; i++) {
       data.tasks.push(baseTask(`e2e-v432-pool-${i}`, `E2E V4.3.2 待排期填充 ${i + 1}`, 'todo', undefined))
     }
+    // 隔离其他用例留下的今日任务，确保拖入前恰好只有两张今日任务、三件事仍有 1 个空槽。
+    for (const task of data.tasks) {
+      if (!ids.has(task.id) && task.dueDate === todayKey) {
+        task.dueDate = undefined
+        task.updatedAt = now
+      }
+    }
     data.dailyFocus = data.dailyFocus || {}
     data.dailyFocus[todayKey] = []
     data.focusMutedDate = todayKey
@@ -3627,10 +3640,12 @@ await paOpen()
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '.task-calendar', { visible: true, timeout: 12000 })
-  const calendarBoxes = await page.evaluate(() => {
-    const pool = document.querySelector('.cal-pool')?.getBoundingClientRect()
-    const board = document.querySelector('.cal-board')?.getBoundingClientRect()
-    const list = document.querySelector('.cal-pool-list')
+  // KeepAlive 可能保留此前的任务日历实例；本轮交互与读数只取当前可见实例。
+  const visibleCalendar = page.locator('.task-calendar:visible').first()
+  const calendarBoxes = await visibleCalendar.evaluate(root => {
+    const pool = root.querySelector('.cal-pool')?.getBoundingClientRect()
+    const board = root.querySelector('.cal-board')?.getBoundingClientRect()
+    const list = root.querySelector('.cal-pool-list')
     return {
       poolH: pool?.height || 0,
       boardH: board?.height || 0,
@@ -3643,33 +3658,33 @@ await paOpen()
   const futureTitle = 'E2E V4.3.2 未来探针'
   const doneTitle = 'E2E V4.3.2 已完成探针'
   const doneUnscheduledTitle = 'E2E V4.3.3 已完成未落图探针'
-  const leftText = await page.locator('.cal-pool-list').innerText()
+  const leftText = await visibleCalendar.locator('.cal-pool-list').innerText()
   const leftOrderOk = leftText.indexOf(pendingTitle) >= 0
     && leftText.indexOf(doneUnscheduledTitle) >= 0
     && leftText.indexOf(pendingTitle) < leftText.indexOf(todayTitle)
     && leftText.indexOf(todayTitle) < leftText.indexOf(futureTitle)
   const scheduledDateVisible = leftText.includes('落图')
-  const todayTone = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: todayTitle }).first()
+  const todayTone = await visibleCalendar.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).filter({ hasText: todayTitle }).first()
     .evaluate(el => el.classList.contains('tone-today')).catch(() => false)
-  const futureTone = await page.locator(`.cal-day[data-day="${futureKey}"] .cal-task-chip`).filter({ hasText: futureTitle }).first()
+  const futureTone = await visibleCalendar.locator(`.cal-day[data-day="${futureKey}"] .cal-task-chip`).filter({ hasText: futureTitle }).first()
     .evaluate(el => el.classList.contains('tone-future')).catch(() => false)
   const doneUnscheduledInLeft = leftText.includes(doneUnscheduledTitle)
-  const monthChipHeight = await page.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
+  const monthChipHeight = await visibleCalendar.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
     .evaluate(el => el.getBoundingClientRect().height).catch(() => 0)
-  await page.locator('.cal-view-switch button').filter({ hasText: '周视图' }).click()
-  const weekCells = await page.locator('.cal-grid.is-week .cal-day').count()
-  const weekTitle = ((await page.locator('.cal-week-title').innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
-  const weekChipHeight = await page.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
+  await visibleCalendar.locator('.cal-view-switch button').filter({ hasText: '周视图' }).click()
+  const weekCells = await visibleCalendar.locator('.cal-grid.is-week .cal-day').count()
+  const weekTitle = ((await visibleCalendar.locator('.cal-week-title').innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  const weekChipHeight = await visibleCalendar.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
     .evaluate(el => el.getBoundingClientRect().height).catch(() => 0)
-  const weekMetaVisible = await page.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-chip-meta`).first()
+  const weekMetaVisible = await visibleCalendar.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-chip-meta`).first()
     .isVisible().catch(() => false)
-  await page.locator('.cal-view-switch button').filter({ hasText: '月视图' }).click()
-  await page.locator('.cal-month-picker-trigger').click()
-  const monthPicker = await page.locator('.cal-month-picker').isVisible().catch(() => false)
-  const monthChoices = await page.locator('.cal-month-picker-grid button').count()
-  await page.locator('.cal-month-picker-grid button').first().click()
-  const monthSwitched = ((await page.locator('.cal-month-picker-trigger').innerText().catch(() => '')) || '').includes('1 月')
-  await page.locator('.cal-today').click()
+  await visibleCalendar.locator('.cal-view-switch button').filter({ hasText: '月视图' }).click()
+  await visibleCalendar.locator('.cal-month-picker-trigger').click()
+  const monthPicker = await visibleCalendar.locator('.cal-month-picker').isVisible().catch(() => false)
+  const monthChoices = await visibleCalendar.locator('.cal-month-picker-grid button').count()
+  await visibleCalendar.locator('.cal-month-picker-grid button').first().click()
+  const monthSwitched = ((await visibleCalendar.locator('.cal-month-picker-trigger').innerText().catch(() => '')) || '').includes('1 月')
+  await visibleCalendar.locator('.cal-today').click()
   await waitForLocator(page, '.md-panel', { visible: true, timeout: 6000 })
   const dayModal = await page.evaluate(() => {
     const panel = document.querySelector('.md-panel')
@@ -3692,39 +3707,96 @@ await paOpen()
     })
   })
   await page.locator('.md-close').click()
+  await page.waitForSelector('.md-panel', { state: 'detached', timeout: 6000 })
   await page.waitForTimeout(250)
-  const pendingRow = page.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
-  const todayCell = page.locator(`.cal-day[data-day="${todayKey}"]`)
+  const pendingRow = visibleCalendar.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
+  const todayCell = visibleCalendar.locator(`.cal-day[data-day="${todayKey}"]`)
   // 页面下方日期格可能仍在视口外，浏览器原生 dragTo 会被自动滚动中的相邻日期格截获；
-  // 用真实 DataTransfer 派发同一条 dragstart → dragover → drop 链，验证业务接线本身。
-  const transfer = await page.evaluateHandle(() => new DataTransfer())
-  await pendingRow.dispatchEvent('dragstart', { dataTransfer: transfer })
-  await todayCell.dispatchEvent('dragenter', { dataTransfer: transfer })
-  await todayCell.dispatchEvent('dragover', { dataTransfer: transfer })
-  await todayCell.dispatchEvent('drop', { dataTransfer: transfer })
-  await pendingRow.dispatchEvent('dragend', { dataTransfer: transfer })
+  // 先滚到日期格，再用真实鼠标拖拽；两侧处于同一视口时 Chromium 才会派发完整 drag 链。
+  await todayCell.scrollIntoViewIfNeeded()
+  await pendingRow.scrollIntoViewIfNeeded()
+  const pendingRowBox = await pendingRow.boundingBox()
+  const todayCellBox = await todayCell.boundingBox()
+  const viewport = page.viewportSize()
+  const dragVisible = !!pendingRowBox && !!todayCellBox && !!viewport
+    && pendingRowBox.y >= 0 && pendingRowBox.y + pendingRowBox.height <= viewport.height
+    && todayCellBox.y >= 0 && todayCellBox.y + todayCellBox.height <= viewport.height
+  if (!dragVisible) throw new Error('拖拽源或今日日期格不在同一视口内')
+  const dragHitTargets = await page.evaluate(({ rowBox, cellBox }) => ({
+    row: document.elementFromPoint(rowBox.x + rowBox.width / 2, rowBox.y + rowBox.height / 2)
+      ?.closest('.cal-pool-task')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+    cell: document.elementFromPoint(cellBox.x + cellBox.width / 2, cellBox.y + cellBox.height / 2)
+      ?.closest('.cal-day')?.getAttribute('data-day') || '',
+  }), { rowBox: pendingRowBox, cellBox: todayCellBox })
+  await visibleCalendar.evaluate(root => {
+    window.__e2eCalendarDrag = []
+    for (const type of ['dragstart', 'dragenter', 'dragover', 'drop', 'dragend']) {
+      root.addEventListener(type, event => {
+        window.__e2eCalendarDrag.push({
+          type,
+          target: event.target?.closest?.('.cal-day')?.getAttribute('data-day')
+            || (event.target?.closest?.('.cal-pool-task') ? 'pool-task' : ''),
+        })
+      }, true)
+    }
+  })
+  await page.mouse.move(pendingRowBox.x + pendingRowBox.width / 2, pendingRowBox.y + pendingRowBox.height / 2)
+  await page.waitForTimeout(120)
+  await page.mouse.down()
+  await page.mouse.move(pendingRowBox.x + pendingRowBox.width / 2 + 12, pendingRowBox.y + pendingRowBox.height / 2 + 4, { steps: 4 })
+  await page.waitForTimeout(160)
+  await page.mouse.move(todayCellBox.x + todayCellBox.width / 2, todayCellBox.y + todayCellBox.height / 2, { steps: 20 })
+  await page.waitForTimeout(160)
+  await page.mouse.up()
+  await page.waitForTimeout(120)
+  const dragObserved = await page.evaluate(() => window.__e2eCalendarDrag || [])
+  const dragDispatch = {
+    row: pendingRowBox,
+    cell: todayCellBox,
+    viewport,
+    hit: dragHitTargets,
+    events: dragObserved,
+  }
   const pendingScheduled = await waitForStorage(page, 'zy_data_v2', raw =>
     (raw.zy_data_v2?.tasks || []).some(task => task.id === 'e2e-v432-pending' && task.dueDate === todayKey),
   { timeout: 8000 })
   const pendingFocusPublished = await waitForStorage(page, 'zy_data_v2', raw =>
     (raw.zy_data_v2?.dailyFocus?.[todayKey] || []).some(slot => slot.sourceId === 'e2e-v432-pending'),
   { timeout: 8000 })
-  const leftAfterDrop = await page.locator('.cal-pool-list').innerText().catch(() => '')
-  const droppedRowText = await page.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
-    .innerText().catch(() => '')
+  const droppedRowRefreshed = await pollUntil(async () => {
+    const text = await visibleCalendar.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
+      .innerText().catch(() => '')
+    return text.includes('落图') ? text : false
+  }, { timeout: 8000, label: '拖拽后任务清单刷新落图时间' })
+  const leftAfterDrop = await visibleCalendar.locator('.cal-pool-list').innerText().catch(() => '')
+  const droppedRowText = droppedRowRefreshed || ''
   // 今日可能已有超过月视图单格上限的任务，拖入后不一定直接露出 chip；
   // 从日期详情核对它在今日任务列表里，再从同一入口取消排期。
-  await page.locator(`.cal-day[data-day="${todayKey}"] .cal-day-head`).click()
+  await visibleCalendar.locator(`.cal-day[data-day="${todayKey}"] .cal-day-head`).click()
   await waitForLocator(page, '.md-panel', { visible: true, timeout: 6000 })
+  const droppedModalVisible = await pollUntil(async () => {
+    const row = page.locator('.cal-modal-task').filter({ hasText: pendingTitle }).first()
+    return row.isVisible().catch(() => false)
+  }, { timeout: 8000, label: '今日日详情出现刚落图任务' })
+  const droppedModalDebug = await page.evaluate(({ title, key }) => {
+    return {
+      title: (document.querySelector('.md-panel .md-title')?.textContent || '').replace(/\s+/g, ' ').trim(),
+      sub: (document.querySelector('.md-panel .md-sub')?.textContent || '').replace(/\s+/g, ' ').trim(),
+      body: (document.querySelector('.md-panel .md-body')?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 1200),
+      rows: [...document.querySelectorAll('.cal-modal-task')].map(row => (row.textContent || '').replace(/\s+/g, ' ').trim()),
+      dayCount: document.querySelector(`.cal-day[data-day="${key}"] .cal-day-head small`)?.textContent?.trim() || '',
+      targetFound: (document.querySelector('.md-panel .md-body')?.textContent || '').includes(title),
+    }
+  }, { title: pendingTitle, key: todayKey })
   const droppedModalRow = page.locator('.cal-modal-task').filter({ hasText: pendingTitle }).first()
-  const chipVisibleAfterDrop = await droppedModalRow.isVisible().catch(() => false)
-  await droppedModalRow.locator('.cal-modal-close').click()
-  const pendingReturned = await waitForStorage(page, 'zy_data_v2', raw =>
+  const chipVisibleAfterDrop = !!droppedModalVisible && await droppedModalRow.isVisible().catch(() => false)
+  if (chipVisibleAfterDrop) await droppedModalRow.locator('.cal-modal-close').click()
+  const pendingReturned = chipVisibleAfterDrop && await waitForStorage(page, 'zy_data_v2', raw =>
     (raw.zy_data_v2?.tasks || []).some(task => task.id === 'e2e-v432-pending' && !task.dueDate),
   { timeout: 8000 })
   await page.locator('.md-close').click().catch(() => {})
-  await waitForLocator(page, '.cal-pool-task', { visible: true, timeout: 4000 })
-  const leftAfterCancel = await page.locator('.cal-pool-list').innerText().catch(() => '')
+  await waitForLocator(visibleCalendar, '.cal-pool-task', { visible: true, timeout: 4000 }).catch(() => false)
+  const leftAfterCancel = await visibleCalendar.locator('.cal-pool-list').innerText().catch(() => '')
   const calendarOk = calendarBoxes.poolH > 0
     && Math.abs(calendarBoxes.poolH - calendarBoxes.boardH) <= 1
     && calendarBoxes.listOverflow === 'auto'
@@ -3745,7 +3817,7 @@ await paOpen()
     && !!pendingReturned && leftAfterCancel.includes(pendingTitle)
   report('E2E-63 ★V4.3.4 任务清单遵守筛选且未落图优先、拖入今日进入三件事、周视图任务卡自适应、日详情与取消排期全链路',
     calendarOk,
-    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 顺序=${leftOrderOk} 日期=${scheduledDateVisible} 完成未落图=${doneUnscheduledInLeft} 周视图=${weekCells}/${weekTitle}/${monthChipHeight}->${weekChipHeight}/${weekMetaVisible} 色调=${todayTone}/${futureTone}/${dayModalRows.some(row => row.done)} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖入=${pendingScheduled}/${pendingFocusPublished}/${chipVisibleAfterDrop}/${leftAfterDrop.includes(pendingTitle)}/${JSON.stringify(droppedRowText)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
+    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 顺序=${leftOrderOk} 日期=${scheduledDateVisible} 完成未落图=${doneUnscheduledInLeft} 周视图=${weekCells}/${weekTitle}/${monthChipHeight}->${weekChipHeight}/${weekMetaVisible} 色调=${todayTone}/${futureTone}/${dayModalRows.some(row => row.done)} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖拽=${JSON.stringify(dragDispatch)} 拖入=${pendingScheduled}/${pendingFocusPublished}/${chipVisibleAfterDrop}/${leftAfterDrop.includes(pendingTitle)}/${JSON.stringify(droppedRowText)} 日详情=${JSON.stringify(droppedModalDebug)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
 
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })

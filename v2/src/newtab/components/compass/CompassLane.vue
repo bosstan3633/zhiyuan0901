@@ -108,7 +108,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         <span class="mc-track"><i class="mc-fill" :style="{ width: m.pct + '%' }" /></span>
         <b class="mc-pct" :class="{ full: m.pct === 100 }">{{ m.done }}/{{ m.total }} · {{ m.pct }}%</b>
       </span>
-      <button class="mc-detail" title="打开指标详情：验收标准 / 目标值 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
+      <button class="mc-detail" title="打开指标详情：目标值 / 进度 / 支撑任务" @click="emit('openMetric', m.id)">详情 ›</button>
       <!-- ★R135-4（能力保留）：任务层 AI 入口 —— 六入口之一，删了判据红就是能力丢不是判据的问题 -->
       <button class="mc-ai" title="AI 依本成功指标拆解支撑步骤（查重后采纳才创建）" @click="emit('aiTask', m.id)"><Icon name="sparkle" :size="13"/></button>
       <!-- ★R32-14（能力保留）：指标条目 ＋ 加任务 —— 断链空位之外也必须有一份常规出口，
@@ -131,10 +131,6 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         {{ open ? '收起 ▾' : '展开 ▸' }}
       </button>
     </header>
-
-    <p v-if="m.acceptance" class="mc-acc">
-      <span class="mc-acc-l">验收</span>{{ m.acceptance }}
-    </p>
 
     <!-- 任务列表：内嵌 + 分叉连线；★容器不可省（见文件头陷阱说明）。V3.9.31（F4）：行可拖拽 -->
     <ul v-if="open && m.tasks.length" class="metric-list">
@@ -165,7 +161,7 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 
     <!-- 断链显性化：零任务指标给虚线空位，让"缺"在版面上可见（判据 W11-6） -->
     <div v-else-if="m.orphanMetric" class="mc-orphan">
-      <span class="mo-t">验收标准已定，动作未落 —— 先拆出第一条支撑任务</span>
+      <span class="mo-t">目标已经明确，动作未落 —— 先拆出第一条支撑任务</span>
       <button class="mo-add" @click="emit('addTask', m.id)">＋ 建第一条任务</button>
     </div>
 
@@ -273,15 +269,6 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 .mcm-item:hover { background: var(--surface-3); }
 .mcm-item.danger { color: var(--danger); }
 .mcm-item.danger:hover { background: var(--danger-bg-soft); }
-.mc-acc {
-  font-size: var(--fs-tiny); color: var(--text-3); line-height: 1.55;
-  margin-top: 4px; padding-left: 24px;
-}
-.mc-acc-l {
-  color: var(--text-4); font-weight: 700; margin-right: 5px;
-  letter-spacing: .04em;
-}
-
 /* ★归属竖轨：指标卡从项目色条分出的那条线——无内容容器，别删 */
 .metric-list {
   list-style: none; margin: 7px 0 0; padding: 0 0 0 24px; position: relative;

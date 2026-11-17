@@ -44,7 +44,7 @@ check('R189-3 ★渲染与导出同源：compassExport 消费 buildCurationTree 
     && CEXPORT.includes("from './compassCurationModel'")
     && CEXPORT.includes('buildCompassExportDocument(tree')
     && PAGE.includes('buildCurationTree(d.value)')
-    && PAGE.includes('buildCompassExportDocument(tree.value)')
+    && PAGE.includes('buildCompassExportDocument(filteredTree.value)')
 })
 
 check('R189-4 ★只读红线：策展页 / 两布局 / 只读抽屉全文件零 persist、零写库调用；抽屉编辑仅导流。★V3.9.34 重指带备案（用户 2026-11-02 拍板）：策展页性质从「只读全景」扩为「只读 + 任务拖拽归位」——金字塔布局允许复用方向台 useTaskRelocationDnd 进行任务归位写库（task.metricId / metric.taskIds / persist），这与「结构编辑只读」不冲突：愿景/使命/目标/项目/指标的创建、改名、删除仍必须回方向台。判据随之精确化：页面/树布局/抽屉仍零 persist，金字塔布局仅允许经 useTaskRelocationDnd 的持久化（禁止直调 store.persist/saveData/.mutate）。', () => {

@@ -11,9 +11,8 @@
     .zy-skl { position: fixed; inset: 0; background: #010102; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif; transition: opacity .2s ease; }
     .zy-skl.done { opacity: 0; }
     .zy-skl-logo { font-size: 30px; font-weight: 600; color: #F7F8F8; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
-    .zy-skl-logo .dot { width: 30px; height: 30px; border-radius: 8px; background: #5E6AD2; display: flex; align-items: center; justify-content: center; animation: zySklPulse 1.2s ease-in-out infinite; }
-    /* R50-F9：蓝色色块镂空象形字「知」（占位 logo，正式 logo 确定后替换） */
-    .zy-skl-logo .dot i { font-style: normal; font-size: 17px; font-weight: 700; color: #010102; line-height: 1; transform: translateY(0.5px); }
+    .zy-skl-logo .dot { width: 30px; height: 30px; border-radius: 8px; background: #F5FBFD; display: flex; align-items: center; justify-content: center; overflow: hidden; animation: zySklPulse 1.2s ease-in-out infinite; }
+    .zy-skl-logo .dot img { width: 100%; height: 100%; object-fit: cover; display: block; }
     /* R68-F5：品牌动画排版重整——分隔线建立产品名/slogan 对齐轴，slogan 升字号提对比，层级呼吸感 */
     .zy-skl-divider { margin-top: 18px; width: 36px; height: 2px; border-radius: 99px; background: linear-gradient(90deg, transparent, #5E6AD2 30%, #7A85E0 70%, transparent); }
     .zy-skl-slogan { margin-top: 14px; font-size: 15.5px; font-weight: 500; color: #C6CBD4; letter-spacing: 0.22em; text-indent: 0.22em; }
@@ -32,7 +31,7 @@
   <div id="app">
     <!-- R49-H 刷新动画 ｜ R66-F7 品牌刷新：副文案换新主 Slogan（00 母版 R2 口径） -->
     <div class="zy-skl">
-      <div class="zy-skl-logo"><span class="dot"><i>知</i></span>知源调度台</div>
+      <div class="zy-skl-logo"><span class="dot"><img src="/icons/icon128.png" alt=""></span>知源调度台</div>
       <div class="zy-skl-divider"></div>
       <div class="zy-skl-slogan">万千可调用，自有我方向</div>
       <div class="zy-skl-bars"><div class="zy-skl-bar"></div><div class="zy-skl-bar"></div><div class="zy-skl-bar"></div></div>

@@ -31,6 +31,7 @@ import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import SubtaskList from '@/shared/components/SubtaskList.vue'
 import { taskMaturity } from '@/shared/utils/maturity'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
+import { setTaskStatus as commitTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
 
 const router = useRouter()
 const store = useAppStore()
@@ -62,15 +63,14 @@ const subListRef = ref<InstanceType<typeof SubtaskList> | null>(null)
 
 /** B22：状态统一出口（completedAt 卫生清理） */
 function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
-  t.status = status
-  t.completedAt = status === 'done' ? Date.now() : undefined
-  t.updatedAt = Date.now()
+  commitTaskStatus(t, status)
   store.persist()
 }
 function toggleTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  setTaskStatusOf(t, t.status === 'done' ? 'todo' : 'done')
+  toggleTaskStatus(t)
+  store.persist()
 }
 /** 第卅二轮 REQ-006：任务详情面板时间戳可见 */
 function fmtTaskTs(ts?: number): string {

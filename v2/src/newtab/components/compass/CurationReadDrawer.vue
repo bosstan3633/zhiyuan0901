@@ -262,7 +262,6 @@ const taskLink = computed(() => {
           </header>
           <div class="crd-info compact">
             <div><span>目标</span><b>{{ fmtText(M.metric.target) }}</b></div>
-            <div><span>验收</span><b>{{ fmtText(M.metric.acceptance) }}</b></div>
           </div>
           <div v-if="M.tasks.length" class="crd-task-list">
             <article v-for="T in M.tasks" :key="T.task.id" class="crd-task">
@@ -283,7 +282,6 @@ const taskLink = computed(() => {
         <div class="crd-info">
           <div><span>进度</span><b>{{ metricSel.doneCount }}/{{ metricSel.totalCount }} · {{ metricSel.progress }}%</b></div>
           <div><span>目标</span><b>{{ fmtText(metricSel.metric.target) }}</b></div>
-          <div><span>验收</span><b>{{ fmtText(metricSel.metric.acceptance) }}</b></div>
         </div>
         <div class="crd-stats">
           <div v-for="s in summaryStats" :key="s.label" class="crd-stat">

@@ -95,7 +95,7 @@ check('R169-8（V4.2.3 重指）★linkSlots 字段只活在六个明确边界�
 check('R169-9 ★自动写入的三条边界都在：一天只写一次（focusAutoDate）/ 可"今天别推荐"（focusMutedDate）/ 用户手工选过与已完成的格子永不覆盖。落笔口只有 utils 里的 applyFocusOrder 一处（本地与 AI 共用），判据 `s.auto !== true || s.done` 分两处写就会出现"本地守了、AI 那条忘了"：', () => {
   const u = codeOnly(read('/shared/utils/focusSuggest.ts')); const ch = codeOnly(read('/newtab/views/CompassHome.vue')); const m = read('/shared/models/index.ts')
   return m.includes('focusAutoDate?: string') && m.includes('focusMutedDate?: string') && m.includes('auto?: boolean')
-    && u.includes('if (s.auto !== true || s.done) { next.push(s); continue }')
+    && u.includes('if (s && !s.cleared && (s.auto !== true || s.done)) continue')
     && ch.includes('d.value.focusMutedDate === key || d.value.focusAutoDate === key')
     && ch.includes('d.value.focusMutedDate = todayKey.value')
     && (u.match(/export function applyFocusOrder/g) || []).length === 1
@@ -746,12 +746,13 @@ check('R175-3 ★项目全景轨道规则可证明（V3.9.25 重指）：1 条�
     && lane.includes('<span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>')
     && !lane.includes('-webkit-line-clamp: 2');
 });
-check('R175-4 ★调度台三件事恒三槽：focusCells 从 FOCUS_LIMIT 补齐空位，模板与“为什么这样排”都消费同一数组；失效槽不靠过滤下标，idx 仍是原始槽位', () => {
+check('R175-4（V4.3.5 重指）三件事恒三槽：共享 normalizedFocusSlots 始终返回三格，模板与“为什么这样排”消费同一数组，失效槽保留原始 idx', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
-  const cells = segOf(home, 'const focusCells = computed', '\n})')
-  return home.includes('const FOCUS_LIMIT = 3')
-    && cells.includes('slice(0, FOCUS_LIMIT)')
-    && cells.includes('for (let i = cells.length; i < FOCUS_LIMIT; i++) cells.push({ idx: i })')
+  const logic = codeOnly(read('/newtab/views/useCompassHome.ts'))
+  const slots = codeOnly(read('/shared/utils/focusSlots.ts'))
+  return slots.includes('Array.from({ length: FOCUS_LIMIT })')
+    && logic.includes('const focusCells = computed<FocusCell[]>')
+    && logic.includes('return raw.map((slot, idx) =>')
     && home.includes('v-for="c in focusCells" :key="c.idx"')
     && (home.match(/v-for="c in focusCells"/g) || []).length >= 2
     && home.includes('计划位 {{ todayFocusList.length }}/3');

@@ -10,6 +10,7 @@ import type { AppData, TaskCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import { addTagToCards } from '../../composables/useBatchSelect'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
+import { setTaskStatus } from '@/shared/utils/taskStatus'
 
 interface BatchStore {
   persist: () => void
@@ -54,7 +55,7 @@ export function useTaskPanelBatch(opts: {
   function batchSetStatus(status: 'todo'|'doing'|'done') {
     selectedTaskIds.value.forEach(id => {
       const t = d.value.tasks.find(x => x.id === id)
-      if (t) { t.status = status; t.updatedAt = Date.now(); if (status==='done') t.completedAt=Date.now() }
+      if (t) setTaskStatus(t, status)
     })
     store.persist()
     showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${status==='done'?'已完成':status==='doing'?'进行中':'待开始'}`)

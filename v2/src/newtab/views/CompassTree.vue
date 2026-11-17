@@ -418,6 +418,7 @@ const {
                   @drop="(dirId, pid) => { const p = findProject(pid); if (p) onProjDrop(dirId, p) }"
                   @pin="(dirId, pid) => { const dir = d.compass.directions.find(x => x.id === dirId); const p = findProject(pid); if (dir && p) toggleProjectPin(dir, p) }"
                   @focus="onToggleFocus"
+                  @curation="(id) => router.push({ path: '/compass/curation', query: { layout: 'pyramid', project: id } })"
                   @del="(id) => deleteNode('proj', id)"
                   @fold="(id) => { const p = findProject(id); if (p) toggleProjectFold(p) }"
                   @toggle-metric="toggleMetric"

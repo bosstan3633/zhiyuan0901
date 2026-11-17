@@ -1,6 +1,7 @@
 import type { AppData } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { mergeEventLogs } from '@/shared/utils/eventLog'
+import { normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import { stableStringify } from './digest'
 import type { SnapshotState, SyncManifestRecordType } from './sync'
 
@@ -560,9 +561,16 @@ function normalizeMergedData(data: AppData, local: AppData, remote: AppData): Ap
         delete next.dailyFocus[date]
         continue
       }
-      next.dailyFocus[date] = slots
-        .filter((slot, index, rows) => rows.findIndex(row => row.id === slot.id) === index)
-        .slice(0, 3)
+      const seen = new Set<string>()
+      next.dailyFocus[date] = normalizedFocusSlots(slots)
+        .map((slot, index) => slot
+          ? { ...slot, slotIndex: index as 0 | 1 | 2 }
+          : undefined)
+        .filter((slot): slot is NonNullable<typeof slot> => {
+          if (!slot || seen.has(slot.id)) return false
+          seen.add(slot.id)
+          return true
+        })
     }
   }
   return next

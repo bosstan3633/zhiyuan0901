@@ -26,9 +26,13 @@ const detailOpen = ref(false)
 const applying = ref(false)
 const actionMessage = ref('')
 
-const total = computed(() => props.receipt
-  ? props.receipt.added + props.receipt.changed + props.receipt.removed
-  : 0)
+const displayRows = computed(() => (props.receipt?.rows || []).filter(row => row.type !== 'event'))
+const displayCounts = computed(() => ({
+  added: displayRows.value.filter(row => row.status === 'added').length,
+  changed: displayRows.value.filter(row => row.status === 'changed').length,
+  removed: displayRows.value.filter(row => row.status === 'removed').length,
+}))
+const total = computed(() => displayRows.value.length)
 const atText = computed(() => props.receipt?.at
   ? new Date(props.receipt.at).toLocaleString('zh-CN', { hour12: false })
   : '—')
@@ -164,7 +168,7 @@ watch(
         <span class="csrm-mark" :class="receipt.direction"><Icon :name="receipt.direction === 'upload' ? 'arrowup' : receipt.direction === 'download' ? 'arrowdown' : receipt.direction === 'merge' ? 'refresh' : 'check'" :size="18" /></span>
         <div>
           <h2>{{ syncDirectionLabel(receipt.direction) }}</h2>
-          <p>{{ total ? `本次共有 ${total} 条记录变化` : '本次没有记录变化，本机与云端已是最新一致状态' }}</p>
+          <p>{{ total ? `本次共有 ${total} 条业务记录变化` : '本次没有业务记录变化，本机与云端已是最新一致状态' }}</p>
         </div>
         <div class="csrm-when">
           <span>{{ triggerLabel }}</span>
@@ -173,13 +177,13 @@ watch(
       </div>
       <p class="csrm-scope">本次只处理卡片、策展台、方向树、今日三件事与资源镜像关系；主题、页面布局、抽屉宽窄、筛选与排序偏好不会进入云端。</p>
       <div class="csrm-summary">
-        <div><span>新增</span><b>{{ receipt.added }}</b></div>
-        <div><span>修改</span><b>{{ receipt.changed }}</b></div>
-        <div><span>删除</span><b>{{ receipt.removed }}</b></div>
+        <div><span>新增</span><b>{{ displayCounts.added }}</b></div>
+        <div><span>修改</span><b>{{ displayCounts.changed }}</b></div>
+        <div><span>删除</span><b>{{ displayCounts.removed }}</b></div>
         <div><span>修订范围</span><b>{{ receipt.fromRevision }} → {{ receipt.toRevision }}</b></div>
       </div>
       <div v-if="actionsError" class="csrm-error">{{ actionsError }}</div>
-      <CloudSyncChangeTable :rows="receipt.rows" :actions="actions" empty-text="本次同步没有记录变化，已是最新状态" @open="openDetail" />
+      <CloudSyncChangeTable :rows="displayRows" :actions="actions" empty-text="本次同步没有业务记录变化，已是最新状态" @open="openDetail" />
       <p class="csrm-note">
         点击任一条记录可查看同步前后值并继续处理。恢复所需的最小私有载荷只保存在本机，最长 30 天；不同步令牌、凭据或附件本体到云端。
         <span v-if="actionsLoading">正在读取本机动作载荷…</span>

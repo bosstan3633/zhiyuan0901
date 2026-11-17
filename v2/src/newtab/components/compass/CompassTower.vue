@@ -82,6 +82,8 @@ const emit = defineEmits<{
   (e: 'pin', dirId: string, projId: string): void
   (e: 'menu', projId: string): void
   (e: 'focus', projId: string): void
+  /** V4.3.5：带着项目筛选进入方向树策展模式。 */
+  (e: 'curation', projId: string): void
   (e: 'del', projId: string): void
   /** ★F2：项目层模板导入（# 成功指标 / ## 任务 下移一级解析），弹窗在宿主 CompassTree */
   (e: 'importTemplate', projId: string): void
@@ -190,6 +192,9 @@ function hasClue(t: TaskCard): boolean {
             <button class="twm-item" @click="emit('menu', proj.id); emit('pin', dir.id, proj.id)">
               <Icon v-if="!proj.pinned" name="pin" :size="13"/>{{ proj.pinned ? '☆ 取消置顶' : '置顶到本目标前排' }}
             </button>
+            <button class="twm-item" @click="emit('menu', proj.id); emit('curation', proj.id)">
+              <Icon name="compass" :size="13"/> 项目策展
+            </button>
             <button class="twm-item" @click="emit('menu', proj.id); emit('aiMetric', proj.id)"><Icon name="sparkle" :size="13"/> AI 建议指标</button>
             <button class="twm-item" @click="emit('menu', proj.id); emit('importTemplate', proj.id)"><Icon name="filetext" :size="13"/> 导入模板（指标与任务）</button>
             <!-- ★W12-E 退役带备案（用户 2026-10-13 拍板 C1「只删入口」）：舱头「全景」与项目塔
@@ -243,8 +248,7 @@ function hasClue(t: TaskCard): boolean {
 
 <style scoped>
 /* ── 舱体：区隔靠容器 + 色条 + 大间距，不靠列边界 ── */
-/* 舱间大间距由 .tower-list 的 gap 承担（原型 --sp-8），这里不再叠一份 margin，
-   否则两级间距相加成 80px，页面会被撑得比原型松散一倍 */
+/* 舱间大间距由 .tower-list 的 gap 承担，这里不再叠一份 margin。 */
 .tower {
   /* ★视觉聚焦（方向台优化）：舱体不再是一张"浮在画布上的卡"。
      原先 surface 底 + 边框，指标卡又是 surface-2、任务行再是 surface —— 三层容器叠加后读者先数框。
@@ -252,7 +256,8 @@ function hasClue(t: TaskCard): boolean {
      层级由色条、发丝线与间距承担；阴影只留给 hover/拖拽这类临时状态。 */
   background: transparent; border: 0; border-top: 1px solid var(--border);
   border-radius: var(--radius-lg); box-shadow: none;
-  position: relative; overflow: hidden;
+  /* 菜单必须越过舱体边界；裁切父级会把折叠状态下的「⋯」菜单截成一条。 */
+  position: relative; overflow: visible;
   transition: border-color var(--dur), box-shadow var(--dur);
 }
 .tower:hover { border-top-color: color-mix(in srgb, var(--hue) 30%, var(--border)); }
@@ -300,8 +305,6 @@ function hasClue(t: TaskCard): boolean {
 .tower.is-dragging { opacity: .5; }
 /* ★落位指示用 inset box-shadow，绝不挤动版面（R3-B2 明令） */
 .tower.drop-on { box-shadow: inset 0 3px 0 0 var(--hue); }
-/* ★F5：原 .tw-grip 样式已随「⠿ 手柄退役、整块舱头可拖」一并删除——
-   死 CSS 不删会被 dead-css-scan 判孤儿。 */
 .tw-act.on { color: var(--accent-ink); background: var(--accent-light); }
 /* ⋯ 菜单：主攻 / 置顶 / AI 建议指标 / 导入模板 / 删除（删除仍走报数+确认+撤销，防呆不降级） */
 .tw-menu {

@@ -334,6 +334,7 @@ const {
 
             <TaskCalendarView
               :tasks="taskWorkFiltered"
+              :show-done="taskWorkShowDone"
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
               @open-task="openTaskWork"
@@ -434,8 +435,12 @@ const {
           <button class="pm-close" type="button" aria-label="关闭" @click="pickerOpen = false"><Icon name="x" :size="15" /></button>
         </header>
         <div class="pm-body">
+          <label class="search-box pm-search-flat">
+            <Icon name="search" :size="14" />
+            <input v-model="pickerSearch" type="search" placeholder="搜索任务标题、项目或指标…" autocomplete="off" autofocus>
+            <button v-if="pickerSearch" class="pm-search-clear" type="button" aria-label="清空搜索" @click.prevent="pickerSearch = ''"><Icon name="x" :size="12" /></button>
+          </label>
           <div class="pm-filters">
-            <label class="search-box pm-search-flat"><Icon name="search" :size="13" /><input v-model="pickerSearch" placeholder="搜索任务标题…" autofocus></label>
             <select v-model="pickerProject" class="pm-select" title="按项目筛选任务">
               <option value="">全部项目</option>
               <option value="__none__">未关联项目（{{ pickerProjectOptions.none }}）</option>
@@ -446,6 +451,7 @@ const {
               <option value="todo">待开始</option>
               <option value="doing">进行中</option>
             </select>
+            <button class="pm-filter-clear" type="button" @click="clearFocusSelection">重置</button>
           </div>
           <div class="pm-summary"><span>{{ pickerCandidates.length }} 个可选任务</span><span>已完成和已选入的任务会置灰</span></div>
           <div class="picker-list">

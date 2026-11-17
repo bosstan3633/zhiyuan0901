@@ -163,6 +163,42 @@ const RETIRED_DASH_SCENES = ['dz-drill', 'dz-review', 'dz-report', 'dz-entry']
 
 const DASH_SCENES = [
   {
+    id: 'compass-curation-tree', name: '方向树策展·树状',
+    hash: '#/compass/curation?layout=tree',
+    host: '.cmp-page',
+    act: async (page) => {
+      await page.locator('.ctl .cv-goal').first().waitFor({ state: 'visible', timeout: 12000 }).catch(() => {})
+      await page.waitForTimeout(300)
+    },
+    judge: async (page) => page.evaluate(() => {
+      const ctl = document.querySelector('.ctl')
+      const heroes = ctl?.querySelectorAll('.cv-hero').length || 0
+      const goals = ctl?.querySelectorAll('.cv-goal').length || 0
+      const projects = ctl?.querySelectorAll('.cv-project').length || 0
+      const metrics = ctl?.querySelectorAll('.cv-metric').length || 0
+      const tasks = ctl?.querySelectorAll('.cv-task-row').length || 0
+      const rails = ctl?.querySelectorAll('.cv-rootline, .cv-branch-line').length || 0
+      const projectGrid = ctl?.querySelector('.cv-projects')
+      const projectCols = projectGrid
+        ? getComputedStyle(projectGrid).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length
+        : 0
+      const body = document.querySelector('.cmp-body')
+      const bodyOverflow = body ? body.scrollWidth - body.clientWidth : 999
+      const cards = ctl ? [...ctl.querySelectorAll('.cv-hero, .cv-goal-card, .cv-p-card, .cv-m-card')] : []
+      const clipped = cards.filter(card => {
+        const rect = card.getBoundingClientRect()
+        return rect.left < -1 || rect.right > window.innerWidth + 1
+      }).length
+      const text = ctl?.textContent || ''
+      return {
+        ok: !!ctl && heroes === 2 && goals >= 1 && projects >= 1 && metrics >= 1
+          && rails >= 2 && projectCols >= 1 && bodyOverflow <= 1 && clipped === 0
+          && !text.includes('验收标准'),
+        txt: `树冠=${heroes}/2 目标=${goals} 项目=${projects} 指标=${metrics} 任务=${tasks} 层级线=${rails} 项目列=${projectCols} 横向溢出=${bodyOverflow}px 越界卡=${clipped} 验收标准=${text.includes('验收标准')}`,
+      }
+    })
+  },
+  {
     id: 'curation-canvas', name: '策展台画布', hash: '#/workspace/zy-audit-curation',
     host: '.mindmap-shell',
     act: async (page) => {
@@ -348,6 +384,7 @@ const DASH_SCENES = [
       const x = document.querySelector('.lanes')
       const laneRect = lanes[0] ? lanes[0].getBoundingClientRect() : null
       const lanesRect = x ? x.getBoundingClientRect() : null
+      const laneGap = x ? (parseFloat(getComputedStyle(x).columnGap) || 0) : 0
       const overflowX = Math.round(document.documentElement.scrollWidth - window.innerWidth)
       const laneScroll = x ? Math.round(x.scrollWidth - x.clientWidth) : 0
       const size = (el) => el ? Math.round(el.getBoundingClientRect().height) : 0
@@ -360,7 +397,9 @@ const DASH_SCENES = [
       const laneSpread = lanes.length < 2 || !lanesRect
         || (laneScroll > 4
           ? lanes.every(lane => lane.getBoundingClientRect().width >= 280)
-          : lanesRect.width - lanes.reduce((sum, lane) => sum + lane.getBoundingClientRect().width, 0) <= 4)
+          : lanesRect.width
+            - lanes.reduce((sum, lane) => sum + lane.getBoundingClientRect().width, 0)
+            - laneGap * Math.max(0, lanes.length - 1) <= 4)
       return {
         /* 单泳道时宽度必须铺开：262px 的旧值会在右侧留下整片空画布；
            多泳道时允许横向滚动，不要求铺满。 */

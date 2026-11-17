@@ -58,7 +58,7 @@ check('V413-1 ★同步事实卡与回执：本机待上传、本机基线、最
     && table.includes("sortDir = sortDir === 'desc' ? 'asc' : 'desc'")
     && table.includes('syncFieldLabel')
     && modal.includes('data-testid="cloud-sync-receipt-modal"')
-    && modal.includes('本次共有 ${total} 条记录变化')
+    && modal.includes('本次共有 ${total} 条业务记录变化')
     && modal.includes('新增')
     && modal.includes('修改')
     && modal.includes('删除')

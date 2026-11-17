@@ -418,14 +418,14 @@ check('R150-6 跑动态那句话必须渲染成数字而不是对象：computed 
   return body.includes('${aiSecs.value}s') && !body.includes('${aiSecs}s') && body.includes('const mid = aiScanned.value > 0')
     && body.includes('库内 ${aiTotal.value} 张里挑') && body.includes('已扫 ${aiScanned.value}/${aiTotal.value} 张')
 });
-check('R151-1（R155-⑤ 换骨重写）★AI 入口图标单一真源换形不换责：AiMark.vue 出一枚 **inline 单色线性 SVG 机器人脸**（viewBox + currentColor 随主题、stroke-width 固定单位、无外部图标/字体依赖、12px 可辨），spin 与 prefers-reduced-motion 两条行为一字未动；「知」只留在品牌位（启动 Splash 的 <i>知</i> 仍在 index.html），入口组件引用数不降（R155 起锚点由 AiMark 直挂改为 AiEntryButton 收敛）；手册把"为什么换"与两处例外写清', () => {
+check('R151-1（V4.3.5 重指）★AI 入口图标单一真源换形不换责：AiMark.vue 继续是 inline 单色线性 SVG 机器人脸，spin 与 prefers-reduced-motion 行为不变；品牌位由旧「知」字升级为最新 Logo（启动 Splash 使用 icon128.png），入口组件引用数不降；手册写清 AI 徽标与品牌 Logo 的视觉分工', () => {
   const zm = read('/shared/components/AiMark.vue'); const h = read('/newtab/index.html'); const m = read('/newtab/manual-data.ts')
   /* 先剥块注释再检：本文件顶部的"换骨理由"注释里引用了旧写法的 font-size 字样，直接 includes 会假命中 */
   const zmCode = zm.replace(/\/\*[\s\S]*?\*\//g, '')
   return zmCode.includes('viewBox="0 0 24 24"') && zmCode.includes('stroke="currentColor"') && zmCode.includes('stroke-width="2"') && zmCode.includes(':width="size"')
     && zmCode.includes('.ai-mark.spin') && zmCode.includes('@keyframes ai-turn') && zmCode.includes('prefers-reduced-motion')
-    && !zmCode.includes('🤖') && !zmCode.includes('font-size') && !zmCode.includes('text-stroke') && !zmCode.includes('>知<') && h.includes('<i>知</i>')
-    && ALL_VUE146.filter(f => read(f).includes('AiEntryButton')).length >= 16 && m.includes('品牌位') && m.includes('换过三轮') && m.includes('可辨性优先') /* R152 备案：本条曾钉"inline SVG 四角星"，用户真机判可辨性不如 🤖 → 换回表情图标；R155-⑤ 用户拍板"入口图标统一（布局一致/大小一致）"，换骨为单色线性 SVG 并注回"脸"语义，四条职责（单一真源/spin/降级动效/知留品牌位）始终一字未动 */
+    && !zmCode.includes('🤖') && !zmCode.includes('font-size') && !zmCode.includes('text-stroke') && !zmCode.includes('>知<') && h.includes('/icons/icon128.png') && !h.includes('<i>知</i>')
+    && ALL_VUE146.filter(f => read(f).includes('AiEntryButton')).length >= 16 && m.includes('品牌 Logo') && m.includes('换过三轮') && m.includes('可辨性优先') /* R152 备案：AI 入口曾钉四角星，用户真机判可辨性不如 🤖 → 换回表情图标；R155-⑤ 统一为单色线性 SVG；V4.3.5 品牌位升级最新 Logo，AI 入口仍保持机器人脸 */
 });
 check('R148-6 报告型自动落卡只新增不改既有：withReport 只把带「AI 报告·待审阅」的卡放进**资源卡池**的待分类 · R149 备案：本条原写"本轮仅深度诊断接入（其余报告型仍走勾选采纳）"，R149 用户拍板后周回顾/深度洞察/成果文稿一并接上并撤采纳按钮（见 R149-1），故此处只锁"报告标签 + 待分类 + 零 splice"这条下界 · ★R4-Df3 备案：判据体一字未动，标题里的"资源台待分类"是当时的地名，V3.7.0 后资源卡真身只住隐藏池，地名随迁为"资源卡池"（落点算式本身由 R4-Df3 那两条钉）', () => {
   const rp = read('/shared/ai/reports.ts'); const g = read('/newtab/views/GlobalSettings.vue'); const j = read('/shared/ai/job.ts')

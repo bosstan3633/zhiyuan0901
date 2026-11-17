@@ -157,7 +157,7 @@ check('V411-8 方向树策展快捷键：无默认键的独立命令直达默认
     && shortcuts.includes("'打开方向树策展模式'")
     && settings.includes("'open-compass-curation': '打开方向树策展模式'")
     && page.includes("route.query.layout === 'tree' ? 'tree' : 'pyramid'")
-    && page.includes('@click="layout = \'pyramid\'"')
+    && page.includes("layout = 'pyramid'; syncCurationQuery()")
 })
 
 check('V412-9 跨设备彻底删除 owner 后清理本机附件：远端不存在的论点卡/节点也进入失效集合，本机 Blob 与远端对象一并清理', () => {

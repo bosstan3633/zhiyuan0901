@@ -12,6 +12,7 @@ import Modal from '@/shared/components/Modal.vue'
 
 const props = defineProps<{
   tasks: TaskCard[]
+  showDone?: boolean
   projectNames: Map<string, string>
   metricNames: Map<string, string>
 }>()
@@ -143,7 +144,9 @@ const periodTitle = computed(() => {
 })
 
 const scheduledTasks = computed(() =>
-  props.tasks.filter(task => /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')))
+  props.tasks.filter(task =>
+    /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')
+    && (props.showDone !== false || task.status !== 'done')))
 const pendingPoolTasks = computed(() =>
   props.tasks.filter(task => !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')))
 const monthScheduledTasks = computed(() => {

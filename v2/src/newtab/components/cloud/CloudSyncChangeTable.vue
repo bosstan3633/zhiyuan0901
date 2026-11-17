@@ -41,7 +41,7 @@ const ACTION_LABEL: Record<CloudSyncReceiptAction['status'], string> = {
   expired: '已过期',
   readonly: '只读',
 }
-const normalized = computed(() => props.rows.map(row => {
+const normalized = computed(() => props.rows.filter(row => row.type !== 'event').map(row => {
   const action = actionByKey.value.get(row.key)
   return {
     ...row,
@@ -49,6 +49,13 @@ const normalized = computed(() => props.rows.map(row => {
     statusLabel: row.status === 'added' ? '新增' : row.status === 'removed' ? '删除' : '修改',
     action,
     actionLabel: action ? ACTION_LABEL[action.status] : '只读',
+    reason: row.status === 'added'
+      ? '因新增记录而同步'
+      : row.status === 'removed'
+        ? '因记录被删除而同步'
+        : (row.fields || []).length
+          ? `因${(row.fields || []).map(syncFieldLabel).join('、')}被修改而同步`
+          : '因整条记录被修改而同步',
   }
 }))
 
@@ -133,7 +140,7 @@ function fmtTime(ts?: number): string {
         <span class="cct-type">{{ syncTypeLabel(row.type) }}</span>
         <span class="cct-main">
           <b>{{ row.title || row.id }}</b>
-          <code>{{ row.id }}</code>
+          <small class="cct-reason">{{ row.reason }}</small>
         </span>
         <span class="cct-status-wrap">
           <span class="cct-status" :class="row.status">{{ row.statusLabel }}</span>
@@ -175,7 +182,7 @@ function fmtTime(ts?: number): string {
 .cct-type { padding: 2px 5px; border-radius: 5px; background: var(--surface-2); color: var(--text-3); font-size: var(--fs-micro); text-align: center; }
 .cct-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cct-main b { overflow: hidden; color: var(--text); font-size: var(--fs-caption); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.cct-main code { overflow: hidden; color: var(--text-3); font-family: var(--font-mono); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.cct-reason { overflow: hidden; color: var(--text-3); font-size: var(--fs-micro); text-overflow: ellipsis; white-space: nowrap; }
 .cct-status { justify-self: start; padding: 2px 6px; border-radius: 999px; font-size: var(--fs-micro); font-weight: 700; }
 .cct-status-wrap { min-width: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .cct-action { padding: 1px 5px; border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: 9px; }

@@ -18,6 +18,14 @@ import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
+import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import {
+  FOCUS_LIMIT,
+  activeFocusSlots,
+  clearedFocusSlot,
+  detachFocusTaskFromDate,
+  normalizedFocusSlots,
+} from '@/shared/utils/focusSlots'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 import { useCompassHomeStorage } from './useCompassHomeStorage'
 import { useCompassHomeDetail } from './useCompassHomeDetail'
@@ -94,9 +102,8 @@ const focusDateValue = computed({
 })
 const todayFocusList = computed<FocusSlot[]>(() => {
   const key = dateStr(todayDate.value)
-  return (d.value.dailyFocus?.[key] || []).slice(0, 3)
+  return activeFocusSlots(d.value.dailyFocus?.[key])
 })
-const FOCUS_LIMIT = 3
 const focusFull = computed(() => todayFocusList.value.length >= FOCUS_LIMIT)
 /**
  * R117（04-61 C3）修复「只有 2 件事 · 第 3 件没入口」的黑洞格：
@@ -109,13 +116,12 @@ const focusFull = computed(() => todayFocusList.value.length >= FOCUS_LIMIT)
  *   若按过滤后的下标渲染，「重新选取」会写错槽、覆盖掉其他有效项。
  */
 const focusCells = computed<FocusCell[]>(() => {
-  const raw = (d.value.dailyFocus?.[dateStr(todayDate.value)] || []).slice(0, FOCUS_LIMIT)
-  const cells: FocusCell[] = raw.map((slot, idx) => {
-    const t = todayTaskForSlot(slot)
-    return t ? { idx, slot, task: t } : { idx, slot }
+  const raw = normalizedFocusSlots(d.value.dailyFocus?.[dateStr(todayDate.value)])
+  return raw.map((slot, idx) => {
+    if (!slot || slot.cleared) return { idx }
+    const task = todayTaskForSlot(slot)
+    return task ? { idx, slot, task } : { idx, slot }
   })
-  for (let i = cells.length; i < FOCUS_LIMIT; i++) cells.push({ idx: i })
-  return cells
 })
 /** R117（04-61 C3）：失效槽不算占位——点它的「重新选取」即便 3 件已满也放行（原位替换）。
  *  满额且点的是正常格/空位时才沿用原拦截口径。 */
@@ -161,7 +167,7 @@ async function ensureAutoFocus(): Promise<void> {
     if (synced) store.persist()
     return
   }
-  const list = d.value.dailyFocus?.[key] || []
+  const list = activeFocusSlots(d.value.dailyFocus?.[key])
   if (list.length >= FOCUS_LIMIT) {
     d.value.focusAutoDate = key
     if (synced) store.persist()
@@ -204,7 +210,7 @@ async function refineWithAi(key: string): Promise<void> {
     const r = await rankFocus(d.value, key, aiConfig.value.depth, { limit: FOCUS_LIMIT })
     if (!r) return
     r.why.forEach((v, id) => { aiWhy.value[id] = v })
-    const list = d.value.dailyFocus?.[key] || []
+    const list = activeFocusSlots(d.value.dailyFocus?.[key])
     if (list.some(s => s.auto !== true && !s.done)) return // 用户已定过格 → 只留判词，不动位置
     const { applyFocusOrder } = await import('@/shared/utils/focusSuggest')
     if (applyFocusOrder(d.value, key, r.order, FOCUS_LIMIT).changed) {
@@ -230,7 +236,9 @@ function onDocClickCloseWhy(e: MouseEvent): void {
 /** 换一批：在本地候选池里换下一组三件（仍带荐标），不碰任务卡 */
 async function reshuffleFocus(): Promise<void> {
   const key = dateStr(todayDate.value)
-  const cur = new Set((d.value.dailyFocus?.[key] || []).filter(s => s.auto === true).map(s => s.sourceId || ''))
+  const cur = new Set(activeFocusSlots(d.value.dailyFocus?.[key])
+    .filter(s => s.auto === true)
+    .map(s => s.sourceId || ''))
   const { suggestFocus, applyFocusOrder } = await import('@/shared/utils/focusSuggest')
   const pool = suggestFocus(d.value, { anchorKey: key, limit: FOCUS_LIMIT * 3 })
   const next = pool.filter(c => !cur.has(c.taskId)).slice(0, FOCUS_LIMIT)
@@ -372,18 +380,25 @@ function selectTaskForSlot(task: TaskCard) {
     task.dueDate = key
     task.updatedAt = Date.now()
   }
-  if (!d.value.dailyFocus[key]) d.value.dailyFocus[key] = []
-  const list = d.value.dailyFocus[key]
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
+  const previous = cells[pickerSlot.value]
+  if (previous && !previous.cleared && previous.sourceType === 'task') {
+    detachFocusTaskFromDate(d.value, key, previous.sourceId)
+  }
   const slot: FocusSlot = {
     id: uid('focus'),
+    slotIndex: pickerSlot.value as 0 | 1 | 2,
     sourceType: 'task',
     sourceId: task.id,
     text: task.title,
     done: task.status === 'done',
-    doneAt: task.completedAt
+    doneAt: task.completedAt,
+    updatedAt: Date.now(),
   }
-  if (list[pickerSlot.value]) list[pickerSlot.value] = slot
-  else list.push(slot)
+  cells[pickerSlot.value] = slot
+  d.value.dailyFocus[key] = cells.map((cell, index) => cell
+    ? { ...cell, slotIndex: index as 0 | 1 | 2 }
+    : clearedFocusSlot(index))
   store.persist()
   pickerOpen.value = false
   showToast('已添加到今日三件事')
@@ -397,7 +412,8 @@ const pickerCandidates = computed(() => {
   const st = pickerStatus.value
   return d.value.tasks
     .filter(t => !t.deletedAt)
-    .filter(t => !q || t.title.toLowerCase().includes(q))
+    .filter(t => !q || [t.title, projectName(t.projectId), metricName(t.metricId)]
+      .some(text => text.toLowerCase().includes(q)))
     // R113-N6：项目维度过滤（与关键词可叠加）
     .filter(t => !pj || (pj === '__none__' ? !t.projectId : t.projectId === pj))
     .filter(t => st === 'all' || t.status === st)
@@ -431,10 +447,14 @@ function removeTodaySlot(idx: number) {
     return
   }
   const key = dateStr(todayDate.value)
-  if (d.value.dailyFocus[key]) {
-    d.value.dailyFocus[key].splice(idx, 1)
-    store.persist()
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
+  const previous = cells[idx]
+  if (previous && !previous.cleared && previous.sourceType === 'task') {
+    detachFocusTaskFromDate(d.value, key, previous.sourceId)
   }
+  cells[idx] = clearedFocusSlot(idx, previous)
+  d.value.dailyFocus[key] = cells.map((cell, index) => cell || clearedFocusSlot(index))
+  store.persist()
 }
 async function copyFocusToToday() {
   const sourceKey = dateStr(todayDate.value)
@@ -442,31 +462,42 @@ async function copyFocusToToday() {
     showToast('当前已经是今天，无需复制')
     return
   }
-  const sourceList = d.value.dailyFocus[sourceKey]
-  if (!sourceList?.length) {
+  const sourceCells = normalizedFocusSlots(d.value.dailyFocus[sourceKey])
+  if (!sourceCells.some(slot => !!slot && !slot.cleared)) {
     showToast('所选日期没有三件事记录')
     return
   }
-  const existing = d.value.dailyFocus[todayKey.value] || []
+  const existing = activeFocusSlots(d.value.dailyFocus[todayKey.value])
   if (existing.length && !(await useConfirm({
     title: '覆盖今日三件事',
     message: '今天已有三件事记录。继续复制会覆盖今天的计划位，是否继续？',
     confirmText: '覆盖并复制',
   }))) return
-  d.value.dailyFocus[todayKey.value] = sourceList.map(slot => {
+  for (const slot of existing) {
+    if (slot.sourceType === 'task') detachFocusTaskFromDate(d.value, todayKey.value, slot.sourceId)
+  }
+  const copiedCells: Array<FocusSlot | undefined> = Array.from({ length: FOCUS_LIMIT })
+  sourceCells.forEach((slot, index) => {
+    if (!slot || slot.cleared) return
     const status = focusSlotStatus(slot)
     const task = slot.sourceType === 'task' && slot.sourceId
       ? d.value.tasks.find(row => !row.deletedAt && row.id === slot.sourceId)
       : null
-    return {
+    copiedCells[index] = {
       ...JSON.parse(JSON.stringify(slot)),
       id: uid('focus'),
       done: status === 'done',
       doneAt: status === 'done' ? (slot.doneAt || task?.completedAt) : undefined,
       statusSnapshot: status,
+      statusBeforeDone: slot.statusBeforeDone,
       copiedFrom: sourceKey,
+      slotIndex: index as 0 | 1 | 2,
+      updatedAt: Date.now(),
     } as FocusSlot
   })
+  d.value.dailyFocus[todayKey.value] = copiedCells.map((slot, index) => slot
+    ? { ...slot, slotIndex: index as 0 | 1 | 2 }
+    : clearedFocusSlot(index))
   const { syncFocusTasksToSchedule } = await import('@/shared/utils/focusSuggest')
   syncFocusTasksToSchedule(d.value, todayKey.value)
   todayDate.value = new Date()
@@ -547,6 +578,15 @@ function toggleTodayDone(slot: FocusSlot) {
     return
   }
   const nextDone = !focusSlotDone(slot)
+  slot.updatedAt = Date.now()
+  if (nextDone) {
+    if (slot.sourceType === 'task' && slot.sourceId) {
+      const current = d.value.tasks.find(x => x.id === slot.sourceId)
+      if (current && current.status !== 'done') {
+        slot.statusBeforeDone = current.status === 'doing' ? 'doing' : 'todo'
+      }
+    }
+  }
   slot.done = nextDone
   slot.doneAt = slot.done ? Date.now() : undefined
   // 用户一旦在今天手动勾选，就以任务卡和本次操作为新的当前状态，不再沿用复制快照。
@@ -555,9 +595,10 @@ function toggleTodayDone(slot: FocusSlot) {
   if (slot.sourceType === 'task' && slot.sourceId) {
     const t = d.value.tasks.find(x => x.id === slot.sourceId)
     if (t) {
-      t.status = slot.done ? 'done' : 'todo'
-      t.completedAt = slot.doneAt
-      t.updatedAt = Date.now()
+      setTaskStatus(t, slot.done ? 'done' : (slot.statusBeforeDone || 'todo'))
+      if (!slot.done) {
+        slot.statusBeforeDone = undefined
+      }
     }
   }
   store.persist()
@@ -797,9 +838,7 @@ const taskWorkFiltered = computed(() => {
   const status = taskWorkStatus.value
   const quick = taskWorkQuick.value
   const today = todayKey.value
-  const allowDone = taskWorkShowDone.value || status === 'done'
   return liveTasks.value.filter(task => {
-    if (!allowDone && task.status === 'done') return false
     if (status !== 'all' && task.status !== status) return false
     if (projectId && task.projectId !== projectId) return false
     if (query) {
@@ -861,31 +900,66 @@ function closeTaskFocusReplace(): void {
   focusTaskTargetId.value = ''
 }
 
+function clearTaskFromFocusDay(day: string, taskId: string, clearDueDate = true): FocusSlot | null {
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+  const index = cells.findIndex(slot => !!slot && !slot.cleared
+    && slot.sourceType === 'task' && slot.sourceId === taskId)
+  if (index < 0) return null
+  const previous = cells[index]
+  if (clearDueDate) detachFocusTaskFromDate(d.value, day, taskId)
+  cells[index] = clearedFocusSlot(index, previous)
+  d.value.dailyFocus[day] = cells.map((cell, cellIndex) => cell || clearedFocusSlot(cellIndex))
+  return previous ? JSON.parse(JSON.stringify(previous)) as FocusSlot : null
+}
+
+function restoreTaskToFocusDay(day: string, slot: FocusSlot): void {
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+  const preferred = Number.isInteger(slot.slotIndex) ? Number(slot.slotIndex) : -1
+  let index = preferred >= 0 && preferred < FOCUS_LIMIT && (!cells[preferred] || cells[preferred]?.cleared)
+    ? preferred
+    : cells.findIndex(cell => !cell || cell.cleared)
+  if (index < 0) index = preferred >= 0 && preferred < FOCUS_LIMIT ? preferred : 0
+  cells[index] = { ...slot, slotIndex: index as 0 | 1 | 2, updatedAt: Date.now() }
+  d.value.dailyFocus[day] = cells.map((cell, cellIndex) => cell || clearedFocusSlot(cellIndex))
+}
+
 async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
   const previous = task.dueDate
   const dateChanged = previous !== date
+  const today = todayKey.value
+  const priorFocusSlot = activeFocusSlots(d.value.dailyFocus?.[today])
+    .find(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
+
+  if (date === today && task.status === 'done' && !priorFocusSlot) {
+    showToast('已完成任务不能新排入今日；今日日历与三件事严格保持同一集合')
+    return
+  }
+
+  let focusResult: 'added' | 'exists' | 'full' | 'invalid' = 'invalid'
+  if (date === today && task.status !== 'done') {
+    const { addManualFocus } = await import('@/shared/utils/focusSuggest')
+    const result = addManualFocus(d.value, today, task.id)
+    if (result.status === 'added' || result.status === 'replaced') focusResult = 'added'
+    else if (result.status === 'exists') focusResult = 'exists'
+    else if (result.status === 'full') {
+      showToast('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
+      return
+    }
+  }
+
   if (dateChanged) {
     task.dueDate = date
     task.updatedAt = Date.now()
   }
-
-  let focusResult: 'added' | 'exists' | 'full' | 'invalid' = 'invalid'
-  if (date === todayKey.value && task.status !== 'done') {
-    const { addManualFocus } = await import('@/shared/utils/focusSuggest')
-    const result = addManualFocus(d.value, todayKey.value, task.id)
-    if (result.status === 'added' || result.status === 'replaced') focusResult = 'added'
-    else if (result.status === 'exists') focusResult = 'exists'
-    else if (result.status === 'full') focusResult = 'full'
+  let removedFocus: FocusSlot | null = null
+  if (date !== today && priorFocusSlot) {
+    removedFocus = clearTaskFromFocusDay(today, taskId, false)
   }
 
   if (!dateChanged && focusResult !== 'added') {
-    if (date === todayKey.value && focusResult === 'full') {
-      showToast('已安排在今日日历；今日三件事已满，未自动加入')
-    } else if (date === todayKey.value && focusResult === 'exists') {
-      showToast('已安排在今日日历，且已在今日三件事中')
-    }
+    if (date === today && focusResult === 'exists') showToast('已安排在今日日历，且已在今日三件事中')
     return
   }
 
@@ -894,8 +968,8 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
     ? '，并加入今日三件事'
     : focusResult === 'exists'
       ? '，已在今日三件事中'
-      : focusResult === 'full'
-        ? '；今日三件事已满，未自动加入'
+      : date !== today
+        ? '，已移出今日三件事'
         : ''
   const message = `已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日${focusSuffix}`
   if (!dateChanged) {
@@ -910,10 +984,9 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
       current.dueDate = previous
       current.updatedAt = Date.now()
       if (focusResult === 'added') {
-        const slots = d.value.dailyFocus?.[todayKey.value] || []
-        const index = slots.findIndex(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
-        if (index >= 0) slots.splice(index, 1)
+        clearTaskFromFocusDay(today, taskId, false)
       }
+      if (removedFocus) restoreTaskToFocusDay(today, removedFocus)
       store.persist()
       showToast('已撤销排期修改')
     },
@@ -928,6 +1001,8 @@ function clearTaskWorkDue(taskId: string): void {
     showToast('该任务本来就在任务池，未安排计划执行日期')
     return
   }
+  const today = todayKey.value
+  const removedFocus = previous === today ? clearTaskFromFocusDay(today, taskId, false) : null
   task.dueDate = undefined
   task.updatedAt = Date.now()
   store.persist()
@@ -938,6 +1013,7 @@ function clearTaskWorkDue(taskId: string): void {
       if (!current) return
       current.dueDate = previous
       current.updatedAt = Date.now()
+      if (removedFocus) restoreTaskToFocusDay(today, removedFocus)
       store.persist()
       showToast('已恢复计划执行日期')
     },
@@ -948,11 +1024,9 @@ function toggleTaskWorkStatus(taskId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task) return
   const nextDone = task.status !== 'done'
-  task.status = nextDone ? 'done' : 'todo'
-  task.completedAt = nextDone ? Date.now() : undefined
-  task.updatedAt = Date.now()
+  toggleTaskStatus(task)
   store.persist()
-  showToast(nextDone ? '任务已完成，今日三件事和月历已同步' : '任务已恢复为待开始')
+  showToast(nextDone ? '任务已完成，今日三件事和月历已同步' : '任务已恢复为勾选前的状态')
 }
 
 const taskAssignOpen = ref(false)
@@ -994,9 +1068,8 @@ function saveTaskAssign(): void {
 }
 
 const previewTasks = computed<TaskCard[]>(() => {
-  const rank = (t: TaskCard) => (t.status === 'doing' ? 0 : t.status === 'todo' ? 1 : 2)
   return [...liveTasks.value]
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || rank(a) - rank(b) || (b.updatedAt || 0) - (a.updatedAt || 0))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
     .slice(0, 5)
 })
 const liveCuriosities = computed<CuriosityCard[]>(() =>
@@ -1004,7 +1077,7 @@ const liveCuriosities = computed<CuriosityCard[]>(() =>
 )
 const previewCuriosities = computed<CuriosityCard[]>(() =>
   [...liveCuriosities.value]
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
     .slice(0, 5)
 )
 const liveResources = computed<ResourceCard[]>(() =>
@@ -1012,7 +1085,7 @@ const liveResources = computed<ResourceCard[]>(() =>
 )
 const previewResources = computed<ResourceCard[]>(() =>
   [...liveResources.value]
-    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.lastCalledAt || b.updatedAt || 0) - (a.lastCalledAt || a.updatedAt || 0))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
     .slice(0, 5)
 )
 const handNewCounts = computed(() => {

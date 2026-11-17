@@ -12,6 +12,7 @@ import {
 import { CURATION_WS_ID } from '@/shared/models'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
+import { activeFocusSlots, clearedFocusSlot, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import {
   safeSend, uid, ensureRoot, focusWhenReady, openOverlay, closeOverlay, showToast, ROOT_ID
 } from './overlay-impl'
@@ -485,7 +486,7 @@ function todayKeyStr(): string {
 /** A7-a：刷新「已入选今日三件事」的任务 id 集合（结果项置灰去重用）。
  *  渲染前调用一次即可——每次写入后会同步 dataCache 并再次调用，保证集合不陈旧。 */
 function refreshTodayFocus() {
-  const list: any[] = dataCache?.dailyFocus?.[todayKeyStr()] || []
+  const list: any[] = activeFocusSlots(dataCache?.dailyFocus?.[todayKeyStr()])
   todayFocusSourceIds = new Set(list.map((s: any) => String(s?.sourceId || '')).filter(Boolean))
 }
 /** A7-b：就地刷新所有「→ 三件事」按钮的置灰与文案（不整表重渲染，避免打断输入焦点与选中行） */
@@ -520,30 +521,52 @@ async function addTaskToDailyFocus(item: any) {
   const d = await loadData() // 绕过缓存，取 storage 最新快照
   if (!d) { showToast('数据加载失败'); return }
   d.dailyFocus = d.dailyFocus || {}
-  const list: any[] = d.dailyFocus[key] || []
+  const cells: any[] = normalizedFocusSlots(d.dailyFocus[key])
+  const active = activeFocusSlots(d.dailyFocus[key])
   // 与 CompassHome.selectTaskForSlot 完全同构，保证调度台三件事卡片能直接识别
   const slot = {
     id: uid('focus'), sourceType: 'task', sourceId: taskId,
-    text: String(t?.title || '快速任务'), done: t?.status === 'done', doneAt: t?.completedAt
+    text: String(t?.title || '快速任务'), done: t?.status === 'done', doneAt: t?.completedAt,
+    slotIndex: 0, updatedAt: Date.now(),
   }
   let replaced = -1
-  if (list.length >= FOCUS_LIMIT) {
+  const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
+  if (active.length >= FOCUS_LIMIT && freeIndex < 0) {
     if (pendingReplaceSlot === null) {
       pendingReplaceSlot = 0
       showToast('今日三件事已满 3/3 · 再按一次替换第 1 件')
       return
     }
     replaced = Math.min(Math.max(pendingReplaceSlot, 0), FOCUS_LIMIT - 1)
-    list[replaced] = slot
+    const previous = cells[replaced]
+    const previousTask = previous?.sourceType === 'task'
+      ? (d.tasks || []).find((row: any) => !row.deletedAt && row.id === previous.sourceId)
+      : null
+    if (previousTask?.dueDate === key) {
+      previousTask.dueDate = undefined
+      previousTask.updatedAt = Date.now()
+    }
+    slot.slotIndex = replaced
+    cells[replaced] = slot
     pendingReplaceSlot = null
   } else {
-    list.push(slot)
+    const index = freeIndex >= 0 ? freeIndex : Math.min(active.length, FOCUS_LIMIT - 1)
+    slot.slotIndex = index
+    cells[index] = slot
   }
-  d.dailyFocus[key] = list
+  const task = (d.tasks || []).find((row: any) => !row.deletedAt && row.id === taskId)
+  if (task && task.dueDate !== key) {
+    task.dueDate = key
+    task.updatedAt = Date.now()
+  }
+  d.dailyFocus[key] = cells.map((cell, index) => cell
+    ? { ...cell, slotIndex: index }
+    : clearedFocusSlot(index))
   await saveData(d)
   dataCache = d; dataCacheAt = Date.now() // 同步缓存，后续读不再取到旧快照
   refreshTodayFocus()
-  showToast(replaced >= 0 ? '已替换今日第 ' + (replaced + 1) + ' 件事' : '已加入今日三件事（' + list.length + '/' + FOCUS_LIMIT + '）')
+  const nextCount = activeFocusSlots(d.dailyFocus[key]).length
+  showToast(replaced >= 0 ? '已替换今日第 ' + (replaced + 1) + ' 件事' : '已加入今日三件事（' + nextCount + '/' + FOCUS_LIMIT + '）')
   refreshFocusButtons()
 }
 

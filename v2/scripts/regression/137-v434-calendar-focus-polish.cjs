@@ -15,21 +15,29 @@ check('V434-1 左侧任务清单吃上方筛选结果：未落图任务在前，
     && calendar.includes("{{ task.dueDate ? `落图 ${friendlyDate(task.dueDate)}` : '未落图' }}")
 })
 
-check('V434-2 今日三件事与今日日历双向同源：进入槽位写 today dueDate；拖入今日且槽位未满自动进入三件事，满额只排期不覆盖', () => {
+check('V434-2（V4.3.5 重指）今日三件事与今日日历严格同源：进入槽位写 today dueDate；满额拒绝第 4 项，不落图也不覆盖', () => {
   const util = codeOnly(read('/shared/utils/focusSuggest.ts'))
   const home = codeOnly(read('/newtab/views/useCompassHome.ts'))
   const drawer = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
   const manager = codeOnly(read('/newtab/components/compass/useTaskManagerPanel.ts'))
+  const fullGuard = home.slice(
+    home.indexOf("if (result.status === 'full')"),
+    home.indexOf('if (dateChanged)', home.indexOf("if (result.status === 'full')")),
+  )
   return util.includes('export function syncFocusTasksToSchedule(')
     && util.includes('task.dueDate = anchorKey')
     && (util.match(/syncFocusTasksToSchedule\(d, anchorKey/g) || []).length >= 3
     && home.includes('const synced = syncFocusTasksToSchedule(d.value, key)')
     && home.includes('if (task.dueDate !== key) {')
     && home.includes('task.dueDate = key')
-    && home.includes("if (date === todayKey.value && task.status !== 'done')")
-    && home.includes('const result = addManualFocus(d.value, todayKey.value, task.id)')
-    && home.includes('今日三件事已满，未自动加入')
-    && home.includes('syncFocusTasksToSchedule(d.value, todayKey.value)')
+    && home.includes('const today = todayKey.value')
+    && home.includes("if (date === today && task.status === 'done' && !priorFocusSlot)")
+    && home.includes("if (date === today && task.status !== 'done')")
+    && home.includes('const result = addManualFocus(d.value, today, task.id)')
+    && home.includes('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
+    && !!fullGuard && !fullGuard.includes('task.dueDate = date')
+    && home.includes("if (date === today && focusResult === 'exists')")
+    && home.includes('removedFocus = clearTaskFromFocusDay(today, taskId, false)')
     && (home.match(/result\.status === 'exists'[\s\S]{0,160}store\.persist\(\)/g) || []).length >= 1
     && (drawer.match(/result\.status === 'exists'[\s\S]{0,160}store\.persist\(\)/g) || []).length >= 1
     && (manager.match(/result\.status === 'exists'[\s\S]{0,160}store\.persist\(\)/g) || []).length >= 1

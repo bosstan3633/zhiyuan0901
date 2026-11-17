@@ -2,7 +2,7 @@
  * V3.9.32（批 A）：方向树全景导出 —— 与 taskExport / projectExport 同构的单一生成器。
  *
  * 输入是 compassCurationModel.buildCurationTree 的产物（**渲染与导出同源**，防两套口径漂移）；
- * 结构化输出：愿景/使命原文 → 战略目标 → 项目（进度/主攻/状态/停滞警示）→ 指标（验收/目标日/
+ * 结构化输出：愿景/使命原文 → 战略目标 → 项目（进度/主攻/状态/停滞警示）→ 指标（目标日/
  * 进度/⚠缺任务）→ 任务（状态/优先级/链接/完成时间）→ 未归档任务。
  * Markdown 可直接投喂 AI 作上下文；HTML 自包含、主题跟随、链接可点击；附件不嵌本体。
  */
@@ -31,7 +31,6 @@ export interface CompassExportTask {
 export interface CompassExportMetric {
   title: string
   target: string
-  acceptance: string
   progress: string
   missingTasks: boolean
   tasks: CompassExportTask[]
@@ -109,7 +108,6 @@ export function buildCompassExportDocument(tree: CurationTree, now = new Date())
         return {
           title: M.metric.title || '未命名指标',
           target: (M.metric.target || '').trim(),
-          acceptance: (M.metric.acceptance || '').trim(),
           progress: `${M.doneCount}/${M.totalCount} · ${M.progress}%`,
           missingTasks: M.totalCount === 0,
           tasks: M.tasks.map(T => {
@@ -162,8 +160,7 @@ export function compassExportMarkdown(doc: CompassExportDocument): string {
       P.metrics.forEach(M => {
         lines.push(`- 指标：${escapeMarkdown(M.title)}（${escapeMarkdown(M.progress)}）`)
         if (M.target) lines.push(`  - 目标：${escapeMarkdown(M.target)}`)
-        if (M.acceptance) lines.push(`  - 验收：${escapeMarkdown(M.acceptance)}`)
-        if (M.missingTasks) lines.push('  - ⚠ 缺任务：验收已定，动作未落')
+        if (M.missingTasks) lines.push('  - ⚠ 缺任务：目标已定，动作未落')
         M.tasks.forEach(T => {
           const title = T.taskLink.href ? markdownLink(T.title, T.taskLink.href) : escapeMarkdown(T.title)
           lines.push(`  - 任务：${title}（${escapeMarkdown(T.status)} · ${escapeMarkdown(T.priority)}优${T.doneAt ? ' · 完成于 ' + escapeMarkdown(T.doneAt) : ''}）`)
@@ -207,8 +204,8 @@ export function compassExportHtml(doc: CompassExportDocument, theme: ExportTheme
         const tasks = M.tasks.length
           ? `<ul class="tasks">${M.tasks.map(T =>
             `<li>${T.taskLink.href ? htmlLink(T.title, T.taskLink.href) : `${escapeHtml(T.title)} <span class="muted">（无有效链接）</span>`}<span class="badge">${escapeHtml(T.status)}</span><span class="badge">${escapeHtml(T.priority)}优</span></li>`).join('')}</ul>`
-          : M.missingTasks ? '<p class="warn">⚠ 缺任务：验收已定，动作未落</p>' : ''
-        return `<div class="metric"><h4>${escapeHtml(M.title)}<span class="muted"> · ${escapeHtml(M.progress)}</span></h4>${M.target ? `<p class="acc">目标：${escapeHtml(M.target)}</p>` : ''}${M.acceptance ? `<p class="acc">验收：${escapeHtml(M.acceptance)}</p>` : ''}${tasks}</div>`
+          : M.missingTasks ? '<p class="warn">⚠ 缺任务：目标已定，动作未落</p>' : ''
+        return `<div class="metric"><h4>${escapeHtml(M.title)}<span class="muted"> · ${escapeHtml(M.progress)}</span></h4>${M.target ? `<p class="acc">目标：${escapeHtml(M.target)}</p>` : ''}${tasks}</div>`
       }).join('')
       return `<div class="proj"><h3>${escapeHtml(P.name)}${P.focus ? ' <span class="badge">主攻</span>' : ''}${P.stalled ? ' <span class="warn">⚠ 停滞 14 天+</span>' : ''}<span class="muted"> · ${escapeHtml(P.progress)} · ${escapeHtml(P.status)}</span></h3>${metrics}</div>`
     }).join('')

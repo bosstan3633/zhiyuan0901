@@ -9,6 +9,7 @@ import { showToast } from '@/shared/components/toast'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import type { GoalParseResult } from '@/shared/utils/mdImport'
 import type { useCompassTree } from './useCompassTree'
+import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 
 export function useCompassTreeSpine(deps: Pick<ReturnType<typeof useCompassTree>, 'd' | 'addProjectToDir' | 'store' | 'allProjects' | 'toggleFocusProject' | 'expandedMetrics' | 'findMetric'>): {
   goalImport: Ref<{ open: boolean; dirId: string; dirName: string }>
@@ -187,9 +188,7 @@ const taskAddMetricTitle = computed(() => {
 function toggleTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  t.status = t.status === 'done' ? 'todo' : 'done'
-  t.completedAt = t.status === 'done' ? Date.now() : undefined
-  t.updatedAt = Date.now()
+  toggleTaskStatus(t)
   store.persist()
 }
 

@@ -105,16 +105,17 @@ check('R78-5 A7 已接入 ArrowRight，且 Ctrl+Enter 语义未改（仍为定�
     && enter.includes('if (e.ctrlKey || e.metaKey) {');
 });
 check('R78-6 A7 ≤3 槽硬上限（常量 FOCUS_LIMIT = 3 + 写入前长度判断）', () => {
-  const o = read('/content/overlay-impl.ts');
+  const o = read('/content/overlay-search.ts');
   const body = fnBody(o, 'async function addTaskToDailyFocus(', 'function renderResults');
-  return o.includes('const FOCUS_LIMIT = 3') && body.includes('if (list.length >= FOCUS_LIMIT)')
-    && body.includes('pendingReplaceSlot === null');
+  return o.includes('const FOCUS_LIMIT = 3')
+    && body.includes('if (active.length >= FOCUS_LIMIT && freeIndex < 0)')
+    && body.includes('pendingReplaceSlot');
 });
 check('R78-7 A7 去重按 sourceId（集合由 dailyFocus[todayKey] 派生，已入选直接定位不写库）', () => {
-  const o = read('/content/overlay-impl.ts');
-  return o.includes("const list: any[] = dataCache?.dailyFocus?.[todayKeyStr()] || []")
-    && o.includes('String(s?.sourceId || \'\')')
-    && o.includes('if (todayFocusSourceIds.has(taskId)) { showToast(\'该任务已在今日三件事中\'); focusLocateTask(item); return }');
+  const o = read('/content/overlay-search.ts');
+  return o.includes('const list: any[] = activeFocusSlots(dataCache?.dailyFocus?.[todayKeyStr()])')
+    && o.includes("todayFocusSourceIds = new Set(list.map((s: any) => String(s?.sourceId || '')).filter(Boolean))")
+    && o.includes("if (todayFocusSourceIds.has(taskId)) { showToast('该任务已在今日三件事中'); focusLocateTask(item); return }");
 });
 check('R78-8 A7 跨上下文合并：写入前 loadData 绕过 1500ms 缓存，写后同步 dataCache', () => {
   const o = read('/content/overlay-impl.ts');

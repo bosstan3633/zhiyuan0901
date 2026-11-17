@@ -6,6 +6,7 @@ import { useAppStore } from '@/newtab/stores/app'
 import type { AppData, TaskCard, ResourceCard } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { readEventLog } from '@/shared/utils/eventLog'
+import { activeFocusSlots } from '@/shared/utils/focusSlots'
 import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { showToast } from '@/shared/components/toast'
@@ -198,7 +199,7 @@ const todayCalled = computed(() => timelineEvents.value.filter(e => e.action ===
    「写入记录」「复盘就绪」两枚重复 chip 一起退役——它们的唯一消费方就是那两枚 chip。
    能力未减：写入记录的全量口径仍走 eventLog 时间线；复盘就绪的判断仍由
    DashPanel/复盘链路自己按 `days[today].w > 0` 派生（不依赖这里）。 */
-const todayFocus = computed(() => gd.value.dailyFocus?.[todayKey()] || [])
+const todayFocus = computed(() => activeFocusSlots(gd.value.dailyFocus?.[todayKey()]))
 
 /* ===== W13-T3 · 今日三件事行详情 / 弹药 / 三态诊断 / 空槽推荐（F7~F11） ===== */
 const projNameById = computed(() => {

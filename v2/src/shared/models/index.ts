@@ -284,6 +284,8 @@ export interface TaskCard extends CardBase {
   /** 归属成功指标（第5层） */
   metricId?: ID
   status: 'todo' | 'doing' | 'done'
+  /** V4.3.5：取消完成时优先恢复的状态；未记录则回到待开始。 */
+  statusBeforeDone?: 'todo' | 'doing'
   priority: 'high' | 'medium' | 'low'
   dueDate?: string
   estimatedMinutes?: number
@@ -465,6 +467,8 @@ export interface Category {
 
 export interface FocusSlot {
   id: ID
+  /** V4.3.5：固定槽位 0/1/2；旧数据缺省时由数组顺序兼容。 */
+  slotIndex?: 0 | 1 | 2
   /** 来源：任务库 / 资源库 / 好奇心库 / 自由文本 */
   sourceType: 'task' | 'resource' | 'curiosity' | 'text'
   sourceId?: ID
@@ -476,6 +480,12 @@ export interface FocusSlot {
   statusSnapshot?: 'todo' | 'doing' | 'done'
   /** V4.3.1：该槽位是从哪一天复制而来的，仅用于表达来源与只读快照。 */
   copiedFrom?: string
+  /** V4.3.5：勾完成前的任务状态，取消完成时优先恢复。 */
+  statusBeforeDone?: 'todo' | 'doing'
+  /** V4.3.5：软清空标记。固定槽位保留，跨设备删除不会被旧快照回填。 */
+  cleared?: boolean
+  /** V4.3.5：槽级合并时间。 */
+  updatedAt?: number
   /**
    * R169-T3（可选，零迁移）：这一格是**系统自动写入的推荐**，不是用户自己挑的。
    * 只用来显示「✦ 荐」标与"用户动过就不再插手"的判据 —— 用户手工选/改/勾过的格子把它清掉，

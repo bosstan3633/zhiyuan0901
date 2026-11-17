@@ -12,6 +12,13 @@
  */
 import type { AppData, FocusSlot, Project, TaskCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import {
+  FOCUS_LIMIT,
+  activeFocusSlots,
+  clearedFocusSlot,
+  detachFocusTaskFromDate,
+  normalizedFocusSlots,
+} from './focusSlots'
 import { focusCarried, focusPlannedCounts } from '@/shared/utils/focusHistory'
 
 const DAY_MS = 86_400_000
@@ -145,7 +152,7 @@ export function syncFocusTasksToSchedule(
   slots: FocusSlot[] = d.dailyFocus?.[anchorKey] || [],
 ): number {
   const ids = new Set(
-    slots
+    activeFocusSlots(slots)
       .filter(slot => slot.sourceType === 'task' && slot.sourceId)
       .map(slot => slot.sourceId as string),
   )
@@ -161,6 +168,96 @@ export function syncFocusTasksToSchedule(
   return changed
 }
 
+function localDateKey(now = new Date()): string {
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/**
+ * V4.3.5：旧设备快照或三方合并后，今日三件事与今日日历可能短暂不同源。
+ * 以任务卡为唯一真源收敛：
+ * - 已在今日槽位的任务，计划执行日期统一写回今天；
+ * - 已排到今天的任务，有空槽就补入，没有空槽就撤掉今天的计划日期；
+ * - 同一任务重复占多个槽时只保留第一格，其余槽位写墓碑。
+ */
+export function reconcileTodayFocusSchedule(
+  d: AppData,
+  anchorKey = localDateKey(),
+): number {
+  if (!d.dailyFocus) d.dailyFocus = {}
+  const cells = normalizedFocusSlots(d.dailyFocus[anchorKey])
+  const live = new Map(d.tasks.filter(task => !task.deletedAt).map(task => [task.id, task]))
+  const seen = new Set<string>()
+  const stamp = Date.now()
+  let changed = 0
+
+  for (let index = 0; index < FOCUS_LIMIT; index++) {
+    const slot = cells[index]
+    if (!slot || slot.cleared || slot.sourceType !== 'task' || !slot.sourceId) continue
+    if (seen.has(slot.sourceId)) {
+      cells[index] = clearedFocusSlot(index, slot)
+      changed++
+      continue
+    }
+    seen.add(slot.sourceId)
+    const task = live.get(slot.sourceId)
+    if (!task) {
+      cells[index] = clearedFocusSlot(index, slot)
+      changed++
+      continue
+    }
+    if (task.dueDate !== anchorKey) {
+      task.dueDate = anchorKey
+      task.updatedAt = stamp
+      changed++
+    }
+    const done = task.status === 'done'
+    if (slot.done !== done || slot.text !== task.title) {
+      slot.done = done
+      slot.doneAt = done ? (task.completedAt || slot.doneAt || stamp) : undefined
+      slot.text = task.title
+      slot.updatedAt = stamp
+      changed++
+    }
+  }
+
+  const dueToday = [...live.values()]
+    .filter(task => task.dueDate === anchorKey && !seen.has(task.id))
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+  for (const task of dueToday) {
+    const free = cells.findIndex(slot => !slot || slot.cleared)
+    if (free < 0) {
+      task.dueDate = undefined
+      task.updatedAt = stamp
+      changed++
+      continue
+    }
+    const done = task.status === 'done'
+    cells[free] = {
+      id: uid('focus'),
+      slotIndex: free as 0 | 1 | 2,
+      sourceType: 'task',
+      sourceId: task.id,
+      text: task.title,
+      done,
+      doneAt: done ? task.completedAt : undefined,
+      updatedAt: stamp,
+    }
+    seen.add(task.id)
+    changed++
+  }
+
+  if (changed) {
+    d.dailyFocus[anchorKey] = cells.map((slot, index) => {
+      if (!slot) return clearedFocusSlot(index)
+      return { ...slot, slotIndex: index as 0 | 1 | 2 }
+    })
+  }
+  return changed
+}
+
 /**
  * R169-T3：把建议顺序落到某一天的三格里，**永不覆盖人定的格子**。
  *
@@ -170,29 +267,40 @@ export function syncFocusTasksToSchedule(
  * 其余格子按传入顺序重填，顺序用完还剩的推荐位保留原任务（AI 只给两条时第三格不清空）。
  * @returns changed = 真正被换掉的格数（0 = 顺序本就一致，或三格都由用户定着）
  */
-export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: string[], limit = 3): { changed: number } {
+export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: string[], limit = FOCUS_LIMIT): { changed: number } {
   if (!d.dailyFocus) d.dailyFocus = {}
-  const list = d.dailyFocus[anchorKey] || []
+  const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
   const used = new Set<string>()
-  for (const s of list) if (s.auto !== true && !s.done) used.add(s.sourceId || '')
+  for (const s of cells) {
+    if (s && !s.cleared && s.auto !== true && !s.done) used.add(s.sourceId || '')
+  }
   const byId = new Map(d.tasks.filter(t => !t.deletedAt).map(t => [t.id, t]))
   const queue = orderedIds.filter(id => byId.has(id) && !used.has(id))
   let changed = 0
-  const next: FocusSlot[] = []
-  for (const s of list) {
-    if (s.auto !== true || s.done) { next.push(s); continue }
+  const next = cells.slice()
+  for (let index = 0; index < limit; index++) {
+    const s = next[index]
+    if (s && !s.cleared && (s.auto !== true || s.done)) continue
     const id = queue.shift()
-    if (!id) { next.push(s); continue }
-    if (id !== s.sourceId) changed++
-    next.push({ id: s.id, sourceType: 'task', sourceId: id, text: byId.get(id)!.title, done: false, auto: true })
-  }
-  while (queue.length && next.length < limit) {
-    const id = queue.shift()!
-    const t = byId.get(id)!
-    next.push({ id: uid('focus'), sourceType: 'task', sourceId: id, text: t.title, done: false, auto: true })
+    if (!id) continue
+    if (s && !s.cleared && s.sourceType === 'task') detachFocusTaskFromDate(d, anchorKey, s.sourceId)
+    const task = byId.get(id)!
+    next[index] = {
+      id: s?.id || uid('focus'),
+      slotIndex: index as 0 | 1 | 2,
+      sourceType: 'task',
+      sourceId: id,
+      text: task.title,
+      done: false,
+      auto: true,
+      updatedAt: Date.now(),
+    }
     changed++
   }
-  d.dailyFocus[anchorKey] = next.slice(0, limit)
+  d.dailyFocus[anchorKey] = next.map((slot, index) => {
+    if (slot) return { ...slot, slotIndex: index as 0 | 1 | 2 }
+    return clearedFocusSlot(index)
+  })
   syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
   return { changed }
 }
@@ -216,36 +324,50 @@ export function addManualFocus(
   anchorKey: string,
   taskId: string,
   slotIndex?: number,
-  limit = 3,
+  limit = FOCUS_LIMIT,
 ): ManualFocusResult {
   const task = d.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task || task.status === 'done') return { status: 'invalid' }
   if (!d.dailyFocus) d.dailyFocus = {}
-  const list = d.dailyFocus[anchorKey] || []
-  const existing = list.findIndex(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
+  const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
+  const existing = cells.findIndex(slot => !!slot && !slot.cleared && slot.sourceType === 'task' && slot.sourceId === taskId)
   if (existing >= 0) {
-    syncFocusTasksToSchedule(d, anchorKey, list)
+    syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
     return { status: 'exists', index: existing }
   }
 
   const slot: FocusSlot = {
     id: uid('focus'),
+    slotIndex: 0,
     sourceType: 'task',
     sourceId: task.id,
     text: task.title,
     done: false,
+    updatedAt: Date.now(),
   }
 
-  if (list.length < limit) {
-    list.push(slot)
-    d.dailyFocus[anchorKey] = list.slice(0, limit)
+  const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
+  if (freeIndex >= 0) {
+    const index = Math.min(freeIndex, limit - 1)
+    slot.slotIndex = index as 0 | 1 | 2
+    cells[index] = slot
+    d.dailyFocus[anchorKey] = cells.map((cell, i) => cell
+      ? { ...cell, slotIndex: i as 0 | 1 | 2 }
+      : clearedFocusSlot(i))
     syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
-    return { status: 'added', index: list.length - 1 }
+    return { status: 'added', index }
   }
 
   if (slotIndex === undefined || slotIndex < 0 || slotIndex >= limit) return { status: 'full' }
-  list[slotIndex] = slot
-  d.dailyFocus[anchorKey] = list.slice(0, limit)
+  const previous = cells[slotIndex]
+  if (previous && !previous.cleared && previous.sourceType === 'task') {
+    detachFocusTaskFromDate(d, anchorKey, previous.sourceId)
+  }
+  slot.slotIndex = slotIndex as 0 | 1 | 2
+  cells[slotIndex] = slot
+  d.dailyFocus[anchorKey] = cells.map((cell, i) => cell
+    ? { ...cell, slotIndex: i as 0 | 1 | 2 }
+    : clearedFocusSlot(i))
   syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
   return { status: 'replaced', index: slotIndex }
 }
