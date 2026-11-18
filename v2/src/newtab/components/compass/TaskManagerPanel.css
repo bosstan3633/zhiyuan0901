@@ -51,8 +51,7 @@
 .tm-card:hover .tm-corner { opacity: .6; }
 .tm-corner:hover { opacity: 1 !important; background: var(--surface-3); }
 .tm-corner.on { opacity: 1; }
-.tm-sub { color: var(--text-3); font-weight: 400; margin-right: 3px; cursor: default; }
-.tm-title { font-size: var(--fs-body); font-weight: 600; line-height: 1.45; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tm-title { font-size: var(--fs-body); font-weight: 600; line-height: 1.55; word-break: break-word; }
 .tm-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 /* R176（原型 task-item-card footer）：卡片标签统一中性灰（项目/指标不分色；字段显隐体系不动） */
 .tm-tags .tag.accent, .tm-tags .tag.warn { background: var(--surface-3); color: var(--text-2); }
@@ -70,9 +69,6 @@
 .task-list { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .trow { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--border); transition: background .1s; }
 /* F2：就地展开清单——绝对定位浮在行下，不改行高（改行高会让整列在展开瞬间重排，点击点会跳走） */
-.trow-subs { position: absolute; left: 14px; right: 14px; top: calc(100% - 2px); z-index: var(--z-dropdown, 30); background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 4px; }
-.tm-sub.exp { cursor: pointer; }
-.tm-sub.exp:hover { color: var(--accent); border-color: var(--accent); }
 .trow:last-child { border-bottom: none; }
 .trow:hover { background: var(--surface); }
 .trow.selected { background: var(--accent-light); }

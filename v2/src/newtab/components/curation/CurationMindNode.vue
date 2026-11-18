@@ -322,10 +322,6 @@ onBeforeUnmount(() => {
       <div class="mind-node-head">
         <span class="mind-level">L{{ level() }}</span>
         <span class="mind-type">{{ children().length ? `${children().length} 个子分支` : '论证节点' }}</span>
-        <button v-if="!cards().length" class="mind-head-action" type="button"
-          title="关联资源" aria-label="关联资源" @click.stop="emit('link-resource', node)">
-          <Icon name="link" :size="12"/>
-        </button>
         <button v-if="selectedId === node.id" class="mind-head-action danger" type="button"
           title="删除整棵分支（移入回收站）"
           aria-label="删除整棵分支" @click.stop="emit('remove-node', node.id)">
@@ -357,6 +353,13 @@ onBeforeUnmount(() => {
         @dblclick.stop="beginEdit('desc')" title="单击选中；双击编辑分支说明">
         {{ node.description || '双击补充分支说明' }}
       </span>
+      <div v-if="!cards().length" class="mind-resource-empty">
+        <button class="mind-resource-cta" type="button"
+          title="从资源卡池关联一张或多张资源卡"
+          @click.stop="emit('link-resource', node)">
+          <Icon name="link" :size="12"/> 关联资源卡
+        </button>
+      </div>
       <div v-if="cards().length" class="mind-resources">
         <span v-for="card in cards()" :key="card.id" class="mind-resource" v-pressable
           :class="{ 'search-hit': cardMatches(card) }"
@@ -372,8 +375,9 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <div v-if="cards().length" class="mind-node-foot">
-        <button class="mind-add" type="button" @click.stop="emit('link-resource', node)">
-          <Icon name="link" :size="13"/> 关联资源
+        <button class="mind-add mind-resource-cta mind-resource-cta-foot" type="button"
+          @click.stop="emit('link-resource', node)">
+          <Icon name="link" :size="13"/> 继续关联资源
         </button>
         <button v-if="selectedId === node.id" class="mind-add danger" type="button"
           title="删除整棵分支（移入回收站）"
@@ -383,6 +387,7 @@ onBeforeUnmount(() => {
       </div>
       <CurationAssetStrip v-if="(node.assets?.length || 0) > 0 || selectedId === node.id"
         :assets="node.assets || []" :node-id="node.id" :selected="selectedId === node.id"
+        compact
         :remote-downloader="remoteDownloader"
         @open="emit('preview-asset', node.id, $event)"
         @remove="emit('remove-asset', node.id, $event)"

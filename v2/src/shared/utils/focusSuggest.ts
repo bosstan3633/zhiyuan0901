@@ -106,22 +106,12 @@ export function suggestFocus(d: AppData, opts: FocusSuggestOpts): FocusCandidate
       if (n > 1) { score += 6; facts.push(`近 7 天被安排过 ${n} 次`) }
     }
 
-    const subs = t.subtasks || []
-    if (subs.length) {
-      const dn = subs.filter(s => s.done).length
-      if (dn > 0 && dn < subs.length) { score += 10; facts.push(`子任务已完成 ${dn}/${subs.length}`) }
-      else if (dn === 0) { score += 4; facts.push(`子任务 ${subs.length} 条一条未动，先拆一步`) }
-    }
-
     if (t.dueDate) {
       const dd = dayDiff(t.dueDate, opts.anchorKey)
       if (dd < 0) { score += 30; facts.push(`已逾期 ${-dd} 天`) }
       else if (dd === 0) { score += 28; facts.push('今天到期') }
       else if (dd <= 3) { score += 16; facts.push(`${dd} 天后到期`) }
     }
-
-    if (t.priority === 'high') { score += 12; facts.push('优先级：高') }
-    else if (t.priority === 'medium') score += 4
 
     if (pc?.metricTitle && pc.metricTodo > 0) facts.push(`指标「${pc.metricTitle}」下还有 ${pc.metricTodo} 件未完成`)
 

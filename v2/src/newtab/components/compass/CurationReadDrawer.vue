@@ -270,7 +270,6 @@ const taskLink = computed(() => {
                 <b>{{ T.task.title || '未命名任务' }}</b>
                 <small>{{ stLabel[T.status] || T.status }}<template v-if="T.task.dueDate"> · 计划 {{ T.task.dueDate }}</template></small>
               </div>
-              <span v-if="T.task.priority" class="crd-chip">{{ priLabel[T.task.priority] || T.task.priority }}优</span>
             </article>
           </div>
           <p v-else class="crd-empty">这个成功指标下还没有任务。</p>
@@ -297,7 +296,6 @@ const taskLink = computed(() => {
                 <b>{{ T.task.title || '未命名任务' }}</b>
                 <small>{{ stLabel[T.status] || T.status }}<template v-if="T.task.dueDate"> · 计划 {{ T.task.dueDate }}</template></small>
               </div>
-              <span v-if="T.task.priority" class="crd-chip">{{ priLabel[T.task.priority] || T.task.priority }}优</span>
             </article>
           </div>
           <p v-else class="crd-empty">这个成功指标下还没有任务。</p>
@@ -307,7 +305,6 @@ const taskLink = computed(() => {
       <template v-else-if="taskSel">
         <div class="crd-info">
           <div><span>状态</span><b>{{ stLabel[taskSel.status] || taskSel.status }}</b></div>
-          <div><span>优先级</span><b>{{ taskSel.task.priority ? (priLabel[taskSel.task.priority] || taskSel.task.priority) + '优' : '—' }}</b></div>
           <div><span>计划执行日期</span><b>{{ fmtText(taskSel.task.dueDate) }}</b></div>
           <div><span>完成日期</span><b>{{ fmtTs(taskSel.task.completedAt) }}</b></div>
         </div>
@@ -332,7 +329,7 @@ const taskLink = computed(() => {
               <span class="crd-dot" :class="'st-' + T.status"></span>
               <div class="crd-task-main">
                 <b>{{ T.task.title || '未命名任务' }}</b>
-                <small>{{ stLabel[T.status] || T.status }}<template v-if="T.task.dueDate"> · 计划 {{ T.task.dueDate }}</template><template v-if="T.task.priority"> · {{ priLabel[T.task.priority] || T.task.priority }}优</template></small>
+                <small>{{ stLabel[T.status] || T.status }}<template v-if="T.task.dueDate"> · 计划 {{ T.task.dueDate }}</template></small>
               </div>
             </article>
           </div>

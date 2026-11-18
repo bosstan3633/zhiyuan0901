@@ -10,7 +10,8 @@
  * 本组件零计算、零取 store。
  *
  * W12-B 页头三件套（刷新 · 导出 · 全部记录）与 E2E-21 选择器（.pi-hero）保持不变。
- * V3.9.13：周期切换并入同一工具行，删掉独立 PERIOD 提示带，首屏直接进入双面板。
+ * V4.4.0：周期切换下移到受控模块控制条，与「AI 洞察」同处一行；
+ * Hero 只保留页面级动作，避免把“控制模块”的控件放在页头。
  */
 import Icon from '@/shared/components/Icon.vue'
 import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
@@ -37,7 +38,6 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
       <div class="hero-head">
         <div class="pi-hero-t"><span class="pi-hero-eyebrow"><span class="dot"></span>画像洞察</span>你的知源使用画像<span class="en">PROFILE INSIGHTS</span></div>
       </div>
-      <div class="pi-hero-range"><slot name="range" /></div>
       <div class="pi-hero-acts">
         <button class="pi-btn line" title="重读事件日志刷新统计" @click="emit('refresh')">⟳ 刷新</button>
         <ExportMenu @pick="onPick" />

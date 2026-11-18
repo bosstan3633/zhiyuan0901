@@ -19,7 +19,6 @@ import { computed, inject, ref } from 'vue'
 import CompassLevelTag from './CompassLevelTag.vue'
 import CompassMetricTitle from './CompassMetricTitle.vue'
 import type { MetricMeta } from '../../views/compassMeta'
-import { gradeColorVar } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
 
 const props = defineProps<{
@@ -41,7 +40,6 @@ const taskDnd = inject(TASK_DND_KEY, null)
 const emit = defineEmits<{
   (e: 'toggle', metricId: string): void
   (e: 'task', taskId: string): void
-  (e: 'grade', taskId: string): void
   /** ★W12-C 任务详情抽屉：标题单击 = 打开右侧任务详情抽屉。
       此前全站没有任何一条 emit 通到 `CompassTree.detailRef.open()` —— 抽屉组件在位、
       唯独唯一调用点是「新建任务成功后」，于是任务行点了没反应（用户 2026-10-13 报 bug）。 */
@@ -59,11 +57,51 @@ const emit = defineEmits<{
   (e: 'openMetric', metricId: string): void
   /** ★F1：删除成功指标（走真源 removeMetricWithConfirm —— 报数确认 + 撤销，本组件只上抛） */
   (e: 'delMetric', metricId: string): void
+  /** V4.4.0：项目内整组排序（指标连同其下任务一起移动） */
+  (e: 'reorderMetric', dragId: string, targetId: string, mode: 't' | 'b'): void
 }>()
 
-/** ★F1：指标卡「⋯」菜单（当前只有删除一项；后续要放验收标准编辑等从这里长） */
+/** ★F1：指标卡「⋯」菜单 */
 const menuFor = ref<string | null>(null)
 function toggleMenu(id: string) { menuFor.value = menuFor.value === id ? null : id }
+const metricDragging = ref(false)
+const metricDropMode = ref<'' | 't' | 'b'>('')
+const METRIC_MIME = 'application/x-zhiyuan-metric'
+
+function onMetricDragStart(e: DragEvent) {
+  const target = e.target as HTMLElement | null
+  if (target?.closest('button, input, [contenteditable="true"], .mc-menu')) {
+    e.preventDefault()
+    return
+  }
+  metricDragging.value = true
+  e.dataTransfer?.setData(METRIC_MIME, props.m.id)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function onMetricDragOver(e: DragEvent) {
+  if (!e.dataTransfer?.types.includes(METRIC_MIME)) return
+  e.preventDefault()
+  e.stopPropagation()
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  metricDropMode.value = e.clientY - rect.top > rect.height / 2 ? 'b' : 't'
+}
+
+function onMetricDrop(e: DragEvent) {
+  const dragId = e.dataTransfer?.getData(METRIC_MIME) || ''
+  const mode = metricDropMode.value || 't'
+  metricDropMode.value = ''
+  metricDragging.value = false
+  if (!dragId || dragId === props.m.id) return
+  e.preventDefault()
+  e.stopPropagation()
+  emit('reorderMetric', dragId, props.m.id, mode)
+}
+
+function clearMetricDrag() {
+  metricDragging.value = false
+  metricDropMode.value = ''
+}
 
 const dotGlyph = computed(() => (props.m.dot === 'done' ? '' : props.m.dot === 'doing' ? '◐' : '○'))
 const dotTitle = computed(() =>
@@ -71,9 +109,6 @@ const dotTitle = computed(() =>
     : props.m.dot === 'doing' ? '有任务进行中' : '任务尚未启动'
 )
 
-function taskGrade(t: { priority?: string }): string {
-  return t.priority === 'high' ? '高优' : t.priority === 'low' ? '低优' : '中优'
-}
 /** 归属路径：只在 hover 时浮现，平时藏起来保持任务行的干净 */
 const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props.m.title}`)
 </script>
@@ -81,14 +116,21 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 <template>
   <section
     class="metric-card"
-    :class="{ 'dnd-tip-in': taskDnd && taskDnd.dropTip?.id === m.id && taskDnd.dropTip.mode === 'in' }"
+    :class="{
+      'dnd-tip-in': taskDnd && taskDnd.dropTip?.id === m.id && taskDnd.dropTip.mode === 'in',
+      'metric-dragging': metricDragging,
+      'metric-drop-t': metricDropMode === 't',
+      'metric-drop-b': metricDropMode === 'b',
+    }"
     :style="{ '--hue': hue }"
     :data-metric="m.id"
     @dragover.prevent="taskDnd?.onLaneDragOver($event, m.id)"
     @dragleave="taskDnd?.onLaneDragLeave($event, m.id)"
     @drop.prevent="taskDnd?.onLaneDrop($event, m.id)"
   >
-    <header class="mc-head">
+    <header class="mc-head" draggable="true" title="拖动指标标题可整组排序（仅项目内）"
+      @dragstart="onMetricDragStart" @dragover="onMetricDragOver" @drop="onMetricDrop" @dragend="clearMetricDrag">
+      <span class="mc-grip" aria-hidden="true" title="拖动整组排序">⋮⋮</span>
       <button
         class="mc-dot"
         :class="m.dot"
@@ -148,11 +190,6 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
         <!-- 归属路径：hover 浮现 -->
         <span class="tk-crumb" aria-hidden="true">{{ crumb }}</span>
         <span class="tk-tags">
-          <span class="tk-pri" :class="t.priority">{{ taskGrade(t) }}</span>
-          <!-- ★W12-C 正名：这枚按钮走的是 `emit('grade')` → showTaskGrade = 优先级成熟度弹层，
-               从来不是任务详情抽屉；叫「详情」会把人引到错的去处（用户 2026-10-13 报 bug 的另一半）。
-               改叫「成熟度」并补 title，真正的详情入口是左侧任务标题。 -->
-          <button class="tk-grade" title="看这条任务的优先级成熟度依据" @click="emit('grade', t.id)">成熟度</button>
           <!-- V3.9.22：方向台只保留解绑；真删除只在任务详情与任务卡池行末常驻入口。 -->
           <button class="tk-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click="emit('unbind', t.id)"><Icon name="x" :size="13"/></button>
         </span>
@@ -161,8 +198,12 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 
     <!-- 断链显性化：零任务指标给虚线空位，让"缺"在版面上可见（判据 W11-6） -->
     <div v-else-if="m.orphanMetric" class="mc-orphan">
-      <span class="mo-t">目标已经明确，动作未落 —— 先拆出第一条支撑任务</span>
-      <button class="mo-add" @click="emit('addTask', m.id)">＋ 建第一条任务</button>
+      <span class="mo-ico"><Icon name="target" :size="14"/></span>
+      <span class="mo-copy">
+        <b>指标已就位，下一步先落一个动作</b>
+        <small>新建一条可执行任务，让这条指标开始产生进展。</small>
+      </span>
+      <button class="mo-add" @click="emit('addTask', m.id)">＋ 新建任务</button>
     </div>
 
     <div v-else class="mc-collapsed">
@@ -189,6 +230,12 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 }
 .metric-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
 .mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; min-width: 0; }
+.mc-head[draggable='true'] { cursor: grab; }
+.mc-head[draggable='true']:active { cursor: grabbing; }
+.mc-grip { flex: none; color: var(--text-4); font-size: var(--fs-micro); letter-spacing: -2px; cursor: grab; }
+.metric-dragging { opacity: .48; }
+.metric-drop-t { box-shadow: inset 0 2px 0 var(--accent); }
+.metric-drop-b { box-shadow: inset 0 -2px 0 var(--accent); }
 .mc-dot {
   color: var(--text-4); font-size: 9px; line-height: 1;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -340,16 +387,9 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
 }
 .tk-row:hover .tk-crumb { opacity: 1; }
 .tk-tags { display: flex; align-items: center; gap: 5px; flex: none; }
-.tk-pri { font-size: var(--fs-micro); color: var(--text-3); background: var(--surface-3); padding: 1px 6px; border-radius: var(--radius-full); }
 /* ★W12-G 可读性（用户 2026-10-13 反馈 6「不同主题下按钮看不清」）：
    原来用最淡的 --text-4（notion 主题下是 30% 不透明度的深色，对 surface-2 约 2:1，远低于 4.5），
    这枚带文字标签的按钮在极简白主题下基本隐形。提到 --text-2（可读档），弱化交给 hover。 */
-.tk-grade {
-  font-size: var(--fs-micro); color: var(--text-2);
-  padding: 1px 5px; border-radius: 4px; cursor: pointer;
-  background: transparent; border: 1px solid transparent;
-}
-.tk-grade:hover { color: var(--accent-ink); background: var(--accent-light); }
 /* ★解绑钮：默认低调（不与勾选框争），hover 才显形 —— 误触成本高，不能做成随手可点 */
 .tk-unbind {
   font-size: var(--fs-micro); color: var(--text-4);
@@ -365,16 +405,32 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
    虚线圈 + 圆角 + 底色三者叠加时，它看起来像一块"出错的卡"；而它真正要说的只有一句：
    标准已定、缺一条动作，右边就是建任务的入口。 */
 .mc-orphan {
-  margin: 9px 0 0 26px; padding: 9px 12px;
-  border: 0; border-left: 2px solid var(--warning-border); border-radius: 0;
-  background: var(--warning-bg-soft);
-  min-height: 44px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 10px 0 2px 26px;
+  padding: 12px 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-light) 44%, var(--surface));
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
-.mo-t { font-size: var(--fs-micro); color: var(--text-2); flex: 1; min-width: 0; }
+.mo-ico {
+  width: 30px; height: 30px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm);
+}
+.mo-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mo-copy b { font-size: var(--fs-sub); color: var(--text); }
+.mo-copy small { font-size: var(--fs-caption); color: var(--text-3); }
 .mo-add {
-  font-size: var(--fs-micro); font-weight: 600; color: var(--accent-ink);
-  background: var(--accent-light); padding: 2px 8px; border-radius: var(--radius-full); cursor: pointer; flex: none;
+  min-height: 32px; padding: 0 12px; flex: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: var(--radius-full);
+  font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink);
+  background: var(--surface); cursor: pointer; font-family: inherit;
+  box-shadow: var(--shadow-sm);
 }
+.mo-add:hover { border-color: var(--accent); background: var(--accent-light); }
 .mc-collapsed {
   margin: 9px 0 0 26px; padding: 7px 12px;
   background: var(--surface-3); border-radius: 7px; min-height: 30px;

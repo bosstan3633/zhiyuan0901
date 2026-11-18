@@ -54,15 +54,14 @@ export function diagnosisSystem(persona: AiPersona, style: string): string {
   return withAboutMe(`你是「${persona.name}」，${persona.brief}。以该专家视角审视用户个人调度台的整库摘要，做结构性体检。\n${persona.focus}${style ? `\n【用户定制风格】${style}` : ''}\n${DIAGNOSIS_SCHEMA}`)
 }
 
-// ---------- R135：罗盘链式生成（五契约：目标/项目/指标/任务/拆解） ----------
+// ---------- R135：罗盘链式生成（四契约：目标/项目/指标/任务） ----------
 
-export type ChainLevel = 'directions' | 'projects' | 'metrics' | 'tasks' | 'breakdown'
+export type ChainLevel = 'directions' | 'projects' | 'metrics' | 'tasks'
 
 export interface ChainSuggestion {
   name?: string; title?: string
   term?: string; endDate?: string; dueDate?: string
-  target?: string; acceptance?: string
-  priority?: string; estimatedMinutes?: number
+  target?: string
   why?: string
 }
 
@@ -79,18 +78,13 @@ const CHAIN_DEF: Record<ChainLevel, { role: string; rules: string; schema: strin
   },
   metrics: {
     role: '你是度量设计教练，为攻坚项目设计「成功指标」——好指标可量化、可验收、能证明项目做成。',
-    rules: 'title 含可测对象+量纲（如"实验章节完成 3 版"）；target 写目标值；acceptance 写怎么算达成。',
-    schema: '输出 JSON：{"items":[{"title":"指标名","target":"目标值/期限","acceptance":"验收口径","why":"为何测这个"}]}。2~3 条。只输出 JSON。',
+    rules: 'title 含可测对象+量纲（如"实验章节完成 3 版"）；target 写目标值。',
+    schema: '输出 JSON：{"items":[{"title":"指标名","target":"目标值/期限","why":"为何测这个"}]}。2~3 条。只输出 JSON。',
   },
   tasks: {
     role: '你是执行教练，把成功指标的缺口拆成近两周可落地的具体任务。任务=一次能做完的动作，不是目标复读。',
-    rules: 'title 动词开头 ≤24 字；dueDate=计划执行日期，YYYY-MM-DD（从今天推算，只给相对日期时自行换算）；priority 三选一 high/medium/low；estimatedMinutes 为 30~480 的整数。',
-    schema: '输出 JSON：{"items":[{"title":"任务名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"推进指标的哪一步"}]}。3~6 条。只输出 JSON。',
-  },
-  breakdown: {
-    role: '你是执行教练，把一个任务拆成半天内可完成的步骤序列——拆到「打开电脑就能动手」的粒度。',
-    rules: 'steps 按先后顺序排列；title 动词开头 ≤20 字；dueDate 相对原任务计划执行日期/今天推算；estimatedMinutes 每步 30~240。',
-    schema: '输出 JSON：{"plan":"两句话行动思路","steps":[{"title":"步骤名","dueDate":"YYYY-MM-DD(可选)","priority":"high|medium|low","estimatedMinutes":数字(可选),"why":"这步解锁什么"}],"assess":"先评估这个任务本身定得合不合理（≤40字，过粗/过细/缺验收直说）","recommend":"subtasks|detail","recommendWhy":"为何建议拆成多个任务(subtasks)或只把步骤写进任务详情(detail)，≤30字——任务本身很小或步骤即全部时选 detail"}。steps 3~6。只输出 JSON。',
+    rules: 'title 动词开头 ≤24 字，必须是一条完整可执行动作；dueDate=计划执行日期，YYYY-MM-DD（从今天推算，只给相对日期时自行换算）。',
+    schema: '输出 JSON：{"items":[{"title":"任务名","dueDate":"YYYY-MM-DD(可选)","why":"推进指标的哪一步"}]}。3~6 条。只输出 JSON。',
   },
 }
 
@@ -145,18 +139,7 @@ export const thesisDriftSystem = () => withAboutMe(
   '输出 JSON：{"items":[{"wsId":"台 id","verdict":"ok|drift","why":"一句话","evidence":"引用卡群里的具体条目"}]}。每台一条，全部健康也要如实 ok。只输出 JSON。'
 )
 
-// ---------- R138：智能录入与周期回顾 ----------
-
-export interface TaskDraft {
-  title?: string; priority?: string; dueDate?: string
-  estimatedMinutes?: number; projectId?: string; metricId?: string
-}
-
-export const taskParseSystem = () => withAboutMe(
-  '你是任务录入助手，把用户的一句大白话（可能含计划执行日期、项目名、时长）解析成任务字段。宁缺毋滥：拿不准的字段留空，不编造项目/指标。' +
-  'priority 三选一 high/medium/low；dueDate 严格 YYYY-MM-DD（相对日期按给定今天换算，"下班前"=今天）；estimatedMinutes 5~600 整数。' +
-  '输出 JSON：{"title":"≤24字动词开头","priority":"...","dueDate":"...","estimatedMinutes":123,"projectId":"仅在候选清单里才填","metricId":"同理"}。只输出 JSON。'
-)
+// ---------- R138：周期回顾 ----------
 export const reviewSystem = () => withAboutMe(
   '你是用户的复盘编辑，根据一周台账写一份克制的周回顾：只写材料里有据可查的事。四段 markdown：## 本周推进（点名任务/指标）/ ## 卡点与风险 / ## 资源使用情况 / ## 下周只挑三件。总字数 ≤300，不喊口号。' +
   '直接输出 markdown 文本，不要 JSON、不要代码围栏。'
@@ -237,13 +220,12 @@ export interface EvidenceOut { items?: EvidencePick[] }
  * 任务卡上的字段是用户自己定的执行意图，AI 只能"补缺"，不能"改写"。
  */
 export const taskEnrichSystem = (hasTargets: boolean) => withAboutMe(
-  '你是任务执行助手，为用户的一张任务卡补齐缺项。用户会给你这张卡的现状（标题/说明/标签/归属/估时/子任务）。' +
-  '硬纪律：①**只补缺，不覆盖**——说明里已有验收标准就不要再给 acceptance；已打标签就不要重复建议；' +
-  '②验收标准必须**可检验**（"四主题截图走查通过"算，"做得好一点"不算），≤80 字，写不出可检验的就留空；' +
+  '你是任务执行助手，为用户的一张任务卡补齐缺项。用户会给你标题、现有说明、标签与归属。' +
+  '硬纪律：①**只补缺，不覆盖**——说明已有内容就不要再写；已打标签就不要重复建议；' +
+  '②description 只在说明为空时给，用一句话补执行上下文与完成动作，≤80 字；不要写验收标准、估时或子任务；' +
   '③标签优先复用给定词表里的写法（含「父/子」路径），确无贴切才给新词，至多 4 个；' +
   (hasTargets ? '④归属只在给定的项目/指标候选里选，拿不准就留空——**替用户乱挂归属等于替他做了决策**；' : '④本轮无候选归属可填，projectId/metricId 一律留空；') +
-  '⑤estimateNote 是一句话估时提醒，**不是字段**，别写成承诺。' +
-  '输出 JSON：{"acceptance":"≤80字","tags":["至多4个"],"projectId":"","metricId":"","estimateNote":"≤30字"}。只输出 JSON。'
+  '输出 JSON：{"description":"≤80字，仅说明为空时给","tags":["至多4个"],"projectId":"","metricId":""}。只输出 JSON。'
 )
 
 /**
@@ -251,7 +233,7 @@ export const taskEnrichSystem = (hasTargets: boolean) => withAboutMe(
  * 且宁空手不硬凑：任务要的是"这张卡凭什么帮上忙"，不是"主题词撞上了"。
  */
 export const taskSupportSystem = () => withAboutMe(
-  '你是资源管家，为用户的一个任务（或它的某条子任务）从给定资源目录里挑**能用得上**的卡。' +
+  '你是资源管家，为用户的一个任务从给定资源目录里挑**能用得上**的卡。' +
   '只能推荐目录里真实存在、且尚未挂在该任务上的卡；cardId 逐字取自目录，至多 6 条，按帮助力度排序。' +
   'why（≤16字）必须说清这张卡在这个任务里干什么用（查资料/当模板/抄做法/作对照），' +
   '主题词碰巧相同但用不上的不算——**库里没有强相关的就返回空 items，宁空手也不硬凑**。' +
@@ -267,10 +249,10 @@ export const taskSupportSystem = () => withAboutMe(
  * 这里问"今天这三件该是哪三件"，前者看相关性，后者看**今天的轻重**（到期、顺延、卡着谁的下一步）。
  */
 export const focusRankSystem = () => withAboutMe(
-  '你是用户的日程管家，从给定候选任务里挑出**今天最该做的三件**并排序。用户给你：每条的标题、归属项目与进度、状态、子任务完成数、到期日、近 7 天的安排与顺延记录。要求：' +
+  '你是用户的日程管家，从给定候选任务里挑出**今天最该做的三件**并排序。用户给你：每条的标题、归属项目与进度、状态、计划日期、近 7 天的安排与顺延记录。要求：' +
   '只能选候选里真实存在的 taskId，逐字照抄，至多 3 条，按"今天做它的理由强度"排序；' +
   'why（≤18字）必须落在给定事实上（逾期/今天到期/顺延几天/卡着指标/进行中接着做成本最低），' +
-  '**不许编造候选里没有的数字，不许承诺产出，不许替用户改归属或改优先级**；' +
+  '**不许编造候选里没有的数字，不许承诺产出，不许替用户改归属**；' +
   '候选里确实没有值得占一格的就返回空 items——宁空手也不硬凑，三格空着由用户自己决定。' +
   '输出 JSON：{"items":[{"taskId":"任务 id","why":"今天做它的理由","confidence":"high|mid"}]}。只输出 JSON。'
 )

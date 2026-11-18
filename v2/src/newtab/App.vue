@@ -70,20 +70,12 @@ onOpenDrawer((p) => {
   setPendingDrawer(p)
 })
 
-// R53-D：主题精简为四套（删除 原野绿/暗夜红；存量 green/night 由 repository 启动迁移到深空薰衣草）
-// R156：① 新增「跟随系统」（ui.theme='auto'，落 data-theme 前经 resolveTheme 解析为 linear/apple）
-//       ② 四个主题的 dot 改为各自 accent（R124~R155 四者同为 #5E6AD2，解禁后须与新 accent 对齐）
-/* ★S4（V3.8.29）：主题选择器改「色板样例卡」。palette = [底色, 卡片色, 强调色]，
-   三色**取自 tokens.css 的真实值**（linear #0D0E11/#14161B/#5E6AD2、raycast #08080A/#101014/#1E6FD9、
-   apple #F5F5F7/#FFFFFF/#8452E0、notion #F7F6F3/#FFFFFF/#9E3FAF），不臆造。
-   auto 一支用「深色半 + 浅色半」的对角渐变示意"跟随系统"，与顶栏 dot 同一视觉语言。 */
+// V4.4.0：只保留三套主题，并用知源 Logo 蓝作为统一主行动色。
+// 色板值必须与 tokens.css 的真实令牌一致，避免选择器预览与落地主题色漂移。
 const themes = [
-  { id: 'auto', name: '跟随系统', dot: 'linear-gradient(135deg, #5E6AD2 0 50%, #F5F5F7 50% 100%)',
-    palette: ['linear-gradient(135deg, #0D0E11 0 50%, #F5F5F7 50% 100%)', 'linear-gradient(135deg, #14161B 0 50%, #FFFFFF 50% 100%)', '#5E6AD2'] },
-  { id: 'linear', name: '深空薰衣草', dot: '#5E6AD2', palette: ['#0D0E11', '#14161B', '#5E6AD2'] },
-  { id: 'raycast', name: '光速黑', dot: '#1E6FD9', palette: ['#08080A', '#101014', '#1E6FD9'] },
-  { id: 'apple', name: '极简白', dot: '#8452E0', palette: ['#F5F5F7', '#FFFFFF', '#8452E0'] },
-  { id: 'notion', name: '纸墨白', dot: '#9E3FAF', palette: ['#F7F6F3', '#FFFFFF', '#9E3FAF'] }
+  { id: 'raycast', name: '光速黑', dot: '#1579ad', palette: ['#080A0D', '#11161C', '#1579ad'] },
+  { id: 'apple', name: '极简白', dot: '#0f6f9e', palette: ['#F3F7FA', '#FFFFFF', '#0f6f9e'] },
+  { id: 'notion', name: '纸墨白', dot: '#0b668f', palette: ['#F7F6F1', '#FFFEFA', '#0b668f'] }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
@@ -788,9 +780,9 @@ const backupReminderDot = computed(() => {
 
 <style scoped>
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
-.oppo-workspace .topbar { border-bottom-color: color-mix(in srgb, var(--lv-green) 18%, var(--border)); }
-.oppo-workspace .tab.active { color: var(--lv-green-deep); background: var(--lv-green-soft); }
-.oppo-workspace .tab:hover:not(.active) { background: var(--lv-green-faint); }
+.oppo-workspace .topbar { border-bottom-color: color-mix(in srgb, var(--accent) 18%, var(--border)); }
+.oppo-workspace .tab.active { color: var(--accent-ink); background: var(--accent-light); }
+.oppo-workspace .tab:hover:not(.active) { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 /* R123（原型）：顶栏 48px（原 56px），对齐原型 top-nav */
 .topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
@@ -820,7 +812,7 @@ const backupReminderDot = computed(() => {
 .brand-chip .brand-logo { width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; }
 .brand-chip .brand-name { font-size: var(--fs-body); font-weight: 700; letter-spacing: -.01em; color: var(--text); white-space: nowrap; }
 .brand-chip .brand-en { font-size: var(--fs-caption); font-weight: 500; color: var(--text-3); letter-spacing: .02em; white-space: nowrap; }
-/* R123（原型）：tab 6×12、active = 浅紫填充块（accent-light + accent 600），下划线退役
+/* R123（原型）：tab 6×12、active = 知源蓝浅填充块（accent-light + accent 600），下划线退役
    R175（原型 nav-tab-item）：padding 6×12→5×11、圆角 xs→sm，其余口径不变 */
 .tab { padding: 5px 11px; border-radius: var(--radius-sm); font-size: var(--fs-body); font-weight: 500; color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; transition: color var(--dur) ease, background var(--dur) ease; position: relative; white-space: nowrap; }
 .tab:hover { background: var(--surface-2); color: var(--text); }
@@ -871,11 +863,10 @@ const backupReminderDot = computed(() => {
 .save-dot { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; background: transparent; cursor: default; }
 .save-dot::before { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); opacity: .6; transform: translate(-50%, -50%); transition: background .2s, opacity .2s; }
 .save-dot.saving { background: transparent; }
-.save-dot.saving::before { background: var(--accent); opacity: .9; animation: savePulse .9s ease-in-out infinite; }
+.save-dot.saving::before { background: var(--accent); opacity: .9; }
 .save-dot.saved::before { background: var(--success); opacity: .9; }
 .save-dot.error { cursor: pointer; }
 .save-dot.error::before { background: var(--danger); opacity: 1; }
-@keyframes savePulse { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
 .theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; width: 276px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; z-index: var(--z-overlay); }
 /* ★S4：选项从「一行文字 + 单色圆点」改成样例卡——三色圆点给出"换过去是什么样"的信息，
    当前态靠 accent 描边 + ✓ 双信号（只描边在浅色主题里偏弱）。用原生 button 顺带把

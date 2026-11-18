@@ -24,15 +24,17 @@ check('R180-C1 ★新建战略目标先打开弹窗：名称 / 期限三档 / �
 });
 
 check('R180-C2 ★修改战略目标打开同一弹窗并预填；保存后不切换视图，不再进入 contenteditable', () => {
-  const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
-  const edit = segOf(tree, 'function openDirectionEdit(id: string)', '\n}')
+  const tree = read('/newtab/views/CompassTree.vue')
+  const treeCode = codeOnly(tree)
+  const projects = codeOnly(read('/newtab/views/useCompassTreeProjects.ts'))
+  const edit = segOf(projects, 'function openDirectionEdit(id: string)', '\n}')
   return edit.includes("directionForm.value = { open: true, direction }")
     && tree.includes('@click.stop="openDirectionEdit(dg.dir.id)"')
     && tree.includes('@edit-dir="onListEditDir"')
-    && tree.includes('function onListEditDir(id: string)')
-    && tree.includes('openDirectionEdit(id)')
-    && !tree.includes("editingField.value = 'dir-' + id")
-    && !tree.includes('function addDirection()');
+    && projects.includes('function onListEditDir(id: string)')
+    && projects.includes('openDirectionEdit(id)')
+    && !treeCode.includes("editingField.value = 'dir-' + id")
+    && !projects.includes('function addDirection()');
 });
 
 check('R180-C3 ★方向台任务行只解绑：项目塔 / 全景 / 收容区统一走 unbindTaskFromMetric；软删只剩任务详情', () => {
@@ -87,8 +89,9 @@ check('R180-C5 ★第 6 层任务定位（V3.9.25 重指）：行数据带 metri
 
 check('R180-C6 ★断链清单改只读弹窗：按项目分组、指标与任务行可定位；无 Blob/下载代码', () => {
   const tree = codeOnly(read('/newtab/views/CompassTree.vue'))
+  const projects = codeOnly(read('/newtab/views/useCompassTreeProjects.ts'))
   const risk = codeOnly(read('/newtab/components/compass/CompassRiskModal.vue'))
-  const report = segOf(tree, 'function showRiskReport()', '\nfunction showTaskGrade(')
+  const report = segOf(projects, 'function showRiskReport()', '\nfunction bindOrphan(')
   return tree.includes('const riskGroups = computed<RiskProjectGroup[]>')
     && report.includes('riskOpen.value = true')
     && !report.includes('Blob')

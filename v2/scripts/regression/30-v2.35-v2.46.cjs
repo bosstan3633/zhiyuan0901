@@ -117,9 +117,9 @@ check('R66-2（V3.9.8 随迁备案）金字塔直角连线：旧 SVG 路径字�
 });
 check('R66-3（R156 解析改写 · G2 随迁）全量数据包附 uiPrefs + 导入自动应用：设置页载入 UI 偏好并入包，导入侧落 data-theme（经 resolveTheme 解析 auto）/data-density', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue'); const dp = read('/newtab/views/settings/dataPackage.ts');
-  return dm.includes('async function currentPackage()') && dm.includes('buildDataPackage(store.data!, log, ui)') && dm.includes('loadUIPrefs()')
-    && dp.includes('uiPrefs?: Record<string, unknown>') && dp.includes('applyDataPackageUIPrefs')
-    && dp.includes("document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))") && dp.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })");
+  return dm.includes('async function currentPackage()') && dm.includes('return buildDataPackage(store.data!, log, ui)') && dm.includes('loadUIPrefs()') && dp.includes('uiPrefs?: Record<string, unknown>') && dp.includes('applyDataPackageUIPrefs')
+    && dp.includes('const theme = resolveTheme(ui.theme)') && dp.includes("document.documentElement.setAttribute('data-theme', theme)")
+    && dp.includes("saveUIPrefs({ density: ui.density as 'compact' | 'cozy' })");
 });
 check('R66-4 ★R4-Da 退役重指带备案：原守「资源台全景递归 N 级：panTree 的 toNode 递归 + flattenPanCats 扁平行渲染（折叠沿祖先链）+ row.depth * 14 缩进」——🗺 全景整页随资源台退役删除。四件事（多级递归 / 扁平序列 / 折叠沿祖先链 / 按层缩进）在两个存活管理面都还在，判据按它们点名：① 策展台分类树 useCatSidebar（sidebarCats 递归 pushTree depth+1 + seenSide 防环 = 扁平序列；selectSidebarCat 沿 parentId 上行走链展开祖先；卡片/列表视图按 g.depth * 16 缩进）② 设置页标签树按 tagDepth 缩进；panTree/toNode/flattenPanCats/panCollapsed 在 GS 按 codeOnly 零命中', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));

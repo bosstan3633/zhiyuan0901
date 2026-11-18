@@ -2,7 +2,7 @@
  * R135：罗盘链式生成任务书工厂——把「层级 × 锚点」组装成可评审 AiJob。
  * 创建类采纳纪律：
  *  - 名称查重（同层同名丢弃，防模型复读现有兄弟）；
- *  - 字段白名单清洗（term/priority/date 格式、分钟数钳制），非法即弃该字段而非弃整条；
+ *  - 字段白名单清洗（term/date 格式），非法即弃该字段而非弃整条；
  *  - 实体形状与既有创建通道一致（addDirection/addProjectToDir/metrics.push/createNewTask 同源字段）；
  *  - 锚点在评审期间被删 → 该条静默跳过并计数回报。
  */
@@ -19,14 +19,13 @@ export interface ChainCtx {
   persist: () => void
   /** 项目创建走 compass store 既有通道（R85 四出口合一）；缺省时本地同形创建 */
   addProject?: (dirId: string, name: string) => Project | null
-  /** R139：拆解场景的执笔专家 id（'' / 'default' = 内置执行教练） */
+  /** R139：生成场景的执笔专家 id（'' / 'default' = 内置执行教练） */
   personaId?: string
   /** R139：宿主在评审抽屉里换专家时回调（重建 job → 自动重跑） */
   onPersona?: (id: string) => void
 }
 
 const TERM_SET = new Set(['long', 'mid', 'short'])
-const PRIO_SET = new Set(['high', 'medium', 'low'])
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 function cleanItem(s: ChainSuggestion): ChainSuggestion {
@@ -35,28 +34,22 @@ function cleanItem(s: ChainSuggestion): ChainSuggestion {
   if (!name) return out
   out.name = out.title = name.length > 40 ? name.slice(0, 40) : name
   if (TERM_SET.has(String(s.term))) out.term = s.term
-  if (PRIO_SET.has(String(s.priority))) out.priority = s.priority
   if (s.endDate && DATE_RE.test(String(s.endDate))) out.endDate = String(s.endDate)
   if (s.dueDate && DATE_RE.test(String(s.dueDate))) out.dueDate = String(s.dueDate)
-  const m = Number(s.estimatedMinutes)
-  if (Number.isFinite(m) && m >= 10 && m <= 600) out.estimatedMinutes = Math.round(m)
   if (s.target) out.target = String(s.target).slice(0, 120)
-  if (s.acceptance) out.acceptance = String(s.acceptance).slice(0, 200)
   if (s.why) out.why = String(s.why).slice(0, 120)
   return out
 }
 
-const META: Record<ChainLevel, { title: string; badge: string; itemPath: 'items' | 'steps' }> = {
-  directions: { title: '战略目标', badge: '目标', itemPath: 'items' },
-  projects: { title: '攻坚项目', badge: '项目', itemPath: 'items' },
-  metrics: { title: '成功指标', badge: '指标', itemPath: 'items' },
-  tasks: { title: '推进任务', badge: '任务', itemPath: 'items' },
-  breakdown: { title: '行动步骤', badge: '步骤', itemPath: 'steps' },
+const META: Record<ChainLevel, { title: string; badge: string }> = {
+  directions: { title: '战略目标', badge: '目标' },
+  projects: { title: '攻坚项目', badge: '项目' },
+  metrics: { title: '成功指标', badge: '指标' },
+  tasks: { title: '推进任务', badge: '任务' },
 }
 
 /** R141（反馈 #2/#3）：抽屉标头的处理对象——按层级找回实体名 */
 function anchorSubject(d: AppData, level: ChainLevel, anchorId: string): string {
-  if (level === 'breakdown') { const t = d.tasks.find(x => x.id === anchorId); return t ? `📌 任务「${t.title.slice(0, 24)}」` : '' }
   if (level === 'tasks') { for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === anchorId); if (m) return `📌 指标「${m.title.slice(0, 24)}」` } }
   if (level === 'metrics') { for (const x of d.compass.directions) { const p = x.projects.find(y => y.id === anchorId); if (p) return `📌 项目「${p.name.slice(0, 24)}」` } }
   if (level === 'projects') { const x = d.compass.directions.find(y => y.id === anchorId); return x ? `📌 目标「${x.name.slice(0, 24)}」` : '' }
@@ -82,8 +75,8 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
       ],
     }),
     parse: (raw) => {
-      const bag = raw as { items?: ChainSuggestion[]; steps?: ChainSuggestion[]; plan?: string; assess?: string; recommend?: string; recommendWhy?: string }
-      const list = (level === 'breakdown' ? bag.steps : bag.items) || []
+      const bag = raw as { items?: ChainSuggestion[] }
+      const list = bag.items || []
       const rows: AiRow[] = []
       list.forEach((s0, i) => {
         const s = cleanItem(s0)
@@ -93,26 +86,10 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
         if (s.term) facts.push({ long: '远期', mid: '中期', short: '近期' }[s.term]!)
         if (s.endDate) facts.push('止 ' + s.endDate)
         if (s.dueDate) facts.push('限 ' + s.dueDate)
-        if (s.priority) facts.push({ high: '高优', medium: '中优', low: '低优' }[s.priority]!)
-        if (s.estimatedMinutes) facts.push(`约${s.estimatedMinutes}分`)
         if (s.target) facts.push('目标：' + s.target)
         // R147-a：没给"为什么是这一步"的建议=模型在凑数，默认不勾
         rows.push({ key: level + ':' + i, badge: meta.badge, main: s.name, sub: [facts.join(' · '), s.why].filter(Boolean).join('\n'), weak: !s.why?.trim(), data: s })
       })
-      if (level === 'breakdown' && bag.plan?.trim()) {
-        // R147-a：思路是给人看的上下文，不是采纳项——改判 advisory，免得勾了它却什么都不发生
-        rows.unshift({ key: 'breakdown:plan', badge: '思路', advisory: true, main: bag.plan.trim().slice(0, 160), data: { __plan: bag.plan.trim() } })
-      }
-      // R141（反馈 #2）：参谋建议行——任务合理性评估 + 拆子任务/写详情推荐（只读，不进勾选）
-      if (level === 'breakdown' && bag.assess?.trim()) {
-        const rec = bag.recommend === 'detail' ? '推荐：只把步骤写进任务详情' : bag.recommend === 'subtasks' ? '推荐：拆成多个子任务' : ''
-        rows.unshift({
-          key: 'breakdown:verdict', badge: '参谋', advisory: true,
-          main: bag.assess.trim().slice(0, 120),
-          sub: [rec, (bag.recommendWhy || '').trim().slice(0, 60)].filter(Boolean).join(' · '),
-          data: { __verdict: true, recommend: bag.recommend },
-        })
-      }
       return rows
     },
     audit: () => [drop.noName ? `${drop.noName} 行连名字都没给（丢弃）` : '', drop.noWhy ? `${drop.noWhy} 行没给理由（已判弱）` : ''].filter(Boolean).join('、') || null,
@@ -127,28 +104,7 @@ export function buildChainJob(level: ChainLevel, anchorId: string, ctx: ChainCtx
       onPick: (id) => ctx.onPersona?.(id),
     }
   }
-  if (level === 'breakdown') {
-    // R139 双通道 · R166 定案 8 改去向：主采纳=写本卡内嵌子任务清单；次采纳=同批步骤合并成清单写进详情
-    job.hint = '勾选后二选一：「✓ 采纳为子任务」写进本卡的子任务清单（**不是新建任务卡**，不进任务池/指标/看板/周报，完成也不计分）；「📝 步骤写进详情」只把清单落进说明。右上角可换执笔专家，换后自动重跑。'
-    job.adoptLabel = '✓ 采纳为子任务'
-    job.secondary = { label: '📝 步骤写进详情', apply: (rows) => writeStepsToTask(ctx.d, anchorId, rows, ctx.persist) }
-  }
   return job
-}
-
-/** R139：替换式清单段——重复采纳不堆积，与「🤖 行动方案：」同纪律 */
-function writeStepsToTask(d: AppData, taskId: string, rows: AiRow[], persist: () => void): string {
-  const t = d.tasks.find(x => x.id === taskId)
-  if (!t) return '⚠ 原任务已不存在，未写入'
-  const steps = rows.map(r => r.data as ChainSuggestion).filter(s => s.name && !(s as { __plan?: string }).__plan)
-  if (!steps.length) return '⚠ 没有勾选任何步骤'
-  const lines = steps.map(s => `- ${s.name}${s.dueDate ? `（限 ${s.dueDate}）` : ''}${s.estimatedMinutes ? ` · 约${s.estimatedMinutes}分` : ''}`)
-  t.description = (t.description ? t.description.replace(/\n*🤖 步骤清单：[\s\S]*$/, '').trim() + '\n\n' : '') + '🤖 步骤清单：\n' + lines.join('\n')
-  t.updatedAt = Date.now()
-  // R165-A（方案 A 三态凭据）：AI 动过本卡 → 落 aiTouchedAt，详情标题行翻「↻ 重新拆解」
-  t.aiTouchedAt = Date.now()
-  persist()
-  return `✓ ${steps.length} 步已写入任务详情（未建子任务）`
 }
 
 /** 落库：与 CompassTree.addDirection / compass.addProjectToDir / metrics.push / TaskManagerPanel.createNewTask 同形 */
@@ -158,8 +114,8 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
   const now = Date.now()
   const mkTask = (s: ChainSuggestion, projectId?: string, metricId?: string) => ({
     id: uid('tk'), kind: 'task' as const, title: s.name!, status: 'todo' as const,
-    priority: (s.priority || 'medium') as 'high' | 'medium' | 'low',
-    dueDate: s.dueDate, estimatedMinutes: s.estimatedMinutes,
+    priority: 'medium' as const,
+    dueDate: s.dueDate,
     projectId, metricId,
     customFields: {},
     createdAt: now, updatedAt: now,
@@ -191,7 +147,7 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
       const s = r.data as ChainSuggestion
       if (!s.name) continue
       if (proj.metrics.some(m => m.title === s.name)) { dup++; continue }
-      const met = { id: uid('met'), title: s.name, target: s.target, acceptance: s.acceptance, taskIds: [] as string[] }
+      const met = { id: uid('met'), title: s.name, target: s.target, taskIds: [] as string[] }
       proj.metrics.push(met)
       made++
     }
@@ -210,33 +166,7 @@ export function applyChain(level: ChainLevel, anchorId: string, ctx: ChainCtx, r
       met.taskIds.push(t.id)
       made++
     }
-  } else { // breakdown
-    const t = d.tasks.find(x => x.id === anchorId)
-    if (!t) return '⚠ 原任务已不存在，未写入任何步骤'
-    // R165-A（方案 A 三态凭据）：采纳拆解建议即视为 AI 动过本卡
-    t.aiTouchedAt = now
-    for (const r of rows) {
-      const s = r.data as ChainSuggestion
-      if ((s as { __plan?: string }).__plan) {
-        const plan = (s as { __plan: string }).__plan
-        t.description = (t.description ? t.description.replace(/\n*🤖 行动方案：[\s\S]*$/, '').trim() + '\n\n' : '') + '🤖 行动方案：\n' + plan
-        t.updatedAt = Date.now()
-        made++
-        continue
-      }
-      if (!s.name) continue
-      /* R166 定案 1/8：拆解去向从"建子任务卡"改成"写本卡内嵌清单"——
-         步骤不再是任务池里的一张卡（不进池/指标 taskIds/看板/周报/回收站），
-         查重也从"全库同名"收窄成"本卡清单内同名"：跨任务重名是正常事，同一张卡里才叫重复。 */
-      t.subtasks = t.subtasks || []
-      if (t.subtasks.some(x => x.title === s.name)) { dup++; continue }
-      t.subtasks.push({ id: uid('st'), title: s.name, done: false })
-      made++
-    }
-    t.updatedAt = Date.now()
   }
   ctx.persist()
-  return level === 'breakdown'
-    ? `✓ 已写入 ${made} 项${dup ? ` · 本卡同名跳过 ${dup}` : ''}`
-    : `✓ 已创建 ${made} 项${dup ? ` · 同名跳过 ${dup}` : ''}`
+  return `✓ 已创建 ${made} 项${dup ? ` · 同名跳过 ${dup}` : ''}`
 }

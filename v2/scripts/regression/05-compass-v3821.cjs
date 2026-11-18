@@ -122,26 +122,18 @@ check('F4-1 ★三处入口共用一份诊断会话缓存（用户拍板：全�
 });
 
 // ────────────────────────── P4 全貌改单行子任务（宿主接线） ──────────────────────────
-check('P4-1 ★V3.9.1 随迁备案：FocusDetail 全貌区退役后，子任务能力继续从右侧任务详情进入。旧 @toggle-sub/@split 宿主接线不再挂在首页，但「拆分子任务并聚焦输入框」的抽屉链路必须原样保留，避免随布局迁移丢能力', () => {
+check('P4-1（V4.4.0 退役重指）★子任务与 AI 拆解从任务详情正式退役：首页不挂 FocusDetail，共享详情不挂 SubtaskList，旧 focusSub / subListRef / toggleSlotSub 入口零回流；点击任务仍复用共享详情抽屉', () => {
   const ch = codeOnly(CT_ALL_HOME())
-  const fd = codeOnly(read('/newtab/components/compass/FocusDetail.vue'))
   const dr = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
-  const sl = codeOnly(read('/shared/components/SubtaskList.vue'))
-  /* ① 模块头退役：无 events/locate/supports 三件套（D4 整体退役的负锚） */
-  const headGone = !ch.includes('focusDetailEvents') && !fd.includes('events?:') && !fd.includes('locate?:') && !fd.includes('supports?:')
-    && !fd.includes("(e: 'locate'") && !fd.includes("(e: 'events'")
-  /* ② 首页不再挂 FocusDetail，子任务从共享详情进入 */
+  const logic = codeOnly(read('/newtab/views/useCompassHome.ts'))
   const wired = !ch.includes('<FocusDetail')
     && ch.includes('function openCellTask(c: FocusCell)')
     && ch.includes('drawerRef.value?.open(c.task)')
-    && dr.includes('function open(task: TaskCard, opts?: { focusSub?: boolean })')
-  /* ③④ 聚焦链 */
-  const chain = dr.includes('function open(task: TaskCard, opts?: { focusSub?: boolean })')
-    && dr.includes('subListRef.value?.focusAdd()')
-    && dr.includes('<SubtaskList ref="subListRef"')
-    && sl.includes('function focusAdd()')
-    && sl.includes('defineExpose({ focusAdd })')
-  return headGone && wired && chain;
+    && dr.includes('function open(task: TaskCard)')
+  const retired = !dr.includes('SubtaskList') && !dr.includes('subListRef') && !dr.includes('focusSub')
+    && !dr.includes('buildChainJob') && !logic.includes('toggleSlotSub')
+    && !ch.includes('toggleSlotSub');
+  return wired && retired;
 });
 /* CT_ALL_HOME 的取数点（避免 helpers 再加导出：调度台宿主只有 CompassHome 一处） */
 function CT_ALL_HOME() { return read('/newtab/views/CompassHome.vue') }

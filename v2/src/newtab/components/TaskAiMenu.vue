@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * R147-d：任务级 AI 辅助菜单（拆解成子任务 / 打开详情）。
- * R146 先落在项目详情页，本轮抽成组件铺到任务面板与看板——同一套动作，不在两个视图各写一遍。
+ * V4.4.0：任务级 AI 辅助菜单（找资源 / 打开详情）。
+ * 子任务与 AI 拆解从主任务界面退役，菜单只保留能直接推进任务的动作。
  * 自包含纪律（承 R144）：按钮、浮层菜单、评审抽屉、样式都在本组件内，
  * 宿主 workspace.css 是 scoped，fragment 根不继承父 scope；AI 依赖零静态引用，点击时才 dynamic import。
  */
@@ -31,36 +31,36 @@ function toggle(e: MouseEvent) {
   shown.value = true
 }
 
-async function breakdown() {
+async function findResources() {
   const d = store.data
   if (!d) return
-  const [{ loadAiConfig, aiReady, aiConfig }, { buildChainJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/chain')])
+  const [{ loadAiConfig, aiReady, aiConfig }, { buildTaskSupportJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/taskSupport')])
   await loadAiConfig()
   if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
   if (personaId.value === 'default' && aiConfig.value.defaultPersona) personaId.value = aiConfig.value.defaultPersona
-  const j = buildChainJob('breakdown', props.task.id, {
-    d, depth: aiConfig.value.depth, persist: () => store.persist(),
-    personaId: personaId.value, onPersona: (id) => { personaId.value = id; void breakdown() },
+  const j = buildTaskSupportJob({
+    d, depth: aiConfig.value.depth, persist: () => store.persist(), taskId: props.task.id,
+    personaId: personaId.value, onPersona: (id) => { personaId.value = id; void findResources() },
   })
   if (!j) { showToast('任务已不存在（可能刚被删除）'); return }
   job.value = j
 }
 
-async function pick(kind: 'breakdown' | 'detail') {
+async function pick(kind: 'support' | 'detail') {
   shown.value = false
   if (kind === 'detail') { emit('detail', props.task); return }
   if (busy.value) return
   busy.value = true
-  try { await breakdown() } finally { busy.value = false }
+  try { await findResources() } finally { busy.value = false }
 }
 </script>
 
 <template>
-  <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：拆解成子任务 / 打开详情（勾选采纳才写库，可换执笔专家）'" @click.stop="toggle"><AiEntryButton :spin="busy" /></button>
+  <button class="tam-btn" :class="{ on: shown }" :title="tip || '本任务的 AI 辅助：找资源 / 打开详情'" @click.stop="toggle"><AiEntryButton :spin="busy" /></button>
   <Teleport to="body">
     <div v-if="shown" class="tam-mask" @click="shown = false" />
     <div v-if="shown" class="tam-menu" data-a11y-container :style="{ left: pos.x + 'px', top: pos.y + 'px' }" @click.stop>
-      <button class="tam-item" @click="pick('breakdown')"><AiEntryButton variant="inline" label="拆解成子任务" /></button>
+      <button class="tam-item" @click="pick('support')"><AiEntryButton variant="inline" label="AI 找资源" /></button>
       <button class="tam-item" @click="pick('detail')"><Icon name="filetext" :size="13"/> 打开任务详情</button>
     </div>
   </Teleport>

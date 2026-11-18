@@ -100,29 +100,29 @@ check('W1-1（V3.9.8 随迁）树区是主角面：现役策展画布用 surface
     && shell.includes('box-shadow: var(--shadow-sm)');
 });
 
-check('W1-2（V3.9.23 随迁）中轴与层级连接线随内容走：总线、父下引线与子上引线共用同一条 32px 连接槽，首末节点各只画半段以保持连续，滚动域仍是 .mindmap-canvas', () => {
+check('W1-2（V4.4.0 重指）中轴与层级连接线随内容走：总线、父下引线与子上引线共用同一条 32px 连接槽，三处 1px 蓝线同色，首末节点各只画半段，滚动域仍是 .mindmap-canvas', () => {
   const axis = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children::before');
   const vertical = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::before');
   const row = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch::after');
   const rowFirst = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:first-child::after');
   const rowLast = rule(MIND_CSS, '.mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:last-child::after');
   if (!axis) { console.log('     中轴规则缺失'); return false; }
-  return axis.includes('height: 32px') && axis.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
-    && !!vertical && vertical.includes('width: 2px') && vertical.includes('background: color-mix(in srgb, var(--accent) 72%, var(--border-strong))')
-    && !!row && row.includes('top: 0') && row.includes('left: 0') && row.includes('right: 0') && row.includes('height: 2px')
+  return axis.includes('height: 32px') && axis.includes('width: 1px') && axis.includes('background: color-mix(in srgb, var(--accent) 34%, var(--border))')
+    && !!vertical && vertical.includes('width: 1px') && vertical.includes('background: color-mix(in srgb, var(--accent) 34%, var(--border))')
+    && !!row && row.includes('top: 0') && row.includes('left: 0') && row.includes('right: 0') && row.includes('height: 1px')
     && !!rowFirst && rowFirst.includes('left: 50%')
     && !!rowLast && rowLast.includes('right: 50%')
     && rule(MIND_CSS, '.mindmap-canvas').includes('overflow: auto');
 });
 
-check('W1-3（V4.0.3 重指）圆角层级三档：分支节点 11px / 资源 chip 5px / 画布根节点 lg，层级逐级可辨', () => {
+check('W1-3（V4.4.0 重指）圆角层级三档：分支节点 md / 资源 chip 5px / 画布根节点基准圆角，层级逐级可辨', () => {
   const node = rule(MIND_CSS, '.mind-node');
   const root = rule(MIND_CSS, '.mind-node.mind-root');
   const resources = MIND_CSS.slice(MIND_CSS.indexOf('.mind-resource {'), MIND_CSS.indexOf('.mind-resource-title'));
   if (!node || !resources || !root) { console.log('     规则缺失'); return false; }
-  return node.includes('border-radius: 11px')
+  return node.includes('border-radius: var(--radius-md)')
     && resources.includes('border-radius: 5px')
-    && root.includes('border-radius: var(--radius-lg)');
+    && root.includes('border-radius: var(--radius)');
 });
 
 check('W1-4（V3.9.8 随迁）全屏态大板归零：真全屏与降级全屏共享同一组去外边距/描边/圆角的规则，画布占满可视高度', () => {
@@ -196,7 +196,7 @@ check('W3-1（V4.0.3 重指）页头读数行降 caption：分类与更新时间
 });
 
 /* ============ W5 · 中心论点层级 ============ */
-check('W5-1（V4.2.0 压缩重指）论点卡仍是题眼：顶部论点标题使用 20px 主句与径向渐变舞台，页头高度压缩到 68px 基线；画布 L1 节点标题仍高于说明一档，标题与说明分行且由发丝线分隔', () => {
+check('W5-1（V4.4.0 重指）论点卡仍是题眼：20px 主句、径向渐变舞台与 68px 高度基线在位；画布根节点以 16px 圆角、2px 蓝色内轨与发丝线标题区延续层级', () => {
   const banner = rule(CSS, '.thesis-banner');
   const tbt = rule(CSS, '.tb-title');
   const root = rule(MIND_CSS, '.mind-node.mind-root');
@@ -206,7 +206,8 @@ check('W5-1（V4.2.0 压缩重指）论点卡仍是题眼：顶部论点标题�
   const nodeDesc = lastRule(MIND_CSS, '.mind-desc');
   if (!banner || !tbt || !root || !rtitle) { console.log('     规则缺失'); return false; }
   return tbt.includes('font-size: 20px')
-    && rtitle.includes('calc(var(--fs-body) + 1px)')
+    /* V4.4.0：根节点标题与普通节点统一到 fs-body，仍以 fs-caption 说明行保持明确层级。 */
+    && rtitle.includes('font-size: var(--fs-body)')
     && nodeTitle.includes('display: block')
     && nodeTitle.includes('var(--fs-body)')
     && nodeDesc.includes('display: block')
@@ -217,7 +218,7 @@ check('W5-1（V4.2.0 压缩重指）论点卡仍是题眼：顶部论点标题�
     && banner.includes('min-height: 68px')
     && banner.includes('padding: 9px 14px')
     && !banner.includes('inset 3px 0 0 var(--accent)')
-    && root.includes('inset 3px 0 0 var(--accent)')
+    && root.includes('inset 2px 0 0 color-mix(in srgb, var(--accent) 82%, var(--border))')
     && !root.includes('border-left')
     && !banner.includes('border-left');
 });

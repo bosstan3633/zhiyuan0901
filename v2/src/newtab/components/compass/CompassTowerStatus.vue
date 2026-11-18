@@ -105,7 +105,7 @@ const tagTitle = (t: { tag: string; dim: string }) =>
 .dt.bad { background: var(--danger-bg-soft); color: var(--danger); border-color: rgba(248, 113, 113, .3); }
 .dt.more { color: var(--text-3); font-weight: 700; }
 .dt.view, .dt.run { cursor: pointer; font-weight: 600; font-family: inherit; }
-.dt.view { background: var(--accent-light); color: var(--accent-ink); border-color: rgba(139, 92, 246, .3); }
+.dt.view { background: var(--accent-light); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 .dt.view:hover { border-color: var(--accent); }
 .dt.run { background: transparent; border-style: dashed; color: var(--text-3); }
 .dt.run:hover { color: var(--accent-ink); border-color: var(--accent); }

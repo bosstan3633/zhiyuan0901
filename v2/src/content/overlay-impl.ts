@@ -47,26 +47,25 @@ function injectStyles() {
  *   apple 4.92 / notion 5.55，由 `scripts/theme-contrast.cjs` 常驻校验）。
  */
 const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
-  /* R156：accent 解禁——四主题各自独立（R124~R155 期间四者同为 #5E6AD2） */
-  linear: { accent: '#5E6AD2', on: '#FFFFFF' },
-  raycast: { accent: '#1E6FD9', on: '#FFFFFF' },
-  apple: { accent: '#8452E0', on: '#FFFFFF' },
-  notion: { accent: '#9E3FAF', on: '#FFFFFF' }
+  /* V4.4.0：三主题唯一主行动色统一为知源 Logo 蓝。 */
+  raycast: { accent: '#1579AD', on: '#FFFFFF' },
+  apple: { accent: '#0F6F9E', on: '#FFFFFF' },
+  notion: { accent: '#0B668F', on: '#FFFFFF' }
 }
 /** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
 async function applyThemeAccent() {
   const root = document.getElementById(ROOT_ID)
   if (!root) return
-  let theme = 'linear'
+  let theme = 'raycast'
   try {
     const r = await chrome.storage.local.get(K.UI)
     let t = (r?.zy_ui_v2 as { theme?: string } | undefined)?.theme
-    // R156：'auto'（跟随系统）在浮层里按宿主环境 prefers-color-scheme 解析——浮层运行在宿主文档，
-    // 不共享新标签页的 data-theme，故此处独立判一次；映射与 shared/utils/theme.ts 保持一致（暗→linear / 浅→apple）
-    if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'linear' : 'apple'
+    // 旧值在浮层侧同样迁移：auto 暗色→raycast、浅色→apple；其它旧主题统一回 raycast。
+    if (t === 'auto') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'raycast' : 'apple'
+    if (t === 'linear' || t === 'green' || t === 'night') t = 'raycast'
     if (t && THEME_ACCENT[t]) theme = t
   } catch { /* 无 storage 权限或尚未初始化：回落默认主题 */ }
-  const c = THEME_ACCENT[theme] || THEME_ACCENT.linear!
+  const c = THEME_ACCENT[theme] || THEME_ACCENT.raycast!
   root.style.setProperty('--zy-accent', c.accent)
   root.style.setProperty('--zy-on-accent', c.on)
 }

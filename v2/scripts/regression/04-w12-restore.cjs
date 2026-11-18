@@ -192,12 +192,13 @@ check('W12-12 ★方向台四个组件里所有 button 都必须显式压掉浏�
       return close < 0 ? '' : src.slice(braceAt + 1, close)
     }
   }
-  const needBg = [[tw, '.tw-act'], [tw, '.twm-item'], [ln, '.mc-toggle'], [ln, '.tk-grade'], [ln, '.tk-unbind']]
+  const needBg = [[tw, '.tw-act'], [tw, '.twm-item'], [ln, '.mc-toggle'], [ln, '.tk-unbind']]
   const btnOk = needBg.every(([src, cls]) => /background\s*:/.test(bodyOf(src, cls)))
   // ② 层级面板默认收起：初值必须是 null（原型 lvpanel 的 max-height 初值就是 0）
   // ★F7 随迁带备案（2026-10-16）：类型由 1|2|3 收窄为 1|2（第 3 层迁出面板改走
   //   layerView 层级专属列表），初值 null 与 v-if 结构不变。
-  const panelOk = /const layerOpen = ref<1 \| 2 \| null>\(null\)/.test(t)
+  const logic = codeOnly(read('/newtab/views/useCompassTree.ts'))
+  const panelOk = /const layerOpen = ref<1 \| 2 \| null>\(null\)/.test(logic)
     && /<CompassLayerPanel[\s\S]{0,120}v-if="layerOpen"/.test(t)
   // ③ 折叠判据必须量可见性：v-show 收起时节点仍在 DOM，查存在性会误报
   const audit = codeOnly(fs.readFileSync(path.join(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8'))
@@ -209,7 +210,7 @@ check('W12-12 ★方向台四个组件里所有 button 都必须显式压掉浏�
     && /\.dz-months \.dz-cell'\)\.first\(\)\.waitFor/.test(audit)
     && /default-expanded/.test(read('/newtab/components/profile/PiYear.vue'))
     && !/await page\.locator\('\.dz-mini-more'\)\.first\(\)\.click/.test(audit)
-  return btnOk && panelOk && foldOk && expandOk
+  return btnOk && panelOk && foldOk && expandOk && !ln.includes('.tk-grade')
 });
 
 check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必须跟着搬一次；「关浮层」要认当届弹窗壳。★这一族是补跑真机抓出来的红，已迁五次：① 概览带宿主 DashboardOverview 退役 → PiHero ② 日详情搬进 Heatmap 的 Teleport 弹窗 ③ ReviewPanel 迁入画像页中央弹窗 ④ overlayOpen 壳名失配导致残留 ⑤ ★V3.9.3 四格核心读数从 PiHero 归位 PiOverview（`.pi-ov-kpis > .pi-ov-kpi`）。热力图宿主仍是画像页 PiYear，点热力格现为当日战报直接入口；ReviewPanel 四条场景已产品侧退役并留复活指引。★判据随迁只换承重锚，不换所守行为。', () => {
@@ -294,13 +295,11 @@ check('W12-C1 ★「点了详情不滑出抽屉」这条接线必须真的在：
   return /defineExpose\(\{[\s\S]{0,200}open/.test(tdd);
 });
 
-check('W12-C2 ★那枚写着「详情」实则开成熟度弹层的按钮必须正名（命名陷阱）。它走 emit(\'grade\') → showTaskGrade = 优先级成熟度依据弹层，从来不是任务详情抽屉；叫「详情」会把人引到错的去处——与 C1 的接线缺失叠加，才凑成用户报的「点了没反应」。判据：① 按钮文案是「成熟度」且带 title 说明 ② 负锚：任务行不许再出现文案为「详情」而指向 grade 的按钮 ③ 真正的详情入口挂在任务标题上（tk-title 由 span 改 button，单击 openDetail，带 title 提示）', () => {
+check('W12-C2（V4.4.0 退役重指）★任务成熟度按钮与评分弹层已退役：任务行不再出现 grade / 成熟度入口；任务标题本身就是详情按钮，单击 openDetail 且有完整 title 提示', () => {
   const t = read('/newtab/components/compass/CompassLane.vue');
   const lane = codeOnly(t);
-  if (!lane.includes('>成熟度</button>')) return false;
-  if (!t.includes('看这条任务的优先级成熟度依据')) return false;
-  if (/<button[^>]*>\s*详情\s*<\/button>/.test(lane)) return false;
-  if (/emit\('grade'[^)]*\)">详情/.test(t)) return false;
+  if (lane.includes('taskGrade') || lane.includes('showTaskGrade') || lane.includes('>成熟度</button>')) return false;
+  if (/emit\('grade'/.test(t)) return false;
   if (!/<button[^>]*class="tk-title"[^>]*@click="emit\('openDetail', t\.id\)"/.test(t)) return false;
   if (!t.includes('title="打开任务详情抽屉"')) return false;
   return true;
@@ -751,9 +750,10 @@ check('N2 ★单项目 AI 诊断（与设置页 diagnose 整库会诊**各走各
   const c = codeOnly(eng);
   if (!c.includes('export function runProjectDiagnosis')) return false;
   if (!c.includes('export const DIAG_DIM_LABEL')) return false;
-  if (!/progress: '项目完成情况'[\s\S]*metrics: '成功指标'[\s\S]*breakdown: '任务与任务拆解'[\s\S]*completion: '任务完成情况'[\s\S]*overall: '项目整体进展'/.test(c)) return false;
+  if (!/progress: '项目完成情况'[\s\S]*metrics: '成功指标'[\s\S]*breakdown: '计划与承接'[\s\S]*completion: '任务完成情况'[\s\S]*overall: '项目整体进展'/.test(c)) return false;
   if (!c.includes('STALL_WINDOW = 14 * DAY')) return false;
-  if (!c.includes('OVER_SUBTASKS = 8')) return false;
+  /* V4.4.0：子任务退役，项目诊断不再按子任务数量判过细。 */
+  if (c.includes('OVER_SUBTASKS') || c.includes('subtasks.length >')) return false;
   // ① 枚举标签只能经 f() 助手产出（AI 拿到的是 tag 名，自造词不进标签组）
   if (!c.includes('function f(dim')) return false;
   // ② AI 只写建议：apply 必须拿**规则重算**的那份盖章，不是拿模型回的结论

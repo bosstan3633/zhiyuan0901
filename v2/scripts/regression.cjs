@@ -92,6 +92,7 @@ const SHARDS = [
   '137-v434-calendar-focus-polish',
   '138-v435-curation-tree-final',
   '139-v437-navigation-curation',
+  '140-v440-logo-blue-curation-entry',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

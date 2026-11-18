@@ -3,33 +3,26 @@
 // 宿主：TaskManagerPanel（任务管理 Tab）+ CompassActions（今日三件事双击详情）
 // 用法：ref 后调用 open(task)；关闭/删除/保存逻辑全部内聚
 import Icon from '@/shared/components/Icon.vue'
-import { ref, computed, onMounted, onUnmounted, shallowRef, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
 import Drawer from '@/shared/components/Drawer.vue'
-import { useTaHeight } from '@/shared/utils/taHeight'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
-import type { AppData, TaskCard, Subtask, SupportLink, ResourceCard, AssetMeta } from '@/shared/models'
+import type { AppData, TaskCard, SupportLink, ResourceCard, AssetMeta } from '@/shared/models'
 import type { AiDepth } from '@/shared/ai/config'
 import { recordCardOpen } from '@/shared/storage/stats'
-import { buildSupportIndex, listBySub, listByTask, addSupportLink, removeSupportLink } from '@/shared/utils/supportLinks'
+import { buildSupportIndex, listByTask, addSupportLink, removeSupportLink } from '@/shared/utils/supportLinks'
 import { resourceOfSupportLink } from '@/shared/storage/resourceMirrors'
 // R152 口径：评审抽屉用模块作用域单例，不在 setup 里现造（此处原为 defineAsyncComponent 自建一份）
 import { AiDrawer } from '../lazyAiDrawer'
 import { showToast } from '@/shared/components/toast'
-import { downloadText } from '@/shared/utils/download'
-import { buildTaskExportDocument, taskExportHtml, taskExportMarkdown } from '@/shared/utils/taskExport'
-import ExportMenu, { type ExportFmt } from '@/newtab/components/dashboard/ExportMenu.vue'
 import TagPicker from '@/shared/components/TagPicker.vue'
 import AssetManager from '@/shared/components/AssetManager.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
-import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
-import SubtaskList from '@/shared/components/SubtaskList.vue'
-import { taskMaturity } from '@/shared/utils/maturity'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { setTaskStatus as commitTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
 
@@ -42,24 +35,19 @@ const emit = defineEmits<{ (e: 'closed'): void }>()
 const sidebarOpen = ref(false)
 const selectedTask = ref<TaskCard | null>(null)
 const taskTitleDraft = ref('')
-/** 第卅三轮 REQ-024：任务备注文本框高度（默认 180px，拖拽记忆） */
-const { taH: taskNoteH, startTaResize: startTaskNoteResize } = useTaHeight('task-note', store.ui)
 const selProjectId = ref('')
 const selMetricId = ref('')
 
-function open(task: TaskCard, opts?: { focusSub?: boolean }) {
+function open(task: TaskCard) {
   // R43-0 BUG-1 修复：selectedTask 必须指向 store 内的 reactive Proxy 元素
   selectedTask.value = d.value.tasks.find(x => x.id === task.id) || task
   taskTitleDraft.value = selectedTask.value.title
   selProjectId.value = selectedTask.value.projectId || ''
   selMetricId.value = selectedTask.value.metricId || ''
   sidebarOpen.value = true
-  // ★P4-D5：「＋ 拆分」直达 —— 抽屉开后把光标落进子任务输入框（能力与双击一致，少两步）
-  if (opts?.focusSub) void nextTick(() => subListRef.value?.focusAdd())
 }
 function close() { sidebarOpen.value = false; selectedTask.value = null; emit('closed') }
 defineExpose({ open, close })
-const subListRef = ref<InstanceType<typeof SubtaskList> | null>(null)
 
 /** B22：状态统一出口（completedAt 卫生清理） */
 function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
@@ -82,16 +70,14 @@ function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
   setTaskStatusOf(t, status)
   showToast('状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
 }
-// ---- R166 定案 6：任务详情三枚 AI 入口（补全 / 拆解 / 找资源）----
-// 三态与互斥：一把 `aiBusy` 锁（同时只跑一个，点了没反应会一直等是最难查的"卡"）；
-// 凭据共用 `aiTouchedAt`（三处写库都盖戳），所以 chip 走"最近 · 时间"的共享措辞、不硬猜是哪一枚动的。
-// ★ 三个工厂全部**点击时才 dynamic import**，AI 栈零静态引用（启动链零 AI 红线 + R134 入口 chunk 教训）。
+// V4.4.0：任务详情以「AI 找资源」为主入口，AI 补全降为说明区的次级工具；
+// AI 拆解、子任务、优先级、估时与导出退出任务详情，历史数据结构仅做兼容读取。
 const aiJob = shallowRef<import('@/shared/ai/job').AiJob | null>(null)
 const aiPersonaId = ref('default')
 const aiBusy = ref(false)
-type AiEntryKind = 'enrich' | 'breakdown' | 'support'
+type AiEntryKind = 'enrich' | 'support'
 
-/** 三入口共用的起法：读配置 → 就绪校验 → 带默认执笔专家 → 造 job。返回 null 表示已提示过、不必再开弹窗 */
+/** AI 入口共用的起法：读配置 → 就绪校验 → 带默认执笔专家 → 造 job。返回 null 表示已提示过、不必再开弹窗 */
 async function prepareAi(): Promise<{ d: AppData; depth: AiDepth } | null> {
   const [{ loadAiConfig, aiReady, aiConfig }] = await Promise.all([import('@/shared/ai/config')])
   await loadAiConfig()
@@ -102,24 +88,14 @@ async function prepareAi(): Promise<{ d: AppData; depth: AiDepth } | null> {
   return { d: d.value, depth: aiConfig.value.depth }
 }
 
-async function runAi(kind: AiEntryKind, subId?: string) {
+async function runAi(kind: AiEntryKind) {
   const t = selectedTask.value
   if (!t || aiBusy.value) return
   aiBusy.value = true
   try {
     const ctx = await prepareAi()
     if (!ctx) return
-    const self = () => void runAi(kind, subId)
-    if (kind === 'breakdown') {
-      const { buildChainJob } = await import('@/shared/ai/chain')
-      const job = buildChainJob('breakdown', t.id, {
-        d: ctx.d, depth: ctx.depth, persist: () => store.persist(),
-        personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; self() },
-      })
-      if (!job) { showToast('任务已不存在'); return }
-      aiJob.value = job
-      return
-    }
+    const self = () => void runAi(kind)
     if (kind === 'enrich') {
       const { buildTaskEnrichJob } = await import('@/shared/ai/taskEnrich')
       aiJob.value = buildTaskEnrichJob(t, {
@@ -130,7 +106,7 @@ async function runAi(kind: AiEntryKind, subId?: string) {
     }
     const { buildTaskSupportJob } = await import('@/shared/ai/taskSupport')
     const job = buildTaskSupportJob({
-      d: ctx.d, depth: ctx.depth, persist: () => store.persist(), taskId: t.id, ...(subId ? { subId } : {}),
+      d: ctx.d, depth: ctx.depth, persist: () => store.persist(), taskId: t.id,
       personaId: aiPersonaId.value, onPersona: (id) => { aiPersonaId.value = id; self() },
     })
     if (!job) { showToast('任务已不存在'); return }
@@ -138,8 +114,7 @@ async function runAi(kind: AiEntryKind, subId?: string) {
   } finally { aiBusy.value = false }
 }
 const aiEnrich = () => runAi('enrich')
-const aiBreakdown = () => runAi('breakdown')
-const aiSupport = (subId?: string) => runAi('support', subId)
+const aiSupport = () => runAi('support')
 /* 采纳后不需要额外同步：`open()` 把 selectedTask 指到 store 里的 reactive 卡本体，
    AI 的 apply 写的就是同一个代理对象 ⇒ 弹窗一关，清单/支持区/头部胶囊已经变了。 */
 /** R165-A：链接动作贴对象（打开走全站统一协议白名单；复制进剪贴板） */
@@ -155,24 +130,10 @@ function copyTaskLink() {
   if (!t || !t.link) { showToast('链接为空'); return }
   navigator.clipboard?.writeText(t.link).then(() => showToast('链接已复制')).catch(() => {})
 }
-/* R166 定案 1：子任务是**本卡内嵌字段**，不再反查别的卡——
-   原 R144 的 parentTask / childTasks / promoteSubtask（父指针双向查表）随 parentId 退役。 */
-const subtasks = computed(() => selectedTask.value?.subtasks || [])
-const subtaskDone = computed(() => subtasks.value.filter(s => s.done).length)
-/** 清单改动即写回本卡（随卡 persist；清单行不是卡，没有回收站也没有撤销） */
-function onSubtasksUpdate(v: Subtask[]) {
-  const t = selectedTask.value
-  if (!t) return
-  t.subtasks = v
-  touchTask()
-}
 /* R166 定案 5：资源支持住在独立关联表——反查索引一次建、O(1) 查，不在渲染路径里 filter 全表 */
 const supportIdx = computed(() => buildSupportIndex(d.value))
-const supportFocusId = ref('')
 const supportDraft = ref('')
-function supCountOf(subId: string): number { return listBySub(supportIdx.value, subId).length }
-function openSupport(s: Subtask) { supportFocusId.value = s.id; void runAi('support', s.id) }
-/** 本任务（含其子任务）的关联行；资源查不到的一律不显（软删过滤已在索引里做过） */
+/** 本任务的关联行；资源查不到的一律不显（软删过滤已在索引里做过） */
 const supportRows = computed(() => {
   const t = selectedTask.value
   if (!t) return [] as { link: SupportLink; resource: ResourceCard }[]
@@ -217,12 +178,11 @@ async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
   // R141：统一软删语义——置 deletedAt 同时摘净 metric.taskIds 引用（撤销时回填）
-  const kids = subtasks.value.length
   softDeleteTaskToTrash(d.value, t)
   store.persist()
   close()
-  // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）；R166 定案 1：子任务是本卡内嵌字段，随卡一起进回收站
-  showToast(`已删除「${t.title.slice(0, 20)}」${kids ? ` · 含 ${kids} 个子任务`: ''}`, { label: '撤销', cb: () => {
+  // REQ-030：撤销（含指标 taskIds 回填，按 id 定位当前树）。
+  showToast(`已删除「${t.title.slice(0, 20)}」`, { label: '撤销', cb: () => {
     const cur = d.value.tasks.find(x => x.id === taskId)
     if (cur && cur.deletedAt) {
       cur.deletedAt = undefined
@@ -279,17 +239,6 @@ function saveTaskTitleAndClose() {
   close()
 }
 
-/** 导出当前任务卡。附件只写元数据，绝不读取 IndexedDB 中的 Blob。 */
-function exportTask(fmt: ExportFmt): void {
-  const current = selectedTask.value
-  if (!current || (fmt !== 'md' && fmt !== 'html')) return
-  const snapshot = { ...current, title: taskTitleDraft.value.trim() || current.title }
-  const doc = buildTaskExportDocument(d.value, snapshot)
-  if (fmt === 'md') downloadText(`${doc.filenameBase}.md`, taskExportMarkdown(doc), 'md')
-  else downloadText(`${doc.filenameBase}.html`, taskExportHtml(doc), 'html')
-  showToast(`已导出任务卡 ${fmt === 'md' ? 'Markdown' : 'HTML'}（不含附件本体）`)
-}
-
 // B1：级联选择项目 → 指标
 const sidebarProjects = computed(() => allProjects())
 const sidebarMetrics = computed(() =>
@@ -330,14 +279,6 @@ function updatePlannedDate(value: string): void {
   selectedTask.value.updatedAt = Date.now()
   store.persist()
   showToast(value ? `计划执行日期已设为 ${value}` : '已取消排期，任务回到卡片池')
-}
-
-function updateEstimatedMinutes(value: string): void {
-  if (!selectedTask.value) return
-  const minutes = Number(value)
-  selectedTask.value.estimatedMinutes = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : undefined
-  selectedTask.value.updatedAt = Date.now()
-  store.persist()
 }
 
 async function addToTodayFocus(): Promise<void> {
@@ -386,14 +327,6 @@ function pickStatus(status: 'todo' | 'doing' | 'done') {
   statusMenuOpen.value = false
   if (selectedTask.value) setTaskStatus(selectedTask.value, status)
 }
-/** R48：优先级下拉直选（替代点击循环切换） */
-function setPriority(p: 'low' | 'medium' | 'high') {
-  if (!selectedTask.value) return
-  selectedTask.value.priority = p
-  selectedTask.value.updatedAt = Date.now()
-  store.persist()
-}
-
 // B23：抽屉快捷键挂文档级（焦点在 TagPicker 浮层等 Teleport 内容内也能生效）
 /**
  * R166 定案 7「Esc 分层关闭」：AI 评审弹窗开着时，Esc 只关弹窗，**不许顺手把底下的详情抽屉也关掉**。
@@ -418,8 +351,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <div class="ts-title-wrap">
           <div class="ts-title-row">
             <div class="check-lg" v-pressable :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
-            <textarea v-model="taskTitleDraft" class="ts-title" rows="2" placeholder="任务标题..." @blur="saveTaskTitle" />
-            <ExportMenu class="ts-title-export" :formats="['md', 'html']" align="end" @pick="exportTask" />
+            <textarea v-model="taskTitleDraft" class="ts-title" rows="3" placeholder="写下一条完整、可执行的任务…" @blur="saveTaskTitle" />
           </div>
           <div class="ts-head-row2">
             <div class="ds-status-wrap" data-a11y-container @click.stop>
@@ -429,8 +361,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               </div>
             </div>
             <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
-            <span v-if="subtasks.length" class="ts-rel-chip" :title="`子任务 ${subtaskDone}/${subtasks.length} 已完成（不进成熟度与周报计分）`"><Icon name="corner" :size="13"/> 子任务 {{ subtaskDone }}/{{ subtasks.length }}</span>
-            <MaturityBadge lg :m="taskMaturity(selectedTask)" title="成熟度=可执行/可归属/新鲜度（规则引擎即时评）" />
             <AiTouchedChip :ts="selectedTask.aiTouchedAt" verb="" />
           </div>
         </div>
@@ -461,57 +391,28 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <Icon name="compass" :size="13"/> 查看项目全景（全部指标与任务）›
         </button>
         <div class="ts-section ts-plan-section">
-          <div class="ds-prop-label"><Icon name="calendar" :size="13"/> 计划与投入</div>
+          <div class="ds-prop-label"><Icon name="calendar" :size="13"/> 计划执行</div>
           <div class="ts-plan-grid">
             <label class="ts-plan-field">
               <span>计划执行日期</span>
               <input type="date" :value="selectedTask.dueDate || ''" @change="updatePlannedDate(($event.target as HTMLInputElement).value)">
             </label>
-            <label class="ts-plan-field">
-              <span>预计用时（分钟）</span>
-              <input type="number" min="5" step="5" :value="selectedTask.estimatedMinutes ?? ''" placeholder="可选" @change="updateEstimatedMinutes(($event.target as HTMLInputElement).value)">
-            </label>
           </div>
-          <div class="ts-plan-note">没有“截止日期”字段。留空即未排期；拖入今天也不会自动进入今日三件事。</div>
+          <div class="ts-plan-note">没有“截止日期”字段。留空即未排期；拖入今日日历会同步进入今日三件事。</div>
           <button class="ts-focus-btn" type="button" @click="addToTodayFocus">
             <Icon name="target" :size="13" /> 设为今日重点
-            <span>只写今天的计划位，不改状态、日期或归属</span>
+            <span>同步写入今天的计划执行日期，不改状态与归属</span>
           </button>
-        </div>
-        <!-- AI 三入口是同一组工具；导出已上移到标题栏右侧。 -->
-        <div class="ts-action-bar">
-          <div class="ts-ai-group" role="group" aria-label="AI 任务工具">
-            <span class="ts-tool-label"><Icon name="sparkles" :size="13"/> AI 工具</span>
-            <div class="ts-ai-row">
-              <button class="ts-ai-cell" :disabled="aiBusy" title="AI 对照本卡现状找缺项（验收标准 / 标签 / 归属 / 估时），已填的不覆盖；弹窗左右对照逐条采纳" @click="aiEnrich">
-                <AiEntryButton variant="inline" label="补全" :spin="aiBusy" />
-              </button>
-              <button class="ts-ai-cell" :disabled="aiBusy" title="AI 拆解本任务：采纳为子任务清单，或只把步骤写进详情（双通道）；可换执笔专家" @click="aiBreakdown">
-                <AiEntryButton variant="inline" label="拆解" :spin="aiBusy" />
-              </button>
-              <button class="ts-ai-cell" :disabled="aiBusy" title="AI 围绕本任务盘点资源卡池，推荐能支持它的资源（勾选采纳才建关联，两张卡本体都不改）" @click="aiSupport()">
-                <AiEntryButton variant="inline" label="找资源" :spin="aiBusy" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <!-- R48：说明区上移为 Hero（此前被四个大下拉挤到最底部） -->
-        <div class="ts-section">
-          <div class="ds-hero-label">说明 <span class="hint">— 补充上下文 · 验收标准</span></div>
-          <div class="ta-wrap">
-            <textarea v-model="selectedTask.description" class="ds-desc" :style="{ height: taskNoteH + 'px' }" placeholder="补充说明、上下文、验收标准…" @blur="touchTask"></textarea>
-            <div class="ta-resize" @mousedown="startTaskNoteResize" title="拖拽调节高度（记忆保存）"></div>
-          </div>
-        </div>
-        <!-- R166 F1/F2：子任务清单紧跟说明——它是本卡内容，不是独立卡，不进看板/指标/周报 -->
-        <div class="ts-section">
-          <div class="ds-hero-label"><Icon name="corner" :size="13"/> 子任务清单 <span class="hint">— 本卡内容 · 不是独立任务卡 · 完成不进计分</span></div>
-          <SubtaskList ref="subListRef" :subtasks="subtasks" :sup-count="supCountOf" @update="onSubtasksUpdate" @sup="openSupport" />
         </div>
         <!-- R166 定案 5/F4：资源支持区——行=资源标题+AI 判词，点行打开链接并计热度，× 只删关联记录。
              两张卡本体互不持有 id（关联住在 AppData.supportLinks 独立表），「卡间零挂载」红线不破。 -->
-        <div class="ts-section">
-          <div class="ds-hero-label"><Icon name="compass" :size="13"/> 资源镜像 <span class="hint">— 挂载时独立留存 · 删源卡不影响这里 · 解绑不动真身</span></div>
+        <div class="ts-section ts-resource-section">
+          <div class="ds-hero-label ts-resource-head">
+            <span class="ts-resource-title"><Icon name="compass" :size="14"/> 资源镜像 <span class="hint">— 为任务找到可复用的资源</span></span>
+            <button class="ts-ai-primary" :disabled="aiBusy" title="AI 从资源卡池中寻找能支持本任务的资源（勾选采纳后才建立关联）" @click="aiSupport()">
+              <AiEntryButton variant="inline" label="AI 找资源" :spin="aiBusy" />
+            </button>
+          </div>
           <div v-if="supportRows.length" class="ts-sup">
             <div v-for="row in supportRows" :key="row.link.id" class="ts-sup-row" :title="row.link.why || '点击打开资源链接'">
               <span class="ts-sup-nm" v-pressable @click="openSupportResource(row.resource)">{{ row.resource.title.slice(0, 40) }}</span>
@@ -521,21 +422,25 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <span class="ts-sup-x" v-pressable title="解除关联（只删这条记录；资源卡与任务卡都不动）" @click.stop="unlinkSupport(row.link.id)">×</span>
             </div>
           </div>
-          <div v-else class="ts-sup-empty">还没有关联的资源——点上方「找资源」让 AI 从资源台里挑，或在下面手动挂。</div>
+          <div v-else class="ts-sup-empty">还没有关联资源。先让 AI 从资源卡池里找，或手动关联已有资源。</div>
           <div class="ts-sup-add">
-            <input v-model="supportDraft" list="ts-sup-cands" placeholder="手动关联：搜资源标题回车即挂上（不走 AI，标记为手动）" @keydown.enter.prevent="addSupportManual">
+            <input v-model="supportDraft" list="ts-sup-cands" placeholder="手动关联：搜索资源标题…" @keydown.enter.prevent="addSupportManual">
             <datalist id="ts-sup-cands">
               <option v-for="r in supportDraftCands" :key="r.id" :value="r.title" />
             </datalist>
             <button class="ts-sup-btn" :disabled="!supportDraft.trim()" @click="addSupportManual">挂上</button>
           </div>
         </div>
-        <!-- R165-A：优先级 3 段 segment（单击直达，语义色 tint）；链接升整行 + 动作贴边 -->
-        <div class="ts-section">
-          <div class="ds-prop-label"><Icon name="zap" :size="13"/> 优先级</div>
-          <div class="ts-prio">
-            <button v-for="p in (['high','medium','low'] as const)" :key="p" :data-p="p" :class="{ on: selectedTask.priority === p }"
-              @click="setPriority(p)"><Icon name="dot" :size="9" :class="p === 'high' ? 'zy-dot-hi' : p === 'medium' ? 'zy-dot-mi' : 'zy-dot-lo'"/>{{ p === 'high' ? '高' : p === 'medium' ? '中' : '低' }}</button>
+        <!-- V4.4.0：说明降为次要上下文，放在资源镜像之后，限制为 3 行小框。 -->
+        <div class="ts-section ts-note-section">
+          <div class="ds-hero-label ts-note-head">
+            <span>说明 <span class="hint">— 可选上下文</span></span>
+            <button type="button" class="ts-ai-inline" :disabled="aiBusy" title="AI 对照本卡现状补全缺项，已填内容不覆盖" @click="aiEnrich">
+              <AiEntryButton variant="inline" label="AI 补全" :spin="aiBusy" />
+            </button>
+          </div>
+          <div class="ta-wrap">
+            <textarea v-model="selectedTask.description" class="ds-desc ts-note-compact" rows="3" placeholder="补充关键约束或执行提示…" @blur="touchTask"></textarea>
           </div>
         </div>
         <div class="ts-section">
@@ -569,7 +474,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         </div>
     </template>
   </Drawer>
-  <!-- R135-C2′：拆解建议评审抽屉（步骤子任务+行动方案，勾选采纳才落库；置于 Transition 外保单子节点约束） -->
+  <!-- V4.4.0：任务 AI 评审抽屉只承载资源匹配与任务补全；拆解与子任务能力已退役。 -->
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
@@ -592,7 +497,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 
 .ts-plan-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -669,18 +574,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-owner .ds-prop-label { flex: none; margin: 0; display: inline-flex; align-items: center; gap: 4px; }
 .ts-owner .ds-prop-select { flex: 1; min-width: 0; margin: 0; padding: 0 5px; border: 0; background: transparent; }
 .ts-owner .ds-prop-select:focus { box-shadow: none; }
-.ts-action-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.ts-ai-group { min-width: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
-.ts-tool-label { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px 0 3px; color: var(--text-3); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
-.ts-ai-row { display: grid; grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 4px; flex: 1; min-width: 0; }
-.ts-ai-cell {
-  min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  min-height: 30px; padding: 4px 8px; border-radius: 8px; cursor: pointer;
-  font-size: var(--fs-sub); font-weight: 600; border: 1px solid transparent; color: var(--text-2); background: var(--surface);
-  font-family: inherit; transition: all var(--dur); white-space: nowrap; overflow: visible;
-}
-.ts-ai-cell:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
-.ts-ai-cell:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; box-shadow: none; }
 /* R166 F4：资源支持区（点行打开、× 解绑只删记录） */
 .ts-sup { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); overflow: hidden; }
 .ts-sup-row { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border-bottom: 1px solid var(--border); font-size: var(--fs-sub); }
@@ -701,15 +594,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
-.ts-title-export { flex: none; position: relative; margin-left: auto; align-self: flex-start; }
-.ts-title-export :deep(.dz-exp-trigger) {
-  min-height: 34px; padding: 0 12px; border-color: var(--accent); border-radius: var(--radius-sm);
-  background: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 3px 10px var(--accent-glow);
-}
-.ts-title-export :deep(.dz-exp-trigger:hover) { border-color: var(--accent-hover); background: var(--accent-hover); color: #fff; }
-/* R144：父子软层级徽标（子 ↳ 父名 + ⤴ 升顶层；父显子任务数） */
-.ts-rel-chip { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
-.ts-rel-chip.sub { color: var(--text-2); border-style: dashed; }
 .ts-body { min-width: 0; }
 .ts-section { margin-bottom: 16px; }
 .ts-goto { margin-top: 7px; font-size: var(--fs-caption); color: var(--accent); cursor: pointer; }
@@ -717,21 +601,27 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 /* V3.9.31（F1）：全景直达按钮 —— 复用 .ts-goto 链接观感，补 button 形态重置与禁用态 */
 .ds-goto-pano { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font-family: inherit; font-size: var(--fs-caption); }
 .ds-goto-pano:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; text-decoration: none; }
-/* 第卅三轮 REQ-024：文本框拖拽手柄（高度经 UIPrefs.taHeights 记忆） */
 .ta-wrap { position: relative; }
-.ta-resize { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 12px; cursor: ns-resize; z-index: 2; opacity: .45; border-right: 3px solid var(--text-3); border-bottom: 3px solid var(--text-3); border-bottom-right-radius: 3px; }
-.ta-resize:hover { opacity: .9; }
-/* R165-A：优先级 3 段 segment（语义色 tint，对比度过 4.5） */
-.ts-prio { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 4px; }
-.ts-prio button { padding: 7px 16px; font-size: var(--fs-sub); background: var(--surface-2); border: 0; color: var(--text-3); cursor: pointer; transition: all var(--dur); font-family: inherit; display: inline-flex; align-items: center; gap: 5px; }
-/* G1（V3.8.25）：优先级彩点原本是 🔴🟡🟢 裸 emoji，迁移后只剩文字。点色由 .zy-dot-* 工具类给，
-   未选中态也保留彩点（优先级语义不随选中态消失）；选中态由 button.on 的文字色与底色承担。 */
-.ts-prio button .zy-dot { opacity: .85; }
-.ts-prio button + button { border-left: 1px solid var(--border); }
-.ts-prio button.on { font-weight: 600; }
-.ts-prio button.on[data-p="high"] { color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 55%, transparent); }
-.ts-prio button.on[data-p="medium"] { color: var(--warning); background: color-mix(in srgb, var(--warning) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 55%, transparent); }
-.ts-prio button.on[data-p="low"] { color: var(--success); background: color-mix(in srgb, var(--success) 16%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--success) 55%, transparent); }
+.ts-note-section { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
+.ts-note-head { align-items: center; justify-content: space-between; }
+.ts-note-compact { min-height: 64px; max-height: 96px; resize: vertical; line-height: 1.6; background: transparent; padding: 4px 0 0; }
+.ts-ai-inline, .ts-ai-primary { padding: 0; border: 0; background: transparent; font-family: inherit; }
+.ts-ai-inline { margin-left: auto; }
+.ts-ai-primary {
+  display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-ink);
+}
+.ts-ai-primary:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent-light) 72%, var(--surface)); }
+.ts-ai-primary:disabled, .ts-ai-inline:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.ts-resource-section {
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-light) 36%, var(--surface));
+}
+.ts-resource-head { align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ts-resource-title { display: inline-flex; align-items: center; gap: 6px; color: var(--text); letter-spacing: 0; text-transform: none; }
 /* R165-A：链接整行 + 动作贴边 */
 .ts-link-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
 .ts-link-input { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-body); color: var(--text); font-family: inherit; outline: none; }
@@ -753,9 +643,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 
 @media (max-width: 560px) {
   .ts-owner { grid-template-columns: 1fr; }
-  .ts-action-bar { align-items: stretch; flex-wrap: wrap; }
-  .ts-ai-group { width: 100%; align-items: flex-start; flex-direction: column; }
-  .ts-tool-label { padding: 1px 3px 3px; }
-  .ts-title-export { margin-left: 0; }
+  .ts-resource-head { align-items: flex-start; gap: 8px; }
+  .ts-resource-title .hint { display: none; }
 }
 </style>

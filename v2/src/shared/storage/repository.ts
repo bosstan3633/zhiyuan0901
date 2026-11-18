@@ -14,6 +14,7 @@ import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 import { hydrateResourceMirrorSnapshots } from './resourceMirrors'
 import { hydrateResourceFolderMirrorSnapshots, pruneResourceFolderMirrors } from './resourceFolders'
 import { reconcileCapturedResources } from './captureDedupe'
+import { resolveTheme } from '@/shared/utils/theme'
 // 第卌四轮 T-05：卡片操作事件日志——保存链路快照 diff 自动产出 create/delete/restore/purge
 import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog, EVENT_LOG_KEY } from '@/shared/utils/eventLog'
 // R174-3：按日聚合快照落盘（热力图不褪色的数据地基，时间闸小载荷，见 dailyStatsStore.ts）
@@ -657,7 +658,7 @@ export async function loadUIPrefs(prefetchedUI?: unknown): Promise<UIPrefs> {
   if (uiCache) return uiCache
   const cs = chromeStore()
   const defaults: UIPrefs = {
-    theme: 'linear',
+    theme: 'raycast',
     viewMode: 'card',
     tcSplitRatio: 50,
     wsSwitchMod: 'alt'
@@ -671,8 +672,14 @@ export async function loadUIPrefs(prefetchedUI?: unknown): Promise<UIPrefs> {
   uiCache = { ...defaults, ...(uiRaw as UIPrefs | undefined) }
   // O18：旧默认 ctrl 迁移为 alt
   if (uiCache.wsSwitchMod === 'ctrl') { uiCache.wsSwitchMod = 'alt'; saveUIPrefs({ wsSwitchMod: 'alt' }) }
-  // 视觉重构（V2.3）：旧默认 green 迁移为 linear；R53-D：主题精简四套——已删除的 green/night 一并迁移（幂等）
-  if (uiCache.theme === 'green' || uiCache.theme === 'night') { uiCache.theme = 'linear'; saveUIPrefs({ theme: 'linear' }) }
+  // V4.4.0：主题收敛为三套。旧 green/night/linear → 光速黑；旧 auto 按系统明暗落到光速黑/极简白。
+  if (uiCache.theme === 'auto') {
+    uiCache.theme = resolveTheme('auto')
+    saveUIPrefs({ theme: uiCache.theme })
+  } else if (uiCache.theme === 'green' || uiCache.theme === 'night' || uiCache.theme === 'linear') {
+    uiCache.theme = 'raycast'
+    saveUIPrefs({ theme: 'raycast' })
+  }
   // R126（诉求 5）：应用全局默认冷却天数（缺省 30）
   setCoolingDefaultDays(uiCache.coolingDaysDefault ?? 30)
   return uiCache

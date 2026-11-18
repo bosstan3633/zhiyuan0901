@@ -1,9 +1,7 @@
 <script setup lang="ts">
 /**
- * W6（V3.8.6）#3：任务卡**右上角** AI 入口 —— 点击直接跑「补全」（enrich），不再弹菜单。
- * 用户拍板：卡片视图的 AI 入口不应是「打开任务详情」或「拆解子任务」菜单——
- * 详情走单击卡片（onTaskRowClick 既有 260ms 去重），这里就该是纯 AI 功能直跑。
- * 与 TaskAiMenu 并存（R147-5）：菜单形态留给列表/看板/项目页行位，本组件只做卡片角标形态。
+ * V4.4.0：任务卡右上角 AI 入口直接为任务寻找资源支持。
+ * 详情仍走单击卡片；AI 能力收敛为「找资源」，不再在卡面暴露补全或拆解。
  * 自包含纪律（承 TaskAiMenu/CardAiEntry）：按钮、评审抽屉、样式都在本组件内，
  * AI 依赖零静态引用，点击时才 dynamic import。
  */
@@ -26,12 +24,12 @@ async function run() {
   try {
     const d = store.data
     if (!d) return
-    const [{ loadAiConfig, aiReady, aiConfig }, { buildTaskEnrichJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/taskEnrich')])
+    const [{ loadAiConfig, aiReady, aiConfig }, { buildTaskSupportJob }] = await Promise.all([import('@/shared/ai/config'), import('@/shared/ai/taskSupport')])
     await loadAiConfig()
     if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
     if (personaId.value === 'default' && aiConfig.value.defaultPersona) personaId.value = aiConfig.value.defaultPersona
-    job.value = buildTaskEnrichJob(props.task, {
-      d, depth: aiConfig.value.depth, persist: () => store.persist(),
+    job.value = buildTaskSupportJob({
+      d, depth: aiConfig.value.depth, persist: () => store.persist(), taskId: props.task.id,
       personaId: personaId.value,
       onPersona: (id) => { personaId.value = id; void run() },
     })
@@ -40,7 +38,7 @@ async function run() {
 </script>
 
 <template>
-  <button class="taic-btn" title=" AI 补全本任务（勾选采纳才写库，可换执笔专家）" @click.stop="run"><AiEntryButton :spin="busy" /></button>
+  <button class="taic-btn" title="AI 从资源卡池为本任务寻找支持（勾选采纳后才建立关联）" @click.stop="run"><AiEntryButton :spin="busy" /></button>
   <AiDrawer v-if="job" :job="job" @close="job = null" />
 </template>
 

@@ -111,14 +111,14 @@ check('W15-5 ★行末动作常驻 + 镜像入口两侧同口径：① 列表行
     && !/r\.workspaceId\s*=\s*(?!=)/.test(POOL_C);
 });
 
-check('W15-6（V4.3.1 重指）★首屏焦点仍收在一张今日工作单里：三件事改为一行三列，子任务线索仍在卡内，点击复用共享任务详情；旧「全貌子任务区」不得作为第二个强模块回流', () => {
+check('W15-6（V4.4.0 重指）★首屏焦点仍收在一张今日工作单里：三件事一行三列，任务卡不再展示子任务线索，旧「全貌子任务区」不得回流；点击任务继续复用共享详情', () => {
   return HOME.includes('class="focus-list"')
     && HOME.includes('class="focus-row focus-card"')
-    && HOME.includes('子任务 {{ c.task.subtasks.filter(s => s.done).length }}/{{ c.task.subtasks.length }}')
     && HOME.includes('drawerRef.value?.open(c.task)')
     && HOME_C.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }')
     && /\.focus-list \{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(HOME_C)
     && HOME_C.includes('.hand-board { margin-top: 0; }')
     && !HOME.includes('class="focus-sub-zone"')
+    && !HOME.includes('c.task.subtasks')
     && !/<section class="module">\s*<FocusDetail/.test(HOME.replace(/\n\s*/g, ' '));
 });

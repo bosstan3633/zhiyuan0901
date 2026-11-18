@@ -42,7 +42,7 @@ function assignCommandList(): string {
 
 export const MANUAL: ManualPart[] = [
   {
-    title: '流程篇 · 先看这里（V4.3.7）',
+    title: '流程篇 · 先看这里（V4.4.0）',
     sections: [
       { id: 'flow-1', title: '一张图看懂：从采集到行动', html: `
         <p>先用流程理解产品，再看后面的细节。每一步都只问一个问题：<b>这条信息下一步要去哪里？</b></p>
@@ -261,7 +261,7 @@ export const MANUAL: ManualPart[] = [
         <h4>☁ 云同步、自动同步与同步历史</h4>
         <ul>
           <li><b>顶栏右上角只常驻高频入口</b>：云同步、搜索与“更多”。云同步主按钮只显示状态灯和“已同步 / 待同步 / 断线”，完整关系、最近同步时间、历史与设置从旁边的小箭头展开；主题和全局设置收进“更多”。</li>
-          <li><b>三色呼吸灯</b>：<b>绿色</b>表示本地与云端一致，<b>黄色</b>表示本机待上传、云端待拉回或方向待确认，<b>红色</b>表示断线、异常、未启用或未登录。</li>
+          <li><b>同步状态文字</b>：<b>已同步</b>表示本地与云端一致，<b>待同步</b>表示本机待上传、云端待拉回或方向待确认，<b>断线</b>表示异常、未启用或未登录。</li>
           <li>登录后点顶栏主按钮会按当前关系执行手动同步。成功后会弹出<b>本次同步明细</b>；新增记录可删、删除记录可恢复、修改记录可在指纹一致时回退。所有动作只改本机并进入待同步，不会绕过下一次同步静默覆盖云端。</li>
           <li><b>自动同步</b>默认关闭。登录后可在设置中开启，浏览器约每 60 分钟安全合并一次：不同记录、不同字段自动取并集；同一条记录的同一字段被两端改成不同值时暂停并等待确认。普通卡片、策展台、方向树、今日三件事和镜像关系进入同步；主题、页面布局、抽屉宽窄、筛选与排序偏好只留本机。浏览器完全关闭期间不保证后台执行，下次打开会补查。</li>
           <li><b>同步历史</b>可从顶栏云同步面板和设置中心进入，最近 20 次、最长 30 天。每条历史都能重新打开批次回执与记录详情；动作载荷过期后仍可看摘要，但不能再操作。</li>
@@ -299,7 +299,7 @@ export const MANUAL: ManualPart[] = [
           <li><strong>你动过的格子系统不再插手</strong>：手工选的那格不带荐标、也不参与自动重排；自动写入<strong>只占"今天这一天的计划位"</strong>——不改任务卡、不改状态、不改归属。同一天再打开不覆盖你的改动。</li>
           <li>空槽「＋ 从任务库选取」即手工入口（R53 起顶部不再放重复按钮）：已完成与已选入的任务自动置灰；置顶任务排在最前；「复制昨日 / 导出」在模块右上角。</li>
           <li><strong>三个槽位始终在位</strong>：不足三件时，剩余槽位仍显示「＋ 从任务库选取」，不会因为过滤或任务失效而少一格；失效槽按原槽位重选，不覆盖其他计划位。</li>
-          <li><strong>呼吸灯</strong>提示聚焦（选中/完成后转为常亮）；复选框并入标题行；<strong>单击</strong>任务卡 → 打开任务详情；<strong>双击</strong>同样进入详情；右上角 × 可移除后从任务库重选。</li>
+          <li><strong>完成态</strong>以复选框与状态文字提示；<strong>单击</strong>任务卡 → 打开任务详情；<strong>双击</strong>同样进入详情；右上角 × 可移除后从任务库重选。</li>
           <li><b>任务工作面</b>用「未排期 / 未归档 / 主攻项目 / 已逾期」四个快捷筛选覆盖日常盘点；左侧只列没有计划执行日期的任务，已完成是否出现交给上方状态筛选。任务卡可直接拖到日历日期，也可拖回待排期区取消排期。</li>
           <li><b>今日战报是页头主入口</b>：先打开当日弹窗，再在后台补齐账号级操作记录；可在浏览器快捷键设置里为“打开今日战报”分配一个无默认键的快捷键。</li>
           <li><b>任务卡是状态唯一真源</b>：在今天勾选会同步任务卡状态；从任务池或详情改状态，也会立即反映到今天的重点卡。</li>
@@ -640,20 +640,20 @@ export function buildManualStandaloneHtml(): string {
   a.t-item { display: block; padding: 6px 10px; border-radius: 6px; color: #3C3F45; text-decoration: none; font-size: 13px; border-left: 2px solid transparent; }
   a.t-item:hover { background: #F0F0F3; color: #17181C; }
   /* H2 分享版同步：目录项随滚动点亮（分享版是纯静态页，用一段 12 行原生 JS 做同样的事） */
-  a.t-item.on { color: #3B4BC4; background: #EDF0FA; border-left-color: #5E6AD2; font-weight: 600; }
+  a.t-item.on { color: #0B668F; background: #E8F4FA; border-left-color: #1579AD; font-weight: 600; }
   main { flex: 1; min-width: 0; }
   /* H1 分享版同步：章节改为发丝线分隔（应用内页同款），正文行宽 ≤68ch */
   section { border-top: 1px solid #E7E8EC; padding: 30px 0 34px; scroll-margin-top: 20px; }
   section:first-of-type { border-top: 0; padding-top: 0; }
-  .s-part { font-size: 11px; font-weight: 700; color: #5E6AD2; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+  .s-part { font-size: 11px; font-weight: 700; color: #1579AD; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
   h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 16px; }
   .doc { max-width: 68ch; }
   .doc p { margin: 8px 0; }
-  .doc h4 { font-size: 15px; font-weight: 700; line-height: 1.35; margin: 20px 0 8px; padding-left: 9px; border-left: 3px solid #5E6AD2; }
+  .doc h4 { font-size: 15px; font-weight: 700; line-height: 1.35; margin: 20px 0 8px; padding-left: 9px; border-left: 3px solid #1579AD; }
   .doc ul { padding-left: 20px; margin: 6px 0; }
   .doc li { margin: 5px 0; }
   .doc b { color: #17181C; }
-  .doc strong { color: #5E6AD2; font-weight: 700; }
+  .doc strong { color: #1579AD; font-weight: 700; }
   /* H1 分享版同步：code / kbd 同档等宽（应用内页同款） */
   .doc code, .doc kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
   .doc code { background: #EFEFF1; border-radius: 4px; padding: 1px 6px; }
@@ -663,31 +663,31 @@ export function buildManualStandaloneHtml(): string {
   .doc .mc-flow { display: flex; flex-wrap: wrap; gap: 6px 10px; background: #F7F7F8; border: 1px dashed #D5D6DB; border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 13px; }
   .doc .mc-steps { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
   .doc .mc-step { display: flex; gap: 10px; background: #F7F7F8; border-radius: 10px; padding: 9px 12px; font-size: 13px; }
-  .doc .mc-n { flex-shrink: 0; width: 22px; height: 22px; border-radius: 7px; background: #5E6AD2; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
-  .doc .mc-tip { background: #EDF0FA; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 13px; line-height: 1.8; }
+  .doc .mc-n { flex-shrink: 0; width: 22px; height: 22px; border-radius: 7px; background: #1579AD; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .doc .mc-tip { background: #E8F4FA; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 13px; line-height: 1.8; }
   .doc .mc-warn { background: #FBF1DE; border-radius: 10px; padding: 10px 14px; margin: 12px 0; font-size: 13px; line-height: 1.8; }
-  .doc .mc-quote { background: linear-gradient(135deg, #EDF0FA, #fff); border-left: 3px solid #5E6AD2; border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 12px 0; font-size: 14px; line-height: 2; color: #17181C; }
+  .doc .mc-quote { background: linear-gradient(135deg, #E8F4FA, #fff); border-left: 3px solid #1579AD; border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 12px 0; font-size: 14px; line-height: 2; color: #17181C; }
   .doc .mc-table { display: block; overflow-x: auto; width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
   .doc .mc-table th { text-align: left; background: #EFEFF1; padding: 7px 10px; border: 1px solid #E3E4E8; }
   .doc .mc-table td { padding: 7px 10px; border: 1px solid #E3E4E8; vertical-align: top; }
   .doc .mnz-sub { color: #6C7076; margin: -6px 0 14px; }
   .doc .mnz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 12px 0; }
   .doc .mnz-card { background: #F7F7F8; border: 1px solid #E3E4E8; border-radius: 10px; padding: 11px 13px; }
-  .doc .mnz-card .n { font-size: 11px; font-weight: 700; color: #5E6AD2; letter-spacing: .08em; }
+  .doc .mnz-card .n { font-size: 11px; font-weight: 700; color: #1579AD; letter-spacing: .08em; }
   .doc .mnz-card h5 { margin: 4px 0; font-size: 15px; color: #17181C; }
   .doc .mnz-card p { margin: 0; color: #3C3F45; }
   .doc .mnz-mock { margin: 14px 0; border: 1px solid #D5D6DB; border-radius: 12px; overflow: hidden; background: #fff; }
   .doc .mnz-mock .mbar { display: flex; gap: 6px; align-items: center; padding: 7px 12px; border-bottom: 1px solid #E7E8EC; color: #8A8F98; font-size: 11px; }
-  .doc .mnz-mock .mbar i { width: 8px; height: 8px; border-radius: 2px; background: #5E6AD2; opacity: .7; }
+  .doc .mnz-mock .mbar i { width: 8px; height: 8px; border-radius: 2px; background: #1579AD; opacity: .7; }
   .doc .mnz-mock .mbd { padding: 14px 16px; }
   .doc .mnz-mock .mbd b { color: #17181C; font-size: 15px; }
   .doc .mnz-mock .mrow { display: flex; gap: 8px; margin-top: 10px; }
   .doc .mnz-mock .mrow i { flex: 1; height: 24px; border-radius: 7px; background: #F0F0F3; border: 1px solid #E3E4E8; }
-  .doc .mnz-mock .mrow i.hot { border-color: #5E6AD2; background: #EDF0FA; }
+  .doc .mnz-mock .mrow i.hot { border-color: #1579AD; background: #E8F4FA; }
   .doc .mnz-mock .mcap { padding: 7px 12px; border-top: 1px solid #E7E8EC; color: #8A8F98; font-size: 11px; }
   .doc .mnz-faq details { border: 1px solid #E3E4E8; border-radius: 10px; padding: 10px 14px; margin: 8px 0; background: #fff; }
   .doc .mnz-faq summary { cursor: pointer; color: #17181C; font-weight: 600; }
-  .doc .mnz-faq details[open] summary { color: #5E6AD2; }
+  .doc .mnz-faq details[open] summary { color: #1579AD; }
   .doc .mnz-faq details p { color: #3C3F45; margin: 8px 0 0; }
   footer { text-align: center; font-size: 11px; color: #8A8F98; padding: 24px 0 40px; letter-spacing: .1em; }
   @media (max-width: 1024px) { .wrap { flex-direction: column; gap: 16px; } nav { width: 100%; position: static; max-height: none; } .doc { max-width: 100%; } }

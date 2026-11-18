@@ -4,7 +4,7 @@
  * 页面新定位：呈现「用户使用知源产品的状态」——产品使用状态 + 个人方向状态。
  * 本片只钉 C09 新增契约（W17-18 ~ W17-21）；旧结构与旧判据已在各自分片里重指。
  */
-const { check, codeOnly, read } = require('./helpers.cjs');
+const { check, codeOnly, read, fs, base } = require('./helpers.cjs');
 
 const PI = read('/newtab/views/ProfileInsights.vue');
 const PI_C = codeOnly(PI);
@@ -50,18 +50,23 @@ check('W17-19 ★主攻完整呈现：项目名不截断 + 状态 + 进度条，
     && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"');
 });
 
-check('W17-20 ★时间线退役：宿主零挂载 PiRail，样式零命中，周期区单列、页签是唯一导航', () => {
-  return !PI.includes('<PiRail') && !PI.includes("from '@/newtab/components/profile/PiRail.vue'")
+check('W17-20（V4.4.0 重指）★时间线退役：宿主零挂载 PiRail，样式零命中；周期区单列，activeRange 默认本年且由 useProfileInsights 单一持有，页签是唯一导航', () => {
+  /* read() 会聚合宿主与 composable；“谁持有状态、谁只负责挂载”必须读物理宿主。 */
+  const HOST = fs.readFileSync(base + '/newtab/views/ProfileInsights.vue', 'utf8')
+  const LOGIC = read('/newtab/views/useProfileInsights.ts')
+  return !HOST.includes('<PiRail') && !HOST.includes("from '@/newtab/components/profile/PiRail.vue'")
     && !CSS.includes('.pi-rail {') && !/\.pi-rnode[\s:{.]/.test(CSS)
     && !/\.pi-tl \{[^}]*grid-template-columns:\s*78px/.test(CSS)
-    && PI.includes('<PiRangeTabs')
+    && HOST.includes('<PiRangeTabs')
+    && HOST.includes('class="pi-range-toolbar"')
     /* ★W18（2026-10-20 用户拍板）重指：默认范围改为「本年」——先看长期状态，再按需下钻。 */
-    && PI_C.includes("const activeRange = ref<PiRange>('year')")
-    && !PI_C.includes('onRailJump') && !PI_C.includes('railActive')
-    /* V3.9.13：周期带并入 Hero，独立 PERIOD 提示带退役；页签仍是唯一导航。 */
-    && PI.includes('<template #range>')
-    && !PI.includes('PERIOD ·')
-    && !PI.includes('class="pi-period-head"');
+    && LOGIC.includes("const activeRange = ref<PiRange>('year')")
+    && !codeOnly(HOST).includes("const activeRange = ref<PiRange>(")
+    && !codeOnly(HOST).includes('onRailJump') && !codeOnly(HOST).includes('railActive')
+    /* V4.4.0：周期控件单列在 `.pi-range-toolbar`，旧 Hero #range 插槽与独立 PERIOD 提示带均已退役。 */
+    && !HOST.includes('<template #range>')
+    && !HOST.includes('PERIOD ·')
+    && !HOST.includes('class="pi-period-head"');
 });
 
 check('W17-21（V4.3.1 重指）今日对账段与「一键归入主攻 + 绑卡」退役：PiToday 只保留四格事实读数，周期 AI 分析也已整体退役', () => {

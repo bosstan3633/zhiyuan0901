@@ -92,7 +92,7 @@ check('R167-9 ★抽屉宽度与视觉走查判据同频：两代资源详情与
     && g.includes("h1: '.ds-h1'")
     && (g.match(/aiCount: 1/g) || []).length >= 1
     && g.includes('aiCount: 0')
-    && g.includes('aiCount: 3')
+    && g.includes('aiCount: 2')
     && g.includes("class=\"ai-dir\"") === false && g.includes('.ai-dir') && g.includes('.ai-drag') && g.includes('if (modalFail.length)')
     && g.includes('const wantDrag = m.width >= 1200')
 });

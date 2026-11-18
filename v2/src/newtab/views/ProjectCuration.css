@@ -99,8 +99,6 @@
 .btask.done .bt { text-decoration: line-through; color: var(--text-3); }
 /* R177（原型 task-priority-pill + smp-row-actions）：优先级胶囊降权（仅高优保留琥珀淡底，中/低纯文本）+ 行内操作 hover 显露 */
 .btask .tag { background: transparent; padding: 1px 4px; }
-.btask .tag .tag-dot { display: none; }
-.btask .tag.danger { background: var(--tag-warn-bg); color: var(--warning); font-weight: 600; }
 .btask > .icon-btn-sm { opacity: 0; transition: opacity var(--dur-fast); }
 .btask:hover > .icon-btn-sm { opacity: 1; }
 .task-add { display: flex; align-items: center; gap: 8px; padding: 6px 8px; color: var(--text-3); font-size: var(--fs-sub); cursor: pointer; border-radius: 8px; }
@@ -179,22 +177,12 @@
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .tag { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-tiny); padding: 2px 8px; border-radius: 99px; background: var(--tag-neutral-bg); color: var(--tag-neutral-text); font-weight: 500; white-space: nowrap; }
 .tag.accent { background: var(--accent-light); color: var(--accent-ink); }
-.tag.warn { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.tag.ok { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
-.tag.danger { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
 .progress { height: 5px; background: var(--surface-3); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; }
 .progress > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
 .fade-enter-active, .fade-leave-active { transition: opacity var(--dur-slow); }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* ===== R124（提案）：中性优先级退色——默认 4px 灰点，行 hover 才显标签；仅高优保留警示色 ===== */
-.tag.plain { background: transparent; color: var(--text-4); padding: 2px 2px; gap: 4px; }
-.tag.plain .tag-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--text-4); }
-.tag.plain .tag-txt { display: none; }
-.btask:hover .tag.plain .tag-dot { display: none; }
-.btask:hover .tag.plain .tag-txt { display: inline; }
-.btask:hover .tag.plain { padding: 2px 6px; }
-/* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度紫调光带 + 内阴影提层 ===== */
+/* ===== R124（提案）：展板上下文沉浸——聚焦项目展板顶部极低纯度知源蓝光带 + 内阴影提层 ===== */
 /* R126（诉求 1）：内嵌展板 = 模块框线（对齐 ModuleCard 视觉；内边距 22 与主航线标题左缘对齐） */
 .page.is-embedded { background-color: var(--surface); background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, transparent), transparent 150px); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 22px 18px; }
 

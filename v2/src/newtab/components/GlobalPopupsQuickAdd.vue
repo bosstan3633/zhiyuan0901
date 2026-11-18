@@ -163,7 +163,7 @@ defineExpose({ savedKey })
           <div class="gp-field">
             <label class="gp-field-label">任务内容</label>
             <textarea class="gp-field-input gp-cap-desc" v-model="tcForm.description"
-              placeholder="补充说明、上下文、验收标准（可留空）"
+              placeholder="补充关键约束或执行提示（可留空）"
               @keydown.ctrl.enter.prevent="saveTaskCapture" @keydown.meta.enter.prevent="saveTaskCapture"></textarea>
           </div>
           <div class="gp-field-row">

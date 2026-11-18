@@ -334,16 +334,6 @@ function focusSlotStatusClass(slot: FocusSlot): string {
   return taskStatusClass(focusSlotStatus(slot))
 }
 const focusIsHistorical = computed(() => dateStr(todayDate.value) !== todayKey.value)
-/** ★P5（V3.8.22）：槽内子任务视口函数组（SUB_VISIBLE_ROWS/subScrolled/onSubScroll/subScrollAt/subMoreCount）
- *  随 tc-subs 模板块一并退役——视口本体已删，留守函数会成 dead code。
- *  toggleSlotSub 保留：FocusDetail 单行 @toggle-sub 链（P4-1 钉住）仍走这条 doneAt 落库路径。 */
-/** 槽内子任务勾选：落 doneAt（R172-T2 推进维度同口径），随父卡持久化 */
-function toggleSlotSub(t: TaskCard, subId: string) {
-  t.subtasks = (t.subtasks || []).map(s => (s.id === subId ? { ...s, done: !s.done, doneAt: !s.done ? Date.now() : undefined } : s))
-  t.updatedAt = Date.now()
-  store.persist()
-}
-
 // V3.9.1：整行即详情入口；选中态与下方全貌模块一并退役。
 
 // 任务选取弹窗（满 3 拦截：按钮与空位两条路径同拦，R49-B4）
@@ -1146,7 +1136,7 @@ function goDeck(kind: HandKind): void {
     whyOf, whyIsAi, focusHasRec, focusWeekTotals, ensureAutoFocus,
     refineWithAi, toggleWhy, closeWhy, onDocClickCloseWhy, reshuffleFocus,
     muteFocusToday, focusJob, openFocusReview, openCellTask, focusAllDone,
-    todayTaskForSlot, toggleSlotSub, pickerOpen, pickerSlot, pickerSearch,
+    todayTaskForSlot, pickerOpen, pickerSlot, pickerSearch,
     pickerStatus, pickerProject, openPicker, selectTaskForSlot, pickerCandidates,
     pickerProjectOptions, pickedIds, pickerDisabled, selectTaskGuarded, removeTodaySlot,
     copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,

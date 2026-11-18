@@ -32,8 +32,6 @@ import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
-import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import TaskCalendarView from '../components/compass/TaskCalendarView.vue'
@@ -60,7 +58,7 @@ const {
   whyOf, whyIsAi, focusHasRec, focusWeekTotals, ensureAutoFocus,
   refineWithAi, toggleWhy, closeWhy, onDocClickCloseWhy, reshuffleFocus,
   muteFocusToday, focusJob, openFocusReview, openCellTask, focusAllDone,
-  todayTaskForSlot, toggleSlotSub, pickerOpen, pickerSlot, pickerSearch,
+  todayTaskForSlot, pickerOpen, pickerSlot, pickerSearch,
   pickerStatus, pickerProject, openPicker, selectTaskForSlot, pickerCandidates,
   pickerProjectOptions, pickedIds, pickerDisabled, selectTaskGuarded, removeTodaySlot,
   copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
@@ -190,9 +188,7 @@ const {
                   <div class="row-meta">
                     <span><Icon name="package" :size="12" /> {{ projectName(c.task.projectId) }}</span>
                     <span><Icon name="target" :size="12" /> {{ metricName(c.task.metricId) }}</span>
-                    <span v-if="c.task.subtasks?.length"><Icon name="corner" :size="12" /> 子任务 {{ c.task.subtasks.filter(s => s.done).length }}/{{ c.task.subtasks.length }}</span>
                     <AssetBadge v-if="taskAssetsOn && c.task.assets?.length" :assets="c.task.assets" />
-                    <MaturityBadge :m="taskMaturity(c.task)" />
                   </div>
                   <div v-if="c.slot?.auto === true" class="focus-reason-line">
                     {{ whyOf(c.slot) || '主攻项目下可直接推进的事项' }}

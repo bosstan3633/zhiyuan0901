@@ -26,7 +26,8 @@ function check(name, fn) {
 // 缓存带门禁脚本 sha256 指纹 + 15 分钟时效：脚本被改、缓存过期或缺失即红，判据仍是真实退出码。
 function runGateSync(scriptPath, args = [], timeoutMs = 120000, opts = {}) {
   const { spawnSync } = require('child_process');
-  const r = spawnSync(process.execPath, [scriptPath, ...args], { encoding: 'utf8', timeout: timeoutMs, ...(opts.cwd ? { cwd: opts.cwd } : {}) });
+  // 死样式扫描的 JSON 已超过 Node 默认 1 MiB；给门禁输出一个明确上限，避免 ENOBUFS 被误判成进程不可用。
+  const r = spawnSync(process.execPath, [scriptPath, ...args], { encoding: 'utf8', timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024, ...(opts.cwd ? { cwd: opts.cwd } : {}) });
   if (r.error || r.status === null || r.status === undefined) return readGateCache(scriptPath, args);
   return r;
 }
@@ -347,7 +348,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '4.3.7'";
+const VER_ANCHOR_LITERAL = "version: '4.4.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */

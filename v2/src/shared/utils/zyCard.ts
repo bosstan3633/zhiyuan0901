@@ -85,7 +85,7 @@ function tokens() {
     fg: pick('--text', '#222'),
     fg2: pick('--text-3', '#888'),
     line: pick('--border', '#e5e5e5'),
-    accent: pick('--accent', '#9842ad'),
+    accent: pick('--accent', '#1579AD'),
     heat: [0, 1, 2, 3, 4, 5].map(i => pick(`--heat-${i}`, '#eee'))
   }
 }

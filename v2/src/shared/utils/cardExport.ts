@@ -88,8 +88,8 @@ const DEFAULT_THEME: ExportTheme = {
   text: 'rgba(255,255,255,.92)',
   textMuted: 'rgba(255,255,255,.50)',
   border: 'rgba(255,255,255,.08)',
-  accent: '#5e6ad2',
-  accentInk: '#828fff',
+  accent: '#1579ad',
+  accentInk: '#77d2f5',
   fontSans: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
   fontMono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
 }

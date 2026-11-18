@@ -473,11 +473,6 @@ async function downloadOnly(): Promise<void> {
       <button class="gs-btn" :disabled="busy" @click="doCheck">{{ pageBusy ? '检查中…' : '重新检查' }}</button>
       <button class="gs-btn" @click="openHistory"><Icon name="clock" :size="13"/> 同步历史</button>
     </div>
-    <div class="cloud-led-legend" aria-label="顶栏同步状态灯说明">
-      <span class="led green"></span>本地与云端一致
-      <span class="led yellow"></span>有待同步或方向待确认
-      <span class="led red"></span>断线、异常或未启用
-    </div>
   </div>
 
   <CloudSyncDetailDrawer :open="syncDetailOpen" :loading="syncDetailLoading" :error="syncDetailError"
@@ -691,25 +686,6 @@ async function downloadOnly(): Promise<void> {
   font-size: var(--fs-caption);
   white-space: nowrap;
 }
-.cloud-led-legend {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 9px;
-  padding: 0 22px 16px;
-  color: var(--text-3);
-  font-size: var(--fs-micro);
-}
-.cloud-led-legend .led {
-  width: 7px;
-  height: 7px;
-  margin-left: 3px;
-  border-radius: 50%;
-}
-.cloud-led-legend .led:first-child { margin-left: 0; }
-.cloud-led-legend .green { background: var(--success); box-shadow: 0 0 0 3px var(--success-bg-soft); }
-.cloud-led-legend .yellow { background: var(--warning); box-shadow: 0 0 0 3px var(--warning-bg-soft); }
-.cloud-led-legend .red { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-bg-soft); }
 .cloud-relation-facts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

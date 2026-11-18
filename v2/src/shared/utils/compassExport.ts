@@ -3,7 +3,7 @@
  *
  * 输入是 compassCurationModel.buildCurationTree 的产物（**渲染与导出同源**，防两套口径漂移）；
  * 结构化输出：愿景/使命原文 → 战略目标 → 项目（进度/主攻/状态/停滞警示）→ 指标（目标日/
- * 进度/⚠缺任务）→ 任务（状态/优先级/链接/完成时间）→ 未归档任务。
+ * 进度/⚠缺任务）→ 任务（状态/链接/完成时间）→ 未归档任务。
  * Markdown 可直接投喂 AI 作上下文；HTML 自包含、主题跟随、链接可点击；附件不嵌本体。
  */
 import type { CurationTree } from './compassCurationModel'
@@ -24,7 +24,6 @@ type Link = { text: string; href: string; unavailable?: boolean }
 export interface CompassExportTask {
   title: string
   status: string
-  priority: string
   doneAt: string
   taskLink: Link
 }
@@ -59,7 +58,6 @@ export interface CompassExportDocument {
 
 const STATUS_LABEL: Record<TaskCard['status'], string> = { todo: '待开始', doing: '进行中', done: '已完成' }
 const STALE_LABEL = '待开始（停滞 14 天+）'
-const PRIORITY_LABEL: Record<NonNullable<TaskCard['priority']>, string> = { high: '高', medium: '中', low: '低' }
 const PROJECT_STATUS_LABEL: Record<Project['status'], string> = {
   active: '进行中', paused: '暂停', done: '已完成', archived: '已归档',
 }
@@ -83,7 +81,6 @@ function taskToExport(task: TaskCard, status: string): CompassExportTask {
   return {
     title: task.title.trim() || '未命名任务',
     status: status === 'stale' ? STALE_LABEL : STATUS_LABEL[task.status] || task.status,
-    priority: task.priority ? PRIORITY_LABEL[task.priority] || task.priority : '—',
     doneAt: task.completedAt ? fmtTs(task.completedAt) : '',
     taskLink: {
       text: (task.link || '').trim() || '未填写任务链接',
@@ -163,7 +160,7 @@ export function compassExportMarkdown(doc: CompassExportDocument): string {
         if (M.missingTasks) lines.push('  - ⚠ 缺任务：目标已定，动作未落')
         M.tasks.forEach(T => {
           const title = T.taskLink.href ? markdownLink(T.title, T.taskLink.href) : escapeMarkdown(T.title)
-          lines.push(`  - 任务：${title}（${escapeMarkdown(T.status)} · ${escapeMarkdown(T.priority)}优${T.doneAt ? ' · 完成于 ' + escapeMarkdown(T.doneAt) : ''}）`)
+          lines.push(`  - 任务：${title}（${escapeMarkdown(T.status)}${T.doneAt ? ' · 完成于 ' + escapeMarkdown(T.doneAt) : ''}）`)
         })
       })
       lines.push('')
@@ -203,7 +200,7 @@ export function compassExportHtml(doc: CompassExportDocument, theme: ExportTheme
       const metrics = P.metrics.map(M => {
         const tasks = M.tasks.length
           ? `<ul class="tasks">${M.tasks.map(T =>
-            `<li>${T.taskLink.href ? htmlLink(T.title, T.taskLink.href) : `${escapeHtml(T.title)} <span class="muted">（无有效链接）</span>`}<span class="badge">${escapeHtml(T.status)}</span><span class="badge">${escapeHtml(T.priority)}优</span></li>`).join('')}</ul>`
+            `<li>${T.taskLink.href ? htmlLink(T.title, T.taskLink.href) : `${escapeHtml(T.title)} <span class="muted">（无有效链接）</span>`}<span class="badge">${escapeHtml(T.status)}</span></li>`).join('')}</ul>`
           : M.missingTasks ? '<p class="warn">⚠ 缺任务：目标已定，动作未落</p>' : ''
         return `<div class="metric"><h4>${escapeHtml(M.title)}<span class="muted"> · ${escapeHtml(M.progress)}</span></h4>${M.target ? `<p class="acc">目标：${escapeHtml(M.target)}</p>` : ''}${tasks}</div>`
       }).join('')

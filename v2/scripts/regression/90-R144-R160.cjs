@@ -7,7 +7,7 @@ const {
 
 console.log('【R144 · V2.112.0：批次 G 四场景 + 子任务软层级】');
 check('R144-1 ★子任务改卡内嵌（R166 定案 1/2 重写本条）：detachChildren / flattenTaskTree 随 parentId 整体退役、真源零残留；解绑与软删不再摘子（只摘指标引用）；折叠迁移 foldParentIdSubtasks 挂在载入链上且幂等标记在位；拆解链不再给步骤打父指针', () => { const l = codeOnly(read('/shared/utils/taskLinks.ts')); const r = read('/shared/storage/repository.ts'); const c = codeOnly(read('/shared/ai/chain.ts')); const m = codeOnly(read('/shared/models/index.ts')); return !l.includes('detachChildren') && !l.includes('flattenTaskTree') && !l.includes('parentId') && (l.match(/detachTaskFromMetrics\(d, t\.id\)/g) || []).length === 2 && m.includes('subtasks?: Subtask[]') && m.includes('export interface Subtask') && r.includes('function foldParentIdSubtasks(data: AppData)') && r.includes('foldParentIdSubtasks(data)') && r.includes('if (data.subtasksFoldedAt) return') && r.includes('data.subtasksFoldedAt = Date.now()') && !c.includes('parentId') && !c.includes('mkTask(s, t.projectId, t.metricId, t.id)'); });
-check('R144-2 呈现触点随迁（R166 定案 1 重写）：方向树与项目抽屉改一维列表（flattenTaskTree/⤴ 退役）；面板 ↳ 由「标父名」改「子任务 done/total 进度」且卡片/列表/看板现役视图共用一个 helper；详情头部进度胶囊与清单同源；四个消费文件 parentId 零读写（完成态永不联动到卡级评分）· V3.9.16 按现役模板精确钉 4 处，删除死平铺后不允许计数继续虚高', () => { const ct = codeOnly(CT_ALL); const pd = codeOnly(read('/newtab/components/ProjectDetailDrawer.vue')); const tp = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue')); const td = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue')); return !ct.includes('flattenTaskTree') && !ct.includes('promoteTask') && !ct.includes('.tk-row.sub') && !pd.includes('flattenTaskTree') && !pd.includes('promoteTask') && !pd.includes('.pd-task.sub') && !tp.includes('parentTitleOf') && (tp.match(/v-if="subProgress\(task\)"/g) || []).length === 4 && td.includes('const subtasks = computed') && td.includes('const subtaskDone = computed') && !td.includes('parentTask') && [ct, pd, tp, codeOnly(read('/shared/utils/taskLinks.ts'))].every(x => !x.includes('parentId')); });
+check('R144-2（V4.4.0 重指）子任务呈现触点全链退役：方向树、项目抽屉、任务面板与任务详情均不再渲染子任务进度、清单或父指针；历史 parentId 只在存储迁移层兼容，现役 UI 零读写', () => { const ct = codeOnly(CT_ALL); const pd = codeOnly(read('/newtab/components/ProjectDetailDrawer.vue')); const tp = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue')); const td = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue')); return !ct.includes('flattenTaskTree') && !ct.includes('promoteTask') && !ct.includes('subProgress') && !pd.includes('flattenTaskTree') && !pd.includes('promoteTask') && !tp.includes('parentTitleOf') && !tp.includes('subProgress') && !tp.includes('toggleSubExpand') && !td.includes('subtasks') && !td.includes('parentTask') && [ct, pd, tp, codeOnly(read('/shared/utils/taskLinks.ts'))].every(x => !x.includes('parentId')); });
 check('R144-3 ★G1 论点契约与消毒：提示词要「一句可被反驳的判断」+ MECE 互斥穷尽；parse 消毒=论点≤40、支≤5 去重、cardIds 只认本台活卡且一卡只归一支；采纳只写主题卡 🤖 块（整段替换不堆积），建分类是显式次通道（顶层≤12 封顶）', () => {
   const s = read('/shared/ai/scenarios.ts'); const g = read('/shared/ai/batchG.ts'); const p = read('/shared/ai/project.ts'); const w = read('/newtab/views/Workspace.vue'); const d = read('/newtab/components/curation/CurationThesisDrawer.vue');
   return s.includes('一句可被反驳的判断') && s.includes('彼此互斥、合起来穷尽卡群主体（MECE）')
@@ -96,7 +96,7 @@ check('R146-5 ★AI 入口徽标全站统一（**R155 换骨：emoji → 单色�
     && ae.includes("from '@/shared/components/AiMark.vue'") && ae.includes('var(--icon-sm)') && ae.includes('var(--icon-lg)') && !ae.includes(':size=')
     && read('/newtab/components/ResourceAiStrip.vue').includes('const busy = ref(false)') /* V4.1.3：全字段优化只留一枚入口，互斥锁同步收成布尔态 */
     && read('/newtab/components/CardAiEntry.vue').includes('if (busy.value) return') && read('/newtab/components/EvidenceMenuItem.vue').includes('if (busy.value) return')
-    && read('/newtab/components/TaskAddDrawer.vue').includes('if (aiBusy.value || !aiSay.value.trim()) return')
+    && read('/newtab/components/compass/TaskDetailDrawer.vue').includes('if (!t || aiBusy.value) return')
 });
 check('R146-6 ★检索类 AI 入口的提速骨架（实测"点了就一直等"后定）：流式 + JSON 一闭合即掐连接 + 30 秒硬超时 + 外部可中止；浮层侧秒数/字数回显、再点取消、改词与关面板静默中止、同词走缓存；零写库不变 · R150 备案：这套骨架原本钉在 rerankSearch 上，随「AI 理解」并入「AI 检索」已整体搬进 select.ts 的 askOnce/semanticSearch（maxTokens 420→520 因候选量变大），机制一字未松', () => {
   const g = read('/newtab/components/GlobalPopups.vue'); const sel = read('/shared/ai/select.ts')
@@ -138,11 +138,11 @@ check('R147-2 ★投料计数改在线路处结算：chat/chatStream 真正发�
     && DRAWER147.includes('setLlmFeedSink((m) =>') && DRAWER147.includes('f.chars += m.inChars') && DRAWER147.includes('const secs = ref(0)') && DRAWER147.includes('setLlmFeedSink(null)')
     && !DRAWER147.includes('inputChars') && (gv.match(/async run\(\{ signal, onDelta \}\)/g) || []).length === 2
 });
-check('R147-3（V4.2.0 随迁）消毒账与空态真因点名：AiJob.audit 契约（零参、计数由工厂闭包按次攒）；好奇心研判退役后，论点 / 证据两句仍按次记账，抽屉工具条显示一行、空态直接说清"投料多少/丢了几行为什么"；拆解的「思路」行保持 advisory', () => {
-  const j = read('/shared/ai/job.ts'); const sel = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts'); const c = read('/shared/ai/chain.ts'); const gs = read('/newtab/views/GlobalSettings.vue')
+check('R147-3（V4.4.0 重指）消毒账与空态真因点名：AiJob.audit 契约（零参、计数由工厂闭包按次攒）；论点 / 证据与任务找资源仍按次记账，抽屉工具条显示一行、空态直接说清"投料多少/丢了几行为什么"；拆解「思路」行退役', () => {
+  const j = read('/shared/ai/job.ts'); const sel = read('/shared/ai/select.ts'); const g = read('/shared/ai/batchG.ts'); const c = codeOnly(read('/shared/ai/chain.ts')); const ts = read('/shared/ai/taskSupport.ts'); const gs = read('/newtab/views/GlobalSettings.vue')
   return j.includes('audit?: () => string | null') && DRAWER147.includes("auditLine.value = job.audit?.() || ''") && DRAWER147.includes('模型没有给出可采纳的建议')
     && (sel.match(/audit: \(\) =>/g) || []).length === 0 && sel.includes('searchDropCount') && (g.match(/audit: \(\) =>/g) || []).length === 2
-    && gs.includes('audit: () =>') && c.includes("key: 'breakdown:plan', badge: '思路', advisory: true")
+    && gs.includes('audit: () =>') && !c.includes('breakdown') && ts.includes('audit: () =>')
     && g.includes('drop.ghostCard') && g.includes('drop.ghost++')
 });
 check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行且默认不勾；knownTagSet/freshTagsOf 为唯一口径（树上路径∪叶子名活卡在用），三处消费（单卡补全/批量补全/详情抽屉）同判；RDD 仍零静态引 shared/ai（启动链红线不破）· R167 重指：select 里两枚单卡工厂并成一枚 buildResourceEnrichJob，"每个单卡写库入口都要切这道闸"的判据随之改为**跨文件按工厂分段核**（资源 enrich + 任务 enrich 各一段），合并入口不得再留下"没装闸的那条"', () => {
@@ -152,18 +152,18 @@ check('R147-4 ★打标克制落到行级：AI 造的体系外新词单独成行
     && sel.includes(NEWWORD) && te.includes(NEWWORD) && gs.includes('const fresh = freshTagsOf(addTags, known)')
     /* 计数按"文件里出现几次"不够：同一工厂写两遍、另一工厂零遍也会等于 2 ⇒ 按工厂分段各自必含 */
     && (sel.match(new RegExp(NEWWORD.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length === 1
-    && segOf(sel, 'export function buildResourceEnrichJob', '\nexport function buildTaskParseJob').includes(NEWWORD)
-    && segOf(sel, 'export function buildResourceEnrichJob', '\nexport function buildTaskParseJob').includes('freshTagsOf(')
+    && segOf(sel, 'export function buildResourceEnrichJob', '\nexport function buildReviewJob').includes(NEWWORD)
+    && segOf(sel, 'export function buildResourceEnrichJob', '\nexport function buildReviewJob').includes('freshTagsOf(')
     && segOf(te, 'export function buildTaskEnrichJob', '\n}').includes(NEWWORD) && segOf(te, 'export function buildTaskEnrichJob', '\n}').includes('freshTagsOf(')
     && st.includes('buildResourceEnrichJob(card, ctx)')
     && !rdd.includes("from '@/shared/ai/llm'") && !rdd.includes("import { chat") && !st.includes("from '@/shared/ai/llm'")
 });
 check('R147-5 ★任务级「知」菜单共享化并跨视图落位：TaskAiMenu.vue 自包含（按钮+浮层菜单+评审抽屉+样式+AI 懒栈），项目详情页两处行位与任务面板列表/看板 9 处行位同组件 · W6 再随迁（V3.8.6 #3）：卡片视图 3 处行位改 TaskAiCorner（右上角角标直跑补全，自包含+AI 懒栈，打开详情走单击卡片 onTaskRowClick），菜单形态零残留于卡片视图 · R151 备案：本条原写"6 处（卡/列表/看板×2 形态）"，实为卡片与列表两视图共 6 处、看板 6 处一直缺位（写断言时按字面数了行数没核视图），R151 补齐后按 12 处钉，W6 按 9+3 拆分', () => {
   const m = read('/newtab/components/TaskAiMenu.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); const tp = read('/newtab/components/compass/TaskManagerPanel.vue'); const ca = read('/newtab/components/TaskAiCorner.vue')
-  return !m.includes("from '@/shared/ai/") && m.includes("import('@/shared/ai/chain')") && !m.includes("import('@/shared/ai/select')") && m.includes("import { AiDrawer } from './lazyAiDrawer'") /* R152：并入全站单例 */
-    && m.includes('.tam-menu {') && m.includes('拆解成子任务') && m.includes("emit('detail'") && m.includes('if (busy.value) return')
+  return !m.includes("from '@/shared/ai/") && m.includes("import('@/shared/ai/taskSupport')") && !m.includes("import('@/shared/ai/chain')") && !m.includes("import('@/shared/ai/select')") && m.includes("import { AiDrawer } from './lazyAiDrawer'") /* R152：并入全站单例 */
+    && m.includes('.tam-menu {') && m.includes('AI 找资源') && !m.includes('拆解成子任务') && m.includes("emit('detail'") && m.includes('if (busy.value) return')
     && (pc.match(/<TaskAiMenu :task=/g) || []).length === 2 && (tp.match(/<TaskAiMenu :task=/g) || []).length === 7 && (tp.match(/<TaskAiCorner :task=/g) || []).length === 3 && tp.includes('function openTaskFromAi')
-    && ca.includes("import('@/shared/ai/taskEnrich')") && ca.includes('buildTaskEnrichJob') && ca.includes('class="taic-btn"') && ca.includes("import { AiDrawer } from './lazyAiDrawer'")
+    && ca.includes("import('@/shared/ai/taskSupport')") && ca.includes('buildTaskSupportJob') && ca.includes('class="taic-btn"') && ca.includes("import { AiDrawer } from './lazyAiDrawer'")
     && !ca.includes("from '@/shared/ai/") /* W6：角标同款 AI 零静态引用纪律 */
     && !pc.includes('ai-menu-item') && fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8').split('\n').length <= 1500
 });
@@ -280,11 +280,12 @@ check('R151-5 ★角标与预估同源（否则用户没法信方案）：cardHa
 });
 
 /* ===== R151-B2 · 三类卡 × 四视图（卡片/列表/看板 + 详情）AI 入口齐活 ===== */
-check('R151-6（V4.2.0 退役重指）★AI 入口按现役卡种点齐：资源卡池列表 / 网格各一 + 两处详情共用 ResourceAiStrip（镜像只读不给）；任务卡保留三格 AI 行与卡面角标；好奇心卡的卡片、列表、看板与详情四处单卡研判及批量通道整体退役', () => {
+check('R151-6（V4.4.0 重指）★AI 入口按现役卡种点齐：资源卡池列表 / 网格各一 + 两处详情共用 ResourceAiStrip；任务详情只保留「找资源 + 补全」两枚，卡面 AI 角标直达找资源；好奇心卡 AI 研判与任务拆解均退役', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
   const cp = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')); const ce = read('/newtab/components/CardAiEntry.vue')
   const task = read('/newtab/components/compass/TaskDetailDrawer.vue')
+  const taskCode = codeOnly(task)
   // 资源卡现役两视图：列表 / 网格各一；策展台内详情另有 ResourceAiStrip
   const poolListAi = (pool.match(/<CardAiEntry v-if="!batchMode" :card="r" \/>/g) || []).length
   const poolGridAi = (pool.match(/<CardAiEntry :card="r" \/>/g) || []).length
@@ -293,7 +294,8 @@ check('R151-6（V4.2.0 退役重指）★AI 入口按现役卡种点齐：资源
     && !w.includes('<CardAiEntry :card="r" />')
     && w.includes('<ResourceAiStrip') && read('/newtab/components/ResourceDetailDrawer.vue').includes('<ResourceAiStrip')
     && ce.includes('class="rc-action ai"') && !ce.includes('dr-footer-btn') && w.includes('<template #title>')
-    && (task.match(/class="ts-ai-cell"/g) || []).length === 3
+    && (task.match(/<AiEntryButton/g) || []).length === 2
+    && task.includes('label="AI 找资源"') && task.includes('label="AI 补全"') && !taskCode.includes('AI 拆解') && !taskCode.includes('ts-ai-cell')
     && !cp.includes('aiTriage') && !cp.includes('AiEntryButton') && !cp.includes('转化研判')
     && read('/newtab/manual-data.ts').includes('好奇心卡不提供 AI 研判或转化入口')
 });
@@ -331,7 +333,7 @@ check('R152-4（V4.2.0 随迁）★"AI 动过"要有凭据：aiTouchedAt 由每�
   const m = read('/shared/models/index.ts'); const st = read('/newtab/components/ResourceAiStrip.vue'); const css = read('/shared/styles/detail-sheet.css')
   const c = read('/newtab/components/CardAiEntry.vue'); const lz = fs.readFileSync(base + '/newtab/components/lazyAiDrawer.ts', 'utf8')
   const curio = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'))
-  const stampFiles = ['select.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts']
+  const stampFiles = ['select.ts', 'batchG.ts', 'taskEnrich.ts', 'taskSupport.ts']
   const missing = stampFiles.filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt ='))
   return m.includes('aiTouchedAt?: number') && missing.length === 0
     && st.includes("'↻ 重新优化' : 'AI 优化'") && st.includes('ds-ai-when')
@@ -590,23 +592,18 @@ check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 
     && /fs\.unlinkSync\(reportPath\)/.test(p);
 });
 
-// ============== R156 · V3.2.1：四主题差异化（accent 解禁 + 跟随系统） ==============
-console.log('【R156 · V3.2.1：四主题差异化、accent 解禁、跟随系统】');
-check('R156-1 ★四主题不再是"伪选择"：linear 与 raycast 五项关键令牌逐项不同（R155 theme-audit 首跑实证两者四张截图字节完全相同 —— 19 个色值逐字相同）', () => {
+// ============== R156 · V4.4.0：三主题差异化（Logo 蓝 + 旧偏好迁移） ==============
+console.log('【R156 · V4.4.0：三主题差异化、Logo 蓝、旧偏好迁移】');
+check('R156-1（V4.4.0 重指）三主题不再是伪选择：raycast / apple / notion 的 bg、surface、border、text、accent 均独立落值，旧 linear 主题块退役', () => {
   const t = read('/shared/styles/tokens.css')
-  const pair = (a, b) => t.includes(a) && t.includes(b)
-  return pair('--bg: #0D0E11;', '--bg: #08080A;')
-    && pair('--surface: #14161B;', '--surface: #101014;')
-    && pair('--border: rgba(255, 255, 255, 0.08);', '--border: rgba(255, 255, 255, 0.12);')
-    && pair('--text: rgba(255, 255, 255, 0.92);', '--text: rgba(255, 255, 255, 0.95);')
-    && pair('--accent: #5E6AD2;', '--accent: #1E6FD9;')
+  return ['--bg: #080A0D;', '--bg: #F3F7FA;', '--bg: #F7F6F1;', '--surface: #11161C;', '--surface: #FFFFFF;', '--surface: #FFFEFA;', '--accent: #1579AD;', '--accent: #0F6F9E;', '--accent: #0B668F;'].every(x => t.includes(x))
+    && !t.includes("[data-theme='linear']")
 })
-check('R156-2 ★accent 三件套按主题独立产出（accent-light 随 accent 重算，不得沿用旧紫色）：暗主题 rgba(本主题 accent) · 浅主题独立实色；hover 四主题各自定义；旧全局紫浅底 #EEF0FC 已退役', () => {
+check('R156-2（V4.4.0 重指）accent 三件套按三主题独立产出且统一知源 Logo 蓝：暗主题半透明浅底、浅主题独立实色；hover 与 accent-ink 均各自定义；旧全局紫浅底退役', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--accent-light: rgba(94, 106, 210, 0.16);') && t.includes('--accent-light: rgba(30, 111, 217, 0.16);')
-    && t.includes('--accent-light: #EFEBFB;') && t.includes('--accent-light: #F6EDF8;')
-    && t.includes('--accent-hover: #828FFF;') && t.includes('--accent-hover: #3E86E0;')
-    && t.includes('--accent-hover: #6C3FC8;') && t.includes('--accent-hover: #85349A;')
+  return t.includes('--accent-light: rgba(84, 195, 240, 0.17);') && t.includes('--accent-light: #E7F4FA;') && t.includes('--accent-light: #E7F2F7;')
+    && t.includes('--accent-hover: #1B8CC6;') && t.includes('--accent-hover: #0B5F88;') && t.includes('--accent-hover: #085678;')
+    && (t.match(/--accent-ink:/g) || []).length === 3
     && (t.split('--accent-light: #EEF0FC;').length - 1) === 0
 })
 check('R156-3 ★主题对比度改由机器判定并常驻（scripts/theme-contrast.cjs）：解析 tokens.css 真源、10 项/主题（含 --text-3/--surface-3 最苛刻层与 toast 两项）+ 四主题 accent 唯一性，失败即非零退出', () => {
@@ -615,35 +612,34 @@ check('R156-3 ★主题对比度改由机器判定并常驻（scripts/theme-cont
     && p.includes("'text-3/surface-3'") && p.includes("'text-3/bg'") && p.includes('#fff/accent')
     && p.includes('uniq.size !== THEMES.length') && p.includes('process.exit(fail === 0 ? 0 : 1)')
 })
-check('R156-4 ★主题「跟随系统」（auto）：shared/utils/theme.ts 提供 resolveTheme/watchSystemTheme（系统深→linear / 浅→apple）；App.vue 主题列表含 auto；三处落 data-theme 的入口（启动 / 切换 / 导入偏好包）统一经 resolveTheme；auto 模式下刷新后仍注册系统配色监听', () => {
+check('R156-4（V4.4.0 重指）主题三选一与旧偏好确定性迁移：resolveTheme 将 auto→系统深 raycast/浅 apple、linear→raycast；App.vue 选择器只列三主题；启动、切换与导入偏好包三处统一经 resolveTheme', () => {
   const th = read('/shared/utils/theme.ts'); const a = read('/newtab/App.vue')
-  const m = read('/newtab/main.ts'); const s = read('/newtab/stores/app.ts'); const g = read('/newtab/views/GlobalSettings.vue')
-  return th.includes('export function resolveTheme') && th.includes('export function watchSystemTheme')
-    && th.includes("t === 'auto'") && th.includes('prefers-color-scheme: dark') && th.includes('? SYSTEM_DARK : SYSTEM_LIGHT')
-    && a.includes("id: 'auto'") && a.includes('跟随系统')
-    && m.includes("setAttribute('data-theme', resolveTheme(ui.theme))")
-    && s.includes('function applyTheme(t: string)') && s.includes('watchSystemTheme((r) =>')
-    && s.includes('applyTheme(ui.value?.theme') /* 启动即注册监听，否则刷新后 auto 不再跟随 */
-    && g.includes("setAttribute('data-theme', resolveTheme(ui.theme))")
+  const s = read('/newtab/stores/app.ts'); const dp = read('/newtab/views/settings/dataPackage.ts')
+  return th.includes('export const THEME_IDS') && th.includes("['raycast', 'apple', 'notion']")
+    && th.includes("if (t === 'auto')") && th.includes("if (t === 'linear') return 'raycast'")
+    && th.includes('prefers-color-scheme: dark') && th.includes('? SYSTEM_DARK : SYSTEM_LIGHT')
+    && a.includes("id: 'raycast'") && a.includes("id: 'apple'") && a.includes("id: 'notion'") && !a.includes("id: 'auto'") && !a.includes("id: 'linear'")
+    && s.includes('function applyTheme(t: string)') && s.includes('resolveTheme(t)')
+    && dp.includes('const theme = resolveTheme(ui.theme)')
 })
-check('R156-5 ★accent 落地纪律（解禁 ≠ 滥用）写进令牌头：每主题只许一个 accent、只用于主行动与当前态，且四主题色相成阶梯两两可辨', () => {
+check('R156-5（V4.4.0 重指）accent 落地纪律写进令牌头：每主题只许一个 accent、只用于主行动与当前态，三主题以 Logo 蓝为共同识别并各自校准亮度', () => {
   const t = read('/shared/styles/tokens.css')
   return t.includes('每主题只许一个 accent') && t.includes('只用于主行动与当前态')
-    && t.includes('色相成阶梯') && t.includes('解禁的是') && t.includes('不是"克制"')
+    && t.includes('全局主行动色统一为知源 Logo 蓝') && t.includes('解禁的是') && t.includes('不是"克制"')
 })
 check('R156-6（R155 复核）★AI 徽标随主题 accent 自动变色：AiMark 走 currentColor（四主题 accent 解禁后零额外成本自动成立），且零硬编码 fill/stroke 色值', () => {
   const z = read('/shared/components/AiMark.vue')
   return z.includes('stroke="currentColor"') && z.includes('fill="none"') && !z.includes('fill="#') && !z.includes('stroke="#')
 })
-check('R156-7 raycast 独立配套：纯黑遮罩 .7 + 冷蓝动作色回执条（#5AA9FF）—— 不再与 linear 共用同一套 toast 配色', () => {
+check('R156-7（V4.4.0 重指）raycast 独立配套仍成立：深遮罩 + 知源蓝动作回执条；不再依赖已退役 linear 主题', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--toast-bg: #0B0B0E; --toast-fg: #F2F3F5; --toast-action: #5AA9FF;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.7);')
+  return t.includes('--toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #77D2F5;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.68);')
 })
-check('R156-8 浅色双主题彻底分开：apple 冷灰白 #F5F5F7 + 纯黑文本基色 ／ notion 暖纸白 #F7F6F3 + 暖褐黑文本基色（border 与文本基色不再趋同；notion 旧冷黑基色已退役）', () => {
+check('R156-8（V4.4.0 重指）浅色双主题彻底分开：apple 冷白 #F3F7FA + 冷青蓝底 ／ notion 暖纸白 #F7F6F1 + 暖褐底；border 与文本基色保持差异，旧冷黑基色已退役', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--bg: #F5F5F7;') && t.includes('--bg: #F7F6F3;')
-    && t.includes('--text: rgba(0, 0, 0, 0.90);') && t.includes('--text: rgba(35, 31, 25, 0.90);')
-    && t.includes('--border: rgba(0, 0, 0, 0.09);') && t.includes('--border: rgba(40, 34, 24, 0.11);')
+  return t.includes('--bg: #F3F7FA;') && t.includes('--bg: #F7F6F1;')
+    && t.includes('--text: rgba(15, 27, 36, 0.92);') && t.includes('--text: rgba(34, 30, 23, 0.92);')
+    && t.includes('--border: rgba(22, 54, 78, 0.09);') && t.includes('--border: rgba(45, 39, 27, 0.10);')
     && (t.split('--border: rgba(15, 15, 15, 0.08);').length - 1) === 0
 })
 

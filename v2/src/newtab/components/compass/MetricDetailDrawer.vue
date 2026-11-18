@@ -60,7 +60,6 @@ const metricMeta = computed<MetricMeta | null>(() => {
   return {
     id: metric.value.id,
     title: metric.value.title,
-    acceptance: '',
     target: metric.value.target || '',
     tasks: tasks.value,
     total: tasks.value.length,

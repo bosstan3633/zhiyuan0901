@@ -312,8 +312,6 @@
 .dz-kpi .v { font-size: var(--fs-headline); font-weight: 700; line-height: 1.15; margin-top: 1px; }
 .dz-kpi .v small { font-size: var(--fs-micro); font-weight: 500; color: var(--text-3); margin-left: 2px; }
 .dz-kpi .c { font-size: var(--fs-micro); color: var(--text-4); margin-top: 1px; }
-.dz-kpi .c .up { color: var(--success); font-weight: 700; }
-.dz-kpi .c .dn { color: var(--danger); font-weight: 700; }
 
 /* 节奏曲线 */
 .dz-trend .cap { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-caption); color: var(--text-3); margin-bottom: var(--sp-2); flex-wrap: wrap; }

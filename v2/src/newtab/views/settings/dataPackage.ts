@@ -218,8 +218,9 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
 export function applyDataPackageUIPrefs(ui: Record<string, unknown> | undefined): boolean {
   if (!ui || typeof ui !== 'object') return false
   if (typeof ui.theme === 'string' && ui.theme) {
-    document.documentElement.setAttribute('data-theme', resolveTheme(ui.theme))
-    saveUIPrefs({ theme: ui.theme })
+    const theme = resolveTheme(ui.theme)
+    document.documentElement.setAttribute('data-theme', theme)
+    saveUIPrefs({ theme })
   }
   if (typeof ui.density === 'string' && ui.density) {
     if (ui.density === 'compact') document.documentElement.setAttribute('data-density', 'compact')

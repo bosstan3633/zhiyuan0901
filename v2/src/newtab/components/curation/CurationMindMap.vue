@@ -535,11 +535,13 @@ onBeforeUnmount(() => {
               <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('open-thesis')">
                 <Icon name="filetext" :size="13"/> 论点卡详情
               </button>
-              <button v-if="thesis" class="mind-add" type="button" @click.stop="emit('link-thesis')">
-                <Icon name="link" :size="13"/> 关联资源
+              <button v-if="thesis" class="mind-add mind-resource-cta mind-resource-cta-foot" type="button"
+                @click.stop="emit('link-thesis')">
+                <Icon name="link" :size="13"/> 继续关联资源
               </button>
             </div>
             <CurationAssetStrip v-if="thesis" :assets="thesis.assets || []" node-id="root" selected
+              compact
               :remote-downloader="remoteDownloader"
               @open="emit('preview-node-asset', 'root', $event)"
               @remove="emit('remove-node-asset', 'root', $event)"

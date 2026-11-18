@@ -12,9 +12,8 @@ import { chatStream, extractJson } from './llm'
 import { projectTaskTargets, projectWeekDigest, projectCard, catPathOf } from './project'
 import { fetchLinkText, linkFetchable } from './linkFetch'
 import {
-  semanticSearchSystem, sanitizeRefs, taskParseSystem, reviewSystem, deepInsightSystem, fullOptimizeSystem,
+  semanticSearchSystem, sanitizeRefs, reviewSystem, deepInsightSystem, fullOptimizeSystem,
   chainPersonaText, allPersonas, personaOverrides,
-  type TaskDraft,
 } from './scenarios'
 
 export interface SelectCtx {
@@ -533,49 +532,6 @@ export function buildResourceEnrichJob(card: ResourceCard, ctx: SelectCtx): AiJo
     }
   }
   return job
-}
-
-/** C1′：一句大白话 → 任务字段草稿（apply 由宿主回填自己的表单态，不落库） */
-export function buildTaskParseJob(text: string, ctx: SelectCtx, onApply: (draft: TaskDraft) => string): AiJob | null {
-  const t = text.trim()
-  if (!t) return null
-  return {
-    key: 'parse:' + text.trim().slice(0, 24),
-    title: 'AI 录入 · 任务字段草稿',
-    subject: `✍️ 「${t.slice(0, 24)}」`,
-    hint: '核对下面的字段建议，采纳即回填表单（不会直接建卡）；确认后照常「创建」。',
-    build: () => ({ messages: [
-      { role: 'system', content: taskParseSystem() },
-      { role: 'user', content: `今天 ${new Date().toLocaleDateString('en-CA')}。\n【用户原话】${t.slice(0, 200)}\n\n【项目/指标候选（id 只能取自这里）】\n${projectTaskTargets(ctx.d, ctx.depth)}` },
-    ] }),
-    parse: (raw) => {
-      const s = raw as TaskDraft
-      const rows: AiRow[] = []
-      const title = String(s.title || '').trim().slice(0, 40)
-      if (title) rows.push({ key: 'title', badge: '标题', main: title })
-      const facts: string[] = []
-      if (s.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(String(s.dueDate))) facts.push('计划 ' + s.dueDate)
-      const pr = String(s.priority || '')
-      if (pr === 'high' || pr === 'medium' || pr === 'low') facts.push({ high: '高优', medium: '中优', low: '低优' }[pr])
-      const em = Number(s.estimatedMinutes)
-      if (Number.isFinite(em) && em >= 5 && em <= 600) facts.push(`约${Math.round(em)}分钟`)
-      if (facts.length) rows.push({ key: 'fields', badge: '字段', main: facts.join(' · ') })
-      const proj = ctx.d.compass.directions.flatMap(x => x.projects).find(p => p.id === s.projectId)
-      if (proj) rows.push({ key: 'proj', badge: '归属', main: `项目「${proj.name}」` })
-      const met = s.metricId ? ctx.d.compass.directions.flatMap(x => x.projects).flatMap(p => p.metrics).find(m => m.id === s.metricId) : undefined
-      if (met) rows.push({ key: 'met', badge: '归属', main: `指标「${met.title}」` })
-      const draft: TaskDraft = {
-        title: title || undefined,
-        dueDate: facts.some(f => f.startsWith('计划')) ? s.dueDate : undefined,
-        priority: pr || undefined,
-        estimatedMinutes: facts.some(f => f.startsWith('约')) ? Math.round(em) : undefined,
-        projectId: proj?.id, metricId: met?.id,
-      }
-      for (const r of rows) r.data = draft
-      return rows
-    },
-    apply: (rows) => onApply((rows[0]?.data || {}) as TaskDraft),
-  }
 }
 
 /**

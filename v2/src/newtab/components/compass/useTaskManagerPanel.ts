@@ -22,7 +22,7 @@ import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
 import DeckBatchBar from './DeckBatchBar.vue'
 import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
-import type { TaskCard, Subtask, FieldDef } from '@/shared/models'
+import type { TaskCard, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
@@ -30,8 +30,6 @@ import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
-import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
@@ -39,7 +37,6 @@ import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
-import SubtaskList from '@/shared/components/SubtaskList.vue'
 
 export interface TaskManagerPanelProps {
   /** 独立二级页：隐藏所有新建入口；空态主行动改为清空筛选。 */
@@ -98,7 +95,7 @@ const searchQuery = ref('')
 /** R3-Cc2：控制行值域配置（视图/筛选/排序/分组），模板里不再各写一份 option 列表 */
 const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }, { id: 'calendar', label: '月历' }]
 const TASK_FILTERS = [{ id: 'all', label: '全部状态' }, { id: 'todo', label: '待办' }, { id: 'doing', label: '推进中' }, { id: 'done', label: '已完成' }, { id: 'unarchived', label: '未归档' }]
-const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }, { id: 'priority', label: '优先级' }]
+const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }]
 const TASK_GROUPS = [
   { id: 'none', label: '不分组（最新采集）' },
   { id: 'project', label: '按项目分组' },
@@ -131,10 +128,8 @@ const filteredTasks = computed(() => {
   // R56-V1：manual（默认）= 拖拽序（sortOrder）优先，无拖拽序 = 最新创建在前；选其他排序即覆盖
   if (sortBy.value !== 'manual') {
     const dirMul = sortDir.value === 'asc' ? 1 : -1
-    const rank: Record<string, number> = { high: 3, medium: 2, low: 1 }
     tasks = [...tasks].sort((a, b) => {
       if (sortBy.value === 'recent') return dirMul * ((a.createdAt || 0) - (b.createdAt || 0))
-      if (sortBy.value === 'priority') return dirMul * ((rank[a.priority || 'low'] || 0) - (rank[b.priority || 'low'] || 0))
       return 0
     })
   } else {
@@ -236,12 +231,11 @@ function prepareFreshView() {
   groupMode.value = 'none'
   searchQuery.value = ''
   collapsedGroups.value = new Set()
-  subExpanded.value = new Set()
   clearSelection()
   batchMode.value = setBatchMode(false)
 }
 // R181：批量操作 + 批量挂载子域外提（见 taskPanelBatch.ts）
-const { batchAddTag, batchDelete, batchSetStatus, batchSetPriority, mountModalOpen, mountProjId, mountMetId, mountProjectOptions, mountMetricOptions, openBatchMount, confirmBatchMount } =
+const { batchAddTag, batchDelete, batchSetStatus, mountModalOpen, mountProjId, mountMetId, mountProjectOptions, mountMetricOptions, openBatchMount, confirmBatchMount } =
   useTaskPanelBatch({ d, store, allProjects, selectedTaskIds })
 
 // ---- 任务操作 ----
@@ -357,30 +351,6 @@ function metricName(metricId?: string): string {
   if (!metricId) return '未关联'
   return metricTitleById.value.get(metricId) || '未关联'
 }
-/** R166 定案 1：子任务就地标注——卡内嵌清单的「done/total」进度（原 R144 的父标题记号随 parentId 退役）。
- *  零子任务返回空串，卡面因此零噪音（F2 验收口径）。 */
-function subProgress(t: TaskCard): string {
-  const s = t.subtasks
-  if (!s || !s.length) return ''
-  return `${s.filter(x => x.done).length}/${s.length}`
-}
-/**
- * F2：列表视图点胶囊**就地展开清单**（不跳详情、可直接勾选）。
- * 只给列表视图用——卡片/看板空间小，胶囊在那里是纯读数（丙版定案）。
- * 展开态按任务 id 记，切台/筛选后自然失效（不残留 DOM）。
- */
-const subExpanded = ref<Set<string>>(new Set())
-function toggleSubExpand(id: string) {
-  const next = new Set(subExpanded.value)
-  if (next.has(id)) next.delete(id); else next.add(id)
-  subExpanded.value = next
-}
-function writeSubtasks(t: TaskCard, v: Subtask[]) {
-  t.subtasks = v
-  t.updatedAt = Date.now()
-  store.persist()
-}
-
 // ---- 拖拽：列表排序 / 看板跨列 ----
 let draggedTask: TaskCard | null = null
 function onTaskDragStart(e: DragEvent, t: TaskCard) {
@@ -545,7 +515,7 @@ function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', proj
 }
 
 // ---- 字段渲染 ----
-const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task'))
+const tFields = computed(() => visibleFields(d.value.fieldConfig, 'task').filter(f => f.key !== 'priority'))
 /**
  * R117（04-61 D）：骨架字段可见性查询——「卡片与字段管理」的显隐设置必须真正落到卡片上。
  * 此前状态/项目/指标/日期这些骨架字段直接硬编码渲染，设置里关掉也照样显示（用户报「设置无效」）。
@@ -563,7 +533,6 @@ function tVal(t: TaskCard, key: string): string {
 }
 function tShort(t: TaskCard, f: FieldDef): string {
   const v = tVal(t, f.key)
-  if (f.key === 'priority') return t.priority === 'high' ? '高' : t.priority === 'medium' ? '中' : '低'
   return v.length > 10 ? v.slice(0, 10) + '…' : v
 }
 /** 第卌五轮：卡片视图日期角标
@@ -784,7 +753,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     batchAddTag,
     batchDelete,
     batchSetStatus,
-    batchSetPriority,
     mountModalOpen,
     mountProjId,
     mountMetId,
@@ -804,10 +772,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     metricTitleById,
     projectName,
     metricName,
-    subProgress,
-    subExpanded,
-    toggleSubExpand,
-    writeSubtasks,
     draggedTask,
     onTaskDragStart,
     onTaskDrop,

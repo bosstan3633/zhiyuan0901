@@ -462,7 +462,7 @@ const layerRows3 = computed(() => compassMeta.value.dirs.map((g, i) => {
   }
 }))
 const activeLayer = ref(1)
-  const { layerRows5, layerRows6, onLayerOpen, onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget, flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter, toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport, showTaskGrade, bindOrphan, toggleMetric, editingField, focusEditField, startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate, openDirectionEdit, saveDirectionForm } = useCompassTreeProjects({ compassMeta, findProject, d, layerOpen, layerView, activeLayer, ensureTower, projFoldOverride, writeProjFold, expandedMetrics, viewMode, dirFilter, riskOnly, router, panoId, openPano, visionText, missionText, allProjects, store })
+  const { layerRows5, layerRows6, onLayerOpen, onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget, flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter, toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport, bindOrphan, toggleMetric, editingField, focusEditField, startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate, openDirectionEdit, saveDirectionForm } = useCompassTreeProjects({ compassMeta, findProject, d, layerOpen, layerView, activeLayer, ensureTower, projFoldOverride, writeProjFold, expandedMetrics, viewMode, dirFilter, riskOnly, router, panoId, openPano, visionText, missionText, allProjects, store })
 
 /** V3.9.31（F1）：任务详情「查看项目全景」深链 —— /compass?pano=1&proj=&m=&task=。
  *  复用 onListLocate 全景定位链路（切全景 → 定位任务 → 闪烁），不另造第二套定位；
@@ -478,7 +478,7 @@ watch(() => route.query, q => {
 })
 
 /** V3.9.31（F5）：项目导出 —— 全景页头与项目详情弹窗共用 projectExport 单一生成器（防两处漂移）。
- *  结构化输出项目头（战略链/主攻/状态/下一步/进度/断链警示）→ 指标（验收/进度/缺任务）→
+ *  结构化输出项目头（战略链/主攻/状态/下一步/进度/断链警示）→ 指标（进度/缺任务）→
  *  任务（子任务/任务链接）→ 支撑资源（SupportLink）；链接一律可点击，附件不嵌本体。 */
 function exportProjectPanorama(projId: string, fmt: ExportFmt) {
   if (fmt !== 'md' && fmt !== 'html') return
@@ -630,7 +630,7 @@ onUnmounted(() => {
     onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget,
     flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter,
     toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport,
-    showTaskGrade, bindOrphan, toggleMetric, editingField, focusEditField,
+    bindOrphan, toggleMetric, editingField, focusEditField,
     startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate,
     openDirectionEdit, saveDirectionForm, addProject, goalImport, openGoalImport,
     confirmGoalImport, projImport, openProjImport, confirmProjImport, onToggleFocus,

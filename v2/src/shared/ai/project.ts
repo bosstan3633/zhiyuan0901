@@ -126,7 +126,7 @@ export function projectDormant(d: AppData, days: number, depth: AiDepth): { text
  */
 export function projectChain(
   d: AppData,
-  level: 'directions' | 'projects' | 'metrics' | 'tasks' | 'breakdown',
+  level: 'directions' | 'projects' | 'metrics' | 'tasks',
   anchorId: string,
   depth: AiDepth,
 ): { text: string; missing: string } {
@@ -160,26 +160,16 @@ export function projectChain(
       return `· 指标「${m.title}」目标:${cut(m.target, 40) || '未写'} 任务${ts.filter(t => t.status === 'done').length}/${ts.length}`
     }).join('\n')
     L.push(`【现有成功指标】\n${ms || '（一个指标都没有——这正是问题）'}`)
-    L.push('【任务】提出 2~3 个**可量化验收**的成功指标建议；若现有指标已足够则少提或说明。')
+    L.push('【任务】提出 2~3 个**目标清晰、可量化**的成功指标建议；若现有指标已足够则少提或说明。')
   } else if (level === 'tasks') {
     let met: Metric | undefined; let proj: Project | undefined; let dir: typeof d.compass.directions[number] | undefined
     for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.id === anchorId); if (m) { met = m; proj = p; dir = x; break } }
     if (!met || !proj) return { text: '', missing: '指标已不存在' }
-    L.push(`${dir ? dirLine(dir, '【↑↑】') : ''}\n· ${proj.name} → 指标「${met.title}」（目标:${cut(met.target, 60) || '未写'}）${met.acceptance ? ` 验收:${cut(met.acceptance, c.desc)}` : ''}`)
+    L.push(`${dir ? dirLine(dir, '【↑↑】') : ''}\n· ${proj.name} → 指标「${met.title}」（目标:${cut(met.target, 60) || '未写'}）`)
     const ts = met.taskIds.map(id => (d.tasks || []).find(t => t.id === id && !t.deletedAt)).filter(Boolean) as TaskCard[]
     L.push(`【该指标下现有任务】\n${ts.map(t => `${taskState(t)} ${t.title}${t.dueDate ? '（' + t.dueDate + '）' : ''}`).join('\n') || '（还没有任务）'}`)
     const gap = ts.length - ts.filter(t => t.status === 'done').length
-    L.push(`【任务】指标缺口=未完成 ${gap} 项。提出 3~6 个**未来两周可执行**的具体任务建议，覆盖「验收标准」但别与现有任务重复；每个任务应直接推进该指标。`)
-  } else {
-    const t = (d.tasks || []).find(x => x.id === anchorId)
-    if (!t) return { text: '', missing: '任务已不存在' }
-    let met: Metric | undefined; let proj: Project | undefined; let dir: typeof d.compass.directions[number] | undefined
-    for (const x of d.compass.directions) for (const p of x.projects) { const m = p.metrics.find(y => y.taskIds.includes(anchorId)); if (m) { met = m; proj = p; dir = x; break } }
-    L.push(`【待拆解任务】「${t.title}」${t.status} 优先级${t.priority}${t.dueDate ? ' 计划' + t.dueDate : ' 无计划执行日期'}${t.estimatedMinutes ? ' 预估' + t.estimatedMinutes + '分钟' : ''}`)
-    if (t.description) L.push(`描述：${cut(t.description, c.desc * 2)}`)
-    L.push(`${dir ? dirLine(dir, '【↑】') : ''}`)
-    if (proj && met) L.push(`归属：${proj.name} → 指标「${met.title}」（验收:${cut(met.acceptance || met.target, c.desc) || '未写'}）`)
-    L.push('【任务】把该任务拆成 3~6 个**半天内可完成**的具体步骤（今天/明天就能动手的粒度），给出建议时间盒与先后顺序；步骤标题即子任务名。')
+    L.push(`【任务】指标缺口=未完成 ${gap} 项。提出 3~6 个**未来两周可执行**的具体任务建议，每条都要写完整动作且别与现有任务重复；每个任务应直接推进该指标。`)
   }
   return { text: L.filter(Boolean).join('\n'), missing: '' }
 }
@@ -264,7 +254,7 @@ export function projectTagBlueprint(d: AppData, depth: AiDepth): string {
       try { domain = new URL(r.link || '').host } catch { /* 非网页链接留空 */ }
       return row('res', r.id, r.title, r.description || '', r.tags || [], ` 打开${r.callCount || 0}次${domain ? ' 域名:' + domain : ''}`)
     }),
-    ...tks.map(t => row('task', t.id, t.title, t.description || '', t.tags || [], ` 状态:${t.status || 'todo'} 优先级:${t.priority || '-'}${t.dueDate ? ` 计划:${t.dueDate}` : ''}`)),
+    ...tks.map(t => row('task', t.id, t.title, t.description || '', t.tags || [], ` 状态:${t.status || 'todo'}${t.dueDate ? ` 计划:${t.dueDate}` : ''}`)),
     ...cus.map(x => row('curio', x.id, x.question, x.description || '', x.tags || [], ` 状态:${x.status || 'todo'}`)),
   ]
   L.push(`【全库卡片台账（共 ${lines.length} 张：资源 ${res.length} · 任务 ${tks.length} · 好奇 ${cus.length}；只用卡面字段，不读链接正文）】\n${lines.join('\n')}`)

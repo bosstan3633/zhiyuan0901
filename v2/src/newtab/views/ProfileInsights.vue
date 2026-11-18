@@ -31,7 +31,7 @@
 import Icon from '@/shared/components/Icon.vue'
 import '@/newtab/components/dashboard/dashboard.css'
 import '@/newtab/components/profile/pi-timeline.css'
-import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import type { AppData, TaskCard, ResourceCard } from '@/shared/models'
@@ -110,17 +110,129 @@ const {
   errorLogCount, refreshErrorCount, offErrLog, exportErrorLog, fmtDayKey,
   fmtDay,
 } = useProfileInsights()
+
+/* V4.4.0：周期控制与模块级 AI 洞察放在同一个控制条里。
+   洞察只读当前范围事实，手动触发、临时展示，不写回 AppData。 */
+const profileInsight = ref('')
+const profileInsightState = ref<'idle' | 'run' | 'done' | 'off'>('idle')
+const profileInsightError = ref('')
+let profileInsightAbort: AbortController | null = null
+
+const profileRangeLabel = computed(() => ({
+  today: '今天', week: '本周', month: '本月', year: '本年',
+})[activeRange.value])
+
+const profileInsightFacts = computed(() => {
+  if (activeRange.value === 'today') {
+    return [
+      `今日入台：${todayAdd.value} 张（导入 ${todayImportCount.value} 张）`,
+      `今日调出：${todayCalled.value} 次`,
+      `今日三件事已填：${todayFilled.value}/3`,
+      `已备可用资源：${todayAmmo.value} 张`,
+    ]
+  }
+  if (activeRange.value === 'week') {
+    const win = windowOf('week', {})
+    const agg = aggregateRange(dashStats.value, win.s, win.e)
+    return [
+      `本周窗口：${win.s} 至 ${win.e}`,
+      `有效动作：${agg.acts} 次；加权活跃分：${agg.W}`,
+      `新增卡片：${agg.c.res + agg.c.curio + agg.c.task} 张；调出：${agg.u} 次`,
+      `任务推进：${agg.s.task} 次；支撑关联：${agg.link} 条`,
+      `活跃天数：${agg.act}/${agg.days || 7}`,
+    ]
+  }
+  if (activeRange.value === 'month') {
+    return [
+      `本月入池：${mFunnel.value.pool} 张；新支撑 + 完成任务：${mFunnel.value.support} 条`,
+      `新论点沉淀：${mFunnel.value.curate} 张；入池到支撑转化：${mFunnel.value.convPct}%`,
+      `本月待打标资源：${mUntagged.value} 张`,
+      `知识熵：${mEntTrend.value.from} → ${mEntTrend.value.to} bit`,
+      `Top 主题：${mTopics.value.length ? mTopics.value.map(t => `${t.tag} ${t.n} 张${t.project ? `（${t.project}）` : ''}`).join('；') : '暂无带标签新卡'}`,
+      `当前策展投射：${mProjected.value} 张`,
+    ]
+  }
+  const from = `${dashYear.value}-01-01`
+  const to = `${dashYear.value}-12-31`
+  const agg = aggregateRange(dashStats.value, from, to)
+  return [
+    `年度窗口：${dashYear.value} 年`,
+    `全年有效动作：${agg.acts} 次；活跃天数：${agg.act}/${agg.days || 365}`,
+    `全年新增卡片：${agg.c.res + agg.c.curio + agg.c.task} 张；调出：${agg.u} 次`,
+    `任务状态推进：${agg.s.task} 次；今日三件事完成：${agg.focus} 次；支撑关联：${agg.link} 条`,
+    `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心`,
+    `证据支撑率：${Math.round(heroSupportRate.value * 100)}%；近 30 天精力落主攻：${Math.round(heroFocusShare.value * 100)}%`,
+    `高价值冷却卡：${lcCards.value.length} 张`,
+  ]
+})
+
+function resetProfileInsight(): void {
+  profileInsightAbort?.abort()
+  profileInsightAbort = null
+  profileInsight.value = ''
+  profileInsightError.value = ''
+  profileInsightState.value = 'idle'
+}
+
+async function generateProfileInsight(): Promise<void> {
+  if (profileInsightState.value === 'run') return
+  profileInsightState.value = 'run'
+  profileInsightError.value = ''
+  profileInsightAbort?.abort()
+  profileInsightAbort = new AbortController()
+  try {
+    const [cfgMod, llm] = await Promise.all([
+      import('@/shared/ai/config'),
+      import('@/shared/ai/llm'),
+    ])
+    await cfgMod.loadAiConfig()
+    if (!cfgMod.aiReady.value) {
+      profileInsightState.value = 'off'
+      showToast('请先在 设置 → AI 助手 完成接入')
+      return
+    }
+    const focusText = heroFocusProjects.value.length
+      ? heroFocusProjects.value.map(p => `${p.name}（${p.progress}%，未完成 ${p.open} 项）`).join('；')
+      : '暂无主攻项目'
+    const raw = await llm.chat({
+      messages: [
+        {
+          role: 'system',
+          content: '你是一名严谨、克制的中文数据分析师。只根据给定画像事实分析，不编造数字、不做人格评判；数据不足时明确说明。输出 180—200 字的一段中文，依次包含：①当前周期最关键的行为洞察；②对洞察背后原因的深层剖析；③一条可立即执行、与主攻项目或成功指标相关的下一步建议。不要标题、不要 Markdown、不要客套话。',
+        },
+        {
+          role: 'user',
+          content: [
+            `观察范围：${profileRangeLabel.value}`,
+            `使命主线：${heroMission.value || '未填写'}`,
+            `主攻项目：${focusText}`,
+            `当前范围事实：`,
+            ...profileInsightFacts.value.map(line => `- ${line}`),
+          ].join('\n'),
+        },
+      ],
+      maxTokens: 420,
+      temperature: 0.35,
+      signal: profileInsightAbort.signal,
+    })
+    const clean = raw.replace(/\s+/g, ' ').trim()
+    profileInsight.value = clean.length > 200 ? `${clean.slice(0, 199)}…` : clean
+    profileInsightState.value = profileInsight.value ? 'done' : 'idle'
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') return
+    profileInsightError.value = error instanceof Error ? error.message : String(error)
+    profileInsightState.value = 'idle'
+  }
+}
+
+watch(activeRange, resetProfileInsight)
 </script>
 <template>
   <div class="pi-page">
-    <!-- ===== §0 Hero 页头（V3.9.13：周期切换并入同一工具行，不再单占一屏行） ===== -->
+    <!-- ===== §0 Hero 页头：只保留页面级动作 ===== -->
     <PiHero :error-count="errorLogCount"
       @refresh="onHeroRefresh" @export="onHeroExport"
-      @export-error="exportErrorLog" @open-log="openLog('log')">
-      <template #range>
-        <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
-      </template>
-    </PiHero>
+      @export-error="exportErrorLog" @open-log="openLog('log')" />
 
     <!-- ===== §1 首屏双面板：产品使用状态 + 个人方向状态 ===== -->
     <PiOverview
@@ -133,6 +245,29 @@ const {
 
     <!-- ===== §2 按周期观察：页签已是唯一导航，直接进入当前周期 ===== -->
     <div class="pi-rmods pi-rmods-single">
+        <div class="pi-range-toolbar">
+          <div class="pi-range-control">
+            <span class="pi-range-kicker">观察范围</span>
+            <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
+          </div>
+          <button class="pi-ai-trigger" :class="{ on: profileInsightState === 'done' || profileInsightState === 'run' }"
+            type="button" :disabled="profileInsightState === 'run'" @click="generateProfileInsight">
+            <Icon name="sparkle" :size="14" />
+            {{ profileInsightState === 'run' ? '分析中…' : profileInsightState === 'done' ? '重新洞察' : 'AI 洞察' }}
+          </button>
+        </div>
+        <section v-if="profileInsightState !== 'idle' || profileInsight || profileInsightError"
+          class="pi-ai-insight" :data-state="profileInsightState" aria-label="模块 AI 洞察">
+          <div class="pi-ai-head">
+            <span><Icon name="sparkle" :size="14" /> {{ profileRangeLabel }} · AI 洞察</span>
+            <button type="button" title="收起本次洞察" @click="resetProfileInsight">×</button>
+          </div>
+          <p v-if="profileInsightState === 'run'" class="pi-ai-loading">正在基于当前{{ profileRangeLabel }}的模块数据形成行为洞察与深层剖析…</p>
+          <p v-else-if="profileInsight" class="pi-ai-copy">{{ profileInsight }}</p>
+          <p v-else class="pi-ai-empty">{{ profileInsightError || '请先在设置中完成 AI 接入。' }}</p>
+          <small>临时分析，不写入任务或画像真源。</small>
+        </section>
+
         <PiToday v-if="activeRange === 'today'"
           :today-add="todayAdd" :today-called="todayCalled"
           :today-import="todayImportCount"

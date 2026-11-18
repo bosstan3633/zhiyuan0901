@@ -13,7 +13,7 @@
  *   node scripts/theme-audit.cjs --tag=R155-before      # 指定归档标签
  *   node scripts/theme-audit.cjs --data=<backup.json>   # 指定数据源（默认取 Downloads 下最新 zhiyuan_backup_*.json）
  *   node scripts/theme-audit.cjs --pkg=<解压包目录>      # 直接测"交付物"而非 dist
- *   node scripts/theme-audit.cjs --only=linear,apple    # 只跑部分主题
+ *   node scripts/theme-audit.cjs --only=raycast,apple   # 只跑部分主题
  *
  * 与 e2e.cjs 同法：playwright-core + 本机 ms-playwright Chromium + headless + --load-extension。
  */
@@ -71,7 +71,7 @@ const FREEZE_AT = (() => {
   return Math.floor(t / 86400000) * 86400000
 })()
 
-const THEMES = ['linear', 'raycast', 'apple', 'notion']
+const THEMES = ['raycast', 'apple', 'notion']
 const VIEWS = [
   { id: 'dashboard', hash: '#/', name: '调度台' },
   // R3-B1：树即方向台一级——#/compass 拍的就是完整方向树（原 CompassShell 主航线 + 内嵌展板退役）
@@ -130,7 +130,7 @@ const DRAWER_VIEWS = [
     id: 'drawer-task', name: '任务卡详情', hash: '#/deck/task',
     /* V3.9.1：任务详情已统一到共享 Drawer 壳，旧的 `.task-sidebar` 只存在于历史选择器里。
        改用抽屉内的标题块作为打开判据，AI 入口仍在同一层，避免把真实可用的详情误判成“没打开”。 */
-    card: '[data-tid]', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-cell', aiCount: 3, foot: '.ts-foot button',
+    card: '[data-tid]', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-primary, .drawer .ts-ai-inline', aiCount: 2, foot: '.ts-foot button',
     /* V3.9.23：AI 三入口改为浅色工具组，hover 只提 accent 边与浅底，不再翻实心 accent，
        因此旧“白徽标 + accent 底”的反相判据在此退役；真实对比度由 theme-contrast 守。 */
   },
@@ -692,7 +692,7 @@ const DASH_SCENES = [
           nameEmpty: cards.filter((c) => !(c.querySelector('.theme-name') || {}).textContent).length
         }
       })
-      const ok = r.n === 5 && r.tag === 'BUTTON' && r.dots.every((x) => x === 3) && r.act === 1
+      const ok = r.n === 3 && r.tag === 'BUTTON' && r.dots.every((x) => x === 3) && r.act === 1
         && r.borderW !== '0px' && r.nameEmpty === 0
       return { ok, txt: `卡=${r.n}/${r.tag} 色点=${r.dots.join(',')} 选中=${r.act} 描边=${r.borderW} ${r.border} 无名称=${r.nameEmpty}` }
     }
@@ -1678,7 +1678,7 @@ if (argv.scenes) {
       }
       await resetView(page)
       const opened = await page.locator(v.open).first().isVisible().catch(() => false)
-      /* R166 定案 6 / R167：AI 入口一律**独立成行**，格数按卡种固定（V4.2.0：任务 3 / 资源 1 / 好奇 0）
+      /* R166 定案 6 / R167 / V4.4.0：AI 入口一律贴任务对象，格数按卡种固定（任务 2 / 资源 1 / 好奇 0）
          ⇒ 声明 aiCount 时要求"恰好 N 格"，少一格（合并回单枚钮）或多一格都算不过；未声明的按"≥1 枚"判。
          aiCount=0 是现行正向判据，不能被 `|| 1` 吞成旧口径。 */
       const aiCount = await page.locator(v.ai).count().catch(() => 0)

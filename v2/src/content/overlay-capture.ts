@@ -222,7 +222,7 @@ async function openTaskCapture() {
       <div class="zy-field"><label class="zy-field-label">任务名称${hasSel ? '（已填入网页标题，可编辑）' : ''}</label>
         <input type="text" class="zy-field-input" id="__zy_tc_title__" placeholder="要做什么（可留空）" value="${escapeHtml(hasSel ? pageTitle : '')}"></div>
       <div class="zy-field"><label class="zy-field-label">任务内容${hasSel ? '（已填入选中文本，可编辑）' : ''}</label>
-        <textarea class="zy-field-input" id="__zy_tc_desc__" placeholder="补充说明、上下文、验收标准（可留空）">${escapeHtml(selection)}</textarea></div>
+        <textarea class="zy-field-input" id="__zy_tc_desc__" placeholder="补充关键约束或执行提示（可留空）">${escapeHtml(selection)}</textarea></div>
       <div class="zy-field"><label class="zy-field-label">🔗 链接${hasSel ? '（已自动捕获当前页，可编辑）' : '（可选，留空即无链接）'}</label>
         <input type="text" class="zy-field-input" id="__zy_tc_link__" placeholder="https://…" value="${escapeHtml(hasSel ? pageUrl : '')}"></div>
       <div class="zy-field-row">

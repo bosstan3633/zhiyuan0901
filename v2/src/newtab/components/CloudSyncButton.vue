@@ -23,23 +23,17 @@ const receiptOpen = ref(false)
 const receipt = ref<CloudSyncReceipt | null>(null)
 const historyOpen = ref(false)
 const panelOpen = ref(false)
-const LED_CLASSES = {
-  green: 'led-green',
-  yellow: 'led-yellow',
-  red: 'led-red',
-  neutral: 'led-neutral',
-} as const
 let conflictResolve: ((choice: CloudConflictChoice) => void) | null = null
 
 const title = computed(() =>
-  `${cloud.statusText.value} · ${cloud.statusDetail.value} · 最近实际同步 ${cloud.lastSyncLabel.value} · 状态灯：绿=两端一致，黄=有待同步，红=断线`,
+  `${cloud.statusText.value} · ${cloud.statusDetail.value} · 最近实际同步 ${cloud.lastSyncLabel.value}`,
 )
 const busy = computed(() => cloud.state.value === 'syncing')
 const shortStatus = computed(() => {
   if (busy.value) return '同步中'
   if (cloud.state.value === 'checking') return '检查中'
   if (cloud.state.value === 'disabled' || cloud.state.value === 'signed_out') return '未连接'
-  if (cloud.state.value === 'error' || cloud.ledTone.value === 'red') return '断线'
+  if (cloud.state.value === 'error') return '断线'
   if (cloud.relation.value === 'in_sync') return '已同步'
   if (cloud.state.value === 'connected') return '待同步'
   return '连接中'
@@ -146,7 +140,6 @@ onUnmounted(() => {
       data-testid="topbar-cloud-sync"
       @click="onSyncClick()"
     >
-      <span class="cloud-sync-led" :class="LED_CLASSES[cloud.ledTone.value]" aria-hidden="true"></span>
       <span class="cloud-sync-label">{{ shortStatus }}</span>
     </button>
     <button
@@ -161,7 +154,6 @@ onUnmounted(() => {
     </button>
     <div v-if="panelOpen" class="cloud-sync-panel" role="dialog" aria-label="云同步摘要">
       <div class="csp-head">
-        <span class="cloud-sync-led" :class="LED_CLASSES[cloud.ledTone.value]" aria-hidden="true"></span>
         <div>
           <b>{{ cloud.statusText.value }}</b>
           <p>{{ cloud.statusDetail.value }}</p>
@@ -180,11 +172,6 @@ onUnmounted(() => {
         <button type="button" @click="openHistory"><Icon name="clock" :size="12" /> 同步历史</button>
         <button type="button" @click="openSettings">打开设置</button>
       </div>
-      <p class="csp-legend">
-        <span class="led-green"></span>一致
-        <span class="led-yellow"></span>待同步
-        <span class="led-red"></span>断线
-      </p>
     </div>
   </div>
 
@@ -245,7 +232,6 @@ onUnmounted(() => {
   box-shadow: var(--shadow-lg);
 }
 .csp-head { display: flex; align-items: flex-start; gap: 9px; }
-.csp-head .cloud-sync-led { margin-top: 5px; }
 .csp-head > div { min-width: 0; }
 .csp-head b { display: block; color: var(--text); font-size: var(--fs-sub); }
 .csp-head p { margin: 3px 0 0; color: var(--text-3); font-size: var(--fs-caption); line-height: 1.45; }
@@ -257,12 +243,6 @@ onUnmounted(() => {
 .csp-actions button:hover { border-color: var(--accent); color: var(--accent-ink); }
 .csp-actions button.primary { grid-column: 1 / -1; border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 650; }
 .csp-actions button:disabled { opacity: var(--opacity-disabled); cursor: wait; }
-.csp-legend { display: flex; align-items: center; gap: 4px; margin: 10px 0 0; color: var(--text-3); font-size: var(--fs-micro); }
-.csp-legend span { width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: var(--text-3); }
-.csp-legend span:first-child { margin-left: 0; }
-.csp-legend .led-green { background: var(--success); }
-.csp-legend .led-yellow { background: var(--warning); }
-.csp-legend .led-red { background: var(--danger); }
 .cloud-sync-btn:hover { border-color: var(--border-strong); background: var(--surface); color: var(--text); }
 .cloud-sync-btn.syncing { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); color: var(--accent-ink); }
 .cloud-sync-btn.error { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); color: var(--tag-danger-text); }
@@ -271,50 +251,11 @@ onUnmounted(() => {
 .cloud-sync-btn.both_changed,
 .cloud-sync-btn.unknown { border-color: color-mix(in srgb, var(--accent) 38%, var(--border)); color: var(--accent-ink); }
 .cloud-sync-btn.in_sync { color: var(--text-2); }
-.cloud-sync-led {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--text-3);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-3) 14%, transparent);
-}
-.cloud-sync-led.led-green {
-  background: var(--success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent);
-  animation: cloud-breathe-green 2.8s ease-in-out infinite;
-}
-.cloud-sync-led.led-yellow {
-  background: var(--warning);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 16%, transparent);
-  animation: cloud-breathe-yellow 1.8s ease-in-out infinite;
-}
-.cloud-sync-led.led-red {
-  background: var(--danger);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
-  animation: cloud-breathe-red 1.2s ease-in-out infinite;
-}
-.cloud-sync-led.led-neutral { background: color-mix(in srgb, var(--text-3) 58%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-3) 10%, transparent); }
 .cloud-sync-label { font-size: var(--fs-caption); font-weight: 650; }
 @keyframes cloud-spin { to { transform: rotate(360deg); } }
-@keyframes cloud-breathe-green {
-  0%, 100% { opacity: .62; transform: scale(.88); }
-  50% { opacity: 1; transform: scale(1.08); }
-}
-@keyframes cloud-breathe-yellow {
-  0%, 100% { opacity: .64; transform: scale(.9); }
-  50% { opacity: 1; transform: scale(1.1); }
-}
-@keyframes cloud-breathe-red {
-  0%, 100% { opacity: .68; transform: scale(.92); }
-  50% { opacity: 1; transform: scale(1.12); }
-}
 
 @media (max-width: 820px) {
   .cloud-sync-btn { min-height: 34px; padding: 4px 8px; }
   .cloud-sync-more { min-height: 34px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .cloud-sync-led { animation: none !important; }
 }
 </style>

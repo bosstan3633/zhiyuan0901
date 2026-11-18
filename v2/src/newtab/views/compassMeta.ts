@@ -18,8 +18,6 @@ export interface MetricMeta {
   id: string
   /** 指标名（原型 `.metric-name` 的文案源） */
   title: string
-  /** 验收说明（`metric.acceptance`），原型指标卡第二行 */
-  acceptance: string
   /** 目标值（`metric.target`） */
   target: string
   /** 挂在该指标下的任务（已去重、已按创建时间升序） */
@@ -139,7 +137,6 @@ function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
   return {
     id: m.id,
     title: m.title,
-    acceptance: m.acceptance || '',
     target: m.target || '',
     tasks: uniqueTasks,
     total,

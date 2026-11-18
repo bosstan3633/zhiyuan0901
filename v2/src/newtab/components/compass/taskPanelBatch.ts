@@ -61,16 +61,6 @@ export function useTaskPanelBatch(opts: {
     showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${status==='done'?'已完成':status==='doing'?'进行中':'待开始'}`)
     selectedTaskIds.value.clear()
   }
-  function batchSetPriority(priority: 'low'|'medium'|'high') {
-    selectedTaskIds.value.forEach(id => {
-      const t = d.value.tasks.find(x => x.id === id)
-      if (t) { t.priority = priority; t.updatedAt = Date.now() }
-    })
-    store.persist()
-    showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${priority==='high'?'高':priority==='medium'?'中':'低'}优先级`)
-    selectedTaskIds.value.clear()
-  }
-
   // ---- 批量挂载（O3）：挂到项目→指标 ----
   const mountModalOpen = ref(false)
   const mountProjId = ref('')
@@ -115,7 +105,6 @@ export function useTaskPanelBatch(opts: {
     batchAddTag,
     batchDelete,
     batchSetStatus,
-    batchSetPriority,
     mountModalOpen,
     mountProjId,
     mountMetId,

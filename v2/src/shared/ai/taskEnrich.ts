@@ -23,11 +23,8 @@ export interface TaskEnrichCtx {
 }
 
 interface TaskEnrichOut {
-  acceptance?: string; tags?: string[]; projectId?: string; metricId?: string; estimateNote?: string
+  description?: string; tags?: string[]; projectId?: string; metricId?: string
 }
-
-/** 说明里是否已经写过验收标准——写过就不再建议（定案：已填不覆盖） */
-const hasAcceptance = (desc?: string) => /(验收|完成标准|done when|DoD)/i.test(desc || '')
 
 /** 归属候选校验：只认库里真实存在且未软删的 id（模型乱给的直接丢） */
 function liveTarget(d: AppData, projectId?: string, metricId?: string) {
@@ -46,7 +43,7 @@ export function buildTaskEnrichJob(task: TaskCard, ctx: TaskEnrichCtx): AiJob {
   const known = knownTagSet(d)
   const personaText = chainPersonaText(ctx.personaId || '')
   const haveTags = task.tags || []
-  const descHasAcc = hasAcceptance(task.description)
+  const descEmpty = !task.description?.trim()
   const targets = projectTaskTargets(d, ctx.depth)
   const hasTargets = !targets.startsWith('（暂无')
   const title = task.title.slice(0, 14) || '（无名任务）'
@@ -55,15 +52,13 @@ export function buildTaskEnrichJob(task: TaskCard, ctx: TaskEnrichCtx): AiJob {
     key: 'taskEnrich:' + task.id,
     title: `AI 补全任务 · ${title}`,
     subject: `📌 任务「${title}」`,
-    hint: '只补缺、不覆盖：说明里已有验收标准就不再建议，已打的标签不重复给；归属建议默认不勾（替用户乱挂归属＝替他做决策）。勾选采纳才写库。',
+    hint: '只补缺、不覆盖：只在说明为空时补一句执行上下文，已打的标签不重复给；归属建议默认不勾（替用户乱挂归属＝替他做决策）。勾选采纳才写库。',
     adoptLabel: '✓ 采纳补全（写本卡）',
     promptScope: 'enrich:task', promptObject: task.id, promptObjectLabel: title,
     before: () => [
       { key: 'desc', label: '说明', main: task.description || '' },
       { key: 'tags', label: '标签', main: haveTags.join('、') },
       { key: 'target', label: '归属', main: targetName(d, task) },
-      { key: 'est', label: '估时', main: task.estimatedMinutes ? `约 ${task.estimatedMinutes} 分钟` : '' },
-      { key: 'subs', label: '子任务', main: (task.subtasks || []).map(s => (s.done ? '✓ ' : '· ') + s.title).join('\n') },
     ],
     build: async () => {
       const { projectCard } = await import('./project')
@@ -75,9 +70,7 @@ export function buildTaskEnrichJob(task: TaskCard, ctx: TaskEnrichCtx): AiJob {
           `说明：${task.description || '（空）'}`,
           `标签：${haveTags.join('、') || '（无）'}`,
           `归属：${targetName(d, task)}`,
-          `估时：${task.estimatedMinutes ? task.estimatedMinutes + ' 分钟' : '（未估）'}`,
-          `子任务：${(task.subtasks || []).length ? (task.subtasks || []).map(s => s.title).join(' / ') : '（无）'}`,
-          `状态：${task.status} · 优先级：${task.priority}`,
+          `状态：${task.status}`,
           hasTargets ? `\n【项目/指标候选】\n${targets}` : '',
         ].join('\n') },
       ] }
@@ -85,9 +78,8 @@ export function buildTaskEnrichJob(task: TaskCard, ctx: TaskEnrichCtx): AiJob {
     parse: (raw) => {
       const s = (raw || {}) as TaskEnrichOut
       const rows: AiRow[] = []
-      const acc = String(s.acceptance || '').trim().slice(0, 80)
-      if (acc && !descHasAcc) rows.push({ key: 'acceptance', badge: '验收', main: acc, sub: '追加进说明末尾（原说明不动）', pair: 'desc', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { acceptance: (t.main || '').trim() } }) }, data: { acceptance: acc } })
-      else rows.push({ key: 'acceptance:same', badge: '验收', main: descHasAcc ? '说明里已有验收标准（不重复建议）' : '（AI 没给出可检验的验收标准）', pair: 'desc', changeType: 'same', data: {} })
+      const desc = String(s.description || '').trim().slice(0, 80)
+      if (desc && descEmpty) rows.push({ key: 'description', badge: '说明', main: desc, sub: '补一条执行上下文（仅说明为空时）', pair: 'desc', edit: { main: true, toRow: (r, t) => ({ ...r, main: t.main || '', data: { description: (t.main || '').trim() } }) }, data: { description: desc } })
       const cand = canonicalTagsOf(d, (s.tags || []).filter(t => typeof t === 'string' && t.trim())).filter(t => !haveTags.includes(t)).slice(0, 4)
       const fresh = freshTagsOf(cand, known)
       const inSys = cand.filter(t => fresh.indexOf(t) < 0)
@@ -98,8 +90,6 @@ export function buildTaskEnrichJob(task: TaskCard, ctx: TaskEnrichCtx): AiJob {
         // 归属是"替用户决定这件事属于谁"——一律判弱默认不勾，勾选权必须在人
         rows.push({ key: 'target', badge: '归属', main: targetName(d, { projectId: tgt.projectId, metricId: tgt.metricId || undefined } as TaskCard), sub: `现：${targetName(d, task)} · 低置信，勾了才改`, weak: true, pair: 'target', data: { projectId: tgt.projectId, metricId: tgt.metricId } })
       } else rows.push({ key: 'target:same', badge: '归属', main: targetName(d, task), pair: 'target', changeType: 'same', data: {} })
-      const est = String(s.estimateNote || '').trim().slice(0, 30)
-      if (est) rows.push({ key: 'est', badge: '估时', advisory: true, main: est, sub: '仅提醒，不写字段', pair: 'est', data: { __note: true } })
       return rows
     },
     apply: (rows) => {
@@ -107,10 +97,9 @@ export function buildTaskEnrichJob(task: TaskCard, ctx: TaskEnrichCtx): AiJob {
       if (!live) return '⚠ 任务已不存在，未写入'
       let n = 0
       for (const r of rows) {
-        const s = r.data as { acceptance?: string; tags?: string[]; projectId?: string; metricId?: string; __note?: boolean }
-        if (s.__note) continue
-        if (s.acceptance) {
-          live.description = (live.description ? live.description.trim() + '\n\n' : '') + '🤖 验收标准：' + s.acceptance
+        const s = r.data as { description?: string; tags?: string[]; projectId?: string; metricId?: string }
+        if (s.description && !live.description?.trim()) {
+          live.description = s.description.trim().slice(0, 80)
           n++
         }
         if (s.tags?.length) { live.tags = [...new Set([...(live.tags || []), ...canonicalTagsOf(d, s.tags)])].slice(0, 10); n++ }

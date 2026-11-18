@@ -69,7 +69,7 @@ function exportMd() {
     L.push('')
   }
   if (r.advice.length) {
-    L.push('## 建议动作（按优先级）', '')
+    L.push('## 建议动作（按影响程度）', '')
     r.advice.forEach((a, i) => L.push(`${i + 1}. ${a}`))
     L.push('')
   }
@@ -93,9 +93,9 @@ function exportHtml() {
   </div>
 </section>`).join('')
   const advice = r.advice.length ? `
-<section style="border:1px solid rgba(139,92,246,.3);border-radius:10px;background:rgba(139,92,246,.07);padding:13px 15px">
-  <b style="font-size:12px;color:#6d28d9"><Icon name="bulb" :size="13"/>&nbsp;建议动作（按优先级）</b>
-  ${r.advice.map((a, i) => `<p style="margin:7px 0;font-size:12px;line-height:1.8"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgba(139,92,246,.2);color:#6d28d9;font-size:10px;text-align:center;line-height:16px">${i + 1}</span> ${esc(a)}</p>`).join('')}
+<section style="border:1px solid rgba(15,111,158,.28);border-radius:10px;background:rgba(15,111,158,.06);padding:13px 15px">
+  <b style="font-size:12px;color:#0F6F9E">建议动作（按影响程度）</b>
+  ${r.advice.map((a, i) => `<p style="margin:7px 0;font-size:12px;line-height:1.8"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgba(15,111,158,.16);color:#0F6F9E;font-size:10px;text-align:center;line-height:16px">${i + 1}</span> ${esc(a)}</p>`).join('')}
 </section>`: ''
   const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>${esc(r.projName)} · AI 诊断报告</title></head>
@@ -172,7 +172,7 @@ ${dims}${advice}
           </div>
 
           <div v-if="report.advice.length" class="pd-advs">
-            <div class="pd-adv-h"><Icon name="bulb" :size="13"/> 建议动作（按优先级）</div>
+            <div class="pd-adv-h"><Icon name="bulb" :size="13"/> 建议动作（按影响程度）</div>
             <div v-for="(a, i) in report.advice" :key="i" class="pd-adv">
               <span class="pd-adv-i">{{ i + 1 }}</span>
               <span>{{ a }}</span>
@@ -251,10 +251,10 @@ ${dims}${advice}
 .pd-bd.bad { color: var(--danger); }
 .pd-ev { margin-left: auto; flex: none; font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; padding-left: 10px; white-space: nowrap; }
 
-.pd-advs { padding: 13px 15px; border-radius: 10px; background: var(--accent-light); border: 1px solid rgba(139, 92, 246, .24); }
+.pd-advs { padding: 13px 15px; border-radius: 10px; background: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent); }
 .pd-adv-h { font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); margin-bottom: 8px; }
 .pd-adv { font-size: var(--fs-caption); color: var(--text-2); line-height: 1.8; padding: 5px 0; display: flex; gap: 9px; }
-.pd-adv-i { width: 16px; height: 16px; border-radius: 4px; background: rgba(139, 92, 246, .22); color: var(--accent-ink); font-size: 9px; font-weight: 700; display: grid; place-items: center; flex: none; margin-top: 3px; }
+.pd-adv-i { width: 16px; height: 16px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-ink); font-size: 9px; font-weight: 700; display: grid; place-items: center; flex: none; margin-top: 3px; }
 .pd-noadv { padding: 12px 14px; border-radius: 10px; background: var(--surface-3); font-size: var(--fs-caption); color: var(--text-3); }
 
 .pd-f { padding: 11px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 9px; font-size: var(--fs-tiny); color: var(--text-3); }

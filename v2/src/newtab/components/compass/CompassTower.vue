@@ -47,7 +47,6 @@ const emit = defineEmits<{
   (e: 'fold', projId: string): void
   (e: 'toggleMetric', metricId: string): void
   (e: 'toggleTask', taskId: string): void
-  (e: 'taskGrade', taskId: string): void
   /** ★W12-C 透传：任务标题单击开任务详情抽屉（此前项目塔同样无任何 emit 通到 detailRef.open） */
   (e: 'openDetail', taskId: string): void
   (e: 'addTask', metricId: string): void
@@ -89,6 +88,7 @@ const emit = defineEmits<{
   (e: 'importTemplate', projId: string): void
   /** ★F1：删除成功指标（走真源 removeMetricWithConfirm；本组件只透传，不实现删除） */
   (e: 'delMetric', metricId: string): void
+  (e: 'reorderMetric', dragId: string, targetId: string, mode: 't' | 'b'): void
   /** N2：还没报告 → 跑诊断（走 AI 抽屉，手动触发红线）；已有报告 → 打开中央弹窗 */
   (e: 'diagRun', projId: string): void
   (e: 'diagReport', projId: string): void
@@ -221,7 +221,6 @@ function hasClue(t: TaskCard): boolean {
           :editing="editingField === 'metric-' + m.id"
           @toggle="emit('toggleMetric', $event)"
           @task="emit('toggleTask', $event)"
-          @grade="emit('taskGrade', $event)"
           @open-detail="emit('openDetail', $event)"
           @add-task="emit('addTask', $event)"
           @unbind="emit('unbind', $event)"
@@ -231,6 +230,7 @@ function hasClue(t: TaskCard): boolean {
           @cancel-title="emit('cancelTitle', $event)"
           @open-metric="emit('openMetric', $event)"
           @del-metric="(mid) => emit('delMetric', mid)"
+          @reorder-metric="(dragId, targetId, mode) => emit('reorderMetric', dragId, targetId, mode)"
         />
       </div>
 

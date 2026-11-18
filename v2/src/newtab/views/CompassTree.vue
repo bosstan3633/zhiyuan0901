@@ -60,7 +60,7 @@ const {
   onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget,
   flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter,
   toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport,
-  showTaskGrade, bindOrphan, toggleMetric, editingField, focusEditField,
+  bindOrphan, toggleMetric, editingField, focusEditField,
   startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate,
   openDirectionEdit, saveDirectionForm, addProject, goalImport, openGoalImport,
   confirmGoalImport, projImport, openProjImport, confirmProjImport, onToggleFocus,
@@ -72,6 +72,22 @@ const {
   projDrawerOpen, projDrawerId, openProjectDrawer, unsubProjDrawer,
   scrollParent,
 } = useCompassTree()
+
+function reorderMetricWithinProject(dragId: string, targetId: string, mode: 't' | 'b') {
+  for (const dir of d.value.compass.directions) {
+    for (const proj of dir.projects) {
+      const dragIndex = proj.metrics.findIndex(m => m.id === dragId)
+      const targetIndex = proj.metrics.findIndex(m => m.id === targetId)
+      if (dragIndex < 0 || targetIndex < 0 || dragIndex === targetIndex) continue
+      const [moved] = proj.metrics.splice(dragIndex, 1)
+      const insertAt = proj.metrics.findIndex(m => m.id === targetId)
+      proj.metrics.splice(mode === 'b' ? insertAt + 1 : insertAt, 0, moved)
+      store.persist()
+      showToast(`成功指标「${moved.title}」已整组排序`)
+      return
+    }
+  }
+}
 </script>
 
 <template>
@@ -246,15 +262,15 @@ const {
                 <template v-if="layerOpen === 1">
                   <span class="tl-badge">1 愿景 · 终极方向</span>
                   <div class="tl-text">
-                    <span class="node-title editable" v-pressable :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
-                      @click="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '点击设定你的核心愿景…' }}</span>
+                    <span class="node-title editable" v-pressable title="双击就地编辑愿景" :class="{editing: editingField === 'vision'}" :data-edit="'vision'" :contenteditable="editingField === 'vision'"
+                      @dblclick.stop="startEdit('vision', $event)" @blur="saveEdit('vision', $event)" @keydown.enter.ctrl.prevent="saveEdit('vision', $event)" @keydown.esc="cancelEdit">{{ visionText || '双击设定你的核心愿景…' }}</span>
                   </div>
                 </template>
                 <template v-else>
                   <span class="tl-badge ghost" id="layer-2">2 使命 · 行动准则</span>
                   <div class="tl-text sub">
-                    <span class="node-title editable" v-pressable :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
-                      @click="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '点击设定你的核心使命…' }}</span>
+                    <span class="node-title editable" v-pressable title="双击就地编辑使命，保存后同步到知源品牌区" :class="{editing: editingField === 'mission'}" :data-edit="'mission'" :contenteditable="editingField === 'mission'"
+                      @dblclick.stop="startEdit('mission', $event)" @blur="saveEdit('mission', $event)" @keydown.enter.ctrl.prevent="saveEdit('mission', $event)" @keydown.esc="cancelEdit">{{ missionText || '双击设定你的核心使命…' }}</span>
                   </div>
                 </template>
               </div>
@@ -313,7 +329,6 @@ const {
               @export-project="fmt => exportProjectPanorama(panoEffectiveId, fmt)"
               @open-curation="router.push('/compass/curation')"
               @toggle-task="toggleTask"
-              @task-grade="showTaskGrade"
               @open-detail="openTaskDetail"
               @unbind-task="unbindTaskById"
               @open-metric="openMetricDetail"
@@ -364,8 +379,8 @@ const {
                 <div class="dir-head" :class="dg.hue" :data-dir-id="dg.dir.id">
                   <div class="dh-l">
                     <CompassLevelTag :level="3" kind="direction" icon="compass" label="战略目标" />
-                    <span class="node-title editable dh-n" v-pressable :data-edit="'dir-' + dg.dir.id"
-                      @click.stop="openDirectionEdit(dg.dir.id)">{{ dg.dir.name }}</span>
+                    <span class="node-title editable dh-n" v-pressable title="双击就地编辑战略目标名称" :class="{editing: editingField === 'dir-' + dg.dir.id}" :data-edit="'dir-' + dg.dir.id" :contenteditable="editingField === 'dir-' + dg.dir.id"
+                      @dblclick.stop="startEdit('dir-' + dg.dir.id, $event)" @blur="saveEdit('dir-' + dg.dir.id, $event)" @keydown.enter.ctrl.prevent="saveEdit('dir-' + dg.dir.id, $event)" @keydown.esc="cancelEdit">{{ dg.dir.name }}</span>
                     <span v-if="isStagnant(dg.dir)" class="stagnant-tag" title="该目标下项目近 14 天无推进"><Icon name="warn" :size="13"/> 停滞</span>
                     <MaturityBadge :m="directionMaturity(d, dg.dir)" />
                     <span class="dh-meta">{{ dg.projs.length }} 攻坚项目 · {{ dg.metaCount }} 成功指标 · {{ dg.taskCount }} 任务</span>
@@ -386,7 +401,7 @@ const {
                     <span class="node-action t2" v-pressable @click="openGoalImport(dg.dir)" title="导入模板（Markdown 批量生成项目/指标/任务）"><Icon name="filetext" :size="13"/></span>
                     <span class="node-action t3" v-pressable :class="{ on: dirFilter === dg.dir.id }" @click="onDirFilter(dg.dir.id)"
                       :title="dirFilter === dg.dir.id ? '正在只看这个目标 · 再点取消' : '只看这个战略目标的项目舱'"><Icon v-if="dirFilter === dg.dir.id" name="eye" :size="13"/>{{ dirFilter === dg.dir.id ? '正在只看' : '只看我' }}</span>
-                    <span class="node-action t2" v-pressable @click="openDirectionEdit(dg.dir.id)" title="编辑战略目标（名称 / 期限 / 状态）"><Icon name="edit" :size="13"/></span>
+                    <span class="node-action t2" v-pressable @click.stop="openDirectionEdit(dg.dir.id)" title="编辑战略目标（名称 / 期限 / 状态）"><Icon name="edit" :size="13"/></span>
                     <span class="node-action t3 danger" v-pressable @click="deleteNode('dir', dg.dir.id)" title="删除目标"><Icon name="trash" :size="13"/></span>
                   </div>
                 </div>
@@ -423,7 +438,6 @@ const {
                   @fold="(id) => { const p = findProject(id); if (p) toggleProjectFold(p) }"
                   @toggle-metric="toggleMetric"
                   @toggle-task="toggleTask"
-                  @task-grade="showTaskGrade"
                   @open-detail="openTaskDetail"
                   @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @open-metric="openMetricDetail"
@@ -431,6 +445,7 @@ const {
                   @ai-task="(mid) => aiChain('tasks', mid)"
                   @add-metric="addMetric"
                   @del-metric="delMetricById"
+                  @reorder-metric="reorderMetricWithinProject"
                   @import-template="openProjImport"
                   @edit-title="(mid, ev) => startEdit('metric-' + mid, ev)"
                   @save-title="(mid, ev) => saveEdit('metric-' + mid, ev)"

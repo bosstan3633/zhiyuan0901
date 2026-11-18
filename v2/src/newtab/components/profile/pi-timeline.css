@@ -40,7 +40,7 @@
    （.pi-ov-insight / .pi-ov-lines / .pi-ov-line / .pi-ov-check / .pi-ov-foot / .pi-ov-progress / .pi-ov-link）
    同批删除——排三件事的能力唯一归调度台。四格读数样式（.pi-ov-kpis / .pi-ov-kpi）保留。 */
 /* ===== 时间尺度页签 + 单段时间轴（V3.9.3） ===== */
-/* V3.9.13：周期带并入 PiHero；独立标题带退役，页签仍由同一组件承载。 */
+/* V4.4.0：周期带从 Hero 下移到受控模块控制条，与模块级 AI 洞察并列。 */
 .pi-range-tabs {
   display: flex; align-items: center; gap: 2px; padding: 3px; max-width: 100%;
   overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -203,8 +203,6 @@
    随「使命 + 主攻胶囊」迁入 PiOverview 方向状态面板而退役（胶囊 24ch 截断问题同批消解）。
    方向状态面板的样式在 PiOverview.vue scoped 内，不再共享到这里。 */
 .pi-hero-acts { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
-.pi-hero-range { flex: none; display: flex; align-items: center; }
-.pi-hero-range:empty { display: none; }
 
 /* ★V4.3.1 退役备案：周期 AI 洞察条 `.one-insight`（含 `.oi-ic` / `.oi-text`）随
    今日 / 本周 / 本月 / 本年 AI 分析一起删除。洞察结论不再由周期页面渲染；年度页只保留
@@ -353,7 +351,6 @@
   .pi-ov-head { flex-wrap: wrap; }
   .pi-ov-head .meta { width: 100%; padding-top: 0; }
   .hero-row-top { align-items: flex-start; }
-  .pi-hero-range { order: 3; width: 100%; overflow-x: auto; }
   .pi-range-tabs { width: 100%; }
   .pi-range-tab { flex: 1; justify-content: center; }
   .strip4 { grid-template-columns: repeat(2, 1fr); }

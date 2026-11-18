@@ -1,5 +1,5 @@
 /**
- * R166 F4：给任务/子任务「找资源支持」。
+ * R166 F4 / V4.4.0：给任务「找资源支持」。
  *
  * 两段式，纪律照 `buildEvidenceJob`（金字塔找佐证）：
  *  ① **本地预筛**——词面 + 标签打分取 top N，并排除该任务已关联的；
@@ -12,7 +12,7 @@
  *
  * ★ 懒加载侧：宿主点击时才 dynamic import。
  */
-import type { AppData, ResourceCard, TaskCard, Subtask } from '@/shared/models'
+import type { AppData, ResourceCard, TaskCard } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 import { POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import type { AiJob, AiRow } from './job'
@@ -26,7 +26,6 @@ export interface TaskSupportCtx {
   depth: AiDepth
   persist: () => void
   taskId: string
-  subId?: string
   personaId?: string
   onPersona?: (id: string) => void
 }
@@ -72,25 +71,23 @@ export function buildTaskSupportJob(ctx: TaskSupportCtx): AiJob | null {
   const d = ctx.d
   const task = d.tasks.find(x => x.id === ctx.taskId && !x.deletedAt)
   if (!task) return null
-  const sub: Subtask | undefined = ctx.subId ? (task.subtasks || []).find(s => s.id === ctx.subId) : undefined
-  const subjectText = sub ? `${task.title} › ${sub.title}` : task.title
+  const subjectText = task.title
   const known = new Map<string, ResourceCard>()
   const drop = { ghost: 0, noWhy: 0 }
 
   return {
-    key: 'support:' + task.id + (sub ? ':' + sub.id : ''),
+    key: 'support:' + task.id,
     title: `找资源支持 · ${task.title.slice(0, 14) || '（无名任务）'}`,
-    subject: sub ? `📌 子任务「${sub.title.slice(0, 20)}」（父：${task.title.slice(0, 14)}）` : `📌 任务「${task.title.slice(0, 20)}」`,
+    subject: `📌 任务「${task.title.slice(0, 20)}」`,
     hint: '先在本地按词面/标签筛出够格的候选，再让模型只排序和写一句"用得上在哪"。采纳=记一条关联，**任务和资源两张卡本体都不改**；解绑只在任务侧。',
     adoptLabel: '✓ 关联为支持',
-    promptScope: 'support:task', promptObject: task.id + (sub ? ':' + sub.id : ''), promptObjectLabel: subjectText.slice(0, 14),
+    promptScope: 'support:task', promptObject: task.id, promptObjectLabel: subjectText.slice(0, 14),
     before: () => {
       const idx = buildSupportIndex(d)
-      const own = sub ? [] : listTitles(idx, d, task.id)
+      const own = listTitles(idx, d, task.id)
       return [
         { key: 'title', label: '标题', main: task.title || '（无名任务）' },
         { key: 'desc', label: '说明', main: task.description || '' },
-        { key: 'subs', label: '子任务', main: (task.subtasks || []).map(s => (s.done ? '✓ ' : '· ') + s.title).join('\n') },
         { key: 'support', label: '已关联资源', main: own.join('\n') },
       ]
     },
@@ -106,7 +103,7 @@ export function buildTaskSupportJob(ctx: TaskSupportCtx): AiJob | null {
       return { messages: [
         { role: 'system', content: taskSupportSystem() + (chainPersonaText(ctx.personaId || '') ? `\n\n【执笔视角】${chainPersonaText(ctx.personaId || '')}` : '') },
         { role: 'user', content: [
-          `【要帮的对象】${sub ? '子任务' : '任务'}：${subjectText}`,
+          `【要帮的对象】任务：${subjectText}`,
           `【它的说明】${(task.description || '').slice(0, 300) || '（无）'}`,
           `【资源目录（本地预筛 ${cands.length} 张，已排除关联过的）】\n${list}`,
         ].join('\n') },
@@ -140,7 +137,7 @@ export function buildTaskSupportJob(ctx: TaskSupportCtx): AiJob | null {
       for (const r of rows) {
         const s = r.data as { __cardId?: string; why?: string }
         if (!s.__cardId) continue
-        const out = addSupportLink(d, { taskId: task.id, ...(sub ? { subId: sub.id } : {}), resourceId: s.__cardId, from: 'ai', ...(s.why ? { why: s.why } : {}) })
+        const out = addSupportLink(d, { taskId: task.id, resourceId: s.__cardId, from: 'ai', ...(s.why ? { why: s.why } : {}) })
         if (out.dup) dup++; else added++
       }
       if (!added && !dup) return '⚠ 没勾选任何资源，未改动'

@@ -7,7 +7,7 @@
  *
  * 三层分工（这是本文件最要紧的一条）：
  *  ① **判据与结论由规则算**（`runProjectDiagnosis`）——五维度枚举是写死的，AI 只能从枚举里选，不能自造。
- *     原型第 ④ 节的表头就叫「判据（可写死）」：进度停滞=近 14 天无状态变更、指标空转=挂载任务数=0……
+ *     V4.4.0 起诊断只依据现役能力：计划排期覆盖、停滞、逾期、任务承接与归属，不再检查验收标准或子任务。
  *     这些都是确定性的，交给模型只会引入漂移（今天判停滞、明天判不停滞），而且**无法断言**。
  *  ② **AI 只写「建议动作」那一段**——自然语言、需要权衡取舍、写死没意思的部分。
  *  ③ **报告存 chrome.storage.session**——会话缓存，关浏览器即失效，不进主数据、不进导出链、不落卡片池。
@@ -66,12 +66,11 @@ export interface ProjectDiagnosis {
 
 const DAY = 86_400_000
 const STALL_WINDOW = 14 * DAY
-const OVER_SUBTASKS = 8
 
 export const DIAG_DIM_LABEL: Record<DiagDim['key'], string> = {
   progress: '项目完成情况',
   metrics: '成功指标',
-  breakdown: '任务与任务拆解',
+  breakdown: '计划与承接',
   completion: '任务完成情况',
   overall: '项目整体进展',
 }
@@ -114,8 +113,8 @@ function fingerprintOf(proj: Project, tasks: TaskCard[]): string {
   const raw = [
     proj.id, proj.isFocused ? 1 : 0, proj.pinned ? 1 : 0, proj.progress, proj.status,
     proj.startDate || '', proj.endDate || '',
-    ...proj.metrics.map(m => `${m.id}:${(m.acceptance || '').length}:${m.taskIds.length}`),
-    ...tasks.map(t => `${t.id}:${t.status}:${t.updatedAt}:${(t.subtasks || []).length}`),
+    ...proj.metrics.map(m => `${m.id}:${m.taskIds.length}`),
+    ...tasks.map(t => `${t.id}:${t.status}:${t.updatedAt}:${t.dueDate || ''}`),
   ].join('|')
   let h = 5381
   for (let i = 0; i < raw.length; i++) h = ((h << 5) + h + raw.charCodeAt(i)) >>> 0
@@ -163,7 +162,6 @@ export function runProjectDiagnosis(d: AppData, projId: string): ProjectDiagnosi
     const byMetric = new Map<string, number>()
     for (const t of tasks) if (t.metricId) byMetric.set(t.metricId, (byMetric.get(t.metricId) || 0) + 1)
     const idle = metrics.filter(m => !byMetric.get(m.id))
-    const noAccept = metrics.filter(m => !(m.acceptance || '').trim())
     if (!metrics.length) {
       fs.push(f('metrics', '指标缺失', 'warn', '还没有定义成功指标，项目缺少可判定的目标', '0 个指标'))
     } else {
@@ -172,38 +170,33 @@ export function runProjectDiagnosis(d: AppData, projId: string): ProjectDiagnosi
           `${idle.slice(0, 2).map(m => `「${m.title}」`).join('')}${idle.length > 2 ? ' 等' : ''} ${idle.length} 个指标挂载任务数 = 0`,
           `${idle.length}/${metrics.length} 指标`))
       }
-      if (noAccept.length) {
-        fs.push(f('metrics', '验收标准缺失', 'warn',
-          `${noAccept.length} 个指标没有写明可判定的验收标准`,
-          `${metrics.length - noAccept.length}/${metrics.length} 已写明`))
-      }
-      if (!idle.length && !noAccept.length) {
-        fs.push(f('metrics', '指标就绪', 'ok', `${metrics.length} 个指标均有任务承接且验收标准完整`, `${metrics.length}/${metrics.length}`))
+      if (!idle.length) {
+        fs.push(f('metrics', '指标就绪', 'ok', `${metrics.length} 个指标均有任务承接`, `${metrics.length}/${metrics.length}`))
       }
     }
     dims.push({ key: 'metrics', label: DIAG_DIM_LABEL.metrics, status: worst(fs.map(x => x.level)), findings: fs })
   }
 
-  // ── 维度 3 任务与任务拆解 ──────────────────────────────
+  // ── 维度 3 计划与承接 ──────────────────────────────────
   {
     const fs: DiagFinding[] = []
     if (!total) {
-      fs.push(f('breakdown', '尚无任务', 'warn', '没有任务，谈不上拆解', '0 条任务'))
+      fs.push(f('breakdown', '尚无任务', 'warn', '没有任务，谈不上执行计划', '0 条任务'))
     } else {
-      const noSub = tasks.filter(t => !(t.subtasks || []).length)
-      const over = tasks.filter(t => (t.subtasks || []).length > OVER_SUBTASKS)
-      if (noSub.length) {
-        fs.push(f('breakdown', '拆解不足', 'warn',
-          `${noSub.length} 个任务完全没有子任务，做完算不算没个判定`,
-          `${total - noSub.length}/${total} 有拆解`))
+      const unplanned = tasks.filter(t => t.status !== 'done' && !t.dueDate)
+      const unsupported = tasks.filter(t => !t.metricId)
+      if (unplanned.length) {
+        fs.push(f('breakdown', '缺少执行计划', 'warn',
+          `${unplanned.length} 个未完成任务还没有计划执行日期，无法进入日历节奏`,
+          `${total - unplanned.length}/${total} 已排期`))
       }
-      if (over.length) {
-        fs.push(f('breakdown', '拆解过细', 'warn',
-          `「${over[0].title}」拆到 ${over[0].subtasks!.length} 项，超过单任务 ${OVER_SUBTASKS} 项上限`,
-          `${over.length} 例`))
+      if (unsupported.length) {
+        fs.push(f('breakdown', '任务未承接指标', 'warn',
+          `「${unsupported[0].title}」${unsupported.length > 1 ? ` 等 ${unsupported.length} 条任务` : ''}没有挂到成功指标`,
+          `${unsupported.length}/${total} 条`))
       }
-      if (!noSub.length && !over.length) {
-        fs.push(f('breakdown', '粒度合理', 'ok', `${total} 个任务拆解粒度都在合理区间`, `${total}/${total}`))
+      if (!unplanned.length && !unsupported.length) {
+        fs.push(f('breakdown', '计划完整', 'ok', `${total} 个任务均有计划日期与指标承接`, `${total}/${total}`))
       }
     }
     dims.push({ key: 'breakdown', label: DIAG_DIM_LABEL.breakdown, status: worst(fs.map(x => x.level)), findings: fs })

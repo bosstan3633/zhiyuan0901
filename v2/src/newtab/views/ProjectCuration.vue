@@ -23,15 +23,13 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 // R147-d：任务级 AI 菜单抽成共享组件（与任务面板/看板同一套动作）
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
-import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
+import { metricMaturity } from '@/shared/utils/maturity'
 import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 import {
   directionTermLabel,
   goalOfProject,
   isProjectStalled,
   metricProgress,
-  priorityLabel,
-  priorityTag,
   taskAssetCount as taskAssetCountOf,
   taskAssetSize as taskAssetSizeOf,
   tasksForMetricId,
@@ -455,12 +453,6 @@ function onMetricDragLeave(e: DragEvent) {
   (e.currentTarget as HTMLElement).classList.remove('drag-over')
 }
 
-function prLabel(pr: string) {
-  return priorityLabel(pr)
-}
-function prTag(pr: string) {
-  return priorityTag(pr)
-}
 
 /* ================= R49-D4：任务附件区（按任务聚合，AssetBadge 复用现有打开逻辑） ================= */
 const tasksWithAssets = computed(() => {
@@ -637,9 +629,7 @@ function addTaskFromHeader() {
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
             <span class="bcheck" v-pressable :class="{done: task.status==='done'}" @click="toggleTaskDone(task)"><Icon v-if="task.status==='done'" name="check" :size="12"/></span>
             <span class="bt" v-pressable @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
-            <span class="tag" :class="prTag(task.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(task.priority) }}</span></span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
-            <MaturityBadge :m="taskMaturity(task)" />
             <TaskAiMenu :task="task" @detail="openTaskDetail" />
             <button class="icon-btn-sm" title="从本指标移除（解绑回任务调度模块；删除本体请进任务详情）" @click="unbindTask(task)"><Icon name="x" :size="13"/></button>
           </div>
@@ -673,8 +663,6 @@ function addTaskFromHeader() {
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
             <span class="bcheck" v-pressable :class="{done: t.status==='done'}" @click="toggleTaskDone(t)"><Icon v-if="t.status==='done'" name="check" :size="13"/></span>
             <span class="bt" v-pressable @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
-            <span class="tag" :class="prTag(t.priority)"><i class="tag-dot" /><span class="tag-txt">{{ prLabel(t.priority) }}</span></span>
-            <MaturityBadge :m="taskMaturity(t)" />
             <TaskAiMenu :task="t" @detail="openTaskDetail" />
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)"><Icon name="trash" :size="13"/></button>
           </div>

@@ -15,12 +15,12 @@ check('R77-2 浮层 --zy-* 变量体系：明色为默认 + prefers-color-scheme
   return o.includes('--zy-bg:') && o.includes('--zy-text:') && o.includes('--zy-accent:')
     && o.includes('@media (prefers-color-scheme: dark)') && o.includes('--zy-on-accent');
 });
-check('R77-3（R156 解禁改写）四主题强调色与 tokens.css 一一对应（防漂移：改任一侧回归必红）', () => {
+check('R77-3（V4.4.0 重指）三主题强调色统一为知源 Logo 蓝，并与 tokens.css 一一对应（防漂移：改任一侧回归必红）', () => {
   const o = read('/content/overlay-impl.ts');
   const t = read('/shared/styles/tokens.css');
-  const keys = ['linear', 'apple', 'raycast', 'notion'];
-  /* R156：accent 解禁，四主题各自独立（R124~R155 期间此处四项全为 #5E6AD2） */
-  const vals = ['#5E6AD2', '#8452E0', '#1E6FD9', '#9E3FAF'];
+  const keys = ['raycast', 'apple', 'notion'];
+  /* V4.4.0：只保留三套正式主题，所有主行动统一到知源 Logo 蓝，并按主题校准明度。 */
+  const vals = ['#1579AD', '#0F6F9E', '#0B668F'];
   return keys.every(function (k, i) {
     return o.includes(k + ': { accent: ') && o.includes(vals[i])
       && t.includes('--accent: ' + vals[i] + ';') && t.includes("data-theme='" + k + "'");
@@ -55,9 +55,9 @@ check('R77-8 applyThemeAccent 存在且在 openOverlay 内被调用（强调色�
   return o.includes('async function applyThemeAccent()') && o.includes('void applyThemeAccent()')
     && o.indexOf('void applyThemeAccent()') > o.indexOf('function openOverlay');
 });
-check('R77-9 主题读取失败回落默认 linear（try/catch + 兜底取值）', () => {
+check('R77-9（V4.4.0 重指）主题读取失败回落默认光速黑 raycast（try/catch + Logo 蓝兜底）', () => {
   const o = read('/content/overlay-impl.ts');
-  return o.includes("let theme = 'linear'") && o.includes('THEME_ACCENT[theme] || THEME_ACCENT.linear!')
+  return o.includes("let theme = 'raycast'") && o.includes('THEME_ACCENT[theme] || THEME_ACCENT.raycast!')
     && o.includes('catch {') && o.includes("root.style.setProperty('--zy-accent', c.accent)");
 });
 
@@ -405,7 +405,7 @@ check('R83-2/R121 M1 右端「进入方向树 ›」收敛为一个 ★R3-B1 退
 });
 check('R83-3 M1 空态文案在位 ★R3-B1 随宿主改靶：主航线的「尚未设定愿景/使命」随退役换成方向树第 1-2 层的就地引导文案（空态不许留白）', () => {
   const t = CT_ALL;
-  return t.includes("visionText || '点击设定你的核心愿景…'") && t.includes("missionText || '点击设定你的核心使命…'");
+  return t.includes("visionText || '双击设定你的核心愿景…'") && t.includes("missionText || '双击设定你的核心使命…'");
 });
 check('R83-4 M2 期限三值映射齐全（远期/中期/近期）★R3-B1 去向点名：主航线目标卡的期限位随退役消失，读数由项目详情页承接（面包屑 + 目标行两处同口径），未设期限不显示', () => {
   const pc = read('/newtab/views/ProjectCuration.vue');

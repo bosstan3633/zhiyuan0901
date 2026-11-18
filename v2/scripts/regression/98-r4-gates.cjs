@@ -426,14 +426,18 @@ const ET_RETIRE = {
   '/newtab/App.vue': ['.home-logo'],
   '/newtab/components/GlobalPopups.vue': ['.gp-ai-row', '.gp-curio-src'],
   '/newtab/components/compass/NorthStarPanel.vue': ['.nd-group', '.nd-group-name', '.nd-drag', '.nd-input', '.nd-edit', '.nd-btn', '.nr-row', '.nr-k', '.nr-v', '.nr-actions', '.nd-btn.ghost', '.nr-v.link',],
-  '/newtab/components/compass/TaskDetailDrawer.vue': ['.ts-label', '.ts-select', '.ts-input', '.ts-note', '.ts-field', '.ts-rel-up', '.ts-status-chip', '.ts-time-text', '.ts-status-chip.active',],
+  '/newtab/components/compass/TaskDetailDrawer.vue': ['.ts-label', '.ts-select', '.ts-input', '.ts-note', '.ts-field', '.ts-rel-up', '.ts-rel-chip', '.ts-rel-chip.sub', '.ts-status-chip', '.ts-time-text', '.ts-status-chip.active',],
+  '/newtab/components/compass/CompassPanoLane.vue': ['.lb-pri',],
+  '/newtab/components/compass/hotzone.css': ['.tk-grade',],
+  '/newtab/components/dashboard/dashboard.css': ['.dz-kpi .c .up', '.dz-kpi .c .dn',],
+  '/shared/styles/tokens.css': ['.zy-dot-hi', '.zy-dot-mi',],
   '/newtab/components/compass/TaskManagerPanel.vue': ['.batch-tagin'],
-  '/newtab/views/CompassHome.vue': ['.cf-go', '.pager', '.pg-num', '.cur-tree-caret', '.picker-item.sys', '.pi-check.pi-ghost',],
+  '/newtab/views/CompassHome.vue': ['.cf-go', '.pager', '.pg-num', '.cur-tree-caret', '.picker-item.sys', '.pi-check.pi-ghost', '.mini-check', '.mini-check.done',],
   '/newtab/views/CompassTree.vue': ['.tl-head-row', '.gs-i', '.gs-d', '.gs-sep', '.gs-n', '.node', '.sidebar', '.breadcrumb', '.main-area', '.goals-row', '.goal-col', '.goal-node', '.project-node', '.project-branch', '.vision-node', '.mission-node', '.metric-item', '.metric-name', '.metric-status', '.metrics-wrap', '.tasks-wrap', '.tasks-header', '.sub-tree', '.tree-connector', '.guide-line', '.branch-connector', '.progress-bar', '.progress-fill', '.focus-btn', '.linked-chips', '.add-btn-inline', '.sidebar-item.active', '.sidebar-item .tip', '.breadcrumb .root', '.breadcrumb .sep', '.project-node.primary', '.focus-btn.on', '.vision-node .node-title', '.tk-row:hover .tml-up',],
   '/newtab/views/FieldEditor.vue': ['.gs-fr-actions'],
   '/newtab/views/GlobalSettings.vue': ['.gs-manual', '.gs-manual-nav', '.gs-manual-body', '.gs-mc-section', '.gs-mc-content', '.gs-mc-title', '.gs-mn-part', '.gs-dd-seg', '.gs-dash-stats', '.gs-dash-stat', '.ai-days', '.gs-mn-item.active', '.gs-mc-content .mc-flow', '.gs-mc-content .mc-table', '.gs-dd-seg b.up',],
   '/newtab/views/workspace.css': ['.rc-action.mount.on'],
-  '/newtab/views/ProjectCuration.vue': ['.back-row',],
+  '/newtab/views/ProjectCuration.vue': ['.back-row', '.btask .tag .tag-dot', '.btask .tag.danger', '.tag.warn', '.tag.ok', '.tag.danger', '.tag.plain', '.tag.plain .tag-dot', '.tag.plain .tag-txt', '.btask:hover .tag.plain .tag-dot', '.btask:hover .tag.plain .tag-txt',],
 };
 check('R4-Et④ ★退役选择器登记表（本轮删掉的 150 条里挑出这些族名，全量账在交付说明 R4-Et 第一节）：样式可以重写，但"模板里已经没有这个类"这件事不该被一条同名规则悄悄带回——登记文件里任何一条选择器重新出现在自己的组件里即红，改表必须进 diff。为什么钉族名而不是整条规则文本：规则文本一改格式（空格、换行）锚点就静默失效，而"族名 + 紧跟一个左花括号"既能认出回流又不在乎排版', () => {
   const back = [];
@@ -711,7 +715,7 @@ check('W6-2（V4.3.1 重指）卡片池三页签：任务页默认展示完整�
     && !ch.includes('hand-tab-inbox') && !ch.includes('previewInbox')
     && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');
 });
-check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角直跑补全（用户拍板：点图标直接跑补全，不弹菜单）：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner（列表/看板/项目页保留 TaskAiMenu）；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskEnrich + buildTaskEnrichJob + AiDrawer 懒栈）；手册默认视图文案同步；R147-5 判据按 9+3 拆分', () => {
+check('W6-3（V4.4.0 重指）★任务卡默认列表视图 + 卡片视图 AI 入口直达找资源：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskSupport + buildTaskSupportJob + AiDrawer 懒栈）；手册默认视图文案同步', () => {
   const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
   const ca = codeOnly(read('/newtab/components/TaskAiCorner.vue'));
   const m = codeOnly(read('/newtab/manual-data.ts'));
@@ -719,7 +723,7 @@ check('W6-3 ★任务卡默认列表视图 + 卡片视图 AI 入口移右上角�
     && (tm.match(/<TaskAiCorner :task=/g) || []).length === 3
     && (tm.match(/<TaskAiMenu :task=/g) || []).length === 7
     && tm.includes("import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'")
-    && ca.includes('buildTaskEnrichJob') && ca.includes("import('@/shared/ai/taskEnrich')")
+    && ca.includes('buildTaskSupportJob') && ca.includes("import('@/shared/ai/taskSupport')")
     && ca.includes('class="taic-btn"') && ca.includes("import { AiDrawer } from './lazyAiDrawer'")
     && !ca.includes("from '@/shared/ai/")
     && m.includes('默认列表视图 + 已完成任务自动沉底 + 分组三档');

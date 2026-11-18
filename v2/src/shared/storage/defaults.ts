@@ -19,12 +19,11 @@ function defaultFieldDefs() {
     { key: 'title', label: '任务名', type: 'text', visible: true, order: 0 },
     { key: 'projectId', label: '所属项目', type: 'text', visible: true, order: 1 },
     { key: 'metricId', label: '成功指标', type: 'text', visible: true, order: 2 },
-    { key: 'priority', label: '优先级', type: 'select', options: ['高', '中', '低'], visible: true, order: 3 },
-    { key: 'dueDate', label: '计划执行日期', type: 'date', visible: true, order: 4 },
-    { key: 'status', label: '状态', type: 'select', options: ['待办', '进行中', '已完成'], visible: false, order: 5 },
-    { key: 'description', label: '描述', type: 'text', visible: false, order: 6 },
-    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 7 },
-    { key: 'assets', label: '附件', type: 'text', visible: true, order: 8 }
+    { key: 'dueDate', label: '计划执行日期', type: 'date', visible: true, order: 3 },
+    { key: 'status', label: '状态', type: 'select', options: ['待办', '进行中', '已完成'], visible: false, order: 4 },
+    { key: 'description', label: '描述', type: 'text', visible: false, order: 5 },
+    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 6 },
+    { key: 'assets', label: '附件', type: 'text', visible: true, order: 7 }
   ]
   const curiosity: FieldDef[] = [
     { key: 'question', label: '问题', type: 'text', visible: true, order: 0 },

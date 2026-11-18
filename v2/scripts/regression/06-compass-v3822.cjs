@@ -17,14 +17,16 @@ const HOME_RAW = RAW('src/newtab/views/CompassHome.vue') + '\n' + RAW('src/newta
 console.log('【V3.8.22 · 批一 P5/F6/F7 三项界面调整】');
 
 // ────────────────────────── P5 调度台卡内子任务视口退役 ──────────────────────────
-check('G5-1 ★V3.9.1 随迁备案：卡内子任务视口与 FocusDetail 单行区都已退出首页，子任务只从右侧任务详情读写。负锚继续钉旧 tc-subs / sub* 滚动函数不得回流；正锚改钉共享抽屉的 SubtaskList 接线', () => {
+check('G5-1（V4.4.0 退役重指）★卡内子任务视口、FocusDetail 单行区与任务详情 SubtaskList 全部退役；旧 tc-subs / sub* 滚动函数与 toggleSlotSub 不得回流，任务详情只保留现役资源镜像与紧凑说明', () => {
+  const detail = READ('src/newtab/components/compass/TaskDetailDrawer.vue')
   return !HOME.includes('class="tc-subs"')
     && !HOME.includes('function onSubScroll') && !HOME.includes('function subScrollAt')
     && !HOME.includes('const SUB_VISIBLE_ROWS') && !HOME.includes('function subMoreCount')
     && !HOME.includes('class="focus-sub-zone"')
     && HOME.includes('drawerRef.value?.open(c.task)')
-    && READ('src/newtab/components/compass/TaskDetailDrawer.vue').includes('<SubtaskList ref="subListRef"')
-    && HOME_RAW.includes('tc-subs 模板块一并退役')   /* ③ 备案锚查原始文本（在块注释里，codeOnly 已剥） */
+    && !detail.includes('<SubtaskList') && !detail.includes('focusSub')
+    && !HOME_RAW.includes('function toggleSlotSub')
+    && detail.includes('supportRows') && detail.includes('class="ds-desc ts-note-compact"')
 });
 
 // ────────────────────────── F6 读数行左对齐 ──────────────────────────

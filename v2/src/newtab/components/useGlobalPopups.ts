@@ -280,8 +280,6 @@ const resultTable = computed<SearchResult[]>(() => {
     const statusIcon = t.status==='done'?'':t.status==='doing'?'◐':'○'
     const statusClass = t.status==='done'?'task-done':t.status==='doing'?'task-doing':'task-todo'
     const badges: {type:string,text:string}[] = []
-    if (t.priority==='high') badges.push({type:'prio-high', text:'高'})
-    else if (t.priority==='medium') badges.push({type:'prio-mid', text:'中'})
     badges.push({type:`status-${t.status}`, text: t.status==='done'?'已完成':t.status==='doing'?'进行中':'待开始'})
     results.push(withMatchFields({
       id: t.id, type: 'task', iconClass: statusClass, iconText: statusIcon,
@@ -527,13 +525,13 @@ const QUICK_ACTIONS = [
 // ⚠ store.ui 必须同步手改（repository 的 uiCache 与 store.ui 是两份引用，R170 工具盲区同源教训）。
 const PALETTE_TOGGLES = computed<PaletteToggle[]>(() => {
   const ui = store.ui as Record<string, unknown> | null
-  const resolvedDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const resolvedDark = document.documentElement.getAttribute('data-theme') === 'raycast'
   return [
     {
       label: '暗色主题', icon: 'bulb',
-      on: ui?.theme === 'dark' || (ui?.theme === 'auto' && resolvedDark),
-      hint: '亮色/暗色一键切换（「跟随系统」的细粒度选择在设置页；auto 下点击会落为固定主题）',
-      run: () => { store.setTheme(resolvedDark ? 'linear' : 'dark') }
+      on: ui?.theme === 'raycast',
+      hint: '光速黑 / 极简白一键切换；完整三主题选择在右上角「更多」',
+      run: () => { store.setTheme(resolvedDark ? 'apple' : 'raycast') }
     },
     {
       label: '紧凑密度', icon: 'layout',

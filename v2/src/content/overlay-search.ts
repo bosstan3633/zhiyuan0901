@@ -332,8 +332,6 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
     d.tasks?.filter((t: any) => !t.deletedAt).forEach((t: any) => {
       const projName = maps.projName.get(t.projectId) || '未归属'
       const badges: any[] = []
-      if (t.priority === 'high') badges.push({ type: 'prio-high', text: '🔴 高' })
-      else if (t.priority === 'medium') badges.push({ type: 'prio-mid', text: '🟡 中' })
       badges.push({ type: `status-${t.status}`, text: t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始' })
       // R58-B4：命中字段两端同构——任务补标签 + 项目名（与应用内一致）
       const tTags = Array.isArray(t.tags) ? t.tags.join(' ') : ''

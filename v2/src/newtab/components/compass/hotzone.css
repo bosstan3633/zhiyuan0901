@@ -29,9 +29,8 @@
 .mc-detail { min-height: 28px; }
 .mc-add, .mc-ai, .mc-del, .mc-more { min-height: 28px; }
 
-/* 任务行：标题（打开任务详情抽屉）/ 成熟度 */
+/* 任务行：标题（打开任务详情抽屉） */
 .tk-title { min-height: 28px; }
-.tk-grade { min-height: 28px; }
 .tk-unbind { width: 28px; height: 28px; }
 
 /* 舱头 AI 诊断入口（无报告 → 「🧠 AI 诊断」） */

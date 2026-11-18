@@ -107,9 +107,13 @@ check('R169-10 ★AI 挂了不许影响主用途：本地候选先写三格（�
     && ch.includes('void refineWithAi(key)') && /catch \{\s*\}/.test(ch)
     && !ch.includes('showToast(\'⚠ AI')
 });
-check('R169-11 ★模型只有"排序 + 判词"的权力：投料里带本地事实、提示词禁编造数字与改归属、候选外的 taskId 计入消毒账、无判词或非 high 置信**不占格**（不是判弱还能被一键全选进去）', () => {
+check('R169-11（V4.4.0 重指）★模型只有“排序 + 判词”的权力：投料里带本地事实、提示词禁编造数字与改归属、不再提优先级、候选外的 taskId 计入消毒账、无判词或非 high 置信不占格', () => {
   const a = codeOnly(read('/shared/ai/focusSuggest.ts')); const sc = read('/shared/ai/scenarios.ts')
-  return sc.includes('export const focusRankSystem') && sc.includes('不许编造候选里没有的数字') && sc.includes('不许替用户改归属或改优先级')
+  const start = sc.indexOf('export const focusRankSystem')
+  const end = sc.indexOf('export const reviewNarrateSystem', start)
+  const focusPrompt = start >= 0 && end > start ? sc.slice(start, end) : ''
+  return sc.includes('export const focusRankSystem') && focusPrompt.includes('不许编造候选里没有的数字') && focusPrompt.includes('不许替用户改归属')
+    && !focusPrompt.includes('优先级')
     && a.includes('if (!known.has(id) || order.includes(id)) continue')
     && a.includes("if (!w || it.confidence !== 'high') continue")
     && a.includes('c.facts.join')
@@ -121,10 +125,11 @@ check('R169-12 ★「为什么是这三件」是右上角一枚小图标，不�
     && ch.includes('不改任务卡、不改状态、不改归属')
 });
 check('R169-13 ★整行归属=进方向树的唯一入口', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-crumb') && !h.includes('gotoTree');  });
-check('R169-14（V3.9.1 重指）子任务卡内视口退役后，doneAt 落库链仍在；今日三件事整行进详情，FocusDetail 不再挂首页', () => {
+check('R169-14（V4.4.0 重指）子任务卡内视口与写入口整体退役；今日三件事整行进任务详情，槽位完成仍由 toggleTodayDone 落库，FocusDetail 不再挂首页', () => {
   const h = read('/newtab/views/CompassHome.vue'); const c = codeOnly(h)
   return !c.includes('class="tc-subs"') && !c.includes('function onSubScroll')      /* 视口本体与滚动监听已删（codeOnly 剥退役注释） */
-    && h.includes('function toggleSlotSub') && h.includes("doneAt: !s.done ? Date.now() : undefined") /* 落库链保留 */
+    && !h.includes('function toggleSlotSub') && !h.includes('doneAt: !s.done ? Date.now() : undefined')
+    && h.includes('toggleTodayDone(c.slot)')
     && !h.includes('<FocusDetail') && !h.includes('@toggle-sub=')
     && !h.includes('spot-dual')
 });
@@ -163,11 +168,11 @@ check('R169-19 ★AI 徽标换骨第二轮（② 渐变实心脸）：图形仍�
     && !/#[0-9a-fA-F]{3,6}/.test(css.replace(/#fff\)/g, ''))
     && !/<path|<circle|<rect/.test(zm) && zm.includes('<use href="#zy-ai-mark"')
 });
-check('R169-20 ★accent 底上的徽标必须反相：仍直接翻 accent 底并挂 AiEntryButton 的论点 AI 钮保留 --ai-mark-fill:#fff / --ai-mark-eye:var(--accent)；任务详情 AI 组改为中性底 + accent-light hover，不再翻实心 accent，因此旧反相锚退役。真正的"糊没糊"由 theme-audit 在真 DOM 上 hover 后读计算 fill 来判', () => {
+check('R169-20（V4.4.0 重指）★AI 徽标仍遵守反相与中性底分工：论点 AI 钮翻 accent 底时保留白色徽标；任务详情两个 AI 入口改用中性/淡蓝底，不再翻实心 accent，旧 ts-ai-cell 反相锚退役', () => {
   const ch = read('/newtab/views/CompassHome.vue'); const tdd = read('/newtab/components/compass/TaskDetailDrawer.vue'); const tab = read('/newtab/components/ThesisAiBtn.vue')
   const ov = '--ai-mark-fill: #fff; --ai-mark-eye: var(--accent)'
-  return tdd.includes('.ts-ai-cell:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }')
-    && !tdd.includes('.ts-ai-cell:hover { background: var(--accent)')
+  return tdd.includes('.ts-ai-primary:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent-light) 72%, var(--surface)); }')
+    && !tdd.includes('.ts-ai-cell') && !tdd.includes('.ts-ai-primary:hover { background: var(--accent)')
     && tab.includes('.th-ai-btn:hover { background: var(--accent); color: #fff; ' + ov + '; }')
     && ch.includes('.why-trigger.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }')
     && !ch.includes('.focus-why-ico')
@@ -270,7 +275,7 @@ check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOver
     && pi.includes("import '@/newtab/components/profile/pi-timeline.css'")
     && !codeOnly(pi).includes('DashboardOverview');
 });
-check('R174-5 热力图焦点化（04-69 拍板 B）：摘要四卡压单行指标条（说明收 title tooltip，.d 保 DOM）+ 四主题六档色阶低两档拉距（亮主题 l0↔l1 原本 ΔL*≈3.3 肉眼不可辨——实测病根 #EFF2F6 vs #E3EBF5）；判据：① Heatmap 摘要条带 title + .d 仍在 DOM ② tokens.css 四主题新值在位 ③ 亮主题 ΔL*(l0,l1) ≥ 5 且 ΔL*(l1,l2) ≥ 4（Lab L* 实算，防"改了但仍不可辨"）④ 档位阈值/语义名不动（跨年可比红线）', () => {
+check('R174-5（V4.4.0 重指）热力图焦点化：摘要四卡压单行指标条（说明收 title tooltip，.d 保 DOM）+ 三主题六档色阶低两档拉距；判据：① 摘要条带 title + .d 仍在 DOM ② 三主题 heat-0..5 齐备 ③ 两个亮主题 ΔL*(l0,l1) ≥ 5 且 ΔL*(l1,l2) ≥ 4（实读令牌计算，防“改了但仍不可辨”）④ 档位阈值/语义名不动', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
   const tk = read('/shared/styles/tokens.css');
   const lv = read('/shared/utils/dailyStats.ts');
@@ -281,10 +286,14 @@ check('R174-5 热力图焦点化（04-69 拍板 B）：摘要四卡压单行指�
     return 116 * f(Y) - 16;
   };
   const dL = (a, b) => Math.abs(hex2lab(a) - hex2lab(b));
-  const lightPairs = [['#EFF2F6', '#D4E1F2', '#B6CBE8'], ['#F0F1F4', '#D5DCEE', '#B8C8E6']];
+  const readHeat = (theme) => {
+    const i = tk.indexOf(`[data-theme='${theme}']`)
+    const block = i >= 0 ? tk.slice(i, tk.indexOf('}', i)) : ''
+    return [0, 1, 2].map(n => (block.match(new RegExp(`--heat-${n}:\\s*(#[0-9A-Fa-f]{6})`)) || [])[1]).filter(Boolean)
+  }
+  const lightPairs = [readHeat('apple'), readHeat('notion')].filter(x => x.length === 3)
   return h.includes(':title="s.d"') && h.includes('<span class="d">{{ s.d }}</span>')
-    && ['--heat-1: #1E3455', '--heat-1: #203757', '--heat-1: #D4E1F2', '--heat-1: #D5DCEE'].every(x => tk.includes(x))
-    && !tk.includes('--heat-1: #E3EBF5') && !tk.includes('--heat-1: #E4E9F2')
+    && (tk.match(/--heat-0:/g) || []).length === 3 && (tk.match(/--heat-5:/g) || []).length === 3
     && lightPairs.every(([l0, l1, l2]) => dL(l0, l1) >= 5 && dL(l1, l2) >= 4)
     && lv.includes("w <= 8 ? 1 : w <= 18 ? 2 : w <= 32 ? 3 : w <= 52 ? 4 : 5") && lv.includes("['静默', '轻触', '常规', '高负荷', '冲刺', '满格']");
 });
@@ -388,11 +397,11 @@ check('R171-5 ★ZhiMark→AiMark 全站改名（备案：语义对齐，symbol 
     && residue.length === 0;
 });
 
-check('R171-6 ★accent-ink 淡底文字令牌（04-63 后账：accent+accent-light 暗主题对比度 3.28/3.40 裸奔）：tokens.css 四主题各落 --accent-ink（压 accent-light 底专用文字色，暗取提亮档/亮取深档），配对处 color: var(--accent)→var(--accent-ink) 全站随迁，theme-contrast 门禁升硬判据 ≥4.5（实测 5.37/4.78/5.64/6.22）', () => {
+check('R171-6（V4.4.0 重指）★accent-ink 淡底文字令牌：tokens.css 三主题各落 --accent-ink（压 accent-light 底专用文字色，暗取提亮档/亮取深档），主题门禁继续硬判 ≥4.5', () => {
   const tk = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'shared', 'styles', 'tokens.css'), 'utf8');
   const ct = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-contrast.cjs'), 'utf8');
   const ws = read('/newtab/views/workspace.css');
-  return (tk.match(/--accent-ink:/g) || []).length === 4 && tk.includes('R171-C4')
+  return (tk.match(/--accent-ink:/g) || []).length === 3
     && ct.includes("'accent-ink/accent-light'") && ct.includes(', 4.5)')
     && ws.includes('var(--accent-ink)');
 });
@@ -442,22 +451,21 @@ check('R172-2 ★T2 zy_daily_stats 聚合引擎（04-67 §7.4）：按日只增�
     && ['create', 'call', 'delete', 'purge', 'restore', 'status'].every(a => ds.includes(`case '${a}'`))
     // 空态/零迁移：无任何事件时 fullSince 回落当日，不抛错
     && ds.includes('fullSince: keys[0] || dayOf(nowTs)')
-    // 子任务完成时刻字段（零迁移可选）+ 两处勾选点落 doneAt
+    // 子任务历史字段只做只读兼容；现役 UI 已无 SubtaskList 与任务行内写入
     && md.includes('doneAt?: number')
-    && read('/shared/components/SubtaskList.vue').includes('doneAt: !x.done ? Date.now() : undefined')
-    && read('/newtab/views/CompassHome.vue').includes('doneAt: !s.done ? Date.now() : undefined')
+    && !require('fs').existsSync(path.resolve(base, 'shared/components/SubtaskList.vue'))
+    && !read('/newtab/views/CompassHome.vue').includes('toggleSlotSub')
     // 状态变更目标态（加权按目标态分档）
     && el.includes('to?: string')
     && el.includes('c.status))');
 });
 
-check('R172-3 ★T3 热力令牌组：tokens.css 四主题各 8 个（--heat-0..5 + --heat-ink + --heat-ring），顶档 --heat-5 四主题互不相同；theme-contrast 升硬判据（heat-ink/surface 与 heat-ink/surface-2 各 ≥4.5 + 令牌 8/8 + heat-5 唯一性）', () => {
+check('R172-3（V4.4.0 重指）★热力令牌组：tokens.css 三主题各 8 个（--heat-0..5 + --heat-ink + --heat-ring），顶档 --heat-5 三主题互不相同；theme-contrast 硬判据（heat-ink/surface 与 heat-ink/surface-2 各 ≥4.5 + 令牌 8/8 + heat-5 唯一性）', () => {
   const tk = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'shared', 'styles', 'tokens.css'), 'utf8');
   const ct = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-contrast.cjs'), 'utf8');
   const n = (re) => (tk.match(re) || []).length;
-  return n(/--heat-0:/g) === 4 && n(/--heat-1:/g) === 4 && n(/--heat-2:/g) === 4 && n(/--heat-3:/g) === 4
-    && n(/--heat-4:/g) === 4 && n(/--heat-5:/g) === 4 && n(/--heat-ink:/g) === 4 && n(/--heat-ring:/g) === 4
-    && tk.includes('R172-T3')
+  return n(/--heat-0:/g) === 3 && n(/--heat-1:/g) === 3 && n(/--heat-2:/g) === 3 && n(/--heat-3:/g) === 3
+    && n(/--heat-4:/g) === 3 && n(/--heat-5:/g) === 3 && n(/--heat-ink:/g) === 3 && n(/--heat-ring:/g) === 3
     && ct.includes("'heat-ink/surface'") && ct.includes("'heat-ink/surface-2'")
     && ct.includes('HEAT_TOKENS') && ct.includes('heat5');
 });

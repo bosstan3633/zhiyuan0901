@@ -140,7 +140,6 @@
 .gp-ri-badge.ws { background: var(--accent-light); color: var(--accent-ink); }
 .gp-ri-badge.cat { background: var(--surface-3); color: var(--text-2); }
 .gp-ri-badge.prio-high { background: var(--tag-danger-bg); color: var(--tag-danger-text); }
-.gp-ri-badge.prio-mid { background: var(--tag-warn-bg); color: var(--curio-amber); }
 .gp-ri-badge.status-todo { background: var(--tag-neutral-bg); color: var(--tag-neutral-text); }
 .gp-ri-badge.status-doing { background: var(--tag-warn-bg); color: var(--curio-amber); }
 .gp-ri-badge.status-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }

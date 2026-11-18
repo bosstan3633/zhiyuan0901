@@ -157,10 +157,11 @@
   min-height: 590px;
   max-height: calc(100vh - 265px);
   overflow: auto;
-  padding: 34px 30px 70px;
+  padding: 30px 34px 70px;
   background:
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--border) 62%, transparent) 1px, transparent 0) 0 0 / 18px 18px,
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 30%, var(--surface)), var(--surface));
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 28rem),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--border) 50%, transparent) 1px, transparent 0) 0 0 / 20px 20px,
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 22%, var(--surface)), var(--surface));
 }
 .mindmap-canvas::-webkit-scrollbar { width: 9px; height: 9px; }
 .mindmap-canvas::-webkit-scrollbar-thumb { border-radius: 9px; background: var(--surface-3); }
@@ -169,16 +170,16 @@
 .mind-node {
   position: relative;
   z-index: 2;
-  width: 230px;
-  padding: 10px 10px 9px;
+  width: 232px;
+  padding: 10px 11px 9px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent);
   cursor: default;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
 }
-.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
 .mind-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow-sm); }
 .mind-node.revealed { animation: mind-reveal 2.2s ease-out; }
 @keyframes mind-reveal {
@@ -191,12 +192,12 @@
 .mind-node.keyboard-target { outline: 2px dashed var(--accent); outline-offset: 3px; }
 .mind-node.dragging { opacity: .45; transform: scale(.98); }
 .mind-node.mind-root {
-  width: min(440px, 72vw);
-  padding: 13px 15px;
-  border: 1.5px solid var(--accent);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, var(--surface)), var(--surface));
-  box-shadow: inset 3px 0 0 var(--accent), 0 12px 34px color-mix(in srgb, var(--accent) 8%, transparent);
+  width: min(368px, 72vw);
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface) 68%);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 82%, var(--border)), var(--shadow-sm);
 }
 .mind-node-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .mind-level { color: var(--accent); font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 800; letter-spacing: .04em; }
@@ -245,7 +246,7 @@
 }
 .mind-title { display: block; font-size: var(--fs-body); font-weight: 700; line-height: 1.45; }
 .mind-title:hover { color: var(--accent); }
-.mind-root .mind-title { font-size: calc(var(--fs-body) + 1px); line-height: 1.5; }
+.mind-root .mind-title { font-size: var(--fs-body); line-height: 1.55; }
 .mind-desc { display: block; margin-top: 7px; padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent); color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
 /* V3.9.13：说明行与标题共用 100% 宽，但以 display:block 与发丝线明确分成两级；
    两行都保留独立可读行高，长说明不再挤进标题基线。 */
@@ -364,6 +365,31 @@
 .mind-add.danger { color: var(--danger); }
 .mind-add.danger:hover:not(:disabled) { background: var(--danger-bg-soft); }
 .mind-add:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.mind-resource-empty { margin-top: 8px; }
+.mind-resource-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 9px;
+  background: var(--accent-light);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.mind-resource-cta:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.mind-resource-cta-foot { width: auto; min-height: 28px; padding: 3px 8px; font-size: var(--fs-micro); }
 .mind-drop-hint {
   position: absolute;
   left: 8px;
@@ -385,16 +411,16 @@
 .mindmap-canvas[data-layout="pyramid"] .mind-stage { display: block; width: max-content; min-width: 100%; margin: 0 auto; }
 .mindmap-canvas[data-layout="pyramid"] .mind-branch { display: flex; flex-direction: column; align-items: center; }
 /* V3.9.13：金字塔的横排子组保持横向 flex；连线几何在下方单独定义。 */
-.mindmap-canvas[data-layout="pyramid"] .mind-children { display: flex; align-items: flex-start; justify-content: center; position: relative; gap: 20px; padding-top: 32px; }
+.mindmap-canvas[data-layout="pyramid"] .mind-children { display: flex; align-items: flex-start; justify-content: center; position: relative; gap: 16px; padding-top: 32px; }
 .mindmap-canvas[data-layout="pyramid"] .mind-children::before {
   content: "";
   position: absolute;
   top: 0;
   left: 50%;
-  width: 2px;
+  width: 1px;
   height: 32px;
   transform: translateX(-1px);
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 /* 不再按四等分画整条横线。每个子分支从自身中心画半段，
    首个子项只画右半、末个子项只画左半，中间项跨过整个槽宽；
@@ -406,8 +432,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 .mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:first-child::after { left: 50%; }
 .mindmap-canvas[data-layout="pyramid"] .mind-children > .mind-branch:last-child::after { right: 50%; }
@@ -420,10 +446,10 @@
   left: 50%;
   top: 0;
   z-index: 1;
-  width: 2px;
+  width: 1px;
   height: 32px;
   transform: translateX(-1px);
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 .mindmap-canvas[data-layout="pyramid"] .mind-branch:has(> .mind-children) > .mind-node::after {
   content: "";
@@ -431,10 +457,10 @@
   left: 50%;
   bottom: -32px;
   z-index: 1;
-  width: 2px;
+  width: 1px;
   height: 32px;
   transform: translateX(-1px);
-  background: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent) 34%, var(--border));
 }
 .mindmap-canvas[data-layout="tree"] .mind-stage { justify-content: flex-start; }
 .mindmap-canvas[data-layout="tree"] .mind-branch { display: flex; align-items: flex-start; position: relative; gap: 52px; }
@@ -453,14 +479,14 @@
 }
 .mind-connectors path {
   fill: none;
-  stroke: color-mix(in srgb, var(--accent) 76%, var(--border-strong));
-  stroke-width: 2;
+  stroke: color-mix(in srgb, var(--accent) 38%, var(--border));
+  stroke-width: 1.25;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
-.mindmap-canvas[data-layout="tree"] .mind-node { width: 250px; }
-.mindmap-canvas[data-layout="tree"] .mind-root { width: 340px; }
+.mindmap-canvas[data-layout="tree"] .mind-node { width: 242px; }
+.mindmap-canvas[data-layout="tree"] .mind-root { width: 320px; }
 .mindmap-status {
   min-height: 30px;
   display: flex;

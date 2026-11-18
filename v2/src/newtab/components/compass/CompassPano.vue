@@ -46,7 +46,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'pick', projId: string): void
   (e: 'toggleTask', taskId: string): void
-  (e: 'taskGrade', taskId: string): void
   /** ★W12-C 补接线：全景泳道任务标题单击开任务详情抽屉（泳道 → 全景 → 树本体 openTaskDetail 两跳透传）。
    *  这条链路此前从未存在——泳道里任务标题只是个 div，点了没反应，W11-10 断言本轮重指时暴露。 */
   (e: 'openDetail', taskId: string): void
@@ -200,7 +199,6 @@ const laneCount = computed(() => {
             :single="laneCount === 1" :dense="laneCount > 1"
             :editing="editingField === 'metric-' + m.id"
             @toggle-task="emit('toggleTask', $event)"
-            @task-grade="emit('taskGrade', $event)"
             @open-detail="emit('openDetail', $event)"
             @unbind-task="emit('unbindTask', $event)"
             @open-metric="emit('openMetric', $event)"

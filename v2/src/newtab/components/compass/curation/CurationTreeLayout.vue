@@ -25,8 +25,6 @@ const stCls: Record<string, string> = {
   todo: 'st-todo',
   stale: 'st-stale',
 }
-const priLabel: Record<string, string> = { high: '高', medium: '中', low: '低' }
-
 function goalProgress(goal: CurationGoalNode): number {
   const total = goal.projects.reduce((sum, project) => sum + project.totalCount, 0)
   const done = goal.projects.reduce((sum, project) => sum + project.doneCount, 0)
@@ -131,7 +129,6 @@ function ringDash(pct: number): string {
                     @click.stop="emit('open', { kind: 'task', node: T })">
                     <i class="ctl-dot" :class="stCls[T.status]"></i>
                     <span class="ctl-task-t">{{ T.task.title || '未命名任务' }}</span>
-                    <span v-if="T.task.priority" class="ctl-task-pri">{{ priLabel[T.task.priority] || '中' }}优</span>
                   </button>
                 </div>
                 <div v-else class="ctl-empty-inline">这个指标下还没有任务</div>
@@ -226,7 +223,7 @@ function ringDash(pct: number): string {
 .ctl-stale { flex: none; font-size: var(--fs-caption); color: var(--warning); font-weight: 700; }
 .ctl-pmeta { font-size: var(--fs-caption); color: var(--text-3); flex: none; }
 .ctl-pbar { flex: none; width: 96px; height: 6px; border-radius: var(--radius-full); background: var(--surface-3, #edefe8); overflow: hidden; }
-.ctl-pbar i { display: block; height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--lv-green), #58c98d); }
+.ctl-pbar i { display: block; height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
 .ctl-pct { flex: none; width: 38px; text-align: right; font-size: var(--fs-caption); font-weight: 800; color: var(--lv-green-deep); }
 .ctl-proj.collapsed .ctl-proj-head .ctl-fold svg { transform: rotate(180deg); }
 
@@ -239,7 +236,7 @@ function ringDash(pct: number): string {
 .ctl-metric-name { flex: 1; min-width: 0; font-size: var(--fs-sub); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctl-metric-pct { font-size: var(--fs-caption); font-weight: 800; color: var(--text-2); flex: none; }
 .ctl-mbar { margin-top: 8px; height: 4px; border-radius: var(--radius-full); background: var(--surface-3, #edefe8); overflow: hidden; }
-.ctl-mbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--lv-green), #58c98d); }
+.ctl-mbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
 .ctl-tasks { margin-top: 9px; display: flex; flex-direction: column; gap: 5px; }
 .ctl-task { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font: inherit; font-size: var(--fs-sub); color: var(--text-2); cursor: pointer; transition: var(--dur-fast); text-align: left; }
 .ctl-task:hover { border-color: var(--lv-mint); color: var(--text); }
@@ -251,7 +248,6 @@ function ringDash(pct: number): string {
 .ctl-task.task-done { color: var(--text-3); }
 .ctl-task.task-done .ctl-task-t { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text) 22%, transparent); }
 .ctl-task-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctl-task-pri { margin-left: auto; flex: none; font-size: var(--fs-caption); color: var(--text-3); }
 .ctl-empty-inline { margin-top: 9px; font-size: var(--fs-caption); color: var(--text-3); padding: 6px 2px; }
 .ctl-empty-panel { font-size: var(--fs-sub); color: var(--text-3); padding: 14px 20px; }
 

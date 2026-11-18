@@ -10,7 +10,6 @@ import Icon from '@/shared/components/Icon.vue'
 export interface RiskMetricRow {
   id: string
   title: string
-  acceptance?: string
   projId: string
 }
 export interface RiskTaskRow {
@@ -56,7 +55,7 @@ const emit = defineEmits<{
           <div class="crm-col">
             <h3><Icon name="target" :size="13"/> 零任务指标 <b>{{ group.metrics.length }}</b></h3>
             <button v-for="metric in group.metrics" :key="metric.id" class="crm-row" type="button"
-              :title="metric.acceptance || '该指标还没有支撑任务'"
+              title="该指标还没有支撑任务"
               @click="emit('locate', { projId: group.projId, metricId: metric.id })">
               <span>{{ metric.title }}</span>
               <Icon name="arrowright" :size="13"/>

@@ -1,7 +1,6 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, defineAsyncComponent, shallowRef } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { uid } from '@/shared/utils'
-import { taskMaturity, metricMaturity, projectMaturity, directionMaturity } from '@/shared/utils/maturity'
 import type { Direction, Project, Metric, TaskCard, ID } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import CompassSpine from '../components/compass/CompassSpine.vue'
@@ -28,7 +27,6 @@ export function useCompassTreeProjects(deps: Pick<ReturnType<typeof useCompassTr
   riskOpen: Ref<boolean>
   riskGroups: ComputedRef<RiskProjectGroup[]>
   showRiskReport: () => void
-  showTaskGrade: (taskId: string) => void
   bindOrphan: (taskId: string) => void
   toggleMetric: (id: string) => void
   editingField: Ref<string | null>
@@ -276,7 +274,7 @@ const riskGroups = computed<RiskProjectGroup[]>(() => {
     for (const pm of g.projects) {
       const proj = findProject(pm.id)
       const metrics = pm.metrics.filter(m => m.orphanMetric).map(m => ({
-        id: m.id, title: m.title, acceptance: m.acceptance, projId: pm.id
+        id: m.id, title: m.title, projId: pm.id
       }))
       const tasks = pm.orphanTasks.map(t => ({ id: t.id, title: t.title, projId: pm.id }))
       if (!metrics.length && !tasks.length) continue
@@ -292,13 +290,6 @@ const riskGroups = computed<RiskProjectGroup[]>(() => {
 function showRiskReport() {
   if (!compassMeta.value.counts.risk) { showToast('当前无断链'); return }
   riskOpen.value = true
-}
-/** 任务成熟度详情（从任务行的小徽标点进来） */
-function showTaskGrade(taskId: string) {
-  const t = d.value.tasks.find(x => x.id === taskId)
-  if (!t) return
-  const m = taskMaturity(t)
-  showToast(`${m.grade} · ${m.label}${m.reasons.length ? '｜' + m.reasons.slice(0, 3).join('；') : '｜四维齐备'}`)
 }
 /** 给无归属任务挂指标：进任务抽屉让用户选，本函数只做引导（写入口径唯一在任务侧） */
 function bindOrphan(taskId: string) {
@@ -440,6 +431,6 @@ function saveDirectionForm(value: { name: string; term: 'long' | 'mid' | 'short'
  */
 
   return {
-    layerRows5, layerRows6, onLayerOpen, onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget, flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter, toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport, showTaskGrade, bindOrphan, toggleMetric, editingField, focusEditField, startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate, openDirectionEdit, saveDirectionForm,
+    layerRows5, layerRows6, onLayerOpen, onLayerList, onLocateLayer, spineRef, heroToSpine, locateCompassTarget, flashLocated, locationTaskPool, onListLocate, onListEditDir, onDirFilter, toggleRiskOnly, gotoOrphans, riskOpen, riskGroups, showRiskReport, bindOrphan, toggleMetric, editingField, focusEditField, startEdit, saveEdit, cancelEdit, directionForm, openDirectionCreate, openDirectionEdit, saveDirectionForm,
   }
 }

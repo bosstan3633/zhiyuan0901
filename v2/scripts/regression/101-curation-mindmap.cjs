@@ -15,6 +15,7 @@ const {
 const WS = read('/newtab/views/Workspace.vue');
 const MAP = read('/newtab/components/curation/CurationMindMap.vue');
 const NODE = read('/newtab/components/curation/CurationMindNode.vue');
+const STRIP = read('/newtab/components/curation/CurationAssetStrip.vue');
 const HOOK = read('/newtab/composables/useCurationMindMap.ts');
 const THESIS = read('/newtab/components/curation/CurationThesisDrawer.vue');
 const SHARE_UI = read('/newtab/components/curation/CurationShareDrawer.vue');
@@ -186,8 +187,12 @@ check('C101-10 拖拽反馈完整：拖动源淡出、合法 / 非法落点异�
     && MAP.includes("canvasRef.value?.scrollTo({ top: 0, left: 0 })");
 });
 
-check('C101-11（V4.0.3 重指）节点关联资源：无资源时只在头部保留轻量入口，资源区与底栏按挂卡数条件渲染；不出现「缺证据」', () => {
-  return NODE.includes('title="关联资源"')
+check('C101-11（V4.4.0 重指）节点资源入口按频率分层：关联资源卡是正文主 CTA，附件压缩为次级行；不出现「缺证据」', () => {
+  return NODE.includes('class="mind-resource-cta"')
+    && NODE.includes('<Icon name="link" :size="12"/> 关联资源卡')
+    && NODE.includes('继续关联资源')
+    && NODE.includes('compact')
+    && !NODE.includes('v-if="!cards().length" class="mind-head-action"')
     && NODE.includes("emit('link-resource', node)")
     && NODE.includes("'resource-bearing': cards().length > 0")
     && NODE.includes('<div v-if="cards().length" class="mind-resources">')
@@ -195,6 +200,8 @@ check('C101-11（V4.0.3 重指）节点关联资源：无资源时只在头部�
     && MAP.includes("emit('link-resource', $event)")
     && WS.includes(':list="linkShowList"')
     && WS.includes('@confirm="onConfirmLinkCards"')
+    && CSS.includes('.mind-resource-cta')
+    && STRIP.includes('.curation-asset-strip.compact')
     && [NODE, MAP, HOOK, CSS, WS].every(src => !src.includes('缺证据'));
 });
 

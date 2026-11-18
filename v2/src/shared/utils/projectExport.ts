@@ -5,8 +5,8 @@
  * 主题跟随、文件名规范全部复用 cardExport / link 既有工具（不另立标准）。
  * 结构化口径（需求清单 F5 拍板）：
  *   项目头（战略链 / 主攻 / 状态 / 下一步 / 进度 / 断链警示）
- *   → 指标 ×N（验收标准 / 进度 / ⚠ 缺任务警示）
- *   → 任务 ×N 按 metric.taskIds 轨道序分组（标题 / 优先级 / 状态 / 子任务 / 任务链接）
+ *   → 指标 ×N（进度 / ⚠ 缺任务警示）
+ *   → 任务 ×N 按 metric.taskIds 轨道序分组（标题 / 状态 / 计划执行日期 / 任务链接）
  *   → 支撑资源（SupportLink → 资源卡标题 + 可点击链接，不可用显式标注）
  * 附件不嵌本体（与任务卡导出同一口径：只留清单信息，不读 IndexedDB Blob）。
  */
@@ -27,16 +27,13 @@ type Link = { text: string; href: string; unavailable?: boolean }
 export interface ProjectExportTask {
   title: string
   status: string
-  priority: string
-  subtaskProgress: string
+  dueDate: string
   taskLink: Link
-  subtasks: { title: string; done: boolean }[]
   supports: { title: string; href: string; why: string; source: string; unavailable: boolean }[]
 }
 
 export interface ProjectExportMetric {
   title: string
-  acceptance: string
   progress: string
   missingTasks: boolean
   tasks: ProjectExportTask[]
@@ -59,11 +56,6 @@ const STATUS_LABEL: Record<TaskCard['status'], string> = {
   todo: '待开始',
   doing: '进行中',
   done: '已完成',
-}
-const PRIORITY_LABEL: Record<TaskCard['priority'], string> = {
-  high: '高',
-  medium: '中',
-  low: '低',
 }
 const SOURCE_LABEL: Record<SupportLink['from'], string> = { ai: 'AI', manual: '手动' }
 const PROJECT_STATUS_LABEL: Record<Project['status'], string> = {
@@ -103,8 +95,6 @@ function projectTasks(d: AppData, project: Project): TaskCard[] {
 }
 
 function taskToExport(d: AppData, task: TaskCard): ProjectExportTask {
-  const subtasks = task.subtasks || []
-  const done = subtasks.filter(item => item.done).length
   const links = (d.supportLinks || []).filter(link => link.taskId === task.id)
   const supports = links.map(link => {
     const resource = (d.resources || []).find(card => card.id === link.resourceId)
@@ -120,13 +110,11 @@ function taskToExport(d: AppData, task: TaskCard): ProjectExportTask {
   return {
     title: task.title.trim() || '未命名任务',
     status: STATUS_LABEL[task.status] || task.status,
-    priority: PRIORITY_LABEL[task.priority] || task.priority,
-    subtaskProgress: subtasks.length ? `${done}/${subtasks.length}` : '',
+    dueDate: task.dueDate || '未排期',
     taskLink: {
       text: (task.link || '').trim() || '未填写任务链接',
       href: safeTaskHref(task),
     },
-    subtasks: subtasks.map(item => ({ title: item.title || '未命名子任务', done: !!item.done })),
     supports,
   }
 }
@@ -153,7 +141,6 @@ export function buildProjectExportDocument(d: AppData, project: Project, now = n
     }
     return {
       title: metric.title || '未命名指标',
-      acceptance: (metric.acceptance || '').trim(),
       progress: `${mDone}/${list.length} · ${list.length ? Math.round(mDone / list.length * 100) : 0}%`,
       missingTasks: list.length === 0,
       tasks: list.map(t => taskToExport(d, t)),
@@ -196,17 +183,14 @@ export function projectExportMarkdown(doc: ProjectExportDocument): string {
   if (doc.metrics.length) {
     for (const metric of doc.metrics) {
       lines.push(`### ${escapeMarkdown(metric.title)}`, '')
-      if (metric.acceptance) lines.push(`验收标准：${escapeMarkdown(metric.acceptance)}`, '')
-      if (metric.missingTasks) lines.push('⚠ 缺任务：验收标准已定，动作还没落', '')
+      if (metric.missingTasks) lines.push('⚠ 缺任务：目标已定，动作还没落', '')
       lines.push(`进度：${escapeMarkdown(metric.progress)}`, '')
       if (metric.tasks.length) {
         for (const task of metric.tasks) {
           const title = task.taskLink.href
             ? markdownLink(task.title, task.taskLink.href)
             : escapeMarkdown(task.title)
-          lines.push(`- ${title}（${escapeMarkdown(task.status)} · ${escapeMarkdown(task.priority)}优）`)
-          if (task.subtaskProgress) lines.push(`  - 子任务：${escapeMarkdown(task.subtaskProgress)}`)
-          for (const sub of task.subtasks) lines.push(`  - [${sub.done ? 'x' : ' '}] ${escapeMarkdown(sub.title)}`)
+          lines.push(`- ${title}（${escapeMarkdown(task.status)} · 计划 ${escapeMarkdown(task.dueDate)}）`)
           for (const sup of task.supports) {
             const supTitle = sup.unavailable
               ? `${escapeMarkdown(sup.title)}（不可用）`
@@ -251,18 +235,14 @@ export function projectExportHtml(doc: ProjectExportDocument, theme: ExportTheme
           const head = task.taskLink.href
             ? htmlLink(task.title, task.taskLink.href)
             : `${escapeHtml(task.title)} <span class="muted">（无有效链接）</span>`
-          const subs = task.subtasks.length
-            ? `<ul class="subs">${task.subtasks.map(sub =>
-              `<li><span class="mini-check ${sub.done ? 'done' : ''}">${sub.done ? '✓' : ''}</span>${escapeHtml(sub.title)}</li>`).join('')}</ul>`
-            : ''
           const sups = task.supports.length
             ? `<ul class="sups">${task.supports.map(sup =>
               `<li>${sup.unavailable ? `${escapeHtml(sup.title)} <span class="badge unavailable">不可用</span>` : htmlLink(sup.title, sup.href)}<span class="badge">${escapeHtml(sup.source)}</span></li>`).join('')}</ul>`
             : ''
-          return `<li><div class="t-head">${head}<span class="badge">${escapeHtml(task.status)}</span><span class="badge">${escapeHtml(task.priority)}优</span>${task.subtaskProgress ? `<span class="muted">子任务 ${escapeHtml(task.subtaskProgress)}</span>` : ''}</div>${subs}${sups}</li>`
+          return `<li><div class="t-head">${head}<span class="badge">${escapeHtml(task.status)}</span><span class="muted">计划 ${escapeHtml(task.dueDate)}</span></div>${sups}</li>`
         }).join('')}</ul>`
         : '<p class="empty">暂无任务</p>'
-      return `<section class="metric"><h2>${escapeHtml(metric.title)}${metric.missingTasks ? ' <span class="warn">⚠ 缺任务</span>' : ''}</h2>${metric.acceptance ? `<p class="acc">验收：${escapeHtml(metric.acceptance)}</p>` : ''}<p class="muted">进度 ${escapeHtml(metric.progress)}</p>${tasks}</section>`
+      return `<section class="metric"><h2>${escapeHtml(metric.title)}${metric.missingTasks ? ' <span class="warn">⚠ 缺任务</span>' : ''}</h2><p class="muted">进度 ${escapeHtml(metric.progress)}</p>${tasks}</section>`
     }).join('')
     : '<p class="empty">暂无成功指标</p>'
 
@@ -287,7 +267,6 @@ section{border-top:1px solid ${theme.border};padding:18px 0 2px;margin-top:18px}
 .summary span{display:block;color:${theme.textMuted};font-size:11px;margin-bottom:2px}
 .summary b{font-size:14px;overflow-wrap:anywhere}
 p{margin:0 0 8px;white-space:pre-wrap;overflow-wrap:anywhere}
-.acc{color:${theme.text};}
 a{color:${theme.accentInk};text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
 a:hover{color:${theme.accent}}
 ul{margin:6px 0 0;padding:0;list-style:none}
@@ -297,10 +276,6 @@ ul{margin:6px 0 0;padding:0;list-style:none}
 .badge{font-size:10px;color:${theme.accentInk};border:1px solid ${theme.accent};border-radius:999px;padding:0 6px;white-space:nowrap;font-weight:500}
 .badge.unavailable{color:${theme.textMuted};border-color:${theme.border}}
 .warn{color:${theme.textMuted};font-size:11px;border:1px solid ${theme.border};border-radius:999px;padding:1px 7px}
-.subs{margin:5px 0 0 4px}
-.subs li{display:flex;align-items:center;gap:6px;color:${theme.textMuted};font-size:12px;padding:2px 0}
-.mini-check{width:14px;height:14px;border:1px solid ${theme.border};border-radius:4px;display:grid;place-items:center;flex:none;color:transparent;font-size:9px}
-.mini-check.done{background:${theme.accent};border-color:${theme.accent};color:${theme.bg}}
 .sups{margin:5px 0 0 4px}
 .sups li{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;padding:2px 0}
 .muted,.empty{color:${theme.textMuted};font-size:12px}

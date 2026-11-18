@@ -259,9 +259,19 @@ check('B37d 树形隶属引导线 + 折叠箭头按需显示', () => read('/newt
 check('O23 北极星未归档任务（第卌四轮升级：项目+指标双重有效性校验，见 R44-3）', () => read('/newtab/components/compass/NorthStarPanel.vue').includes('未归档任务') && read('/newtab/components/compass/NorthStarPanel.vue').includes('taskArchiveIssue(t) !==') && !read('/newtab/components/compass/NorthStarPanel.vue').includes('pendingTasks'));
 check('O24 好奇心采集带来源（两端+模型+详情）', () => read('/shared/models/index.ts').includes('sourceTitle') && read('/content/search-overlay.ts').includes('sourceTitle: srcTitleInput') && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('v-model="curioForm.sourceTitle"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="cz-ext-src"') && read('/newtab/components/compass/CuriosityPanel.vue').includes("f.key === 'sourceUrl'")) /* ★R4-Dj 随迁备案（收紧不是放宽）：原判据只核 Curio 里出现 "detail-src" 字样——那是 R117 详情重设计后只剩在 CSS 里的死类名（模板零引用，删规则才暴露）。现改核现役两件事：来源行真的按 fieldConfig 的 sourceUrl 渲染 + 用的是 cz-ext-src 这个真类名 */;
 
-console.log('【第十四轮 · Linear 视觉重构】');
-check('P1 六主题 Linear 体系（深空薰衣草默认）', () => read('/shared/styles/tokens.css').includes("[data-theme='linear']") && read('/shared/styles/tokens.css').includes('#0D0E11') && read('/shared/styles/tokens.css').includes('#5E6AD2'));
-check('P1 默认主题迁移（green→linear 一次性）', () => read('/shared/storage/repository.ts').includes("theme: 'linear'") && read('/shared/storage/repository.ts').includes("uiCache.theme === 'green'"));
+console.log('【第十四轮 · 视觉重构（V4.4.0 三主题收口）】');
+check('P1 三主题体系（光速黑 / 极简白 / 纸墨白，知源 Logo 蓝主行动）', () => {
+  const t = read('/shared/styles/tokens.css');
+  return ["raycast", "apple", "notion"].every(id => t.includes(`[data-theme='${id}']`))
+    && !t.includes("[data-theme='linear']") && !t.includes("[data-theme='auto']")
+    && t.includes('--accent: #1579AD;') && t.includes('--accent: #0F6F9E;') && t.includes('--accent: #0B668F;');
+});
+check('P1 旧主题偏好确定性迁移（auto / linear / green / night → 三主题）', () => {
+  const r = read('/shared/storage/repository.ts');
+  return r.includes('theme: \'raycast\'') && r.includes("uiCache.theme === 'auto'")
+    && r.includes("uiCache.theme === 'green' || uiCache.theme === 'night' || uiCache.theme === 'linear'")
+    && r.includes("saveUIPrefs({ theme: 'raycast' })");
+});
 check('P2 封面扁平化（R64 修订：hero 已删，等效锚点换指标卡样式）', () => !read('/newtab/views/Workspace.vue').includes('COVER_THEMES') && !read('/newtab/views/Workspace.vue').includes('heroGradient') && read('/newtab/views/Workspace.vue').includes('.res-card { background: var(--surface); border: 1px solid var(--border);') && !read('/newtab/views/Workspace.vue').includes('.metric-card')); /* ★R4-Dj 随迁备案：R64 那次把"等效锚点"换成 .metric-card，而指标卡随资源台台面一起退役了、CSS 里只剩没人用的规则——锚点跟能力搬到现役卡片语言 .res-card；另加一条负判据：.metric-card 不许再作为 Workspace 的锚点回流 */
 check('R49 方向台扁平化（原 P2 罗盘 Hero）★R3-B1 随宿主改靶 + ★W12 随迁备案：满宽页头口径落在方向树（.compass-layout 1440 居中 + 页头区），页头区本体由 .tree-page-head 一行工具条改为 .hero 两栏（文案左 / 动作右）——守的是"满宽 + 页头区存在"这两条，不是那一行密排的写法。★容器 padding 仍钉 20px 36px 64px（R125 跨页一致性，W12 只改页头区形态不动容器）', () => CT_ALL.includes('.compass-layout { display: block; min-height: 100%; padding: 20px 36px 64px; max-width: 1440px; margin: 0 auto; }') && /^\.hero \{/m.test(CT_ALL));
 check('P3 去弹跳（hover 无位移）+ 焦点环', () => !read('/newtab/views/ProjectCuration.vue').includes('translateY(-3px)') && !read('/newtab/views/Workspace.vue').includes('.res-card:hover { border-color: var(--accent); box-shadow') && read('/shared/styles/tokens.css').includes(':focus-visible'));
@@ -362,11 +372,11 @@ check('R17-6 任务卡置顶（模型+列表+看板+选取）', () => read('/sha
 
 console.log('【第十三轮 · V2.2.0 正式版】');
 check('V13-1 任务卡链接字段 + 单/双击统一', () => read('/shared/models/index.ts').includes('link?: string') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('onTaskRowDblClick') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('openCardLink'));
-check('V13-2 任务抽屉链接+备注（可拖拽调高）· ★R4-Et 随迁备案：第三处原锚 .ts-note { 是 R167 详情重设计后遗留的死规则（备注框早已换 class="ds-desc"，模板/census/字符串三处零引用，本轮清掉）。第三处换成今天真在渲染的那三件：备注 textarea 绑 selectedTask.description + 记忆高度的 :style + 拖拽把手，并钉住 .ts-note 不许回流', () => { const f = read('/newtab/components/compass/TaskDetailDrawer.vue'); return f.includes('selectedTask.link') && f.includes('selectedTask.description')
-  && f.includes('<textarea v-model="selectedTask.description" class="ds-desc" :style="{ height: taskNoteH + \'px\' }"')
-  && f.includes('<div class="ta-resize" @mousedown="startTaskNoteResize"') && !f.includes('.ts-note {') });
+check('V13-2（V4.4.0 退役重指）任务抽屉保留链接与紧凑说明：说明框固定 3 行、置于资源镜像之后，旧高度记忆与拖拽把手不得回流', () => { const f = read('/newtab/components/compass/TaskDetailDrawer.vue'); return f.includes('selectedTask.link') && f.includes('selectedTask.description')
+  && f.includes('class="ds-desc ts-note-compact" rows="3"')
+  && !f.includes('ta-resize') && !f.includes("useTaHeight('task-note'") && !f.includes('.ts-note {') });
 check('V13-3 好奇心链接口径（sourceUrl+本地路径直达；R129-B5 起统一走 link.toOpenableRawLink）', () => { const cp = read('/newtab/components/compass/CuriosityPanel.vue'); return cp.includes('toOpenableRawLink') && !cp.includes('function toOpenableCurioLink') && cp.includes('来源链接（网页 / 本地路径 / obsidian://，失焦即保存）'); });
-check('V13-4 文本框可拖拽调高（三卡详情）· R167 重指：资源表单的 `.ref-note` 搬进 ds-* 面板成 `.ds-hero-note`，判据跟着换成「焦点区 + 拖拽把手 + 记忆 hook」三件同在（把手没了就是"调了不记"，比不调更气人）', () => { const f = read('/newtab/components/ResourceEditForm.vue'); return f.includes('ds-hero-note') && f.includes('ref-ta-resize') && f.includes('useTaHeight') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="ds-hero-note"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('height: detailH') /* ★R4-Dj 随迁备案：原锚 max-height:400px 挂在 .detail-textarea 上，而 .detail-textarea 模板零引用（R167 详情重设计后 Curio 走 ds-hero-note + detailH 记忆高度）；换成"类名与记忆高度两件事都在"，比只看一条 max-height 更实 */ && read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") /* ★R4-Et 随迁备案：原锚 max-height: 320px 是死规则 .ts-note 的属性（同 V13-2），换成任务抽屉这一路的"记忆 hook"本体——三件同在的口径本来就比一条写死的 max-height 承重 */ });
+check('V13-4（V4.4.0 退役重指）资源与好奇心详情保留可拖高说明；任务详情改为固定紧凑说明，不再记忆高度', () => { const f = read('/newtab/components/ResourceEditForm.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue'); const t = read('/newtab/components/compass/TaskDetailDrawer.vue'); return f.includes('ds-hero-note') && f.includes('ref-ta-resize') && f.includes('useTaHeight') && c.includes('class="ds-hero-note"') && c.includes('height: detailH') && t.includes('class="ds-desc ts-note-compact" rows="3"') && !t.includes("useTaHeight('task-note'") && !t.includes('ta-resize'); });
 check('V13-5 罗盘子页 out-in 过渡移除（切换即时）★R3-B1 随宿主改靶：过渡宿主是 App 级 router-view（方向台一级化后仍不得回添 out-in）· ★C3（V3.8.31）二次靶：方向台**页内**视图形态切换现在明确要求 out-in（C3 规格），与「路由级零动画」不是一回事——本条的靶收窄为「App 级 router-view 不许多余过渡」+「页内至多一处 out-in 且必须是 viewfade」', () => {
   const appNoOutIn = !read('/newtab/App.vue').includes('mode="out-in"');
   const n = (CT_ALL.match(/mode="out-in"/g) || []).length;
@@ -555,8 +565,8 @@ check('R33-11（V4.1.3 退役重指）愿景/使命关联卡片整体退役：�
   return !t.includes('lc-ico') && !t.includes('lc-text') && !t.includes('linked-chip')
     && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
 });
-check('R33-12 REQ-024 文本框高度记忆（UIPrefs.taHeights + 三组件接线）', () => read('/shared/models/index.ts').includes('taHeights?: Record<string, number>') && read('/shared/utils/taHeight.ts').includes('saveUIPrefs') && read('/newtab/components/ResourceEditForm.vue').includes("useTaHeight(props.heightKey") && read('/newtab/views/Workspace.vue').includes('height-key="ws-note"') && read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") && read('/newtab/components/compass/CuriosityPanel.vue').includes("useTaHeight('curio-detail'"));
-check('R33-12b REQ-024 默认高度加大（180px 起步 + 拖拽手柄三处）', () => read('/shared/utils/taHeight.ts').includes('def = 180') && read('/newtab/components/ResourceEditForm.vue').includes('.ref-ta-resize') && read('/newtab/components/compass/TaskDetailDrawer.vue').split('.ta-resize').length >= 2 && read('/newtab/components/compass/CuriosityPanel.vue').split('.ta-resize').length >= 2);
+check('R33-12（V4.4.0 退役重指）文本框高度记忆只服务资源、工作台与好奇心；任务详情固定紧凑说明，不接 taHeights', () => read('/shared/models/index.ts').includes('taHeights?: Record<string, number>') && read('/shared/utils/taHeight.ts').includes('saveUIPrefs') && read('/newtab/components/ResourceEditForm.vue').includes("useTaHeight(props.heightKey") && read('/newtab/views/Workspace.vue').includes('height-key="ws-note"') && !read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") && read('/newtab/components/compass/CuriosityPanel.vue').includes("useTaHeight('curio-detail'"));
+check('R33-12b（V4.4.0 退役重指）资源、工作台与好奇心保留 180px 起步拖拽记忆；任务详情不再出现拖拽手柄', () => read('/shared/utils/taHeight.ts').includes('def = 180') && read('/newtab/components/ResourceEditForm.vue').includes('.ref-ta-resize') && !read('/newtab/components/compass/TaskDetailDrawer.vue').includes('.ta-resize') && read('/newtab/components/compass/CuriosityPanel.vue').split('.ta-resize').length >= 2);
 
 console.log('【第卅三轮 · V2.12 需求包第四批：结构改造 · REQ-016/018/021/022】');
 check('R33-13 REQ-016 共享任务添加抽屉（新建/关联双 Tab + Ctrl+Enter）', () => read('/newtab/components/TaskAddDrawer.vue').includes("tab === 'create'") && read('/newtab/components/TaskAddDrawer.vue').includes("tab === 'link'") && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks"'));

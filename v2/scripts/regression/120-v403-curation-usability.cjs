@@ -12,6 +12,7 @@ const { check, read } = require('./helpers.cjs')
 console.log('【V4.0.3 · 策展台页头与方向树全景】')
 
 const NODE = read('/newtab/components/curation/CurationMindNode.vue')
+const STRIP = read('/newtab/components/curation/CurationAssetStrip.vue')
 const MAP = read('/newtab/components/curation/CurationMindMap.vue')
 const CSS = read('/newtab/components/curation/curation.css')
 const HOOK = read('/newtab/composables/useCurationMindMap.ts')
@@ -26,14 +27,20 @@ check('R191-1 ★策展节点零「缺证据」字段：资源缺失不再变成
     && !MAP.includes('mind-evidence')
 })
 
-check('R191-2 ★无资源节点只聚焦标题与描述：资源区/底栏都按 cards().length 条件渲染，关联入口留在头部轻量动作位', () => {
+check('R191-2（V4.4.0 重指）★节点资源入口按频率分层：无资源时正文全宽主 CTA，已有资源时保留继续关联；附件降为次级元数据行', () => {
   return NODE.includes("'resource-bearing': cards().length > 0")
     && NODE.includes('<div v-if="cards().length" class="mind-resources">')
     && NODE.includes('<div v-if="cards().length" class="mind-node-foot">')
-    && NODE.includes('v-if="!cards().length" class="mind-head-action"')
-    && NODE.includes('title="关联资源"')
+    && NODE.includes('class="mind-resource-empty"')
+    && NODE.includes('class="mind-resource-cta"')
+    && NODE.includes('<Icon name="link" :size="12"/> 关联资源卡')
+    && NODE.includes('继续关联资源')
+    && NODE.includes('compact')
+    && !NODE.includes('v-if="!cards().length" class="mind-head-action"')
     && CSS.includes('.mind-node:not(.resource-bearing) .mind-desc')
     && CSS.includes('padding-top: 0; border-top: 0')
+    && CSS.includes('.mind-resource-cta')
+    && STRIP.includes('.curation-asset-strip.compact')
 })
 
 check('R191-3 ★同级箭头直接改真实兄弟数组：先 splice 移出再插入，随后全量重排 order 并持久化', () => {

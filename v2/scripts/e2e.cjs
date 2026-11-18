@@ -2973,7 +2973,7 @@ await paOpen()
       && !homePoolState.hasInboxClass && homePoolState.deckTabs.length === 0,
     `三池=${JSON.stringify(homePoolState)}`)
 
-  // ══════════ E2E-56（V4.1.3）云同步三事实卡、回执与三色状态灯 ══════════
+  // ══════════ E2E-56（V4.4.0）云同步三事实卡、回执与静态状态入口 ══════════
   const cloudSnapshotAt = new Date().toISOString()
   await ctx.unroute('**/rest/v1/cloud_snapshots**').catch(() => {})
   await ctx.unroute('**/rest/v1/account_events**').catch(() => {})
@@ -3028,7 +3028,11 @@ await paOpen()
   await page.goto(base + '#/settings?page=cloud', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '[data-testid="cloud-relation-overview"]', { visible: true, timeout: 12000 })
-  const cloudLedBefore = await page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led').getAttribute('class').catch(() => '')
+  const cloudStatusBefore = await page.locator('[data-testid="topbar-cloud-sync"]').evaluate(button => ({
+    classes: button.className,
+    label: (button.querySelector('.cloud-sync-label')?.textContent || '').trim(),
+  }))
+  const cloudLedRetired = await page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led').count() === 0
 
   await page.locator('[data-testid="cloud-relation-details-trigger"]').click()
   await waitForLocator(page, '.cscd .cct', { visible: true, timeout: 12000 })
@@ -3049,9 +3053,14 @@ await paOpen()
     const heading = (modal?.querySelector('.csrm-hero h2')?.textContent || '').trim()
     return { summary, heading, rows: modal?.querySelectorAll('.cct-row').length || 0 }
   })
-  const cloudLedAfterSync = await pollUntil(
-    () => page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led.led-green').count().then(count => count > 0),
-    { timeout: 8000, label: '云同步完成后绿灯' },
+  const cloudStatusAfterSync = await pollUntil(
+    async () => {
+      const button = page.locator('[data-testid="topbar-cloud-sync"]')
+      const classes = await button.getAttribute('class') || ''
+      const label = (await button.locator('.cloud-sync-label').textContent() || '').trim()
+      return classes.includes('in_sync') && label === '已同步'
+    },
+    { timeout: 8000, label: '云同步完成后顶栏显示已同步' },
   )
 
   const actionableRow = page.locator('[data-testid="cloud-sync-receipt-modal"] .cct-row:has(.cct-action.available)').first()
@@ -3076,9 +3085,14 @@ await paOpen()
     await page.waitForSelector('[data-testid="cloud-sync-record-detail"]', { state: 'detached', timeout: 5000 })
   }
 
-  const cloudLedAfterAction = await pollUntil(
-    () => page.locator('[data-testid="topbar-cloud-sync"] .cloud-sync-led.led-yellow').count().then(count => count > 0),
-    { timeout: 8000, label: '逐行操作后回到待同步黄灯' },
+  const cloudStatusAfterAction = await pollUntil(
+    async () => {
+      const button = page.locator('[data-testid="topbar-cloud-sync"]')
+      const classes = await button.getAttribute('class') || ''
+      const label = (await button.locator('.cloud-sync-label').textContent() || '').trim()
+      return classes.includes('local_changed') && label === '待同步'
+    },
+    { timeout: 8000, label: '逐行操作后顶栏回到待同步' },
   )
   await page.locator('.md-panel').filter({ has: page.locator('[data-testid="cloud-sync-receipt-modal"]') }).first().locator('.md-close').click()
   await page.waitForSelector('.md-panel', { state: 'detached', timeout: 5000 }).catch(() => {})
@@ -3114,8 +3128,9 @@ await paOpen()
   await waitForLocator(page, '[data-testid="cloud-sync-history"]', { visible: true, timeout: 6000 })
   const topbarHistoryCount = await page.locator('.csh-item').count()
 
-  report('E2E-56 ★V4.2.0 云同步：待上传明细可右滑，手动同步后弹本次明细并转绿灯；记录可逐行删除/恢复/回退，设置中心与顶栏都能打开最近 20 次 / 30 天的同步历史',
-    cloudLedBefore.includes('led-') && pendingDrawer.groups.some(x => x.startsWith('全部'))
+  report('E2E-56 ★V4.4.0 云同步：待上传明细可右滑，手动同步后顶栏静态状态切换为已同步；记录可逐行删除/恢复/回退，设置中心与顶栏都能打开最近 20 次 / 30 天的同步历史',
+    cloudStatusBefore.classes.includes('cloud-sync-btn') && cloudStatusBefore.label.length > 0 && cloudLedRetired
+      && pendingDrawer.groups.some(x => x.startsWith('全部'))
       && pendingDrawer.groups.some(x => x.startsWith('卡片'))
       && pendingDrawer.groups.some(x => x.startsWith('策展台'))
       && pendingDrawer.groups.some(x => x.startsWith('今日三件事'))
@@ -3124,13 +3139,13 @@ await paOpen()
       && receipt.rows > 0 && receiptActionCheck.initial === '可处理'
       && receiptActionCheck.operation.length > 0
       && ['已删除', '已恢复', '已回退'].includes(receiptActionCheck.after)
-      && receiptActionCheck.message.length > 0 && cloudLedAfterSync && cloudLedAfterAction
+      && receiptActionCheck.message.length > 0 && cloudStatusAfterSync && cloudStatusAfterAction
       && latestReceiptDrawer.title.includes('最近实际同步内容')
       && latestReceiptDrawer.rows === receipt.rows && latestReceiptDrawer.hasDirection
       && settingsHistory.count >= 1 && settingsHistory.note.includes('最近 20 次')
       && settingsHistory.note.includes('最长 30 天') && historyReceiptRows === receipt.rows
       && topbarHistoryEntry === 1 && topbarHistoryCount >= 1,
-    `灯前=${cloudLedBefore} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后绿灯=${cloudLedAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后黄灯=${cloudLedAfterAction} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
+    `灯前=${JSON.stringify(cloudStatusBefore)} LED已退役=${cloudLedRetired} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后已同步=${cloudStatusAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后待同步=${cloudStatusAfterAction} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
 
   // ══════════ E2E-57（V4.3.0）今日三件事复制 / AI 成功态 ══════════
   const copyTask = {
@@ -3369,9 +3384,7 @@ await paOpen()
 
   async function linkCardToNode(nodeId) {
     const node = page.locator(`[data-mind-node="${nodeId}"]`)
-    const headLink = node.locator('button[title="关联资源"]')
-    if (await headLink.count()) await headLink.click()
-    else await node.locator('.mind-node-foot .mind-add').filter({ hasText: '关联资源' }).click()
+    await node.locator('.mind-resource-empty .mind-resource-cta, .mind-node-foot .mind-resource-cta').first().click()
     await waitForLocator(page, '.md-panel .lc-item', { visible: true, timeout: 6000 })
     const row = page.locator('.md-panel .lc-item').filter({ hasText: multiNodeCard.title }).first()
     const checkbox = row.locator('input[type="checkbox"]')
@@ -3402,8 +3415,7 @@ await paOpen()
       && rows.some(row => row.targetCatId === 'e2e-v421-node-b')
   }, { timeout: 8000 })
 
-  await page.locator('[data-mind-node="e2e-v421-node-a"] .mind-node-foot .mind-add')
-    .filter({ hasText: '关联资源' }).click()
+  await page.locator('[data-mind-node="e2e-v421-node-a"] .mind-node-foot .mind-resource-cta').click()
   await waitForLocator(page, '.md-panel .lc-item', { visible: true, timeout: 6000 })
   const nodeAAgain = await page.locator('.md-panel .lc-item')
     .filter({ hasText: multiNodeCard.title }).first()

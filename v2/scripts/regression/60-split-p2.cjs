@@ -297,11 +297,12 @@ check('R109-2（V3.9.8 随迁）单一滚动域：页头/指标/工具条/画布
     && host.includes('<CurationMindMap')
     && !host.includes('class="ws-columns"');
 });
-check('R109-3（V3.9.8 随迁）页头单图标 + 双指标盒：台名剥离图标前缀，指标盒横向 label/value，画布节点有 hover 抬升反馈', () => {
+check('R109-3（V4.4.0 重指）页头单图标 + 双指标盒：台名剥离图标前缀，指标盒横向 label/value，画布节点有 hover 边界与轻阴影反馈', () => {
   const c = read('/newtab/components/curation/curation.css');
+  const wc = read('/newtab/views/workspace.css');
   return WSP109.includes("wsDisplayNameOf(workspace)")
-    && WSP109.includes('.metric-box { background: var(--surface); border: 1px solid var(--border);')
-    && c.includes('.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }')
+    && wc.includes('.metric-box { background: var(--surface); border: 1px solid var(--border);')
+    && c.includes('.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }')
     && !WSP109.includes('.mc-value') && !WSP109.includes('.metric-card'); /* ★R4-Dj：原第三条正判据 .mc-value{font-size:20px} 与被搬走的 .metric-card 同属退役指标卡，改为负判据钉"死类名不许回流"——数值字号这件事在现役 UI 里没有对应物（台面指标区 R98/R123 起逐步退役、读数移到调度台 MetricBar），硬找等价样式来钉只会再养一条假证据 */
 });
 check('R109-4 ★ F12-a workspaceId 收紧（★R4-Da 退役重指带备案：原判据点名全景右栏的 panSelWs+panSelCat 双过滤、计数的 ws|cat 复合键、树头措辞「全景 · 资源台 · N 分类」——🗺 全景整页随资源台退役删除。"卡列表/计数必须按所在台收紧，别台卡不得混入"这条口径本身没有松：三个存活管理面各自仍有硬判据——① 池面板 workspaceId===CURATION_WS_ID ② 策展台 boardCardsOf(d, workspaceId) + 分类计数走 catId 桶 resBucket ③ 设置页按台导出 CSV 亦带 workspaceId 过滤；全景那三条锚点改为 codeOnly 零命中判据防回流）+ 树头措辞修正随页面退役一并归档', () => {

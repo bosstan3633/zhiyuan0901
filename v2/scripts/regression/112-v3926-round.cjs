@@ -7,38 +7,29 @@ const { check, read, CUR_VER, CUR_VTAG, VER_ANCHOR_LITERAL } = require('./helper
 
 console.log('【V3.9.26 · 任务详情 / 调度台 / 方向台】');
 
-check('R183-A1 ★任务导出上移标题栏：导出入口位于标题输入之后、项目指标之前，并从正文 AI 工具组移出；仍复用共享 ExportMenu', () => {
+check('R183-A1（V4.4.0 重指）★任务导出整体退役：TaskDetailDrawer 零 ExportMenu、零 taskExport 依赖；完整标题 textarea 成为标题区唯一主控件', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
-  const titleAt = td.indexOf('<div class="ts-title-wrap">');
-  const exportAt = td.indexOf('<ExportMenu class="ts-title-export"');
-  const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
-  const actionAt = td.indexOf('<div class="ts-action-bar">');
-  const actionEnd = td.indexOf('<!-- R48：说明区上移为 Hero', actionAt);
-  return titleAt >= 0 && exportAt > titleAt && exportAt < ownerAt
-    && actionAt > ownerAt && actionEnd > actionAt
-    && !td.slice(actionAt, actionEnd).includes('ExportMenu')
-    && td.includes(":formats=\"['md', 'html']\"")
-    && td.includes(':deep(.dz-exp-trigger)');
+  return !td.includes('<ExportMenu') && !td.includes('taskExport')
+    && td.includes('class="ts-title" rows="3"')
+    && td.includes('placeholder="写下一条完整、可执行的任务…"');
 });
 
-check('R183-A2 ★任务归属更紧凑且 AI 文案完整：项目 / 指标为轻量双字段；三枚 AI 入口同组但各自独立，第三枚完整显示「找资源」', () => {
+check('R183-A2（V4.4.0 重指）★任务归属更紧凑且 AI 入口贴对象：项目 / 指标为轻量双字段；资源镜像旁完整显示「AI 找资源」，说明旁保留次级「AI 补全」', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  const tdCode = require('./helpers.cjs').codeOnly(td);
   const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
-  const actionAt = td.indexOf('<div class="ts-action-bar">');
-  const descAt = td.indexOf('<!-- R48：说明区上移为 Hero');
-  const owner = td.slice(ownerAt, actionAt);
-  const actions = td.slice(actionAt, descAt);
+  const resourceAt = td.indexOf('class="ts-section ts-resource-section"');
+  const noteAt = td.indexOf('class="ts-section ts-note-section"');
+  const owner = td.slice(ownerAt, resourceAt);
+  const resources = td.slice(resourceAt, noteAt);
+  const note = td.slice(noteAt);
   return owner.includes('<label class="ds-prop-label"><Icon name="package" :size="13"/> 项目</label>')
     && owner.includes('<label class="ds-prop-label"><Icon name="target" :size="13"/> 指标</label>')
     && owner.includes('class="ds-prop-select"')
     && td.includes('.ts-owner { gap: 6px; padding: 0; border: 0; background: transparent;')
-    && actions.includes('aria-label="AI 任务工具"')
-    && (actions.match(/class="ts-ai-cell"/g) || []).length === 3
-    && actions.includes('label="补全"')
-    && actions.includes('label="拆解"')
-    && actions.includes('label="找资源"')
-    && td.includes('grid-template-columns: repeat(3, minmax(72px, 1fr));')
-    && td.includes('white-space: nowrap; overflow: visible;');
+    && resources.includes('资源镜像') && resources.includes('label="AI 找资源"')
+    && note.includes('说明') && note.includes('label="AI 补全"')
+    && !tdCode.includes('ts-ai-cell') && !tdCode.includes('AI 拆解');
 });
 
 check('R183-B1（V4.3.1 重指）调度台底轨不与任务工作面相争：状态轨在单列网格闭合之后独占全宽，网格不再保留底部自动轨道', () => {

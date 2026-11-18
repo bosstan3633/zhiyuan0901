@@ -8,10 +8,12 @@ const props = withDefaults(defineProps<{
   assets: AssetMeta[]
   nodeId: string
   selected?: boolean
+  compact?: boolean
   maxVisible?: number
   remoteDownloader?: (meta: AssetMeta) => Promise<Blob | null>
 }>(), {
   selected: false,
+  compact: false,
   maxVisible: 5,
   remoteDownloader: undefined,
 })
@@ -51,7 +53,7 @@ function labelOf(asset: AssetMeta): string {
 </script>
 
 <template>
-  <div v-if="assets.length || selected" class="curation-asset-strip" :class="{ selected }"
+  <div v-if="assets.length || selected" class="curation-asset-strip" :class="{ selected, compact }"
     :data-node-id="nodeId" @dragover.prevent @drop="onDrop">
     <span class="cas-label"><Icon name="paperclip" :size="11"/> 附件</span>
     <div class="cas-thumbs">
@@ -79,6 +81,8 @@ function labelOf(asset: AssetMeta): string {
 <style scoped>
 .curation-asset-strip { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 8px; padding: 6px 7px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--surface-2) 72%, var(--surface)); }
 .curation-asset-strip.selected { border-color: color-mix(in srgb, var(--accent) 34%, var(--border)); background: color-mix(in srgb, var(--accent-light) 52%, var(--surface)); }
+.curation-asset-strip.compact { margin-top: 6px; padding: 0; border: 0; background: transparent; }
+.curation-asset-strip.compact.selected { background: transparent; }
 .cas-label { flex: none; display: inline-flex; align-items: center; gap: 3px; color: var(--text-3); font-size: var(--fs-micro); font-weight: 600; }
 .cas-thumbs { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; }
 .cas-item { position: relative; width: 46px; height: 38px; flex: none; }
@@ -95,5 +99,14 @@ function labelOf(asset: AssetMeta): string {
 .cas-overflow { flex: none; color: var(--text-3); font-size: var(--fs-micro); }
 .cas-add { flex: none; min-height: 28px; display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent; color: var(--text-2); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
 .cas-add:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
+.curation-asset-strip.compact .cas-label { color: var(--text-3); font-weight: 500; }
+.curation-asset-strip.compact .cas-thumbs { gap: 4px; }
+.curation-asset-strip.compact .cas-item,
+.curation-asset-strip.compact .cas-thumb { width: 34px; height: 28px; }
+.curation-asset-strip.compact .cas-thumb { border-radius: 5px; }
+.curation-asset-strip.compact .cas-kind { left: 1px; bottom: 1px; padding: 0 2px; font-size: 6px; line-height: 9px; }
+.curation-asset-strip.compact .cas-remove { top: 0; right: 0; width: 12px; height: 12px; font-size: 10px; }
+.curation-asset-strip.compact .cas-add { min-height: 22px; padding: 1px 4px; border: 0; color: var(--text-3); }
+.curation-asset-strip.compact .cas-add:hover { color: var(--accent-ink); background: var(--accent-light); }
 .cas-file { display: none; }
 </style>

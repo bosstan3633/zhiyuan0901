@@ -138,19 +138,6 @@ const statusDetail = computed(() => {
 
 const canSync = computed(() => state.value === 'connected' && !!meta.value?.refreshToken && envReady.value === true)
 
-export type CloudLedTone = 'green' | 'yellow' | 'red' | 'neutral'
-const ledTone = computed<CloudLedTone>(() => {
-  if (state.value === 'error') return 'red'
-  if (!networkOnline.value && meta.value?.refreshToken && envReady.value !== false) return 'red'
-  if (state.value === 'disabled' || state.value === 'signed_out') return 'red'
-  if (state.value === 'checking' || state.value === 'syncing') {
-    return 'yellow'
-  }
-  if (relation.value === 'in_sync') return 'green'
-  if (relation.value) return 'yellow'
-  return 'yellow'
-})
-
 function setNetworkOnline(value: boolean): void {
   networkOnline.value = value
 }
@@ -809,7 +796,6 @@ export interface UseCloudSyncReturn {
   statusText: ComputedRef<string>
   statusDetail: ComputedRef<string>
   canSync: ComputedRef<boolean>
-  ledTone: ComputedRef<CloudLedTone>
   setNetworkOnline: (value: boolean) => void
   refreshCloudStatus: (probeRemote?: boolean, store?: AppStore) => Promise<void>
   ensureRelationProbe: (store: AppStore, force?: boolean) => Promise<CloudCheckResult | null>
@@ -839,7 +825,6 @@ export function useCloudSync(): UseCloudSyncReturn {
     statusText,
     statusDetail,
     canSync,
-    ledTone,
     setNetworkOnline,
     refreshCloudStatus,
     ensureRelationProbe,

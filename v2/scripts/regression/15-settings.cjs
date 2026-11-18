@@ -177,18 +177,19 @@ check('S3-5 云操作共用忙碌锁：登录、检查、上传、恢复在请�
 });
 
 /* ============ S4 · 主题选择器 ============ */
-check('S4-1 五项都是样例卡：themes 每项都有三色 palette（auto 也在内，不能因为它是「跟随系统」就退回单色圆点）', () => {
+check('S4-1（V4.4.0）三套正式主题都是样例卡：光速黑 / 极简白 / 纸墨白各有三色 palette，auto 与 linear 不再出现在选择器', () => {
   const n = (APP.match(/palette: \[/g) || []).length;
-  const items = (APP.match(/\{ id: '(auto|linear|raycast|apple|notion)'/g) || []).length;
-  if (n < 5 || items < 5) console.log('     palette ' + n + ' / 主题 ' + items);
-  return n >= 5 && items >= 5;
+  const items = (APP.match(/\{ id: '(raycast|apple|notion)'/g) || []).length;
+  if (n !== 3 || items !== 3) console.log('     palette ' + n + ' / 主题 ' + items);
+  return n === 3 && items === 3 && !APP.includes("id: 'auto'") && !APP.includes("id: 'linear'");
 });
 
-check('S4-2 色板取自真实令牌值不是臆造：linear 与 apple 两组与 tokens.css 的 bg/surface/accent 逐值对上', () => {
+check('S4-2（V4.4.0）三套色板都取自真实令牌：raycast / apple / notion 与 tokens.css 的 bg / surface / Logo 蓝 accent 逐值对上', () => {
   const tokens = read('/shared/styles/tokens.css');
-  return tokens.includes('--bg: #0D0E11;') && tokens.includes('--bg: #F5F5F7;')
-    && APP.includes("palette: ['#0D0E11', '#14161B', '#5E6AD2']")
-    && APP.includes("palette: ['#F5F5F7', '#FFFFFF', '#8452E0']");
+  return tokens.includes('--bg: #080A0D;') && tokens.includes('--bg: #F3F7FA;') && tokens.includes('--bg: #F7F6F1;')
+    && APP.includes("palette: ['#080A0D', '#11161C', '#1579ad']")
+    && APP.includes("palette: ['#F3F7FA', '#FFFFFF', '#0f6f9e']")
+    && APP.includes("palette: ['#F7F6F1', '#FFFEFA', '#0b668f']");
 });
 
 check('S4-3 当前态双信号 + 原生可聚焦：选中行 accent 描边且带 ✓ 图标；选项是 button 不是 div（Tab 能到）', () => {

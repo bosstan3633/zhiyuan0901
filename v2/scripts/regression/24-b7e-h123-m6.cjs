@@ -356,9 +356,9 @@ check(NAME(
     [HZ, '.mc-detail', /\.mc-detail \{[^}]*min-height: 28px;/],
     [HZ, '.mc-add/.mc-ai/.mc-del/.mc-more', /\.mc-add, \.mc-ai, \.mc-del, \.mc-more \{[^}]*min-height: 28px;/],
     [HZ, '.tk-title', /\.tk-title \{[^}]*min-height: 28px;/],
-    [HZ, '.tk-grade', /\.tk-grade \{[^}]*min-height: 28px;/],
     [HZ, '.dt.run', /\.dt\.run \{[^}]*min-height: 28px;/],
   ];
+  if (HZ.includes('.tk-grade')) { console.log('已退役的成熟度评分控件回流'); return false }
   for (const [src, who, re] of minH) {
     if (!re.test(src)) { console.log(`${who} 未达 28px 热区下限`); return false }
   }

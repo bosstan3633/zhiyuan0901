@@ -53,10 +53,10 @@ check('R161-⑦ ★Esc 真能关掉中央弹窗：watch 必带 immediate —— 
     && read('/shared/utils/focusTrap.ts').includes('panel.focus()')
     && m.includes('onUnmounted(');             /* 卸载兜底：条件挂载的宿主销毁时不留野监听 */
 });
-check('R161-7 ★令牌三新增（四主题各一份，动 tokens.css 必跑 theme-contrast）：--radius-xl 外框圆角 / --scrim-modal 统一遮罩 / --shadow-modal 四份（中央弹窗的悬浮感不进 shadow-lg 复用）', () => {
+check('R161-7（V4.4.0 重指）★令牌三新增（三主题各一份，动 tokens.css 必跑 theme-contrast）：--radius-xl 24px 外框圆角 / --scrim-modal 统一遮罩 / --shadow-modal 三份（中央弹窗的悬浮感不进 shadow-lg 复用）', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--radius-xl: 18px;') && t.includes('--scrim-modal:')
-    && count('/shared/styles/tokens.css', '--shadow-modal:') === 4;
+  return t.includes('--radius-xl: 24px;') && t.includes('--scrim-modal:')
+    && count('/shared/styles/tokens.css', '--shadow-modal:') === 3;
 });
 check('R161-8 中央弹窗壳消费新令牌：外框 var(--radius-xl)、阴影 var(--shadow-modal)、遮罩 var(--scrim-modal)——零硬编码色值', () => {
   const m = read('/shared/components/Modal.vue')
@@ -173,10 +173,10 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2（V4.3.1 重指）声明结构完备：kind 三值 job×18 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 23 条且 id 唯一（周期 AI 入口随今日 / 本周 / 本月分析整体退役）', () => {
+check('R157-2（V4.4.0 重指）声明结构完备：kind 三值 job×17 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 22 条且 id 唯一（任务拆解入口随子任务体系整体退役）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 23
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 18
+  return ids.length === 22
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 17
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
@@ -196,7 +196,7 @@ check('R157-3（R167 重指：名单不再手写）全部 build*Job 工厂必须
   for (const m of REG_TXT.matchAll(/factory: '(build\w+Job)', factoryFile: '(shared\/ai\/[\w.]+\.ts)'/g)) {
     if (!fs.existsSync(path.resolve(base, m[2])) || !read('/' + m[2]).includes(`export function ${m[1]}`)) ghost.push(`${m[1]} → ${m[2]}`)
   }
-  return found.length >= 18 && unreg.length === 0 && ghost.length === 0
+  return found.length >= 17 && unreg.length === 0 && ghost.length === 0
     && ['batchG.ts','chain.ts','govern.ts','select.ts','taskEnrich.ts','taskSupport.ts','projectDiagnose.ts','focusSuggest.ts'].every(f => REG_TXT.includes(`factoryFile: 'shared/ai/${f}'`))
     && !REG_TXT.includes('resourceLinkTask')
 });
@@ -235,10 +235,10 @@ const REGISTRY_FILE = read('/shared/ai/jobs/registry.ts');
 const GP_FILE = read('/newtab/components/GlobalPopups.vue');
 const SETTINGS_FILE = read('/newtab/views/GlobalSettings.vue');
 
-check('R158-1（V4.3.1 重指）注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；20 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
+check('R158-1（V4.4.0 重指）注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；19 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
   const modes = (REGISTRY_FILE.match(/mode: '(nav|popup|hidden)',/g) || []).length;
   return REGISTRY_FILE.includes('export interface AiPanelDecl')
-    && modes === 20 /* V4.3.1：周期 AI 分析入口退役后，显式 panel 再减 1 */
+    && modes === 19 /* V4.4.0：任务拆解入口随子任务体系退役后，显式 panel 再减 1 */
     && (REGISTRY_FILE.match(/popup: 'ai-advice'/g) || []).length === 3
     && REGISTRY_FILE.includes('route?: string')
     && REGISTRY_FILE.includes('hint?: string')
@@ -286,9 +286,9 @@ check('R158-6（V3.9.8 随迁）右键菜单：打开→复制→编辑→置顶
   return iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMirror && iMirror < iThesis && iThesis < iDel
     && !c.includes("label: '移动分类'");
 });
-check('R158-7（V4.3.1 重指）★入口数量锚：注册表 23 条（周期 AI 分析入口退役）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
+check('R158-7（V4.4.0 重指）★入口数量锚：注册表 22 条（周期分析与任务拆解入口退役）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 23
+  return ids === 22
     && !GP_FILE.includes("label: '打开资源台'")
     && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });
@@ -392,16 +392,23 @@ check('R164-9 ★perf --real 真实路径模式在位：R1~R7 指标（冷启动
 
 // ============== R165-A · 三卡详情页重设计（方案 A 标准落地：AI 进标题行三态 / 页脚两钮 / 动作贴对象） ==============
 console.log('【R165-A · 三卡详情重设计（方案 A）】');
-check('R165-A1（V4.2.0 退役重指）★统一标准：AI 主入口仍在正文首行独立成行，主标题只在抽屉头一处；任务详情为三格 AI 行、资源详情为一格全字段优化行，好奇心详情零 AI；三抽屉页脚零 AI 钮，资源正文零第二份标题框', () => {
+check('R165-A1（V4.4.0 重指）★统一标准：AI 主入口贴任务对象、主标题只在抽屉头一处；任务详情只保留资源镜像旁「AI 找资源」与说明旁「AI 补全」，资源详情为一格全字段优化行，好奇心详情零 AI；三抽屉页脚零 AI 钮', () => {
   const f = read('/newtab/components/ResourceEditForm.vue'); const st = read('/newtab/components/ResourceAiStrip.vue');
   const r = read('/newtab/components/ResourceDetailDrawer.vue'); const w = read('/newtab/views/Workspace.vue');
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue');
+  const tc = codeOnly(t)
   const footAi = (s, seg) => { const i = s.indexOf(seg); return i >= 0 && /<AiEntryButton|CardAiEntry|ResourceAiStrip|ds-ai-cell/.test(s.slice(i, i + 700)); };
+  const resourceAt = t.indexOf('class="ts-section ts-resource-section"');
+  const noteAt = t.indexOf('class="ts-section ts-note-section"');
   return !f.includes('name="title-extra"') && !f.includes('ref-title-row') && !f.includes('hideTitle')
     && st.includes('class="ds-ai-strip"') && (st.match(/class="ds-ai-cell"/g) || []).length === 1
     && r.includes('<ResourceAiStrip') && r.includes('<DetailTitle') && !footAi(r, '<template #footer>')
     && w.includes('<ResourceAiStrip') && w.includes('<DetailTitle') && !footAi(w, '<div class="dr-footer">')
-    && t.includes('ts-head-row') && t.includes('ts-ai-row') && (t.match(/class="ts-ai-cell"/g) || []).length === 3 /* R166 定案 6：三入口独立行等宽三格 */ && t.includes('@click="aiBreakdown"') && !footAi(t, '<div class="ts-foot">')
+    && resourceAt > 0 && noteAt > resourceAt
+    && (t.match(/<AiEntryButton/g) || []).length === 2
+    && t.includes('class="ts-ai-primary"') && t.includes('label="AI 找资源"')
+    && t.includes('class="ts-ai-inline"') && t.includes('label="AI 补全"')
+    && !tc.includes('AI 拆解') && !tc.includes('ts-ai-cell') && !footAi(t, '<div class="ts-foot">')
     && !c.includes('ds-ai-strip') && !c.includes('ds-ai-cell') && !c.includes('aiTriage') && !footAi(c, '<template #footer>');
 });
 check('R165-A2 ★页脚两钮收敛（四宿主）：ArmDeleteButton + 唯一 primary 提交；旧页脚动作（复制链接/拆解步骤/研判/置顶/转化/ghost 直删）全部出页脚', () => {
@@ -418,10 +425,10 @@ check('R165-A3 二次确认删除单实现：armed 文案/3s 回落/卸载清定
     && !read('/newtab/components/ResourceDetailDrawer.vue').includes('确认删除？') && !read('/newtab/views/Workspace.vue').includes('确认删除？')
     && !read('/newtab/components/compass/TaskDetailDrawer.vue').includes('确认删除？') && !read('/newtab/components/compass/CuriosityPanel.vue').includes('确认删除？');
 });
-check('R165-A4（V4.2.0 退役重指）三态凭据全链：aiTouchedAt 上移 CardBase（三卡共用零迁移）+ 每枚写入口各自落戳；凭据可见通道只保留任务抽屉 AiTouchedChip 与资源 AI 行尾「最近 ·」，好奇心零 AI 凭据，chip 本体走真源零 emoji', () => {
+check('R165-A4（V4.4.0 重指）三态凭据全链：aiTouchedAt 上移 CardBase（三卡共用零迁移）+ 每枚现役写入口各自落戳；任务拆解退役后 chain 创建不再冒充 AI 补全凭据；可见通道只保留任务抽屉 AiTouchedChip 与资源 AI 行尾', () => {
   const m = read('/shared/models/index.ts'); const chip = read('/shared/components/AiTouchedChip.vue'); const st = read('/newtab/components/ResourceAiStrip.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue'); const t = read('/newtab/components/compass/TaskDetailDrawer.vue')
   const base = m.slice(m.indexOf('export interface CardBase'), m.indexOf('export interface ResourceCard'))
-  const missing = ['select.ts', 'batchG.ts', 'chain.ts', 'taskEnrich.ts', 'taskSupport.ts'].filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt ='))
+  const missing = ['select.ts', 'batchG.ts', 'taskEnrich.ts', 'taskSupport.ts'].filter(f => !read('/shared/ai/' + f).includes('aiTouchedAt ='))
   return base.includes('aiTouchedAt?: number') && !m.slice(m.indexOf('export interface ResourceCard')).includes('aiTouchedAt?: number')
     && missing.length === 0
     && chip.includes('AiEntryButton') && !chip.includes('🤖') && t.includes('AiTouchedChip')
@@ -444,9 +451,10 @@ check('R165-A6（V4.3.0 退役重指）好奇心不再承担转化：详情保�
     && !exists('/newtab/composables/useInbox.ts')
     && identity.includes('sourceCaptureId') && identity.includes('captureInboxId') && identity.includes('capture_inbox_id');
 });
-check('R165-A7 任务详情优先级 3 段 segment（单击直达，语义色 tint 过对比度）+ 项目/指标级联双列保留', () => {
+check('R165-A7（V4.4.0 重指）任务详情退役优先级 segment 与成熟度评分，项目/指标级联双列继续保留', () => {
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue');
-  return t.includes('ts-prio') && t.includes('data-p="high"') && t.includes('color-mix(in srgb, var(--warning) 16%') && !t.includes('selectedTask.priority" @change')
+  return !t.includes('ts-prio') && !t.includes('data-p="high"') && !t.includes('selectedTask.priority')
+    && !t.includes('TASK_SCORE') && !t.includes('maturity')
     && t.includes('onSelProjectChange') && t.includes('onSelMetricChange');
 });
 
@@ -486,12 +494,14 @@ check('R165-A11（V4.3.0 重指）★手册宣传面与功能现状对账：已�
 
 // ============== R166 · 任务卡×子任务×AI 三入口×资源支持 ==============
 console.log('【R166 · 子任务内嵌 / SupportLink 独立表 / 三入口独立行 / 拆解改向】');
-check('R166-1 ★三入口独立行（定案 6）：任务详情头部三行——勾选+标题+关闭 / AI 三格等宽独立行 / 状态·成熟度·子任务·凭据；三枚共用一把 aiBusy 互斥锁（同时只跑一个，点了没反应一直等是最难查的"卡"）；页脚仍是 ArmDeleteButton + 主钮两枚不回退', () => {
+check('R166-1（V4.4.0 重指）任务详情只保留两枚现役 AI：资源镜像旁「找资源」在前、说明旁「补全」在后；两枚共用 aiBusy 互斥锁，成熟度/子任务/拆解读数全部退场，页脚仍是 ArmDeleteButton + 主钮两枚', () => {
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue')
-  return (t.match(/class="ts-ai-cell"/g) || []).length === 3 && (t.match(/:spin="aiBusy"/g) || []).length === 3
-    && t.includes('ts-ai-row')
-    && t.includes("const aiEnrich = () => runAi('enrich')") && t.includes("const aiBreakdown = () => runAi('breakdown')")
-    && t.includes("const aiSupport = (subId?: string) => runAi('support', subId)") && t.includes('if (!t || aiBusy.value) return')
+  const tc = codeOnly(t)
+  return (t.match(/<AiEntryButton/g) || []).length === 2 && (t.match(/:spin="aiBusy"/g) || []).length === 2
+    && t.indexOf('label="AI 找资源"') < t.indexOf('label="AI 补全"')
+    && t.includes("const aiEnrich = () => runAi('enrich')") && t.includes('const aiSupport = () => runAi(\'support\')')
+    && t.includes('if (!t || aiBusy.value) return')
+    && !tc.includes('aiBreakdown') && !tc.includes('子任务') && !tc.includes('成熟度')
     && t.includes('<ArmDeleteButton')
 });
 check('R166-2（V4.2.0 重指）★任务→资源镜像契约：同一 (task,sub,resource) 不重复挂；挂载时复制独立快照，删资源真身不伤镜像；解绑只删这一条记录；硬删资源只清无快照的历史记录；软删靠索引过滤，恢复即回挂；纯函数零 UI 依赖', () => {
@@ -513,25 +523,28 @@ check('R166-3 ★找资源支持两段式（F4）：本地按词面/标签预筛
     && j.includes('export function buildTaskSupportJob')
     && !j.includes('live.title =') && !j.includes('live.tags =') && !j.includes('task.description =') && !j.includes('task.subtasks =')
 });
-check('R166-4 ★任务补全"已填不覆盖"（F5）：说明里已有验收标准就不再建议；归属建议判弱默认不勾（替用户乱挂归属=替他做决策）；R147-4 新词闸同装（第三个单卡写库工厂不得漏）；估时只作提醒不写字段', () => {
+check('R166-4（V4.4.0 重指）★任务补全“已填不覆盖”：说明只在为空时补一句上下文；归属建议判弱默认不勾；新词闸保留；验收标准、估时与优先级字段全部退出任务补全', () => {
   const e = read('/shared/ai/taskEnrich.ts')
-  return e.includes('const hasAcceptance') && e.includes('if (acc && !descHasAcc)')
+  return e.includes('const descEmpty = !task.description?.trim()')
+    && e.includes('if (desc && descEmpty)')
     && e.includes('低置信，勾了才改') && e.includes('freshTagsOf(cand, known)')
     && e.includes("badge: '新词', badgeType: 'warn', weak: true")
-    && e.includes('__note: true') && e.includes('if (s.__note) continue')
     && e.includes('liveTarget(d, s.projectId, s.metricId)')
+    && !e.includes('hasAcceptance') && !e.includes('estimatedMinutes') && !e.includes('priority');
 });
-check('R166-5 ★子任务清单行为（定案 1/3 + F2）：改名走 input 失焦落库（不引 contenteditable 的粘贴与光标陷阱）；勾选只改本行 done；删除是数组过滤——清单行不是卡，无回收站无撤销；成熟度与周报零消费 subtasks（不计分）［R172-2 重指备案：勾选处随 `doneAt` 落时刻，字面量扩为 `{ ...x, done: !x.done, doneAt: … }`；断言本意「只改本行 done」不变。语义边界另注：`maturity.ts` / `ai/reports.ts` 仍零消费 subtasks（本断言原意），而 R172 新增的**年度加权分**按 04-67 §7.2 给子任务完成计 0.8——与定案 3 的张力已登记待拍板］', () => {
-  const c = codeOnly(read('/shared/components/SubtaskList.vue')); const mt = read('/shared/utils/maturity.ts'); const rp = read('/shared/ai/reports.ts')
-  return c.includes('@change="rename(s, $event)"') && c.includes('{ ...x, done: !x.done, doneAt:') && c.includes('write(list => list.filter(x => x.id !== s.id))')
-    && !c.includes('contenteditable') && !c.includes('softDelete') && !c.includes('deletedAt')
-    && !mt.includes('subtasks') && !rp.includes('subtasks')
+check('R166-5（V4.4.0 重指）★子任务写入面整体退役：SubtaskList 组件删除，任务详情/调度台/方向台不再渲染子任务清单、勾选或增删入口；历史 subtasks 字段只保留只读兼容，不参与现役编辑', () => {
+  const detail = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
+  const manager = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'))
+  const home = codeOnly(read('/newtab/views/CompassHome.vue'))
+  return !exists('/shared/components/SubtaskList.vue')
+    && !detail.includes('subtasks') && !manager.includes('subtasks') && !home.includes('toggleSlotSub')
+    && !detail.includes('AI 拆解') && !manager.includes('toggleSubExpand');
 });
-check('R166-6 ★列表就地展开（F2）：胶囊带 ▾/▴ 且点击 stopPropagation（不顺手把详情抽屉也打开）；展开面板绝对定位浮在行下——改行高会让整列在展开瞬间重排、点击点跳走；写回走 writeSubtasks 随卡 persist', () => {
+check('R166-6（V4.4.0 重指）★子任务列表就地展开与行内写入退役：任务行不再有 ▾/▴ 子任务胶囊、绝对定位展开面板或 writeSubtasks 写回链路', () => {
   const tp = read('/newtab/components/compass/TaskManagerPanel.vue')
-  return tp.includes('@click.stop="toggleSubExpand(task.id)"') && tp.includes("'▴' : '▾'")
-    && tp.includes('.trow-subs { position: absolute') && tp.includes('function writeSubtasks(t: TaskCard, v: Subtask[])')
-    && tp.includes('const subExpanded = ref<Set<string>>(new Set())')
+  return !tp.includes('toggleSubExpand') && !tp.includes("'▴' : '▾'")
+    && !tp.includes('.trow-subs { position: absolute') && !tp.includes('function writeSubtasks(')
+    && !tp.includes('subExpanded')
 });
 check('R166-7（V4.1.3 退役重指）资源侧不提供反向“关联任务”入口：SupportTasksPanel、资源侧 LinkTask 工厂与两代资源详情挂点全部退役；关系白名单只保留任务→资源、策展节点→资源', () => {
   const rdd = read('/newtab/components/ResourceDetailDrawer.vue'); const ws = read('/newtab/views/Workspace.vue')
@@ -546,10 +559,10 @@ check('R166-8 ★Esc 分层关闭（定案 7）：AI 弹窗在场时抽屉的 do
   return t.includes('if (aiJob.value) return') && t.includes('function onSidebarDocKey')
     && read('/shared/components/Modal.vue').includes('e.stopPropagation()')
 });
-check('R166-9 ★采纳按钮说出后果（定案 8）：AiJob.adoptLabel 契约在位且抽屉优先用它；三枚各写各的——拆解「✓ 采纳为子任务」/ 找资源「✓ 关联为支持」/ 补全「✓ 采纳补全（写本卡）」，不再统一一句"采纳（直接写库）"把后果藏起来', () => {
+check('R166-9（V4.4.0 重指）★采纳按钮说出后果：AiJob.adoptLabel 契约在位且抽屉优先用它；两枚现役任务 AI 各写各的——找资源「✓ 关联为支持」/ 补全「✓ 采纳补全（写本卡）」，拆解采纳文案零回流', () => {
   const w = read('/newtab/components/AiSuggestionDrawer.vue')
   return w.includes('cur.value?.adoptLabel ||') && read('/shared/ai/job.ts').includes('adoptLabel?: string')
-    && read('/shared/ai/chain.ts').includes("job.adoptLabel = '✓ 采纳为子任务'")
+    && !read('/shared/ai/chain.ts').includes("job.adoptLabel = '✓ 采纳为子任务'")
     && read('/shared/ai/taskSupport.ts').includes("adoptLabel: '✓ 关联为支持'")
     && read('/shared/ai/taskEnrich.ts').includes("adoptLabel: '✓ 采纳补全（写本卡）'")
 });

@@ -25,7 +25,7 @@ import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import DeckBatchBar from './DeckBatchBar.vue'
 import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
-import type { TaskCard, Subtask, FieldDef } from '@/shared/models'
+import type { TaskCard, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
@@ -33,8 +33,6 @@ import { showToast } from '@/shared/components/toast'
 import Icon from '@/shared/components/Icon.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
-import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import { taskMaturity } from '@/shared/utils/maturity'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import ModuleCard from '@/shared/components/ModuleCard.vue'
 import ColsPicker from '@/shared/components/ColsPicker.vue'
@@ -42,7 +40,6 @@ import { useCardCols } from '@/shared/utils/cardCols'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
-import SubtaskList from '@/shared/components/SubtaskList.vue'
 import TaskCalendarView from './TaskCalendarView.vue'
 import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type TaskGroupMode } from './useTaskManagerPanel'
 const {
@@ -101,7 +98,6 @@ const {
   batchAddTag,
   batchDelete,
   batchSetStatus,
-  batchSetPriority,
   mountModalOpen,
   mountProjId,
   mountMetId,
@@ -121,10 +117,6 @@ const {
   metricTitleById,
   projectName,
   metricName,
-  subProgress,
-  subExpanded,
-  toggleSubExpand,
-  writeSubtasks,
   draggedTask,
   onTaskDragStart,
   onTaskDrop,
@@ -188,7 +180,7 @@ defineExpose({ openDetail, resetForFresh })
         :filters="TASK_FILTERS" filter-kind="select" :filter="filterBy" @filter="filterBy = $event as TaskFilter" filter-title="状态筛选"
         :views="TASK_VIEWS" :view="viewMode" @view="changeViewMode($event as 'card' | 'list' | 'kanban' | 'calendar')"
         :sorts="TASK_SORTS" :sort="sortBy" @sort="changeSortBy"
-        :sort-dir="(sortBy === 'recent' || sortBy === 'priority') ? sortDir : ''"
+        :sort-dir="sortBy === 'recent' ? sortDir : ''"
         :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
         :groups="viewMode === 'list' ? TASK_GROUPS : []" :group="groupMode" @group="changeGroupMode($event as TaskGroupMode)"
         :batch-on="batchMode" @batch="toggleBatchMode" :new-label="secondaryMode ? '' : '＋新建任务'" @create="createNewTask">
@@ -213,9 +205,6 @@ defineExpose({ openDetail, resetForFresh })
         <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetStatus('todo')">待开始</button>
         <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetStatus('doing')">进行中</button>
         <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetStatus('done')">已完成</button>
-        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetPriority('high')"><Icon name="dot" :size="9" class="zy-dot zy-dot-hi"/> 高优</button>
-        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetPriority('medium')"><Icon name="dot" :size="9" class="zy-dot zy-dot-mi"/> 中优</button>
-        <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="batchSetPriority('low')"><Icon name="dot" :size="9" class="zy-dot zy-dot-lo"/> 低优</button>
         <button class="mini-btn" :disabled="!selectedTaskIds.size" @click="openBatchMount"><Icon name="package" :size="13"/> 挂到项目›指标</button>
         <button class="mini-btn danger" :disabled="!selectedTaskIds.size" @click="batchDelete"><Icon name="trash" :size="13"/> 删除</button>
         <button class="mini-btn" @click="clearSelection()">取消选择</button>
@@ -244,13 +233,12 @@ defineExpose({ openDetail, resetForFresh })
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
               <!-- W6 #3：卡片视图 AI 入口改右上角角标直跑补全（详情走单击卡片）；TaskAiMenu 菜单形态留列表/看板 -->
               <TaskAiCorner :task="task" />
-              <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub" :title="'子任务 ' + subProgress(task) + ' 已完成（不进成熟度与周报计分）'"><Icon name="corner" :size="13"/> {{ subProgress(task) }}</span>{{ task.title }}</div>
+              <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
                 <span v-if="tShow('projectId')" class="tag accent"><Icon name="package" :size="13"/> {{ projectName(task.projectId) }}</span>
                 <span v-if="tShow('metricId') && task.metricId" class="tag warn"><Icon name="target" :size="13"/> {{ metricName(task.metricId) }}</span>
                 <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="tListFields.length" class="tm-ext">
                 <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
@@ -279,13 +267,12 @@ defineExpose({ openDetail, resetForFresh })
               <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
               <!-- W6 #3：卡片视图 AI 入口改右上角角标直跑补全（详情走单击卡片）；TaskAiMenu 菜单形态留列表/看板 -->
               <TaskAiCorner :task="task" />
-              <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub" :title="'子任务 ' + subProgress(task) + ' 已完成（不进成熟度与周报计分）'"><Icon name="corner" :size="13"/> {{ subProgress(task) }}</span>{{ task.title }}</div>
+              <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <!-- R117（04-61 D）：项目/指标/附件逐项受字段设置控制（原先无条件渲染） -->
               <div v-if="tShow('projectId') || tShow('metricId') || (taskAssetsOn && task.assets?.length)" class="tm-tags">
                 <span v-if="tShow('projectId')" class="tag accent"><Icon name="package" :size="13"/> {{ projectName(task.projectId) }}</span>
                 <span v-if="tShow('metricId') && task.metricId" class="tag warn"><Icon name="target" :size="13"/> {{ metricName(task.metricId) }}</span>
                 <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               </div>
               <div v-if="tListFields.length" class="tm-ext">
                 <span v-for="f in tListFields" :key="f.key" class="tm-ext-item">{{ tShort(task, f) }}</span>
@@ -312,12 +299,11 @@ defineExpose({ openDetail, resetForFresh })
             <button class="tm-corner pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
             <button class="tm-corner star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
             <TaskAiCorner :task="task" />
-            <div class="tm-title"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub" :title="'子任务 ' + subProgress(task) + ' 已完成（不进成熟度与周报计分）'"><Icon name="corner" :size="13"/> {{ subProgress(task) }}</span>{{ task.title }}</div>
+            <div class="tm-title"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
             <div class="tm-tags">
               <span class="tag accent"><Icon name="package" :size="13"/> {{ projectName(task.projectId) }}</span>
               <span v-if="task.metricId" class="tag warn"><Icon name="target" :size="13"/> {{ metricName(task.metricId) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
             </div>
             <div v-if="tListFields.length" class="tm-ext">
               <span v-for="f in tListFields" :key="f.key" class="tm-ext-item" :class="{['status-'+task.status]: f.key==='status'}">{{ tShort(task, f) }}</span>
@@ -351,15 +337,10 @@ defineExpose({ openDetail, resetForFresh })
             <div v-if="batchMode" class="batch-check" v-pressable :class="{checked: selectedTaskIds.has(task.id)}" @click.stop="toggleSelect(task.id)"><Icon v-if="selectedTaskIds.has(task.id)" name="check" :size="12"/></div>
             <span v-else class="t-drag">⋮⋮</span>
             <div class="check-sm" v-pressable :class="{done: task.status==='done'}" @click.stop="cycleTaskStatus(task.id)"><Icon v-if="task.status==='done'" name="check" :size="11"/><template v-else>{{ task.status==='doing'?'◐':'' }}</template></div>
-            <span class="tname"><NewBadge :at="task.createdAt" /><span v-if="subProgress(task)" class="tm-sub exp" v-pressable :title="'子任务 ' + subProgress(task) + ' · 点开就地勾选（不跳详情）'" @click.stop="toggleSubExpand(task.id)"><Icon name="corner" :size="13"/> {{ subProgress(task) }} {{ subExpanded.has(task.id) ? '▴' : '▾' }}</span>{{ task.title }}</span>
-            <!-- F2：就地展开的子任务清单（浮层定位，不挤行高；勾选即写回本卡） -->
-          <div v-if="subExpanded.has(task.id)" class="trow-subs">
-            <SubtaskList :subtasks="task.subtasks || []" @update="writeSubtasks(task, $event)" />
-          </div>
+            <span class="tname"><NewBadge :at="task.createdAt" />{{ task.title }}</span>
           <div class="row-tags">
               <span v-for="f in tListFields" :key="f.key" class="tag" :class="{'accent': f.key==='projectId', [ 'status-'+task.status ]: f.key==='status'}">{{ tShort(task, f) }}</span>
               <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
             </div>
             <button class="t-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button>
             <button class="t-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button>
@@ -393,7 +374,6 @@ defineExpose({ openDetail, resetForFresh })
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -405,7 +385,6 @@ defineExpose({ openDetail, resetForFresh })
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             </div>
           </template>
@@ -426,7 +405,6 @@ defineExpose({ openDetail, resetForFresh })
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -438,7 +416,6 @@ defineExpose({ openDetail, resetForFresh })
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             </div>
           </template>
@@ -459,7 +436,6 @@ defineExpose({ openDetail, resetForFresh })
                 @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
                 <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
                 <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               <TaskAiMenu :task="task" @detail="openTaskFromAi" />
               </div>
               <div v-if="!grp.tasks.length" class="kg-empty">拖入任务归到此项目</div>
@@ -471,7 +447,6 @@ defineExpose({ openDetail, resetForFresh })
               @dragstart="onTaskDragStart($event, task)" @dragover.prevent.stop="markTaskDrop($event, task.id)" @dragleave="clearTaskDrop" @drop.stop="onTaskCardDrop($event, task, groupByProject)" @click="onTaskRowClick(task)" @dblclick="onTaskRowDblClick(task)" @contextmenu.prevent="openTaskCtx($event, task)">
               <button class="k-pin" :class="{on: task.pinned}" @click.stop="toggleTaskPin(task)" title="置顶"><Icon name="pin" :size="13"/></button><button class="k-star" :class="{on: task.starred}" @click.stop="toggleTaskStar(task)" title="星标"><Icon name="star" :size="13"/></button><button class="k-del" @click.stop="deleteTask(task.id)" title="删除任务"><Icon name="trash" :size="12" /></button><div class="kt"><NewBadge :at="task.createdAt" />{{ task.title }}</div>
               <span class="tag accent">{{ projectName(task.projectId) }}</span> <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" class="kc-assets" />
-              <MaturityBadge :m="taskMaturity(task)" />
               <TaskAiMenu :task="task" @detail="openTaskFromAi" />
             </div>
           </template>

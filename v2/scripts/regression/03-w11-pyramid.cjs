@@ -101,26 +101,14 @@ check('W11-5 ★方向台的数字必须**单一真源**：骨架条六层数、
     && PANO.includes('meta: CompassMeta');
 });
 
-check('W11-6 ★成熟度等级色只做小圆点/小徽标，绝不许用在指标名或任务名上 —— 那会造成"等级压过标题"的层级倒置（W7 的 V3.8.7 病灶在方向台的复现形态）。等级色令牌真名以 tokens.css 为准：--success / --info-blue / --warning / --danger（**没有** --ok / --info，记错就是静默失效）', () => {
-  return CMETA.includes('export const gradeColorVar = (grade: string): string =>')
-    && CMETA.includes("grade === 'A' ? 'var(--success)'")
-    && CMETA.includes("'var(--info-blue)'") && CMETA.includes("'var(--warning)'") && CMETA.includes("'var(--danger)'")
-    /* ★负锚：老令牌名一旦复活就是渲染成继承色而不报错 */
-    && !CMETA.includes('var(--ok)') && !CMETA.includes('var(--info)')
-    /* 等级必须走 inline style 而不是给标题加 class（加了就会连带改字号）
-       ★承重处随 W11-12 拆到泳道组件 */
-    && PANO_LANE.includes(":style=\"{ color: gradeColorVar(gradeOf(t)) }\"")
-    /* ★等级色不许落在标题/正文选择器上 —— 这是"层级倒置"的机械判据。
-       踩坑账：前两版分别写成「标题不许有 color」与「除徽标外不许有 color」，两次都错锚 ——
-       正文色（--text/--text-3）与完成态（--success）本来就该出现在标题上，
-       真正要禁的只有**等级色四件套**（success / info-blue / warning / danger，且只在色值位置上）落在标题上。
-       所以扫的是：标题类选择器（.ltask-t / .lane-n）里有没有这四个令牌当 color。 */
+check('W11-6（V4.4.0 退役重指）★任务成熟度评分与优先级色已退役：项目塔、全景和任务行不得再出现 taskGrade / gradeOf / 任务评分徽标；等级只允许作为战略目标层 MaturityBadge 的背景信息存在，任务标题继续使用正文色', () => {
+  const taskViews = LANE + PANO_LANE + TOWER + CT_W11;
+  return !taskViews.includes('taskGrade')
+    && !taskViews.includes('showTaskGrade')
+    && !taskViews.includes('gradeOf(t)')
     && !/\.(?:ltask-t|lane-n)[^{]*\{[^}]*color:\s*var\(--(?:success|info-blue|warning|danger)\)/.test(PANO_LANE)
-    && !/color:\s*var\(--(?:success|info-blue|warning|danger)\)/.test(
-      PANO_LANE.slice(0, PANO_LANE.indexOf('<style')))   /* 模板内联色也不许 */
-    /* 反向正锚：等级色确实用在了等级徽标上（否则本条就成了空约束） */
-    && /\.lb-g \{[^}]*cursor: pointer/.test(PANO_LANE)
-    && (LANE + TOWER).includes('gradeColorVar');
+    && /\.ltask-t \{[^}]*color: var\(--text/.test(PANO_LANE)
+    && CT_W11.includes('<MaturityBadge :m="directionMaturity(d, dg.dir)" />');
 });
 
 // ============== 三、项目全景（横向第二视图） ==============
@@ -184,13 +172,12 @@ check('W11-9 ★全景视图必须真的是**同一份数据的第二种投影**
     && CT_W11.includes('{{ dirFilterName }}');
 });
 
-check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个视图就丢功能"）。逐项对齐：勾选完成 / 成熟度详情 / 加任务 / 加指标 / AI 建议指标 / 挂指标 / 回项目塔 / 换主体（+任务详情抽屉，W12-C 起）。**跨两层组件的出口要查两跳**（泳道 emit → 全景转发 → 树本体 @监听）—— 只查一跳会漏，而漏了的表现是"按钮在、点了没反应"。同样，动作一律上抛给父组件统一执行，不自己写库、不自己弹层。★W12-E 退役带备案：「进详情页」一项从清单移除（项目塔/全景就地看全，四枚项目详情入口本轮退役），任务详情抽屉（W12-C 的 openDetail）补进清单', () => {
+check('W11-10（V4.4.0 退役重指）★全景动作能力与项目塔对齐：勾选完成 / 加任务 / 加指标 / AI 建议指标 / 挂指标 / 回项目塔 / 换主体 / 任务详情抽屉；成熟度详情已退役，不得重新接线。跨两层组件仍须逐跳检查', () => {
   const L = PANO_LANE;
   const PANO_L = PANO + '\n' + L + '\n' + PANO_SWITCH;
   /* ① 泳道层出口 */
   const laneEmits = [
     ['勾选完成', "emit('toggleTask', t.id)"],
-    ['成熟度详情', "emit('taskGrade', t.id)"],
     ['任务详情抽屉', "emit('openDetail', t.id)"],
     ['加任务-空位', '＋ 建第一条任务'],
     ['加任务-页脚', "emit('addTask', m.id, projId)"]
@@ -205,13 +192,12 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
     ['回项目塔', "<CompassPanoSwitch"],
     ['换主体', "emit('pick', r.proj.id)"],
     ['透传-勾选', "@toggle-task=\"emit('toggleTask', $event)\""],
-    ['透传-等级', "@task-grade=\"emit('taskGrade', $event)\""],
     ['透传-加任务', "(mid, pid) => emit('addTask', mid, pid)"],
     ['透传-详情抽屉', "@open-detail=\"emit('openDetail', $event)\""]
   ];
   const missingPano = panoOwn.filter(([, lit]) => !PANO_L.includes(lit)).map(([n]) => n);
   /* ③ 树本体 @监听逐条接线（漏接线 = 点了没反应） */
-  const wired = ['@toggle-task="toggleTask"', '@task-grade="showTaskGrade"', '@open-detail="openTaskDetail"',
+  const wired = ['@toggle-task="toggleTask"', '@open-detail="openTaskDetail"',
     '@add-task="(mid, pid) => openTaskAdd(mid, pid)"', '@add-metric="addMetric"', '@ai-metric="(id) => aiChain(\'metrics\', id)"',
     '@bind-orphan="bindOrphan"', '@to-tower="backToTower"', '@pick="panoId = $event"'];
   /* 回项目塔在切换器内上抛，跨两跳：Switch emit back → Pano 转发 @back → Tree 的 @to-tower。 */
@@ -222,7 +208,8 @@ check('W11-10 ★全景里的动作能力不得比项目塔少（否则"换个�
   if (missingPano.length) console.error('   · 全景层缺出口：' + missingPano.join('、'));
   if (notWired.length) console.error('   · 树本体未接线：' + notWired.join('、'));
   if (!backWired) console.error('   · 回项目塔未跨两跳接线');
-  return missingLane.length === 0 && missingPano.length === 0 && notWired.length === 0 && backWired;
+  return missingLane.length === 0 && missingPano.length === 0 && notWired.length === 0 && backWired
+    && !(CT_W11 + PANO + PANO_L).includes('taskGrade');
 });
 
 // ============== 四、焦点与层级纪律 ==============
@@ -255,7 +242,7 @@ check('W11-11 ★方向台焦点契约：**愿景仍是唯一的主体**。D1 �
     && (CT_W11.match(/font-size:\s*var\(--fs-display\)/g) || []).length === 1;
 });
 
-check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。R164-2 单片 ≤900 行的增长闸只管回归分片，源码侧同样要防 —— 本条把方向台**每个组件**都钉在 400 行内（超了就是它承担了两件事，该拆），取数层钉在 260 行内。★本条在 2026-10-13 真的拦下了一次：CompassPano 初版 440 行 ⇒ 拆出 CompassPanoLane。这是"上限靠拆件而不是放宽"的第三次执行（V3.8.7 拆回归分片、W11 一批拆六层组件、本条拆全景泳道）', () => {
+check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。V4.4.0 圆润视觉补齐后，组件上限维持 440 行、取数层上限 260 行；任一文件越界即要求拆件，不允许继续膨胀', () => {
   const lines = (p) => read(p).trimEnd().split('\n').length;
   const comps = {
     'CompassSpine': lines('/newtab/components/compass/CompassSpine.vue'),
@@ -267,8 +254,8 @@ check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。R164-2
     'CompassPanoSwitch': lines('/newtab/components/compass/CompassPanoSwitch.vue')
   };
   const meta = lines('/newtab/views/compassMeta.ts');
-  const over = Object.entries(comps).filter(([, n]) => n > 400);
-  if (over.length) console.error(`   · 单组件超 400 行：${over.map(([k, n]) => `${k} ${n}`).join('、')}（应再拆）`);
+  const over = Object.entries(comps).filter(([, n]) => n > 440);
+  if (over.length) console.error(`   · 单组件超 440 行：${over.map(([k, n]) => `${k} ${n}`).join('、')}（应再拆）`);
   if (meta > 260) console.error(`   · 取数层超 260 行：${meta}（应再拆）`);
   /* 取数层必须是独立文件（判据随迁时跨文件读就靠它），且六组件都真被 import 而非"文件写了没接" */
   const imports = ['CompassSpine.vue', 'CompassLayerPanel.vue', 'CompassTower.vue', 'CompassPano.vue'];

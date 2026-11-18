@@ -242,7 +242,7 @@
 .tree-tool { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); border-radius: 8px; padding: 5px 11px; cursor: pointer; font-family: inherit; transition: all var(--dur); white-space: nowrap; }
 
 
-.tree-tool:hover { border-color: var(--lv-green); color: var(--lv-green-deep); background: var(--lv-green-faint); }
+.tree-tool:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .tree-tool.off { opacity: .6; }
 /* R52-F8/R54-A1：返回入口（accent 强调）+ 面包屑上级可点 */
 .tree-tool.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
@@ -271,7 +271,7 @@
    ★t3 必须显式 width:auto + white-space:nowrap —— 22px 方块 + 中文字符是竖排 bug 的成因，
    文字型若继续继承 22px 就等于没修。 */
 .node-action.t1 { background: var(--accent-light); color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
-.node-action.t1:hover { background: var(--lv-green-deep); color: #fff; border-color: var(--lv-green-deep); }
+.node-action.t1:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 .node-action.t3 {
   width: auto; min-width: 22px; height: 22px; padding: 0 9px;
   white-space: nowrap; background: transparent; border-color: transparent;
@@ -299,7 +299,7 @@
 
 /* 通用开关 */
 .toggle { position: relative; width: 30px; height: 16px; border-radius: var(--radius-full); background: var(--border-strong); cursor: pointer; transition: background .2s; flex-shrink: 0; }
-.toggle.on { background: var(--lv-green-deep); }
+.toggle.on { background: var(--accent); }
 .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 .toggle.on::after { transform: translateX(14px); }
 
@@ -352,7 +352,7 @@
   min-height: 28px;
 }
 .vs-b:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.vs-b.on { color: #fff; background: var(--lv-green-deep); }
+.vs-b.on { color: #fff; background: var(--accent); }
 /* ★C3（V3.8.31）：视图形态切换的 150ms 内容过渡。
    进：淡入 + 从下 8px 升起（新形态"从画布里长出来"）；出：淡出 + 上移 4px（旧形态退场）。
    ⚠ 只给形态切换，路由切换仍零动画；reduced-motion 下全部归零（不是"缩短到 1ms"，

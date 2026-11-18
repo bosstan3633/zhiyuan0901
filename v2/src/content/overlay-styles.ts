@@ -18,8 +18,8 @@ export function overlayStyleText(ROOT_ID: string): string {
       --zy-bg:#FFFFFF;--zy-bg-2:#F7F7F8;--zy-bg-3:#EFEFF1;
       --zy-border:#E3E4E8;--zy-border-strong:#D5D6DB;
       --zy-text:#17181C;--zy-text-2:#3C3F45;--zy-text-3:#8A8F98;--zy-text-4:#B4B8BF;
-      --zy-link:#5E6AD2;--zy-link-file:#A87B2A;--zy-link-obs:#7C3AED;
-      --zy-accent:#5E6AD2;--zy-on-accent:#FFFFFF;
+      --zy-link:#0F6F9E;--zy-link-file:#A87B2A;--zy-link-obs:#1579AD;
+      --zy-accent:#0F6F9E;--zy-on-accent:#FFFFFF;
       /* R93（A6）：语义档令牌——取自 tokens.css 的 apple（明）/ linear（暗）两套，不臆造色值。
          状态徽标由改前的 8 种配色收敛为「中性 / 强调 / 警示」三档，这两条是后两档的落点。 */
       --zy-warn:#A66A00;--zy-ok:#1E7A34;
@@ -32,7 +32,7 @@ export function overlayStyleText(ROOT_ID: string): string {
       #${ROOT_ID}{--zy-bg:#0F1011;--zy-bg-2:#141516;--zy-bg-3:#191A1B;
         --zy-border:#23252A;--zy-border-strong:#34343A;
         --zy-text:#F7F8F8;--zy-text-2:#D0D6E0;--zy-text-3:#8A8F98;--zy-text-4:#62666D;
-        --zy-link:#6BA6E8;--zy-link-file:#D9A94A;--zy-link-obs:#A78BFA;
+        --zy-link:#77D2F5;--zy-link-file:#D9A94A;--zy-link-obs:#77D2F5;
         /* R93（A6）：暗色档——warn 用 linear --warning(#D9A03C)，ok 用 linear --tag-ok-text(#6FCE8B) */
         --zy-warn:#D9A03C;--zy-ok:#6FCE8B;}
     }
@@ -93,7 +93,7 @@ export function overlayStyleText(ROOT_ID: string): string {
        中性档即 .zy-badge 默认值（无待办含义）；强调档 = 正在推进；警示档 = 需要优先处理。 */
     .zy-badge{font-size:var(--zy-fs-2xs);padding:1.5px 8px;border-radius:99px;font-weight:500;line-height:1.5;background:var(--zy-bg-3);color:var(--zy-text-2);}
     /* —— 中性档：台 / 分类 / 策展台 / 好奇状态 / 中优先级 / 待开始 —— */
-    .zy-badge.ws,.zy-badge.cat,.zy-badge.ws-badge,.zy-badge.curio-status,.zy-badge.prio-mid,.zy-badge.status-todo{background:var(--zy-bg-3);color:var(--zy-text-2);}
+    .zy-badge.ws,.zy-badge.cat,.zy-badge.ws-badge,.zy-badge.curio-status,.zy-badge.status-todo{background:var(--zy-bg-3);color:var(--zy-text-2);}
     /* —— 强调档：进行中（正在推进）—— */
     .zy-badge.status-doing{background:color-mix(in srgb, var(--zy-accent) 14%, transparent);color:var(--zy-accent);}
     /* —— 警示档：高优先级 —— */

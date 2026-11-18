@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import Icon from '@/shared/components/Icon.vue'
-import { ref, computed, watch, shallowRef } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
 import { uid } from '@/shared/utils'
 import Drawer from '@/shared/components/Drawer.vue'
 import { showToast } from '@/shared/components/toast'
 import type { TaskCard, Metric } from '@/shared/models'
-// R138-C1′：一句话智能录入（宿主全懒路由，可直连 AI 栈）
-import AiSuggestionDrawer from './AiSuggestionDrawer.vue'
-import AiEntryButton from '@/shared/components/AiEntryButton.vue'
-import type { AiJob } from '@/shared/ai/job'
-import { aiConfig, loadAiConfig, aiReady } from '@/shared/ai/config'
-import { buildTaskParseJob, type SelectCtx } from '@/shared/ai/select'
-import type { TaskDraft } from '@/shared/ai/scenarios'
 
 /** 第卅三轮 REQ-016：成功指标添加任务双模式（新建 / 关联）
  *  ① 新建：右侧创建抽屉 + Ctrl+Enter 保存（自动写入 metricId + metric.taskIds）
@@ -35,35 +28,6 @@ const tab = ref<'create' | 'link'>('create')
 
 // ---- 新建模式 ----
 const newTitle = ref('')
-const newPriority = ref<'high' | 'medium' | 'low'>('medium')
-const prioList = [
-  { v: 'high' as const, l: '高优' },
-  { v: 'medium' as const, l: '中优' },
-  { v: 'low' as const, l: '低优' }
-]
-
-// R138-C1′：一句话智能录入——AI 只回填表单态（含草稿扩展字段 due/时长/归属），建卡仍由用户确认
-const aiSay = ref('')
-const aiDraft = ref<Partial<TaskDraft>>({})
-const aiJob = shallowRef<AiJob | null>(null)
-const aiBusy = ref(false)
-async function aiParse() {
-  if (aiBusy.value || !aiSay.value.trim()) return
-  aiBusy.value = true
-  try {
-    await loadAiConfig()
-    if (!aiReady.value) { showToast('请先在 设置 → AI 助手 完成接入（地址/Key/模型）'); return }
-    const ctx: SelectCtx = { d: d.value, depth: aiConfig.value.depth, persist: () => store.persist() }
-    const job = buildTaskParseJob(aiSay.value, ctx, (draft) => {
-      if (draft.title) newTitle.value = draft.title
-      if (draft.priority === 'high' || draft.priority === 'medium' || draft.priority === 'low') newPriority.value = draft.priority
-      aiDraft.value = { dueDate: draft.dueDate, estimatedMinutes: draft.estimatedMinutes, projectId: draft.projectId, metricId: draft.metricId }
-      const extra = [draft.dueDate && `计划 ${draft.dueDate}`, draft.estimatedMinutes && `约${draft.estimatedMinutes}分钟`].filter(Boolean).join('· ')
-      return '已回填表单' + (extra ? `（${extra}）` : '') + '，核对后点「创建」'
-    })
-    if (job) aiJob.value = job
-  } finally { aiBusy.value = false }
-}
 
 // ---- 关联模式 ----
 const linkQ = ref('')
@@ -75,8 +39,6 @@ const selected = ref<Set<string>>(new Set())
 function reset() {
   tab.value = 'create'
   newTitle.value = ''
-  newPriority.value = 'medium'
-  aiSay.value = ''; aiDraft.value = {}
   linkQ.value = ''
   linkProject.value = '' // R113-N6：打开时复位为「全部项目」
   selected.value = new Set()
@@ -104,10 +66,8 @@ function createTask() {
   creating = true
   try {
     const task: TaskCard = {
-      id: uid('tk'), kind: 'task', title, status: 'todo', priority: newPriority.value,
-      // R138-C1′：AI 草稿扩展字段——dueDate/时长直接落卡；归属仅当抽屉未锁定时采纳（props 锁定时不动）
-      projectId: props.projectId || aiDraft.value.projectId, metricId: props.metricId || aiDraft.value.metricId,
-      dueDate: aiDraft.value.dueDate, estimatedMinutes: aiDraft.value.estimatedMinutes,
+      id: uid('tk'), kind: 'task', title, status: 'todo', priority: 'medium',
+      projectId: props.projectId, metricId: props.metricId,
       customFields: {},
       createdAt: Date.now(), updatedAt: Date.now()
     }
@@ -235,27 +195,18 @@ function linkTasks() {
 
     <!-- 新建模式 -->
     <div v-if="tab === 'create'" class="tad-body">
-      <!-- R138-C1′：一句话智能录入（AI 回填草稿 → 用户核对创建） -->
-      <label class="tad-label"><Icon name="wand" :size="13"/> 一句话录入（可选）</label>
-      <div class="tad-ai-row">
-        <input v-model="aiSay" class="tad-input" placeholder="例：下周三前做完论文图表，挂毕业项目，大约两小时" @keydown.enter.prevent="aiParse" />
-        <button class="tad-btn" :disabled="!aiSay.trim() || aiBusy" @click="aiParse"><AiEntryButton variant="inline" label="AI 填表" :spin="aiBusy" /></button>
-      </div>
-
-      <label class="tad-label">任务标题</label>
-      <input v-model="newTitle" class="tad-input" placeholder="输入任务标题，Ctrl+Enter 保存"
+      <label class="tad-label">这次要推进什么？</label>
+      <textarea v-model="newTitle" class="tad-title" rows="5" placeholder="完整写下任务标题。可以直接换行，Ctrl / ⌘ + Enter 创建。"
         @keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask" />
 
-      <label class="tad-label">优先级</label>
-      <div class="tad-prios">
-        <button v-for="p in prioList" :key="p.v" class="tad-prio" :class="{on: newPriority === p.v}" @click="newPriority = p.v">
-          {{ p.l }}
-        </button>
+      <div class="tad-context">
+        <span><Icon name="target" :size="13"/> {{ metricTitle || '当前成功指标' }}</span>
+        <span class="tad-context-note">创建后自动计入指标进度</span>
       </div>
 
       <div class="tad-foot">
-        <span class="tad-hint"><Icon name="save" :size="13"/> Ctrl+Enter 保存并关闭</span>
-        <button class="tad-btn primary" @click="createTask">创建并计入指标</button>
+        <span class="tad-hint"><Icon name="save" :size="13"/> Ctrl / ⌘ + Enter 创建</span>
+        <button class="tad-btn primary" :disabled="!newTitle.trim()" @click="createTask">创建任务</button>
       </div>
     </div>
 
@@ -287,32 +238,45 @@ function linkTasks() {
       </div>
     </div>
   </Drawer>
-  <!-- R138-C1′：AI 草稿评审抽屉（采纳=回填本表单，不直接建卡） -->
-  <AiSuggestionDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
 <style scoped>
-.tad-tabs { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 10px; margin-bottom: 16px; }
-.tad-tab { flex: 1; padding: 8px 0; border: none; background: transparent; color: var(--text-3); font-size: var(--fs-body); font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; transition: all var(--dur); }
-.tad-tab.on { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
+.tad-tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: var(--radius-md); margin-bottom: 18px; }
+.tad-tab { flex: 1; padding: 9px 0; border: none; background: transparent; color: var(--text-3); font-size: var(--fs-sub); font-weight: 600; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; transition: background var(--dur), color var(--dur), box-shadow var(--dur); }
+.tad-tab.on { background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm); }
 
-.tad-body { display: flex; flex-direction: column; gap: 10px; }
-.tad-label { font-size: var(--fs-sub); font-weight: 600; color: var(--text-3); letter-spacing: .4px; margin-top: 4px; }
+.tad-body { display: flex; flex-direction: column; gap: 12px; }
+.tad-label { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); letter-spacing: var(--tracking-sm); margin-top: 4px; }
 .tad-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: var(--fs-body); outline: none; font-family: inherit; background: var(--surface); color: var(--text); box-sizing: border-box; }
 .tad-input:focus { border-color: var(--accent); }
+.tad-title {
+  width: 100%;
+  min-height: 150px;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.6;
+  outline: none;
+  transition: border-color var(--dur), background var(--dur), box-shadow var(--dur);
+}
+.tad-title::placeholder { color: var(--text-4); font-weight: 500; }
+.tad-title:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-glow); }
+.tad-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--accent-light) 45%, var(--surface)); color: var(--accent-ink); font-size: var(--fs-sub); }
+.tad-context > span:first-child { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tad-context-note { flex-shrink: 0; color: var(--text-3); font-size: var(--fs-caption); }
 /* R113-N6：关联模式的筛选行（关键词 + 项目下拉） */
 .tad-filters { display: flex; gap: 8px; align-items: center; }
 .tad-filters .tad-input { flex: 1; min-width: 0; }
 .tad-proj { flex-shrink: 0; max-width: 180px; border: 1px solid var(--border); border-radius: 8px; padding: 9px 8px; font-size: var(--fs-sub); outline: none; font-family: inherit; background: var(--surface); color: var(--text-2); cursor: pointer; }
 .tad-proj:hover { border-color: var(--accent); }
 .tad-proj:focus { border-color: var(--accent); color: var(--text); }
-
-.tad-prios { display: flex; gap: 6px; }
-/* R138-C1′：一句话录入行 */
-.tad-ai-row { display: flex; gap: 8px; align-items: center; }
-.tad-ai-row .tad-input { flex: 1; min-width: 0; }
-.tad-prio { flex: 1; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 8px; cursor: pointer; font-size: var(--fs-sub); font-family: inherit; transition: all var(--dur); }
-.tad-prio.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 
 .tad-list { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; margin-top: 4px; }
 .tad-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: var(--fs-body); transition: all var(--dur); background: var(--surface); }
@@ -325,8 +289,8 @@ function linkTasks() {
 
 .tad-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .tad-hint { font-size: var(--fs-caption); color: var(--text-3); }
-.tad-btn { display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: 8px; padding: 9px 16px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: all var(--dur); }
-.tad-btn.primary { background: var(--accent); color: #fff; }
+.tad-btn { display: inline-flex; align-items: center; gap: 5px; border: none; border-radius: var(--radius-sm); padding: 10px 17px; font-size: var(--fs-body); font-weight: 600; cursor: pointer; font-family: inherit; background: var(--surface-2); color: var(--text-2); transition: filter var(--dur), opacity var(--dur); }
+.tad-btn.primary { background: var(--accent); color: #fff; box-shadow: 0 8px 20px var(--accent-glow); }
 .tad-btn.primary:hover { filter: brightness(1.08); }
 .tad-btn.primary:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 </style>

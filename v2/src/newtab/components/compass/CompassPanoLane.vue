@@ -19,7 +19,6 @@ import CompassLevelTag from './CompassLevelTag.vue'
 import CompassMetricTitle from './CompassMetricTitle.vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
-import { gradeColorVar } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
 
 const props = defineProps<{
@@ -39,7 +38,6 @@ const taskDnd = inject(TASK_DND_KEY, null)
 
 const emit = defineEmits<{
   (e: 'toggleTask', taskId: string): void
-  (e: 'taskGrade', taskId: string): void
   /** ★W12-C 补接线 + ★W12-E 并入：全景泳道的任务标题单击开任务详情抽屉。
    *  这条此前**从未接上**——泳道里任务标题只是个 div，点了没反应（W11-10 断言本轮重指时暴露）。
    *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
@@ -79,15 +77,8 @@ function hasClue(t: TaskCard): boolean {
 function clueOf(t: TaskCard): string {
   return (t as TaskCard & { w?: string }).w || ''
 }
-function gradeOf(t: TaskCard): string {
-  return (t as TaskCard & { grade?: string }).grade || 'C'
-}
 function statusOf(t: TaskCard): string {
   return t.status === 'done' ? 'done' : t.status === 'doing' ? 'doing' : ''
-}
-const PRI_LABEL: Record<string, string> = { high: '高', mid: '中', low: '低' }
-function priOf(t: TaskCard): string {
-  return PRI_LABEL[t.priority] || PRI_LABEL.mid
 }
 </script>
 
@@ -145,8 +136,6 @@ function priOf(t: TaskCard): string {
             </div>
           </div>
           <div class="ltask-ops">
-            <span class="lb lb-pri">{{ priOf(t) }}</span>
-            <button class="lb lb-g" :style="{ color: gradeColorVar(gradeOf(t)) }" :title="`成熟度等级 ${gradeOf(t)} · 点击看详情`" @click="emit('taskGrade', t.id)">{{ gradeOf(t) }}</button>
             <button class="lb-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click.stop="emit('unbindTask', t.id)"><Icon name="x" :size="12"/></button>
           </div>
         </div>
@@ -289,7 +278,6 @@ function priOf(t: TaskCard): string {
 }
 .ltask-ops { grid-column: 3; grid-row: 1; display: flex; align-items: center; gap: 3px; flex: none; }
 .lb { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
-.lb-pri { color: var(--text-3); background: var(--surface-3); }
 .lb-g {
   background: var(--surface-3); border: 0; font-family: inherit; letter-spacing: .04em;
   cursor: pointer; min-height: 28px; min-width: 28px; padding: 4px 6px;

@@ -37,25 +37,23 @@ check('XM-01 ★方向层级标签三处接线：战略目标 / 项目 / 指标�
     && !treeCode.includes('当前主攻');
 });
 
-check('XM-02（V3.9.26 重指）★任务详情首屏：导出上移标题栏右上；项目/指标压缩为轻量双栏；AI 三入口成组且「找资源」完整显示；所有宿主复用同一抽屉', () => {
+check('XM-02（V4.4.0 重指）★任务详情首屏：完整标题、项目/指标轻量双栏、计划执行日期、资源镜像与「AI 找资源」主入口依次呈现；说明降为 3 行并只保留次级「AI 补全」；导出/优先级/成熟度/子任务/拆解全部退场；所有宿主复用同一抽屉', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
+  const tdCode = codeOnly(td);
   const titleAt = td.indexOf('<div class="ts-title-wrap">');
-  const exportAt = td.indexOf('<ExportMenu class="ts-title-export"');
   const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
-  const actionsAt = td.indexOf('<div class="ts-action-bar">');
-  const descAt = td.indexOf('<!-- R48：说明区上移为 Hero');
-  const aiGroup = td.slice(td.indexOf('<div class="ts-ai-group"'), descAt);
-  return titleAt >= 0 && exportAt > titleAt && exportAt < ownerAt && actionsAt > ownerAt && descAt > actionsAt
-    && aiGroup.includes('aria-label="AI 任务工具"')
-    && (aiGroup.match(/class="ts-ai-cell"/g) || []).length === 3
-    && aiGroup.includes('@click="aiEnrich"')
-    && aiGroup.includes('@click="aiBreakdown"')
-    && aiGroup.includes('@click="aiSupport()"')
-    && aiGroup.includes('label="找资源"')
-    && td.includes('.ts-title-export :deep(.dz-exp-trigger)')
+  const planAt = td.indexOf('<div class="ts-section ts-plan-section">');
+  const resourceAt = td.indexOf('class="ts-section ts-resource-section"');
+  const noteAt = td.indexOf('class="ts-section ts-note-section"');
+  return titleAt >= 0 && ownerAt > titleAt && planAt > ownerAt && resourceAt > planAt && noteAt > resourceAt
+    && !tdCode.includes('<ExportMenu') && !tdCode.includes('ts-prio') && !tdCode.includes('AI 拆解')
+    && !tdCode.includes('子任务') && !tdCode.includes('成熟度')
+    && td.includes('class="ts-ai-primary"') && td.includes('label="AI 找资源"')
+    && td.includes('class="ts-ai-inline"') && td.includes('label="AI 补全"')
+    && td.includes('class="ds-desc ts-note-compact" rows="3"')
     && td.includes('.ts-owner { gap: 6px; padding: 0; border: 0; background: transparent;')
+    && td.includes('.ts-note-compact { min-height: 64px; max-height: 96px;')
     && td.includes('@media (max-width: 560px)')
-    && td.includes('.ts-action-bar { align-items: stretch; flex-wrap: wrap; }')
     && [
       '/newtab/views/CompassTree.vue',
       '/newtab/views/CompassHome.vue',

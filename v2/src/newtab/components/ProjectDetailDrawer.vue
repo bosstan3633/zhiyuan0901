@@ -15,7 +15,7 @@ import { showToast } from '@/shared/components/toast'
 import { unbindTaskFromMetric } from '@/shared/utils/taskLinks'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import MaturityBadge from '@/shared/components/MaturityBadge.vue'
-import { taskMaturity, metricMaturity } from '@/shared/utils/maturity'
+import { metricMaturity } from '@/shared/utils/maturity'
 import { resolveProjectNextStep, tasksOfMetric, tasksOfProject } from '../views/compassMeta'
 import TaskAddDrawer from './TaskAddDrawer.vue'
 import TaskDetailDrawer from './compass/TaskDetailDrawer.vue'
@@ -305,8 +305,6 @@ function chainStatus(): { broken: boolean; text: string } {
             <div v-for="task in metricTaskRows(m.id)" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
               <div class="pd-check" v-pressable :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
               <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
-              <span class="pd-task-pri" :class="task.priority">{{ task.priority === 'high' ? '高' : task.priority === 'low' ? '低' : '中' }}</span>
-              <MaturityBadge :m="taskMaturity(task)" />
               <button class="pd-mini" @click="unbindTask(task.id)" title="解除指标关联，任务回任务池（真删除请进任务详情）"><Icon name="x" :size="13"/></button>
             </div>
             <div v-if="!tasksForMetric(m.id).length" class="pd-task-empty">暂无任务，点击 ＋ 添加</div>
@@ -323,8 +321,6 @@ function chainStatus(): { broken: boolean; text: string } {
           <div v-for="task in allProjectTasks()" :key="task.id" class="pd-task" :class="{done: task.status==='done'}">
             <div class="pd-check" v-pressable :class="{done: task.status==='done'}" @click="toggleTask(task.id)"><Icon v-if="task.status==='done'" name="check" :size="14"/></div>
             <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
-            <span class="pd-task-pri" :class="task.priority">{{ task.priority === 'high' ? '高' : task.priority === 'low' ? '低' : '中' }}</span>
-            <MaturityBadge :m="taskMaturity(task)" />
             <span class="pd-task-state">{{ task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始' }}</span>
             <button class="pd-mini" @click="unbindTask(task.id)" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联"><Icon name="x" :size="13"/></button>
           </div>
@@ -381,11 +377,6 @@ function chainStatus(): { broken: boolean; text: string } {
 .pd-task-open:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
 .pd-task-flat { display: flex; flex-direction: column; gap: 4px; }
 .pd-task-state { flex: none; font-size: var(--fs-tiny); color: var(--text-3); }
-.pd-task-pri {
-  flex: none; font-size: var(--fs-tiny); font-weight: 600; color: var(--text-3);
-  background: var(--surface-3); padding: 0 5px; border-radius: 3px;
-}
-
 .pd-label { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 7px; }
 .pd-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border-radius: 8px; font-size: var(--fs-body); color: var(--text); border: 1px solid transparent; outline: none; cursor: pointer; }
 .pd-select:focus { border-color: var(--accent); }
