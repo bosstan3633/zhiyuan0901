@@ -536,3 +536,31 @@ html, body { font-variant-numeric: tabular-nums; }
 .zy-dot-ok { color: var(--success); }
 .zy-dot-warn { color: var(--warning); }
 .zy-dot-mut { color: var(--text-4); }
+
+/* ===== V4.3.6 策展原型视觉语言（OPPO 轻绿层级 · 三页统一） =====
+   原型真源：原型演示_V5/index.html（V0.3 用户已验收）。
+   原则：每主题仍只有一个 accent（R156 纪律不破）——本组令牌是"结构层级绿"，
+   只用于策展/方向/调度页的层级结构表达（根脉带、层级线、进度、层徽），
+   不抢主行动按钮与当前态的 accent 语义。 */
+:root {
+  --lv-green: #2e9e63;
+  /* deep 档压浅色面文字：notion 纸墨白上 #1a6b42 对比度 5.6:1（≥4.5 达标） */
+  --lv-green-deep: #1a6b42;
+  --lv-green-soft: #e7f4ec;
+  --lv-green-faint: #f2f9f4;
+  --lv-mint: #bfe3cf;
+  --lv-rail: rgba(46, 158, 99, .22);
+  --lv-card-shadow: 0 1px 2px rgba(28, 36, 28, .05);
+  --lv-card-shadow-hover: 0 10px 30px rgba(46, 158, 99, .10);
+}
+:root:is([data-theme='linear'], [data-theme='raycast']) {
+  /* 暗色主题：浅底 soft/faint 改为透明叠色，避免在深色面上出现刺目亮块 */
+  --lv-green: #3fb877;
+  --lv-green-deep: #7fd6a8;
+  --lv-green-soft: rgba(63, 184, 119, .16);
+  --lv-green-faint: rgba(63, 184, 119, .09);
+  --lv-mint: rgba(63, 184, 119, .38);
+  --lv-rail: rgba(63, 184, 119, .30);
+  --lv-card-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+  --lv-card-shadow-hover: 0 10px 30px rgba(63, 184, 119, .14);
+}

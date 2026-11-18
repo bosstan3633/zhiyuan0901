@@ -18,6 +18,8 @@ import type { TaskCard } from '@/shared/models'
 
 const props = defineProps<{
   tree: CurationTree
+  /** V4.3.6：项目筛选聚焦态——愿景/使命与目标层降级为背景 */
+  focused?: boolean
   /** V3.9.34（需求拍板）：任务拖拽归位的落盘回调由宿主传入——本组件不直调 store 落盘，
    *  与「策展页零直写」红线（R189-4 重指口径）保持一致：所有写库只经 useTaskRelocationDnd。 */
   onTaskPersist: () => void
@@ -55,18 +57,21 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
 </script>
 
 <template>
-  <div class="cpl">
-    <div class="tier">
-      <div class="cv-card hero" role="button" tabindex="0" @click="emit('open', { kind: 'vision' })" @keydown.enter="emit('open', { kind: 'vision' })">
-        <span class="k">愿景</span><p>{{ tree.vision || '尚未填写愿景' }}</p>
+  <div class="cpl" :class="{ focused }">
+    <!-- V4.3.6：根脉带（与树状布局同一形态，愿景/使命压缩为一条横带） -->
+    <div class="cpl-rootband">
+      <div class="cpl-rootcell" role="button" tabindex="0" @click="emit('open', { kind: 'vision' })" @keydown.enter="emit('open', { kind: 'vision' })">
+        <span class="cpl-eyebrow"><i></i>愿景</span>
+        <span class="cpl-root-text">{{ tree.vision || '尚未填写愿景' }}</span>
+        <span class="cpl-root-link">详情 ›</span>
+      </div>
+      <div class="cpl-rootcell" role="button" tabindex="0" @click="emit('open', { kind: 'mission' })" @keydown.enter="emit('open', { kind: 'mission' })">
+        <span class="cpl-eyebrow blue"><i></i>使命</span>
+        <span class="cpl-root-text">{{ tree.mission || '尚未填写使命' }}</span>
+        <span class="cpl-root-link">详情 ›</span>
       </div>
     </div>
-    <div class="vline" aria-hidden="true"></div>
-    <div class="tier">
-      <div class="cv-card hero" role="button" tabindex="0" @click="emit('open', { kind: 'mission' })" @keydown.enter="emit('open', { kind: 'mission' })">
-        <span class="k">使命</span><p>{{ tree.mission || '尚未填写使命' }}</p>
-      </div>
-    </div>
+    <div class="cpl-trunk" aria-hidden="true"></div>
 
     <!-- 隶属关系 org-chart：使命 → 战略目标 → 项目 → 成功指标，连线即归属 -->
     <div class="org" v-if="tree.goals.length">
@@ -147,13 +152,33 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
   overscroll-behavior-inline: contain;
 }
 .tier { display: flex; justify-content: center; margin: 0 0 6px; }
+/* V4.3.6 根脉带 */
+.cpl-rootband { position: relative; display: flex; max-width: 1180px; margin: 0 auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--lv-card-shadow); overflow: hidden; transition: opacity var(--dur-fast), box-shadow var(--dur-fast); }
+.cpl-rootcell { position: relative; flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 20px; min-width: 0; cursor: pointer; transition: background var(--dur-fast); }
+.cpl-rootcell:hover { background: var(--lv-green-faint); }
+.cpl-rootcell + .cpl-rootcell::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px;
+  background: linear-gradient(transparent, var(--border) 25%, var(--border) 75%, transparent); }
+.cpl-eyebrow { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); font-weight: 800; letter-spacing: .14em; color: var(--lv-green-deep); }
+.cpl-eyebrow i { width: 5px; height: 5px; border-radius: 50%; background: var(--lv-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--lv-green) 12%, transparent); }
+.cpl-eyebrow.blue { color: var(--info-blue); }
+.cpl-eyebrow.blue i { background: var(--info-blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info-blue) 14%, transparent); }
+.cpl-root-text { font-size: var(--fs-title); font-weight: 650; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.cpl-root-link { flex: none; margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); opacity: 0; transition: var(--dur-fast); }
+.cpl-rootcell:hover .cpl-root-link { opacity: 1; color: var(--lv-green); }
+.cpl-trunk { width: 2px; height: 30px; margin: 0 auto 6px; background: linear-gradient(var(--lv-mint), var(--lv-rail)); position: relative; }
+.cpl-trunk::after { content: ''; position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%);
+  width: 8px; height: 8px; border-radius: 50%; background: var(--lv-green); box-shadow: 0 0 0 5px color-mix(in srgb, var(--lv-green) 12%, transparent); }
+/* V4.3.6 聚焦态：根脉带与目标层降级为背景 */
+.cpl.focused .cpl-rootband { opacity: .72; box-shadow: none; }
+.cpl.focused .cpl-root-text { font-size: var(--fs-sub); color: var(--text-2); }
+.cpl.focused .cpl-trunk { height: 18px; }
+.cpl.focused .node.goal { opacity: .82; box-shadow: none; }
+.cpl.focused .node.proj { border-color: var(--lv-mint); box-shadow: var(--lv-card-shadow-hover); }
 .cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 10px); padding: 8px 12px; cursor: pointer; transition: border-color var(--dur-fast, 120ms), background var(--dur-fast, 120ms); white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
 .cv-card:hover { border-color: var(--accent); background: var(--surface-2); }
 .cv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.hero { max-width: 460px; width: 100%; text-align: center; border-color: var(--border-strong); }
-.hero .k { display: inline-block; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); letter-spacing: .1em; margin-bottom: 3px; }
-.hero p { margin: 0; font-size: var(--fs-title); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
-.vline { width: 1px; height: 26px; margin: 0 auto; background: var(--border-strong); }
 
 /* ── org-chart 连线（经典 CSS 树）：横轨 + 垂直落线 + 父级中缝引用线 ── */
 .org { width: max-content; min-width: 100%; box-sizing: border-box; padding: 0 12px; }

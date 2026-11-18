@@ -258,7 +258,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-arrow { display: flex; align-items: center; padding: 0 4px; color: var(--text-4); font-size: var(--fs-micro); }
 .spine-lv {
   display: flex; align-items: center; gap: 7px;
-  padding: 7px 13px; border-radius: 8px;
+  padding: 7px 13px; border-radius: var(--radius-full);
   /* ★视觉聚焦：六层按钮退回"文字 + 数字"的导航形态。
      原来每枚都是带底色的方块，六个色块并排时视觉重量接近内容卡，
      读者会先看导航再看项目。底色只在 hover / 当前层出现。 */
@@ -267,10 +267,10 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
   cursor: pointer; transition: all var(--dur); min-height: 34px;
 }
 .spine-lv:hover { background: var(--surface-2); }
-.spine-lv.on { background: var(--accent-light); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.spine-lv.on { background: var(--lv-green-soft); border-color: var(--lv-mint); }
 .slv-n { font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); }
 .slv-t { font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); white-space: nowrap; }
-.spine-lv.on .slv-t { color: var(--accent); }
+.spine-lv.on .slv-t { color: var(--lv-green-deep); }
 /* 计数与层级名之间一条发丝分隔：数字是统计，名字是层级，别混成一坨 */
 .slv-c { padding-left: 6px; margin-left: 2px; border-left: 1px solid var(--border); }
 .slv-c b { font-size: var(--fs-sub); font-weight: 700; color: var(--text); }

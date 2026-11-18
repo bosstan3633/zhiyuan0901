@@ -5,19 +5,20 @@ const { check, read, codeOnly } = require('./helpers.cjs')
 
 console.log('【V4.3.5 · 策展树与全局收口】')
 
-check('V435-1 树状视图使用树冠 → 战略目标 → 项目 → 指标 → 任务叶片的层级结构，窄指标卡改为两行标题且不再横向溢出', () => {
+check('V435-1 树状视图按原型 V0.3 还原：根脉带 → 主干线 → 战略目标双列瀑布 → 项目层级线 → 指标网格 → 任务叶片的层级结构（V4.3.6 重指 ctl-* 类名）', () => {
   const tree = read('/newtab/components/compass/curation/CurationTreeLayout.vue')
-  return tree.includes('cv-top')
-    && tree.includes('cv-rootline')
-    && tree.includes('cv-goal-card')
-    && tree.includes('cv-project')
-    && tree.includes('cv-metric')
-    && tree.includes('cv-task-row')
-    && tree.includes('container-type: inline-size')
-    && tree.includes('@container (max-width: 320px)')
-    && tree.includes('-webkit-line-clamp: 2')
-    && tree.includes('inset: -28px 0 30%;')
-    && !tree.includes('cv-indent')
+  return tree.includes('ctl-rootband')
+    && tree.includes('ctl-trunk')
+    && tree.includes('ctl-goal-card')
+    && tree.includes('ctl-goals')
+    && tree.includes('ctl-proj')
+    && tree.includes('ctl-metric')
+    && tree.includes('ctl-task')
+    && tree.includes('ctl-branch')
+    && tree.includes('ctl-ring')
+    && tree.includes('ringDash')
+    && !tree.includes('cv-top')
+    && !tree.includes('cv-hero')
 })
 
 check('V435-2 策展页提供战略目标 / 项目双筛选，项目舱菜单提供“项目策展”，菜单不被父容器裁切', () => {

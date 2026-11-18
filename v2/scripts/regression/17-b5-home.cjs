@@ -71,7 +71,7 @@ check('M4-2 宿主不渲染常驻卡：TodayBattleHost 的可见内容全部挂�
 check('M5-1（V4.3.1 重指）两张主工作板共用 lg 圆角；三卡页签共用同一块卡片池，任务页承载完整工作面，另两页仍用 hand-grid / hand-col 承接预览', () => {
   const rule = (HOME.match(/^\.work-board,\n\.hand-board \{[^}]*\}/m) || [''])[0];
   if (!rule) { console.log('     规则缺失'); return false; }
-  return rule.includes('border-radius: var(--radius-lg)')
+  return rule.includes('border-radius: 18px')
     && rule.includes('background: var(--surface)')
     && HOME.includes('class="hand-grid hand-grid-aux"')
     && HOME.includes('class="hand-col"');

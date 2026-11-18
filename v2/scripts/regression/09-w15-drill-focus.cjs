@@ -116,7 +116,7 @@ check('W15-6（V4.3.1 重指）★首屏焦点仍收在一张今日工作单里�
     && HOME.includes('class="focus-row focus-card"')
     && HOME.includes('子任务 {{ c.task.subtasks.filter(s => s.done).length }}/{{ c.task.subtasks.length }}')
     && HOME.includes('drawerRef.value?.open(c.task)')
-    && HOME_C.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }')
+    && HOME_C.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }')
     && /\.focus-list \{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(HOME_C)
     && HOME_C.includes('.hand-board { margin-top: 0; }')
     && !HOME.includes('class="focus-sub-zone"')

@@ -167,34 +167,37 @@ const DASH_SCENES = [
     hash: '#/compass/curation?layout=tree',
     host: '.cmp-page',
     act: async (page) => {
-      await page.locator('.ctl .cv-goal').first().waitFor({ state: 'visible', timeout: 12000 }).catch(() => {})
+      await page.locator('.ctl .ctl-goal').first().waitFor({ state: 'visible', timeout: 12000 }).catch(() => {})
       await page.waitForTimeout(300)
     },
     judge: async (page) => page.evaluate(() => {
+      /* V4.3.6 原型 V0.3 还原：根脉带（愿景/使命一条横带）+ 主干线 + 目标双列瀑布
+         + 项目层级线 + 指标网格 + 任务叶片。判据同步换 ctl-* 类名。 */
       const ctl = document.querySelector('.ctl')
-      const heroes = ctl?.querySelectorAll('.cv-hero').length || 0
-      const goals = ctl?.querySelectorAll('.cv-goal').length || 0
-      const projects = ctl?.querySelectorAll('.cv-project').length || 0
-      const metrics = ctl?.querySelectorAll('.cv-metric').length || 0
-      const tasks = ctl?.querySelectorAll('.cv-task-row').length || 0
-      const rails = ctl?.querySelectorAll('.cv-rootline, .cv-branch-line').length || 0
-      const projectGrid = ctl?.querySelector('.cv-projects')
-      const projectCols = projectGrid
-        ? getComputedStyle(projectGrid).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length
+      const rootcells = ctl?.querySelectorAll('.ctl-rootcell').length || 0
+      const trunk = ctl?.querySelectorAll('.ctl-trunk').length || 0
+      const goals = ctl?.querySelectorAll('.ctl-goal').length || 0
+      const projects = ctl?.querySelectorAll('.ctl-proj').length || 0
+      const metrics = ctl?.querySelectorAll('.ctl-metric').length || 0
+      const tasks = ctl?.querySelectorAll('.ctl-task').length || 0
+      const branches = ctl?.querySelectorAll('.ctl-branch').length || 0
+      const goalGrid = ctl?.querySelector('.ctl-goals')
+      const goalCols = goalGrid
+        ? getComputedStyle(goalGrid).gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length
         : 0
       const body = document.querySelector('.cmp-body')
       const bodyOverflow = body ? body.scrollWidth - body.clientWidth : 999
-      const cards = ctl ? [...ctl.querySelectorAll('.cv-hero, .cv-goal-card, .cv-p-card, .cv-m-card')] : []
+      const cards = ctl ? [...ctl.querySelectorAll('.ctl-rootcell, .ctl-goal-card, .ctl-proj, .ctl-metric')] : []
       const clipped = cards.filter(card => {
         const rect = card.getBoundingClientRect()
         return rect.left < -1 || rect.right > window.innerWidth + 1
       }).length
       const text = ctl?.textContent || ''
       return {
-        ok: !!ctl && heroes === 2 && goals >= 1 && projects >= 1 && metrics >= 1
-          && rails >= 2 && projectCols >= 1 && bodyOverflow <= 1 && clipped === 0
+        ok: !!ctl && rootcells === 2 && trunk === 1 && goals >= 1 && projects >= 1 && metrics >= 1
+          && branches >= 1 && goalCols >= 1 && bodyOverflow <= 1 && clipped === 0
           && !text.includes('验收标准'),
-        txt: `树冠=${heroes}/2 目标=${goals} 项目=${projects} 指标=${metrics} 任务=${tasks} 层级线=${rails} 项目列=${projectCols} 横向溢出=${bodyOverflow}px 越界卡=${clipped} 验收标准=${text.includes('验收标准')}`,
+        txt: `根脉=${rootcells}/2 主干=${trunk} 目标=${goals} 项目=${projects} 指标=${metrics} 任务=${tasks} 枝干=${branches} 目标列=${goalCols} 横向溢出=${bodyOverflow}px 越界卡=${clipped} 验收标准=${text.includes('验收标准')}`,
       }
     })
   },

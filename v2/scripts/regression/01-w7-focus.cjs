@@ -14,13 +14,13 @@ check('W7-1 ★V3.9.25 随迁备案：今日三件事仍是首屏唯一主体 �
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
   /* 主角：唯一 display + 重框 */
   return /\.desk-heading h1 \{[\s\S]*?font-size: clamp\(26px, 2\.4vw, 34px\)/.test(ch)
-    && ch.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }')
+    && ch.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }')
     /* 内容也参与焦点：计划行标题正文级、整行可点、勾选框独立 */
     && ch.includes('.title-text {') && ch.includes('font-size: var(--fs-body);')
     && ch.includes('.row-check {') && ch.includes('width: 28px;')
     && ch.includes('.row-check::before') && ch.includes('width: 20px;')
     /* 次级层：手边卡降为 shadow-sm，侧栏只做案头信息 */
-    && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--shadow-sm);')
+    && ch.includes('.work-board,\n.hand-board {') && ch.includes('box-shadow: var(--lv-card-shadow);')
     && ch.includes('.desk-layout {\n  display: grid;')
     && ch.includes('.desk-status-rail { position: relative; z-index: 0; }')
     && /\.page-foot \{[\s\S]*?margin-top: 18px;/.test(ch)

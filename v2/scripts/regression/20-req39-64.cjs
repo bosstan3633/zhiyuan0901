@@ -519,7 +519,7 @@ check('R53-12（V4.3.1 重指）C1 三件事精简：常驻工具条不铺按钮
 // ⚠ R94 重指（名冻结、只改断言体、零退役）：原名按字面量判 `<div class="card focus">`，
 // R94（B3）给该元素加了 `:class="{ 'all-done': focusAllDone }"` 后字面量失配。
 // 本条要守的「三件事区存在」能力完全未变，故按 §五·补十四 改为**子串**判据。
-check('R53-13 C1 视觉强化 · ★V3.9.1 重指：工作单成为首屏焦点（强边框 + 大阴影），行标题加粗、空位用虚线加号，视觉层级不再依赖旧卡片选中态', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }') && h.includes('.title-text {') && h.includes('font-weight: 650;') && h.includes('.empty-plus {') && h.includes('border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));'); });
+check('R53-13 C1 视觉强化 · ★V3.9.1 重指：工作单成为首屏焦点（强边框 + 大阴影），行标题加粗、空位用虚线加号，视觉层级不再依赖旧卡片选中态', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }') && h.includes('.title-text {') && h.includes('font-weight: 650;') && h.includes('.empty-plus {') && h.includes('border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));'); });
 check('R53-14 C2（V3.9.1 重指）定位链路统一走 `locateTargetOf`：任务/好奇心直接落到各自独立二级页并带 hl/hk；资源池卡落 /deck/resource，旧同页 tab 认领方式退役', () => {
   const c = read('/newtab/components/dashboard/DrillCardList.vue');
   const u = read('/shared/utils/locate.ts');

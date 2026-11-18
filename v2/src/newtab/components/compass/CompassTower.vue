@@ -254,17 +254,17 @@ function hasClue(t: TaskCard): boolean {
      原先 surface 底 + 边框，指标卡又是 surface-2、任务行再是 surface —— 三层容器叠加后读者先数框。
      改为无底色、只留发丝分隔线，区隔由左侧色条与舱间间距承担（判据 W11-1 的 gap 不变）。
      层级由色条、发丝线与间距承担；阴影只留给 hover/拖拽这类临时状态。 */
-  background: transparent; border: 0; border-top: 1px solid var(--border);
-  border-radius: var(--radius-lg); box-shadow: none;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; box-shadow: var(--lv-card-shadow);
   /* 菜单必须越过舱体边界；裁切父级会把折叠状态下的「⋯」菜单截成一条。 */
   position: relative; overflow: visible;
   transition: border-color var(--dur), box-shadow var(--dur);
 }
-.tower:hover { border-top-color: color-mix(in srgb, var(--hue) 30%, var(--border)); }
+.tower:hover { border-color: color-mix(in srgb, var(--lv-green) 30%, var(--border)); box-shadow: var(--lv-card-shadow-hover); }
 /* 左侧 4px 项目色条：舱身份的唯一标识 */
 .tower::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-  width: 4px; background: var(--hue);
+  width: 3px; background: var(--lv-green); border-radius: 16px 0 0 16px;
 }
 
 .tw-head {
@@ -277,9 +277,9 @@ function hasClue(t: TaskCard): boolean {
 .tw-head:hover { background: color-mix(in srgb, var(--hue) 6%, transparent); }
 /* 序号牌：与指标序号拉开层级，但不与项目名争色。 */
 .tw-idx {
-  width: 30px; height: 30px; border-radius: 9px; flex: none;
-  background: var(--surface-2);
-  color: var(--text-3); font-size: var(--fs-sub); font-weight: 700;
+  width: 30px; height: 30px; border-radius: 10px; flex: none;
+  background: var(--lv-green-soft);
+  color: var(--lv-green-deep); font-size: var(--fs-sub); font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
 .tw-id { flex: 1; min-width: 200px; }
@@ -324,7 +324,7 @@ function hasClue(t: TaskCard): boolean {
 .twm-item.danger:hover { background: var(--danger-bg-soft); }
 .tw-act {
   font-size: var(--fs-micro); color: var(--text-3);
-  min-height: 28px; padding: 3px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur); white-space: nowrap;
+  min-height: 28px; padding: 3px 8px; border-radius: var(--radius-full); cursor: pointer; transition: all var(--dur); white-space: nowrap;
 /* ★W12(V3.8.12)真缺陷（theme-audit 100 图实跑抓到）：这条只给了 color/padding，
    没给 background 与 border ⇒ 浏览器默认 buttonface 白底透出来，深色主题下就是一排白块。
    修法：显式给 transparent 底 + 透明边框，把 hover 态的 accent 底留给 hover。 */
@@ -333,7 +333,7 @@ function hasClue(t: TaskCard): boolean {
 .tw-act:hover { color: var(--accent-ink); background: var(--accent-light); border-color: transparent; }
 /* ★折叠必须双向：这里给的是"当前收起时显示展开箭头"，展开时显示收起箭头 */
 .tw-fold {
-  width: 28px; height: 28px; border-radius: 6px; flex: none;
+  width: 28px; height: 28px; border-radius: var(--radius-full); flex: none;
   border: 1px solid transparent; background: transparent; color: var(--text-3);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: background var(--dur), border-color var(--dur), color var(--dur);

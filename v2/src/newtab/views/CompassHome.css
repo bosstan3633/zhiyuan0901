@@ -45,7 +45,7 @@
   min-height: 32px;
   padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   background: var(--surface);
   color: var(--text-2);
   font-family: inherit;
@@ -103,11 +103,11 @@
 .hand-board {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 18px;
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--lv-card-shadow);
 }
-.work-board { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }
 .work-board.all-done { background: color-mix(in srgb, var(--surface-2), var(--surface)); }
 .board-head,
 .hand-head {
