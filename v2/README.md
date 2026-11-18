@@ -14,7 +14,7 @@ updated: 2026-11-10
 
 **核心定位（April Dunford 视角）**：自造货架「信息洪流中的控制中心——AI 时代知识工作者的个人资源调度台」——不是书签插件、不是 PKM 笔记、不是新标签页美化。它不生产内容，而是横在所有 AI 工具、笔记、文件之上的**调度层**：经营你的认知周转率，让每一个被见过的信息都具备在正确时刻被召回的能力。
 
-- **产品版本**：V4.4.0（Logo 蓝主行动 · 任务详情精简 · OPPO 圆润工作台）——全局主行动色统一到知源 Logo 蓝，正式主题收敛为光速黑、极简白、纸墨白；任务详情围绕完整标题、计划执行日期与资源镜像重构；方向台、调度台、策展台统一圆润卡面与留白，并补齐模块级 AI 洞察。
+- **产品版本**：V4.5.0（选题卡系统 · 今日行动联动 · 四卡池工作台）——新增独立选题卡、自定义状态与看板视图，任务与选题共用今日三件事和今日日程；方向树加入成果层，策展节点支持关联资源卡与选题卡，云同步、画像、回收站、数据包与附件管理全部接入；同步修复四主题与云同步登录体验。
 
 > **品牌隔离提醒**：本产品的目标用户是知识工作者，与作者个人的"高考志愿规划师"IP 是两个独立受众体系——前者用本账号运营，后者用独立账号/笔名，否则互相污染定位。
 
@@ -115,7 +115,7 @@ updated: 2026-11-10
 | 构建 | Vite 5 + @crxjs/vite-plugin | HMR + MV3 打包 |
 | 状态管理 | Pinia | `useAppStore` 单一数据仓 + `useCompass`/`useCuriosity` |
 | 路由 | Vue Router (hash mode) | 新标签页内路由 |
-| 样式 | 原生 CSS Variables（tokens.css）+ scoped CSS | 三主题语义令牌 + 旧偏好确定性迁移；`data-density` 三档密度 |
+| 样式 | 原生 CSS Variables（tokens.css）+ scoped CSS | 四主题语义令牌 + 旧偏好确定性迁移；`data-density` 三档密度 |
 | 存储 | chrome.storage.local 单根 JSON（主数据）+ IndexedDB `zy_assets`（附件二进制，单文件 ≤20MB） | 300ms 防抖合并写；主 JSON 绝不存 base64 |
 | 搜索 | pinyin-pro | 全拼/首字母命中中文标题 |
 | 扩展规范 | Manifest V3 | Service Worker + Content Script（纯 Vanilla JS，不引入 Vue 运行时） |
@@ -165,7 +165,7 @@ v2/
 │   │   ├── utils/                     # uid/dateKey/normalizeUrl/fields/pinyin/link/marksort
 │   │   │                              # assetKind（附件三档）/cardCols（列数）/wsView（台视图）/bus（zy-open-drawer）
 │   │   ├── components/                # Toast/Drawer/ConfirmDialog/ContextMenu/TagPicker/AssetBadge/ColsPicker…
-│   │   └── styles/tokens.css          # 三主题语义令牌 + 三档密度 + 全局排版
+│   │   └── styles/tokens.css          # 四主题语义令牌 + 三档密度 + 全局排版
 │   └── newtab/
 │       ├── main.ts                    # 引导：并行加载→store.init→挂载→固定回调度台（应用 data-density）
 │       ├── router.ts                  # / 、/compass(projects|tree)、/workspace/:id、/curation(redirect)
@@ -204,7 +204,7 @@ npm install          # 按 package-lock.json 还原依赖
 npm run dev          # 开发模式（HMR 输出到 dist/）
 npm run build        # vue-tsc --noEmit 类型检查 + vite build（交付必须两者通过）
 npm run typecheck    # 仅类型检查
-node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,346 项，86 分片，只增不减）
+node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,364 项，87 分片，只增不减）
 ```
 
 ### 4.3 加载到浏览器
@@ -308,7 +308,7 @@ node scripts/regression.cjs   # 静态回归：必须全绿（当前 2,346 项�
 
 ## 十、开发规范与回归基线
 
-- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 2,346 项 / 86 分片，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
+- **交付前置**：`npm run build` 全绿（vue-tsc 0 错误）+ `node scripts/regression.cjs` **全绿**（当前 2,364 项 / 87 分片，每轮只增不减），缺一不可（回归是字符串断言，代替不了编译检查）
 - **性能门禁**：以 `scripts/perf-slo.cjs` 的分路径 SLO 表为准；新功能默认须过性能走查，历史 R71 的“视图切换 <40ms”仅作阶段存档
 - **数据红线**：Resource/Curiosity/TagNode 禁止 taskId；删除一律软删；stats.lastVisits 只走 recordResourceOpen
 - **标记排序**：一律走 `utils/marksort.ts`（置顶 > 星标 > 命中度），拖拽排序列表的渲染 computed 禁止 `.sort()`

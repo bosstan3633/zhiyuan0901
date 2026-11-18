@@ -21,7 +21,8 @@ const {
 const CT = read('/newtab/views/CompassTree.vue');
 const CT_C = codeOnly(CT);
 const SPINE = read('/newtab/components/compass/CompassSpine.vue');
-const LANE = read('/newtab/components/compass/CompassLane.vue');
+const LANE = read('/newtab/components/compass/CompassLane.vue')
+  + '\n' + read('/newtab/components/compass/CompassLane.css');
 const TOWER = read('/newtab/components/compass/CompassTower.vue');
 const PANO = read('/newtab/components/compass/CompassPano.vue');
 const TOKENS = read('/shared/styles/tokens.css');

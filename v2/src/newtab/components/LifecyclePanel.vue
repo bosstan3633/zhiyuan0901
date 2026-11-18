@@ -1,9 +1,9 @@
 <script lang="ts">
 /** R113-N2：三卡生命周期面板（内嵌化——R110 的 Drawer 外壳退役，入口收敛到 设置→总览） */
 import Icon from '@/shared/components/Icon.vue'
-import type { ResourceCard, TaskCard, CuriosityCard } from '@/shared/models'
+import type { ResourceCard, TaskCard, CuriosityCard, TopicCard } from '@/shared/models'
 /** 三卡联合（宿主直接传 store 中的活卡引用，面板只发意图、宿主落库——面板不改 props） */
-export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard
+export type LifecycleCard = ResourceCard | TaskCard | CuriosityCard | TopicCard
 </script>
 
 <script setup lang="ts">
@@ -17,14 +17,14 @@ import { showToast } from '@/shared/components/toast'
 
 const props = withDefaults(defineProps<{
   /** R113-N2：支持 'all'——设置页聚合三类卡；顶部实体切换由此驱动 */
-  kind?: 'resource' | 'task' | 'curiosity' | 'all'
+  kind?: 'resource' | 'task' | 'curiosity' | 'topic' | 'all'
   cards: LifecycleCard[]
   /** W13-F20：外部注入的三态 Tab（年度诊断条「🔥 去下方唤醒」联动注入 'cooling'；不传时内部自由切换） */
   focus?: 'active' | 'cooling' | 'archived'
 }>(), { kind: 'all' })
 const emit = defineEmits<{
   /** 下钻定位：宿主跨台跳转（资源卡 ?hl= 精确定位；任务/好奇心卡切调度台） */
-  locate: [id: string, kind: 'resource' | 'task' | 'curiosity']
+  locate: [id: string, kind: 'resource' | 'task' | 'curiosity' | 'topic']
   /** 三个写意图——宿主对**真实卡对象**落库 + persist（面板自身不改数据） */
   archive: [id: string]
   snooze: [id: string]
@@ -39,7 +39,8 @@ const KIND_TABS: Array<{ key: typeof activeKind.value; label: string }> = [
   { key: 'all', label: '全部' },
   { key: 'resource', label: '资源卡' },
   { key: 'task', label: '任务卡' },
-  { key: 'curiosity', label: '好奇心卡' }
+  { key: 'curiosity', label: '好奇心卡' },
+  { key: 'topic', label: '选题卡' }
 ]
 
 type Filter = 'active' | 'cooling' | 'archived'
@@ -144,7 +145,7 @@ function clearDays(e: Entry) {
   editingDaysId.value = ''
   showToast(`已恢复默认（冷却 ${DEFAULT_COOLING_DAYS} 天 · 归档 ${DEFAULT_COOLING_DAYS * ARCHIVE_RATIO} 天）`)
 }
-const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任务卡', curiosity: '好奇心卡' }
+const KIND_BADGE: Record<string, string> = { resource: '资源卡', task: '任务卡', curiosity: '好奇心卡', topic: '选题卡' }
 </script>
 
 <template>

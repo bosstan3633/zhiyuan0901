@@ -77,7 +77,7 @@ check('V422-5 ★常用夹进入云同步：新增资源夹与镜像关系记录
     && display.includes("resourceFolderMirror: '常用夹 → 资源镜像'")
 })
 
-check('V422-6（V4.3.4 重指）★今日三件事复制模板逐字固定为「推进[[项目]]项目，任务，助力【指标】指标落实到位」，项目名按原样输出，缺有效项目或指标继续禁用', () => {
+check('V422-6（V4.5.0 重指）★今日三件事复制模板逐字固定为「推进[[项目]]项目，任务/选题标题，助力【指标】指标落实到位」，项目名按原样输出，缺有效项目或指标继续禁用', () => {
   const copy = read('/shared/utils/focusCopy.ts')
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
@@ -86,8 +86,8 @@ check('V422-6（V4.3.4 重指）★今日三件事复制模板逐字固定为「
     && copy.includes('if (!project || !metric || !task) return')
     && home.includes(':disabled="!focusCopyText(c)"')
     && home.includes('focusCopyReason(c)')
-    && hook.includes('任务未关联有效项目')
-    && hook.includes('任务未关联有效成功指标')
+    && hook.includes('卡片未关联有效项目')
+    && hook.includes('卡片未关联有效成功指标')
 })
 
 check('V422-7 ★策展台提供一键打开全部资源原始链接：按当前全台卡片收集，跳过无链接、失效和重复地址，超过 15 条先确认', () => {

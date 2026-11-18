@@ -239,7 +239,7 @@ check('R4-Ep ★V3.9.8 随迁：批量目标只列现役策展台，且语义是
 });
 check('R4-Ep（V4.3.0 重指）★运行时覆盖补一档：e2e 必须验证旧 Inbox 深链回首页、Inbox UI 与 capture_inbox 请求均不回流，并守卫好奇心旧归档入口为零', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.2')
+  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.5.0')
     && e.includes("page.goto(base + '#/deck/inbox'")
     && e.includes('captureInboxRequests.length === 0')
     && e.includes("page.locator('.inbox-row').count() === 0")
@@ -315,11 +315,11 @@ check('R4-Eq（V4.0.3 重指）★界面指位类文案不许再指向已退役�
     && wm.includes('「资源卡池」是系统空间，不在此删除') && !wm.includes('资源台为系统空间')
     && atRuntime.length === 0;
 });
-check('R4-Eq ★改口过的界面文案要留下"旧串不许回来"的锚：V3.9.8 退役左树后，关联资源弹窗的「资源卡池」分类口径、镜像只读横幅的编辑去向、池卡投射说明都必须继续指向资源卡池；对应旧拼法各一条负锚', () => {
+check('R4-Eq（V4.5.0 重指）改口过的界面文案要留下“旧串不许回来”的锚：关联卡片弹窗已支持资源卡/选题卡但仍只从资源卡池取可镜像资源；镜像只读横幅与池卡投射说明继续指向资源卡池', () => {
   const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const link = codeOnly(read('/newtab/components/LinkCardsModal.vue'));
   const pool = codeOnly(read('/newtab/components/compass/PoolCardsPanel.vue'));
-  return link.includes('关联资源卡到「') && !link.includes('lc-cat') && !link.includes('全部分类（资源卡池）')
+  return link.includes('关联卡片到「') && link.includes('从资源卡池可镜像的卡') && !link.includes('lc-cat') && !link.includes('全部分类（资源卡池）')
     && !link.includes('资源台可镜像')
     && w.includes('镜像卡为引用（只读）——编辑请到资源卡池') && !w.includes('编辑请到资源台')
     && pool.includes('源卡仍留在资源卡池') && !pool.includes('源卡仍留在资源台');
@@ -704,13 +704,13 @@ check('W6-1 ★日详情完全按原型（用户拍板：完全按原型裁剪 +
     && !css.includes('.dz-mcols') && !css.includes('.dz-dstock') && !css.includes('.dz-hintline') && !css.includes('.dz-badge.hi')
     && ta.includes("dz-stats > .dz-stat") && ta.includes('dz-heat-band');
 });
-check('W6-2（V4.3.1 重指）卡片池三页签：任务页默认展示完整任务池 + 月历，好奇心与资源按需呈现；三页共用 .hand-board 外壳与框内头部，Inbox 与旧底部 tab 零回流', () => {
+check('W6-2（V4.5.0 重指）卡片池四页签：任务页默认展示完整任务池 + 月历，选题/好奇心/资源按需呈现；四页共用 .hand-board 外壳与框内头部，Inbox 与旧底部 tab 零回流', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
     && ch.includes('class="task-workbench"')
     && ch.includes('class="hand-grid hand-grid-aux"')
     && ch.includes('class="hand-col"')
-    && (ch.match(/class="hand-tab(?=[ "])/g) || []).length === 3
+    && (ch.match(/class="hand-tab(?=[ "])/g) || []).length === 4
     && ch.includes('采集的起点，任务的调度场')
     && !ch.includes('hand-tab-inbox') && !ch.includes('previewInbox')
     && !ch.includes('deck-frame') && !ch.includes('bottom-tabs') && !ch.includes('bt-tab');

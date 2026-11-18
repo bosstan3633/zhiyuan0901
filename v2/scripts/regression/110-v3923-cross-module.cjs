@@ -170,16 +170,18 @@ check('XM-07（V4.3.1 重指）调度台右栏整体退役：今天状态归今�
     && !logic.includes('useEqualHeight');
 });
 
-check('XM-08 ★附件管理：附件行打开所属卡片详情；任务详情关闭与资源详情关闭都会刷新；删除附件后回到列表读到最新状态', () => {
+check('XM-08（V4.5.0 重指）★附件管理：附件行打开所属资源/任务/选题/好奇心/论证详情；任一详情关闭都会刷新；删除附件后回到列表读到最新状态', () => {
   const dm = read('/newtab/views/settings/SettingsDataManagement.vue');
   const row = segOf(dm, '<button v-for="r in filteredAssetRows"', '</button>');
   return row.includes('@click="openAssetOwner(r)"')
     && row.includes(':disabled="!r.owner.cardId"')
     && dm.includes('taskDetailRef.value?.open(task)')
+    && dm.includes("if (owner.kind === 'topic')")
+    && dm.includes("emitOpenDrawer({ kind: 'topic', id: owner.cardId })")
     && dm.includes('curiosityPanelRef.value?.openDetail(curiosity.id)')
     && dm.includes('argumentDrawerOpen.value = true')
     && dm.includes('@closed="refreshAssetRows"')
-    && dm.includes("if (payload.kind === 'res') void refreshAssetRows()")
+    && dm.includes("if (payload.kind === 'res' || payload.kind === 'topic') void refreshAssetRows()")
     && dm.includes('void refreshAssetRows()')
     && dm.includes('await getAllAssetIndex()')
     && dm.includes('collectAssetRows(gd.value, index)');

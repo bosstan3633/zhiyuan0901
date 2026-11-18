@@ -12,6 +12,7 @@ import {
 import { CURATION_WS_ID } from '@/shared/models'
 import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
+import { softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { activeFocusSlots, clearedFocusSlot, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import {
   safeSend, uid, ensureRoot, focusWhenReady, openOverlay, closeOverlay, showToast, ROOT_ID
@@ -87,7 +88,7 @@ const FOCUS_LIMIT = 3
 // 第廿二轮加固体系已抽到 ./selection：信号层负责注册监听（含子帧转发），
 // 浮层实现层只读缓存。这样子帧无需加载本文件即可完成选区捕获。
 // ============ 全局搜索浮层（居中 Raycast 式） ============
-let searchType: 'all' | 'res' | 'task' | 'curio' | 'ws' | 'proj' = 'all'
+let searchType: 'all' | 'res' | 'task' | 'curio' | 'topic' | 'ws' | 'proj' = 'all'
 let searchSelIndex = 0
 /** R60-3：选中项锚点 = 卡片 id。下标会随补跑/重排漂移，id 不会——与 R48-A2 的点击修复统一口径 */
 let searchSelId = ''
@@ -172,14 +173,15 @@ let countCache: Record<string, number> | null = null
 function invalidateCountCache() { countCache = null }
 function computeCounts(): Record<string, number> {
   const d = dataCache || (window as any).__zyDataCache
-  const c: Record<string, number> = { all: 0, res: 0, task: 0, curio: 0, ws: 0, proj: 0 }
+  const c: Record<string, number> = { all: 0, res: 0, task: 0, curio: 0, topic: 0, ws: 0, proj: 0 }
   if (d) {
     for (const r of d.resources || []) if (!r.deletedAt) c.res++
     for (const t of d.tasks || []) if (!t.deletedAt) c.task++
     for (const x of d.curiosities || []) if (!x.deletedAt) c.curio++
+    for (const x of d.topics || []) if (!x.deletedAt) c.topic++
     for (const w of d.workspaces || []) if (!w.archived && w.id !== CURATION_WS_ID) c.ws++
     for (const dir of (d.compass && d.compass.directions) || []) for (const p of dir.projects || []) { if (!p.archived && (showDoneProjectsCache || !isProjDone(p, d))) c.proj++ }
-    c.all = c.res + c.task + c.curio
+    c.all = c.res + c.task + c.curio + c.topic
   }
   countCache = c
   return c
@@ -206,6 +208,7 @@ function renderTypeTabs() {
     { key: 'res', label: '📄 资源卡' },
     { key: 'task', label: '✅ 任务卡' },
     { key: 'curio', label: '💡 好奇心' },
+    { key: 'topic', label: '✦ 选题卡' },
     { key: 'ws', label: '🗂 策展台' },
     { key: 'proj', label: '📦 项目' }
   ]
@@ -361,6 +364,24 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
     })
   }
 
+  // 选题卡
+  if (searchType === 'all' || searchType === 'topic') {
+    d.topics?.filter((t: any) => !t.deletedAt).forEach((t: any) => {
+      const projName = maps.projName.get(t.projectId) || '未归属'
+      const status = (d.topicStatuses || []).find((row: any) => row.id === t.statusId)
+      const tTags = Array.isArray(t.tags) ? t.tags.join(' ') : ''
+      const blob = `${t.title} ${t.description || ''} ${tTags} ${projName}`
+      if (hasAllTags(t.tags) && projHit(projName) && (match(blob) || matchPinyin(t.title || '', kw))) {
+        results.push({
+          type: 'topic', iconClass: 'topic', iconText: '✦', id: t.id,
+          title: t.title, ws: '选题卡池', cat: projName,
+          badges: [{ type: 'topic-badge', text: '成果' }, { type: 'topic-status', text: status?.name || '构思中' }],
+          summary: t.description, raw: t
+        })
+      }
+    })
+  }
+
   // 第卅二轮 REQ-008：检索范围扩展至策展台实体（模糊匹配策展台名称，专属图标）
   // R68-F1：口径对齐台签栏（app store workspaces getter）——排除资源台本体实体（固定 Tab，非台签策展台）+ 已归档，历史遗留实体不再混入
   if (searchType === 'all' || searchType === 'ws') {
@@ -435,9 +456,11 @@ function bindResultEvents(el: HTMLElement) {
         if (!d2) return
         const hit = (d2.resources || []).find((r: any) => r.id === id) ||
           (d2.tasks || []).find((r: any) => r.id === id) ||
-          (d2.curiosities || []).find((r: any) => r.id === id)
+          (d2.curiosities || []).find((r: any) => r.id === id) ||
+          (d2.topics || []).find((r: any) => r.id === id)
         if (!hit || hit.deletedAt) return
-        hit.deletedAt = Date.now()
+        if (hit.kind === 'topic') softDeleteTopicToTrash(d2 as any, hit)
+        else hit.deletedAt = Date.now()
         // R141：任务软删同口径摘净 metric.taskIds 引用（与回收站恢复/撤销回填闭环一致）
         if ((d2.tasks || []).some((x: any) => x.id === id)) detachTaskFromMetrics(d2 as any, String(id))
         await saveData(d2)
@@ -500,12 +523,18 @@ function refreshFocusButtons() {
 function focusLocateTask(item: any) {
   const t = item?.raw || item
   const id = String(t?.id || item?.id || '')
+  if (item?.type === 'topic') {
+    try { chrome.runtime.sendMessage({ type: 'zy-open-route', route: '/deck/topic?hl=' + id + '&hk=topic' }) } catch { /* ignore */ }
+    showToast('↗ 已定位到选题卡片')
+    closeOverlay()
+    return
+  }
   const route = t?.projectId ? '/compass/projects?p=' + t.projectId : '/?hl=' + id
   try { chrome.runtime.sendMessage({ type: 'zy-open-route', route }) } catch { /* ignore */ }
   showToast(t?.projectId ? '↗ 已定位到项目详情' : '↗ 已定位到调度台的任务')
   closeOverlay()
 }
-/** A7-d：把任务卡加入今日三件事
+/** A7-d：把任务卡或选题卡加入今日三件事
  *  ① 去重：已入选则不再写库，直接定位；
  *  ② ≤3 硬上限：满则两段式替换（首次只提示，再按一次才落库，防误替换）；
  *  ③ 跨上下文合并：读写一律绕过 1500ms 缓存——loadData 取最新快照 → 改 → saveData → 同步 dataCache，
@@ -514,7 +543,8 @@ async function addTaskToDailyFocus(item: any) {
   const t = item?.raw || item
   const taskId = String(t?.id || '')
   if (!taskId) return
-  if (todayFocusSourceIds.has(taskId)) { showToast('该任务已在今日三件事中'); focusLocateTask(item); return }
+  const isTopic = item?.type === 'topic' || t?.kind === 'topic'
+  if (todayFocusSourceIds.has(taskId)) { showToast(isTopic ? '该选题已在今日三件事中' : '该任务已在今日三件事中'); focusLocateTask(item); return }
   const key = todayKeyStr()
   const d = await loadData() // 绕过缓存，取 storage 最新快照
   if (!d) { showToast('数据加载失败'); return }
@@ -522,9 +552,12 @@ async function addTaskToDailyFocus(item: any) {
   const cells: any[] = normalizedFocusSlots(d.dailyFocus[key])
   const active = activeFocusSlots(d.dailyFocus[key])
   // 与 CompassHome.selectTaskForSlot 完全同构，保证调度台三件事卡片能直接识别
+  const topicStatus = isTopic ? (d.topicStatuses || []).find((row: any) => row.id === t?.statusId) : null
   const slot = {
-    id: uid('focus'), sourceType: 'task', sourceId: taskId,
-    text: String(t?.title || '快速任务'), done: t?.status === 'done', doneAt: t?.completedAt,
+    id: uid('focus'), sourceType: isTopic ? 'topic' : 'task', sourceId: taskId,
+    text: String(t?.title || (isTopic ? '快速选题' : '快速任务')),
+    done: isTopic ? !!topicStatus?.terminal : t?.status === 'done',
+    doneAt: t?.completedAt,
     slotIndex: 0, updatedAt: Date.now(),
   }
   let replaced = -1
@@ -540,9 +573,16 @@ async function addTaskToDailyFocus(item: any) {
     const previousTask = previous?.sourceType === 'task'
       ? (d.tasks || []).find((row: any) => !row.deletedAt && row.id === previous.sourceId)
       : null
+    const previousTopic = previous?.sourceType === 'topic'
+      ? (d.topics || []).find((row: any) => !row.deletedAt && row.id === previous.sourceId)
+      : null
     if (previousTask?.dueDate === key) {
       previousTask.dueDate = undefined
       previousTask.updatedAt = Date.now()
+    }
+    if (previousTopic?.dueDate === key) {
+      previousTopic.dueDate = undefined
+      previousTopic.updatedAt = Date.now()
     }
     slot.slotIndex = replaced
     cells[replaced] = slot
@@ -556,6 +596,11 @@ async function addTaskToDailyFocus(item: any) {
   if (task && task.dueDate !== key) {
     task.dueDate = key
     task.updatedAt = Date.now()
+  }
+  const topic = isTopic ? (d.topics || []).find((row: any) => !row.deletedAt && row.id === taskId) : null
+  if (topic && topic.dueDate !== key) {
+    topic.dueDate = key
+    topic.updatedAt = Date.now()
   }
   d.dailyFocus[key] = cells.map((cell, index) => cell
     ? { ...cell, slotIndex: index }
@@ -582,6 +627,7 @@ function renderResults() {
     ;(dc && dc.resources ? dc.resources : []).forEach(function (r: any) { pushHeat(r, 'res', '📄', r.title) })
     ;(dc && dc.tasks ? dc.tasks : []).forEach(function (t: any) { pushHeat(t, 'task', '✅', t.title) })
     ;(dc && dc.curiosities ? dc.curiosities : []).forEach(function (c: any) { pushHeat(c, 'curio', '💡', c.question) })
+    ;(dc && dc.topics ? dc.topics : []).forEach(function (t: any) { pushHeat(t, 'topic', '✦', t.title) })
     ;(dc && dc.workspaces ? dc.workspaces : []).forEach(function (w: any) { pushHeat(w, 'ws', '🗂', w.name) })
     heat.sort(function (a: any, b: any) {
       const dc2 = (b.raw.callCount || 0) - (a.raw.callCount || 0)
@@ -673,11 +719,12 @@ function renderResults() {
     { label: '📄 资源卡', type: 'res' },
     { label: '✅ 任务卡', type: 'task' },
     { label: '💡 好奇心', type: 'curio' },
+    { label: '✦ 选题卡', type: 'topic' },
     { label: '🗂 策展台', type: 'ws' },
     { label: '📦 项目', type: 'proj' }
   ]
   // REQ-031 P-031-2：单次 for 按 type 归桶（去掉 filter + indexOf 嵌套，O(n)）
-  const buckets: Record<string, any[]> = { res: [], task: [], curio: [], ws: [], proj: [] }
+  const buckets: Record<string, any[]> = { res: [], task: [], curio: [], topic: [], ws: [], proj: [] }
   for (const r of searchResults) if (buckets[r.type]) buckets[r.type].push(r)
   // REQ-046 速度优化：每组最多渲染 30 条，防 DOM 爆炸（超大结果集首屏秒出）
   const MAX_PER_GROUP = 30
@@ -696,12 +743,12 @@ function renderResults() {
       const linkHtml = item.link ? '<span class="zy-ri-link ' + escapeHtml(item.link.type) + '">' + (item.link.type === 'url' ? '🔗' : item.link.type === 'file' ? '📁' : '📝') + ' ' + escapeHtml(item.link.text) + '</span>' : ''
       const summaryHtml = item.summary ? '<div class="zy-ri-summary">' + hl(item.summary) + '</div>' : ''
       // R55-H2：三卡结果行提供直接删除（无二次确认，软删进回收站）
-      const delHtml = (g.type === 'res' || g.type === 'task' || g.type === 'curio')
+      const delHtml = (g.type === 'res' || g.type === 'task' || g.type === 'curio' || g.type === 'topic')
         ? '<span class="zy-ri-del" data-del-id="' + escapeHtml(String(item.id || '')) + '" title="直接删除（可回收站恢复）">🗑</span>'
         : ''
       // R78（A7-b）：仅任务卡提供「加入今日三件事」；已入选的置灰并改文案
       const inFocus = todayFocusSourceIds.has(String(item.id || ''))
-      const focusHtml = g.type === 'task'
+      const focusHtml = (g.type === 'task' || g.type === 'topic')
         ? '<span class="zy-ri-focus' + (inFocus ? ' on' : '') + '" data-focus-id="' + escapeHtml(String(item.id || '')) + '" title="' +
           (inFocus ? '已在今日三件事中（点击定位）' : '加入今日三件事（→）') + '">' + (inFocus ? '✓ 已入选' : '→ 三件事') + '</span>'
         : ''
@@ -760,7 +807,7 @@ function onSearchKeydown(e: KeyboardEvent) {
     const selItem =
       (searchSelId ? searchResults.find((r: any) => String(r?.id || '') === searchSelId) : undefined) ||
       searchResults[searchSelIndex]
-    if (!selItem || selItem.type !== 'task') return
+    if (!selItem || (selItem.type !== 'task' && selItem.type !== 'topic')) return
     e.preventDefault(); e.stopPropagation()
     void addTaskToDailyFocus(selItem)
   } else if (e.key === 'Tab') {
@@ -769,12 +816,12 @@ function onSearchKeydown(e: KeyboardEvent) {
     e.preventDefault()
     const input = document.getElementById('__zy_si__') as HTMLInputElement | null
     const q = (input?.value || '').trim()
-    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
+    const kw = ([['任务', 'task'], ['资源', 'res'], ['选题', 'topic'], ['选题卡', 'topic'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
     if (kw) {
       searchType = kw[1]
       if (input) input.value = ''
     } else {
-      const cycle: Array<'all'|'res'|'task'|'curio'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'ws', 'proj']
+      const cycle: Array<'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'topic', 'ws', 'proj']
       searchType = cycle[(cycle.indexOf(searchType) + 1) % cycle.length]
     }
     searchSelIndex = 0

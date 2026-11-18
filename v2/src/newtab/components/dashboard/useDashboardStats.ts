@@ -20,7 +20,7 @@ import type { CardEvent } from '@/shared/utils/eventLog'
 import { buildDailyStats, boundaryDayOf, mergeDailyStats, type DailyStats } from '@/shared/utils/dailyStats'
 import { loadDailySnapshotCache } from '@/shared/storage/dailyStatsStore'
 
-export interface LiveCounts { res: number; task: number; curio: number }
+export interface LiveCounts { res: number; task: number; curio: number; topic: number }
 
 export interface DashboardData {
   /** 热力图 / 概览带共用年份（切年 = 改它） */
@@ -52,17 +52,19 @@ export function useDashboardStats(
     const ev = events()
     const rebuilt = buildDailyStats(data(), ev)
     const st = mergeDailyStats(snapRef.value, rebuilt, boundaryDayOf(ev))
-    const net: LiveCounts = { res: 0, task: 0, curio: 0 }
+    const net: LiveCounts = { res: 0, task: 0, curio: 0, topic: 0 }
     for (const r of Object.values(st.days)) {
       net.res += r.c.res - r.del.res
       net.task += r.c.task - r.del.task
       net.curio += r.c.curio - r.del.curio
+      net.topic += r.c.topic - r.del.topic
     }
     const l = live()
     st.base = {
       res: Math.max(0, l.res - net.res),
       task: Math.max(0, l.task - net.task),
       curio: Math.max(0, l.curio - net.curio),
+      topic: Math.max(0, l.topic - net.topic),
       link: 0
     }
     return st

@@ -37,7 +37,7 @@ export interface HotStats {
 interface HotTarget { id: string; callCount?: number; lastCalledAt?: number }
 
 function eachCard(d: AppData, fn: (c: HotTarget | undefined) => void): void {
-  for (const list of [d.resources, d.tasks, d.curiosities]) {
+  for (const list of [d.resources, d.tasks, d.curiosities, d.topics]) {
     const arr = (list || []) as HotTarget[]
     for (const c of arr) fn(c)
   }

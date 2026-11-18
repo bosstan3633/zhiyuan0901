@@ -46,8 +46,8 @@ const props = defineProps<{
   day: string
   events: CardEvent[]
   liveLink: number
-  /** ★W18：三类卡存量（任务 / 好奇 / 资源）——统一卡片里的「知源卡带」 */
-  kinds?: { task: number; curio: number; res: number; label?: string } | null
+  /** 四类卡存量（任务 / 选题 / 好奇 / 资源）——统一卡片里的「知源卡带」 */
+  kinds?: { task: number; curio: number; res: number; topic?: number; label?: string } | null
 }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'open-log', day: string): void }>()
 
@@ -229,7 +229,7 @@ const ACT_CLS: Record<EventAction, string> = {
 function actOf(a: EventAction): { txt: string; cls: string } {
   return { txt: `${ACT_SYM[a]} ${EVENT_ACT_LABEL[a]}`, cls: ACT_CLS[a] }
 }
-const KIND_LABEL: Record<string, string> = { resource: '资源', task: '任务', curiosity: '好奇', system: '系统' }
+const KIND_LABEL: Record<string, string> = { resource: '资源', task: '任务', curiosity: '好奇', topic: '选题', system: '系统' }
 
 /** 分时段叙事时间线：**降序**（下午在前——对齐原型 renderTimeline 的 sort((a,b)=>b.ts-a.ts)），
  *  同时间段连续成组（上午 / 下午 / 晚上）。

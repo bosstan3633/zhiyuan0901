@@ -62,6 +62,36 @@ export function detachFocusTaskFromDate(data: AppData, day: string, taskId?: str
   return true
 }
 
+/** 把选题卡移出某天三件事时，同步清空该天计划执行日期。 */
+export function detachFocusTopicFromDate(data: AppData, day: string, topicId?: string): boolean {
+  if (!topicId) return false
+  const topic = (data.topics || []).find(row => !row.deletedAt && row.id === topicId)
+  if (!topic || topic.dueDate !== day) return false
+  topic.dueDate = undefined
+  topic.updatedAt = Date.now()
+  return true
+}
+
+/** 按来源类型清理排期，避免调用方为任务/选题各写一套分支。 */
+export function detachFocusSourceFromDate(
+  data: AppData,
+  day: string,
+  sourceType: FocusSlot['sourceType'],
+  sourceId?: string,
+): boolean {
+  if (sourceType === 'task') return detachFocusTaskFromDate(data, day, sourceId)
+  if (sourceType === 'topic') return detachFocusTopicFromDate(data, day, sourceId)
+  return false
+}
+
 export function isActiveFocusTask(slot: FocusSlot | undefined, taskId: string): boolean {
   return !!slot && !slot.cleared && slot.sourceType === 'task' && slot.sourceId === taskId
+}
+
+export function isActiveFocusSource(
+  slot: FocusSlot | undefined,
+  sourceType: FocusSlot['sourceType'],
+  sourceId: string,
+): boolean {
+  return !!slot && !slot.cleared && slot.sourceType === sourceType && slot.sourceId === sourceId
 }

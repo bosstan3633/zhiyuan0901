@@ -141,7 +141,7 @@ check('B29 Tab 过滤单一状态源（应用内 chip 与 Tab 行共用 currentT
 check('B29 关键词+Tab 直达（应用内）', () => read('/newtab/components/GlobalPopups.vue').includes("[['任务', 'task'], ['资源', 'res']"));
 check('B29 网页浮层过滤 chip + 关键词直达', () => read('/content/search-overlay.ts').includes('__zy_chip__') && read('/content/search-overlay.ts').includes("updateChip()") && read('/content/search-overlay.ts').includes("searchType = cycle[(cycle.indexOf(searchType) + 1) % cycle.length]"));
 check('B28 网页浮层原生 confirm 替换（showDupConfirm）', () => read('/content/search-overlay.ts').includes('showDupConfirm') && !read('/content/search-overlay.ts').includes('confirm('));
-check('B27 详情抽屉删指标保留任务转未归类（R146 备案：确认+报数+撤销并入 compassCrud.removeMetricWithConfirm 真源，抽屉只调用）', () => { const pd = read('/newtab/components/ProjectDetailDrawer.vue'); const cr = read('/shared/utils/compassCrud.ts'); return pd.includes('removeMetricWithConfirm') && !pd.includes('d.value.compass.directions.flatMap') && cr.includes('useConfirm') && cr.includes('转为「未关联指标」') && cr.includes('任务本体不删') && cr.includes('restoreCompassNode'); });
+check('B27 详情抽屉删指标保留任务转未归类（R146 备案：确认+报数+撤销并入 compassCrud.removeMetricWithConfirm 真源，抽屉只调用）', () => { const pd = read('/newtab/components/ProjectDetailDrawer.vue'); const cr = read('/shared/utils/compassCrud.ts'); return pd.includes('removeMetricWithConfirm') && !pd.includes('d.value.compass.directions.flatMap') && cr.includes('useConfirm') && cr.includes('将转为「未关联指标」') && cr.includes('本体都不删') && cr.includes('restoreCompassNode'); });
 check('第七轮编译修复/R49：GlobalSettings ttRemove async 化（ProjectCuration 老抽屉已由共享 TaskDetailDrawer 替代）', () => read('/newtab/views/GlobalSettings.vue').includes('async function ttRemove') && read('/newtab/views/ProjectCuration.vue').includes('TaskDetailDrawer ref="detailRef"'));
 check('B5 应用内采集去重流程完整（dup 分支在 saveCapture 内）', () => count('/newtab/components/GlobalPopups.vue', 'saveCapture') >= 3 && read('/newtab/components/GlobalPopups.vue').includes('resetCaptureForm()\n      closeAll()\n      return'));
 
@@ -260,13 +260,13 @@ check('O23 北极星未归档任务（第卌四轮升级：项目+指标双重�
 check('O24 好奇心采集带来源（两端+模型+详情）', () => read('/shared/models/index.ts').includes('sourceTitle') && read('/content/search-overlay.ts').includes('sourceTitle: srcTitleInput') && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('v-model="curioForm.sourceTitle"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="cz-ext-src"') && read('/newtab/components/compass/CuriosityPanel.vue').includes("f.key === 'sourceUrl'")) /* ★R4-Dj 随迁备案（收紧不是放宽）：原判据只核 Curio 里出现 "detail-src" 字样——那是 R117 详情重设计后只剩在 CSS 里的死类名（模板零引用，删规则才暴露）。现改核现役两件事：来源行真的按 fieldConfig 的 sourceUrl 渲染 + 用的是 cz-ext-src 这个真类名 */;
 
 console.log('【第十四轮 · 视觉重构（V4.4.0 三主题收口）】');
-check('P1 三主题体系（光速黑 / 极简白 / 纸墨白，知源 Logo 蓝主行动）', () => {
+check('P1 四主题体系（光速黑 / 极简白 / 纸墨白 / OPPO 绿）', () => {
   const t = read('/shared/styles/tokens.css');
-  return ["raycast", "apple", "notion"].every(id => t.includes(`[data-theme='${id}']`))
+  return ["raycast", "apple", "notion", "oppo"].every(id => t.includes(`[data-theme='${id}']`))
     && !t.includes("[data-theme='linear']") && !t.includes("[data-theme='auto']")
-    && t.includes('--accent: #1579AD;') && t.includes('--accent: #0F6F9E;') && t.includes('--accent: #0B668F;');
+    && t.includes('--accent: #B54747;') && t.includes('--accent: #0F6F9E;') && t.includes('--accent: #0B668F;') && t.includes('--accent: #168457;');
 });
-check('P1 旧主题偏好确定性迁移（auto / linear / green / night → 三主题）', () => {
+check('P1 旧主题偏好确定性迁移（auto / linear / green / night → 四主题）', () => {
   const r = read('/shared/storage/repository.ts');
   return r.includes('theme: \'raycast\'') && r.includes("uiCache.theme === 'auto'")
     && r.includes("uiCache.theme === 'green' || uiCache.theme === 'night' || uiCache.theme === 'linear'")
@@ -519,13 +519,13 @@ check('R32-16 REQ-007 三视图均提供排序方向切换按钮', () => read('/
 check('R32-17 REQ-008 工作台实体进入搜索类型 Tab 与分组计数（双端）', () => read('/content/search-overlay.ts').includes("key: 'ws'") && read('/content/overlay-impl.ts').includes("label: '🗂 策展台'") && read('/newtab/components/GlobalPopups.vue').includes("{ type: 'ws', label: '策展台' }"));
 
 console.log('【第卅三轮 · V2.12 需求包第一批：模型/Bug · REQ-023 + BUG-A~D】');
-check('R33-2 REQ-023 星标字段 starred（CardBase 一份 + 卡 extends，零迁移；V3.7.0 备案：三卡 → 四卡，+论证节点卡 ArgumentCard）', () => read('/shared/models/index.ts').split('export interface CardBase').length - 1 >= 1 && read('/shared/models/index.ts').split('extends CardBase').length - 1 === 4 && read('/shared/models/index.ts').includes('starred?: boolean'));
+check('R33-2 REQ-023 星标字段 starred（CardBase 一份 + 卡 extends，零迁移；V4.5.0 备案：四卡 → 五卡，+选题卡 TopicCard）', () => read('/shared/models/index.ts').split('export interface CardBase').length - 1 >= 1 && read('/shared/models/index.ts').split('extends CardBase').length - 1 === 5 && read('/shared/models/index.ts').includes('starred?: boolean'));
 check('R33-2b ★随迁备案：REQ-023 的置顶/星标字段与卡面能力仍在；依赖旧设置页/任务列表 CSV 的两列导出随数据包收敛退役', () => {
   const model = read('/shared/models/index.ts');
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
   const t = read('/newtab/views/CompassHome.vue');
   return model.includes('pinned?: boolean') && model.includes('starred?: boolean')
-    && t.includes('t?.pinned') && t.includes('t?.starred')
+    && read('/newtab/components/compass/TaskManagerPanel.vue').includes('task.pinned') && read('/newtab/components/compass/TaskManagerPanel.vue').includes('task.starred')
     && dm.includes('唯一通用导出') && !dm.includes('导出 CSV')
     && !exists('/newtab/views/settings/SettingsExportPanel.vue');
 });
@@ -692,8 +692,9 @@ console.log('【第卅五轮 · V2.14 需求包第一批：REQ-034 任务重复�
 check('R35-1 REQ-034 根因：移除裸 Enter 双重 keydown（仅 ctrl/meta 触发一次保存）', () => !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="createTask"') && !read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.enter.prevent="linkTasks"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="createTask" @keydown.meta.enter.prevent="createTask"') && read('/newtab/components/TaskAddDrawer.vue').includes('@keydown.ctrl.enter.prevent="linkTasks" @keydown.meta.enter.prevent="linkTasks"'));
 check('R35-2 REQ-034 提交锁防重复触发（createTask/linkTasks creating/linking 标志 + finally 解锁）', () => read('/newtab/components/TaskAddDrawer.vue').includes('if (creating) return') && read('/newtab/components/TaskAddDrawer.vue').includes('if (linking) return') && read('/newtab/components/TaskAddDrawer.vue').includes('creating = true') && read('/newtab/components/TaskAddDrawer.vue').includes('finally {'));
 check('R35-3 REQ-034 渲染侧按 id 去重双保险 ★W11(V3.8.11)随迁带备案：方向台旧 seen 集合已退役，统一由 compassMeta 的 dedupeSorted / tasksOfProject / tasksOfMetric 收口（同 id 只算一次，否则 done+total 会大于项目实际任务数）。★V3.9.1 再随迁：项目详情不再自写 seen，改为直接复用唯一口径 tasksOfProject / tasksOfMetric；策展页保留自己的本地 seen。负锚仍守旧函数与抽屉内第二套去重实现不许回流', () => {
-  const m = read('/newtab/views/compassMeta.ts'); const pd = read('/newtab/components/ProjectDetailDrawer.vue');
-  return m.includes('seen.has(t.id)') && m.includes('export function tasksOfProject') && m.includes('export function tasksOfMetric')
+  const m = read('/newtab/views/compassMeta.ts'); const tm = read('/newtab/views/compassTaskMeta.ts'); const pd = read('/newtab/components/ProjectDetailDrawer.vue');
+  return m.includes('export function tasksOfProject') && m.includes('export function tasksOfMetric')
+    && tm.includes('seen.has(task.id)') && tm.includes('export function tasksOfProject') && tm.includes('export function tasksOfMetric')
     && !CT_ALL.includes('function tasksForMetric(') && read('/newtab/views/ProjectCuration.vue').includes('seen.has(t.id)')
     && pd.includes('tasksOfProject(project.value, d.value.tasks)') && pd.includes('tasksOfMetric(metric, d.value.tasks)')
     && !pd.includes('const seen = new Set<string>()');

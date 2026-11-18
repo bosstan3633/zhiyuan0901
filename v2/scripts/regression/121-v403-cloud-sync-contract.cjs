@@ -314,7 +314,11 @@ check('R63-12 ★R4-Da 退役重指带备案：原守「全景移动守卫：镜
     && bat.includes("if (isMirrorView(r)) { showToast('📡 镜像卡为引用——移动落点请直接拖拽，编辑请到源卡'); return }");
 });
 check('R63-13 导出适配随统一数据包收口：CSV/指定台导出退役；投射与支持关联并入包，Airtable 凭证和映射剥离', () => { const g = codeOnly(read('/newtab/views/GlobalSettings.vue')); const d = read('/newtab/views/settings/dataPackage.ts'); return !g.includes('exportWorkspace') && !g.includes('resCsvValue') && d.includes('mergeById(d.curationProjections') && d.includes('mergeById(d.supportLinks') && d.includes('delete safe.airtableSync') && d.includes('delete safe.airtableMap'); });
-check('R63-14 导入兼容：mergeImport 四字段组（含 thesis）合并保留 R62 语义', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)") && g.includes('if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()'); });
+check('R63-14（V4.5.0 重指）导入兼容：mergeImport 五字段组（含 topic/thesis）合并保留 R62 语义', () => {
+  const g = read('/newtab/views/settings/dataPackage.ts')
+  return g.includes("for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const)")
+    && g.includes('if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()')
+})
 
 // ============ R64：资源台归一 + 同步自愈 + 界面瘦身（V2.34.0） ============
 check('R64-1（V4.0.4 重指）★云同步冲突判定以远端 revision 为权威：每次上传先 GET 当前快照，远端修订与本地基线不一致时不得直接覆盖', () => {

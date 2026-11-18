@@ -21,7 +21,7 @@ type OpenableCard = {
   callCount?: number
   lastCalledAt?: number
 }
-const KIND_SET: ReadonlySet<string> = new Set(['resource', 'task', 'curiosity'])
+const KIND_SET: ReadonlySet<string> = new Set(['resource', 'task', 'curiosity', 'topic'])
 function emitCall(card: OpenableCard | null | undefined, fallbackKind?: CardKind): void {
   if (!card || !card.id) return
   const k = (card.kind && KIND_SET.has(card.kind) ? card.kind : fallbackKind) as CardKind | undefined

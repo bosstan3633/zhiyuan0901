@@ -12,7 +12,10 @@
  *  3. **口径单一**：项目任务认 `projectId / task.metricId / metric.taskIds` 三路并集；
  *     指标任务认 `task.metricId / metric.taskIds` 双路并集。历史双写数据不会在任一视图消失。
  */
-import type { AppData, Direction, Metric, Project, TaskCard } from '@/shared/models'
+import type { AppData, Direction, Metric, Project, TaskCard, TopicCard } from '@/shared/models'
+import { resolveProjectNextStep } from './compassNextStep'
+import { dedupeSorted, tasksOfProject, tasksOfMetric } from './compassTaskMeta'
+import { dedupeTopics, topicsOfProject, topicsOfMetric } from './compassTopicMeta'
 /** 单条成功指标的聚合结果（第 5 层） */
 export interface MetricMeta {
   id: string
@@ -22,8 +25,12 @@ export interface MetricMeta {
   target: string
   /** 挂在该指标下的任务（已去重、已按创建时间升序） */
   tasks: TaskCard[]
+  /** 挂在该指标下的选题卡（成果层，不参与任务完成率口径） */
+  topics: TopicCard[]
   total: number
   done: number
+  /** 选题卡总数（只用于呈现与下钻，不进入任务进度） */
+  topicTotal: number
   /** 完成率 0~100 */
   pct: number
   /** 聚合状态点：○ 空 / ◐ 有进行中 / ✓ 全完成 */
@@ -48,45 +55,9 @@ export interface ProjectMeta {
   risk: number
   /** 在项目内但既无 metricId 也无 projectId 的任务（原型「无归属收容区」） */
   orphanTasks: TaskCard[]
-}
-
-/** 项目任务唯一口径：projectId / task.metricId / metric.taskIds 三路并集。 */
-export function tasksOfProject(proj: Project, tasks: TaskCard[]): TaskCard[] {
-  const metricIds = new Set(proj.metrics.map(m => m.id))
-  const taskIds = new Set(proj.metrics.flatMap(m => m.taskIds))
-  const seen = new Set<string>()
-  const out: TaskCard[] = []
-  for (const t of tasks) {
-    if (t.deletedAt) continue
-    if (t.projectId !== proj.id && !(t.metricId && metricIds.has(t.metricId)) && !taskIds.has(t.id)) continue
-    if (seen.has(t.id)) continue
-    seen.add(t.id)
-    out.push(t)
-  }
-  return out.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
-}
-
-/** 指标任务唯一口径：task.metricId / metric.taskIds 双路并集，按 id 去重。 */
-export function tasksOfMetric(metric: Metric, tasks: TaskCard[]): TaskCard[] {
-  const linkedIds = new Set(metric.taskIds || [])
-  return dedupeSorted(tasks.filter(t => !t.deletedAt && (t.metricId === metric.id || linkedIds.has(t.id))), metric)
-}
-
-/** 项目“下一步”唯一口径：用户填写 → 进行中任务 → 未完成任务 → 空态；只读，自动推导不反写 nextStep。 */
-export function resolveProjectNextStep(proj: Project, tasks: TaskCard[]): Pick<ProjectMeta, 'nextStep' | 'nextStepSource'> {
-  const manual = (proj.nextStep || '').trim()
-  if (manual) return { nextStep: manual, nextStepSource: 'manual' }
-  const pending = tasks
-    .filter(t => t.status !== 'done')
-    .slice()
-    .sort((a, b) => {
-      const doing = Number(b.status === 'doing') - Number(a.status === 'doing')
-      return doing || ((b.updatedAt || 0) - (a.updatedAt || 0))
-    })
-  const task = pending[0]
-  return task
-    ? { nextStep: task.title, nextStepSource: 'task' }
-    : { nextStep: '还没有待推进任务，先补一条可执行的下一步', nextStepSource: 'empty' }
+  /** 本项目下选题卡（成果层，不参与任务完成率口径） */
+  topics: TopicCard[]
+  topicTotal: number
 }
 
 /** 全罗盘聚合（第 1~6 层统一口径，骨架条数字与项目塔数字必须同源） */
@@ -110,27 +81,10 @@ export interface CompassMeta {
   byProject: Map<string, ProjectMeta>
 }
 
-/** 任务去重双保险（REQ-034 历史重复 id）。V3.9.31（F4-C1）：有 metric 时按其 taskIds 轨道序排——
- *  塔/全景与展板三处同源、拖拽排序才可见；不在轨者（仅 metricId 关联）createdAt 兜底；新数组 sort 不违红线。 */
-function dedupeSorted(tasks: TaskCard[], metric?: Metric): TaskCard[] {
-  const seen = new Set<string>()
-  const out: TaskCard[] = []
-  for (const t of tasks) {
-    if (seen.has(t.id)) continue
-    seen.add(t.id)
-    out.push(t)
-  }
-  const rank = metric ? new Map((metric.taskIds || []).map((id, i) => [id, i] as const)) : null
-  return out.sort((a, b) => {
-    const ra = rank?.get(a.id)
-    const rb = rank?.get(b.id)
-    return ra !== undefined && rb !== undefined ? ra - rb : ra !== undefined ? -1 : rb !== undefined ? 1 : (a.createdAt || 0) - (b.createdAt || 0)
-  })
-}
-
 /** 单指标聚合：双路关联会重复入桶，按 id 去重。 */
-function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
+function aggMetric(m: Metric, tasks: TaskCard[], topics: TopicCard[]): MetricMeta {
   const uniqueTasks = dedupeSorted(tasks, m)
+  const uniqueTopics = dedupeTopics(topics, m)
   const total = uniqueTasks.length
   const done = uniqueTasks.filter(t => t.status === 'done').length
   const anyDoing = uniqueTasks.some(t => t.status === 'doing')
@@ -139,8 +93,10 @@ function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
     title: m.title,
     target: m.target || '',
     tasks: uniqueTasks,
+    topics: uniqueTopics,
     total,
     done,
+    topicTotal: uniqueTopics.length,
     pct: total ? Math.round((done / total) * 100) : 0,
     dot: total && done === total ? 'done' : anyDoing ? 'doing' : '',
     /* 断链判据：任务数为零。原型的「缺任务」黄标与虚线空位都吃这个字段 */
@@ -155,6 +111,7 @@ function aggMetric(m: Metric, tasks: TaskCard[]): MetricMeta {
  */
 export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean): CompassMeta {
   const live = d.tasks.filter(t => !t.deletedAt)
+  const liveTopics = (d.topics || []).filter(topic => !topic.deletedAt)
   /* 单次建桶覆盖两条关联路径；aggMetric 再按 id 去重。 */
   const bucket = new Map<string, TaskCard[]>()
   const liveById = new Map(live.map(t => [t.id, t]))
@@ -174,6 +131,24 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
       }
     }
   }
+  const topicBucket = new Map<string, TopicCard[]>()
+  const liveTopicById = new Map(liveTopics.map(topic => [topic.id, topic]))
+  const addTopicToBucket = (metricId: string, topic: TopicCard) => {
+    const arr = topicBucket.get(metricId)
+    if (arr) arr.push(topic)
+    else topicBucket.set(metricId, [topic])
+  }
+  for (const topic of liveTopics) if (topic.metricId) addTopicToBucket(topic.metricId, topic)
+  for (const dir of d.compass.directions) {
+    for (const proj of dir.projects) {
+      for (const metric of proj.metrics) {
+        for (const topicId of metric.topicIds || []) {
+          const topic = liveTopicById.get(topicId)
+          if (topic) addTopicToBucket(metric.id, topic)
+        }
+      }
+    }
+  }
   const byMetric = new Map<string, MetricMeta>()
   const byProject = new Map<string, ProjectMeta>()
   let nProjects = 0, nMetrics = 0, nTasks = 0
@@ -184,7 +159,8 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
     const projects = dir.projects.map(p => {
       /* 项目内任务走唯一取数口径：projectId 命中 + 指标归属命中，按 id 去重。 */
       const projTasks = tasksOfProject(p, live)
-      const metrics = p.metrics.map(m => aggMetric(m, bucket.get(m.id) || []))
+      const projTopics = topicsOfProject(p, liveTopics)
+      const metrics = p.metrics.map(m => aggMetric(m, bucket.get(m.id) || [], topicBucket.get(m.id) || []))
       for (const mm of metrics) byMetric.set(mm.id, mm)
       const total = projTasks.length
       const done = projTasks.filter(t => t.status === 'done').length
@@ -202,7 +178,9 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
         pct: total ? Math.round((done / total) * 100) : (p.progress || 0),
         stall: isStalled(p),
         risk,
-        orphanTasks
+        orphanTasks,
+        topics: projTopics,
+        topicTotal: projTopics.length
       }
       byProject.set(p.id, pm)
       nProjects++
@@ -254,3 +232,5 @@ export const gradeColorVar = (grade: string): string => grade === 'A' ? 'var(--s
   : grade === 'B' ? 'var(--info-blue)'
     : grade === 'C' ? 'var(--warning)'
       : 'var(--danger)'
+
+export { resolveProjectNextStep, tasksOfProject, tasksOfMetric, topicsOfProject, topicsOfMetric }

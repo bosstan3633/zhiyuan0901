@@ -5,7 +5,7 @@ import Drawer from '@/shared/components/Drawer.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import Icon from '@/shared/components/Icon.vue'
 
-export interface PiStatRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; ts: number; owner?: string }
+export interface PiStatRow { kind: 'resource' | 'task' | 'curiosity' | 'topic'; id: string; title: string; ts: number; owner?: string }
 export interface PiReconCell { k: string; n: string; u?: string; warn?: boolean }
 
 const props = defineProps<{
@@ -30,8 +30,8 @@ const emit = defineEmits<{
 
 const filteredEmpty = computed(() => props.filteredCount === 0)
 const dateLabel = (ts: number) => ts ? `${new Date(ts).getMonth() + 1}-${new Date(ts).getDate()}` : ''
-const statKindIcon = (kind: PiStatRow['kind']) => kind === 'task' ? 'checksquare' : kind === 'curiosity' ? 'bulb' : 'filetext'
-const statKindLabel = (kind: PiStatRow['kind']) => kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : '资源'
+const statKindIcon = (kind: PiStatRow['kind']) => kind === 'task' ? 'checksquare' : kind === 'curiosity' ? 'bulb' : kind === 'topic' ? 'target' : 'filetext'
+const statKindLabel = (kind: PiStatRow['kind']) => kind === 'task' ? '任务' : kind === 'curiosity' ? '好奇' : kind === 'topic' ? '选题' : '资源'
 </script>
 
 <template>
@@ -60,7 +60,7 @@ const statKindLabel = (kind: PiStatRow['kind']) => kind === 'task' ? '任务' : 
         <EmptyState v-if="filteredEmpty" size="inline" icon="folder"
           :title="search.trim() ? '没有匹配的卡片' : '还没有可列出的卡片'"
           :hint="search.trim() ? '换个更短的关键词，或清空搜索。' : '采集或新建卡片后，这里会按时间列出每一次变化。'"/>
-        <div v-if="totalCount" class="hint"><Icon name="bulb" :size="13"/> 单击任务或好奇心打开详情；资源有链接时直接打开，无链接时打开详情。</div>
+        <div v-if="totalCount" class="hint"><Icon name="bulb" :size="13"/> 单击任务、选题或好奇心打开详情；资源有链接时直接打开，无链接时打开详情。</div>
       </div>
       <div v-if="pageCount > 1" class="pager">
         <button :disabled="page <= 1" @click="emit('page', -1)">‹ 上一页</button>

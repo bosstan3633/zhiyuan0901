@@ -209,9 +209,9 @@ async function deleteNode(type: string, id: string) {
   if (!kind) return
   const name = nodeNameOf(type, id)
   const c = compassNodeCounts(d.value, kind, id)
-  const tail = kind === 'direction' ? `\n其下 ${c.projects} 个项目 · ${c.metrics} 个指标 · ${c.tasks} 个任务将一并摘除`
-    : kind === 'project' ? `\n其下 ${c.metrics} 个指标 · ${c.tasks} 个任务将一并摘除`
-    : (c.tasks ? `\n其下 ${c.tasks} 个任务将回落「未关联指标」（任务本体不删）` : '\n该指标下还没有任务')
+  const tail = kind === 'direction' ? `\n其下 ${c.projects} 个项目 · ${c.metrics} 个指标 · ${c.tasks} 个任务将一并摘除${c.topics ? `；${c.topics} 个选题将解除归属（选题本体不删）` : ''}`
+    : kind === 'project' ? `\n其下 ${c.metrics} 个指标 · ${c.tasks} 个任务将一并摘除${c.topics ? `；${c.topics} 个选题将解除归属（选题本体不删）` : ''}`
+    : (c.tasks || c.topics ? `\n其下 ${c.tasks} 个任务将回落「未关联指标」，${c.topics} 个选题将解除指标引用（本体均不删）` : '\n该指标下还没有任务或选题')
   if (!(await useConfirm({ title: `删除${c.label}`, message: `确定删除${c.label}「${name}」？${tail}`, confirmText: '确认删除' }))) return
   const snap = removeCompassNode(d.value, kind, id)
   if (!snap) { showToast('该节点已不存在'); return }

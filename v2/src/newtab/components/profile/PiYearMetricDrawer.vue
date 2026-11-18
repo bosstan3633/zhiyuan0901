@@ -14,7 +14,7 @@ export interface PiYearDayRow {
 }
 
 export interface PiYearCardRow {
-  kind: 'resource' | 'task' | 'curiosity'
+  kind: 'resource' | 'task' | 'curiosity' | 'topic'
   id: string
   title: string
   note: string
@@ -38,10 +38,10 @@ const emit = defineEmits<{
 }>()
 
 const kindLabel = (kind: PiYearCardRow['kind']): string =>
-  kind === 'task' ? '任务卡' : kind === 'curiosity' ? '好奇心卡' : '资源卡'
+  kind === 'task' ? '任务卡' : kind === 'curiosity' ? '好奇心卡' : kind === 'topic' ? '选题卡' : '资源卡'
 
 const kindIcon = (kind: PiYearCardRow['kind']): string =>
-  kind === 'task' ? 'checksquare' : kind === 'curiosity' ? 'bulb' : 'filetext'
+  kind === 'task' ? 'checksquare' : kind === 'curiosity' ? 'bulb' : kind === 'topic' ? 'target' : 'filetext'
 
 const total = computed(() => props.mode === 'cards' ? props.cards.length : props.days.length)
 </script>

@@ -8,7 +8,7 @@ import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 import { HOT_KEY, applyHot, pickHot, writeHot, extractHot } from './hotStats'
 import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
 import { K } from './keys'
-import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs } from './defaults'
+import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs, defaultTopicStatuses } from './defaults'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 import { hydrateResourceMirrorSnapshots } from './resourceMirrors'
@@ -164,6 +164,11 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
      ★纪律：**归一化必须挂在"数据入库的那一层"，不能挂在"某条读路径上"**——
        挂在读路径上，每新增一个读入口就漏一个；而入库层是唯一的。 */
   normalizeLegacyCards(data)
+  data.topics = Array.isArray(data.topics) ? data.topics : []
+  data.topicStatuses = Array.isArray(data.topicStatuses) && data.topicStatuses.length
+    ? data.topicStatuses
+    : defaultTopicStatuses()
+  data.topicResourceLinks = Array.isArray(data.topicResourceLinks) ? data.topicResourceLinks : []
   data.resourceFolders = Array.isArray(data.resourceFolders) ? data.resourceFolders : []
   data.resourceFolderMirrors = Array.isArray(data.resourceFolderMirrors) ? data.resourceFolderMirrors : []
   pruneResourceFolderMirrors(data)
@@ -175,6 +180,7 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   stripRetiredCardKeys(data.tasks)
   stripRetiredCardKeys(data.curiosities)
   stripRetiredCardKeys(data.resources)
+  stripRetiredCardKeys(data.topics)
   /* R166 定案 2（D5）：存量 `parentId` 子卡折叠进父卡的 `subtasks` 清单——子任务从"独立卡 + 父指针"
      改为"卡内嵌字段"（不进池/指标/看板/周报/回收站，完成不计分）。
      ⚠ 折叠必须发生在 stripKeys 之后、且**读 parentId 走 cast**：模型里该字段已删，
@@ -192,6 +198,7 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   fixTagNames(data.resources as { tags?: string[] }[])
   fixTagNames(data.tasks as { tags?: string[] }[])
   fixTagNames(data.curiosities as { tags?: string[] }[])
+  fixTagNames(data.topics as { tags?: string[] }[])
   // V4.2.1：旧导入与历史采集转化使用两套溯源字段；仅做兼容读取。
   // 同一 capture id 的两张资源卡在这里合并，避免“同标题一张带链接、一张无链接”。
   try { reconcileCapturedResources(data) } catch { /* noop */ }
@@ -202,12 +209,39 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
   }
   // R62-3：策展主题卡字段组——老数据无 thesis 组则补默认（幂等）
   if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()
+  if (data.fieldConfig && !data.fieldConfig.topic) data.fieldConfig.topic = defaultFieldConfig().topic
   // 第卌轮 REQ-049：老数据字段配置补 assets（附件展示；字段目录 base 字段，目录化兜底迁移）
-  for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const) {
+  for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const) {
     if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'assets')) {
       data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
     }
   }
+
+  // V4.5.0：选题状态、指标索引与关系记录在入库层统一收敛，确保本机载入、导入和云恢复同源。
+  const topicStatusIds = new Set(data.topicStatuses.map(status => status.id))
+  const fallbackTopicStatus = data.topicStatuses.slice().sort((a, b) => a.order - b.order)[0]?.id || 'topic-idea'
+  for (const topic of data.topics) {
+    if (!topic.statusId || !topicStatusIds.has(topic.statusId)) topic.statusId = fallbackTopicStatus
+  }
+  for (const dir of data.compass?.directions || []) {
+    for (const project of dir.projects || []) {
+      for (const metric of project.metrics || []) metric.topicIds = Array.isArray(metric.topicIds) ? metric.topicIds : []
+    }
+  }
+  const liveTopicIds = new Set(data.topics.filter(topic => !topic.deletedAt).map(topic => topic.id))
+  for (const dir of data.compass?.directions || []) {
+    for (const project of dir.projects || []) {
+      for (const metric of project.metrics || []) {
+        metric.topicIds = [...new Set((metric.topicIds || []).filter(id => liveTopicIds.has(id)))]
+        for (const topic of data.topics) {
+          if (!topic.deletedAt && topic.metricId === metric.id && !metric.topicIds.includes(topic.id)) metric.topicIds.push(topic.id)
+        }
+      }
+    }
+  }
+  const liveResourceIds = new Set((data.resources || []).filter(resource => !resource.deletedAt).map(resource => resource.id))
+  data.topicResourceLinks = data.topicResourceLinks.filter(link =>
+    liveTopicIds.has(link.topicId) && (liveResourceIds.has(link.resourceId) || !!link.snapshot))
   // R80（R1 遗留）：资源卡标签默认可见——一次性幂等迁移。
   // 背景：字段池四组的 tags 自建立起就是 visible:false，导致 R1「补齐 #标签」在存量数据上
   // 从未真正生效（用户不知道要去设置里打开）。此处对 resource 组一次性置 true。
@@ -532,6 +566,22 @@ function mergeByIdArr<T extends { id: string }>(localArr: T[], snapArr: T[], ext
   for (const e of extArr) if (!seen.has(e.id)) out.push(e)
   return out
 }
+
+/** 策展节点关系是独立引用集：节点字段走 LWW 时，选题引用不能被另一端的编辑冲掉。 */
+function mergeCategoryArr(curArr: AppData['categories'], snapArr: AppData['categories'], extArr: AppData['categories']): AppData['categories'] {
+  const merged = mergeByIdArr(curArr || [], snapArr || [], extArr || [])
+  const curById = new Map((curArr || []).map(row => [row.id, row]))
+  const extById = new Map((extArr || []).map(row => [row.id, row]))
+  return merged.map(row => {
+    const cur = curById.get(row.id)
+    const ext = extById.get(row.id)
+    const linkedTopicIds = Array.from(new Set([
+      ...(cur?.linkedTopicIds || []),
+      ...(ext?.linkedTopicIds || []),
+    ]))
+    return linkedTopicIds.length ? { ...row, linkedTopicIds } : row
+  })
+}
 /** dailyFocus 按日期键合并：单边改动整键取该侧；双边同键都改过 → 槽级 LWW（按槽 id，FocusSlot 无 updatedAt，平手取本地） */
 function mergeDailyFocus(curD: AppData['dailyFocus'], snapD: AppData['dailyFocus'], extD: AppData['dailyFocus']): AppData['dailyFocus'] {
   const out: AppData['dailyFocus'] = { ...(extD || {}) }
@@ -556,12 +606,15 @@ export function mergeExternalData(ext: AppData): AppData {
     resources: mergeCardArr(cur.resources || [], snap.resources || [], ext.resources || []),
     tasks: mergeCardArr(cur.tasks || [], snap.tasks || [], ext.tasks || []),
     curiosities: mergeCardArr(cur.curiosities || [], snap.curiosities || [], ext.curiosities || []),
+    topics: mergeCardArr(cur.topics || [], snap.topics || [], ext.topics || []),
+    topicStatuses: mergeByIdArr(cur.topicStatuses || [], snap.topicStatuses || [], ext.topicStatuses || []),
+    topicResourceLinks: mergeByIdArr(cur.topicResourceLinks || [], snap.topicResourceLinks || [], ext.topicResourceLinks || []),
     dailyFocus: mergeDailyFocus(cur.dailyFocus, snap.dailyFocus, ext.dailyFocus),
     compass: jsonEq(cur.compass, snap.compass) ? ext.compass : cur.compass,
     // R70：数组型实体段改「按 id 并集」；compass（三层嵌套）/ fieldConfig / stats 仍是对象型，
     // 深度合并风险大于收益，保留原判据（单边改动时取改动侧）。
     workspaces: mergeByIdArr(cur.workspaces || [], snap.workspaces || [], ext.workspaces || []),
-    categories: mergeByIdArr(cur.categories || [], snap.categories || [], ext.categories || []),
+    categories: mergeCategoryArr(cur.categories || [], snap.categories || [], ext.categories || []),
     // R151：标签树有两个写入面——逐节点增删改（可并集）与整体梳理的整树替换（不可并集）。
     // 替换会给 tagTreeRevision +1，谁号大听谁的；同版本才退回按 id 并集。
     tagTree: mergeTagTree(cur, snap, ext),

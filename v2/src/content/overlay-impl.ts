@@ -12,7 +12,7 @@
 import { K } from '@/shared/storage/keys'
 import { overlayStyleText } from './overlay-styles'
 import { openSearch, resetSearchAndRerun, cancelPendingReplace } from './overlay-search'
-import { openCapture, openCuriosity, openTaskCapture } from './overlay-capture'
+import { openCapture, openCuriosity, openTaskCapture, openTopicCapture } from './overlay-capture'
 
 const ROOT_ID = '__zy_global_overlay__'
 /**
@@ -47,10 +47,11 @@ function injectStyles() {
  *   apple 4.92 / notion 5.55，由 `scripts/theme-contrast.cjs` 常驻校验）。
  */
 const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
-  /* V4.4.0：三主题唯一主行动色统一为知源 Logo 蓝。 */
-  raycast: { accent: '#1579AD', on: '#FFFFFF' },
+  /* V4.5：光速黑用暗红强调，浅色主题沿用知源蓝，OPPO 绿独立成主题。 */
+  raycast: { accent: '#B54747', on: '#FFFFFF' },
   apple: { accent: '#0F6F9E', on: '#FFFFFF' },
-  notion: { accent: '#0B668F', on: '#FFFFFF' }
+  notion: { accent: '#0B668F', on: '#FFFFFF' },
+  oppo: { accent: '#168457', on: '#FFFFFF' }
 }
 /** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
 async function applyThemeAccent() {
@@ -253,4 +254,4 @@ export {
   ROOT_ID, safeSend, uid, ensureRoot, focusWhenReady, openOverlay, closeOverlay, showToast,
   showSaved, setActiveTcSave, resetSavedReceipt,
 }
-export { openSearch, openCapture, openCuriosity, openTaskCapture }
+export { openSearch, openCapture, openCuriosity, openTaskCapture, openTopicCapture }

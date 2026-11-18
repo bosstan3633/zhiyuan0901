@@ -27,14 +27,15 @@ check('R191-1 ★策展节点零「缺证据」字段：资源缺失不再变成
     && !MAP.includes('mind-evidence')
 })
 
-check('R191-2（V4.4.0 重指）★节点资源入口按频率分层：无资源时正文全宽主 CTA，已有资源时保留继续关联；附件降为次级元数据行', () => {
-  return NODE.includes("'resource-bearing': cards().length > 0")
-    && NODE.includes('<div v-if="cards().length" class="mind-resources">')
-    && NODE.includes('<div v-if="cards().length" class="mind-node-foot">')
+check('R191-2（V4.5.0 重指）★节点关联入口按频率分层：无关联卡时正文全宽主 CTA，已有资源或选题时保留继续关联；附件降为次级元数据行', () => {
+  return NODE.includes("'resource-bearing': cards().length > 0 || linkedTopics().length > 0")
+    && NODE.includes('<div v-if="cards().length || linkedTopics().length" class="mind-resources">')
+    && NODE.includes('<div v-if="cards().length || linkedTopics().length" class="mind-node-foot">')
     && NODE.includes('class="mind-resource-empty"')
     && NODE.includes('class="mind-resource-cta"')
-    && NODE.includes('<Icon name="link" :size="12"/> 关联资源卡')
-    && NODE.includes('继续关联资源')
+    && NODE.includes('<Icon name="link" :size="12"/> 关联卡片')
+    && NODE.includes('继续关联卡片')
+    && NODE.includes('class="mind-topic"')
     && NODE.includes('compact')
     && !NODE.includes('v-if="!cards().length" class="mind-head-action"')
     && CSS.includes('.mind-node:not(.resource-bearing) .mind-desc')

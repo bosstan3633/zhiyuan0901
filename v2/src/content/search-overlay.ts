@@ -44,11 +44,12 @@ function loadImpl(): Promise<OverlayImpl> {
 }
 
 // ============ 指令 → 浮层入口映射 ============
-const IMPL_ENTRY: Record<string, 'openSearch' | 'openCapture' | 'openCuriosity' | 'openTaskCapture'> = {
+const IMPL_ENTRY: Record<string, 'openSearch' | 'openCapture' | 'openCuriosity' | 'openTaskCapture' | 'openTopicCapture'> = {
   'zy-open-search': 'openSearch',
   'zy-open-capture': 'openCapture',
   'zy-open-curiosity': 'openCuriosity',
-  'zy-open-task-capture': 'openTaskCapture'
+  'zy-open-task-capture': 'openTaskCapture',
+  'zy-open-topic-capture': 'openTopicCapture'
 }
 
 // ============ [2] 接收 background 指令 ============

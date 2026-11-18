@@ -13,7 +13,7 @@
  */
 import type { ResourceCard, TaskCard, CuriosityCard } from '../models'
 
-export type LifecycleKind = 'resource' | 'task' | 'curiosity'
+export type LifecycleKind = 'resource' | 'task' | 'curiosity' | 'topic'
 export type LifecycleState = 'active' | 'cooling' | 'archived'
 
 /** 结构最小输入（三卡均满足；引擎只依赖这些字段） */

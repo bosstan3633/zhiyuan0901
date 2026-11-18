@@ -12,7 +12,7 @@ import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import { saveUIPrefs, loadUIPrefs } from '@/shared/storage/repository'
 const SettingsCloudSync = defineAsyncComponent(() => import('./SettingsCloudSync.vue'))
-import { getAllAssetIndex, clearAllAssets, clearAllAssetReferences } from '@/shared/storage/assets'
+import { getAllAssetIndex, clearAllAssets, clearAllAssetReferences, cleanupOrphanAssetsOf } from '@/shared/storage/assets'
 import Icon from '@/shared/components/Icon.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
@@ -148,6 +148,9 @@ const assetOwnerKind = ref<'all' | AssetOwnerKind>('all')
 const filteredAssetRows = computed(() =>
   filterAssetRows(assetRows.value, assetQuery.value, assetKind.value, assetStorage.value, assetOwnerKind.value)
 )
+const orphanAssetRowsView = computed(() => assetRows.value.filter(row => !row.owner.cardId))
+const orphanAssetCount = computed(() => orphanAssetRowsView.value.length)
+const orphanAssetBytes = computed(() => orphanAssetRowsView.value.reduce((sum, row) => sum + row.size, 0))
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 const curiosityPanelRef = ref<InstanceType<typeof CuriosityPanel> | null>(null)
 const argumentDrawerOpen = ref(false)
@@ -167,6 +170,10 @@ async function openAssetOwner(row: AssetRow): Promise<void> {
   if (owner.kind === 'task') {
     const task = gd.value.tasks.find(card => card.id === owner.cardId && !card.deletedAt) as TaskCard | undefined
     if (task) taskDetailRef.value?.open(task)
+    return
+  }
+  if (owner.kind === 'topic') {
+    emitOpenDrawer({ kind: 'topic', id: owner.cardId })
     return
   }
   if (owner.kind === 'curiosity') {
@@ -212,7 +219,7 @@ let offResourceDrawerClosed: (() => void) | null = null
 onMounted(() => {
   void refreshAssetRows()
   offResourceDrawerClosed = onDrawerClosed((payload) => {
-    if (payload.kind === 'res') void refreshAssetRows()
+    if (payload.kind === 'res' || payload.kind === 'topic') void refreshAssetRows()
   })
 })
 onUnmounted(() => {
@@ -272,7 +279,7 @@ async function clearAssetsEverywhere() {
   }
   if (!(await useConfirm({
     title: '清空全部附件',
-    message: `当前共 ${index.length} 个附件、${props.formatBytes(index.reduce((sum, item) => sum + item.size, 0))}。清理会同时解除资源卡、任务卡、好奇心卡和论证卡上的附件关联，并永久删除附件本体；不可恢复。`,
+    message: `当前共 ${index.length} 个附件、${props.formatBytes(index.reduce((sum, item) => sum + item.size, 0))}。清理会同时解除资源卡、任务卡、选题卡、好奇心卡和论证卡上的附件关联，并永久删除附件本体；不可恢复。`,
     confirmText: `永久清空 ${index.length} 个`,
   }))) return
   try {
@@ -283,6 +290,27 @@ async function clearAssetsEverywhere() {
     showToast(`已清空 ${deleted} 个附件${changedCards ? `，更新 ${changedCards} 张卡片` : ''}`)
   } catch (e) {
     showToast('清理失败：' + (e instanceof Error ? e.message : '未知错误'))
+    await refreshAssetRows()
+  }
+}
+
+/** 只清理 IndexedDB 中没有卡片引用的附件；不触碰回收站中仍可恢复卡片的附件。 */
+async function clearOrphanAssets(): Promise<void> {
+  if (!orphanAssetCount.value) {
+    showToast('没有无引用附件需要清理')
+    return
+  }
+  if (!(await useConfirm({
+    title: '清理无引用附件',
+    message: `当前有 ${orphanAssetCount.value} 个附件没有卡片引用，占用 ${props.formatBytes(orphanAssetBytes.value)}。清理后只删除这些孤立本体，不影响任何卡片附件；本操作不可恢复。`,
+    confirmText: `永久清理 ${orphanAssetCount.value} 个`,
+  }))) return
+  try {
+    const deleted = await cleanupOrphanAssetsOf(gd.value)
+    await refreshAssetRows()
+    showToast(`已清理 ${deleted} 个无引用附件`)
+  } catch (e) {
+    showToast('清理无引用附件失败：' + (e instanceof Error ? e.message : '未知错误'))
     await refreshAssetRows()
   }
 }
@@ -389,10 +417,13 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
           <input v-model="assetQuery" class="gs-input dm-search" placeholder="搜索附件名 / 所属卡片" />
           <select v-model="assetKind" class="gs-select"><option value="all">全部类型</option><option value="image">图片</option><option value="pdf">PDF</option><option value="html">HTML</option></select>
           <select v-model="assetStorage" class="gs-select"><option value="all">全部状态</option><option value="ok">正常</option><option value="missing">本体缺失</option></select>
-          <select v-model="assetOwnerKind" class="gs-select"><option value="all">全部卡片</option><option value="resource">资源卡</option><option value="task">任务卡</option><option value="curiosity">好奇心卡</option><option value="argument">论证卡</option></select>
+          <select v-model="assetOwnerKind" class="gs-select"><option value="all">全部卡片</option><option value="resource">资源卡</option><option value="task">任务卡</option><option value="topic">选题卡</option><option value="curiosity">好奇心卡</option><option value="argument">论证卡</option></select>
           <button class="gs-btn" @click="refreshAssetRows">{{ assetLoading ? '读取中…' : '刷新' }}</button>
           <button class="gs-btn gs-btn-primary" :disabled="assetPacking || !assetIndexCount" @click="packAssets">{{ assetPacking ? `打包中 ${assetPackProgress.done}/${assetPackProgress.total}` : '全部附件整体打包下载' }}</button>
           <button class="gs-btn" @click="assetPackInput?.click()">导入附件包</button>
+          <button v-if="orphanAssetCount" class="gs-btn gs-btn-danger" :disabled="assetLoading" @click="clearOrphanAssets">
+            清理无引用附件（{{ orphanAssetCount }}）
+          </button>
         </div>
         <div class="dm-asset-head"><span>附件</span><span>所属卡片</span><span>位置 / 链接</span><span>状态</span></div>
         <EmptyState v-if="!filteredAssetRows.length" size="inline" icon="paperclip" title="没有匹配的附件" hint="上传卡片附件后会在这里出现" />
@@ -405,7 +436,7 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
             <div class="dm-asset-name">{{ r.name }}</div>
             <div class="dm-asset-meta">{{ r.kind.toUpperCase() }} · {{ props.formatBytes(r.size) }} · {{ new Date(r.createdAt).toLocaleDateString('zh-CN') }}</div>
           </div>
-          <div class="dm-asset-main"><div class="dm-asset-name">{{ r.owner.cardTitle }}</div><div class="dm-asset-meta">{{ r.owner.kind === 'resource' ? '资源卡' : r.owner.kind === 'task' ? '任务卡' : r.owner.kind === 'curiosity' ? '好奇心卡' : '论证卡' }}</div></div>
+          <div class="dm-asset-main"><div class="dm-asset-name">{{ r.owner.cardTitle }}</div><div class="dm-asset-meta">{{ r.owner.kind === 'resource' ? '资源卡' : r.owner.kind === 'task' ? '任务卡' : r.owner.kind === 'topic' ? '选题卡' : r.owner.kind === 'curiosity' ? '好奇心卡' : '论证卡' }}</div></div>
           <div class="dm-asset-main"><div class="dm-asset-meta">{{ r.owner.location }}</div><div class="dm-asset-link" :title="r.owner.originalLink || ''">{{ r.owner.originalLink || '—' }}</div></div>
           <div><span class="dm-badge" :class="r.storage === 'ok' ? 'ok' : 'miss'">{{ r.storage === 'ok' ? '正常' : '本体缺失' }}</span></div>
         </button>

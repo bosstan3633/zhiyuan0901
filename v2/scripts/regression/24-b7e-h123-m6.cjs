@@ -408,8 +408,8 @@ check(NAME(
 check(
   'M6-8 ★顶栏保存状态点与骨架条「建议目标」必须实测达到 28px（V3.9.16 M6 实拍抓到 7px / 22px 两族）：保存点视觉仍为 7px，命中盒用透明 28px 本体 + ::before 画点；建议目标为文字型按钮，min-height 撑到 28px。两者都不得靠放大视觉尺寸换热区',
   () => {
-    const app = codeOnly(read('/newtab/App.vue'));
-    const tree = codeOnly(read('/newtab/views/CompassTree.vue'));
+    const app = codeOnly(read('/newtab/views/CompassHome.vue'));
+    const tree = codeOnly(read('/newtab/views/CompassTree.vue') + '\n' + read('/newtab/views/CompassTree.css'));
     const dotOk = /\.save-dot \{[^}]*width: 28px;[^}]*height: 28px;/.test(app.replace(/\\n/g, '\n'))
       && /\.save-dot::before \{[^}]*width: 7px;[^}]*height: 7px;/.test(app)
     const aiOk = /\.ai-chain-act \{[^}]*min-height: 28px;/.test(tree)

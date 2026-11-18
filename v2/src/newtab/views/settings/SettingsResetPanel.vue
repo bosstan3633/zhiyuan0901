@@ -8,7 +8,7 @@
       <div class="gs-card-header"><span class="gs-card-title"><Icon name="warn" :size="12"/> 危险操作区</span></div>
       <div class="gs-card-body">
         <div class="gs-danger-action">
-          <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，仅保留调度台、方向台（任务中心）和默认策展台</div></div>
+          <div class="gs-da-info"><div class="gs-da-name">一键回滚至初始状态</div><div class="gs-da-desc">清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡、选题卡，仅保留调度台、方向台（任务中心）和默认策展台</div></div>
           <button class="gs-btn gs-btn-danger" @click="showResetModal = true">回滚</button>
         </div>
         <div class="gs-danger-action">
@@ -33,7 +33,7 @@
   <div class="gs-modal">
     <div class="gs-modal-header"><Icon name="warn" :size="13"/> 确认回滚至初始状态</div>
     <div class="gs-modal-body">
-      <p>此操作将清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡，<b class="gs-danger-text">仅保留调度台、方向台（任务中心）和默认策展台</b>。</p>
+      <p>此操作将清空所有用户创建的策展台和所有资源卡、好奇心卡、任务卡、选题卡，<b class="gs-danger-text">仅保留调度台、方向台（任务中心）和默认策展台</b>。</p>
       <p>此操作<b class="gs-danger-text">不可恢复</b>，建议先导出数据备份。</p>
       <p>请输入 <b>"回滚"</b> 以确认：</p>
       <input v-model="resetConfirmText" type="text" class="gs-confirm-input" placeholder="请输入 回滚" />
@@ -87,6 +87,12 @@ function doReset() {
   store.data!.resources = []
   store.data!.tasks = []
   store.data!.curiosities = []
+  store.data!.topics = []
+  store.data!.argCards = []
+  store.data!.topicStatuses = fresh.topicStatuses
+  store.data!.topicResourceLinks = []
+  store.data!.supportLinks = []
+  store.data!.curioSupportLinks = []
   store.data!.dailyFocus = {}
   store.data!.fieldConfig = fresh.fieldConfig
   store.data!.tagTree = fresh.tagTree
@@ -105,7 +111,7 @@ function doReset() {
 async function emptyRecycleBin() {
   const d = store.data!
   const targets = recycledCardsOf(d)
-  const n = targets.resources.length + targets.tasks.length + targets.curiosities.length + targets.categories.length
+  const n = targets.resources.length + targets.tasks.length + targets.topics.length + targets.curiosities.length + targets.categories.length + targets.argCards.length
   if (!n) { showToast('回收站已是空的'); return }
   if (!(await useConfirm({ title: '清空回收站', message: `确定永久删除回收站里全部 ${n} 项？\n不可恢复，且仅被这些卡引用的附件本体会一并清除。`, confirmText: `永久删除 ${n} 项` }))) return
   const r = await purgeCardsCompletely(d, targets)

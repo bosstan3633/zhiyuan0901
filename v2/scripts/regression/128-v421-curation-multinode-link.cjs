@@ -97,12 +97,14 @@ check('V421-15 ★判重精确到本节点：A/B 都显示已挂该卡，未挂�
     && data.curationProjections.length === 2
 })
 
-check('V421-16 ★选择器消费单源节点判重并说清边界：使用 mirroredCardIdsAtNode，徽标改为“已在本节点”，不再显示“已在该台”', () => {
+check('V421-16（V4.5.0 重指）★选择器消费单源节点判重并说清边界：资源卡使用 mirroredCardIdsAtNode，选题卡按节点 linkedTopicIds 判重；徽标区分“已在本节点/已关联”，不再显示“已在该台”', () => {
   const pyramid = read('/newtab/composables/usePyramid.ts')
   const modal = read('/newtab/components/LinkCardsModal.vue')
   return pyramid.includes('mirroredCardIdsAtNode(d.value, workspaceId.value, linkCardsModal.value.catId)')
-    && pyramid.includes('projectCardToBoardEx(d.value, id, workspaceId.value, m.catId).created')
+    && pyramid.includes('const linkedTopicIds = new Set(category?.linkedTopicIds || [])')
+    && pyramid.includes('projectCardToBoardEx(d.value, row.card.id, workspaceId.value, m.catId).created')
     && modal.includes('已在本节点')
+    && modal.includes("c.kind === 'topic' ? '已关联' : '已在本节点'")
     && modal.includes('同一资源卡可分别挂到本台的不同节点')
     && !modal.includes('已在该台')
 })

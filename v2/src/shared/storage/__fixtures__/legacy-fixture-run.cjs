@@ -31,13 +31,26 @@ const repoTs = path.join(here, '..', 'legacy-normalize.ts')
 const sample = JSON.parse(fs.readFileSync(path.join(here, 'legacy-library.sample.json'), 'utf8'))
 
 /* 1) 从 legacy-normalize.ts 里取出归一化实现区间。
-   V4.3.3 起 normalizeLegacyCards 依赖同为模块私有的 legacyPlanDate：
-   只切导出函数会让夹具运行器取不到该 helper，所以从 helper 头开始，到文件尾结束。 */
+   V4.3.3 起 normalizeLegacyCards 依赖同为模块私有的 legacyPlanDate；
+   V4.5.0 起又依赖 topicStatus.ts 的 normalizeTopicStatusDomain（它自身依赖
+   sortedTopicStatuses / topicStatusOf / defaultTopicStatuses）。夹具必须把这条
+   依赖链一起转译，否则会在 Node 里执行到未定义函数，行为闸反而失去意义。
+   只切这些纯函数区间，不引入 `@/` 别名 import。 */
 const repo = fs.readFileSync(repoTs, 'utf8')
 const from = repo.indexOf('function legacyPlanDate')
 const to = repo.length
 if (from < 0 || to <= from) { console.error('剥不出 legacyPlanDate / normalizeLegacyCards —— 锚点漂了'); process.exit(2) }
-const body = repo.slice(from, to)
+const topicTs = fs.readFileSync(path.join(here, '..', '..', 'utils', 'topicStatus.ts'), 'utf8')
+const topicFrom = topicTs.indexOf('export function sortedTopicStatuses')
+if (topicFrom < 0) { console.error('剥不出 topicStatus 依赖链 —— 锚点漂了'); process.exit(2) }
+const defaultsTs = fs.readFileSync(path.join(here, '..', 'defaults.ts'), 'utf8')
+const defaultsFrom = defaultsTs.indexOf('export function defaultTopicStatuses')
+const defaultsTo = defaultsTs.indexOf('\nexport function createDefaultData', defaultsFrom)
+if (defaultsFrom < 0 || defaultsTo <= defaultsFrom) {
+  console.error('剥不出 defaultTopicStatuses —— 锚点漂了')
+  process.exit(2)
+}
+const body = defaultsTs.slice(defaultsFrom, defaultsTo) + '\n' + topicTs.slice(topicFrom) + '\n' + repo.slice(from, to)
 if (body.length < 3000) { console.error(`切出的函数体过短（${body.length} 字符）——锚点多半没对上`); process.exit(2) }
 
 /* 2) esbuild 转译成可执行 JS。刻意只切这一段：本仓库用的是 `@/` 别名，

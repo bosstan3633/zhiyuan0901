@@ -19,13 +19,13 @@ import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
 import { uid } from '@/shared/utils'
 import { saveUIPrefs } from '@/shared/storage/repository'
-import { onOpenDrawer } from '@/shared/utils/bus'
+import { emitOpenDrawer, onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import DeckBatchBar from './DeckBatchBar.vue'
 import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
-import type { TaskCard, FieldDef } from '@/shared/models'
+import type { FocusSlot, TaskCard, FieldDef, TopicCard } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
@@ -42,6 +42,9 @@ import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
 import TaskCalendarView from './TaskCalendarView.vue'
 import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type TaskGroupMode } from './useTaskManagerPanel'
+import { activeFocusSlots, clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
+import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
+import { isTopicDone, toggleTopicDone } from '@/shared/utils/topicStatus'
 const {
   route,
   router,
@@ -160,6 +163,96 @@ const {
   taskNavIndex,
   onTaskNavKey,
 } = useTaskManagerPanel(props)
+
+function localTodayKey(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+const liveTaskCards = computed(() => (d.value.tasks || []).filter(task => !task.deletedAt))
+const liveTopicCards = computed(() => (d.value.topics || []).filter(topic => !topic.deletedAt))
+const todayFocusSlots = computed(() => activeFocusSlots(d.value.dailyFocus?.[localTodayKey()]))
+
+function openTopic(topic: TopicCard): void {
+  recordCardOpen(d.value, topic)
+  store.persistHot()
+  emitOpenDrawer({ kind: 'topic', id: topic.id })
+}
+
+function toggleTopicStatus(topicId: string): void {
+  const topic = liveTopicCards.value.find(row => row.id === topicId)
+  if (!topic) return
+  const nextDone = !isTopicDone(d.value, topic)
+  toggleTopicDone(d.value, topic)
+  store.persist()
+  showToast(nextDone ? '选题已完成，今日三件事和月历已同步' : '选题已恢复为完成前的状态')
+}
+
+function clearTopicFromToday(topicId: string): FocusSlot | null {
+  const day = localTodayKey()
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+  const index = cells.findIndex(slot => !!slot && !slot.cleared
+    && slot.sourceType === 'topic' && slot.sourceId === topicId)
+  if (index < 0) return null
+  const previous = cells[index]
+  detachFocusTopicFromDate(d.value, day, topicId)
+  cells[index] = clearedFocusSlot(index, previous)
+  d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
+  return previous ? JSON.parse(JSON.stringify(previous)) as FocusSlot : null
+}
+
+function setTopicDueDate(topicId: string, date: string): void {
+  const topic = liveTopicCards.value.find(row => row.id === topicId)
+  if (!topic || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
+  const today = localTodayKey()
+  if (date === today) {
+    if (isTopicDone(d.value, topic) && !todayFocusSlots.value.some(slot => slot.sourceType === 'topic' && slot.sourceId === topicId)) {
+      showToast('已完成选题不能新排入今日；今日日历与三件事严格保持同一集合')
+      return
+    }
+    const result = addManualTopicFocus(d.value, today, topicId)
+    if (result.status === 'full') {
+      showToast('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
+      return
+    }
+    store.persist()
+    showToast(result.status === 'exists' ? '选题已在今日三件事与今日日历中' : '已安排到今日，并加入今日三件事')
+    return
+  }
+  clearTopicFromToday(topicId)
+  topic.dueDate = date
+  topic.updatedAt = Date.now()
+  store.persist()
+  showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日，并移出今日三件事`)
+}
+
+function clearTopicDueDate(topicId: string): void {
+  const topic = liveTopicCards.value.find(row => row.id === topicId)
+  if (!topic) return
+  const removedFocus = clearTopicFromToday(topicId)
+  topic.dueDate = undefined
+  topic.updatedAt = Date.now()
+  store.persist()
+  showToast('已取消排期，选题回到卡片池', {
+    label: '撤销',
+    cb: () => {
+      const current = liveTopicCards.value.find(row => row.id === topicId)
+      if (!current) return
+      const day = localTodayKey()
+      if (removedFocus) {
+        const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+        const index = removedFocus.slotIndex ?? cells.findIndex(cell => !cell || cell.cleared)
+        if (index >= 0 && index < 3) cells[index] = removedFocus
+        d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
+        current.dueDate = day
+      }
+      current.updatedAt = Date.now()
+      store.persist()
+      showToast('已恢复选题排期')
+    },
+  })
+}
 
 const rootEl = ref<HTMLElement | null>(null)
 async function resetForFresh() {
@@ -456,14 +549,22 @@ defineExpose({ openDetail, resetForFresh })
       <TaskCalendarView
         v-else
         :tasks="filteredTasks"
+        :focus-tasks="liveTaskCards"
+        :topics="liveTopicCards"
+        :topic-statuses="d.topicStatuses"
+        :focus-slots="todayFocusSlots"
         :project-names="projNameById"
         :metric-names="metricTitleById"
         @open-task="openTaskFromAi"
+        @open-topic="openTopic"
         @toggle-status="toggleTaskCompletion"
+        @toggle-topic-status="toggleTopicStatus"
         @assign-task="openTaskFromAi"
         @focus-task="addTaskToTodayFocus"
         @set-due="setTaskDueDate"
         @clear-due="clearTaskDueDate"
+        @set-topic-due="setTopicDueDate"
+        @clear-topic-due="clearTopicDueDate"
       />
     </div>
 

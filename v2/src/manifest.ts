@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: '知源调度台',
   short_name: '知源',
-  version: '4.4.0',
+  version: '4.5.0',
   description: '你在浏览器里的个人调度中台 · 万千可调用，自有我方向 · 本地优先 · Chrome MV3',
   permissions: ['storage', 'unlimitedStorage', 'tabs', 'activeTab', 'commands', 'scripting', 'downloads', 'alarms'],
   host_permissions: ['<all_urls>', 'file:///*'],
@@ -55,6 +55,12 @@ export default defineManifest({
     },
     'goto-tasks': {
       description: '直达任务卡池'
+    },
+    'goto-topic': {
+      description: '直达选题卡池'
+    },
+    'open-topic': {
+      description: '快速采集选题卡'
     },
     'sync-cloud-now': {
       description: '立即同步云端'

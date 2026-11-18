@@ -2,7 +2,7 @@
 /**
  * 主题对比度门禁 · theme-contrast（R156 新建）
  *
- * 为什么有它：V4.4.0 将主行动色统一到知源 Logo 蓝，三套主题各自校准亮度，
+ * 为什么有它：V4.4.1 四套主题各自校准亮度，
  *   而 accent 在本产品**同时承担三种角色**——① 主按钮底色（配硬编码白字）② 当前态文字色
  *   ③ 焦点环/选中底。角色一决定了 accent 的**相对亮度上限**（白字要 ≥4.5:1 ⇒ L ≤ 0.183），
  *   角色二决定了下限（不能太暗）。这是"手调色值"最容易踩空的地方，必须机器判定。
@@ -17,8 +17,8 @@
  *   - --toast-fg / --toast-bg ≥ 4.5 · --toast-action / --toast-bg ≥ 4.5（R146 曾踩 1.98:1）
  *   - --heat-ink / --surface ≥ 4.5 · --heat-ink / --surface-2 ≥ 4.5（R172-T3：热力段专用文字色；
  *     图例注释 / 概览带人话句高亮 / 代码片都压在 surface 家族上）+ 热力令牌 8/8 齐全
- *   - 三主题 --accent 互不相同且均落在 Logo 蓝色相区间
- *   - 三主题 --heat-5 互不相同（R172-T3：顶档色是三主题可辨性的最后一道）
+ *   - 四主题 --accent 互不相同，并按主题校验色相：光速黑暗红 / 浅色主题 Logo 蓝 / OPPO 绿
+ *   - 四主题 --heat-5 互不相同（顶档色是四主题可辨性的最后一道）
  * 另打印**信息项**（不作判据）：accent/accent-light（同色系淡底深字固有上限 ~3.3:1）、
  *   三主题 accent 色相角矩阵（"两两可辨"的最终判据是 theme-audit 截图，此处只给数值参考）。
  *
@@ -28,7 +28,7 @@ const path = require('path')
 const fs = require('fs')
 
 const CSS = path.resolve(__dirname, '..', 'src', 'shared', 'styles', 'tokens.css')
-const THEMES = ['raycast', 'apple', 'notion']
+const THEMES = ['raycast', 'apple', 'notion', 'oppo']
 
 // ---- WCAG 2.1 相对亮度 / 对比度 ----
 const h2r = (h) => { const s = h.replace('#', ''); return [0, 2, 4].map((i) => parseInt(s.slice(i, i + 2), 16)) }
@@ -118,25 +118,32 @@ for (const t of THEMES) {
   console.log(`  ·  ${t.padEnd(8)} 信息 accent/accent-light=${ratio(acc, al).toFixed(2)}（同色系淡底固有上限）  accent=HSL(${h.toFixed(0)},${s.toFixed(0)}%,${l.toFixed(0)}%)`)
 }
 
-// 三主题 accent 必须互不相同，并保持在知源 Logo 蓝色相区间。
+// 四主题 accent 必须互不相同，并按主题守各自色相。
 const uniq = new Set(Object.values(accents))
-console.log('\n-- 三主题 accent 唯一性与蓝色相 --')
+console.log('\n-- 四主题 accent 唯一性与色相契约 --')
 if (uniq.size !== THEMES.length) { fail++; console.log(`  ✗ accent 存在重复：${JSON.stringify(accents)}`) }
-else console.log(`  ✓ 三主题 accent 互不相同：${THEMES.map((t) => `${t}=${accents[t]}`).join(' · ')}`)
+else console.log(`  ✓ 四主题 accent 互不相同：${THEMES.map((t) => `${t}=${accents[t]}`).join(' · ')}`)
 const accentHues = THEMES.map((t) => [t, hsl(P(accents[t]))[0]])
-const offBlue = accentHues.filter(([, h]) => h < 185 || h > 215)
-if (offBlue.length) {
+const hueRange = {
+  raycast: [345, 15],
+  apple: [185, 215],
+  notion: [185, 215],
+  oppo: [135, 170],
+}
+const inRange = (h, range) => range[0] > range[1] ? (h >= range[0] || h <= range[1]) : (h >= range[0] && h <= range[1])
+const offContract = accentHues.filter(([t, h]) => !inRange(h, hueRange[t]))
+if (offContract.length) {
   fail++
-  console.log(`  ✗ accent 偏离知源 Logo 蓝色相 185°–215°：${offBlue.map(([t, h]) => `${t}=${h.toFixed(0)}°`).join(' · ')}`)
+  console.log(`  ✗ accent 偏离主题色相契约：${offContract.map(([t, h]) => `${t}=${h.toFixed(0)}°`).join(' · ')}`)
 } else {
-  console.log(`  ✓ 三主题 accent 均落在知源 Logo 蓝色相：${accentHues.map(([t, h]) => `${t}=${h.toFixed(0)}°`).join(' · ')}`)
+  console.log(`  ✓ 四主题 accent 色相契约通过：${accentHues.map(([t, h]) => `${t}=${h.toFixed(0)}°`).join(' · ')}`)
 }
 
-// R172-T3：三主题 --heat-5（顶档）必须互不相同——否则「一屏看三主题」时分不出彼此
+// 四主题 --heat-5（顶档）必须互不相同——否则一屏对照时分不出彼此。
 const huniq = new Set(Object.values(heat5))
-console.log('\n-- 三主题 --heat-5 唯一性（R172-T3）--')
+console.log('\n-- 四主题 --heat-5 唯一性 --')
 if (huniq.size !== THEMES.length) { fail++; console.log(`  ✗ --heat-5 存在重复：${JSON.stringify(heat5)}`) }
-else console.log(`  ✓ 三主题 --heat-5 互不相同：${THEMES.map((t) => `${t}=${heat5[t]}`).join(' · ')}`)
+else console.log(`  ✓ 四主题 --heat-5 互不相同：${THEMES.map((t) => `${t}=${heat5[t]}`).join(' · ')}`)
 
 const hue = THEMES.map((t) => [t, hsl(P(accents[t]))[0]])
 console.log('\n-- accent 色相角差矩阵（信息项；"两两可辨"的最终判据是 theme-audit 截图）--')
@@ -200,5 +207,5 @@ if (offenders.length) {
   console.log(`  ✓ 全站交互控件零命中（白名单 ${W12G_OK.size} 条纯装饰/次要标记，已逐条写明理由）`)
 }
 
-console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（3 主题 · 14 项/主题 + accent/heat-5 唯一性 + W12-G 组件级可读性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
+console.log(`\n${fail === 0 ? '✓ theme-contrast 全绿（4 主题 · 14 项/主题 + accent/heat-5 唯一性 + W12-G 组件级可读性）' : `✗ theme-contrast 失败 ${fail} 项`}`)
 process.exit(fail === 0 ? 0 : 1)

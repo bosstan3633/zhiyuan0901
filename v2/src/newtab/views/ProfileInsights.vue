@@ -86,6 +86,7 @@ const {
   gTaskLive, gCurioLive, linkCardCount, dash, dashYear,
   dashSelDay, dashStats, dashDirections, dashTasks, heroTotal,
   tagLists, heroEntropy, topTags, heroKindCounts, heroTopTags,
+  gTopicLive, topicPublished, topicSupported, topicMonthAdded,
   heroSupportRate, heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds,
   focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
   matchResourcesOf, todayRows, todayFilled, todayAmmo,
@@ -160,7 +161,8 @@ const profileInsightFacts = computed(() => {
     `全年有效动作：${agg.acts} 次；活跃天数：${agg.act}/${agg.days || 365}`,
     `全年新增卡片：${agg.c.res + agg.c.curio + agg.c.task} 张；调出：${agg.u} 次`,
     `任务状态推进：${agg.s.task} 次；今日三件事完成：${agg.focus} 次；支撑关联：${agg.link} 条`,
-    `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心`,
+    `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心 / ${heroKindCounts.value.topic} 选题`,
+    `选题成果：在库 ${gTopicLive.value.length}，已发布 ${topicPublished.value.length}，有资源支撑 ${topicSupported.value.length}，本月新增 ${topicMonthAdded.value.length}`,
     `证据支撑率：${Math.round(heroSupportRate.value * 100)}%；近 30 天精力落主攻：${Math.round(heroFocusShare.value * 100)}%`,
     `高价值冷却卡：${lcCards.value.length} 张`,
   ]
@@ -237,10 +239,11 @@ watch(activeRange, resetProfileInsight)
     <!-- ===== §1 首屏双面板：产品使用状态 + 个人方向状态 ===== -->
     <PiOverview
       :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
+      :topic-stats="{ all: gTopicLive.length, published: topicPublished.length, supported: topicSupported.length, month: topicMonthAdded.length }"
       :top-tags="heroTopTags"
       :support-rate="heroSupportRate" :focus-share="heroFocusShare"
       :mission-text="heroMission" :focus-projects="heroFocusProjects"
-      @kpi-drill="onHeroDrill" @goto-compass="gotoCompass"
+      @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill" @goto-compass="gotoCompass"
       @open-project="openProjectDetail" />
 
     <!-- ===== §2 按周期观察：页签已是唯一导航，直接进入当前周期 ===== -->

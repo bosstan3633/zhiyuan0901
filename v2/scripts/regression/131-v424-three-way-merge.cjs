@@ -219,11 +219,11 @@ check('V424-M8 ★项目 / 指标就地编辑：项目名有独立编辑入口�
     && compassTree.includes("@save-title=\"(mid, ev) => saveEdit('metric-' + mid, ev)\"")
 })
 
-check('V424-M9 ★空成功指标整卡可接收任务：dragover / dragleave / drop 挂在指标卡根节点，而非只在非空任务列表上', () => {
+check('V424-M9（V4.5.0 重指）★空成功指标整卡可接收任务：dragover / dragleave / drop 挂在指标卡根节点，任务与选题共处时仍先于内容列表生效', () => {
   const lane = read('/newtab/components/compass/CompassLane.vue')
   const card = lane.slice(lane.indexOf('class="metric-card"'), lane.indexOf('</section>', lane.indexOf('class="metric-card"')))
   return card.includes('@dragover.prevent="taskDnd?.onLaneDragOver($event, m.id)"')
     && card.includes('@dragleave="taskDnd?.onLaneDragLeave($event, m.id)"')
     && card.includes('@drop.prevent="taskDnd?.onLaneDrop($event, m.id)"')
-    && card.indexOf('@drop.prevent="taskDnd?.onLaneDrop') < card.indexOf('<ul v-if="open && m.tasks.length"')
+    && card.indexOf('@drop.prevent="taskDnd?.onLaneDrop') < card.indexOf('<div v-if="open && (m.tasks.length || m.topics.length)"')
 })

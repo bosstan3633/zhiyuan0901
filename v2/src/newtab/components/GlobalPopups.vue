@@ -29,6 +29,7 @@
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='res'" :class="{active: currentType==='res'}" @click="setType('res')">资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='task'" :class="{active: currentType==='task'}" @click="setType('task')">任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='curio'" :class="{active: currentType==='curio'}" @click="setType('curio')">好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='topic'" :class="{active: currentType==='topic'}" @click="setType('topic')">选题卡 <span class="gp-tt-count">{{ counts.topic }}</span></div>
         <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='ws'" :class="{active: currentType==='ws'}" @click="setType('ws')">策展台 <span class="gp-tt-count">{{ counts.ws }}</span></div>
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='proj'" :class="{active: currentType==='proj'}" @click="setType('proj')">项目 <span class="gp-tt-count">{{ counts.proj }}</span></div>
@@ -193,6 +194,11 @@
                 <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
                 <button class="gp-ri-act go" title="定位到好奇心卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
               </template>
+              <template v-else-if="item.type==='topic'">
+                <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
+                <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
+                <button class="gp-ri-act go" title="定位到选题卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
+              </template>
             </div>
           </div><!-- /gp-result-item -->
           <div v-if="grp.total > grp.items.length" class="gp-group-more">… 还有 {{ grp.total - grp.items.length }} 条，输入更精确的关键词</div>
@@ -285,6 +291,7 @@
        GlobalPopupsQuickAdd.vue（第一块是 V3.9.6 的 Shortcuts）。交互、类名与 DOM 结构一字未改；
        开面板初始化（预填/选中文本/来源捕获）与 saved 态键盘随面板迁入，宿主只管开关与转发。 -->
   <GlobalPopupsQuickAdd ref="quickAddRef" :task-active="activePanel==='taskcapture'" :curio-active="activePanel==='curio'"
+    :topic-active="activePanel==='topiccapture'"
     :prefill="panelPrefill" @close="closeAll" />
 
   <!-- B3：快捷键速查面板（? 呼出）—— ★V3.9.6 拆出为 GlobalPopupsShortcuts.vue

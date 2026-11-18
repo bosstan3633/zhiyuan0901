@@ -51,6 +51,9 @@ const RECORD_TYPES: Record<string, SyncManifestRecordType> = {
   resources: 'resource',
   tasks: 'task',
   curiosities: 'curiosity',
+  topics: 'topic',
+  topicStatuses: 'topicStatus',
+  topicResourceLinks: 'topicResourceLink',
   argCards: 'argument',
   workspaces: 'workspace',
   categories: 'category',
@@ -69,6 +72,9 @@ const RECORD_COLLECTION_LABEL: Partial<Record<SyncManifestRecordType, string>> =
   resource: '资源卡',
   task: '任务卡',
   curiosity: '好奇心卡',
+  topic: '选题卡',
+  topicStatus: '选题状态',
+  topicResourceLink: '选题资源关系',
   argument: '策展节点',
   workspace: '策展台',
   category: '策展分类',
@@ -142,7 +148,7 @@ function titleOf(record: unknown, fallback: string): string {
 
 function deletionFlag(type: SyncManifestRecordType, value: MaybeMissing): boolean {
   if (missingOf(value) || !isObject(value)) return false
-  if (type === 'resource' || type === 'task' || type === 'curiosity' || type === 'argument' || type === 'category') {
+  if (type === 'resource' || type === 'task' || type === 'curiosity' || type === 'topic' || type === 'argument' || type === 'category') {
     return typeof value.deletedAt === 'number'
   }
   if (type === 'workspace') return value.archived === true
@@ -519,12 +525,13 @@ function mergeValue(
 
 function normalizeMergedData(data: AppData, local: AppData, remote: AppData): AppData {
   const next = clone(data)
-  const metricById = new Map<string, { id: string; projectId: string; taskIds: string[] }>()
+  const metricById = new Map<string, { id: string; projectId: string; taskIds: string[]; topicIds: string[] }>()
   for (const direction of next.compass?.directions || []) {
     for (const project of direction.projects || []) {
       for (const metric of project.metrics || []) {
         metric.taskIds = Array.isArray(metric.taskIds) ? metric.taskIds : []
-        metricById.set(metric.id, { id: metric.id, projectId: project.id, taskIds: metric.taskIds })
+        metric.topicIds = Array.isArray(metric.topicIds) ? metric.topicIds : []
+        metricById.set(metric.id, { id: metric.id, projectId: project.id, taskIds: metric.taskIds, topicIds: metric.topicIds })
       }
     }
   }
@@ -532,6 +539,27 @@ function normalizeMergedData(data: AppData, local: AppData, remote: AppData): Ap
   const taskIdsWithOwner = new Map<string, string>()
   for (const task of next.tasks || []) {
     if (task.metricId && metricById.has(task.metricId)) taskIdsWithOwner.set(task.id, task.metricId)
+  }
+
+  const topicIdsWithOwner = new Map<string, string>()
+  for (const topic of next.topics || []) {
+    if (topic.metricId && metricById.has(topic.metricId)) topicIdsWithOwner.set(topic.id, topic.metricId)
+  }
+  for (const metric of metricById.values()) {
+    for (const topicId of metric.topicIds || []) if (!topicIdsWithOwner.has(topicId)) topicIdsWithOwner.set(topicId, metric.id)
+    metric.topicIds = []
+  }
+  for (const topic of next.topics || []) {
+    const metricId = topicIdsWithOwner.get(topic.id)
+    if (!metricId) {
+      topic.metricId = undefined
+      topic.projectId = undefined
+      continue
+    }
+    const metric = metricById.get(metricId)!
+    topic.metricId = metric.id
+    topic.projectId = metric.projectId
+    metric.topicIds.push(topic.id)
   }
   for (const metric of metricById.values()) {
     for (const taskId of metric.taskIds || []) if (!taskIdsWithOwner.has(taskId)) taskIdsWithOwner.set(taskId, metric.id)

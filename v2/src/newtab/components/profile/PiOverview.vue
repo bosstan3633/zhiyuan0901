@@ -25,7 +25,8 @@ export interface FocusProjectView {
 const props = defineProps<{
   /** 四格读数：全库净资产 / 知识熵 / 证据支撑率 / 近 30 天精力落主攻 */
   total: number
-  kindCounts: { res: number; task: number; curio: number }
+  kindCounts: { res: number; task: number; curio: number; topic: number }
+  topicStats: { all: number; published: number; supported: number; month: number }
   entropy: number
   topTags: string[]
   supportRate: number
@@ -38,6 +39,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'kpi-drill', k: 'total' | 'entropy' | 'support' | 'focus'): void
+  (e: 'topic-drill', k: 'topic-all' | 'topic-published' | 'topic-supported' | 'topic-month'): void
   (e: 'goto-compass'): void
   (e: 'open-project', projectId: string): void
 }>()
@@ -47,9 +49,9 @@ const STATE_LABEL: Record<FocusProjectView['state'], string> = {
 }
 /** 近 30 天使用构成（用三类在库占比作诚实近似；事件口径的 30 天窗口另见周期段） */
 const mix = () => {
-  const { res, task, curio } = props.kindCounts
-  const sum = res + task + curio
-  return { res, task, curio, sum, resPct: sum ? Math.round(res / sum * 100) : 0, taskPct: sum ? Math.round(task / sum * 100) : 0, curioPct: sum ? Math.round(curio / sum * 100) : 0 }
+  const { res, task, curio, topic } = props.kindCounts
+  const sum = res + task + curio + topic
+  return { res, task, curio, topic, sum, resPct: sum ? Math.round(res / sum * 100) : 0, taskPct: sum ? Math.round(task / sum * 100) : 0, curioPct: sum ? Math.round(curio / sum * 100) : 0, topicPct: sum ? Math.round(topic / sum * 100) : 0 }
 }
 </script>
 
@@ -66,11 +68,11 @@ const mix = () => {
       </div>
       <div class="pi-ov-kpis">
         <button class="pi-ov-kpi"
-          :title="`全库净资产 = 三类未删卡合计（回收站不计）· 资源 ${kindCounts.res} · 任务 ${kindCounts.task} · 好奇 ${kindCounts.curio} —— 点击看明细`"
+          :title="`全库净资产 = 四类未删卡合计（回收站不计）· 资源 ${kindCounts.res} · 任务 ${kindCounts.task} · 好奇 ${kindCounts.curio} · 选题 ${kindCounts.topic} —— 点击看明细`"
           @click="emit('kpi-drill', 'total')">
           <span class="v">{{ total.toLocaleString() }}<small>张</small></span>
           <span class="l">在库卡片</span>
-          <span class="d">资源 {{ kindCounts.res }} · 任务 {{ kindCounts.task }} · 好奇 {{ kindCounts.curio }}</span>
+          <span class="d">资源 {{ kindCounts.res }} · 任务 {{ kindCounts.task }} · 好奇 {{ kindCounts.curio }} · 选题 {{ kindCounts.topic }}</span>
         </button>
         <button class="pi-ov-kpi"
           :title="`知识熵 ${entropy.toFixed(1)} bit = 卡片标签分布的离散度（越高铺得越散）· 高频标签：${topTags.length ? topTags.join(' · ') : '尚无带标签的卡片'} —— 点击看明细`"
@@ -97,14 +99,35 @@ const mix = () => {
           </span>
         </button>
       </div>
+      <div class="pi-ov-topic-band" aria-label="选题成果指标">
+        <div class="pi-ov-topic-head">
+          <span><b>选题成果</b><small>从选题到资源支撑与发布</small></span>
+          <button type="button" @click="emit('topic-drill', 'topic-all')">查看全部 <span>›</span></button>
+        </div>
+        <div class="pi-ov-topic-grid">
+          <button type="button" @click="emit('topic-drill', 'topic-all')">
+            <strong>{{ topicStats.all }}</strong><span>在库选题</span>
+          </button>
+          <button type="button" @click="emit('topic-drill', 'topic-published')">
+            <strong>{{ topicStats.published }}</strong><span>已发布</span>
+          </button>
+          <button type="button" @click="emit('topic-drill', 'topic-supported')">
+            <strong>{{ topicStats.supported }}</strong><span>有资源支撑</span>
+          </button>
+          <button type="button" @click="emit('topic-drill', 'topic-month')">
+            <strong>{{ topicStats.month }}</strong><span>本月新增</span>
+          </button>
+        </div>
+      </div>
       <div v-if="mix().sum" class="pi-ov-mix">
         <span class="pi-ov-mix-lab">在库构成</span>
         <span class="pi-ov-mix-bar" aria-hidden="true">
           <i class="m-res" :style="{ width: mix().resPct + '%' }"></i>
           <i class="m-task" :style="{ width: mix().taskPct + '%' }"></i>
           <i class="m-curio" :style="{ width: mix().curioPct + '%' }"></i>
+          <i class="m-topic" :style="{ width: mix().topicPct + '%' }"></i>
         </span>
-        <span class="pi-ov-mix-tx">资源 {{ mix().resPct }}% · 任务 {{ mix().taskPct }}% · 好奇 {{ mix().curioPct }}%</span>
+        <span class="pi-ov-mix-tx">资源 {{ mix().resPct }}% · 任务 {{ mix().taskPct }}% · 好奇 {{ mix().curioPct }}% · 选题 {{ mix().topicPct }}%</span>
       </div>
     </section>
 
@@ -194,6 +217,17 @@ const mix = () => {
 /* M6：文字链接视觉不变，盒子撑到 28px 下限，避免空态入口只有 19px 高。 */
 .pi-dir-go { display: inline-flex; align-items: center; min-height: 28px; margin-top: 2px; border: 0; background: none; padding: 0 2px; font: inherit; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); cursor: pointer; }
 .pi-dir-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); display: flex; align-items: center; gap: 4px; }
+.pi-ov-topic-band { margin-top: 10px; padding: 10px 11px 9px; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)); border-radius: var(--radius-md); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface) 62%); }
+.pi-ov-topic-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.pi-ov-topic-head > span { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.pi-ov-topic-head b { color: var(--text); font-size: var(--fs-caption); letter-spacing: .02em; }
+.pi-ov-topic-head small { color: var(--text-4); font-size: var(--fs-micro); }
+.pi-ov-topic-head button { flex: none; border: 0; background: none; color: var(--accent-ink); font: inherit; font-size: var(--fs-micro); font-weight: 700; cursor: pointer; }
+.pi-ov-topic-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pi-ov-topic-grid button { display: flex; min-width: 0; flex-direction: column; gap: 2px; padding: 7px 9px; border: 1px solid color-mix(in srgb, var(--accent) 13%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--surface) 88%, transparent); color: inherit; font-family: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-fast), transform var(--dur-fast), background var(--dur-fast); }
+.pi-ov-topic-grid button:hover { border-color: color-mix(in srgb, var(--accent) 44%, var(--border)); background: var(--accent-light); transform: translateY(-1px); }
+.pi-ov-topic-grid strong { color: var(--text); font-size: var(--fs-title); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pi-ov-topic-grid span { overflow: hidden; color: var(--text-3); font-size: var(--fs-micro); text-overflow: ellipsis; white-space: nowrap; }
 .pi-ov-mix { display: flex; align-items: center; gap: 9px; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); min-width: 0; }
 .pi-ov-mix-lab { flex: none; }
 .pi-ov-mix-bar { flex: 1; min-width: 40px; height: 5px; display: flex; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
@@ -201,6 +235,7 @@ const mix = () => {
 .pi-ov-mix-bar .m-res { background: var(--accent); }
 .pi-ov-mix-bar .m-task { background: var(--info-blue); }
 .pi-ov-mix-bar .m-curio { background: var(--success); }
+.pi-ov-mix-bar .m-topic { background: color-mix(in srgb, var(--accent) 62%, var(--info-blue)); }
 .pi-ov-mix-tx { flex: none; white-space: nowrap; }
 /* 900px 以下（概览已折单列）与 640px 以下：自然排，不强行同高 */
 @media (max-width: 900px) {
@@ -211,5 +246,6 @@ const mix = () => {
   .pi-ov-mix { flex-wrap: wrap; }
   .pi-ov-mix-bar { order: 3; flex-basis: 100%; }
   .pi-ov-mix-tx { white-space: normal; }
+  .pi-ov-topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

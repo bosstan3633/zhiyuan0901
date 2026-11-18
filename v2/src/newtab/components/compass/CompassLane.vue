@@ -20,6 +20,8 @@ import CompassLevelTag from './CompassLevelTag.vue'
 import CompassMetricTitle from './CompassMetricTitle.vue'
 import type { MetricMeta } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
+import { useCompass } from '../../stores/compass'
+import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
 
 const props = defineProps<{
   m: MetricMeta
@@ -36,6 +38,7 @@ const props = defineProps<{
 }>()
 
 const taskDnd = inject(TASK_DND_KEY, null)
+const { d } = useCompass()
 
 const emit = defineEmits<{
   (e: 'toggle', metricId: string): void
@@ -44,6 +47,8 @@ const emit = defineEmits<{
       此前全站没有任何一条 emit 通到 `CompassTree.detailRef.open()` —— 抽屉组件在位、
       唯独唯一调用点是「新建任务成功后」，于是任务行点了没反应（用户 2026-10-13 报 bug）。 */
   (e: 'openDetail', taskId: string): void
+  /** V4.5：选题卡以“成果”呈现，点击打开选题详情。 */
+  (e: 'openTopic', topicId: string): void
   (e: 'addTask', metricId: string): void
   /** ★R141：任务行 ✕ = 解绑回任务调度模块（不删本体）—— 模板挂载点，删了能力就丢 */
   (e: 'unbind', taskId: string): void
@@ -111,6 +116,17 @@ const dotTitle = computed(() =>
 
 /** 归属路径：只在 hover 时浮现，平时藏起来保持任务行的干净 */
 const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props.m.title}`)
+function topicStatusName(topicId: string): string {
+  const topic = props.m.topics.find(row => row.id === topicId)
+  return topicStatusOf(d.value, topic?.statusId)?.name || '构思中'
+}
+function topicStatusColor(topicId: string): string {
+  const topic = props.m.topics.find(row => row.id === topicId)
+  return topicStatusOf(d.value, topic?.statusId)?.color || 'var(--accent)'
+}
+function topicDone(topicId: string): boolean {
+  return isTopicDone(d.value, props.m.topics.find(row => row.id === topicId))
+}
 </script>
 
 <template>
@@ -174,27 +190,39 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
       </button>
     </header>
 
-    <!-- 任务列表：内嵌 + 分叉连线；★容器不可省（见文件头陷阱说明）。V3.9.31（F4）：行可拖拽 -->
-    <ul v-if="open && m.tasks.length" class="metric-list">
-      <li v-for="t in m.tasks" :key="t.id" class="tk-row" :data-task="t.id" :title="`归属：${crumb}`" :draggable="taskDnd ? true : undefined"
-        :class="[t.status, { 'tk-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
-        @dragstart="taskDnd?.onTaskDragStart($event, t)" @dragover.stop.prevent="taskDnd?.onRowDragOver($event, t)"
-        @drop.stop.prevent="taskDnd?.onRowDrop($event, t, m.id)" @dragend="taskDnd?.onDragEnd()">
-        <button
-          class="tk-box"
-          :class="t.status"
-          :aria-label="t.status === 'done' ? '标记未完成' : '标记完成'"
-          @click="emit('task', t.id)"
-        ><span v-if="t.status === 'done'"><Icon name="check" :size="13"/></span></button>
-        <button class="tk-title" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
-        <!-- 归属路径：hover 浮现 -->
-        <span class="tk-crumb" aria-hidden="true">{{ crumb }}</span>
-        <span class="tk-tags">
-          <!-- V3.9.22：方向台只保留解绑；真删除只在任务详情与任务卡池行末常驻入口。 -->
-          <button class="tk-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click="emit('unbind', t.id)"><Icon name="x" :size="13"/></button>
-        </span>
-      </li>
-    </ul>
+    <!-- 任务与成果选题：都内嵌在指标下，但用不同语义呈现。选题不参与任务完成率。 -->
+    <div v-if="open && (m.tasks.length || m.topics.length)" class="metric-list">
+      <ul v-if="m.tasks.length" class="tk-list">
+        <li v-for="t in m.tasks" :key="t.id" class="tk-row" :data-task="t.id" :title="`归属：${crumb}`" :draggable="taskDnd ? true : undefined"
+          :class="[t.status, { 'tk-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
+          @dragstart="taskDnd?.onTaskDragStart($event, t)" @dragover.stop.prevent="taskDnd?.onRowDragOver($event, t)"
+          @drop.stop.prevent="taskDnd?.onRowDrop($event, t, m.id)" @dragend="taskDnd?.onDragEnd()">
+          <button
+            class="tk-box"
+            :class="t.status"
+            :aria-label="t.status === 'done' ? '标记未完成' : '标记完成'"
+            @click="emit('task', t.id)"
+          ><span v-if="t.status === 'done'"><Icon name="check" :size="13"/></span></button>
+          <button class="tk-title" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
+          <!-- 归属路径：hover 浮现 -->
+          <span class="tk-crumb" aria-hidden="true">{{ crumb }}</span>
+          <span class="tk-tags">
+            <!-- V3.9.22：方向台只保留解绑；真删除只在任务详情与任务卡池行末常驻入口。 -->
+            <button class="tk-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click="emit('unbind', t.id)"><Icon name="x" :size="13"/></button>
+          </span>
+        </li>
+      </ul>
+      <ul v-if="m.topics.length" class="topic-result-list">
+        <li v-for="topic in m.topics" :key="topic.id" class="topic-result-row" :style="{ '--topic-status': topicStatusColor(topic.id) }" :data-topic="topic.id">
+          <button class="topic-result-title" type="button" title="打开选题卡详情" @click="emit('openTopic', topic.id)">
+            <span class="topic-result-tag">成果</span>
+            <span class="topic-result-copy" :class="{ done: topicDone(topic.id) }">{{ topic.title }}</span>
+          </button>
+          <span class="topic-result-status">{{ topicStatusName(topic.id) }}</span>
+          <span class="topic-result-go" aria-hidden="true">›</span>
+        </li>
+      </ul>
+    </div>
 
     <!-- 断链显性化：零任务指标给虚线空位，让"缺"在版面上可见（判据 W11-6） -->
     <div v-else-if="m.orphanMetric" class="mc-orphan">
@@ -213,228 +241,4 @@ const crumb = computed(() => `${props.dirName} › ${props.projName} › ${props
   </section>
 </template>
 
-<style scoped>
-/* ★视觉聚焦（方向台优化）：指标从"卡"退成"分组"。
-   原来指标卡是 surface-2 底 + 圆角，任务行又是 surface 白卡，再套在项目舱卡里 ——
-   同一屏三层容器，边框与底色把注意力从"这条指标要交付什么"上拽走。
-   现在指标只用一条发丝线与序号定位，层级由字号与留白承担；
-   hover 不再加描边环（那是"框"的语言），改为极淡的底色提示。 */
-.metric-card {
-  background: transparent;
-  border-radius: 0;
-  border-top: 1px solid var(--border);
-  /* ★V3.9.19（04-73 D-1(a) 密度接通）：纵向内边距读密度令牌；左 14px 是归属竖轨缩进、右 4px 对齐任务行，均非密度。 */
-  padding: var(--card-pad-vert) 4px var(--card-pad-vert) 14px;
-  position: relative;
-  transition: background var(--dur);
-}
-.metric-card:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
-.mc-head { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; min-width: 0; }
-.mc-head[draggable='true'] { cursor: grab; }
-.mc-head[draggable='true']:active { cursor: grabbing; }
-.mc-grip { flex: none; color: var(--text-4); font-size: var(--fs-micro); letter-spacing: -2px; cursor: grab; }
-.metric-dragging { opacity: .48; }
-.metric-drop-t { box-shadow: inset 0 2px 0 var(--accent); }
-.metric-drop-b { box-shadow: inset 0 -2px 0 var(--accent); }
-.mc-dot {
-  color: var(--text-4); font-size: 9px; line-height: 1;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: all var(--dur);
-}
-.mc-dot.doing { color: var(--warning); }
-.mc-dot.done { color: #fff; }
-.mc-title {
-  font-size: var(--fs-sub); font-weight: 700; color: var(--text);
-  flex: 1; min-width: 0; line-height: 1.45;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* ★就地改名态：与树内 .node-title.editable 同一视觉（虚线下划 + 光标），四层节点改名手感一致 */
-.mc-title.editable { cursor: text; border-bottom: 1px dashed transparent; }
-.mc-title.editable:hover { border-bottom-color: var(--border-strong); }
-.mc-title.editing { border-bottom-color: var(--accent); outline: none; }
-.mc-flag {
-  font-size: var(--fs-micro); color: var(--text-3);
-  background: var(--surface-3); padding: 2px 8px; border-radius: var(--radius-full);
-  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mc-flag.warn { color: var(--warning); background: var(--warning-bg-soft); font-weight: 600; }
-/* ★指标级进度：轨道 56px + 数字并排，顶到行尾（原型 .m-bar 的 margin-left:auto）
-   —— 判据 W11-5：进度数字绝不许大于指标名，这里 --fs-micro < --fs-sub 是硬性前提 */
-.mc-bar {
-  margin-left: auto; display: flex; align-items: center; gap: 7px; flex: none;
-}
-.mc-track {
-  width: 56px; height: 4px; border-radius: 2px;
-  background: var(--surface-3); overflow: hidden; flex: none;
-}
-.mc-fill { display: block; height: 100%; border-radius: 2px; background: var(--hue); transition: width var(--dur); }
-.mc-pct {
-  font-size: var(--fs-micro); color: var(--text-3);
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-.mc-pct.full { color: var(--success); font-weight: 700; }
-.mc-toggle {
-  font-size: var(--fs-micro); color: var(--text-3);
-  padding: 2px 6px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
-  /* ★W12(V3.8.12)真缺陷（theme-audit 深色主题实跑抓到）：button 没给 background/border
-     ⇒ 浏览器默认 buttonface 白底透出来，在 linear/raycast 下是一排白块、文字被吃掉。
-     与 CompassTower 的 .tw-act / .twm-item 同根因，同批修。 */
-  background: transparent; border: 1px solid transparent;
-}
-.mc-toggle:hover { color: var(--text); background: var(--surface-3); }
-.mc-detail {
-  flex: none; border: 1px solid var(--border); background: var(--surface);
-  color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 600;
-  padding: 2px 7px; border-radius: 6px; cursor: pointer; transition: all var(--dur);
-}
-.mc-detail:hover { color: var(--accent-ink); border-color: var(--accent); background: var(--accent-light); }
-/* ★W12：AI / 加任务 两枚操作钮 hover 才显形，让指标名先被读到（能力未删，见模板注释）
-   ★F1：删除 🗑 与「⋯」并入同一套 hover 显形 —— 不新增常驻位，指标头不因删除入口变挤 */
-.mc-add, .mc-ai, .mc-more {
-  font-size: var(--fs-micro); color: var(--text-3);
-  padding: 2px 7px; border-radius: 5px; cursor: pointer; transition: all var(--dur); flex: none;
-  opacity: 0; border: 1px solid transparent; background: transparent; white-space: nowrap;
-}
-.mc-add { border: 1px solid var(--border); background: var(--surface); }
-.metric-card:hover .mc-add, .metric-card:hover .mc-ai, .metric-card:hover .mc-more,
-.mc-add:focus-visible, .mc-ai:focus-visible, .mc-more:focus-visible { opacity: 1; }
-.mc-add:hover { color: var(--accent-ink); background: var(--accent-light); border-color: var(--accent-light); }
-.mc-ai:hover { color: var(--accent-ink); background: var(--accent-light); }
-.mc-more:hover { color: var(--accent-ink); background: var(--accent-light); }
-.mc-more.on { opacity: 1; color: var(--accent-ink); background: var(--accent-light); }
-/* ★F1 指标「⋯」菜单：与项目舱菜单同一套下拉语言（绝对定位 + surface 卡） */
-.mc-ops { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: none; }
-.mc-menu {
-  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 148px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  box-shadow: none; padding: 4px; display: flex; flex-direction: column;
-}
-.mcm-item {
-  font-size: var(--fs-micro); font-weight: 600; color: var(--text-2); text-align: left;
-  padding: 6px 9px; border-radius: 5px; cursor: pointer; font-family: inherit; border: 0; background: transparent;
-}
-.mcm-item:hover { background: var(--surface-3); }
-.mcm-item.danger { color: var(--danger); }
-.mcm-item.danger:hover { background: var(--danger-bg-soft); }
-/* ★归属竖轨：指标卡从项目色条分出的那条线——无内容容器，别删 */
-.metric-list {
-  list-style: none; margin: 7px 0 0; padding: 0 0 0 24px; position: relative;
-}
-.metric-list::before {
-  content: ''; position: absolute; left: 9px; top: -4px; bottom: 14px;
-  width: 2px; border-radius: 2px;
-  background: color-mix(in srgb, var(--hue) 34%, transparent);
-}
-/* ★任务行：保留白底行（W12-5 判据）与 hover 位移（手感），但去掉圆角与卡间距 ——
-   圆角 + 外边距会让每一行都像一张独立小卡，一屏十几条就是十几张卡；
-   改成"表格行"形态后，任务读起来是同一个列表里的连续条目。 */
-.tk-row {
-  display: flex; align-items: center; gap: 8px;
-  /* ★V3.9.19（04-73 D-1(a) 密度接通 · W12-5 随迁备案）：7px 10px 字面量升密度令牌（舒适 8/12 · 紧凑同步收紧），白底与 hover 位移不动。 */
-  padding: var(--card-pad-vert) var(--card-pad-horz); border-radius: 0; margin-bottom: 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  position: relative; transition: all var(--dur); cursor: default;
-}
-.tk-row:last-child { margin-bottom: 0; border-bottom: 0; }
-.tk-row:hover {
-  background: color-mix(in srgb, var(--surface) 66%, var(--bg));
-  transform: none;
-}
-/* ★分叉臂：任务从指标轨道分出的横线——同样是无内容容器 */
-.tk-row::before {
-  content: ''; position: absolute; left: -12px; top: 50%;
-  width: 12px; height: 2px;
-  background: color-mix(in srgb, var(--hue) 42%, transparent);
-}
-.tk-row.done .tk-title { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
-.tk-row.doing .tk-title { color: var(--text); font-weight: 600; }
-.tk-box {
-  /* ★V3.9.6：视觉尺寸与点击盒子已拆到 hotzone.css（本体 28px 透明 + ::before 画 16px 方块），
-     本条只留**非尺寸**属性（尺寸写在 hotzone.css，否则本条 scoped 的特异性会盖掉它）。 */
-  border-radius: 5px; flex: none;
-  color: transparent; font-size: 9px; line-height: 1;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: all var(--dur);
-}
-.tk-box.done { color: #fff; }
-/* 触控：任务标题是下钻入口，窄屏给整行最小热区，避免只能点中文字。
-   ★V3.9.19（04-73 D-2 断点收敛）：480 档并入 800；.tk-row 窄屏 padding 覆盖撤掉——密度令牌已接通，再写字面量等于把紧凑档挡在窄屏之外。 */
-@media (max-width: 800px) {
-  .mc-head { gap: 6px; }
-  .mc-title { flex-basis: auto; }
-  .mc-bar { width: auto; margin-left: auto; margin-top: 0; }
-  .mc-track { flex: 1; width: auto; }
-  .mc-detail { order: 8; }
-  .mc-toggle, .mc-detail { min-height: 30px; }
-  .tk-row { min-height: 40px; }
-  .tk-title { min-height: 24px; }
-}
-/* ★W12-C：任务标题从 <span> 改成 <button>（单击开任务详情抽屉）。
-   补齐按钮态归零——只给交互态（hover / focus）加反馈，不改变任何既有字号字色。 */
-.tk-title {
-  font-size: var(--fs-body); color: var(--text-2); flex: 1; min-width: 0; line-height: 1.5;
-  background: none; border: 0; padding: 0; margin: 0; font-family: inherit; text-align: left;
-  cursor: pointer; border-radius: var(--radius-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.tk-title:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
-.tk-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* 归属路径：默认藏，hover 浮现 */
-.tk-crumb {
-  font-size: var(--fs-tiny); color: var(--text-4);
-  opacity: 0; transition: opacity var(--dur);
-  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none;
-}
-.tk-row:hover .tk-crumb { opacity: 1; }
-.tk-tags { display: flex; align-items: center; gap: 5px; flex: none; }
-/* ★W12-G 可读性（用户 2026-10-13 反馈 6「不同主题下按钮看不清」）：
-   原来用最淡的 --text-4（notion 主题下是 30% 不透明度的深色，对 surface-2 约 2:1，远低于 4.5），
-   这枚带文字标签的按钮在极简白主题下基本隐形。提到 --text-2（可读档），弱化交给 hover。 */
-/* ★解绑钮：默认低调（不与勾选框争），hover 才显形 —— 误触成本高，不能做成随手可点 */
-.tk-unbind {
-  font-size: var(--fs-micro); color: var(--text-4);
-  /* ★V3.9.6：视觉尺寸与点击盒子已拆到 hotzone.css（本体 28px 透明 + ::before 画 16px）。 */
-  border-radius: 4px; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all var(--dur); opacity: 0;
-  background: transparent; border: 1px solid transparent;
-}
-.tk-row:hover .tk-unbind { opacity: 1; }
-.tk-unbind:hover { color: var(--danger); background: var(--danger-bg-soft); }
-/* 断链空位：★视觉聚焦 —— 从"虚线告警框"改为"带色轨的行动提示"。
-   虚线圈 + 圆角 + 底色三者叠加时，它看起来像一块"出错的卡"；而它真正要说的只有一句：
-   标准已定、缺一条动作，右边就是建任务的入口。 */
-.mc-orphan {
-  margin: 10px 0 2px 26px;
-  padding: 12px 13px;
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent-light) 44%, var(--surface));
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-.mo-ico {
-  width: 30px; height: 30px; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%; background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm);
-}
-.mo-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.mo-copy b { font-size: var(--fs-sub); color: var(--text); }
-.mo-copy small { font-size: var(--fs-caption); color: var(--text-3); }
-.mo-add {
-  min-height: 32px; padding: 0 12px; flex: none;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
-  border-radius: var(--radius-full);
-  font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink);
-  background: var(--surface); cursor: pointer; font-family: inherit;
-  box-shadow: var(--shadow-sm);
-}
-.mo-add:hover { border-color: var(--accent); background: var(--accent-light); }
-.mc-collapsed {
-  margin: 9px 0 0 26px; padding: 7px 12px;
-  background: var(--surface-3); border-radius: 7px; min-height: 30px;
-  display: flex; align-items: center; gap: 10px;
-  font-size: var(--fs-micro); color: var(--text-4);
-}
-</style>
+<style scoped src="./CompassLane.css"></style>

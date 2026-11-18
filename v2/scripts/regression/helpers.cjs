@@ -113,6 +113,13 @@ const COMPONENT_AGGREGATES = {
     '/newtab/views/useCompassTreeProjects.ts',
     '/newtab/views/useCompassTreeSpine.ts',
   ],
+  // V4.5.0：方向台取数层按任务 / 选题 / 下一步拆域后，历史断言仍从 compassMeta 单点读取。
+  // 聚合保持“一个口径入口”的语义，避免结构拆分被误报成数据口径漂移。
+  '/newtab/views/compassMeta.ts': [
+    '/newtab/views/compassTaskMeta.ts',
+    '/newtab/views/compassNextStep.ts',
+    '/newtab/views/compassTopicMeta.ts',
+  ],
   '/newtab/components/GlobalPopups.vue': [
     '/newtab/components/GlobalPopups.css',
     '/newtab/components/useGlobalPopups.ts',
@@ -348,7 +355,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '4.4.0'";
+const VER_ANCHOR_LITERAL = "version: '4.5.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -399,7 +406,7 @@ const CURATION_TOOLBAR = segOf(read('/newtab/views/Workspace.vue'), '<div class=
 /* V4.0.3：布局切换迁回画布工具条这一高频操作位；节点动作组增加空态/选中态样式。 */
 const MIND_ACTIONS = segOf(CURATION_MAP, '<div class="mindmap-layout" role="group"', '<div class="mindmap-selection"');
 // ★V4.0.3 随迁备案：节点底栏改为仅在挂资源时渲染，切片起点随之改指现役 `v-if` 边界。
-const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div v-if="cards().length" class="mind-node-foot">', '</div>');
+const MIND_NODE_ACTIONS = segOf(CURATION_NODE, '<div v-if="cards().length || linkedTopics().length" class="mind-node-foot">', '</div>');
 // 兼容旧导出名：语义已迁到资源池两视图。KANBAN 在池里没有第三种视图，
 // 以“分组列表”的同一动作区承接，避免旧切片静默为空。
 const RES_CARD_ACTIONS = POOL_GRID_ACTIONS;
@@ -576,10 +583,17 @@ const TOWER = [
   TOWER_NEXT,
   TOWER_ORPHANS,
 ].join('\n');
-const LANE = read('/newtab/components/compass/CompassLane.vue');
+/** V4.5：CompassLane 样式外提以满足 440 行组件上限；判据继续合看宿主与样式表。 */
+const LANE = read('/newtab/components/compass/CompassLane.vue') + '\n' + read('/newtab/components/compass/CompassLane.css');
 const SPINE = read('/newtab/components/compass/CompassSpine.vue');
 const PANEL = read('/newtab/components/compass/CompassLayerPanel.vue');
-const CMETA = read('/newtab/views/compassMeta.ts');
+/** V4.5：取数层按职责拆为任务聚合、选题聚合与下一步推导；行为判据合看四份。 */
+const CMETA = [
+  read('/newtab/views/compassMeta.ts'),
+  read('/newtab/views/compassTaskMeta.ts'),
+  read('/newtab/views/compassTopicMeta.ts'),
+  read('/newtab/views/compassNextStep.ts'),
+].join('\n');
 /** 方向台全家桶合看：六组件 + 视图 + 取数层，一次拼好给断言用 */
 const PANO = read('/newtab/components/compass/CompassPano.vue');
 const PANO_LANE = read('/newtab/components/compass/CompassPanoLane.vue');

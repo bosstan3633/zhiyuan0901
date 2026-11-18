@@ -48,9 +48,10 @@ import { profileDirectionFitText, profileExportLines } from '@/newtab/views/prof
 import { useProfileInsightsTags } from './useProfileInsightsTags'
 import { useProfileInsightsMonth } from './useProfileInsightsMonth'
 
-export type GFlat = { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
+export type GFlat = { kind: 'resource' | 'task' | 'curiosity' | 'topic'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
 export type StatDrawerType = '' | 'all' | 'support' | 'goal-week'
   | 'curated' | 'mo-support' | 'topic'
+  | 'topic-all' | 'topic-published' | 'topic-supported' | 'topic-month'
   | 'ammo' | 'cooling' | 'today-in' | 'today-call'
 export type StatRow = PiStatRow
 export type TagOptimizeJob = import('@/shared/ai/job').AiJob
@@ -71,7 +72,8 @@ const pageSub = computed(() => {
   const res = d.resources.filter(r => !r.deletedAt).length
   const task = d.tasks.filter(t => !t.deletedAt).length
   const curio = d.curiosities.filter(c => !c.deletedAt).length
-  return { total: res + task + curio }
+  const topic = (d.topics || []).filter(t => !t.deletedAt).length
+  return { total: res + task + curio + topic }
 })
 
 /* ===== 事件日志（readEventLog 优先，空日志回退卡片时间派生） ===== */
@@ -91,7 +93,8 @@ async function refreshEventLog() {
 const gFlat = computed<GFlat[]>(() => [
   ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt, importedAt: r.importedAt })),
   ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt, importedAt: t.importedAt })),
-  ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt, importedAt: c.importedAt }))
+  ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt, importedAt: c.importedAt })),
+  ...(gd.value.topics || []).map(t => ({ kind: 'topic' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt, importedAt: t.importedAt }))
 ])
 const derivedEvents = computed<CardEvent[]>(() => {
   const out: CardEvent[] = []
@@ -107,11 +110,12 @@ const timelineEvents = computed<CardEvent[]>(() => (logEmpty.value ? derivedEven
 const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
 const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
 const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
+const gTopicLive = computed(() => (gd.value.topics || []).filter(t => !t.deletedAt))
 const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').trim()).length)
 const dash = useDashboardStats(
   () => gd.value,
   () => timelineEvents.value,
-  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length })
+  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length, topic: gTopicLive.value.length })
 )
 const dashYear = dash.year
 const dashSelDay = dash.selDay
@@ -134,7 +138,8 @@ const dashTasks = computed<TaskLike[]>(() => (gd.value.tasks || []).map(t => ({
 const heroTotal = computed(() => pageSub.value.total)
 const tagLists = computed(() => [
   ...gResLive.value.map(r => r.tags || []),
-  ...gTaskLive.value.map(t => t.tags || [])
+  ...gTaskLive.value.map(t => t.tags || []),
+  ...gTopicLive.value.map(t => t.tags || []),
 ])
 const heroEntropy = computed(() => computeTagEntropy(tagLists.value))
 const topTags = computed(() => {
@@ -147,7 +152,7 @@ const topTags = computed(() => {
 
 /* ===== W13-T2 · Hero 三层结构输入（D1） ===== */
 const heroKindCounts = computed(() => ({
-  res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length
+  res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length, topic: gTopicLive.value.length
 }))
 const heroTopTags = computed(() => topTags.value.slice(0, 3).map(([n]) => n))
 /** F3 · 任务证据支撑率：有 SupportLink 的未删任务 ÷ 未删任务（T1 纯函数同源） */
@@ -315,7 +320,18 @@ const tagAiJob = shallowRef<TagOptimizeJob | null>(null)
 const goalDirId = ref('')
 /* F18：Top 主题行下钻 → 该标签本月新增卡片清单 */
 const topicTag = ref('')
-const totalCards = computed(() => gResLive.value.length + gTaskLive.value.length + gCurioLive.value.length)
+const topicPublishedIds = computed(() => new Set(
+  (gd.value.topicStatuses || []).filter(status => status.terminal).map(status => status.id)
+))
+const topicPublished = computed(() => gTopicLive.value.filter(topic => topicPublishedIds.value.has(topic.statusId)))
+const topicSupported = computed(() => {
+  const ids = new Set((gd.value.topicResourceLinks || [])
+    .filter(link => (gd.value.resources || []).some(resource => resource.id === link.resourceId && !resource.deletedAt))
+    .map(link => link.topicId))
+  return gTopicLive.value.filter(topic => ids.has(topic.id))
+})
+const topicMonthAdded = computed(() => gTopicLive.value.filter(topic => (topic.createdAt || 0) >= gStartOfMonth))
+const totalCards = computed(() => gResLive.value.length + gTaskLive.value.length + gCurioLive.value.length + gTopicLive.value.length)
 const statList = computed<StatRow[]>(() => {
   switch (statDrawer.value) {
     case 'support': return gTaskLive.value.map(t => ({
@@ -361,6 +377,22 @@ const statList = computed<StatRow[]>(() => {
       ? gResLive.value.filter(r => (r.createdAt || 0) >= gStartOfMonth && (r.tags || []).some(t => t.trim() === topicTag.value))
         .map(r => ({ kind: 'resource' as const, id: r.id, title: r.title, ts: r.createdAt || 0 }))
       : []
+    case 'topic-all': return gTopicLive.value.map(topic => ({
+      kind: 'topic' as const, id: topic.id, title: topic.title, ts: topic.createdAt || 0,
+      owner: (gd.value.topicStatuses || []).find(status => status.id === topic.statusId)?.name || '构思中',
+    }))
+    case 'topic-published': return topicPublished.value.map(topic => ({
+      kind: 'topic' as const, id: topic.id, title: topic.title, ts: topic.completedAt || topic.updatedAt || 0,
+      owner: '已发布',
+    }))
+    case 'topic-supported': return topicSupported.value.map(topic => ({
+      kind: 'topic' as const, id: topic.id, title: topic.title, ts: topic.updatedAt || topic.createdAt || 0,
+      owner: `资源 ${(gd.value.topicResourceLinks || []).filter(link => link.topicId === topic.id).length}`,
+    }))
+    case 'topic-month': return topicMonthAdded.value.map(topic => ({
+      kind: 'topic' as const, id: topic.id, title: topic.title, ts: topic.createdAt || 0,
+      owner: '本月新增',
+    }))
     default: return []
   }
 })
@@ -461,7 +493,9 @@ function openStatCard(x: { kind: string; id: string }) {
     ? gResLive.value.some(r => r.id === x.id)
     : kind === 'task'
       ? gTaskLive.value.some(t => t.id === x.id)
-      : gCurioLive.value.some(c => c.id === x.id)
+      : kind === 'curiosity'
+        ? gCurioLive.value.some(c => c.id === x.id)
+        : gTopicLive.value.some(topic => topic.id === x.id)
   if (!exists) { showToast('该卡片已不在库中'); return }
   statDrawer.value = ''
   if (kind === 'resource') {
@@ -475,6 +509,10 @@ function openStatCard(x: { kind: string; id: string }) {
     taskDetailRef.value?.open(task)
     return
   }
+  if (kind === 'topic') {
+    emitOpenDrawer({ kind: 'topic', id: x.id })
+    return
+  }
   emitOpenDrawer({ kind: 'curio', id: x.id })
 }
 
@@ -482,7 +520,7 @@ async function openTagDistribution() {
   tagInsightOpen.value = true
   statDrawer.value = ''
 }
-  const { runTagOptimizeAi, statDrawerTitle, statReconcile, statReconcileNote } = useProfileInsightsTags({ gd, store, tagAiJob, totalCards, statList, dashDirections, goalDirId, topicTag, statDrawer, todayCalled, todayAdd, ammoSplit, todayRows, coolingCards, gResLive, gTaskLive, heroSupportRate, gCurioLive })
+const { runTagOptimizeAi, statDrawerTitle, statReconcile, statReconcileNote } = useProfileInsightsTags({ gd, store, tagAiJob, totalCards, statList, dashDirections, goalDirId, topicTag, statDrawer, todayCalled, todayAdd, ammoSplit, todayRows, coolingCards, gResLive, gTaskLive, gTopicLive, heroSupportRate, gCurioLive })
 const gStartOfWeek = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return dt.getTime() })()
 const gStartOfMonth = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(1); return dt.getTime() })()
 const todayImportCount = computed(() => gFlat.value.filter(x => !x.deletedAt && x.importedAt && x.importedAt >= gStartOfToday).length)
@@ -503,7 +541,8 @@ const lcCards = computed<LifecycleCard[]>(() => {
   return [
     ...d.resources.filter(r => !r.deletedAt),
     ...d.tasks.filter(t => !t.deletedAt),
-    ...d.curiosities.filter(c => !c.deletedAt)
+    ...d.curiosities.filter(c => !c.deletedAt),
+    ...(d.topics || []).filter(t => !t.deletedAt),
   ]
 })
 function lcFind(id: string): LifecycleCard | undefined { return lcCards.value.find(c => c.id === id) }
@@ -632,11 +671,13 @@ function openDayBattle(day: string) {
 }
 
 /* ===== Hero 动作（W13-T2 · F4 四张底盘卡各自有下钻出口） ===== */
-function onHeroDrill(k: 'total' | 'entropy' | 'support' | 'focus') {
+function onHeroDrill(k: 'total' | 'entropy' | 'support' | 'focus'
+  | 'topic-all' | 'topic-published' | 'topic-supported' | 'topic-month') {
   if (k === 'total') { openStatDrawer('all'); return }
   if (k === 'support') { openStatDrawer('support'); return }
   if (k === 'focus') { openLogFocus(); return }
   if (k === 'entropy') { void openTagDistribution(); return }
+  openStatDrawer(k)
 }
 function onHeroRefresh() {
   void refreshEventLog()
@@ -742,13 +783,14 @@ onUnmounted(() => { offErrLog() })
   return {
     router, store, gd, taskDetailRef, battleHost, openResourceLink, focusedProjects, projectProgress, projectTasksOf,
     isProjectStalled, isProjectDone, pageSub, eventLog, logEmpty, gStartOfToday, refreshEventLog, gFlat, derivedEvents,
-    timelineEvents, gResLive, gTaskLive, gCurioLive, linkCardCount, dash, dashYear, dashSelDay, dashStats,
+    timelineEvents, gResLive, gTaskLive, gCurioLive, gTopicLive, linkCardCount, dash, dashYear, dashSelDay, dashStats,
     dashDirections, dashTasks, heroTotal, tagLists, heroEntropy, topTags, heroKindCounts, heroTopTags, heroSupportRate,
     heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds, focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
     matchResourcesOf, todayRows, todayFilled, todayAmmo, projDetailOpen, projDetailId,
     openProjectDetail, activeRange, setRange,
     overviewWeekRange, logOpen, logPreset, openLog,
-    openLogFocus, statDrawer, tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards, statList, todayCreatedEventIds,
+    openLogFocus, statDrawer, tagInsightOpen, tagAiJob, goalDirId, topicTag,
+    topicPublished, topicSupported, topicMonthAdded, totalCards, statList, todayCreatedEventIds,
     todayCalledIds, todayInCards, todayCalledCards, ammoSplit, ammoCards, coolingCards, STAT_PAGE, statPage, statSearch,
     openStatDrawer, statFiltered, statPageCount, statShown, statGo, openStatCard, openTagDistribution, runTagOptimizeAi, statDrawerTitle,
     statReconcile, statReconcileNote, gStartOfWeek, gStartOfMonth, todayImportCount, weekImportCount, lcCards, lcFind, onLcArchive,

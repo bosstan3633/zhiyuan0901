@@ -18,17 +18,20 @@
  * 不能无条件 deleteAsset——否则另一张卡（含回收站里待恢复的卡）的附件会打不开。
  * keepIds 由**存活卡**（本次未硬删的全部卡，软删卡也算存活）的 assets 并集构成。
  */
-import type { AppData, ArgumentCard, Category, CuriosityCard, ResourceCard, TaskCard } from '../models'
+import type { AppData, ArgumentCard, Category, CuriosityCard, ResourceCard, TaskCard, TopicCard } from '../models'
 import { deleteAsset } from './assets'
 import { deleteCurationAsset } from '../cloud/sync'
 import { getData } from './repository'
 import { pruneDanglingProjections } from './hub'
 import { purgeCurioSupportLinks, purgeSupportLinks } from '../utils/supportLinks'
+import { purgeTopicResourceLinks } from '../utils/topicResourceLinks'
+import { unlinkTopicFromCategories } from '../utils/topicLinks'
 
 export interface PurgeTargets {
   resources?: ResourceCard[]
   tasks?: TaskCard[]
   curiosities?: CuriosityCard[]
+  topics?: TopicCard[]
   /** R109（F12-b）软删分类：整棵子树与节点附件随硬删一起清理 */
   categories?: Category[]
   /** R2-⑤：论证节点卡（第 4 种卡）——无附件、无指标引用，数组移除 + 投射剪枝即覆盖其全部副作用 */
@@ -63,6 +66,7 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   const res = targets.resources || []
   const tasks = targets.tasks || []
   const curios = targets.curiosities || []
+  const topics = targets.topics || []
   // 分类硬删沿父链展开：画布做的是整棵子树软删，永久清理也必须一次带走全部后代，
   // 否则父节点清除后子节点会变成无父孤儿，附件也没有稳定归属可查。
   const cats = (() => {
@@ -83,12 +87,14 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   const resIds = new Set(res.map(r => r.id))
   const taskIds = new Set(tasks.map(t => t.id))
   const curioIds = new Set(curios.map(c => c.id))
+  const topicIds = new Set(topics.map(t => t.id))
 
   // ① 附件：存活卡的引用为 keepIds（本次不删的卡，含仍在回收站里的软删卡）
   const keep = new Set<string>()
   for (const r of d.resources) if (!resIds.has(r.id)) for (const a of r.assets || []) if (a?.id) keep.add(a.id)
   for (const t of d.tasks) if (!taskIds.has(t.id)) for (const a of t.assets || []) if (a?.id) keep.add(a.id)
   for (const c of d.curiosities) if (!curioIds.has(c.id)) for (const a of c.assets || []) if (a?.id) keep.add(a.id)
+  for (const t of d.topics || []) if (!topicIds.has(t.id)) for (const a of t.assets || []) if (a?.id) keep.add(a.id)
   for (const c of d.categories) if (!cats.some(x => x.id === c.id)) for (const a of c.assets || []) if (a?.id) keep.add(a.id)
   for (const link of d.supportLinks || []) {
     if (taskIds.has(link.taskId)) continue
@@ -101,9 +107,13 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   for (const mirror of d.resourceFolderMirrors || []) {
     for (const a of mirror.snapshot?.assets || []) if (a?.id) keep.add(a.id)
   }
+  for (const link of d.topicResourceLinks || []) {
+    if (topicIds.has(link.topicId) || resIds.has(link.resourceId)) continue
+    for (const a of link.snapshot?.assets || []) if (a?.id) keep.add(a.id)
+  }
 
   const targeted = new Set<string>()
-  for (const s of [assetIdUnion(res), assetIdUnion(tasks), assetIdUnion(curios), assetIdUnion(cats)]) for (const id of s) targeted.add(id)
+  for (const s of [assetIdUnion(res), assetIdUnion(tasks), assetIdUnion(curios), assetIdUnion(topics), assetIdUnion(cats)]) for (const id of s) targeted.add(id)
   let assetsShared = 0
   const doomed: string[] = []
   for (const id of targeted) { if (keep.has(id)) assetsShared++; else doomed.push(id) }
@@ -129,11 +139,24 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
       }
     }
   }
+  if (topicIds.size) {
+    for (const dir of d.compass?.directions || []) {
+      for (const proj of dir.projects || []) {
+        for (const m of proj.metrics || []) m.topicIds = (m.topicIds || []).filter(id => !topicIds.has(id))
+      }
+    }
+    for (const day of Object.values(d.dailyFocus || {})) {
+      for (const slot of day || []) {
+        if (slot.sourceType === 'topic' && slot.sourceId && topicIds.has(slot.sourceId)) slot.cleared = true
+      }
+    }
+  }
 
   // ③ 数组移除
   if (resIds.size) d.resources = d.resources.filter(r => !resIds.has(r.id))
   if (taskIds.size) d.tasks = d.tasks.filter(t => !taskIds.has(t.id))
   if (curioIds.size) d.curiosities = d.curiosities.filter(c => !curioIds.has(c.id))
+  if (topicIds.size) d.topics = (d.topics || []).filter(t => !topicIds.has(t.id))
   if (cats.length) {
     const catIds = new Set(cats.map(c => c.id))
     d.categories = d.categories.filter(c => !catIds.has(c.id))
@@ -149,12 +172,14 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   //    带独立快照的任务 / 策展镜像继续存在。
   purgeSupportLinks(d, { taskIds, resourceIds: resIds })
   purgeCurioSupportLinks(d, { curioIds, resourceIds: resIds })
+  purgeTopicResourceLinks(d, { topicIds, resourceIds: resIds })
+  unlinkTopicFromCategories(d, topicIds)
 
   // ⑤ 悬空投射剪枝（幂等；带快照的独立镜像不受源卡硬删影响）
   const projectionsPruned = pruneDanglingProjections(d)
 
   return {
-    cards: res.length + tasks.length + curios.length + cats.length + args.length,
+    cards: res.length + tasks.length + curios.length + topics.length + cats.length + args.length,
     assetsPurged,
     assetsShared,
     assetsFailed,
@@ -162,12 +187,13 @@ export async function purgeCardsCompletely(d: AppData, targets: PurgeTargets): P
   }
 }
 
-/** 当前树中所有软删（回收站内）的三类卡 + 分类 + 论证卡 */
+/** 当前树中所有软删（回收站内）的四类卡 + 分类 + 论证卡 */
 export function recycledCardsOf(d: AppData): Required<PurgeTargets> {
   return {
     resources: d.resources.filter(r => r.deletedAt),
     tasks: d.tasks.filter(t => t.deletedAt),
     curiosities: d.curiosities.filter(c => c.deletedAt),
+    topics: (d.topics || []).filter(t => t.deletedAt),
     categories: d.categories.filter(c => c.deletedAt),
     argCards: (d.argCards || []).filter(a => a.deletedAt)
   }
@@ -184,10 +210,11 @@ export async function deleteAssetIfOrphan(id: string, selfCardId?: string): Prom
     const d = getData()
     const heldElsewhere = (arr: { id?: string; assets?: { id: string }[] }[] | undefined) =>
       (arr || []).some(c => c.id !== selfCardId && (c.assets || []).some(a => a?.id === id))
-    if (heldElsewhere(d.resources) || heldElsewhere(d.tasks) || heldElsewhere(d.curiosities) || heldElsewhere(d.argCards) || heldElsewhere(d.categories)) return false
+    if (heldElsewhere(d.resources) || heldElsewhere(d.tasks) || heldElsewhere(d.curiosities) || heldElsewhere(d.topics) || heldElsewhere(d.argCards) || heldElsewhere(d.categories)) return false
     if ((d.supportLinks || []).some(link => (link.snapshot?.assets || []).some(asset => asset?.id === id))) return false
     if ((d.curationProjections || []).some(projection => (projection.snapshot?.assets || []).some(asset => asset?.id === id))) return false
     if ((d.resourceFolderMirrors || []).some(mirror => (mirror.snapshot?.assets || []).some(asset => asset?.id === id))) return false
+    if ((d.topicResourceLinks || []).some(link => (link.snapshot?.assets || []).some(asset => asset?.id === id))) return false
   } catch { /* 仓库未加载（如 options 独立上下文）：按原语义直接删 */ }
   await deleteAsset(id)
   return true

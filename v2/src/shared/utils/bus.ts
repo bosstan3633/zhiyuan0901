@@ -3,8 +3,8 @@
  * 事件：'zy-open-drawer'，payload = DrawerPayload
  */
 export interface DrawerPayload {
-  /** 资源卡 / 任务卡 / 好奇心卡 / 项目 / 策展台 */
-  kind: 'res' | 'task' | 'curio' | 'project' | 'ws'
+  /** 资源卡 / 任务卡 / 选题卡 / 好奇心卡 / 项目 / 策展台 */
+  kind: 'res' | 'task' | 'topic' | 'curio' | 'project' | 'ws'
   id: string
 }
 
@@ -36,10 +36,18 @@ export function emitDrawerClosed(p: DrawerPayload): void {
   closedListeners.forEach((fn) => { try { fn(p) } catch (e) { console.error('[bus] drawer close handler error:', e) } })
 }
 
-/** R160（P1）：详情抽屉按需挂载——挂载前的首个事件暂存，抽屉就绪后自取自开（异步组件加载期间不丢事件） */
-let pendingDrawer: DrawerPayload | null = null
-export function setPendingDrawer(p: DrawerPayload): void { pendingDrawer = p }
-export function consumePendingDrawer(): DrawerPayload | null { const p = pendingDrawer; pendingDrawer = null; return p }
+/** R160（P1）：详情抽屉按需挂载——挂载前的事件暂存，抽屉就绪后按卡型取走自己的那一条。 */
+const pendingDrawers: DrawerPayload[] = []
+export function setPendingDrawer(p: DrawerPayload): void {
+  const existing = pendingDrawers.findIndex(item => item.kind === p.kind && item.id === p.id)
+  if (existing >= 0) pendingDrawers.splice(existing, 1)
+  pendingDrawers.push(p)
+}
+export function consumePendingDrawer(kind?: DrawerPayload['kind']): DrawerPayload | null {
+  const index = kind ? pendingDrawers.findIndex(item => item.kind === kind) : 0
+  if (index < 0 || !pendingDrawers.length) return null
+  return pendingDrawers.splice(index, 1)[0] || null
+}
 
 /**
  * R172-T11（04-67 F31/F32）：页面内呼出全局浮层面板。
@@ -47,7 +55,7 @@ export function consumePendingDrawer(): DrawerPayload | null { const p = pending
  * （MV3 语义），仪表盘里的「生成任务」需要的是同一件事的本地触发。
  */
 export interface PanelPayload {
-  name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'
+  name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'topiccapture' | 'shortcuts'
   /** 预填快速采集任务（用户仍可改后再存 ⇒ 采纳权在用户，AI 不替决策） */
   prefill?: { title?: string; description?: string }
 }

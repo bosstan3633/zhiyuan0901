@@ -51,8 +51,9 @@ export interface CloudMeta {
 
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
 export type SyncManifestRecordType =
-  | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'argument'
+  | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'topic' | 'argument'
   | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'supportLink'
+  | 'topicResourceLink' | 'topicStatus'
   | 'curationProjection' | 'resourceFolder' | 'resourceFolderMirror'
   | 'tag' | 'activity' | 'stats' | 'fieldConfig'
   | 'attachment' | 'event' | 'preference'
@@ -75,6 +76,9 @@ export interface SyncManifestCounts {
   resources: number
   tasks: number
   curiosities: number
+  topics: number
+  topicStatuses: number
+  topicResourceLinks: number
   arguments: number
   directions: number
   projects: number
@@ -352,7 +356,7 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
   const stripAssets = (cards?: { assets?: AssetMeta[] }[]) => {
     for (const c of cards || []) if (c && c.assets && c.assets.length) c.assets = c.assets.map(safeAsset)
   }
-  stripAssets(d.tasks); stripAssets(d.curiosities)
+  stripAssets(d.tasks); stripAssets(d.curiosities); stripAssets(d.topics)
   if (d.argCards) stripAssets(d.argCards as unknown as { assets?: AssetMeta[] }[])
   for (const resource of d.resources || []) {
     if (!resource.assets?.length) continue
@@ -363,6 +367,10 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
     category.assets = category.assets.map(curationAsset)
   }
   for (const link of d.supportLinks || []) {
+    if (!link.snapshot?.assets?.length) continue
+    link.snapshot.assets = link.snapshot.assets.map(safeAsset)
+  }
+  for (const link of d.topicResourceLinks || []) {
     if (!link.snapshot?.assets?.length) continue
     link.snapshot.assets = link.snapshot.assets.map(safeAsset)
   }
@@ -395,12 +403,15 @@ const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>
   resource: ['title', 'description', 'tags', 'linkType', 'link', 'linkSlots', 'workspaceId', 'categoryId', 'sourceType', 'pinned', 'starred', 'lifecycleArchived', 'customFields'],
   task: ['title', 'description', 'tags', 'projectId', 'metricId', 'status', 'priority', 'dueDate', 'estimatedMinutes', 'link', 'completedAt', 'subtasks', 'pinned', 'starred', 'customFields'],
   curiosity: ['question', 'description', 'tags', 'sourceUrl', 'sourceTitle', 'status', 'pinned', 'starred', 'customFields'],
+  topic: ['title', 'description', 'tags', 'projectId', 'metricId', 'statusId', 'dueDate', 'link', 'linkType', 'sourceType', 'completedAt', 'pinned', 'starred', 'customFields'],
+  topicStatus: ['name', 'color', 'order', 'terminal'],
+  topicResourceLink: ['topicId', 'resourceId', 'from', 'why', 'createdAt', 'snapshot'],
   argument: ['title', 'content', 'workspaceId', 'order', 'linkedResourceIds', 'assets'],
   workspace: ['name', 'icon', 'color', 'coverTheme', 'desc', 'order', 'archived', 'kind', 'hidden'],
-  category: ['workspaceId', 'name', 'parentId', 'order', 'icon', 'color', 'desc', 'assets'],
+  category: ['workspaceId', 'name', 'parentId', 'order', 'icon', 'color', 'desc', 'assets', 'linkedTopicIds'],
   direction: ['name', 'term', 'content', 'reason', 'order', 'calibratedAt', 'archivedAt', 'vision', 'mission'],
   project: ['name', 'goalId', 'status', 'endDate', 'nextStep', 'order', 'content'],
-  metric: ['title', 'target', 'acceptance', 'taskIds', 'order'],
+  metric: ['title', 'target', 'acceptance', 'taskIds', 'topicIds', 'order'],
   supportLink: ['taskId', 'subId', 'resourceId', 'from', 'why', 'createdAt', 'snapshot'],
   curationProjection: ['kind', 'wsId', 'catId', 'cardId', 'targetWsId', 'targetCatId', 'curOrder', 'displayName', 'addedAt', 'snapshot'],
   resourceFolder: ['name', 'order', 'createdAt', 'updatedAt'],
@@ -408,7 +419,7 @@ const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>
   tag: ['name', 'definition'],
   activity: ['type', 'entityType', 'entityId', 'timestamp', 'detail'],
   stats: ['weekly', 'lastReuse', 'lastVisits', 'wrr'],
-  fieldConfig: ['resource', 'task', 'curiosity', 'argument'],
+  fieldConfig: ['resource', 'task', 'curiosity', 'topic', 'argument'],
   attachment: ['name', 'kind', 'size', 'mime', 'storagePath', 'checksum', 'uploadState', 'uploadedAt', 'lastError', 'retryCount'],
   event: ['ts', 'action', 'kind', 'title', 'cardId', 'deviceId', 'to'],
   preference: ['theme', 'layout', 'sortPrefs', 'cardCols', 'capturePref'],
@@ -458,7 +469,8 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   const data = clean.data
   const records: SyncManifestRecord[] = []
   const counts: SyncManifestCounts = {
-    workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, arguments: 0,
+    workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, topics: 0,
+    topicStatuses: 0, topicResourceLinks: 0, arguments: 0,
     directions: 0, projects: 0, metrics: 0, dailyFocus: 0, supportLinks: 0,
     curationProjections: 0, resourceFolders: 0, resourceFolderMirrors: 0,
     tags: 0, activities: 0, events: clean.eventLog.length,
@@ -517,6 +529,14 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
     counts.curiosities += 1
     add(manifestRecord('curiosity', card.id, card.question, card, card.updatedAt, !!card.deletedAt))
   }
+  for (const card of data.topics || []) {
+    counts.topics += 1
+    add(manifestRecord('topic', card.id, card.title, card, card.updatedAt, !!card.deletedAt))
+  }
+  for (const status of data.topicStatuses || []) {
+    counts.topicStatuses += 1
+    add(manifestRecord('topicStatus', status.id, status.name, status))
+  }
   for (const card of data.argCards || []) {
     counts.arguments += 1
     add(manifestRecord('argument', card.id, card.title, card, card.updatedAt, !!card.deletedAt))
@@ -540,6 +560,10 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   for (const link of data.supportLinks || []) {
     counts.supportLinks += 1
     add(manifestRecord('supportLink', link.id, '任务 → 资源关联', link, link.createdAt))
+  }
+  for (const link of data.topicResourceLinks || []) {
+    counts.topicResourceLinks += 1
+    add(manifestRecord('topicResourceLink', link.id, '选题 → 资源关联', link, link.createdAt))
   }
   for (const projection of data.curationProjections || []) {
     counts.curationProjections += 1
@@ -610,9 +634,11 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   collectAssets(data.categories || [])
   collectAssets(data.tasks || [])
   collectAssets(data.curiosities || [])
+  collectAssets(data.topics || [])
   collectAssets(data.argCards || [])
   counts.businessTotal = counts.workspaces + counts.categories + counts.resources + counts.tasks
-    + counts.curiosities + counts.arguments + counts.directions + counts.projects + counts.metrics
+    + counts.curiosities + counts.topics + counts.topicStatuses + counts.topicResourceLinks
+    + counts.arguments + counts.directions + counts.projects + counts.metrics
     + counts.dailyFocus + counts.supportLinks + counts.curationProjections
     + counts.resourceFolders + counts.resourceFolderMirrors + counts.tags
     + counts.activities

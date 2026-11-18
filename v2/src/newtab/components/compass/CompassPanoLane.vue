@@ -20,6 +20,8 @@ import CompassMetricTitle from './CompassMetricTitle.vue'
 import type { TaskCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
+import { useCompass } from '../../stores/compass'
+import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
 
 const props = defineProps<{
   m: MetricMeta
@@ -35,6 +37,7 @@ const props = defineProps<{
 
 /** V3.9.31（F4）：共享任务拖拽态（Tree provide / 泳道 inject；缺省 null = 不启用拖拽） */
 const taskDnd = inject(TASK_DND_KEY, null)
+const { d } = useCompass()
 
 const emit = defineEmits<{
   (e: 'toggleTask', taskId: string): void
@@ -42,6 +45,8 @@ const emit = defineEmits<{
    *  这条此前**从未接上**——泳道里任务标题只是个 div，点了没反应（W11-10 断言本轮重指时暴露）。
    *  与项目塔的 CompassLane 走同一出口 openDetail → 宿主 openTaskDetail → detailRef.open()。 */
   (e: 'openDetail', taskId: string): void
+  /** V4.5：选题卡作为“成果”在同一指标泳道内呈现。 */
+  (e: 'openTopic', topicId: string): void
   /** V3.9.22：方向台任务行只解绑，不删除任务本体。 */
   (e: 'unbindTask', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
@@ -80,6 +85,17 @@ function clueOf(t: TaskCard): string {
 function statusOf(t: TaskCard): string {
   return t.status === 'done' ? 'done' : t.status === 'doing' ? 'doing' : ''
 }
+function topicStatusName(topicId: string): string {
+  const topic = props.m.topics.find(row => row.id === topicId)
+  return topicStatusOf(d.value, topic?.statusId)?.name || '构思中'
+}
+function topicStatusColor(topicId: string): string {
+  const topic = props.m.topics.find(row => row.id === topicId)
+  return topicStatusOf(d.value, topic?.statusId)?.color || 'var(--accent)'
+}
+function topicDone(topicId: string): boolean {
+  return isTopicDone(d.value, props.m.topics.find(row => row.id === topicId))
+}
 </script>
 
 <template>
@@ -110,7 +126,7 @@ function statusOf(t: TaskCard): string {
     </header>
 
     <div class="lane-b">
-      <template v-if="m.tasks.length">
+      <template v-if="m.tasks.length || m.topics.length">
         <!-- ★W12-F（用户 2026-10-13 拍板 C2）：项目 → 成功指标 → 任务的从属用一条**贯穿连接轨**印在结构上。
              原状泳道里指标头与任务行是各自独立的块，"这条任务属于哪个指标"只能靠"它们在同一条泳道里"
              推断——层级是排列出来的，不是连出来的。现给任务区加一条左轨 + 每行一个分支点，
@@ -138,6 +154,16 @@ function statusOf(t: TaskCard): string {
           <div class="ltask-ops">
             <button class="lb-unbind" title="解除指标关联，任务回任务池（真删除请进任务详情）" aria-label="解除任务关联" @click.stop="emit('unbindTask', t.id)"><Icon name="x" :size="12"/></button>
           </div>
+        </div>
+        <div v-if="m.topics.length" class="ltopic-list">
+          <button v-for="topic in m.topics" :key="topic.id" class="ltopic" :class="{ done: topicDone(topic.id) }"
+            :style="{ '--topic-status': topicStatusColor(topic.id) }" type="button" :data-topic="topic.id"
+            @click="emit('openTopic', topic.id)">
+            <span class="ltopic-result">成果</span>
+            <span class="ltopic-title">{{ topic.title }}</span>
+            <span class="ltopic-status">{{ topicStatusName(topic.id) }}</span>
+            <Icon name="arrowright" :size="12" />
+          </button>
         </div>
       </template>
       <!-- ★空泳道也占位：让"缺任务"在全景里同样可见（判据 W11-8 钉它不许消失） -->
@@ -277,6 +303,18 @@ function statusOf(t: TaskCard): string {
   transform: rotate(-45deg);
 }
 .ltask-ops { grid-column: 3; grid-row: 1; display: flex; align-items: center; gap: 3px; flex: none; }
+.ltopic-list { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; padding-top: 7px; border-top: 1px solid var(--border); }
+.ltopic {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 7px;
+  width: 100%; min-height: 34px; padding: 6px 8px; border: 1px solid color-mix(in srgb, var(--topic-status) 24%, var(--border));
+  border-radius: var(--radius-sm); background: color-mix(in srgb, var(--topic-status) 6%, var(--surface));
+  color: var(--text); font-family: inherit; text-align: left; cursor: pointer;
+}
+.ltopic:hover { border-color: var(--topic-status); }
+.ltopic-result { padding: 1px 6px; border-radius: 99px; background: color-mix(in srgb, var(--topic-status) 14%, var(--surface)); color: var(--topic-status); font-size: var(--fs-tiny); font-weight: 700; }
+.ltopic-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); }
+.ltopic.done .ltopic-title { color: var(--text-3); text-decoration: line-through; }
+.ltopic-status { color: var(--topic-status); font-size: var(--fs-tiny); font-weight: 650; }
 .lb { font-size: var(--fs-tiny); font-weight: 600; padding: 0 5px; border-radius: 3px; white-space: nowrap; }
 .lb-g {
   background: var(--surface-3); border: 0; font-family: inherit; letter-spacing: .04em;

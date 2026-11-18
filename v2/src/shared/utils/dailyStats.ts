@@ -78,14 +78,15 @@ export const levelRange = (w: number): string => LV_RANGE[levelOf(w)]
 
 /* ================= 按日记录 ================= */
 
-export interface KindCount { res: number; curio: number; task: number }
+export interface KindCount { res: number; curio: number; task: number; topic: number }
+export interface StatusCount { curio: number; task: number; topic: number }
 export interface DayRec {
   /** 采集（分卡种） */
   c: KindCount
   /** 删除（分卡种）——软删即"移出在库集合"，purge 不重复计 */
   del: KindCount
   /** 状态变更（分卡种；资源卡无 status 语义） */
-  s: { curio: number; task: number }
+  s: StatusCount
   /** 调出次数（call 事件） */
   u: number
   /** 推进合计 = sub + focus + link */
@@ -100,25 +101,57 @@ export interface DayRec {
   w: number
 }
 
-export interface StockBase { res: number; task: number; curio: number; link: number }
+export interface StockBase { res: number; task: number; curio: number; topic: number; link: number }
 export interface DailyStats { v: 1; days: Record<string, DayRec>; fullSince: string; base: StockBase }
 
 export function emptyDay(): DayRec {
   return {
-    c: { res: 0, curio: 0, task: 0 }, del: { res: 0, curio: 0, task: 0 },
-    s: { curio: 0, task: 0 }, u: 0, d: 0, sub: 0, focus: 0, link: 0,
+    c: { res: 0, curio: 0, task: 0, topic: 0 }, del: { res: 0, curio: 0, task: 0, topic: 0 },
+    s: { curio: 0, task: 0, topic: 0 }, u: 0, d: 0, sub: 0, focus: 0, link: 0,
     x: { add: 0, del: 0 }, w: 0
   }
 }
 
 /** 有效动作件数（R3 主数字）= 采集 + 调出 + 状态变更 + 推进 的**条数**总和（不加权） */
 export function actsOf(r: DayRec): number {
-  return r.c.res + r.c.curio + r.c.task + r.u + r.s.curio + r.s.task + r.d
+  return r.c.res + r.c.curio + r.c.task + r.c.topic + r.u + r.s.curio + r.s.task + r.s.topic + r.d
 }
 
 const round1 = (n: number): number => Math.round(n * 10) / 10
-const kindKeyOf = (k: CardKind): keyof KindCount => (k === 'resource' ? 'res' : k === 'curiosity' ? 'curio' : 'task')
+const kindKeyOf = (k: CardKind): keyof KindCount => (
+  k === 'resource' ? 'res' : k === 'curiosity' ? 'curio' : k === 'topic' ? 'topic' : 'task'
+)
 const dayOf = (ts: number): string => dateKey(new Date(ts))
+
+function normalizeKindCount(value?: Partial<KindCount> | null): KindCount {
+  return {
+    res: Number(value?.res) || 0,
+    curio: Number(value?.curio) || 0,
+    task: Number(value?.task) || 0,
+    topic: Number(value?.topic) || 0,
+  }
+}
+
+function normalizeStatusCount(value?: Partial<StatusCount> | null): StatusCount {
+  return {
+    curio: Number(value?.curio) || 0,
+    task: Number(value?.task) || 0,
+    topic: Number(value?.topic) || 0,
+  }
+}
+
+function normalizeDayRec(value?: Partial<DayRec> | null): DayRec {
+  const base = emptyDay()
+  if (!value) return base
+  return {
+    ...base,
+    ...value,
+    c: normalizeKindCount(value.c),
+    del: normalizeKindCount(value.del),
+    s: normalizeStatusCount(value.s),
+    x: { add: Number(value.x?.add) || 0, del: Number(value.x?.del) || 0 },
+  }
+}
 
 /** 状态变更的目标态权重（04-67 §7.2；`todo` 回退不计分） */
 function statusWeight(kind: CardKind, to?: string): number {
@@ -181,6 +214,7 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
       case 'status':
         if (kind === 'curiosity') r.s.curio++
         else if (kind === 'task') r.s.task++
+        else if (kind === 'topic') r.s.topic++
         r.w += statusWeight(kind, e.to)
         break
     }
@@ -232,13 +266,13 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
     v: 1,
     days,
     fullSince: keys[0] || dayOf(nowTs),
-    base: base || { res: 0, task: 0, curio: 0, link: 0 }
+    base: base || { res: 0, task: 0, curio: 0, topic: 0, link: 0 }
   }
 }
 
 /* ================= 前缀和查询（时间绑定） ================= */
 
-export interface Stock { total: number; res: number; task: number; curio: number; link: number }
+export interface Stock { total: number; res: number; task: number; curio: number; topic: number; link: number }
 
 /**
  * 「截至某天的库容」——`day` 省略 = 今天（含当天）。
@@ -246,16 +280,17 @@ export interface Stock { total: number; res: number; task: number; curio: number
  * `linkCount`：链接卡无事件源，历史逐日不可重建 ⇒ 由调用方按真实库传入当前值（见文件头边界）。
  */
 export function stockAt(stats: DailyStats, day?: string, linkCount = 0): Stock {
-  let res = stats.base.res, task = stats.base.task, curio = stats.base.curio
+  let res = stats.base.res, task = stats.base.task, curio = stats.base.curio, topic = stats.base.topic || 0
   for (const k of Object.keys(stats.days).sort()) {
     if (day && k > day) break
-    const r = stats.days[k]
+    const r = normalizeDayRec(stats.days[k])
     res += r.c.res - r.del.res
     task += r.c.task - r.del.task
     curio += r.c.curio - r.del.curio
+    topic += r.c.topic - r.del.topic
   }
-  res = Math.max(0, res); task = Math.max(0, task); curio = Math.max(0, curio)
-  return { res, task, curio, link: Math.max(0, linkCount), total: res + task + curio }
+  res = Math.max(0, res); task = Math.max(0, task); curio = Math.max(0, curio); topic = Math.max(0, topic)
+  return { res, task, curio, topic, link: Math.max(0, linkCount), total: res + task + curio + topic }
 }
 
 /** 截至今天（含）的库容；`linkCount` 同 `stockAt` */
@@ -263,10 +298,10 @@ export function stockToday(stats: DailyStats, linkCount = 0): Stock { return sto
 
 /** 单日库容变化（分卡种 + 合计 add/del），供 F15「库容变化条」与 F2 绑定态用 */
 export function deltaOf(stats: DailyStats, day: string): KindCount & { add: number; del: number } {
-  const r = stats.days[day] || emptyDay()
+  const r = normalizeDayRec(stats.days[day])
   return {
-    res: r.c.res - r.del.res, task: r.c.task - r.del.task, curio: r.c.curio - r.del.curio,
-    add: r.c.res + r.c.curio + r.c.task, del: r.del.res + r.del.curio + r.del.task
+    res: r.c.res - r.del.res, task: r.c.task - r.del.task, curio: r.c.curio - r.del.curio, topic: r.c.topic - r.del.topic,
+    add: r.c.res + r.c.curio + r.c.task + r.c.topic, del: r.del.res + r.del.curio + r.del.task + r.del.topic
   }
 }
 
@@ -331,9 +366,9 @@ export function mergeDailyStats(snap: DailyStats | null | undefined, rebuild: Da
   const days: Record<string, DayRec> = { ...rebuild.days }
   for (const k of Object.keys(snap.days)) {
     if (k > boundary) continue
-    const sr = snap.days[k]
+    const sr = normalizeDayRec(snap.days[k])
     if (!sr) continue
-    const mr = days[k]
+    const mr = days[k] ? normalizeDayRec(days[k]) : null
     // ★R176：边界日当天留重建——快照只是当天某个时刻的切片，不代表当天此刻
     if (k === boundary) {
       if (!mr) days[k] = sr
@@ -351,7 +386,7 @@ export function mergeDailyStats(snap: DailyStats | null | undefined, rebuild: Da
 
 export interface RangeAgg {
   days: number; act: number; W: number; acts: number
-  c: KindCount; u: number; s: { curio: number; task: number }
+  c: KindCount; u: number; s: StatusCount
   sub: number; focus: number; link: number; d: number
   add: number; del: number
   peak: [string, number] | null
@@ -362,18 +397,18 @@ export interface RangeAgg {
 export function aggregateRange(stats: DailyStats, from: string, to: string): RangeAgg {
   const out: RangeAgg = {
     days: 0, act: 0, W: 0, acts: 0,
-    c: { res: 0, curio: 0, task: 0 }, u: 0, s: { curio: 0, task: 0 },
+    c: { res: 0, curio: 0, task: 0, topic: 0 }, u: 0, s: { curio: 0, task: 0, topic: 0 },
     sub: 0, focus: 0, link: 0, d: 0, add: 0, del: 0,
     peak: null, list: [], activeRate: 0
   }
   for (const k of Object.keys(stats.days).sort()) {
     if (k < from || k > to) continue
-    const r = stats.days[k]
+    const r = normalizeDayRec(stats.days[k])
     out.days++; out.W += r.w
     if (r.w > 0) out.act++
     out.acts += actsOf(r)
-    out.c.res += r.c.res; out.c.curio += r.c.curio; out.c.task += r.c.task
-    out.u += r.u; out.s.curio += r.s.curio; out.s.task += r.s.task
+    out.c.res += r.c.res; out.c.curio += r.c.curio; out.c.task += r.c.task; out.c.topic += r.c.topic
+    out.u += r.u; out.s.curio += r.s.curio; out.s.task += r.s.task; out.s.topic += r.s.topic
     out.sub += r.sub; out.focus += r.focus; out.link += r.link; out.d += r.d
     out.add += r.x.add; out.del += r.x.del
     out.list.push([k, r.w])

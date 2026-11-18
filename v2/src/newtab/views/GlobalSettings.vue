@@ -61,6 +61,26 @@
         </div>
       </div>
 
+      <!-- ===== 选题卡字段与状态 ===== -->
+      <div v-if="activePage === 'topic'" class="gs-panel">
+        <div class="gs-page-header">
+          <div class="gs-page-title"><Icon name="bulb" :size="13"/> 选题卡字段与状态</div>
+          <div class="gs-page-desc">标题是选题详情的第一视觉；状态可改名、改色、排序，并随云同步</div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
+          <div class="gs-card-body">
+            <FieldEditor :fields="fields.topic || []" card-type="topic" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
+          </div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">选题状态</span><span class="gs-card-desc">看板列、详情徽标和今日完成语义共用这一套状态</span></div>
+          <div class="gs-card-body">
+            <TopicStatusEditor />
+          </div>
+        </div>
+      </div>
+
       <!-- ===== 好奇心卡字段 ===== -->
       <div v-if="activePage === 'curiosity'" class="gs-panel">
         <div class="gs-page-header">
@@ -175,6 +195,7 @@
                     <option value="resource">资源卡</option>
                     <option value="task">任务卡</option>
                     <option value="curiosity">好奇心卡</option>
+                    <option value="topic">选题卡</option>
                   </select>
                   <!-- ★V3.8.25（B1-a）：原来这里写内联 `flex: 1`，但 `.gs-tt-input` 自有规则里已经是
                        `flex: 1; min-width: 0` —— 这条内联是纯冗余，直接删掉即可（不是收进类，是删除）。 -->
@@ -186,7 +207,7 @@
                     @click="onTtRowClick(row)" @dblclick="onTtRowDblClick(row)" @dragstart="onTtRowDragStart($event, row)" @dragend="onTtRowDragEnd">
                     <input type="checkbox" class="tt-check" :checked="ttPicked.has(row.id)" @click.stop @change="ttTogglePick(row.id)" />
                     <div class="tt-card-main">
-                      <div class="tt-card-title"><Icon v-if="row.kind === 'resource'" name="package" :size="14"/><Icon v-else-if="row.kind === 'task'" name="checksquare" :size="14"/><Icon v-else name="bulb" :size="14"/> {{ row.title }}</div>
+                      <div class="tt-card-title"><Icon v-if="row.kind === 'resource'" name="package" :size="14"/><Icon v-else-if="row.kind === 'task'" name="checksquare" :size="14"/><Icon v-else-if="row.kind === 'topic'" name="target" :size="14"/><Icon v-else name="bulb" :size="14"/> {{ row.title }}</div>
                       <div class="tt-card-sub">{{ row.sub }}</div>
                     </div>
                   </div>
@@ -203,7 +224,7 @@
             <div class="gs-pd-title">{{ ttDetail.title }}</div>
             <div class="gs-pd-row" v-if="ttDetail.link"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ ttDetail.link }}</span></div>
             <div class="gs-pd-row" v-if="ttDetail.desc"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ ttDetail.desc }}</span></div>
-            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
+            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : ttDetail.kind === 'topic' ? '选题卡 · ' + (ttDetail.sub || '') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
             <div class="gs-pd-row" v-if="ttDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ ttDetail.tags.join(' #') }}</span></div>
             <div class="gs-pd-actions">
               <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })"><Icon name="external" :size="13"/> 打开链接</button>
@@ -401,6 +422,7 @@ import SettingsExtensionPanel from './settings/SettingsExtensionPanel.vue'
 import SettingsDataManagement from './settings/SettingsDataManagement.vue'
 import RecycleBin from './RecycleBin.vue'
 import SettingsShortcutsPanel from './settings/SettingsShortcutsPanel.vue'
+import TopicStatusEditor from './settings/TopicStatusEditor.vue'
 import MigrateReportCard from '../components/MigrateReportCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'

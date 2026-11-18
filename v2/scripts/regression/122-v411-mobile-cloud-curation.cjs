@@ -16,7 +16,7 @@ check('V411-1（V4.3.0 退役重指）移动端采集 PWA 整体退役：源码�
     && !exists('/../mobile-public/mobile-sw.js')
 })
 
-check('V411-2（V4.3.0 退役重指）PC Inbox 整体退役：首页与二级卡池只保留任务 / 好奇心 / 资源三池，默认任务页签；Inbox 组件、composable、角标与旧深链入口均不回流', () => {
+check('V411-2（V4.5.0 重指）PC Inbox 整体退役：首页与二级卡池只保留任务 / 选题 / 好奇心 / 资源四池，默认任务页签；Inbox 组件、composable、角标与旧深链入口均不回流', () => {
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
   const deck = read('/newtab/views/CompassDeckView.vue')
@@ -26,11 +26,11 @@ check('V411-2（V4.3.0 退役重指）PC Inbox 整体退役：首页与二级卡
     && !exists('/newtab/composables/useInbox.ts')
     && !home.includes('hand-tab-inbox')
     && !home.includes('previewInbox')
-    && hook.includes("type HandKind = 'task' | 'curiosity' | 'resource'")
+    && hook.includes("type HandKind = 'task' | 'topic' | 'curiosity' | 'resource'")
     && hook.includes("const handTab = ref<HandKind>('task')")
-    && deck.includes("type DeckKind = 'task' | 'curiosity' | 'resource'")
+    && deck.includes("type DeckKind = 'task' | 'topic' | 'curiosity' | 'resource'")
     && !deck.includes('InboxPanel')
-    && router.includes("path: '/deck/:kind(task|curiosity|resource)'")
+    && router.includes("path: '/deck/:kind(task|topic|curiosity|resource)'")
     && router.includes("path: '/deck/inbox'")
     && router.includes("redirect: '/'")
 })

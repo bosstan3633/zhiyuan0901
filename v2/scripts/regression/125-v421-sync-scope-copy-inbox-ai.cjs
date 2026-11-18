@@ -49,7 +49,7 @@ check('V421-2 ★云同步只收业务数据：sanitizeCloudSnapshot 固定 ui:n
     && sync.includes("focusAutoDate: d.focusAutoDate")
 })
 
-check('V421-3（V4.3.4 重指）★今日三件事复制文案逐字固定：只拼接「推进[[{项目}]]项目，{任务}，助力【{指标}】指标落实到位」，不再自动添加 MOC-；缺任一字段返回空串并禁用行内复制', () => {
+check('V421-3（V4.5.0 重指）★今日三件事复制文案逐字固定：任务/选题共用「推进[[{项目}]]项目，{标题}，助力【{指标}】指标落实到位」，不再自动添加 MOC-；缺任一字段返回空串并禁用行内复制', () => {
   const copy = read('/shared/utils/focusCopy.ts')
   const home = read('/newtab/views/CompassHome.vue')
   const hook = read('/newtab/views/useCompassHome.ts')
@@ -59,17 +59,17 @@ check('V421-3（V4.3.4 重指）★今日三件事复制文案逐字固定：只
     && copy.includes('const project = cleanPart(input.projectName)')
     && !copy.includes('mocProjectName')
     && copy.includes('推进[[${project}]]项目，${task}，助力【${metric}】指标落实到位')
-    && hook.includes('projectTitleOfTask')
-    && hook.includes('metricTitleOfTask')
+    && hook.includes('projectTitleOfCard')
+    && hook.includes('metricTitleOfCard')
     && hook.includes('function focusCopyReason(cell: FocusCell)')
-    && hook.includes('任务未关联有效项目，复制内容不可生成')
-    && hook.includes('任务未关联有效成功指标，复制内容不可生成')
+    && hook.includes('卡片未关联有效项目，复制内容不可生成')
+    && hook.includes('卡片未关联有效成功指标，复制内容不可生成')
     && home.includes(':disabled="!focusCopyText(c)"')
     && home.includes(':title="focusCopyReason(c)"')
     && home.includes('@click.stop="copyFocusText(c)"')
 })
 
-check('V421-4（V4.3.0 退役重指）★PC Inbox 不再作为中间层：旧面板与 composable 物理移除，首页只保留任务 / 好奇心 / 资源三池，浏览器采集直接进入对应卡池', () => {
+check('V421-4（V4.5.0 重指）★PC Inbox 不再作为中间层：旧面板与 composable 物理移除，首页只保留任务 / 选题 / 好奇心 / 资源四池，浏览器采集直接进入对应卡池', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
   const hook = read('/newtab/views/useCompassHome.ts')
   const deck = codeOnly(read('/newtab/views/CompassDeckView.vue'))
@@ -79,9 +79,10 @@ check('V421-4（V4.3.0 退役重指）★PC Inbox 不再作为中间层：旧面
     && !home.includes('Inbox')
     && !hook.includes('inbox')
     && !deck.includes('Inbox')
-    && hook.includes("type HandKind = 'task' | 'curiosity' | 'resource'")
+    && hook.includes("type HandKind = 'task' | 'topic' | 'curiosity' | 'resource'")
     && hook.includes("const handTab = ref<HandKind>('task')")
     && home.includes("handTab === 'task'") && home.includes("handTab === 'curiosity'") && home.includes("handTab === 'resource'")
+    && home.includes("handTab === 'topic'")
 })
 
 check('V421-5 ★AI 助手状态与结果分离：成功 / 警告 / 错误有独立 tone，模型列表成功显示绿色勾且不再出现错误 X；只有错误态显示再次测试', () => {

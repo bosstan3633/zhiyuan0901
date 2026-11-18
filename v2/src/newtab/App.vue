@@ -21,24 +21,19 @@ import Icon from '@/shared/components/Icon.vue'
 // R168：AI 徽标图形只挂一份（各入口走 <use>）——组件本体零依赖零状态，挂在根上即全站可用
 import AiMarkSymbol from '@/shared/components/AiMarkSymbol.vue'
 const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
-import { getBytesInUse, subscribeSaveError, clearLastSaveError, subscribeSaveState, cleanupLegacyKeys, type SaveState } from '@/shared/storage/repository'
+import { getBytesInUse, subscribeSaveError, clearLastSaveError, cleanupLegacyKeys } from '@/shared/storage/repository'
 import { DECK_DELETE_UNDO_WINDOW_MS, installGlobalUndo } from '@/shared/utils/undo'
 import { recordRuntimeError } from '@/shared/utils/runtimeError'
 import { emitOpenDrawer, onOpenDrawer, setPendingDrawer, onOpenPanel } from '@/shared/utils/bus'
 // R160（P1）：详情抽屉（10KB 源）同走按需挂载——首个打开事件到达时挂载，事件经 bus 暂存回放
 const ResourceDetailDrawer = defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))
+const TopicDetailDrawer = defineAsyncComponent(() => import('./components/compass/TopicDetailDrawer.vue'))
 
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
 // B30a：全局渲染错误边界——捕获后保持导航可用，内容区显示错误卡片，杜绝整页不可用
 const renderError = ref<string | null>(null)
-/** R159（T3）：落盘状态点（saving 脉冲 / saved 闪一下 / error 红点） */
-const saveState = ref<SaveState>('idle')
-const saveDotTip = computed(() => saveState.value === 'saving' ? '保存中…' : saveState.value === 'error' ? '保存异常（点击查看）' : '已保存到本地')
-function onSaveDotClick(): void {
-  if (saveState.value === 'error') navigate('/settings?page=about')
-}
 onErrorCaptured((err) => {
   console.error('[知源] 渲染错误已拦截：', err)
   /** ★必须显式落盘：`return false` 终止冒泡后 window.error 不会触发，
@@ -49,12 +44,12 @@ onErrorCaptured((err) => {
   return false
 })
 function reloadPage() { location.reload() }
-interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts', prefill?: { title?: string; description?: string }) => void; closeAll: () => void; activePanel: string | null }
+interface GpHandle { openPanel: (name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'topiccapture' | 'shortcuts', prefill?: { title?: string; description?: string }) => void; closeAll: () => void; activePanel: string | null }
 const globalPopups = ref<GpHandle | null>(null)
 const gpMounted = ref(false)
-let pendingPanel: { name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts'; prefill?: { title?: string; description?: string } } | null = null
+let pendingPanel: { name: 'search' | 'capture' | 'curio' | 'taskcapture' | 'topiccapture' | 'shortcuts'; prefill?: { title?: string; description?: string } } | null = null
 /** R160（P1）：首次呼出才挂载 GP（异步 chunk 加载完成后自动开面板，调用方零感知） */
-function gpOpen(panel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'shortcuts', prefill?: { title?: string; description?: string }): void {
+function gpOpen(panel: 'search' | 'capture' | 'curio' | 'taskcapture' | 'topiccapture' | 'shortcuts', prefill?: { title?: string; description?: string }): void {
   if (globalPopups.value) { globalPopups.value.openPanel(panel, prefill); return }
   gpMounted.value = true
   pendingPanel = { name: panel, ...(prefill ? { prefill } : {}) }
@@ -63,19 +58,26 @@ watch(globalPopups, (v) => { if (v && pendingPanel) { const p = pendingPanel; pe
 /** R172-T11：页面内呼出（仪表盘「生成任务」）与扩展快捷键走同一个 gpOpen，两条路不各写一份 */
 onOpenPanel((p) => gpOpen(p.name, p.prefill))
 const detailDrawerMounted = ref(false)
+const topicDrawerMounted = ref(false)
 // R160（P1）：抽屉未挂载时首个 bus 事件先挂载 + 暂存（抽屉挂载后自取自开）
 onOpenDrawer((p) => {
-  if (detailDrawerMounted.value) return
-  detailDrawerMounted.value = true
-  setPendingDrawer(p)
+  // 只有懒挂载的全局抽屉需要排队回放；任务/好奇心/项目/策展台由各自常驻宿主消费。
+  if (p.kind === 'topic') {
+    topicDrawerMounted.value = true
+    setPendingDrawer(p)
+  } else if (p.kind === 'res') {
+    detailDrawerMounted.value = true
+    setPendingDrawer(p)
+  }
 })
 
-// V4.4.0：只保留三套主题，并用知源 Logo 蓝作为统一主行动色。
+// V4.4.1：四套正式主题。光速黑用暗红强调，其余主题保留知源 Logo 蓝，OPPO 绿独立成主题。
 // 色板值必须与 tokens.css 的真实令牌一致，避免选择器预览与落地主题色漂移。
 const themes = [
-  { id: 'raycast', name: '光速黑', dot: '#1579ad', palette: ['#080A0D', '#11161C', '#1579ad'] },
+  { id: 'raycast', name: '光速黑', dot: '#b54747', palette: ['#080A0D', '#11161C', '#b54747'] },
   { id: 'apple', name: '极简白', dot: '#0f6f9e', palette: ['#F3F7FA', '#FFFFFF', '#0f6f9e'] },
-  { id: 'notion', name: '纸墨白', dot: '#0b668f', palette: ['#F7F6F1', '#FFFEFA', '#0b668f'] }
+  { id: 'notion', name: '纸墨白', dot: '#0b668f', palette: ['#F7F6F1', '#FFFEFA', '#0b668f'] },
+  { id: 'oppo', name: 'OPPO 绿', dot: '#168457', palette: ['#F2F7F4', '#FFFFFF', '#168457'] }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
@@ -481,7 +483,6 @@ onMounted(async () => {
   // R159（T5）：启动期清理遗留键（V1 时代 lm_data_v5*，一次性、幂等）
   cleanupLegacyKeys()
   // R159（T3）：落盘状态（顶栏极轻量状态点；saved 2 秒后回落 idle）
-  subscribeSaveState((s) => { saveState.value = s; if (s === 'saved') setTimeout(() => { if (saveState.value === 'saved') saveState.value = 'idle' }, 2000) })
   // 第卅六轮 REQ-038：保存失败（quota/serial）→ Toast 告警（R159：错误态带「下一步动作」）
   subscribeSaveError((e) => {
     const tag = e.kind === 'quota' ? '配额超限' : e.kind === 'serial' ? '序列化失败' : '写入异常'
@@ -499,6 +500,7 @@ onMounted(async () => {
     else if (msg?.type === 'zy-open-capture') gpOpen('capture')
     else if (msg?.type === 'zy-open-curiosity') gpOpen('curio')
     else if (msg?.type === 'zy-open-task-capture') gpOpen('taskcapture')
+    else if (msg?.type === 'zy-open-topic-capture') gpOpen('topiccapture')
     else if (msg?.type === 'zy-sync-cloud-now') window.dispatchEvent(new CustomEvent('zy:sync-cloud-now'))
     else if (msg?.type === 'zy-open-today-battle') openTodayBattleView()
     // 策展台单例定位（G）：跳转到目标策展台并高亮资源卡
@@ -532,7 +534,7 @@ onMounted(async () => {
     // R4-Fb：不可注入页的降级出口——background 把用户带进应用后请求开对应面板（采集 / 好奇 / 任务）
     else if (msg?.type === 'zy-quick-panel') {
       const p = String(msg.panel || '')
-      if (p === 'capture' || p === 'curio' || p === 'taskcapture') gpOpen(p)
+      if (p === 'capture' || p === 'curio' || p === 'taskcapture' || p === 'topiccapture') gpOpen(p)
     }
   })
   // R67-F4：background 开的新页带模块直达标记（?zy-anchor=curiosity|project）→ 视图挂载后定位闪烁
@@ -540,7 +542,7 @@ onMounted(async () => {
   if (zyAnchor) setTimeout(() => window.dispatchEvent(new CustomEvent('zy-goto-anchor', { detail: zyAnchor })), 900)
   // R4-Fb：一个已开的新标签页都没有时，background 直接开 ?zy-panel=<capture|curio|taskcapture>
   const zyPanel = new URLSearchParams(location.search).get('zy-panel')
-  if (zyPanel === 'capture' || zyPanel === 'curio' || zyPanel === 'taskcapture') setTimeout(() => gpOpen(zyPanel), 700)
+  if (zyPanel === 'capture' || zyPanel === 'curio' || zyPanel === 'taskcapture' || zyPanel === 'topiccapture') setTimeout(() => gpOpen(zyPanel), 700)
   // 浏览器快捷键：无已开知源页时由 background 带一次性动作打开。
   const zyAction = new URLSearchParams(location.search).get('zy-action')
   if (zyAction === 'sync-cloud') {
@@ -673,9 +675,8 @@ const backupReminderDot = computed(() => {
       </nav>
 
       <div class="topbar-right">
-        <!-- 高频入口只保留：云同步 / 搜索 / 更多。保存点仅异常时短暂出现。 -->
+        <!-- 高频入口只保留：云同步 / 搜索 / 更多。保存状态进入页面底部状态轨，顶栏不再用呼吸点提示。 -->
         <CloudSyncButton />
-        <span v-if="saveState === 'saving' || saveState === 'error'" class="save-dot" v-pressable :class="saveState" :title="saveDotTip" @click="onSaveDotClick" />
         <div class="icon-btn" v-pressable title="全局搜索 (Ctrl+K)" @click="gpOpen('search')"><Icon name="search" :size="16" /></div>
         <div class="more-control">
           <div class="icon-btn icon-btn-bell" v-pressable :class="{ 'has-dot': backupReminderDot, active: moreOpen }" title="更多" :aria-expanded="moreOpen" @click="toggleMore">
@@ -773,6 +774,7 @@ const backupReminderDot = computed(() => {
 
     <GlobalPopups v-if="gpMounted" ref="globalPopups" />
     <ResourceDetailDrawer v-if="detailDrawerMounted" />
+    <TopicDetailDrawer v-if="topicDrawerMounted" />
     <Toast />
     <ConfirmDialog />
   </div>
@@ -858,15 +860,6 @@ const backupReminderDot = computed(() => {
 .more-item:hover, .more-item:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
 .more-hint { margin-left: auto; color: var(--accent-ink); font-size: var(--fs-micro); }
 .icon-btn.active { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
-/* R159（T3）：落盘状态点 */
-/* 保存状态点：视觉仍是 7px，命中盒 28px；错误态可点进设置，不能让 7px 圆点成为唯一入口。 */
-.save-dot { position: relative; width: 28px; height: 28px; flex: none; border-radius: 50%; background: transparent; cursor: default; }
-.save-dot::before { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); opacity: .6; transform: translate(-50%, -50%); transition: background .2s, opacity .2s; }
-.save-dot.saving { background: transparent; }
-.save-dot.saving::before { background: var(--accent); opacity: .9; }
-.save-dot.saved::before { background: var(--success); opacity: .9; }
-.save-dot.error { cursor: pointer; }
-.save-dot.error::before { background: var(--danger); opacity: 1; }
 .theme-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; width: 276px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; z-index: var(--z-overlay); }
 /* ★S4：选项从「一行文字 + 单色圆点」改成样例卡——三色圆点给出"换过去是什么样"的信息，
    当前态靠 accent 描边 + ✓ 双信号（只描边在浅色主题里偏弱）。用原生 button 顺带把

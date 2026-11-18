@@ -1,7 +1,7 @@
 /**
  * 默认数据工厂 · 首次安装时初始化
  */
-import type { AppData, FieldDef } from '@/shared/models'
+import type { AppData, FieldDef, TopicStatusDef } from '@/shared/models'
 import { uid } from '@/shared/utils'
 
 function defaultFieldDefs() {
@@ -33,6 +33,16 @@ function defaultFieldDefs() {
     { key: 'tags', label: '标签', type: 'tags', visible: false, order: 4 },
     { key: 'assets', label: '附件', type: 'text', visible: true, order: 5 }
   ]
+  const topic: FieldDef[] = [
+    { key: 'title', label: '选题', type: 'text', visible: true, order: 0 },
+    { key: 'projectId', label: '所属项目', type: 'text', visible: true, order: 1 },
+    { key: 'metricId', label: '成功指标', type: 'text', visible: true, order: 2 },
+    { key: 'statusId', label: '选题状态', type: 'select', visible: true, order: 3 },
+    { key: 'dueDate', label: '计划执行日期', type: 'date', visible: true, order: 4 },
+    { key: 'description', label: '说明', type: 'text', visible: false, order: 5 },
+    { key: 'tags', label: '标签', type: 'tags', visible: false, order: 6 },
+    { key: 'assets', label: '附件', type: 'text', visible: true, order: 7 }
+  ]
   // R62-3：策展主题卡字段组（论点卡无链接语义，链接默认隐藏；论点/结论/适用场景用自定义字段承载）
   const thesis: FieldDef[] = [
     { key: 'title', label: '论点', type: 'text', visible: true, order: 0 },
@@ -51,7 +61,7 @@ function defaultFieldDefs() {
     { key: 'link', label: '链接', type: 'text', visible: false, order: 4 },
     { key: 'assets', label: '附件', type: 'text', visible: false, order: 5 }
   ]
-  return { resource, task, curiosity, thesis, argument }
+  return { resource, task, curiosity, topic, thesis, argument }
 }
 
 /** 老库/裁剪夹具缺失整块字段配置时的默认组；与首次安装共用同一份定义。 */
@@ -67,6 +77,16 @@ export function defaultThesisFieldDefs(): FieldDef[] {
 /** V3.7.0：老数据归一化用——argument 字段组缺省补齐 */
 export function defaultArgumentFieldDefs(): FieldDef[] {
   return defaultFieldDefs().argument!
+}
+
+/** V4.5.0：选题卡默认状态。ID 固定，改名/改色不破坏已有卡片引用。 */
+export function defaultTopicStatuses(): TopicStatusDef[] {
+  return [
+    { id: 'topic-idea', name: '构思中', color: '#6F7C86', order: 0 },
+    { id: 'topic-making', name: '制作中', color: '#0F6F9E', order: 1 },
+    { id: 'topic-ready', name: '待发布', color: '#9A6B12', order: 2 },
+    { id: 'topic-published', name: '已发布', color: '#168457', order: 3, terminal: true },
+  ]
 }
 
 export function createDefaultData(): AppData {
@@ -96,6 +116,9 @@ export function createDefaultData(): AppData {
     resources: [],
     tasks: [],
     curiosities: [],
+    topics: [],
+    topicStatuses: defaultTopicStatuses(),
+    topicResourceLinks: [],
     argCards: [],
     resourceFolders: [],
     resourceFolderMirrors: [],

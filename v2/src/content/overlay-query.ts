@@ -11,8 +11,8 @@ import { normalizeUrlKey } from '@/shared/utils/url'
 import { safeSend, closeOverlay, showToast } from './overlay-impl'
 import { loadData, saveData } from './overlay-search'
 
-function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
-  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
+function typeLabel(t: 'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'): string {
+  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'topic' ? '✦ 选题卡' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
 }
 function query0(q: string): string { return (q || '').trim().toLowerCase() }
 // REQ-031 P-031-1：搜索关联 Map 化——一次遍历构建 ws/cat/project 名称 Map + 策展台卡数累加，查找 O(1)
@@ -104,6 +104,9 @@ function openSearchLocator(item: any) {
   } else if (item.type === 'task') {
     openRoute('/?hl=' + item.id + '&hk=task')
     showToast('🎯 已定位到任务卡片')
+  } else if (item.type === 'topic') {
+    openRoute('/deck/topic?hl=' + item.id + '&hk=topic')
+    showToast('🎯 已定位到选题卡片')
   } else {
     openRoute('/?hl=' + item.id + '&hk=curio')
     showToast('🎯 已定位到好奇心卡片')
@@ -114,11 +117,11 @@ function openSearchLocator(item: any) {
 // 300ms 同项去重：单击/双击都走 openSearchResult，避免双击双开
 let lastOpenId = ''
 let lastOpenTs = 0
-/** R47-B4：content 端通用热度计数（task/curio/ws），与 newtab 端 recordCardOpen 口径一致 */
-function bumpHeat(kind: 'task' | 'curio' | 'ws', id: string) {
+/** R47-B4：content 端通用热度计数（task/curio/topic/ws），与 newtab 端 recordCardOpen 口径一致 */
+function bumpHeat(kind: 'task' | 'curio' | 'topic' | 'ws', id: string) {
   loadData().then((d2: any) => {
     if (!d2) return
-    const pool = kind === 'ws' ? d2.workspaces : kind === 'task' ? d2.tasks : d2.curiosities
+    const pool = kind === 'ws' ? d2.workspaces : kind === 'task' ? d2.tasks : kind === 'topic' ? d2.topics : d2.curiosities
     const hit = pool?.find((x: any) => x.id === id)
     if (hit) { hit.callCount = (hit.callCount || 0) + 1; hit.lastCalledAt = Date.now(); saveData(d2) }
   })
@@ -175,6 +178,10 @@ function openSearchResult(item: any) {
     bumpHeat('task', item.id)
     safeSend({ type: 'zy-open-route', route: '/?hl=' + item.id })
     showToast('↗ 已定位到调度台的任务')
+  } else if (item.type === 'topic') {
+    bumpHeat('topic', item.id)
+    safeSend({ type: 'zy-open-route', route: '/deck/topic?hl=' + item.id + '&hk=topic' })
+    showToast('↗ 已定位到选题卡片')
   } else {
     bumpHeat('curio', item.id)
     safeSend({ type: 'zy-open-route', route: '/?hl=' + item.id })

@@ -108,8 +108,8 @@ check('R4-Fb① ★不可注入页（chrome:// / 扩展页 / Web Store）的降�
   const bg = codeOnly(read('/background/index.ts'));
   const ap = codeOnly(read('/newtab/App.vue'));
   const mf = codeOnly(read('/manifest.ts'));
-  return /^\s*async function openQuickPanel\(panel: 'capture' \| 'curio' \| 'taskcapture'\): Promise<void> \{/m.test(bg)
-    && (bg.match(/await openQuickPanel\('/g) || []).length === 4
+  return /^\s*async function openQuickPanel\(panel: 'capture' \| 'curio' \| 'taskcapture' \| 'topiccapture'\): Promise<void> \{/m.test(bg)
+    && (bg.match(/await openQuickPanel\('/g) || []).length === 5
     && bg.includes("type: 'zy-quick-panel', panel") && bg.includes('?zy-panel=${panel}')
     && ap.includes("msg?.type === 'zy-quick-panel'") && ap.includes("get('zy-panel')")
     && !bg.includes('openPopupWindow') && !bg.includes('src/popup') && !mf.includes('src/popup')

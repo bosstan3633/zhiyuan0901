@@ -306,7 +306,7 @@ check('W12-C2（V4.4.0 退役重指）★任务成熟度按钮与评分弹层已
 });
 
 check('W12-C3 ★tk-title 由 span 改 button 之后样式不得裸奔：浏览器默认按钮外观（背景/边框/内边距/字体/左对齐/指针）必须显式归零，只给交互态（hover 下划线 + focus-visible 焦点环）加反馈，不许顺手改动既有字号与字色——那两处是 W8-2 六层字阶要守的东西。判据：① 归零六件套齐全 ② hover/focus-visible 两态在位 ③ fs-body / text-2 原值一字未动 ④ 负锚：块内不得硬编码色值。★取块必须锚基础规则（`\\n.tk-title {`）：本文件另有一条 `.tk-row.done .tk-title`（已完成划线态），非锚定会先撞上它', () => {
-  const s = read('/newtab/components/compass/CompassLane.vue');
+  const s = LANE;
   const block = (s.match(/\n\.tk-title \{[\s\S]*?\n\}/) || [''])[0];
   if (!block) return false;
   const need = ['background: none', 'border: 0', 'padding: 0', 'font-family: inherit', 'text-align: left', 'cursor: pointer'];
@@ -464,19 +464,18 @@ check('W12-D4 ★V3.9.1 随迁备案：热力图仍不得回调度台；原「�
   return read('/newtab/components/profile/PiYear.vue').includes('Heatmap');
 });
 
-check('W12-D5（V4.3.1 重指）★空槽仍是明确入口：今日三件事空位直接写“选择第 N 件重点/从任务池选择”，点击打开带搜索、项目、状态筛选的选取弹窗；旧隐式选中态不回流', () => {
+check('W12-D5（V4.5.0 重指）★空槽仍是明确入口：今日三件事空位直接写“选择第 N 件重点/从任务池选择”，点击打开带关键词、卡型、项目、任务状态、选题状态筛选的选取弹窗；旧隐式选中态不回流', () => {
   const ch = read('/newtab/views/CompassHome.vue');
-  const fd = read('/newtab/components/compass/FocusDetail.vue');
   if (!/class="focus-row focus-card empty-row"/.test(ch)) return false;
   if (!ch.includes('选择第 {{ c.idx + 1 }} 件重点')) return false;
-  if (!ch.includes('从任务池选择')) return false;
+  if (!ch.includes('从任务卡 / 选题卡中选择，或让 AI 推荐')) return false;
   if (!ch.includes('@click="openPicker(c.idx)"')) return false;
   if (!ch.includes('class="picker-modal"')) return false;
   if (!ch.includes('v-model="pickerProject"') || !ch.includes('v-model="pickerStatus"')) return false;
-  // FocusDetail 两分支 + 引导态文案
-  if (!fd.includes('emptySlot')) return false;
-  if (!fd.includes('这个位置还空着')) return false;
-  if (!fd.includes('点上面任意一件')) return false;
+  if (!ch.includes('placeholder="搜索任务 / 选题标题、项目或指标…"')) return false;
+  if (!ch.includes("@click=\"pickerCardType = 'all'\"") || !ch.includes("@click=\"pickerCardType = 'task'\"") || !ch.includes("@click=\"pickerCardType = 'topic'\"")) return false;
+  if (!ch.includes('v-model="pickerTopicStatus"')) return false;
+  if (!ch.includes('pickerCandidates')) return false;
   return true;
 });
 

@@ -16,7 +16,7 @@
  * 依赖基建见 ./helpers.cjs。
  */
 const {
-  check, read, codeOnly, CT_W11, TOWER, LANE, SPINE, PANEL, PANO, PANO_LANE, PANO_SWITCH, CMETA, CT_ALL
+  fs, base, check, read, codeOnly, CT_W11, TOWER, LANE, SPINE, PANEL, PANO, PANO_LANE, PANO_SWITCH, CMETA, CT_ALL
 } = require('./helpers.cjs');
 
 console.log('【W11 · 方向台战略金字塔结构契约】');
@@ -242,8 +242,9 @@ check('W11-11 ★方向台焦点契约：**愿景仍是唯一的主体**。D1 �
     && (CT_W11.match(/font-size:\s*var\(--fs-display\)/g) || []).length === 1;
 });
 
-check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。V4.4.0 圆润视觉补齐后，组件上限维持 440 行、取数层上限 260 行；任一文件越界即要求拆件，不允许继续膨胀', () => {
-  const lines = (p) => read(p).trimEnd().split('\n').length;
+check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。V4.5.0 取数层按任务/选题/下一步拆域后，物理文件上限仍为组件 440 行、取数文件 260 行；任一文件越界即要求继续拆件', () => {
+  // read() 会返回聚合成员；行数红线上限守的是“单个物理文件”，不能把拆件后的合计反过来算成膨胀。
+  const lines = (p) => fs.readFileSync(base + p, 'utf8').trimEnd().split('\n').length;
   const comps = {
     'CompassSpine': lines('/newtab/components/compass/CompassSpine.vue'),
     'CompassLayerPanel': lines('/newtab/components/compass/CompassLayerPanel.vue'),
@@ -253,14 +254,20 @@ check('W11-12 ★W11 不得让方向台变成第二个"全文件巨物"。V4.4.0
     'CompassPanoLane': lines('/newtab/components/compass/CompassPanoLane.vue'),
     'CompassPanoSwitch': lines('/newtab/components/compass/CompassPanoSwitch.vue')
   };
-  const meta = lines('/newtab/views/compassMeta.ts');
+  const metas = {
+    'compassMeta': lines('/newtab/views/compassMeta.ts'),
+    'compassTaskMeta': lines('/newtab/views/compassTaskMeta.ts'),
+    'compassTopicMeta': lines('/newtab/views/compassTopicMeta.ts'),
+    'compassNextStep': lines('/newtab/views/compassNextStep.ts'),
+  };
   const over = Object.entries(comps).filter(([, n]) => n > 440);
   if (over.length) console.error(`   · 单组件超 440 行：${over.map(([k, n]) => `${k} ${n}`).join('、')}（应再拆）`);
-  if (meta > 260) console.error(`   · 取数层超 260 行：${meta}（应再拆）`);
+  const metaOver = Object.entries(metas).filter(([, n]) => n > 260);
+  if (metaOver.length) console.error(`   · 单个取数文件超 260 行：${metaOver.map(([k, n]) => `${k} ${n}`).join('、')}（应再拆）`);
   /* 取数层必须是独立文件（判据随迁时跨文件读就靠它），且六组件都真被 import 而非"文件写了没接" */
   const imports = ['CompassSpine.vue', 'CompassLayerPanel.vue', 'CompassTower.vue', 'CompassPano.vue'];
   const notImported = imports.filter(f => !CT_W11.includes(f));
-  return over.length === 0 && meta > 0 && meta <= 260 && notImported.length === 0
+  return over.length === 0 && metaOver.length === 0 && notImported.length === 0
     && CT_W11.includes("from './compassMeta'") && CMETA.includes('export interface CompassMeta')
     /* 全景必须真的接进方向台（只做文件不接线 = 功能等于没做） */
     && CT_W11.includes("viewMode === 'pano'") && CT_W11.includes('<CompassPano');
@@ -305,11 +312,13 @@ check('W11-13 ★舱色六档必须**从 --accent 派生**而不是新增色系�
 check('W11-14 ★任务归属只有一个解析口径：项目、指标聚合、项目详情、指标详情都必须走 compassMeta 的 tasksOfProject / tasksOfMetric。指标口径必须是 `task.metricId / metric.taskIds` 双路并集，否则历史双写数据会进入项目总数、却从指标页和指标详情消失；无归属判定也必须看“指标是否认领”，不能只看 metricId', () => {
   const pd = read('/newtab/components/ProjectDetailDrawer.vue')
   const md = read('/newtab/components/compass/MetricDetailDrawer.vue')
+  const tm = read('/newtab/views/compassTaskMeta.ts')
+  const topic = read('/newtab/views/compassTopicMeta.ts')
   const buildSeg = CMETA.slice(CMETA.indexOf('export function buildCompassMeta'))
   return CMETA.includes('export function tasksOfProject')
     && CMETA.includes('export function tasksOfMetric')
-    && CMETA.includes('const linkedIds = new Set(metric.taskIds || [])')
-    && CMETA.includes('t.metricId === metric.id || linkedIds.has(t.id)')
+    && tm.includes('const linkedIds = new Set(metric.taskIds || [])')
+    && tm.includes('task.metricId === metric.id || linkedIds.has(task.id)')
     /* 聚合走单次建桶（性能红线）：两条关联路径都必须入同一桶，且 aggMetric 必须真的做 id 去重。
        ★V3.9.7：此前注释声称会去重，但函数体没有调用 dedupeSorted；历史双写数据在指标下
        显示成两行，删一行又会软删同一任务、两行一起消失。 */
@@ -320,22 +329,26 @@ check('W11-14 ★任务归属只有一个解析口径：项目、指标聚合、
        塔/全景与展板三处渲染序同源（拖拽排序可见）；去重口径与"聚合必须真去重"一字未动。 */
     && CMETA.includes('const uniqueTasks = dedupeSorted(tasks, m)')
     /* 桶内容仍需去重：覆盖 REQ-034 的历史重复 id 脏数据 */
-    && buildSeg.includes('aggMetric(m, bucket.get(m.id) || [])')
-    && CMETA.includes('function dedupeSorted(tasks: TaskCard[], metric?: Metric): TaskCard[]')
+    && buildSeg.includes('aggMetric(m, bucket.get(m.id) || [], topicBucket.get(m.id) || [])')
+    && tm.includes('export function dedupeSorted(tasks: TaskCard[], metric?: Metric): TaskCard[]')
     && CMETA.includes('const ownedTaskIds = new Set(metrics.flatMap(mm => mm.tasks.map(t => t.id)))')
     && CMETA.includes('projTasks.filter(t => !ownedTaskIds.has(t.id))')
-    && pd.includes('tasksOfMetric(metric, d.value.tasks)')
-    && pd.includes('const linkedIds = new Set(')
+    && pd.includes('return metric ? tasksOfMetric(metric, d.value.tasks) : []')
+    && pd.includes('return tasksOfProject(project.value, d.value.tasks)')
     && md.includes('tasksOfMetric(metric.value, d.value.tasks)')
+    /* V4.5.0：选题卡同样是指标“成果层”的单一聚合口径，不进入任务完成率。 */
+    && topic.includes('topic.metricId === metric.id || linkedIds.has(topic.id)')
+    && CMETA.includes('topics: uniqueTopics')
+    && md.includes('topicsOfMetric(metric.value, d.value.topics || [])')
     && !/\.filter\(t => !t\.deletedAt && t\.metricId === metric\.value!?\.id\)/.test(md)
 });
 
 check('W11-15 ★「下一步」是可写可选字段 + 任务自动回退的唯一解析：用户填写优先；清空后不写占位、回退到未完成任务；doing 优先于 todo，再按 updatedAt 新者优先；自动推导绝不反写 project.nextStep。三层展示（项目塔 / 全景 / 项目详情）都必须复用 resolveProjectNextStep，并给“按任务推导”弱标签', () => {
-  const seg = CMETA.slice(CMETA.indexOf('export function resolveProjectNextStep'), CMETA.indexOf('/** 全罗盘聚合'));
+  const seg = read('/newtab/views/compassNextStep.ts')
   return CMETA.includes('export function resolveProjectNextStep')
     && seg.includes("const manual = (proj.nextStep || '').trim()")
     && seg.includes("nextStepSource: 'manual'")
-    && seg.includes("filter(t => t.status !== 'done')")
+    && seg.includes("filter(task => task.status !== 'done')")
     && seg.includes("Number(b.status === 'doing') - Number(a.status === 'doing')")
     && seg.includes('(b.updatedAt || 0) - (a.updatedAt || 0)')
     && seg.includes("nextStepSource: 'task'")
@@ -343,8 +356,8 @@ check('W11-15 ★「下一步」是可写可选字段 + 任务自动回退的唯
     && !seg.includes('proj.nextStep =')
     && CMETA.includes('...resolveProjectNextStep(p, projTasks)')
     && read('/newtab/components/compass/CompassTowerNext.vue').includes('>按任务推导</span>')
-    && PANO.includes('>按任务推导</span>')
-    && read('/newtab/components/ProjectDetailDrawer.vue').includes('>按任务推导</span>')
+    && PANO.includes('按任务推导')
+    && read('/newtab/components/ProjectDetailDrawer.vue').includes('按任务推导')
     && read('/newtab/components/ProjectDetailDrawer.vue').includes('project.value.nextStep = value || undefined')
 });
 

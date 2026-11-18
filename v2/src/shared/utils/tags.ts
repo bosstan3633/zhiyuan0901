@@ -28,7 +28,7 @@ export function knownTagSet(d: AppData): Set<string> {
     }
   }
   walk(d.tagTree || [], '')
-  for (const c of [...(d.resources || []), ...(d.tasks || []), ...(d.curiosities || [])]) {
+  for (const c of [...(d.resources || []), ...(d.tasks || []), ...(d.curiosities || []), ...(d.topics || [])]) {
     if ((c as { deletedAt?: number }).deletedAt) continue
     for (const t of (c as { tags?: string[] }).tags || []) {
       out.add(t)
@@ -125,5 +125,6 @@ export function normalizeCardTagPaths(d: AppData): boolean {
   for (const r of d.resources || []) { const n2 = fix(r.tags); if (n2 !== r.tags) r.tags = n2! }
   for (const t of d.tasks || []) { const n2 = fix(t.tags); if (n2 !== t.tags) t.tags = n2! }
   for (const c of d.curiosities || []) { const n2 = fix(c.tags); if (n2 !== c.tags) c.tags = n2! }
+  for (const topic of d.topics || []) { const n2 = fix(topic.tags); if (n2 !== topic.tags) topic.tags = n2! }
   return changed
 }

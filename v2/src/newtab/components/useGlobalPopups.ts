@@ -9,8 +9,9 @@ import { matchPinyin, ensurePinyin, isPinyinReady, onPinyinReady } from '@/share
 import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, toOpenableRawLink, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
 import { useConfirm } from '@/shared/components/confirm'
-import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
+import type { ResourceCard, TaskCard, CuriosityCard, TopicCard, Workspace, Category, AnyCard, Project } from '@/shared/models'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
+import { attachTopicToMetric, softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { markRank } from '@/shared/utils/marksort'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { getRecentWebTab } from '@/shared/utils/recentWebTab'
@@ -21,11 +22,11 @@ import { useGlobalPopupsSearch } from './useGlobalPopupsSearch'
 import { useGlobalPopupsCapture } from './useGlobalPopupsCapture'
 import { useGlobalPopupsRows } from './useGlobalPopupsRows'
 
-export type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | 'taskcapture' | 'ai-advice' | null
+export type PanelType = 'search' | 'capture' | 'curio' | 'shortcuts' | 'taskcapture' | 'topiccapture' | 'ai-advice' | null
 export interface SearchResult {
   id: string
   // 第卅二轮 REQ-008：新增 'ws' 策展台实体命中；R49-G：新增 'proj' 项目实体命中
-  type: 'res'|'task'|'curio'|'ws'|'proj'
+  type: 'res'|'task'|'curio'|'topic'|'ws'|'proj'
   iconClass: string
   iconText: string
   title: string
@@ -52,7 +53,7 @@ export interface SearchResult {
   tl: string
   /** R4-Pa：标题里有没有汉字——没有就不可能有拼音通道，连 pinyinOf 都不必进 */
   cjk: boolean
-  raw: ResourceCard | TaskCard | CuriosityCard | Workspace
+  raw: ResourceCard | TaskCard | CuriosityCard | TopicCard | Workspace
 }
 export type SearchResultSeed = Omit<SearchResult, 'bl' | 'nb' | 'nt' | 'tl' | 'cjk'>
 export type AiCand = { id: string; type: string; title: string; ws: string; cat: string; summary?: string; tags?: string[]; callCount?: number; updatedAt?: number; fields?: string; link?: string }
@@ -190,7 +191,7 @@ const pinyinReady = ref(isPinyinReady())
 onPinyinReady(() => { pinyinReady.value = true })
 /** B29：类型过滤单一状态源——搜索框 chip 与类型 Tab 行共用，Tab 切换两者同步
  *  R49-G：新增 'ws' 策展台（分类树定位）/ 'proj' 项目（直达项目详情）两类型 */
-const currentType = ref<'all'|'res'|'task'|'curio'|'ws'|'proj'>('all')
+const currentType = ref<'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'>('all')
 const selIndex = ref(0)
 /**
  * R60-1/2：选中项锚点 = 卡片 id。
@@ -209,19 +210,20 @@ function syncIndexFromId() {
   selIndex.value = flatList.value.findIndex(x => (x.kind === 'res' || x.kind === 'result') && x.item.id === selectedId.value)
 }
 
-function typeLabel(t: 'all'|'res'|'task'|'curio'|'ws'|'proj'): string {
-  return t === 'res' ? '资源卡' : t === 'task' ? '任务卡' : t === 'curio' ? '好奇心' : t === 'ws' ? '策展台' : t === 'proj' ? '项目' : '搜全部'
+function typeLabel(t: 'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'): string {
+  return t === 'res' ? '资源卡' : t === 'task' ? '任务卡' : t === 'curio' ? '好奇心' : t === 'topic' ? '选题卡' : t === 'ws' ? '策展台' : t === 'proj' ? '项目' : '搜全部'
 }
 const filterLabel = computed(() => typeLabel(currentType.value))
 
 const counts = computed(() => {
-  if (!searchActive.value) return { all: 0, res: 0, task: 0, curio: 0, ws: 0, proj: 0 }
+  if (!searchActive.value) return { all: 0, res: 0, task: 0, curio: 0, topic: 0, ws: 0, proj: 0 }
   const all = d.value
   return {
-    all: all.resources.filter(r=>!r.deletedAt).length + all.tasks.filter(t=>!t.deletedAt).length + all.curiosities.filter(c=>!c.deletedAt).length + all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length,
+    all: all.resources.filter(r=>!r.deletedAt).length + all.tasks.filter(t=>!t.deletedAt).length + all.curiosities.filter(c=>!c.deletedAt).length + (all.topics || []).filter(t=>!t.deletedAt).length + all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length,
     res: all.resources.filter(r=>!r.deletedAt).length,
     task: all.tasks.filter(t=>!t.deletedAt).length,
     curio: all.curiosities.filter(c=>!c.deletedAt).length,
+    topic: (all.topics || []).filter(t=>!t.deletedAt).length,
     ws: all.workspaces.filter(w=>!w.archived && w.id !== CURATION_WS_ID).length,
     proj: allProjects().filter(p => showDoneProjects.value || !isProjectDone(p)).length
   }
@@ -252,9 +254,10 @@ const resultTable = computed<SearchResult[]>(() => {
   // R131-C2：查表索引一次成型——改前逐卡对全表 find（900 卡 × 200 台/类 ≈ 18 万次比较/轮）
   const wsById = new Map(all.workspaces.map(w => [w.id, w]))
   const catById = new Map(all.categories.map(c => [c.id, c]))
-  const projById = new Map<string, { id: string; name: string }>()
+  const projById = new Map<string, Project>()
   const projDirName = new Map<string, string>()
   for (const dir of all.compass.directions) for (const p of dir.projects) { projById.set(p.id, p); projDirName.set(p.id, dir.name) }
+  const topicStatusById = new Map((all.topicStatuses || []).map(status => [status.id, status]))
   const wsCardCount = new Map<string, number>()
   for (const r of all.resources) if (!r.deletedAt) wsCardCount.set(r.workspaceId, (wsCardCount.get(r.workspaceId) || 0) + 1)
 
@@ -300,6 +303,24 @@ const resultTable = computed<SearchResult[]>(() => {
       badges: [{type:'curio-status', text: statusText}],
       archived: !!c.lifecycleArchived,
       raw: c
+    }))
+  })
+
+  // 选题卡
+  ;(all.topics || []).filter(t => !t.deletedAt).forEach(t => {
+    const proj = projById.get(t.projectId || '')
+    const metric = proj?.metrics?.find(m => m.id === t.metricId)
+    const status = topicStatusById.get(t.statusId) || (all.topicStatuses || [])[0]
+    results.push(withMatchFields({
+      id: t.id, type: 'topic', iconClass: 'topic', iconText: '',
+      title: t.title, ws: '选题卡池', cat: metric?.title || proj?.name || '未归属',
+      badges: [
+        { type: 'topic-badge', text: '成果' },
+        { type: 'topic-status', text: status?.name || '构思中' },
+      ],
+      archived: !!t.lifecycleArchived,
+      summary: t.description,
+      raw: t
     }))
   })
 
@@ -517,8 +538,9 @@ const QUICK_ACTIONS = [
   { label: '打开回收站', icon: 'trash', run: () => { closeAll(); router.push('/recycle') } },
   { label: '打开使用手册', icon: 'arrowright', run: () => { closeAll(); router.push('/manual') } },
   { label: '打开设置', icon: 'settings', run: () => { closeAll(); router.push('/settings') } },
-  { label: '采集资源卡（Ctrl+Shift+J）', icon: 'download', run: () => openPanel('capture') },
-  { label: '采集好奇心（Ctrl+Shift+I）', icon: 'bulb', run: () => openPanel('curio') },
+    { label: '采集资源卡（Ctrl+Shift+J）', icon: 'download', run: () => openPanel('capture') },
+    { label: '采集好奇心（Ctrl+Shift+I）', icon: 'bulb', run: () => openPanel('curio') },
+    { label: '快速采集选题卡', icon: 'bulb', run: () => openPanel('topiccapture') },
 ]
 // R171-C1：快速开关组——04-63 任务书「全部开关收进命令面板」的收口（R158 拍板留设置页，本轮兑现）。
 // 只收「点了立即生效、无需确认」的轻开关，写盘类重设置仍留设置页；computed 而非常量：行内要明示当前态。
@@ -622,8 +644,9 @@ const flatList = computed<FlatItem[]>(() => {
   return out
 })
 const groupedResults = computed(() => {
-  const defs: { type: 'res'|'task'|'curio'|'ws'|'proj'; label: string }[] = [
+  const defs: { type: 'res'|'task'|'curio'|'topic'|'ws'|'proj'; label: string }[] = [
     { type: 'res', label: '资源卡' }, { type: 'task', label: '任务卡' }, { type: 'curio', label: '好奇心' },
+    { type: 'topic', label: '选题卡' },
     { type: 'ws', label: '策展台' }, { type: 'proj', label: '项目' }
   ]
   // REQ-046 速度优化：每组最多渲染 30 条，防超大结果集首屏卡顿

@@ -29,7 +29,7 @@ import { useGlobalSettingsPanels } from './useGlobalSettingsPanels'
 export interface NavItem { key: string; icon?: string; label: string; route?: string; mark?: boolean }
 export interface TagNodeLite { id: string; name: string; children?: TagNodeLite[] }
 export interface FlatT { id: string; name: string; depth: number; node: TagNodeLite; parent: TagNodeLite | null }
-export interface TtRow { kind: 'resource' | 'task' | 'curiosity'; id: string; title: string; sub: string; link?: string; desc?: string; status?: string; tags: string[] }
+export interface TtRow { kind: 'resource' | 'task' | 'curiosity' | 'topic'; id: string; title: string; sub: string; link?: string; desc?: string; status?: string; tags: string[] }
 
 export function useGlobalSettings() {
 const logoUrl = '/icons/icon128.png' // R174-2 减重：与 public/icons/icon128.png 逐字节同源，走公共路径不再重复入库
@@ -148,6 +148,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   { title: '卡片与字段', items: [
     { key: 'resource', icon: 'filetext', label: '资源卡' },
     { key: 'task', icon: 'checksquare', label: '任务卡' },
+    { key: 'topic', icon: 'bulb', label: '选题卡' },
     { key: 'curiosity', icon: 'bulb', label: '好奇心卡' },
     // R62-3：策展主题卡字段组（isThesis 资源卡专用）
     { key: 'thesis', icon: 'landmark', label: '策展主题卡' },
@@ -345,7 +346,7 @@ function cardHasTag(tags: string[] | undefined, name: string): boolean {
 let tagUseCache: { seq: number; size: number; rev: number; map: Map<string, number> } | null = null
 function tagUsageMap(): Map<string, number> {
   const d = store.data!
-  const size = d.resources.length + d.tasks.length + d.curiosities.length
+  const size = d.resources.length + d.tasks.length + d.curiosities.length + (d.topics || []).length
   const seq = getMutationSeq()
   const rev = d.tagTreeRevision || 0
   if (tagUseCache && tagUseCache.seq === seq && tagUseCache.size === size && tagUseCache.rev === rev) return tagUseCache.map
@@ -379,6 +380,7 @@ function tagUsageMap(): Map<string, number> {
   walk(d.resources as unknown as { deletedAt?: number; tags?: string[] }[])
   walk(d.tasks as unknown as { deletedAt?: number; tags?: string[] }[])
   walk(d.curiosities as unknown as { deletedAt?: number; tags?: string[] }[])
+  walk(d.topics as unknown as { deletedAt?: number; tags?: string[] }[])
   tagUseCache = { seq, size, rev, map }
   return map
 }
@@ -402,7 +404,7 @@ function ttAddChild(parentId: string) {
 }
 // ---- R127：标签管理双栏——左树选中 + 右列卡片（三卡合一 / 类型过滤 / 搜索 / 多选拖拽移动=替换语义） ----
 const ttActiveTag = ref('')
-const ttCardKind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
+const ttCardKind = ref<'all' | 'resource' | 'task' | 'curiosity' | 'topic'>('all')
 const ttCardQ = ref('')
 const ttPicked = ref<Set<string>>(new Set())
 // R130-T3：拖拽视觉反馈——目标标签行 dragover 高亮（对齐全景页 .drop 样式）+ 被拖卡片行降透明度
@@ -433,6 +435,13 @@ const ttRows = computed<TtRow[]>(() => {
     for (const c of store.data!.curiosities || []) {
       if (c.deletedAt || !cardHasTag(c.tags, tag)) continue
       out.push({ kind: 'curiosity', id: c.id, title: c.question, sub: c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索', status: c.status, tags: c.tags || [] })
+    }
+  }
+  if (kind === 'all' || kind === 'topic') {
+    for (const t of store.data!.topics || []) {
+      if (t.deletedAt || !cardHasTag(t.tags, tag)) continue
+      const status = (store.data!.topicStatuses || []).find(row => row.id === t.statusId)
+      out.push({ kind: 'topic', id: t.id, title: t.title, sub: status?.name || '选题', status: t.statusId, tags: t.tags || [] })
     }
   }
   return q ? out.filter(x => (x.title + '' + x.sub + '' + (x.link || '')).toLowerCase().includes(q)) : out

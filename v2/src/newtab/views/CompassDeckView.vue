@@ -3,30 +3,34 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/shared/components/Icon.vue'
 import TaskManagerPanel from '../components/compass/TaskManagerPanel.vue'
+import TopicManagerPanel from '../components/compass/TopicManagerPanel.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import PoolCardsPanel from '../components/compass/PoolCardsPanel.vue'
 
 defineOptions({ name: 'CompassDeckView' })
 
-type DeckKind = 'task' | 'curiosity' | 'resource'
+type DeckKind = 'task' | 'topic' | 'curiosity' | 'resource'
 
 const route = useRoute()
 const router = useRouter()
 const taskPanel = ref<InstanceType<typeof TaskManagerPanel> | null>(null)
+const topicPanel = ref<InstanceType<typeof TopicManagerPanel> | null>(null)
 const curiosityPanel = ref<InstanceType<typeof CuriosityPanel> | null>(null)
 const resourcePanel = ref<InstanceType<typeof PoolCardsPanel> | null>(null)
 
 const kind = computed<DeckKind>(() => {
   const raw = String(route.params.kind || '')
-  return raw === 'curiosity' || raw === 'resource' ? raw : 'task'
+  return raw === 'topic' || raw === 'curiosity' || raw === 'resource' ? raw : 'task'
 })
 const title = computed(() =>
   kind.value === 'task' ? '任务卡 · 全部'
+    : kind.value === 'topic' ? '选题卡 · 全部'
     : kind.value === 'curiosity' ? '好奇心卡 · 全部'
       : '资源卡 · 全部')
 /** V3.9.22：可见标题块退役；保留一份读屏标题，tab 成为页头唯一导航。 */
 const DECK_TABS: { kind: DeckKind; label: string }[] = [
   { kind: 'task', label: '任务卡' },
+  { kind: 'topic', label: '选题卡' },
   { kind: 'curiosity', label: '好奇心卡' },
   { kind: 'resource', label: '资源卡' },
 ]
@@ -59,6 +63,7 @@ watch(
     await nextTick()
     setTimeout(() => {
       if (k === 'task') taskPanel.value?.openDetail(String(hl))
+      else if (k === 'topic') topicPanel.value?.openDetail(String(hl))
       else if (k === 'curiosity' && open === '1') curiosityPanel.value?.openDetail(String(hl))
       else if (k === 'resource') resourcePanel.value?.openDetail(String(hl))
     }, 80)
@@ -72,6 +77,7 @@ watch(
     if (fresh !== '1') return
     await nextTick()
     if (k === 'task') await taskPanel.value?.resetForFresh()
+    else if (k === 'topic') await topicPanel.value?.resetForFresh()
     else if (k === 'curiosity') await curiosityPanel.value?.resetForFresh()
     else if (k === 'resource') await resourcePanel.value?.resetForFresh()
   },
@@ -96,6 +102,7 @@ watch(
 
     <section class="deck-body">
       <TaskManagerPanel v-if="kind === 'task'" ref="taskPanel" secondary-mode />
+      <TopicManagerPanel v-else-if="kind === 'topic'" ref="topicPanel" secondary-mode />
       <CuriosityPanel v-else-if="kind === 'curiosity'" ref="curiosityPanel" secondary-mode />
       <PoolCardsPanel v-else ref="resourcePanel" secondary-mode />
     </section>

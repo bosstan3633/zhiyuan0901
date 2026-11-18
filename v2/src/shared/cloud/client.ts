@@ -45,9 +45,109 @@ export function cloudEnvDefaults(): { url: string; anonKey: string } {
   return { url: e?.url || '', anonKey: e?.anonKey || '' }
 }
 
+export type CloudErrorKind =
+  | 'config'
+  | 'network'
+  | 'timeout'
+  | 'auth'
+  | 'forbidden'
+  | 'not_found'
+  | 'rate_limit'
+  | 'server'
+  | 'protocol'
+  | 'storage'
+  | 'unknown'
+
 export class CloudError extends Error {
   status: number
-  constructor(status: number, msg: string) { super(msg); this.status = status }
+  kind: CloudErrorKind
+  detail?: string
+  retryable: boolean
+
+  constructor(
+    status: number,
+    msg: string,
+    kind?: CloudErrorKind,
+    options?: { detail?: string; retryable?: boolean; cause?: unknown },
+  ) {
+    super(msg)
+    this.name = 'CloudError'
+    this.status = status
+    this.kind = kind || classifyStatus(status)
+    this.detail = options?.detail
+    this.retryable = options?.retryable ?? (this.kind === 'network' || this.kind === 'timeout' || this.kind === 'server' || this.kind === 'rate_limit')
+    if (options?.cause !== undefined) (this as Error & { cause?: unknown }).cause = options.cause
+  }
+}
+
+function classifyStatus(status: number): CloudErrorKind {
+  if (status === 0) return 'network'
+  if (status === 401) return 'auth'
+  if (status === 403) return 'forbidden'
+  if (status === 404) return 'not_found'
+  if (status === 429) return 'rate_limit'
+  if (status >= 500) return 'server'
+  return 'unknown'
+}
+
+/** 把底层异常收敛成用户可执行的中文提示，不把浏览器原文 TypeError 漏到界面。 */
+export function cloudErrorText(error: unknown): string {
+  if (error instanceof CloudError) return error.message
+  if (error instanceof Error) return error.message || '云端请求失败'
+  return String(error || '云端请求失败')
+}
+
+function safeResponseDetail(raw: string): string {
+  if (!raw) return ''
+  try {
+    const body = JSON.parse(raw) as Record<string, unknown>
+    const candidate = body.msg || body.message || body.error_description || body.error
+    return typeof candidate === 'string' ? candidate.slice(0, 180) : ''
+  } catch {
+    return raw
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 180)
+  }
+}
+
+function responseError(res: Response, detail: string, scope: 'auth' | 'data' | 'storage'): CloudError {
+  const serverDetail = safeResponseDetail(detail)
+  if (scope === 'auth') {
+    if (res.status === 400 || res.status === 401) {
+      return new CloudError(res.status, '登录失败：邮箱或密码不正确。请确认账号已获邀请后再试。', 'auth', { detail: serverDetail })
+    }
+    if (res.status === 403) return new CloudError(res.status, '登录失败：当前账号没有云端访问权限。', 'forbidden', { detail: serverDetail })
+  }
+  if (res.status === 401) return new CloudError(res.status, '云端登录已过期，请重新登录账号。', 'auth', { detail: serverDetail })
+  if (res.status === 403) return new CloudError(res.status, '云端拒绝了本次请求，请检查账号权限与 Supabase RLS 配置。', 'forbidden', { detail: serverDetail })
+  if (res.status === 404) return new CloudError(res.status, '云端接口或项目不存在，请检查 Supabase 地址与项目配置。', 'not_found', { detail: serverDetail })
+  if (res.status === 429) return new CloudError(res.status, '云端请求过于频繁，已自动重试仍未成功，请稍后再试。', 'rate_limit', { detail: serverDetail })
+  if (res.status >= 500) return new CloudError(res.status, '云端服务暂时不可用，请稍后重试。', 'server', { detail: serverDetail })
+  const prefix = scope === 'storage' ? '附件存储请求失败' : '云端请求失败'
+  return new CloudError(res.status, `${prefix}（${res.status}）${serverDetail ? `：${serverDetail}` : ''}`, undefined, { detail: serverDetail })
+}
+
+const REQUEST_TIMEOUT_MS = 18_000
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new CloudError(0, '连接云端超时。请检查网络、代理或 VPN 后重新检查。', 'timeout', { cause: error })
+    }
+    const raw = error instanceof Error ? error.message : String(error)
+    if (/failed to fetch|networkerror|load failed|connection reset|econnreset|enotfound|offline/i.test(raw)) {
+      throw new CloudError(0, '无法连接云端服务。请检查网络、代理、VPN 与 Supabase 地址后重试。', 'network', { detail: raw, cause: error })
+    }
+    throw new CloudError(0, `云端请求未发出：${raw.slice(0, 160)}`, 'unknown', { cause: error })
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 const RATE_LIMIT_MAX_RETRY = 3
@@ -70,18 +170,22 @@ async function req<T>(env: CloudEnv, path: string, init: RequestInit, token?: st
   if (token) headers.Authorization = 'Bearer ' + token
   let res: Response | undefined
   for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRY; attempt += 1) {
-    res = await fetch(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
+    res = await fetchWithTimeout(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
     if (res.status !== 429 || attempt === RATE_LIMIT_MAX_RETRY) break
     await retry429(res, attempt)
   }
   if (!res) throw new CloudError(0, '云端请求未发出')
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new CloudError(res.status, `云端请求失败 ${res.status}：${text.slice(0, 200)}`)
+    throw responseError(res, text, path.startsWith('/auth/') ? 'auth' : 'data')
   }
   if (res.status === 204) return undefined as T
   const ct = res.headers.get('content-type') || ''
-  return (ct.includes('application/json') ? await res.json() : await res.text()) as T
+  try {
+    return (ct.includes('application/json') ? await res.json() : await res.text()) as T
+  } catch (error) {
+    throw new CloudError(res.status, '云端返回了无法解析的数据，请检查 Supabase 项目配置。', 'protocol', { cause: error })
+  }
 }
 
 function storagePath(path: string): string {
@@ -90,16 +194,18 @@ function storagePath(path: string): string {
 
 async function rawRequest(env: CloudEnv, path: string, init: RequestInit, token: string): Promise<Response> {
   const headers: Record<string, string> = { apikey: env.anonKey, Authorization: 'Bearer ' + token }
-  const res = await fetch(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
+  const res = await fetchWithTimeout(env.url + path, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new CloudError(res.status, `云端存储请求失败 ${res.status}：${text.slice(0, 200)}`)
+    throw responseError(res, text, 'storage')
   }
   return res
 }
 
 export const cloud = {
   // ---- Auth ----
+  health: (env: CloudEnv) =>
+    req<Record<string, unknown> | string>(env, '/auth/v1/health', { method: 'GET' }),
   login: (env: CloudEnv, email: string, password: string) =>
     req<{ access_token: string; refresh_token: string; user: { id: string; email?: string } }>(
       env, '/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -162,7 +268,7 @@ export const cloud = {
       device_id: string | null
       event_ts: string
       action: 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'
-      card_kind: 'resource' | 'task' | 'curiosity' | 'system'
+      card_kind: 'resource' | 'task' | 'curiosity' | 'topic' | 'system'
       card_id: string | null
       title_snapshot: string | null
       to_state: string | null

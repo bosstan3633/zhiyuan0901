@@ -198,7 +198,7 @@ async function notifyTab(tabId: number, type: string): Promise<boolean> {
  * 应用内那三块面板本来就是同一件事的正路，且采集/好奇面板会自己从最近的网页标签取标题与链接
  * （GlobalPopups 的 getRecentWebTab），所以这里不需要 prefill 通道。
  */
-async function openQuickPanel(panel: 'capture' | 'curio' | 'taskcapture'): Promise<void> {
+async function openQuickPanel(panel: 'capture' | 'curio' | 'taskcapture' | 'topiccapture'): Promise<void> {
   const base = chrome.runtime.getURL('src/newtab/index.html')
   try {
     const tabs = await chrome.tabs.query({ url: base + '*' })
@@ -317,6 +317,10 @@ chrome.commands.onCommand.addListener(async (command) => {
       await openNewtabRoute(`/deck/task?fresh=1&freshAt=${Date.now()}`)
       break
     }
+    case 'goto-topic': {
+      await openNewtabRoute(`/deck/topic?fresh=1&freshAt=${Date.now()}`)
+      break
+    }
     case 'sync-cloud-now': {
       await triggerCloudSyncNow()
       break
@@ -336,6 +340,14 @@ chrome.commands.onCommand.addListener(async (command) => {
         if (ok) break
       }
       await openQuickPanel('taskcapture')
+      break
+    }
+    case 'open-topic': {
+      if (tab?.id) {
+        const ok = await notifyTab(tab.id, 'zy-open-topic-capture')
+        if (ok) break
+      }
+      await openQuickPanel('topiccapture')
       break
     }
     case 'quick-capture': {

@@ -356,6 +356,7 @@ function ttMoveCards(targetPath: string) {
   apply(store.data!.resources as { id: string; tags?: string[] }[])
   apply(store.data!.tasks as unknown as { id: string; tags?: string[] }[])
   apply(store.data!.curiosities as unknown as { id: string; tags?: string[] }[])
+  apply(store.data!.topics as unknown as { id: string; tags?: string[] }[])
   store.persist()
   ttPicked.value = new Set()
   showToast(moved ? `已移动 ${moved} 张卡片 → #${targetPath}` : '没有可移动的卡片')
@@ -411,6 +412,7 @@ function ttConfirm() {
     d.resources.forEach(applySwap)
     d.tasks.forEach(applySwap)
     d.curiosities.forEach(applySwap)
+    d.topics.forEach(applySwap)
     store.persist()
     showToast(synced ? `已重命名并同步 ${synced} 张卡片` : '已重命名（该标签当前无卡片挂载）')
   } else if (ed.parentId) {
@@ -453,6 +455,7 @@ async function ttRemove(id: string) {
   d.resources.forEach(r => r.tags = strip(r.tags))
   d.tasks.forEach(t => t.tags = strip(t.tags))
   d.curiosities.forEach(c => c.tags = strip(c.tags))
+  d.topics.forEach(t => t.tags = strip(t.tags))
   store.persist()
   showToast(`已删除 ${names.join(' ')}${subCount > 0 ? `（含 ${subCount} 个子标签）`: ''}`)
 }
@@ -487,6 +490,7 @@ function ttDrop(e: DragEvent, targetId: string) {
   d.resources.forEach(r => r.tags = swap(r.tags))
   d.tasks.forEach(t => t.tags = swap(t.tags))
   d.curiosities.forEach(c => c.tags = swap(c.tags))
+  d.topics.forEach(t => t.tags = swap(t.tags))
   store.persist()
   ttDragId = null
   showToast(`「${from.node.name}」已成为「${to.node.name}」的子标签（卡片同步为 #${newPath}）`)
@@ -505,6 +509,7 @@ function ttUnnest(rootId: string, childId: string) {
   d.resources.forEach(r => r.tags = swap(r.tags))
   d.tasks.forEach(t => t.tags = swap(t.tags))
   d.curiosities.forEach(c => c.tags = swap(c.tags))
+  d.topics.forEach(t => t.tags = swap(t.tags))
   store.persist()
   showToast(`⇪ 「${newName}」已提升为根标签`)
 }
@@ -516,7 +521,7 @@ function ttCollectFromCards() {
   for (const r0 of d.tagTree || []) for (const c0 of safeChildren(r0)) childPaths.add(r0.name + '/' + c0.name)
   const seen = new Set<string>()
   let added = 0
-  const all = [...(d.resources || []), ...(d.tasks || []), ...(d.curiosities || [])]
+  const all = [...(d.resources || []), ...(d.tasks || []), ...(d.curiosities || []), ...(d.topics || [])]
   for (const card of all) {
     for (const t of card.tags || []) {
       if (!t || seen.has(t)) continue

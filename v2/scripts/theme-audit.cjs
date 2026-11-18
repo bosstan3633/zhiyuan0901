@@ -71,7 +71,7 @@ const FREEZE_AT = (() => {
   return Math.floor(t / 86400000) * 86400000
 })()
 
-const THEMES = ['raycast', 'apple', 'notion']
+const THEMES = ['raycast', 'apple', 'notion', 'oppo']
 const VIEWS = [
   { id: 'dashboard', hash: '#/', name: '调度台' },
   // R3-B1：树即方向台一级——#/compass 拍的就是完整方向树（原 CompassShell 主航线 + 内嵌展板退役）
@@ -138,6 +138,11 @@ const DRAWER_VIEWS = [
     id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
     /* 二级页默认列表视图；卡片视图只是用户可选形态，巡检必须点默认态真实存在的列表行。 */
     card: '.cz-list-item', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 0, foot: '.drawer-footer button',
+  },
+  {
+    id: 'drawer-topic', name: '选题卡详情', hash: '#/deck/topic',
+    card: '.topic-pool-item', open: '.drawer .topic-title', ai: '.drawer .topic-ai-inline', aiCount: 1,
+    h1: '.drawer .topic-title', foot: '.topic-foot button',
   },
 ]
 
@@ -692,7 +697,7 @@ const DASH_SCENES = [
           nameEmpty: cards.filter((c) => !(c.querySelector('.theme-name') || {}).textContent).length
         }
       })
-      const ok = r.n === 3 && r.tag === 'BUTTON' && r.dots.every((x) => x === 3) && r.act === 1
+      const ok = r.n === 4 && r.tag === 'BUTTON' && r.dots.every((x) => x === 3) && r.act === 1
         && r.borderW !== '0px' && r.nameEmpty === 0
       return { ok, txt: `卡=${r.n}/${r.tag} 色点=${r.dots.join(',')} 选中=${r.act} 描边=${r.borderW} ${r.border} 无名称=${r.nameEmpty}` }
     }

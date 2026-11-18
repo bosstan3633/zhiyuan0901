@@ -9,7 +9,7 @@ import EmptyState from '@/shared/components/EmptyState.vue'
 import CurationMindNode from './CurationMindNode.vue'
 import CurationAssetStrip from './CurationAssetStrip.vue'
 import { setOverlayFsHost } from '@/shared/utils/overlayHost'
-import type { Category, ResourceCard } from '@/shared/models'
+import type { Category, ResourceCard, TopicCard, TopicStatusDef } from '@/shared/models'
 import type { CurationCanvasLayout } from '@/newtab/composables/useCurationMindMap'
 import type { CurationHistoryEntry } from '@/newtab/composables/useCurationCanvasHistory'
 
@@ -24,6 +24,8 @@ const props = defineProps<{
   editRequestId: string
   editRequestSeq: number
   cardsByCat: Map<string, ResourceCard[]>
+  topics: TopicCard[]
+  topicStatuses: TopicStatusDef[]
   searchQuery: string
   selectedLabel: string
   selectedLevel: number
@@ -57,6 +59,8 @@ const emit = defineEmits<{
   'open-resource': [card: ResourceCard]
   'open-resource-link': [card: ResourceCard]
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
+  'open-topic': [topic: TopicCard]
+  'unlink-topic': [nodeId: string, topic: TopicCard]
   'open-node-assets': [id: string]
   'drop-node-asset-files': [id: string, files: File[]]
   'preview-node-asset': [id: string, asset: import('@/shared/models').AssetMeta]
@@ -550,7 +554,7 @@ onBeforeUnmount(() => {
           <div v-if="roots.length" class="mind-children">
             <CurationMindNode v-for="node in roots" :key="node.id" :node="node" :nodes="nodes"
               :selected-id="selectedId" :edit-request-id="editRequestId" :edit-request-seq="editRequestSeq"
-              :cards-by-cat="cardsByCat" :search-query="searchQuery"
+              :cards-by-cat="cardsByCat" :topics="topics" :topic-statuses="topicStatuses" :search-query="searchQuery"
               :remote-downloader="remoteDownloader"
               :keyboard-drag-source="keyboardDragSource" :keyboard-drag-target="keyboardDragTarget"
               :reveal-id="revealId"
@@ -564,6 +568,8 @@ onBeforeUnmount(() => {
               @open-resource="emit('open-resource', $event)"
               @open-resource-link="emit('open-resource-link', $event)"
               @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
+              @open-topic="emit('open-topic', $event)"
+              @unlink-topic="(nodeId, topic) => emit('unlink-topic', nodeId, topic)"
               @open-assets="emit('open-node-assets', $event)"
               @drop-asset-files="(id, files) => emit('drop-node-asset-files', id, files)"
               @preview-asset="(id, asset) => emit('preview-node-asset', id, asset)"

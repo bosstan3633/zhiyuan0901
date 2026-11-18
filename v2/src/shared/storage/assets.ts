@@ -82,10 +82,12 @@ export async function clearAllAssets(): Promise<number> {
 export function clearAllAssetReferences(d: {
   resources?: { assets?: { id: string }[] }[]
   tasks?: { assets?: { id: string }[] }[]
+  topics?: { assets?: { id: string }[] }[]
   curiosities?: { assets?: { id: string }[] }[]
   argCards?: { assets?: { id: string }[] }[]
   categories?: { assets?: { id: string }[] }[]
   supportLinks?: { snapshot?: { assets?: { id: string }[] } }[]
+  topicResourceLinks?: { snapshot?: { assets?: { id: string }[] } }[]
   curationProjections?: { snapshot?: { assets?: { id: string }[] } }[]
   resourceFolderMirrors?: { snapshot?: { assets?: { id: string }[] } }[]
 }): number {
@@ -100,10 +102,12 @@ export function clearAllAssetReferences(d: {
   }
   clear(d.resources)
   clear(d.tasks)
+  clear(d.topics)
   clear(d.curiosities)
   clear(d.argCards)
   clear(d.categories)
   clear((d.supportLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
+  clear((d.topicResourceLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   clear((d.curationProjections || []).map(projection => projection.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   clear((d.resourceFolderMirrors || []).map(mirror => mirror.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   return changed
@@ -203,10 +207,12 @@ export function assetIdsOf(metas: { id: string }[] | null | undefined): Set<stri
 export function collectReferencedAssetIds(d: {
   resources?: { assets?: { id: string }[] }[]
   tasks?: { assets?: { id: string }[] }[]
+  topics?: { assets?: { id: string }[] }[]
   curiosities?: { assets?: { id: string }[] }[]
   argCards?: { assets?: { id: string }[] }[]
   categories?: { assets?: { id: string }[] }[]
   supportLinks?: { snapshot?: { assets?: { id: string }[] } }[]
+  topicResourceLinks?: { snapshot?: { assets?: { id: string }[] } }[]
   curationProjections?: { snapshot?: { assets?: { id: string }[] } }[]
   resourceFolderMirrors?: { snapshot?: { assets?: { id: string }[] } }[]
 }): Set<string> {
@@ -215,10 +221,12 @@ export function collectReferencedAssetIds(d: {
     (cards || []).forEach(c => (c.assets || []).forEach(a => keep.add(a.id)))
   collect(d.resources)
   collect(d.tasks)
+  collect(d.topics)
   collect(d.curiosities)
   collect(d.argCards)
   collect(d.categories)
   collect((d.supportLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
+  collect((d.topicResourceLinks || []).map(link => link.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   collect((d.curationProjections || []).map(projection => projection.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   collect((d.resourceFolderMirrors || []).map(mirror => mirror.snapshot).filter((card): card is { assets?: { id: string }[] } => !!card))
   return keep

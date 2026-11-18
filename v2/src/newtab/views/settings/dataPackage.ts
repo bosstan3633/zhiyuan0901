@@ -4,17 +4,18 @@
  * 主数据仍是 AppData；事件日志来自独立键 zy_event_log，导出时作为包内 eventLog 段带走。
  * 附件本体永远不进数据包——完整附件迁移只走「附件管理 → 全部附件整体打包下载」。
  */
-import type { AppData, CuriosityCard, ID, ResourceCard, TaskCard } from '@/shared/models'
+import type { AppData, CuriosityCard, ID, ResourceCard, TaskCard, TopicCard } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { EVENT_LOG_CAP, mergeImportedEventLog, readEventLog } from '@/shared/utils/eventLog'
 import { normalizeLegacyCards, stripRetiredCardKeys } from '@/shared/storage/repository'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { reconcileCapturedResources } from '@/shared/storage/captureDedupe'
-import { defaultThesisFieldDefs } from '@/shared/storage/defaults'
+import { defaultThesisFieldDefs, defaultTopicStatuses } from '@/shared/storage/defaults'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
 import { sanitizeWsView } from '@/shared/utils/wsView'
 import { resolveTheme } from '@/shared/utils/theme'
+import { reconcileTodayFocusSchedule } from '@/shared/utils/focusSuggest'
 import { sanitizeThesisDuplicates } from '@/shared/storage/hub'
 import { dateKey, weekStartKey } from '@/shared/utils'
 
@@ -92,13 +93,26 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   const importedNow = Date.now()
 
   d.workspaces = mergeById(d.workspaces, imported.workspaces || [])
-  d.categories = mergeById(d.categories, safeCats)
+  d.categories = mergeById(d.categories, safeCats).map(category => {
+    const incoming = safeCats.find(row => row.id === category.id)
+    if (!incoming?.linkedTopicIds?.length) return category
+    return {
+      ...category,
+      linkedTopicIds: Array.from(new Set([
+        ...(category.linkedTopicIds || []),
+        ...incoming.linkedTopicIds,
+      ])),
+    }
+  })
   d.resources = mergeById(d.resources, stripRetiredCardKeys<ResourceCard>(imported.resources).map(r => ({ ...r, importedAt: importedNow })))
   d.tasks = mergeById(d.tasks, stripRetiredCardKeys<TaskCard>(imported.tasks).map(t => ({ ...t, importedAt: importedNow })))
   d.curiosities = mergeById(d.curiosities, stripRetiredCardKeys<CuriosityCard>(imported.curiosities).map(c => ({ ...c, importedAt: importedNow })))
+  d.topics = mergeById(d.topics || [], stripRetiredCardKeys<TopicCard>(imported.topics).map(t => ({ ...t, importedAt: importedNow })))
+  d.topicStatuses = mergeById(d.topicStatuses?.length ? d.topicStatuses : defaultTopicStatuses(), imported.topicStatuses || [])
   normalizeLegacyCards(d)
   reconcileCapturedResources(d)
-  const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0) + (imported.curiosities?.length || 0)
+  const cardsAdded = (imported.resources?.length || 0) + (imported.tasks?.length || 0)
+    + (imported.curiosities?.length || 0) + (imported.topics?.length || 0)
 
   if (imported.compass) {
     const ic = imported.compass
@@ -131,7 +145,10 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
         for (const incMet of incProj.metrics || []) {
           const curMet = curProj.metrics.find(x => x.id === incMet.id)
           if (!curMet) { curProj.metrics.push(JSON.parse(JSON.stringify(incMet))); continue }
-          Object.assign(curMet, incMet, { taskIds: union(curMet.taskIds, incMet.taskIds) })
+          Object.assign(curMet, incMet, {
+            taskIds: union(curMet.taskIds, incMet.taskIds),
+            topicIds: union(curMet.topicIds, incMet.topicIds),
+          })
         }
       }
     }
@@ -178,6 +195,9 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   if (imported.supportLinks?.length || d.supportLinks?.length) {
     d.supportLinks = mergeById(d.supportLinks || [], imported.supportLinks || [])
   }
+  if (imported.topicResourceLinks?.length || d.topicResourceLinks?.length) {
+    d.topicResourceLinks = mergeById(d.topicResourceLinks || [], imported.topicResourceLinks || [])
+  }
   if (imported.curioSupportLinks?.length || d.curioSupportLinks?.length) {
     d.curioSupportLinks = mergeById(d.curioSupportLinks || [], imported.curioSupportLinks || [])
   }
@@ -192,7 +212,7 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   if (imported.fieldConfig) {
     const cfg = d.fieldConfig
     if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()
-    for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const) {
+    for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const) {
       const importedGroup = imported.fieldConfig[key]
       const group = cfg[key]
       if (!importedGroup || !group) continue
@@ -202,6 +222,8 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   }
 
   const thesisFix = sanitizeThesisDuplicates(d)
+  // 导入包可能带入今天的计划日期；与启动/云恢复走同一收敛器，避免今日日历与三件事短暂双真源。
+  reconcileTodayFocusSchedule(d)
   const eventResult = await mergeImportedEventLog(imported.eventLog)
   return {
     cards: cardsAdded,

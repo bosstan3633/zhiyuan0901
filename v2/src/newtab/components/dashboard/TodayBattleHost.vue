@@ -30,6 +30,7 @@ const gd = computed(() => store.data!)
 
 const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
 const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
+const gTopicLive = computed(() => (gd.value.topics || []).filter(t => !t.deletedAt))
 const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
 const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').trim()).length)
 
@@ -66,6 +67,7 @@ const derivedEvents = computed<CardEvent[]>(() => {
   const flat = [
     ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
     ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
+    ...gd.value.topics.map(t => ({ kind: 'topic' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
     ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
   ]
   for (const x of flat) {
@@ -80,7 +82,7 @@ const timelineEvents = computed<CardEvent[]>(() => (logEmpty.value ? derivedEven
 const dash = useDashboardStats(
   () => gd.value,
   () => timelineEvents.value,
-  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length })
+  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, topic: gTopicLive.value.length, curio: gCurioLive.value.length })
 )
 const dashYear = dash.year
 const dashSelDay = dash.selDay
@@ -145,7 +147,7 @@ defineExpose({ openToday, openDay })
       <div v-if="dashSelDay" class="dz-day-modal-overlay" @click.self="dashSelDay = null">
         <div class="dz-day-modal" role="dialog" aria-modal="true">
           <DayDetail :stats="dashStats" :day="dashSelDay" :events="timelineEvents" :live-link="linkCardCount"
-            :kinds="{ task: gTaskLive.length, curio: gCurioLive.length, res: gResLive.length, label: '在库' }"
+            :kinds="{ task: gTaskLive.length, curio: gCurioLive.length, res: gResLive.length, topic: gTopicLive.length, label: '在库' }"
             @close="dashSelDay = null" @open-log="onOpenLog" />
         </div>
       </div>

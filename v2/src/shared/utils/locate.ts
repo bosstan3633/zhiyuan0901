@@ -18,15 +18,15 @@
 import type { AppData } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
 
-export type LocateKind = 'resource' | 'task' | 'curiosity'
+export type LocateKind = 'resource' | 'task' | 'curiosity' | 'topic'
 
 export interface LocateTarget {
   path: string
   query: Record<string, string>
 }
 
-/** hk 短码：与三个消费端的约定（res / task / curio） */
-export const LOCATE_HK: Record<LocateKind, string> = { resource: 'res', task: 'task', curiosity: 'curio' }
+/** hk 短码：与消费端的约定（res / task / curio / topic）。 */
+export const LOCATE_HK: Record<LocateKind, string> = { resource: 'res', task: 'task', curiosity: 'curio', topic: 'topic' }
 
 /**
  * ★R4-E 资源卡定位落点的唯一判据：**池卡不属于任何策展台**。
@@ -58,13 +58,18 @@ export function locateTargetOf(d: AppData, kind: LocateKind, id: string): Locate
     return { path: t.path, query: { hl: id, ...t.query } }
   }
   // V3.9.1：任务卡与好奇心卡的「查看全部」已是独立二级页，定位直接落对应列表。
-  const exists = kind === 'task' ? d.tasks.some(t => t.id === id) : d.curiosities.some(c => c.id === id)
+  const exists = kind === 'task'
+    ? d.tasks.some(t => t.id === id)
+    : kind === 'curiosity'
+      ? d.curiosities.some(c => c.id === id)
+      : (d.topics || []).some(t => t.id === id)
   if (!exists) return null
-  return { path: kind === 'task' ? '/deck/task' : '/deck/curiosity', query: { hl: id, hk: LOCATE_HK[kind] } }
+  const path = kind === 'task' ? '/deck/task' : kind === 'curiosity' ? '/deck/curiosity' : '/deck/topic'
+  return { path, query: { hl: id, hk: LOCATE_HK[kind] } }
 }
 
-/** 从任意 kind 字符串归一为 LocateKind（旧调用方传的是 'resource'|'task'|'curiosity'|'ws'|'proj'） */
+/** 从任意 kind 字符串归一为 LocateKind（旧调用方传的是 'resource'|'task'|'curiosity'|'topic'|'ws'|'proj'） */
 export function asLocateKind(kind: string): LocateKind | null {
-  if (kind === 'resource' || kind === 'task' || kind === 'curiosity') return kind
+  if (kind === 'resource' || kind === 'task' || kind === 'curiosity' || kind === 'topic') return kind
   return null
 }

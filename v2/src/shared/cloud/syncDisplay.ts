@@ -25,6 +25,9 @@ const TYPE_LABEL: Record<SyncManifestRecordType, string> = {
   resource: '资源卡',
   task: '任务卡',
   curiosity: '好奇心卡',
+  topic: '选题卡',
+  topicResourceLink: '选题 → 资源',
+  topicStatus: '选题状态',
   argument: '论证节点',
   direction: '方向',
   project: '项目',
@@ -61,6 +64,8 @@ const FIELD_LABEL: Record<string, string> = {
   projectId: '项目',
   metricId: '成功指标',
   status: '状态',
+  statusId: '选题状态',
+  statusBeforeDoneId: '完成前状态',
   priority: '优先级',
   dueDate: '计划执行日期',
   estimatedMinutes: '估时',
@@ -89,6 +94,9 @@ const FIELD_LABEL: Record<string, string> = {
   target: '目标值',
   acceptance: '验收口径',
   taskIds: '任务轨道',
+  topicIds: '选题轨道',
+  linkedTopicIds: '关联选题',
+  topicId: '选题卡',
   taskId: '任务',
   subId: '子任务',
   resourceId: '资源卡',
@@ -148,11 +156,11 @@ export function syncFieldLabel(field: string): string {
 }
 
 export function syncGroupOf(type: SyncManifestRecordType): Exclude<SyncRecordGroup, 'all'> {
-  if (type === 'resource' || type === 'task' || type === 'curiosity') return 'cards'
+  if (type === 'resource' || type === 'task' || type === 'curiosity' || type === 'topic' || type === 'topicStatus') return 'cards'
   if (type === 'workspace' || type === 'category' || type === 'argument' || type === 'attachment') return 'curation'
   if (type === 'direction' || type === 'project' || type === 'metric') return 'direction'
   if (type === 'dailyFocus') return 'dailyFocus'
-  if (type === 'supportLink' || type === 'curationProjection' || type === 'resourceFolderMirror') return 'relations'
+  if (type === 'supportLink' || type === 'topicResourceLink' || type === 'curationProjection' || type === 'resourceFolderMirror') return 'relations'
   if (type === 'resourceFolder') return 'cards'
   return 'system'
 }

@@ -78,7 +78,7 @@ check('V430-6 移动采集 PWA 整体退役：源码、静态资源、独立配�
     && !pkg.includes('build:pwa')
 })
 
-check('V430-7 PC Inbox 整体退役：组件与 composable 物理移除，首页只留三池，旧深链回首页，云端不再请求 capture_inbox', () => {
+check('V430-7（V4.5.0 重指）PC Inbox 整体退役：组件与 composable 物理移除，首页只留任务/选题/好奇心/资源四池，旧深链回首页，云端不再请求 capture_inbox', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
   const deck = codeOnly(read('/newtab/views/CompassDeckView.vue'))
   const router = read('/newtab/router.ts')
@@ -90,10 +90,11 @@ check('V430-7 PC Inbox 整体退役：组件与 composable 物理移除，首页
     && !exists('/newtab/components/compass/InboxCountBadge.vue')
     && !exists('/newtab/composables/useInbox.ts')
     && home.includes("handTab === 'task'")
+    && home.includes("handTab === 'topic'")
     && home.includes("handTab === 'curiosity'")
     && home.includes("handTab === 'resource'")
     && !home.includes('handTab === \'inbox\'')
-    && deck.includes("type DeckKind = 'task' | 'curiosity' | 'resource'")
+    && deck.includes("type DeckKind = 'task' | 'topic' | 'curiosity' | 'resource'")
     && !deck.includes('InboxPanel')
     && router.includes("path: '/deck/inbox'")
     && router.includes("redirect: '/'")

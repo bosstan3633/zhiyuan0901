@@ -313,12 +313,17 @@ check('R4-Db ★书签入口只有设置页一枚，Workspace 台面不再挂着
 
 // ============== R4-Dc · 旧世界清账：附件卫生 keepIds 单源 + 破坏性入口必有门 ==============
 console.log('【R4-Dc · 数据体检与附件卫生合流】');
-check('R4-Dc ★V3.9.24 重指：孤儿清理仍共用 keepIds 单源；设置页「清空全部附件」则必须走四类卡引用清空，不得伪装成孤儿清理', () => {
+check('R4-Dc（V4.5.0 重指）孤儿清理仍共用 keepIds 单源；设置页提供“手动清理无引用附件”，且「清空全部附件」继续走全部卡型引用清空，不把两个动作混为一谈', () => {
   const bk = codeOnly(read('/newtab/composables/useWsAssetHygiene.ts'));
   const dm = codeOnly(read('/newtab/views/settings/SettingsDataManagement.vue'));
+  const as = codeOnly(read('/shared/storage/assets.ts'));
   return bk.includes('collectReferencedAssetIds(d.value)') && bk.includes('cleanupOrphanAssetsOf(d.value)')
     && dm.includes('clearAllAssetReferences(gd.value)')
-    && !dm.includes('cleanupOrphanAssetsOf(gd.value)')
+    && dm.includes('async function clearOrphanAssets()')
+    && dm.includes('cleanupOrphanAssetsOf(gd.value)')
+    && dm.includes('永久清理 ${orphanAssetCount.value} 个')
+    && as.includes('export async function cleanupOrphanAssetsOf')
+    && !/watch\([^\n]*cleanupOrphanAssetsOf/.test(dm)
     && !bk.includes('new Set(referencedAssetIds.value)') && !dm.includes('cleanupOrphanAssets(keep)');
 });
 check('R4-Dc ★V3.9.24 重指：设置页「清理」= 清空全部附件。必须先盘点数量与体积、再二次确认，然后解除四类卡引用并删除全部 Blob', () => {
@@ -420,11 +425,11 @@ function noKeyCmds() {
   return out;
 }
 const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
-check('R4-Df（V4.3.3 重指）★手册命令表必须跟 manifest 真值一致：当前恰有 8 条无默认键命令，每条都要在手册里实名出现（少一条＝用户去 shortcuts 页找不到手册说的那条），两条已下架旧命令不许以"可分配清单"的形式回流', () => {
+check('R4-Df（V4.5.0 重指）★手册命令表必须跟 manifest 真值一致：当前恰有 10 条无默认键命令（含选题采集/直达），每条都要在手册里实名出现，已下架旧命令不许以“可分配清单”形式回流', () => {
   const m = read('/newtab/manual-data.ts');
   const assign = read('/shared/utils/shortcuts.ts');
   const noKey = noKeyCmds();
-  return noKey.length === 8 && noKey.every(k => m.includes(k) || assign.includes(k))
+  return noKey.length === 10 && noKey.every(k => m.includes(k) || assign.includes(k))
     && m.includes('assignCommandList()')
     && m.includes('chrome://extensions/shortcuts')
     && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')
@@ -824,11 +829,11 @@ check('R4-Dk ★同族的第五个活口：指标下钻抽屉的「点击佐证�
 });
 check('R4-Pa（V4.3.0 退役重指）★运行时覆盖补第二档：e2e 必须验证旧 Inbox 深链回首页、三池入口、Inbox 请求与 UI 零回流，并继续验证两代 capture 字段在启动时去重', () => {
   const e = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'e2e.cjs'), 'utf8');
-  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.3.2') && e.includes('E2E-58 ★V4.3.0')
+  return e.includes('E2E-54 ★V4.3.0') && e.includes('E2E-55 ★V4.5.0') && e.includes('E2E-58 ★V4.3.0')
     && e.includes("page.goto(base + '#/deck/inbox'")
     && e.includes('captureInboxRequests.length === 0')
     && e.includes("page.locator('.inbox-row').count() === 0")
-    && e.includes("JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '好奇心', '资源'])")
+    && e.includes("JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '选题', '好奇心', '资源'])")
     && e.includes('matched.length === 1')
     && !e.includes('.icd-actions button');
 });

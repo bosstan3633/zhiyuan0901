@@ -48,13 +48,16 @@ check('V435-3 今日三件事固定三格：空槽保留墓碑，移出任务清
     && logic.includes('removedFocus = clearTaskFromFocusDay(today, taskId, false)')
 })
 
-check('V435-4 今日三件事与今日日历在启动 / 云恢复后收敛为同一集合：槽内任务写回今日，排到今天的任务补槽或撤日期', () => {
+check('V435-4（V4.5.0 重指）今日三件事与今日日历在启动 / 云恢复后收敛为同一集合：槽内任务/选题写回今日，排到今天的卡补槽或撤日期', () => {
   const util = read('/shared/utils/focusSuggest.ts')
   const app = read('/newtab/stores/app.ts')
   return util.includes('export function reconcileTodayFocusSchedule(')
-    && util.includes('const dueToday = [...live.values()]')
+    && util.includes('const liveTasks = new Map(')
+    && util.includes('const liveTopics = new Map(')
+    && util.includes('const dueToday: Array<{ type: \'task\' | \'topic\'; card: TaskCard | TopicCard }> = [')
     && util.includes('cells[free] = {')
-    && util.includes('task.dueDate = undefined')
+    && util.includes('entry.card.dueDate = undefined')
+    && util.includes('topic.dueDate = anchorKey')
     && app.includes('reconcileTodayFocusSchedule(data.value)')
     && app.includes('reconcileTodayFocusSchedule(d)')
 })

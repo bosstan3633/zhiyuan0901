@@ -126,6 +126,7 @@
 .gp-ri-icon.task-doing { background: var(--tag-warn-bg); }
 .gp-ri-icon.task-todo { background: var(--tag-neutral-bg); }
 .gp-ri-icon.curio { background: var(--curio-bg); }
+.gp-ri-icon.topic { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); color: var(--accent-ink); }
 .gp-ri-icon.ws { background: var(--accent-light); }
 .gp-ri-badge.ws-badge { background: var(--accent-light); color: var(--accent-ink); }
 .gp-ri-main { flex: 1; min-width: 0; }
@@ -144,6 +145,8 @@
 .gp-ri-badge.status-doing { background: var(--tag-warn-bg); color: var(--curio-amber); }
 .gp-ri-badge.status-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
 .gp-ri-badge.curio-status { background: var(--surface-3); color: var(--text-2); }
+.gp-ri-badge.topic-badge { background: var(--accent); color: #fff; font-weight: 700; }
+.gp-ri-badge.topic-status { background: var(--accent-light); color: var(--accent-ink); }
 .gp-ri-link { font-size: var(--fs-caption); color: var(--text-3); display: flex; align-items: center; gap: 3px; white-space: nowrap; }
 .gp-ri-link.url { color: var(--accent); }
 .gp-ri-link.file { color: var(--curio-amber); }

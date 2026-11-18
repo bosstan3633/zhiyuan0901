@@ -31,6 +31,7 @@ const gd = computed(() => store.data!)
 const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
 const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
 const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
+const gTopicLive = computed(() => (gd.value.topics || []).filter(t => !t.deletedAt))
 const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').trim()).length)
 
 // ---- 事件日志（readEventLog 优先，空日志回退卡片时间派生） ----
@@ -51,6 +52,7 @@ const derivedEvents = computed<CardEvent[]>(() => {
   const flat = [
     ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt })),
     ...gd.value.tasks.map(t => ({ kind: 'task' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
+    ...(gd.value.topics || []).map(t => ({ kind: 'topic' as const, id: t.id, title: t.title || '（无标题）', createdAt: t.createdAt || 0, deletedAt: t.deletedAt })),
     ...gd.value.curiosities.map(c => ({ kind: 'curiosity' as const, id: c.id, title: c.question || '（无标题）', createdAt: c.createdAt || 0, deletedAt: c.deletedAt }))
   ]
   for (const x of flat) {
@@ -65,7 +67,7 @@ const timelineEvents = computed<CardEvent[]>(() => (logEmpty.value ? derivedEven
 const dash = useDashboardStats(
   () => gd.value,
   () => timelineEvents.value,
-  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length })
+  () => ({ res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length, topic: gTopicLive.value.length })
 )
 const dashYear = dash.year
 const dashSelDay = dash.selDay

@@ -30,7 +30,7 @@ check('R144-4（V4.3.0 退役重指）★好奇心单卡研判与三判决整体
     && capture.includes("kind: 'task'") && capture.includes("kind: 'resource'") && capture.includes('d.curiosities?.unshift')
     && !p.includes('curioTriage') && !p.includes('convertToTask');
 });
-check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡（无 apply / adoptable:false），下载 .md 保留为唯一按钮；现役资源入口从画布节点「关联资源」进入 LinkCardsModal，旧 EvidenceMenuItem/nodeMenu 宿主已退役', () => {
+check('R144-5（V4.5.0 重指）G3/G4 语义：佐证 id 只认资源台目录且未挂本分支（≤6 张），采纳=projectCardToBoard 镜像零源改动；文稿 rawText 成文（剥代码围栏），次通道下载 .md 不改库 · R149 备案：文稿主通道由「采纳=存卡」改成 withReport 自动落卡；现役入口从画布节点「关联卡片」进入 LinkCardsModal，可筛资源卡/选题卡，旧 EvidenceMenuItem/nodeMenu 宿主已退役', () => {
   const g = read('/shared/ai/batchG.ts'); const em = read('/newtab/components/EvidenceMenuItem.vue'); const gs = read('/newtab/views/GlobalSettings.vue'); const w = codeOnly(read('/newtab/views/Workspace.vue'));
   const mm = read('/newtab/components/curation/CurationMindMap.vue'); const node = read('/newtab/components/curation/CurationMindNode.vue'); const lm = read('/newtab/components/LinkCardsModal.vue');
   return g.includes('!taken.has(r.id)') && g.includes('(bag.items || []).slice(0, 6)') && g.includes('projectCardToBoard(d, id, ctx.wsId, ctx.catId)') && g.includes('function boardCardsInCat')
@@ -39,7 +39,8 @@ check('R144-5（V3.9.8 随迁）G3/G4 语义：佐证 id 只认资源台目录�
     && em.includes("import('@/shared/ai/batchG')") && gs.includes('成果文稿') /* ★G1(V3.8.25)随迁带备案：设置页卡片头 📄 前缀迁 <Icon name="compass">，「成果文稿」入口文案仍在 */
     && node.includes("emit('link-resource', node)") && mm.includes("@link-resource=\"emit('link-resource', $event)\"")
     && w.includes('@link-resource="openLinkCards"') && w.includes('<LinkCardsModal')
-    && lm.includes('关键词过滤') && lm.includes('AI 检索') && !lm.includes('lc-cat')
+    && lm.includes('搜索卡片标题、标签或说明') && lm.includes('AI 检索')
+    && lm.includes("label: '资源卡'") && lm.includes("label: '选题卡'") && !lm.includes('lc-cat')
     && !w.includes('<EvidenceMenuItem') && !w.includes('nodeMenu');
 });
 check('R144-6 入口零净增与懒化：Workspace 物理行数仍 ≤1500（裸 fs 尺，与 R115-1/R140-3 同刀）；G1/G3 两组件 AI 依赖全懒 + 自带样式（scoped 宿主跨不到 fragment 根）；手册 ai-3 收录四场景与软层级三规矩', () => {
@@ -69,11 +70,12 @@ check('R146-2 ★V3.9.23 策展台删除收口：右键与设置共用删除真�
     && app.includes('DECK_DELETE_UNDO_WINDOW_MS') && wm.includes('DECK_DELETE_UNDO_WINDOW_MS') && wm.includes('sticky: false')
     && !app.includes('confirm(') && !wm.includes('window.confirm')
 });
-check('R146-3 回收站两口径（回退契约⑤⑥）：永久删除必过确认且回执点名对象、批量恢复只报一条账、清空带条数与后果、分类分区补齐永久删除；硬删仍统一引擎（附件在引擎内清）', () => {
+check('R146-3（V4.5.0 重指）回收站两口径：资源/任务/选题/好奇/分类/论证六分区都有永久删除，批量恢复只报一条账、清空带条数与后果；硬删仍统一引擎（附件与选题资源关系在引擎内清）', () => {
   const rb = read('/newtab/views/RecycleBin.vue'); const gs = read('/newtab/views/GlobalSettings.vue')
   const seg = segOf(rb, 'async function purgeWith', '// ---- 全部恢复 / 清空 ----')
   return seg.includes("title: '永久删除'") && seg.includes('此操作不可恢复') && seg.includes('已永久删除') && rb.includes('function purgeCat')
-    && (rb.match(/purgeWith\('/g) || []).length === 5 // R2-⑤：论证卡分区补齐，永久删除回执点名对象由四路增至五路
+    && (rb.match(/purgeWith\('/g) || []).length === 6 // V4.5：选题卡成为独立分区，六类对象各走同一硬删引擎
+    && rb.includes("purgeWith('选题卡'") && rb.includes("{ k: 'topic' as const, label: '选题卡'")
     && rb.includes('show(`已恢复 ${list.length} 项') && rb.includes('confirmText: `清空 ${list.length} 项`')
     && gs.includes('confirmText: `永久删除 ${n} 项`') && gs.includes('recycledCardsOf(d)')
 });
@@ -105,9 +107,11 @@ check('R146-6 ★检索类 AI 入口的提速骨架（实测"点了就一直等"
     && g.includes('点击取消本次 AI 检索') && g.includes('const aiCache = new Map<string, AiOut>()') && g.includes("watch(searchQuery, () => { aiSearch.value = null; aiAbort(''); recordedQ = '' })") && g.includes('watch(activePanel, (p) => { if (p !== \'search\') aiAbort(null) })')
     && g.includes('检索中 ') && g.includes('已回 ') && !sel.includes('export async function rerankSearch')
 });
-check('R146-7 检索浮层类型 tab 版式（实测 emoji 把「搜全部」劈成两行）：七枚 tab 零图标前缀 + 单枚 nowrap + 窄窗整枚换行（flex-wrap）', () => {
+check('R146-7（V4.5.0 重指）检索浮层类型 tab：七类业务卡 + AI 检索零图标前缀，单枚 nowrap、窄窗整枚换行（flex-wrap）', () => {
   const g = read('/newtab/components/GlobalPopups.vue'); const tabs = segOf(g, '<div class="gp-type-tabs"', '<div class="gp-results"')
-  return !/gp-type-tab[^>]*>[^\n<]*[🔍📄✅💡🗂📦]/.test(tabs) && (tabs.match(/class="gp-type-tab"/g) || []).length === 6 && tabs.includes('gp-ai-tab')
+  return !/gp-type-tab[^>]*>[^\n<]*[🔍📄✅💡🗂📦]/.test(tabs)
+    && (tabs.match(/class="gp-type-tab"/g) || []).length === 7
+    && tabs.includes('选题卡') && tabs.includes('gp-ai-tab')
     && g.includes('.gp-type-tabs { display: flex; flex-wrap: wrap;') && g.includes('white-space: nowrap; flex-shrink: 0;')
 });
 check('R146-8 设置页左栏与清缓存真回执（回退契约⑧⑨）：回收站作路由出口常驻「数据」组（深链不接受路由项）、导航项支持「知」徽标；清除缓存点名清了什么（网页正文 + 抽读缓存计数），不再空报', () => {
@@ -592,18 +596,21 @@ check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 
     && /fs\.unlinkSync\(reportPath\)/.test(p);
 });
 
-// ============== R156 · V4.4.0：三主题差异化（Logo 蓝 + 旧偏好迁移） ==============
-console.log('【R156 · V4.4.0：三主题差异化、Logo 蓝、旧偏好迁移】');
-check('R156-1（V4.4.0 重指）三主题不再是伪选择：raycast / apple / notion 的 bg、surface、border、text、accent 均独立落值，旧 linear 主题块退役', () => {
+// ============== R156 · V4.5.0：四主题差异化（光速黑暗红 + 其余三主题） ==============
+console.log('【R156 · V4.5.0：四主题差异化、暗红强调、旧偏好迁移】');
+check('R156-1（V4.5.0 重指）四主题不再是伪选择：raycast / apple / notion / oppo 的 bg、surface、accent 均独立落值，旧 linear 主题块退役', () => {
   const t = read('/shared/styles/tokens.css')
-  return ['--bg: #080A0D;', '--bg: #F3F7FA;', '--bg: #F7F6F1;', '--surface: #11161C;', '--surface: #FFFFFF;', '--surface: #FFFEFA;', '--accent: #1579AD;', '--accent: #0F6F9E;', '--accent: #0B668F;'].every(x => t.includes(x))
+  return ['--bg: #080A0D;', '--bg: #F3F7FA;', '--bg: #F7F6F1;', '--bg: #F2F7F4;',
+    '--surface: #11161C;', '--surface: #FFFFFF;', '--surface: #FFFEFA;', '--surface: #FFFFFF;',
+    '--accent: #B54747;', '--accent: #0F6F9E;', '--accent: #0B668F;', '--accent: #168457;'].every(x => t.includes(x))
     && !t.includes("[data-theme='linear']")
 })
-check('R156-2（V4.4.0 重指）accent 三件套按三主题独立产出且统一知源 Logo 蓝：暗主题半透明浅底、浅主题独立实色；hover 与 accent-ink 均各自定义；旧全局紫浅底退役', () => {
+check('R156-2（V4.5.0 重指）accent 三件套按四主题独立产出：光速黑用暗红，极简白/纸墨白用 Logo 蓝，OPPO 绿独立成主题；hover 与 accent-ink 均各自定义，旧全局紫浅底退役', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--accent-light: rgba(84, 195, 240, 0.17);') && t.includes('--accent-light: #E7F4FA;') && t.includes('--accent-light: #E7F2F7;')
-    && t.includes('--accent-hover: #1B8CC6;') && t.includes('--accent-hover: #0B5F88;') && t.includes('--accent-hover: #085678;')
-    && (t.match(/--accent-ink:/g) || []).length === 3
+  return t.includes('--accent-light: rgba(181, 71, 71, 0.18);')
+    && t.includes('--accent-light: #E7F4FA;')
+    && t.includes('--accent-light: #E7F2F7;')
+    && (t.match(/--accent-ink:/g) || []).length === 4
     && (t.split('--accent-light: #EEF0FC;').length - 1) === 0
 })
 check('R156-3 ★主题对比度改由机器判定并常驻（scripts/theme-contrast.cjs）：解析 tokens.css 真源、10 项/主题（含 --text-3/--surface-3 最苛刻层与 toast 两项）+ 四主题 accent 唯一性，失败即非零退出', () => {
@@ -612,13 +619,13 @@ check('R156-3 ★主题对比度改由机器判定并常驻（scripts/theme-cont
     && p.includes("'text-3/surface-3'") && p.includes("'text-3/bg'") && p.includes('#fff/accent')
     && p.includes('uniq.size !== THEMES.length') && p.includes('process.exit(fail === 0 ? 0 : 1)')
 })
-check('R156-4（V4.4.0 重指）主题三选一与旧偏好确定性迁移：resolveTheme 将 auto→系统深 raycast/浅 apple、linear→raycast；App.vue 选择器只列三主题；启动、切换与导入偏好包三处统一经 resolveTheme', () => {
+check('R156-4（V4.5.0 重指）主题四选一与旧偏好确定性迁移：resolveTheme 将 auto→系统深 raycast/浅 apple、linear→raycast；App.vue 选择器只列四主题；启动、切换与导入偏好包三处统一经 resolveTheme', () => {
   const th = read('/shared/utils/theme.ts'); const a = read('/newtab/App.vue')
   const s = read('/newtab/stores/app.ts'); const dp = read('/newtab/views/settings/dataPackage.ts')
-  return th.includes('export const THEME_IDS') && th.includes("['raycast', 'apple', 'notion']")
+  return th.includes('export const THEME_IDS') && th.includes("['raycast', 'apple', 'notion', 'oppo']")
     && th.includes("if (t === 'auto')") && th.includes("if (t === 'linear') return 'raycast'")
     && th.includes('prefers-color-scheme: dark') && th.includes('? SYSTEM_DARK : SYSTEM_LIGHT')
-    && a.includes("id: 'raycast'") && a.includes("id: 'apple'") && a.includes("id: 'notion'") && !a.includes("id: 'auto'") && !a.includes("id: 'linear'")
+    && ['raycast', 'apple', 'notion', 'oppo'].every(id => a.includes(`id: '${id}'`)) && !a.includes("id: 'auto'") && !a.includes("id: 'linear'")
     && s.includes('function applyTheme(t: string)') && s.includes('resolveTheme(t)')
     && dp.includes('const theme = resolveTheme(ui.theme)')
 })
@@ -631,9 +638,9 @@ check('R156-6（R155 复核）★AI 徽标随主题 accent 自动变色：AiMark
   const z = read('/shared/components/AiMark.vue')
   return z.includes('stroke="currentColor"') && z.includes('fill="none"') && !z.includes('fill="#') && !z.includes('stroke="#')
 })
-check('R156-7（V4.4.0 重指）raycast 独立配套仍成立：深遮罩 + 知源蓝动作回执条；不再依赖已退役 linear 主题', () => {
+check('R156-7（V4.5.0 重指）raycast 独立配套仍成立：深遮罩 + 暗红动作回执条；不再依赖已退役 linear 主题', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #77D2F5;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.68);')
+  return t.includes('--toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #F2B3B3;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.68);')
 })
 check('R156-8（V4.4.0 重指）浅色双主题彻底分开：apple 冷白 #F3F7FA + 冷青蓝底 ／ notion 暖纸白 #F7F6F1 + 暖褐底；border 与文本基色保持差异，旧冷黑基色已退役', () => {
   const t = read('/shared/styles/tokens.css')

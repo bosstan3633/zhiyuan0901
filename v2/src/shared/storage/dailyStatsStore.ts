@@ -140,7 +140,7 @@ export async function writeDailyStatsNow(data: AppData): Promise<void> {
     const events = await readEventLog()
     const rebuild = buildDailyStats(data, events)
     const merged = mergeDailyStats(snap, rebuild, boundaryDayOf(events))
-    const json = JSON.stringify({ v: 1, days: merged.days, fullSince: merged.fullSince, base: { res: 0, task: 0, curio: 0, link: 0 } })
+    const json = JSON.stringify({ v: 1, days: merged.days, fullSince: merged.fullSince, base: { res: 0, task: 0, curio: 0, topic: 0, link: 0 } })
     if (json === lastWrittenJson) return
     lastWrittenJson = json
     await cs.set({ [DAILY_STATS_STORE_KEY]: JSON.parse(json) })

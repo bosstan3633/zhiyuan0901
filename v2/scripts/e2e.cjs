@@ -2947,7 +2947,7 @@ await paOpen()
       && captureInboxRequests.length === 0 && !retiredInboxState.tabs.some(text => /Inbox/i.test(text)),
     `home=${retiredInboxHomeReady} state=${JSON.stringify(retiredInboxState)} rows0=${retiredInboxRowsZero} requests=${JSON.stringify(captureInboxRequests)}`)
 
-  // ══════════ E2E-55（V4.3.2 重指）调度台只保留三卡池，默认任务；角标数字不改变页签身份 ══════════
+  // ══════════ E2E-55（V4.5.0 重指）调度台保留任务/选题/好奇心/资源四卡池，默认任务 ══════════
   await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '.hand-tabs .hand-tab', { visible: true, timeout: 12000 })
@@ -2966,12 +2966,12 @@ await paOpen()
       deckTabs: [...document.querySelectorAll('.deck-kind-seg button')].map(node => (node.textContent || '').trim()),
     }
   })
-  report('E2E-55 ★V4.3.2 调度台手边的卡只保留任务 / 好奇心 / 资源三池：今日新增角标不改变页签身份，默认任务是唯一选中页签，Inbox 入口与行内组件均不回流',
-    JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '好奇心', '资源'])
+  report('E2E-55 ★V4.5.0 调度台手边的卡保留任务 / 选题 / 好奇心 / 资源四池：今日新增角标不改变页签身份，默认任务是唯一选中页签，Inbox 入口与行内组件均不回流',
+    JSON.stringify(homePoolState.labels) === JSON.stringify(['任务', '选题', '好奇心', '资源'])
       && homePoolState.selected.length === 1 && homePoolState.selected[0] === '任务'
       && homePoolState.ariaSelected.length === 1 && homePoolState.ariaSelected[0] === '任务'
       && !homePoolState.hasInboxClass && homePoolState.deckTabs.length === 0,
-    `三池=${JSON.stringify(homePoolState)}`)
+    `四池=${JSON.stringify(homePoolState)}`)
 
   // ══════════ E2E-56（V4.4.0）云同步三事实卡、回执与静态状态入口 ══════════
   const cloudSnapshotAt = new Date().toISOString()
@@ -3913,6 +3913,110 @@ await paOpen()
   report('E2E-66 V4.3.7 树状与金字塔折叠至目标及全部展开',
     treeCollapsed && treeExpanded && pyramidCollapsed && pyramidExpanded,
     `tree=${treeCollapsed}/${treeExpanded} pyramid=${pyramidCollapsed}/${pyramidExpanded}`)
+
+  // ══════════ E2E-67（V4.5.0）选题卡进入今日三件事、详情与选题工作面 ══════════
+  const topicProbeId = 'e2e-v450-topic-probe'
+  const topicProbeTitle = 'E2E V4.5 选题卡进入今日三件事'
+  await page.evaluate(async ({ todayKey, topicProbeId, topicProbeTitle }) => {
+    const raw = await chrome.storage.local.get('zy_data_v2')
+    const data = raw.zy_data_v2
+    if (!data) return
+    const now = Date.now()
+    data.topicStatuses = [
+      { id: 'topic-idea', name: '构思中', color: '#6F7C86', order: 0 },
+      { id: 'topic-making', name: '制作中', color: '#0F6F9E', order: 1 },
+      { id: 'topic-ready', name: '待发布', color: '#9A6B12', order: 2 },
+      { id: 'topic-published', name: '已发布', color: '#168457', order: 3, terminal: true },
+    ]
+    data.topics = (data.topics || []).filter(topic => topic.id !== topicProbeId)
+    data.topics.unshift({
+      id: topicProbeId,
+      kind: 'topic',
+      title: topicProbeTitle,
+      projectId: 'e2e-proj-1',
+      metricId: 'e2e-metric-1',
+      statusId: 'topic-idea',
+      description: '用于验证选题标题主视觉、资源关联与今日联动。',
+      tags: ['E2E', '选题'],
+      customFields: {},
+      assets: [],
+      createdAt: now,
+      updatedAt: now,
+    })
+    data.topicResourceLinks = (data.topicResourceLinks || []).filter(link => link.topicId !== topicProbeId)
+    data.dailyFocus = data.dailyFocus || {}
+    data.dailyFocus[todayKey] = []
+    data.focusMutedDate = todayKey
+    data.focusAutoDate = todayKey
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }, { todayKey, topicProbeId, topicProbeTitle })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.focus-list .empty-row', { visible: true, timeout: 12000 })
+  await page.locator('.focus-list .empty-row').first().click()
+  await waitForLocator(page, '.picker-modal', { visible: true, timeout: 6000 })
+  const pickerTypes = await page.locator('.pm-type-tabs button').allTextContents()
+  await page.locator('.pm-type-tabs button').filter({ hasText: '选题卡' }).click()
+  const topicStatusFilterOn = await page.locator('.pm-filters .pm-status').filter({ hasText: '全部选题状态' }).isVisible().catch(() => false)
+  await page.locator('.pm-search-flat input').fill(topicProbeTitle)
+  await waitForLocator(page, '.picker-item.topic', { visible: true, timeout: 6000 })
+  const pickerCandidateText = (await page.locator('.picker-item.topic').first().innerText()).replace(/\s+/g, ' ')
+  await page.locator('.picker-item.topic').first().click()
+  await waitForLocator(page, '.drawer .topic-title', { visible: true, timeout: 8000 })
+  const topicDrawer = await page.evaluate(() => {
+    const title = document.querySelector('.drawer .topic-title')
+    const core = document.querySelector('.drawer .topic-resource-core')
+    return {
+      title: ((title instanceof HTMLTextAreaElement ? title.value : title?.textContent) || '').trim(),
+      core: !!core,
+      resourceCta: (core?.textContent || '').includes('关联资源卡'),
+      aiFind: (core?.textContent || '').includes('AI 找资源'),
+      ownerSelects: document.querySelectorAll('.drawer .topic-owner select').length,
+      statusSelect: !!document.querySelector('.drawer .topic-plan select'),
+      noteHeight: Math.round(document.querySelector('.drawer .topic-note textarea')?.getBoundingClientRect().height || 0),
+    }
+  })
+  const topicFocusStored = await waitForStorage(page, 'zy_data_v2', raw => {
+    const topic = (raw.zy_data_v2?.topics || []).find(row => row.id === topicProbeId)
+    const slots = raw.zy_data_v2?.dailyFocus?.[todayKey] || []
+    return topic?.dueDate === todayKey
+      && topic?.statusId === 'topic-making'
+      && slots.some(slot => slot.sourceType === 'topic' && slot.sourceId === topicProbeId && !slot.cleared)
+  }, { timeout: 8000 })
+  await page.locator('.drawer .topic-done').click()
+  const topicDoneStored = await waitForStorage(page, 'zy_data_v2', raw => {
+    const topic = (raw.zy_data_v2?.topics || []).find(row => row.id === topicProbeId)
+    return topic?.statusId === 'topic-published' && !!topic?.completedAt
+  }, { timeout: 5000 })
+  await page.locator('.drawer .topic-done').click()
+  const topicRestoredStored = await waitForStorage(page, 'zy_data_v2', raw => {
+    const topic = (raw.zy_data_v2?.topics || []).find(row => row.id === topicProbeId)
+    return topic?.statusId === 'topic-making' && !topic?.completedAt
+  }, { timeout: 5000 })
+  await page.locator('.drawer .drawer-close').click()
+  await page.waitForSelector('.drawer', { state: 'detached', timeout: 5000 }).catch(() => {})
+  await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
+  await waitForLocator(page, '.topic-manager', { visible: true, timeout: 8000 })
+  const topicManager = page.locator('.topic-manager:visible').first()
+  const topicCalendarOn = await topicManager.locator('.topic-calendar').isVisible().catch(() => false)
+  const topicListText = (await topicManager.locator('.topic-pool-list').innerText().catch(() => '')).replace(/\s+/g, ' ')
+  await topicManager.locator('.topic-view-switch button').filter({ hasText: '看板' }).click()
+  await waitForLocator(topicManager, '.topic-board', { visible: true, timeout: 5000 })
+  const boardStatuses = await topicManager.locator('.topic-board-col .topic-board-dot').count()
+  const boardProbeVisible = (await topicManager.locator('.topic-board').innerText()).includes(topicProbeTitle)
+  await topicManager.locator('.topic-collapse').click()
+  const topicListCollapsed = await topicManager.evaluate(el => el.classList.contains('list-hidden'))
+  report('E2E-67 ★V4.5.0 选题卡可从今日三件事选择器按卡型与关键词进入，详情以标题和资源关联为主视觉；完成/恢复同步状态；选题工作面日历、看板与清单折叠可用',
+    JSON.stringify(pickerTypes) === JSON.stringify(['全部', '任务卡', '选题卡'])
+      && topicStatusFilterOn
+      && pickerCandidateText.includes(topicProbeTitle) && pickerCandidateText.includes('选题')
+      && topicDrawer.title.includes(topicProbeTitle) && topicDrawer.core && topicDrawer.resourceCta
+      && topicDrawer.aiFind && topicDrawer.ownerSelects === 2 && topicDrawer.statusSelect
+      && topicDrawer.noteHeight > 0 && topicDrawer.noteHeight <= 110
+      && !!topicFocusStored && !!topicDoneStored && !!topicRestoredStored
+      && topicCalendarOn && topicListText.includes(topicProbeTitle)
+      && boardStatuses === 4 && boardProbeVisible && topicListCollapsed,
+    `卡型=${JSON.stringify(pickerTypes)} 选题状态筛选=${topicStatusFilterOn} 候选=${JSON.stringify(pickerCandidateText)} 详情=${JSON.stringify(topicDrawer)} 入库=${!!topicFocusStored}/${!!topicDoneStored}/${!!topicRestoredStored} 日历=${topicCalendarOn} 清单=${topicListText.includes(topicProbeTitle)} 看板=${boardStatuses}/${boardProbeVisible} 折叠=${topicListCollapsed}`)
 
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。

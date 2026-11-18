@@ -37,7 +37,7 @@ import DirectionFormModal from '../components/compass/DirectionFormModal.vue'
 import CompassRiskModal, { type RiskProjectGroup } from '../components/compass/CompassRiskModal.vue'
 import type { GoalParseResult } from '@/shared/utils/mdImport'
 import { useProjectDiag } from '../composables/useProjectDiag'
-import { onOpenDrawer } from '@/shared/utils/bus'
+import { emitOpenDrawer, onOpenDrawer } from '@/shared/utils/bus'
 import { useCompassTree } from './useCompassTree'
 const {
   router, route, store, d, visionText,
@@ -330,6 +330,7 @@ function reorderMetricWithinProject(dragId: string, targetId: string, mode: 't' 
               @open-curation="router.push('/compass/curation')"
               @toggle-task="toggleTask"
               @open-detail="openTaskDetail"
+              @open-topic="(id) => emitOpenDrawer({ kind: 'topic', id })"
               @unbind-task="unbindTaskById"
               @open-metric="openMetricDetail"
               @add-task="(mid, pid) => openTaskAdd(mid, pid)"
@@ -439,6 +440,7 @@ function reorderMetricWithinProject(dragId: string, targetId: string, mode: 't' 
                   @toggle-metric="toggleMetric"
                   @toggle-task="toggleTask"
                   @open-detail="openTaskDetail"
+                  @open-topic="(id) => emitOpenDrawer({ kind: 'topic', id })"
                   @unbind="(tid) => { const t = d.tasks.find(x => x.id === tid); if (t) unbindTask(t) }"
                   @open-metric="openMetricDetail"
                   @add-task="(mid) => { const r = findMetric(mid); if (r) openTaskAdd(mid, r.proj.id) }"

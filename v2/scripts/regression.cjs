@@ -93,6 +93,7 @@ const SHARDS = [
   '138-v435-curation-tree-final',
   '139-v437-navigation-curation',
   '140-v440-logo-blue-curation-entry',
+  '141-v450-topic-cards',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

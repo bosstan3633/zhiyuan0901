@@ -3,7 +3,7 @@ import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 export function profileExportLines(input: {
   mission: string
   total: number
-  kinds: { res: number; task: number; curio: number }
+  kinds: { res: number; task: number; curio: number; topic: number }
   entropy: number
   supportRate: number | string
   focusShare: number | string
@@ -12,7 +12,7 @@ export function profileExportLines(input: {
     `画像洞察导出 · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
     '',
     `使命主线：${input.mission || '（尚未设定）'}`,
-    `全库净资产：${input.total} 张（资源 ${input.kinds.res} · 任务 ${input.kinds.task} · 好奇 ${input.kinds.curio}）`,
+    `全库净资产：${input.total} 张（资源 ${input.kinds.res} · 任务 ${input.kinds.task} · 选题 ${input.kinds.topic} · 好奇 ${input.kinds.curio}）`,
     `知识熵 (聚焦度)：${input.entropy} bit`,
     `任务有证据支撑：${input.supportRate}%`,
     `近30天精力落主攻：${input.focusShare}%`,

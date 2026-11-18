@@ -238,6 +238,11 @@
   color: var(--tag-ok-text);
 }
 
+.cal-modal-task em.is-topic {
+  background: color-mix(in srgb, var(--topic-status, var(--accent)) 12%, var(--surface-2));
+  color: var(--topic-status, var(--accent-ink));
+}
+
 .cal-task-menu-trigger {
   display: inline-grid;
   place-items: center;
@@ -752,6 +757,43 @@
   white-space: nowrap;
 }
 
+.cal-topic-kind {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--topic-status, var(--accent)) 13%, var(--surface));
+  color: var(--topic-status, var(--accent-ink));
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.5;
+  vertical-align: 1px;
+}
+
+.cal-topic-chip {
+  border-left: 2px solid var(--topic-status, var(--accent));
+  background: color-mix(in srgb, var(--topic-status, var(--accent)) 9%, var(--surface));
+}
+
+.cal-topic-chip.tone-done {
+  border-left-color: var(--topic-status, var(--success));
+  background: color-mix(in srgb, var(--topic-status, var(--success)) 11%, var(--surface));
+  color: var(--text-3);
+}
+
+.cal-topic-chip.tone-today {
+  border-left-color: var(--topic-status, var(--warning));
+  background: color-mix(in srgb, var(--topic-status, var(--warning)) 10%, var(--surface));
+  color: var(--text);
+}
+
+.cal-topic-chip.tone-overdue {
+  border-left-color: var(--topic-status, var(--danger));
+  background: color-mix(in srgb, var(--topic-status, var(--danger)) 10%, var(--surface));
+}
+
 .cal-chip-meta {
   display: none;
 }
@@ -801,6 +843,11 @@
 .cal-grid.is-week .cal-chip-meta em.is-done {
   background: var(--tag-ok-bg);
   color: var(--tag-ok-text);
+}
+
+.cal-grid.is-week .cal-chip-meta em.is-topic {
+  background: color-mix(in srgb, var(--topic-status, var(--accent)) 12%, var(--surface));
+  color: var(--topic-status, var(--accent-ink));
 }
 
 .cal-task-chip > button {
@@ -904,6 +951,16 @@
 .cal-modal-task.tone-overdue {
   border-left: 3px solid var(--danger);
   background: var(--tag-danger-bg);
+}
+
+.cal-topic-modal {
+  border-left: 3px solid var(--topic-status, var(--accent));
+  background: color-mix(in srgb, var(--topic-status, var(--accent)) 8%, var(--surface));
+}
+
+.cal-topic-modal.tone-done {
+  border-left-color: var(--topic-status, var(--success));
+  background: color-mix(in srgb, var(--topic-status, var(--success)) 10%, var(--surface));
 }
 
 .cal-modal-copy {

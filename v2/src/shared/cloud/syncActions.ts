@@ -40,6 +40,9 @@ const SUPPORTED_TYPES = new Set<SyncManifestRecordType>([
   'resource',
   'task',
   'curiosity',
+  'topic',
+  'topicStatus',
+  'topicResourceLink',
   'argument',
   'direction',
   'project',
@@ -81,6 +84,9 @@ function objectOf(data: AppData, type: SyncManifestRecordType, id: string): unkn
     case 'resource': return byId(data.resources)
     case 'task': return byId(data.tasks)
     case 'curiosity': return byId(data.curiosities)
+    case 'topic': return byId(data.topics)
+    case 'topicStatus': return byId(data.topicStatuses)
+    case 'topicResourceLink': return byId(data.topicResourceLinks)
     case 'argument': return byId(data.argCards)
     case 'supportLink': return byId(data.supportLinks)
     case 'curationProjection': return byId(data.curationProjections)
@@ -155,6 +161,9 @@ function locationOf(data: AppData, type: SyncManifestRecordType, id: string): Mu
     case 'resource': return arrayLocation(data.resources as unknown as Array<Record<string, unknown>>, id)
     case 'task': return arrayLocation(data.tasks as unknown as Array<Record<string, unknown>>, id)
     case 'curiosity': return arrayLocation(data.curiosities as unknown as Array<Record<string, unknown>>, id)
+    case 'topic': return arrayLocation(data.topics as unknown as Array<Record<string, unknown>>, id)
+    case 'topicStatus': return arrayLocation(data.topicStatuses as unknown as Array<Record<string, unknown>>, id)
+    case 'topicResourceLink': return arrayLocation(data.topicResourceLinks as unknown as Array<Record<string, unknown>>, id)
     case 'argument': return arrayLocation(data.argCards as unknown as Array<Record<string, unknown>>, id)
     case 'supportLink': return arrayLocation(data.supportLinks as unknown as Array<Record<string, unknown>>, id)
     case 'curationProjection': return arrayLocation(data.curationProjections as unknown as Array<Record<string, unknown>>, id)
@@ -256,11 +265,17 @@ function ensureSafeParent(data: AppData, type: SyncManifestRecordType, value: Re
     const categoryId = String(value.categoryId || '')
     if (categoryId && !(data.categories || []).some(row => row.id === categoryId && !row.deletedAt)) value.categoryId = ''
   }
-  if (type === 'task') {
+  if (type === 'task' || type === 'topic') {
     const metricId = String(value.metricId || '')
     if (metricId && !(data.compass?.directions || []).some(direction => direction.projects.some(project => project.metrics.some(metric => metric.id === metricId)))) {
       value.metricId = ''
       value.projectId = ''
+    }
+  }
+  if (type === 'topic') {
+    const statusId = String(value.statusId || '')
+    if (!(data.topicStatuses || []).some(status => status.id === statusId)) {
+      value.statusId = data.topicStatuses?.[0]?.id || 'topic-idea'
     }
   }
   if (type === 'argument') {
@@ -312,7 +327,7 @@ export function applyReceiptActionToData(
       return { ok: false, status: 'conflict', message: '这条记录在同步后已经再次变化，已停止删除' }
     }
     if (isObject(current)) {
-      if ('deletedAt' in current || ['category', 'resource', 'task', 'curiosity', 'argument'].includes(action.type)) {
+      if ('deletedAt' in current || ['category', 'resource', 'task', 'curiosity', 'topic', 'argument'].includes(action.type)) {
         current.deletedAt = Date.now()
         if ('updatedAt' in current) current.updatedAt = Date.now()
         return { ok: true, status: 'deleted', message: '已从本机删除，并进入待同步状态' }

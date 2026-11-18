@@ -15,12 +15,11 @@ check('R77-2 浮层 --zy-* 变量体系：明色为默认 + prefers-color-scheme
   return o.includes('--zy-bg:') && o.includes('--zy-text:') && o.includes('--zy-accent:')
     && o.includes('@media (prefers-color-scheme: dark)') && o.includes('--zy-on-accent');
 });
-check('R77-3（V4.4.0 重指）三主题强调色统一为知源 Logo 蓝，并与 tokens.css 一一对应（防漂移：改任一侧回归必红）', () => {
+check('R77-3（V4.5.0 重指）四主题强调色与 tokens.css 一一对应：光速黑暗红、极简白/纸墨白 Logo 蓝、OPPO 绿；改任一侧回归必红', () => {
   const o = read('/content/overlay-impl.ts');
   const t = read('/shared/styles/tokens.css');
-  const keys = ['raycast', 'apple', 'notion'];
-  /* V4.4.0：只保留三套正式主题，所有主行动统一到知源 Logo 蓝，并按主题校准明度。 */
-  const vals = ['#1579AD', '#0F6F9E', '#0B668F'];
+  const keys = ['raycast', 'apple', 'notion', 'oppo'];
+  const vals = ['#B54747', '#0F6F9E', '#0B668F', '#168457'];
   return keys.every(function (k, i) {
     return o.includes(k + ': { accent: ') && o.includes(vals[i])
       && t.includes('--accent: ' + vals[i] + ';') && t.includes("data-theme='" + k + "'");
@@ -91,9 +90,9 @@ check('R78-3（V4.2.3 重指）A3 例外：重复卡确认视图维持整屏；�
     && body.includes('__zy_dup_jump__')
     && !body.includes('__zy_dup_force__');
 });
-check('R78-4 A7 仅任务卡提供「加入今日三件事」入口（渲染分支带 g.type 守卫）', () => {
+check('R78-4 A7 任务卡与选题卡提供「加入今日三件事」入口（渲染分支带卡型守卫）', () => {
   const o = read('/content/overlay-impl.ts');
-  return o.includes("const focusHtml = g.type === 'task'") && o.includes('data-focus-id=')
+  return o.includes("const focusHtml = (g.type === 'task' || g.type === 'topic')") && o.includes('data-focus-id=')
     && o.includes("b.textContent = on ? '✓ 已入选' : '→ 三件事'");
 });
 check('R78-5 A7 已接入 ArrowRight，且 Ctrl+Enter 语义未改（仍为定位并打开详情抽屉）', () => {
@@ -115,7 +114,7 @@ check('R78-7 A7 去重按 sourceId（集合由 dailyFocus[todayKey] 派生，已
   const o = read('/content/overlay-search.ts');
   return o.includes('const list: any[] = activeFocusSlots(dataCache?.dailyFocus?.[todayKeyStr()])')
     && o.includes("todayFocusSourceIds = new Set(list.map((s: any) => String(s?.sourceId || '')).filter(Boolean))")
-    && o.includes("if (todayFocusSourceIds.has(taskId)) { showToast('该任务已在今日三件事中'); focusLocateTask(item); return }");
+    && o.includes("if (todayFocusSourceIds.has(taskId)) { showToast(isTopic ? '该选题已在今日三件事中' : '该任务已在今日三件事中'); focusLocateTask(item); return }");
 });
 check('R78-8 A7 跨上下文合并：写入前 loadData 绕过 1500ms 缓存，写后同步 dataCache', () => {
   const o = read('/content/overlay-impl.ts');
@@ -133,8 +132,8 @@ check('R78-10 A7 写入的槽位与 CompassHome.selectTaskForSlot 同构（sourc
   const o = read('/content/overlay-impl.ts');
   const c = read('/newtab/views/CompassHome.vue');
   const body = fnBody(o, 'async function addTaskToDailyFocus(', 'function renderResults');
-  return body.includes("sourceType: 'task'") && body.includes('sourceId: taskId')
-    && body.includes('done: t?.status === \'done\'') && body.includes('doneAt: t?.completedAt')
+  return body.includes("sourceType: isTopic ? 'topic' : 'task'") && body.includes('sourceId: taskId')
+    && body.includes("done: isTopic ? !!topicStatus?.terminal : t?.status === 'done'") && body.includes('doneAt: t?.completedAt')
     && c.includes("sourceType: 'task'") && c.includes('sourceId: task.id') && c.includes('doneAt: task.completedAt');
 });
 

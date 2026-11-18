@@ -41,9 +41,9 @@ check('R168-4 ★盘点用的两个口径必须留在 perf 里（体感靠数字
 });
 
 console.log('【R169 · 流水口径 / 链接三槽 / 三件事 AI 推荐 / 项目调度重设计 / 文案 / AI 图标】');
-check('R169-1 ★任务勾选必须进事件流水（用户主诉"今日操作没进流水"的根因）：status 事件的卡种集合含 task，且原先那道 kind===\'curiosity\' 硬门槛不得回流；动词中文单一真源在 eventLog，调度台引它而不是各写一份（各写一份 ⇒ 新增 action 时必有一处漏，漏的那处直接吐英文原词）', () => {
+check('R169-1（V4.5.0 重指）任务与选题勾选/状态变更都必须进事件流水：status 跟踪集合含 task 与 topic，原先那道 kind===\'curiosity\' 硬门槛不得回流；动词中文单一真源在 eventLog', () => {
   const e = read('/shared/utils/eventLog.ts'); const ch = read('/newtab/views/CompassHome.vue'); const lg = read('/newtab/components/dashboard/DashboardLogDrawer.vue'); const ec = codeOnly(e)
-  return ec.includes("new Set(['curiosity', 'task'])") && !/kind === 'curiosity' && c\.status/.test(ec)
+  return ec.includes("new Set(['curiosity', 'task', 'topic'])") && !/kind === 'curiosity' && c\.status/.test(ec)
     && ec.includes('export const EVENT_ACT_LABEL') && ec.includes("status: '改状态'")
     /* R172-T8 重指：动词中文真源的消费方迁到全量记录抽屉（引 EVENT_ACT_LABEL，不各写一份） */
     && lg.includes('EVENT_ACT_LABEL') && !lg.includes("create: '新增', delete: '删除'")
@@ -253,7 +253,7 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
   const ds = read('/shared/utils/dailyStats.ts');
   const ub = read('/newtab/components/dashboard/useDashboardStats.ts');
   return st.includes('DAILY_STATS_WRITE_GATE_MS = 45_000') && st.includes("document.addEventListener('visibilitychange'") && st.includes("window.addEventListener('pagehide'")
-    && st.includes('flushDailyStatsNow') && st.includes("base: { res: 0, task: 0, curio: 0, link: 0 }") && st.includes('json === lastWrittenJson')
+    && st.includes('flushDailyStatsNow') && st.includes("base: { res: 0, task: 0, curio: 0, topic: 0, link: 0 }") && st.includes('json === lastWrittenJson')
     && st.includes('pendingWriteData = data') && st.includes('pendingWriteData = null') && st.includes('scheduledData = data')
     && (rp.match(/scheduleDailyStatsWrite\(cache\)/g) || []).length === 2 && !rp.includes('DAILY_STATS_STORE_KEY')
     && ds.includes('export function mergeDailyStats(') && ds.includes('export function boundaryDayOf(') && ds.includes('export function eventFieldW(')
@@ -275,7 +275,7 @@ check('R174-4 概览带 ★W10 退役重指带备案：概览带（DashboardOver
     && pi.includes("import '@/newtab/components/profile/pi-timeline.css'")
     && !codeOnly(pi).includes('DashboardOverview');
 });
-check('R174-5（V4.4.0 重指）热力图焦点化：摘要四卡压单行指标条（说明收 title tooltip，.d 保 DOM）+ 三主题六档色阶低两档拉距；判据：① 摘要条带 title + .d 仍在 DOM ② 三主题 heat-0..5 齐备 ③ 两个亮主题 ΔL*(l0,l1) ≥ 5 且 ΔL*(l1,l2) ≥ 4（实读令牌计算，防“改了但仍不可辨”）④ 档位阈值/语义名不动', () => {
+check('R174-5（V4.5.0 重指）热力图焦点化：摘要四卡压单行指标条（说明收 title tooltip，.d 保 DOM）+ 四主题六档色阶低两档拉距；两个亮主题实读 ΔL* 仍可辨', () => {
   const h = read('/newtab/components/dashboard/Heatmap.vue');
   const tk = read('/shared/styles/tokens.css');
   const lv = read('/shared/utils/dailyStats.ts');
@@ -293,7 +293,7 @@ check('R174-5（V4.4.0 重指）热力图焦点化：摘要四卡压单行指标
   }
   const lightPairs = [readHeat('apple'), readHeat('notion')].filter(x => x.length === 3)
   return h.includes(':title="s.d"') && h.includes('<span class="d">{{ s.d }}</span>')
-    && (tk.match(/--heat-0:/g) || []).length === 3 && (tk.match(/--heat-5:/g) || []).length === 3
+    && (tk.match(/--heat-0:/g) || []).length === 4 && (tk.match(/--heat-5:/g) || []).length === 4
     && lightPairs.every(([l0, l1, l2]) => dL(l0, l1) >= 5 && dL(l1, l2) >= 4)
     && lv.includes("w <= 8 ? 1 : w <= 18 ? 2 : w <= 32 ? 3 : w <= 52 ? 4 : 5") && lv.includes("['静默', '轻触', '常规', '高负荷', '冲刺', '满格']");
 });
@@ -397,11 +397,11 @@ check('R171-5 ★ZhiMark→AiMark 全站改名（备案：语义对齐，symbol 
     && residue.length === 0;
 });
 
-check('R171-6（V4.4.0 重指）★accent-ink 淡底文字令牌：tokens.css 三主题各落 --accent-ink（压 accent-light 底专用文字色，暗取提亮档/亮取深档），主题门禁继续硬判 ≥4.5', () => {
+check('R171-6（V4.5.0 重指）★accent-ink 淡底文字令牌：tokens.css 四主题各落 --accent-ink（压 accent-light 底专用文字色），主题门禁继续硬判 ≥4.5', () => {
   const tk = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'shared', 'styles', 'tokens.css'), 'utf8');
   const ct = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-contrast.cjs'), 'utf8');
   const ws = read('/newtab/views/workspace.css');
-  return (tk.match(/--accent-ink:/g) || []).length === 3
+  return (tk.match(/--accent-ink:/g) || []).length === 4
     && ct.includes("'accent-ink/accent-light'") && ct.includes(', 4.5)')
     && ws.includes('var(--accent-ink)');
 });
@@ -433,7 +433,7 @@ check('R172-1 ★T1 事件日志增 call（调出）——EventAction 扩枚举 
     && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes("action === 'call'");
 });
 
-check('R172-2 ★T2 zy_daily_stats 聚合引擎（04-67 §7.4）：按日只增不淘汰 · 事件为主（六类折叠）+ 卡字段为辅（推进三维）· 前缀和查询不重扫 · 防刷分双规则（同卡同日第 2 次起调出 0.5 / 采集后 24h 内即软删该笔 ×0.3）· 零迁移', () => {
+check('R172-2（V4.5.0 重指）★T2 zy_daily_stats 聚合引擎：按日只增不淘汰 · 事件为主（六类折叠，新增选题卡采集与状态）+ 卡字段为辅（推进三维）· 前缀和查询不重扫 · 防刷分双规则 · 零迁移', () => {
   const ds = read('/shared/utils/dailyStats.ts');
   const kt = read('/shared/storage/keys.ts');
   const md = read('/shared/models/index.ts');
@@ -457,15 +457,18 @@ check('R172-2 ★T2 zy_daily_stats 聚合引擎（04-67 §7.4）：按日只增�
     && !read('/newtab/views/CompassHome.vue').includes('toggleSlotSub')
     // 状态变更目标态（加权按目标态分档）
     && el.includes('to?: string')
-    && el.includes('c.status))');
+    && el.includes('status: c.status || c.statusId')
+    && el.includes("statusChanges.push(mk('status'")
+    && ds.includes('topic: Number(value?.topic) || 0')
+    && ds.includes('r.c.topic') && ds.includes('r.s.topic');
 });
 
-check('R172-3（V4.4.0 重指）★热力令牌组：tokens.css 三主题各 8 个（--heat-0..5 + --heat-ink + --heat-ring），顶档 --heat-5 三主题互不相同；theme-contrast 硬判据（heat-ink/surface 与 heat-ink/surface-2 各 ≥4.5 + 令牌 8/8 + heat-5 唯一性）', () => {
+check('R172-3（V4.5.0 重指）★热力令牌组：tokens.css 四主题各 8 个（--heat-0..5 + --heat-ink + --heat-ring），顶档 --heat-5 四主题互不相同；theme-contrast 硬判据通过', () => {
   const tk = fs.readFileSync(path.resolve(SCRIPTS_DIR, '..', 'src', 'shared', 'styles', 'tokens.css'), 'utf8');
   const ct = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-contrast.cjs'), 'utf8');
   const n = (re) => (tk.match(re) || []).length;
-  return n(/--heat-0:/g) === 3 && n(/--heat-1:/g) === 3 && n(/--heat-2:/g) === 3 && n(/--heat-3:/g) === 3
-    && n(/--heat-4:/g) === 3 && n(/--heat-5:/g) === 3 && n(/--heat-ink:/g) === 3 && n(/--heat-ring:/g) === 3
+  return n(/--heat-0:/g) === 4 && n(/--heat-1:/g) === 4 && n(/--heat-2:/g) === 4 && n(/--heat-3:/g) === 4
+    && n(/--heat-4:/g) === 4 && n(/--heat-5:/g) === 4 && n(/--heat-ink:/g) === 4 && n(/--heat-ring:/g) === 4
     && ct.includes("'heat-ink/surface'") && ct.includes("'heat-ink/surface-2'")
     && ct.includes('HEAT_TOKENS') && ct.includes('heat5');
 });

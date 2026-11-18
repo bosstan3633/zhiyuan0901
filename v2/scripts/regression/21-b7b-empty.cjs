@@ -218,9 +218,9 @@ check(NAME(
   '主行动位留空（原文 D3「无主行动，或回到调度台幽灵按钮」），不硬凑一个操作。',
   '★判据按「恰好五处」写死，多一处说明有新分区没跟上，少一处说明有分区漏给出口。'), () => {
   const n = (codeOnly(RB).match(/secondary-label="回到调度台"/g) || []).length
-  if (n !== 5) { console.log('     幽灵按钮数 = ' + n + '（应为 5）'); return false }
-  if ((codeOnly(RB).match(/@secondary="emit\('navigate', '\/'\)"/g) || []).length !== 5) {
-    console.log('     未把五处空态出口接到宿主导航'); return false
+  if (n !== 6) { console.log('     幽灵按钮数 = ' + n + '（应为 6）'); return false }
+  if ((codeOnly(RB).match(/@secondary="emit\('navigate', '\/'\)"/g) || []).length !== 6) {
+    console.log('     未把六处空态出口接到宿主导航'); return false
   }
   return true
 })

@@ -4,7 +4,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import CurationMindNode from './CurationMindNode.vue'
 import CurationAssetStrip from './CurationAssetStrip.vue'
-import type { Category, ResourceCard } from '@/shared/models'
+import type { Category, ResourceCard, TopicCard, TopicStatusDef } from '@/shared/models'
 
 const props = defineProps<{
   node: Category
@@ -13,6 +13,8 @@ const props = defineProps<{
   editRequestId: string
   editRequestSeq: number
   cardsByCat: Map<string, ResourceCard[]>
+  topics: TopicCard[]
+  topicStatuses: TopicStatusDef[]
   searchQuery: string
   keyboardDragSource: string
   keyboardDragTarget: string
@@ -35,6 +37,8 @@ const emit = defineEmits<{
   'open-resource': [card: ResourceCard]
   'open-resource-link': [card: ResourceCard]
   'open-resource-context': [event: MouseEvent, card: ResourceCard]
+  'open-topic': [topic: TopicCard]
+  'unlink-topic': [nodeId: string, topic: TopicCard]
   'open-assets': [id: string]
   'drop-asset-files': [id: string, files: File[]]
   'preview-asset': [id: string, asset: import('@/shared/models').AssetMeta]
@@ -83,6 +87,16 @@ function level(): number {
 
 function cards(): ResourceCard[] {
   return props.cardsByCat.get(props.node.id) || []
+}
+
+function linkedTopics(): TopicCard[] {
+  const ids = new Set(props.node.linkedTopicIds || [])
+  if (!ids.size) return []
+  return props.topics.filter(topic => ids.has(topic.id) && !topic.deletedAt)
+}
+
+function topicStatus(topic: TopicCard): TopicStatusDef | undefined {
+  return props.topicStatuses.find(status => status.id === topic.statusId) || props.topicStatuses[0]
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -215,7 +229,7 @@ function shiftSibling(dir: -1 | 1): void {
 
 function focusCard(e: MouseEvent): void {
   const target = e.target as HTMLElement | null
-  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-drag,.mind-resource-remove')) return
+  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-topic,.mind-drag,.mind-resource-remove')) return
   ;(e.currentTarget as HTMLElement).focus({ preventScroll: true })
   emit('select', props.node.id)
 }
@@ -224,6 +238,12 @@ function onResourceRemove(e: MouseEvent, card: ResourceCard): void {
   e.preventDefault()
   e.stopPropagation()
   emit('unlink-resource', props.node.id, card)
+}
+
+function onTopicRemove(e: MouseEvent, topic: TopicCard): void {
+  e.preventDefault()
+  e.stopPropagation()
+  emit('unlink-topic', props.node.id, topic)
 }
 
 function onNodeDrop(e: DragEvent): void {
@@ -253,7 +273,7 @@ function onDragHandleKeydown(e: KeyboardEvent): void {
 
 function dragStart(e: DragEvent): void {
   const target = e.target as HTMLElement | null
-  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-resource-remove')) {
+  if (target?.closest('button,input,textarea,a,.mind-resource,.mind-topic,.mind-resource-remove')) {
     if (!target.closest('.mind-drag')) {
       e.preventDefault()
       return
@@ -312,7 +332,7 @@ onBeforeUnmount(() => {
         'drop-target': dropTarget === node.id && !dropInvalid,
         'drop-invalid': dropTarget === node.id && dropInvalid,
         'keyboard-target': keyboardDragSource && keyboardDragTarget === node.id,
-        'resource-bearing': cards().length > 0
+        'resource-bearing': cards().length > 0 || linkedTopics().length > 0
       }"
       :data-mind-node="node.id" tabindex="0" :aria-label="`L${level()} ${node.name}`"
       draggable="true" @click="focusCard" @focus="emit('select', node.id)" @keydown="onNodeKeydown"
@@ -353,14 +373,24 @@ onBeforeUnmount(() => {
         @dblclick.stop="beginEdit('desc')" title="单击选中；双击编辑分支说明">
         {{ node.description || '双击补充分支说明' }}
       </span>
-      <div v-if="!cards().length" class="mind-resource-empty">
+      <div v-if="!cards().length && !linkedTopics().length" class="mind-resource-empty">
         <button class="mind-resource-cta" type="button"
-          title="从资源卡池关联一张或多张资源卡"
+          title="关联资源卡或选题卡"
           @click.stop="emit('link-resource', node)">
-          <Icon name="link" :size="12"/> 关联资源卡
+          <Icon name="link" :size="12"/> 关联卡片
         </button>
       </div>
-      <div v-if="cards().length" class="mind-resources">
+      <div v-if="cards().length || linkedTopics().length" class="mind-resources">
+        <span v-for="topic in linkedTopics()" :key="topic.id" class="mind-topic" v-pressable
+          :style="{ '--topic-status': topicStatus(topic)?.color || 'var(--accent)' }"
+          :title="topic.title + '；打开选题卡详情'"
+          @click.stop="emit('open-topic', topic)">
+          <span class="mind-topic-kind">成果</span>
+          <span class="mind-resource-title">{{ topic.title }}</span>
+          <span class="mind-topic-status">{{ topicStatus(topic)?.name || '构思中' }}</span>
+          <button class="mind-resource-remove" type="button" title="解除与当前节点的关联（选题卡本体保留）"
+            aria-label="解除选题关联" @click="onTopicRemove($event, topic)">×</button>
+        </span>
         <span v-for="card in cards()" :key="card.id" class="mind-resource" v-pressable
           :class="{ 'search-hit': cardMatches(card) }"
           :data-rid="card.id"
@@ -374,10 +404,10 @@ onBeforeUnmount(() => {
             aria-label="解除关联" @click="onResourceRemove($event, card)">×</button>
         </span>
       </div>
-      <div v-if="cards().length" class="mind-node-foot">
+      <div v-if="cards().length || linkedTopics().length" class="mind-node-foot">
         <button class="mind-add mind-resource-cta mind-resource-cta-foot" type="button"
           @click.stop="emit('link-resource', node)">
-          <Icon name="link" :size="13"/> 继续关联资源
+          <Icon name="link" :size="13"/> 继续关联卡片
         </button>
         <button v-if="selectedId === node.id" class="mind-add danger" type="button"
           title="删除整棵分支（移入回收站）"
@@ -398,6 +428,7 @@ onBeforeUnmount(() => {
       <CurationMindNode v-for="child in children()" :key="child.id" :node="child" :nodes="nodes"
         :selected-id="selectedId" :edit-request-id="editRequestId" :edit-request-seq="editRequestSeq"
         :cards-by-cat="cardsByCat" :search-query="searchQuery"
+        :topics="topics" :topic-statuses="topicStatuses"
         :remote-downloader="remoteDownloader"
         :keyboard-drag-source="keyboardDragSource" :keyboard-drag-target="keyboardDragTarget"
         :reveal-id="revealId"
@@ -411,6 +442,8 @@ onBeforeUnmount(() => {
         @open-resource="emit('open-resource', $event)"
         @open-resource-link="emit('open-resource-link', $event)"
         @open-resource-context="(e, card) => emit('open-resource-context', e, card)"
+        @open-topic="emit('open-topic', $event)"
+        @unlink-topic="(nodeId, topic) => emit('unlink-topic', nodeId, topic)"
         @open-assets="emit('open-assets', $event)"
         @drop-asset-files="(id, files) => emit('drop-asset-files', id, files)"
         @preview-asset="(id, asset) => emit('preview-asset', id, asset)"

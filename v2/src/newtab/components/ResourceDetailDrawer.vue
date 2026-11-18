@@ -169,7 +169,7 @@ function syncForm(): void {
 }
 
 let unsub: (() => void) | null = null
-onMounted(() => { unsub = onOpenDrawer(onBus); const p = consumePendingDrawer(); if (p) onBus(p) })
+onMounted(() => { unsub = onOpenDrawer(onBus); const p = consumePendingDrawer('res'); if (p) onBus(p) })
 onUnmounted(() => { unsub?.(); unsub = null })
 
 watch(() => resource.value?.id, (n) => {

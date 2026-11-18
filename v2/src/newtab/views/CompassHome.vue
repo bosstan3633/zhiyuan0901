@@ -34,7 +34,9 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import AssetBadge from '@/shared/components/AssetBadge.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
+import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import TaskCalendarView from '../components/compass/TaskCalendarView.vue'
+import TopicManagerPanel from '../components/compass/TopicManagerPanel.vue'
 import HomeResourceFolderGrid from '../components/compass/HomeResourceFolderGrid.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
@@ -60,7 +62,8 @@ const {
   muteFocusToday, focusJob, openFocusReview, openCellTask, focusAllDone,
   todayTaskForSlot, pickerOpen, pickerSlot, pickerSearch,
   pickerStatus, pickerProject, openPicker, selectTaskForSlot, pickerCandidates,
-  pickerProjectOptions, pickedIds, pickerDisabled, selectTaskGuarded, removeTodaySlot,
+  pickerCardType, pickerTopicStatus, pickerTopicStatusOptions, pickerProjectOptions,
+  pickedIds, pickerDisabled, pickerTopicDisabled, selectTaskGuarded, selectTopicGuarded, removeTodaySlot,
   copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
   openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
   projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
@@ -73,9 +76,9 @@ const {
   todayOutCount, todayOutOps, battleHost, openReview, focusDoneCount,
   mainFocus, extraFocus, recentLimit,
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
-  liveTasks,
-  previewTasks, liveCuriosities, previewCuriosities, liveResources, handNewCounts,
-  hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
+  liveTasks, liveTopics,
+  previewTasks, previewTopics, liveCuriosities, previewCuriosities, liveResources, handNewCounts,
+  hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
   openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
@@ -83,6 +86,7 @@ const {
   taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
   taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
   taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus,
+  setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
   taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,
   focusTaskTarget, requestTaskFocus, replaceTaskFocus, closeTaskFocusReplace,
@@ -114,7 +118,7 @@ const {
           <div v-for="c in focusCells" :key="'w' + c.idx" class="fw-row">
             <span class="n">{{ String(c.idx + 1).padStart(2, '0') }}</span>
             <div class="b">
-              <template v-if="c.task">
+              <template v-if="c.task || c.topic">
                 <div class="t">{{ c.slot?.text }}</div>
                 <div class="w">
                   <template v-if="c.slot?.auto === true">{{ whyOf(c.slot) || '本地依据：主攻项目下可直接推进的事项' }}<span v-if="whyIsAi(c.slot)" class="ai-tag"> · AI 判词</span></template>
@@ -123,7 +127,7 @@ const {
               </template>
               <template v-else>
                 <div class="t off">空着</div>
-                <div class="w">点这一格从任务库选，或用“换一批”。</div>
+                <div class="w">点这一格从任务卡 / 选题卡中选，或用“换一批”。</div>
               </template>
             </div>
           </div>
@@ -211,20 +215,52 @@ const {
                 </footer>
               </article>
 
-              <article v-else-if="c.slot && c.slot.sourceType === 'task' && focusIsHistorical" class="focus-row focus-card stale-row history-row">
+              <article v-else-if="c.topic" class="focus-row focus-card topic-focus-card" :class="{ done: c.slot && focusSlotDone(c.slot), historical: focusIsHistorical }" role="button" tabindex="0"
+                @click="openCellTask(c)" @keydown.enter.prevent="openCellTask(c)" @keydown.space.prevent="openCellTask(c)">
+                <button class="row-check" :class="{ done: c.slot && focusSlotDone(c.slot), readonly: focusIsHistorical }" type="button" :aria-label="c.slot && focusSlotDone(c.slot) ? '已完成（历史快照只读）' : focusIsHistorical ? '未完成（历史快照只读）' : '切换完成状态'" @click.stop="c.slot && toggleTodayDone(c.slot)">
+                  <Icon v-if="c.slot && focusSlotDone(c.slot)" name="check" :size="14" />
+                </button>
+                <div class="row-main">
+                  <span class="focus-num">{{ String(c.idx + 1).padStart(2, '0') }}</span>
+                  <div class="row-title">
+                    <span class="topic-focus-kind">选题</span>
+                    <NewBadge :at="c.topic.createdAt" />
+                    <span class="title-text">{{ c.slot?.text }}</span>
+                    <span v-if="c.slot?.copiedFrom" class="snapshot-tag">历史快照</span>
+                  </div>
+                  <div class="row-meta">
+                    <span><Icon name="package" :size="12" /> {{ projectName(c.topic.projectId) }}</span>
+                    <span><Icon name="target" :size="12" /> {{ metricName(c.topic.metricId) }}</span>
+                    <span v-if="c.topic.dueDate"><Icon name="calendar" :size="12" /> {{ c.topic.dueDate.slice(5).replace('-', '/') }}</span>
+                    <AssetBadge v-if="taskAssetsOn && c.topic.assets?.length" :assets="c.topic.assets" />
+                  </div>
+                </div>
+                <footer class="focus-card-foot">
+                  <span class="status topic-focus-status" :class="c.slot && focusSlotStatusClass(c.slot)">{{ c.slot ? focusSlotStatusLabel(c.slot) : '构思中' }}</span>
+                  <span v-if="c.slot?.auto === true" class="rec" data-testid="focus-rec"><Icon name="sparkle" :size="10" /> AI 荐</span>
+                  <span v-else class="focus-lock">手动锁定</span>
+                  <button class="focus-reason-btn" type="button" title="查看说明" aria-label="查看说明" @click.stop="toggleWhy"><Icon name="info" :size="13" /></button>
+                  <button class="row-copy" type="button" :disabled="!focusCopyText(c)" :title="focusCopyReason(c)" :aria-label="focusCopyReason(c)" @click.stop="copyFocusText(c)">
+                    <Icon name="copy" :size="11" /><span class="copy-label">复制</span>
+                  </button>
+                  <button v-if="!focusIsHistorical" class="row-remove" type="button" title="移出今日三件事（选题本体仍保留）" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
+                </footer>
+              </article>
+
+              <article v-else-if="c.slot && (c.slot.sourceType === 'task' || c.slot.sourceType === 'topic') && focusIsHistorical" class="focus-row focus-card stale-row history-row">
                 <span class="row-index">{{ String(c.idx + 1).padStart(2, '0') }}</span>
                 <div class="row-main">
-                  <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || '原任务已失效' }}</span></div>
-                  <div class="row-meta"><span>历史任务快照 · 只读保留当时的完成状态</span></div>
+                  <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || (c.slot.sourceType === 'topic' ? '原选题已失效' : '原任务已失效') }}</span></div>
+                  <div class="row-meta"><span>历史{{ c.slot.sourceType === 'topic' ? '选题' : '任务' }}快照 · 只读保留当时的完成状态</span></div>
                 </div>
                 <span class="status" :class="focusSlotStatusClass(c.slot)"><Icon :name="focusSlotStatusIcon(c.slot)" :size="11" /> {{ focusSlotStatusLabel(c.slot) }}</span>
               </article>
 
-              <article v-else-if="c.slot && c.slot.sourceType === 'task'" class="focus-row focus-card stale-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)">
+              <article v-else-if="c.slot && (c.slot.sourceType === 'task' || c.slot.sourceType === 'topic')" class="focus-row focus-card stale-row" role="button" tabindex="0" @click="openPicker(c.idx)" @keydown.enter.prevent="openPicker(c.idx)">
                 <span class="row-index">{{ String(c.idx + 1).padStart(2, '0') }}</span>
                 <div class="row-main">
-                  <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || '原任务已失效' }}</span></div>
-                  <div class="row-meta"><span>源任务已删除或归档 · 点这一行原位重新选取</span></div>
+                  <div class="row-title"><Icon name="warn" :size="14" /><span class="title-text">{{ c.slot.text || (c.slot.sourceType === 'topic' ? '原选题已失效' : '原任务已失效') }}</span></div>
+                  <div class="row-meta"><span>源{{ c.slot.sourceType === 'topic' ? '选题' : '任务' }}已删除或归档 · 点这一行原位重新选取</span></div>
                 </div>
                 <span class="stale-action">重新选取 <Icon name="arrowright" :size="13" /></span>
                 <button class="row-remove" type="button" title="移出今日三件事" aria-label="移出今日三件事" @click.stop="removeTodaySlot(c.idx)"><Icon name="x" :size="13" /></button>
@@ -255,7 +291,7 @@ const {
                 <span class="empty-plus"><Icon name="plus" :size="14" /></span>
                 <div class="row-main">
                   <div class="row-title empty-title">选择第 {{ c.idx + 1 }} 件重点</div>
-                  <div class="row-meta"><span>从任务池选择，或让 AI 推荐</span></div>
+                  <div class="row-meta"><span>从任务卡 / 选题卡中选择，或让 AI 推荐</span></div>
                 </div>
               </article>
             </template>
@@ -282,6 +318,9 @@ const {
             <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
               <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">
                 任务 <span v-if="handNewCounts.task" class="hand-new-badge" :aria-label="`${handNewCounts.task} 张今日新增任务卡`">{{ handNewCounts.task > 99 ? '99+' : handNewCounts.task }}</span>
+              </button>
+              <button class="hand-tab" :class="{ on: handTab === 'topic' }" role="tab" :aria-selected="handTab === 'topic'" type="button" @click="handTab = 'topic'">
+                选题 <span v-if="handNewCounts.topic" class="hand-new-badge" :aria-label="`${handNewCounts.topic} 张今日新增选题卡`">{{ handNewCounts.topic > 99 ? '99+' : handNewCounts.topic }}</span>
               </button>
               <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">
                 好奇心 <span v-if="handNewCounts.curiosity" class="hand-new-badge" :aria-label="`${handNewCounts.curiosity} 张今日新增好奇心卡`">{{ handNewCounts.curiosity > 99 ? '99+' : handNewCounts.curiosity }}</span>
@@ -330,16 +369,28 @@ const {
 
             <TaskCalendarView
               :tasks="taskWorkFiltered"
+              :focus-tasks="liveTasks"
+              :topics="liveTopics"
+              :topic-statuses="d.topicStatuses"
+              :focus-slots="todayFocusList"
               :show-done="taskWorkShowDone"
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
               @open-task="openTaskWork"
+              @open-topic="openTopicPreview"
               @toggle-status="toggleTaskWorkStatus"
+              @toggle-topic-status="toggleTopicWorkStatus"
               @assign-task="openTaskAssign"
               @focus-task="requestTaskFocus"
               @set-due="setTaskWorkDue"
               @clear-due="clearTaskWorkDue"
+              @set-topic-due="setTopicWorkDue"
+              @clear-topic-due="clearTopicWorkDue"
             />
+          </div>
+
+          <div v-else-if="handTab === 'topic'" class="topic-workbench-home">
+            <TopicManagerPanel />
           </div>
 
           <div v-else-if="handTab === 'curiosity'" class="hand-grid hand-grid-aux">
@@ -433,46 +484,77 @@ const {
         <div class="pm-body">
           <label class="search-box pm-search-flat">
             <Icon name="search" :size="14" />
-            <input v-model="pickerSearch" type="search" placeholder="搜索任务标题、项目或指标…" autocomplete="off" autofocus>
+            <input v-model="pickerSearch" type="search" placeholder="搜索任务 / 选题标题、项目或指标…" autocomplete="off" autofocus>
             <button v-if="pickerSearch" class="pm-search-clear" type="button" aria-label="清空搜索" @click.prevent="pickerSearch = ''"><Icon name="x" :size="12" /></button>
           </label>
           <div class="pm-filters">
+            <div class="pm-type-tabs" role="group" aria-label="卡片类型">
+              <button type="button" :class="{ on: pickerCardType === 'all' }" @click="pickerCardType = 'all'">全部</button>
+              <button type="button" :class="{ on: pickerCardType === 'task' }" @click="pickerCardType = 'task'">任务卡</button>
+              <button type="button" :class="{ on: pickerCardType === 'topic' }" @click="pickerCardType = 'topic'">选题卡</button>
+            </div>
             <select v-model="pickerProject" class="pm-select" title="按项目筛选任务">
               <option value="">全部项目</option>
               <option value="__none__">未关联项目（{{ pickerProjectOptions.none }}）</option>
               <option v-for="o in pickerProjectOptions.opts" :key="o.id" :value="o.id">{{ o.name }}（{{ o.n }}）</option>
             </select>
-            <select v-model="pickerStatus" class="pm-select pm-status" title="按任务状态筛选">
+            <select v-if="pickerCardType !== 'topic'" v-model="pickerStatus" class="pm-select pm-status" title="按任务状态筛选">
               <option value="all">全部状态</option>
               <option value="todo">待开始</option>
               <option value="doing">进行中</option>
             </select>
+            <select v-if="pickerCardType !== 'task'" v-model="pickerTopicStatus" class="pm-select pm-status" title="按选题状态筛选">
+              <option value="all">全部选题状态</option>
+              <option v-for="status in pickerTopicStatusOptions" :key="status.id" :value="status.id">{{ status.name }}</option>
+            </select>
             <button class="pm-filter-clear" type="button" @click="clearFocusSelection">重置</button>
           </div>
-          <div class="pm-summary"><span>{{ pickerCandidates.length }} 个可选任务</span><span>已完成和已选入的任务会置灰</span></div>
+          <div class="pm-summary"><span>{{ pickerCandidates.length }} 个可选事项</span><span>已完成和已选入的卡片会置灰</span></div>
           <div class="picker-list">
-            <button v-for="task in pickerCandidates" :key="task.id" class="picker-item" :class="{ disabled: pickerDisabled(task) }" type="button" :disabled="pickerDisabled(task)" @click="selectTaskGuarded(task)">
-              <span class="pi-check" :class="{ disabled: pickerDisabled(task) }"><Icon :name="pickerDisabled(task) ? 'check' : 'plus'" :size="12" /></span>
+            <button
+              v-for="candidate in pickerCandidates"
+              :key="`${candidate.kind}:${candidate.card.id}`"
+              class="picker-item"
+              :class="{
+                disabled: candidate.kind === 'task' ? pickerDisabled(candidate.card) : pickerTopicDisabled(candidate.card),
+                topic: candidate.kind === 'topic',
+              }"
+              type="button"
+              :disabled="candidate.kind === 'task' ? pickerDisabled(candidate.card) : pickerTopicDisabled(candidate.card)"
+              @click="candidate.kind === 'task' ? selectTaskGuarded(candidate.card) : selectTopicGuarded(candidate.card)"
+            >
+              <span
+                class="pi-check"
+                :class="{ disabled: candidate.kind === 'task' ? pickerDisabled(candidate.card) : pickerTopicDisabled(candidate.card) }"
+              >
+                <Icon :name="(candidate.kind === 'task' ? pickerDisabled(candidate.card) : pickerTopicDisabled(candidate.card)) ? 'check' : 'plus'" :size="12" />
+              </span>
               <span class="pi-info">
-                <span class="pi-title">{{ task.title }}</span>
+                <span class="pi-title">{{ candidate.card.title }}</span>
                 <span class="pi-meta">
-                  <span class="tag accent">{{ projectName(task.projectId) }}</span>
-                  <span class="tag" :class="taskStatusClass(task.status)"><Icon :name="taskStatusIcon(task.status)" :size="11" /> {{ taskStatusLabel(task.status) }}</span>
-                  <span v-if="pickedIds.has(task.id)" class="tag">已选入</span>
-                  <AssetBadge v-if="taskAssetsOn && task.assets?.length" :assets="task.assets" />
+                  <span v-if="candidate.kind === 'topic'" class="tag topic-tag">选题</span>
+                  <span class="tag accent">{{ projectName(candidate.card.projectId) }}</span>
+                  <span v-if="candidate.kind === 'task'" class="tag" :class="taskStatusClass(candidate.card.status)">
+                    <Icon :name="taskStatusIcon(candidate.card.status)" :size="11" /> {{ taskStatusLabel(candidate.card.status) }}
+                  </span>
+                  <span v-else class="tag topic-tag">
+                    {{ pickerTopicStatusOptions.find(status => status.id === candidate.card.statusId)?.name || '构思中' }}
+                  </span>
+                  <span v-if="pickedIds.has(candidate.card.id)" class="tag">已选入</span>
+                  <AssetBadge v-if="taskAssetsOn && candidate.card.assets?.length" :assets="candidate.card.assets" />
                 </span>
               </span>
               <Icon name="arrowright" :size="13" class="pi-go" />
             </button>
             <div v-if="!pickerCandidates.length" class="picker-empty">
               <Icon name="search" :size="22" />
-              <b>没有匹配的任务</b>
-              <span>换个关键词，或清空项目与状态筛选。</span>
+              <b>没有匹配的卡片</b>
+              <span>换个关键词，或清空卡型、项目与状态筛选。</span>
               <button class="quiet-btn" type="button" @click="clearFocusSelection">清空筛选</button>
             </div>
           </div>
         </div>
-        <footer class="pm-foot"><span>选中后会立即打开右侧任务详情。</span><button class="quiet-btn" type="button" @click="pickerOpen = false">取消</button></footer>
+        <footer class="pm-foot"><span>选中后会立即打开右侧卡片详情。</span><button class="quiet-btn" type="button" @click="pickerOpen = false">取消</button></footer>
       </div>
     </Transition>
 
@@ -570,6 +652,7 @@ const {
     </Transition>
 
     <TaskDetailDrawer ref="drawerRef" />
+    <CuriosityPanel details-only @closed="() => {}" />
     <AiDrawer v-if="focusJob" :job="focusJob" @close="focusJob = null" />
   </div>
 </template>

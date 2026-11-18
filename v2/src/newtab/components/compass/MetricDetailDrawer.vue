@@ -15,13 +15,15 @@ import { computed, ref, watch } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
-import type { Metric, Project, TaskCard } from '@/shared/models'
+import type { Metric, Project, TaskCard, TopicCard } from '@/shared/models'
 import type { MetricMeta } from '../../views/compassMeta'
-import { tasksOfMetric } from '../../views/compassMeta'
+import { tasksOfMetric, topicsOfMetric } from '../../views/compassMeta'
 import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../TaskAddDrawer.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import { toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { emitOpenDrawer } from '@/shared/utils/bus'
+import { isTopicDone, sortedTopicStatuses, topicStatusOf } from '@/shared/utils/topicStatus'
 
 const props = defineProps<{
   open: boolean
@@ -51,9 +53,14 @@ const tasks = computed<TaskCard[]>(() => {
   if (!metric.value) return []
   return tasksOfMetric(metric.value, d.value.tasks)
 })
+const topics = computed<TopicCard[]>(() => {
+  if (!metric.value) return []
+  return topicsOfMetric(metric.value, d.value.topics || [])
+})
 const done = computed(() => tasks.value.filter(t => t.status === 'done').length)
 const pct = computed(() => tasks.value.length ? Math.round((done.value / tasks.value.length) * 100) : 0)
 const doing = computed(() => tasks.value.filter(t => t.status === 'doing').length)
+const topicStatuses = computed(() => sortedTopicStatuses(d.value))
 
 const metricMeta = computed<MetricMeta | null>(() => {
   if (!metric.value) return null
@@ -62,8 +69,10 @@ const metricMeta = computed<MetricMeta | null>(() => {
     title: metric.value.title,
     target: metric.value.target || '',
     tasks: tasks.value,
+    topics: topics.value,
     total: tasks.value.length,
     done: done.value,
+    topicTotal: topics.value.length,
     pct: pct.value,
     dot: tasks.value.length && done.value === tasks.value.length ? 'done' : doing.value ? 'doing' : '',
     orphanMetric: tasks.value.length === 0
@@ -95,6 +104,13 @@ function cancelEdit() {
 // ---- 任务：打开详情 / 勾选 / 添加 ----
 const taskDetailRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 function openTask(t: TaskCard) { taskDetailRef.value?.open(t) }
+function openTopic(topic: TopicCard) { emitOpenDrawer({ kind: 'topic', id: topic.id }) }
+function topicName(topic: TopicCard): string {
+  return topicStatusOf(d.value, topic.statusId)?.name || topicStatuses.value[0]?.name || '构思中'
+}
+function topicStyle(topic: TopicCard): Record<string, string> {
+  return { '--topic-status': topicStatusOf(d.value, topic.statusId)?.color || 'var(--accent)' }
+}
 function toggleTask(t: TaskCard) {
   toggleTaskStatus(t)
   store.persist()
@@ -183,6 +199,25 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
         </div>
       </section>
 
+      <section class="md-section md-topics">
+        <div class="md-sec-head">
+          <h3><Icon name="sparkle" :size="14"/> 成果选题 <span class="md-count">{{ topics.length }}</span></h3>
+          <span class="md-topic-hint">选题是面向外界的成果，不计入任务完成率</span>
+        </div>
+        <div v-if="topics.length" class="md-topic-list">
+          <button v-for="topic in topics" :key="topic.id" class="md-topic" :class="{ done: isTopicDone(d, topic) }"
+            :style="topicStyle(topic)" type="button" @click="openTopic(topic)">
+            <span class="md-topic-result">成果</span>
+            <span class="md-topic-title">{{ topic.title }}</span>
+            <span class="md-topic-status">{{ topicName(topic) }}</span>
+            <span class="md-task-go" aria-hidden="true">›</span>
+          </button>
+        </div>
+        <div v-else class="md-topic-empty">
+          <span>这条指标还没有成果选题。选题卡可从调度台的「选题」页签创建。</span>
+        </div>
+      </section>
+
       <div class="md-hint"><Icon name="bulb" :size="13"/> 这里改的是方向台同一份数据；任务详情打开后按 Esc 只关最上层。</div>
     </template>
   </Drawer>
@@ -237,6 +272,25 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
 .md-task.doing .md-task-status { color: var(--warning); }
 .md-task.done .md-task-status { color: var(--success); }
 .md-task-go { color: var(--text-4); flex: none; }
+.md-topic-hint { margin-left: auto; color: var(--text-4); font-size: var(--fs-tiny); }
+.md-topic-list { display: flex; flex-direction: column; gap: 5px; }
+.md-topic {
+  display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--topic-status) 24%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--topic-status) 7%, var(--surface));
+  color: var(--text); font-family: inherit; text-align: left; cursor: pointer;
+}
+.md-topic:hover { border-color: var(--topic-status); }
+.md-topic-result {
+  flex: none; padding: 1px 7px; border-radius: 99px;
+  background: color-mix(in srgb, var(--topic-status) 16%, var(--surface));
+  color: var(--topic-status); font-size: var(--fs-tiny); font-weight: 700;
+}
+.md-topic-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sub); }
+.md-topic.done .md-topic-title { color: var(--text-3); text-decoration: line-through; }
+.md-topic-status { flex: none; color: var(--topic-status); font-size: var(--fs-tiny); font-weight: 600; }
+.md-topic-empty { padding: 11px 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--text-3); font-size: var(--fs-micro); line-height: 1.65; }
 .md-empty { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 20px 14px; text-align: center; border: 1px dashed var(--warning-border); border-radius: var(--radius-sm); background: var(--warning-bg-soft); }
 .md-empty b { font-size: var(--fs-sub); color: var(--warning); }
 .md-empty span { font-size: var(--fs-micro); color: var(--text-3); }

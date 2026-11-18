@@ -8,7 +8,7 @@ import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 import type { AiJob, AiRow } from '@/shared/ai/job'
 import { subscribeSaveError, getLastSaveOkAt, getBytesInUse, hasUnlimitedStorage, saveDataNow } from '@/shared/storage/repository'
 import type { SaveError } from '@/shared/storage/repository'
-import { CURATION_WS_ID, type TaskCard, type Project, type FocusSlot, type CuriosityCard, type ResourceCard } from '@/shared/models'
+import { CURATION_WS_ID, type TaskCard, type TopicCard, type Project, type FocusSlot, type CuriosityCard, type ResourceCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import { useConfirm } from '@/shared/components/confirm'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
@@ -19,19 +19,22 @@ import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
 import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
+import { isTopicDone, setTopicStatus, toggleTopicDone, topicStatusOf, topicTerminalStatus, topicInProgressStatus } from '@/shared/utils/topicStatus'
 import {
   FOCUS_LIMIT,
   activeFocusSlots,
   clearedFocusSlot,
   detachFocusTaskFromDate,
+  detachFocusTopicFromDate,
   normalizedFocusSlots,
 } from '@/shared/utils/focusSlots'
 import TodayBattleHost from '../components/dashboard/TodayBattleHost.vue'
 import { useCompassHomeStorage } from './useCompassHomeStorage'
 import { useCompassHomeDetail } from './useCompassHomeDetail'
 
-export interface FocusCell { idx: number; slot?: FocusSlot; task?: TaskCard }
-export type HandKind = 'task' | 'curiosity' | 'resource'
+export interface FocusCell { idx: number; slot?: FocusSlot; task?: TaskCard; topic?: TopicCard }
+export type HandKind = 'task' | 'topic' | 'curiosity' | 'resource'
 
 export function useCompassHome() {
 const router = useRouter()
@@ -120,7 +123,9 @@ const focusCells = computed<FocusCell[]>(() => {
   return raw.map((slot, idx) => {
     if (!slot || slot.cleared) return { idx }
     const task = todayTaskForSlot(slot)
-    return task ? { idx, slot, task } : { idx, slot }
+    if (task) return { idx, slot, task }
+    const topic = todayTopicForSlot(slot)
+    return topic ? { idx, slot, topic } : { idx, slot }
   })
 })
 /** R117（04-61 C3）：失效槽不算占位——点它的「重新选取」即便 3 件已满也放行（原位替换）。
@@ -294,10 +299,17 @@ async function openFocusReview(): Promise<void> {
  * 且 `?hl=&hk=task` 那条定位通道仍在（下方的任务卡面板仍 watch 这两个 query）。
  */
 function openCellTask(c: FocusCell) {
-  if (!c.task) return
-  recordCardOpen(d.value, c.task)
-  store.persistHot()
-  drawerRef.value?.open(c.task)
+  if (c.task) {
+    recordCardOpen(d.value, c.task)
+    store.persistHot()
+    drawerRef.value?.open(c.task)
+    return
+  }
+  if (c.topic) {
+    recordCardOpen(d.value, c.topic)
+    store.persistHot()
+    emitOpenDrawer({ kind: 'topic', id: c.topic.id })
+  }
 }
 /**
  * R94（B3）：三件事**全完成** —— 给一个**安静**的收束。
@@ -313,11 +325,19 @@ function todayTaskForSlot(slot: FocusSlot): TaskCard | null {
   }
   return null
 }
+function todayTopicForSlot(slot: FocusSlot): TopicCard | null {
+  if (slot.sourceType === 'topic' && slot.sourceId) {
+    return (d.value.topics || []).find(t => !t.deletedAt && t.id === slot.sourceId) || null
+  }
+  return null
+}
 /** V4.3.1：历史日期优先读槽位快照；今天优先读任务卡当前状态，任务卡是唯一真源。 */
 function focusSlotStatus(slot: FocusSlot): TaskCard['status'] {
   if (dateStr(todayDate.value) === todayKey.value) {
     const task = todayTaskForSlot(slot)
     if (task) return task.status
+    const topic = todayTopicForSlot(slot)
+    if (topic) return isTopicDone(d.value, topic) ? 'done' : 'doing'
   }
   return slot.statusSnapshot || (slot.done ? 'done' : 'todo')
 }
@@ -325,6 +345,11 @@ function focusSlotDone(slot: FocusSlot): boolean {
   return focusSlotStatus(slot) === 'done'
 }
 function focusSlotStatusLabel(slot: FocusSlot): string {
+  const topic = todayTopicForSlot(slot)
+  if (topic && dateStr(todayDate.value) === todayKey.value) {
+    return topicStatusOf(d.value, topic.statusId)?.name || '构思中'
+  }
+  if (slot.sourceType === 'topic') return slot.topicStatusSnapshotName || (focusSlotDone(slot) ? '已完成' : '进行中')
   return taskStatusLabel(focusSlotStatus(slot))
 }
 function focusSlotStatusIcon(slot: FocusSlot): string {
@@ -340,7 +365,9 @@ const focusIsHistorical = computed(() => dateStr(todayDate.value) !== todayKey.v
 const pickerOpen = ref(false)
 const pickerSlot = ref(0)
 const pickerSearch = ref('')
+const pickerCardType = ref<'all' | 'task' | 'topic'>('all')
 const pickerStatus = ref<'all' | 'todo' | 'doing'>('all')
+const pickerTopicStatus = ref('all')
 // R113-N6：按项目筛选（用户反馈：任务库只有关键词搜索，任务一多只能逐条翻）
 // 取值：'' = 全部项目；'__none__' = 未关联项目；其余 = project.id
 const pickerProject = ref('')
@@ -350,14 +377,16 @@ function openPicker(slot: number) {
     return
   }
   const c = focusCellAt(slot)
-  const isStale = !!c?.slot && !c?.task
+  const isStale = !!c?.slot && !c?.task && !c?.topic
   // R117（04-61 C3）：失效槽不算占位——点它的「重新选取」即便 3 件已满也放行（原位替换）；
   // 满额 + 点正常格/空位时才按原口径拦截（3 件有效任务不能再加第 4 件）。
   if (focusFull.value && !isStale) { showToast('今日三件事已满（3/3）——先完成或移除一件'); return }
   pickerSlot.value = Math.min(slot, FOCUS_LIMIT - 1)
   pickerSearch.value = ''
   pickerProject.value = '' // R113-N6：每次打开复位为「全部项目」
+  pickerCardType.value = 'all'
   pickerStatus.value = 'all'
+  pickerTopicStatus.value = 'all'
   pickerOpen.value = true
 }
 function selectTaskForSlot(task: TaskCard) {
@@ -366,14 +395,20 @@ function selectTaskForSlot(task: TaskCard) {
     return
   }
   const key = dateStr(todayDate.value)
+  if (task.status === 'todo') {
+    task.status = 'doing'
+    task.completedAt = undefined
+    task.updatedAt = Date.now()
+  }
   if (task.dueDate !== key) {
     task.dueDate = key
     task.updatedAt = Date.now()
   }
   const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
   const previous = cells[pickerSlot.value]
-  if (previous && !previous.cleared && previous.sourceType === 'task') {
-    detachFocusTaskFromDate(d.value, key, previous.sourceId)
+  if (previous && !previous.cleared) {
+    if (previous.sourceType === 'task') detachFocusTaskFromDate(d.value, key, previous.sourceId)
+    else if (previous.sourceType === 'topic') detachFocusTopicFromDate(d.value, key, previous.sourceId)
   }
   const slot: FocusSlot = {
     id: uid('focus'),
@@ -396,19 +431,82 @@ function selectTaskForSlot(task: TaskCard) {
   store.persistHot()
   drawerRef.value?.open(task)
 }
-const pickerCandidates = computed(() => {
+type FocusPickerCandidate =
+  | { kind: 'task'; card: TaskCard }
+  | { kind: 'topic'; card: TopicCard }
+
+function selectTopicForSlot(topic: TopicCard) {
+  if (focusIsHistorical.value) {
+    showToast('历史日期只读；请先回到今天再调整三件事')
+    return
+  }
+  const key = dateStr(todayDate.value)
+  if (!isTopicDone(d.value, topic)) {
+    const next = topicInProgressStatus(d.value)
+    if (next && topic.statusId !== next.id) {
+      topic.statusId = next.id
+      topic.completedAt = undefined
+      topic.updatedAt = Date.now()
+    }
+  }
+  if (topic.dueDate !== key) {
+    topic.dueDate = key
+    topic.updatedAt = Date.now()
+  }
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
+  const previous = cells[pickerSlot.value]
+  if (previous && !previous.cleared) {
+    if (previous.sourceType === 'task') detachFocusTaskFromDate(d.value, key, previous.sourceId)
+    else if (previous.sourceType === 'topic') detachFocusTopicFromDate(d.value, key, previous.sourceId)
+  }
+  const slot: FocusSlot = {
+    id: uid('focus'),
+    slotIndex: pickerSlot.value as 0 | 1 | 2,
+    sourceType: 'topic',
+    sourceId: topic.id,
+    text: topic.title,
+    done: isTopicDone(d.value, topic),
+    doneAt: isTopicDone(d.value, topic) ? topic.completedAt : undefined,
+    topicStatusSnapshotId: topic.statusId,
+    topicStatusSnapshotName: topicStatusOf(d.value, topic.statusId)?.name,
+    updatedAt: Date.now(),
+  }
+  cells[pickerSlot.value] = slot
+  d.value.dailyFocus[key] = cells.map((cell, index) => cell
+    ? { ...cell, slotIndex: index as 0 | 1 | 2 }
+    : clearedFocusSlot(index))
+  store.persist()
+  pickerOpen.value = false
+  showToast('已添加选题到今日三件事')
+  recordCardOpen(d.value, topic)
+  store.persistHot()
+  emitOpenDrawer({ kind: 'topic', id: topic.id })
+}
+
+const pickerCandidates = computed<FocusPickerCandidate[]>(() => {
   const q = pickerSearch.value.trim().toLowerCase()
   const pj = pickerProject.value
   const st = pickerStatus.value
-  return d.value.tasks
+  const topicStatus = pickerTopicStatus.value
+  const tasks: FocusPickerCandidate[] = pickerCardType.value === 'topic' ? [] : d.value.tasks
     .filter(t => !t.deletedAt)
     .filter(t => !q || [t.title, projectName(t.projectId), metricName(t.metricId)]
       .some(text => text.toLowerCase().includes(q)))
-    // R113-N6：项目维度过滤（与关键词可叠加）
     .filter(t => !pj || (pj === '__none__' ? !t.projectId : t.projectId === pj))
     .filter(t => st === 'all' || t.status === st)
-    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) // 置顶优先
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
     .slice(0, 30)
+    .map(card => ({ kind: 'task' as const, card }))
+  const topics: FocusPickerCandidate[] = pickerCardType.value === 'task' ? [] : (d.value.topics || [])
+    .filter(topic => !topic.deletedAt)
+    .filter(topic => !q || [topic.title, topic.description || '', projectName(topic.projectId), metricName(topic.metricId)]
+      .some(text => text.toLowerCase().includes(q)))
+    .filter(topic => !pj || (pj === '__none__' ? !topic.projectId : topic.projectId === pj))
+    .filter(topic => topicStatus === 'all' || topic.statusId === topicStatus)
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
+    .slice(0, 30)
+    .map(card => ({ kind: 'topic' as const, card }))
+  return [...tasks, ...topics]
 })
 /** R113-N6：项目下拉选项（只列"有未删任务"的项目，带任务数；另给未关联计数） */
 const pickerProjectOptions = computed(() => {
@@ -419,17 +517,34 @@ const pickerProjectOptions = computed(() => {
     if (t.projectId) counts.set(t.projectId, (counts.get(t.projectId) || 0) + 1)
     else none++
   }
+  for (const topic of d.value.topics || []) {
+    if (topic.deletedAt) continue
+    if (topic.projectId) counts.set(topic.projectId, (counts.get(topic.projectId) || 0) + 1)
+    else none++
+  }
   const opts = allProjects().filter(p => counts.has(p.id)).map(p => ({ id: p.id, name: p.name, n: counts.get(p.id) || 0 }))
   return { opts, none }
 })
+const pickerTopicStatusOptions = computed(() =>
+  [...(d.value.topicStatuses || [])].sort((a, b) => a.order - b.order))
 /** 已完成或已选入今日三件事的任务置灰不可选 */
 const pickedIds = computed(() => new Set(todayFocusList.value.map(s => s.sourceId)))
 function pickerDisabled(t: TaskCard): boolean {
   return t.status === 'done' || pickedIds.value.has(t.id)
 }
+function pickerTopicDisabled(topic: TopicCard): boolean {
+  return isTopicDone(d.value, topic) || pickedIds.value.has(topic.id)
+}
 function selectTaskGuarded(t: TaskCard) {
   if (pickerDisabled(t)) { showToast(t.status === 'done' ? '该任务已完成' : '该任务已选入今日三件事'); return }
   selectTaskForSlot(t)
+}
+function selectTopicGuarded(topic: TopicCard) {
+  if (pickerTopicDisabled(topic)) {
+    showToast(isTopicDone(d.value, topic) ? '该选题已完成' : '该选题已选入今日三件事')
+    return
+  }
+  selectTopicForSlot(topic)
 }
 function removeTodaySlot(idx: number) {
   if (focusIsHistorical.value) {
@@ -441,6 +556,9 @@ function removeTodaySlot(idx: number) {
   const previous = cells[idx]
   if (previous && !previous.cleared && previous.sourceType === 'task') {
     detachFocusTaskFromDate(d.value, key, previous.sourceId)
+  }
+  if (previous && !previous.cleared && previous.sourceType === 'topic') {
+    detachFocusTopicFromDate(d.value, key, previous.sourceId)
   }
   cells[idx] = clearedFocusSlot(idx, previous)
   d.value.dailyFocus[key] = cells.map((cell, index) => cell || clearedFocusSlot(index))
@@ -465,6 +583,7 @@ async function copyFocusToToday() {
   }))) return
   for (const slot of existing) {
     if (slot.sourceType === 'task') detachFocusTaskFromDate(d.value, todayKey.value, slot.sourceId)
+    else if (slot.sourceType === 'topic') detachFocusTopicFromDate(d.value, todayKey.value, slot.sourceId)
   }
   const copiedCells: Array<FocusSlot | undefined> = Array.from({ length: FOCUS_LIMIT })
   sourceCells.forEach((slot, index) => {
@@ -473,11 +592,16 @@ async function copyFocusToToday() {
     const task = slot.sourceType === 'task' && slot.sourceId
       ? d.value.tasks.find(row => !row.deletedAt && row.id === slot.sourceId)
       : null
+    const topic = slot.sourceType === 'topic' && slot.sourceId
+      ? (d.value.topics || []).find(row => !row.deletedAt && row.id === slot.sourceId)
+      : null
     copiedCells[index] = {
       ...JSON.parse(JSON.stringify(slot)),
       id: uid('focus'),
       done: status === 'done',
-      doneAt: status === 'done' ? (slot.doneAt || task?.completedAt) : undefined,
+      doneAt: status === 'done' ? (slot.doneAt || task?.completedAt || topic?.completedAt) : undefined,
+      topicStatusSnapshotId: topic?.statusId || slot.topicStatusSnapshotId,
+      topicStatusSnapshotName: topic ? topicStatusOf(d.value, topic.statusId)?.name : slot.topicStatusSnapshotName,
       statusSnapshot: status,
       statusBeforeDone: slot.statusBeforeDone,
       copiedFrom: sourceKey,
@@ -507,7 +631,9 @@ function copyYesterday() {
 function clearFocusSelection(): void {
   pickerSearch.value = ''
   pickerProject.value = ''
+  pickerCardType.value = 'all'
   pickerStatus.value = 'all'
+  pickerTopicStatus.value = 'all'
 }
 // 三件事导出弹窗（时间范围 + CSV）
 const exportOpen = ref(false)
@@ -534,17 +660,20 @@ function doExport() {
     for (const slot of d.value.dailyFocus[key] || []) {
       const t = slot.sourceType === 'task' && slot.sourceId
         ? d.value.tasks.find(x => x.id === slot.sourceId && !x.deletedAt) : null
-      const proj = t ? projectName(t.projectId) : ''
-      const met = t && t.metricId ? metricName(t.metricId) : ''
+      const topic = slot.sourceType === 'topic' && slot.sourceId
+        ? (d.value.topics || []).find(x => x.id === slot.sourceId && !x.deletedAt) : null
+      const source = t || topic
+      const proj = source ? projectName(source.projectId) : ''
+      const met = source?.metricId ? metricName(source.metricId) : ''
       rows.push([
-        slot.text || (t?.title ?? ''),
+        slot.text || (source?.title ?? ''),
         proj,
         proj && met !== '未关联' ? `${proj} / ${met}` : '',
-        statusLabelOf(t, slot.done),
+        topic ? (topicStatusOf(d.value, topic.statusId)?.name || '选题') : statusLabelOf(t, slot.done),
         key,
-        t?.createdAt ? new Date(t.createdAt).toLocaleString('zh-CN') : '',
-        t?.pinned ? '是' : '',
-        t?.starred ? '是' : ''
+        source?.createdAt ? new Date(source.createdAt).toLocaleString('zh-CN') : '',
+        source?.pinned ? '是' : '',
+        source?.starred ? '是' : ''
       ])
     }
   }
@@ -576,6 +705,13 @@ function toggleTodayDone(slot: FocusSlot) {
         slot.statusBeforeDone = current.status === 'doing' ? 'doing' : 'todo'
       }
     }
+    if (slot.sourceType === 'topic' && slot.sourceId) {
+      const topic = (d.value.topics || []).find(x => x.id === slot.sourceId)
+      if (topic && !isTopicDone(d.value, topic)) {
+        slot.topicStatusBeforeDoneId = topic.statusId
+        slot.topicStatusSnapshotName = topicStatusOf(d.value, topic.statusId)?.name
+      }
+    }
   }
   slot.done = nextDone
   slot.doneAt = slot.done ? Date.now() : undefined
@@ -589,6 +725,22 @@ function toggleTodayDone(slot: FocusSlot) {
       if (!slot.done) {
         slot.statusBeforeDone = undefined
       }
+    }
+  }
+  if (slot.sourceType === 'topic' && slot.sourceId) {
+    const topic = (d.value.topics || []).find(x => x.id === slot.sourceId)
+    if (topic) {
+      if (slot.done) {
+        const terminal = topicTerminalStatus(d.value)
+        if (terminal) setTopicStatus(d.value, topic, terminal.id)
+      } else {
+        const restore = slot.topicStatusBeforeDoneId
+          || topicInProgressStatus(d.value)?.id
+        if (restore) setTopicStatus(d.value, topic, restore)
+        slot.topicStatusBeforeDoneId = undefined
+      }
+      slot.topicStatusSnapshotId = topic.statusId
+      slot.topicStatusSnapshotName = topicStatusOf(d.value, topic.statusId)?.name
     }
   }
   store.persist()
@@ -610,16 +762,16 @@ function metricName(metricId?: string): string {
   return '未关联'
 }
 
-function projectTitleOfTask(task?: TaskCard): string {
-  if (!task?.projectId) return ''
-  return allProjects().find(project => project.id === task.projectId)?.name?.trim() || ''
+function projectTitleOfCard(card?: TaskCard | TopicCard): string {
+  if (!card?.projectId) return ''
+  return allProjects().find(project => project.id === card.projectId)?.name?.trim() || ''
 }
 
-function metricTitleOfTask(task?: TaskCard): string {
-  if (!task?.metricId) return ''
+function metricTitleOfCard(card?: TaskCard | TopicCard): string {
+  if (!card?.metricId) return ''
   for (const direction of d.value.compass.directions) {
     for (const project of direction.projects) {
-      const metric = project.metrics.find(row => row.id === task.metricId)
+      const metric = project.metrics.find(row => row.id === card.metricId)
       if (metric) return metric.title.trim()
     }
   }
@@ -627,17 +779,19 @@ function metricTitleOfTask(task?: TaskCard): string {
 }
 
 function focusCopyText(cell: FocusCell): string {
+  const card = cell.task || cell.topic
   return buildDailyFocusCopyText({
-    projectName: projectTitleOfTask(cell.task),
-    metricName: metricTitleOfTask(cell.task),
-    taskTitle: cell.task?.title,
+    projectName: projectTitleOfCard(card),
+    metricName: metricTitleOfCard(card),
+    taskTitle: card?.title,
   })
 }
 
 function focusCopyReason(cell: FocusCell): string {
-  if (!cell.task) return '这个计划位没有可复制的任务'
-  if (!projectTitleOfTask(cell.task)) return '任务未关联有效项目，复制内容不可生成'
-  if (!metricTitleOfTask(cell.task)) return '任务未关联有效成功指标，复制内容不可生成'
+  const card = cell.task || cell.topic
+  if (!card) return '这个计划位没有可复制的卡片'
+  if (!projectTitleOfCard(card)) return '卡片未关联有效项目，复制内容不可生成'
+  if (!metricTitleOfCard(card)) return '卡片未关联有效成功指标，复制内容不可生成'
   return '复制计划内容'
 }
 
@@ -721,7 +875,7 @@ const handTab = ref<HandKind>('task')
 const todayInCount = computed(() => {
   const t0 = todayStart.value
   let n = 0
-  for (const list of [d.value.tasks, d.value.curiosities, d.value.resources]) {
+  for (const list of [d.value.tasks, d.value.topics || [], d.value.curiosities, d.value.resources]) {
     for (const c of list) { if (!c.deletedAt && (c.createdAt || 0) >= t0) n++ }
   }
   return n
@@ -781,6 +935,9 @@ const handBoardRef = ref<HTMLElement | null>(null)
 const deskLayoutRef = ref<HTMLElement | null>(null)
 const liveTasks = computed<TaskCard[]>(() =>
   (d.value.tasks || []).filter(t => !t.deletedAt && !t.lifecycleArchived)
+)
+const liveTopics = computed<TopicCard[]>(() =>
+  (d.value.topics || []).filter(t => !t.deletedAt && !t.lifecycleArchived)
 )
 // ================= V4.3.1 · 调度台任务工作面 =================
 // 任务池不再只给 5 条预览：左列表与右侧月历共用一份筛选结果。
@@ -1010,6 +1167,83 @@ function clearTaskWorkDue(taskId: string): void {
   })
 }
 
+function clearTopicFromFocusDay(day: string, topicId: string, clearDueDate = true): FocusSlot | null {
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+  const index = cells.findIndex(slot => !!slot && !slot.cleared
+    && slot.sourceType === 'topic' && slot.sourceId === topicId)
+  if (index < 0) return null
+  const previous = cells[index]
+  if (clearDueDate) detachFocusTopicFromDate(d.value, day, topicId)
+  cells[index] = clearedFocusSlot(index, previous)
+  d.value.dailyFocus[day] = cells.map((cell, cellIndex) => cell || clearedFocusSlot(cellIndex))
+  return previous ? JSON.parse(JSON.stringify(previous)) as FocusSlot : null
+}
+
+function toggleTopicWorkStatus(topicId: string): void {
+  const topic = (d.value.topics || []).find(row => !row.deletedAt && row.id === topicId)
+  if (!topic) return
+  const nextDone = !isTopicDone(d.value, topic)
+  toggleTopicDone(d.value, topic)
+  store.persist()
+  showToast(nextDone ? '选题已完成，今日三件事和月历已同步' : '选题已恢复为完成前的状态')
+}
+
+async function setTopicWorkDue(topicId: string, date: string): Promise<void> {
+  const topic = (d.value.topics || []).find(row => !row.deletedAt && row.id === topicId)
+  if (!topic || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
+  const today = todayKey.value
+  const priorFocusSlot = activeFocusSlots(d.value.dailyFocus?.[today])
+    .find(slot => slot.sourceType === 'topic' && slot.sourceId === topicId)
+
+  if (date === today) {
+    if (isTopicDone(d.value, topic) && !priorFocusSlot) {
+      showToast('已完成选题不能新排入今日；今日日历与三件事严格保持同一集合')
+      return
+    }
+    const result = addManualTopicFocus(d.value, today, topic.id)
+    if (result.status === 'full') {
+      showToast('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
+      return
+    }
+    store.persist()
+    showToast(result.status === 'exists' ? '选题已在今日三件事与今日日历中' : '已安排到今日，并加入今日三件事')
+    return
+  }
+
+  if (priorFocusSlot) clearTopicFromFocusDay(today, topicId)
+  topic.dueDate = date
+  topic.updatedAt = Date.now()
+  store.persist()
+  showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日，并移出今日三件事`)
+}
+
+function clearTopicWorkDue(topicId: string): void {
+  const topic = (d.value.topics || []).find(row => !row.deletedAt && row.id === topicId)
+  if (!topic) return
+  const today = todayKey.value
+  const removedFocus = clearTopicFromFocusDay(today, topicId, false)
+  topic.dueDate = undefined
+  topic.updatedAt = Date.now()
+  store.persist()
+  showToast('已取消排期，选题回到卡片池', {
+    label: '撤销',
+    cb: () => {
+      const current = (d.value.topics || []).find(row => row.id === topicId)
+      if (!current) return
+      if (removedFocus) {
+        const cells = normalizedFocusSlots(d.value.dailyFocus?.[today])
+        const index = removedFocus.slotIndex ?? cells.findIndex(cell => !cell || cell.cleared)
+        if (index >= 0 && index < FOCUS_LIMIT) cells[index] = removedFocus
+        d.value.dailyFocus[today] = cells.map((cell, cellIndex) => cell || clearedFocusSlot(cellIndex))
+        current.dueDate = today
+      }
+      current.updatedAt = Date.now()
+      store.persist()
+      showToast('已恢复选题排期')
+    },
+  })
+}
+
 function toggleTaskWorkStatus(taskId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task) return
@@ -1065,6 +1299,11 @@ const previewTasks = computed<TaskCard[]>(() => {
 const liveCuriosities = computed<CuriosityCard[]>(() =>
   (d.value.curiosities || []).filter(c => !c.deletedAt && !c.lifecycleArchived)
 )
+const previewTopics = computed<TopicCard[]>(() =>
+  [...liveTopics.value]
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
+    .slice(0, 5)
+)
 const previewCuriosities = computed<CuriosityCard[]>(() =>
   [...liveCuriosities.value]
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
@@ -1086,13 +1325,14 @@ const handNewCounts = computed(() => {
   const createdToday = (ts?: number) => (ts || 0) >= t0 && (ts || 0) < t1
   return {
     task: liveTasks.value.filter(task => createdToday(task.createdAt)).length,
+    topic: liveTopics.value.filter(topic => createdToday(topic.createdAt)).length,
     curiosity: liveCuriosities.value.filter(card => createdToday(card.createdAt)).length,
     resource: liveResources.value.filter(card =>
       card.workspaceId === CURATION_WS_ID && createdToday(card.createdAt)).length,
   }
 })
 const hasAnyPreview = computed(() =>
-  !!previewTasks.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
+  !!previewTasks.value.length || !!previewTopics.value.length || !!previewCuriosities.value.length || !!previewResources.value.length
 )
 const weeklyReuse = computed(() => weekUsageOf(d.value))
 const archivedCount = computed(() => unarchivedTaskCount())
@@ -1103,7 +1343,14 @@ function openTaskPreview(t: TaskCard): void {
   drawerRef.value?.open(t)
 }
 function openCurioPreview(c: CuriosityCard): void {
-  void router.push({ path: '/deck/curiosity', query: { hl: c.id, hk: 'curio', open: '1' } })
+  // 调度台首页是工作上下文：好奇心明细应就地打开右侧详情，
+  // 不把用户带到二级卡片池。二级池的“查看全部”仍走 goDeck。
+  emitOpenDrawer({ kind: 'curio', id: c.id })
+}
+function openTopicPreview(topic: TopicCard): void {
+  recordCardOpen(d.value, topic)
+  store.persistHot()
+  emitOpenDrawer({ kind: 'topic', id: topic.id })
 }
 function openResourcePreview(r: ResourceCard): void {
   emitOpenDrawer({ kind: 'res', id: r.id })
@@ -1136,9 +1383,9 @@ function goDeck(kind: HandKind): void {
     whyOf, whyIsAi, focusHasRec, focusWeekTotals, ensureAutoFocus,
     refineWithAi, toggleWhy, closeWhy, onDocClickCloseWhy, reshuffleFocus,
     muteFocusToday, focusJob, openFocusReview, openCellTask, focusAllDone,
-    todayTaskForSlot, pickerOpen, pickerSlot, pickerSearch,
-    pickerStatus, pickerProject, openPicker, selectTaskForSlot, pickerCandidates,
-    pickerProjectOptions, pickedIds, pickerDisabled, selectTaskGuarded, removeTodaySlot,
+    todayTaskForSlot, todayTopicForSlot, pickerOpen, pickerSlot, pickerSearch,
+    pickerCardType, pickerStatus, pickerTopicStatus, pickerProject, openPicker, selectTaskForSlot, selectTopicForSlot, pickerCandidates,
+    pickerProjectOptions, pickerTopicStatusOptions, pickedIds, pickerDisabled, pickerTopicDisabled, selectTaskGuarded, selectTopicGuarded, removeTodaySlot,
     copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
     openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
     projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
@@ -1151,9 +1398,9 @@ function goDeck(kind: HandKind): void {
     todayOutCount, todayOutOps, todayCallCounts, refreshTodayOutOps, battleHost, openReview, focusDoneCount,
     mainFocus, extraFocus, RECENT_ROW_H, recentLimit,
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
-    liveTasks,
-    previewTasks, liveCuriosities, previewCuriosities, liveResources, previewResources, handNewCounts,
-    hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openCurioPreview,
+    liveTasks, liveTopics,
+    previewTasks, previewTopics, liveCuriosities, previewCuriosities, liveResources, previewResources, handNewCounts,
+    hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
     openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
@@ -1161,6 +1408,7 @@ function goDeck(kind: HandKind): void {
     taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
     taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
     taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus,
+    setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
     taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,
   focusTaskTarget, requestTaskFocus, replaceTaskFocus, closeTaskFocusReplace,

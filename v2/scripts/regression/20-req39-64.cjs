@@ -6,7 +6,7 @@ const {
   fs, path, base, check, runGateSync, gateSha, readGateCache, CONTENT_SRC_FILES, WORKSPACE_SRC_FILES, read, count, exists, codeOnly, VER_ANCHOR_LITERAL, CUR_VER, CUR_VTAG, fnBody, segOf, RES_CARD_ACTIONS, RES_ROW_ACTIONS, KANBAN_ACTIONS, ACTION_SEQ, inOrder, IMPORT_FN, OPEN_LINK_FN, stripComments, BADGE, BADGE_TPL, FIELDS, GS, ASSET_KIND, WS82, CTX_FN, CTX_MIRROR, CTX_OWN, RES_CARD_IFACE, LH, LH_TPL, LH_STYLE, TERM_FN, WS84, WSVIEW, HEAD_TPL, BANNER_TPL, LH85, ST85, TPL85, STY85, FOCUS_FN, ADDP_FN, FBAR_TPL, CS86, LH86, CT86, ST86, CS_TPL, CS_STY, WS87, LINK87, REF87, MOD87, WS_TPL, WS_STY, WS88, WS88_TPL, TB88, POP88, TB1_88, SM88, WS89, WS89_TPL, WS90, REF90, ICON90, HEAD90, TB90, CTX90, STYLE90, CH91, STRIP91, STRIP91_C, FOCUS_FN91, OV92, OV92_C, FOCUS_FN92, ESC92, CAP_FN92, TC_FN92, OV93, OV93_C, HEX93, CH94, CH94_C, TODAY94, DONE_STYLE94, CC95, CC95_C, WS96, RDD96, ARCH96, README96, OV97, WS98, WSP107, TM107, CZ107, APP106, WSP106, OV106, CH105, APP105, OV105, WSP105, CC104, WSP104, MIR103, WSP103, BAT102, WSP102, DR101, WSP101, IMP100, WSP100, LP99, CS99, MI108, ITM108, CT_ALL, WSP108, ITM109, MI109, APP109, WSP109, GS109, RB109, walkVueFiles, VUE_BUILTIN_TAGS, walkStyleFiles, STYLE_ALL, CRUD146, ALL_VUE146, ALL_STYLE155, DRAWER147, REPO148, HOT148, SCRIPTS_DIR, ANCHOR_FILE, CT_W11, TOWER, LANE, SPINE, PANEL, CMETA} = require('./helpers.cjs');
 
 console.log('【第卅九轮 · V2.15.0：REQ-048 卡片附件（三类卡全支持 · IndexedDB 存储 · 单文件 20MB）】');
-check('R39-1 REQ-048 模型 AssetMeta 接口 + assets 字段（CardBase 一份 + 卡 extends；V3.7.0 备案：三卡 → 四卡，+论证节点卡）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.split('extends CardBase').length - 1 === 4 && s.split('assets?: AssetMeta[]').length - 1 >= 1; });
+check('R39-1 REQ-048 模型 AssetMeta 接口 + assets 字段（CardBase 一份 + 卡 extends；V4.5.0 备案：四卡 → 五卡，+选题卡 TopicCard）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.split('extends CardBase').length - 1 === 5 && s.split('assets?: AssetMeta[]').length - 1 >= 1; });
 check('R39-2 REQ-048 IndexedDB 附件库 zy_assets 完整封装', () => { const s = read('/shared/storage/assets.ts'); return s.includes('DB_NAME = IDB_NAMES.ASSETS') && s.includes('export async function putAsset') && s.includes('export async function getAssetBlob') && s.includes('export async function deleteAsset') && s.includes('export async function getAssetStats') && s.includes('export async function cleanupOrphanAssets') && s.includes('export function assetIdsOf'); });
 check('R39-3 REQ-048 性能红线：附件仅存元数据引用（AssetMeta 无二进制承载字段）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface AssetMeta') && s.includes("kind: 'image' | 'html'") && s.includes('mime: string') && s.includes('createdAt: number') && !s.includes('ArrayBuffer') && !s.includes('Uint8Array'); });
 check('R39-4 REQ-048 共享组件 AssetManager 单文件上限（第卌四轮升级：accept 扩 .pdf + kind 三分支 limitMB）', () => { const s = read('/shared/components/AssetManager.vue'); return s.includes('maxSizeMB: 20') && s.includes('accept="image/*,.html,.htm,.pdf"') && s.includes("const limitMB = kind === 'image' ? IMG_MAX_MB : kind === 'pdf' ? PDF_MAX_MB : props.maxSizeMB") && s.includes('f.size > limitMB * 1024 * 1024'); });
@@ -22,9 +22,9 @@ check('R39-13（R162 重指 · R167 再重指 · R169 三重指）共享资源�
 
 // ============== 第卌轮 · V2.16.0 统一卡片模型（REQ-049~REQ-052，第卅九轮拍板） ==============
 console.log('【第卌轮 · V2.16.0 第一批：REQ-049 字段目录 + CardBase 公共基底】');
-check('R40-1 REQ-049 字段目录 catalog.ts：FIELD_CATALOG 含 assets、kinds 覆盖三型', () => { const s = read('/shared/models/catalog.ts'); return s.includes('export const FIELD_CATALOG') && s.includes("{ key: 'assets', label: '附件'") && s.includes("kinds: ['resource', 'task', 'curiosity']") && s.includes('export function catalogMeta') && s.includes('export function catalogFor'); });
+check('R40-1 REQ-049 字段目录 catalog.ts：FIELD_CATALOG 含 assets、kinds 覆盖选题卡四型', () => { const s = read('/shared/models/catalog.ts'); return s.includes('export const FIELD_CATALOG') && s.includes("{ key: 'assets', label: '附件'") && s.includes("kinds: ['resource', 'task', 'curiosity', 'topic']") && s.includes('export function catalogMeta') && s.includes('export function catalogFor'); });
 check('R40-2 REQ-049 FieldEditor 手写常量清空（无 curiosity:[\'question\' 特征串；改由 catalogMeta 推导）', () => { const s = read('/newtab/views/FieldEditor.vue'); return !s.includes("curiosity: ['question'") && !s.includes("const LOCKED_KEYS") && !s.includes('ICON_MAP:') && s.includes('catalogMeta') && s.includes('crossFields'); });
-check('R40-3 REQ-049 CardBase 公共基底 + 卡 extends（V3.7.0 备案：三卡 → 四卡，+论证节点卡）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface CardBase') && s.split('extends CardBase').length - 1 === 4 && s.includes('assets?: AssetMeta[]'); });
+check('R40-3 REQ-049 CardBase 公共基底 + 卡 extends（V4.5.0 备案：四卡 → 五卡，+选题卡）', () => { const s = read('/shared/models/index.ts'); return s.includes('export interface CardBase') && s.split('extends CardBase').length - 1 === 5 && s.includes('assets?: AssetMeta[]'); });
 console.log('【第卌轮 · V2.16.0 第二批：REQ-050 转卡（V4.2.0 重指：Inbox 唯一入口）】');
 check('R40-4（V4.3.0 退役重指）旧 cards.ts 引擎、好奇心转化出口与 PC Inbox 中间层整体退役；浏览器采集浮层直接生成任务 / 好奇心 / 资源三型', () => {
   const capture = codeOnly(read('/content/overlay-capture.ts'));
@@ -59,7 +59,7 @@ check('R40-7（V3.9.8 随迁）REQ-051 附件能力仍在：资源池列表/网�
     && !host.includes('<AssetBadge v-if="r.assets?.length"')
     && t.includes("import AssetBadge") && t.includes('taskAssetsOn')
     && t.includes('<AssetBadge v-if="taskAssetsOn && c.task.assets?.length"')
-    && t.includes('<AssetBadge v-if="taskAssetsOn && task.assets?.length"')
+    && t.includes('<AssetBadge v-if="taskAssetsOn && c.topic.assets?.length"')
     && c.includes("import AssetBadge") && c.includes('curioExtFields');
 });
 /* ★R181 随迁带备案：字段消费逻辑随域逻辑下沉 curiosityPanelCore.ts，`d.value.fieldConfig` 在 composable 里
@@ -239,19 +239,20 @@ check('R45-4（V4.3.1 重指）TaskManagerPanel 与调度台均接入共享抽�
     && h.includes('<TaskDetailDrawer ref="drawerRef" />')
     && !h.includes('onFocusDetailEdit');
 });
-check('R45-5/R49（V4.3.0 重指）调度台“查看全部”只保留三个现役二级卡池：/deck/task、/deck/curiosity、/deck/resource；Inbox 路由只做旧深链回首页，浏览器返回可用', () => {
+check('R45-5/R49（V4.5.0 重指）调度台“查看全部”保留四个现役二级卡池：/deck/task、/deck/topic、/deck/curiosity、/deck/resource；Inbox 路由只做旧深链回首页，浏览器返回可用', () => {
   const r = read('/newtab/router.ts');
   const deck = read('/newtab/views/CompassDeckView.vue');
   const h = read('/newtab/views/CompassHome.vue');
   const tm = read('/newtab/components/compass/TaskManagerPanel.vue');
   const cz = read('/newtab/components/compass/CuriosityPanel.vue');
   const pc = read('/newtab/components/compass/PoolCardsPanel.vue');
-  return r.includes("path: '/deck/:kind(task|curiosity|resource)'")
+  return r.includes("path: '/deck/:kind(task|topic|curiosity|resource)'")
     && r.includes("path: '/deck/inbox'") && r.includes("redirect: '/'")
     && r.includes("component: () => import('./views/CompassDeckView.vue')")
-    && deck.includes("type DeckKind = 'task' | 'curiosity' | 'resource'")
-    // 三个面板都带 ref，供 ?hl 深链在二级页内展开右侧详情。
+    && deck.includes("type DeckKind = 'task' | 'topic' | 'curiosity' | 'resource'")
+    // 四个面板都带 ref，供 ?hl 深链在二级页内展开右侧详情。
     && deck.includes('<TaskManagerPanel v-if="kind === \'task\'" ref="taskPanel" secondary-mode />')
+    && deck.includes('<TopicManagerPanel v-else-if="kind === \'topic\'" ref="topicPanel" secondary-mode />')
     && deck.includes('<CuriosityPanel v-else-if="kind === \'curiosity\'" ref="curiosityPanel" secondary-mode />')
     && deck.includes('<PoolCardsPanel v-else ref="resourcePanel" secondary-mode />')
     && !deck.includes('InboxPanel')
@@ -344,7 +345,7 @@ check('R49-20/R121 项目详情：?p 持久定位（刷新可恢复）+ 单行�
 check('R49-21（V4.2.0 重指）D4/D5/D6 附件区与共享详情抽屉仍在：tasksWithAssets 聚合 + AssetBadge 复用 + TaskDetailDrawer ref；好奇心转化规则条随唯一 Inbox 入口退役，旧 tdrawer 零回流', () => { const s = read('/newtab/views/ProjectCuration.vue'); return s.includes('tasksWithAssets') && s.includes('<AssetBadge') && !s.includes('转为任务 / 归档为资源') && s.includes('<TaskDetailDrawer ref="detailRef" />') && !s.includes('tdrawer'); });
 check('R49-22 G 应用内双类型：搜索 Tab 增工作台（ws）/项目（proj）+ counts.ws/proj + wsTree 分类树 + locateCat 定位', () => { const g = read('/newtab/components/GlobalPopups.vue'); return g.includes("currentType==='ws'") && g.includes("currentType==='proj'") && g.includes('wsTree') && g.includes('function locateCat') && g.includes('proj:'); });
 check('R49-23 G 打开路由：项目条目 → /compass/projects?p=（双端）+ 工作台分类定位 ?cat=', () => { const g = read('/newtab/components/GlobalPopups.vue'); const o = read('/content/overlay-impl.ts'); const w = read('/newtab/views/Workspace.vue'); return g.includes("/compass/projects', query: { p: item.id }") && o.includes("route: '/compass/projects?p=' + item.id") && w.includes('route.query.cat') && w.includes('catFlashId'); });
-check('R49-24 G overlay 端：searchType 增 proj + 分组渲染 proj + ws 树分支（data-wscat）+ Tab 关键词直达', () => { const o = read('/content/overlay-impl.ts'); return o.includes("'all' | 'res' | 'task' | 'curio' | 'ws' | 'proj'") && o.includes("label: '📦 项目'") && o.includes('data-wscat') && o.includes("['项目', 'proj']"); });
+check('R49-24 G overlay 端（V4.5.0 重指）：searchType 增 topic/proj，选题与项目分组可筛，ws 树分支（data-wscat）与关键词 Tab 直达继续共用一条检索链', () => { const o = read('/content/overlay-impl.ts'); return o.includes("'all' | 'res' | 'task' | 'curio' | 'topic' | 'ws' | 'proj'") && o.includes("type: 'topic'") && o.includes("label: '📦 项目'") && o.includes('data-wscat') && o.includes("['选题', 'topic']") && o.includes("['项目', 'proj']"); });
 check('R49-25/R66 刷新动画（R115 重指：就绪即过渡节奏）：index.html 品牌两行（知源调度台/万千可调用，自有我方向）+ 完成态（资源归位·调度就绪）+ main.ts 150ms 防白闪 + Esc/单击跳过', () => { const h = read('/newtab/index.html'); const m = read('/newtab/main.ts'); return h.includes('知源调度台') && h.includes('万千可调用，自有我方向') && !h.includes('你不缺信息') && h.includes('资源归位 · 调度就绪') && m.includes('elapsed < SKELETON_MIN_SHOW') && m.includes('skipSplash') && m.includes("e.key === 'Escape'"); });
 check('R49-26/R50-F8（R68 修订）快捷键全链：background open-tree/goto 命令分发 + App zy-toast 透传 + 设置页快捷键中心（chrome.commands 动态拉取）', () => { const b = read('/background/index.ts'); const a = read('/newtab/App.vue'); const g = read('/newtab/views/GlobalSettings.vue'); return b.includes("case 'open-tree':") && b.includes("case 'goto-curiosity':") && a.includes("type === 'zy-toast'") && g.includes('chromeCommands') && g.includes('chrome.commands.getAll'); });
 
@@ -521,16 +522,16 @@ check('R53-12（V4.3.1 重指）C1 三件事精简：常驻工具条不铺按钮
 // R94（B3）给该元素加了 `:class="{ 'all-done': focusAllDone }"` 后字面量失配。
 // 本条要守的「三件事区存在」能力完全未变，故按 §五·补十四 改为**子串**判据。
 check('R53-13 C1 视觉强化 · ★V3.9.1 重指：工作单成为首屏焦点（强边框 + 大阴影），行标题加粗、空位用虚线加号，视觉层级不再依赖旧卡片选中态', () => { const h = read('/newtab/views/CompassHome.vue'); return h.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }') && h.includes('.title-text {') && h.includes('font-weight: 650;') && h.includes('.empty-plus {') && h.includes('border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border));'); });
-check('R53-14 C2（V3.9.1 重指）定位链路统一走 `locateTargetOf`：任务/好奇心直接落到各自独立二级页并带 hl/hk；资源池卡落 /deck/resource，旧同页 tab 认领方式退役', () => {
+check('R53-14 C2（V4.5.0 重指）定位链路统一走 `locateTargetOf`：任务/选题/好奇心分别落到各自独立二级页并带 hl/hk；资源池卡落 /deck/resource，旧同页 tab 认领方式退役', () => {
   const c = read('/newtab/components/dashboard/DrillCardList.vue');
   const u = read('/shared/utils/locate.ts');
   return c.includes('locateTargetOf(store.data!, kind, r.id)')
     && c.includes('asLocateKind(r.kind)')
-    && u.includes("return { path: kind === 'task' ? '/deck/task' : '/deck/curiosity', query: { hl: id, hk: LOCATE_HK[kind] } }")
-    && u.includes("export const LOCATE_HK: Record<LocateKind, string> = { resource: 'res', task: 'task', curiosity: 'curio' }")
+    && u.includes("const path = kind === 'task' ? '/deck/task' : kind === 'curiosity' ? '/deck/curiosity' : '/deck/topic'")
+    && u.includes("export const LOCATE_HK: Record<LocateKind, string> = { resource: 'res', task: 'task', curiosity: 'curio', topic: 'topic' }")
     && u.includes("? { path: '/deck/resource', query }");
 });
-check('R53-15（V4.4.0 退役重指）主题精简三套：只保留光速黑 / 极简白 / 纸墨白；旧 auto、linear、green、night 仅允许存在于确定性迁移边界', () => { const t = read('/shared/styles/tokens.css'); const a = read('/newtab/App.vue'); const r = read('/shared/storage/repository.ts'); return !t.includes("[data-theme='green']") && !t.includes("[data-theme='night']") && !t.includes("[data-theme='linear']") && t.includes("[data-theme='raycast']") && t.includes("[data-theme='apple']") && t.includes("[data-theme='notion']") && a.includes("id: 'raycast'") && a.includes("id: 'apple'") && a.includes("id: 'notion'") && !a.includes("id: 'auto'") && !a.includes("id: 'linear'") && r.includes("uiCache.theme === 'auto'") && r.includes("uiCache.theme === 'linear'") && r.includes("uiCache.theme === 'green' || uiCache.theme === 'night'"); });
+check('R53-15（V4.5.0 重指）主题保留四套：光速黑 / 极简白 / 纸墨白 / OPPO 绿；旧 auto、linear、green、night 仅允许存在于确定性迁移边界', () => { const t = read('/shared/styles/tokens.css'); const a = read('/newtab/App.vue'); const r = read('/shared/storage/repository.ts'); return !t.includes("[data-theme='green']") && !t.includes("[data-theme='night']") && !t.includes("[data-theme='linear']") && ['raycast', 'apple', 'notion', 'oppo'].every(id => t.includes(`[data-theme='${id}']`) && a.includes(`id: '${id}'`)) && !a.includes("id: 'auto'") && !a.includes("id: 'linear'") && r.includes("uiCache.theme === 'auto'") && r.includes("uiCache.theme === 'linear'") && r.includes("uiCache.theme === 'green' || uiCache.theme === 'night'"); });
 check('R53-16 E1（P0 修复）导入合并补 curationProjections（备份→恢复不再丢投射）', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('d.curationProjections = mergeById(d.curationProjections || [], imported.curationProjections || [])'); });
 check('R53-17（R74 重写）删除分类引用回落 + 镜像记录清理：子分类提根 + 卡片回落待分类 + 清 targetWsId 投射', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -796,9 +797,37 @@ check('R61-10（R74 重写）旧方向入口全拆除：Workspace 无 projectCar
   return !w.includes('projectCardToCuration') && !w.includes('projectCategoryToCuration');
 });
 console.log('【R62 组 策展台 V3：五指标卡 · 下钻抽屉 · thesis 字段组 · 金字塔视图】');
-check('R62-1 thesis 字段组四件套：FieldConfig.thesis 可选组 / defaults 默认字段 / catalog CardKind 扩 thesis / fields.ts FieldGroupKind', () => { const m = read('/shared/models/index.ts'); const dft = read('/shared/storage/defaults.ts'); const cat = read('/shared/models/catalog.ts'); const f = read('/shared/utils/fields.ts'); return m.includes('thesis?: FieldDef[]') && dft.includes("key: 'title', label: '论点'") && dft.includes('defaultThesisFieldDefs') && cat.includes("'resource' | 'task' | 'curiosity' | 'thesis'") && cat.includes("kinds: ['thesis']") && f.includes("export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'thesis'"); });
-check('R62-2 thesis 老数据归一化：repository 缺组补默认（幂等）+ assets 注入循环含 thesis', () => { const r = read('/shared/storage/repository.ts'); return r.includes('defaultThesisFieldDefs') && r.includes("if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()") && r.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
-check('R62-3 设计器第四页：设置导航「策展主题卡」+ thesis 面板 FieldEditor + 导入合并兼容 thesis 组', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes("key: 'thesis', icon: 'landmark', label: '策展主题卡'") && g.includes("card-type=\"thesis\"") && g.includes("if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()") && g.includes("for (const key of ['resource', 'task', 'curiosity', 'thesis'] as const)"); });
+check('R62-1（V4.5.0 重指）字段组五件套：thesis 策展主题卡 + topic 选题卡都进入 FieldConfig / defaults / catalog CardKind / FieldGroupKind', () => {
+  const m = read('/shared/models/index.ts');
+  const dft = read('/shared/storage/defaults.ts');
+  const cat = read('/shared/models/catalog.ts');
+  const f = read('/shared/utils/fields.ts');
+  return m.includes('topic?: FieldDef[]') && m.includes('thesis?: FieldDef[]')
+    && dft.includes("key: 'title', label: '选题'") && dft.includes("key: 'title', label: '论点'")
+    && dft.includes('defaultThesisFieldDefs')
+    && cat.includes("'resource' | 'task' | 'curiosity' | 'topic' | 'thesis'")
+    && cat.includes("kinds: ['topic']") && cat.includes("kinds: ['thesis']")
+    && f.includes("export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'topic' | 'thesis'");
+});
+check('R62-2（V4.5.0 重指）字段组老数据归一化：repository 幂等补 topic/thesis 默认组，assets 注入循环覆盖五组', () => {
+  const r = read('/shared/storage/repository.ts');
+  return r.includes('defaultThesisFieldDefs')
+    && r.includes("if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()")
+    && r.includes("if (data.fieldConfig && !data.fieldConfig.topic) data.fieldConfig.topic = defaultFieldConfig().topic")
+    && r.includes("for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const)");
+});
+check('R62-3（V4.5.0 重指）设计器：设置导航「选题卡」与「策展主题卡」各自落 FieldEditor；选题状态编辑器与导入合并都接同一字段组真源', () => {
+  const g = read('/newtab/views/GlobalSettings.vue');
+  const nav = read('/newtab/views/useGlobalSettings.ts');
+  const pack = read('/newtab/views/settings/dataPackage.ts');
+  return nav.includes("{ key: 'topic', icon: 'bulb', label: '选题卡' }")
+    && nav.includes("{ key: 'thesis', icon: 'landmark', label: '策展主题卡' }")
+    && g.includes('card-type="topic"')
+    && g.includes('card-type="thesis"')
+    && g.includes('<TopicStatusEditor')
+    && pack.includes('if (!cfg.thesis) cfg.thesis = defaultThesisFieldDefs()')
+    && pack.includes("for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const)");
+});
 check('R62-4（V3.9.8 随迁）论点卡字段分流：共享 ResourceEditForm 承接普通资源字段，论点抽屉承接标题/内容/时间/结构/资源摘要；旧 extraFieldsOf / fieldsOf 零回流', () => {
   const host = codeOnly(fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8'));
   const form = read('/newtab/components/ResourceEditForm.vue');

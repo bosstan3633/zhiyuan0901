@@ -30,12 +30,15 @@ check('V433-2 日历支持月视图 / 周视图切换，周视图仍复用同一
     && css.includes('grid-template-rows: minmax(0, 1fr)')
 })
 
-check('V433-3 今日日详情采用稳定三栏行布局，标题与元信息各占独立行，修复文字叠压乱码', () => {
+check('V433-3（V4.5.0 重指）今日日详情采用稳定行布局：复选框、标题主列、状态侧栏、关闭动作各自占位；标题与元信息分行，修复文字叠压乱码', () => {
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
   const css = read('/newtab/components/compass/TaskCalendarView.css')
   return calendar.includes('class="cal-modal-side"')
     && calendar.includes('class="cal-modal-close"')
-    && calendar.includes('[...(tasksByDay.value.get(selectedDay.value) || [])].sort(taskOrder)')
+    && calendar.includes('const selectedEntries = computed(() => {')
+    && calendar.includes('const rows = [...(entriesByDay.value.get(selectedDay.value) || [])]')
+    && calendar.includes('return selectedDay.value === todayKey.value ? rows : rows.sort(entryOrder)')
+    && css.includes('grid-template-columns: 16px 22px minmax(0, 1fr) auto 22px')
     && css.includes('grid-template-columns: 22px minmax(0, 1fr) auto 26px')
     && css.includes('.cal-modal-copy b {')
     && css.includes('.cal-modal-copy small {')

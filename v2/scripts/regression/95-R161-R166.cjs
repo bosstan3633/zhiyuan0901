@@ -53,10 +53,10 @@ check('R161-⑦ ★Esc 真能关掉中央弹窗：watch 必带 immediate —— 
     && read('/shared/utils/focusTrap.ts').includes('panel.focus()')
     && m.includes('onUnmounted(');             /* 卸载兜底：条件挂载的宿主销毁时不留野监听 */
 });
-check('R161-7（V4.4.0 重指）★令牌三新增（三主题各一份，动 tokens.css 必跑 theme-contrast）：--radius-xl 24px 外框圆角 / --scrim-modal 统一遮罩 / --shadow-modal 三份（中央弹窗的悬浮感不进 shadow-lg 复用）', () => {
+check('R161-7（V4.5.0 重指）★令牌三新增（四主题各一份，动 tokens.css 必跑 theme-contrast）：--radius-xl 24px 外框圆角 / --scrim-modal 统一遮罩 / --shadow-modal 四份（中央弹窗的悬浮感不进 shadow-lg 复用）', () => {
   const t = read('/shared/styles/tokens.css')
   return t.includes('--radius-xl: 24px;') && t.includes('--scrim-modal:')
-    && count('/shared/styles/tokens.css', '--shadow-modal:') === 3;
+    && count('/shared/styles/tokens.css', '--shadow-modal:') === 4;
 });
 check('R161-8 中央弹窗壳消费新令牌：外框 var(--radius-xl)、阴影 var(--shadow-modal)、遮罩 var(--scrim-modal)——零硬编码色值', () => {
   const m = read('/shared/components/Modal.vue')
@@ -121,12 +121,13 @@ check('R161-③ 收窄只影响投料池不影响判断口径：semanticSearch �
   return (s.split('scopeSearch(').length - 1) >= 3
     && s.includes('pool.slice') && s.includes("batches: number, scope = ''")
 });
-check('R161-④ ★策展台「关联卡片（镜像）」弹窗也接 AI 检索：linkBase 抽出（在册资源卡 + 分类过滤，**关键词不进底座**——否则"换个说法也能召回"失效），linkAiRun 懒引 AI 模块（启动零 AI 不变），命中贴标签、未字面命中的也能补入列表', () => {
+check('R161-④（V4.5.0 重指）★策展台「关联卡片」弹窗也接 AI 检索：linkBase 收纳资源卡与选题卡，类型筛选与关键词只作用于可见候选，**关键词不进底座**；linkAiRun 继续懒引 AI 模块，资源卡可语义补入列表', () => {
   const u = read('/newtab/composables/usePyramid.ts')
   const w = read('/newtab/views/Workspace.vue')
   const lm = read('/newtab/components/LinkCardsModal.vue')
   return u.includes('const linkBase = computed')
-    && u.includes('if (!q) return linkBase.value')
+    && u.includes("const byType = linkBase.value.filter(card => linkCardsFilter.value === 'all' || card.kind === linkCardsFilter.value)")
+    && u.includes('if (!q) return byType')
     && u.includes('async function linkAiRun')
     && u.includes("import('@/shared/ai/select')")
     && u.includes('const linkShowList = computed')
@@ -173,10 +174,10 @@ check('R157-1 ★注册表是纯声明表：零 import（连 import type 都不�
   && REG_TXT.includes('export const AI_CAP_KEYS')
   && REG_TXT.includes('唯一真源'));
 
-check('R157-2（V4.4.0 重指）声明结构完备：kind 三值 job×17 / inline×3 / search×2、family 两值（proactive/passive —— R158 二分的字段）、入口共 22 条且 id 唯一（任务拆解入口随子任务体系整体退役）', () => {
+check('R157-2（V4.5.0 重指）声明结构完备：kind 三值 job×18 / inline×3 / search×2、family 两值（proactive/passive）、入口共 23 条且 id 唯一（新增选题 AI 支持入口）', () => {
   const ids = REG_TXT.match(/\n    id: '/g) || [];
-  return ids.length === 22
-    && (REG_TXT.match(/kind: 'job'/g) || []).length === 17
+  return ids.length === 23
+    && (REG_TXT.match(/kind: 'job'/g) || []).length === 18
     && (REG_TXT.match(/kind: 'inline'/g) || []).length === 3
     && (REG_TXT.match(/kind: 'search'/g) || []).length === 2
     && REG_TXT.includes("family: 'proactive'") && REG_TXT.includes("family: 'passive'");
@@ -235,10 +236,10 @@ const REGISTRY_FILE = read('/shared/ai/jobs/registry.ts');
 const GP_FILE = read('/newtab/components/GlobalPopups.vue');
 const SETTINGS_FILE = read('/newtab/views/GlobalSettings.vue');
 
-check('R158-1（V4.4.0 重指）注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；19 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
+check('R158-1（V4.5.0 重指）注册表 panel 声明完备：panel.mode 三值（nav/popup/hidden）；20 条显式 panel + search 型 2 条缺省 hidden；popup 只认 ai-advice；nav 必带 route+hint', () => {
   const modes = (REGISTRY_FILE.match(/mode: '(nav|popup|hidden)',/g) || []).length;
   return REGISTRY_FILE.includes('export interface AiPanelDecl')
-    && modes === 19 /* V4.4.0：任务拆解入口随子任务体系退役后，显式 panel 再减 1 */
+    && modes === 20 /* V4.5.0：新增选题 AI 支持入口 */
     && (REGISTRY_FILE.match(/popup: 'ai-advice'/g) || []).length === 3
     && REGISTRY_FILE.includes('route?: string')
     && REGISTRY_FILE.includes('hint?: string')
@@ -286,9 +287,9 @@ check('R158-6（V3.9.8 随迁）右键菜单：打开→复制→编辑→置顶
   return iOpen > 0 && iOpen < iCopy && iCopy < iEdit && iEdit < iPin && iPin < iStar && iStar < iMirror && iMirror < iThesis && iThesis < iDel
     && !c.includes("label: '移动分类'");
 });
-check('R158-7（V4.4.0 重指）★入口数量锚：注册表 22 条（周期分析与任务拆解入口退役）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
+check('R158-7（V4.5.0 重指）★入口数量锚：注册表 23 条（新增选题 AI 支持入口）；命令面板导航仍为「方向台/项目详情/方向树/回收站/手册/设置」6 条，不改 ai-advice 语义', () => {
   const ids = (REGISTRY_FILE.match(/\n    id: '/g) || []).length;
-  return ids === 22
+  return ids === 23
     && !GP_FILE.includes("label: '打开资源台'")
     && GP_FILE.includes("label: '打开方向台'") && GP_FILE.includes("label: '打开回收站'") && GP_FILE.includes("label: '打开使用手册'");
 });
@@ -302,7 +303,7 @@ console.log('【R159 · V3.2.5：信任层】');
 check('R159-1 全局撤销：undo.ts（默认 6s 窗口 + 可按动作覆盖 + 栈 + 输入框不拦截）+ toast 自动入栈 + App 安装', () => { const u = read('/shared/utils/undo.ts'); const t = read('/shared/components/toast.ts'); const a = read('/newtab/App.vue'); return u.includes('export const UNDO_WINDOW_MS = 6000') && u.includes('DECK_DELETE_UNDO_WINDOW_MS = 3000') && u.includes('export function pushUndo(') && u.includes('export function runLastUndo(') && u.includes('export function installGlobalUndo(') && u.includes("t.tagName === 'INPUT'") && t.includes('pushUndo(msg, act.cb, opts?.undoWindowMs)') && t.includes('UNDO_WINDOW_MS') && a.includes('installGlobalUndo((m) => showToast(m))'); });
 check('R159-2 批量回执固定：isBatchMsg 判定 + sticky 不自动消失 + Toast ✕ 关闭', () => { const t = read('/shared/components/toast.ts'); const v = read('/shared/components/Toast.vue'); return t.includes('function isBatchMsg(') && t.includes('const sticky = opts?.sticky ?? (!!act && isBatchMsg(msg))') && t.includes('if (duration <= 0) { timers.delete(it.id); return }') && v.includes('v-if="t.sticky" class="toast-x"'); });
 check('R159-3 AI 采纳快照：采纳前压整库 JSON 进撤销栈 + Toast 撤销可回退', () => { const d = read('/newtab/components/AiSuggestionDrawer.vue'); return d.includes('const store = useAppStore()') && d.includes('const snap = JSON.stringify(store.data)') && d.includes('pushUndo(`AI 采纳（${sel.length} 项）`') && d.includes('store.data = JSON.parse(snap); store.persist()'); });
-check('R159-4 落盘状态可见：repository SaveState 订阅（saving/saved/error）+ 顶栏状态点（V3.9.16 重指：视觉点移到 ::before，状态选择器仍在）', () => { const r = read('/shared/storage/repository.ts'); const a = read('/newtab/App.vue'); return r.includes("export type SaveState = 'idle' | 'saving' | 'saved' | 'error'") && r.includes('export function subscribeSaveState(') && r.includes("emitSaveState('saving')") && r.includes("emitSaveState('saved')") && r.includes("emitSaveState('error')") && a.includes('subscribeSaveState((s) =>') && a.includes('class="save-dot"') && a.includes('.save-dot.saving {'); });
+check('R159-4（V4.5.0 重指）落盘状态可见：repository SaveState 三态完整，调度台底栏订阅保存错误并显示状态点（顶栏旧同步呼吸灯已退役）', () => { const r = read('/shared/storage/repository.ts'); const s = read('/newtab/views/useCompassHomeStorage.ts'); const h = read('/newtab/views/CompassHome.css'); const v = read('/newtab/views/CompassHome.vue'); return r.includes("export type SaveState = 'idle' | 'saving' | 'saved' | 'error'") && r.includes('export function subscribeSaveState(') && r.includes("emitSaveState('saving')") && r.includes("emitSaveState('saved')") && r.includes("emitSaveState('error')") && s.includes('subscribeSaveError(e => { saveErr.value = e })') && v.includes('class="save-dot"') && h.includes('.save-dot.saving {'); });
 check('R159-5 错误态带下一步动作：quota → 一键清理回收站（/recycle）', () => { const a = read('/newtab/App.vue'); return a.includes("? { label: '清理回收站', cb: () => { clearLastSaveError(); navigate('/recycle') } }") && a.includes(": { label: '查看', cb: () => { clearLastSaveError(); navigate('/settings?page=about') } }"); });
 check('R159-6 存储键字典：keys.ts 唯一真源 + 全仓裸字面量即红（扫描 src，仅 keys.ts 允许）', () => { const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = []; const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { const s = fs2.readFileSync(p, 'utf8'); if (/['"](zy_[a-z0-9_]+|lm_data_v5[a-z_]*)['"]/.test(s)) hits.push(p.replace(/\\/g, '/')); } } }; walk(root); const only = hits.every((h) => h.endsWith('shared/storage/keys.ts')); const k = read('/shared/storage/keys.ts'); return only && hits.length === 1 && k.includes("DATA: 'zy_data_v2'") && k.includes("UI: 'zy_ui_v2'") && k.includes("EVENT_LOG: 'zy_event_log'") && k.includes("LEGACY: ['lm_data_v5', 'lm_data_v5_backup']"); });
 check('R159-7 遗留键清理：cleanupLegacyKeys（幂等移除 V1 键）+ 启动接线', () => { const r = read('/shared/storage/repository.ts'); const a = read('/newtab/App.vue'); return r.includes('export function cleanupLegacyKeys()') && r.includes('chromeStore()?.remove([...K.LEGACY])') && a.includes('cleanupLegacyKeys()'); });
@@ -314,7 +315,7 @@ check('R160-2 全仓去 pinyin-pro 运行时引用 + 生成脚本入库', () => 
 check('R160-3 增量渲染份额收紧：列表/卡片 RENDER_STEP=32（原 80）', () => { const u = read('/newtab/composables/useResourceView.ts'); return u.includes('const RENDER_STEP = 32') && u.includes('renderLimit.value += RENDER_STEP'); });
 check('R160-4 A7 深链保全：main.ts 不再强制回首页（全路由保留）', () => { const m = read('/newtab/main.ts'); return m.includes('R160（A7）深链保全') && !m.includes("router.replace('/')"); });
 check('R160-5 ★P1 懒挂载（★V3.9.24 随迁）：GlobalPopups 仍走 defineAsyncComponent，首次呼出才挂载（gpOpen 收口，热键/顶栏/消息/问号四处全走）· 面板在 chunk 就绪后自动打开。loader 独立命名以支持高频预取，组件本身仍不在首屏同步加载', () => { const a = read('/newtab/App.vue'); return a.includes("const loadGlobalPopups = () => import('./components/GlobalPopups.vue')") && a.includes('const GlobalPopups = defineAsyncComponent(loadGlobalPopups)') && a.includes('const gpMounted = ref(false)') && a.includes('watch(globalPopups, (v) => { if (v && pendingPanel)') && !a.includes("globalPopups.value?.openPanel") && !a.includes("globalPopups?.openPanel") && a.includes('<GlobalPopups v-if="gpMounted" ref="globalPopups" />') });
-check('R160-6 ★P1 懒挂载：详情抽屉 defineAsyncComponent + 首个 bus 事件挂载 + setPendingDrawer/consumePendingDrawer 回放（异步 chunk 加载期间不丢事件）', () => { const a = read('/newtab/App.vue'); const b = read('/shared/utils/bus.ts'); const d = read('/newtab/components/ResourceDetailDrawer.vue'); return a.includes("defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))") && a.includes('setPendingDrawer(p)') && a.includes('<ResourceDetailDrawer v-if="detailDrawerMounted" />') && b.includes('export function consumePendingDrawer') && d.includes('const p = consumePendingDrawer(); if (p) onBus(p)') });
+check('R160-6（V4.5.0 重指）★P1 懒挂载：资源与选题详情抽屉均在首事件时挂载，setPendingDrawer / consumePendingDrawer 按卡型回放，异步 chunk 加载期间不丢事件', () => { const a = read('/newtab/App.vue'); const b = read('/shared/utils/bus.ts'); const d = read('/newtab/components/ResourceDetailDrawer.vue'); const t = read('/newtab/components/compass/TopicDetailDrawer.vue'); return a.includes("defineAsyncComponent(() => import('./components/ResourceDetailDrawer.vue'))") && a.includes("defineAsyncComponent(() => import('./components/compass/TopicDetailDrawer.vue'))") && a.includes("if (p.kind === 'topic')") && a.includes('setPendingDrawer(p)') && a.includes('<ResourceDetailDrawer v-if="detailDrawerMounted" />') && a.includes('<TopicDetailDrawer v-if="topicDrawerMounted" />') && b.includes('export function consumePendingDrawer') && d.includes("const p = consumePendingDrawer('res'); if (p) onBus(p)") && t.includes("consumePendingDrawer('topic')") });
 check('R160-7（V4.0.4 重指）★P1 懒挂载：云同步入口与顶栏按钮零静态运行时引用；网络执行器只在共享 composable 真正检查/同步时动态 import，App 仅保留空闲预取', () => {
   const a = read('/newtab/App.vue');
   const button = read('/newtab/components/CloudSyncButton.vue');

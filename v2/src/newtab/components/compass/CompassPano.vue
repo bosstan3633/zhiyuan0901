@@ -49,6 +49,8 @@ const emit = defineEmits<{
   /** ★W12-C 补接线：全景泳道任务标题单击开任务详情抽屉（泳道 → 全景 → 树本体 openTaskDetail 两跳透传）。
    *  这条链路此前从未存在——泳道里任务标题只是个 div，点了没反应，W11-10 断言本轮重指时暴露。 */
   (e: 'openDetail', taskId: string): void
+  /** V4.5：选题卡详情透传（成果层，不混入任务集合）。 */
+  (e: 'openTopic', topicId: string): void
   /** V3.9.22：解除任务的项目/指标归属，任务本体回任务池。 */
   (e: 'unbindTask', taskId: string): void
   (e: 'addTask', metricId: string, projId: string): void
@@ -200,6 +202,7 @@ const laneCount = computed(() => {
             :editing="editingField === 'metric-' + m.id"
             @toggle-task="emit('toggleTask', $event)"
             @open-detail="emit('openDetail', $event)"
+            @open-topic="emit('openTopic', $event)"
             @unbind-task="emit('unbindTask', $event)"
             @open-metric="emit('openMetric', $event)"
             @add-task="(mid, pid) => emit('addTask', mid, pid)"
@@ -372,8 +375,6 @@ const laneCount = computed(() => {
   .ph-toolbar { flex-wrap: wrap; }
   .ph-toolbar-spacer { flex-basis: 100%; }
   .ph-acts { flex-wrap: wrap; }
-}
-@media (max-width: 480px) {
   .pano-h { padding-bottom: 12px; }
   .ph-b { width: 100%; }
   .ph-next { align-items: flex-start; }

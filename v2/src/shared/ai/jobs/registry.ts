@@ -202,6 +202,14 @@ export const AI_ENTRIES: AiEntryDecl[] = [
     note: '本地预筛（词面+标签 top N、排除已关联）→ 模型只排序+一句判词；采纳写独立表 supportLinks，两张卡本体零改动（卡间零挂载红线下的记录型关联）',
   },
   {
+    id: 'topic-support', title: '选题找资源支持', family: 'proactive', kind: 'job',
+    factory: 'buildTopicSupportJob', factoryFile: 'shared/ai/topicSupport.ts',
+    hosts: ['newtab/components/compass/TopicDetailDrawer.vue'],
+    caps: { apply: true, before: true, promptScope: 'support:topic' },
+    panel: { icon: 'compass', mode: 'nav', route: '/', hint: '选题详情页的资源关联主入口' },
+    note: '本地预筛资源卡 → 模型只排序与给判词；采纳写入 topicResourceLinks，选题与资源卡本体零挂载。',
+  },
+  {
     id: 'weekly-review', title: '周回顾', family: 'proactive', kind: 'job',
     factory: 'buildReviewJob', factoryFile: 'shared/ai/select.ts',
     hosts: ['newtab/views/GlobalSettings.vue', 'newtab/views/useGlobalSettingsPanels.ts'],

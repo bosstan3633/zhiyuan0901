@@ -8,7 +8,7 @@ import { showToast } from '@/shared/components/toast'
 import { uid } from '@/shared/utils'
 import { setThesis, projectCardToBoardEx, mirroredCardIdsAtNode } from '@/shared/storage/hub'
 import { parsePyramidTemplate, type PyramidParseResult, type PyramidNode } from '@/shared/utils/mdImport'
-import { CURATION_WS_ID, type AppData, type ResourceCard, type Category } from '@/shared/models'
+import { CURATION_WS_ID, type AppData, type ResourceCard, type TopicCard, type Category } from '@/shared/models'
 import { POOL_DISPLAY_NAME } from '@/shared/utils/wsName'
 import type { WsStore } from './useResourceView'
 import type { useCurationMindMap } from './useCurationMindMap'
@@ -20,6 +20,11 @@ export interface PyramidCtx {
   thesisCard: ComputedRef<ResourceCard | null>
   mind: ReturnType<typeof useCurationMindMap>
 }
+
+export type LinkCardFilter = 'all' | 'resource' | 'topic'
+export type LinkCardRow =
+  | { kind: 'resource'; card: ResourceCard; linked: boolean }
+  | { kind: 'topic'; card: TopicCard; linked: boolean }
 
 export function usePyramid(ctx: PyramidCtx) {
   const { store, d, workspaceId, thesisCard, mind } = ctx
@@ -72,8 +77,10 @@ export function usePyramid(ctx: PyramidCtx) {
   // ===== R65-F3：节点关联资源卡（资源台全量卡选择器 → 镜像到节点）=====
   const linkCardsModal = ref<{ catId: string; catName: string; picked: Set<string> } | null>(null)
   const linkCardsQ = ref('')
+  const linkCardsFilter = ref<LinkCardFilter>('all')
   function openLinkCards(cat: Category | { id: string; name: string }) {
     linkCardsQ.value = ''
+    linkCardsFilter.value = 'all'
     linkCardsModal.value = { catId: cat.id, catName: cat.name, picked: new Set() }
   }
   function toggleLinkPick(id: string) {
@@ -85,32 +92,57 @@ export function usePyramid(ctx: PyramidCtx) {
   /** 弹窗候选的**共同底座**：资源卡池全部可镜像卡。
    *  关键词只影响**可见列表**，不进底座——与检索面板同一条纪律：AI 的候选不该被"字面没命中"提前砍掉，
    *  否则"换个说法也能召回"这个功能本身就白做了。 */
-  const linkBase = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
+  const linkBase = computed<LinkCardRow[]>(() => {
     if (!linkCardsModal.value) return []
     const mirroredSet = mirroredCardIdsAtNode(d.value, workspaceId.value, linkCardsModal.value.catId)
-    return d.value.resources
+    const resources: LinkCardRow[] = d.value.resources
       .filter(r => !r.deletedAt && r.workspaceId === CURATION_WS_ID)
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
-      .map(r => ({ r, mirrored: mirroredSet.has(r.id) }))
+      .map(card => ({ kind: 'resource', card, linked: mirroredSet.has(card.id) }))
+    const category = d.value.categories.find(node => node.id === linkCardsModal.value?.catId)
+    const linkedTopicIds = new Set(category?.linkedTopicIds || [])
+    const topics: LinkCardRow[] = (d.value.topics || [])
+      .filter(topic => !topic.deletedAt)
+      .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt)
+      .map(card => ({ kind: 'topic', card, linked: linkedTopicIds.has(card.id) }))
+    return [...resources, ...topics]
   })
   /** 候选 = 底座 + 关键词过滤（关键词为空时即底座全量） */
-  const linkCandidates = computed<{ r: ResourceCard; mirrored: boolean }[]>(() => {
+  const linkCandidates = computed<LinkCardRow[]>(() => {
     const q = linkCardsQ.value.trim().toLowerCase()
-    if (!q) return linkBase.value
-    return linkBase.value.filter(c => (c.r.title + ' ' + (c.r.link || '')).toLowerCase().includes(q))
+    const byType = linkBase.value.filter(card => linkCardsFilter.value === 'all' || card.kind === linkCardsFilter.value)
+    if (!q) return byType
+    return byType.filter(row => {
+      const text = row.kind === 'resource'
+        ? `${row.card.title} ${row.card.link || ''} ${(row.card.tags || []).join(' ')}`
+        : `${row.card.title} ${row.card.description || ''} ${(row.card.tags || []).join(' ')}`
+      return text.toLowerCase().includes(q)
+    })
   })
   function confirmLinkCards() {
     const m = linkCardsModal.value
     if (!m) return
-    const targets = [...m.picked].filter(id => !linkCandidates.value.find(c => c.r.id === id)?.mirrored)
-    if (!targets.length) { showToast('未选择可镜像的资源卡'); return }
-    let ok = 0
-    for (const id of targets) {
-      if (projectCardToBoardEx(d.value, id, workspaceId.value, m.catId).created) ok++
+    const picked = linkBase.value.filter(row => m.picked.has(row.card.id) && !row.linked)
+    if (!picked.length) { showToast('未选择可关联的新卡片'); return }
+    let resourceCount = 0
+    let topicCount = 0
+    for (const row of picked) {
+      if (row.kind === 'resource') {
+        if (projectCardToBoardEx(d.value, row.card.id, workspaceId.value, m.catId).created) resourceCount++
+      } else {
+        const category = d.value.categories.find(node => node.id === m.catId)
+        if (!category) continue
+        category.linkedTopicIds = [...new Set([...(category.linkedTopicIds || []), row.card.id])]
+        topicCount++
+      }
     }
     store.persist()
     linkCardsModal.value = null
-    showToast(ok ? `已挂载 ${ok} 个独立资源镜像到「${m.catName}」` : '所选资源已在该节点挂载')
+    const parts = [
+      resourceCount ? `${resourceCount} 张资源卡` : '',
+      topicCount ? `${topicCount} 张选题卡` : '',
+    ].filter(Boolean)
+    showToast(parts.length ? `已关联 ${parts.join('、')}到「${m.catName}」` : '所选卡片已在该节点关联')
   }
 
   // ===== R161-④：关联资源卡弹窗里的 AI 检索 =====
@@ -147,13 +179,14 @@ export function usePyramid(ctx: PyramidCtx) {
     if (linkAiBusy.value) { linkAiCtl?.abort(); return }
     const q = linkCardsQ.value.trim()
     if (!q) { showToast('先在关键词框里写下你要找什么（一句话就行），再点 AI 检索'); return }
-    const pool = linkBase.value
+    if (linkCardsFilter.value === 'topic') { showToast('AI 检索当前用于资源卡；选题卡可直接关键词筛选'); return }
+    const pool = linkBase.value.filter((row): row is Extract<LinkCardRow, { kind: 'resource' }> => row.kind === 'resource')
     if (pool.length < 2) { showToast('资源卡池里可镜像的卡太少（不足 2 张），先去池里多攒几张再来'); return }
     const catName = (id?: string) => d.value.categories.find(c => c.id === id)?.name || ''
     const cands = pool.map(c => ({
-      id: c.r.id, type: 'res', title: c.r.title, ws: POOL_DISPLAY_NAME, cat: catName(c.r.categoryId),
-      summary: c.r.description, tags: c.r.tags, callCount: c.r.callCount, updatedAt: c.r.updatedAt,
-      fields: linkAiFieldText(c.r), link: c.r.link || undefined,
+      id: c.card.id, type: 'res', title: c.card.title, ws: POOL_DISPLAY_NAME, cat: catName(c.card.categoryId),
+      summary: c.card.description, tags: c.card.tags, callCount: c.card.callCount, updatedAt: c.card.updatedAt,
+      fields: linkAiFieldText(c.card), link: c.card.link || undefined,
     }))
     linkAiBusy.value = true
     const ctl = new AbortController(); linkAiCtl = ctl
@@ -181,19 +214,19 @@ export function usePyramid(ctx: PyramidCtx) {
     } finally { if (linkAiCtl === ctl) linkAiCtl = null; linkAiBusy.value = false }
   }
   /** 关键词 / 开关弹窗一换，AI 结果就指着不相干的卡了——与检索面板同一条纪律：立刻清 */
-  watch([linkCardsQ, linkCardsModal], () => { linkAiCtl?.abort(); linkAiReset() })
+  watch([linkCardsQ, linkCardsModal, linkCardsFilter], () => { linkAiCtl?.abort(); linkAiReset() })
   /** 展示列表：有 AI 结果 → 命中置顶；**字面没命中的命中卡也要补进来**（否则召回等于没做） */
   const linkShowList = computed(() => {
     const base = linkCandidates.value
     if (!linkAiOn.value) return base
     const rank = new Map(Object.keys(linkAiHits.value).map((id, i) => [id, i]))
-    const seen = new Set(base.map(c => c.r.id))
-    const extra = linkBase.value.filter(c => rank.has(c.r.id) && !seen.has(c.r.id))
+    const seen = new Set(base.map(c => c.card.id))
+    const extra = linkBase.value.filter(c => c.kind === 'resource' && rank.has(c.card.id) && !seen.has(c.card.id))
     return [...base, ...extra].sort((a, b) => {
-      const ra = rank.has(a.r.id) ? rank.get(a.r.id)! : 1e9
-      const rb = rank.has(b.r.id) ? rank.get(b.r.id)! : 1e9
+      const ra = rank.has(a.card.id) ? rank.get(a.card.id)! : 1e9
+      const rb = rank.has(b.card.id) ? rank.get(b.card.id)! : 1e9
       if (ra !== rb) return ra - rb
-      return Number(b.r.pinned) - Number(a.r.pinned) || b.r.updatedAt - a.r.updatedAt
+      return Number(b.card.pinned) - Number(a.card.pinned) || b.card.updatedAt - a.card.updatedAt
     })
   })
   /** 命中的卡即使当前不可镜像（已在本节点）也不该藏起来——用户有权知道"AI 认为该节点需要这张" */
@@ -203,7 +236,7 @@ export function usePyramid(ctx: PyramidCtx) {
 
   return {
     pyramidImportOpen, confirmPyramidImport,
-    linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
+    linkCardsModal, linkCardsQ, linkCardsFilter, openLinkCards, toggleLinkPick, linkCandidates, confirmLinkCards,
     linkAiBusy, linkAiHits, linkAiNote, linkAiScope, linkAiFed, linkAiTook, linkAiOn, linkAiProgress, linkAiRun, linkShowList, linkAiHitOf,
   }
 }

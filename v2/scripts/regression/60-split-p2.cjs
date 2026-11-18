@@ -324,7 +324,7 @@ check('R109-5 ★ F12-b 分类软删：Category.deletedAt + 删除分类/合并�
     && WSP109.includes('const wsCats = computed(() => d.value.categories.filter(c => c.workspaceId === workspaceId.value && !c.deletedAt))')
     && GS109.includes('dd.categories.some(c => c.id === s.categoryId && !c.deletedAt)')
     && !codeOnly(GS109).includes('!c.parentId && !c.deletedAt')
-    && RB109.includes("const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')") // R2-⑤：论证卡入族，分区联合类型随之扩一枚
+    && RB109.includes("const tab = ref<'res' | 'task' | 'topic' | 'curio' | 'cat' | 'arg'>('res')") // V4.5：选题卡独立分区，论证卡继续保留
     && RB109.includes('function restoreCat(c: RestoreSnapSource)')
     && RB109.includes('deletionBatchId')
     && RB109.includes('分类分区');

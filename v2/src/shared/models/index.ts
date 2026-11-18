@@ -119,6 +119,8 @@ export interface Metric {
   acceptance?: string
   /** 挂载在该指标下的任务 ID 列表 */
   taskIds: ID[]
+  /** V4.5.0：挂载在该指标下的选题卡 ID 列表（启动期按 topic.metricId 幂等回填）。 */
+  topicIds?: ID[]
 }
 
 /** 罗盘整体 */
@@ -138,8 +140,8 @@ export interface Compass {
  */
 export interface CardBase {
   id: ID
-  /** V3.7.0：新增 'argument'（论证节点卡，策展台专用；不在三卡池，见 ArgumentCard） */
-  kind: 'resource' | 'task' | 'curiosity' | 'argument'
+  /** V4.5.0：新增 'topic'（选题卡，同时具备任务推进与资源承载语义） */
+  kind: 'resource' | 'task' | 'curiosity' | 'topic' | 'argument'
   /** 描述（资源采集时自动填入选中文本；任务/好奇手动补充） */
   description?: string
   /** N4：标签（从标签管理体系选择） */
@@ -305,6 +307,64 @@ export interface TaskCard extends CardBase {
 }
 
 /**
+ * V4.5.0：选题卡状态定义。
+ *
+ * 状态是业务数据而不是界面偏好：跨设备同步后，看板分组、方向树徽标和今日三件事
+ * 必须看到同一套名称、颜色和完成语义。用户可改名、改色、增删和排序；
+ * `terminal` 只标记“勾选今日三件事的复选框时落到哪一档”，不随排序漂移。
+ */
+export interface TopicStatusDef {
+  id: ID
+  name: string
+  color: string
+  order: number
+  terminal?: boolean
+}
+
+/**
+ * V4.5.0：选题卡。
+ *
+ * 标题是卡片唯一主视觉；statusId 指向 AppData.topicStatuses。
+ * 选题与资源卡之间仍不把 id 直接挂在卡对象上，而使用独立记录表
+ * `topicResourceLinks`，保持既有“关系表而非卡间挂载”的架构约束。
+ */
+export interface TopicCard extends CardBase {
+  kind: 'topic'
+  title: string
+  /** 归属攻坚项目（第4层） */
+  projectId?: ID
+  /** 归属成功指标（第5层） */
+  metricId?: ID
+  /** 自定义状态定义 id；缺省由启动期落到默认「构思中」。 */
+  statusId: ID
+  /** 勾选完成前所处状态；取消完成时优先恢复，缺失则回到第一个非终止状态。 */
+  statusBeforeDoneId?: ID
+  /** 计划执行日期；与任务卡共用同一日历落图口径。 */
+  dueDate?: string
+  /** 外链或发布地址。 */
+  link?: string
+  linkType?: LinkType
+  linkSlots?: Partial<Record<LinkType, string>>
+  sourceType?: SourceType
+  completedAt?: number
+  callCount?: number
+  lastCalledAt?: number
+  sortOrder?: number
+}
+
+/** 选题卡 → 资源卡的独立关联记录；删除任一端不级联删除另一端。 */
+export interface TopicResourceLink {
+  id: ID
+  topicId: ID
+  resourceId: ID
+  from: 'ai' | 'manual'
+  why?: string
+  createdAt: number
+  /** 挂载时的资源快照：源资源卡后续编辑或删除不改变选题里的镜像。 */
+  snapshot?: ResourceCard
+}
+
+/**
  * R166 定案 1：任务卡内嵌子任务（**不是独立卡**）。
  * 它只是 `TaskCard.subtasks` 数组里的一项，随父卡一起读写/合并/删除：
  * 不进任务池、不进指标 `taskIds`、不参与看板拖拽、不进周报、不进回收站，完成态也不进任何计分（定案 3）。
@@ -387,7 +447,7 @@ export interface CuriosityCard extends CardBase {
   convertedTo?: 'task' | 'res'
 }
 
-export type AnyCard = ResourceCard | TaskCard | CuriosityCard
+export type AnyCard = ResourceCard | TaskCard | CuriosityCard | TopicCard
 
 /**
  * V3.7.0：论证节点卡（第 4 种卡，策展台专用）。
@@ -459,6 +519,8 @@ export interface Category {
   deletedAt?: number
   /** V4.1.0：策展节点附件；本体在 IndexedDB，云同步只保存元数据与 storagePath。 */
   assets?: AssetMeta[]
+  /** V4.5.0：关联到该节点的选题卡 id；只记录引用，选题卡本体仍归调度台。 */
+  linkedTopicIds?: ID[]
   /** V4.1.0：同批级联软删标识；恢复父节点时只恢复同一批次后代。 */
   deletionBatchId?: ID
 }
@@ -470,7 +532,7 @@ export interface FocusSlot {
   /** V4.3.5：固定槽位 0/1/2；旧数据缺省时由数组顺序兼容。 */
   slotIndex?: 0 | 1 | 2
   /** 来源：任务库 / 资源库 / 好奇心库 / 自由文本 */
-  sourceType: 'task' | 'resource' | 'curiosity' | 'text'
+  sourceType: 'task' | 'topic' | 'resource' | 'curiosity' | 'text'
   sourceId?: ID
   /** 快照文本 */
   text: string
@@ -482,6 +544,11 @@ export interface FocusSlot {
   copiedFrom?: string
   /** V4.3.5：勾完成前的任务状态，取消完成时优先恢复。 */
   statusBeforeDone?: 'todo' | 'doing'
+  /** V4.5.0：选题卡完成前所处的自定义状态；取消完成时优先恢复。 */
+  topicStatusBeforeDoneId?: ID
+  /** V4.5.0：历史日期展示用的选题状态快照。 */
+  topicStatusSnapshotId?: ID
+  topicStatusSnapshotName?: string
   /** V4.3.5：软清空标记。固定槽位保留，跨设备删除不会被旧快照回填。 */
   cleared?: boolean
   /** V4.3.5：槽级合并时间。 */
@@ -512,6 +579,8 @@ export interface FieldConfig {
   resource: FieldDef[]
   task: FieldDef[]
   curiosity: FieldDef[]
+  /** V4.5.0：选题卡字段组。 */
+  topic?: FieldDef[]
   /** R62-3：策展主题卡字段组（isThesis 资源卡专用，界面层独立配置；老数据无此组，加载期补默认） */
   thesis?: FieldDef[]
   /** V3.7.0：论证节点卡字段组（老数据无此组，消费方按默认组兜底） */
@@ -555,6 +624,12 @@ export interface AppData {
   resources: ResourceCard[]
   tasks: TaskCard[]
   curiosities: CuriosityCard[]
+  /** V4.5.0：选题卡。 */
+  topics: TopicCard[]
+  /** V4.5.0：选题卡状态定义（业务数据，参与云同步）。 */
+  topicStatuses: TopicStatusDef[]
+  /** V4.5.0：选题卡 → 资源卡的独立关联记录。 */
+  topicResourceLinks?: TopicResourceLink[]
   dailyFocus: DailyFocus
   /**
    * R169-T3（可选，零迁移）：今日三件事**自动推荐已写过**的日期（'YYYY-MM-DD'）。
@@ -627,7 +702,7 @@ export interface CatsMigrateReport {
 export interface ActivityLog {
   id: ID
   type: 'create' | 'update' | 'delete' | 'status-change' | 'restore'
-  entityType: 'resource' | 'task' | 'curiosity' | 'compass'
+  entityType: 'resource' | 'task' | 'curiosity' | 'topic' | 'compass'
   entityId: ID
   timestamp: number
   detail?: string

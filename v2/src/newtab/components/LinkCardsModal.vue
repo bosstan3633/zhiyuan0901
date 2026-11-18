@@ -18,7 +18,7 @@
 import Icon from '@/shared/components/Icon.vue'
 import Modal from '@/shared/components/Modal.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
-import type { ResourceCard } from '@/shared/models'
+import type { LinkCardFilter, LinkCardRow } from '@/newtab/composables/usePyramid'
 
 defineProps<{
   open: boolean
@@ -26,8 +26,9 @@ defineProps<{
   /** 已勾选（镜像目标）的卡的 id；`linkCardsModal.picked` */
   picked?: Set<string>
   q: string
+  filter: LinkCardFilter
   /** 可见列表：字面命中 + AI 语义命中合并后的次序（`usePyramid#linkShowList`） */
-  list: { r: ResourceCard; mirrored: boolean }[]
+  list: LinkCardRow[]
   aiBusy: boolean
   aiOn: boolean
   aiHits: Record<string, { why: string; weak: boolean }>
@@ -40,6 +41,7 @@ defineProps<{
 const emit = defineEmits<{
   close: []
   'update:q': [v: string]
+  'update:filter': [v: LinkCardFilter]
   'toggle-pick': [id: string]
   confirm: []
   'ai-run': []
@@ -47,10 +49,18 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal :open="open" :title="'关联资源卡到「' + catName + '」'" width="520px" @close="emit('close')">
+  <Modal :open="open" :title="'关联卡片到「' + catName + '」'" width="540px" @close="emit('close')">
+    <div class="lc-filter" role="group" aria-label="关联卡片类型">
+      <button v-for="item in [
+        { key: 'all', label: '全部' },
+        { key: 'resource', label: '资源卡' },
+        { key: 'topic', label: '选题卡' },
+      ]" :key="item.key" type="button" :class="{ on: filter === item.key }"
+        @click="emit('update:filter', item.key as LinkCardFilter)">{{ item.label }}</button>
+    </div>
     <div class="lc-search">
       <span><Icon name="search" :size="13"/></span>
-      <input :value="q" placeholder="关键词过滤（或写一句需求，再点右侧 AI 检索）"
+      <input :value="q" placeholder="搜索卡片标题、标签或说明"
         @input="emit('update:q', ($event.target as HTMLInputElement).value)" />
       <button type="button" class="lc-ai-btn" :class="{ busy: aiBusy, on: aiOn }"
         :title="aiBusy ? '点击取消本次 AI 检索（不写任何数据）' : 'AI 读懂你这句话，从资源卡池可镜像的卡里按相关度挑一批顶到最前（只读不改数据；再点=清除）'"
@@ -66,22 +76,23 @@ const emit = defineEmits<{
       <span v-if="aiNote" class="lc-ai-note">「{{ aiNote }}」</span>
     </div>
     <div class="lc-list">
-      <label v-for="c in list" :key="c.r.id" class="lc-item" :class="{ picked: picked?.has(c.r.id), mirrored: c.mirrored }">
-        <input v-if="!c.mirrored" type="checkbox" :checked="picked?.has(c.r.id)" @change="emit('toggle-pick', c.r.id)" />
-        <span v-else class="lc-badge">已在本节点</span>
-        <span class="lc-title"><Icon v-if="c.r.pinned" name="pin" :size="12"/> {{ c.r.title }}</span>
-        <span class="lc-link">{{ c.r.link }}</span>
+      <label v-for="c in list" :key="c.card.id" class="lc-item" :class="{ picked: picked?.has(c.card.id), mirrored: c.linked }">
+        <input v-if="!c.linked" type="checkbox" :checked="picked?.has(c.card.id)" @change="emit('toggle-pick', c.card.id)" />
+        <span v-else class="lc-badge">{{ c.kind === 'topic' ? '已关联' : '已在本节点' }}</span>
+        <span class="lc-kind" :class="c.kind">{{ c.kind === 'topic' ? '成果' : '资源' }}</span>
+        <span class="lc-title"><Icon v-if="c.card.pinned" name="pin" :size="12"/> {{ c.card.title }}</span>
+        <span class="lc-link">{{ c.kind === 'resource' ? c.card.link : (c.card.description || '选题卡') }}</span>
         <!-- R161-④：命中信息挂在行上（同一张卡只出现一行，与检索面板同一条纪律） -->
-        <span v-if="aiHits[c.r.id]" class="lc-ai-tag" :class="{ weak: aiHits[c.r.id].weak }"
-          :title="(aiHits[c.r.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从可镜像的卡里点名了这张') + (aiHits[c.r.id].why ? '：' + aiHits[c.r.id].why : '')"><Icon name="sparkle" :size="10"/>{{ aiHits[c.r.id].weak ? '低置信' : '命中' }}</span>
+        <span v-if="aiHits[c.card.id]" class="lc-ai-tag" :class="{ weak: aiHits[c.card.id].weak }"
+          :title="(aiHits[c.card.id].weak ? '模型给的分低或没给理由——它在猜，自己核一眼再用' : 'AI 从可镜像的卡里点名了这张') + (aiHits[c.card.id].why ? '：' + aiHits[c.card.id].why : '')"><Icon name="sparkle" :size="10"/>{{ aiHits[c.card.id].weak ? '低置信' : '命中' }}</span>
       </label>
-      <div v-if="!list.length" class="lc-empty">无匹配的资源卡池卡片（也可以直接点右侧 AI 检索，按语义找）</div>
+      <div v-if="!list.length" class="lc-empty">当前筛选下没有可关联的卡片</div>
     </div>
-    <div class="lc-scope-hint">同一资源卡可分别挂到本台的不同节点；这里只拦截当前节点的重复挂载。</div>
+    <div class="lc-scope-hint">同一资源卡可分别挂到本台的不同节点。选题卡会以“成果”标记挂到节点；资源卡仍按镜像规则进入策展台。解绑不会删除卡片本体。</div>
     <template #footer>
       <div class="lc-foot">
         <button class="lc-btn" @click="emit('close')">取消</button>
-        <button class="lc-btn primary" @click="emit('confirm')"><Icon name="satellite" :size="13"/> 镜像所选到该节点</button>
+        <button class="lc-btn primary" @click="emit('confirm')"><Icon name="link" :size="13"/> 关联所选到该节点</button>
       </div>
     </template>
   </Modal>
@@ -90,6 +101,9 @@ const emit = defineEmits<{
 <style scoped>
 /* 以下 .lc-* 由 workspace.css 迁入（原为 Workspace.vue 的 scoped 样式，跨不到本组件） */
 .lc-search { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); margin-bottom: 10px; }
+.lc-filter { display: inline-flex; gap: 3px; margin-bottom: 8px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.lc-filter button { min-height: 28px; padding: 3px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-caption); cursor: pointer; }
+.lc-filter button.on { background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm); }
 .lc-search input { border: none; outline: none; background: transparent; font-size: var(--fs-sub); flex: 1; color: var(--text); }
 .lc-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .lc-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; transition: background .1s; }
@@ -97,6 +111,8 @@ const emit = defineEmits<{
 .lc-item.picked { background: var(--accent-light); }
 .lc-item.mirrored { opacity: .55; cursor: default; }
 .lc-badge { font-size: var(--fs-tiny); color: var(--text-3); background: var(--surface-3); padding: 1px 8px; border-radius: 99px; flex-shrink: 0; }
+.lc-kind { flex-shrink: 0; padding: 1px 7px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-size: var(--fs-tiny); }
+.lc-kind.topic { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-ink); font-weight: 650; }
 .lc-title { flex: 1; min-width: 0; font-size: var(--fs-sub); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lc-link { font-size: var(--fs-tiny); color: var(--text-4); max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
 .lc-scope-hint { margin-top: 8px; padding: 6px 9px; border-radius: 6px; background: var(--surface-2); color: var(--text-4); font-size: var(--fs-tiny); line-height: 1.5; }

@@ -16,7 +16,7 @@
 import type { AppData } from '@/shared/models'
 import { K, LOCAL_KEYS } from '@/shared/storage/keys'
 
-export type CardKind = 'resource' | 'task' | 'curiosity'
+export type CardKind = 'resource' | 'task' | 'curiosity' | 'topic'
 /**
  * R117（04-61 C3）：新增 `status` —— 好奇心卡**探索状态变更**（待探索/探索中/已求证/已搁置）。
  * 动机：用户要求「好奇心探索指标把采集 / 状态变更 / 删除都计入并取累计值」，
@@ -33,7 +33,7 @@ export type CardKind = 'resource' | 'task' | 'curiosity'
  */
 export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'
 /** 会记 status 事件的卡种（资源卡无 status 语义，不在此列） */
-const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task'])
+const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task', 'topic'])
 
 /**
  * R169-T1：事件动词的中文**单一真源** —— 调度台「写入记录」与策展台「最近更新流水」两处都要把
@@ -207,11 +207,12 @@ function titleOf(kind: CardKind, c: { title?: string; question?: string }): stri
 
 function collectCards(d: AppData): { id: string; kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string; updatedAt: number }[] {
   const out: { id: string; kind: CardKind; title: string; createdAt: number; deletedAt?: number; status?: string; updatedAt: number }[] = []
-  const push = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string; updatedAt?: number }[] | undefined) =>
-    (arr || []).forEach(c => { if (c && c.id) out.push({ id: c.id, kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status, updatedAt: c.updatedAt || 0 }) })
+  const push = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string; statusId?: string; updatedAt?: number }[] | undefined) =>
+    (arr || []).forEach(c => { if (c && c.id) out.push({ id: c.id, kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status || c.statusId, updatedAt: c.updatedAt || 0 }) })
   push('resource', d.resources)
   push('task', d.tasks)
   push('curiosity', d.curiosities)
+  push('topic', d.topics)
   return out
 }
 
@@ -254,12 +255,13 @@ export function flushCardEvents(d: AppData): void {
   const prevSnap = snapshot
   const nextSnap = new Map<string, SnapshotEntry>()
   const seen = new Set<string>()
-  const scan = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string; updatedAt?: number }[] | undefined) => {
+  const scan = (kind: CardKind, arr: { id?: string; title?: string; question?: string; createdAt?: number; deletedAt?: number; status?: string; statusId?: string; updatedAt?: number }[] | undefined) => {
     for (const c of arr || []) {
       if (!c || !c.id) continue
       seen.add(c.id)
       const at = c.updatedAt || now
-      nextSnap.set(c.id, { kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status: c.status, updatedAt: c.updatedAt || 0 })
+      const status = c.status || c.statusId
+      nextSnap.set(c.id, { kind, title: titleOf(kind, c), createdAt: c.createdAt || 0, deletedAt: c.deletedAt, status, updatedAt: c.updatedAt || 0 })
       const prev = prevSnap.get(c.id)
       if (!prev) {
         creates.push(mk('create', kind, titleOf(kind, c), c.id, at))
@@ -267,16 +269,17 @@ export function flushCardEvents(d: AppData): void {
         deletes.push(mk('delete', kind, titleOf(kind, c), c.id, at))
       } else if (prev.deletedAt && !c.deletedAt) {
         restores.push(mk('restore', kind, titleOf(kind, c), c.id, at))
-      } else if (STATUS_TRACKED_KINDS.has(kind) && c.status && prev.status && prev.status !== c.status) {
+      } else if (STATUS_TRACKED_KINDS.has(kind) && status && prev.status && prev.status !== status) {
         // 仅在「未删未恢复」的稳定态比对状态，避免与 delete/restore 事件同帧刷双条
         // R172-T2：带上目标态 `to`（加权按目标态分档，见 §7.2）
-        statusChanges.push(mk('status', kind, titleOf(kind, c), c.id, at, c.status))
+        statusChanges.push(mk('status', kind, titleOf(kind, c), c.id, at, status))
       }
     }
   }
   scan('resource', d.resources)
   scan('task', d.tasks)
   scan('curiosity', d.curiosities)
+  scan('topic', d.topics)
   for (const [id, prev] of prevSnap) {
     if (!seen.has(id)) purges.push(mk('purge', prev.kind, prev.title, id, prev.updatedAt || now))
   }

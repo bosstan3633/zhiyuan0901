@@ -90,7 +90,7 @@ function aiAbort(msg: string | null) {
   if (aiAbortCtl) { aiCancelMsg = msg ?? ''; aiAbortCtl.abort(); aiAbortCtl = null }
 }
 watch(activePanel, (p) => { if (p !== 'search') aiAbort(null) })
-/** 候选=库内三类卡（不受字面命中限制，这正是与旧「AI 理解」的分工差别）；跟着类型 tab 收窄，切到「任务卡」就只投任务。
+/** 候选=库内四类卡（不受字面命中限制，这正是与旧「AI 理解」的分工差别）；跟着类型 tab 收窄，切到「任务卡」就只投任务。
  *  ★只在点击时求值：模板里不引用它——那会让每次键入渲染都重扫一遍全库建候选数组（浮层是热路径）。 */
 /**
  * R161-③：把卡片的**全部自定义字段**折成一行文本投给模型。
@@ -116,7 +116,7 @@ const aiCands = computed<AiCand[]>(() => {
   for (const r of allResults.value) {
     if (r.archived) continue
     if (want && r.type !== want) continue
-    if (r.type !== 'res' && r.type !== 'task' && r.type !== 'curio') continue
+    if (r.type !== 'res' && r.type !== 'task' && r.type !== 'curio' && r.type !== 'topic') continue
     const raw = r.raw as AnyCard
     out.push({
       id: r.id, type: r.type, title: r.title, ws: r.ws, cat: r.cat, summary: r.summary,
@@ -145,7 +145,7 @@ async function aiSearchRun(allScope: boolean) {
   const q = searchQuery.value.trim()
   const cands = aiCands.value
   if (!q) { showToast('先写下你要找什么（一句话就行），再点 AI 检索'); return }
-  if (cands.length < 2) { showToast('库里还没有可检索的卡（资源/任务/好奇至少 2 条才谈得上挑）'); return }
+  if (cands.length < 2) { showToast('库里还没有可检索的卡（资源/任务/好奇/选题至少 2 条才谈得上挑）'); return }
   const key = `${q}|${currentType.value}|${cands.length}`
   if (!allScope) {
     const cached = aiCache.get(key)

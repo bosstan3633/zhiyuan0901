@@ -23,7 +23,7 @@ import Drawer from '@/shared/components/Drawer.vue'
 
 /** 打开时的预设筛选（四类记录入口 / 日详情「查看全部记录 ›」） */
 export interface LogPreset {
-  kind: 'all' | 'resource' | 'task' | 'curiosity'
+  kind: 'all' | 'resource' | 'task' | 'curiosity' | 'topic'
   action: 'all' | EventAction
   from: string
   to: string
@@ -46,7 +46,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
-const kind = ref<'all' | 'resource' | 'task' | 'curiosity'>('all')
+const kind = ref<'all' | 'resource' | 'task' | 'curiosity' | 'topic'>('all')
 const action = ref<'all' | EventAction>('all')
 const from = ref('')
 const to = ref('')
@@ -103,7 +103,7 @@ const filtered = computed<CardEvent[]>(() => {
 const ACT_BADGE: Record<EventAction, string> = {
   create: '+ 新增', call: '↗ 调出', delete: '− 删除', restore: '↩ 恢复', status: '◐ 状态变更', purge: '永久删除'
 }
-const KIND_LABEL: Record<CardEvent['kind'], string> = { resource: '资源', task: '任务', curiosity: '好奇', system: '系统' }
+const KIND_LABEL: Record<CardEvent['kind'], string> = { resource: '资源', task: '任务', curiosity: '好奇', topic: '选题', system: '系统' }
 const pad2 = (n: number): string => String(n).padStart(2, '0')
 function fmtTime(ts: number): string {
   const d = new Date(ts)
@@ -134,6 +134,13 @@ function detailLines(e: CardEvent): string[] {
     if (c) {
       found = true
       lines.push(`探索状态：${c.status === 'done' ? '已求证' : c.status === 'doing' ? '探索中' : c.status === 'shelf' ? '已搁置' : '待探索'}`)
+    }
+  } else if (e.kind === 'topic') {
+    const t = (d.topics || []).find(x => x.id === e.cardId)
+    if (t) {
+      found = true
+      const statusName = (d.topicStatuses || []).find(s => s.id === t.statusId)?.name || '构思中'
+      lines.push(`选题状态：${statusName}`)
     }
   }
   if (!found && e.kind !== 'system') lines.push('（卡片已不在库中：可能已永久删除）')
@@ -169,7 +176,7 @@ function exportCsv() {
       <div class="dz-log-filters">
         <span class="fl">类型</span>
         <select v-model="kind" class="sel">
-          <option value="all">全部</option><option value="resource">资源</option><option value="task">任务</option><option value="curiosity">好奇</option>
+          <option value="all">全部</option><option value="resource">资源</option><option value="task">任务</option><option value="topic">选题</option><option value="curiosity">好奇</option>
         </select>
         <span class="fl">动作</span>
         <select v-model="action" class="sel">

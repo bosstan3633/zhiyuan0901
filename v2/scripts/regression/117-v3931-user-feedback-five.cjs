@@ -64,9 +64,9 @@ check('R188-3 ★任务详情「查看项目全景」直达：未挂项目置灰
 // ── F4 任务拖拽 ──
 check('R188-4 ★指标内顺序统一 taskIds 轨道序：dedupeSorted 按轨道下标排序（不在轨者 createdAt 兜底），塔/全景与展板三处同源', () => {
   return /function dedupeSorted\(tasks: TaskCard\[\], metric\?: Metric\)/.test(META)
-    && META.includes('new Map((metric.taskIds || []).map((id, i) => [id, i] as const))')
+    && META.includes('new Map((metric.taskIds || []).map((id, index) => [id, index] as const))')
     && META.includes('dedupeSorted(tasks, m)')
-    && META.includes('dedupeSorted(tasks.filter(t => !t.deletedAt && (t.metricId === metric.id || linkedIds.has(t.id))), metric)')
+    && META.includes('dedupeSorted(tasks.filter(task => !task.deletedAt && (task.metricId === metric.id || linkedIds.has(task.id))), metric)')
 })
 
 check('R188-5 ★拖拽双写归属（同展板 R55-17 口径）：metricId 改写 + 双侧 taskIds 更新 + updatedAt；跨项目拒绝不投放', () => {

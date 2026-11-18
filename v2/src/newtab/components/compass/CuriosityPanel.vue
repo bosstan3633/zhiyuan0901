@@ -106,6 +106,12 @@ watch(() => route.query.hl, (hl) => {
 onMounted(() => {
   const off = onOpenDrawer((p) => {
     if (p.kind === 'curio') {
+      // 设置页 / 调度台首页的 details-only 宿主只承载详情抽屉，
+      // 点列表里的具体条目不跳二级卡池，直接在当前上下文打开。
+      if (props.detailsOnly) {
+        openDetail(p.id)
+        return
+      }
       highlightId.value = p.id
       setTimeout(() => document.querySelector(`[data-czid="${p.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
       setTimeout(() => { highlightId.value = (highlightId.value === p.id ? null : highlightId.value) }, 2000)

@@ -5,8 +5,8 @@
 import type { FieldConfig, FieldDef, ResourceCard, TaskCard, CuriosityCard, AnyCard } from '@/shared/models'
 import { assetSummary } from './assetKind'
 
-/** 字段组类型（R62-3：thesis = 策展主题卡组） */
-export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'thesis'
+/** 字段组类型（thesis = 策展主题卡组；topic = 选题卡组） */
+export type FieldGroupKind = 'resource' | 'task' | 'curiosity' | 'topic' | 'thesis'
 
 /** 取某类卡片已启用（可见）的字段，按 order 排序 */
 export function visibleFields(cfg: FieldConfig | null | undefined, type: FieldGroupKind): FieldDef[] {
@@ -56,7 +56,13 @@ function fmtDateCN(ts: number): string {
 export function fieldValue(
   card: AnyCard,
   key: string,
-  ctx: { projectName?: (id?: string) => string; metricName?: (id?: string) => string; wsName?: (id: string) => string; catName?: (id: string) => string }
+  ctx: {
+    projectName?: (id?: string) => string
+    metricName?: (id?: string) => string
+    wsName?: (id: string) => string
+    catName?: (id: string) => string
+    topicStatusName?: (id?: string) => string
+  }
 ): string {
   const c = card as unknown as Record<string, unknown>
   if (key.startsWith('custom_')) {
@@ -87,6 +93,10 @@ export function fieldValue(
         return ({ todo: '待探索', doing: '探索中', done: '已求证', shelf: '已搁置' } as Record<string, string>)[s] || s
       }
       return map[s] || s
+    }
+    case 'statusId': {
+      const statusId = String(c.statusId ?? '')
+      return ctx.topicStatusName ? ctx.topicStatusName(statusId) : statusId
     }
     case 'createdAt': return c.createdAt ? fmtDateCN(Number(c.createdAt)) : ''
     case 'assets':

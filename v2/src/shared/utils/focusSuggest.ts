@@ -10,16 +10,17 @@
  * 打分是**加性**的、每一项都对应一句会显示给用户的话：分数与文案同源，
  * 这样 ✦ 浮层里看到的理由就是它被排到前面的真实原因，不是一套解释不了排序的装饰文案。
  */
-import type { AppData, FocusSlot, Project, TaskCard } from '@/shared/models'
+import type { AppData, FocusSlot, Project, TaskCard, TopicCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
 import {
   FOCUS_LIMIT,
   activeFocusSlots,
   clearedFocusSlot,
-  detachFocusTaskFromDate,
+  detachFocusSourceFromDate,
   normalizedFocusSlots,
 } from './focusSlots'
 import { focusCarried, focusPlannedCounts } from '@/shared/utils/focusHistory'
+import { isTopicDone, markTopicInProgress } from './topicStatus'
 
 const DAY_MS = 86_400_000
 
@@ -141,21 +142,43 @@ export function syncFocusTasksToSchedule(
   anchorKey: string,
   slots: FocusSlot[] = d.dailyFocus?.[anchorKey] || [],
 ): number {
-  const ids = new Set(
-    activeFocusSlots(slots)
-      .filter(slot => slot.sourceType === 'task' && slot.sourceId)
-      .map(slot => slot.sourceId as string),
-  )
-  if (!ids.size) return 0
+  const taskIds = new Set<string>()
+  const topicIds = new Set<string>()
+  for (const slot of activeFocusSlots(slots)) {
+    if (!slot.sourceId) continue
+    if (slot.sourceType === 'task') taskIds.add(slot.sourceId)
+    if (slot.sourceType === 'topic') topicIds.add(slot.sourceId)
+  }
+  if (!taskIds.size && !topicIds.size) return 0
   const stamp = Date.now()
   let changed = 0
   for (const task of d.tasks) {
-    if (task.deletedAt || !ids.has(task.id) || task.dueDate === anchorKey) continue
+    if (task.deletedAt || !taskIds.has(task.id) || task.dueDate === anchorKey) continue
     task.dueDate = anchorKey
     task.updatedAt = stamp
     changed++
   }
+  for (const topic of d.topics || []) {
+    if (topic.deletedAt || !topicIds.has(topic.id) || topic.dueDate === anchorKey) continue
+    topic.dueDate = anchorKey
+    topic.updatedAt = stamp
+    changed++
+  }
   return changed
+}
+
+/** 进入今日三件事即视为“正在推进”：待开始 → 进行中，已完成保持完成。 */
+function markFocusTaskDoing(task: TaskCard, stamp = Date.now()): boolean {
+  if (task.deletedAt || task.status === 'done' || task.status === 'doing') return false
+  task.status = 'doing'
+  task.completedAt = undefined
+  task.statusBeforeDone = undefined
+  task.updatedAt = stamp
+  return true
+}
+
+function markFocusTopicDoing(d: AppData, topic: TopicCard, stamp = Date.now()): boolean {
+  return markTopicInProgress(d, topic, stamp)
 }
 
 function localDateKey(now = new Date()): string {
@@ -167,10 +190,10 @@ function localDateKey(now = new Date()): string {
 
 /**
  * V4.3.5：旧设备快照或三方合并后，今日三件事与今日日历可能短暂不同源。
- * 以任务卡为唯一真源收敛：
- * - 已在今日槽位的任务，计划执行日期统一写回今天；
- * - 已排到今天的任务，有空槽就补入，没有空槽就撤掉今天的计划日期；
- * - 同一任务重复占多个槽时只保留第一格，其余槽位写墓碑。
+ * 以任务卡/选题卡为唯一真源收敛：
+ * - 已在今日槽位的卡，计划执行日期统一写回今天；
+ * - 已排到今天的卡，有空槽就补入，没有空槽就撤掉今天的计划日期；
+ * - 同一卡重复占多个槽时只保留第一格，其余槽位写墓碑。
  */
 export function reconcileTodayFocusSchedule(
   d: AppData,
@@ -178,64 +201,104 @@ export function reconcileTodayFocusSchedule(
 ): number {
   if (!d.dailyFocus) d.dailyFocus = {}
   const cells = normalizedFocusSlots(d.dailyFocus[anchorKey])
-  const live = new Map(d.tasks.filter(task => !task.deletedAt).map(task => [task.id, task]))
+  const liveTasks = new Map(d.tasks.filter(task => !task.deletedAt).map(task => [task.id, task]))
+  const liveTopics = new Map((d.topics || []).filter(topic => !topic.deletedAt).map(topic => [topic.id, topic]))
   const seen = new Set<string>()
   const stamp = Date.now()
   let changed = 0
 
   for (let index = 0; index < FOCUS_LIMIT; index++) {
     const slot = cells[index]
-    if (!slot || slot.cleared || slot.sourceType !== 'task' || !slot.sourceId) continue
-    if (seen.has(slot.sourceId)) {
+    if (!slot || slot.cleared || !slot.sourceId) continue
+    if (slot.sourceType !== 'task' && slot.sourceType !== 'topic') continue
+    const sourceKey = `${slot.sourceType}:${slot.sourceId}`
+    if (seen.has(sourceKey)) {
       cells[index] = clearedFocusSlot(index, slot)
       changed++
       continue
     }
-    seen.add(slot.sourceId)
-    const task = live.get(slot.sourceId)
-    if (!task) {
-      cells[index] = clearedFocusSlot(index, slot)
-      changed++
-      continue
-    }
-    if (task.dueDate !== anchorKey) {
-      task.dueDate = anchorKey
-      task.updatedAt = stamp
-      changed++
-    }
-    const done = task.status === 'done'
-    if (slot.done !== done || slot.text !== task.title) {
-      slot.done = done
-      slot.doneAt = done ? (task.completedAt || slot.doneAt || stamp) : undefined
-      slot.text = task.title
-      slot.updatedAt = stamp
-      changed++
+    seen.add(sourceKey)
+    if (slot.sourceType === 'task') {
+      const task = liveTasks.get(slot.sourceId)
+      if (!task) {
+        cells[index] = clearedFocusSlot(index, slot)
+        changed++
+        continue
+      }
+      if (task.dueDate !== anchorKey) {
+        task.dueDate = anchorKey
+        task.updatedAt = stamp
+        changed++
+      }
+      if (markFocusTaskDoing(task, stamp)) changed++
+      const done = task.status === 'done'
+      if (slot.done !== done || slot.text !== task.title) {
+        slot.done = done
+        slot.doneAt = done ? (task.completedAt || slot.doneAt || stamp) : undefined
+        slot.text = task.title
+        slot.updatedAt = stamp
+        changed++
+      }
+    } else {
+      const topic = liveTopics.get(slot.sourceId)
+      if (!topic) {
+        cells[index] = clearedFocusSlot(index, slot)
+        changed++
+        continue
+      }
+      if (topic.dueDate !== anchorKey) {
+        topic.dueDate = anchorKey
+        topic.updatedAt = stamp
+        changed++
+      }
+      if (markFocusTopicDoing(d, topic, stamp)) changed++
+      const done = isTopicDone(d, topic)
+      if (slot.done !== done || slot.text !== topic.title) {
+        slot.done = done
+        slot.doneAt = done ? (topic.completedAt || slot.doneAt || stamp) : undefined
+        slot.text = topic.title
+        slot.updatedAt = stamp
+        changed++
+      }
     }
   }
 
-  const dueToday = [...live.values()]
-    .filter(task => task.dueDate === anchorKey && !seen.has(task.id))
-    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-  for (const task of dueToday) {
+  const dueToday: Array<{ type: 'task' | 'topic'; card: TaskCard | TopicCard }> = [
+    ...[...liveTasks.values()]
+      .filter(task => task.dueDate === anchorKey && !seen.has(`task:${task.id}`))
+      .map(task => ({ type: 'task' as const, card: task })),
+    ...[...liveTopics.values()]
+      .filter(topic => topic.dueDate === anchorKey && !seen.has(`topic:${topic.id}`))
+      .map(topic => ({ type: 'topic' as const, card: topic })),
+  ].sort((a, b) => (b.card.updatedAt || 0) - (a.card.updatedAt || 0))
+  for (const entry of dueToday) {
     const free = cells.findIndex(slot => !slot || slot.cleared)
     if (free < 0) {
-      task.dueDate = undefined
-      task.updatedAt = stamp
+      entry.card.dueDate = undefined
+      entry.card.updatedAt = stamp
       changed++
       continue
     }
-    const done = task.status === 'done'
+    const done = entry.type === 'task'
+      ? (entry.card as TaskCard).status === 'done'
+      : isTopicDone(d, entry.card as TopicCard)
+    if (!done) {
+      const marked = entry.type === 'task'
+        ? markFocusTaskDoing(entry.card as TaskCard, stamp)
+        : markFocusTopicDoing(d, entry.card as TopicCard, stamp)
+      if (marked) changed++
+    }
     cells[free] = {
       id: uid('focus'),
       slotIndex: free as 0 | 1 | 2,
-      sourceType: 'task',
-      sourceId: task.id,
-      text: task.title,
+      sourceType: entry.type,
+      sourceId: entry.card.id,
+      text: entry.card.title,
       done,
-      doneAt: done ? task.completedAt : undefined,
+      doneAt: done ? entry.card.completedAt : undefined,
       updatedAt: stamp,
     }
-    seen.add(task.id)
+    seen.add(`${entry.type}:${entry.card.id}`)
     changed++
   }
 
@@ -273,7 +336,7 @@ export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: strin
     if (s && !s.cleared && (s.auto !== true || s.done)) continue
     const id = queue.shift()
     if (!id) continue
-    if (s && !s.cleared && s.sourceType === 'task') detachFocusTaskFromDate(d, anchorKey, s.sourceId)
+    if (s && !s.cleared) detachFocusSourceFromDate(d, anchorKey, s.sourceType, s.sourceId)
     const task = byId.get(id)!
     next[index] = {
       id: s?.id || uid('focus'),
@@ -322,6 +385,9 @@ export function addManualFocus(
   const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
   const existing = cells.findIndex(slot => !!slot && !slot.cleared && slot.sourceType === 'task' && slot.sourceId === taskId)
   if (existing >= 0) {
+    if (markFocusTaskDoing(task)) d.dailyFocus[anchorKey] = normalizedFocusSlots(d.dailyFocus[anchorKey]).map((cell, index) => cell
+      ? { ...cell, slotIndex: index as 0 | 1 | 2 }
+      : clearedFocusSlot(index))
     syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
     return { status: 'exists', index: existing }
   }
@@ -338,6 +404,7 @@ export function addManualFocus(
 
   const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
   if (freeIndex >= 0) {
+    markFocusTaskDoing(task)
     const index = Math.min(freeIndex, limit - 1)
     slot.slotIndex = index as 0 | 1 | 2
     cells[index] = slot
@@ -350,9 +417,10 @@ export function addManualFocus(
 
   if (slotIndex === undefined || slotIndex < 0 || slotIndex >= limit) return { status: 'full' }
   const previous = cells[slotIndex]
-  if (previous && !previous.cleared && previous.sourceType === 'task') {
-    detachFocusTaskFromDate(d, anchorKey, previous.sourceId)
+  if (previous && !previous.cleared) {
+    detachFocusSourceFromDate(d, anchorKey, previous.sourceType, previous.sourceId)
   }
+  markFocusTaskDoing(task)
   slot.slotIndex = slotIndex as 0 | 1 | 2
   cells[slotIndex] = slot
   d.dailyFocus[anchorKey] = cells.map((cell, i) => cell
@@ -360,4 +428,53 @@ export function addManualFocus(
     : clearedFocusSlot(i))
   syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
   return { status: 'replaced', index: slotIndex }
+}
+
+/** 选题卡进入今日重点：与任务卡共用三槽、排期同源，但状态走用户自定义的终止态。 */
+export function addManualTopicFocus(
+  d: AppData,
+  anchorKey: string,
+  topicId: string,
+  slotIndex?: number,
+  limit = FOCUS_LIMIT,
+): ManualFocusResult {
+  const topic = (d.topics || []).find(row => !row.deletedAt && row.id === topicId)
+  if (!topic || isTopicDone(d, topic)) return { status: 'invalid' }
+  if (!d.dailyFocus) d.dailyFocus = {}
+  const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
+  const existing = cells.findIndex(slot => !!slot && !slot.cleared && slot.sourceType === 'topic' && slot.sourceId === topicId)
+  if (existing >= 0) {
+    let changed = markFocusTopicDoing(d, topic)
+    if (topic.dueDate !== anchorKey) {
+      topic.dueDate = anchorKey
+      topic.updatedAt = Date.now()
+      changed = true
+    }
+    if (changed) syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
+    return { status: 'exists', index: existing }
+  }
+  let index = Number.isInteger(slotIndex) && (slotIndex as number) >= 0 && (slotIndex as number) < limit
+    ? (slotIndex as number)
+    : cells.findIndex(slot => !slot || slot.cleared)
+  if (index < 0) return { status: 'full' }
+  const previous = cells[index]
+  if (previous && !previous.cleared) detachFocusSourceFromDate(d, anchorKey, previous.sourceType, previous.sourceId)
+  markFocusTopicDoing(d, topic)
+  topic.dueDate = anchorKey
+  topic.updatedAt = Date.now()
+  cells[index] = {
+    id: previous?.id || uid('focus'),
+    slotIndex: index as 0 | 1 | 2,
+    sourceType: 'topic',
+    sourceId: topic.id,
+    text: topic.title,
+    done: false,
+    updatedAt: Date.now(),
+  }
+  d.dailyFocus[anchorKey] = cells.map((slot, i) => {
+    if (slot) return { ...slot, slotIndex: i as 0 | 1 | 2 }
+    return clearedFocusSlot(i)
+  })
+  syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
+  return { status: previous && !previous.cleared ? 'replaced' : 'added', index }
 }

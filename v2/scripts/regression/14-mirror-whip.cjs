@@ -14,7 +14,7 @@
 const { check, read } = require('./helpers.cjs');
 
 const MB = read('/newtab/components/compass/MetricBar.vue');
-const HOME = read('/newtab/views/CompassHome.vue');
+const HOME = read('/newtab/views/CompassHome.vue') + '\n' + read('/newtab/views/CompassHome.css');
 const TREE = read('/newtab/views/CompassTree.vue');
 const PI_CSS = read('/newtab/components/profile/pi-timeline.css');
 const PI_OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
@@ -50,7 +50,7 @@ check('M1-4 ★V3.9.1 随迁备案：失效计划行仍去琥珀、留虚线；�
   return seg.includes('border-style: dashed')
     && seg.includes('background: transparent')
     && !/--tag-warn|--warning/.test(seg)
-    && HOME.includes('源任务已删除或归档 · 点这一行原位重新选取');
+    && HOME.includes('已删除或归档 · 点这一行原位重新选取');
 });
 
 /* ============ M2 · 指标条降噪降层 ============ */

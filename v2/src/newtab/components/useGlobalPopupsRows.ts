@@ -3,8 +3,9 @@ import { showToast } from '@/shared/components/toast'
 import { CURATION_WS_ID } from '@/shared/models'
 import { recordResourceOpen, recordCardOpen, recordWorkspaceOpen } from '@/shared/storage/stats'
 import { toOpenableUrl, toOpenableRawLink, openExternalLink, linkPlaceholderFor } from '@/shared/utils/link'
-import type { ResourceCard, TaskCard, CuriosityCard, Workspace, Category, AnyCard } from '@/shared/models'
+import type { ResourceCard, TaskCard, CuriosityCard, TopicCard, Workspace, Category, AnyCard } from '@/shared/models'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
+import { attachTopicToMetric, softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import type { useGlobalPopups, SearchResult } from './useGlobalPopups'
 
 export function useGlobalPopupsRows(deps: Pick<ReturnType<typeof useGlobalPopups>, 'searchQuery' | 'flatList' | 'runAiEntry' | 'recordSearch' | 'd' | 'store' | 'closeAll' | 'router' | 'currentType' | 'selIndex' | 'syncIdFromIndex' | 'searchQueryRaw' | 'setSearchQuery' | 'typeLabel' | 'resultsEl' | 'selectedId' | 'syncIndexFromId'>): {
@@ -15,7 +16,7 @@ export function useGlobalPopupsRows(deps: Pick<ReturnType<typeof useGlobalPopups
   openLinkOrLocate: (item: SearchResult) => void
   locateOnly: (item: SearchResult) => void
   runSearch: () => void
-  setType: (t: 'task' | 'res' | 'curio' | 'all' | 'ws' | 'proj') => void
+  setType: (t: 'task' | 'res' | 'curio' | 'topic' | 'all' | 'ws' | 'proj') => void
   clearFilter: () => void
   onSearchKeydown: (e: KeyboardEvent) => void
   scrollToSelected: () => void
@@ -102,6 +103,19 @@ function openLinkOrLocate(item: SearchResult) {
     openItem(item)
     return
   }
+  if (item.type === 'topic') {
+    const t = item.raw as TopicCard
+    const url = toOpenableRawLink(t.link)
+    if (url) {
+      recordCardOpen(d.value, t)
+      store.persistHot()
+      openExternalLink(url)
+      closeAll()
+      return
+    }
+    openItem(item)
+    return
+  }
   // proj / ws：无"外链"概念，走既有打开语义
   openItem(item)
 }
@@ -139,12 +153,18 @@ function locateOnly(item: SearchResult) {
     showToast('已定位到好奇心卡片')
     return
   }
+  if (item.type === 'topic') {
+    router.push({ path: '/deck/topic', query: { hl: item.id, hk: 'topic' } })
+    closeAll()
+    showToast('已定位到选题卡片')
+    return
+  }
   // ws / proj：打开目标页即视为"定位到所在处"
   openItem(item)
 }
 
 function runSearch() { /* reactive, no-op */ }
-function setType(t: 'all'|'res'|'task'|'curio'|'ws'|'proj') { currentType.value = t }
+function setType(t: 'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj') { currentType.value = t }
 function clearFilter() { currentType.value = 'all' }
 
 function onSearchKeydown(e: KeyboardEvent) {
@@ -162,10 +182,10 @@ function onSearchKeydown(e: KeyboardEvent) {
     // 关键词被视为指令（消费掉），普通关键词保留；chip 与类型 Tab 行高亮同步更新
     e.preventDefault()
     const q = searchQueryRaw.value.trim()
-    const kw = ([['任务', 'task'], ['资源', 'res'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
+    const kw = ([['任务', 'task'], ['资源', 'res'], ['选题', 'topic'], ['选题卡', 'topic'], ['好奇心', 'curio'], ['好奇', 'curio'], ['策展台', 'ws'], ['工作台', 'ws'], ['项目', 'proj'], ['全部', 'all']] as const).find(([k]) => k === q)
     if (kw) { currentType.value = kw[1]; setSearchQuery('') }
     else {
-      const cycle: Array<'all'|'res'|'task'|'curio'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'ws', 'proj']
+      const cycle: Array<'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'> = ['all', 'res', 'task', 'curio', 'topic', 'ws', 'proj']
       currentType.value = cycle[(cycle.indexOf(currentType.value) + 1) % cycle.length]
     }
     selIndex.value = 0
@@ -239,6 +259,11 @@ function openItem(item: SearchResult) {
     // R117（04-61 B）：hk 显式分派——调度台同时挂着任务卡与好奇心卡两个 hl 消费者
     router.push({ path: '/deck/task', query: { hl: item.id, hk: 'task' } })
     showToast('↗ 已定位到任务卡片')
+  } else if (item.type === 'topic') {
+    recordCardOpen(d.value, d.value.topics.find(t => t.id === item.id))
+    store.persistHot()
+    router.push({ path: '/deck/topic', query: { hl: item.id, hk: 'topic' } })
+    showToast('↗ 已定位到选题卡片')
   } else {
     recordCardOpen(d.value, d.value.curiosities.find(c => c.id === item.id))
     store.persistHot()
@@ -283,9 +308,10 @@ async function deleteItem(item: SearchResult) {
   // R146（回退契约）：① 任务改走 softDeleteTaskToTrash——原裸赋值 deletedAt 不摘 metric.taskIds，
   //   破坏 R141 的双向不变量；② 回执点名 + 给撤销（原只有一句"可在回收站恢复"，既不知删了哪张，
   //   也没有回收站的路）。
-  const raw = item.raw as ResourceCard | TaskCard | CuriosityCard
-  const name = ('title' in raw ? (raw as ResourceCard).title : (raw as CuriosityCard).question) || '未命名'
+  const raw = item.raw as ResourceCard | TaskCard | CuriosityCard | TopicCard
+  const name = ('title' in raw ? raw.title : (raw as CuriosityCard).question) || '未命名'
   if (item.type === 'task') softDeleteTaskToTrash(store.data!, raw as TaskCard)
+  else if (item.type === 'topic') softDeleteTopicToTrash(store.data!, raw as TopicCard)
   else raw.deletedAt = Date.now()
   store.persist()
   showToast(`已删除「${name.slice(0, 16)}」· 回收站可恢复`, { label: '撤销', cb: () => {
@@ -295,6 +321,9 @@ async function deleteItem(item: SearchResult) {
       const t = raw as TaskCard
       if (t.metricId) for (const dir of store.data!.compass.directions) for (const p of dir.projects) for (const m of p.metrics)
         if (m.id === t.metricId && !m.taskIds.includes(t.id)) m.taskIds.push(t.id)
+    } else if (item.type === 'topic') {
+      const t = raw as TopicCard
+      if (t.metricId) attachTopicToMetric(store.data!, t, t.projectId, t.metricId)
     }
     store.persist()
     showToast('已撤销删除')

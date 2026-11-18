@@ -185,6 +185,8 @@
       :edit-request-id="mind.editRequestId.value"
       :edit-request-seq="mind.editRequestSeq.value"
       :cards-by-cat="mind.cardsByCat.value"
+      :topics="d.topics"
+      :topic-statuses="d.topicStatuses"
       :thesis-cards="mind.thesisCards.value"
       :search-query="debouncedQuery"
       :keyboard-drag-source="mind.keyboardDragSource.value"
@@ -214,6 +216,8 @@
       @open-resource="onCardClick"
       @open-resource-link="openResourceLink"
       @open-resource-context="openResCtx"
+      @open-topic="onOpenCurationTopic"
+      @unlink-topic="onUnlinkCurationTopic"
       @open-node-assets="openNodeAssets"
       @drop-node-asset-files="ingestAssetFiles"
       @preview-node-asset="(id, asset) => openNodeAssetPreview(asset, id)"
@@ -344,10 +348,10 @@
                        （宿主回到 ≤1500 行验收线 + 少一套私有 modal 实现的消费方） -->
     <LinkCardsModal
       :open="!!linkCardsModal" :cat-name="linkCardsModal?.catName || ''" :picked="linkCardsModal?.picked"
-      :q="linkCardsQ" :list="linkShowList"
+      :q="linkCardsQ" :filter="linkCardsFilter" :list="linkShowList"
       :ai-busy="linkAiBusy" :ai-on="linkAiOn" :ai-hits="linkAiHits" :ai-fed="linkAiFed" :ai-took="linkAiTook"
       :ai-scope="linkAiScope" :ai-note="linkAiNote"
-      @update:q="linkCardsQ = $event" @toggle-pick="toggleLinkPick"
+      @update:q="linkCardsQ = $event" @update:filter="linkCardsFilter = $event" @toggle-pick="toggleLinkPick"
       @confirm="onConfirmLinkCards" @close="linkCardsModal = null" @ai-run="linkAiRun" />
 
     <!-- N8（V3.8.18）镜像到策展台——推送方向的选台弹窗（与上面的「移动分类」同款 modal 形态）。
@@ -471,8 +475,9 @@ import Drawer from '@/shared/components/Drawer.vue'
 import { useConfirm } from '@/shared/components/confirm'
 import { buildCatIndex, buildBucketIndex } from '@/shared/utils/catIndex'
 import { toOpenableUrl } from '@/shared/utils/link'
-import { type AssetMeta, type ResourceCard, type Category } from '@/shared/models'
+import { type AssetMeta, type ResourceCard, type TopicCard, type Category } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { emitOpenDrawer } from '@/shared/utils/bus'
 import { getAssetBlob, putAsset, deleteAsset } from '@/shared/storage/assets'
 import { ASSET_KIND_MB, guessAssetKind } from '@/shared/utils/assetKind'
 import { deleteCurationAsset, downloadCurationAsset, retryPendingCurationAssetDeletes, retryPendingCurationAssets, uploadCurationAsset } from '@/shared/cloud/sync'
@@ -980,6 +985,21 @@ function onUnlinkResource(nodeId: string, card: ResourceCard): void {
   showToast('已解除节点关联；资源卡仍在资源卡池')
 }
 
+function onOpenCurationTopic(topic: TopicCard): void {
+  emitOpenDrawer({ kind: 'topic', id: topic.id })
+}
+
+function onUnlinkCurationTopic(nodeId: string, topic: TopicCard): void {
+  const category = d.value.categories.find(node => node.id === nodeId)
+  if (!category?.linkedTopicIds?.includes(topic.id)) return
+  history.record('解除策展选题关联', () => {
+    category.linkedTopicIds = (category.linkedTopicIds || []).filter(id => id !== topic.id)
+    if (!category.linkedTopicIds.length) category.linkedTopicIds = undefined
+    store.persist()
+  })
+  showToast('已解除节点关联；选题卡本体仍保留在选题卡池')
+}
+
 function onMindCreateChild(id: string): void {
   history.record('创建子分支', () => mind.createChild(id))
 }
@@ -1236,7 +1256,7 @@ const {
 // ===== 画布辅助域：模板导入 / 关联资源 / 全屏（旧金字塔视图已退出宿主）=====
 const {
   pyramidImportOpen, confirmPyramidImport,
-  linkCardsModal, linkCardsQ, openLinkCards, toggleLinkPick, confirmLinkCards,
+  linkCardsModal, linkCardsQ, linkCardsFilter, openLinkCards, toggleLinkPick, confirmLinkCards,
   linkAiBusy, linkAiHits, linkAiFed, linkAiTook, linkAiOn, linkAiScope, linkAiNote, linkAiRun, linkShowList, linkAiHitOf,
 } = usePyramid({ store, d, workspaceId, thesisCard, mind })
 

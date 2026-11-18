@@ -1,5 +1,6 @@
 import type { AppData } from '@/shared/models'
 import { safeDecodeText } from '@/shared/utils'
+import { normalizeTopicStatusDomain } from '@/shared/utils/topicStatus'
 
 /** 老库 dueAt 是毫秒时间戳，现代任务日历只接受 YYYY-MM-DD；统一在载入/导入边界收敛。 */
 function legacyPlanDate(value: unknown): string | undefined {
@@ -122,6 +123,7 @@ export function normalizeLegacyCards(d: AppData): void {
   fixTags(d.resources as { tags?: unknown }[])
   fixTags(d.tasks as { tags?: unknown }[])
   fixTags(d.curiosities as { tags?: unknown }[])
+  fixTags(d.topics as { tags?: unknown }[])
   /*B7-e（2026-10-18）任务卡 `status` / `priority` 兜底 —— 实拍抓到的**既有崩溃**：
      打开任务详情抽屉即崩「Cannot read properties of undefined (reading 'cls')」，
      根因是 `TaskDetailDrawer` 的 `STATUS_UI[selectedTask.status].cls` 在 status 缺失时取到 undefined。
@@ -193,6 +195,7 @@ export function normalizeLegacyCards(d: AppData): void {
   fixCardLegacyFields(d.tasks as unknown as Record<string, unknown>[])
   fixCardLegacyFields(d.curiosities as unknown as Record<string, unknown>[])
   fixCardLegacyFields(d.resources as unknown as Record<string, unknown>[])
+  fixCardLegacyFields(d.topics as unknown as Record<string, unknown>[])
   /* P0-2 新增第五处：**资源卡 `linkType` 兜底 + 旧字段 `url` 映射**。
      这一条与前四处性质不同——它**不会崩**，所以任何"点开就炸"的实拍都抓不到它，
      是一次纯静态盘点才发现的**行为缺陷**：
@@ -234,7 +237,7 @@ export function normalizeLegacyCards(d: AppData): void {
      （"筛选资源卡"看不到它、三卡统计少算它、导出丢列），是一种更安静的错。 */
   const fixCardKind = (cards: Record<string, unknown>[], kind: string) => (cards || []).forEach((c) => {
     if (!c || typeof c !== 'object') return
-    if (c.kind !== 'resource' && c.kind !== 'task' && c.kind !== 'curiosity' && c.kind !== 'argument') c.kind = kind
+    if (c.kind !== 'resource' && c.kind !== 'task' && c.kind !== 'curiosity' && c.kind !== 'topic' && c.kind !== 'argument') c.kind = kind
   })
   fixCardKind(d.resources as unknown as Record<string, unknown>[], 'resource')
   fixCardKind(d.tasks as unknown as Record<string, unknown>[], 'task')
@@ -252,6 +255,7 @@ export function normalizeLegacyCards(d: AppData): void {
   fixCardId(d.resources as unknown as Record<string, unknown>[])
   fixCardId(d.tasks as unknown as Record<string, unknown>[])
   fixCardId(d.curiosities as unknown as Record<string, unknown>[])
+  fixCardId(d.topics as unknown as Record<string, unknown>[])
   /* P0-2 新增第八处：`title` 兜底 —— 三卡的标题字段虽在模型里必填，但老库里存在空串/缺字段的卡。
      空标题不会崩，可它在**卡面、⌘K 结果、导出、回收站**里都是一个空白可点区域，
      用户会以为数据丢了。兜底成「未命名」——宁可给个占位名，也不给一处空白。 */
@@ -267,7 +271,12 @@ export function normalizeLegacyCards(d: AppData): void {
   })
   fixCardTitle(d.resources as unknown as Record<string, unknown>[])
   fixCardTitle(d.tasks as unknown as Record<string, unknown>[])
+  fixCardTitle(d.topics as unknown as Record<string, unknown>[])
   // 好奇卡的"标题"就是 question 本身，映射在上面 fixCurioLegacyFields 已做，这里不重复改名
+  /* V4.5.0：选题状态与选题卡状态引用是业务真源，必须和启动载入、JSON 导入、云恢复走同一收敛。
+     尤其三方合并后可能出现两个 terminal；这里统一收敛为唯一完成态，避免看板分组与
+     “勾选完成”落到不同状态。 */
+  normalizeTopicStatusDomain(d)
   // P0-2 新增第九处：策展台必填字段兜底（`order`/`archived`/`icon`/`coverTheme`）。
   // `hub.ts` 与 `app.ts` 都按 `a.order - b.order` 排序、`filter(w => !w.archived)` 取活动台——
   // 缺 order ⇒ NaN 参与比较 ⇒ **台序错乱且每次载入都可能不同**；缺 archived ⇒ 未归档判定不确定。

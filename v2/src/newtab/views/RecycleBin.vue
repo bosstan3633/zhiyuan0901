@@ -16,8 +16,10 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import { purgeCardsCompletely, type PurgeTargets } from '@/shared/storage/purge'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
-import type { ResourceCard, TaskCard, CuriosityCard, ArgumentCard, ID } from '@/shared/models'
+import type { ResourceCard, TaskCard, CuriosityCard, TopicCard, ArgumentCard, ID } from '@/shared/models'
 import { CURATION_WS_ID } from '@/shared/models'
+import { attachTopicToMetric, detachTopicFromMetrics } from '@/shared/utils/topicLinks'
+import { topicStatusOf } from '@/shared/utils/topicStatus'
 // R137-H2：AI 捞回清单（懒路由，可直接静态引 AI 栈；采纳=恢复 deletedAt 置空，与手工恢复同字段）
 import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'
 import type { AiJob } from '@/shared/ai/job'
@@ -39,7 +41,7 @@ async function aiRescue() {
 const store = useAppStore()
 const d = computed(() => store.data!)
 
-const tab = ref<'res' | 'task' | 'curio' | 'cat' | 'arg'>('res')
+const tab = ref<'res' | 'task' | 'topic' | 'curio' | 'cat' | 'arg'>('res')
 
 // ================= D1（V3.8.39）：恢复即生效 + 可撤销 =================
 /**
@@ -97,6 +99,7 @@ function rollback(s: RestoreSnap): boolean {
     d.value.resources.find(x => x.id === s.id) ||
     d.value.tasks.find(x => x.id === s.id) ||
     d.value.curiosities.find(x => x.id === s.id) ||
+    (d.value.topics || []).find(x => x.id === s.id) ||
     (d.value.argCards || []).find(x => x.id === s.id) ||
     d.value.categories.find(x => x.id === s.id)
   if (!cur) return false
@@ -116,6 +119,7 @@ function rollback(s: RestoreSnap): boolean {
   }
   // 任务卡：摘掉恢复时回填的指标引用，否则指标上留一个指向已软删卡的死 id
   detachTaskFromMetrics(d.value, s.id)
+  detachTopicFromMetrics(d.value, s.id)
   store.persist()
   return true
 }
@@ -186,6 +190,8 @@ const tasks = computed(() =>
   d.value.tasks.filter(t => t.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 const curios = computed(() =>
   d.value.curiosities.filter(c => c.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
+const topics = computed(() =>
+  (d.value.topics || []).filter(t => t.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)))
 
 function wsNameOf(id: string): string {
   return wsNameById(d.value.workspaces, id) || '未知策展台'
@@ -202,6 +208,9 @@ function metricNameOf(metricId?: string): string {
     }
   }
   return '已删除指标'
+}
+function topicStatusName(statusId?: string): string {
+  return topicStatusOf(d.value, statusId)?.name || '构思中'
 }
 function fmt(t?: number): string {
   if (!t) return '—'
@@ -324,6 +333,16 @@ function restoreTask(t: TaskCard) {
   store.persist()
   restored(s, '')
 }
+function restoreTopic(t: TopicCard) {
+  const s = snapOf(t)
+  s.name = t.title.slice(0, 20)
+  markLeaving(t.id, t, t.deletedAt)
+  t.deletedAt = undefined
+  t.updatedAt = Date.now()
+  if (t.metricId) attachTopicToMetric(d.value, t, t.projectId, t.metricId)
+  store.persist()
+  restored(s, t.metricId ? '（已恢复到原成功指标）' : '')
+}
 function restoreCurio(c: CuriosityCard) {
   const s = snapOf(c)
   s.name = c.question.slice(0, 20)
@@ -354,6 +373,7 @@ async function purgeWith(what: string, name: string, targets: PurgeTargets) {
 }
 function purgeRes(r: ResourceCard) { void purgeWith('资源卡', r.title, { resources: [r] }) }
 function purgeTask(t: TaskCard) { void purgeWith('任务卡', t.title, { tasks: [t] }) }
+function purgeTopic(t: TopicCard) { void purgeWith('选题卡', t.title, { topics: [t] }) }
 function purgeCurio(c: CuriosityCard) { void purgeWith('好奇心卡', c.question, { curiosities: [c] }) }
 /** R146：分类分区补上永久删除（原先只有恢复——四类对象两套口径） */
 function purgeCat(c: { id: ID; name: string }) { void purgeWith('分类', c.name, { categories: [c as never] }) }
@@ -364,11 +384,16 @@ function purgeArg(a: ArgumentCard) { void purgeWith('论证卡', a.title, { argC
 /** 恢复是安全动作：不弹确认，但一次动作只报一条账（原实现每条各弹一次 toast，互相顶掉） */
 function restoreAll() {
   const cur = tab.value
-  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : cur === 'arg' ? args.value : curios.value
+  const list = cur === 'res' ? res.value
+    : cur === 'task' ? tasks.value
+      : cur === 'topic' ? topics.value
+        : cur === 'cat' ? cats.value
+          : cur === 'arg' ? args.value
+            : curios.value
   if (!list.length) { show('该分区没有可恢复的条目'); return }
   const now = Date.now()
   // ★D1：先给每条拍快照（只读），改动才动手——顺序反了就只能回滚出「改动后的值」
-  const snaps = (list as (ResourceCard | TaskCard | CuriosityCard | ArgumentCard)[]).map(x => snapOf(x))
+  const snaps = (list as (ResourceCard | TaskCard | TopicCard | CuriosityCard | ArgumentCard)[]).map(x => snapOf(x))
   for (const x of list as { id: ID; deletedAt?: number; updatedAt?: number; convertedAt?: number; convertedTo?: 'task' | 'res' }[]) {
     markLeaving(x.id, x, x.deletedAt)
     x.deletedAt = undefined
@@ -378,6 +403,29 @@ function restoreAll() {
     x.convertedAt = undefined
     x.convertedTo = undefined
   }
+  if (cur === 'task') {
+    for (const task of list as TaskCard[]) {
+      if (!snaps.some(snap => snap.id === task.id) || !task.metricId) continue
+      for (const dir of d.value.compass.directions) for (const project of dir.projects) for (const metric of project.metrics) {
+        if (metric.id === task.metricId && !metric.taskIds.includes(task.id)) metric.taskIds.push(task.id)
+      }
+    }
+  }
+  if (cur === 'topic') {
+    for (const topic of list as TopicCard[]) {
+      if (snaps.some(snap => snap.id === topic.id) && topic.metricId) {
+        attachTopicToMetric(d.value, topic, topic.projectId, topic.metricId)
+      }
+    }
+  }
+  if (cur === 'curio') {
+    for (const curio of list as CuriosityCard[]) {
+      if (snaps.some(snap => snap.id === curio.id)) {
+        curio.convertedAt = undefined
+        curio.convertedTo = undefined
+      }
+    }
+  }
   store.persist()
   show(`已恢复 ${list.length} 项（${tabLabelOf(cur)}）· 归属需手动归位的见各条说明`, { label: '撤销', cb: () => {
     // 逐条回滚并如实报数：可能有人在 6 秒窗口内已把其中几项永久删除
@@ -386,16 +434,22 @@ function restoreAll() {
     show(n ? `↩ 已撤销恢复 ${n} 项（${tabLabelOf(cur)}）· 回到回收站` : '⚠ 这些项已不在回收站，无法撤销恢复')
   } })
 }
-function tabLabelOf(k: typeof tab.value) { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'cat' ? '分类' : k === 'arg' ? '论证卡' : '好奇心卡' }
+function tabLabelOf(k: typeof tab.value) { return k === 'res' ? '资源卡' : k === 'task' ? '任务卡' : k === 'topic' ? '选题卡' : k === 'cat' ? '分类' : k === 'arg' ? '论证卡' : '好奇心卡' }
 async function purgeAll() {
   const cur = tab.value
-  const list = cur === 'res' ? res.value : cur === 'task' ? tasks.value : cur === 'cat' ? cats.value : cur === 'arg' ? args.value : curios.value
+  const list = cur === 'res' ? res.value
+    : cur === 'task' ? tasks.value
+      : cur === 'topic' ? topics.value
+        : cur === 'cat' ? cats.value
+          : cur === 'arg' ? args.value
+            : curios.value
   if (!list.length) { show('该分区已是空的'); return }
   if (!(await useConfirm({ title: '清空回收站分区', message: `确定永久删除本分区全部 ${list.length} 项（${tabLabelOf(cur)}）？\n不可恢复，且会一并清除仅被这些卡引用的附件本体。`, confirmText: `清空 ${list.length} 项` }))) return
   const targets: PurgeTargets =
     cur === 'cat' ? { categories: list as never }
     : cur === 'res' ? { resources: list as ResourceCard[] }
     : cur === 'task' ? { tasks: list as TaskCard[] }
+    : cur === 'topic' ? { topics: list as TopicCard[] }
     : cur === 'arg' ? { argCards: list as ArgumentCard[] }
     : { curiosities: list as CuriosityCard[] }
   const n = await purge(targets)
@@ -405,12 +459,14 @@ const tabMeta = computed(() => [
   { k: 'res' as const, label: '资源卡', list: res.value, n: res.value.length },
   { k: 'cat' as const, label: '分类', list: cats.value, n: cats.value.length },
   { k: 'task' as const, label: '任务卡', list: tasks.value, n: tasks.value.length },
+  { k: 'topic' as const, label: '选题卡', list: topics.value, n: topics.value.length },
   { k: 'curio' as const, label: '好奇心卡', list: curios.value, n: curios.value.length },
   { k: 'arg' as const, label: '论证卡', list: args.value, n: args.value.length }
 ])
 /** D1：五个分区的渲染视图 = 真实软删集合 + 淡出缓冲（缓冲行只剩 150ms，期间带 .leaving） */
 const resRows = computed(() => withLeaving(res.value))
 const taskRows = computed(() => withLeaving(tasks.value))
+const topicRows = computed(() => withLeaving(topics.value))
 const curioRows = computed(() => withLeaving(curios.value))
 const catRows = computed(() => withLeaving(cats.value))
 const argRows = computed(() => withLeaving(args.value))
@@ -484,6 +540,24 @@ title="这台删除过的资源卡会停在这里"
       <EmptyState v-if="!tasks.length" class="rb-empty" size="page" icon="trash"
 title="这台删除过的任务卡会停在这里"
         hint="没有期限——软删不会自己过期。只有你点「永久删除」或清空回收站，卡才真正离开本机。"
+        secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
+    </div>
+
+    <!-- 选题卡 -->
+    <div v-else-if="tab === 'topic'" class="rb-list">
+      <div v-for="t in topicRows" :key="t.id" class="rb-item" :class="{ leaving: isLeaving(t.id) }">
+        <div class="rb-item-main">
+          <div class="rb-item-title">{{ t.title }}</div>
+          <div class="rb-item-meta"><Icon name="target" :size="13"/> {{ metricNameOf(t.metricId) }} · {{ topicStatusName(t.statusId) }} · <Icon name="clock" :size="13"/> 删除于 {{ fmt(t.deletedAt) }}</div>
+        </div>
+        <div class="rb-item-ops">
+          <button class="rb-btn sm" @click="restoreTopic(t)">恢复</button>
+          <button class="rb-btn sm danger" @click="purgeTopic(t)">永久删除</button>
+        </div>
+      </div>
+      <EmptyState v-if="!topics.length" class="rb-empty" size="page" icon="trash"
+title="删除过的选题卡会停在这里"
+        hint="没有期限——软删不会自己过期。关联资源卡与策展节点关系会随恢复保留。"
         secondary-label="回到调度台" @secondary="emit('navigate', '/')" />
     </div>
 

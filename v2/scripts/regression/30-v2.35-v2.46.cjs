@@ -148,7 +148,7 @@ console.log('【第六十七轮 · R67：方向状态全称 + 紫框重排 + 全
 check('R67-1（R120-TB1 修订）方向状态「推进项目」全称标签独立成格（mb-k，与战略目标对仗）', () => { const mb = read('/newtab/components/compass/MetricBar.vue'); return mb.includes('<span class="mb-k">推进项目</span>') && !mb.includes('mb-k2">推进 '); });
 check('R67-2 项目调度归属呈现', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('cur-crumb') && !h.includes('cur-progress') && pc.includes('pc-current') && pc.includes('class="pb-crumb"');  });
 check('R67-3（R123 重指）论点入大横幅常亮强调（tb-badge 实底 + tb-btn），原 thesis-hl 指标卡退役', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('class="tb-badge"') && w.includes('.tb-badge {') && w.includes('.tb-btn {') && !w.includes('metric-card thesis-hl'); });
-check('R67-4 任务采集弹窗改页面正中（openTaskCapture center，资源采集保持 corner）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R67-F2') && c.split("openOverlay('center', closeOverlay)").length === 4 && c.split("openOverlay('corner', closeOverlay)").length === 2; });
+check('R67-4 任务/选题采集弹窗改页面正中（openTaskCapture / openTopicCapture center，资源采集保持 corner）', () => { const c = read('/content/overlay-impl.ts'); return c.includes('R67-F2') && c.includes("openOverlay('center', closeOverlay)") && c.includes("openOverlay('corner', closeOverlay)") && c.includes('function openTaskCapture()') && c.includes('function openTopicCapture()'); });
 check('R67-5（V4.3.0 重指）新卡落位口径守护：好奇心新增与浏览器内三类直采统一 unshift，marksort 仍按置顶>星标>普通（新卡落置顶之后、普通卡最前）', () => { const cu = read('/newtab/stores/curiosity.ts'); const cap = read('/content/overlay-capture.ts'); const ms = read('/shared/utils/marksort.ts'); return cu.includes('curiosities.unshift') && cap.includes('d2.tasks?.unshift(task)') && cap.includes('d.curiosities?.unshift') && cap.includes('d2.resources?.unshift(resource)') && ms.includes('markRank'); });
 check('R67-6 ★R4-Da 退役重指带备案：原守「全景数据源修复：panHubWss 改读原始 store.data.workspaces 过滤（当时 store.workspaces getter 排除资源台 ⇒ 全景恒空）+ gWsById 全景判定 + 默认选中资源台（const hubWs = panHubWss.value[0]）」——整页退役，但它修的病（数据源走带排除语义的 getter ⇒ 管理面恒空）在现管理面已被结构性避免，判据改认那三处真实锚点：① 池面板与调度台池 tab 都直读原始数组 store.data.resources 并按 workspaceId===CURATION_WS_ID 过滤（不经过任何排除资源台的 getter）② "默认选中资源台" 的现形=调度台底部三张卡默认 tab 就是资源卡池 ③ 池 id 常量仍是模型层唯一真源；panHubWss/gWsById/hubWs 在 GS 按 codeOnly 零命中', () => {
   const g = codeOnly(read('/newtab/views/GlobalSettings.vue'));
@@ -305,9 +305,9 @@ check('R70-11（R131-C1a 重写）isSelfWrite 由内容指纹升级为载荷 __w
   const r = read('/shared/storage/repository.ts');
   return r.includes('const SELF_CTX_ID = ') && r.includes('export function isSelfWrite(newValue: unknown): boolean') && r.includes('__wid: wid');
 });
-check('R70-12 P2 replaceData 加版本校验 + 遗漏段按 id 合并', () => {
+check('R70-12 P2 replaceData 加版本校验 + 遗漏段按 id 合并（V4.5 起选题卡关系也走同一合并）', () => {
   const r = read('/shared/storage/repository.ts');
-  return r.includes('function mergeByIdArr') && r.includes('replaceData: 数据版本不兼容') && r.includes('mergeByIdArr(cur.categories') && r.includes('mergeByIdArr(cur.workspaces');
+  return r.includes('function mergeByIdArr') && r.includes('replaceData: 数据版本不兼容') && r.includes('mergeCategoryArr(cur.categories') && r.includes('mergeByIdArr(cur.workspaces') && r.includes('topicResourceLinks: mergeByIdArr');
 });
 check('R70-13 P2 主数据只有一个写口 ★R4-Fb 重指带备案：原锚钉的是 popup 改走 repository，popup 端已随降级路径退役；这条性质升级成现扫负锚——除 shared/storage/repository.ts 自己，全 src 的**代码**里出现裸写 zy_data_v2 即红（吃 codeOnly，注释里讲历史不算）', () => {
   const bare = srcFileEntries().filter(e => e.rel !== 'shared/storage/repository.ts' && /local\.set\(\s*\{[^}]*zy_data_v2/.test(codeOnly(e.text)));

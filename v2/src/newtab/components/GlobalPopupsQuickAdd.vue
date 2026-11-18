@@ -16,13 +16,17 @@ import { uid } from '@/shared/utils'
 import { showToast } from '@/shared/components/toast'
 import { getRecentWebTab } from '@/shared/utils/recentWebTab'
 import Icon from '@/shared/components/Icon.vue'
-import type { CuriosityCard } from '@/shared/models'
+import { attachTopicToMetric } from '@/shared/utils/topicLinks'
+import { sortedTopicStatuses } from '@/shared/utils/topicStatus'
+import type { CuriosityCard, TopicCard } from '@/shared/models'
 
 const props = defineProps<{
   /** 任务速记面板当前是否打开 */
   taskActive: boolean
   /** 好奇采集面板当前是否打开 */
   curioActive: boolean
+  /** 选题采集面板当前是否打开 */
+  topicActive: boolean
   /** 宿主 openPanel 时带来的预填（R172-T11：复盘报告「生成任务」预填进任务速记，仍要用户点保存） */
   prefill?: { title?: string; description?: string }
 }>()
@@ -38,6 +42,7 @@ function closeAll() { emit('close') }
 // ===== R55-C：快速采集任务（四字段全非必填，直存全域任务；未挂项目=未归档） =====
 const tcTitleInput = ref<HTMLInputElement | null>(null)
 const curioInput = ref<HTMLTextAreaElement | null>(null)
+const topicTitleInput = ref<HTMLInputElement | null>(null)
 const tcForm = reactive({ title: '', description: '', projectId: '', metricId: '' })
 const tcSaved = ref(false)
 let tcSavedTimer: ReturnType<typeof setTimeout> | null = null
@@ -86,6 +91,44 @@ function resetTcForm() {
   tcSaved.value = false
 }
 
+// ===== V4.5：快速采集选题卡（选题是面向外界的成果，先保留标题与归属，资源在详情里挂载） =====
+const topicForm = reactive({ title: '', description: '', projectId: '', metricId: '', statusId: '' })
+const topicStatuses = computed(() => sortedTopicStatuses(d.value))
+
+function saveTopicCapture(): void {
+  const title = topicForm.title.trim()
+  if (!title) {
+    showToast('请输入选题标题')
+    return
+  }
+  const now = Date.now()
+  const topic: TopicCard = {
+    id: uid('topic'),
+    kind: 'topic',
+    title,
+    description: topicForm.description.trim(),
+    projectId: topicForm.projectId || undefined,
+    metricId: topicForm.metricId || undefined,
+    statusId: topicForm.statusId || topicStatuses.value[0]?.id || 'topic-idea',
+    customFields: {},
+    tags: [],
+    pinned: false,
+    createdAt: now,
+    updatedAt: now,
+  }
+  d.value.topics = d.value.topics || []
+  d.value.topics.unshift(topic)
+  attachTopicToMetric(d.value, topic, topic.projectId, topic.metricId)
+  store.persist()
+  topicForm.title = ''
+  topicForm.description = ''
+  topicForm.projectId = ''
+  topicForm.metricId = ''
+  topicForm.statusId = ''
+  closeAll()
+  showToast('选题卡+1')
+}
+
 // ===== 第十七轮：好奇心采集（仅当选中文本时附带来源；无选中 → 链接为空，不预设默认值） =====
 const curioForm = reactive({ text: '', sourceTitle: '', sourceUrl: '' })
 
@@ -129,6 +172,16 @@ watch(() => props.curioActive, v => {
     })
   }
   void nextTick(() => curioInput.value?.focus())
+})
+
+watch(() => props.topicActive, v => {
+  if (!v) return
+  topicForm.title = ''
+  topicForm.description = ''
+  topicForm.projectId = ''
+  topicForm.metricId = ''
+  topicForm.statusId = topicStatuses.value[0]?.id || ''
+  void nextTick(() => topicTitleInput.value?.focus())
 })
 
 /** 「已保存」态键盘（宿主 onSavedKeydown 的 taskcapture 分支原样迁入）：返回是否已消费 */
@@ -234,6 +287,59 @@ defineExpose({ savedKey })
       <div class="gp-cap-foot">
         <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
         <button class="gp-btn gp-btn-primary" @click="saveCurio"><Icon name="save" :size="13"/> 保存到罗盘</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快速采集选题卡：标题是首要字段，资源卡在详情页再挂载 -->
+  <div class="gp-overlay" :class="{open: topicActive}" @click.self="closeAll">
+    <div class="gp-panel gp-panel-narrow">
+      <div class="gp-cap-head">
+        <div class="gp-cap-icon res"><Icon name="bulb" :size="13"/></div>
+        <div class="gp-cap-titles">
+          <div class="gp-cap-title">快速采集选题卡</div>
+          <div class="gp-cap-sub">标题先说清楚 · 项目和资源可在详情里继续补</div>
+        </div>
+        <button class="gp-cap-close" @click="closeAll">×</button>
+      </div>
+      <div class="gp-cap-body">
+        <div class="gp-field">
+          <label class="gp-field-label">选题内容</label>
+          <input ref="topicTitleInput" type="text" class="gp-field-input" v-model="topicForm.title"
+            placeholder="这个选题要对谁说什么？"
+            @keydown.ctrl.enter.prevent="saveTopicCapture" @keydown.meta.enter.prevent="saveTopicCapture">
+        </div>
+        <div class="gp-field">
+          <label class="gp-field-label">说明（可选）</label>
+          <textarea class="gp-field-input gp-cap-desc" v-model="topicForm.description"
+            placeholder="补充边界、目标读者或交付形态" />
+        </div>
+        <div class="gp-field-row">
+          <div class="gp-field">
+            <label class="gp-field-label">所属项目</label>
+            <select class="gp-status-select" v-model="topicForm.projectId" @change="topicForm.metricId = ''">
+              <option value="">未关联项目</option>
+              <option v-for="p in tcProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+          <div class="gp-field">
+            <label class="gp-field-label">选题状态</label>
+            <select class="gp-status-select" v-model="topicForm.statusId">
+              <option v-for="status in topicStatuses" :key="status.id" :value="status.id">{{ status.name }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="gp-field">
+          <label class="gp-field-label">所属指标（可选）</label>
+          <select class="gp-status-select" v-model="topicForm.metricId" :disabled="!topicForm.projectId">
+            <option value="">暂不归属指标</option>
+            <option v-for="m in (tcProjects.find(p => p.id === topicForm.projectId)?.metrics || [])" :key="m.id" :value="m.id">{{ m.title }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="gp-cap-foot">
+        <button class="gp-btn gp-btn-ghost" @click="closeAll">取消</button>
+        <button class="gp-btn gp-btn-primary" @click="saveTopicCapture"><Icon name="save" :size="13"/> 保存选题（Ctrl+Enter）</button>
       </div>
     </div>
   </div>

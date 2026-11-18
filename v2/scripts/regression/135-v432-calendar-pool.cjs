@@ -22,9 +22,11 @@ check('V432-1（V4.3.4 重指）左栏遵守上方筛选并展示全部结果：
     && calendar.includes('if (aDate && !bDate) return 1')
     && calendar.includes("`落图 ${friendlyDate(task.dueDate)}`")
     && calendar.includes('@drop="dropOnDay($event, cell.key)"')
-    && calendar.includes("if (id) emit('set-due', id, day)")
+    && calendar.includes("if (kind === 'topic') emit('set-topic-due', id, day)")
+    && calendar.includes("else emit('set-due', id, day)")
     && calendar.includes('@drop="dropUnscheduled"')
-    && calendar.includes("if (id) emit('clear-due', id)")
+    && calendar.includes("if (kind === 'topic') emit('clear-topic-due', id)")
+    && calendar.includes("else emit('clear-due', id)")
     && calendar.includes('当前筛选没有任务');
 })
 
@@ -64,7 +66,8 @@ check('V432-4 月历任务按状态着色：已完成绿、今日橙、未来灰
     && calendar.includes("if (task.dueDate === todayKey.value) return 'today'")
     && calendar.includes("if (task.dueDate && task.dueDate > todayKey.value) return 'future'")
     && calendar.includes("if (task.dueDate && task.dueDate < todayKey.value) return 'overdue'")
-    && calendar.includes("'tone-' + taskTone(task)")
+    && calendar.includes("'tone-' + taskTone(entry.task)")
+    && calendar.includes("'tone-' + topicTone(entry.topic)")
     && calendar.includes('class="cal-tone-legend"')
     && css.includes('.cal-task-chip.tone-done')
     && css.includes('var(--success)')

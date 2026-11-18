@@ -14,6 +14,7 @@ import {
 import { getData, saveData } from './overlay-search'
 import { escapeHtml } from './overlay-query'
 import { canonicalHttpUrl } from '@/shared/utils/url'
+import { attachTopicToMetric } from '@/shared/utils/topicLinks'
 
 // REQ-031 P-031-8：采集去重 Map——打开小窗时构建一次 url→resource，保存时 O(1) 查重（千卡下不再全量扫描）
 let capUrlMap: Map<string, ResourceCard> | null = null
@@ -287,6 +288,100 @@ async function openTaskCapture() {
   setActiveTcSave(saveTc)
 }
 
+/** V4.5：快速采集选题卡。标题是详情页的第一视觉，页面选区只作为上下文预填。 */
+async function openTopicCapture() {
+  const cached = getSelCache()
+  const selection = resolveSelection()
+  const hasSel = !!selection
+  const pageTitle = hasSel ? ((cached.url === location.href && cached.title) || (document.title || '').trim()) : ''
+  const pageUrl = hasSel ? ((cached.url === location.href && cached.url) || location.href) : ''
+  clearSelCache()
+  const d = await getData()
+  const projects: any[] = []
+  for (const dir of d?.compass?.directions || []) for (const p of dir.projects || []) projects.push({ id: p.id, name: p.name, metrics: p.metrics || [] })
+  const statuses = [...(d?.topicStatuses || [])].sort((a, b) => a.order - b.order)
+  openOverlay('center', closeOverlay)
+  const root = ensureRoot()
+  const panel = document.createElement('div')
+  panel.className = 'zy-panel'
+  panel.innerHTML = `
+    <div class="zy-cap-head">
+      <div class="zy-cap-icon res">💡</div>
+      <div class="zy-cap-titles">
+        <div class="zy-cap-title">快速采集选题卡</div>
+        <div class="zy-cap-sub">标题先说清楚 · 项目和资源可在详情里继续补</div>
+      </div>
+      <button class="zy-cap-close" id="__zy_topic_close__">×</button>
+    </div>
+    <div class="zy-cap-body">
+      <div class="zy-field">
+        <label class="zy-field-label">选题内容${hasSel ? '（已预填页面标题，可编辑）' : ''}</label>
+        <input type="text" class="zy-field-input" id="__zy_topic_title__" placeholder="这个选题要对谁说什么？" value="${escapeHtml(hasSel ? pageTitle : '')}">
+      </div>
+      <div class="zy-field">
+        <label class="zy-field-label">说明${hasSel ? '（已填入选中文本，可编辑）' : '（可选）'}</label>
+        <textarea class="zy-field-input" id="__zy_topic_desc__" placeholder="补充边界、目标读者或交付形态">${escapeHtml(selection)}</textarea>
+      </div>
+      <div class="zy-field-row">
+        <div class="zy-field"><label class="zy-field-label">所属项目（可留空）</label>
+          <select class="zy-field-select" id="__zy_topic_proj__"><option value="">未关联项目</option>
+          ${projects.map((p: any) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('')}</select></div>
+        <div class="zy-field"><label class="zy-field-label">选题状态</label>
+          <select class="zy-field-select" id="__zy_topic_status__">${statuses.map((s: any) => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('') || '<option value="topic-idea">构思中</option>'}</select></div>
+      </div>
+      <div class="zy-field"><label class="zy-field-label">所属指标（可留空）</label>
+        <select class="zy-field-select" id="__zy_topic_met__" disabled><option value="">暂不归属指标</option></select></div>
+      ${hasSel && pageUrl ? `<div class="zy-field"><label class="zy-field-label">来源链接（可选）</label><input type="text" class="zy-field-input" id="__zy_topic_link__" value="${escapeHtml(pageUrl)}"></div>` : ''}
+    </div>
+    <div class="zy-cap-foot">
+      <button class="zy-btn zy-btn-ghost" id="__zy_topic_cancel__">取消</button>
+      <button class="zy-btn zy-btn-primary" id="__zy_topic_save__">保存选题（Ctrl+Enter）</button>
+    </div>
+  `
+  root.appendChild(panel)
+  const titleInput = document.getElementById('__zy_topic_title__') as HTMLInputElement
+  const descInput = document.getElementById('__zy_topic_desc__') as HTMLTextAreaElement
+  const projSel = document.getElementById('__zy_topic_proj__') as HTMLSelectElement
+  const metSel = document.getElementById('__zy_topic_met__') as HTMLSelectElement
+  const statusSel = document.getElementById('__zy_topic_status__') as HTMLSelectElement
+  const linkInput = document.getElementById('__zy_topic_link__') as HTMLInputElement | null
+  focusWhenReady(hasSel ? titleInput : titleInput, { select: hasSel })
+  projSel.addEventListener('change', () => {
+    const prj = projects.find(x => x.id === projSel.value)
+    metSel.disabled = !prj
+    metSel.innerHTML = '<option value="">暂不归属指标</option>' + (prj ? prj.metrics.map((m: any) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.title)}</option>`).join('') : '')
+  })
+  document.getElementById('__zy_topic_close__')?.addEventListener('click', closeOverlay)
+  document.getElementById('__zy_topic_cancel__')?.addEventListener('click', closeOverlay)
+  const saveTopic = async () => {
+    const title = titleInput.value.trim()
+    if (!title) { showToast('请输入选题标题'); return }
+    const latest = await getData()
+    if (!latest) { showToast('数据加载失败'); return }
+    const now = Date.now()
+    const topic: any = {
+      id: uid('topic'), kind: 'topic', title,
+      description: descInput.value.trim(),
+      link: linkInput?.value.trim() || undefined,
+      projectId: projSel.value || undefined,
+      metricId: metSel.value || undefined,
+      statusId: statusSel.value || latest.topicStatuses?.[0]?.id || 'topic-idea',
+      customFields: {}, tags: [], pinned: false,
+      createdAt: now, updatedAt: now,
+    }
+    latest.topics = latest.topics || []
+    latest.topics.unshift(topic)
+    attachTopicToMetric(latest, topic, topic.projectId, topic.metricId)
+    await saveData(latest)
+    closeOverlay()
+    showToast('选题卡+1')
+  }
+  document.getElementById('__zy_topic_save__')?.addEventListener('click', saveTopic)
+  titleInput.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveTopic() }
+  })
+}
+
 async function openCuriosity() {
   // 第廿四轮：实时选区优先 → 预取缓存兜底（缓存是选中当下捕获的，不受后续清选影响）
   // V2.21：先取缓存快照再清空——原实现只清 text、保留 url/title，此处语义保持一致
@@ -366,4 +461,4 @@ async function openCuriosity() {
   document.getElementById('__zy_cur_save__')?.addEventListener('click', saveCuriosity)
 }
 
-export { openCapture, openCuriosity, openTaskCapture }
+export { openCapture, openCuriosity, openTaskCapture, openTopicCapture }

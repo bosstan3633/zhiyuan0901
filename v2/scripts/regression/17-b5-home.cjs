@@ -11,7 +11,7 @@
  */
 const { check, read, codeOnly } = require('./helpers.cjs');
 
-const HOME = read('/newtab/views/CompassHome.vue');
+const HOME = read('/newtab/views/CompassHome.vue') + '\n' + read('/newtab/views/CompassHome.css');
 const HOST = read('/newtab/components/dashboard/TodayBattleHost.vue');
 const TM = read('/newtab/components/compass/TaskManagerPanel.vue');
 const CZ = read('/newtab/components/compass/CuriosityPanel.vue');
@@ -26,7 +26,7 @@ check('M3-1 ★V3.9.1 随迁备案：空计划位仍是「主行动」而不是�
   const emptyRule = (HOME.match(/^\.focus-row\.focus-card\.empty-row,[\s\S]*?\{[^}]*\}/m) || [''])[0];
   return HOME.includes('class="focus-row focus-card empty-row"')
     && plus.includes('border: 1px dashed')
-    && HOME.includes('从任务池选择')
+    && HOME.includes('从任务卡 / 选题卡中选择')
     && !!emptyRule
     && !/opacity:\s*\.?[0-8]/.test(emptyRule);
 });

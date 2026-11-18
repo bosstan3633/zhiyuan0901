@@ -11,7 +11,7 @@ import { getAllAssetIndex, getAssetBlob, putAssets } from '@/shared/storage/asse
 import { EXPORT_MARKERS } from '@/shared/storage/keys'
 import { wsNameById } from '@/shared/utils/wsName'
 
-export type AssetOwnerKind = 'resource' | 'task' | 'curiosity' | 'argument'
+export type AssetOwnerKind = 'resource' | 'task' | 'topic' | 'curiosity' | 'argument'
 
 export interface AssetOwnerRef {
   kind: AssetOwnerKind
@@ -100,6 +100,13 @@ export function collectAssetRows(d: AppData, index: { id: string; size: number; 
           .find(project => project.id === task.projectId)?.name
         location = ['方向台', projectName || projectByMetric.get(task.metricId || '')].filter(Boolean).join(' · ')
       } else if (kind === 'curiosity') location = '调度台'
+      else if (kind === 'topic') {
+        const topic = card as CardLike & { projectId?: string; metricId?: string }
+        const projectName = d.compass.directions
+          .flatMap(dir => dir.projects || [])
+          .find(project => project.id === topic.projectId)?.name
+        location = ['调度台 · 选题卡池', projectName || projectByMetric.get(topic.metricId || '')].filter(Boolean).join(' · ')
+      }
       else if (card.workspaceId && card.workspaceId !== CURATION_WS_ID && workspace?.kind !== 'resource') {
         location = workspace?.name || '未知策展台'
       }
@@ -129,6 +136,7 @@ export function collectAssetRows(d: AppData, index: { id: string; size: number; 
   }
   push('resource', d.resources as CardLike[])
   push('task', d.tasks as CardLike[])
+  push('topic', (d.topics || []) as CardLike[])
   push('curiosity', d.curiosities as CardLike[])
   push('argument', (d.argCards || []) as CardLike[])
   return rows.sort((a, b) => b.createdAt - a.createdAt)
@@ -212,6 +220,7 @@ export async function importAssetPack(
   const owners = {
     resource: new Map<string, CardLike>(d.resources.map(c => [c.id, c as CardLike])),
     task: new Map<string, CardLike>(d.tasks.map(c => [c.id, c as CardLike])),
+    topic: new Map<string, CardLike>((d.topics || []).map(c => [c.id, c as CardLike])),
     curiosity: new Map<string, CardLike>(d.curiosities.map(c => [c.id, c as CardLike])),
     argument: new Map<string, CardLike>((d.argCards || []).map(c => [c.id, c as CardLike]))
   }

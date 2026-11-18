@@ -49,6 +49,8 @@ const emit = defineEmits<{
   (e: 'toggleTask', taskId: string): void
   /** ★W12-C 透传：任务标题单击开任务详情抽屉（此前项目塔同样无任何 emit 通到 detailRef.open） */
   (e: 'openDetail', taskId: string): void
+  /** V4.5：选题卡详情透传（成果层，不混入任务集合）。 */
+  (e: 'openTopic', topicId: string): void
   (e: 'addTask', metricId: string): void
   (e: 'addMetric', projId: string): void
   /** ★R141 透传：解绑（不删本体） */
@@ -222,6 +224,7 @@ function hasClue(t: TaskCard): boolean {
           @toggle="emit('toggleMetric', $event)"
           @task="emit('toggleTask', $event)"
           @open-detail="emit('openDetail', $event)"
+          @open-topic="emit('openTopic', $event)"
           @add-task="emit('addTask', $event)"
           @unbind="emit('unbind', $event)"
           @ai-task="emit('aiTask', $event)"

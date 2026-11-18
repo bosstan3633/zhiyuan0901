@@ -46,12 +46,13 @@ check('D18-2（V4.3.1 重指）主栏主攻面板与右栏均退役；主攻改�
     && !CH_C.includes('focusMeta.get(');
 });
 
-check('D18-3（V4.3.1 重指）卡片池三页签：任务 / 好奇心 / 资源三枚 hand-tab（role=tablist + aria-selected）；任务页用完整工作面，另两页按需渲染，Inbox 与旧底部 tab 零回流', () => {
+check('D18-3（V4.5.0 重指）卡片池四页签：任务 / 选题 / 好奇心 / 资源四枚 hand-tab（role=tablist + aria-selected）；任务页用完整工作面，选题页复用选题管理器，另两页按需渲染', () => {
   return CH.includes('class="hand-tabs"')
-    && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 3
+    && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 4
     && CH.includes('role="tablist" aria-label="手边的卡类型"')
     && !CH.includes('hand-tab-inbox')
     && CH.includes(`v-if="handTab === 'task'"`)
+    && CH.includes(`v-else-if="handTab === 'topic'"`)
     && CH.includes(`v-else-if="handTab === 'curiosity'"`)
     && CH.includes(`v-else class="hand-grid hand-grid-aux resource-tab-grid"`)
     && !CH_C.includes(`handTab === 'inbox'`)

@@ -27,6 +27,8 @@ export interface NodeSnapshot {
   node: Direction | Project | Metric
   /** 删指标时被清空 metricId 的任务（撤销时回填） */
   unlinkedTasks: { taskId: string; projectId?: string }[]
+  /** 删项目/指标/方向时被解除归属的选题卡（选题本体不删，撤销时回填） */
+  unlinkedTopics: { topicId: string; projectId?: string; metricId?: string }[]
 }
 
 function locate(d: AppData, kind: CompassNodeKind, id: string): { list: any[]; index: number; parentId: string } | null {
@@ -50,7 +52,7 @@ function locate(d: AppData, kind: CompassNodeKind, id: string): { list: any[]; i
 }
 
 /** 确认文案用的报数：这条节点之下还有什么（"删了会带走多少"） */
-export function compassNodeCounts(d: AppData, kind: CompassNodeKind, id: string): { projects: number; metrics: number; tasks: number; label: string } {
+export function compassNodeCounts(d: AppData, kind: CompassNodeKind, id: string): { projects: number; metrics: number; tasks: number; topics: number; label: string } {
   const dirs = d.compass.directions || []
   const tasksOfMetrics = (ms: Metric[]) => {
     const ids = new Set(ms.flatMap(m => m.taskIds || []))
@@ -59,12 +61,26 @@ export function compassNodeCounts(d: AppData, kind: CompassNodeKind, id: string)
   if (kind === 'direction') {
     const dir = dirs.find(x => x.id === id)
     const ms = dir ? dir.projects.flatMap(p => p.metrics) : []
-    return { projects: dir?.projects.length || 0, metrics: ms.length, tasks: tasksOfMetrics(ms), label: '战略目标' }
+    const topicIds = new Set(ms.flatMap(m => m.topicIds || []))
+    const topicCount = (d.topics || []).filter(topic => !topic.deletedAt && (
+      (dir?.projects || []).some(p => p.metrics.some(m => m.id === topic.metricId))
+      || (topic.projectId && (dir?.projects || []).some(p => p.id === topic.projectId))
+      || topicIds.has(topic.id)
+    )).length
+    return { projects: dir?.projects.length || 0, metrics: ms.length, tasks: tasksOfMetrics(ms), topics: topicCount, label: '战略目标' }
   }
   if (kind === 'project') {
     for (const dir of dirs) {
       const p = dir.projects.find(x => x.id === id)
-      if (p) return { projects: 1, metrics: p.metrics.length, tasks: tasksOfMetrics(p.metrics), label: '攻坚项目' }
+      if (p) {
+        const topicIds = new Set(p.metrics.flatMap(m => m.topicIds || []))
+        const topicCount = (d.topics || []).filter(topic => !topic.deletedAt && (
+          topic.projectId === p.id
+          || (topic.metricId && p.metrics.some(m => m.id === topic.metricId))
+          || topicIds.has(topic.id)
+        )).length
+        return { projects: 1, metrics: p.metrics.length, tasks: tasksOfMetrics(p.metrics), topics: topicCount, label: '攻坚项目' }
+      }
     }
   }
   for (const dir of dirs) for (const p of dir.projects) {
@@ -72,10 +88,12 @@ export function compassNodeCounts(d: AppData, kind: CompassNodeKind, id: string)
     if (m) {
       const ids = new Set(m.taskIds || [])
       const n = (d.tasks || []).filter(t => !t.deletedAt && (ids.has(t.id) || t.metricId === id)).length
-      return { projects: 0, metrics: 1, tasks: n, label: '成功指标' }
+      const topicIds = new Set(m.topicIds || [])
+      const topicCount = (d.topics || []).filter(topic => !topic.deletedAt && (topic.metricId === id || topicIds.has(topic.id))).length
+      return { projects: 0, metrics: 1, tasks: n, topics: topicCount, label: '成功指标' }
     }
   }
-  return { projects: 0, metrics: 0, tasks: 0, label: '节点' }
+  return { projects: 0, metrics: 0, tasks: 0, topics: 0, label: '节点' }
 }
 
 /**
@@ -88,11 +106,45 @@ export function removeCompassNode(d: AppData, kind: CompassNodeKind, id: string)
   if (!at) return null
   const node = at.list[at.index] as Metric | Project | Direction
   const unlinked: { taskId: string; projectId?: string }[] = []
+  const unlinkedTopics: { topicId: string; projectId?: string; metricId?: string }[] = []
+  const detachTopic = (topic: { id: string; projectId?: string; metricId?: string }) => {
+    if (!topic.projectId && !topic.metricId) return
+    unlinkedTopics.push({ topicId: topic.id, projectId: topic.projectId, metricId: topic.metricId })
+    topic.projectId = undefined
+    topic.metricId = undefined
+  }
   if (kind === 'metric') {
     for (const t of d.tasks || []) if (!t.deletedAt && t.metricId === id) { unlinked.push({ taskId: t.id, projectId: t.projectId }); t.metricId = undefined; t.updatedAt = Date.now() }
+    const metric = node as Metric
+    const attached = new Set(metric.topicIds || [])
+    for (const topic of d.topics || []) {
+      if (!topic.deletedAt && (topic.metricId === id || attached.has(topic.id))) {
+        if (topic.metricId === id) {
+          // 指标删除只解除选题的指标引用；选题仍保留项目定位，便于后续重新挂指标。
+          unlinkedTopics.push({ topicId: topic.id, projectId: topic.projectId, metricId: topic.metricId })
+          topic.metricId = undefined
+          topic.updatedAt = Date.now()
+        }
+      }
+    }
+  } else {
+    const projectIds = kind === 'project'
+      ? new Set([id])
+      : new Set((node as Direction).projects.map(p => p.id))
+    const metricIds = new Set(
+      kind === 'project'
+        ? ((node as Project).metrics || []).map(m => m.id)
+        : ((node as Direction).projects || []).flatMap(p => (p.metrics || []).map(m => m.id)),
+    )
+    for (const topic of d.topics || []) {
+      if (!topic.deletedAt && (
+        (topic.projectId && projectIds.has(topic.projectId))
+        || (topic.metricId && metricIds.has(topic.metricId))
+      )) detachTopic(topic)
+    }
   }
   at.list.splice(at.index, 1)
-  return { kind, parentId: at.parentId, index: at.index, node, unlinkedTasks: unlinked }
+  return { kind, parentId: at.parentId, index: at.index, node, unlinkedTasks: unlinked, unlinkedTopics }
 }
 
 /** 撤销：按原坐标插回（父若已被更上层删除则放弃，返回 false 由调用方如实回执） */
@@ -114,6 +166,14 @@ export function restoreCompassNode(d: AppData, snap: NodeSnapshot): boolean {
     const t = (d.tasks || []).find(x => x.id === u.taskId)
     if (t) { t.metricId = (snap.node as Metric).id; t.updatedAt = Date.now() }
   }
+  for (const u of snap.unlinkedTopics) {
+    const topic = (d.topics || []).find(x => x.id === u.topicId)
+    if (topic) {
+      topic.projectId = u.projectId
+      topic.metricId = u.metricId
+      topic.updatedAt = Date.now()
+    }
+  }
   return true
 }
 
@@ -125,14 +185,16 @@ export async function removeMetricWithConfirm(d: AppData, metricId: string, pers
   for (const dir of d.compass.directions || []) for (const p of dir.projects) { const m = p.metrics.find(x => x.id === metricId); if (m) name = m.title }
   const ok = await useConfirm({
     title: '删除成功指标',
-    message: c.tasks ? `确定删除指标「${name}」？\n其下 ${c.tasks} 个任务将转为「未关联指标」（任务本体不删，可拖回任意指标）。` : `确定删除指标「${name}」？\n该指标下还没有任务。`,
+    message: c.tasks || c.topics
+      ? `确定删除指标「${name}」？\n其下 ${c.tasks} 个任务将转为「未关联指标」，${c.topics} 个选题卡将解除指标引用（两者本体都不删，可重新关联）。`
+      : `确定删除指标「${name}」？\n该指标下还没有任务或选题。`,
     confirmText: '确认删除',
   })
   if (!ok) return
   const snap = removeCompassNode(d, 'metric', metricId)
   if (!snap) return
   persist()
-  showToast(`已删除指标「${name.slice(0, 16)}」${c.tasks ? ` · ${c.tasks} 个任务转为未关联` : ''}`, { label: '撤销', cb: () => {
+  showToast(`已删除指标「${name.slice(0, 16)}」${c.tasks ? ` · ${c.tasks} 个任务转为未关联` : ''}${c.topics ? ` · ${c.topics} 个选题解除引用` : ''}`, { label: '撤销', cb: () => {
     if (restoreCompassNode(d, snap)) { persist(); showToast(`✓ 已恢复指标「${name.slice(0, 16)}」`) }
     else showToast('⚠ 上级项目已不在，无法单独恢复该指标')
   } })
