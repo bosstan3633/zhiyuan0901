@@ -219,7 +219,7 @@ function doExport(fmt: ExportFmt) {
       <template v-else>
         <CurationTreeLayout v-if="layout === 'tree'" :tree="filteredTree" :collapsed="collapsedIds" :focused="!!projectFilter"
           @toggle="toggle" @open="sel = $event"/>
-        <CurationPyramidLayout v-else :tree="filteredTree" :focused="!!projectFilter" :on-task-persist="onTaskRelocated" @open="sel = $event"/>
+        <CurationPyramidLayout v-else :tree="filteredTree" :collapsed="collapsedIds" :focused="!!projectFilter" :on-task-persist="onTaskRelocated" @open="sel = $event"/>
       </template>
     </main>
     <CurationReadDrawer :open="!!sel" :sel="sel" :tree="filteredTree"
@@ -230,25 +230,25 @@ function doExport(fmt: ExportFmt) {
 <style scoped>
 .cmp-page {
   width: 100%; max-width: 100%; min-width: 0; min-height: 100vh;
-  background: var(--bg); color: var(--text);
+  background: linear-gradient(180deg, var(--lv-green-faint), var(--bg) 280px); color: var(--text);
   display: flex; flex-direction: column; overflow-x: hidden;
 }
-.cmp-head { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 14px; padding: 12px 40px 8px; max-width: 1640px; width: 100%; margin: 0 auto; }
+.cmp-head { position: relative; z-index: 10; display: flex; align-items: center; gap: 14px; padding: 22px 28px 16px; max-width: 1624px; width: 100%; margin: 0 auto; }
 .cmp-back { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: var(--fs-sub); cursor: pointer; font-family: inherit; }
-.cmp-back:hover { border-color: var(--accent); color: var(--accent); }
+.cmp-back:hover { border-color: var(--lv-green); color: var(--lv-green-deep); background: var(--lv-green-faint); }
 .cmp-back-ico { transform: rotate(180deg); }
 .cmp-title b { font-size: var(--fs-headline); }
 .cmp-sub { display: block; font-size: var(--fs-caption); color: var(--text-3); }
 .sp { flex: 1; }
 /* V4.3.6 二级工具栏：筛选 / 视图 / 层级 / 导出 四组成组（原型 V0.3） */
-.cmp-toolbar { display: flex; align-items: center; gap: 10px; margin: 0 auto; padding: 9px 12px; width: 100%; max-width: 1560px;
-  background: color-mix(in srgb, var(--surface) 78%, transparent); backdrop-filter: blur(12px);
-  border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--lv-card-shadow); flex-wrap: wrap; }
+.cmp-toolbar { display: flex; align-items: center; gap: 14px; margin: 0 auto; padding: 12px 18px; width: calc(100% - 56px); max-width: 1568px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+  box-shadow: var(--lv-card-shadow); flex-wrap: wrap; }
 .cmp-group { display: flex; align-items: center; gap: 8px; }
 .cmp-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; flex: none; }
 .cmp-tool-label { font-size: var(--fs-caption); color: var(--text-3); letter-spacing: .08em; font-weight: 700; }
 .cmp-select { position: relative; display: inline-flex; align-items: center; }
-.cmp-select select { appearance: none; height: 34px; padding: 0 30px 0 12px; border-radius: var(--radius-full);
+.cmp-select select { appearance: none; height: 38px; padding: 0 34px 0 14px; border-radius: var(--radius-full);
   border: 1px solid var(--border); background: var(--surface); font: inherit; font-size: var(--fs-body); color: var(--text); font-weight: 600; max-width: 230px;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast); cursor: pointer; }
 .cmp-select select:hover, .cmp-select select:focus { border-color: var(--lv-mint); outline: none; box-shadow: 0 0 0 3px var(--lv-green-faint); }
@@ -265,7 +265,7 @@ function doExport(fmt: ExportFmt) {
 .cmp-tool { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--radius-full);
   border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-sub); font-weight: 600; cursor: pointer; transition: var(--dur-fast); }
 .cmp-tool:hover { border-color: var(--lv-mint); color: var(--lv-green-deep); background: var(--lv-green-faint); }
-.cmp-body { flex: 1; min-width: 0; max-width: 100%; padding: 18px 40px 40px; overflow-x: hidden; }
+.cmp-body { flex: 1; min-width: 0; max-width: 100%; padding: 20px 28px 48px; overflow-x: auto; }
 /* V4.3.6 聚焦横幅 */
 .cmp-focus-banner { display: flex; align-items: center; gap: 10px; max-width: 1560px; margin: 0 auto 18px;
   padding: 10px 16px; border-radius: var(--radius-lg); background: var(--lv-green-faint); border: 1px dashed var(--lv-mint);
@@ -282,7 +282,7 @@ function doExport(fmt: ExportFmt) {
 @media (max-width: 900px) {
   .cmp-head { flex-wrap: wrap; padding: 8px 14px; }
   .cmp-sub { display: none; }
-  .cmp-toolbar { margin: 0 14px; width: auto; }
+  .cmp-toolbar { margin: 0 14px; width: calc(100% - 28px); padding: 10px 12px; }
   .cmp-group { flex-wrap: wrap; }
   .cmp-body { padding: 12px 14px 24px; }
   .cmp-focus-banner { flex-wrap: wrap; }

@@ -111,7 +111,8 @@ check('R182-C4 ★第 5/6 层列表进入项目全景定位：行点击先打开
   const locate = segOf(projects, 'function onListLocate(', '\n/**');
   return locate.includes('openPano(projId)')
     && locate.includes('layerView.value = null')
-    && locate.includes('[data-metric="${metricId}"] [data-task="${taskId}"], [data-task="${taskId}"]')
+    && locate.includes("querySelectorAll<HTMLElement>('[data-metric]')")
+    && locate.includes("querySelectorAll<HTMLElement>('[data-task]')")
     && locate.includes('flashLocated(el)')
     && locate.includes('已切到项目全景并定位指标')
     && locate.includes('已切到项目全景并定位任务')

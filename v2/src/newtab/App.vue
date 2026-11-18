@@ -599,7 +599,7 @@ const backupReminderDot = computed(() => {
 </script>
 
 <template>
-  <div class="app-shell" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false); moreOpen && (moreOpen = false); deckLibraryOpen && (deckLibraryOpen = false)">
+  <div class="app-shell" :class="{ 'oppo-workspace': activeTab === 'home' || activeTab === 'compass' }" data-a11y-container @click="menuWs && closeMenu(); themeOpen && (themeOpen = false); moreOpen && (moreOpen = false); deckLibraryOpen && (deckLibraryOpen = false)">
     <!-- R168：AI 徽标的图形定义，全站只挂这一份（各入口走 `<use href="#zy-ai-mark">`）——
          见 AiMarkSymbol.vue：一屏 32 枚徽标原样是 224 个 DOM 节点，现降到 64 个 -->
     <AiMarkSymbol />
@@ -788,6 +788,9 @@ const backupReminderDot = computed(() => {
 
 <style scoped>
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.oppo-workspace .topbar { border-bottom-color: color-mix(in srgb, var(--lv-green) 18%, var(--border)); }
+.oppo-workspace .tab.active { color: var(--lv-green-deep); background: var(--lv-green-soft); }
+.oppo-workspace .tab:hover:not(.active) { background: var(--lv-green-faint); }
 /* R123（原型）：顶栏 48px（原 56px），对齐原型 top-nav */
 .topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */

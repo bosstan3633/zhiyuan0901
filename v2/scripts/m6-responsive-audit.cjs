@@ -47,6 +47,12 @@ const VIEW_NAMES = { '/': '调度台', '/compass': '方向台', '/profile': '画
 const MIN_HOT = 28;
 
 function latestBackup() {
+  if (argv.data) {
+    const selected = path.resolve(String(argv.data));
+    if (!fs.existsSync(selected)) throw new Error('指定的备份数据不存在：' + selected);
+    console.log(`· 数据源：${selected}（显式指定）`);
+    return selected;
+  }
   /* ★V3.9.6 修（2026-10-21）：本函数原来在**仓库根目录**找 `zhiyuan_backup_*.json`，
      但备份实际落在**用户 Downloads**（theme-audit 一直是从那里取的）⇒ 本脚本在本机
      **从未跑起来过**（一上来就 "找不到备份数据"），M6 的热区 / 溢出读数其实一直是**抄旧账**。

@@ -18,6 +18,7 @@ import type { TaskCard } from '@/shared/models'
 
 const props = defineProps<{
   tree: CurationTree
+  collapsed: Set<string>
   /** V4.3.6：项目筛选聚焦态——愿景/使命与目标层降级为背景 */
   focused?: boolean
   /** V3.9.34（需求拍板）：任务拖拽归位的落盘回调由宿主传入——本组件不直调 store 落盘，
@@ -82,7 +83,7 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
             <b>{{ gi + 1 }}. {{ g.dir.name || '未命名战略目标' }}</b>
             <small>{{ g.projects.length }} 项目 · {{ g.projects.reduce((s, P) => s + P.totalCount, 0) }} 任务</small>
           </div>
-          <ul class="org-lv" v-if="g.projects.length">
+          <ul class="org-lv" v-if="g.projects.length && !collapsed.has('g' + g.dir.id)">
             <li v-for="P in g.projects" :key="P.project.id">
               <div class="cv-card node proj" role="button" tabindex="0"
                 @click="emit('open', { kind: 'project', node: P })" @keydown.enter="emit('open', { kind: 'project', node: P })">
@@ -177,8 +178,8 @@ function onMetricDrop(e: DragEvent, m: CurationMetricNode) {
 .cpl.focused .node.goal { opacity: .82; box-shadow: none; }
 .cpl.focused .node.proj { border-color: var(--lv-mint); box-shadow: var(--lv-card-shadow-hover); }
 .cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md, 10px); padding: 8px 12px; cursor: pointer; transition: border-color var(--dur-fast, 120ms), background var(--dur-fast, 120ms); white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; }
-.cv-card:hover { border-color: var(--accent); background: var(--surface-2); }
-.cv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cv-card:hover { border-color: var(--lv-green); background: var(--lv-green-faint); }
+.cv-card:focus-visible { outline: 2px solid var(--lv-green); outline-offset: 1px; }
 
 /* ── org-chart 连线（经典 CSS 树）：横轨 + 垂直落线 + 父级中缝引用线 ── */
 .org { width: max-content; min-width: 100%; box-sizing: border-box; padding: 0 12px; }
@@ -200,15 +201,15 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .org-lv li:only-child::after { width: 0; border-top: 0; }
 
 .node { display: flex; flex-direction: column; gap: 3px; min-width: 168px; max-width: 250px; }
-.node.goal { border-left: 3px solid var(--accent); min-width: 200px; }
+.node.goal { border-left: 3px solid var(--lv-green); min-width: 200px; }
 .node.goal b, .node.proj b, .node.met b { color: var(--text); font-size: var(--fs-body); overflow-wrap: anywhere; word-break: break-word; }
 .node.proj .np { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.badge { flex: none; font-size: 10px; font-weight: 700; color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; }
+.badge { flex: none; font-size: 10px; font-weight: 700; color: var(--lv-green-deep); border: 1px solid var(--lv-mint); border-radius: 999px; padding: 0 7px; }
 .node small { color: var(--text-3); font-size: var(--fs-caption); }
 .node small.warn { color: var(--warning); }
 .node .target { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .node .bar { display: block; height: 3px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
-.node .bar span { display: block; height: 100%; background: var(--accent); }
+.node .bar span { display: block; height: 100%; background: var(--lv-green); }
 .node .bar.metric { width: 100%; height: 4px; margin-top: 1px; }
 .orph { display: inline-flex; align-items: center; gap: 10px; border-style: dashed; }
 .orph b { color: var(--text); font-size: var(--fs-body); }
@@ -228,12 +229,12 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .met-task-dot { flex: none; width: 5px; height: 5px; margin-top: 6px; border-radius: 50%; background: var(--tag-info-text); }
 .met-task-item.task-done, .orph-task-item.task-done { background: var(--surface-3); color: var(--text-3); }
 .met-task-item.task-done .met-task-dot, .orph-task-item.task-done .met-task-dot { background: var(--text-3); }
-.met-task-item.task-doing, .orph-task-item.task-doing { border-left: 2px solid var(--accent); background: var(--tag-info-bg); color: var(--text); }
-.met-task-item.task-doing .met-task-dot, .orph-task-item.task-doing .met-task-dot { background: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.met-task-item.task-doing, .orph-task-item.task-doing { border-left: 2px solid var(--lv-green); background: var(--lv-green-faint); color: var(--text); }
+.met-task-item.task-doing .met-task-dot, .orph-task-item.task-doing .met-task-dot { background: var(--lv-green); box-shadow: 0 0 0 2px var(--lv-green-soft); }
 .met-task-item.task-stale, .orph-task-item.task-stale { border-color: color-mix(in srgb, var(--warning) 35%, var(--border)); background: var(--warning-bg-soft); }
 .met-task-item.task-stale .met-task-dot, .orph-task-item.task-stale .met-task-dot { background: var(--warning); }
 .met-more { grid-column: 1 / -1; text-align: center; color: var(--text-3); font-size: var(--fs-micro); border: none; background: none; font-family: inherit; cursor: pointer; padding: 2px 0; }
-.met-more:hover { color: var(--accent); }
+.met-more:hover { color: var(--lv-green-deep); }
 
 .orph-drop-zone { max-width: 800px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-sm); }
 .orph-title { font-size: var(--fs-body); color: var(--text); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
@@ -241,7 +242,7 @@ ul.org-lv::before { content: ''; position: absolute; top: 0; left: 50%; width: 0
 .orph-tasks { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* 拖拽反馈：落点高亮 + 拖拽源半透明 */
-.node.met.drop-target { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-glow); }
+.node.met.drop-target { border-color: var(--lv-green); background: var(--lv-green-faint); box-shadow: 0 0 0 2px var(--lv-green-soft); }
 .met-task-item.dragging, .orph-task-item.dragging { opacity: var(--opacity-disabled); }
 .orph-task-item { max-width: 240px; }
 .orph-tasks .orph-task-item { width: auto; }

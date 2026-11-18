@@ -384,7 +384,7 @@ const {
                 <button class="hand-link" type="button" @click="goDeck('resource')">全部 <Icon name="arrowright" :size="12" /></button>
               </header>
               <div class="recent-list resource-recent-list">
-                <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" :title="r.link ? '单击打开链接 · 打不开则滑出详情' : '单击滑出详情'" @click="openRecentResource(r)">
+                <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" title="查看资源卡详情" @click="openRecentResource(r)">
                   <Icon :name="r.linkType === 'file' ? 'filetext' : r.link ? 'link' : 'package'" :size="13" />
                   <span class="recent-copy"><span class="recent-title">{{ r.title }}</span><span class="recent-meta">{{ fmtRecentTime(r.lastCalledAt) }} · 打开 {{ r.callCount || 0 }} 次</span></span>
                 </button>

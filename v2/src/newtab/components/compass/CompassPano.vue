@@ -129,7 +129,7 @@ const laneCount = computed(() => {
 </script>
 
 <template>
-  <div class="pano" :style="{ '--hue': current?.hue || 'var(--accent)' }">
+  <div class="pano" :data-project="current?.proj.id" :style="{ '--hue': current?.hue || 'var(--accent)' }">
     <template v-if="current">
       <section class="pano-h" aria-label="当前项目摘要">
         <div class="ph-toolbar">
@@ -226,7 +226,7 @@ const laneCount = computed(() => {
               <div class="lo-note">在项目内，但<b class="bad">没挂任何成功指标</b></div>
             </header>
             <div class="lo-body">
-              <div v-for="t in current.pm.orphanTasks" :key="t.id" class="lo-task">
+              <div v-for="t in current.pm.orphanTasks" :key="t.id" class="lo-task" :data-task="t.id">
                 <div class="lo-task-t">{{ t.title }}</div>
                 <div class="lo-task-b">
                   <span class="lo-tag lo-tag-clue"><Icon name="warn" :size="13"/> 缺指标归属</span>

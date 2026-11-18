@@ -1118,15 +1118,8 @@ function openCurioPreview(c: CuriosityCard): void {
 function openResourcePreview(r: ResourceCard): void {
   emitOpenDrawer({ kind: 'res', id: r.id })
 }
-/** ★W17-C02（2026-10-20 用户拍板）：「最近调出」单击分流——
- *  有可打开链接 → 直接打开（useResourceOpen 内部记账一次）；
- *  无链接 / 打不开 → 回落右侧滑出详情抽屉。回落路径**零提前记账**（C02.3 陷阱：
- *  ResourceDetailDrawer.openFromId 打开时自己记一次，两边都记 = 双计）。 */
+/** 首页资源行只打开详情；外链交给详情页的显式动作。 */
 function openRecentResource(r: ResourceCard): void {
-  if (openResourceLink(r)) {
-    void refreshTodayOutOps()
-    return
-  }
   openResourcePreview(r)
 }
 function goDeck(kind: HandKind): void {

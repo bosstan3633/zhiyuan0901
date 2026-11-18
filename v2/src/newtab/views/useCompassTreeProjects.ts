@@ -197,27 +197,34 @@ function onListLocate(target: { projId: string; metricId?: string; taskId?: stri
   riskOpen.value = false
   dirFilter.value = ''
   openPano(projId)
-  nextTick(() => {
-    const selector = taskId
-      ? `[data-metric="${metricId}"] [data-task="${taskId}"], [data-task="${taskId}"]`
-      : metricId
-        ? `[data-metric="${metricId}"]`
-        : '.pano'
-    nextTick(() => {
-      const el = document.querySelector(selector) as HTMLElement | null
-      if (el) {
-        flashLocated(el)
-        if (taskId) showToast('已切到项目全景并定位任务')
-        else if (metricId) showToast('已切到项目全景并定位指标')
-        return
-      }
-      if (taskId && !metricId) {
-        const orphan = document.querySelector(`[data-task="${taskId}"]`) as HTMLElement | null
-        if (orphan) { flashLocated(orphan); showToast('已切到项目全景并定位收容任务'); return }
-      }
-      showToast(taskId ? '任务已不在该项目' : '定位目标已不在')
-    })
-  })
+  // The view transition mounts the panorama after the list leaves, not at nextTick.
+  const started = performance.now()
+  function locateWhenMounted() {
+    const pano = document.querySelector('.pano') as HTMLElement | null
+    if ((!pano || pano.dataset.project !== projId) && performance.now() - started < 2000) {
+      requestAnimationFrame(locateWhenMounted)
+      return
+    }
+    if (!pano || pano.dataset.project !== projId) { showToast('项目全景暂未加载，请重试'); return }
+    const metric = metricId ? [...(pano?.querySelectorAll<HTMLElement>('[data-metric]') || [])]
+      .find(el => el.dataset.metric === metricId) : null
+    const rows = (metric || pano)?.querySelectorAll<HTMLElement>('[data-task]') || []
+    const el = taskId ? [...rows].find(row => row.dataset.task === taskId) : metric || pano
+    if (el) {
+      flashLocated(el)
+      if (taskId) showToast('已切到项目全景并定位任务')
+      else if (metricId) showToast('已切到项目全景并定位指标')
+      return
+    }
+    // A stale task.metricId can disagree with metric.taskIds. The project panorama is still valid.
+    if (pano && taskId && metric) {
+      const row = [...pano.querySelectorAll<HTMLElement>('[data-task]')].find(item => item.dataset.task === taskId)
+      if (row) { flashLocated(row); showToast('已切到项目全景并定位任务'); return }
+    }
+    if (pano) { flashLocated(pano); showToast('已切到所属项目全景，请在项目中查看该条目'); return }
+    showToast('项目全景暂未加载，请重试')
+  }
+  nextTick(() => requestAnimationFrame(locateWhenMounted))
 }
 /**
  * ★F7 列表第 3 层行内编辑：关掉层级列表回到项目塔，再就地进入该目标标题编辑。

@@ -3865,6 +3865,43 @@ await paOpen()
     poolOk,
     `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} 角标同色=${badgeUniform} 今日弹窗=${todayFolderModal} 常用夹弹窗=${regularFolderModal}/${regularFolderCount} fresh=${deckFresh} list=${deckList} url=${page.url()}`)
 
+  // V4.3.7: test the transition boundary, not just the locator source text.
+  await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.spine-toggle', { visible: true, timeout: 10000 })
+  if (await page.locator('.spine-toggle').getAttribute('aria-expanded') === 'false') await page.locator('.spine-toggle').click()
+  await waitForLocator(page, '.spine-lv.lv5', { visible: true, timeout: 10000 })
+  await page.locator('.spine-lv.lv5').click()
+  await waitForLocator(page, '.lvl-row.r5', { visible: true, timeout: 8000 })
+  await page.locator('.lvl-row.r5').filter({ hasText: 'E2E 成功指标' }).first().click()
+  const metricLocated = await pollUntil(async () =>
+    page.locator('.pano[data-project="e2e-proj-1"] [data-metric="e2e-metric-1"]').count().then(n => n > 0),
+  { label: 'metric panorama', timeout: 8000 }).catch(() => false)
+  await page.locator('.spine-lv.lv6').click()
+  await waitForLocator(page, '.lvl-row.r6', { visible: true, timeout: 8000 })
+  await page.locator('.lvl-row.r6').filter({ hasText: 'E2E 任务卡' }).first().click()
+  const taskLocated = await pollUntil(async () =>
+    page.locator('.pano[data-project="e2e-proj-1"] [data-task="e2e-task-1"]').count().then(n => n > 0),
+  { label: 'task panorama', timeout: 8000 }).catch(() => false)
+  report('E2E-65 V4.3.7 指标与任务从层级列表切换后定位到所属项目全景', metricLocated && taskLocated,
+    `metric=${metricLocated} task=${taskLocated}`)
+
+  await page.goto(base + '#/compass/curation?layout=tree', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.ctl-goal', { visible: true, timeout: 8000 })
+  await page.getByRole('button', { name: '折叠至目标' }).click()
+  const treeCollapsed = await page.locator('.ctl-goal.collapsed').count() > 0
+    && await page.locator('.ctl-branch').count() === 0
+  await page.getByRole('button', { name: '全部展开' }).click()
+  const treeExpanded = await page.locator('.ctl-branch').count() > 0
+  await page.getByRole('button', { name: '金字塔' }).click()
+  await waitForLocator(page, '.org', { visible: true, timeout: 8000 })
+  await page.getByRole('button', { name: '折叠至目标' }).click()
+  const pyramidCollapsed = await page.locator('.org .node.proj').count() === 0
+  await page.getByRole('button', { name: '全部展开' }).click()
+  const pyramidExpanded = await page.locator('.org .node.proj').count() > 0
+  report('E2E-66 V4.3.7 树状与金字塔折叠至目标及全部展开',
+    treeCollapsed && treeExpanded && pyramidCollapsed && pyramidExpanded,
+    `tree=${treeCollapsed}/${treeExpanded} pyramid=${pyramidCollapsed}/${pyramidExpanded}`)
+
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。
   if (process.env.ZY_E2E_EXPORT_DATA) {

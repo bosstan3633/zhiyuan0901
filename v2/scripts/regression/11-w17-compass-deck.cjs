@@ -71,13 +71,12 @@ check('W17-3 ★本周复用同源：清单按 wrr 周戳过滤，跨周后与�
 
 /* ══════════════ C02 · 最近调出单击分流 ══════════════ */
 
-check('W17-4 ★单一计数入口：CompassHome 不再定义本地 openResourceLink，单击分流走 useResourceOpen', () => {
+check('W17-4（V4.3.7 重指）首页资源行只滑出详情；链接由详情页显式打开，避免单击误跳转与重复记账', () => {
   return !PI_C.includes('function openResourceLink(r: ResourceCard): void {')
     && PI.includes('useResourceOpen({ store, d })')
     && PI.includes('function openRecentResource(r: ResourceCard): void {')
-    && PI.includes('if (openResourceLink(r)) {')
-    && PI.includes('void refreshTodayOutOps()')
     && PI.includes('openResourcePreview(r)')
+    && !PI.includes('if (openResourceLink(r)) {')
     && PI.includes('@click="openRecentResource(r)"');
 });
 

@@ -222,7 +222,7 @@ function ringDash(pct: number): string {
 .ctl-proj-head { display: flex; align-items: center; gap: 12px; padding: 13px 16px 13px 34px; cursor: pointer; }
 .ctl-badge { flex: none; height: 21px; padding: 0 9px; border-radius: var(--radius-full); background: var(--lv-green-soft); color: var(--lv-green-deep); font-size: var(--fs-caption); font-weight: 800; display: inline-flex; align-items: center; }
 .ctl-proj-title { flex: 1; min-width: 0; font-size: var(--fs-title); font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ctl-focus-badge { flex: none; font-size: var(--fs-caption); font-weight: 800; color: var(--accent); background: var(--accent-light); padding: 3px 8px; border-radius: var(--radius-full); }
+.ctl-focus-badge { flex: none; font-size: var(--fs-caption); font-weight: 800; color: var(--lv-green-deep); background: var(--lv-green-soft); padding: 3px 8px; border-radius: var(--radius-full); }
 .ctl-stale { flex: none; font-size: var(--fs-caption); color: var(--warning); font-weight: 700; }
 .ctl-pmeta { font-size: var(--fs-caption); color: var(--text-3); flex: none; }
 .ctl-pbar { flex: none; width: 96px; height: 6px; border-radius: var(--radius-full); background: var(--surface-3, #edefe8); overflow: hidden; }
