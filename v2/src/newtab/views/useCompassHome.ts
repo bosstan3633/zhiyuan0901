@@ -21,6 +21,7 @@ import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
 import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { isTopicDone, setTopicStatus, toggleTopicDone, topicStatusOf, topicTerminalStatus, topicInProgressStatus } from '@/shared/utils/topicStatus'
+import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 import {
   FOCUS_LIMIT,
   activeFocusSlots,
@@ -84,7 +85,10 @@ function scheduleMidnightRollover() {
 /* 跨零点心跳与其清理留在宿主：`midnightTimer` 是可变的普通 `let`，
    值拷贝到子域会读到过期句柄（clearTimeout 失效）。 */
 onMounted(() => { scheduleMidnightRollover() })
-onUnmounted(() => { if (midnightTimer) clearTimeout(midnightTimer) })
+onUnmounted(() => {
+  if (midnightTimer) clearTimeout(midnightTimer)
+  clearTopicPreviewTimer()
+})
 
 // ================= 今日记录条（R49-B1） → R172-T9 整体退役 =================
 // 四格（今日入台 / 移出 / 调出 / 写入记录）与「今日记录抽屉」全部下线：记录能力等价迁入
@@ -1348,9 +1352,27 @@ function openCurioPreview(c: CuriosityCard): void {
   emitOpenDrawer({ kind: 'curio', id: c.id })
 }
 function openTopicPreview(topic: TopicCard): void {
+  clearTopicPreviewTimer()
   recordCardOpen(d.value, topic)
   store.persistHot()
   emitOpenDrawer({ kind: 'topic', id: topic.id })
+}
+let topicPreviewTimer: ReturnType<typeof setTimeout> | null = null
+function clearTopicPreviewTimer(): void {
+  if (!topicPreviewTimer) return
+  clearTimeout(topicPreviewTimer)
+  topicPreviewTimer = null
+}
+function scheduleTopicPreview(topic: TopicCard): void {
+  clearTopicPreviewTimer()
+  topicPreviewTimer = setTimeout(() => {
+    topicPreviewTimer = null
+    openTopicPreview(topic)
+  }, 220)
+}
+function openTopicPreviewDirect(topic: TopicCard): void {
+  clearTopicPreviewTimer()
+  if (!openTopicOutcome(topic)) openTopicPreview(topic)
 }
 function openResourcePreview(r: ResourceCard): void {
   emitOpenDrawer({ kind: 'res', id: r.id })
@@ -1400,7 +1422,7 @@ function goDeck(kind: HandKind): void {
     recentResources, workBoardRef, handBoardRef, deskLayoutRef,
     liveTasks, liveTopics,
     previewTasks, previewTopics, liveCuriosities, previewCuriosities, liveResources, previewResources, handNewCounts,
-    hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, openCurioPreview,
+    hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, scheduleTopicPreview, openTopicPreviewDirect, openCurioPreview,
     openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
     statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
     openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,

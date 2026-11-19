@@ -25,7 +25,8 @@ const banner = WS.slice(bannerStart, bannerEnd)
 const toolbar = WS.slice(toolbarStart, mindmapStart)
 
 check('R186-1（V4.0.3 重指）★空论点态按原型收成单行轻引导：虚线 L1 图标 + 一行说明 + 原生创建按钮；不再用整卡伪造按钮语义', () => {
-  const emptyCss = (CSS.match(/\.thesis-banner\.empty\s*\{([^}]*)\}/) || [])[1] || ''
+  const emptyRules = [...CSS.matchAll(/\.thesis-banner\.empty\s*\{([^}]*)\}/g)]
+  const emptyCss = emptyRules.at(-1)?.[1] || ''
   return WS.includes('v-pressable="!!thesisCard"')
     && WS.includes('<button class="thesis-empty-inner" type="button" @click.stop="openThesisCreate">')
     && WS.includes('class="thesis-empty-pill"')
@@ -38,8 +39,9 @@ check('R186-1（V4.0.3 重指）★空论点态按原型收成单行轻引导：
     && /background:\s*var\(--surface-2\)/.test(emptyCss)
 })
 
-check('R186-2（V4.2.0 压缩重指）★有论点态是镇台主舞台：20px 主句、600 字重、径向渐变、14px 圆角与 68px 紧凑基线；卡片读数与详情同卡，但不混入分享和布局切换', () => {
-  const stageCss = (CSS.match(/\.thesis-banner\s*\{([^}]*)\}/) || [])[1] || ''
+check('R186-2（V4.6.0 双列重指）★有论点态仍是主舞台：20px 主句、600 字重、径向渐变、14px 圆角与 68px 紧凑基线；V4.6.0 外层双列控制台可增加高度，但不改变卡片内部层级与读数归属', () => {
+  const stageRules = [...CSS.matchAll(/(?:^|\n)\.thesis-banner\s*\{([^}]*)\}/g)]
+  const stageCss = stageRules.at(-1)?.[1] || ''
   const titleCss = (CSS.match(/\.tb-title\s*\{([^}]*)\}/) || [])[1] || ''
   return stageCss.includes('radial-gradient(600px 160px')
     && stageCss.includes('border-radius: 14px')
@@ -51,6 +53,8 @@ check('R186-2（V4.2.0 压缩重指）★有论点态是镇台主舞台：20px �
     && WS.includes('class="tb-desc-row"')
     && WS.includes('class="tb-detail" type="button" @click.stop="openThesisCard"')
     && WS.includes('查看论点详情')
+    && WS.includes('class="ws-curation-console"')
+    && CSS.includes('.ws-curation-console .thesis-banner')
     && banner.includes('class="cur-metrics" data-curation-metrics="2"')
     && banner.includes('论据卡')
     && banner.includes('佐证附件')

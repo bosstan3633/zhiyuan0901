@@ -91,14 +91,14 @@ check('R112-12 ★ 冷启动单次读取：ensureBootData 会话内幂等 + 首�
     && r.includes('export async function loadData(prefetched?: Record<string, unknown>)')
     && r.includes('prefetched ? (prefetched[STORAGE_KEY] as AppData | undefined) : undefined');
 });
-check('R112-13 预取不跳过归一化：loadData 的归一化段在预取分支之后仍无条件执行。★P0-2(V3.8.41) 重指带备案：归一化段原是 loadData 里的内联 `const fixTags =`，现已抽成导出的 `normalizeLegacyCards`，loadData 内只剩一次调用——**锚点随之换居所，守的行为（预取不豁免归一化）一字未变**', () => {
+check('R112-13 预取不跳过归一化：loadData 的归一化段在预取分支之后仍无条件执行。★V4.6.0 重指备案：业务归一化进一步收口为 `normalizeAppData`，本机载入与云恢复共用；**照常执行的纪律不变**', () => {
   const r = read('/shared/storage/repository.ts');
   const iPrefetch = r.indexOf('let raw = prefetched ?');
-  const iCall = r.indexOf('normalizeLegacyCards(data)');
+  const iCall = r.indexOf('normalizeAppData(data)');
   return iPrefetch > 0 && iCall > iPrefetch
-    && r.includes('export function normalizeLegacyCards')
-    /* ★口径备案：`fixTagNames`（标签名 URL 解码）**仍在 loadData 里**且仍用 `data.`——
-       它归一化的是名字不是卡片字段，不随 P0-2 搬迁（registry 会抄错形参）。故此条查它仍在原地。 */
+    && r.includes('export function normalizeAppData(data: AppData): AppData')
+    /* ★口径备案：`fixTagNames`（标签名 URL 解码）仍在同一归一化入口内，
+       仍消费 `data.resources`，不因入口重命名而丢。 */
     && r.includes('fixTagNames(data.resources as { tags?: string[] }[])');
 });
 

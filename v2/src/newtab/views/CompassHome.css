@@ -887,7 +887,7 @@
 }
 .picker-item:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 38%, var(--border)); background: var(--accent-light); }
 .picker-item.topic:not(:disabled) { border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--border)); }
-.picker-item:disabled { cursor: default; opacity: .5; }
+.picker-item:disabled { cursor: default; opacity: var(--opacity-disabled); }
 .pi-check {
   display: grid;
   place-items: center;

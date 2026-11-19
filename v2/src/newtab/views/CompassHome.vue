@@ -78,7 +78,7 @@ const {
   recentResources, workBoardRef, handBoardRef, deskLayoutRef,
   liveTasks, liveTopics,
   previewTasks, previewTopics, liveCuriosities, previewCuriosities, liveResources, handNewCounts,
-  hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, openCurioPreview,
+  hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, scheduleTopicPreview, openTopicPreviewDirect, openCurioPreview,
   openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
   openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
@@ -216,7 +216,10 @@ const {
               </article>
 
               <article v-else-if="c.topic" class="focus-row focus-card topic-focus-card" :class="{ done: c.slot && focusSlotDone(c.slot), historical: focusIsHistorical }" role="button" tabindex="0"
-                @click="openCellTask(c)" @keydown.enter.prevent="openCellTask(c)" @keydown.space.prevent="openCellTask(c)">
+                @click="scheduleTopicPreview(c.topic)"
+                @dblclick.stop.prevent="openTopicPreviewDirect(c.topic)"
+                @keydown.enter.prevent="openTopicPreview(c.topic)"
+                @keydown.space.prevent="openTopicPreview(c.topic)">
                 <button class="row-check" :class="{ done: c.slot && focusSlotDone(c.slot), readonly: focusIsHistorical }" type="button" :aria-label="c.slot && focusSlotDone(c.slot) ? '已完成（历史快照只读）' : focusIsHistorical ? '未完成（历史快照只读）' : '切换完成状态'" @click.stop="c.slot && toggleTodayDone(c.slot)">
                   <Icon v-if="c.slot && focusSlotDone(c.slot)" name="check" :size="14" />
                 </button>
@@ -377,7 +380,8 @@ const {
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
               @open-task="openTaskWork"
-              @open-topic="openTopicPreview"
+              @open-topic="scheduleTopicPreview"
+              @open-topic-link="openTopicPreviewDirect"
               @toggle-status="toggleTaskWorkStatus"
               @toggle-topic-status="toggleTopicWorkStatus"
               @assign-task="openTaskAssign"

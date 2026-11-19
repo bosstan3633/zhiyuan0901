@@ -12,15 +12,22 @@ export interface ReconciledCloudState {
  * - 失去所有者的策展附件进入待清理表。
  */
 export function reconcileCloudStateAssets(localData: AppData, incomingData: AppData): ReconciledCloudState {
-  const nextData = JSON.parse(JSON.stringify(incomingData)) as AppData
+  const source = incomingData && typeof incomingData === 'object' ? incomingData : ({} as AppData)
+  const nextData = JSON.parse(JSON.stringify(source)) as AppData
+  // 云快照可能来自 V4.5 之前：先补齐本函数会遍历的集合，业务字段交给 cloudRestoreAtomic 统一归一化。
+  nextData.resources = Array.isArray(nextData.resources) ? nextData.resources : []
+  nextData.tasks = Array.isArray(nextData.tasks) ? nextData.tasks : []
+  nextData.curiosities = Array.isArray(nextData.curiosities) ? nextData.curiosities : []
+  nextData.argCards = Array.isArray(nextData.argCards) ? nextData.argCards : []
+  nextData.categories = Array.isArray(nextData.categories) ? nextData.categories : []
   const localAssets = new Map<string, AssetMeta[]>()
   const localCategoryAssets = new Map<string, AssetMeta[]>()
   const localCurationAssetsByOwner = new Map<string, AssetMeta[]>()
   for (const cards of [
-    localData.resources,
-    localData.tasks,
-    localData.curiosities,
-    ...(localData.argCards ? [localData.argCards] : []),
+    localData.resources || [],
+    localData.tasks || [],
+    localData.curiosities || [],
+    localData.argCards || [],
   ]) {
     for (const card of cards || []) {
       if (card.assets?.length) localAssets.set(card.id, card.assets)
@@ -41,10 +48,10 @@ export function reconcileCloudStateAssets(localData: AppData, incomingData: AppD
   }
   const staleCurationAssets = new Map<string, AssetMeta>()
   for (const cards of [
-    nextData.resources,
-    nextData.tasks,
-    nextData.curiosities,
-    ...(nextData.argCards ? [nextData.argCards] : []),
+    nextData.resources || [],
+    nextData.tasks || [],
+    nextData.curiosities || [],
+    nextData.argCards || [],
   ]) {
     for (const card of cards || []) {
       const assets = localAssets.get(card.id)
@@ -66,8 +73,8 @@ export function reconcileCloudStateAssets(localData: AppData, incomingData: AppD
     category.assets = authoritativeCurationAssets(category.assets, local)
   }
   const remoteOwnerIds = new Set([
-    ...(nextData.resources || []).map(card => card.id),
-    ...(nextData.categories || []).map(category => category.id),
+    ...nextData.resources.map(card => card.id),
+    ...nextData.categories.map(category => category.id),
   ])
   for (const [ownerId, assets] of localCurationAssetsByOwner) {
     if (remoteOwnerIds.has(ownerId)) continue

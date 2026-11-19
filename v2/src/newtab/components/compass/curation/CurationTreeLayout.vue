@@ -265,6 +265,12 @@ function ringDash(pct: number): string {
 .ctl.focused .ctl-root-text { font-size: var(--fs-sub); color: var(--text-2); }
 .ctl.focused .ctl-trunk { height: 18px; }
 .ctl.focused .ctl-spine-head { margin: 12px auto 10px; }
+.ctl.focused .ctl-goals {
+  width: min(100%, 1180px);
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
+}
 .ctl.focused .ctl-goal-card { background: var(--surface-2); }
 .ctl.focused .ctl-proj { box-shadow: var(--lv-card-shadow-hover); border-color: var(--lv-mint); background: var(--surface); }
 .ctl.focused .ctl-proj-title { font-size: var(--fs-headline); color: var(--lv-green-deep); }

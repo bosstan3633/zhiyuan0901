@@ -45,6 +45,7 @@ import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type 
 import { activeFocusSlots, clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { isTopicDone, toggleTopicDone } from '@/shared/utils/topicStatus'
+import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 const {
   route,
   router,
@@ -173,11 +174,32 @@ function localTodayKey(): string {
 const liveTaskCards = computed(() => (d.value.tasks || []).filter(task => !task.deletedAt))
 const liveTopicCards = computed(() => (d.value.topics || []).filter(topic => !topic.deletedAt))
 const todayFocusSlots = computed(() => activeFocusSlots(d.value.dailyFocus?.[localTodayKey()]))
+let topicOpenTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearTopicOpenTimer(): void {
+  if (!topicOpenTimer) return
+  clearTimeout(topicOpenTimer)
+  topicOpenTimer = null
+}
 
 function openTopic(topic: TopicCard): void {
+  clearTopicOpenTimer()
   recordCardOpen(d.value, topic)
   store.persistHot()
   emitOpenDrawer({ kind: 'topic', id: topic.id })
+}
+
+function scheduleTopicOpen(topic: TopicCard): void {
+  clearTopicOpenTimer()
+  topicOpenTimer = setTimeout(() => {
+    topicOpenTimer = null
+    openTopic(topic)
+  }, 220)
+}
+
+function openTopicDirect(topic: TopicCard): void {
+  clearTopicOpenTimer()
+  if (!openTopicOutcome(topic)) openTopic(topic)
 }
 
 function toggleTopicStatus(topicId: string): void {
@@ -260,6 +282,7 @@ async function resetForFresh() {
   await nextTick()
   rootEl.value?.scrollIntoView({ block: 'start' })
 }
+onUnmounted(clearTopicOpenTimer)
 defineExpose({ openDetail, resetForFresh })
 </script>
 
@@ -556,7 +579,8 @@ defineExpose({ openDetail, resetForFresh })
         :project-names="projNameById"
         :metric-names="metricTitleById"
         @open-task="openTaskFromAi"
-        @open-topic="openTopic"
+        @open-topic="scheduleTopicOpen"
+        @open-topic-link="openTopicDirect"
         @toggle-status="toggleTaskCompletion"
         @toggle-topic-status="toggleTopicStatus"
         @assign-task="openTaskFromAi"

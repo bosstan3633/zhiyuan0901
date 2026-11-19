@@ -11,6 +11,59 @@
    旧版单独补的 22px 内缩已退役，避免页头比画布窄一截。 */
 /* V3.9.30：三层共处一个连续页头；不再把行动条漂在页头之外。 */
 .ws-head { display: flex; flex-direction: column; gap: 6px; padding-left: 0; min-width: 0; }
+.ws-curation-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(380px, .9fr);
+  align-items: stretch;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    radial-gradient(520px 180px at 8% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
+    var(--surface-2);
+  box-shadow: var(--lv-card-shadow, var(--shadow-sm));
+}
+.ws-curation-console .thesis-banner {
+  min-height: 108px;
+  height: 100%;
+  border-radius: 13px;
+  background:
+    radial-gradient(520px 150px at 10% 0%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 72%),
+    var(--surface);
+}
+.ws-curation-console .thesis-banner.empty {
+  min-height: 108px;
+  background: var(--surface);
+}
+.ws-curation-console .ws-head > .cur-toolbar,
+.ws-curation-console .cur-toolbar {
+  position: static;
+  z-index: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border-color: color-mix(in srgb, var(--border) 84%, var(--accent));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--accent-light));
+  box-shadow: none;
+}
+.ws-curation-console .cur-toolbar .toolbar-spacer { display: none; }
+.ws-curation-console .cur-toolbar .toolbar-search {
+  grid-column: 1 / -1;
+  width: auto;
+}
+.ws-curation-console .cur-toolbar .cur-import,
+.ws-curation-console .cur-toolbar .hero-btn { min-width: 0; }
+.ws-curation-console .cur-toolbar .cur-import-trigger,
+.ws-curation-console .cur-toolbar .hero-btn {
+  width: 100%;
+  justify-content: center;
+}
 /* V3.9.28：台身份回到 ≤40px 的紧凑读数行；图标收进 accent 淡底方片，台名回到 19px 页头字阶。 */
 .ws-id-head { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 36px; max-height: 40px; padding: 2px 2px 2px 0; overflow: visible; }
 .wsh-icon {
@@ -277,6 +330,8 @@
 @media (max-width: 900px) {
   .ws-content { padding: 16px 18px 72px; }
   .ws-head { gap: 8px; padding-left: 0; }
+  .ws-curation-console { grid-template-columns: minmax(0, 1fr); padding: 7px; border-radius: 15px; }
+  .ws-curation-console .cur-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
   .wsh-name { font-size: 17px; }
   .wsh-desc { display: none; }

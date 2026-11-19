@@ -32,6 +32,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'open-task', task: TaskCard): void
   (e: 'open-topic', topic: TopicCard): void
+  (e: 'open-topic-link', topic: TopicCard): void
   (e: 'toggle-status', taskId: string): void
   (e: 'toggle-topic-status', topicId: string): void
   (e: 'assign-task', task: TaskCard): void
@@ -56,6 +57,7 @@ const selectedDay = ref('')
 const selectedDayMode = ref<'detail' | 'schedule'>('detail')
 const scheduleSearch = ref('')
 const mobileMode = ref<'list' | 'calendar'>('list')
+const listCollapsed = ref(false)
 const dragOverDay = ref('')
 const menuTaskId = ref('')
 const quickDueDraft = ref('')
@@ -395,6 +397,11 @@ function openDay(key: string): void {
   scheduleSearch.value = ''
 }
 
+function collapseList(): void {
+  listCollapsed.value = true
+  mobileMode.value = 'calendar'
+}
+
 function closeDay(): void {
   selectedDay.value = ''
   selectedDayMode.value = 'detail'
@@ -485,7 +492,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
 </script>
 
 <template>
-  <div class="task-calendar" :class="'mobile-' + mobileMode">
+  <div class="task-calendar" :class="['mobile-' + mobileMode, { 'list-hidden': listCollapsed }]">
     <div class="cal-mobile-switch" role="tablist" aria-label="窄屏任务视图">
       <button type="button" role="tab" :aria-selected="mobileMode === 'list'" :class="{ on: mobileMode === 'list' }" @click="mobileMode = 'list'">任务列表</button>
       <button type="button" role="tab" :aria-selected="mobileMode === 'calendar'" :class="{ on: mobileMode === 'calendar' }" @click="mobileMode = 'calendar'">月历</button>
@@ -494,7 +501,12 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <section class="cal-pool" aria-label="任务池">
       <header class="cal-pool-head">
         <div>
-          <b>任务清单</b>
+          <div class="cal-pool-heading">
+            <b>任务清单</b>
+            <button class="cal-list-collapse" type="button" title="折叠任务清单" @click="collapseList">
+              <Icon name="arrowleft" :size="12" /> 折叠
+            </button>
+          </div>
           <span>{{ poolTasks.length }} 项当前筛选结果 · 未落图在前</span>
         </div>
         <span class="cal-pool-stat">{{ monthScheduledTasks.length }} 本月已排</span>
@@ -585,6 +597,9 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
     <section class="cal-board" aria-label="任务月历">
       <header class="cal-board-head">
         <div class="cal-month-title">
+          <button v-if="listCollapsed" class="cal-list-expand" type="button" title="展开任务清单" @click="listCollapsed = false">
+            <Icon name="arrowright" :size="12" /> 展开清单
+          </button>
           <div class="cal-title-row">
             <button v-if="calendarMode === 'month'" class="cal-month-picker-trigger" type="button" :aria-expanded="monthPickerOpen" @click.stop="toggleMonthPicker">
               <b>{{ periodTitle }}</b>
@@ -695,6 +710,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
                   @dragstart="onTopicDragStart($event, entry.topic)"
                   @dragend="draggingId = ''; dragOverDay = ''"
                   @click="emit('open-topic', entry.topic)"
+                  @dblclick.stop.prevent="emit('open-topic-link', entry.topic)"
                   @keydown.enter.prevent="emit('open-topic', entry.topic)"
                 >
                   <button

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/shared/components/Icon.vue'
 import Drawer from '@/shared/components/Drawer.vue'
@@ -16,6 +16,7 @@ import { activeFocusSlots, clearedFocusSlot, detachFocusTaskFromDate, detachFocu
 import { addManualFocus, addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { attachTopicToMetric, softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { isTopicDone, setTopicStatus, sortedTopicStatuses, toggleTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
+import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 import type { TaskCard, TopicCard } from '@/shared/models'
 import TopicCalendarView from './TopicCalendarView.vue'
@@ -42,6 +43,7 @@ const createMetricId = ref('')
 const createStatusId = ref('')
 const boardOverStatus = ref('')
 let draggingBoardId = ''
+let topicOpenTimer: ReturnType<typeof setTimeout> | null = null
 
 const projects = computed(() => allProjects())
 const createMetrics = computed(() => projects.value.find(project => project.id === createProjectId.value)?.metrics || [])
@@ -119,7 +121,34 @@ function localTodayKey(): string {
 }
 
 function openTopic(topic: TopicCard): void {
+  clearTopicOpenTimer()
   emitOpenDrawer({ kind: 'topic', id: topic.id })
+}
+
+function clearTopicOpenTimer(): void {
+  if (!topicOpenTimer) return
+  clearTimeout(topicOpenTimer)
+  topicOpenTimer = null
+}
+
+function scheduleTopicOpen(topic: TopicCard): void {
+  clearTopicOpenTimer()
+  topicOpenTimer = setTimeout(() => {
+    topicOpenTimer = null
+    emitOpenDrawer({ kind: 'topic', id: topic.id })
+  }, 220)
+}
+
+function openTopicDirect(topic: TopicCard): void {
+  clearTopicOpenTimer()
+  if (!openTopicOutcome(topic)) openTopic(topic)
+}
+
+function onTopicListDragStart(event: DragEvent, topic: TopicCard): void {
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', `topic:${topic.id}`)
+  }
 }
 
 function openTask(task: TaskCard): void {
@@ -360,6 +389,8 @@ async function openDetail(id: string): Promise<void> {
   void router.replace({ path: route.path })
 }
 
+onBeforeUnmount(clearTopicOpenTimer)
+
 defineExpose({ resetForFresh, openDetail })
 </script>
 
@@ -387,6 +418,9 @@ defineExpose({ resetForFresh, openDetail })
         <button class="topic-clear" type="button" @click="resetFilters">清空筛选</button>
       </div>
       <div class="topic-toolbar-actions">
+        <button v-if="listCollapsed" class="topic-expand" type="button" title="展开选题清单" @click="listCollapsed = false">
+          <Icon name="arrowright" :size="13" /> 展开清单
+        </button>
         <div class="topic-view-switch" role="group" aria-label="选题视图">
           <button type="button" :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">日历</button>
           <button type="button" :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
@@ -399,7 +433,12 @@ defineExpose({ resetForFresh, openDetail })
       <aside v-if="!listCollapsed" class="topic-pool">
         <header class="topic-pool-head">
           <div>
-            <b>选题清单</b>
+            <div class="topic-pool-heading">
+              <b>选题清单</b>
+              <button class="topic-collapse-inline" type="button" title="折叠选题清单" @click="listCollapsed = true">
+                <Icon name="arrowleft" :size="12" /> 折叠
+              </button>
+            </div>
             <span>{{ filteredTopics.length }} 项当前筛选 · 未落图在前</span>
           </div>
           <div class="topic-pool-badges">
@@ -414,7 +453,10 @@ defineExpose({ resetForFresh, openDetail })
             class="topic-pool-item"
             :style="statusStyle(topic)"
             tabindex="0"
-            @click="openTopic(topic)"
+            draggable="true"
+            @dragstart.stop="onTopicListDragStart($event, topic)"
+            @click="scheduleTopicOpen(topic)"
+            @dblclick.stop.prevent="openTopicDirect(topic)"
             @keydown.enter.prevent="openTopic(topic)"
           >
             <button class="topic-check" :class="{ done: isTopicDone(d, topic) }" type="button" :aria-label="isTopicDone(d, topic) ? '恢复选题' : '标记完成'" @click.stop="toggleStatus(topic.id)">
@@ -450,7 +492,8 @@ defineExpose({ resetForFresh, openDetail })
           :show-done="showDone"
           :project-names="projectNames"
           :metric-names="metricNames"
-          @open-topic="openTopic"
+          @open-topic="scheduleTopicOpen"
+          @open-topic-link="openTopicDirect"
           @open-task="openTask"
           @toggle-status="toggleStatus"
           @toggle-task-status="toggleTaskWorkStatus"
@@ -486,7 +529,8 @@ defineExpose({ resetForFresh, openDetail })
                 tabindex="0"
                 @dragstart="onBoardDragStart($event, topic)"
                 @dragend="draggingBoardId = ''; boardOverStatus = ''"
-                @click="openTopic(topic)"
+                @click="scheduleTopicOpen(topic)"
+                @dblclick.stop.prevent="openTopicDirect(topic)"
                 @keydown.enter.prevent="openTopic(topic)"
               >
                 <div class="topic-board-title"><NewBadge :at="topic.createdAt" />{{ topic.title }}</div>
@@ -505,11 +549,6 @@ defineExpose({ resetForFresh, openDetail })
         </div>
       </section>
     </div>
-
-    <button class="topic-collapse" type="button" :title="listCollapsed ? '展开选题清单' : '折叠选题清单'" @click="listCollapsed = !listCollapsed">
-      <Icon :name="listCollapsed ? 'arrowright' : 'arrowleft'" :size="13" />
-      {{ listCollapsed ? '展开清单' : '折叠清单' }}
-    </button>
 
     <Drawer :open="createOpen" width="500px" title="新建选题卡" @close="createOpen = false">
       <div class="topic-create">
@@ -555,6 +594,8 @@ defineExpose({ resetForFresh, openDetail })
 .topic-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-xl); background: color-mix(in srgb, var(--surface) 92%, var(--accent-light)); }
 .topic-toolbar-main, .topic-toolbar-actions { display: flex; align-items: center; gap: 7px; min-width: 0; flex-wrap: wrap; }
 .topic-toolbar-main { flex: 1; }
+.topic-expand { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text-2); font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
+.topic-expand:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .topic-search { display: flex; flex: 1; min-width: 220px; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
 .topic-search input { flex: 1; min-width: 0; min-height: 34px; border: 0; outline: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); }
 .topic-search button { padding: 0; border: 0; background: none; color: var(--text-2); cursor: pointer; }
@@ -568,12 +609,16 @@ defineExpose({ resetForFresh, openDetail })
 .topic-workbench { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
 .list-hidden .topic-workbench { grid-template-columns: minmax(0, 1fr); }
 .topic-pool { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
-.topic-pool-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 12px 13px; border-bottom: 1px solid var(--border); }
+.topic-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 13px; border-bottom: 1px solid var(--border); }
+.topic-pool-head > div:first-child { flex: 1; min-width: 0; }
+.topic-pool-heading { display: flex; align-items: center; gap: 7px; }
 .topic-pool-head b { display: block; color: var(--text); font-size: var(--fs-body); }
 .topic-pool-head span { display: block; margin-top: 2px; color: var(--text-3); font-size: var(--fs-micro); }
 .topic-pool-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .topic-pool-badges span { padding: 1px 6px; border-radius: 99px; background: var(--surface-2); color: var(--text-3); }
 .topic-pool-badges .today { background: var(--accent-light); color: var(--accent-ink); }
+.topic-collapse-inline { display: inline-flex; flex: none; align-items: center; gap: 3px; min-height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); cursor: pointer; }
+.topic-collapse-inline:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .topic-pool-list { flex: 1; min-height: 0; overflow: auto; padding: 7px; }
 .topic-pool-item { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 9px 8px; border: 1px solid transparent; border-left: 3px solid color-mix(in srgb, var(--topic-status) 55%, var(--border)); border-radius: 10px; cursor: pointer; }
 .topic-pool-item:hover { border-color: var(--border); border-left-color: var(--topic-status); background: var(--surface-2); }
@@ -608,8 +653,6 @@ defineExpose({ resetForFresh, openDetail })
 .topic-board-card footer span.scheduled { color: var(--accent-ink); }
 .topic-board-card footer button { padding: 0; border: 0; background: none; color: var(--text-3); cursor: pointer; }
 .topic-board-empty { padding: 22px 8px; text-align: center; color: var(--text-4); font-size: var(--fs-caption); border: 1px dashed var(--border); border-radius: 9px; }
-.topic-collapse { position: absolute; z-index: 2; left: 322px; top: 50%; display: flex; align-items: center; gap: 3px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 99px; background: var(--surface); color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); box-shadow: var(--shadow-sm); cursor: pointer; transform: translate(-50%, -50%); }
-.list-hidden .topic-collapse { left: 8px; transform: translate(0, -50%); }
 .topic-create { display: flex; flex-direction: column; gap: 15px; }
 .topic-create-title { display: flex; flex-direction: column; gap: 6px; }
 .topic-create-title > span, .topic-create-grid label > span { color: var(--text-3); font-size: var(--fs-caption); font-weight: 650; }
@@ -626,12 +669,10 @@ defineExpose({ resetForFresh, openDetail })
 .topic-create-foot button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 @media (max-width: 1024px) {
   .topic-workbench { grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); }
-  .topic-collapse { left: 272px; }
 }
 @media (max-width: 820px) {
   .topic-workbench { grid-template-columns: 1fr; }
   .topic-pool { max-height: 360px; }
-  .topic-collapse { display: none; }
   .topic-board { grid-auto-columns: minmax(240px, 86vw); }
 }
 </style>

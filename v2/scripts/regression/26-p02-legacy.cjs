@@ -15,15 +15,17 @@ if (!NORM || NORM.length < 3000) {
 }
 
 console.log('【P0-2-1 · 归一化必须是单一真源，不挂在某条读路径上】');
-check('P0-2-1a ★normalizeLegacyCards 从 loadData 的内联私有步骤提为**导出函数**，且 loadData 里不再有**卡片字段类**归一化的内联定义 —— 纪律：归一化必须挂在"数据入库的那一层"，挂在读路径上则每新增一个读入口就漏一个。★口径备案：loadData 里仍有 `fixEncoded`/`fixTagNames` 两个 `fix*`，它们归一化的是**分类名/标签名的 URL 编码**（第廿九轮），不是卡片字段，与本条无关——所以只查卡片那四条', () => {
+check('P0-2-1a（V4.6.0 重指）★normalizeLegacyCards 保持导出，业务归一化统一收口到 normalizeAppData；loadData 只调用一次，不得重新长出卡片字段类的内联归一化 —— 纪律：归一化必须挂在"数据入库的那一层"，且本机载入与云恢复共用同一入口', () => {
   const loadSeg = REPO.slice(REPO.indexOf('export async function loadData'));
   const cardFix = ['fixTaskStatus', 'fixCurioStatus', 'fixCurioLegacyFields', 'fixCardLegacyFields',
     'fixResourceLinkType', 'fixCardKind', 'fixCardId', 'fixCardTitle'];
   return REPO.includes('export function normalizeLegacyCards')
-    && loadSeg.includes('normalizeLegacyCards(data)')
-    && (loadSeg.match(/normalizeLegacyCards\(data\)/g) || []).length === 1
+    && REPO.includes('export function normalizeAppData(data: AppData): AppData')
+    && loadSeg.includes('normalizeAppData(data)')
+    && (loadSeg.match(/normalizeAppData\(data\)/g) || []).length === 1
     && !cardFix.some(f => loadSeg.includes(`const ${f} =`))
-    && loadSeg.includes('const fixEncoded =')   /* 备案：这条在，证明白名单口径没写死成"零个 fix*" */
+    && REPO.includes('const fixEncoded =')
+    && REPO.includes('const fixTagNames =')
     && !loadSeg.includes('const fixTags =');
 });
 check('P0-2-1b ★随迁备案：设置页「数据包导入」必须接同一套归一化（mergeDataPackage 从不经过 loadData）。归一化写在 loadData 里只治得了"启动读老库"，治不了"导入老库"，而导入恰恰是老库的主要来源。判据点名 dataPackage.ts 的合并三行之后', () => {

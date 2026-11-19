@@ -8,6 +8,14 @@
   position: relative;
 }
 
+.task-calendar.list-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.task-calendar.list-hidden .cal-pool {
+  display: none;
+}
+
 .cal-mobile-switch {
   display: none;
 }
@@ -42,6 +50,46 @@
   display: block;
   color: var(--text);
   font-size: var(--fs-body);
+}
+
+.cal-pool-head > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.cal-pool-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cal-list-collapse,
+.cal-list-expand {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+}
+
+.cal-list-collapse:hover,
+.cal-list-expand:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-ink);
+}
+
+.cal-list-expand {
+  align-self: flex-start;
+  margin-bottom: 7px;
 }
 
 .cal-pool-head span,
@@ -1213,6 +1261,10 @@
 
   .task-calendar.mobile-list .cal-board,
   .task-calendar.mobile-calendar .cal-pool {
+    display: none;
+  }
+
+  .cal-list-collapse {
     display: none;
   }
 

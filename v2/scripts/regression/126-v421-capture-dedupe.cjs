@@ -118,13 +118,15 @@ check('V421-8（V4.3.0 退役重指）★旧数据兼容仍识别两代溯源字
     && dedupe.includes('export function reconcileCapturedResources(data: AppData): number')
 })
 
-check('V421-9 ★去重挂在三个入库边界而非单一读路径：启动加载、云恢复与数据包导入都会执行；字段配置缺失也不再触发 visibleFields 运行错误', () => {
+check('V421-9（V4.6.0 重指）★去重挂在三个入库边界而非单一读路径：启动加载与云恢复经 normalizeAppData，数据包导入直接执行；字段配置缺失也不再触发 visibleFields 运行错误', () => {
   const repo = read('/shared/storage/repository.ts')
   const pkg = read('/newtab/views/settings/dataPackage.ts')
   const fields = read('/shared/utils/fields.ts')
   return repo.includes("import { reconcileCapturedResources } from './captureDedupe'")
+    && repo.includes('export function normalizeAppData(data: AppData): AppData')
+    && repo.includes('normalizeAppData(data)')
+    && repo.includes('normalizeAppData(opts.nextData)')
     && repo.includes('try { reconcileCapturedResources(data) } catch')
-    && repo.includes('try { reconcileCapturedResources(opts.nextData) } catch')
     && pkg.includes('reconcileCapturedResources(d)')
     && fields.includes("return (cfg?.[type] || [])")
     && fields.includes("return [...(cfg?.[type] || [])]")

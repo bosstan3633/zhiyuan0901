@@ -218,7 +218,7 @@ export function useCurationCanvasHistory(ctx: {
     historyRevision.value++
   }
 
-  /** 云端整树恢复会替换所有策展台，必须同时清空全部会话历史。 */
+  /** 仅用于调用方明确要求清空全部会话历史；云同步恢复不得调用。 */
   function resetAll(): void {
     timelinesByWorkspace.clear()
     entries.value = []

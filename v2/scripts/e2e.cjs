@@ -3937,6 +3937,8 @@ await paOpen()
       metricId: 'e2e-metric-1',
       statusId: 'topic-idea',
       description: '用于验证选题标题主视觉、资源关联与今日联动。',
+      link: 'https://example.com/e2e-topic-outcome',
+      linkType: 'url',
       tags: ['E2E', '选题'],
       customFields: {},
       assets: [],
@@ -3966,11 +3968,14 @@ await paOpen()
   const topicDrawer = await page.evaluate(() => {
     const title = document.querySelector('.drawer .topic-title')
     const core = document.querySelector('.drawer .topic-resource-core')
+    const outcome = document.querySelector('.drawer .topic-outcome input')
     return {
       title: ((title instanceof HTMLTextAreaElement ? title.value : title?.textContent) || '').trim(),
       core: !!core,
       resourceCta: (core?.textContent || '').includes('关联资源卡'),
       aiFind: (core?.textContent || '').includes('AI 找资源'),
+      outcomeFirst: !!document.querySelector('.drawer .topic-body > .topic-outcome'),
+      outcomeValue: outcome instanceof HTMLInputElement ? outcome.value : '',
       ownerSelects: document.querySelectorAll('.drawer .topic-owner select').length,
       statusSelect: !!document.querySelector('.drawer .topic-plan select'),
       noteHeight: Math.round(document.querySelector('.drawer .topic-note textarea')?.getBoundingClientRect().height || 0),
@@ -4004,19 +4009,96 @@ await paOpen()
   await waitForLocator(topicManager, '.topic-board', { visible: true, timeout: 5000 })
   const boardStatuses = await topicManager.locator('.topic-board-col .topic-board-dot').count()
   const boardProbeVisible = (await topicManager.locator('.topic-board').innerText()).includes(topicProbeTitle)
-  await topicManager.locator('.topic-collapse').click()
+  await topicManager.locator('.topic-collapse-inline').click()
   const topicListCollapsed = await topicManager.evaluate(el => el.classList.contains('list-hidden'))
+  await topicManager.locator('.topic-expand').click()
+  await topicManager.locator('.topic-view-switch button').filter({ hasText: '日历' }).click()
+  await waitForLocator(topicManager, '.topic-cal-chip', { visible: true, timeout: 5000 })
+  const pagesBeforeOutcome = ctx.pages().length
+  await topicManager.locator('.topic-cal-chip').filter({ hasText: topicProbeTitle }).first().dblclick()
+  await page.waitForTimeout(500)
+  const outcomePage = ctx.pages().find(p => p.url().includes('example.com/e2e-topic-outcome'))
+  const topicOutcomeOpened = ctx.pages().length > pagesBeforeOutcome && !!outcomePage
+  if (outcomePage) await outcomePage.close().catch(() => {})
+  const dragTarget = topicManager.locator('.cal-day:not(.outside):not(.today)').first()
+  await page.evaluate(() => {
+    const source = document.querySelector('.topic-manager:not([style*="display: none"]) .topic-pool-item')
+    const target = document.querySelector('.topic-manager:not([style*="display: none"]) .topic-calendar .cal-day:not(.outside):not(.today)')
+    if (!source || !target) return
+    const sourceRect = source.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const top = Math.min(sourceRect.top, targetRect.top)
+    const bottom = Math.max(sourceRect.bottom, targetRect.bottom)
+    const spare = Math.max(24, (window.innerHeight - (bottom - top)) / 2)
+    window.scrollBy(0, top - spare)
+  })
+  await topicManager.locator('.topic-pool-item').filter({ hasText: topicProbeTitle }).first().dragTo(dragTarget)
+  const topicDragStored = await waitForStorage(page, 'zy_data_v2', raw => {
+    const topic = (raw.zy_data_v2?.topics || []).find(row => row.id === topicProbeId)
+    const slots = raw.zy_data_v2?.dailyFocus?.[todayKey] || []
+    return !!topic?.dueDate
+      && topic.dueDate !== todayKey
+      && !slots.some(slot => slot.sourceType === 'topic' && slot.sourceId === topicProbeId && !slot.cleared)
+  }, { timeout: 8000 })
   report('E2E-67 ★V4.5.0 选题卡可从今日三件事选择器按卡型与关键词进入，详情以标题和资源关联为主视觉；完成/恢复同步状态；选题工作面日历、看板与清单折叠可用',
     JSON.stringify(pickerTypes) === JSON.stringify(['全部', '任务卡', '选题卡'])
       && topicStatusFilterOn
       && pickerCandidateText.includes(topicProbeTitle) && pickerCandidateText.includes('选题')
       && topicDrawer.title.includes(topicProbeTitle) && topicDrawer.core && topicDrawer.resourceCta
+      && topicDrawer.outcomeFirst && topicDrawer.outcomeValue.includes('example.com/e2e-topic-outcome')
       && topicDrawer.aiFind && topicDrawer.ownerSelects === 2 && topicDrawer.statusSelect
       && topicDrawer.noteHeight > 0 && topicDrawer.noteHeight <= 110
       && !!topicFocusStored && !!topicDoneStored && !!topicRestoredStored
       && topicCalendarOn && topicListText.includes(topicProbeTitle)
-      && boardStatuses === 4 && boardProbeVisible && topicListCollapsed,
-    `卡型=${JSON.stringify(pickerTypes)} 选题状态筛选=${topicStatusFilterOn} 候选=${JSON.stringify(pickerCandidateText)} 详情=${JSON.stringify(topicDrawer)} 入库=${!!topicFocusStored}/${!!topicDoneStored}/${!!topicRestoredStored} 日历=${topicCalendarOn} 清单=${topicListText.includes(topicProbeTitle)} 看板=${boardStatuses}/${boardProbeVisible} 折叠=${topicListCollapsed}`)
+      && boardStatuses === 4 && boardProbeVisible && topicListCollapsed
+      && topicOutcomeOpened && !!topicDragStored,
+    `卡型=${JSON.stringify(pickerTypes)} 选题状态筛选=${topicStatusFilterOn} 候选=${JSON.stringify(pickerCandidateText)} 详情=${JSON.stringify(topicDrawer)} 入库=${!!topicFocusStored}/${!!topicDoneStored}/${!!topicRestoredStored} 日历=${topicCalendarOn} 清单=${topicListText.includes(topicProbeTitle)} 看板=${boardStatuses}/${boardProbeVisible} 折叠=${topicListCollapsed} 双击成果=${topicOutcomeOpened} 拖拽排期=${!!topicDragStored}`)
+
+  // ══════════ E2E-68（V4.6.0）任务清单折叠、单项目聚焦与旧快照恢复 ══════════
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.locator('.hand-tab').filter({ hasText: '任务' }).first().click()
+  await waitForLocator(page, '.task-calendar .cal-list-collapse', { visible: true, timeout: 8000 })
+  const taskCalendar = page.locator('.task-calendar:visible').first()
+  await taskCalendar.locator('.cal-list-collapse').click()
+  const taskFoldState = await taskCalendar.evaluate(el => ({
+    hidden: el.classList.contains('list-hidden'),
+    poolVisible: !!el.querySelector('.cal-pool') && getComputedStyle(el.querySelector('.cal-pool')).display !== 'none',
+    expandVisible: !!el.querySelector('.cal-list-expand') && getComputedStyle(el.querySelector('.cal-list-expand')).display !== 'none',
+  }))
+  await page.goto(base + '#/compass/curation?layout=tree&project=e2e-proj-1', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.ctl.focused .ctl-goals', { visible: true, timeout: 10000 })
+  const focusCentered = await page.locator('.ctl.focused .ctl-goals').evaluate(el => {
+    const style = getComputedStyle(el)
+    const width = el.getBoundingClientRect().width
+    return style.justifyContent === 'center' && width <= 1181
+  })
+  await page.goto(base + '#/workspace/e2e-main-board', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.ws-curation-console', { visible: true, timeout: 10000 })
+  const consolePair = await page.locator('.ws-curation-console').evaluate(el => {
+    const thesis = el.querySelector('.thesis-banner')?.getBoundingClientRect()
+    const toolbar = el.querySelector('.cur-toolbar')?.getBoundingClientRect()
+    return !!thesis && !!toolbar && Math.abs(thesis.top - toolbar.top) < 3 && toolbar.left > thesis.right - 2
+  })
+  const originalData = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(raw => raw.zy_data_v2))
+  await page.evaluate(async () => {
+    const raw = await chrome.storage.local.get('zy_data_v2')
+    const data = raw.zy_data_v2
+    if (!data) return
+    delete data.topics
+    delete data.topicStatuses
+    delete data.topicResourceLinks
+    delete data.dailyFocus
+    await chrome.storage.local.set({ zy_data_v2: data })
+  })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.desk-heading h1', { visible: true, timeout: 10000 })
+  const legacySnapshotSafe = await page.locator('.re-title').count() === 0
+  if (originalData) await page.evaluate(data => chrome.storage.local.set({ zy_data_v2: data }), originalData)
+  report('E2E-68 ★V4.6.0 任务清单可在标题旁折叠后让日历铺满；方向树单项目聚焦水平居中；策展台论点与工具栏双列对齐；缺少 V4.5 数组的旧快照恢复后调度台仍可渲染',
+    taskFoldState.hidden && !taskFoldState.poolVisible && taskFoldState.expandVisible
+      && focusCentered && consolePair && legacySnapshotSafe,
+    `任务折叠=${JSON.stringify(taskFoldState)} 聚焦居中=${focusCentered} 策展双列=${consolePair} 旧快照=${legacySnapshotSafe}`)
 
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。

@@ -40,7 +40,7 @@
     </div>
     <div class="gs-modal-footer">
       <button class="gs-btn" @click="closeResetModal">取消</button>
-      <button class="gs-btn gs-btn-danger" :disabled="resetConfirmText !== '回滚'" :style="{ opacity: resetConfirmText === '回滚' ? 1 : 0.5, cursor: resetConfirmText === '回滚' ? 'pointer' : 'not-allowed' }" @click="doReset">确认回滚</button>
+      <button class="gs-btn gs-btn-danger" :disabled="resetConfirmText !== '回滚'" :style="{ cursor: resetConfirmText === '回滚' ? 'pointer' : 'not-allowed' }" @click="doReset">确认回滚</button>
     </div>
   </div>
 </div>

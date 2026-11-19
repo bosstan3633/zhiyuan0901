@@ -127,6 +127,117 @@ function chromeStore(): chrome.storage.StorageArea | null {
 
 export { RETIRED_CARD_KEYS, stripRetiredCardKeys, normalizeLegacyCards }
 
+/**
+ * 云恢复等外部整树入口的统一业务归一化。
+ *
+ * `loadData` 的存量归一化是启动路径的私有步骤；云快照恢复直接替换 Store，
+ * 旧快照缺 `topics/topicStatuses/topicResourceLinks` 时会绕过这些兜底，
+ * 调度台下一次渲染就在 `.map()` 处整页崩溃。这里把同一套业务字段收敛
+ * 应用到恢复树，保证任何入口拿到的都是可用形状。
+ */
+export function normalizeAppData(data: AppData): AppData {
+  if (!data.compass || typeof data.compass !== 'object') data.compass = createDefaultData().compass
+  data.compass.directions = Array.isArray(data.compass.directions) ? data.compass.directions : []
+  data.workspaces = Array.isArray(data.workspaces) ? data.workspaces : []
+  data.categories = Array.isArray(data.categories) ? data.categories : []
+  data.resources = Array.isArray(data.resources) ? data.resources : []
+  data.tasks = Array.isArray(data.tasks) ? data.tasks : []
+  data.curiosities = Array.isArray(data.curiosities) ? data.curiosities : []
+  data.topics = Array.isArray(data.topics) ? data.topics : []
+  data.topicStatuses = Array.isArray(data.topicStatuses) && data.topicStatuses.length
+    ? data.topicStatuses
+    : defaultTopicStatuses()
+  data.topicResourceLinks = Array.isArray(data.topicResourceLinks) ? data.topicResourceLinks : []
+  data.resourceFolders = Array.isArray(data.resourceFolders) ? data.resourceFolders : []
+  data.resourceFolderMirrors = Array.isArray(data.resourceFolderMirrors) ? data.resourceFolderMirrors : []
+  data.argCards = Array.isArray(data.argCards) ? data.argCards : []
+  data.curationProjections = Array.isArray(data.curationProjections) ? data.curationProjections : []
+  data.supportLinks = Array.isArray(data.supportLinks) ? data.supportLinks : []
+  data.curioSupportLinks = Array.isArray(data.curioSupportLinks) ? data.curioSupportLinks : []
+  data.dailyFocus = data.dailyFocus && typeof data.dailyFocus === 'object' && !Array.isArray(data.dailyFocus)
+    ? data.dailyFocus
+    : {}
+  for (const [day, slots] of Object.entries(data.dailyFocus)) {
+    if (!Array.isArray(slots)) data.dailyFocus[day] = []
+  }
+  data.tagTree = Array.isArray(data.tagTree) ? data.tagTree : []
+
+  normalizeLegacyCards(data)
+  pruneResourceFolderMirrors(data)
+  if (!data.fieldConfig) data.fieldConfig = defaultFieldConfig()
+  stripRetiredCardKeys(data.tasks)
+  stripRetiredCardKeys(data.curiosities)
+  stripRetiredCardKeys(data.resources)
+  stripRetiredCardKeys(data.topics)
+  foldParentIdSubtasks(data)
+
+  const fixEncoded = (name: string): string => safeDecodeText(name)
+  data.categories.forEach(c => { if (c) c.name = fixEncoded(c.name) })
+  const fixTagNames = (cards: { tags?: string[] }[] | undefined) => (cards || []).forEach(c => {
+    if (!c || !Array.isArray(c.tags)) return
+    c.tags = c.tags.map(t => (typeof t === 'string' ? fixEncoded(t) : t))
+  })
+  fixTagNames(data.resources as { tags?: string[] }[])
+  fixTagNames(data.tasks as { tags?: string[] }[])
+  fixTagNames(data.curiosities as { tags?: string[] }[])
+  fixTagNames(data.topics as { tags?: string[] }[])
+  try { reconcileCapturedResources(data) } catch { /* noop */ }
+
+  for (const key of ['task', 'curiosity'] as const) {
+    if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'tags')) {
+      data.fieldConfig[key].push({ key: 'tags', label: '标签', type: 'tags', visible: false, order: data.fieldConfig[key].length })
+    }
+  }
+  if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()
+  if (data.fieldConfig && !data.fieldConfig.topic) data.fieldConfig.topic = defaultFieldConfig().topic
+  // REQ-049：老数据字段配置补 assets
+  for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const) {
+    if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'assets')) {
+      data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
+    }
+  }
+
+  const topicStatusIds = new Set(data.topicStatuses.map(status => status.id))
+  const fallbackTopicStatus = data.topicStatuses.slice().sort((a, b) => a.order - b.order)[0]?.id || 'topic-idea'
+  for (const topic of data.topics) {
+    if (!topic.statusId || !topicStatusIds.has(topic.statusId)) topic.statusId = fallbackTopicStatus
+  }
+  for (const dir of data.compass?.directions || []) {
+    for (const project of dir.projects || []) {
+      for (const metric of project.metrics || []) metric.topicIds = Array.isArray(metric.topicIds) ? metric.topicIds : []
+    }
+  }
+  const liveTopicIds = new Set(data.topics.filter(topic => !topic.deletedAt).map(topic => topic.id))
+  for (const dir of data.compass?.directions || []) {
+    for (const project of dir.projects || []) {
+      for (const metric of project.metrics || []) {
+        metric.topicIds = [...new Set((metric.topicIds || []).filter(id => liveTopicIds.has(id)))]
+        for (const topic of data.topics) {
+          if (!topic.deletedAt && topic.metricId === metric.id && !metric.topicIds.includes(topic.id)) metric.topicIds.push(topic.id)
+        }
+      }
+    }
+  }
+  const liveResourceIds = new Set(data.resources.filter(resource => !resource.deletedAt).map(resource => resource.id))
+  data.topicResourceLinks = data.topicResourceLinks.filter(link =>
+    liveTopicIds.has(link.topicId) && (liveResourceIds.has(link.resourceId) || !!link.snapshot))
+
+  if (!data.tagsVisibleMigratedAt) {
+    const tag = data.fieldConfig?.resource?.find(f => f.key === 'tags')
+    if (tag) tag.visible = true
+    data.tagsVisibleMigratedAt = Date.now()
+  }
+  if (Array.isArray(data.activityLogs) && data.activityLogs.length) data.activityLogs = []
+  delete (data as unknown as Record<string, unknown>).airtableSync
+  delete (data as unknown as Record<string, unknown>).airtableMap
+
+  try { hydrateResourceMirrorSnapshots(data) } catch { /* noop */ }
+  try { hydrateResourceFolderMirrorSnapshots(data) } catch { /* noop */ }
+  try { pruneDanglingProjections(data) } catch { /* noop */ }
+  try { scrubHubMirrorMarkers(data) } catch { /* noop */ }
+  return data
+}
+
 /** 加载数据（含首次初始化） */
 export async function loadData(prefetched?: Record<string, unknown>): Promise<AppData> {
   if (cache) return cache
@@ -158,115 +269,10 @@ export async function loadData(prefetched?: Record<string, unknown>): Promise<Ap
     data = createDefaultData()
     await cs.set({ [STORAGE_KEY]: data })
   }
-  /* B7-e 的四条归一化 + P0-2 新增六条，全部收进 `normalizeLegacyCards`（上方导出）——
-     为什么搬：它们原本是 `loadData` 的内联私有步骤，于是「设置页导入」这条路完全没被覆盖。
-     抽出后本处只剩一次调用，`mergeImport` 调同一份 ⇒ 两条入口同一套口径。
-     ★纪律：**归一化必须挂在"数据入库的那一层"，不能挂在"某条读路径上"**——
-       挂在读路径上，每新增一个读入口就漏一个；而入库层是唯一的。 */
-  normalizeLegacyCards(data)
-  data.topics = Array.isArray(data.topics) ? data.topics : []
-  data.topicStatuses = Array.isArray(data.topicStatuses) && data.topicStatuses.length
-    ? data.topicStatuses
-    : defaultTopicStatuses()
-  data.topicResourceLinks = Array.isArray(data.topicResourceLinks) ? data.topicResourceLinks : []
-  data.resourceFolders = Array.isArray(data.resourceFolders) ? data.resourceFolders : []
-  data.resourceFolderMirrors = Array.isArray(data.resourceFolderMirrors) ? data.resourceFolderMirrors : []
-  pruneResourceFolderMirrors(data)
-  // 老库或外部导入可能整块没有 fieldConfig；设置页字段组依赖 resource/task/curiosity，
-  // 缺失时会在渲染期抛错。入库层补默认组，确保所有读入口得到同一套可用结构。
-  if (!data.fieldConfig) data.fieldConfig = defaultFieldConfig()
-  // R162/R165：卡间挂载全量退役——清存量字段（幂等；旧库/旧导出包里可能残留，D4 静默剥离不弹迁移提示）
-  // R166：清单与"导入那条路"共用 RETIRED_CARD_KEYS 单一真源（见文件头 stripRetiredCardKeys 备案）
-  stripRetiredCardKeys(data.tasks)
-  stripRetiredCardKeys(data.curiosities)
-  stripRetiredCardKeys(data.resources)
-  stripRetiredCardKeys(data.topics)
-  /* R166 定案 2（D5）：存量 `parentId` 子卡折叠进父卡的 `subtasks` 清单——子任务从"独立卡 + 父指针"
-     改为"卡内嵌字段"（不进池/指标/看板/周报/回收站，完成不计分）。
-     ⚠ 折叠必须发生在 stripKeys 之后、且**读 parentId 走 cast**：模型里该字段已删，
-        但存量数据仍带着它——这正是"字段退役了、数据还在"的窗口，迁移函数是唯一读它的地方。
-     幂等：`subtasksFoldedAt` 有值即跳过（同 `hubMigratedAt` 一族）。 */
-  foldParentIdSubtasks(data)
-  // 第廿九轮：分类名/标签名 URL 编码归一化——导入场景曾把 percent-encoding 的名称直接存库
-  // （表现为界面上出现「%E5%AE%8B...」乱码分类）。此处一次性解码并在下次 persist 固化。
-  const fixEncoded = (name: string): string => safeDecodeText(name);
-  (data.categories || []).forEach(c => { if (c) c.name = fixEncoded(c.name) })
-  const fixTagNames = (cards: { tags?: string[] }[] | undefined) => (cards || []).forEach(c => {
-    if (!c || !Array.isArray(c.tags)) return
-    c.tags = c.tags.map(t => (typeof t === 'string' ? fixEncoded(t) : t))
-  })
-  fixTagNames(data.resources as { tags?: string[] }[])
-  fixTagNames(data.tasks as { tags?: string[] }[])
-  fixTagNames(data.curiosities as { tags?: string[] }[])
-  fixTagNames(data.topics as { tags?: string[] }[])
-  // V4.2.1：旧导入与历史采集转化使用两套溯源字段；仅做兼容读取。
-  // 同一 capture id 的两张资源卡在这里合并，避免“同标题一张带链接、一张无链接”。
-  try { reconcileCapturedResources(data) } catch { /* noop */ }
-  for (const key of ['task', 'curiosity'] as const) {
-    if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'tags')) {
-      data.fieldConfig[key].push({ key: 'tags', label: '标签', type: 'tags', visible: false, order: data.fieldConfig[key].length })
-    }
-  }
-  // R62-3：策展主题卡字段组——老数据无 thesis 组则补默认（幂等）
-  if (data.fieldConfig && !data.fieldConfig.thesis) data.fieldConfig.thesis = defaultThesisFieldDefs()
-  if (data.fieldConfig && !data.fieldConfig.topic) data.fieldConfig.topic = defaultFieldConfig().topic
-  // 第卌轮 REQ-049：老数据字段配置补 assets（附件展示；字段目录 base 字段，目录化兜底迁移）
-  for (const key of ['resource', 'task', 'curiosity', 'topic', 'thesis'] as const) {
-    if (data.fieldConfig?.[key] && !data.fieldConfig[key].some(f => f.key === 'assets')) {
-      data.fieldConfig[key].push({ key: 'assets', label: '附件', type: 'text', visible: true, order: data.fieldConfig[key].length })
-    }
-  }
-
-  // V4.5.0：选题状态、指标索引与关系记录在入库层统一收敛，确保本机载入、导入和云恢复同源。
-  const topicStatusIds = new Set(data.topicStatuses.map(status => status.id))
-  const fallbackTopicStatus = data.topicStatuses.slice().sort((a, b) => a.order - b.order)[0]?.id || 'topic-idea'
-  for (const topic of data.topics) {
-    if (!topic.statusId || !topicStatusIds.has(topic.statusId)) topic.statusId = fallbackTopicStatus
-  }
-  for (const dir of data.compass?.directions || []) {
-    for (const project of dir.projects || []) {
-      for (const metric of project.metrics || []) metric.topicIds = Array.isArray(metric.topicIds) ? metric.topicIds : []
-    }
-  }
-  const liveTopicIds = new Set(data.topics.filter(topic => !topic.deletedAt).map(topic => topic.id))
-  for (const dir of data.compass?.directions || []) {
-    for (const project of dir.projects || []) {
-      for (const metric of project.metrics || []) {
-        metric.topicIds = [...new Set((metric.topicIds || []).filter(id => liveTopicIds.has(id)))]
-        for (const topic of data.topics) {
-          if (!topic.deletedAt && topic.metricId === metric.id && !metric.topicIds.includes(topic.id)) metric.topicIds.push(topic.id)
-        }
-      }
-    }
-  }
-  const liveResourceIds = new Set((data.resources || []).filter(resource => !resource.deletedAt).map(resource => resource.id))
-  data.topicResourceLinks = data.topicResourceLinks.filter(link =>
-    liveTopicIds.has(link.topicId) && (liveResourceIds.has(link.resourceId) || !!link.snapshot))
-  // R80（R1 遗留）：资源卡标签默认可见——一次性幂等迁移。
-  // 背景：字段池四组的 tags 自建立起就是 visible:false，导致 R1「补齐 #标签」在存量数据上
-  // 从未真正生效（用户不知道要去设置里打开）。此处对 resource 组一次性置 true。
-  // ⚠ 取舍：若用户此前**主动**关掉过标签，本次会被重新打开——R1 是 P0 且标签是资源卡核心元数据，
-  //   判"不知道能开"的概率远高于"主动关掉"。回退只需在设置里再关一次（或删掉标记后重启）。
-  if (!data.tagsVisibleMigratedAt) {
-    const res = data.fieldConfig?.resource
-    const tag = res?.find(f => f.key === 'tags')
-    if (tag) tag.visible = true
-    data.tagsVisibleMigratedAt = Date.now()
-  }
-  // R58-B5：activityLogs 已无写入方（事件日志迁 zy_event_log 独立键）——启动期清空瘦身
-  if (Array.isArray(data.activityLogs) && data.activityLogs.length) data.activityLogs = []
-  // AeroTable 已退役（v4.0.1）——启动期静默剥离存量字段，防旧凭据随云快照外发
-  delete (data as unknown as Record<string, unknown>).airtableSync
-  delete (data as unknown as Record<string, unknown>).airtableMap
-  // V4.2.0：旧任务支持 / 策展投射只要真身仍在，就幂等补一份独立快照。
-  // 必须在悬空投射清理之前执行，否则旧记录会被误判为失去来源。
-  try { hydrateResourceMirrorSnapshots(data) } catch { /* noop */ }
-  try { hydrateResourceFolderMirrorSnapshots(data) } catch { /* noop */ }
-  // R70：悬空投射清理——源卡被硬删（回收站清空）后指向它的投射记录会永久留存、无界增长。幂等，启动期一次。
-  try { pruneDanglingProjections(data) } catch { /* noop */ }
-  // R110-BUG1：资源台镜像标记净化——视图模型标记（__mirrorProjId/__mirrorCat）误持久化 + 指向资源台的投射
-  // 记录，都是历史脏数据，启动期幂等剥离（资源台指标格不再出现「⚠ 镜像 N 条待清理」）。一次净化后下次 persist 固化。
-  try { scrubHubMirrorMarkers(data) } catch { /* noop */ }
+  /* 业务归一化只保留一份：本机载入、导入、云恢复都走 normalizeAppData。
+     这样旧云快照缺 topics/topicStatuses/topicResourceLinks 等 V4.5 字段时，
+     任何入库入口都会补齐数组和索引，不会再等到调度台渲染时才在 `.map()` 崩溃。 */
+  normalizeAppData(data)
   // R148-P0b：热度段以独立键为权威覆盖回主树（视图读法一字不改）；
   //  老数据没有本键 → 首次以主树落一次并打戳，幂等（重启不会抽第二遍）。
   const hot = pickHot(hotRaw)
@@ -475,7 +481,7 @@ export async function cloudRestoreAtomic(opts: {
   cancelPendingSave()
   emitSaveState('saving')
   await opts.beforeApply?.()
-  try { reconcileCapturedResources(opts.nextData) } catch { /* noop */ }
+  normalizeAppData(opts.nextData)
   cache = opts.nextData
   markDataDirty()
   dataVersion++

@@ -421,7 +421,6 @@ async function applyCloudSnapshotToLocal(store: AppStore, snapshot: SnapshotStat
     eventLog: snapshot.eventLog,
   })
   await store.refreshAfterCloudRestore(nextData, null)
-  try { window.dispatchEvent(new CustomEvent('zy:curation-history-reset')) } catch { /* 非浏览器上下文无画布历史 */ }
   if (staleCurationAssets.size) {
     const retained = new Set<string>()
     const collect = (owners?: { assets?: { id: string }[] }[]) => {

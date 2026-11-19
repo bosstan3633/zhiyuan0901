@@ -17,6 +17,8 @@ import { consumePendingDrawer, emitDrawerClosed, emitOpenDrawer, onOpenDrawer, t
 import { attachTopicToMetric, softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { addTopicResourceLink, removeTopicResourceLink, topicResourcesOf } from '@/shared/utils/topicResourceLinks'
 import { isTopicDone, setTopicStatus, sortedTopicStatuses, toggleTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
+import { openExternalLink } from '@/shared/utils/link'
+import { normalizeTopicOutcome, topicOutcomeLink } from '@/shared/utils/topicOutcome'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import type { AiJob } from '@/shared/ai/job'
@@ -80,6 +82,7 @@ const metrics = computed(() => projects.value.find(project => project.id === pro
 const statuses = computed(() => sortedTopicStatuses(d.value))
 const status = computed(() => topic.value ? topicStatusOf(d.value, topic.value.statusId) : undefined)
 const done = computed(() => isTopicDone(d.value, topic.value || undefined))
+const outcome = computed(() => topic.value ? topicOutcomeLink(topic.value) : null)
 const resourceRows = computed(() => topic.value ? topicResourcesOf(d.value, topic.value.id) : [])
 const resourceCandidates = computed(() => {
   const query = resourceDraft.value.trim().toLowerCase()
@@ -109,6 +112,45 @@ function saveTitle(): void {
   if (value === topic.value.title) return
   topic.value.title = value
   touch()
+}
+
+function saveOutcomeLink(): void {
+  if (!topic.value) return
+  if (!String(topic.value.link || '').trim()) {
+    topic.value.link = undefined
+    topic.value.linkType = undefined
+    touch()
+    return
+  }
+  if (!normalizeTopicOutcome(topic.value)) {
+    showToast('成果链接仅支持 http(s)://、obsidian:// 或完整域名')
+    touch()
+    return
+  }
+  touch()
+}
+
+function openOutcomeLink(): void {
+  const link = outcome.value
+  if (!link) {
+    showToast('请先填写可打开的网页或 Obsidian 成果链接')
+    return
+  }
+  openExternalLink(link.url)
+}
+
+async function copyOutcomeLink(): Promise<void> {
+  const link = outcome.value
+  if (!link) {
+    showToast('请先填写成果链接')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(link.url)
+    showToast('成果链接已复制')
+  } catch {
+    showToast('复制失败，请手动选中链接')
+  }
 }
 
 function saveAndClose(): void {
@@ -308,6 +350,34 @@ function fmt(ts?: number): string {
     </template>
 
     <div v-if="topic" class="topic-body">
+      <section class="topic-outcome" :class="{ empty: !outcome }">
+        <header>
+          <div>
+            <span class="topic-outcome-kicker"><Icon name="external" :size="13" /> 成果出口</span>
+            <b>发布 / 成果链接</b>
+          </div>
+          <span v-if="outcome" class="topic-outcome-kind">{{ outcome.label }}</span>
+          <span v-else class="topic-outcome-kind empty">待补充</span>
+        </header>
+        <div class="topic-outcome-row">
+          <input
+            v-model="topic.link"
+            type="text"
+            placeholder="https://… 或 obsidian://open?vault=…"
+            aria-label="发布或成果链接"
+            @blur="saveOutcomeLink"
+            @keydown.enter.prevent="saveOutcomeLink"
+          >
+          <button class="topic-outcome-open" type="button" :disabled="!outcome" @click="openOutcomeLink">
+            <Icon name="external" :size="13" /> {{ outcome?.kind === 'obsidian' ? '打开 Obsidian' : '打开成果' }}
+          </button>
+          <button class="topic-outcome-copy" type="button" :disabled="!outcome" title="复制链接" aria-label="复制成果链接" @click="copyOutcomeLink">
+            <Icon name="copy" :size="13" />
+          </button>
+        </div>
+        <small>双击选题卡可直接打开这里；支持互联网链接与本地 Obsidian URI。</small>
+      </section>
+
       <section class="topic-owner">
         <label class="topic-field">
           <span><Icon name="package" :size="13" /> 项目</span>
@@ -391,13 +461,6 @@ function fmt(ts?: number): string {
         </label>
       </section>
 
-      <section class="topic-link">
-        <label class="topic-field">
-          <span><Icon name="link" :size="13" /> 发布 / 成果链接</span>
-          <input v-model="topic.link" placeholder="https://…" @blur="touch">
-        </label>
-      </section>
-
       <section class="topic-tags">
         <TagPicker v-model="topic.tags" />
       </section>
@@ -439,6 +502,21 @@ function fmt(ts?: number): string {
 .topic-kind { padding: 2px 7px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
 .topic-status-pill { padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--topic-color) 48%, var(--border)); border-radius: 99px; background: color-mix(in srgb, var(--topic-color) 12%, var(--surface)); color: var(--topic-color); font-size: var(--fs-micro); font-weight: 650; }
 .topic-body { display: flex; flex-direction: column; gap: 16px; }
+.topic-outcome { padding: 14px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border)); border-radius: var(--radius-xl); background: linear-gradient(135deg, color-mix(in srgb, var(--accent-light) 72%, var(--surface)), var(--surface)); box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 10%, transparent); }
+.topic-outcome.empty { border-color: var(--border); background: var(--surface-2); box-shadow: none; }
+.topic-outcome header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.topic-outcome header > div { display: flex; flex-direction: column; gap: 3px; }
+.topic-outcome-kicker { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 750; letter-spacing: .08em; }
+.topic-outcome header b { color: var(--text); font-size: var(--fs-title); }
+.topic-outcome-kind { flex: none; padding: 3px 8px; border-radius: 99px; background: var(--accent); color: #fff; font-size: var(--fs-micro); font-weight: 700; }
+.topic-outcome-kind.empty { background: var(--surface-3); color: var(--text-3); }
+.topic-outcome-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 36px; gap: 7px; margin-top: 11px; }
+.topic-outcome-row input { min-width: 0; min-height: 40px; padding: 8px 11px; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); border-radius: 10px; outline: 0; background: var(--surface); color: var(--text); font-family: inherit; font-size: var(--fs-sub); }
+.topic-outcome-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.topic-outcome-open, .topic-outcome-copy { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
+.topic-outcome-copy { width: 36px; padding: 0; border-color: var(--border); background: var(--surface); color: var(--text-2); }
+.topic-outcome-open:disabled, .topic-outcome-copy:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.topic-outcome small { display: block; margin-top: 7px; color: var(--text-3); font-size: var(--fs-micro); }
 .topic-owner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .topic-field { display: flex; min-width: 0; flex-direction: column; gap: 5px; color: var(--text-3); font-size: var(--fs-caption); }
 .topic-field > span { display: inline-flex; align-items: center; gap: 5px; }
@@ -483,7 +561,7 @@ function fmt(ts?: number): string {
 .topic-note small { color: var(--text-4); font-weight: 500; }
 .topic-note textarea { min-height: 66px; max-height: 110px; resize: vertical; padding: 7px 8px; border: 1px solid transparent; border-radius: 8px; outline: none; background: var(--surface); color: var(--text); font-family: inherit; font-size: var(--fs-sub); line-height: 1.65; }
 .topic-note textarea:focus { border-color: var(--accent); }
-.topic-tags, .topic-link { padding: 2px 0; }
+.topic-tags { padding: 2px 0; }
 .topic-meta { display: flex; gap: 14px; color: var(--text-4); font-size: var(--fs-micro); }
 .topic-assets { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
 .topic-assets summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--text-2); font-size: var(--fs-caption); }

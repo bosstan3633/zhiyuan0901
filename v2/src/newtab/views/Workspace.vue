@@ -33,6 +33,7 @@
           <span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新于 <b>{{ lastUpdateText }}</b></span>
         </span>
       </div>
+      <div class="ws-curation-console">
       <!-- 中心论点卡是信息主舞台：有论点时整卡可打开详情，内部控件各自阻止冒泡；
            空态仍由原生按钮承担创建动作。 -->
       <div class="thesis-banner" :class="{ empty: !thesisCard }"
@@ -94,6 +95,7 @@
           <Icon name="external" :size="13"/> 打开全部资源<span v-if="curationOpenableCards.length"> {{ curationOpenableCards.length }}</span>
         </button>
         <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
+      </div>
       </div>
     </div>
 

@@ -131,7 +131,7 @@ check('V450-7 ★选题详情以完整标题为第一视觉：标题可换行、
 
 check('V450-8 ★选题工作面与任务池同构：左侧可折叠清单，右侧月/周日历与按状态分组的看板；拖拽改状态、改 dueDate 与今天严格同源', () => {
   return TOPIC_MANAGER.includes('class="topic-workbench"')
-    && TOPIC_MANAGER.includes('class="topic-collapse"')
+    && TOPIC_MANAGER.includes('class="topic-collapse-inline"')
     && TOPIC_MANAGER.includes(':class="{ \'list-hidden\': listCollapsed }"')
     && TOPIC_MANAGER.includes('viewMode === \'calendar\'')
     && TOPIC_MANAGER.includes('class="topic-board"')

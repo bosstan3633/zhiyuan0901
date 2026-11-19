@@ -25,6 +25,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'open-topic', topic: TopicCard): void
+  (e: 'open-topic-link', topic: TopicCard): void
   (e: 'open-task', task: TaskCard): void
   (e: 'toggle-status', topicId: string): void
   (e: 'toggle-task-status', taskId: string): void
@@ -346,6 +347,7 @@ function openDay(key: string): void {
           :key="cell.key"
           class="cal-day"
           :class="{ outside: !cell.inMonth, today: cell.isToday, over: dragOverDay === cell.key }"
+          :data-day="cell.key"
           @dragover.prevent
           @dragenter.prevent="dragOverDay = cell.key"
           @dragleave.self="dragOverDay = ''"
@@ -368,6 +370,7 @@ function openDay(key: string): void {
                 @dragstart="onDragStart($event, entry.topic)"
                 @dragend="draggingId = ''; dragOverDay = ''"
                 @click="emit('open-topic', entry.topic)"
+                @dblclick.stop.prevent="emit('open-topic-link', entry.topic)"
                 @keydown.enter.prevent="emit('open-topic', entry.topic)"
               >
                 <button class="cal-chip-check" :class="{ 'is-done': isDone(entry.topic) }" type="button" :aria-label="isDone(entry.topic) ? '恢复选题' : '标记完成'" @click.stop="emit('toggle-status', entry.topic.id)">
@@ -424,7 +427,7 @@ function openDay(key: string): void {
             <button class="cal-check" :class="{ 'is-done': isDone(entry.topic) }" type="button" @click="emit('toggle-status', entry.topic.id)">
               <Icon v-if="isDone(entry.topic)" name="check" :size="11" />
             </button>
-            <button class="cal-modal-copy" type="button" @click="emit('open-topic', entry.topic)">
+            <button class="cal-modal-copy" type="button" @click="emit('open-topic', entry.topic)" @dblclick.stop.prevent="emit('open-topic-link', entry.topic)">
               <b><span class="topic-entry-kind">选题</span>{{ entry.topic.title }}</b>
               <small>{{ projectLabel(entry.topic) }}<template v-if="metricLabel(entry.topic)"> › {{ metricLabel(entry.topic) }}</template></small>
             </button>
