@@ -355,7 +355,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '4.6.0'";
+const VER_ANCHOR_LITERAL = "version: '4.7.0'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */
@@ -480,7 +480,8 @@ const TB88 = segOf(WS88, '<div class="ws-toolbar cur-toolbar"', '<CurationMindMa
 const POP88 = POOL_CONTROLS;
 const TB1_88 = TB88;
 // ★V4.1.2 随迁备案：页面设置退役，原 88 切片改指「台数据」菜单；导入/导出/清理能力仍在同一现役边界。
-const SM88 = segOf(WS88, '<div class="cur-import"', '<div class="toolbar-spacer">');
+// ★V4.7 随迁备案：全局功能模块取消 toolbar-spacer，终点改指紧随其后的「打开全部资源」按钮。
+const SM88 = segOf(WS88, '<div class="cur-import"', '<button class="hero-btn ghost cur-open-all"');
 const WS89 = read('/newtab/views/Workspace.vue');
 const WS89_TPL = segOf(WS89, '<template>', '\n</template>');
 const WS90 = read('/newtab/views/Workspace.vue');

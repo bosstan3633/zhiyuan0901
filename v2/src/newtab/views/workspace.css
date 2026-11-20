@@ -40,30 +40,43 @@
 .ws-curation-console .cur-toolbar {
   position: static;
   z-index: auto;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: center;
-  gap: 7px;
   min-width: 0;
   margin: 0;
+  margin-top: 0;
+}
+/* V4.7 全局功能模块：分享主行动置顶，读数居中，检索与低频动作收紧为一行。 */
+.ws-curation-console .cur-global-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 7px;
   padding: 10px;
-  border-color: color-mix(in srgb, var(--border) 84%, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--border) 84%, var(--accent));
   border-radius: 13px;
   background: color-mix(in srgb, var(--surface) 94%, var(--accent-light));
   box-shadow: none;
 }
-.ws-curation-console .cur-toolbar .toolbar-spacer { display: none; }
-.ws-curation-console .cur-toolbar .toolbar-search {
-  grid-column: 1 / -1;
-  width: auto;
+.ws-curation-console .cur-global-panel .cur-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
-.ws-curation-console .cur-toolbar .cur-import,
-.ws-curation-console .cur-toolbar .hero-btn { min-width: 0; }
-.ws-curation-console .cur-toolbar .cur-import-trigger,
-.ws-curation-console .cur-toolbar .hero-btn {
-  width: 100%;
-  justify-content: center;
-}
+.cur-global-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 28px; }
+.cur-global-title { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); letter-spacing: .06em; }
+.cur-global-panel .share-action { flex: none; min-height: 30px; padding: 5px 12px; }
+.cur-global-panel .cur-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.cur-global-panel .cur-metric { width: 100%; justify-content: space-between; flex-wrap: wrap; row-gap: 1px; }
+.cur-global-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.cur-global-actions .toolbar-search { flex: 1 1 150px; width: auto; min-width: 0; padding: 4px 8px; }
+.cur-global-actions .cur-import { flex: 0 0 auto; }
+.cur-global-actions .cur-import-trigger,
+.cur-global-actions .cur-open-all { min-height: 28px; padding: 4px 8px; font-size: var(--fs-caption); }
+.cur-global-actions .cur-open-all { flex: 0 0 auto; min-width: 0; justify-content: center; }
 /* V3.9.28：台身份回到 ≤40px 的紧凑读数行；图标收进 accent 淡底方片，台名回到 19px 页头字阶。 */
 .ws-id-head { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 36px; max-height: 40px; padding: 2px 2px 2px 0; overflow: visible; }
 .wsh-icon {
@@ -93,8 +106,8 @@
 /* R98（W8）：页头「更新 X」摘要——自指标条降级而来，保留流水下钻入口 */
 .wsh-upd { cursor: pointer; }
 .wsh-upd:hover { color: var(--accent); }
-/* V4.0.3：中心论点卡承载论点正文、卡片读数与详情入口。
-   卡片本身不再是按钮，避免内部读数按钮与整卡点击争夺事件。 */
+/* V4.7：中心论点卡只承载论点正文与详情入口；读数迁入右侧全局功能模块。
+   卡片点击打开论点详情，内部按钮各自阻止冒泡。 */
 .thesis-banner {
   display: flex; min-width: 0; min-height: 68px; align-items: center; justify-content: space-between; gap: 16px;
   padding: 9px 14px;
@@ -207,8 +220,6 @@
 /* R110-LC（T3）：归档卡降级提示条（可点开生命周期面板查看 / 恢复） */
 .ws-archived-hint { margin: 8px 0 0; padding: 7px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; font-size: var(--fs-sub); color: var(--text-3); cursor: pointer; transition: all var(--dur); }
 .ws-archived-hint:hover { border-color: var(--accent); color: var(--accent); }
-/* R90（R8-②）：右推职责交给 .toolbar-spacer（主 CTA 前置后，搜索不再是第一个右端元素） */
-.toolbar-spacer { flex: 1; }
 .toolbar-search { display: flex; align-items: center; gap: 6px; width: 210px; padding: 5px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); transition: all var(--dur); }
 .toolbar-search:focus-within { border-color: var(--accent); }
 .toolbar-search input { border: none; outline: none; font-size: var(--fs-sub); width: 100%; min-width: 0; background: transparent; color: var(--text); }
@@ -331,7 +342,7 @@
   .ws-content { padding: 16px 18px 72px; }
   .ws-head { gap: 8px; padding-left: 0; }
   .ws-curation-console { grid-template-columns: minmax(0, 1fr); padding: 7px; border-radius: 15px; }
-  .ws-curation-console .cur-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws-curation-console .cur-global-panel { grid-template-columns: minmax(0, 1fr); }
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
   .wsh-name { font-size: 17px; }
   .wsh-desc { display: none; }
@@ -342,11 +353,7 @@
   .tb-desc { min-width: 0; }
   .tb-hint { white-space: normal; line-height: 1.55; }
   .ws-toolbar { flex-wrap: wrap; gap: 7px; padding: 8px 10px; }
-  .cur-metrics { flex: 1 1 auto; }
-  .cur-metric { flex: 1; justify-content: space-between; }
   .cur-import-popover { left: 0; right: auto; width: min(250px, calc(100vw - 40px)); }
-  .cur-toolbar .share-action { margin-left: auto; }
-  .toolbar-spacer { display: none; }
-  .toolbar-search { flex: 1 1 180px; min-width: 0; }
+  .cur-global-actions .toolbar-search { flex: 1 1 180px; min-width: 0; }
   .toolbar-search input { width: 100%; min-width: 0; }
 }

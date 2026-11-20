@@ -22,11 +22,15 @@ const props = withDefaults(defineProps<{
   showDone?: boolean
   projectNames: Map<string, string>
   metricNames: Map<string, string>
+  sortMode?: 'recent' | 'unplanned' | 'due'
+  groupMode?: 'none' | 'project'
 }>(), {
   topics: () => [],
   topicStatuses: () => [],
   focusSlots: () => [],
   showDone: true,
+  sortMode: 'recent',
+  groupMode: 'none',
 })
 
 const emit = defineEmits<{
@@ -256,7 +260,41 @@ const selectedTitle = computed(() => {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日 · ${weekdays[(date.getDay() + 6) % 7]}`
 })
 
-const poolTasks = computed(() => [...props.tasks].sort(poolOrder))
+const poolTasks = computed(() => {
+  const rows = [...props.tasks]
+  if (props.sortMode === 'recent') {
+    return rows.sort((a, b) =>
+      (Number(b.pinned) - Number(a.pinned))
+      || ((b.createdAt || 0) - (a.createdAt || 0)))
+  }
+  if (props.sortMode === 'due') return rows.sort(poolOrder)
+  return rows.sort((a, b) => {
+    const aPlanned = !!a.dueDate
+    const bPlanned = !!b.dueDate
+    if (aPlanned !== bPlanned) return aPlanned ? 1 : -1
+    return (b.createdAt || 0) - (a.createdAt || 0)
+  })
+})
+
+const poolGroups = computed(() => {
+  if (props.groupMode !== 'project') {
+    return [{ key: '__all__', name: '', tasks: poolTasks.value }]
+  }
+  const groups: { key: string; name: string; tasks: TaskCard[] }[] = []
+  for (const task of poolTasks.value) {
+    const key = task.projectId && props.projectNames.has(task.projectId) ? task.projectId : '__none__'
+    let group = groups.find(row => row.key === key)
+    if (!group) {
+      group = { key, name: key === '__none__' ? '未挂项目' : props.projectNames.get(key) || key, tasks: [] }
+      groups.push(group)
+    }
+    group.tasks.push(task)
+  }
+  return groups
+})
+
+const poolOrderHint = computed(() =>
+  props.sortMode === 'recent' ? '最新入池在前' : props.sortMode === 'due' ? '按计划日期排序' : '未落图在前')
 
 function taskOrder(a: TaskCard, b: TaskCard): number {
   const rank: Record<TaskCard['status'], number> = { doing: 0, todo: 1, done: 2 }
@@ -294,7 +332,7 @@ function statusLabel(status: TaskCard['status']): string {
 }
 
 function projectLabel(card: TaskCard | TopicCard): string {
-  return (card.projectId && props.projectNames.get(card.projectId)) || '未归档'
+  return (card.projectId && props.projectNames.get(card.projectId)) || '未挂项目'
 }
 
 function metricLabel(card: TaskCard | TopicCard): string {
@@ -305,17 +343,13 @@ function isMissing(task: TaskCard): boolean {
   return !task.projectId || !task.metricId
 }
 
-function isOverdue(task: TaskCard): boolean {
-  return task.status !== 'done' && !!task.dueDate && task.dueDate < todayKey.value
-}
-
-type CalendarTone = 'done' | 'today' | 'future' | 'overdue' | 'past'
+type CalendarTone = 'done' | 'today' | 'future' | 'past'
 
 function taskTone(task: TaskCard): CalendarTone {
   if (task.status === 'done') return 'done'
   if (task.dueDate === todayKey.value) return 'today'
   if (task.dueDate && task.dueDate > todayKey.value) return 'future'
-  if (task.dueDate && task.dueDate < todayKey.value) return 'overdue'
+  if (task.dueDate && task.dueDate < todayKey.value) return 'past'
   return 'past'
 }
 
@@ -335,7 +369,7 @@ function topicTone(topic: TopicCard): CalendarTone {
   if (isTopicDone({ topicStatuses: props.topicStatuses }, topic)) return 'done'
   if (topic.dueDate === todayKey.value) return 'today'
   if (topic.dueDate && topic.dueDate > todayKey.value) return 'future'
-  if (topic.dueDate && topic.dueDate < todayKey.value) return 'overdue'
+  if (topic.dueDate && topic.dueDate < todayKey.value) return 'past'
   return 'past'
 }
 
@@ -344,7 +378,7 @@ function topicStatusStyle(topic: TopicCard): Record<string, string> {
 }
 
 function friendlyDate(key?: string): string {
-  if (!key) return '未排期'
+  if (!key) return '未落图'
   const date = dateOfKey(key)
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
@@ -507,7 +541,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
               <Icon name="arrowleft" :size="12" /> 折叠
             </button>
           </div>
-          <span>{{ poolTasks.length }} 项当前筛选结果 · 未落图在前</span>
+          <span>{{ poolTasks.length }} 项当前筛选结果 · {{ poolOrderHint }}</span>
         </div>
         <span class="cal-pool-stat">{{ monthScheduledTasks.length }} 本月已排</span>
       </header>
@@ -518,7 +552,12 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       </div>
 
       <div class="cal-pool-list">
-        <div v-for="task in poolTasks" :key="task.id" class="cal-pool-item">
+        <template v-for="group in poolGroups" :key="group.key">
+          <div v-if="group.name" class="cal-pool-group">
+            <span>{{ group.name }}</span>
+            <em>{{ group.tasks.length }}</em>
+          </div>
+        <div v-for="task in group.tasks" :key="task.id" class="cal-pool-item">
           <article
             class="cal-pool-task"
             :class="'is-' + task.status"
@@ -548,7 +587,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
                   <Icon name="calendar" :size="10" />
                   {{ task.dueDate ? `落图 ${friendlyDate(task.dueDate)}` : '未落图' }}
                 </span>
-                <span v-if="isOverdue(task)" class="cal-warn">已逾期</span>
                 <button v-if="isMissing(task)" class="cal-assign" type="button" @click.stop="emit('assign-task', task)">去归位</button>
               </small>
             </span>
@@ -586,6 +624,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             </button>
           </div>
         </div>
+        </template>
         <div v-if="!poolTasks.length" class="cal-empty">
           <Icon name="clipboard" :size="20" />
           <b>当前筛选没有任务</b>
@@ -616,7 +655,6 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             <span class="tone-done">已完成</span>
             <span class="tone-today">今日</span>
             <span class="tone-future">待执行</span>
-            <span class="tone-overdue">逾期</span>
           </div>
           <div v-if="monthPickerOpen" class="cal-month-picker" role="dialog" aria-label="选择月份">
             <header>
@@ -776,7 +814,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             </button>
             <button class="cal-modal-copy" type="button" @click="openTaskFromDay(entry.task)">
               <b>{{ entry.task.title }}</b>
-              <small>{{ projectLabel(entry.task) }}<template v-if="metricLabel(entry.task)"> › {{ metricLabel(entry.task) }}</template><template v-if="isOverdue(entry.task)"> · 已逾期</template></small>
+              <small>{{ projectLabel(entry.task) }}<template v-if="metricLabel(entry.task)"> › {{ metricLabel(entry.task) }}</template></small>
             </button>
             <span class="cal-modal-side">
               <button v-if="isMissing(entry.task)" class="cal-assign" type="button" @click="emit('assign-task', entry.task)">去归位</button>

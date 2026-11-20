@@ -19,6 +19,7 @@ import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import { useTaskPanelBatch } from './taskPanelBatch'
 import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import DeckBatchBar from './DeckBatchBar.vue'
 import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
@@ -248,9 +249,7 @@ function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
 function setTaskDueDate(taskId: string, date: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
-  const changed = task.dueDate !== date
-  task.dueDate = date
-  task.updatedAt = Date.now()
+  const changed = scheduleCardDate(d.value, task, date, { source: 'calendar' })
   store.persist()
   if (changed) showToast(`已排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日`)
 }
@@ -261,8 +260,7 @@ function clearTaskDueDate(taskId: string): void {
     showToast('该任务本来就在任务池，未安排计划执行日期')
     return
   }
-  task.dueDate = undefined
-  task.updatedAt = Date.now()
+  scheduleCardDate(d.value, task, undefined, { source: 'calendar' })
   store.persist()
   showToast('已取消排期，任务回到任务池')
 }

@@ -25,6 +25,8 @@ import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { setTaskStatus as commitTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
+import PlanScheduleHistory from './PlanScheduleHistory.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -275,8 +277,7 @@ function onSelMetricChange() {
 
 function updatePlannedDate(value: string): void {
   if (!selectedTask.value) return
-  selectedTask.value.dueDate = value || undefined
-  selectedTask.value.updatedAt = Date.now()
+  scheduleCardDate(d.value, selectedTask.value, value, { source: 'detail' })
   store.persist()
   showToast(value ? `计划执行日期已设为 ${value}` : '已取消排期，任务回到卡片池')
 }
@@ -398,7 +399,8 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <input type="date" :value="selectedTask.dueDate || ''" @change="updatePlannedDate(($event.target as HTMLInputElement).value)">
             </label>
           </div>
-          <div class="ts-plan-note">没有“截止日期”字段。留空即未排期；拖入今日日历会同步进入今日三件事。</div>
+          <div class="ts-plan-note">没有“截止日期”字段。留空即未落图；拖入今日日历会同步进入今日三件事。</div>
+          <PlanScheduleHistory :card-id="selectedTask.id" card-kind="task" :current-date="selectedTask.dueDate" />
           <button class="ts-focus-btn" type="button" @click="addToTodayFocus">
             <Icon name="target" :size="13" /> 设为今日重点
             <span>同步写入今天的计划执行日期，不改状态与归属</span>

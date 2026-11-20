@@ -95,19 +95,22 @@ check('R121-12 树内能力保留：编辑 + 节点操作 hover + 指标折叠 +
     && /function collapseAllNodes/.test(CT_W11);
 });
 
-check('R122-1（V4.0.3 重指）页头摘要分层：身份行保留自写描述 / 分类 / 更新流水，论据卡与佐证附件读数归中心论点卡；提示条/教学气泡退役', () => {
+check('R122-1（V4.7 重指）页头摘要分层：身份行保留自写描述 / 分类 / 更新流水，论据卡与佐证附件读数归右侧全局功能模块；提示条/教学气泡退役', () => {
   const w = read('/newtab/views/Workspace.vue');
   const summaryStart = w.indexOf('class="wsh-summary"');
   const summary = summaryStart >= 0 ? w.slice(summaryStart, w.indexOf('</div>', summaryStart)) : '';
   const bannerStart = w.indexOf('class="thesis-banner"');
   const banner = bannerStart >= 0 ? w.slice(bannerStart, w.indexOf('<!-- ③ 行动条', bannerStart)) : '';
+  const globalStart = w.indexOf('class="cur-global-panel"');
+  const globalPanel = globalStart >= 0 ? w.slice(globalStart) : '';
   return w.includes('v-if="wsHeadDescOwn"')
     && summary.includes('<b>{{ categories.length }}</b> 个分类')
     && !summary.includes('论据卡')
     && !summary.includes('佐证附件')
-    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
-    && banner.includes('{{ metrics.total }}')
-    && banner.includes('{{ metrics.attachmentCount }}')
+    && !banner.includes('class="cur-metrics"')
+    && globalPanel.includes('class="cur-metrics" data-curation-metrics="2"')
+    && globalPanel.includes('{{ metrics.total }}')
+    && globalPanel.includes('{{ metrics.attachmentCount }}')
     && w.includes('class="wsh-upd"')
     && !w.includes('wsh-tip')
     && !w.includes('wsh-help')
@@ -350,7 +353,7 @@ check('R127-6（V3.9.14 重指）画布自适应：旧 CSS Grid 列模板与 py-
     && c.includes('.mind-stage { position: relative; width: max-content; min-width: 100%;')
     && c.includes('.mindmap-canvas[data-layout="pyramid"] .mind-stage { display: block; width: max-content; min-width: 100%; margin: 0 auto; }');
 });
-check('R127-7 手册同步：任务调度默认视图/三档分组 + WCE 新口径 + 标签双栏说明（★W6 再随迁：默认档改回「列表」——卡片视图 AI 入口重构，手册同步为「默认列表视图」；沉底与分组三档不变）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('默认列表视图 + 已完成任务自动沉底 + 分组三档') && m.includes('好奇卡「创建 + 状态变更 + 删除」的事件数') && m.includes('R127 起为双栏'); });
+check('R127-7（V4.6.0 口径更正）手册同步：任务调度默认视图/三档分组 + 现役方向读数 + 标签双栏说明（★W6 再随迁：默认档改回「列表」；旧五格指标条已退出，WCE / WRR 只作底层数据口径）', () => { const m = read('/newtab/manual-data.ts'); return m.includes('默认列表视图 + 已完成任务自动沉底 + 分组三档') && m.includes('方向健康度 / 主攻 / 停滞') && m.includes('WCE / WRR 仍可作为底层数据口径') && m.includes('R127 起为双栏'); });
 // V3.7.0（R179）退役：资源台页头对齐实测（116/116/116）随资源台退役——页头单形态判据并入 R126-3。
 check('R127-8 页头单形态（V3.7.0 退役）：资源台页头设计与对齐实测随退役下线；.wsh-icon 图标位保留', () => { const w = read('/newtab/views/Workspace.vue'); return w.includes('<span class="wsh-icon">') && !w.includes('<span v-if="!isHub" class="wsh-icon">'); });
 

@@ -12,11 +12,15 @@ const { fs, path, check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【V4.3.2 · 调度台月历与卡片池入口】')
 
-check('V432-1（V4.3.4 重指）左栏遵守上方筛选并展示全部结果：未落图任务在前，已落图任务按日期在后；拖入月历或取消排期都只更新同一条任务', () => {
+check('V432-1（V4.7.0 重指）左栏遵守上方筛选并展示全部结果：默认最新入池在前，可切未落图优先 / 按计划日期，并支持按项目分组；拖入月历或取消排期都只更新同一条任务', () => {
   const calendar = codeOnly(read('/newtab/components/compass/TaskCalendarView.vue'))
   return calendar.includes('const pendingPoolTasks = computed(() =>')
     && calendar.includes("props.tasks.filter(task => !/^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate || ''))")
-    && calendar.includes('const poolTasks = computed(() => [...props.tasks].sort(poolOrder))')
+    && calendar.includes('const poolTasks = computed(() =>')
+    && calendar.includes("if (props.sortMode === 'recent')")
+    && calendar.includes("if (props.sortMode === 'due') return rows.sort(poolOrder)")
+    && calendar.includes('const poolGroups = computed(() =>')
+    && calendar.includes("props.groupMode !== 'project'")
     && calendar.includes('function poolOrder(a: TaskCard, b: TaskCard): number')
     && calendar.includes('if (!aDate && bDate) return -1')
     && calendar.includes('if (aDate && !bDate) return 1')
@@ -59,13 +63,13 @@ check('V432-3 月份选择器可切年 / 月并可回到今天；日详情走共
     && !calendar.includes('cal-day-overlay');
 })
 
-check('V432-4 月历任务按状态着色：已完成绿、今日橙、未来灰、逾期红，并给出可读图例', () => {
+check('V432-4（V4.7.0 重指）月历任务按状态着色：已完成绿、今日橙、未来灰、过去中性，不再由计划日期推导逾期红，并给出可读图例', () => {
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
   const css = read('/newtab/components/compass/TaskCalendarView.css')
   return calendar.includes("if (task.status === 'done') return 'done'")
     && calendar.includes("if (task.dueDate === todayKey.value) return 'today'")
     && calendar.includes("if (task.dueDate && task.dueDate > todayKey.value) return 'future'")
-    && calendar.includes("if (task.dueDate && task.dueDate < todayKey.value) return 'overdue'")
+    && calendar.includes("if (task.dueDate && task.dueDate < todayKey.value) return 'past'")
     && calendar.includes("'tone-' + taskTone(entry.task)")
     && calendar.includes("'tone-' + topicTone(entry.topic)")
     && calendar.includes('class="cal-tone-legend"')
@@ -75,8 +79,9 @@ check('V432-4 月历任务按状态着色：已完成绿、今日橙、未来灰
     && css.includes('var(--warning)')
     && css.includes('.cal-task-chip.tone-future')
     && css.includes('var(--text-3)')
-    && css.includes('.cal-task-chip.tone-overdue')
-    && css.includes('var(--danger)');
+    && !calendar.includes('tone-overdue')
+    && !calendar.includes('已逾期')
+    && !css.includes('var(--danger)');
 })
 
 check('V432-5（V4.3.4 重指）三池页签只统计自然日当天新增：下界含零点、上界不含次日零点；0 不渲染、超过 99 显示 99+，与页签文字同色', () => {
@@ -98,14 +103,15 @@ check('V432-5（V4.3.4 重指）三池页签只统计自然日当天新增：下
     && !css.includes('.hand-new-badge { background: var(--danger)');
 })
 
-check('V432-6 三个入口均携 fresh 信号进入二级卡池；资源池 fresh 默认列表、最近入池优先，今日采集再叠加当天过滤', () => {
+check('V432-6（V4.7.0 重指）四卡入口就地切页签；旧 /deck 深链保留 fresh 查询并重定向一级页，资源池 fresh 仍默认列表、最近入池优先，今日采集再叠加当天过滤', () => {
   const homeLogic = read('/newtab/views/useCompassHome.ts')
-  const deck = read('/newtab/views/CompassDeckView.vue')
+  const router = read('/newtab/router.ts')
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
   const reset = pool.slice(pool.indexOf('async function resetForFresh()'), pool.indexOf('defineExpose({ openDetail, resetForFresh })'))
-  return homeLogic.includes('path: `/deck/${kind}`')
-    && homeLogic.includes("query: { fresh: '1', freshAt: String(Date.now()) }")
-    && deck.includes('await resourcePanel.value?.resetForFresh()')
+  return homeLogic.includes('handTab.value = kind')
+    && homeLogic.includes("router.replace({ path: '/', query: { tab: kind } })")
+    && router.includes('...to.query')
+    && router.includes('tab: String(to.params.kind')
     && reset.includes("viewMode.value = 'list'")
     && reset.includes("sortBy.value = 'created'")
     && reset.includes("sortDir.value = 'desc'")

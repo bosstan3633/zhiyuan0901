@@ -181,17 +181,23 @@ check('W2-3（V3.9.8 随迁）只读合同没被画布改版碰坏：镜像资�
 });
 
 /* ============ W3 · 台头信息行弱化 ============ */
-check('W3-1（V4.0.3 重指）页头读数行降 caption：分类与更新时间留在身份行，论据卡 / 佐证附件收进中心论点卡，「更新于」tooltip 与流水下钻仍在', () => {
+check('W3-1（V4.7 重指）页头读数行降 caption：分类与更新时间留在身份行，论据卡 / 佐证附件收进右侧全局功能模块，「更新于」tooltip 与流水下钻仍在', () => {
   const sum = rule(CSS, '.wsh-summary');
   const i = WSV.indexOf('class="wsh-summary"');
   const seg = i >= 0 ? WSV.slice(i, WSV.indexOf('</div>', i)) : '';
-  const banner = WSV.slice(WSV.indexOf('class="thesis-banner"'), WSV.indexOf('<!-- ③ 行动条'));
+  const bannerStart = WSV.indexOf('class="thesis-banner"');
+  const banner = bannerStart >= 0 ? WSV.slice(bannerStart, WSV.indexOf('<!-- ③ 行动条', bannerStart)) : '';
+  const globalPanel = WSV.indexOf('class="cur-global-panel"') >= 0
+    ? WSV.slice(WSV.indexOf('class="cur-global-panel"')) : '';
   if (!sum || !seg) { console.log('     规则或模板缺失'); return false; }
   return sum.includes('font-size: var(--fs-caption)')
     && sum.includes('color: var(--text-3)')
     && seg.includes('个分类') && seg.includes('更新于')
     && !seg.includes('论据卡') && !seg.includes('佐证附件')
-    && banner.includes('论据卡') && banner.includes('佐证附件')
+    && !banner.includes('class="cur-metrics"')
+    && globalPanel.includes('class="cur-metrics" data-curation-metrics="2"')
+    && globalPanel.includes('{{ metrics.total }}')
+    && globalPanel.includes('{{ metrics.attachmentCount }}')
     && seg.includes('title="查看最近更新流水"') && seg.includes('openDrill(\'recent\')');
 });
 

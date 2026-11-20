@@ -18,6 +18,7 @@ import { attachTopicToMetric, softDeleteTopicToTrash } from '@/shared/utils/topi
 import { isTopicDone, setTopicStatus, sortedTopicStatuses, toggleTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 import { toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import type { TaskCard, TopicCard } from '@/shared/models'
 import TopicCalendarView from './TopicCalendarView.vue'
 
@@ -35,6 +36,8 @@ const projectFilter = ref('')
 const statusFilter = ref('all')
 const showDone = ref(true)
 const viewMode = ref<'calendar' | 'board'>('calendar')
+const sortMode = ref<'recent' | 'unplanned' | 'due'>('recent')
+const groupMode = ref<'none' | 'project'>('none')
 const listCollapsed = ref(false)
 const createOpen = ref(false)
 const createTitle = ref('')
@@ -75,16 +78,39 @@ const filteredTopics = computed(() => {
 })
 
 const orderedTopics = computed(() => [...filteredTopics.value].sort((a, b) => {
-  const aPending = !a.dueDate
-  const bPending = !b.dueDate
-  if (aPending !== bPending) return aPending ? -1 : 1
-  if (a.dueDate && b.dueDate) {
-    const byDate = a.dueDate.localeCompare(b.dueDate)
-    if (byDate) return byDate
+  if (sortMode.value === 'due') {
+    const aDate = a.dueDate || '9999-99-99'
+    const bDate = b.dueDate || '9999-99-99'
+    return aDate.localeCompare(bDate) || (b.createdAt || 0) - (a.createdAt || 0)
   }
-  return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
-    || (b.updatedAt || 0) - (a.updatedAt || 0)
+  if (sortMode.value === 'unplanned') {
+    const aPending = !a.dueDate
+    const bPending = !b.dueDate
+    if (aPending !== bPending) return aPending ? -1 : 1
+    if (a.dueDate && b.dueDate) {
+      const byDate = a.dueDate.localeCompare(b.dueDate)
+      if (byDate) return byDate
+    }
+    return (b.createdAt || 0) - (a.createdAt || 0)
+  }
+  return (Number(b.pinned) - Number(a.pinned))
+    || ((b.createdAt || 0) - (a.createdAt || 0))
 }))
+
+const topicListGroups = computed(() => {
+  if (groupMode.value !== 'project') return [{ key: '__all__', name: '', topics: orderedTopics.value }]
+  const groups: { key: string; name: string; topics: TopicCard[] }[] = []
+  for (const topic of orderedTopics.value) {
+    const key = topic.projectId && projectNames.value.has(topic.projectId) ? topic.projectId : '__none__'
+    let group = groups.find(row => row.key === key)
+    if (!group) {
+      group = { key, name: key === '__none__' ? '未挂项目' : projectNames.value.get(key) || key, topics: [] }
+      groups.push(group)
+    }
+    group.topics.push(topic)
+  }
+  return groups
+})
 
 const pendingCount = computed(() => filteredTopics.value.filter(topic => !topic.dueDate).length)
 const todayCount = computed(() => {
@@ -199,8 +225,7 @@ function setTaskDueDate(taskId: string, date: string): void {
     return
   }
   clearTaskFromToday(taskId)
-  task.dueDate = date
-  task.updatedAt = Date.now()
+  scheduleCardDate(d.value, task, date, { source: 'calendar' })
   store.persist()
   showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日，并移出今日三件事`)
 }
@@ -209,8 +234,7 @@ function clearTaskDueDate(taskId: string): void {
   const task = liveTasks.value.find(row => row.id === taskId)
   if (!task) return
   const removedFocus = clearTaskFromToday(taskId)
-  task.dueDate = undefined
-  task.updatedAt = Date.now()
+  scheduleCardDate(d.value, task, undefined, { source: 'calendar' })
   store.persist()
   showToast('已取消排期，任务回到卡片池', {
     label: '撤销',
@@ -223,9 +247,8 @@ function clearTaskDueDate(taskId: string): void {
         const index = removedFocus.slotIndex ?? cells.findIndex(cell => !cell || cell.cleared)
         if (index >= 0 && index < 3) cells[index] = removedFocus
         d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
-        current.dueDate = day
+        scheduleCardDate(d.value, current, day, { source: 'calendar', record: false })
       }
-      current.updatedAt = Date.now()
       store.persist()
       showToast('已恢复任务排期')
     },
@@ -326,8 +349,7 @@ function setDueDate(topicId: string, date: string): void {
     return
   }
   removeTopicFromToday(topic.id)
-  topic.dueDate = date
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d.value, topic, date, { source: 'calendar' })
   store.persist()
 }
 
@@ -335,8 +357,7 @@ function clearDueDate(topicId: string): void {
   const topic = d.value.topics.find(row => !row.deletedAt && row.id === topicId)
   if (!topic) return
   removeTopicFromToday(topic.id)
-  topic.dueDate = undefined
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d.value, topic, undefined, { source: 'calendar' })
   store.persist()
   showToast('已取消排期，选题回到未落图列表')
 }
@@ -370,7 +391,7 @@ function deleteTopic(topic: TopicCard): void {
 }
 
 function projectName(topic: TopicCard): string {
-  return (topic.projectId && projectNames.value.get(topic.projectId)) || '未归档'
+  return (topic.projectId && projectNames.value.get(topic.projectId)) || '未挂项目'
 }
 
 function metricName(topic: TopicCard): string {
@@ -411,6 +432,15 @@ defineExpose({ resetForFresh, openDetail })
           <option value="all">全部状态</option>
           <option v-for="status in statuses" :key="status.id" :value="status.id">{{ status.name }}</option>
         </select>
+        <select v-model="sortMode" aria-label="选题排序">
+          <option value="recent">最新入池</option>
+          <option value="unplanned">未落图优先</option>
+          <option value="due">按计划日期</option>
+        </select>
+        <select v-model="groupMode" aria-label="选题分组">
+          <option value="none">不分组</option>
+          <option value="project">按项目分组</option>
+        </select>
         <label class="topic-done-toggle">
           <input v-model="showDone" type="checkbox">
           显示已完成
@@ -439,7 +469,7 @@ defineExpose({ resetForFresh, openDetail })
                 <Icon name="arrowleft" :size="12" /> 折叠
               </button>
             </div>
-            <span>{{ filteredTopics.length }} 项当前筛选 · 未落图在前</span>
+          <span>{{ filteredTopics.length }} 项当前筛选 · {{ sortMode === 'recent' ? '最新入池在前' : sortMode === 'due' ? '按计划日期' : '未落图在前' }}</span>
           </div>
           <div class="topic-pool-badges">
             <span>{{ pendingCount }} 未落图</span>
@@ -447,8 +477,12 @@ defineExpose({ resetForFresh, openDetail })
           </div>
         </header>
         <div class="topic-pool-list">
+          <template v-for="group in topicListGroups" :key="group.key">
+            <div v-if="group.name" class="topic-pool-group">
+              <span>{{ group.name }}</span><em>{{ group.topics.length }}</em>
+            </div>
           <article
-            v-for="topic in orderedTopics"
+            v-for="topic in group.topics"
             :key="topic.id"
             class="topic-pool-item"
             :style="statusStyle(topic)"
@@ -476,6 +510,7 @@ defineExpose({ resetForFresh, openDetail })
               <button type="button" title="删除选题" @click.stop="deleteTopic(topic)"><Icon name="trash" :size="12" /></button>
             </div>
           </article>
+          </template>
           <EmptyState v-if="!orderedTopics.length" size="inline" icon="clipboard" title="没有匹配的选题" hint="调整筛选条件，或新建一个选题。" />
         </div>
       </aside>
@@ -620,6 +655,9 @@ defineExpose({ resetForFresh, openDetail })
 .topic-collapse-inline { display: inline-flex; flex: none; align-items: center; gap: 3px; min-height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); cursor: pointer; }
 .topic-collapse-inline:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .topic-pool-list { flex: 1; min-height: 0; overflow: auto; padding: 7px; }
+.topic-pool-group { display: flex; align-items: center; gap: 6px; padding: 7px 5px 4px; color: var(--text-3); font-size: var(--fs-micro); font-weight: 650; }
+.topic-pool-group::after { flex: 1; height: 1px; background: var(--border); content: ''; }
+.topic-pool-group em { color: var(--text-4); font-style: normal; font-variant-numeric: tabular-nums; }
 .topic-pool-item { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 9px 8px; border: 1px solid transparent; border-left: 3px solid color-mix(in srgb, var(--topic-status) 55%, var(--border)); border-radius: 10px; cursor: pointer; }
 .topic-pool-item:hover { border-color: var(--border); border-left-color: var(--topic-status); background: var(--surface-2); }
 .topic-check { display: inline-grid; width: 18px; height: 18px; place-items: center; padding: 0; border: 1.5px solid var(--border-strong); border-radius: 5px; background: var(--surface); color: #fff; cursor: pointer; }

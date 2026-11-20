@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, onUnmounted, onDeactivated, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onDeactivated, shallowRef, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import { useCompass } from '../stores/compass'
@@ -20,6 +20,7 @@ import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
 import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import { isTopicDone, setTopicStatus, toggleTopicDone, topicStatusOf, topicTerminalStatus, topicInProgressStatus } from '@/shared/utils/topicStatus'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 import {
@@ -405,8 +406,7 @@ function selectTaskForSlot(task: TaskCard) {
     task.updatedAt = Date.now()
   }
   if (task.dueDate !== key) {
-    task.dueDate = key
-    task.updatedAt = Date.now()
+    scheduleCardDate(d.value, task, key, { source: 'focus' })
   }
   const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
   const previous = cells[pickerSlot.value]
@@ -454,8 +454,7 @@ function selectTopicForSlot(topic: TopicCard) {
     }
   }
   if (topic.dueDate !== key) {
-    topic.dueDate = key
-    topic.updatedAt = Date.now()
+    scheduleCardDate(d.value, topic, key, { source: 'focus' })
   }
   const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
   const previous = cells[pickerSlot.value]
@@ -946,12 +945,18 @@ const liveTopics = computed<TopicCard[]>(() =>
 // ================= V4.3.1 · 调度台任务工作面 =================
 // 任务池不再只给 5 条预览：左列表与右侧月历共用一份筛选结果。
 // 当前状态仍只读写 TaskCard.status；计划执行日期仍只读写 TaskCard.dueDate。
-type TaskWorkQuick = 'all' | 'unscheduled' | 'unarchived' | 'focus' | 'overdue'
+type TaskWorkQuick = 'all' | 'noProject' | 'unplanned' | 'unarchived' | 'focus'
+type TaskWorkView = 'calendar' | 'board'
+type TaskWorkSort = 'recent' | 'unplanned' | 'due'
+type TaskWorkGroup = 'none' | 'project'
 const taskWorkSearch = ref('')
 const taskWorkProject = ref('')
 const taskWorkStatus = ref<'all' | TaskCard['status']>('all')
 const taskWorkQuick = ref<TaskWorkQuick>('all')
 const taskWorkShowDone = ref(true)
+const taskWorkView = ref<TaskWorkView>('calendar')
+const taskWorkSort = ref<TaskWorkSort>('recent')
+const taskWorkGroup = ref<TaskWorkGroup>('none')
 const taskWorkProjectNames = computed(() =>
   new Map(allProjects().map(project => [project.id, project.name])))
 const taskWorkMetricNames = computed(() => {
@@ -974,13 +979,12 @@ const taskWorkProjectOptions = computed(() => {
     .map(project => ({ id: project.id, name: project.name, count: counts.get(project.id) || 0 }))
 })
 const taskWorkCounts = computed(() => {
-  const today = todayKey.value
   return {
     all: liveTasks.value.length,
-    unscheduled: liveTasks.value.filter(task => !task.dueDate).length,
+    noProject: liveTasks.value.filter(task => !task.projectId || !taskWorkProjectNames.value.has(task.projectId)).length,
+    unplanned: liveTasks.value.filter(task => !task.dueDate).length,
     unarchived: liveTasks.value.filter(task => !task.projectId || !task.metricId).length,
     focus: liveTasks.value.filter(task => !!task.projectId && taskWorkFocusIds.value.has(task.projectId)).length,
-    overdue: liveTasks.value.filter(task => task.status !== 'done' && !!task.dueDate && task.dueDate < today).length,
   }
 })
 const taskWorkFiltered = computed(() => {
@@ -988,7 +992,6 @@ const taskWorkFiltered = computed(() => {
   const projectId = taskWorkProject.value
   const status = taskWorkStatus.value
   const quick = taskWorkQuick.value
-  const today = todayKey.value
   return liveTasks.value.filter(task => {
     if (status !== 'all' && task.status !== status) return false
     if (projectId && task.projectId !== projectId) return false
@@ -1000,10 +1003,10 @@ const taskWorkFiltered = computed(() => {
       ].join(' ').toLowerCase()
       if (!haystack.includes(query)) return false
     }
-    if (quick === 'unscheduled' && task.dueDate) return false
+    if (quick === 'noProject' && task.projectId && taskWorkProjectNames.value.has(task.projectId)) return false
+    if (quick === 'unplanned' && task.dueDate) return false
     if (quick === 'unarchived' && task.projectId && task.metricId) return false
     if (quick === 'focus' && (!task.projectId || !taskWorkFocusIds.value.has(task.projectId))) return false
-    if (quick === 'overdue' && (!task.dueDate || task.dueDate >= today || task.status === 'done')) return false
     return true
   })
 })
@@ -1078,7 +1081,6 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
   const previous = task.dueDate
-  const dateChanged = previous !== date
   const today = todayKey.value
   const priorFocusSlot = activeFocusSlots(d.value.dailyFocus?.[today])
     .find(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
@@ -1100,9 +1102,9 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
     }
   }
 
+  const dateChanged = previous !== date
   if (dateChanged) {
-    task.dueDate = date
-    task.updatedAt = Date.now()
+    scheduleCardDate(d.value, task, date, { source: 'calendar' })
   }
   let removedFocus: FocusSlot | null = null
   if (date !== today && priorFocusSlot) {
@@ -1132,8 +1134,7 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
     cb: () => {
       const current = d.value.tasks.find(row => row.id === taskId)
       if (!current) return
-      current.dueDate = previous
-      current.updatedAt = Date.now()
+      scheduleCardDate(d.value, current, previous, { source: 'calendar', record: false })
       if (focusResult === 'added') {
         clearTaskFromFocusDay(today, taskId, false)
       }
@@ -1154,16 +1155,14 @@ function clearTaskWorkDue(taskId: string): void {
   }
   const today = todayKey.value
   const removedFocus = previous === today ? clearTaskFromFocusDay(today, taskId, false) : null
-  task.dueDate = undefined
-  task.updatedAt = Date.now()
+  scheduleCardDate(d.value, task, undefined, { source: 'calendar' })
   store.persist()
   showToast('已取消排期，任务回到卡片池', {
     label: '撤销',
     cb: () => {
       const current = d.value.tasks.find(row => row.id === taskId)
       if (!current) return
-      current.dueDate = previous
-      current.updatedAt = Date.now()
+      scheduleCardDate(d.value, current, previous, { source: 'calendar', record: false })
       if (removedFocus) restoreTaskToFocusDay(today, removedFocus)
       store.persist()
       showToast('已恢复计划执行日期')
@@ -1215,8 +1214,7 @@ async function setTopicWorkDue(topicId: string, date: string): Promise<void> {
   }
 
   if (priorFocusSlot) clearTopicFromFocusDay(today, topicId)
-  topic.dueDate = date
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d.value, topic, date, { source: 'calendar' })
   store.persist()
   showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日，并移出今日三件事`)
 }
@@ -1226,8 +1224,7 @@ function clearTopicWorkDue(topicId: string): void {
   if (!topic) return
   const today = todayKey.value
   const removedFocus = clearTopicFromFocusDay(today, topicId, false)
-  topic.dueDate = undefined
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d.value, topic, undefined, { source: 'calendar' })
   store.persist()
   showToast('已取消排期，选题回到卡片池', {
     label: '撤销',
@@ -1239,9 +1236,8 @@ function clearTopicWorkDue(topicId: string): void {
         const index = removedFocus.slotIndex ?? cells.findIndex(cell => !cell || cell.cleared)
         if (index >= 0 && index < FOCUS_LIMIT) cells[index] = removedFocus
         d.value.dailyFocus[today] = cells.map((cell, cellIndex) => cell || clearedFocusSlot(cellIndex))
-        current.dueDate = today
+        scheduleCardDate(d.value, current, today, { source: 'calendar', record: false })
       }
-      current.updatedAt = Date.now()
       store.persist()
       showToast('已恢复选题排期')
     },
@@ -1255,6 +1251,14 @@ function toggleTaskWorkStatus(taskId: string): void {
   toggleTaskStatus(task)
   store.persist()
   showToast(nextDone ? '任务已完成，今日三件事和月历已同步' : '任务已恢复为勾选前的状态')
+}
+
+function setTaskWorkStatus(taskId: string, status: TaskCard['status']): void {
+  const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
+  if (!task || task.status === status) return
+  setTaskStatus(task, status)
+  store.persist()
+  showToast(status === 'done' ? '任务已完成，今日三件事和月历已同步' : `任务已改为${taskStatusLabel(status)}`)
 }
 
 const taskAssignOpen = ref(false)
@@ -1382,10 +1386,9 @@ function openRecentResource(r: ResourceCard): void {
   openResourcePreview(r)
 }
 function goDeck(kind: HandKind): void {
-  void router.push({
-    path: `/deck/${kind}`,
-    query: { fresh: '1', freshAt: String(Date.now()) },
-  })
+  handTab.value = kind
+  void nextTick(() => handBoardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  void router.replace({ path: '/', query: { tab: kind } })
 }
 /* ★W17-C01（2026-10-20 用户拍板）「今天的状态」三行 → 中央只读明细弹窗。
  * 原行为是 router.push 跳到另一个页面（说 A 给 B）；现改为就地弹窗，不跳路由、不改 URL。
@@ -1428,8 +1431,9 @@ function goDeck(kind: HandKind): void {
     openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
     focusSlotSourceLabel,
     taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
+    taskWorkView, taskWorkSort, taskWorkGroup,
     taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
-    taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus,
+    taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
     setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
     taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,

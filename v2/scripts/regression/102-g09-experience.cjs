@@ -78,7 +78,7 @@ check('G102-5（V4.1.3 退役重指）好奇详情“资源支撑”入口整体
     && !CURIO.includes('removeCurioSupport')
     && !CURIO.includes('openCurioSupportResource')
     && !read('/newtab/components/compass/curiosityPanelCore.ts').includes('useCurioSupport')
-    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、选题→资源、策展节点→资源/选题四条');
 });
 
 check('G102-6（V4.3.1 重指）周期 AI 分析物理退役：四个周期组件不再挂 PiAiReview，宿主不再持有周期 AI 状态机或分析动作', () => {

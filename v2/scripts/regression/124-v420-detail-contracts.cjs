@@ -7,17 +7,18 @@
 const { fs, base, check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【R167 · 两卡详情 OPPO 质感重排 / AI 入口共享化 / 弹窗下半部主导】');
-check('R167-1（V4.1.3 重指）★分组面板体系是真源不是各写各的：detail-sheet.css 的 ds-* 七件套在位，资源详情三块面板，好奇详情收为三块（资源支撑随关系白名单退役），焦点面板整块撑高', () => {
+check('R167-1（V4.7.0 重指）★分组面板体系是真源不是各写各的：detail-sheet.css 的 ds-* 七件套在位，资源详情三块面板，好奇详情为来源与标签 / 计划执行 / 问题原文 / 流转与凭证四块，焦点面板整块撑高', () => {
   const css = read('/shared/styles/detail-sheet.css')
   const f = read('/newtab/components/ResourceEditForm.vue'); const c = read('/newtab/components/compass/CuriosityPanel.vue')
   const curioPanels = c.match(/class="ds-pnl( hero)?"/g) || []
   return ['.ds-pnl', '.ds-pnl-h', '.ds-kv', '.ds-ai-strip', '.ds-hero-note', '.ds-h1', '.ds-kicker'].every(k => css.includes(k))
     && css.includes('.ds-pnl.hero') && /min-height:\s*34vh/.test(css)
     && (f.match(/class="ds-pnl( hero)?"/g) || []).length === 3
-    && curioPanels.length === 3
-    && curioPanels.filter(x => x === 'class="ds-pnl"').length === 2
+    && curioPanels.length === 4
+    && curioPanels.filter(x => x === 'class="ds-pnl"').length === 3
     && curioPanels.filter(x => x === 'class="ds-pnl hero"').length === 1
     && c.includes('<b>来源与标签</b>')
+    && c.includes('<b>计划执行</b>')
     && !c.includes('<b>资源支撑</b>')
     && c.includes('<b>流转与凭证</b>')
     && (c.match(/<b>问题原文<\/b>/g) || []).length === 1

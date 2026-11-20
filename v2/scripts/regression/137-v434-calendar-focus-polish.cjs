@@ -5,9 +5,14 @@ const { check, read, codeOnly } = require('./helpers.cjs')
 
 console.log('【V4.3.4 · 调度台任务联动与日历视觉】')
 
-check('V434-1 左侧任务清单吃上方筛选结果：未落图任务在前，已落图任务按计划日期在后，并逐行显示“落图 月/日”', () => {
+check('V434-1（V4.7.0 重指）左侧任务清单吃上方筛选结果：默认最新入池，可切未落图优先/按计划日期（未落图在前、已落图按计划日期），并逐行显示“落图 月/日”', () => {
   const calendar = codeOnly(read('/newtab/components/compass/TaskCalendarView.vue'))
-  return calendar.includes('const poolTasks = computed(() => [...props.tasks].sort(poolOrder))')
+  return calendar.includes("sortMode: 'recent'")
+    && calendar.includes("if (props.sortMode === 'recent')")
+    && calendar.includes('((b.createdAt || 0) - (a.createdAt || 0))')
+    && calendar.includes("if (props.sortMode === 'due') return rows.sort(poolOrder)")
+    && calendar.includes('const aPlanned = !!a.dueDate')
+    && calendar.includes('if (aPlanned !== bPlanned) return aPlanned ? 1 : -1')
     && calendar.includes('function poolOrder(a: TaskCard, b: TaskCard): number')
     && calendar.includes('if (!aDate && bDate) return -1')
     && calendar.includes('if (aDate && !bDate) return 1')
@@ -15,11 +20,19 @@ check('V434-1 左侧任务清单吃上方筛选结果：未落图任务在前，
     && calendar.includes("{{ task.dueDate ? `落图 ${friendlyDate(task.dueDate)}` : '未落图' }}")
 })
 
-check('V434-2（V4.3.5 重指）今日三件事与今日日历严格同源：进入槽位写 today dueDate；满额拒绝第 4 项，不落图也不覆盖', () => {
+check('V434-2（V4.7.0 重指）今日三件事与今日日历严格同源：进入槽位与日历排期统一走 scheduleCardDate；满额拒绝第 4 项，不落图也不覆盖', () => {
   const util = codeOnly(read('/shared/utils/focusSuggest.ts'))
   const home = codeOnly(read('/newtab/views/useCompassHome.ts'))
   const drawer = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
   const manager = codeOnly(read('/newtab/components/compass/useTaskManagerPanel.ts'))
+  const slotPicker = home.slice(
+    home.indexOf('function selectTaskForSlot('),
+    home.indexOf('type FocusPickerCandidate'),
+  )
+  const dueSetter = home.slice(
+    home.indexOf('async function setTaskWorkDue('),
+    home.indexOf('function clearTaskWorkDue('),
+  )
   const fullGuard = home.slice(
     home.indexOf("if (result.status === 'full')"),
     home.indexOf('if (dateChanged)', home.indexOf("if (result.status === 'full')")),
@@ -29,13 +42,18 @@ check('V434-2（V4.3.5 重指）今日三件事与今日日历严格同源：进
     && (util.match(/syncFocusTasksToSchedule\(d, anchorKey/g) || []).length >= 3
     && home.includes('const synced = syncFocusTasksToSchedule(d.value, key)')
     && home.includes('if (task.dueDate !== key) {')
-    && home.includes('task.dueDate = key')
+    && !!slotPicker
+    && slotPicker.includes("scheduleCardDate(d.value, task, key, { source: 'focus' })")
+    && !slotPicker.includes('task.dueDate = key')
+    && !!dueSetter
+    && dueSetter.includes("scheduleCardDate(d.value, task, date, { source: 'calendar' })")
+    && !dueSetter.includes('task.dueDate = date')
     && home.includes('const today = todayKey.value')
     && home.includes("if (date === today && task.status === 'done' && !priorFocusSlot)")
     && home.includes("if (date === today && task.status !== 'done')")
     && home.includes('const result = addManualFocus(d.value, today, task.id)')
     && home.includes('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
-    && !!fullGuard && !fullGuard.includes('task.dueDate = date')
+    && !!fullGuard && !fullGuard.includes('scheduleCardDate(')
     && home.includes("if (date === today && focusResult === 'exists')")
     && home.includes('removedFocus = clearTaskFromFocusDay(today, taskId, false)')
     && (home.match(/result\.status === 'exists'[\s\S]{0,160}store\.persist\(\)/g) || []).length >= 1

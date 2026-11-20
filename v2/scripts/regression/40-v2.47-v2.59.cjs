@@ -122,10 +122,11 @@ check('R78-8 A7 跨上下文合并：写入前 loadData 绕过 1500ms 缓存，�
   return body.includes('const d = await loadData()') && !body.includes('await getData()')
     && body.includes('await saveData(d)') && body.includes('dataCache = d; dataCacheAt = Date.now()');
 });
-check('R78-9 A7 定位分流：有 projectId 走项目详情，无走调度台高亮', () => {
+check('R78-9（V4.7.0 重指）A7 定位分流：有 projectId 走项目全景并高亮任务，无 projectId 走一级任务卡池详情', () => {
   const o = read('/content/overlay-impl.ts');
   const body = fnBody(o, 'function focusLocateTask(', 'async function addTaskToDailyFocus');
-  return body.includes("'/compass/projects?p=' + t.projectId") && body.includes("'/?hl=' + id")
+  return body.includes("'pano=1'") && body.includes("'proj=' + encodeURIComponent(t.projectId)")
+    && body.includes("'task=' + encodeURIComponent(id)") && body.includes("'/?hl=' + id + '&hk=task'")
     && body.includes("type: 'zy-open-route'");
 });
 check('R78-10 A7 写入的槽位与 CompassHome.selectTaskForSlot 同构（sourceType/sourceId/text/done）', () => {
@@ -811,11 +812,12 @@ check('R88-7（V4.1.2 重指）页面设置退役后，台数据菜单承接 JSO
     && !ws.includes('class="settings-menu"') && !ws.includes('class="hero-btn settings"')
     && !TB1_88.includes('importModalOpen = true');
 });
-check('R88-8（V3.9.29 重指）策展画布主行动唯一：分享成果恢复为行尾 primary；导入折叠为单个 ghost 菜单触发器，设置保持次级；旧资源池批量与建支 CTA 不回流', () => {
+check('R88-8（V4.7 重指）策展画布主行动唯一：分享成果为右上 primary；导入仍是单个 ghost 菜单触发器；打开全部资源与导入同为次级 ghost；旧资源池批量与建支 CTA 不回流', () => {
   return (TB1_88.match(/hero-btn primary/g) || []).length === 1
     && !TB1_88.includes("mind.createChild('root')")
-    && (TB1_88.match(/hero-btn ghost/g) || []).length === 1
+    && (TB1_88.match(/hero-btn ghost/g) || []).length >= 1
     && TB1_88.includes('class="hero-btn ghost cur-import-trigger"')
+    && TB1_88.includes('class="hero-btn ghost cur-open-all"')
     && TB1_88.includes('<b>导入成果 HTML</b>')
     && /<Icon name="share"[^>]*\/> 分享成果/.test(TB1_88)
     && !TB1_88.includes('openNewArgument')

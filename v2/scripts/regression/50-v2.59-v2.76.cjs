@@ -22,18 +22,24 @@ check('R90-2 R8-①（V3.7.0 退役）：HUB_HELP_TEXT 四段文案现行源码�
   return !WS90.includes('HUB_HELP_TEXT') && !WS90.includes('卡片在此存储为真身')
     && !WS90.includes('📡 单卡') && !WS90.includes('📤 分类');
 });
-check('R90-3（V4.2.0 随迁）工具栏只承担成果导入 / 分享 / 搜索；台数据菜单经 Teleport 渲染，建支无按钮，统一走节点 Tab / Enter 与 useCurationMindMap.createChild', () => {
+check('R90-3（V4.7 重指）全局功能模块承担分享 / 论据附件读数 / 搜索 / 台数据 / 打开全部资源；台数据菜单经 Teleport 渲染，建支无按钮，统一走节点 Tab / Enter 与 useCurationMindMap.createChild', () => {
   const ws = read('/newtab/views/Workspace.vue')
   return !ws.includes("mind.createChild('root')")
-    && ws.indexOf('class="cur-import"') < ws.indexOf('class="toolbar-search"')
-    && ws.indexOf('导入成果 HTML') > ws.indexOf('class="toolbar-search"')
+    && ws.indexOf('class="cur-global-panel"') < ws.indexOf('class="ws-toolbar cur-toolbar"')
+    && ws.indexOf('class="cur-global-head"') < ws.indexOf('class="cur-metrics"')
+    && ws.indexOf('class="cur-metrics"') < ws.indexOf('class="cur-global-actions"')
+    && ws.indexOf('class="toolbar-search"') < ws.indexOf('class="cur-import"')
+    && ws.indexOf('class="cur-import"') < ws.indexOf('cur-open-all')
     && ws.includes('<Teleport to="body">')
     && !ws.includes('@click="openNewArgument')
     && read('/newtab/components/curation/CurationMindMap.vue').includes("emit('create-child', 'root')");
 });
-check('R90-4 R8-②：右推职责交给 .toolbar-spacer（.toolbar-search 不再自带 margin-left:auto）', () => {
+check('R90-4（V4.7 重指）★右推职责交给全局功能模块：分享/读数/检索各归其行（.toolbar-search 不再自带 margin-left:auto）', () => {
   const search = segOf(STYLE90, '.toolbar-search {', '}');
-  return STYLE90.includes('.toolbar-spacer { flex: 1; }') && !search.includes('margin-left: auto');
+  return STYLE90.includes('.cur-global-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 28px; }')
+    && STYLE90.includes('.cur-global-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }')
+    && STYLE90.includes('.cur-global-actions .toolbar-search { flex: 1 1 150px; width: auto; min-width: 0; padding: 4px 8px; }')
+    && !search.includes('margin-left: auto');
 });
 // V3.7.0（R179）随迁重写：资源台 fallback 定位语（wsHeadDescFallback / wsh-locator）随退役下线，
 // 页头描述收敛为单形态——用户自写描述内联（wsHeadDescOwn）。
@@ -115,10 +121,11 @@ check('R91-5（V4.3.1 重指）调度台把主攻变成任务筛选上下文而�
     && require('fs').existsSync(path.resolve(base, 'newtab/views/ProjectCuration.vue'))
     && read('/newtab/components/GlobalPopups.vue').includes('/compass/projects');
 });
-check('R91-6（V4.3.1 重指）无主攻时任务工作面仍可用：全部项目、未归档与未排期筛选始终可达，不把“没有主攻”做成死区', () => {
+check('R91-6（V4.7.0 重指）无主攻时任务工作面仍可用：全部项目、未挂项目、未落图与未归档筛选始终可达，不把“没有主攻”做成死区', () => {
   return CH91.includes('taskWorkProjectOptions')
     && CH91.includes("quick === 'unarchived'")
-    && CH91.includes("quick === 'unscheduled'")
+    && CH91.includes("quick === 'unplanned'")
+    && CH91.includes("quick === 'noProject'")
     && CH91.includes('全部项目')
     && !CH91.includes('class="stat-row stat-row-empty"');
 });

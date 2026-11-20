@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onDeactivated, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import Icon from '@/shared/components/Icon.vue'
 import { useAppStore } from '../../stores/app'
 import { CURATION_WS_ID, type ResourceCard, type ResourceFolder } from '@/shared/models'
@@ -10,6 +11,8 @@ import {
 } from '@/shared/storage/resourceFolders'
 import ResourceFolderDrawer from './ResourceFolderDrawer.vue'
 import ResourceFolderDetailModal from './ResourceFolderDetailModal.vue'
+import PoolCardsPanel from './PoolCardsPanel.vue'
+import Drawer from '@/shared/components/Drawer.vue'
 
 const props = defineProps<{ todayStart: number }>()
 const store = useAppStore()
@@ -19,6 +22,21 @@ const detailOpen = ref(false)
 const detailKind = ref<'today' | 'folder'>('today')
 const detailFolderId = ref('')
 const detailTitle = ref('今日采集')
+const allOpen = ref(false)
+const route = useRoute()
+
+/** V4.7：/deck/resource 旧深链统一落到一级资源页签，并自动展开「全部资源卡」抽屉；
+ *  带 hl 的检索定位也让 PoolCardsPanel 在抽屉里接手高亮。 */
+watch(() => route.query, (query) => {
+  if (query.all === '1' || typeof query.hl === 'string') allOpen.value = true
+}, { immediate: true })
+/* 调度台由 KeepAlive 缓存，切到方向台/策展台时组件只失活不卸载；
+   抽屉又 Teleport 到 body，若不在这里收口会把遮罩与高层抽屉一路带到下一模块。 */
+onDeactivated(() => {
+  allOpen.value = false
+  detailOpen.value = false
+  foldersOpen.value = false
+})
 
 const poolResources = computed<ResourceCard[]>(() =>
   (store.data?.resources || [])
@@ -91,6 +109,18 @@ function manageDetail(): void {
     </div>
 
     <div class="hrf-grid">
+      <button class="hrf-folder is-all" type="button" @click="allOpen = true">
+        <span class="hrf-icon"><Icon name="layers" :size="17" /></span>
+        <span class="hrf-copy">
+          <b>全部资源卡 <em>{{ poolResources.length }}</em></b>
+          <small>点开右侧抽屉，批量、镜像与右键能力保持不变</small>
+          <span v-if="poolResources.length" class="hrf-preview">
+            <span v-for="card in poolResources.slice(0, 2)" :key="card.id">{{ card.title }}</span>
+          </span>
+        </span>
+        <Icon name="arrowright" :size="13" class="hrf-arrow" />
+      </button>
+
       <button class="hrf-folder is-today" type="button" @click="openToday">
         <span class="hrf-icon"><Icon name="calendar" :size="17" /></span>
         <span class="hrf-copy">
@@ -144,6 +174,9 @@ function manageDetail(): void {
       @close="detailOpen = false"
       @manage="manageDetail"
     />
+    <Drawer :open="allOpen" width="960px" title="全部资源卡" icon="layers" @close="allOpen = false">
+      <PoolCardsPanel />
+    </Drawer>
   </div>
 </template>
 
@@ -160,6 +193,7 @@ function manageDetail(): void {
 .hrf-folder:hover { border-color: var(--border-strong); background: var(--surface-2); transform: translateY(-1px); }
 .hrf-folder:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .hrf-folder.is-today { border-color: color-mix(in srgb, var(--accent) 26%, var(--border)); background: color-mix(in srgb, var(--accent-light) 48%, var(--surface)); }
+.hrf-folder.is-all { border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); }
 .hrf-folder.is-create { border-style: dashed; background: var(--surface-2); }
 .hrf-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--surface-3); color: var(--accent-ink); }
 .is-today .hrf-icon { background: var(--accent-light); }

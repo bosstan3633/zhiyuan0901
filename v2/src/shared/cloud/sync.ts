@@ -55,6 +55,7 @@ export type SyncManifestRecordType =
   | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'supportLink'
   | 'topicResourceLink' | 'topicStatus'
   | 'curationProjection' | 'resourceFolder' | 'resourceFolderMirror'
+  | 'planScheduleEvent'
   | 'tag' | 'activity' | 'stats' | 'fieldConfig'
   | 'attachment' | 'event' | 'preference'
 export interface SyncManifestRecord {
@@ -88,6 +89,7 @@ export interface SyncManifestCounts {
   curationProjections: number
   resourceFolders: number
   resourceFolderMirrors: number
+  planScheduleEvents: number
   tags: number
   activities: number
   events: number
@@ -406,6 +408,7 @@ const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>
   topic: ['title', 'description', 'tags', 'projectId', 'metricId', 'statusId', 'dueDate', 'link', 'linkType', 'sourceType', 'completedAt', 'pinned', 'starred', 'customFields'],
   topicStatus: ['name', 'color', 'order', 'terminal'],
   topicResourceLink: ['topicId', 'resourceId', 'from', 'why', 'createdAt', 'snapshot'],
+  planScheduleEvent: ['cardId', 'cardKind', 'at', 'date', 'fromDate', 'source', 'removedAt'],
   argument: ['title', 'content', 'workspaceId', 'order', 'linkedResourceIds', 'assets'],
   workspace: ['name', 'icon', 'color', 'coverTheme', 'desc', 'order', 'archived', 'kind', 'hidden'],
   category: ['workspaceId', 'name', 'parentId', 'order', 'icon', 'color', 'desc', 'assets', 'linkedTopicIds'],
@@ -472,7 +475,7 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
     workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, topics: 0,
     topicStatuses: 0, topicResourceLinks: 0, arguments: 0,
     directions: 0, projects: 0, metrics: 0, dailyFocus: 0, supportLinks: 0,
-    curationProjections: 0, resourceFolders: 0, resourceFolderMirrors: 0,
+    curationProjections: 0, resourceFolders: 0, resourceFolderMirrors: 0, planScheduleEvents: 0,
     tags: 0, activities: 0, events: clean.eventLog.length,
     preferences: clean.ui ? 1 : 0, businessTotal: 0, attachments: 0,
     pendingAttachments: 0, failedAttachments: 0,
@@ -564,6 +567,18 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   for (const link of data.topicResourceLinks || []) {
     counts.topicResourceLinks += 1
     add(manifestRecord('topicResourceLink', link.id, '选题 → 资源关联', link, link.createdAt))
+  }
+  for (const event of data.planScheduleEvents || []) {
+    counts.planScheduleEvents += 1
+    add(manifestRecord(
+      'planScheduleEvent',
+      event.id,
+      `计划安排 · ${event.date}`,
+      event,
+      event.at,
+      false,
+      { cardId: event.cardId, cardKind: event.cardKind, source: event.source },
+    ))
   }
   for (const projection of data.curationProjections || []) {
     counts.curationProjections += 1

@@ -2,6 +2,7 @@ import type { AppData } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { mergeEventLogs } from '@/shared/utils/eventLog'
 import { normalizedFocusSlots } from '@/shared/utils/focusSlots'
+import { normalizePlanScheduleEvents } from '@/shared/storage/planSchedule'
 import { stableStringify } from './digest'
 import type { SnapshotState, SyncManifestRecordType } from './sync'
 
@@ -64,6 +65,7 @@ const RECORD_TYPES: Record<string, SyncManifestRecordType> = {
   curationProjections: 'curationProjection',
   resourceFolders: 'resourceFolder',
   resourceFolderMirrors: 'resourceFolderMirror',
+  planScheduleEvents: 'planScheduleEvent',
   activityLogs: 'activity',
   tagTree: 'tag',
 }
@@ -85,6 +87,7 @@ const RECORD_COLLECTION_LABEL: Partial<Record<SyncManifestRecordType, string>> =
   curationProjection: '策展资源镜像',
   resourceFolder: '常用夹',
   resourceFolderMirror: '常用夹镜像',
+  planScheduleEvent: '计划安排记录',
   activity: '操作记录',
   tag: '标签',
   dailyFocus: '今日三件事',
@@ -525,6 +528,7 @@ function mergeValue(
 
 function normalizeMergedData(data: AppData, local: AppData, remote: AppData): AppData {
   const next = clone(data)
+  next.planScheduleEvents = normalizePlanScheduleEvents(next.planScheduleEvents)
   const metricById = new Map<string, { id: string; projectId: string; taskIds: string[]; topicIds: string[] }>()
   for (const direction of next.compass?.directions || []) {
     for (const project of direction.projects || []) {

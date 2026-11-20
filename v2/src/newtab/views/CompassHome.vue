@@ -36,6 +36,8 @@ import NewBadge from '@/shared/components/NewBadge.vue'
 import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import TaskCalendarView from '../components/compass/TaskCalendarView.vue'
+import TaskBoardView from '../components/compass/TaskBoardView.vue'
+import CuriosityWorkbench from '../components/compass/CuriosityWorkbench.vue'
 import TopicManagerPanel from '../components/compass/TopicManagerPanel.vue'
 import HomeResourceFolderGrid from '../components/compass/HomeResourceFolderGrid.vue'
 import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from '../components/compass/CompassStatusModal.vue'
@@ -84,13 +86,59 @@ const {
   openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
   focusSlotSourceLabel,
   taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
+  taskWorkView, taskWorkSort, taskWorkGroup,
   taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
-  taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus,
+  taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
   setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
   taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,
   focusTaskTarget, requestTaskFocus, replaceTaskFocus, closeTaskFocusReplace,
 } = useCompassHome()
+
+/** V4.7.0：/deck/* 退役后，一级卡片池接管 tab 与 hl/hk 深链。 */
+const TAB_ALIAS: Record<string, HandKind> = {
+  task: 'task',
+  topic: 'topic',
+  curiosity: 'curiosity',
+  curio: 'curiosity',
+  resource: 'resource',
+  res: 'resource',
+  pool: 'resource',
+}
+let lastDeepLinkId = ''
+watch(
+  () => [route.query.tab, route.query.bottom, route.query.hl, route.query.hk, route.query.open] as const,
+  async ([tabRaw, bottomRaw, hlRaw, hkRaw]) => {
+    const tabKey = String(tabRaw || bottomRaw || '')
+    if (TAB_ALIAS[tabKey]) handTab.value = TAB_ALIAS[tabKey]
+    const hl = typeof hlRaw === 'string' ? hlRaw : ''
+    if (!hl || hl === lastDeepLinkId) return
+    lastDeepLinkId = hl
+    const hk = typeof hkRaw === 'string' ? hkRaw : ''
+    const kind = hk === 'task' ? 'task' : hk === 'topic' ? 'topic' : hk === 'curio' ? 'curiosity' : hk === 'res' ? 'resource' : ''
+    if (kind) handTab.value = kind
+    await nextTick()
+    setTimeout(() => {
+      if (!kind || kind === 'task') {
+        const task = d.value.tasks.find(row => !row.deletedAt && row.id === hl)
+        if (task) { handTab.value = 'task'; openTaskPreview(task); return }
+      }
+      if (!kind || kind === 'topic') {
+        const topic = (d.value.topics || []).find(row => !row.deletedAt && row.id === hl)
+        if (topic) { handTab.value = 'topic'; openTopicPreview(topic); return }
+      }
+      if (!kind || kind === 'curiosity') {
+        const curio = (d.value.curiosities || []).find(row => !row.deletedAt && row.id === hl)
+        if (curio) { handTab.value = 'curiosity'; openCurioPreview(curio); return }
+      }
+      if (!kind || kind === 'resource') {
+        const resource = (d.value.resources || []).find(row => !row.deletedAt && row.id === hl)
+        if (resource) { handTab.value = 'resource'; openResourcePreview(resource) }
+      }
+    }, 80)
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -358,19 +406,33 @@ const {
               </select>
               <div class="task-work-quick" role="group" aria-label="任务快捷筛选">
                 <button type="button" :class="{ on: taskWorkQuick === 'all' }" @click="taskWorkQuick = 'all'">全部 <span>{{ taskWorkCounts.all }}</span></button>
-                <button type="button" :class="{ on: taskWorkQuick === 'unscheduled' }" @click="taskWorkQuick = 'unscheduled'">未排期 <span>{{ taskWorkCounts.unscheduled }}</span></button>
+                <button type="button" :class="{ on: taskWorkQuick === 'noProject' }" @click="taskWorkQuick = 'noProject'">未挂项目 <span>{{ taskWorkCounts.noProject }}</span></button>
+                <button type="button" :class="{ on: taskWorkQuick === 'unplanned' }" @click="taskWorkQuick = 'unplanned'">未落图 <span>{{ taskWorkCounts.unplanned }}</span></button>
                 <button type="button" :class="{ on: taskWorkQuick === 'unarchived' }" @click="taskWorkQuick = 'unarchived'">未归档 <span>{{ taskWorkCounts.unarchived }}</span></button>
                 <button type="button" :class="{ on: taskWorkQuick === 'focus' }" @click="taskWorkQuick = 'focus'">主攻项目 <span>{{ taskWorkCounts.focus }}</span></button>
-                <button type="button" :class="{ on: taskWorkQuick === 'overdue' }" @click="taskWorkQuick = 'overdue'">已逾期 <span>{{ taskWorkCounts.overdue }}</span></button>
+              </div>
+              <select v-model="taskWorkSort" aria-label="任务排序">
+                <option value="recent">最新入池</option>
+                <option value="unplanned">未落图优先</option>
+                <option value="due">按计划日期</option>
+              </select>
+              <select v-model="taskWorkGroup" aria-label="任务分组">
+                <option value="none">不分组</option>
+                <option value="project">按项目分组</option>
+              </select>
+              <div class="task-work-view-switch" role="group" aria-label="任务视图">
+                <button type="button" :class="{ on: taskWorkView === 'calendar' }" :aria-pressed="taskWorkView === 'calendar'" @click="taskWorkView = 'calendar'">月历</button>
+                <button type="button" :class="{ on: taskWorkView === 'board' }" :aria-pressed="taskWorkView === 'board'" @click="taskWorkView = 'board'">看板</button>
               </div>
               <label class="task-work-done-toggle">
                 <input v-model="taskWorkShowDone" type="checkbox">
                 月历显示已完成
               </label>
-              <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = true">清空筛选</button>
+              <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = true; taskWorkSort = 'recent'; taskWorkGroup = 'none'">清空筛选</button>
             </div>
 
             <TaskCalendarView
+              v-if="taskWorkView === 'calendar'"
               :tasks="taskWorkFiltered"
               :focus-tasks="liveTasks"
               :topics="liveTopics"
@@ -379,6 +441,8 @@ const {
               :show-done="taskWorkShowDone"
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
+              :sort-mode="taskWorkSort"
+              :group-mode="taskWorkGroup"
               @open-task="openTaskWork"
               @open-topic="scheduleTopicPreview"
               @open-topic-link="openTopicPreviewDirect"
@@ -391,29 +455,22 @@ const {
               @set-topic-due="setTopicWorkDue"
               @clear-topic-due="clearTopicWorkDue"
             />
+            <TaskBoardView
+              v-else
+              :tasks="taskWorkFiltered"
+              :project-names="taskWorkProjectNames"
+              :metric-names="taskWorkMetricNames"
+              @open-task="openTaskWork"
+              @set-status="setTaskWorkStatus"
+            />
           </div>
 
           <div v-else-if="handTab === 'topic'" class="topic-workbench-home">
             <TopicManagerPanel />
           </div>
 
-          <div v-else-if="handTab === 'curiosity'" class="hand-grid hand-grid-aux">
-            <section class="hand-col" aria-labelledby="curioColTitle">
-              <header class="hand-col-head">
-                <Icon name="bulb" :size="14" />
-                <b id="curioColTitle">好奇心卡</b>
-                <span class="hand-count">{{ liveCuriosities.length }}</span>
-                <button class="hand-link" type="button" @click="goDeck('curiosity')">查看全部 <Icon name="arrowright" :size="12" /></button>
-              </header>
-              <div class="mini-list">
-                <button v-for="c in previewCuriosities" :key="c.id" class="mini-item" type="button" @click="openCurioPreview(c)">
-                  <Icon name="bulb" :size="13" class="mini-leading" />
-                  <span class="mini-copy"><span class="mini-title">{{ c.question }}</span><span class="mini-meta">{{ curioStatusLabel(c) }} · {{ fmtShortDate(c.updatedAt || c.createdAt) }}</span></span>
-                  <span class="mini-side">{{ c.callCount || 0 }}</span>
-                </button>
-                <div v-if="!previewCuriosities.length" class="mini-empty">还没有好奇心卡</div>
-              </div>
-            </section>
+          <div v-else-if="handTab === 'curiosity'" class="curiosity-workbench-home">
+            <CuriosityWorkbench />
           </div>
 
           <div v-else class="hand-grid hand-grid-aux resource-tab-grid">

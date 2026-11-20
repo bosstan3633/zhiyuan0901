@@ -117,30 +117,29 @@ const VIEWPORT = { width: 1440, height: 900 }
  *  · 任务行在卡片/列表/看板三形态类名各异（.tm-card / .trow / …），共有的是 `[data-tid]`；
  *  · 页脚计数必须按**容器**取且两代容器都认（内联抽屉 `.dr-footer` / 共享 Drawer `.drawer-footer`）——
  *    按 `.dr-footer-btn` 类名全站数会把链接行的动作钮算进来；
- *  · 三张卡详情各在哪个台面：资源卡在资源台（内联抽屉；App 级抽屉由总线打开，同一套件），
- *    任务/好奇在 V3.9.1 的独立二级页（`#/deck/task` / `#/deck/curiosity`）。
+ *  · V4.7.0 起卡片池二级页退出历史：四类详情统一在一级调度台对应页签打开。
+ *    资源卡先点「全部资源卡」再点抽屉里的行；任务/选题/好奇心直接点左侧清单行。
  */
 const DRAWER_VIEWS = [
   {
-    id: 'drawer-resource', name: '资源卡详情', hash: '#/deck/resource',
-    card: '.pcp-row, .pcp-card', open: '.drawer .ref-form', ai: '.ds-ai-cell', aiCount: 1, h1: '.ds-h1',
+    id: 'drawer-resource', name: '资源卡详情', hash: '#/?tab=resource', prep: '.hrf-folder.is-all',
+    card: '.drawer .pcp-row, .drawer .pcp-card', open: '.drawer .ref-form', ai: '.ds-ai-cell', aiCount: 1, h1: '.ds-h1',
     foot: '.drawer-footer button',
   },
   {
-    id: 'drawer-task', name: '任务卡详情', hash: '#/deck/task',
-    /* V3.9.1：任务详情已统一到共享 Drawer 壳，旧的 `.task-sidebar` 只存在于历史选择器里。
-       改用抽屉内的标题块作为打开判据，AI 入口仍在同一层，避免把真实可用的详情误判成“没打开”。 */
-    card: '[data-tid]', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-primary, .drawer .ts-ai-inline', aiCount: 2, foot: '.ts-foot button',
+    id: 'drawer-task', name: '任务卡详情', hash: '#/?tab=task',
+    /* 一级任务工作面左侧清单行直接打开共享 Drawer；任务详情仍是标题块 + AI 工具组。 */
+    card: '.cal-pool-task', open: '.drawer .ts-title-wrap', ai: '.drawer .ts-ai-primary, .drawer .ts-ai-inline', aiCount: 2, foot: '.ts-foot button',
     /* V3.9.23：AI 三入口改为浅色工具组，hover 只提 accent 边与浅底，不再翻实心 accent，
        因此旧“白徽标 + accent 底”的反相判据在此退役；真实对比度由 theme-contrast 守。 */
   },
   {
-    id: 'drawer-curio', name: '好奇心详情', hash: '#/deck/curiosity',
-    /* 二级页默认列表视图；卡片视图只是用户可选形态，巡检必须点默认态真实存在的列表行。 */
-    card: '.cz-list-item', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 0, foot: '.drawer-footer button',
+    id: 'drawer-curio', name: '好奇心详情', hash: '#/?tab=curiosity',
+    /* 一级好奇心工作面默认列表 + 右侧日历；列表行是详情入口。 */
+    card: '.cw-pool-item', open: '.drawer .ds-hero-note', ai: '.ds-ai-cell', aiCount: 0, foot: '.drawer-footer button',
   },
   {
-    id: 'drawer-topic', name: '选题卡详情', hash: '#/deck/topic',
+    id: 'drawer-topic', name: '选题卡详情', hash: '#/?tab=topic',
     card: '.topic-pool-item', open: '.drawer .topic-title', ai: '.drawer .topic-ai-inline', aiCount: 1,
     h1: '.drawer .topic-title', foot: '.topic-foot button',
   },
@@ -629,23 +628,38 @@ const DASH_SCENES = [
         if (!document.querySelector('.gp-overlay.open') && btn) btn.click()
       })
       await page.waitForTimeout(900)
+      /* 资源卡行固定有星标/删除/外开三枚动作，先把检索面收窄到资源卡，
+         再从真实标题取词；否则「全部」里首行若命中好奇心（仅两枚动作），
+         hover 判据会随主题下的结果排序漂成 2，镜头本身没有可比性。 */
+      await page.locator('.gp-type-tab').filter({ hasText: '资源卡' }).first().click().catch(() => {})
+      await page.waitForTimeout(400)
       const word = await page.evaluate(() => {
-        const t = document.querySelector('.gp-result-item .gp-ri-title')
-        return t ? (t.textContent || '').trim().slice(0, 2) : ''
+        const rows = [...document.querySelectorAll('.gp-result-item')]
+        const row = rows.find(r => r.querySelectorAll('.gp-ri-actions button').length >= 3) || rows[0]
+        const t = row ? row.querySelector('.gp-ri-title') : null
+        const clean = (t && t.textContent || '').replace(/[^\p{L}\p{N}]+/gu, '')
+        return clean.slice(0, 2)
       })
       if (word) { await page.locator('.gp-search-input').fill(word); await page.waitForTimeout(800) }
       /* hover 判据必须在 resetView 把鼠标挪走**之前**测完——那排动作钮就是靠 hover 露出的 */
+      const hoverIndex = await page.evaluate(() => {
+        const rows = [...document.querySelectorAll('.gp-result-item')]
+        const index = rows.findIndex(r => r.querySelectorAll('.gp-ri-actions button, .gp-ri-actions .convert').length >= 3)
+        return index >= 0 ? index : 0
+      })
       await page.locator('.gp-result-item').first().hover().catch(() => {})
+      await page.locator('.gp-result-item').nth(hoverIndex).hover().catch(() => {})
       await page.waitForTimeout(350)
-      await page.evaluate(() => {
-        const row = document.querySelector('.gp-result-item')
+      await page.evaluate((index) => {
+        const rows = [...document.querySelectorAll('.gp-result-item')]
+        const row = rows[index] || rows[0]
         const acts = row ? row.querySelector('.gp-ri-actions') : null
         const vis = acts ? [...acts.querySelectorAll('button, .convert')].filter(b => {
           const r = b.getBoundingClientRect()
           return r.width > 4 && r.height > 4
         }).length : 0
         window.__gpHover = { acts: !!acts, vis }
-      })
+      }, hoverIndex)
     },
     judge: async (page) => page.evaluate(() => {
       const ov = document.querySelector('.gp-overlay.open')
@@ -1112,6 +1126,25 @@ if (argv.scenes) {
       createdAt: curioAt,
       updatedAt: curioAt,
       ...(data.curiosities || []),
+    }]
+  }
+  /* 四卡详情巡检需要选题卡；备份可能没有，补一张只供本次 Chromium 渲染。 */
+  if (!(data.topics || []).some(t => t && !t.deletedAt)) {
+    const topicAt = FREEZE_AT + 12 * 60 * 60 * 1000
+    data.topics = [{
+      id: 'audit-topic-detail',
+      kind: 'topic',
+      title: '把每日调度方法整理成可发布的对外成果',
+      description: '从任务、选题与证据链中提炼一套可复用的调度方法。',
+      statusId: 'topic-making',
+      dueDate: new Date(FREEZE_AT).toISOString().slice(0, 10),
+      pinned: false,
+      tags: ['内容系统'],
+      customFields: {},
+      assets: [],
+      createdAt: topicAt,
+      updatedAt: topicAt,
+      ...(data.topics || []),
     }]
   }
   /* ★V3.9.16：方向树折叠判据改为**独立夹具**。
@@ -1623,6 +1656,12 @@ if (argv.scenes) {
       await page.setViewportSize(VIEWPORT)
       await page.goto(base + v.hash, { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(1800)
+      if (v.prep) {
+        await page.locator(v.prep).first().click({ timeout: 10000 }).catch((e) => {
+          drawerFail.push(`${theme}/${v.id}：预处理点击 ${v.prep} 失败 —— ${String(e.message || e).split('\n')[0]}`)
+        })
+        await page.waitForTimeout(1000)
+      }
       if (v.tab) {
         /* 点完必须验「目标档现在真的是选中态」——**不能比 before/after**：
            drawer-task 的目标 tab「任务卡」恰好就是默认档，点之前就已经选中态，
@@ -1723,7 +1762,7 @@ if (argv.scenes) {
     // V4.3.1 改靶：调度台收为任务驱动的单列工作面。
     // 今日三件事独占一行，任务页承载完整任务池 + 月历；右侧案头栏已退役。
     await page.setViewportSize(VIEWPORT)
-    await page.goto(base + '#/', { waitUntil: 'domcontentloaded' })
+    await page.goto(base + '#/?tab=task', { waitUntil: 'domcontentloaded' })
     await settle(page, 'desk-home')
     await page.waitForTimeout(2000)
     await resetView(page)
@@ -1748,50 +1787,50 @@ if (argv.scenes) {
     console.log(`  ${spotOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'deck'.padEnd(4)} 单列=${spot.layout ? '是' : '否'} 工作单=${spot.workBoard ? '是' : '否'} 三件事=${spot.focusRows}/3 任务面=${spot.handBoard && spot.taskWorkbench ? '是' : '否'} 月历=${spot.calendar ? '是' : '否'} 案头栏=${spot.sideRail ? '在' : '已退役'} 旧Tab=${spot.oldTabs}   → ${path.basename(spotFile)} (${Math.round(fs.statSync(spotFile).size / 1024)}KB)`)
     if (!spotOk) spotFail.push(`${theme}/deck：${JSON.stringify(spot)}（应：单列工作台 + 恒三格今日焦点 + 完整任务工作面 + 月历 + 旧案头栏与旧 Tab 为零）`)
 
-    // 资源卡「查看全部」：独立二级页的列表形态（四主题各一张）
-    await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
-    await settle(page, 'deck-resource-list')
+    // 资源卡「全部资源卡」：一级资源页签 → 右侧抽屉的列表形态（四主题各一张）
+    await page.goto(base + '#/?tab=resource', { waitUntil: 'domcontentloaded' })
+    await settle(page, 'home-resource-all')
     await page.waitForTimeout(1600)
-    await page.evaluate(() => {
-      const b = [...document.querySelectorAll('.dk-row[data-panel="pool"] .dk-view')].find(x => (x.textContent || '').includes('列表'))
-      if (b) b.click()
-    })
+    await page.locator('.hrf-folder.is-all').first().click({ timeout: 10000 }).catch(() => {})
+    await page.waitForTimeout(1200)
+    await page.locator('.drawer .dk-view', { hasText: '列表' }).first().click({ timeout: 5000 }).catch(() => {})
     await page.waitForTimeout(700)
     await resetView(page)
     const pl = await page.evaluate(() => {
-      const rows = document.querySelectorAll('.pcp-row').length
-      const cards = document.querySelectorAll('.pcp-card').length
-      const none = document.querySelectorAll('.pcp-tag-none').length
-      const filterSelect = document.querySelector('.dk-row[data-panel="pool"] .dk-filters.select .dk-select')
+      const rows = document.querySelectorAll('.drawer .pcp-row').length
+      const cards = document.querySelectorAll('.drawer .pcp-card').length
+      const none = document.querySelectorAll('.drawer .pcp-tag-none').length
+      const filterSelect = document.querySelector('.drawer .dk-filters.select .dk-select')
       const filterOptions = filterSelect ? [...filterSelect.options].map(x => (x.textContent || '').trim()) : []
       const statusSelect = !!filterSelect
         && filterSelect.value === 'all'
         && ['全部', '待打标', '已调出', '从未调出'].every(label => filterOptions.some(x => x.startsWith(label)))
-      const deckBack = !!document.querySelector('.deck-back')
-      return { rows, cards, none, statusSelect, filterValue: filterSelect?.value || '', deckBack }
+      const drawerOpen = !!document.querySelector('.drawer')
+      const firstLevel = document.querySelectorAll('.hand-tab.on').length === 1
+      return { rows, cards, none, statusSelect, filterValue: filterSelect?.value || '', drawerOpen, firstLevel }
     })
     const plFile = path.join(outDir, `${theme}-deck-pool-list.png`)
     await page.screenshot({ path: plFile })
     shots.push(plFile)
-    const plOk = pl.deckBack && pl.rows > 0 && pl.cards === 0 && pl.statusSelect
-    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 二级返回=${pl.deckBack ? '是' : '否'} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 状态下拉=${pl.statusSelect ? `是/${pl.filterValue}` : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
-    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：独立二级页带返回 + 列表有行 + 网格零残留 + 状态下拉默认「全部」且含四档筛选项）`)
+    const plOk = pl.drawerOpen && pl.firstLevel && pl.rows > 0 && pl.cards === 0 && pl.statusSelect
+    console.log(`  ${plOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'池列表'.padEnd(4)} 抽屉=${pl.drawerOpen ? '开' : '否'} 一级页签=${pl.firstLevel ? '是' : '否'} 行=${pl.rows} 网格残留=${pl.cards} 无标签标=${pl.none} 状态下拉=${pl.statusSelect ? `是/${pl.filterValue}` : '否'}   → ${path.basename(plFile)} (${Math.round(fs.statSync(plFile).size / 1024)}KB)`)
+    if (!plOk) spotFail.push(`${theme}/deck-pool-list：${JSON.stringify(pl)}（应：一级资源页签 + 全部资源抽屉打开 + 列表有行 + 网格零残留 + 状态下拉默认「全部」且含四档筛选项）`)
 
     /* R3-Cc：三张卡共用的批量栏（DeckBatchBar）——池面板这侧底色由 surface-2 换成 accent-light，
        四主题各拍一张，量「栏在 / 全选·反选·应用标签三枚齐 / 卡型动作在槽内」，量完退出批量免得串染。
-       V3.9.1 起在独立资源二级页直接量。 */
-    await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b) b.click() })
+       V4.7.0 起在一级资源页签的「全部资源卡」抽屉内直接量。 */
+    await page.evaluate(() => { const b = document.querySelector('.drawer .dk-batch'); if (b) b.click() })
     await page.waitForTimeout(700)
     await resetView(page)
     const bb = await page.evaluate(() => {
-      const bar = document.querySelector('.dkb-bar')
+      const bar = document.querySelector('.drawer .dkb-bar')
       const labels = bar ? [...bar.querySelectorAll('button')].map(x => (x.textContent || '').trim()) : []
       return { on: !!bar, hasSel: labels.includes('全选'), hasInv: labels.includes('反选'), hasTag: labels.includes('应用标签'), del: labels.some(x => x.includes('删除')) }
     })
     const bbFile = path.join(outDir, `${theme}-deck-batch.png`)
     await page.screenshot({ path: bbFile })
     shots.push(bbFile)
-    await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="pool"] .dk-batch'); if (b) b.click() })
+    await page.evaluate(() => { const b = document.querySelector('.drawer .dk-batch'); if (b) b.click() })
     await page.waitForTimeout(400)
     const bbOk = bb.on && bb.hasSel && bb.hasInv && bb.hasTag && bb.del
     console.log(`  ${bbOk ? '✓' : '✗'} ${theme.padEnd(8)} ${'批量栏'.padEnd(4)} 栏=${bb.on ? '是' : '否'} 全选=${bb.hasSel ? '是' : '否'} 反选=${bb.hasInv ? '是' : '否'} 打标=${bb.hasTag ? '是' : '否'} 卡型动作=${bb.del ? '在' : '缺'}   → ${path.basename(bbFile)} (${Math.round(fs.statSync(bbFile).size / 1024)}KB)`)

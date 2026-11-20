@@ -118,6 +118,7 @@ export function createDefaultData(): AppData {
     curiosities: [],
     topics: [],
     topicStatuses: defaultTopicStatuses(),
+    planScheduleEvents: [],
     topicResourceLinks: [],
     argCards: [],
     resourceFolders: [],

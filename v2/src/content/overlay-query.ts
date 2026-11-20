@@ -12,7 +12,7 @@ import { safeSend, closeOverlay, showToast } from './overlay-impl'
 import { loadData, saveData } from './overlay-search'
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'): string {
-  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务卡' : t === 'curio' ? '💡 好奇心' : t === 'topic' ? '✦ 选题卡' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
+  return t === 'res' ? '📄 资源卡' : t === 'task' ? '✅ 任务' : t === 'curio' ? '💡 好奇心' : t === 'topic' ? '✦ 选题卡' : t === 'ws' ? '🗂 策展台' : t === 'proj' ? '📦 项目' : '🔍 搜全部'
 }
 function query0(q: string): string { return (q || '').trim().toLowerCase() }
 // REQ-031 P-031-1：搜索关联 Map 化——一次遍历构建 ws/cat/project 名称 Map + 策展台卡数累加，查找 O(1)
@@ -102,8 +102,8 @@ function openSearchLocator(item: any) {
     openRoute(resLocateRoute(item.raw))
     showToast(item.raw?.workspaceId === CURATION_WS_ID ? '🎯 已定位到资源卡池' : '🎯 已定位到卡片所在处')
   } else if (item.type === 'task') {
-    openRoute('/?hl=' + item.id + '&hk=task')
-    showToast('🎯 已定位到任务卡片')
+    openRoute(taskLocateRoute(item.raw || item))
+    showToast(item.raw?.projectId ? '🎯 已定位到任务所在项目全景' : '🎯 已定位到任务卡池')
   } else if (item.type === 'topic') {
     openRoute('/deck/topic?hl=' + item.id + '&hk=topic')
     showToast('🎯 已定位到选题卡片')
@@ -176,8 +176,8 @@ function openSearchResult(item: any) {
     }
   } else if (item.type === 'task') {
     bumpHeat('task', item.id)
-    safeSend({ type: 'zy-open-route', route: '/?hl=' + item.id })
-    showToast('↗ 已定位到调度台的任务')
+    safeSend({ type: 'zy-open-route', route: taskLocateRoute(item.raw || item) })
+    showToast(item.raw?.projectId ? '↗ 已定位到任务所在项目全景' : '↗ 已定位到任务卡池')
   } else if (item.type === 'topic') {
     bumpHeat('topic', item.id)
     safeSend({ type: 'zy-open-route', route: '/deck/topic?hl=' + item.id + '&hk=topic' })
@@ -190,6 +190,14 @@ function openSearchResult(item: any) {
   closeOverlay()
 }
 // ============ 工具函数 ============
+function taskLocateRoute(task: any): string {
+  if (task?.projectId) {
+    const q = 'pano=1&proj=' + encodeURIComponent(task.projectId) + '&task=' + encodeURIComponent(task.id)
+      + (task.metricId ? '&m=' + encodeURIComponent(task.metricId) : '')
+    return '/compass?' + q
+  }
+  return '/?hl=' + encodeURIComponent(task?.id || '') + '&hk=task'
+}
 /** 第八轮：分类按层级平铺（子分类显示为「父 / 子」），供下拉选项使用 */
 function treeCatLabels(cats: any[]): any[] {
   const list = cats || []

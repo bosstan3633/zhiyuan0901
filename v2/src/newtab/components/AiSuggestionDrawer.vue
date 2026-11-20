@@ -161,7 +161,11 @@ const stepsLine = computed(() => (vPhase.value === 'done' && cur.value?.steps?.l
 /** R167：单条研判走「判决卡」版式（一条建议摊成左右对照会空半屏） */
 const isVerdict = computed(() => cur.value?.layout === 'verdict' && vPhase.value === 'done' && shown.value.length > 0)
 const curioMaturityOf = curioMaturity
-const verdictRow = computed(() => shown.value[0])
+/** 判词行不一定排在首行：项目诊断/资源补全的首行都没有 data，不能默认取 shown[0]。 */
+const verdictRow = computed(() => shown.value.find(row => {
+  const data = row.data as { __verdict?: unknown; __card?: unknown } | undefined
+  return typeof data?.__verdict === 'string' || !!data?.__card
+}) || shown.value[0])
 /** R167：判决卡——三态恒定列出（模型只给推荐），选中的那一条才是采纳时写回的数据 */
 const VERDICTS = [
   { v: 'convert', label: '→ 转成任务', hint: '建 1 张任务卡 · 本条从池中离场（回收站可撤）· 已转化 +1' },
@@ -195,7 +199,14 @@ const verdictFacts = computed(() => {
     c.tags?.length ? `已打 ${c.tags.length} 个标签` : '未打标签',
   ]
 })
-watch(shown, (v) => { if (v.length && !verdictPick.value) verdictPick.value = (v[0].data as { __verdict?: string }).__verdict || '' })
+watch(shown, (v) => {
+  if (verdictPick.value) return
+  const firstVerdict = v.find(row => {
+    const data = row.data as { __verdict?: unknown } | undefined
+    return typeof data?.__verdict === 'string' && data.__verdict.length > 0
+  })
+  if (firstVerdict) verdictPick.value = (firstVerdict.data as { __verdict: string }).__verdict
+})
 watch(verdictTitle0, (v) => { if (v && !verdictTitle.value) verdictTitle.value = v }, { immediate: true })
 
 function defaultPicks(out: AiRow[]): Set<string> {
@@ -212,6 +223,7 @@ async function run(job: AiJob) {
   const seq = ++jobSeq
   phase.value = 'running'; errMsg.value = ''; streamText.value = ''; rows.value = []; picked.value = new Set(); showRaw.value = false
   drafts.value = new Map(); savedDrafts.value = new Map(); editing.value = null; confirmText.value = ''
+  verdictPick.value = ''; verdictTitle.value = ''
   feed.value = { chars: 0, calls: 0, pt: 0, ct: 0 }; secs.value = 0; auditLine.value = ''; savedNote.value = ''
   stopTick(); tick = setInterval(() => { if (seq === jobSeq) secs.value++ }, 1000)
   setLlmFeedSink((m) => {

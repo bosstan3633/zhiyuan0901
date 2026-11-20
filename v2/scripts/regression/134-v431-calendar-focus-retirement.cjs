@@ -14,7 +14,7 @@ const {
 
 console.log('【V4.3.1 · 月历排期与今日三件事历史快照】')
 
-check('V431-1 月历只改 dueDate：取消排期清空日期并立即落库，不删除任务、不改项目 / 指标 / 状态', () => {
+check('V431-1（V4.7.0 重指）月历只改计划日期：设置与取消都走 scheduleCardDate 唯一写入口并立即落库，不删除任务、不改项目 / 指标 / 状态', () => {
   const panel = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'))
   const source = read('/newtab/components/compass/useTaskManagerPanel.ts')
   const clear = fnBody(source, 'function clearTaskDueDate(', 'function toggleTaskCompletion(')
@@ -24,11 +24,10 @@ check('V431-1 月历只改 dueDate：取消排期清空日期并立即落库，�
     && panel.includes('<TaskCalendarView')
     && panel.includes('@clear-due="clearTaskDueDate"')
     && source.includes('function clearTaskDueDate(')
-    && clear.includes('task.dueDate = undefined')
-    && clear.includes('task.updatedAt = Date.now()')
+    && clear.includes("scheduleCardDate(d.value, task, undefined, { source: 'calendar' })")
     && clear.includes('store.persist()')
     && !/task\.(?:deletedAt|projectId|metricId|status)\s*=/.test(clear)
-    && set.includes('task.dueDate = date')
+    && set.includes("scheduleCardDate(d.value, task, date, { source: 'calendar' })")
     && calendar.includes("emit('clear-due', task.id)")
     && calendar.includes('取消计划执行日期并回到任务池')
     && !calendar.includes('softDeleteTaskToTrash')

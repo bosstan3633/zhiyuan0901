@@ -13,7 +13,7 @@
  *   E2E-4  ★V4.3.1 重指：右栏退役后，「未归档」由任务工作面快捷筛选承接（原地生效 / 不改路由）
  *   E2E-5  PDF 附件双击 file:// 打开（data 层种卡 + IndexedDB blob → 双击卡片 → 新标签 file://…pdf）
  *   E2E-6  事件日志 zy_event_log 独立 key 落盘（打开资源卡产生事件）
- *   E2E-7  V3.9.1 三类“查看全部”独立二级路由：任务/好奇心/资源各自可直达，二级页无新建入口
+ *   E2E-7  V4.7.0 卡片池二级界面退役：/deck/* 旧深链统一回一级页签，hl/hk 仍打开详情
  *   E2E-8  V3.9.1 两栏调度台：三件事工作单 + 手边卡预览 + 右侧案头栏；整行点击打开任务详情
  *   E2E-9  存量回填迁移：有 metricId 无 projectId 的任务启动后按指标反查补齐 + projBackfillFixed 记录（R46 BUG-2）
  *   E2E-10 策展统一树：遗留投射记录迁移物化 + 源卡实时 + 原生卡 + 清空引用回落零影响（R53）
@@ -298,7 +298,7 @@ async function main() {
   //     ① 右栏 .side-rail 与旧 .stat-row 零回流；
   //     ② 点「未归档」后按钮原地选中，任务池直接收窄，不跳二级页、不改路由；
   //     ③ 收窄后的每张任务卡都带“去归位”出口，证明不是只换了高亮而没有真实过滤。
-  //   完整任务盘点仍由 E2E-7 的 #/deck/task 二级工作面覆盖。
+  //   完整任务盘点现由一级调度台任务页签覆盖（#/deck/task 只做旧深链重定向）。
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(async (cur) => {
     const data = cur['zy_data_v2']
     if (!data) return
@@ -512,37 +512,37 @@ async function main() {
   })
   await page.waitForTimeout(800)
 
-  // E2E-7 V3.9.1：三类“查看全部”是独立二级路由，旧的底部 .bt-tab 已整体退役。
-  // 同时守“二级页无新建入口”：筛选/排序/批量仍在，但新建任务与新建资源卡按钮必须为 0。
+  // E2E-7 V4.7.0：卡片池二级界面退役——/deck/* 旧深链统一回一级调度台对应页签。
+  // 任务/好奇心直接落工作面；资源池旧深链自动展开「全部资源卡」抽屉（保留原“一眼看到全部资源”的到达体验）。
   const deckChecks = []
-  for (const [kind, host] of [['task', '.mgr-body'], ['curiosity', '.cz-body'], ['resource', '.pcp']]) {
+  for (const [kind, host] of [['task', '.task-workbench'], ['curiosity', '.cw-pool'], ['resource', '.drawer .pcp']]) {
     await page.goto(base + '#/deck/' + kind, { waitUntil: 'domcontentloaded' })
     /* ★R175-补：等面板真出现，而不是死等 2200ms（慢机器上等不够 ⇒ E2E-7 随机假红）。 */
     await waitForLocator(page, host, { visible: true, timeout: 10000 })
     const panel = await page.locator(host).first().isVisible().catch(() => false)
-    const newButtons = await page.locator('.dk-new').count()
-    const importButton = kind === 'resource'
-      ? await page.locator('button', { hasText: '导入本地文件' }).count()
-      : 0
-    deckChecks.push({ kind, panel, newButtons, importButton })
+    const hash = new URL(page.url()).hash
+    const tabLanded = hash.includes('tab=' + kind)
+    const oldChrome = await page.locator('.deck-kind-seg, .deck-back').count()
+    deckChecks.push({ kind, panel, tabLanded, oldChrome })
   }
-  const deckOk = deckChecks.every(x => x.panel && x.newButtons === 0 && x.importButton === 0)
+  const deckOk = deckChecks.every(x => x.panel && x.tabLanded && x.oldChrome === 0)
   const oldTabsGone = (await page.locator('.bt-tab').count()) === 0
-  // 切换三类卡后，点“返回调度台”必须直达单列任务工作面，而不是在 /deck 路由之间回退。
-  await page.goto(base, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1000)
-  await page.evaluate(() => { location.hash = '#/deck/task' })
-  await page.waitForTimeout(1200)
-  await page.locator('.deck-kind-seg button', { hasText: '好奇心卡' }).first().click().catch(() => {})
-  await page.waitForTimeout(500)
-  await page.locator('.deck-kind-seg button', { hasText: '资源卡' }).first().click().catch(() => {})
-  await page.waitForTimeout(500)
-  await page.locator('.deck-back').first().click().catch(() => {})
-  await page.waitForTimeout(1000)
-  const backHome = (await page.locator('.desk-layout').count()) > 0
-  report('E2E-7 V3.9.1 三类查看全部独立二级路由：任务/好奇心/资源直达 + 二级页零新建入口 + 返回调度台',
-    deckOk && oldTabsGone && backHome,
-    deckChecks.map(x => `${x.kind}:panel=${x.panel},new=${x.newButtons},import=${x.importButton}`).join(' | ') + ` oldTabs=${oldTabsGone} backHome=${backHome}`)
+  // 旧任务深链的 hl/hk 定位仍要在新一级页签里把详情抽屉打开。
+  await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
+    const d = cur['zy_data_v2']; if (!d) return
+    if (!d.tasks.some(t => t.id === 'e2e-deck-probe')) {
+      d.tasks.unshift({
+        id: 'e2e-deck-probe', kind: 'task', title: 'E2E 旧深链任务', status: 'todo', priority: 'medium',
+        tags: [], pinned: false, customFields: {}, assets: [], createdAt: Date.now(), updatedAt: Date.now(),
+      })
+    }
+    return chrome.storage.local.set({ zy_data_v2: d })
+  }))
+  await page.goto(base + '#/deck/task?hl=e2e-deck-probe&hk=task', { waitUntil: 'domcontentloaded' })
+  const deepLinkOk = await waitForLocator(page, '.drawer .ts-title-wrap', { visible: true, timeout: 10000 }).then(() => true).catch(() => false)
+  report('E2E-7 V4.7.0 卡片池二级界面退役：/deck/* 三个旧深链统一重定向到一级页签，旧二级壳归零；hl/hk 仍能打开详情',
+    deckOk && oldTabsGone && deepLinkOk,
+    deckChecks.map(x => `${x.kind}:panel=${x.panel},tab=${x.tabLanded},old=${x.oldChrome}`).join(' | ') + ` oldTabs=${oldTabsGone} deepLink=${deepLinkOk}`)
 
   // E2E-8 V4.3.1 任务驱动调度台：今日三件事 + 完整任务池 + 月历；旧双栏案头栏与卡内子任务视口退役。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -585,7 +585,7 @@ async function main() {
 
   // E2E-10 资源卡池统一管理面 + 单向挂载红线（R111 承接 R110-B1）
   //   旧断言盯的是已退役的 `/workspace/zy-curation` 资源台分类树；现资源池唯一管理面是
-  //   `#/deck/resource`。数据层不变量保持不变：遗留 kind='workspace' 投射与指向池的脏投射
+  //   `#/?tab=resource` 的「全部资源卡」抽屉。数据层不变量保持不变：遗留 kind='workspace' 投射与指向池的脏投射
   //   在启动归一化时清除；池内源卡保持可用，不被镜像标记污染。
   //   页面面同时改认现役池面板 `.pcp`，不再找 `.ws-cat-head / .section-label`。
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
@@ -607,7 +607,7 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1800)
-  const hubPoolOn = await page.locator('.deck-page .pcp').first().isVisible().catch(() => false)
+  const hubPoolOn = await page.locator('.drawer .pcp').first().isVisible().catch(() => false)
   const hubRowOn = await page.locator('.pcp-row[data-rid="e2e-mir-1"]').first().isVisible().catch(() => false)
   // 启动归一化后：指向资源台的脏投射与镜像标记应双双清零
   const scrubbed = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -1213,8 +1213,8 @@ async function main() {
       + `end=${endToLast} home=${homeToFirst} count=${navBefore.count}→${navAfter.count} editing=${navAfter.editing}`)
 
   // E2E-46（V4.1.2 重指）：分享抽屉必须是原生可读预览，不能再是白屏 iframe；
-  //   预览按真实 Category 树递归平铺到 L4。两项读数归中心论点卡；页面设置齿轮已退役，
-  //   分享仍是画布行动条最后一枚主按钮，设置能力迁入台数据 / 台签菜单。
+  //   预览按真实 Category 树递归平铺到 L4。V4.7 起两项读数归右侧全局功能模块，
+  //   分享是该模块右上角唯一主行动；页面设置齿轮已退役，能力迁入台数据菜单。
   // 分享用例同时验证“有中心论点”的信息层级：先种入论点卡，避免空态下
   // 误把“读数依法不渲染”当成组件缺席。
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(async (r) => {
@@ -1237,8 +1237,8 @@ async function main() {
   }))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await pollUntil(
-    () => page.locator('.thesis-banner:not(.empty) .cur-metric').count().then(n => n === 2),
-    { timeout: 10000, label: '中心论点卡两项读数上屏' },
+    () => page.locator('.cur-global-panel .cur-metric').count().then(n => n === 2),
+    { timeout: 10000, label: '全局功能模块两项读数上屏' },
   )
   await page.locator('.share-action').first().click()
   await waitForLocator(page, '.cs-paper', { visible: true, timeout: 10000 })
@@ -1248,27 +1248,28 @@ async function main() {
     const iframes = document.querySelectorAll('.drawer iframe').length
     const banner = document.querySelector('.thesis-banner')
     const toolbar = document.querySelector('.ws-toolbar.cur-toolbar')
+    const globalPanel = document.querySelector('.cur-global-panel')
     const metrics = [...document.querySelectorAll('.cur-metric')]
     const shareAction = document.querySelector('.share-action')
     const share = shareAction?.getBoundingClientRect()
-    const toolbarButtons = toolbar ? [...toolbar.querySelectorAll('button')] : []
     return {
       visible: !!paper && paper.getBoundingClientRect().height > 50,
       levels: ['L2', 'L3', 'L4'].filter(l => text.includes(l + ' · 论证节点')),
       hasNodes: ['E2E 键位二级同级', 'E2E 键位三级子级', 'E2E 键位四级子级'].every(n => text.includes(n)),
       iframes,
-      metricsInBanner: metrics.length === 2 && metrics.every(metric => !!banner && metric.closest('.thesis-banner') === banner),
+      metricsInGlobal: metrics.length === 2 && metrics.every(metric => !!globalPanel && metric.closest('.cur-global-panel') === globalPanel),
       shareInToolbar: !!toolbar && !!shareAction && shareAction.closest('.ws-toolbar.cur-toolbar') === toolbar,
       settingsRetired: !document.querySelector('button.hero-btn.settings[title="策展台设置"]'),
-      shareIsToolbarLast: toolbarButtons.length > 0 && toolbarButtons[toolbarButtons.length - 1] === shareAction,
+      shareInGlobalHead: !!globalPanel && !!shareAction && shareAction.closest('.cur-global-head') === globalPanel.querySelector('.cur-global-head'),
+      metricsOutOfBanner: metrics.every(metric => !banner || metric.closest('.thesis-banner') !== banner),
       shareHasBox: !!share && share.width > 0 && share.height > 0,
     }
   })
-  report('E2E-46 V4.1.2 分享预览原生可读且递归呈现 L2–L4；读数归中心论点卡，设置齿轮退役，分享仍为行动条最后一钮',
+  report('E2E-46 V4.7 分享预览原生可读且递归呈现 L2–L4；读数归全局功能模块，设置齿轮退役，分享为右栏顶部主行动',
     sharePreview.visible && sharePreview.levels.length === 3 && sharePreview.hasNodes
-      && sharePreview.iframes === 0 && sharePreview.metricsInBanner
+      && sharePreview.iframes === 0 && sharePreview.metricsInGlobal && sharePreview.metricsOutOfBanner
       && sharePreview.shareInToolbar && sharePreview.settingsRetired
-      && sharePreview.shareHasBox && sharePreview.shareIsToolbarLast,
+      && sharePreview.shareHasBox && sharePreview.shareInGlobalHead,
     JSON.stringify(sharePreview))
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(500)
@@ -1856,8 +1857,8 @@ async function main() {
      （连「资源二级页」都没渲染）⇒ 固定等待在慢机器/后台标签页上根本不够，
      后面每一步（点卡、开抽屉、读热度）都在「页面还没到」的状态下跑 ⇒ 必然全 false。
      判据强度不放松：超时后仍拿真实采样值去判，与改动前同口径。 */
-  await waitForLocator(page, '.deck-page .pcp', { visible: true, timeout: 10000 })
-  const poolDeckOn = await page.locator('.deck-page .pcp').first().isVisible().catch(() => false)
+  await waitForLocator(page, '.drawer .pcp', { visible: true, timeout: 10000 })
+  const poolDeckOn = await page.locator('.drawer .pcp').first().isVisible().catch(() => false)
   const hlNode = page.locator('[data-rid="e2e-pool-1"]')
   /* 目标卡是**深链定位**的结果：路由 query 到位后卡片才渲染出来 ⇒ 等它出现再数。 */
   await waitForLocator(page, '[data-rid="e2e-pool-1"]', { timeout: 10000 })
@@ -1880,15 +1881,16 @@ async function main() {
     const arr = r['zy_error_log'] || []
     return arr.slice(-2).map(e => `${e.source}:${String(e.message).slice(0, 90)}@${e.route}`)
   })).catch(() => [])
-  await hlNode.first().click().catch(() => {})
-  /* ★R176-补：等抽屉**真的打开**再取标题（单击有 260ms 去重计时器 + 抽屉懒挂载）。 */
-  await waitForLocator(page, '.drawer-title', { visible: true, timeout: 10000 })
+  /* V4.7：hl 深链本身就会打开目标卡详情；这里等目标卡的标题真正出现，
+     不再多点一次（否则同一次定位会记两次调出，且易误取外层的「全部资源卡」标题）。 */
+  const drawerTitle = await pollUntil(() => page.evaluate(() => {
+    const titles = [...document.querySelectorAll('.drawer-title')].map((t) => {
+      const el = t.querySelector('input,textarea') || t
+      return String(el.value !== undefined && el.value !== '' ? el.value : el.textContent || '')
+    })
+    return titles.find(t => t.includes('E2E 池卡定位')) || false
+  }), { timeout: 10000, label: '资源详情抽屉显示目标卡' })
   // 抽屉标题是决定性证据（`.ds-ib` 只证明"有个抽屉"，证明不了"开的是这张卡"）
-  const drawerTitle = await page.evaluate(() => {
-    const t = document.querySelector('.drawer-title')
-    const el = t && (t.querySelector('input,textarea') || t)
-    return el ? String(el.value !== undefined && el.value !== '' ? el.value : el.textContent || '') : ''
-  })
   /* ★R176-补：等「调出」事件真的落进事件日志 + 热度键（原来死等 2500ms）。
      热度写 250ms 防抖 + 事件日志并入同一次 set（R2-⑦ 修好后这条通道才真的通），
      但慢机器上 2500ms 未必够 ⇒ 随机假红。判据不变，只是把「等多久」改成「等到什么」。 */
@@ -1906,16 +1908,18 @@ async function main() {
     const hot = raw['zy_stats_v1']
     return { n: hit.length, kind: hit.length ? hit[0].kind : '', hotEntry: hot && hot.cards ? hot.cards['e2e-pool-1'] : null }
   }))
-  report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（独立资源二级页 + 目标卡高亮）+ 打开详情记一次调出（热度键与事件日志双落盘）',
-    poolDeckOn && hlCount === 1 && hlFlash && drawerTitle.includes('E2E 池卡定位') && callEv.n > 0 && !!callEv.hotEntry,
-    `资源二级页=${poolDeckOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)} | 诊断 url="${e26Diag.url}" renderError="${e26Diag.renderError}" deck=${e26Diag.deckCount} pcp=${e26Diag.pcpCount} 正文="${e26Diag.bodyStart}" 错误日志=${JSON.stringify(e26ErrLog)}`)
+  report('E2E-26 ★R2-④⑤ ⌘K 定位改靶「资源卡池」（一级资源页签 + 全部资源抽屉 + 目标卡高亮）+ 深链自动打开详情且只记一次调出（热度键与事件日志双落盘）',
+    poolDeckOn && hlCount === 1 && hlFlash && !!drawerTitle && callEv.n === 1 && !!callEv.hotEntry,
+    `资源抽屉=${poolDeckOn} 目标卡=${hlCount} 高亮=${hlFlash} 抽屉="${drawerTitle.slice(0, 18)}" call事件=${callEv.n}(${callEv.kind}) 热度=${JSON.stringify(callEv.hotEntry)} | 诊断 url="${e26Diag.url}" renderError="${e26Diag.renderError}" deck=${e26Diag.deckCount} pcp=${e26Diag.pcpCount} 正文="${e26Diag.bodyStart}" 错误日志=${JSON.stringify(e26ErrLog)}`)
 
-  // E2E-27（R2-⑧ · V3.9.1 重指）：独立资源二级页不得再有新建入口；
-  //   批量全选打标签 → 批量软删仍走真实点击，种卡只是替代已退役的“新建”准备步骤。
+  // E2E-27（V4.7 重指）：资源卡二级页壳退役，能力收进一级「全部资源卡」总夹抽屉；
+  //   新建入口与批量全选、打标签、软删一样保留，不再由一份独立二级页承担。
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  const poolNewGone = (await page.locator('.dk-new').count()) === 0
+  const oldDeckShellGone = (await page.locator('.deck-page').count()) === 0
+  const allDrawerOn = await page.locator('.drawer .pcp').first().isVisible().catch(() => false)
+  const newEntryPresent = await page.locator('.drawer .pcp .dk-new').first().isVisible().catch(() => false)
   const seedTitle = 'E2E 批量探针池卡'
   await page.evaluate((title) => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']
@@ -1963,11 +1967,11 @@ async function main() {
     const c = st && (st.data.resources || []).find(x => x.title === 'E2E 批量探针池卡')
     return !!(c && c.deletedAt)
   })
-  report('E2E-27 ★R2-⑧ V3.9.1 二级资源页零新建入口 → 批量全选打标签 → 批量软删进回收站',
-    poolNewGone && seedCardOn && countBefore >= 1 && batchBarOn
+  report('E2E-27 ★V4.7.0 资源卡二级页壳退役：一级总夹抽屉同时保留新建入口与批量能力 → 全选打标签 → 批量软删进回收站',
+    oldDeckShellGone && allDrawerOn && newEntryPresent && seedCardOn && countBefore >= 1 && batchBarOn
     && tagged.found && tagged.ws === 'zy-curation' && (tagged.tags || []).includes('E2E 标签甲') && (tagged.tags || []).includes('E2E 批量标签')
     && goneAfterBatch && softDeleted,
-    `新建入口归零=${poolNewGone} 种子卡上屏=${seedCardOn} 初始计数=${countBefore} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
+    `二级页壳归零=${oldDeckShellGone} 总夹抽屉=${allDrawerOn} 新建入口=${newEntryPresent} 种子卡上屏=${seedCardOn} 初始计数=${countBefore} 批量条=${batchBarOn} 标签=${JSON.stringify(tagged.tags)} 台=${tagged.ws} 删后端点=${goneAfterBatch} 软删=${softDeleted}`)
 
   // E2E-30（R3-Ca · V4.2.3 重指）：池面板补齐——列表视图 / 状态筛选下拉 / 批量反选 / 右键菜单置顶
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
@@ -2049,53 +2053,42 @@ async function main() {
     && ctxItems.length === 6 && ctxItems.some(x => x.includes('加入常用夹')) && ctxItems.some(x => x.includes('复制链接')) && pinnedBack.pinned && pinBadge,
     `网格=${gridCount} 列表=${listCount} 待打标只留乙=${untaggedIsB} 全选=${selAll}→反选=${selAfterInvert} 菜单=${JSON.stringify(ctxItems)} 落库pinned=${pinnedBack.pinned} 徽标=${pinBadge}`)
 
-  // E2E-31（R3-Cb）：三张卡批量口径合一——批量栏进来就在、全选/反选可达、退出即清空、任务补批量打标
-  // 好奇面板：先种两张卡再测（E2E 库里可能一张不剩，"全选后 0 项"会被误读成反选生效）
+  // E2E-31（V4.7.0 重指）：任务/好奇心批量入口随卡片池二级页一起退役；资源批量保留在一级「全部资源卡」抽屉。
+  // 先种两张任务 + 两张好奇心，保证“旧壳归零”不是因为空列表假绿。
   await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
     const d = cur['zy_data_v2']; if (!d) return
+    const now = Date.now()
+    d.tasks = (d.tasks || []).filter(t => !String(t.id).startsWith('e2e-cb-task-'))
+    const mkt = (id, title) => ({ id, kind: 'task', title, status: 'todo', priority: 'medium', tags: [], pinned: false, customFields: {}, assets: [], createdAt: now, updatedAt: now })
+    d.tasks.unshift(mkt('e2e-cb-task-1', 'E2E 批量任务甲'), mkt('e2e-cb-task-2', 'E2E 批量任务乙'))
     d.curiosities = (d.curiosities || []).filter(x => !String(x.id).startsWith('e2e-cb-'))
-    const mk = (id, q) => ({ id, kind: 'curiosity', question: q, sourceUrl: 'https://example.com/' + id, status: 'todo', pinned: false, tags: [], customFields: {}, assets: [], createdAt: Date.now() - 86400000, updatedAt: Date.now() - 86400000 })
+    const mk = (id, q) => ({ id, kind: 'curiosity', question: q, sourceUrl: 'https://example.com/' + id, status: 'todo', pinned: false, tags: [], customFields: {}, assets: [], createdAt: now - 86400000, updatedAt: now - 86400000 })
     d.curiosities.unshift(mk('e2e-cb-1', 'E2E 好奇甲'), mk('e2e-cb-2', 'E2E 好奇乙'))
     return chrome.storage.local.set({ zy_data_v2: d })
   }))
-  await page.goto(base + '#/deck/task', { waitUntil: 'domcontentloaded' })
+  await page.goto(base + '#/?tab=task', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2500)
-  // 按钮文案是「☑ 批量管理」/「✓ 完成」——按文案找，别按 .cz-batch-btn 的第一枚（那是 AI 转化研判钮）
-  await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="task"] .dk-batch'); if (b && (b.textContent || '').includes('批量管理')) b.click() })
-  await page.waitForTimeout(600)
-  const barWithoutSel = await page.locator('.mgr-body .dkb-bar').isVisible().catch(() => false)
-  const sel0 = (await page.locator('.mgr-body .dkb-count').textContent().catch(() => '')) || ''
-  await page.locator('.mgr-body .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
+  await waitForLocator(page, '.cal-pool-task', { visible: true, timeout: 10000 })
+  const taskPoolRows = await page.locator('.cal-pool-task').count()
+  const taskBatchGone = (await page.locator('.mgr-body, .dk-batch').count()) === 0
+  await page.goto(base + '#/?tab=curiosity', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.cw-pool-item', { visible: true, timeout: 10000 })
+  const curioPoolRows = await page.locator('.cw-pool-item').count()
+  const curioBatchGone = (await page.locator('.cz-body, .dk-batch').count()) === 0
+  await page.goto(base + '#/?tab=resource', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.hrf-folder.is-all', { visible: true, timeout: 10000 })
+  if (!(await page.locator('.drawer .pcp').count())) await page.locator('.hrf-folder.is-all').first().click()
+  await waitForLocator(page, '.drawer .pcp', { visible: true, timeout: 10000 })
+  await page.locator('.drawer .dk-batch').click().catch(() => {})
   await page.waitForTimeout(500)
-  const tSelAll = parseInt(((await page.locator('.mgr-body .dkb-count').textContent().catch(() => '0')) || '').replace(/\D/g, '') || '0', 10)
-  await page.locator('.mgr-body .dkb-tagin').fill('E2E 批量任务标签').catch(() => {})
-  await page.locator('.mgr-body .dkb-bar button', { hasText: '应用标签' }).first().click().catch(() => {})
-  await page.waitForTimeout(900)
-  const taskTagged = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then((cur) => {
-    const ts = ((cur['zy_data_v2'] || {}).tasks || []).filter(t => !t.deletedAt && (t.tags || []).includes('E2E 批量任务标签'))
-    return { n: ts.length, ids: ts.map(t => t.id) }
-  }))
-  await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="task"] .dk-batch'); if (b && (b.textContent || '').includes('完成')) b.click() })
-  await page.waitForTimeout(500)
-  await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="task"] .dk-batch'); if (b && (b.textContent || '').includes('批量管理')) b.click() })
-  await page.waitForTimeout(600)
-  const selAfterReenter = parseInt(((await page.locator('.mgr-body .dkb-count').textContent().catch(() => 'x')) || '').replace(/\D/g, '') || 'x', 10)
-  await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1400)
-  await page.evaluate(() => { const b = document.querySelector('.dk-row[data-panel="curio"] .dk-batch'); if (b && (b.textContent || '').includes('批量管理')) b.click() })
-  await page.waitForTimeout(600)
-  const czBar = await page.locator('.cz-body .dkb-bar').isVisible().catch(() => false)
-  await page.locator('.cz-body .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
-  await page.waitForTimeout(500)
-  const czAll = (await page.locator('.cz-body .dkb-count').textContent().catch(() => '')) || ''
-  await page.locator('.cz-body .dkb-bar button', { hasText: /^反选$/ }).first().click().catch(() => {})
-  await page.waitForTimeout(500)
-  const czInvert = (await page.locator('.cz-body .dkb-count').textContent().catch(() => '')) || ''
-  report('E2E-31 ★R3-Cb 批量合一：任务批量栏未选即出 → 全选可点 → 批量打标落库 → 退出再进不残留勾选；好奇全选→反选归零',
-    barWithoutSel && /已选 0/.test(sel0) && tSelAll >= 2 && taskTagged.n === tSelAll && selAfterReenter === 0
-    && czBar && /已选 2/.test(czAll) && /已选 0/.test(czInvert),
-    `栏即出=${barWithoutSel} 初始="${sel0.trim()}" 全选=${tSelAll} 打标落库=${taskTagged.n} 重进残留=${selAfterReenter} 好奇栏=${czBar} 全选="${czAll.trim()}" 反选="${czInvert.trim()}"`)
+  const resBar = await page.locator('.drawer .dkb-bar').isVisible().catch(() => false)
+  await page.locator('.drawer .dkb-bar button', { hasText: /^全选$/ }).first().click().catch(() => {})
+  await page.waitForTimeout(400)
+  const resSel = (await page.locator('.drawer .dkb-count').textContent().catch(() => '')) || ''
+  report('E2E-31 ★V4.7.0 批量口径随二级页退役收敛：任务/好奇心旧批量壳归零，资源批量保留在「全部资源卡」抽屉',
+    taskPoolRows >= 2 && taskBatchGone && curioPoolRows >= 2 && curioBatchGone && resBar && /已选 [1-9]/.test(resSel),
+    `任务行=${taskPoolRows} 旧任务批量=${taskBatchGone} 好奇行=${curioPoolRows} 旧好奇批量=${curioBatchGone} 资源栏=${resBar} 资源全选="${resSel.trim()}"`)
 
   // E2E-32 ★V3.9.23 书签导入唯一路线：真喂一份 Netscape 书签 HTML 进数据包页那枚 input，核五件
   //   此前**只有源码文本断言**在管的事（书签链路过去零行为覆盖，删一整条死链却没有活性凭据
@@ -2509,7 +2502,7 @@ async function main() {
     await page.goto(base + '#/deck/curiosity', { waitUntil: 'domcontentloaded' })
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2400)
-    const row = page.locator('.cz-list-item, .cz-card', { hasText: epQ }).first()
+    const row = page.locator('.cw-pool-item, .cz-list-item, .cz-card', { hasText: epQ }).first()
     const rowFound = await row.count()
     await row.click().catch(() => {})
     await waitForLocator(page, '.drawer', { visible: true, timeout: 6000 })
@@ -3573,8 +3566,10 @@ await paOpen()
     const mirrors = (raw.zy_data_v2?.resourceFolderMirrors || []).filter(row => row.folderId === folder.id)
     return mirrors.length === 1 && mirrors[0]?.resourceId === 'e2e-v422-card-b'
   }, { timeout: 8000 })
-  await page.locator('.drawer .drawer-close').click()
-  await page.waitForSelector('.drawer', { state: 'detached', timeout: 6000 })
+  /* 一级总夹抽屉是外层；常用夹抽屉是内层。只关内层并等待退出动画，
+     随后整页重载会连同外层一起复位。 */
+  await page.locator('.drawer .drawer-close').last().click()
+  await page.waitForTimeout(500)
   await page.evaluate(async () => {
     const cur = await chrome.storage.local.get('zy_data_v2')
     const data = cur.zy_data_v2
@@ -3604,6 +3599,13 @@ await paOpen()
   report('E2E-60 ★V4.2.2 常用夹在夹内直接添加 / 移出；源卡软删并改名后镜像标题与原始链接仍由独立快照提供',
     folderOk,
     `建夹=${folderCreated} 两条=${twoMirrors} 移出后=${oneMirror} 成员=${JSON.stringify(memberTextsAfterAdd)} 快照=${JSON.stringify(snapshotTitle)} URLs=${JSON.stringify(folderUrlList)}`)
+  for (let i = 0; i < 2; i++) {
+    const close = page.locator('.drawer .drawer-close').last()
+    if (await close.count()) {
+      await close.click().catch(() => {})
+      await page.waitForTimeout(400)
+    }
+  }
 
   // ══════════ E2E-63 / 64（V4.3.2）调度台月历与卡片池入口 ══════════
   const pad2 = n => String(n).padStart(2, '0')
@@ -3854,7 +3856,7 @@ await paOpen()
   const todayFolderModal = (await page.locator('.md-panel').innerText().catch(() => '')).includes('今日采集')
   await page.locator('.md-close').click()
   await page.waitForTimeout(250)
-  const regularFolders = page.locator('.hrf-folder:not(.is-today):not(.is-create)')
+  const regularFolders = page.locator('.hrf-folder:not(.is-all):not(.is-today):not(.is-create)')
   const regularFolderCount = await regularFolders.count()
   let regularFolderModal = regularFolderCount === 0
   if (regularFolderCount) {
@@ -3866,16 +3868,18 @@ await paOpen()
     await page.waitForTimeout(250)
   }
   await page.locator('.hand-head-actions .hand-link').click()
-  await waitForLocator(page, '#deck-pool-root, .pcp-panel, .pool-cards-panel, .deck-body', { visible: true, timeout: 8000 })
-  await page.waitForTimeout(900)
-  const deckFresh = page.url().includes('fresh=1')
-  const deckList = await page.locator('.pcp-list').isVisible().catch(() => false)
+  await waitForLocator(page, '.hrf-folder.is-all', { visible: true, timeout: 8000 })
+  const deckTab = page.url().includes('tab=resource')
+  await page.locator('.hrf-folder.is-all').first().click()
+  await waitForLocator(page, '.drawer .pcp', { visible: true, timeout: 8000 })
+  await page.waitForTimeout(500)
+  const deckList = await page.locator('.drawer .pcp-list').isVisible().catch(() => false)
   const poolOk = folderModules >= 2 && todayFolderVisible && /\d+/.test(todayFolderCount)
     && badgeUniform && todayFolderModal && regularFolderModal
-    && deckFresh && deckList
-  report('E2E-64 ★V4.3.3 卡片池角标与页签同色、今日采集与常用夹直接打开明细弹窗、进入二级页仍默认列表态',
+    && deckTab && deckList
+  report('E2E-64 ★V4.3.3 卡片池角标与页签同色、今日采集与常用夹直接打开明细弹窗、进入卡片池落资源页签且全部资源抽屉默认列表态',
     poolOk,
-    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} 角标同色=${badgeUniform} 今日弹窗=${todayFolderModal} 常用夹弹窗=${regularFolderModal}/${regularFolderCount} fresh=${deckFresh} list=${deckList} url=${page.url()}`)
+    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} 角标同色=${badgeUniform} 今日弹窗=${todayFolderModal} 常用夹弹窗=${regularFolderModal}/${regularFolderCount} tab=${deckTab} list=${deckList} url=${page.url()}`)
 
   // V4.3.7: test the transition boundary, not just the locator source text.
   await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
@@ -3998,7 +4002,7 @@ await paOpen()
     const topic = (raw.zy_data_v2?.topics || []).find(row => row.id === topicProbeId)
     return topic?.statusId === 'topic-making' && !topic?.completedAt
   }, { timeout: 5000 })
-  await page.locator('.drawer .drawer-close').click()
+  await page.locator('.drawer .drawer-close').last().click()
   await page.waitForSelector('.drawer', { state: 'detached', timeout: 5000 }).catch(() => {})
   await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
   await waitForLocator(page, '.topic-manager', { visible: true, timeout: 8000 })
@@ -4014,11 +4018,13 @@ await paOpen()
   await topicManager.locator('.topic-expand').click()
   await topicManager.locator('.topic-view-switch button').filter({ hasText: '日历' }).click()
   await waitForLocator(topicManager, '.topic-cal-chip', { visible: true, timeout: 5000 })
-  const pagesBeforeOutcome = ctx.pages().length
   await topicManager.locator('.topic-cal-chip').filter({ hasText: topicProbeTitle }).first().dblclick()
-  await page.waitForTimeout(500)
-  const outcomePage = ctx.pages().find(p => p.url().includes('example.com/e2e-topic-outcome'))
-  const topicOutcomeOpened = ctx.pages().length > pagesBeforeOutcome && !!outcomePage
+  // chrome.tabs.create 先开 about:blank，URL 随后才落地；固定等 500ms 会把真打开判成没开。
+  const outcomePage = await pollUntil(
+    () => ctx.pages().find(p => p !== page && p.url().includes('example.com/e2e-topic-outcome')) || false,
+    { timeout: 8000, label: 'topic outcome tab' },
+  )
+  const topicOutcomeOpened = !!outcomePage
   if (outcomePage) await outcomePage.close().catch(() => {})
   const dragTarget = topicManager.locator('.cal-day:not(.outside):not(.today)').first()
   await page.evaluate(() => {
@@ -4076,8 +4082,10 @@ await paOpen()
   await waitForLocator(page, '.ws-curation-console', { visible: true, timeout: 10000 })
   const consolePair = await page.locator('.ws-curation-console').evaluate(el => {
     const thesis = el.querySelector('.thesis-banner')?.getBoundingClientRect()
-    const toolbar = el.querySelector('.cur-toolbar')?.getBoundingClientRect()
-    return !!thesis && !!toolbar && Math.abs(thesis.top - toolbar.top) < 3 && toolbar.left > thesis.right - 2
+    /* V4.7：右栏外壳是 .cur-global-panel（.cur-toolbar 已收进其 10px padding 内），
+       双列对齐判据改钉外壳，守的布局关系不变。 */
+    const panel = el.querySelector('.cur-global-panel')?.getBoundingClientRect()
+    return !!thesis && !!panel && Math.abs(thesis.top - panel.top) < 3 && panel.left > thesis.right - 2
   })
   const originalData = await page.evaluate(() => chrome.storage.local.get('zy_data_v2').then(raw => raw.zy_data_v2))
   await page.evaluate(async () => {
@@ -4095,7 +4103,7 @@ await paOpen()
   await waitForLocator(page, '.desk-heading h1', { visible: true, timeout: 10000 })
   const legacySnapshotSafe = await page.locator('.re-title').count() === 0
   if (originalData) await page.evaluate(data => chrome.storage.local.set({ zy_data_v2: data }), originalData)
-  report('E2E-68 ★V4.6.0 任务清单可在标题旁折叠后让日历铺满；方向树单项目聚焦水平居中；策展台论点与工具栏双列对齐；缺少 V4.5 数组的旧快照恢复后调度台仍可渲染',
+  report('E2E-68 ★V4.7 任务清单可在标题旁折叠后让日历铺满；方向树单项目聚焦水平居中；策展台论点与全局功能模块双列对齐；缺少 V4.5 数组的旧快照恢复后调度台仍可渲染',
     taskFoldState.hidden && !taskFoldState.poolVisible && taskFoldState.expandVisible
       && focusCentered && consolePair && legacySnapshotSafe,
     `任务折叠=${JSON.stringify(taskFoldState)} 聚焦居中=${focusCentered} 策展双列=${consolePair} 旧快照=${legacySnapshotSafe}`)

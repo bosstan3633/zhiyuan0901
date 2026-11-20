@@ -211,7 +211,7 @@ function syncIndexFromId() {
 }
 
 function typeLabel(t: 'all'|'res'|'task'|'curio'|'topic'|'ws'|'proj'): string {
-  return t === 'res' ? '资源卡' : t === 'task' ? '任务卡' : t === 'curio' ? '好奇心' : t === 'topic' ? '选题卡' : t === 'ws' ? '策展台' : t === 'proj' ? '项目' : '搜全部'
+  return t === 'res' ? '资源卡' : t === 'task' ? '任务' : t === 'curio' ? '好奇心' : t === 'topic' ? '选题卡' : t === 'ws' ? '策展台' : t === 'proj' ? '项目' : '搜全部'
 }
 const filterLabel = computed(() => typeLabel(currentType.value))
 

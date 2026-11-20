@@ -44,6 +44,7 @@ import TaskCalendarView from './TaskCalendarView.vue'
 import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type TaskGroupMode } from './useTaskManagerPanel'
 import { activeFocusSlots, clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import { isTopicDone, toggleTopicDone } from '@/shared/utils/topicStatus'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 const {
@@ -243,8 +244,7 @@ function setTopicDueDate(topicId: string, date: string): void {
     return
   }
   clearTopicFromToday(topicId)
-  topic.dueDate = date
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d.value, topic, date, { source: 'calendar' })
   store.persist()
   showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日，并移出今日三件事`)
 }
@@ -253,8 +253,7 @@ function clearTopicDueDate(topicId: string): void {
   const topic = liveTopicCards.value.find(row => row.id === topicId)
   if (!topic) return
   const removedFocus = clearTopicFromToday(topicId)
-  topic.dueDate = undefined
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d.value, topic, undefined, { source: 'calendar' })
   store.persist()
   showToast('已取消排期，选题回到卡片池', {
     label: '撤销',
@@ -267,9 +266,8 @@ function clearTopicDueDate(topicId: string): void {
         const index = removedFocus.slotIndex ?? cells.findIndex(cell => !cell || cell.cleared)
         if (index >= 0 && index < 3) cells[index] = removedFocus
         d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
-        current.dueDate = day
+        scheduleCardDate(d.value, current, day, { source: 'calendar', record: false })
       }
-      current.updatedAt = Date.now()
       store.persist()
       showToast('已恢复选题排期')
     },

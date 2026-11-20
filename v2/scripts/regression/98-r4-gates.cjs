@@ -708,7 +708,7 @@ check('W6-2（V4.5.0 重指）卡片池四页签：任务页默认展示完整�
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   return /class="[^"]*\bhand-board\b/.test(ch) && ch.includes('class="hand-head"')
     && ch.includes('class="task-workbench"')
-    && ch.includes('class="hand-grid hand-grid-aux"')
+    && /class="[^"]*\bhand-grid\b[^"]*\bhand-grid-aux\b/.test(ch)
     && ch.includes('class="hand-col"')
     && (ch.match(/class="hand-tab(?=[ "])/g) || []).length === 4
     && ch.includes('采集的起点，任务的调度场')

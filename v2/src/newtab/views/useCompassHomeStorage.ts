@@ -55,23 +55,9 @@ function onDateKey(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowLeft') { e.preventDefault(); shiftDate(-1) }
   else if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowRight') { e.preventDefault(); shiftDate(1) }
 }
-// R67-F4：浏览器模块直达。V3.9.1 起首页不再常驻完整面板，直达改为进入对应二级列表。
-watch(() => route.query.hl, (hl) => {
-  if (!hl) return
-  const hk = typeof route.query.hk === 'string' ? route.query.hk : ''
-  if (hk === 'curio') void router.replace({ path: '/deck/curiosity', query: { hl, hk } })
-  else if (hk === 'task') void router.replace({ path: '/deck/task', query: { hl, hk } })
-  else if (hk === 'res') void router.replace({ path: '/deck/resource', query: { hl, hk } })
-}, { immediate: true })
-watch(() => route.query.bottom, (b) => {
-  if (b === 'curio') void router.replace('/deck/curiosity')
-  else if (b === 'task') void router.replace('/deck/task')
-  else if (b === 'pool') void router.replace('/deck/resource')
-}, { immediate: true })
-
 function gotoAnchor(name: string) {
-  if (name === 'curiosity') { void router.push('/deck/curiosity'); return }
-  if (name === 'task') { void router.push('/deck/task'); return }
+  if (name === 'curiosity') { void router.push({ path: '/', query: { tab: 'curiosity' } }); return }
+  if (name === 'task') { void router.push({ path: '/', query: { tab: 'task' } }); return }
   const id = name === 'project' ? 'zy-mod-tasks' : ''
   if (!id) return
   const el = document.getElementById(id)

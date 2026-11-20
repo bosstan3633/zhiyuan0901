@@ -38,7 +38,7 @@ check('R187-1 ★策展台页头收成一个连续三层：台身份 → 中心�
     && /margin-top:\s*0/.test(toolbarCss)
 })
 
-check('R187-2（V4.0.3 重指）★布局切换与分享各只有一个入口：布局固定在画布工具条，分享固定页面行动条行尾一次', () => {
+check('R187-2（V4.7 重指）★布局切换与分享各只有一个入口：布局固定在画布工具条，分享固定全局功能模块右上角一次', () => {
   const toolbarStart = WS.indexOf('<div class="ws-toolbar cur-toolbar"')
   const mindStart = WS.indexOf('<CurationMindMap', toolbarStart)
   const toolbar = WS.slice(toolbarStart, mindStart)
@@ -46,23 +46,27 @@ check('R187-2（V4.0.3 重指）★布局切换与分享各只有一个入口：
     && !toolbar.includes('mind.setLayout(')
     && (WSC.match(/分享成果/g) || []).length === 1
     && toolbar.includes('class="hero-btn primary share-action"')
-    && toolbar.lastIndexOf('分享成果') > toolbar.lastIndexOf('class="toolbar-search"')
+    && toolbar.includes('class="cur-global-head"')
+    && toolbar.indexOf('分享成果') < toolbar.indexOf('class="toolbar-search"')
     && MIND.includes('<div class="mindmap-layout" role="group" aria-label="切换画布布局">')
     && !MIND.includes('v-if="fullscreen" class="mindmap-layout"')
 })
 
-check('R75-6（V4.0.3 重指）hub 卡片总数补充口径退役：台身份只留分类与更新时间，论据卡 / 附件读数收进中心论点卡，指标格无「镜像异常」分支', () => {
+check('R75-6（V4.7 重指）hub 卡片总数补充口径退役：台身份只留分类与更新时间，论据卡 / 附件读数收进右侧全局功能模块，指标格无「镜像异常」分支', () => {
   const summaryStart = WSC.indexOf('class="wsh-summary"')
   const summary = summaryStart >= 0 ? WSC.slice(summaryStart, WSC.indexOf('</div>', summaryStart)) : ''
   const bannerStart = WSC.indexOf('class="thesis-banner"')
-  const banner = bannerStart >= 0 ? WSC.slice(bannerStart, WSC.indexOf('<!-- ③ 行动条', bannerStart)) : ''
+  /* codeOnly 会剥掉 HTML 注释，旧终点「<!-- ③ 行动条」在 WSC 中不存在；
+     V4.7 起以全局功能模块的开标签作为中心论点卡的切片终点。 */
+  const banner = bannerStart >= 0 ? WSC.slice(bannerStart, WSC.indexOf('<div class="cur-global-panel"', bannerStart)) : ''
   return !WSC.includes('hubCountHint')
     && summary.includes('<b>{{ categories.length }}</b> 个分类')
     && !summary.includes('论据卡')
     && !summary.includes('佐证附件')
-    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
-    && banner.includes('{{ metrics.total }}')
-    && banner.includes('{{ metrics.attachmentCount }}')
+    && !banner.includes('class="cur-metrics"')
+    && WSC.slice(WSC.indexOf('<div class="cur-global-panel"')).includes('class="cur-metrics" data-curation-metrics="2"')
+    && WSC.slice(WSC.indexOf('<div class="cur-global-panel"')).includes('{{ metrics.total }}')
+    && WSC.slice(WSC.indexOf('<div class="cur-global-panel"')).includes('{{ metrics.attachmentCount }}')
 })
 
 check('R187-3 ★今日高亮不再是静默失效：状态类以空格分隔，今日格带 today / aria-current，月份标题也有「今天」标记', () => {

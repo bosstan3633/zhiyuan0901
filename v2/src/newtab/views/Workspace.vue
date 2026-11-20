@@ -7,9 +7,11 @@
       <!-- 左侧分类导航（第八轮：树形 2 级 + 置顶分区 + 拖拽排序/挂子级；R48-V2：Linear 风格树 + 展开/折叠） -->
       <div class="ws-content">
       <!-- R109（F13）：顶部三模块移入滚动容器（与卡片同 padding/滚动域）——顶栏/指标条/工具条/网格右缘成一条直线 -->
-    <!-- V4.0.3：页头保持三段式，但职责重新分层。
-         ① 台身份只保留分类与更新时间；② 中心论点卡承载论点信息、卡片读数和详情入口；
-         ③ 页面行动条只保留导入、检索、设置与分享。画布布局切换回到高频操作的画布工具条。 -->
+    <!-- V4.7：页头保持三段式，但职责重新分层。
+         ① 台身份只保留分类与更新时间；
+         ② 中心论点卡只承载论点正文与详情入口；
+         ③ 右侧全局功能模块承担分享主行动、两枚读数与检索/台数据/打开全部资源等次级动作。
+         画布布局切换回到高频操作的画布工具条。 -->
     <div class="ws-head">
       <div class="ws-id-head">
         <span class="wsh-icon"><template v-if="workspace.icon">{{ workspace.icon }}</template><Icon v-else name="folder" :size="13"/></span>
@@ -51,16 +53,6 @@
             </span>
           </div>
           <span class="tb-side">
-            <span class="cur-metrics" data-curation-metrics="2">
-              <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click.stop="openDrill('total')">
-                <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡</span>
-                <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（镜像 <Icon name="satellite" :size="12"/> {{ metrics.mirrored }}）</span></span>
-              </button>
-              <button class="cur-metric" type="button" title="点击查看附件明细" @click.stop="openDrill('assets')">
-                <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件</span>
-                <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
-              </button>
-            </span>
             <button class="tb-detail" type="button" @click.stop="openThesisCard">
               查看论点详情 <Icon name="arrowright" :size="12"/>
             </button>
@@ -75,26 +67,43 @@
         </template>
       </div>
 
-      <!-- ③ 行动条：只保留页面级动作。画布布局切换位于画布工具条，始终可见。 -->
-      <div class="ws-toolbar cur-toolbar">
-        <!-- V4.1.2：页面设置退役，必要的数据动作收进一个「台数据」菜单。 -->
-        <div class="cur-import" :class="{ open: importMenuOpen }">
-          <button ref="importMenuTrigger" class="hero-btn ghost cur-import-trigger" type="button"
-            title="导入、导出或清理本策展台数据" aria-haspopup="menu" :aria-expanded="importMenuOpen"
-            @click.stop="toggleImportMenu"><Icon name="database" :size="13"/> 台数据 <span class="cur-import-caret" aria-hidden="true">▾</span></button>
+      <!-- ③ 行动条 / 全局功能模块：分享成果是唯一主行动；论据/附件读数与低频动作收进右栏，
+           中心论点只保留论点正文与详情入口。画布布局切换仍在画布工具条。 -->
+      <div class="cur-global-panel" role="region" aria-label="全局功能">
+        <div class="ws-toolbar cur-toolbar">
+          <div class="cur-global-head">
+            <span class="cur-global-title">全局功能</span>
+            <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
+          </div>
+          <span class="cur-metrics" data-curation-metrics="2">
+            <button class="cur-metric" type="button" title="点击查看全部卡片明细（台内 + 镜像）" @click.stop="openDrill('total')">
+              <span class="mbox-label"><Icon name="barchart" :size="13"/> 论据卡</span>
+              <span class="mbox-value">{{ metrics.total }}<span v-if="metrics.mirrored" class="mbox-sub">（镜像 <Icon name="satellite" :size="12"/> {{ metrics.mirrored }}）</span></span>
+            </button>
+            <button class="cur-metric" type="button" title="点击查看附件明细" @click.stop="openDrill('assets')">
+              <span class="mbox-label"><Icon name="paperclip" :size="13"/> 佐证附件</span>
+              <span class="mbox-value">{{ metrics.attachmentCount }}<span v-if="assetKindBreakdown" class="mbox-sub">（{{ assetKindBreakdown }}）</span></span>
+            </button>
+          </span>
+          <div class="cur-global-actions">
+            <div class="toolbar-search">
+              <span class="s-icon"><Icon name="search" :size="13"/></span>
+              <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
+                title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
+            </div>
+            <!-- V4.1.2：页面设置退役，必要的数据动作收进一个「台数据」菜单。 -->
+            <div class="cur-import" :class="{ open: importMenuOpen }">
+              <button ref="importMenuTrigger" class="hero-btn ghost cur-import-trigger" type="button"
+                title="导入、导出或清理本策展台数据" aria-haspopup="menu" :aria-expanded="importMenuOpen"
+                @click.stop="toggleImportMenu"><Icon name="database" :size="13"/> 台数据 <span class="cur-import-caret" aria-hidden="true">▾</span></button>
+            </div>
+            <button class="hero-btn ghost cur-open-all" type="button" :disabled="!curationOpenableCards.length"
+              :title="curationOpenableCards.length ? `打开本台 ${curationOpenableCards.length} 个资源原始链接` : '本台暂无可打开的资源原始链接'"
+              @click="openAllCurationResources">
+              <Icon name="external" :size="13"/> 打开全部资源<span v-if="curationOpenableCards.length"> {{ curationOpenableCards.length }}</span>
+            </button>
+          </div>
         </div>
-        <div class="toolbar-spacer"></div>
-        <div class="toolbar-search">
-          <span class="s-icon"><Icon name="search" :size="13"/></span>
-          <input type="text" v-model="searchQuery" placeholder="检索论证节点..."
-            title="全台检索：匹配节点标题与说明，以及节点下资源卡的标题、描述、标签与来源">
-        </div>
-        <button class="hero-btn" type="button" :disabled="!curationOpenableCards.length"
-          :title="curationOpenableCards.length ? `打开本台 ${curationOpenableCards.length} 个资源原始链接` : '本台暂无可打开的资源原始链接'"
-          @click="openAllCurationResources">
-          <Icon name="external" :size="13"/> 打开全部资源<span v-if="curationOpenableCards.length"> {{ curationOpenableCards.length }}</span>
-        </button>
-        <button class="hero-btn primary share-action" title="分享为高清长图或自包含 HTML" @click="shareOpen = true"><Icon name="share" :size="13"/> 分享成果</button>
       </div>
       </div>
     </div>

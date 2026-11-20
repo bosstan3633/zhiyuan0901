@@ -1,5 +1,6 @@
 import type { AppData, FocusSlot } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 
 export const FOCUS_LIMIT = 3
 
@@ -57,8 +58,7 @@ export function detachFocusTaskFromDate(data: AppData, day: string, taskId?: str
   if (!taskId) return false
   const task = (data.tasks || []).find(row => !row.deletedAt && row.id === taskId)
   if (!task || task.dueDate !== day) return false
-  task.dueDate = undefined
-  task.updatedAt = Date.now()
+  scheduleCardDate(data, task, undefined, { source: 'focus', record: false })
   return true
 }
 
@@ -67,8 +67,7 @@ export function detachFocusTopicFromDate(data: AppData, day: string, topicId?: s
   if (!topicId) return false
   const topic = (data.topics || []).find(row => !row.deletedAt && row.id === topicId)
   if (!topic || topic.dueDate !== day) return false
-  topic.dueDate = undefined
-  topic.updatedAt = Date.now()
+  scheduleCardDate(data, topic, undefined, { source: 'focus', record: false })
   return true
 }
 

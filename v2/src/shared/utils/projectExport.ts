@@ -6,12 +6,15 @@
  * 结构化口径（需求清单 F5 拍板）：
  *   项目头（战略链 / 主攻 / 状态 / 下一步 / 进度 / 断链警示）
  *   → 指标 ×N（进度 / ⚠ 缺任务警示）
- *   → 任务 ×N 按 metric.taskIds 轨道序分组（标题 / 状态 / 计划执行日期 / 任务链接）
- *   → 支撑资源（SupportLink → 资源卡标题 + 可点击链接，不可用显式标注）
+ *   → 指标下任务 ×N（标题 / 状态 / 计划执行日期 / 任务链接）
+ *   → 指标下选题 ×N（标题 / 状态 / 计划执行日期 / 选题链接）
+ *   → 未归属任务 / 选题（项目内存在但没有任何指标认领）
+ *   → 任务支撑资源（SupportLink → 资源卡标题 + 可点击链接，不可用显式标注）
  * 附件不嵌本体（与任务卡导出同一口径：只留清单信息，不读 IndexedDB Blob）。
  */
-import type { AppData, Project, ResourceCard, SupportLink, TaskCard } from '@/shared/models'
+import type { AppData, Project, ResourceCard, SupportLink, TaskCard, TopicCard } from '@/shared/models'
 import { toOpenableRawLink, toOpenableUrl } from './link'
+import { topicStatusOf } from './topicStatus'
 import {
   escapeHtml,
   escapeMarkdown,
@@ -32,11 +35,19 @@ export interface ProjectExportTask {
   supports: { title: string; href: string; why: string; source: string; unavailable: boolean }[]
 }
 
+export interface ProjectExportTopic {
+  title: string
+  status: string
+  dueDate: string
+  topicLink: Link
+}
+
 export interface ProjectExportMetric {
   title: string
   progress: string
   missingTasks: boolean
   tasks: ProjectExportTask[]
+  topics: ProjectExportTopic[]
 }
 
 export interface ProjectExportDocument {
@@ -49,6 +60,8 @@ export interface ProjectExportDocument {
   progress: string
   hasBrokenLink: boolean
   metrics: ProjectExportMetric[]
+  orphanTasks: ProjectExportTask[]
+  orphanTopics: ProjectExportTopic[]
   generatedAt: number
 }
 
@@ -94,6 +107,20 @@ function projectTasks(d: AppData, project: Project): TaskCard[] {
   return out
 }
 
+function projectTopics(d: AppData, project: Project): TopicCard[] {
+  const trackIds = new Set(project.metrics.flatMap(m => m.topicIds || []))
+  const metricIds = new Set(project.metrics.map(m => m.id))
+  const seen = new Set<string>()
+  const out: TopicCard[] = []
+  for (const topic of d.topics || []) {
+    if (topic.deletedAt || seen.has(topic.id)) continue
+    if (topic.projectId !== project.id && !(topic.metricId && metricIds.has(topic.metricId)) && !trackIds.has(topic.id)) continue
+    seen.add(topic.id)
+    out.push(topic)
+  }
+  return out
+}
+
 function taskToExport(d: AppData, task: TaskCard): ProjectExportTask {
   const links = (d.supportLinks || []).filter(link => link.taskId === task.id)
   const supports = links.map(link => {
@@ -110,7 +137,7 @@ function taskToExport(d: AppData, task: TaskCard): ProjectExportTask {
   return {
     title: task.title.trim() || '未命名任务',
     status: STATUS_LABEL[task.status] || task.status,
-    dueDate: task.dueDate || '未排期',
+    dueDate: task.dueDate || '未落图',
     taskLink: {
       text: (task.link || '').trim() || '未填写任务链接',
       href: safeTaskHref(task),
@@ -119,9 +146,28 @@ function taskToExport(d: AppData, task: TaskCard): ProjectExportTask {
   }
 }
 
+function safeTopicHref(topic: TopicCard): string {
+  const normalized = toOpenableRawLink(topic.link || '')
+  const link = safeExportLink(normalized || topic.link)
+  return link.clickable ? link.href : ''
+}
+
+function topicToExport(d: AppData, topic: TopicCard): ProjectExportTopic {
+  return {
+    title: topic.title.trim() || '未命名选题',
+    status: topicStatusOf(d, topic.statusId)?.name || '未设置状态',
+    dueDate: topic.dueDate || '未落图',
+    topicLink: {
+      text: (topic.link || '').trim() || '未填写选题链接',
+      href: safeTopicHref(topic),
+    },
+  }
+}
+
 export function buildProjectExportDocument(d: AppData, project: Project, now = new Date()): ProjectExportDocument {
   const name = project.name.trim() || '未命名项目'
   const tasks = projectTasks(d, project)
+  const topics = projectTopics(d, project)
   const doneCount = tasks.filter(t => t.status === 'done').length
   const pct = tasks.length ? Math.round(doneCount / tasks.length * 100) : 0
   const dir = (d.compass.directions || []).find(item => (item.projects || []).some(p => p.id === project.id))
@@ -131,10 +177,17 @@ export function buildProjectExportDocument(d: AppData, project: Project, now = n
     (dir?.name || '').trim(),
   ].filter(Boolean)
   let hasBrokenLink = false
+  const ownedTaskIds = new Set<string>()
+  const ownedTopicIds = new Set<string>()
   const metrics: ProjectExportMetric[] = (project.metrics || []).map(metric => {
     // 双路并集（同 compassMeta 口径）：task.metricId 与 metric.taskIds 任一命中都算本指标
     const linkedIds = new Set(metric.taskIds || [])
     const list = tasks.filter(t => t.metricId === metric.id || linkedIds.has(t.id))
+    for (const task of list) ownedTaskIds.add(task.id)
+    // 选题同走双写口径：topic.metricId 与 metric.topicIds 任一命中都算本指标
+    const linkedTopicIds = new Set(metric.topicIds || [])
+    const topicList = topics.filter(topic => topic.metricId === metric.id || linkedTopicIds.has(topic.id))
+    for (const topic of topicList) ownedTopicIds.add(topic.id)
     const mDone = list.filter(t => t.status === 'done').length
     if (!hasBrokenLink) {
       hasBrokenLink = list.some(t => !(t.link || '').trim())
@@ -144,8 +197,11 @@ export function buildProjectExportDocument(d: AppData, project: Project, now = n
       progress: `${mDone}/${list.length} · ${list.length ? Math.round(mDone / list.length * 100) : 0}%`,
       missingTasks: list.length === 0,
       tasks: list.map(t => taskToExport(d, t)),
+      topics: topicList.map(topic => topicToExport(d, topic)),
     }
   })
+  const orphanTasks = tasks.filter(task => !ownedTaskIds.has(task.id))
+  const orphanTopics = topics.filter(topic => !ownedTopicIds.has(topic.id))
   return {
     projectName: name,
     filenameBase: `知源_项目全景_${safeExportFileName(name)}_${exportDateStamp(now)}`,
@@ -156,6 +212,8 @@ export function buildProjectExportDocument(d: AppData, project: Project, now = n
     progress: `${doneCount}/${tasks.length} 任务 · ${pct}%`,
     hasBrokenLink,
     metrics,
+    orphanTasks: orphanTasks.map(task => taskToExport(d, task)),
+    orphanTopics: orphanTopics.map(topic => topicToExport(d, topic)),
     generatedAt: now.getTime(),
   }
 }
@@ -164,6 +222,26 @@ function markdownLink(text: string, href: string): string {
   if (!href) return escapeMarkdown(text)
   const target = href.replace(/\)/g, '%29').replace(/\s/g, '%20')
   return `[${escapeMarkdown(text)}](${target})`
+}
+
+function pushMarkdownTask(lines: string[], task: ProjectExportTask): void {
+  const title = task.taskLink.href
+    ? markdownLink(task.title, task.taskLink.href)
+    : escapeMarkdown(task.title)
+  lines.push(`- ${title}（${escapeMarkdown(task.status)} · 计划 ${escapeMarkdown(task.dueDate)}）`)
+  for (const sup of task.supports) {
+    const supTitle = sup.unavailable
+      ? `${escapeMarkdown(sup.title)}（不可用）`
+      : markdownLink(sup.title, sup.href)
+    lines.push(`  - 资源支持：${supTitle}（${escapeMarkdown(sup.source)}）`)
+  }
+}
+
+function pushMarkdownTopic(lines: string[], topic: ProjectExportTopic): void {
+  const title = topic.topicLink.href
+    ? markdownLink(topic.title, topic.topicLink.href)
+    : escapeMarkdown(topic.title)
+  lines.push(`- ✦ 选题：${title}（${escapeMarkdown(topic.status)} · 计划 ${escapeMarkdown(topic.dueDate)}）`)
 }
 
 export function projectExportMarkdown(doc: ProjectExportDocument): string {
@@ -179,32 +257,37 @@ export function projectExportMarkdown(doc: ProjectExportDocument): string {
   ]
   if (doc.hasBrokenLink) lines.push('- ⚠ 项目内存在断链（部分任务缺失链接），已按原样导出')
 
-  lines.push('', '## 成功指标与任务', '')
+  lines.push('', '## 成功指标 · 任务与选题', '')
   if (doc.metrics.length) {
     for (const metric of doc.metrics) {
       lines.push(`### ${escapeMarkdown(metric.title)}`, '')
       if (metric.missingTasks) lines.push('⚠ 缺任务：目标已定，动作还没落', '')
       lines.push(`进度：${escapeMarkdown(metric.progress)}`, '')
-      if (metric.tasks.length) {
-        for (const task of metric.tasks) {
-          const title = task.taskLink.href
-            ? markdownLink(task.title, task.taskLink.href)
-            : escapeMarkdown(task.title)
-          lines.push(`- ${title}（${escapeMarkdown(task.status)} · 计划 ${escapeMarkdown(task.dueDate)}）`)
-          for (const sup of task.supports) {
-            const supTitle = sup.unavailable
-              ? `${escapeMarkdown(sup.title)}（不可用）`
-              : markdownLink(sup.title, sup.href)
-            lines.push(`  - 资源支持：${supTitle}（${escapeMarkdown(sup.source)}）`)
-          }
-        }
-        lines.push('')
-      } else {
-        lines.push('暂无任务', '')
+      if (!metric.tasks.length && !metric.topics.length) {
+        lines.push('暂无任务与选题', '')
+        continue
       }
+      if (metric.tasks.length) for (const task of metric.tasks) pushMarkdownTask(lines, task)
+      else lines.push('暂无任务')
+      if (metric.tasks.length) lines.push('')
+      if (metric.topics.length) for (const topic of metric.topics) pushMarkdownTopic(lines, topic)
+      else lines.push('暂无选题')
+      lines.push('')
     }
   } else {
     lines.push('暂无成功指标', '')
+  }
+
+  if (doc.orphanTasks.length || doc.orphanTopics.length) {
+    lines.push('## 未归属（项目内未挂指标）', '')
+    if (doc.orphanTasks.length) {
+      for (const task of doc.orphanTasks) pushMarkdownTask(lines, task)
+      lines.push('')
+    }
+    if (doc.orphanTopics.length) {
+      for (const topic of doc.orphanTopics) pushMarkdownTopic(lines, topic)
+      lines.push('')
+    }
   }
 
   lines.push(
@@ -227,24 +310,40 @@ function htmlLink(text: string, href: string): string {
     : escapeHtml(text)
 }
 
+function htmlTaskList(tasks: ProjectExportTask[]): string {
+  return `<ul class="tasks">${tasks.map(task => {
+    const head = task.taskLink.href
+      ? htmlLink(task.title, task.taskLink.href)
+      : `${escapeHtml(task.title)} <span class="muted">（无有效链接）</span>`
+    const sups = task.supports.length
+      ? `<ul class="sups">${task.supports.map(sup =>
+        `<li>${sup.unavailable ? `${escapeHtml(sup.title)} <span class="badge unavailable">不可用</span>` : htmlLink(sup.title, sup.href)}<span class="badge">${escapeHtml(sup.source)}</span></li>`).join('')}</ul>`
+      : ''
+    return `<li><div class="t-head">${head}<span class="badge">${escapeHtml(task.status)}</span><span class="muted">计划 ${escapeHtml(task.dueDate)}</span></div>${sups}</li>`
+  }).join('')}</ul>`
+}
+
+function htmlTopicList(topics: ProjectExportTopic[]): string {
+  return `<ul class="topics">${topics.map(topic => {
+    const head = topic.topicLink.href
+      ? htmlLink(topic.title, topic.topicLink.href)
+      : `${escapeHtml(topic.title)} <span class="muted">（无有效链接）</span>`
+    return `<li><div class="t-head"><span class="topic-mark">✦ 选题</span>${head}<span class="badge">${escapeHtml(topic.status)}</span><span class="muted">计划 ${escapeHtml(topic.dueDate)}</span></div></li>`
+  }).join('')}</ul>`
+}
+
 export function projectExportHtml(doc: ProjectExportDocument, theme: ExportTheme = readExportTheme()): string {
   const metricBlocks = doc.metrics.length
     ? doc.metrics.map(metric => {
-      const tasks = metric.tasks.length
-        ? `<ul class="tasks">${metric.tasks.map(task => {
-          const head = task.taskLink.href
-            ? htmlLink(task.title, task.taskLink.href)
-            : `${escapeHtml(task.title)} <span class="muted">（无有效链接）</span>`
-          const sups = task.supports.length
-            ? `<ul class="sups">${task.supports.map(sup =>
-              `<li>${sup.unavailable ? `${escapeHtml(sup.title)} <span class="badge unavailable">不可用</span>` : htmlLink(sup.title, sup.href)}<span class="badge">${escapeHtml(sup.source)}</span></li>`).join('')}</ul>`
-            : ''
-          return `<li><div class="t-head">${head}<span class="badge">${escapeHtml(task.status)}</span><span class="muted">计划 ${escapeHtml(task.dueDate)}</span></div>${sups}</li>`
-        }).join('')}</ul>`
-        : '<p class="empty">暂无任务</p>'
-      return `<section class="metric"><h2>${escapeHtml(metric.title)}${metric.missingTasks ? ' <span class="warn">⚠ 缺任务</span>' : ''}</h2><p class="muted">进度 ${escapeHtml(metric.progress)}</p>${tasks}</section>`
+      const cards = !metric.tasks.length && !metric.topics.length
+        ? '<p class="empty">暂无任务与选题</p>'
+        : `${metric.tasks.length ? htmlTaskList(metric.tasks) : '<p class="empty">暂无任务</p>'}${metric.topics.length ? htmlTopicList(metric.topics) : '<p class="empty">暂无选题</p>'}`
+      return `<section class="metric"><h2>${escapeHtml(metric.title)}${metric.missingTasks ? ' <span class="warn">⚠ 缺任务</span>' : ''}</h2><p class="muted">进度 ${escapeHtml(metric.progress)}</p>${cards}</section>`
     }).join('')
     : '<p class="empty">暂无成功指标</p>'
+  const orphanBlock = doc.orphanTasks.length || doc.orphanTopics.length
+    ? `<section class="metric orphan"><h2>未归属 <span class="warn">项目内未挂指标</span></h2>${doc.orphanTasks.length ? htmlTaskList(doc.orphanTasks) : ''}${doc.orphanTopics.length ? htmlTopicList(doc.orphanTopics) : ''}</section>`
+    : ''
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -270,9 +369,10 @@ p{margin:0 0 8px;white-space:pre-wrap;overflow-wrap:anywhere}
 a{color:${theme.accentInk};text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
 a:hover{color:${theme.accent}}
 ul{margin:6px 0 0;padding:0;list-style:none}
-.tasks>li{padding:9px 0;border-top:1px solid ${theme.border}}
-.tasks>li:first-child{border-top:0}
+.tasks>li,.topics>li{padding:9px 0;border-top:1px solid ${theme.border}}
+.tasks>li:first-child,.topics>li:first-child{border-top:0}
 .t-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-weight:600}
+.topic-mark{font-size:11px;color:${theme.accentInk};font-weight:600}
 .badge{font-size:10px;color:${theme.accentInk};border:1px solid ${theme.accent};border-radius:999px;padding:0 6px;white-space:nowrap;font-weight:500}
 .badge.unavailable{color:${theme.textMuted};border-color:${theme.border}}
 .warn{color:${theme.textMuted};font-size:11px;border:1px solid ${theme.border};border-radius:999px;padding:1px 7px}
@@ -281,7 +381,7 @@ ul{margin:6px 0 0;padding:0;list-style:none}
 .muted,.empty{color:${theme.textMuted};font-size:12px}
 .footer{border-top:1px solid ${theme.border};margin-top:24px;padding-top:12px;color:${theme.textMuted};font-size:11px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media(max-width:640px){.wrap{padding:28px 16px 44px}h1{font-size:23px}}
-@media print{html,body{background:#fff;color:#111}.wrap{max-width:none;padding:0}.summary div{border-color:#ccc;background:#fff}a{color:#111}section,.tasks>li{break-inside:avoid}}
+@media print{html,body{background:#fff;color:#111}.wrap{max-width:none;padding:0}.summary div{border-color:#ccc;background:#fff}a{color:#111}section,.tasks>li,.topics>li{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -298,7 +398,8 @@ ul{margin:6px 0 0;padding:0;list-style:none}
     </div>
     ${doc.hasBrokenLink ? '<p class="warn" style="margin-top:9px">⚠ 项目内存在断链（部分任务缺失链接），已按原样导出</p>' : ''}
   </section>
-  <section><h2>成功指标与任务</h2>${metricBlocks}</section>
+  <section><h2>成功指标 · 任务与选题</h2>${metricBlocks}</section>
+  ${orphanBlock}
   <section>
     <h2>导出信息</h2>
     <p>导出时间：${escapeHtml(fmtTs(doc.generatedAt))}<br>数据来源：知源本机数据<br>附件说明：不包含附件本体；链接为可点击原始地址</p>

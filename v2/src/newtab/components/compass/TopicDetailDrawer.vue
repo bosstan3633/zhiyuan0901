@@ -23,6 +23,8 @@ import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import type { AiJob } from '@/shared/ai/job'
 import type { AssetMeta, ResourceCard, TopicCard } from '@/shared/models'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
+import PlanScheduleHistory from './PlanScheduleHistory.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -201,8 +203,8 @@ function updateDueDate(value: string): void {
     return
   }
   removeTopicFromToday()
-  topic.value.dueDate = value || undefined
-  touch()
+  scheduleCardDate(d.value, topic.value, value, { source: 'detail' })
+  store.persist()
   if (!value) showToast('已取消排期，选题回到未落图列表')
 }
 
@@ -414,6 +416,7 @@ function fmt(ts?: number): string {
           <Icon name="target" :size="13" /> 设为今日重点
           <span>同步进入今日三件事与今日日历</span>
         </button>
+        <PlanScheduleHistory :card-id="topic.id" card-kind="topic" :current-date="topic.dueDate" />
       </section>
 
       <section class="topic-resource-core">

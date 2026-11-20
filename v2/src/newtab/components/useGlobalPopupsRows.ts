@@ -78,15 +78,7 @@ function openLinkOrLocate(item: SearchResult) {
     return
   }
   if (item.type === 'task') {
-    const t = item.raw as TaskCard
-    const url = toOpenableRawLink(t.link)
-    if (url) {
-      recordCardOpen(d.value, t)
-      store.persistHot()
-      openExternalLink(url)
-      closeAll()
-      return
-    }
+    // 任务选中后一律回到项目全景，不在检索浮层里外开链接。
     openItem(item)
     return
   }
@@ -142,9 +134,7 @@ function locateOnly(item: SearchResult) {
     return
   }
   if (item.type === 'task') {
-    router.push({ path: '/deck/task', query: { hl: item.id, hk: 'task' } })
-    closeAll()
-    showToast('已定位到任务卡片')
+    locateTaskInPano(item.raw as TaskCard)
     return
   }
   if (item.type === 'curio') {
@@ -254,11 +244,7 @@ function openItem(item: SearchResult) {
     return
   }
   if (item.type === 'task') {
-    recordCardOpen(d.value, d.value.tasks.find(t => t.id === item.id))
-    store.persistHot()
-    // R117（04-61 B）：hk 显式分派——调度台同时挂着任务卡与好奇心卡两个 hl 消费者
-    router.push({ path: '/deck/task', query: { hl: item.id, hk: 'task' } })
-    showToast('↗ 已定位到任务卡片')
+    locateTaskInPano(item.raw as TaskCard)
   } else if (item.type === 'topic') {
     recordCardOpen(d.value, d.value.topics.find(t => t.id === item.id))
     store.persistHot()
@@ -269,6 +255,25 @@ function openItem(item: SearchResult) {
     store.persistHot()
     router.push({ path: '/deck/curiosity', query: { hl: item.id, hk: 'curio' } })
     showToast('↗ 已定位到好奇心卡片')
+  }
+  closeAll()
+}
+
+/** 任务结果的统一去处：挂了项目 → 项目全景并高亮任务；未挂项目 → 任务卡池详情。 */
+function locateTaskInPano(task: TaskCard) {
+  recordCardOpen(d.value, task)
+  store.persistHot()
+  const projectId = task.projectId && d.value.compass
+    ? d.value.compass.directions.some(dir => dir.projects.some(project => project.id === task.projectId))
+    : false
+  if (task.projectId && projectId) {
+    const query: Record<string, string> = { pano: '1', proj: task.projectId, task: task.id }
+    if (task.metricId) query.m = task.metricId
+    router.push({ path: '/compass', query })
+    showToast('↗ 已定位到任务所在项目全景')
+  } else {
+    router.push({ path: '/deck/task', query: { hl: task.id, hk: 'task' } })
+    showToast('这张任务未挂项目 · 已定位到任务卡池')
   }
   closeAll()
 }

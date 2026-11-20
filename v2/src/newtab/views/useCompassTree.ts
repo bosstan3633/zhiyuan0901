@@ -468,14 +468,18 @@ const activeLayer = ref(1)
  *  复用 onListLocate 全景定位链路（切全景 → 定位任务 → 闪烁），不另造第二套定位；
  *  参数缺省安全：proj 缺失/非法时由 onListLocate 自带兜底（任务池出口与提示）。
  *  watch 挂在组合之后：onListLocate 在 useCompassTreeProjects 内定义，此处才进入作用域。 */
-watch(() => route.query, q => {
+function locatePanoFromQuery() {
+  const q = route.query
   if (q.pano !== '1' || typeof q.proj !== 'string' || !q.proj) return
   onListLocate({
     projId: q.proj,
     metricId: typeof q.m === 'string' && q.m ? q.m : undefined,
     taskId: typeof q.task === 'string' && q.task ? q.task : undefined,
   })
-})
+}
+watch(() => route.query, locatePanoFromQuery)
+/** 首次从检索结果深链进入时没有“旧 query → 新 query”的变化可比，挂载后主动补跑一次。 */
+onMounted(() => locatePanoFromQuery())
 
 /** V3.9.31（F5）：项目导出 —— 全景页头与项目详情弹窗共用 projectExport 单一生成器（防两处漂移）。
  *  结构化输出项目头（战略链/主攻/状态/下一步/进度/断链警示）→ 指标（进度/缺任务）→

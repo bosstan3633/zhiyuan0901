@@ -68,13 +68,16 @@ check('M4-2 宿主不渲染常驻卡：TodayBattleHost 的可见内容全部挂�
 });
 
 /* ============ M5 · 三卡同构 ============ */
-check('M5-1（V4.3.1 重指）两张主工作板共用 lg 圆角；三卡页签共用同一块卡片池，任务页承载完整工作面，另两页仍用 hand-grid / hand-col 承接预览', () => {
+check('M5-1（V4.7.0 重指）两张主工作板共用 lg 圆角；四卡页签共用同一块卡片池：任务页完整工作面、选题页复用管理器、好奇心页独立日历/看板、资源页仍用 hand-grid / hand-col 承接常用夹', () => {
   const rule = (HOME.match(/^\.work-board,\n\.hand-board \{[^}]*\}/m) || [''])[0];
   if (!rule) { console.log('     规则缺失'); return false; }
   return rule.includes('border-radius: 18px')
     && rule.includes('background: var(--surface)')
-    && HOME.includes('class="hand-grid hand-grid-aux"')
-    && HOME.includes('class="hand-col"');
+    && HOME.includes('class="hand-grid hand-grid-aux')
+    && HOME.includes('class="hand-col"')
+    && HOME.includes('<TaskCalendarView')
+    && HOME.includes('<CuriosityWorkbench />')
+    && HOME.includes('<TopicManagerPanel />');
 });
 
 check('M5-2 卡内单元同圆角：任务卡 / 好奇心卡 / 资源卡的卡片本体都取 md（原来好奇心卡是 sm，差一档就让"同一族的卡"看起来像两套东西）', () => {

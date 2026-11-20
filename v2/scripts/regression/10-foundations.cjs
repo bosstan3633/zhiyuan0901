@@ -69,7 +69,7 @@ check('N1（V4.1.3 退役重指）愿景/使命不再提供关联卡片入口或
   return !t.includes('toggleLinkPop') && !t.includes('linkModal') && !t.includes('linked-chip')
     && m.includes('linkedResourceIds?: ID[]')
     && m.includes('仅供旧数据导入与云快照兼容')
-    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、选题→资源、策展节点→资源/选题四条');
 });
 check('N2 回收站（设置面板）', () => read('/newtab/views/GlobalSettings.vue').includes('emptyRecycleBin'));
 check('N4 标签管理：树CRUD+3级限制+路径', () => read('/newtab/views/GlobalSettings.vue').includes('最多两级') && read('/shared/components/TagPicker.vue').includes('tp-pathtext'));
@@ -563,7 +563,7 @@ check('R33-10 REQ-015 三卡抽屉 Ctrl+Enter 保存统一（资源标题/好奇
 check('R33-11（V4.1.3 退役重指）愿景/使命关联卡片整体退役：旧 lc-ico / lc-text / linked-chip 选择器不得以隐藏入口形式回流；关系白名单仍只允许任务→资源、策展节点→资源', () => {
   const t = codeOnly(CT_ALL);
   return !t.includes('lc-ico') && !t.includes('lc-text') && !t.includes('linked-chip')
-    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条');
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、选题→资源、策展节点→资源/选题四条');
 });
 check('R33-12（V4.4.0 退役重指）文本框高度记忆只服务资源、工作台与好奇心；任务详情固定紧凑说明，不接 taHeights', () => read('/shared/models/index.ts').includes('taHeights?: Record<string, number>') && read('/shared/utils/taHeight.ts').includes('saveUIPrefs') && read('/newtab/components/ResourceEditForm.vue').includes("useTaHeight(props.heightKey") && read('/newtab/views/Workspace.vue').includes('height-key="ws-note"') && !read('/newtab/components/compass/TaskDetailDrawer.vue').includes("useTaHeight('task-note'") && read('/newtab/components/compass/CuriosityPanel.vue').includes("useTaHeight('curio-detail'"));
 check('R33-12b（V4.4.0 退役重指）资源、工作台与好奇心保留 180px 起步拖拽记忆；任务详情不再出现拖拽手柄', () => read('/shared/utils/taHeight.ts').includes('def = 180') && read('/newtab/components/ResourceEditForm.vue').includes('.ref-ta-resize') && !read('/newtab/components/compass/TaskDetailDrawer.vue').includes('.ta-resize') && read('/newtab/components/compass/CuriosityPanel.vue').split('.ta-resize').length >= 2);

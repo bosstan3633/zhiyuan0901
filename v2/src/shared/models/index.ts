@@ -432,6 +432,8 @@ export interface CuriosityCard extends CardBase {
   sourceTitle?: string // O24：采集时自动附带的来源页面标题
   /** 待探索 / 探索中 / 已求证 / 已搁置 */
   status: 'todo' | 'doing' | 'done' | 'shelf'
+  /** V4.7：计划执行日期；与任务/选题共用日历落图口径。 */
+  dueDate?: string
   pinned: boolean
   /** 第卅五轮 REQ-035：手动拖拽排序权重（markRank 组内 sortOrder 优先、未拖拽回退 createdAt；拖拽后全量重写） */
   sortOrder?: number
@@ -671,11 +673,31 @@ export interface AppData {
   tagsVisibleMigratedAt?: number
   /** V3.7.0：论证节点卡（策展台专用第 4 种卡；导入合并同 curationProjections 走 mergeByIdArr） */
   argCards?: ArgumentCard[]
+  /** V4.7：计划执行安排事件（任务/选题/好奇心共用；独立表，removedAt 为删除墓碑）。 */
+  planScheduleEvents?: PlanScheduleEvent[]
   /** V3.7.0：分类 → 标签迁移完成时间戳（幂等标记——有值即跳过；备份见 K.MIGRATE_BACKUP） */
   catsMigratedAt?: number
   /** V3.7.0：策展台台内资源卡收编入池完成时间戳（幂等标记） */
   boardCardsPooledAt?: number
   /** V3.7.0：分类 → 标签迁移报告（设置页「标签管理」展示；映射清单逐条可查） */
+}
+
+export type PlanScheduleSource = 'detail' | 'calendar' | 'focus' | 'quick' | 'ai-adopt' | 'import'
+
+export interface PlanScheduleEvent {
+  id: ID
+  cardId: ID
+  cardKind: 'task' | 'topic' | 'curiosity'
+  /** 这次安排动作发生的时间 */
+  at: number
+  /** 被安排到哪一天，YYYY-MM-DD */
+  date: string
+  /** 安排前是哪一天，可为空 */
+  fromDate?: string
+  /** 来源：详情、日历、快捷菜单、今日重点、AI 采纳、导入 */
+  source: PlanScheduleSource
+  /** 用户手动删除该时间点时的墓碑；UI 过滤掉，同步时不会被并回来 */
+  removedAt?: number
 }
 
 /** V3.7.0：分类 → 标签迁移报告（口径与逐条映射，供设置页展示与核对） */

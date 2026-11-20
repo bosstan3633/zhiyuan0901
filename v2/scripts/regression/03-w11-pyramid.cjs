@@ -361,20 +361,22 @@ check('W11-15 ★「下一步」是可写可选字段 + 任务自动回退的唯
     && read('/newtab/components/ProjectDetailDrawer.vue').includes('project.value.nextStep = value || undefined')
 });
 
-check('W11-16 ★项目详情第一版只做「概览 / 指标 / 任务」三页签：默认概览、切换后不复用其它页面；页签按钮要有完整 WAI-ARIA tab 语义（role=tab + aria-selected + roving tabindex + controls），并支持左右方向键/Home/End；下方三个面板用 role=tabpanel 回指对应页签', () => {
+check('W11-16（V4.7.0 重指）★项目详情改为单页全貌树：不再有「概览 / 指标 / 任务」三页签或四格统计；项目头直连指标，指标下同时渲染任务与选题，并补未归属分组；指标可折叠且默认全展开', () => {
   const pd = read('/newtab/components/ProjectDetailDrawer.vue')
-  return pd.includes('const tab = ref<\'overview\' | \'metrics\' | \'tasks\'>(\'overview\')')
-    && pd.includes("const TABS = ['overview', 'metrics', 'tasks'] as const")
-    && pd.includes('@keydown="onTabKeydown($event, 0)"')
-    && pd.includes("@click=\"tab = 'overview'\"")
-    && pd.includes("@click=\"tab = 'metrics'\"")
-    && pd.includes("@click=\"tab = 'tasks'\"")
-    && (pd.match(/class="pd-tab" role="tab"/g) || []).length === 3
-    && (pd.match(/:aria-selected="tab === '/g) || []).length === 3
-    && (pd.match(/role="tabpanel"/g) || []).length === 3
-    && pd.includes('id="pd-panel-overview"') && pd.includes('aria-labelledby="pd-tab-overview"')
-    && pd.includes("key === 'ArrowRight' ? (current + 1) % TABS.length")
-    && pd.includes("'ArrowLeft', 'ArrowRight', 'Home', 'End'")
+  return !pd.includes("const tab = ref<'overview' | 'metrics' | 'tasks'>")
+    && !pd.includes("const TABS = ['overview', 'metrics', 'tasks'] as const")
+    && !pd.includes('class="pd-tabs"')
+    && !pd.includes('class="pd-stats"')
+    && pd.includes('buildProjectTree')
+    && pd.includes('v-for="m in projectTree.metrics"')
+    && pd.includes('v-for="task in m.tasks"')
+    && pd.includes('v-for="topic in m.topics"')
+    && pd.includes('projectTree.orphanTasks')
+    && pd.includes('projectTree.orphanTopics')
+    && pd.includes('toggleMetric(m.id)')
+    && pd.includes(':aria-expanded="!isMetricCollapsed(m.id)"')
+    && pd.includes('@click="openTask(task)"')
+    && pd.includes('@click="openTopic(topic)"')
 });
 
 check('W11-17（V4.2.4 重指）★指标详情入口不改变既有改名习惯：成功指标双击标题进入就地改名，详情由独立按钮触发；项目塔、全景泳道、项目详情三处都有明确入口，并跨组件接到同一个 MetricDetailDrawer', () => {

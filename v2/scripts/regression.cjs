@@ -95,6 +95,10 @@ const SHARDS = [
   '140-v440-logo-blue-curation-entry',
   '141-v450-topic-cards',
   '142-v460-topic-sync-layout',
+  '143-v460-doc-truth-sync',
+  '144-v470-ai-diagnose-guard',
+  '148-v470-project-modal-tree',
+  '149-v470-cardpool-plan-history',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

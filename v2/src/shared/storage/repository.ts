@@ -20,6 +20,7 @@ import { rebuildEventSnapshot, flushCardEvents, takeEventLogPatch, initEventLog,
 // R174-3：按日聚合快照落盘（热力图不褪色的数据地基，时间闸小载荷，见 dailyStatsStore.ts）
 import { scheduleDailyStatsWrite } from './dailyStatsStore'
 import { RETIRED_CARD_KEYS, stripRetiredCardKeys, normalizeLegacyCards, foldParentIdSubtasks } from './legacy-normalize'
+import { normalizePlanScheduleEvents } from './planSchedule'
 
 type Listener = (data: AppData) => void
 type ErrorListener = (err: SaveError) => void
@@ -144,6 +145,7 @@ export function normalizeAppData(data: AppData): AppData {
   data.tasks = Array.isArray(data.tasks) ? data.tasks : []
   data.curiosities = Array.isArray(data.curiosities) ? data.curiosities : []
   data.topics = Array.isArray(data.topics) ? data.topics : []
+  data.planScheduleEvents = normalizePlanScheduleEvents(data.planScheduleEvents)
   data.topicStatuses = Array.isArray(data.topicStatuses) && data.topicStatuses.length
     ? data.topicStatuses
     : defaultTopicStatuses()

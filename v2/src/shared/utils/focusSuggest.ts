@@ -12,6 +12,7 @@
  */
 import type { AppData, FocusSlot, Project, TaskCard, TopicCard } from '@/shared/models'
 import { uid } from '@/shared/utils'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import {
   FOCUS_LIMIT,
   activeFocusSlots,
@@ -385,6 +386,7 @@ export function addManualFocus(
   const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
   const existing = cells.findIndex(slot => !!slot && !slot.cleared && slot.sourceType === 'task' && slot.sourceId === taskId)
   if (existing >= 0) {
+    if (task.dueDate !== anchorKey) scheduleCardDate(d, task, anchorKey, { source: 'focus' })
     if (markFocusTaskDoing(task)) d.dailyFocus[anchorKey] = normalizedFocusSlots(d.dailyFocus[anchorKey]).map((cell, index) => cell
       ? { ...cell, slotIndex: index as 0 | 1 | 2 }
       : clearedFocusSlot(index))
@@ -405,6 +407,7 @@ export function addManualFocus(
   const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
   if (freeIndex >= 0) {
     markFocusTaskDoing(task)
+    scheduleCardDate(d, task, anchorKey, { source: 'focus' })
     const index = Math.min(freeIndex, limit - 1)
     slot.slotIndex = index as 0 | 1 | 2
     cells[index] = slot
@@ -421,6 +424,7 @@ export function addManualFocus(
     detachFocusSourceFromDate(d, anchorKey, previous.sourceType, previous.sourceId)
   }
   markFocusTaskDoing(task)
+  scheduleCardDate(d, task, anchorKey, { source: 'focus' })
   slot.slotIndex = slotIndex as 0 | 1 | 2
   cells[slotIndex] = slot
   d.dailyFocus[anchorKey] = cells.map((cell, i) => cell
@@ -445,11 +449,7 @@ export function addManualTopicFocus(
   const existing = cells.findIndex(slot => !!slot && !slot.cleared && slot.sourceType === 'topic' && slot.sourceId === topicId)
   if (existing >= 0) {
     let changed = markFocusTopicDoing(d, topic)
-    if (topic.dueDate !== anchorKey) {
-      topic.dueDate = anchorKey
-      topic.updatedAt = Date.now()
-      changed = true
-    }
+    if (topic.dueDate !== anchorKey) changed = scheduleCardDate(d, topic, anchorKey, { source: 'focus' }) || changed
     if (changed) syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
     return { status: 'exists', index: existing }
   }
@@ -460,8 +460,7 @@ export function addManualTopicFocus(
   const previous = cells[index]
   if (previous && !previous.cleared) detachFocusSourceFromDate(d, anchorKey, previous.sourceType, previous.sourceId)
   markFocusTopicDoing(d, topic)
-  topic.dueDate = anchorKey
-  topic.updatedAt = Date.now()
+  scheduleCardDate(d, topic, anchorKey, { source: 'focus' })
   cells[index] = {
     id: previous?.id || uid('focus'),
     slotIndex: index as 0 | 1 | 2,

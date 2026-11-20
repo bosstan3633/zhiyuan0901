@@ -39,7 +39,7 @@ check('R186-1（V4.0.3 重指）★空论点态按原型收成单行轻引导：
     && /background:\s*var\(--surface-2\)/.test(emptyCss)
 })
 
-check('R186-2（V4.6.0 双列重指）★有论点态仍是主舞台：20px 主句、600 字重、径向渐变、14px 圆角与 68px 紧凑基线；V4.6.0 外层双列控制台可增加高度，但不改变卡片内部层级与读数归属', () => {
+check('R186-2（V4.7 重指）★有论点态仍是主舞台：20px 主句、600 字重、径向渐变、14px 圆角与 68px 紧凑基线；读数移入右侧全局功能模块，不改变卡片内部论点层级', () => {
   const stageRules = [...CSS.matchAll(/(?:^|\n)\.thesis-banner\s*\{([^}]*)\}/g)]
   const stageCss = stageRules.at(-1)?.[1] || ''
   const titleCss = (CSS.match(/\.tb-title\s*\{([^}]*)\}/) || [])[1] || ''
@@ -55,21 +55,25 @@ check('R186-2（V4.6.0 双列重指）★有论点态仍是主舞台：20px 主�
     && WS.includes('查看论点详情')
     && WS.includes('class="ws-curation-console"')
     && CSS.includes('.ws-curation-console .thesis-banner')
-    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
-    && banner.includes('论据卡')
-    && banner.includes('佐证附件')
+    && !banner.includes('class="cur-metrics"')
+    && !banner.includes('论据卡')
+    && !banner.includes('佐证附件')
+    && WS.slice(WS.indexOf('<div class="cur-global-panel"')).includes('class="cur-metrics" data-curation-metrics="2"')
+    && WS.slice(WS.indexOf('<div class="cur-global-panel"')).includes('论据卡')
+    && WS.slice(WS.indexOf('<div class="cur-global-panel"')).includes('佐证附件')
     && !banner.includes('分享成果')
     && !banner.includes('update:layout')
 })
 
-check('R186-3 ★分享只有一个入口且是行尾主行动：页头“分享成果”恰好一次，class 为 hero-btn primary，论点卡内不重复', () => {
+check('R186-3（V4.7 重指）★分享只有一个入口且是右栏顶部主行动：页头“分享成果”恰好一次，class 为 hero-btn primary，论点卡内不重复', () => {
   const shareCount = (WSC.match(/分享成果/g) || []).length
   const shareAt = toolbar.indexOf('分享成果')
   const searchAt = toolbar.indexOf('class="toolbar-search"')
   const settingsAt = toolbar.indexOf('class="hero-btn settings"')
   return shareCount === 1
     && toolbar.includes('class="hero-btn primary share-action"')
-    && shareAt > searchAt && shareAt > settingsAt
+    && toolbar.includes('class="cur-global-head"')
+    && shareAt < searchAt && shareAt > settingsAt
     && !banner.includes('分享成果')
 })
 

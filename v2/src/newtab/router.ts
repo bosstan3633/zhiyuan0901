@@ -10,12 +10,19 @@ const router = createRouter({
       meta: { title: '知源调度台 · 调度台' }
     },
     {
-      // V3.9.1：三类「查看全部」是独立二级路由，浏览器返回直接回调度台原位置。
-      // :kind 收 task/topic/curiosity/resource；深链 hl/hk 统一落这里。
+      // V4.7.0：卡片池二级界面退役——旧深链统一回到调度台一级卡片池对应页签，
+      // `hl/hk` 由 CompassHome 接管并直接打开详情抽屉。
       path: '/deck/:kind(task|topic|curiosity|resource)',
-      name: 'deck-all',
-      component: () => import('./views/CompassDeckView.vue'),
-      meta: { title: '知源调度台 · 全部卡片' }
+      redirect: to => ({
+        path: '/',
+        query: {
+          ...to.query,
+          tab: String(to.params.kind || 'task'),
+          // 资源池旧深链保留原来的“直接看到全部资源卡”体验：一级页签 + 自动展开总夹抽屉。
+          ...(to.params.kind === 'resource' ? { all: '1' } : {}),
+        },
+      }),
+      meta: { title: '知源调度台 · 调度台' }
     },
     {
       // V4.3.0：移动采集与 PC Inbox 退役，旧深链统一回调度台。

@@ -37,6 +37,7 @@ const TYPE_LABEL: Record<SyncManifestRecordType, string> = {
   curationProjection: '策展节点 → 资源',
   resourceFolder: '常用夹',
   resourceFolderMirror: '常用夹 → 资源镜像',
+  planScheduleEvent: '计划安排历程',
   tag: '标签',
   activity: '操作记录',
   stats: '使用统计',

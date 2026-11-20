@@ -144,6 +144,29 @@
   padding: 8px;
 }
 
+.cal-pool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 5px 4px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 650;
+}
+
+.cal-pool-group::after {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  content: '';
+}
+
+.cal-pool-group em {
+  color: var(--text-4);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
 .cal-pool-item {
   position: relative;
 }
@@ -154,7 +177,7 @@
   align-items: center;
   gap: 8px;
   min-height: 54px;
-  padding: 8px 9px;
+  padding: var(--card-pad-vert) 9px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -244,10 +267,6 @@
 
 .cal-pool-plan.scheduled {
   color: var(--accent-ink);
-}
-
-.cal-warn {
-  color: var(--warning) !important;
 }
 
 .cal-assign {
@@ -512,7 +531,6 @@
 .cal-tone-legend .tone-done::before { background: var(--success); }
 .cal-tone-legend .tone-today::before { background: var(--warning); }
 .cal-tone-legend .tone-future::before { background: var(--text-3); }
-.cal-tone-legend .tone-overdue::before { background: var(--danger); }
 
 .cal-month-picker {
   position: absolute;
@@ -787,12 +805,6 @@
   color: var(--text-3);
 }
 
-.cal-task-chip.tone-overdue {
-  border-left: 2px solid var(--danger);
-  background: var(--tag-danger-bg);
-  color: var(--tag-danger-text);
-}
-
 .cal-chip-copy {
   display: flex;
   min-width: 0;
@@ -835,11 +847,6 @@
   border-left-color: var(--topic-status, var(--warning));
   background: color-mix(in srgb, var(--topic-status, var(--warning)) 10%, var(--surface));
   color: var(--text);
-}
-
-.cal-topic-chip.tone-overdue {
-  border-left-color: var(--topic-status, var(--danger));
-  background: color-mix(in srgb, var(--topic-status, var(--danger)) 10%, var(--surface));
 }
 
 .cal-chip-meta {
@@ -994,11 +1001,6 @@
 .cal-modal-task.tone-future {
   border-left: 3px solid var(--border-strong);
   background: var(--surface-2);
-}
-
-.cal-modal-task.tone-overdue {
-  border-left: 3px solid var(--danger);
-  background: var(--tag-danger-bg);
 }
 
 .cal-topic-modal {

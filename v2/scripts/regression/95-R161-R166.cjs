@@ -475,11 +475,11 @@ check('R165-A9 ★键字典豁免面钉死：只认「两个 AI 键名 × 只在
     && !/path\.relative\([^)]*\)\s*===\s*['"]src\//.test(g)
     && g.includes('aiEdges.length') && /process\.exit\(fail \? 1 : 0\)/.test(g)
 });
-check('R165-A10 ★视觉走查覆盖到"本轮真正改的那一面"：theme-audit 必须含三张卡详情场景，且判据不是空转——DRAWER_VIEWS 三条各自带 开/AI在标题行/页脚钮数 三条现场判据，任一不过要能进 drawerFail 并参与退出码，图数下限也要把这三条算进去（否则"少抓一面"会静默通过）。★B3（V3.8.28）重指带备案：图数下限算式里的 `DRAWER_VIEWS.length` 已改为 `drawerViews.length`（过滤后的实际镜头数）——原式一律用全量长度，`--scenes` 过滤时收尾必然假红「图数 32 ≠ 应有 112」；本条守的「图数下限把三张卡详清算进去」一项未减，改用过滤后计数反而更准', () => {
+check('R165-A10 ★视觉走查覆盖到"本轮真正改的那一面"：theme-audit 必须含三张卡详情场景，且判据不是空转——DRAWER_VIEWS 三条各自带 开/AI在标题行/页脚钮数 三条现场判据，任一不过要能进 drawerFail 并参与退出码，图数下限也要把这三条算进去（否则"少抓一面"会静默通过）。★B3（V3.8.28）重指带备案：图数下限算式里的 `DRAWER_VIEWS.length` 已改为 `drawerViews.length`（过滤后的实际镜头数）——原式一律用全量长度，`--scenes` 过滤时收尾必然假红「图数 32 ≠ 应有 112」；本条守的「图数下限把三张卡详清算进去」一项未减，改用过滤后计数反而更准。★V4.7.0 再重指：任务详情入口随卡片池二级页退役，从 `[data-tid]` 迁到一级任务面 `.cal-pool-task`，守的场景数与现场判据不变', () => {
   const g = read('/../scripts/theme-audit.cjs')
   return (g.match(/id: 'drawer-(resource|task|curio)'/g) || []).length === 3
     && g.includes('const drawerFail = []') && g.includes('drawerFail.push') && g.includes('if (drawerFail.length)')
-    && g.includes('drawerViews.length') && g.includes("footCount === 2") && g.includes("'[data-tid]'")
+    && g.includes('drawerViews.length') && g.includes("footCount === 2") && g.includes("'.cal-pool-task'")
 });
 check('R165-A11（V4.3.0 重指）★手册宣传面与功能现状对账：已退役能力不得留在手册；AI 入口位置继续只认现行版式词；采集口径改为浏览器内直接入三卡池，移动 PWA 与 PC Inbox 明确标注退役', () => {
   const m = read('/newtab/manual-data.ts')
@@ -553,7 +553,7 @@ check('R166-7（V4.1.3 退役重指）资源侧不提供反向“关联任务”
     && !exists('/shared/ai/resourceLinkTask.ts')
     && !rdd.includes('SupportTasksPanel') && !ws.includes('SupportTasksPanel')
     && !rdd.includes('resourceLinkTask') && !ws.includes('resourceLinkTask')
-    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、策展节点→资源两条')
+    && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、选题→资源、策展节点→资源/选题四条')
 });
 check('R166-8 ★Esc 分层关闭（定案 7）：AI 弹窗在场时抽屉的 document 级键盘监听必须让位——Modal 的 stopPropagation 挡不住**同一节点上更早注册**的监听，"一次 Esc 只关一层"在两层都挂 document 时不成立，故由下层主动 return', () => {
   const t = read('/newtab/components/compass/TaskDetailDrawer.vue')

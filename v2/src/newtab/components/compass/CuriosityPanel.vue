@@ -31,6 +31,8 @@ import { useTaHeight } from '@/shared/utils/taHeight'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
+import PlanScheduleHistory from './PlanScheduleHistory.vue'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import {
   archivedHintCount as archivedHintCountOf,
   curioExtValue,
@@ -200,6 +202,13 @@ function closeDetail() {
   curioStatusMenuOpen.value = false
   editDraft.value = ''
   emit('closed')
+}
+function setDetailDue(value: string): void {
+  const item = detailItem.value
+  if (!item) return
+  scheduleCardDate(d.value, item, value || undefined, { source: 'detail' })
+  store.persist()
+  showToast(value ? `已安排到 ${value.slice(5, 7)} 月 ${value.slice(8, 10)} 日` : '已清空计划执行日期')
 }
 function saveDetail() {
   if (detailId.value && editDraft.value.trim()) {
@@ -626,6 +635,15 @@ function srcShort(url: string): string {
               @keydown.ctrl.enter.prevent="saveDetail" @keydown.meta.enter.prevent="saveDetail" />
             <div class="ta-resize" @mousedown="startDetailResize" title="拖拽调节高度（记忆保存）"></div>
           </div>
+        </section>
+
+        <section class="ds-pnl">
+          <div class="ds-pnl-h"><b>计划执行</b><i>落图后可拖到日历查看</i></div>
+          <div class="ds-kv"><span class="k">日期</span><span class="v">
+            <input class="ds-in" type="date" :value="detailItem.dueDate || ''" aria-label="计划执行日期"
+              @change="setDetailDue(($event.target as HTMLInputElement).value)">
+          </span></div>
+          <PlanScheduleHistory :card-id="detailItem.id" card-kind="curiosity" :current-date="detailItem.dueDate" />
         </section>
 
         <section class="ds-pnl">

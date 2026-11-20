@@ -239,27 +239,23 @@ check('R45-4（V4.3.1 重指）TaskManagerPanel 与调度台均接入共享抽�
     && h.includes('<TaskDetailDrawer ref="drawerRef" />')
     && !h.includes('onFocusDetailEdit');
 });
-check('R45-5/R49（V4.5.0 重指）调度台“查看全部”保留四个现役二级卡池：/deck/task、/deck/topic、/deck/curiosity、/deck/resource；Inbox 路由只做旧深链回首页，浏览器返回可用', () => {
+check('R45-5/R49（V4.7.0 重指）卡片池二级界面退役：/deck/:kind 四类旧深链统一重定向到 /?tab=kind 并保留 hl/hk/fresh；Inbox 路由仍只做旧深链回首页', () => {
   const r = read('/newtab/router.ts');
-  const deck = read('/newtab/views/CompassDeckView.vue');
   const h = read('/newtab/views/CompassHome.vue');
   const tm = read('/newtab/components/compass/TaskManagerPanel.vue');
-  const cz = read('/newtab/components/compass/CuriosityPanel.vue');
-  const pc = read('/newtab/components/compass/PoolCardsPanel.vue');
   return r.includes("path: '/deck/:kind(task|topic|curiosity|resource)'")
     && r.includes("path: '/deck/inbox'") && r.includes("redirect: '/'")
-    && r.includes("component: () => import('./views/CompassDeckView.vue')")
-    && deck.includes("type DeckKind = 'task' | 'topic' | 'curiosity' | 'resource'")
-    // 四个面板都带 ref，供 ?hl 深链在二级页内展开右侧详情。
-    && deck.includes('<TaskManagerPanel v-if="kind === \'task\'" ref="taskPanel" secondary-mode />')
-    && deck.includes('<TopicManagerPanel v-else-if="kind === \'topic\'" ref="topicPanel" secondary-mode />')
-    && deck.includes('<CuriosityPanel v-else-if="kind === \'curiosity\'" ref="curiosityPanel" secondary-mode />')
-    && deck.includes('<PoolCardsPanel v-else ref="resourcePanel" secondary-mode />')
-    && !deck.includes('InboxPanel')
-    && deck.includes('router.push(\'/\')')
+    && r.includes("redirect: to => ({")
+    && r.includes("tab: String(to.params.kind || 'task')")
+    && r.includes('...to.query')
+    && !r.includes("import('./views/CompassDeckView.vue')")
+    && h.includes('TAB_ALIAS')
+    && h.includes('lastDeepLinkId')
+    && h.includes("openTaskPreview(task)")
+    && h.includes("openTopicPreview(topic)")
+    && h.includes("openCurioPreview(curio)")
+    && h.includes("openResourcePreview(resource)")
     && tm.includes('secondaryMode?: boolean')
-    && cz.includes('secondaryMode?: boolean')
-    && pc.includes('secondaryMode?: boolean')
     && !h.includes('bottomTab')
     && !h.includes('class="bt-tab"');
 });
@@ -405,7 +401,7 @@ check('R51-7 F12（R52-BUG-1 合并明细 · R172-T8/T9 重指带备案）写入
 check('R51-8/R66 关于页 slogan 统一「万千可调用，自有我方向。」', () => { const g = read('/newtab/views/GlobalSettings.vue'); return g.includes('万千可调用，自有我方向') && !g.includes('你不缺信息'); });
 check('R51-9 F14/F17 方向台四格独立明细抽屉：MetricDrillDrawer（dhi/wce/wrr/unarch 各自明细 + 级联归档 + 定位）', () => { const m = read('/newtab/components/compass/MetricDrillDrawer.vue'); return m.includes("cell: '' | 'dhi' | 'wce' | 'wrr' | 'unarch'") && m.includes('locateGoal') && m.includes('locateCurio') && m.includes('locateRes') && m.includes('locateTask') && m.includes('changeTaskProject') && m.includes('taskArchiveIssue'); });
 check('R51-10 F16（R172-T8 重指带备案）记录明细由「设置页内联卡」升级为独立组件 `DashboardLogDrawer.vue`：Drawer 壳 + 列表撑满 + 三维筛选 + CSV 导出（★W9 退役重指带备案：宿主由设置页改指画像洞察页；挂载点与「旧内联卡形态不许回流」的负锚一并对调）', () => { const d = read('/newtab/components/dashboard/DashboardLogDrawer.vue'); const gs = read('/newtab/views/ProfileInsights.vue'); return d.includes('<Drawer :open="open"') && d.includes('dz-log-list') && d.includes('dz-log-filters') && d.includes('function exportCsv()') && gs.includes('<DashboardLogDrawer :open="logOpen"') && !gs.includes('gs-ev-filters') && !codeOnly(read('/newtab/views/GlobalSettings.vue')).includes('<DashboardLogDrawer'); });
-check('R51-11 F15（R117 重写 · ★R3-B1 承接方改靶 · ★V3.9.1 深链改靶）定位链路：任务/好奇心/资源卡统一进 /deck 二级页，旧 ?bottom 兼容跳转；方向树目标行仍由 data-dir-id/goal-flash 承接 ?hl', () => { const h = read('/newtab/views/CompassHome.vue'); const gp = read('/newtab/components/GlobalPopups.vue'); const t = CT_ALL; return h.includes('watch(() => route.query.bottom') && h.includes("router.replace('/deck/task')") && h.includes("router.replace('/deck/curiosity')") && h.includes("router.replace('/deck/resource')") && h.includes("if (hk === 'task') void router.replace({ path: '/deck/task', query: { hl, hk } })") && gp.includes("path: '/deck/task'") && t.includes('function locateHlGoal') && t.includes(':data-dir-id="dg.dir.id"') && !t.includes('route.query.zone') && !t.includes('task-mgmt-module'); });
+check('R51-11 F15（V4.7.0 深链改靶）定位链路：?hl/?hk 与旧 ?bottom 统一由一级卡片池接管并打开详情；/deck 旧链只做重定向；方向树目标行仍由 data-dir-id/goal-flash 承接 ?hl', () => { const h = read('/newtab/views/CompassHome.vue'); const r = read('/newtab/router.ts'); const gp = read('/newtab/components/GlobalPopups.vue'); const t = CT_ALL; return h.includes('route.query.bottom') && h.includes('TAB_ALIAS') && h.includes("openTaskPreview(task)") && h.includes("openTopicPreview(topic)") && h.includes("openCurioPreview(curio)") && r.includes("path: '/deck/:kind(task|topic|curiosity|resource)'") && r.includes('redirect: to =>') && gp.includes("path: '/deck/task'") && t.includes('function locateHlGoal') && t.includes(':data-dir-id="dg.dir.id"') && !t.includes('route.query.zone') && !t.includes('task-mgmt-module'); });
 
 check('R51-12（R74 重写）待分类落点：未归类投射与「待分类」根节点可接收拖拽', () => {
   const w = read('/newtab/views/Workspace.vue');
@@ -765,7 +761,7 @@ check('R60-3 路径A id 锚定：searchSelId 状态 + Enter 优先按 id 解析 
 check('R60-4 灯塔字段零引用：全部业务文件无 pinnedToLighthouse 字段读写（迁移清理字符串除外）★R3-B1：文件清单随 CompassShell/LighthousePanel 退役更新（方向台宿主=方向树）', () => { const files = ['/shared/models/index.ts', '/newtab/stores/compass.ts', '/newtab/stores/app.ts', '/newtab/components/GlobalPopups.vue', '/content/overlay-impl.ts', '/newtab/views/ProjectCuration.vue', '/newtab/views/CompassTree.vue', '/newtab/views/GlobalSettings.vue', '/newtab/components/compass/MetricDrillDrawer.vue', '/shared/storage/defaults.ts', '/shared/storage/migration.ts']; return files.every(f => !/pinnedToLighthouse\??\s*[=:]/.test(read(f))); });
 check('R60-5（R64 修订）方向状态：DHI 计算退役，goals/pushing 数数口径 + sub 文案', () => { const s = read('/newtab/stores/compass.ts'); return !s.includes('dhiPct') && s.includes('dhi: { goals: goals.length, pushing') && s.includes('项目推进中'); });
 check('R60-6（R64 修订）下钻明细：目标行=非归档项目数+推进中数（不依赖主攻与窗口）', () => { const m = read('/newtab/components/compass/MetricDrillDrawer.vue'); return m.includes("dir.projects.filter(p => p.status !== 'archived')") && m.includes('推进中 = 该项目下挂有任务'); });
-check('R60-7/R66 方向台/手册零灯塔文案：手册方向状态口径=战略目标/推进项目（DHI 计算口径退役）★R3-B1 随宿主改靶：灯塔文案判据从主航线面板换成方向树', () => { const t = CT_ALL; const m = read('/newtab/manual-data.ts'); return !t.includes('已投射') && !m.includes('📡 投射') && !m.includes('已投射项目') && !m.includes('DHI 方向契合度') && m.includes('战略目标 / 推进项目'); });
+check('R60-7/R66（V4.6.0 口径更正）方向台/手册零灯塔文案：手册现役方向读数=方向健康度 / 主攻 / 停滞（DHI 与页面级四指标条退役）★R3-B1 随宿主改靶：灯塔文案判据从主航线面板换成方向树', () => { const t = CT_ALL; const m = read('/newtab/manual-data.ts'); return !t.includes('已投射') && !m.includes('📡 投射') && !m.includes('已投射项目') && !m.includes('DHI 方向契合度') && !m.includes('方向状态四指标') && m.includes('方向健康度 / 主攻 / 停滞'); });
 check('R60-8 启动期迁移：app.ts 幂等清除存量 pinnedToLighthouse（vision/mission/projects）', () => { const a = read('/newtab/stores/app.ts'); return a.includes('R60：投射至灯塔功能取消') && a.includes('delete (cp.vision as Record<string, unknown>).pinnedToLighthouse') && a.includes('delete (cp.mission as Record<string, unknown>).pinnedToLighthouse') && a.includes('delete (p as Record<string, unknown>).pinnedToLighthouse'); });
 
 // ===== R61 · 结构重构轮（资源台 + N 策展台 + 层级 4 级） =====

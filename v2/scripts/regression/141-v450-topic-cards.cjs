@@ -44,7 +44,7 @@ const PANO_LANE = read('/newtab/components/compass/CompassPanoLane.vue')
 const DATA_PACKAGE = read('/newtab/views/settings/dataPackage.ts')
 const ASSET_PACK = read('/newtab/views/settings/assetPack.ts')
 const DATA_MANAGEMENT = read('/newtab/views/settings/SettingsDataManagement.vue')
-const DECK = read('/newtab/views/CompassDeckView.vue')
+const ROUTER = read('/newtab/router.ts')
 
 check('V450-1 ★选题卡是独立第五卡型：标题、项目/指标、可编辑状态、计划执行日期、资源关系表与成果链接齐备，任务卡模型不被混用', () => {
   return MODELS.includes('export interface TopicCard extends CardBase')
@@ -80,16 +80,32 @@ check('V450-3 ★状态真源允许改名、改色、排序、增删，但入库
     && TOPIC_STATUS_EDITOR.includes('有且只有一个')
 })
 
-check('V450-4 ★任务卡与选题卡共用三个今日槽位：固定 tombstone、满额拒绝第 4 项、移出时清空对应 dueDate', () => {
+check('V450-4（V4.7.0 重指）★任务卡与选题卡共用三个今日槽位：固定 tombstone、满额拒绝第 4 项、移出/排期统一走 scheduleCardDate 清空或写入 dueDate', () => {
+  const detachTopic = FOCUS_SLOTS.slice(
+    FOCUS_SLOTS.indexOf('export function detachFocusTopicFromDate'),
+    FOCUS_SLOTS.indexOf('/** 按来源类型清理排期'),
+  )
+  const detachTask = FOCUS_SLOTS.slice(
+    FOCUS_SLOTS.indexOf('export function detachFocusTaskFromDate'),
+    FOCUS_SLOTS.indexOf('/** 把选题卡移出某天三件事时'),
+  )
+  const selectTopic = HOME_DATA.slice(
+    HOME_DATA.indexOf('function selectTopicForSlot(topic: TopicCard)'),
+    HOME_DATA.indexOf('const pickerCandidates'),
+  )
   return FOCUS_SLOTS.includes('FOCUS_LIMIT = 3')
     && FOCUS_SLOTS.includes('export function normalizedFocusSlots')
     && FOCUS_SLOTS.includes('export function detachFocusTopicFromDate')
-    && FOCUS_SLOTS.includes('topic.dueDate = undefined')
+    && detachTopic.includes("scheduleCardDate(data, topic, undefined, { source: 'focus', record: false })")
+    && detachTask.includes("scheduleCardDate(data, task, undefined, { source: 'focus', record: false })")
+    && !detachTopic.includes('topic.dueDate = undefined')
     && HOME_DATA.includes("type FocusPickerCandidate")
     && HOME_DATA.includes("{ kind: 'topic'; card: TopicCard }")
     && HOME_DATA.includes("sourceType: 'topic'")
     && HOME_DATA.includes('topic.dueDate !== key')
-    && HOME_DATA.includes('topic.dueDate = key')
+    && !!selectTopic
+    && selectTopic.includes("scheduleCardDate(d.value, topic, key, { source: 'focus' })")
+    && !selectTopic.includes('topic.dueDate = key')
     && HOME_DATA.includes('if (result.status === \'full\')')
 })
 
@@ -144,15 +160,26 @@ check('V450-8 ★选题工作面与任务池同构：左侧可折叠清单，右
     && TOPIC_CALENDAR.includes("emit('set-due', id, day)")
 })
 
-check('V450-9 ★调度台四卡池与二级路由同源：任务 / 选题 / 好奇心 / 资源；选题角标只统计今日新增，进入二级页默认最新在前', () => {
-  return HOME.includes('handTab === \'topic\'')
+check('V450-9（V4.7.0 重指）★调度台四卡池同源：一级接管任务 / 选题 / 好奇心 / 资源页签，旧 /deck 深链保留 query 重定向；选题角标只统计今日新增，选题卡池默认最新在前', () => {
+  return HOME.includes("handTab === 'task'")
+    && HOME.includes("handTab === 'topic'")
+    && HOME.includes("handTab === 'curiosity'")
+    && HOME.includes("handTab === 'resource'")
     && HOME.includes('TopicManagerPanel')
     && HOME_DATA.includes("type HandKind = 'task' | 'topic' | 'curiosity' | 'resource'")
     && HOME_DATA.includes('topic: liveTopics.value.filter(topic => createdToday(topic.createdAt)).length')
-    && DECK.includes("type DeckKind = 'task' | 'topic' | 'curiosity' | 'resource'")
-    && DECK.includes("kind === 'topic'")
+    && ROUTER.includes("path: '/deck/:kind(task|topic|curiosity|resource)'")
+    && ROUTER.includes("tab: String(to.params.kind || 'task')")
+    && ROUTER.includes('...to.query')
+    && ROUTER.includes("...(to.params.kind === 'resource' ? { all: '1' } : {})")
+    && HOME.includes('route.query.tab')
+    && HOME.includes('route.query.hl')
+    && HOME.includes('route.query.hk')
+    && HOME.includes('TAB_ALIAS[tabKey]')
+    && TOPIC_MANAGER.includes("const sortMode = ref<'recent' | 'unplanned' | 'due'>('recent')")
     && TOPIC_MANAGER.includes('.sort((a, b) =>')
-    && TOPIC_MANAGER.includes('(b.updatedAt || 0) - (a.updatedAt || 0)')
+    && TOPIC_MANAGER.includes('(Number(b.pinned) - Number(a.pinned))')
+    && TOPIC_MANAGER.includes('((b.createdAt || 0) - (a.createdAt || 0))')
 })
 
 check('V450-10 ★设置页提供选题卡字段组、状态编辑入口、快捷键与采集入口；状态定义与字段组进入数据包/附件索引', () => {

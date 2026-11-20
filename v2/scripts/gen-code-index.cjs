@@ -94,7 +94,7 @@ const MANUAL_NOTES = {
   // ---- 视图（路由级）----
   'newtab/views/GlobalSettings.vue': '全局设置页（全仓最大文件）：手册 / 数据包与云同步 / AI 配置 / 标签管理 / 字段设计 / 仪表盘 / 快捷键',
   'newtab/views/Workspace.vue': '策展台单一画布（论点卡 + 金字塔/树状思维导图 + 资源证据 + 指标下钻 + 分享）',
-  'newtab/views/CompassHome.vue': '调度台首页：方向状态四指标 + 今日三件事 + 底部三张卡（任务卡 / 好奇心卡 / 资源卡）',
+  'newtab/views/CompassHome.vue': '调度台首页：页头三入口 + 今日三件事恒 3 槽（任务 / 选题）+ 四卡池 + 页脚状态轨；不含方向指标条',
   'newtab/views/CompassTree.vue': '完整方向树（战略目标 → 项目 → 指标 → 任务）',
   'newtab/views/ProjectCuration.vue': '项目详情页（内嵌方向台，`?p=` 定位；含金字塔/看板）',
   'newtab/views/CompassShell.vue': '方向台一级工作区（主航线「看」+ 项目总览「管」）',
@@ -134,7 +134,7 @@ const MANUAL_NOTES = {
   'newtab/components/compass/CuriosityPanel.vue': '好奇心卡面板（调度台；W1.1 前旧称好奇心培育）',
   'newtab/components/compass/TaskDetailDrawer.vue': '任务详情抽屉',
   'newtab/components/compass/NorthStarPanel.vue': '北极星面板（方向台底部）',
-  'newtab/components/compass/MetricBar.vue': '方向状态四指标条（日 / 周 / 累计三档，可下钻）',
+  'newtab/components/compass/MetricBar.vue': '历史保留组件：旧方向状态五格指标条；V3.9.19 起零挂载，不属现役界面',
   'newtab/components/compass/LighthousePanel.vue': '主航线面板（目标卡 + 主攻聚焦条）',
   // ---- Pinia ----
   'newtab/stores/app.ts': '主数据仓：loadData / persist / 工作台 CRUD / UI 偏好 / 主题',

@@ -22,17 +22,24 @@ check('R185-A1 ★三层页头成立：台身份 ≤40px → 中心论点主舞�
     && (WS.match(/<div class="thesis-banner"/g) || []).length === 1;
 })
 
-check('R185-A2（V4.2.0 压缩重指）★中心论点成为镇台舞台：L1 / 论点卡 / 金字塔根节点三层语义、20px 主句、68px 基线高度、卡片读数与详情入口同卡；卡内不再放金字塔或分享按钮', () => {
+check('R185-A2（V4.7 重指）★中心论点成为镇台舞台：L1 / 论点卡 / 金字塔根节点三层语义、20px 主句、68px 基线高度；读数移入右侧全局功能模块，卡内不再放读数 / 金字塔 / 分享按钮', () => {
   const start = WS.indexOf('<div class="thesis-banner"')
   const banner = WS.slice(start, WS.indexOf('<!-- ③ 行动条', start))
+  const globalStart = WS.indexOf('<div class="cur-global-panel"')
+  const globalPanel = WS.slice(globalStart, WS.indexOf('</div>', WS.indexOf('<div class="cur-global-actions"', globalStart)))
   return banner.includes('class="tb-kicker"')
     && banner.includes('L1')
     && banner.includes('中心论点 · 论点卡')
     && banner.includes('金字塔根节点')
     && banner.includes('class="tb-title"')
     && banner.includes('class="tb-desc"')
-    && banner.includes('class="cur-metrics" data-curation-metrics="2"')
+    && !banner.includes('class="cur-metrics"')
+    && !banner.includes('论据卡')
+    && !banner.includes('佐证附件')
     && banner.includes('class="tb-detail" type="button"')
+    && globalPanel.includes('class="cur-metrics" data-curation-metrics="2"')
+    && globalPanel.includes('论据卡')
+    && globalPanel.includes('佐证附件')
     && CSS.includes('font-size: 20px')
     && CSS.includes('min-height: 68px')
     && CSS.includes('radial-gradient(600px 160px')
@@ -55,11 +62,11 @@ check('R185-A3（V3.9.30 重指）★一个动作一个入口：分享只留行�
     && MIND.includes("@click=\"$emit('update:layout', 'tree')\"");
 })
 
-check('R185-A4（V4.1.2 重指）★页面设置退役后数据动作仍可达：台数据菜单集中导入 JSON / 成果 HTML / 模板与导出备份 / 清理镜像，检索与分享保持原位', () => {
+check('R185-A4（V4.7 重指）★页面设置退役后数据动作仍可达：台数据菜单集中导入 JSON / 成果 HTML / 模板与导出备份 / 清理镜像；检索与打开全部资源收进全局功能模块', () => {
   const toolbar = WS.slice(WS.indexOf('<div class="ws-toolbar cur-toolbar"'), WS.indexOf('<CurationMindMap', WS.indexOf('<div class="ws-toolbar cur-toolbar"')))
   return !toolbar.includes('class="cur-toolbar-lead"')
     && !toolbar.includes('class="cur-sep"')
-    && !toolbar.includes('class="cur-metrics"')
+    && toolbar.includes('class="cur-metrics"')
     && !toolbar.includes('class="cur-layout"')
     && toolbar.includes('class="cur-import"')
     && !toolbar.includes('class="hero-btn settings"')
@@ -69,11 +76,12 @@ check('R185-A4（V4.1.2 重指）★页面设置退役后数据动作仍可达�
     && toolbar.includes('<b>导入模板</b>')
     && toolbar.includes('<b>导出 JSON 备份</b>')
     && toolbar.includes('<b>清理本台镜像卡</b>')
-    && toolbar.includes('class="toolbar-spacer"')
     && toolbar.includes('class="toolbar-search"')
     && toolbar.includes('class="hero-btn primary share-action"')
-    && toolbar.indexOf('class="cur-import"') < toolbar.indexOf('class="toolbar-search"')
-    && toolbar.indexOf('class="toolbar-search"') < toolbar.indexOf('class="hero-btn primary share-action"');
+    && toolbar.includes('class="hero-btn ghost cur-open-all"')
+    && toolbar.includes('class="cur-global-actions"')
+    && toolbar.indexOf('class="cur-global-head"') < toolbar.indexOf('class="cur-metrics"')
+    && toolbar.indexOf('class="cur-metrics"') < toolbar.indexOf('class="cur-global-actions"');
 })
 
 check('R185-A5（V3.9.29 重指）★未设立论点是单行轻引导：整卡可点创建 + 文本式开始提示，不再显示旧版大灰卡或卡内按钮', () => {
@@ -88,7 +96,7 @@ check('R185-A5（V3.9.29 重指）★未设立论点是单行轻引导：整卡�
     && CSS.includes('padding: 10px 16px');
 })
 
-check('R185-A6 ★窄屏可读：描述让位、论点标题最多两行、行动条分组换行且分隔线隐藏', () => {
+check('R185-A6（V4.7 重指）★窄屏可读：描述让位、论点标题最多两行，中心论点与全局功能均收为单列且检索可缩', () => {
   const mobile = CSS.slice(CSS.indexOf('@media (max-width: 900px)'))
   return mobile.includes('.wsh-desc { display: none; }')
     && mobile.includes('.tb-title { white-space: normal;')
@@ -96,7 +104,8 @@ check('R185-A6 ★窄屏可读：描述让位、论点标题最多两行、行�
     && mobile.includes('.thesis-banner:not(.empty) { min-height: 0; flex-direction: column;')
     && mobile.includes('.tb-side { width: 100%; flex-direction: row;')
     && mobile.includes('.ws-toolbar { flex-wrap: wrap;')
-    && mobile.includes('.toolbar-spacer { display: none; }');
+    && mobile.includes('.ws-curation-console { grid-template-columns: minmax(0, 1fr);')
+    && mobile.includes('.cur-global-actions .toolbar-search { flex: 1 1 180px; min-width: 0; }');
 })
 
 check('R185-V1（V3.9.29 重指）V3.9.28 历史记录仍在：更新日志保留页头重设计条目，当前版本同步由 115 分片承接', () => {

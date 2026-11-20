@@ -18,6 +18,7 @@ const {
 const CH = read('/newtab/views/CompassHome.vue');
 const CH_C = codeOnly(CH);
 const SM = read('/newtab/components/compass/CompassStatusModal.vue');
+const TCAL = read('/newtab/components/compass/TaskCalendarView.css');
 
 console.log('【V3.9.18 · 调度台按原型迭代（主攻面板 / 三池页签 / 右栏读数 / 密度接通）】');
 
@@ -46,7 +47,7 @@ check('D18-2（V4.3.1 重指）主栏主攻面板与右栏均退役；主攻改�
     && !CH_C.includes('focusMeta.get(');
 });
 
-check('D18-3（V4.5.0 重指）卡片池四页签：任务 / 选题 / 好奇心 / 资源四枚 hand-tab（role=tablist + aria-selected）；任务页用完整工作面，选题页复用选题管理器，另两页按需渲染', () => {
+check('D18-3（V4.7.0 重指）卡片池四页签：任务 / 选题 / 好奇心 / 资源四枚 hand-tab（role=tablist + aria-selected）；任务页完整工作面、选题页复用选题管理器、好奇心页独立清单+日历/看板、资源页常用夹', () => {
   return CH.includes('class="hand-tabs"')
     && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 4
     && CH.includes('role="tablist" aria-label="手边的卡类型"')
@@ -58,10 +59,11 @@ check('D18-3（V4.5.0 重指）卡片池四页签：任务 / 选题 / 好奇心 
     && !CH_C.includes(`handTab === 'inbox'`)
     && CH_C.includes(`const handTab = ref<HandKind>('task')`)
     && CH.includes('class="task-workbench"')
-    && CH.includes('class="hand-grid hand-grid-aux"')
+    && CH.includes('class="hand-grid hand-grid-aux')
     && CH.includes('class="hand-col"')
+    && CH.includes('<CuriosityWorkbench />')
     && CH.includes('@click="goDeck(handTab)"')
-    && CH.includes("goDeck('curiosity')") && CH.includes("goDeck('resource')")
+    && CH.includes("goDeck('resource')")
     && !CH_C.includes('bt-tab');
 });
 
@@ -76,26 +78,28 @@ check('D18-4（V4.3.1 重指）右栏状态读数退役：今日事实只由今�
     && !CH.includes('class="stat-focus-item"');
 });
 
-check('D18-5（V4.3.1 重指）右栏整体退役：好奇心页签与卡池能力保留，资源页签承载常调 Top 10；首页只保留今日重点、卡片池任务工作面与底轨', () => {
+check('D18-5（V4.7.0 重指）右栏整体退役：好奇心页签升级为完整工作面，资源页签承载常用夹与常调 Top 10；首页只保留今日重点、卡片池四卡工作面与底轨', () => {
   return !CH.includes('class="curio-panel"')
     && !CH_C.includes('nurtureCuriosities')
     && CH.includes('aria-label="手边的卡类型"')
     && CH.includes("handTab = 'curiosity'")
-    && CH.includes('@click="goDeck(\'curiosity\')"')
+    && CH.includes('<CuriosityWorkbench />')
     && CH.includes('class="task-workbench"')
     && CH.includes('recent-resource-panel')
     && !CH.includes('class="side-rail"')
     && !CH.includes('useEqualHeight');
 });
 
-check('D18-6（V4.3.1 重指）★密度令牌接通：今日三件事与卡池预览都读取 --card-pad-vert / --card-pad-horz / --card-gap，紧凑密度在任务驱动首页真实生效', () => {
+check('D18-6（V4.7 重指）★密度令牌接通：今日三件事与现役任务卡池列表都读取 --card-pad-vert / --card-pad-horz / --card-gap，旧 mini 预览零残留', () => {
   return CH.includes('.focus-list { display: flex; flex-direction: column; }')
     && CH.includes('.focus-list { gap: var(--card-gap); }')
     && CH.includes('padding: var(--card-pad-vert) var(--card-pad-horz);')
     && CH.includes('.focus-row {')
     && /\.focus-row\.focus-card \{[\s\S]*?padding: var\(--card-pad-vert\) var\(--card-pad-horz\)/.test(CH)
     && /\.focus-list \{[\s\S]*?gap: var\(--card-gap\)/.test(CH)
-    && CH.includes('.mini-item') && CH.includes('padding: var(--card-pad-vert) 10px;');
+    && !CH.includes('.mini-item')
+    && TCAL.includes('.cal-pool-task {')
+    && /\.cal-pool-task \{[\s\S]*?padding: var\(--card-pad-vert\) 9px;/.test(TCAL);
 });
 
 check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'；入台明细按创建时间倒序列三类卡（好奇心行只读无动作），调出明细带最近时刻、今日操作次数与累计次数；note 明示两套口径不冒充同源', () => {

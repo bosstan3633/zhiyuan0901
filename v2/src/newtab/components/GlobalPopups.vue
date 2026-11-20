@@ -27,7 +27,7 @@
       <div class="gp-type-tabs" role="tablist" aria-label="搜索类型">
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='all'" :class="{active: currentType==='all'}" @click="setType('all')">搜全部 <span class="gp-tt-count">{{ counts.all }}</span></div>
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='res'" :class="{active: currentType==='res'}" @click="setType('res')">资源卡 <span class="gp-tt-count">{{ counts.res }}</span></div>
-        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='task'" :class="{active: currentType==='task'}" @click="setType('task')">任务卡 <span class="gp-tt-count">{{ counts.task }}</span></div>
+        <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='task'" :class="{active: currentType==='task'}" @click="setType('task')">任务 <span class="gp-tt-count">{{ counts.task }}</span></div>
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='curio'" :class="{active: currentType==='curio'}" @click="setType('curio')">好奇心 <span class="gp-tt-count">{{ counts.curio }}</span></div>
         <div class="gp-type-tab" role="tab" v-pressable :aria-selected="currentType==='topic'" :class="{active: currentType==='topic'}" @click="setType('topic')">选题卡 <span class="gp-tt-count">{{ counts.topic }}</span></div>
         <!-- R49-G：策展台（分类树定位）/ 项目（直达项目详情）双类型 -->
@@ -188,7 +188,7 @@
               <template v-else-if="item.type==='task'">
                 <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>
                 <button class="gp-ri-act del" title="删除" @click.stop="deleteItem(item)"><Icon name="trash" :size="13"/></button>
-                <button class="gp-ri-act go" title="定位到任务卡片" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
+                <button class="gp-ri-act go" title="定位到任务所在项目全景" @click.stop="openItem(item)"><Icon name="external" :size="13"/></button>
               </template>
               <template v-else-if="item.type==='curio'">
                 <button class="gp-ri-act" :class="{on: isStarred(item)}" :title="isStarred(item)?'取消星标':'星标（搜索优先）'" @click.stop="toggleStar(item)"><Icon name="star" :size="13"/></button>

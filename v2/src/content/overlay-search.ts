@@ -14,6 +14,7 @@ import { wsDisplayNameOf } from '@/shared/utils/wsName'
 import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
 import { softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { activeFocusSlots, clearedFocusSlot, normalizedFocusSlots } from '@/shared/utils/focusSlots'
+import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import {
   safeSend, uid, ensureRoot, focusWhenReady, openOverlay, closeOverlay, showToast, ROOT_ID
 } from './overlay-impl'
@@ -206,7 +207,7 @@ function renderTypeTabs() {
   const types = [
     { key: 'all', label: '🔍 搜全部' },
     { key: 'res', label: '📄 资源卡' },
-    { key: 'task', label: '✅ 任务卡' },
+    { key: 'task', label: '✅ 任务' },
     { key: 'curio', label: '💡 好奇心' },
     { key: 'topic', label: '✦ 选题卡' },
     { key: 'ws', label: '🗂 策展台' },
@@ -529,9 +530,16 @@ function focusLocateTask(item: any) {
     closeOverlay()
     return
   }
-  const route = t?.projectId ? '/compass/projects?p=' + t.projectId : '/?hl=' + id
+  const route = t?.projectId
+    ? '/compass?' + [
+      'pano=1',
+      'proj=' + encodeURIComponent(t.projectId),
+      'task=' + encodeURIComponent(id),
+      ...(t?.metricId ? ['m=' + encodeURIComponent(t.metricId)] : []),
+    ].join('&')
+    : '/?hl=' + id + '&hk=task'
   try { chrome.runtime.sendMessage({ type: 'zy-open-route', route }) } catch { /* ignore */ }
-  showToast(t?.projectId ? '↗ 已定位到项目详情' : '↗ 已定位到调度台的任务')
+  showToast(t?.projectId ? '↗ 已定位到任务所在项目全景' : '↗ 已定位到任务卡池')
   closeOverlay()
 }
 /** A7-d：把任务卡或选题卡加入今日三件事
@@ -577,12 +585,10 @@ async function addTaskToDailyFocus(item: any) {
       ? (d.topics || []).find((row: any) => !row.deletedAt && row.id === previous.sourceId)
       : null
     if (previousTask?.dueDate === key) {
-      previousTask.dueDate = undefined
-      previousTask.updatedAt = Date.now()
+      scheduleCardDate(d, previousTask, undefined, { source: 'focus' })
     }
     if (previousTopic?.dueDate === key) {
-      previousTopic.dueDate = undefined
-      previousTopic.updatedAt = Date.now()
+      scheduleCardDate(d, previousTopic, undefined, { source: 'focus' })
     }
     slot.slotIndex = replaced
     cells[replaced] = slot
@@ -594,13 +600,11 @@ async function addTaskToDailyFocus(item: any) {
   }
   const task = (d.tasks || []).find((row: any) => !row.deletedAt && row.id === taskId)
   if (task && task.dueDate !== key) {
-    task.dueDate = key
-    task.updatedAt = Date.now()
+    scheduleCardDate(d, task, key, { source: 'focus' })
   }
   const topic = isTopic ? (d.topics || []).find((row: any) => !row.deletedAt && row.id === taskId) : null
   if (topic && topic.dueDate !== key) {
-    topic.dueDate = key
-    topic.updatedAt = Date.now()
+    scheduleCardDate(d, topic, key, { source: 'focus' })
   }
   d.dailyFocus[key] = cells.map((cell, index) => cell
     ? { ...cell, slotIndex: index }
@@ -717,7 +721,7 @@ function renderResults() {
   }
   const groups = [
     { label: '📄 资源卡', type: 'res' },
-    { label: '✅ 任务卡', type: 'task' },
+    { label: '✅ 任务', type: 'task' },
     { label: '💡 好奇心', type: 'curio' },
     { label: '✦ 选题卡', type: 'topic' },
     { label: '🗂 策展台', type: 'ws' },
