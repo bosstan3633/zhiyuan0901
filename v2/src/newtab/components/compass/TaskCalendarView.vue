@@ -6,7 +6,7 @@
  * 底层日期继续使用 TaskCard.dueDate，避免新增第二份计划日期字段。
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import type { FocusSlot, TaskCard, TopicCard, TopicStatusDef } from '@/shared/models'
+import type { FocusSlot, TaskCard, TaskStatusDef, TopicCard, TopicStatusDef } from '@/shared/models'
 import Icon from '@/shared/components/Icon.vue'
 import Modal from '@/shared/components/Modal.vue'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<{
   /** 今日格必须直接消费 dailyFocus，与任务/选题页签及今日三件事同源。 */
   topics?: TopicCard[]
   topicStatuses?: TopicStatusDef[]
+  taskStatuses?: TaskStatusDef[]
   focusSlots?: FocusSlot[]
   showDone?: boolean
   projectNames: Map<string, string>
@@ -27,6 +28,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   topics: () => [],
   topicStatuses: () => [],
+  taskStatuses: () => [],
   focusSlots: () => [],
   showDone: true,
   sortMode: 'recent',
@@ -62,6 +64,7 @@ const selectedDayMode = ref<'detail' | 'schedule'>('detail')
 const scheduleSearch = ref('')
 const mobileMode = ref<'list' | 'calendar'>('list')
 const listCollapsed = ref(false)
+const collapsedGroups = ref<Set<string>>(new Set())
 const dragOverDay = ref('')
 const menuTaskId = ref('')
 const quickDueDraft = ref('')
@@ -293,6 +296,11 @@ const poolGroups = computed(() => {
   return groups
 })
 
+const allGroupsCollapsed = computed(() => {
+  const keys = poolGroups.value.filter(group => !!group.name).map(group => group.key)
+  return keys.length > 0 && keys.every(key => collapsedGroups.value.has(key))
+})
+
 const poolOrderHint = computed(() =>
   props.sortMode === 'recent' ? '最新入池在前' : props.sortMode === 'due' ? '按计划日期排序' : '未落图在前')
 
@@ -327,8 +335,18 @@ function hiddenCalendarEntryCount(entries: CalendarEntry[]): number {
   return Math.max(0, entries.length - (calendarMode.value === 'week' ? 12 : 3))
 }
 
-function statusLabel(status: TaskCard['status']): string {
-  return status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'
+function taskStatusDef(task: TaskCard): TaskStatusDef | undefined {
+  return props.taskStatuses.find(status => status.id === task.statusId)
+    || props.taskStatuses.find(status => status.bucket === task.status)
+}
+
+function taskStatusColor(task: TaskCard): string {
+  return taskStatusDef(task)?.color || 'var(--border-strong)'
+}
+
+function statusLabel(task: TaskCard): string {
+  return taskStatusDef(task)?.name
+    || (task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始')
 }
 
 function projectLabel(card: TaskCard | TopicCard): string {
@@ -436,6 +454,25 @@ function collapseList(): void {
   mobileMode.value = 'calendar'
 }
 
+/** 项目分组折叠只作用于左侧清单；右侧日历/看板始终消费完整筛选结果。 */
+function isGroupCollapsed(key: string): boolean {
+  return collapsedGroups.value.has(key)
+}
+
+function toggleGroupCollapsed(key: string): void {
+  const next = new Set(collapsedGroups.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  collapsedGroups.value = next
+}
+
+function toggleAllGroups(): void {
+  const keys = poolGroups.value.filter(group => !!group.name).map(group => group.key)
+  collapsedGroups.value = keys.length > 0 && keys.every(key => collapsedGroups.value.has(key))
+    ? new Set()
+    : new Set(keys)
+}
+
 function closeDay(): void {
   selectedDay.value = ''
   selectedDayMode.value = 'detail'
@@ -532,35 +569,66 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
       <button type="button" role="tab" :aria-selected="mobileMode === 'calendar'" :class="{ on: mobileMode === 'calendar' }" @click="mobileMode = 'calendar'">月历</button>
     </div>
 
-    <section class="cal-pool" aria-label="任务池">
-      <header class="cal-pool-head">
-        <div>
-          <div class="cal-pool-heading">
-            <b>任务清单</b>
-            <button class="cal-list-collapse" type="button" title="折叠任务清单" @click="collapseList">
-              <Icon name="arrowleft" :size="12" /> 折叠
-            </button>
+    <section class="cal-pool" :class="{ collapsed: listCollapsed }" aria-label="任务池">
+      <button
+        v-if="listCollapsed"
+        class="cal-rail-toggle"
+        type="button"
+        title="展开任务清单"
+        aria-label="展开任务清单"
+        :aria-expanded="false"
+        @click="listCollapsed = false"
+      >
+        <Icon name="arrowright" :size="13" />
+        <span>任务清单</span>
+        <em>{{ poolTasks.length }}</em>
+      </button>
+
+      <template v-else>
+        <header class="cal-pool-head">
+          <div>
+            <div class="cal-pool-heading">
+              <b>任务清单</b>
+              <button class="cal-list-collapse" type="button" title="折叠任务清单" aria-label="折叠任务清单" :aria-expanded="true" @click="collapseList">
+                <Icon name="arrowleft" :size="12" /> 折叠
+              </button>
+            </div>
+            <span>{{ poolTasks.length }} 项当前筛选结果 · {{ poolOrderHint }}</span>
           </div>
-          <span>{{ poolTasks.length }} 项当前筛选结果 · {{ poolOrderHint }}</span>
+          <div class="cal-pool-head-actions">
+            <span class="cal-pool-stat">{{ monthScheduledTasks.length }} 本月已排</span>
+            <button
+              v-if="groupMode === 'project'"
+              class="cal-group-toggle"
+              type="button"
+              @click="toggleAllGroups"
+            >{{ allGroupsCollapsed ? '全部展开' : '全部折叠' }}</button>
+          </div>
+        </header>
+
+        <div class="cal-unscheduled" @dragover.prevent @drop="dropUnscheduled">
+          <Icon name="calendar" :size="13" />
+          <span><b>{{ pendingPoolTasks.length }} 项未落图</b><small>已落图任务按日期排在后面；拖回此处可取消排期</small></span>
         </div>
-        <span class="cal-pool-stat">{{ monthScheduledTasks.length }} 本月已排</span>
-      </header>
 
-      <div class="cal-unscheduled" @dragover.prevent @drop="dropUnscheduled">
-        <Icon name="calendar" :size="13" />
-        <span><b>{{ pendingPoolTasks.length }} 项未落图</b><small>已落图任务按日期排在后面；拖回此处可取消排期</small></span>
-      </div>
-
-      <div class="cal-pool-list">
-        <template v-for="group in poolGroups" :key="group.key">
-          <div v-if="group.name" class="cal-pool-group">
-            <span>{{ group.name }}</span>
-            <em>{{ group.tasks.length }}</em>
-          </div>
-        <div v-for="task in group.tasks" :key="task.id" class="cal-pool-item">
+        <div class="cal-pool-list">
+          <template v-for="group in poolGroups" :key="group.key">
+            <button
+              v-if="group.name"
+              class="cal-pool-group"
+              type="button"
+              :aria-expanded="!isGroupCollapsed(group.key)"
+              @click="toggleGroupCollapsed(group.key)"
+            >
+              <Icon :name="isGroupCollapsed(group.key) ? 'arrowright' : 'arrowdown'" :size="11" />
+              <span>{{ group.name }}</span>
+              <em>{{ group.tasks.length }}</em>
+            </button>
+          <div v-for="task in (isGroupCollapsed(group.key) ? [] : group.tasks)" :key="task.id" class="cal-pool-item">
           <article
             class="cal-pool-task"
             :class="'is-' + task.status"
+            :style="{ '--task-status': taskStatusColor(task) }"
             draggable="true"
             tabindex="0"
             @dragstart="onDragStart($event, task)"
@@ -590,7 +658,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
                 <button v-if="isMissing(task)" class="cal-assign" type="button" @click.stop="emit('assign-task', task)">去归位</button>
               </small>
             </span>
-            <span class="cal-status" :class="'is-' + task.status">{{ statusLabel(task.status) }}</span>
+            <span class="cal-status" :class="'is-' + task.status" :style="{ '--task-status': taskStatusColor(task) }">{{ statusLabel(task) }}</span>
             <button
               class="cal-task-menu-trigger"
               type="button"
@@ -624,21 +692,19 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             </button>
           </div>
         </div>
-        </template>
-        <div v-if="!poolTasks.length" class="cal-empty">
-          <Icon name="clipboard" :size="20" />
-          <b>当前筛选没有任务</b>
-          <span>调整上方项目、状态或搜索条件后再看。</span>
+          </template>
+          <div v-if="!poolTasks.length" class="cal-empty">
+            <Icon name="clipboard" :size="20" />
+            <b>当前筛选没有任务</b>
+            <span>调整上方项目、状态或搜索条件后再看。</span>
+          </div>
         </div>
-      </div>
+      </template>
     </section>
 
     <section class="cal-board" aria-label="任务月历">
       <header class="cal-board-head">
         <div class="cal-month-title">
-          <button v-if="listCollapsed" class="cal-list-expand" type="button" title="展开任务清单" @click="listCollapsed = false">
-            <Icon name="arrowright" :size="12" /> 展开清单
-          </button>
           <div class="cal-title-row">
             <button v-if="calendarMode === 'month'" class="cal-month-picker-trigger" type="button" :aria-expanded="monthPickerOpen" @click.stop="toggleMonthPicker">
               <b>{{ periodTitle }}</b>
@@ -708,6 +774,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
                   v-if="entry.kind === 'task'"
                   class="cal-task-chip"
                   :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task)]"
+                  :style="{ '--task-status': taskStatusColor(entry.task) }"
                   draggable="true"
                   tabindex="0"
                   :title="entry.task.title"
@@ -730,7 +797,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
                     <span v-if="calendarMode === 'week'" class="cal-chip-meta">
                       <span>{{ projectLabel(entry.task) }}</span>
                       <span v-if="metricLabel(entry.task)">› {{ metricLabel(entry.task) }}</span>
-                      <em :class="'is-' + entry.task.status">{{ statusLabel(entry.task.status) }}</em>
+                      <em :class="'is-' + entry.task.status" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
                     </span>
                   </span>
                   <button type="button" title="取消计划执行日期并回到任务池" aria-label="取消排期" @click.stop="emit('clear-due', entry.task.id)">
@@ -802,6 +869,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             v-if="entry.kind === 'task'"
             class="cal-modal-task"
             :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task)]"
+            :style="{ '--task-status': taskStatusColor(entry.task) }"
           >
             <button
               class="cal-check"
@@ -818,7 +886,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             </button>
             <span class="cal-modal-side">
               <button v-if="isMissing(entry.task)" class="cal-assign" type="button" @click="emit('assign-task', entry.task)">去归位</button>
-              <em :class="'is-' + entry.task.status">{{ statusLabel(entry.task.status) }}</em>
+              <em :class="'is-' + entry.task.status" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
             </span>
             <button class="cal-modal-close" type="button" title="取消排期" @click.stop="emit('clear-due', entry.task.id)"><Icon name="x" :size="12" /></button>
           </article>
@@ -863,7 +931,7 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
           <article v-for="task in scheduleCandidates" :key="task.id" class="cal-schedule-row">
             <span class="cal-schedule-copy">
               <b>{{ task.title }}</b>
-              <small>{{ projectLabel(task) }} · {{ friendlyDate(task.dueDate) }} · {{ statusLabel(task.status) }}</small>
+              <small>{{ projectLabel(task) }} · {{ friendlyDate(task.dueDate) }} · {{ statusLabel(task) }}</small>
             </span>
             <button type="button" @click="scheduleToSelectedDay(task)">安排</button>
           </article>

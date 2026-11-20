@@ -69,9 +69,9 @@ console.log('【第一百零五轮 · V2.74.0：P2 收官（B4 + C3 + D3 + E2 + 
  *  直达锚点自动展开）；C3 浮层字号阶梯（文本档全走 --zy-fs-*，输入态 16-17px 保留）；D3 重复卡
  *  确认视图加「仍然新建一张」（整屏例外不变）；E2 策展台 >5 页签收起「≪ N」hover 展开（活动台
  *  恒可见）；W10 搜索纳入 link（两台与浮层范围统一，拍板按提案原文）。 */
-check('R105-1（V4.7.0 重指）卡片池四页签就地承载完整工作面：任务清单+月历/看板、选题管理器、好奇心清单+日历/看板、资源常用夹；/deck 二级页退役为页签重定向，旧 tab 挂载状态仍零回流', () => {
+check('R105-1（V4.7.1 重指）卡片池四页签就地承载完整工作面：任务清单+月历/看板、选题管理器、好奇心清单+日历/看板、资源常用夹；/deck 二级页退役为页签重定向，页头进入卡片池入口退役且资源「查看全部」直达全部资源卡抽屉', () => {
   const h = read('/newtab/views/CompassHome.vue');
-  const logic = read('/newtab/views/useCompassHome.ts');
+  const grid = read('/newtab/components/compass/HomeResourceFolderGrid.vue');
   return /class="[^"]*\bhand-board\b/.test(h)
     && h.includes('class="hand-tabs"')
     && h.includes('class="task-workbench"')
@@ -81,10 +81,12 @@ check('R105-1（V4.7.0 重指）卡片池四页签就地承载完整工作面：
     && h.includes('<TopicManagerPanel />')
     && h.includes('好奇心卡')
     && h.includes('资源卡')
-    && h.includes('@click="goDeck(handTab)"')
-    && logic.includes('function goDeck(kind: HandKind)')
-    && logic.includes('handTab.value = kind')
-    && logic.includes("router.replace({ path: '/', query: { tab: kind } })")
+    && !h.includes('class="hand-head-actions"')
+    && !h.includes('@click="goDeck')
+    && h.includes('ref="resourceFolderGridRef"')
+    && h.includes('@click="openAllResources"')
+    && grid.includes('defineExpose({ openAll })')
+    && grid.includes('allOpen.value = true')
     && !h.includes('curioMounted');
 });
 check('R105-2 C3 浮层字号阶梯：--zy-fs-2xs/xs/sm/md/lg 五档定义 + 文本档字面量归并（10-14px 零命中）+ 输入态 17px 保留', () => {

@@ -315,13 +315,13 @@ async function main() {
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const sideRailGone = (await page.locator('.side-rail, .stat-row').count()) === 0
-  const unarchivedFilter = page.locator('.task-work-quick button').filter({ hasText: '未归档' }).first()
-  const unarchivedText = ((await unarchivedFilter.innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
+  const unarchivedFilter = page.locator('.twt-quick-field select').first()
+  const unarchivedText = ((await unarchivedFilter.locator('option[value="unarchived"]').innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
   const urlBeforeClick = page.url()
-  await unarchivedFilter.click().catch(() => {})
+  await unarchivedFilter.selectOption('unarchived').catch(() => {})
   await page.waitForTimeout(700)
   const urlAfterClick = page.url()
-  const unarchivedActive = await unarchivedFilter.evaluate(el => el.classList.contains('on')).catch(() => false)
+  const unarchivedActive = await unarchivedFilter.evaluate(el => el.value === 'unarchived').catch(() => false)
   const urlUnchanged = urlBeforeClick === urlAfterClick
   const unarchivedRows = await page.locator('.cal-pool-task').count()
   const assignableRows = await page.locator('.cal-pool-task .cal-assign').count()
@@ -368,12 +368,12 @@ async function main() {
   /* ★V4.3.1 再重指：右栏「今天的状态」退役后，主攻项目不再是独立读数行，而是任务工作面的
      一等工作口径。本用例守住新链路：主攻快捷筛选 → 只剩该项目任务 → 点任务打开右侧详情。
      项目详情自身的就地编辑能力仍由 E2E-62 在方向台覆盖，能力没有丢。 */
-  const focusFilter = page.locator('.task-work-quick button').filter({ hasText: '主攻项目' }).first()
+  const focusFilter = page.locator('.twt-quick-field select').first()
   const focusFilterVisible = await focusFilter.isVisible().catch(() => false)
   const urlBeforeFocusFilter = page.url()
-  await focusFilter.click().catch(() => {})
+  await focusFilter.selectOption('focus').catch(() => {})
   await page.waitForTimeout(700)
-  const focusFilterActive = await focusFilter.evaluate(el => el.classList.contains('on')).catch(() => false)
+  const focusFilterActive = await focusFilter.evaluate(el => el.value === 'focus').catch(() => false)
   const focusTaskRow = page.locator('.cal-pool-task').filter({ hasText: 'E2E 状态明细任务' }).first()
   const focusTaskVisible = await focusTaskRow.isVisible().catch(() => false)
   const focusTaskShowsProject = ((await focusTaskRow.innerText().catch(() => '')) || '').includes('E2E 状态主攻项目')
@@ -3535,7 +3535,14 @@ await paOpen()
 
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  const folderEntry = page.locator('button.pcp-btn').filter({ hasText: /常用夹/ }).first()
+  /* /deck/resource 兼容重定向会带 all=1 自动展开总夹抽屉；先确认它确实打开，
+     再关掉遮罩回到一级资源页，后续操作的是「我的常用夹」区。 */
+  await waitForLocator(page, '.drawer[aria-label="全部资源卡"]', { visible: true, timeout: 10000 })
+  await page.locator('.drawer[aria-label="全部资源卡"] .drawer-close').click()
+  await page.waitForSelector('.drawer[aria-label="全部资源卡"]', { state: 'detached', timeout: 5000 }).catch(() => {})
+  /* V4.7.1：全部资源卡抽屉不再重复挂「常用夹」入口；文件夹管理回到一级资源页
+     「我的常用夹」区，这里从「新建常用夹」进入同一只 ResourceFolderDrawer。 */
+  const folderEntry = page.locator('.hrf-section-actions button').filter({ hasText: /新建常用夹/ }).first()
   await folderEntry.waitFor({ state: 'visible', timeout: 10000 })
   await folderEntry.click()
   await waitForLocator(page, '.rfd-create input', { visible: true, timeout: 8000 })
@@ -3580,8 +3587,10 @@ await paOpen()
     }
     await chrome.storage.local.set({ zy_data_v2: data })
   })
+  await page.goto(base + '#/?tab=resource', { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.locator('button.pcp-btn').filter({ hasText: /常用夹/ }).first().click()
+  /* 重载后仍从一级资源页进入；用「管理」而不是再次新建，保持抽屉里的夹列表上下文。 */
+  await page.locator('.hrf-section-actions button').filter({ hasText: /^管理$/ }).first().click()
   await waitForLocator(page, '.rfd-folder .rfd-row', { visible: true, timeout: 8000 })
   const snapFolder = page.locator('.rfd-folder').filter({ hasText: v422FolderName }).first()
   const snapshotTitle = ((await snapFolder.locator('.rfd-row .rfd-main b').first().innerText()) || '').trim()
@@ -3867,19 +3876,17 @@ await paOpen()
     await page.locator('.md-close').click()
     await page.waitForTimeout(250)
   }
-  await page.locator('.hand-head-actions .hand-link').click()
-  await waitForLocator(page, '.hrf-folder.is-all', { visible: true, timeout: 8000 })
-  const deckTab = page.url().includes('tab=resource')
-  await page.locator('.hrf-folder.is-all').first().click()
+  const entryRetired = !(await page.locator('.hand-head-actions').count())
+    && !(await page.locator('.hand-head').innerText().catch(() => '')).includes('进入卡片池')
+  await page.locator('.hand-col-head .hand-link').filter({ hasText: '查看全部' }).first().click()
   await waitForLocator(page, '.drawer .pcp', { visible: true, timeout: 8000 })
   await page.waitForTimeout(500)
   const deckList = await page.locator('.drawer .pcp-list').isVisible().catch(() => false)
   const poolOk = folderModules >= 2 && todayFolderVisible && /\d+/.test(todayFolderCount)
-    && badgeUniform && todayFolderModal && regularFolderModal
-    && deckTab && deckList
-  report('E2E-64 ★V4.3.3 卡片池角标与页签同色、今日采集与常用夹直接打开明细弹窗、进入卡片池落资源页签且全部资源抽屉默认列表态',
+    && badgeUniform && todayFolderModal && regularFolderModal && entryRetired && deckList
+  report('E2E-64 ★V4.7.1 卡片池角标与页签同色、今日采集与常用夹直接打开明细弹窗、页头进入卡片池入口退役、资源「查看全部」直达全部资源抽屉且默认列表态',
     poolOk,
-    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} 角标同色=${badgeUniform} 今日弹窗=${todayFolderModal} 常用夹弹窗=${regularFolderModal}/${regularFolderCount} tab=${deckTab} list=${deckList} url=${page.url()}`)
+    `模块=${folderModules} 今日夹=${todayFolderVisible}/${JSON.stringify(todayFolderCount)} 角标同色=${badgeUniform} 今日弹窗=${todayFolderModal} 常用夹弹窗=${regularFolderModal}/${regularFolderCount} 入口退役=${entryRetired} list=${deckList}`)
 
   // V4.3.7: test the transition boundary, not just the locator source text.
   await page.goto(base + '#/compass', { waitUntil: 'domcontentloaded' })
@@ -4015,7 +4022,9 @@ await paOpen()
   const boardProbeVisible = (await topicManager.locator('.topic-board').innerText()).includes(topicProbeTitle)
   await topicManager.locator('.topic-collapse-inline').click()
   const topicListCollapsed = await topicManager.evaluate(el => el.classList.contains('list-hidden'))
-  await topicManager.locator('.topic-expand').click()
+  const topicRailVisible = await topicManager.locator('.topic-rail-toggle').isVisible().catch(() => false)
+  await topicManager.locator('.topic-rail-toggle').click()
+  const topicListExpanded = await topicManager.evaluate(el => !el.classList.contains('list-hidden'))
   await topicManager.locator('.topic-view-switch button').filter({ hasText: '日历' }).click()
   await waitForLocator(topicManager, '.topic-cal-chip', { visible: true, timeout: 5000 })
   await topicManager.locator('.topic-cal-chip').filter({ hasText: topicProbeTitle }).first().dblclick()
@@ -4056,9 +4065,9 @@ await paOpen()
       && topicDrawer.noteHeight > 0 && topicDrawer.noteHeight <= 110
       && !!topicFocusStored && !!topicDoneStored && !!topicRestoredStored
       && topicCalendarOn && topicListText.includes(topicProbeTitle)
-      && boardStatuses === 4 && boardProbeVisible && topicListCollapsed
+      && boardStatuses === 4 && boardProbeVisible && topicListCollapsed && topicRailVisible && topicListExpanded
       && topicOutcomeOpened && !!topicDragStored,
-    `卡型=${JSON.stringify(pickerTypes)} 选题状态筛选=${topicStatusFilterOn} 候选=${JSON.stringify(pickerCandidateText)} 详情=${JSON.stringify(topicDrawer)} 入库=${!!topicFocusStored}/${!!topicDoneStored}/${!!topicRestoredStored} 日历=${topicCalendarOn} 清单=${topicListText.includes(topicProbeTitle)} 看板=${boardStatuses}/${boardProbeVisible} 折叠=${topicListCollapsed} 双击成果=${topicOutcomeOpened} 拖拽排期=${!!topicDragStored}`)
+    `卡型=${JSON.stringify(pickerTypes)} 选题状态筛选=${topicStatusFilterOn} 候选=${JSON.stringify(pickerCandidateText)} 详情=${JSON.stringify(topicDrawer)} 入库=${!!topicFocusStored}/${!!topicDoneStored}/${!!topicRestoredStored} 日历=${topicCalendarOn} 清单=${topicListText.includes(topicProbeTitle)} 看板=${boardStatuses}/${boardProbeVisible} 折叠=${topicListCollapsed}/${topicRailVisible}/${topicListExpanded} 双击成果=${topicOutcomeOpened} 拖拽排期=${!!topicDragStored}`)
 
   // ══════════ E2E-68（V4.6.0）任务清单折叠、单项目聚焦与旧快照恢复 ══════════
   await page.goto(base, { waitUntil: 'domcontentloaded' })
@@ -4068,9 +4077,11 @@ await paOpen()
   await taskCalendar.locator('.cal-list-collapse').click()
   const taskFoldState = await taskCalendar.evaluate(el => ({
     hidden: el.classList.contains('list-hidden'),
-    poolVisible: !!el.querySelector('.cal-pool') && getComputedStyle(el.querySelector('.cal-pool')).display !== 'none',
-    expandVisible: !!el.querySelector('.cal-list-expand') && getComputedStyle(el.querySelector('.cal-list-expand')).display !== 'none',
+    railVisible: !!el.querySelector('.cal-rail-toggle') && getComputedStyle(el.querySelector('.cal-rail-toggle')).display !== 'none',
+    poolBodyGone: !el.querySelector('.cal-pool-list'),
   }))
+  await taskCalendar.locator('.cal-rail-toggle').click()
+  const taskFoldRestored = await taskCalendar.evaluate(el => !el.classList.contains('list-hidden') && !!el.querySelector('.cal-pool-list'))
   await page.goto(base + '#/compass/curation?layout=tree&project=e2e-proj-1', { waitUntil: 'domcontentloaded' })
   await waitForLocator(page, '.ctl.focused .ctl-goals', { visible: true, timeout: 10000 })
   const focusCentered = await page.locator('.ctl.focused .ctl-goals').evaluate(el => {
@@ -4104,9 +4115,9 @@ await paOpen()
   const legacySnapshotSafe = await page.locator('.re-title').count() === 0
   if (originalData) await page.evaluate(data => chrome.storage.local.set({ zy_data_v2: data }), originalData)
   report('E2E-68 ★V4.7 任务清单可在标题旁折叠后让日历铺满；方向树单项目聚焦水平居中；策展台论点与全局功能模块双列对齐；缺少 V4.5 数组的旧快照恢复后调度台仍可渲染',
-    taskFoldState.hidden && !taskFoldState.poolVisible && taskFoldState.expandVisible
+    taskFoldState.hidden && taskFoldState.railVisible && taskFoldState.poolBodyGone && taskFoldRestored
       && focusCentered && consolePair && legacySnapshotSafe,
-    `任务折叠=${JSON.stringify(taskFoldState)} 聚焦居中=${focusCentered} 策展双列=${consolePair} 旧快照=${legacySnapshotSafe}`)
+    `任务折叠=${JSON.stringify(taskFoldState)} 恢复=${taskFoldRestored} 聚焦居中=${focusCentered} 策展双列=${consolePair} 旧快照=${legacySnapshotSafe}`)
 
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。

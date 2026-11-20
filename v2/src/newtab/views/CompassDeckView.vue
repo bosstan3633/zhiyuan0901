@@ -103,7 +103,7 @@ watch(
     <section class="deck-body">
       <TaskManagerPanel v-if="kind === 'task'" ref="taskPanel" secondary-mode />
       <TopicManagerPanel v-else-if="kind === 'topic'" ref="topicPanel" secondary-mode />
-      <CuriosityPanel v-else-if="kind === 'curiosity'" ref="curiosityPanel" secondary-mode />
+      <CuriosityPanel v-else-if="kind === 'curiosity'" ref="curiosityPanel" secondary-mode details-host="deck" />
       <PoolCardsPanel v-else ref="resourcePanel" secondary-mode />
     </section>
   </div>

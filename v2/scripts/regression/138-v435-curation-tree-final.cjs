@@ -62,14 +62,16 @@ check('V435-4（V4.5.0 重指）今日三件事与今日日历在启动 / 云恢
     && app.includes('reconcileTodayFocusSchedule(d)')
 })
 
-check('V435-5 任务状态只剩统一写入器：完成任务记录 statusBeforeDone，取消完成优先恢复此前状态', () => {
+check('V435-5（V4.7.1 重指）任务状态统一写入器：完成任务记录 statusBeforeDone，取消完成优先恢复此前状态', () => {
   const status = read('/shared/utils/taskStatus.ts')
   const home = codeOnly(read('/newtab/views/useCompassHome.ts'))
-  return status.includes('export function setTaskStatus(')
-    && status.includes('task.statusBeforeDone = task.status === \'doing\' ? \'doing\' : \'todo\'')
+  return status.includes('export function setTaskStatusById(')
+    && status.includes('export function toggleTaskDone(')
+    && status.includes('export function setTaskStatus(')
+    && status.includes('task.statusBeforeDone = previous?.bucket === \'doing\' ? \'doing\' : \'todo\'')
     && status.includes('task.statusBeforeDone || \'todo\'')
-    && home.includes('setTaskStatus(t, slot.done ? \'done\' : (slot.statusBeforeDone || \'todo\'))')
-    && home.includes('toggleTaskStatus(task)')
+    && home.includes('setTaskStatusById(d.value, t, terminal.id)')
+    && home.includes('toggleTaskDone(d.value, task)')
 })
 
 check('V435-6 同步明细只展示业务记录，事件流水不重复出现，且每条修改给出同步原因', () => {

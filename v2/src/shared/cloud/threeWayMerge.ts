@@ -3,6 +3,7 @@ import type { CardEvent } from '@/shared/utils/eventLog'
 import { mergeEventLogs } from '@/shared/utils/eventLog'
 import { normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import { normalizePlanScheduleEvents } from '@/shared/storage/planSchedule'
+import { normalizeTaskStatusDomain } from '@/shared/utils/taskStatus'
 import { stableStringify } from './digest'
 import type { SnapshotState, SyncManifestRecordType } from './sync'
 
@@ -54,6 +55,7 @@ const RECORD_TYPES: Record<string, SyncManifestRecordType> = {
   curiosities: 'curiosity',
   topics: 'topic',
   topicStatuses: 'topicStatus',
+  taskStatuses: 'taskStatus',
   topicResourceLinks: 'topicResourceLink',
   argCards: 'argument',
   workspaces: 'workspace',
@@ -76,6 +78,7 @@ const RECORD_COLLECTION_LABEL: Partial<Record<SyncManifestRecordType, string>> =
   curiosity: '好奇心卡',
   topic: '选题卡',
   topicStatus: '选题状态',
+  taskStatus: '任务状态',
   topicResourceLink: '选题资源关系',
   argument: '策展节点',
   workspace: '策展台',
@@ -528,6 +531,7 @@ function mergeValue(
 
 function normalizeMergedData(data: AppData, local: AppData, remote: AppData): AppData {
   const next = clone(data)
+  normalizeTaskStatusDomain(next)
   next.planScheduleEvents = normalizePlanScheduleEvents(next.planScheduleEvents)
   const metricById = new Map<string, { id: string; projectId: string; taskIds: string[]; topicIds: string[] }>()
   for (const direction of next.compass?.directions || []) {

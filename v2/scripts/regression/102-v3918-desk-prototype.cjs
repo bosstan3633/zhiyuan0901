@@ -5,7 +5,8 @@
  * 这一片锁五件事改版后仍然成立的产品行为：
  * - 页头：中文 kicker + 主攻锚行（下一步 chip 与项目详情同源）；
  * - 主栏新增「主攻项目」面板：项目名 + 下一步主句 + %完成，点击开只读详情（自右栏迁入）；
- * - 手边的卡三列改三池页签（hand-grid/hand-col/mini-list×3/goDeck 字符串锚保留，v-show 切换）；
+ * - 手边的卡三列改四池页签（hand-grid/hand-col 保留；V4.7.1 起页头“进入卡片池”退役，
+ *   资源页“查看全部”经 openAll 直开全部资源卡抽屉）；
  * - 右栏读数改「今日入台 / 今日调出 / 未归档」，本周复用挪「最近调出」头部 chip；新增「好奇心培育」面板；
  * - 密度令牌接通（04-73 D-1(a)）：主栏行卡读 --card-pad-vert 与 --card-gap，紧凑档真实生效。
  *
@@ -47,7 +48,7 @@ check('D18-2（V4.3.1 重指）主栏主攻面板与右栏均退役；主攻改�
     && !CH_C.includes('focusMeta.get(');
 });
 
-check('D18-3（V4.7.0 重指）卡片池四页签：任务 / 选题 / 好奇心 / 资源四枚 hand-tab（role=tablist + aria-selected）；任务页完整工作面、选题页复用选题管理器、好奇心页独立清单+日历/看板、资源页常用夹', () => {
+check('D18-3（V4.7.1 重指）卡片池四页签：任务 / 选题 / 好奇心 / 资源四枚 hand-tab（role=tablist + aria-selected）；任务页完整工作面、选题页复用选题管理器、好奇心页独立清单+日历/看板、资源页系统夹+常用夹；页头进入卡片池入口退役，资源「查看全部」直达抽屉', () => {
   return CH.includes('class="hand-tabs"')
     && (CH.match(/class="hand-tab(?=[ "])/g) || []).length === 4
     && CH.includes('role="tablist" aria-label="手边的卡类型"')
@@ -62,8 +63,11 @@ check('D18-3（V4.7.0 重指）卡片池四页签：任务 / 选题 / 好奇心 
     && CH.includes('class="hand-grid hand-grid-aux')
     && CH.includes('class="hand-col"')
     && CH.includes('<CuriosityWorkbench />')
-    && CH.includes('@click="goDeck(handTab)"')
-    && CH.includes("goDeck('resource')")
+    && !CH.includes('class="hand-head-actions"')
+    && !CH.includes('@click="goDeck')
+    && CH.includes('ref="resourceFolderGridRef"')
+    && CH.includes('@click="openAllResources"')
+    && read('/newtab/components/compass/HomeResourceFolderGrid.vue').includes('defineExpose({ openAll })')
     && !CH_C.includes('bt-tab');
 });
 

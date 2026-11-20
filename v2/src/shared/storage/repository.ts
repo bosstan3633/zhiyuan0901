@@ -8,7 +8,8 @@ import { STORAGE_KEY, UI_KEY } from '@/shared/models'
 import { HOT_KEY, applyHot, pickHot, writeHot, extractHot } from './hotStats'
 import { setCoolingDefaultDays } from '@/shared/utils/lifecycle'
 import { K } from './keys'
-import { createDefaultData, defaultFieldConfig, defaultThesisFieldDefs, defaultTopicStatuses } from './defaults'
+import { createDefaultData, defaultFieldConfig, defaultTaskStatuses, defaultThesisFieldDefs, defaultTopicStatuses } from './defaults'
+import { normalizeTaskStatusDomain } from '@/shared/utils/taskStatus'
 import { safeDecodeText } from '@/shared/utils'
 import { pruneDanglingProjections, scrubHubMirrorMarkers } from './hub'
 import { hydrateResourceMirrorSnapshots } from './resourceMirrors'
@@ -145,6 +146,9 @@ export function normalizeAppData(data: AppData): AppData {
   data.tasks = Array.isArray(data.tasks) ? data.tasks : []
   data.curiosities = Array.isArray(data.curiosities) ? data.curiosities : []
   data.topics = Array.isArray(data.topics) ? data.topics : []
+  data.taskStatuses = Array.isArray(data.taskStatuses) && data.taskStatuses.length
+    ? data.taskStatuses
+    : defaultTaskStatuses()
   data.planScheduleEvents = normalizePlanScheduleEvents(data.planScheduleEvents)
   data.topicStatuses = Array.isArray(data.topicStatuses) && data.topicStatuses.length
     ? data.topicStatuses
@@ -165,6 +169,7 @@ export function normalizeAppData(data: AppData): AppData {
   data.tagTree = Array.isArray(data.tagTree) ? data.tagTree : []
 
   normalizeLegacyCards(data)
+  normalizeTaskStatusDomain(data)
   pruneResourceFolderMirrors(data)
   if (!data.fieldConfig) data.fieldConfig = defaultFieldConfig()
   stripRetiredCardKeys(data.tasks)
@@ -615,6 +620,7 @@ export function mergeExternalData(ext: AppData): AppData {
     tasks: mergeCardArr(cur.tasks || [], snap.tasks || [], ext.tasks || []),
     curiosities: mergeCardArr(cur.curiosities || [], snap.curiosities || [], ext.curiosities || []),
     topics: mergeCardArr(cur.topics || [], snap.topics || [], ext.topics || []),
+    taskStatuses: mergeByIdArr(cur.taskStatuses || [], snap.taskStatuses || [], ext.taskStatuses || []),
     topicStatuses: mergeByIdArr(cur.topicStatuses || [], snap.topicStatuses || [], ext.topicStatuses || []),
     topicResourceLinks: mergeByIdArr(cur.topicResourceLinks || [], snap.topicResourceLinks || [], ext.topicResourceLinks || []),
     dailyFocus: mergeDailyFocus(cur.dailyFocus, snap.dailyFocus, ext.dailyFocus),
@@ -639,6 +645,7 @@ export function mergeExternalData(ext: AppData): AppData {
     /* V3.7.0：论证节点卡——同为"无 updatedAt 必比"的实体段（新建/改名/排序），按 id 并集。 */
     argCards: mergeByIdArr(cur.argCards || [], snap.argCards || [], ext.argCards || [])
   }
+  normalizeTaskStatusDomain(merged)
   // 合并结果与外部全等 = 本页没有需要保全的改动（例如自有写入的回声）→ 只同步不回写，杜绝写环
   if (jsonEq(merged, ext)) { syncCache(ext); return ext }
   cache = merged

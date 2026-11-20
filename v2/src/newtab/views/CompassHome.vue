@@ -81,19 +81,25 @@ const {
   liveTasks, liveTopics,
   previewTasks, previewTopics, liveCuriosities, previewCuriosities, liveResources, handNewCounts,
   hasAnyPreview, weeklyReuse, archivedCount, openTaskPreview, openTopicPreview, scheduleTopicPreview, openTopicPreviewDirect, openCurioPreview,
-  openResourcePreview, openRecentResource, goDeck, statusDetail, closeStatusDetail,
+  openResourcePreview, openRecentResource, statusDetail, closeStatusDetail,
   statusDetailTitle, statusDetailItems, statusDetailNote, statusDetailEmpty, weekStartKeyOf,
   openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
   focusSlotSourceLabel,
   taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
   taskWorkView, taskWorkSort, taskWorkGroup,
-  taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
+  taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkStatusOptions, taskWorkCounts,
   taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
   setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
   taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,
   focusTaskTarget, requestTaskFocus, replaceTaskFocus, closeTaskFocusReplace,
 } = useCompassHome()
+
+/** V4.7.1：资源页「查看全部 / 全部」直接打开全部资源卡抽屉，不再把用户带进二级卡片池。 */
+const resourceFolderGridRef = ref<InstanceType<typeof HomeResourceFolderGrid> | null>(null)
+function openAllResources(): void {
+  resourceFolderGridRef.value?.openAll()
+}
 
 /** V4.7.0：/deck/* 退役后，一级卡片池接管 tab 与 hl/hk 深链。 */
 const TAB_ALIAS: Record<string, HandKind> = {
@@ -380,55 +386,66 @@ watch(
                 资源 <span v-if="handNewCounts.resource" class="hand-new-badge" :aria-label="`${handNewCounts.resource} 张今日新增资源卡`">{{ handNewCounts.resource > 99 ? '99+' : handNewCounts.resource }}</span>
               </button>
             </div>
-            <div class="hand-head-actions">
-              <button class="hand-link" type="button" @click="goDeck(handTab)">
-                进入卡片池
-                <Icon name="arrowright" :size="12" />
-              </button>
-            </div>
           </header>
 
           <div v-if="handTab === 'task'" class="task-workbench">
             <div class="task-work-toolbar">
-              <label class="task-work-search">
-                <Icon name="search" :size="13" />
-                <input v-model="taskWorkSearch" placeholder="搜索任务、项目或指标" aria-label="搜索任务">
-              </label>
-              <select v-model="taskWorkProject" aria-label="按项目筛选任务">
-                <option value="">全部项目</option>
-                <option v-for="option in taskWorkProjectOptions" :key="option.id" :value="option.id">{{ option.name }}（{{ option.count }}）</option>
-              </select>
-              <select v-model="taskWorkStatus" aria-label="按任务状态筛选">
-                <option value="all">全部状态</option>
-                <option value="todo">待开始</option>
-                <option value="doing">进行中</option>
-                <option value="done">已完成</option>
-              </select>
-              <div class="task-work-quick" role="group" aria-label="任务快捷筛选">
-                <button type="button" :class="{ on: taskWorkQuick === 'all' }" @click="taskWorkQuick = 'all'">全部 <span>{{ taskWorkCounts.all }}</span></button>
-                <button type="button" :class="{ on: taskWorkQuick === 'noProject' }" @click="taskWorkQuick = 'noProject'">未挂项目 <span>{{ taskWorkCounts.noProject }}</span></button>
-                <button type="button" :class="{ on: taskWorkQuick === 'unplanned' }" @click="taskWorkQuick = 'unplanned'">未落图 <span>{{ taskWorkCounts.unplanned }}</span></button>
-                <button type="button" :class="{ on: taskWorkQuick === 'unarchived' }" @click="taskWorkQuick = 'unarchived'">未归档 <span>{{ taskWorkCounts.unarchived }}</span></button>
-                <button type="button" :class="{ on: taskWorkQuick === 'focus' }" @click="taskWorkQuick = 'focus'">主攻项目 <span>{{ taskWorkCounts.focus }}</span></button>
+              <div class="twt-row twt-primary">
+                <label class="task-work-search">
+                  <Icon name="search" :size="13" />
+                  <input v-model="taskWorkSearch" placeholder="搜索任务、项目或指标" aria-label="搜索任务">
+                </label>
+                <label class="twt-field">
+                  <span>项目</span>
+                  <select v-model="taskWorkProject" aria-label="按项目筛选任务">
+                    <option value="">全部项目</option>
+                    <option v-for="option in taskWorkProjectOptions" :key="option.id" :value="option.id">{{ option.name }}（{{ option.count }}）</option>
+                  </select>
+                </label>
+                <label class="twt-field">
+                  <span>状态</span>
+                  <select v-model="taskWorkStatus" aria-label="按任务状态筛选">
+                    <option value="all">全部状态</option>
+                    <option v-for="status in taskWorkStatusOptions" :key="status.id" :value="status.id">{{ status.name }}</option>
+                  </select>
+                </label>
+                <label class="twt-field twt-quick-field">
+                  <span>快速筛选</span>
+                  <select v-model="taskWorkQuick" aria-label="任务快速筛选">
+                    <option value="all">全部（{{ taskWorkCounts.all }}）</option>
+                    <option value="noProject">未挂项目（{{ taskWorkCounts.noProject }}）</option>
+                    <option value="unplanned">未落图（{{ taskWorkCounts.unplanned }}）</option>
+                    <option value="unarchived">未归档（{{ taskWorkCounts.unarchived }}）</option>
+                    <option value="focus">主攻项目（{{ taskWorkCounts.focus }}）</option>
+                  </select>
+                </label>
               </div>
-              <select v-model="taskWorkSort" aria-label="任务排序">
-                <option value="recent">最新入池</option>
-                <option value="unplanned">未落图优先</option>
-                <option value="due">按计划日期</option>
-              </select>
-              <select v-model="taskWorkGroup" aria-label="任务分组">
-                <option value="none">不分组</option>
-                <option value="project">按项目分组</option>
-              </select>
-              <div class="task-work-view-switch" role="group" aria-label="任务视图">
-                <button type="button" :class="{ on: taskWorkView === 'calendar' }" :aria-pressed="taskWorkView === 'calendar'" @click="taskWorkView = 'calendar'">月历</button>
-                <button type="button" :class="{ on: taskWorkView === 'board' }" :aria-pressed="taskWorkView === 'board'" @click="taskWorkView = 'board'">看板</button>
+              <div class="twt-row twt-secondary">
+                <label class="twt-field twt-field-compact">
+                  <span>排序</span>
+                  <select v-model="taskWorkSort" aria-label="任务排序">
+                    <option value="recent">最新入池</option>
+                    <option value="unplanned">未落图优先</option>
+                    <option value="due">按计划日期</option>
+                  </select>
+                </label>
+                <label class="twt-field twt-field-compact">
+                  <span>分组</span>
+                  <select v-model="taskWorkGroup" aria-label="任务分组">
+                    <option value="none">不分组</option>
+                    <option value="project">按项目分组</option>
+                  </select>
+                </label>
+                <div class="task-work-view-switch" role="group" aria-label="任务视图">
+                  <button type="button" :class="{ on: taskWorkView === 'calendar' }" :aria-pressed="taskWorkView === 'calendar'" @click="taskWorkView = 'calendar'">月历</button>
+                  <button type="button" :class="{ on: taskWorkView === 'board' }" :aria-pressed="taskWorkView === 'board'" @click="taskWorkView = 'board'">看板</button>
+                </div>
+                <label class="task-work-done-toggle">
+                  <input v-model="taskWorkShowDone" type="checkbox">
+                  月历显示已完成
+                </label>
+                <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = true; taskWorkSort = 'recent'; taskWorkGroup = 'none'">清空筛选</button>
               </div>
-              <label class="task-work-done-toggle">
-                <input v-model="taskWorkShowDone" type="checkbox">
-                月历显示已完成
-              </label>
-              <button class="task-work-clear" type="button" @click="taskWorkSearch = ''; taskWorkProject = ''; taskWorkStatus = 'all'; taskWorkQuick = 'all'; taskWorkShowDone = true; taskWorkSort = 'recent'; taskWorkGroup = 'none'">清空筛选</button>
             </div>
 
             <TaskCalendarView
@@ -437,6 +454,7 @@ watch(
               :focus-tasks="liveTasks"
               :topics="liveTopics"
               :topic-statuses="d.topicStatuses"
+              :task-statuses="taskWorkStatusOptions"
               :focus-slots="todayFocusList"
               :show-done="taskWorkShowDone"
               :project-names="taskWorkProjectNames"
@@ -460,6 +478,7 @@ watch(
               :tasks="taskWorkFiltered"
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
+              :statuses="taskWorkStatusOptions"
               @open-task="openTaskWork"
               @set-status="setTaskWorkStatus"
             />
@@ -479,9 +498,9 @@ watch(
                 <Icon name="filetext" :size="14" />
                 <b id="resColTitle">资源卡</b>
                 <span class="hand-count">{{ liveResources.length }}</span>
-                <button class="hand-link" type="button" @click="goDeck('resource')">查看全部 <Icon name="arrowright" :size="12" /></button>
+                <button class="hand-link" type="button" @click="openAllResources">查看全部 <Icon name="arrowright" :size="12" /></button>
               </header>
-              <HomeResourceFolderGrid :today-start="todayStart" />
+              <HomeResourceFolderGrid ref="resourceFolderGridRef" :today-start="todayStart" />
             </section>
 
             <section class="hand-col recent-resource-panel" aria-labelledby="recentResTitle">
@@ -489,7 +508,7 @@ watch(
                 <Icon name="trendup" :size="14" />
                 <b id="recentResTitle">常调 Top 10</b>
                 <span class="hand-count">本周 {{ weeklyReuse }} 次</span>
-                <button class="hand-link" type="button" @click="goDeck('resource')">全部 <Icon name="arrowright" :size="12" /></button>
+                <button class="hand-link" type="button" @click="openAllResources">全部 <Icon name="arrowright" :size="12" /></button>
               </header>
               <div class="recent-list resource-recent-list">
                 <button v-for="r in recentResources" :key="r.id" class="recent-item" type="button" title="查看资源卡详情" @click="openRecentResource(r)">
@@ -713,7 +732,7 @@ watch(
     </Transition>
 
     <TaskDetailDrawer ref="drawerRef" />
-    <CuriosityPanel details-only @closed="() => {}" />
+    <CuriosityPanel details-only details-host="home" @closed="() => {}" />
     <AiDrawer v-if="focusJob" :job="focusJob" @close="focusJob = null" />
   </div>
 </template>

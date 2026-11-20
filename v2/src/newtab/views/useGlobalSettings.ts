@@ -25,6 +25,7 @@ import { toOpenableUrl, openExternalLink } from '@/shared/utils/link'
 import { recordResourceOpen } from '../stores/compass'
 import { openHtmlAsset } from '@/shared/utils/htmlAsset'
 import { useGlobalSettingsPanels } from './useGlobalSettingsPanels'
+import { taskStatusOf } from '@/shared/utils/taskStatus'
 
 export interface NavItem { key: string; icon?: string; label: string; route?: string; mark?: boolean }
 export interface TagNodeLite { id: string; name: string; children?: TagNodeLite[] }
@@ -428,7 +429,7 @@ const ttRows = computed<TtRow[]>(() => {
   if (kind === 'all' || kind === 'task') {
     for (const t of store.data!.tasks || []) {
       if (t.deletedAt || !cardHasTag(t.tags, tag)) continue
-      out.push({ kind: 'task', id: t.id, title: t.title, sub: t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始', status: t.status, tags: t.tags || [] })
+      out.push({ kind: 'task', id: t.id, title: t.title, sub: taskStatusOf(store.data!, t)?.name || '待开始', status: t.statusId || t.status, tags: t.tags || [] })
     }
   }
   if (kind === 'all' || kind === 'curiosity') {

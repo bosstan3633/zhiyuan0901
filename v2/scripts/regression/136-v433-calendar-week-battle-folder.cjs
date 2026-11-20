@@ -5,7 +5,7 @@ const { check, read, codeOnly, exists } = require('./helpers.cjs')
 
 console.log('【V4.3.3 · 月周视图 / 文件夹明细 / 战报入口】')
 
-check('V433-1（V4.7.0 重指）任务清单吃完整筛选结果：默认最新入池在前，可切未落图优先/按计划日期；已完成任务仍由上方筛选决定', () => {
+check('V433-1（V4.7.0 重指 · ★V4.7.1 随迁备案）任务清单吃完整筛选结果：默认最新入池在前，可切未落图优先/按计划日期；快捷筛选改由 .twt-quick-field 下拉承载五个 quick 值，已完成任务仍由上方筛选决定', () => {
   const calendar = codeOnly(read('/newtab/components/compass/TaskCalendarView.vue'))
   const logic = codeOnly(read('/newtab/views/useCompassHome.ts'))
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
@@ -18,14 +18,18 @@ check('V433-1（V4.7.0 重指）任务清单吃完整筛选结果：默认最新
     && calendar.includes('if (aPlanned !== bPlanned) return aPlanned ? 1 : -1')
     && calendar.includes('return aDate.localeCompare(bDate) || taskOrder(a, b)')
     && logic.includes('unplanned: liveTasks.value.filter(task => !task.dueDate).length')
+    && logic.includes("if (quick === 'noProject' && task.projectId && taskWorkProjectNames.value.has(task.projectId)) return false")
     && logic.includes("if (quick === 'unplanned' && task.dueDate) return false")
+    && logic.includes("if (quick === 'unarchived' && task.projectId && task.metricId) return false")
+    && logic.includes("if (quick === 'focus' && (!task.projectId || !taskWorkFocusIds.value.has(task.projectId))) return false")
     && home.includes(':tasks="taskWorkFiltered"')
     && home.includes(':show-done="taskWorkShowDone"')
-    && home.includes("taskWorkQuick === 'noProject'")
-    && home.includes("taskWorkQuick === 'unplanned'")
-    && home.includes("taskWorkQuick === 'unarchived'")
-    && home.includes("taskWorkQuick === 'focus'")
-    && !home.includes("taskWorkQuick === 'overdue'")
+    && home.includes('v-model="taskWorkQuick"')
+    && home.includes('value="noProject"')
+    && home.includes('value="unplanned"')
+    && home.includes('value="unarchived"')
+    && home.includes('value="focus"')
+    && !home.includes('value="overdue"')
     && calendar.includes('已落图任务按日期排在后面')
 })
 

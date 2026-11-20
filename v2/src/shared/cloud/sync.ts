@@ -53,7 +53,7 @@ export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: Ca
 export type SyncManifestRecordType =
   | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'topic' | 'argument'
   | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'supportLink'
-  | 'topicResourceLink' | 'topicStatus'
+  | 'topicResourceLink' | 'topicStatus' | 'taskStatus'
   | 'curationProjection' | 'resourceFolder' | 'resourceFolderMirror'
   | 'planScheduleEvent'
   | 'tag' | 'activity' | 'stats' | 'fieldConfig'
@@ -79,6 +79,7 @@ export interface SyncManifestCounts {
   curiosities: number
   topics: number
   topicStatuses: number
+  taskStatuses: number
   topicResourceLinks: number
   arguments: number
   directions: number
@@ -403,10 +404,11 @@ export function sanitizeCloudSnapshot(snapshot: SnapshotState): SnapshotState {
 
 const MANIFEST_FIELDS: Partial<Record<SyncManifestRecordType, readonly string[]>> = {
   resource: ['title', 'description', 'tags', 'linkType', 'link', 'linkSlots', 'workspaceId', 'categoryId', 'sourceType', 'pinned', 'starred', 'lifecycleArchived', 'customFields'],
-  task: ['title', 'description', 'tags', 'projectId', 'metricId', 'status', 'priority', 'dueDate', 'estimatedMinutes', 'link', 'completedAt', 'subtasks', 'pinned', 'starred', 'customFields'],
+  task: ['title', 'description', 'tags', 'projectId', 'metricId', 'statusId', 'status', 'statusBeforeDone', 'priority', 'dueDate', 'estimatedMinutes', 'link', 'completedAt', 'subtasks', 'pinned', 'starred', 'customFields'],
   curiosity: ['question', 'description', 'tags', 'sourceUrl', 'sourceTitle', 'status', 'pinned', 'starred', 'customFields'],
   topic: ['title', 'description', 'tags', 'projectId', 'metricId', 'statusId', 'dueDate', 'link', 'linkType', 'sourceType', 'completedAt', 'pinned', 'starred', 'customFields'],
   topicStatus: ['name', 'color', 'order', 'terminal'],
+  taskStatus: ['name', 'color', 'order', 'bucket', 'terminal'],
   topicResourceLink: ['topicId', 'resourceId', 'from', 'why', 'createdAt', 'snapshot'],
   planScheduleEvent: ['cardId', 'cardKind', 'at', 'date', 'fromDate', 'source', 'removedAt'],
   argument: ['title', 'content', 'workspaceId', 'order', 'linkedResourceIds', 'assets'],
@@ -473,7 +475,7 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   const records: SyncManifestRecord[] = []
   const counts: SyncManifestCounts = {
     workspaces: 0, categories: 0, resources: 0, tasks: 0, curiosities: 0, topics: 0,
-    topicStatuses: 0, topicResourceLinks: 0, arguments: 0,
+    topicStatuses: 0, taskStatuses: 0, topicResourceLinks: 0, arguments: 0,
     directions: 0, projects: 0, metrics: 0, dailyFocus: 0, supportLinks: 0,
     curationProjections: 0, resourceFolders: 0, resourceFolderMirrors: 0, planScheduleEvents: 0,
     tags: 0, activities: 0, events: clean.eventLog.length,
@@ -539,6 +541,10 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   for (const status of data.topicStatuses || []) {
     counts.topicStatuses += 1
     add(manifestRecord('topicStatus', status.id, status.name, status))
+  }
+  for (const status of data.taskStatuses || []) {
+    counts.taskStatuses += 1
+    add(manifestRecord('taskStatus', status.id, status.name, status))
   }
   for (const card of data.argCards || []) {
     counts.arguments += 1
@@ -652,7 +658,7 @@ export function buildSyncManifest(snapshot: SnapshotState, revision: number, fin
   collectAssets(data.topics || [])
   collectAssets(data.argCards || [])
   counts.businessTotal = counts.workspaces + counts.categories + counts.resources + counts.tasks
-    + counts.curiosities + counts.topics + counts.topicStatuses + counts.topicResourceLinks
+    + counts.curiosities + counts.topics + counts.topicStatuses + counts.taskStatuses + counts.topicResourceLinks
     + counts.arguments + counts.directions + counts.projects + counts.metrics
     + counts.dailyFocus + counts.supportLinks + counts.curationProjections
     + counts.resourceFolders + counts.resourceFolderMirrors + counts.tags

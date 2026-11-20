@@ -61,13 +61,13 @@ check('V434-2（V4.7.0 重指）今日三件事与今日日历严格同源：进
     && (manager.match(/result\.status === 'exists'[\s\S]{0,160}store\.persist\(\)/g) || []).length >= 1
 })
 
-check('V434-3 周视图按更宽裕的纵向空间呈现更完整任务卡：最多 12 条、标题两行、项目/指标/状态第二层，月视图仍保持紧凑', () => {
+check('V434-3 ★V4.7.1 随迁备案：周视图按更宽裕的纵向空间呈现更完整任务卡：最多 12 条、标题两行、项目/指标/动态状态第二层，月视图仍保持紧凑', () => {
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
   const css = read('/newtab/components/compass/TaskCalendarView.css')
   return calendar.includes("calendarMode.value === 'week' ? 12 : 3")
     && calendar.includes("v-if=\"calendarMode === 'week'\" class=\"cal-chip-meta\"")
     && calendar.includes('{{ projectLabel(task) }}')
-    && calendar.includes('{{ statusLabel(task.status) }}')
+    && calendar.includes('{{ statusLabel(entry.task) }}')
     && css.includes('.cal-grid.is-week .cal-task-chip {')
     && css.includes('min-height: 58px;')
     && css.includes('.cal-grid.is-week .cal-chip-title {')

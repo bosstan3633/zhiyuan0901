@@ -1,7 +1,7 @@
 /**
  * 默认数据工厂 · 首次安装时初始化
  */
-import type { AppData, FieldDef, TopicStatusDef } from '@/shared/models'
+import type { AppData, FieldDef, TaskStatusDef, TopicStatusDef } from '@/shared/models'
 import { uid } from '@/shared/utils'
 
 function defaultFieldDefs() {
@@ -89,6 +89,15 @@ export function defaultTopicStatuses(): TopicStatusDef[] {
   ]
 }
 
+/** V4.7.1：任务卡默认状态。ID 固定，改名/改色不破坏已有卡片引用。 */
+export function defaultTaskStatuses(): TaskStatusDef[] {
+  return [
+    { id: 'task-todo', name: '待开始', color: '#6F7C86', order: 0, bucket: 'todo' },
+    { id: 'task-doing', name: '进行中', color: '#0F6F9E', order: 1, bucket: 'doing' },
+    { id: 'task-done', name: '已完成', color: '#168457', order: 2, bucket: 'done', terminal: true },
+  ]
+}
+
 export function createDefaultData(): AppData {
   const now = Date.now()
   const wsBiz = uid('ws')
@@ -118,6 +127,7 @@ export function createDefaultData(): AppData {
     curiosities: [],
     topics: [],
     topicStatuses: defaultTopicStatuses(),
+    taskStatuses: defaultTaskStatuses(),
     planScheduleEvents: [],
     topicResourceLinks: [],
     argCards: [],

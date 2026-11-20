@@ -352,6 +352,29 @@ function fmt(ts?: number): string {
     </template>
 
     <div v-if="topic" class="topic-body">
+      <!-- V4.7.1：选题与任务同构——安排历程是首屏主模块，日期/状态与今日重点收进同一条编辑行。 -->
+      <section class="topic-plan topic-plan-hero">
+        <PlanScheduleHistory :card-id="topic.id" card-kind="topic" :current-date="topic.dueDate" />
+        <div class="topic-plan-edit">
+          <label class="topic-field">
+            <span><Icon name="calendar" :size="12" /> 调整计划</span>
+            <input type="date" :value="topic.dueDate || ''" @change="updateDueDate(($event.target as HTMLInputElement).value)">
+          </label>
+          <label class="topic-field">
+            <span><Icon name="circle" :size="12" /> 状态</span>
+            <select :value="topic.statusId" @change="changeStatus(($event.target as HTMLSelectElement).value)">
+              <option v-for="item in statuses" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <button v-if="topic.dueDate" class="topic-plan-clear" type="button" @click="updateDueDate('')">
+            <Icon name="x" :size="12" /> 取消排期
+          </button>
+          <button class="topic-focus-link" type="button" @click="addToToday">
+            <Icon name="target" :size="12" /> 设为今日重点
+          </button>
+        </div>
+      </section>
+
       <section class="topic-outcome" :class="{ empty: !outcome }">
         <header>
           <div>
@@ -400,24 +423,6 @@ function fmt(ts?: number): string {
       <button class="topic-pano-link" type="button" :disabled="!projectId" @click="goProjectPano">
         <Icon name="compass" :size="13" /> 查看项目全景
       </button>
-
-      <section class="topic-plan">
-        <label class="topic-field">
-          <span><Icon name="calendar" :size="13" /> 计划执行日期</span>
-          <input type="date" :value="topic.dueDate || ''" @change="updateDueDate(($event.target as HTMLInputElement).value)">
-        </label>
-        <label class="topic-field">
-          <span><Icon name="circle" :size="13" /> 选题状态</span>
-          <select :value="topic.statusId" @change="changeStatus(($event.target as HTMLSelectElement).value)">
-            <option v-for="item in statuses" :key="item.id" :value="item.id">{{ item.name }}</option>
-          </select>
-        </label>
-        <button class="topic-focus-btn" type="button" @click="addToToday">
-          <Icon name="target" :size="13" /> 设为今日重点
-          <span>同步进入今日三件事与今日日历</span>
-        </button>
-        <PlanScheduleHistory :card-id="topic.id" card-kind="topic" :current-date="topic.dueDate" />
-      </section>
 
       <section class="topic-resource-core">
         <header class="topic-section-head">
@@ -528,9 +533,24 @@ function fmt(ts?: number): string {
 .topic-field select:disabled { opacity: var(--opacity-disabled); }
 .topic-pano-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--accent); font-family: inherit; font-size: var(--fs-caption); cursor: pointer; }
 .topic-pano-link:disabled { color: var(--text-4); cursor: not-allowed; }
-.topic-plan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
-.topic-focus-btn { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 8px 11px; border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border)); border-radius: 10px; background: var(--accent-light); color: var(--accent-ink); font-family: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
-.topic-focus-btn span { margin-left: auto; color: var(--text-3); font-size: var(--fs-micro); font-weight: 500; }
+.topic-plan { display: flex; flex-direction: column; gap: 10px; }
+.topic-plan-hero {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(420px 130px at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
+    var(--surface-2);
+}
+.topic-plan-edit { display: flex; align-items: flex-end; gap: 7px; flex-wrap: wrap; padding-top: 9px; border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent); }
+.topic-plan-edit .topic-field { flex: 1 1 170px; }
+.topic-plan-edit .topic-field input,
+.topic-plan-edit .topic-field select { min-height: 32px; padding: 4px 8px; background: var(--surface); font-size: var(--fs-caption); }
+.topic-plan-clear,
+.topic-focus-link { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-caption); cursor: pointer; }
+.topic-plan-clear:hover { border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); background: var(--tag-danger-bg); color: var(--danger); }
+.topic-focus-link { margin-left: auto; color: var(--accent-ink); font-weight: 650; }
+.topic-focus-link:hover { border-color: color-mix(in srgb, var(--accent) 26%, var(--border)); background: var(--accent-light); }
 .topic-resource-core { padding: 14px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius-xl); background: color-mix(in srgb, var(--accent-light) 34%, var(--surface)); }
 .topic-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .topic-section-head > div { display: flex; flex-direction: column; gap: 2px; }
@@ -574,7 +594,6 @@ function fmt(ts?: number): string {
 .topic-save { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-sub); font-weight: 650; cursor: pointer; }
 @media (max-width: 640px) {
   .topic-owner, .topic-plan { grid-template-columns: 1fr; }
-  .topic-focus-btn { grid-column: auto; }
-  .topic-focus-btn span { display: none; }
+  .topic-focus-link { margin-left: 0; }
 }
 </style>

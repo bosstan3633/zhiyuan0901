@@ -89,6 +89,7 @@ function doReset() {
   store.data!.curiosities = []
   store.data!.topics = []
   store.data!.argCards = []
+  store.data!.taskStatuses = fresh.taskStatuses
   store.data!.topicStatuses = fresh.topicStatuses
   store.data!.topicResourceLinks = []
   store.data!.supportLinks = []

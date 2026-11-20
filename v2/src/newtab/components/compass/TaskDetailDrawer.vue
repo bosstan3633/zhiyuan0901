@@ -24,7 +24,7 @@ import AssetBadge from '@/shared/components/AssetBadge.vue'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
-import { setTaskStatus as commitTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { isTaskDone, setTaskStatusById, sortedTaskStatuses, taskStatusOf, toggleTaskDone } from '@/shared/utils/taskStatus'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import PlanScheduleHistory from './PlanScheduleHistory.vue'
 
@@ -51,26 +51,31 @@ function open(task: TaskCard) {
 function close() { sidebarOpen.value = false; selectedTask.value = null; emit('closed') }
 defineExpose({ open, close })
 
+const taskStatuses = computed(() => sortedTaskStatuses(d.value))
+const currentTaskStatus = computed(() => selectedTask.value ? taskStatusOf(d.value, selectedTask.value) : undefined)
+
 /** B22：状态统一出口（completedAt 卫生清理） */
-function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
-  commitTaskStatus(t, status)
+function setTaskStatusOf(t: TaskCard, statusId: string) {
+  if (!setTaskStatusById(d.value, t, statusId)) return
   store.persist()
 }
 function toggleTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  toggleTaskStatus(t)
+  toggleTaskDone(d.value, t)
   store.persist()
 }
 /** 第卅二轮 REQ-006：任务详情面板时间戳可见 */
 function fmtTaskTs(ts?: number): string {
   return ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '—'
 }
-/** B22：抽屉内状态三选 chips */
-function setTaskStatus(t: TaskCard, status: 'todo' | 'doing' | 'done') {
-  if (t.status === status) return
-  setTaskStatusOf(t, status)
-  showToast('状态已切换为「' + (status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始') + '」')
+/** B22：抽屉内状态菜单（自定义状态列表） */
+function setTaskStatus(t: TaskCard, statusId: string) {
+  if (t.statusId === statusId) return
+  const status = taskStatuses.value.find(row => row.id === statusId)
+  if (!status) return
+  setTaskStatusOf(t, statusId)
+  showToast('状态已切换为「' + status.name + '」')
 }
 // V4.4.0：任务详情以「AI 找资源」为主入口，AI 补全降为说明区的次级工具；
 // AI 拆解、子任务、优先级、估时与导出退出任务详情，历史数据结构仅做兼容读取。
@@ -319,14 +324,9 @@ function gotoProjectPano() {
 }
 // R48 详情重设计：头部状态下拉（替代 body 内三枚大 chip）
 const statusMenuOpen = ref(false)
-const STATUS_UI: Record<'todo' | 'doing' | 'done', { label: string; cls: string }> = {
-  todo: { label: '○ 待开始', cls: 'st-todo' },
-  doing: { label: '◐ 进行中', cls: 'st-doing' },
-  done: { label: '已完成', cls: 'st-done' }
-}
-function pickStatus(status: 'todo' | 'doing' | 'done') {
+function pickStatus(statusId: string) {
   statusMenuOpen.value = false
-  if (selectedTask.value) setTaskStatus(selectedTask.value, status)
+  if (selectedTask.value) setTaskStatus(selectedTask.value, statusId)
 }
 // B23：抽屉快捷键挂文档级（焦点在 TagPicker 浮层等 Teleport 内容内也能生效）
 /**
@@ -351,14 +351,18 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
     <template v-if="selectedTask" #title>
         <div class="ts-title-wrap">
           <div class="ts-title-row">
-            <div class="check-lg" v-pressable :class="{done: selectedTask.status==='done'}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="selectedTask.status==='done'" name="check" :size="16"/></div>
+            <div class="check-lg" v-pressable :class="{done: isTaskDone(d, selectedTask)}" @click="toggleTask(selectedTask.id)" title="切换完成状态"><Icon v-if="isTaskDone(d, selectedTask)" name="check" :size="16"/></div>
             <textarea v-model="taskTitleDraft" class="ts-title" rows="3" placeholder="写下一条完整、可执行的任务…" @blur="saveTaskTitle" />
           </div>
           <div class="ts-head-row2">
             <div class="ds-status-wrap" data-a11y-container @click.stop>
-              <button class="ds-status-chip2" :class="STATUS_UI[selectedTask.status].cls" @click.stop="statusMenuOpen = !statusMenuOpen">{{ STATUS_UI[selectedTask.status].label }}</button>
+              <button class="ds-status-chip2" :style="{ '--task-status': currentTaskStatus?.color || 'var(--text-3)' }" @click.stop="statusMenuOpen = !statusMenuOpen">
+                <span class="ds-status-dot" />{{ currentTaskStatus?.name || '待开始' }}
+              </button>
               <div v-if="statusMenuOpen" class="ds-status-menu" data-a11y-container>
-                <div v-for="(ui, key) in STATUS_UI" :key="key" class="mi" v-pressable :class="{on: selectedTask.status === key}" @click.stop="pickStatus(key as 'todo'|'doing'|'done')">{{ ui.label }}</div>
+                <div v-for="status in taskStatuses" :key="status.id" class="mi" v-pressable :class="{on: currentTaskStatus?.id === status.id}" @click.stop="pickStatus(status.id)">
+                  <span class="ds-status-dot" :style="{ '--task-status': status.color }" />{{ status.name }}
+                </div>
               </div>
             </div>
             <AssetBadge v-if="selectedTask.assets?.length" :assets="selectedTask.assets" />
@@ -368,6 +372,25 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
     </template>
     <template v-if="selectedTask">
       <div class="ts-body">
+        <!-- V4.7.1：安排历程是任务的首屏主信息——先回答“这张卡被安排到哪天、改过几次”，
+             再进入项目/指标与资源上下文；设为今日重点降为模块内次级动作。 -->
+        <section class="ts-section ts-plan-hero">
+          <PlanScheduleHistory :card-id="selectedTask.id" card-kind="task" :current-date="selectedTask.dueDate" />
+          <div class="ts-plan-edit">
+            <label class="ts-plan-field">
+              <span><Icon name="calendar" :size="12" /> 调整计划</span>
+              <input type="date" :value="selectedTask.dueDate || ''" @change="updatePlannedDate(($event.target as HTMLInputElement).value)">
+            </label>
+            <button v-if="selectedTask.dueDate" class="ts-plan-clear" type="button" @click="updatePlannedDate('')">
+              <Icon name="x" :size="12" /> 取消排期
+            </button>
+            <button class="ts-focus-link" type="button" @click="addToTodayFocus">
+              <Icon name="target" :size="12" /> 设为今日重点
+            </button>
+          </div>
+          <p class="ts-plan-note">没有“截止日期”字段；留空即未落图，拖入今日日历会同步进入今日三件事。</p>
+        </section>
+
         <!-- 归属是任务的首屏上下文：项目 / 指标紧跟标题与状态读数，压缩为两枚轻量字段。 -->
         <div class="ts-section ts-owner ds-props2">
           <div class="ds-prop-field">
@@ -391,21 +414,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           @click="gotoProjectPano">
           <Icon name="compass" :size="13"/> 查看项目全景（全部指标与任务）›
         </button>
-        <div class="ts-section ts-plan-section">
-          <div class="ds-prop-label"><Icon name="calendar" :size="13"/> 计划执行</div>
-          <div class="ts-plan-grid">
-            <label class="ts-plan-field">
-              <span>计划执行日期</span>
-              <input type="date" :value="selectedTask.dueDate || ''" @change="updatePlannedDate(($event.target as HTMLInputElement).value)">
-            </label>
-          </div>
-          <div class="ts-plan-note">没有“截止日期”字段。留空即未落图；拖入今日日历会同步进入今日三件事。</div>
-          <PlanScheduleHistory :card-id="selectedTask.id" card-kind="task" :current-date="selectedTask.dueDate" />
-          <button class="ts-focus-btn" type="button" @click="addToTodayFocus">
-            <Icon name="target" :size="13" /> 设为今日重点
-            <span>同步写入今天的计划执行日期，不改状态与归属</span>
-          </button>
-        </div>
         <!-- R166 定案 5/F4：资源支持区——行=资源标题+AI 判词，点行打开链接并计热度，× 只删关联记录。
              两张卡本体互不持有 id（关联住在 AppData.supportLinks 独立表），「卡间零挂载」红线不破。 -->
         <div class="ts-section ts-resource-section">
@@ -491,34 +499,50 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
 .mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-.ts-plan-section {
+.ts-plan-hero {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(420px 130px at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 72%),
+    var(--surface-2);
 }
 
-.ts-plan-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+.ts-plan-edit {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding-top: 9px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
 }
 
 .ts-plan-field {
   display: flex;
   min-width: 0;
+  flex: 1 1 170px;
   flex-direction: column;
   gap: 5px;
   color: var(--text-3);
   font-size: var(--fs-caption);
 }
 
+.ts-plan-field > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .ts-plan-field input {
   min-width: 0;
-  min-height: 34px;
-  padding: 5px 8px;
+  min-height: 32px;
+  padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--text);
   font-family: inherit;
   font-size: var(--fs-caption);
@@ -530,37 +554,43 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 }
 
 .ts-plan-note {
+  margin: 0;
   color: var(--text-3);
   font-size: var(--fs-micro);
   line-height: 1.6;
 }
 
-.ts-focus-btn {
-  display: flex;
+.ts-plan-clear,
+.ts-focus-link {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 7px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: var(--radius-sm);
-  background: var(--accent-light);
-  color: var(--accent-ink);
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
   font-family: inherit;
   font-size: var(--fs-caption);
-  font-weight: 650;
-  text-align: left;
   cursor: pointer;
 }
 
-.ts-focus-btn span {
-  margin-left: auto;
-  color: var(--text-3);
-  font-size: var(--fs-micro);
-  font-weight: 400;
+.ts-plan-clear:hover {
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  background: var(--tag-danger-bg);
+  color: var(--danger);
 }
 
-.ts-focus-btn:hover {
-  border-color: var(--accent);
+.ts-focus-link {
+  margin-left: auto;
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+
+.ts-focus-link:hover {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  background: var(--accent-light);
 }
 
 /* 任务抽屉：外框、标题槽、正文滚动与页脚由 Drawer.vue 统一承担。 */
@@ -635,10 +665,22 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-foot .mini-btn.primary { flex: 2; }
 .ts-kbd { font-size: var(--fs-tiny); background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
 
-/* ===== R48 详情重设计 ===== */
-.ds-status-chip2.st-todo { background: var(--tag-neutral-bg, var(--surface-3)); color: var(--text-2); }
-.ds-status-chip2.st-doing { background: var(--tag-warn-bg); color: var(--tag-warn-text); }
-.ds-status-chip2.st-done { background: var(--tag-ok-bg); color: var(--tag-ok-text); }
+/* ===== R48 详情重设计 · V4.7.1 自定义任务状态 ===== */
+.ds-status-chip2 {
+  border-color: color-mix(in srgb, var(--task-status, var(--border-strong)) 34%, var(--border));
+  background: color-mix(in srgb, var(--task-status, var(--text-3)) 11%, var(--surface-2));
+  color: var(--text-2);
+}
+.ds-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-right: 4px;
+  border-radius: 99px;
+  background: var(--task-status, var(--text-3));
+  vertical-align: 1px;
+}
 .ds-goto-inline { color: var(--accent); cursor: pointer; }
 .ds-goto-inline:hover { text-decoration: underline; }
 .ds-prop-select { margin-top: 1px; }

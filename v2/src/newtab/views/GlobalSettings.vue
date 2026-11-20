@@ -47,16 +47,22 @@
         </div>
       </div>
 
-      <!-- ===== 任务卡字段 ===== -->
+      <!-- ===== 任务卡字段与状态 ===== -->
       <div v-if="activePage === 'task'" class="gs-panel">
         <div class="gs-page-header">
-          <div class="gs-page-title"><Icon name="check" :size="13"/> 任务卡字段设计</div>
-          <div class="gs-page-desc">拖拽字段调整顺序，开关控制在视图中是否显示</div>
+          <div class="gs-page-title"><Icon name="check" :size="13"/> 任务卡字段与状态</div>
+          <div class="gs-page-desc">拖拽字段调整顺序；任务状态可改名、改色、排序，并随云同步</div>
         </div>
         <div class="gs-card">
           <div class="gs-card-header"><span class="gs-card-title">字段列表</span><span class="gs-card-desc">顺序即视图展示顺序</span></div>
           <div class="gs-card-body">
             <FieldEditor :fields="fields.task" card-type="task" :cross-fields="fields" @change="onFieldChange" @notify="showToast" />
+          </div>
+        </div>
+        <div class="gs-card">
+          <div class="gs-card-header"><span class="gs-card-title">任务状态</span><span class="gs-card-desc">看板列、详情徽标、任务筛选和完成语义共用这一套状态</span></div>
+          <div class="gs-card-body">
+            <TaskStatusEditor />
           </div>
         </div>
       </div>
@@ -224,7 +230,7 @@
             <div class="gs-pd-title">{{ ttDetail.title }}</div>
             <div class="gs-pd-row" v-if="ttDetail.link"><span class="gs-pd-k">链接</span><span class="gs-pd-v">{{ ttDetail.link }}</span></div>
             <div class="gs-pd-row" v-if="ttDetail.desc"><span class="gs-pd-k">描述</span><span class="gs-pd-v">{{ ttDetail.desc }}</span></div>
-            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.status === 'done' ? '已完成' : ttDetail.status === 'doing' ? '进行中' : '待开始') : ttDetail.kind === 'topic' ? '选题卡 · ' + (ttDetail.sub || '') : '好奇心卡 · ' + (ttDetail.status || '') }}</span></div>
+            <div class="gs-pd-row"><span class="gs-pd-k">类型</span><span class="gs-pd-v">{{ ttDetail.kind === 'resource' ? '资源卡' : ttDetail.kind === 'task' ? '任务卡 · ' + (ttDetail.sub || '待开始') : ttDetail.kind === 'topic' ? '选题卡 · ' + (ttDetail.sub || '') : '好奇心卡 · ' + (ttDetail.sub || '') }}</span></div>
             <div class="gs-pd-row" v-if="ttDetail.tags.length"><span class="gs-pd-k">标签</span><span class="gs-pd-v">#{{ ttDetail.tags.join(' #') }}</span></div>
             <div class="gs-pd-actions">
               <button v-if="ttDetail.kind === 'resource' && ttDetail.link" class="gs-btn gs-btn-primary" @click="openCardLink({ link: ttDetail.link })"><Icon name="external" :size="13"/> 打开链接</button>
@@ -423,6 +429,7 @@ import SettingsDataManagement from './settings/SettingsDataManagement.vue'
 import RecycleBin from './RecycleBin.vue'
 import SettingsShortcutsPanel from './settings/SettingsShortcutsPanel.vue'
 import TopicStatusEditor from './settings/TopicStatusEditor.vue'
+import TaskStatusEditor from './settings/TaskStatusEditor.vue'
 import MigrateReportCard from '../components/MigrateReportCard.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import AiSuggestionDrawer from '@/newtab/components/AiSuggestionDrawer.vue'

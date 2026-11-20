@@ -21,6 +21,7 @@ import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { metricMaturity } from '@/shared/utils/maturity'
 import { resolveProjectNextStep, tasksOfMetric, tasksOfProject } from '../views/compassMeta'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
+import { taskStatusOf } from '@/shared/utils/taskStatus'
 import { buildProjectTree } from '../views/projectTree'
 // R146：删除指标的确认 / 报数 / 撤销由 removeMetricWithConfirm 统一走 useConfirm，本组件不另拼弹窗。
 import TaskAddDrawer from './TaskAddDrawer.vue'
@@ -220,8 +221,9 @@ function openMetric(metricId: string) {
 function openTask(task: TaskCard) { detailRef.value?.open(task) }
 function openTopic(topic: TopicCard) { emitOpenDrawer({ kind: 'topic', id: topic.id }) }
 
-function taskStatusLabel(status: TaskCard['status']): string {
-  return status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'
+function taskStatusLabel(task: TaskCard): string {
+  return taskStatusOf(store.data!, task)?.name
+    || (task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始')
 }
 function planDateLabel(date?: string): string {
   if (!date) return '未落图'
@@ -353,7 +355,7 @@ function topicDone(topic: TopicCard): boolean {
                     <Icon v-if="task.status === 'done'" name="check" :size="14" />
                   </div>
                   <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
-                  <span class="pd-state">{{ taskStatusLabel(task.status) }}</span>
+                  <span class="pd-state">{{ taskStatusLabel(task) }}</span>
                   <span class="pd-date" :class="{ empty: !task.dueDate }" :title="task.dueDate ? `计划执行 ${task.dueDate}` : '未落图'">
                     {{ task.dueDate ? `计划 ${planDateLabel(task.dueDate)}` : '未落图' }}
                   </span>
@@ -386,7 +388,7 @@ function topicDone(topic: TopicCard): boolean {
                   <Icon v-if="task.status === 'done'" name="check" :size="14" />
                 </div>
                 <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
-                <span class="pd-state">{{ taskStatusLabel(task.status) }}</span>
+                <span class="pd-state">{{ taskStatusLabel(task) }}</span>
                 <span class="pd-date" :class="{ empty: !task.dueDate }" :title="task.dueDate ? `计划执行 ${task.dueDate}` : '未落图'">
                   {{ task.dueDate ? `计划 ${planDateLabel(task.dueDate)}` : '未落图' }}
                 </span>

@@ -221,6 +221,7 @@ export async function migrateV1ToV2(): Promise<AppData> {
     curiosities,
     topics: [],
     topicStatuses: createDefaultData().topicStatuses,
+    taskStatuses: defaults.taskStatuses,
     topicResourceLinks: [],
     dailyFocus,
     tagTree: [],
@@ -331,6 +332,7 @@ function migrateTask(link: V1Link): TaskCard {
     description: link.desc || link.description || '',
     projectId: link.goalId || undefined,  // V1 goalId = V2 projectId
     metricId: link.metricId || undefined,
+    statusId: status === 'done' ? 'task-done' : status === 'doing' ? 'task-doing' : 'task-todo',
     status,
     priority,
     dueDate: link.dueDate || undefined,

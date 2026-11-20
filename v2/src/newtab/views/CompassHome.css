@@ -1194,13 +1194,6 @@
   flex-wrap: wrap;
 }
 
-.hand-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-left: auto;
-}
-
 .card-pool-board {
   overflow: visible;
 }
@@ -1211,22 +1204,60 @@
 
 .task-work-toolbar {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 10px;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-2);
+}
+
+.twt-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  min-width: 0;
   flex-wrap: wrap;
+}
+
+.twt-primary {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(128px, 160px));
+  align-items: end;
+}
+
+.twt-secondary {
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.twt-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.twt-field > span {
+  padding-left: 2px;
+  color: var(--text-4);
+  font-size: var(--fs-tiny);
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+
+.twt-field select {
+  width: 100%;
+  max-width: none;
 }
 
 .task-work-search {
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 210px;
-  min-height: 31px;
+  width: 100%;
+  min-height: 33px;
   padding: 0 9px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1250,8 +1281,7 @@
 }
 
 .task-work-toolbar select {
-  min-height: 31px;
-  max-width: 150px;
+  min-height: 33px;
   padding: 4px 24px 4px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1263,14 +1293,6 @@
   cursor: pointer;
 }
 
-.task-work-quick {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  flex-wrap: wrap;
-}
-
-.task-work-quick button,
 .task-work-clear {
   min-height: 28px;
   padding: 0 7px;
@@ -1283,26 +1305,14 @@
   cursor: pointer;
 }
 
-.task-work-quick button:hover,
 .task-work-clear:hover {
   background: var(--surface);
   color: var(--text);
 }
 
-.task-work-quick button.on {
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
-  background: var(--accent-light);
-  color: var(--accent-ink);
-}
-
-.task-work-quick span {
-  margin-left: 3px;
-  color: var(--text-4);
-  font-variant-numeric: tabular-nums;
-}
-
 .task-work-view-switch {
   display: inline-flex;
+  align-self: flex-end;
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--border);
@@ -1330,6 +1340,7 @@
 
 .task-work-done-toggle {
   display: inline-flex;
+  align-self: center;
   align-items: center;
   gap: 5px;
   margin-left: auto;
@@ -1343,6 +1354,7 @@
 }
 
 .task-work-clear {
+  align-self: center;
   color: var(--text-2);
 }
 
@@ -1442,11 +1454,14 @@
   .pm-summary span:last-child { display: none; }
   .picker-modal { max-height: 84vh; }
   .task-work-toolbar { align-items: stretch; }
+  .twt-primary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .twt-primary .task-work-search { grid-column: 1 / -1; }
+  .twt-row { align-items: stretch; }
   .task-work-search { width: 100%; }
   .task-work-toolbar select { max-width: none; flex: 1 1 130px; }
   .task-work-done-toggle { margin-left: 0; }
-  .task-work-quick { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
-  .task-work-quick button { flex: none; }
+  .task-work-view-switch { align-self: stretch; }
+  .task-work-clear { align-self: center; }
   .task-assign-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {

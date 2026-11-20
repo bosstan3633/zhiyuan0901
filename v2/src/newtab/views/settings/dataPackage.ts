@@ -10,7 +10,7 @@ import { EVENT_LOG_CAP, mergeImportedEventLog, readEventLog } from '@/shared/uti
 import { normalizeLegacyCards, stripRetiredCardKeys } from '@/shared/storage/repository'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { reconcileCapturedResources } from '@/shared/storage/captureDedupe'
-import { defaultThesisFieldDefs, defaultTopicStatuses } from '@/shared/storage/defaults'
+import { defaultTaskStatuses, defaultThesisFieldDefs, defaultTopicStatuses } from '@/shared/storage/defaults'
 import { sanitizeCategoryTree, catTreeFixedAny, catTreeFixNote } from '@/shared/utils/catTree'
 import { sanitizeCardCols } from '@/shared/utils/cardCols'
 import { sanitizeWsView } from '@/shared/utils/wsView'
@@ -50,6 +50,9 @@ export function buildDataPackage(
   delete safe.airtableMap
   const payload: DataPackage = {
     ...(safe as unknown as DataPackage),
+    taskStatuses: Array.isArray(data.taskStatuses) && data.taskStatuses.length
+      ? data.taskStatuses
+      : defaultTaskStatuses(),
     packageType: 'zhiyuan_data',
     exportedAt: new Date().toISOString(),
     eventLog: eventLog.slice(-EVENT_LOG_CAP)
@@ -108,6 +111,7 @@ export async function mergeDataPackage(imported: DataPackage, current: AppData):
   d.tasks = mergeById(d.tasks, stripRetiredCardKeys<TaskCard>(imported.tasks).map(t => ({ ...t, importedAt: importedNow })))
   d.curiosities = mergeById(d.curiosities, stripRetiredCardKeys<CuriosityCard>(imported.curiosities).map(c => ({ ...c, importedAt: importedNow })))
   d.topics = mergeById(d.topics || [], stripRetiredCardKeys<TopicCard>(imported.topics).map(t => ({ ...t, importedAt: importedNow })))
+  d.taskStatuses = mergeById(d.taskStatuses?.length ? d.taskStatuses : defaultTaskStatuses(), imported.taskStatuses || [])
   d.topicStatuses = mergeById(d.topicStatuses?.length ? d.topicStatuses : defaultTopicStatuses(), imported.topicStatuses || [])
   normalizeLegacyCards(d)
   reconcileCapturedResources(d)

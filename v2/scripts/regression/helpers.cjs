@@ -77,6 +77,8 @@ const WORKSPACE_SRC_FILES = [
   '/newtab/composables/useWsAssetHygiene.ts',
   // R117（04-61 B）：定位域抽出（04-59 宿主 ≤1500 行验收线）——同样纳入聚合读取
   '/newtab/composables/useWsLocate.ts',
+  // V4.7.1 F6：双栏 split 逻辑按域抽出（宿主 ≤1500 行硬闸）——同样纳入聚合读取
+  '/newtab/composables/useWsConsoleSplit.ts',
   '/newtab/views/workspace.css',
 ];
 /**
@@ -355,7 +357,7 @@ function codeOnlyVueUnused(text) {
  * 现改为单一锚点：`VER_ANCHOR_LITERAL` 是期望版本，`CUR_VER` / `CUR_VTAG` 由它派生；
  * `reg` 分支（`reg.includes(...)`）靠本文件**保留该字面**来校验自身同步。
  */
-const VER_ANCHOR_LITERAL = "version: '4.7.0'";
+const VER_ANCHOR_LITERAL = "version: '4.7.1'";
 /** 期望版本（裸号，如 `2.59.0`） */
 const CUR_VER = (VER_ANCHOR_LITERAL.match(/'([\d.]+)'/) || ['', ''])[1];
 /** 期望版本（带 V 前缀，如 `V2.59.0`） */

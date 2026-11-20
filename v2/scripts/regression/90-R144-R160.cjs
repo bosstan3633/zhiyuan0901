@@ -284,7 +284,7 @@ check('R151-5 ★角标与预估同源（否则用户没法信方案）：cardHa
 });
 
 /* ===== R151-B2 · 三类卡 × 四视图（卡片/列表/看板 + 详情）AI 入口齐活 ===== */
-check('R151-6（V4.4.0 重指）★AI 入口按现役卡种点齐：资源卡池列表 / 网格各一 + 两处详情共用 ResourceAiStrip；任务详情只保留「找资源 + 补全」两枚，卡面 AI 角标直达找资源；好奇心卡 AI 研判与任务拆解均退役', () => {
+check('R151-6（V4.4.0 重指 · ★V4.7.1 随迁备案：F6 双栏逻辑抽入 useWsConsoleSplit，Workspace 物理行数回到 1500 内；AI 入口判据未放宽，仍按现役卡种点齐）★AI 入口：资源卡池列表 / 网格各一 + 两处详情共用 ResourceAiStrip；任务详情只保留「找资源 + 补全」两枚，卡面 AI 角标直达找资源；好奇心卡 AI 研判与任务拆解均退役', () => {
   const w = fs.readFileSync(base + '/newtab/views/Workspace.vue', 'utf8')
   const pool = read('/newtab/components/compass/PoolCardsPanel.vue')
   const cp = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue')); const ce = read('/newtab/components/CardAiEntry.vue')

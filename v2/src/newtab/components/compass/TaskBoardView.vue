@@ -1,38 +1,53 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
-import type { TaskCard } from '@/shared/models'
+import type { TaskCard, TaskStatusDef } from '@/shared/models'
 
 const props = withDefaults(defineProps<{
   tasks: TaskCard[]
   projectNames: Map<string, string>
   metricNames: Map<string, string>
+  statuses: TaskStatusDef[]
 }>(), {})
 
 const emit = defineEmits<{
   (e: 'open-task', task: TaskCard): void
-  (e: 'set-status', taskId: string, status: TaskCard['status']): void
+  (e: 'set-status', taskId: string, statusId: string): void
 }>()
 
-const columns: { status: TaskCard['status']; label: string; hint: string }[] = [
-  { status: 'todo', label: '待开始', hint: '拖到这里改状态' },
-  { status: 'doing', label: '进行中', hint: '拖到这里继续推进' },
-  { status: 'done', label: '已完成', hint: '拖到这里标记完成' },
-]
+const columns = computed(() => [...props.statuses]
+  .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, 'zh-CN'))
+  .map(status => ({
+    id: status.id,
+    label: status.name,
+    color: status.color,
+    terminal: !!status.terminal,
+    hint: status.terminal ? '拖到这里标记完成' : '拖到这里改状态',
+  })))
 
 const dragId = ref('')
-const overStatus = ref<TaskCard['status'] | ''>('')
+const overStatus = ref('')
 
 const grouped = computed(() => {
-  const map: Record<TaskCard['status'], TaskCard[]> = { todo: [], doing: [], done: [] }
+  const map: Record<string, TaskCard[]> = {}
+  for (const column of columns.value) map[column.id] = []
   for (const task of props.tasks) {
-    if (task.status === 'done' || task.status === 'doing' || task.status === 'todo') map[task.status].push(task)
+    const statusId = task.statusId || statusIdFor(task)
+    if (statusId && map[statusId]) map[statusId].push(task)
   }
   for (const rows of Object.values(map)) {
     rows.sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || ((b.createdAt || 0) - (a.createdAt || 0)))
   }
   return map
 })
+
+function statusIdFor(task: TaskCard): string {
+  return props.statuses.find(status => status.bucket === task.status)?.id || props.statuses[0]?.id || ''
+}
+
+function isDone(task: TaskCard): boolean {
+  return !!props.statuses.find(status => status.id === (task.statusId || statusIdFor(task)))?.terminal
+}
 
 function projectLabel(task: TaskCard): string {
   return (task.projectId && props.projectNames.get(task.projectId)) || '未挂项目'
@@ -56,11 +71,11 @@ function onDragStart(event: DragEvent, task: TaskCard): void {
   }
 }
 
-function onDrop(status: TaskCard['status']): void {
+function onDrop(statusId: string): void {
   overStatus.value = ''
   const id = dragId.value
   dragId.value = ''
-  if (id) emit('set-status', id, status)
+  if (id) emit('set-status', id, statusId)
 }
 </script>
 
@@ -68,26 +83,27 @@ function onDrop(status: TaskCard['status']): void {
   <div class="task-board-view" aria-label="任务看板">
     <section
       v-for="column in columns"
-      :key="column.status"
+      :key="column.id"
       class="tb-col"
-      :class="['is-' + column.status, { over: overStatus === column.status }]"
+      :class="{ over: overStatus === column.id, 'is-terminal': column.terminal }"
+      :style="{ '--task-status': column.color }"
       @dragover.prevent
-      @dragenter.prevent="overStatus = column.status"
+      @dragenter.prevent="overStatus = column.id"
       @dragleave.self="overStatus = ''"
-      @drop.prevent="onDrop(column.status)"
+      @drop.prevent="onDrop(column.id)"
     >
       <header class="tb-col-head">
         <span class="tb-dot" />
         <b>{{ column.label }}</b>
-        <em>{{ grouped[column.status].length }}</em>
+        <em>{{ grouped[column.id]?.length || 0 }}</em>
         <small>{{ column.hint }}</small>
       </header>
       <div class="tb-col-list">
         <article
-          v-for="task in grouped[column.status]"
+          v-for="task in grouped[column.id] || []"
           :key="task.id"
           class="tb-card"
-          :class="{ 'is-done': task.status === 'done' }"
+          :class="{ 'is-done': isDone(task) }"
           draggable="true"
           tabindex="0"
           @dragstart="onDragStart($event, task)"
@@ -106,14 +122,14 @@ function onDrop(status: TaskCard['status']): void {
           <footer>
             <span :class="{ scheduled: !!task.dueDate }"><Icon name="calendar" :size="11" />{{ dateLabel(task) }}</span>
             <button
-              v-if="task.status !== 'done'"
+              v-if="!isDone(task)"
               type="button"
               title="标记完成"
-              @click.stop="emit('set-status', task.id, 'done')"
+              @click.stop="emit('set-status', task.id, columns.find(column => column.terminal)?.id || '')"
             ><Icon name="check" :size="11" /></button>
           </footer>
         </article>
-        <div v-if="!grouped[column.status].length" class="tb-empty">
+        <div v-if="!(grouped[column.id] || []).length" class="tb-empty">
           <Icon name="clipboard" :size="16" />
           <span>{{ column.hint }}</span>
         </div>
@@ -125,9 +141,10 @@ function onDrop(status: TaskCard['status']): void {
 <style scoped>
 .task-board-view {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
   min-height: 560px;
+  overflow-x: auto;
 }
 .tb-col {
   display: flex;
@@ -140,7 +157,7 @@ function onDrop(status: TaskCard['status']): void {
   background: var(--surface);
   transition: border-color var(--dur), box-shadow var(--dur);
 }
-.tb-col.over { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tb-col.over { border-color: var(--task-status, var(--accent)); box-shadow: inset 0 0 0 1px var(--task-status, var(--accent)); }
 .tb-col-head {
   display: grid;
   grid-template-columns: 8px auto auto minmax(0, 1fr);
@@ -149,9 +166,7 @@ function onDrop(status: TaskCard['status']): void {
   padding: 11px 12px;
   border-bottom: 1px solid var(--border);
 }
-.tb-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--text-3); }
-.tb-col.is-doing .tb-dot { background: var(--accent); }
-.tb-col.is-done .tb-dot { background: var(--success, #52a46a); }
+.tb-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--task-status, var(--text-3)); }
 .tb-col-head b { color: var(--text); font-size: var(--fs-caption); }
 .tb-col-head em { color: var(--text-3); font-size: var(--fs-micro); font-style: normal; }
 .tb-col-head small {
@@ -174,6 +189,7 @@ function onDrop(status: TaskCard['status']): void {
 .tb-card {
   padding: 10px;
   border: 1px solid var(--border);
+  border-left: 3px solid var(--task-status, var(--border));
   border-radius: 11px;
   background: var(--surface-2);
   cursor: pointer;

@@ -30,8 +30,10 @@ const OUT_DIR = path.join(ROOT, 'docs', 'perf-slo')
 const EXT_INDEX = 'src/newtab/index.html'
 const SAMPLE_COUNT = 5
 const IMAGE_SAMPLE_COUNT = 3
-const ALIGNMENT_VIEWPORTS = [1440, 1280, 1024, 768, 390]
+const ALIGNMENT_VIEWPORTS = [1440, 1280, 1024, 900, 390]
 const ALIGNMENT_TOLERANCE = 1
+const ALIGNMENT_TOP_TOLERANCE = 3
+const ALIGNMENT_STACK_WIDTH = 900
 
 const BUDGETS = {
   overlay_open: 800,
@@ -128,7 +130,8 @@ function markdown(report) {
   const alignmentRows = (report.alignment?.viewports || []).map((item) => {
     const bounds = item.bounds || {}
     const fmt = (value) => Number.isFinite(value) ? `${value}px` : '-'
-    return `| ${item.width}px | ${fmt(bounds.head?.left)} / ${fmt(bounds.head?.right)} | ${fmt(bounds.canvas?.left)} / ${fmt(bounds.canvas?.right)} | ${fmt(item.maxEdgeDelta)} | ${fmt(item.overflowPx)} | ${item.pass ? 'PASS' : 'FAIL'} |`
+    const layout = item.stacked ? '单列' : '双栏'
+    return `| ${item.width}px | ${layout} | ${fmt(bounds.head?.left)} / ${fmt(bounds.head?.right)} | ${fmt(bounds.canvas?.left)} / ${fmt(bounds.canvas?.right)} | ${fmt(item.maxEdgeDelta)} | ${fmt(item.topDelta)} | ${fmt(item.overflowPx)} | ${item.pass ? 'PASS' : 'FAIL'} |`
   })
   return `# 知源性能 SLO · 最新实测
 
@@ -143,11 +146,11 @@ ${rows.join('\n')}
 
 ## 策展台横向对齐
 
-容差：页头、中心论点卡、页内工具条相对画布的左右边界最大误差 ≤ ${report.alignment?.tolerancePx ?? ALIGNMENT_TOLERANCE}px；同时要求页面无横向溢出。
+容差：页头与控制台相对画布的左右边界最大误差 ≤ ${report.alignment?.tolerancePx ?? ALIGNMENT_TOLERANCE}px；双栏下中心论点卡与全局功能模块顶部差 ≤ ${report.alignment?.topTolerancePx ?? ALIGNMENT_TOP_TOLERANCE}px；≤${ALIGNMENT_STACK_WIDTH}px 单列时要求全局功能模块位于中心论点卡下方且左边界一致；同时要求页面无横向溢出。
 
-| 视口 | 页头左 / 右 | 画布左 / 右 | 最大边界误差 | 横向溢出 | 判定 |
-|---:|---:|---:|---:|---:|---|
-${alignmentRows.length ? alignmentRows.join('\n') : '| - | - | - | - | - | FAIL |'}
+| 视口 | 布局 | 页头左 / 右 | 画布左 / 右 | 边界误差 | 论点/全局顶差 | 横向溢出 | 判定 |
+|---:|:---:|---:|---:|---:|---:|---:|---|
+${alignmentRows.length ? alignmentRows.join('\n') : '| - | - | - | - | - | - | - | FAIL |'}
 
 ## 失败项
 
@@ -235,37 +238,28 @@ async function waitForText(page, selector, pattern, timeout = 20000) {
   throw new Error(`等待文案超时：${selector} ${pattern}`)
 }
 
-async function waitForDeckPanel(page, panel, timeout = 10000) {
-  await page.waitForSelector(`.dk-row[data-panel="${panel}"]`, { state: 'visible', timeout })
+const HAND_TABS = {
+  task: { label: '任务', ready: '.task-calendar' },
+  curiosity: { label: '好奇心', ready: '.curio-workbench' },
+  resource: { label: '资源', ready: '.home-resource-folders' },
 }
 
-async function ensureDeckList(page, panel) {
-  const listButton = page.locator(`.dk-row[data-panel="${panel}"] .dk-view`).filter({ hasText: '列表' }).first()
-  await listButton.waitFor({ state: 'visible', timeout: 10000 })
-  const className = await listButton.getAttribute('class')
-  if (!/\bon\b/.test(className || '')) await listButton.click()
+async function gotoTab(page, base, tab, extra = '') {
+  await page.goto(base + `#/?tab=${tab}${extra}`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('.page .desk-head', { timeout: 20000 })
+  await page.waitForSelector(HAND_TABS[tab].ready, { state: 'visible', timeout: 15000 })
+  await page.locator('.hand-board').scrollIntoViewIfNeeded()
 }
 
-async function clickDeckTab(page, label) {
-  await page.locator('.deck-kind-seg button').filter({ hasText: label }).first().click()
+async function clickHandTab(page, tab, rowSelector) {
+  await page.locator('.hand-tab').filter({ hasText: HAND_TABS[tab].label }).first().click()
+  await page.waitForSelector(HAND_TABS[tab].ready, { state: 'visible', timeout: 10000 })
+  await page.waitForSelector(rowSelector, { state: 'visible', timeout: 10000 })
 }
 
-async function measureDeckDetail(page, base, path, panel, rowSelector, titleSelector) {
-  const separator = path.includes('?') ? '&' : '?'
-  await page.goto(base + `#${path}${separator}fresh=1&freshAt=${Date.now()}`, { waitUntil: 'domcontentloaded' })
-  await waitForDeckPanel(page, panel)
-  await ensureDeckList(page, panel)
-  const row = page.locator(rowSelector).first()
-  await row.waitFor({ state: 'visible', timeout: 10000 })
-
-  const measured = await captureAction(page, async () => {
-    await row.click()
-    await page.waitForSelector(titleSelector, { state: 'visible', timeout: 12000 })
-  })
-
-  await page.locator('.drawer-close').first().click()
-  await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
-  return measured
+async function closeDrawer(page, selector, timeout = 8000) {
+  await page.locator(`${selector} .drawer-close`).first().click()
+  await page.waitForSelector(selector, { state: 'detached', timeout })
 }
 
 async function measureAlignment(page, base, boardId) {
@@ -276,15 +270,17 @@ async function measureAlignment(page, base, boardId) {
       await page.goto(base + `#/workspace/${boardId}`, { waitUntil: 'domcontentloaded' })
       await page.waitForSelector('.curation-workspace', { state: 'visible', timeout: 20000 })
       await page.waitForSelector('.ws-head', { state: 'visible', timeout: 10000 })
+      await page.waitForSelector('.ws-curation-console', { state: 'visible', timeout: 10000 })
       await page.waitForSelector('.thesis-banner', { state: 'visible', timeout: 10000 })
-      await page.waitForSelector('.cur-toolbar', { state: 'visible', timeout: 10000 })
+      await page.waitForSelector('.cur-global-panel', { state: 'visible', timeout: 10000 })
       await sleep(120)
 
       const measured = await page.evaluate(() => {
         const selectors = {
           head: '.ws-head',
+          console: '.ws-curation-console',
           thesis: '.thesis-banner',
-          toolbar: '.cur-toolbar',
+          global: '.cur-global-panel',
           canvas: '.curation-workspace',
         }
         const bounds = {}
@@ -295,7 +291,10 @@ async function measureAlignment(page, base, boardId) {
           bounds[name] = {
             left: Math.round(rect.left * 10) / 10,
             right: Math.round(rect.right * 10) / 10,
+            top: Math.round(rect.top * 10) / 10,
+            bottom: Math.round(rect.bottom * 10) / 10,
             width: Math.round(rect.width * 10) / 10,
+            height: Math.round(rect.height * 10) / 10,
           }
         }
         return {
@@ -305,7 +304,7 @@ async function measureAlignment(page, base, boardId) {
         }
       })
       const canvas = measured.bounds.canvas
-      const compared = ['head', 'thesis', 'toolbar']
+      const compared = ['head', 'console']
         .map((name) => measured.bounds[name])
         .filter(Boolean)
       const maxEdgeDelta = canvas && compared.length
@@ -314,6 +313,19 @@ async function measureAlignment(page, base, boardId) {
           Math.abs(rect.right - canvas.right),
         ]))
         : null
+      const thesis = measured.bounds.thesis
+      const global = measured.bounds.global
+      const topDelta = thesis && global
+        ? Math.abs(thesis.top - global.top)
+        : null
+      const stacked = width <= ALIGNMENT_STACK_WIDTH
+      const stackPass = !!(thesis && global)
+        && global.top >= thesis.bottom - ALIGNMENT_TOLERANCE
+        && Math.abs(global.left - thesis.left) <= ALIGNMENT_TOLERANCE
+      const edgePass = Number.isFinite(maxEdgeDelta)
+        && maxEdgeDelta <= ALIGNMENT_TOLERANCE
+      const topPass = Number.isFinite(topDelta)
+        && topDelta <= ALIGNMENT_TOP_TOLERANCE
       const overflowPx = Math.max(0, measured.scrollWidth - measured.innerWidth)
       viewports.push({
         width,
@@ -321,18 +333,25 @@ async function measureAlignment(page, base, boardId) {
         bounds: measured.bounds,
         innerWidth: measured.innerWidth,
         scrollWidth: measured.scrollWidth,
+        stacked,
         maxEdgeDelta: Number.isFinite(maxEdgeDelta) ? round(maxEdgeDelta) : null,
+        topDelta: Number.isFinite(topDelta) ? round(topDelta) : null,
         overflowPx: round(overflowPx),
-        pass: Number.isFinite(maxEdgeDelta)
-          && maxEdgeDelta <= ALIGNMENT_TOLERANCE
-          && overflowPx <= 1,
+        edgePass,
+        topPass,
+        stackPass,
+        pass: edgePass
+          && overflowPx <= 1
+          && (stacked ? stackPass : topPass),
       })
     } catch (error) {
       viewports.push({
         width,
         height: 900,
         bounds: {},
+        stacked: width <= ALIGNMENT_STACK_WIDTH,
         maxEdgeDelta: null,
+        topDelta: null,
         overflowPx: null,
         pass: false,
         error: error instanceof Error ? error.message : String(error),
@@ -342,6 +361,8 @@ async function measureAlignment(page, base, boardId) {
   await page.setViewportSize({ width: 1440, height: 900 })
   return {
     tolerancePx: ALIGNMENT_TOLERANCE,
+    topTolerancePx: ALIGNMENT_TOP_TOLERANCE,
+    stackWidthPx: ALIGNMENT_STACK_WIDTH,
     viewports,
   }
 }
@@ -856,40 +877,22 @@ async function main() {
       longTaskSupported,
     )
 
-    // 5) 三卡池切换：在同一二级页里真实点击类型 Tab，计到目标列表的首行出现。
+    // 5) 三卡池切换：在一级调度台里真实点击卡池页签，计到目标池首行出现。
     const poolSwitchSamples = []
     let poolSwitchError = ''
     try {
-      await page.goto(base + '#/deck/task', { waitUntil: 'domcontentloaded' })
-      await waitForDeckPanel(page, 'task')
-      await ensureDeckList(page, 'task')
-      await page.waitForSelector('.trow[data-tid]', { state: 'visible', timeout: 10000 })
-
-      await clickDeckTab(page, '好奇心卡')
-      await waitForDeckPanel(page, 'curio')
-      await ensureDeckList(page, 'curio')
-      await page.waitForSelector('.cz-list-item[data-czid]', { state: 'visible', timeout: 10000 })
-
-      await clickDeckTab(page, '资源卡')
-      await waitForDeckPanel(page, 'pool')
-      await ensureDeckList(page, 'pool')
-      await page.waitForSelector('.pcp-row[data-rid]', { state: 'visible', timeout: 10000 })
-
-      await clickDeckTab(page, '任务卡')
-      await waitForDeckPanel(page, 'task')
-      await page.waitForSelector('.trow[data-tid]', { state: 'visible', timeout: 10000 })
+      await gotoTab(page, base, 'task', `&perf=switch-${Date.now()}`)
+      await page.waitForSelector('.cal-pool-task', { state: 'visible', timeout: 10000 })
 
       for (let index = 0; index < SAMPLE_COUNT; index++) {
         const transitions = [
-          ['好奇心卡', 'curio', '.cz-list-item[data-czid]'],
-          ['资源卡', 'pool', '.pcp-row[data-rid]'],
-          ['任务卡', 'task', '.trow[data-tid]'],
+          ['curiosity', '.cw-pool-item'],
+          ['resource', '.hrf-system-folder.is-all'],
+          ['task', '.cal-pool-task'],
         ]
-        for (const [label, panel, rowSelector] of transitions) {
+        for (const [tab, rowSelector] of transitions) {
           const measured = await captureAction(page, async () => {
-            await clickDeckTab(page, label)
-            await waitForDeckPanel(page, panel)
-            await page.waitForSelector(rowSelector, { state: 'visible', timeout: 10000 })
+            await clickHandTab(page, tab, rowSelector)
           })
           poolSwitchSamples.push(measured.elapsed)
           recordAction('pool_switch', measured)
@@ -901,71 +904,70 @@ async function main() {
     report.metrics.pool_switch = buildMetric(
       'pool_switch',
       poolSwitchSamples,
-      ['每轮真实点击任务→好奇心→资源→任务三次 Tab；计到目标卡池列表首行出现，采样前已用真实「列表」按钮建立视图。'],
+      ['每轮真实点击任务→好奇心→资源→任务三次一级卡池页签；计到目标池工作区与首行卡出现。'],
       poolSwitchError,
       longTaskSamples.pool_switch,
       longTaskSupported,
     )
 
-    // 6) 卡池筛选：任务状态下拉、好奇心状态胶囊、资源池标签胶囊各走一遍真实控件。
+    // 6) 卡池筛选：任务状态下拉、好奇心状态下拉、资源池状态下拉各走一遍真实控件。
     const poolFilterSamples = []
     let poolFilterError = ''
     try {
       for (let index = 0; index < SAMPLE_COUNT; index++) {
-        await page.goto(base + '#/deck/task', { waitUntil: 'domcontentloaded' })
-        await waitForDeckPanel(page, 'task')
-        await ensureDeckList(page, 'task')
-        await page.waitForSelector('.task-list', { state: 'visible', timeout: 10000 })
+        await gotoTab(page, base, 'task', `&perf=filter-${index}`)
+        await page.waitForSelector('.cal-pool-task', { state: 'visible', timeout: 10000 })
+        const taskStatus = page.locator('select[aria-label="按任务状态筛选"]').first()
 
-        let previousText = await page.locator('.task-list').textContent()
+        let previousText = await page.locator('.cal-pool-list').textContent()
         let measured = await captureAction(page, async () => {
-          await page.locator('.dk-row[data-panel="task"] .dk-filters select').selectOption('doing')
-          const changed = await waitForContentChange(page, '.task-list', previousText || '')
+          await taskStatus.selectOption('task-doing')
+          const changed = await waitForContentChange(page, '.cal-pool-list', previousText || '')
           if (!changed.ok) throw new Error(`任务状态筛选：${changed.reason || '列表未更新'}`)
         })
         poolFilterSamples.push(measured.elapsed)
         recordAction('pool_filter', measured)
-        previousText = await page.locator('.task-list').textContent()
-        await page.locator('.dk-row[data-panel="task"] .dk-filters select').selectOption('all')
-        const taskRestored = await waitForContentChange(page, '.task-list', previousText || '')
+        previousText = await page.locator('.cal-pool-list').textContent()
+        await taskStatus.selectOption('all')
+        const taskRestored = await waitForContentChange(page, '.cal-pool-list', previousText || '')
         if (!taskRestored.ok) throw new Error('任务状态筛选恢复失败')
-        await page.waitForSelector('.trow[data-tid]', { state: 'visible', timeout: 10000 })
+        await page.waitForSelector('.cal-pool-task', { state: 'visible', timeout: 10000 })
 
-        await clickDeckTab(page, '好奇心卡')
-        await waitForDeckPanel(page, 'curio')
-        await ensureDeckList(page, 'curio')
-        await page.waitForSelector('.cz-list', { state: 'visible', timeout: 10000 })
-        previousText = await page.locator('.cz-list').textContent()
+        await clickHandTab(page, 'curiosity', '.cw-pool-item')
+        const curioStatus = page.locator('.cw-toolbar select[aria-label="按好奇心状态筛选"]').first()
+        previousText = await page.locator('.cw-pool-list').textContent()
         measured = await captureAction(page, async () => {
-          await page.locator('.dk-row[data-panel="curio"] .dk-pill').filter({ hasText: '探索中' }).first().click()
-          const changed = await waitForContentChange(page, '.cz-list', previousText || '')
+          await curioStatus.selectOption('doing')
+          const changed = await waitForContentChange(page, '.cw-pool-list', previousText || '')
           if (!changed.ok) throw new Error(`好奇心状态筛选：${changed.reason || '列表未更新'}`)
         })
         poolFilterSamples.push(measured.elapsed)
         recordAction('pool_filter', measured)
-        previousText = await page.locator('.cz-list').textContent()
-        await page.locator('.dk-row[data-panel="curio"] .dk-pill').filter({ hasText: '全部' }).first().click()
-        const curioRestored = await waitForContentChange(page, '.cz-list', previousText || '')
+        previousText = await page.locator('.cw-pool-list').textContent()
+        await curioStatus.selectOption('all')
+        const curioRestored = await waitForContentChange(page, '.cw-pool-list', previousText || '')
         if (!curioRestored.ok) throw new Error('好奇心状态筛选恢复失败')
-        await page.waitForSelector('.cz-list-item[data-czid]', { state: 'visible', timeout: 10000 })
+        await page.waitForSelector('.cw-pool-item', { state: 'visible', timeout: 10000 })
 
-        await clickDeckTab(page, '资源卡')
-        await waitForDeckPanel(page, 'pool')
-        await ensureDeckList(page, 'pool')
-        await page.waitForSelector('.pcp-list', { state: 'visible', timeout: 10000 })
-        previousText = await page.locator('.pcp-list').textContent()
+        await clickHandTab(page, 'resource', '.hrf-system-folder.is-all')
+        await page.locator('.hrf-system-folder.is-all').first().click()
+        const poolDrawer = '.drawer[aria-label="全部资源卡"]'
+        await page.waitForSelector(`${poolDrawer} .pcp-list`, { state: 'visible', timeout: 10000 })
+        const poolFilter = page.locator(`${poolDrawer} .dk-row[data-panel="pool"] .dk-filters.select .dk-select`).first()
+        previousText = await page.locator(`${poolDrawer} .pcp-list`).textContent()
         measured = await captureAction(page, async () => {
-          await page.locator('.dk-row[data-panel="pool"] .dk-filters.select .dk-select').selectOption('untagged')
-          const changed = await waitForContentChange(page, '.pcp-list', previousText || '')
+          await poolFilter.selectOption('untagged')
+          const changed = await waitForContentChange(page, `${poolDrawer} .pcp-list`, previousText || '')
           if (!changed.ok) throw new Error(`资源池标签筛选：${changed.reason || '列表未更新'}`)
         })
         poolFilterSamples.push(measured.elapsed)
         recordAction('pool_filter', measured)
-        previousText = await page.locator('.pcp-list').textContent()
-        await page.locator('.dk-row[data-panel="pool"] .dk-filters.select .dk-select').selectOption('all')
-        const poolRestored = await waitForContentChange(page, '.pcp-list', previousText || '')
+        previousText = await page.locator(`${poolDrawer} .pcp-list`).textContent()
+        await poolFilter.selectOption('all')
+        const poolRestored = await waitForContentChange(page, `${poolDrawer} .pcp-list`, previousText || '')
         if (!poolRestored.ok) throw new Error('资源池标签筛选恢复失败')
-        await page.waitForSelector('.pcp-row[data-rid]', { state: 'visible', timeout: 10000 })
+        await page.waitForSelector(`${poolDrawer} .pcp-row[data-rid]`, { state: 'visible', timeout: 10000 })
+        await closeDrawer(page, poolDrawer)
       }
     } catch (error) {
       poolFilterError = error instanceof Error ? error.message : String(error)
@@ -973,7 +975,7 @@ async function main() {
     report.metrics.pool_filter = buildMetric(
       'pool_filter',
       poolFilterSamples,
-      ['每轮真实操作任务「推进中」、好奇心「探索中」、资源池状态下拉「待打标」三次筛选；每次计到列表 DOM 实际变化。'],
+      ['每轮真实操作任务状态、好奇心状态、资源池状态三次下拉筛选；每次计到列表 DOM 实际变化。'],
       poolFilterError,
       longTaskSamples.pool_filter,
       longTaskSupported,
@@ -984,19 +986,16 @@ async function main() {
     let folderDrawerError = ''
     try {
       for (let index = 0; index < SAMPLE_COUNT; index++) {
-        await page.goto(base + `#/deck/resource?perf=folder-${index}`, { waitUntil: 'domcontentloaded' })
-        await waitForDeckPanel(page, 'pool')
-        const entry = page.locator('.pool-controls button, .pcp-toolbar button, button.pcp-btn')
-          .filter({ hasText: /常用夹/ }).first()
+        await gotoTab(page, base, 'resource', `&perf=folder-${index}`)
+        const entry = page.locator('.hrf-section-actions button').filter({ hasText: '管理' }).first()
         await entry.waitFor({ state: 'visible', timeout: 10000 })
         const measured = await captureAction(page, async () => {
           await entry.click()
-          await page.waitForSelector('.drawer .rfd-folder .rfd-row', { state: 'visible', timeout: 8000 })
+          await page.waitForSelector('.drawer[aria-label="常用夹"] .rfd-folder .rfd-row', { state: 'visible', timeout: 8000 })
         })
         folderDrawerSamples.push(measured.elapsed)
         recordAction('folder_drawer', measured)
-        await page.locator('.drawer-close').first().click()
-        await page.waitForSelector('.drawer', { state: 'detached', timeout: 8000 })
+        await closeDrawer(page, '.drawer[aria-label="常用夹"]')
       }
     } catch (error) {
       folderDrawerError = error instanceof Error ? error.message : String(error)
@@ -1004,47 +1003,52 @@ async function main() {
     report.metrics.folder_drawer = buildMetric(
       'folder_drawer',
       folderDrawerSamples,
-      ['从资源池“常用夹”入口点击到抽屉内六组、每组 40 条镜像成员可消费。'],
+      ['从一级资源页「管理」入口点击到抽屉内六组、每组 40 条镜像成员可消费。'],
       folderDrawerError,
       longTaskSamples.folder_drawer,
       longTaskSupported,
     )
 
-    // 7) 三卡池详情：真实单击列表行，必须穿过现有的 260ms 双击去重等待。
+    // 7) 三卡池详情：真实单击一级卡池列表行；资源池行保留现有 260ms 单击去重等待。
     const poolDetailSamples = []
     let poolDetailError = ''
     try {
       for (let index = 0; index < SAMPLE_COUNT; index++) {
-        let measured = await measureDeckDetail(
-          page,
-          base,
-          '/deck/task',
-          'task',
-          '.trow[data-tid^="perf-slo-task-"]',
-          '.drawer .ts-title',
-        )
+        await gotoTab(page, base, 'task', `&perf=detail-task-${index}`)
+        const taskRow = page.locator('.cal-pool-task').filter({ hasText: '性能验收任务' }).first()
+        await taskRow.waitFor({ state: 'visible', timeout: 10000 })
+        let measured = await captureAction(page, async () => {
+          await taskRow.click()
+          await page.waitForSelector('.drawer .ts-title', { state: 'visible', timeout: 12000 })
+        })
         poolDetailSamples.push(measured.elapsed)
         recordAction('pool_detail', measured)
-        measured = await measureDeckDetail(
-          page,
-          base,
-          '/deck/curiosity',
-          'curio',
-          '.cz-list-item[data-czid^="perf-slo-curio-"]',
-          '.drawer .cz-h1q',
-        )
+        await closeDrawer(page, '.drawer')
+
+        await gotoTab(page, base, 'curiosity', `&perf=detail-curio-${index}`)
+        const curioRow = page.locator('.cw-pool-item').filter({ hasText: /性能验收好奇心|知识调度/ }).first()
+        await curioRow.waitFor({ state: 'visible', timeout: 10000 })
+        measured = await captureAction(page, async () => {
+          await curioRow.click()
+          await page.waitForSelector('.drawer .cz-h1q', { state: 'visible', timeout: 12000 })
+        })
         poolDetailSamples.push(measured.elapsed)
         recordAction('pool_detail', measured)
-        measured = await measureDeckDetail(
-          page,
-          base,
-          '/deck/resource',
-          'pool',
-          '.pcp-row[data-rid^="perf-slo-pool-"]',
-          '.drawer .ds-h1',
-        )
+        await closeDrawer(page, '.drawer')
+
+        await gotoTab(page, base, 'resource', `&perf=detail-res-${index}`)
+        await page.locator('.hrf-system-folder.is-all').first().click()
+        const poolDrawer = '.drawer[aria-label="全部资源卡"]'
+        await page.waitForSelector(`${poolDrawer} .pcp-row[data-rid^="perf-slo-pool-"]`, { state: 'visible', timeout: 10000 })
+        const resourceRow = page.locator(`${poolDrawer} .pcp-row[data-rid^="perf-slo-pool-"]`).first()
+        measured = await captureAction(page, async () => {
+          await resourceRow.click()
+          await page.waitForSelector('.drawer[aria-label="详情"] .ds-h1', { state: 'visible', timeout: 12000 })
+        })
         poolDetailSamples.push(measured.elapsed)
         recordAction('pool_detail', measured)
+        await closeDrawer(page, '.drawer[aria-label="详情"]')
+        await closeDrawer(page, poolDrawer)
       }
     } catch (error) {
       poolDetailError = error instanceof Error ? error.message : String(error)
@@ -1052,7 +1056,7 @@ async function main() {
     report.metrics.pool_detail = buildMetric(
       'pool_detail',
       poolDetailSamples,
-      ['每轮真实单击任务、好奇心、资源池列表行，计到对应详情标题可见；包含真实 260ms 双击去重等待。'],
+      ['每轮真实单击一级任务、好奇心、资源池列表行，计到对应详情标题可见；资源池含真实 260ms 单击去重等待。'],
       poolDetailError,
       longTaskSamples.pool_detail,
       longTaskSupported,
@@ -1098,9 +1102,16 @@ async function main() {
     report.alignment = await measureAlignment(page, base, boardId)
     for (const viewport of report.alignment.viewports) {
       if (!viewport.pass) {
-        const reason = viewport.error
-          ? viewport.error
-          : `边界误差 ${viewport.maxEdgeDelta ?? '-'}px、横向溢出 ${viewport.overflowPx ?? '-'}px`
+        const reasons = []
+        if (viewport.error) reasons.push(viewport.error)
+        if (!viewport.edgePass) reasons.push(`页头/控制台边界误差 ${viewport.maxEdgeDelta ?? '-'}px`)
+        if (viewport.stacked && !viewport.stackPass) {
+          reasons.push('单列下全局功能未位于中心论点卡下方或左边界不一致')
+        } else if (!viewport.stacked && !viewport.topPass) {
+          reasons.push(`论点卡/全局功能顶部差 ${viewport.topDelta ?? '-'}px`)
+        }
+        if (!(viewport.overflowPx <= 1)) reasons.push(`横向溢出 ${viewport.overflowPx ?? '-'}px`)
+        const reason = reasons.join('；')
         report.failures.push(`策展台横向对齐 ${viewport.width}px：${reason}`)
       }
     }

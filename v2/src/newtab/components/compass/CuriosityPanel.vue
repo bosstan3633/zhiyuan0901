@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Icon from '@/shared/components/Icon.vue'
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCuriosity, type CuriStatus } from '../../stores/curiosity'
 // R129-B5：链接协议白名单与打开通道全站唯一实现
@@ -52,13 +52,37 @@ const d = computed(() => store.data!)
 const route = useRoute()
 const router = useRouter()
 
+type DetailsHost = 'home' | 'settings' | 'deck'
+
 const props = withDefaults(defineProps<{
   /** 独立二级页：隐藏新建入口（本面板本来无新建），空态主行动改为清空筛选。 */
   secondaryMode?: boolean
   /** 设置页等旁路宿主只借用详情抽屉，不渲染整块好奇心卡列表。 */
   detailsOnly?: boolean
+  /** 详情抽屉宿主：KeepAlive 下多个宿主同时在线，只有当前路由对应的那一个消费 onOpenDrawer。 */
+  detailsHost?: 'home' | 'settings' | 'deck'
 }>(), { secondaryMode: false, detailsOnly: false })
 const emit = defineEmits<{ closed: [] }>()
+
+/** V4.7.1 F1：未显式传值时的兼容推断——二级池归 deck，其余 details-only 归 home。 */
+const resolvedDetailsHost = computed<DetailsHost>(() =>
+  props.detailsHost || (props.secondaryMode ? 'deck' : 'home')
+)
+/** onActivated/onDeactivated 只作辅助标记；最终能否消费 bus 由下方路由判定。 */
+const hostActive = ref(true)
+onActivated(() => { hostActive.value = true })
+onDeactivated(() => { hostActive.value = false })
+function detailsHostRouteMatches(): boolean {
+  const host = resolvedDetailsHost.value
+  if (host === 'settings') return route.name === 'settings'
+  if (host === 'deck') return route.path.startsWith('/deck')
+  // 首页路由名以 router.ts 为准：调度台首页是 name 'home'；'/compass' 是方向台、name 才是 'compass'，
+  // 若按字面 compass 放行，会把 KeepAlive 缓存中的首页宿主误当成方向台宿主。
+  return route.name === 'home'
+}
+function canConsumeCurioDrawer(): boolean {
+  return hostActive.value && detailsHostRouteMatches()
+}
 
 const searchQuery = ref('')
 const freshMode = ref(false)
@@ -108,6 +132,8 @@ watch(() => route.query.hl, (hl) => {
 onMounted(() => {
   const off = onOpenDrawer((p) => {
     if (p.kind === 'curio') {
+      // V4.7.1 F1：curio 分支入口即守卫——非当前路由宿主直接让路：不打开抽屉、不清 query、不记 open。
+      if (!canConsumeCurioDrawer()) return
       // 设置页 / 调度台首页的 details-only 宿主只承载详情抽屉，
       // 点列表里的具体条目不跳二级卡池，直接在当前上下文打开。
       if (props.detailsOnly) {

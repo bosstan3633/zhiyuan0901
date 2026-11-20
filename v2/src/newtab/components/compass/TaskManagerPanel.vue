@@ -573,6 +573,7 @@ defineExpose({ openDetail, resetForFresh })
         :focus-tasks="liveTaskCards"
         :topics="liveTopicCards"
         :topic-statuses="d.topicStatuses"
+        :task-statuses="d.taskStatuses"
         :focus-slots="todayFocusSlots"
         :project-names="projNameById"
         :metric-names="metricTitleById"

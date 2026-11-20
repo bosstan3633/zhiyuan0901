@@ -1,6 +1,7 @@
 import type { AppData } from '@/shared/models'
 import { safeDecodeText } from '@/shared/utils'
 import { normalizeTopicStatusDomain } from '@/shared/utils/topicStatus'
+import { normalizeTaskStatusDomain } from '@/shared/utils/taskStatus'
 
 /** 老库 dueAt 是毫秒时间戳，现代任务日历只接受 YYYY-MM-DD；统一在载入/导入边界收敛。 */
 function legacyPlanDate(value: unknown): string | undefined {
@@ -276,6 +277,8 @@ export function normalizeLegacyCards(d: AppData): void {
   /* V4.5.0：选题状态与选题卡状态引用是业务真源，必须和启动载入、JSON 导入、云恢复走同一收敛。
      尤其三方合并后可能出现两个 terminal；这里统一收敛为唯一完成态，避免看板分组与
      “勾选完成”落到不同状态。 */
+  /* V4.7.1：任务状态与 task.statusId / 兼容 status 同样在入库边界收敛。 */
+  normalizeTaskStatusDomain(d)
   normalizeTopicStatusDomain(d)
   // P0-2 新增第九处：策展台必填字段兜底（`order`/`archived`/`icon`/`coverTheme`）。
   // `hub.ts` 与 `app.ts` 都按 `a.order - b.order` 排序、`filter(w => !w.archived)` 取活动台——

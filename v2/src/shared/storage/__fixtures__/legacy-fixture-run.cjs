@@ -35,6 +35,10 @@ const sample = JSON.parse(fs.readFileSync(path.join(here, 'legacy-library.sample
    V4.5.0 起又依赖 topicStatus.ts 的 normalizeTopicStatusDomain（它自身依赖
    sortedTopicStatuses / topicStatusOf / defaultTopicStatuses）。夹具必须把这条
    依赖链一起转译，否则会在 Node 里执行到未定义函数，行为闸反而失去意义。
+   V4.7.1 起再依赖 taskStatus.ts 的 normalizeTaskStatusDomain（它自身依赖
+   sortedTaskStatuses / fallbackStatusForBucket / DEFAULT_STATUS_ID /
+   defaultTaskStatuses）。默认值区间取到 createDefaultData 之前，topic/task
+   两套默认状态函数都在其中。
    只切这些纯函数区间，不引入 `@/` 别名 import。 */
 const repo = fs.readFileSync(repoTs, 'utf8')
 const from = repo.indexOf('function legacyPlanDate')
@@ -43,6 +47,12 @@ if (from < 0 || to <= from) { console.error('剥不出 legacyPlanDate / normaliz
 const topicTs = fs.readFileSync(path.join(here, '..', '..', 'utils', 'topicStatus.ts'), 'utf8')
 const topicFrom = topicTs.indexOf('export function sortedTopicStatuses')
 if (topicFrom < 0) { console.error('剥不出 topicStatus 依赖链 —— 锚点漂了'); process.exit(2) }
+const taskTs = fs.readFileSync(path.join(here, '..', '..', 'utils', 'taskStatus.ts'), 'utf8')
+const taskFrom = taskTs.indexOf('const DEFAULT_STATUS_ID')
+if (taskFrom < 0 || !taskTs.slice(taskFrom).includes('export function normalizeTaskStatusDomain')) {
+  console.error('剥不出 taskStatus 依赖链 —— 锚点漂了')
+  process.exit(2)
+}
 const defaultsTs = fs.readFileSync(path.join(here, '..', 'defaults.ts'), 'utf8')
 const defaultsFrom = defaultsTs.indexOf('export function defaultTopicStatuses')
 const defaultsTo = defaultsTs.indexOf('\nexport function createDefaultData', defaultsFrom)
@@ -50,7 +60,12 @@ if (defaultsFrom < 0 || defaultsTo <= defaultsFrom) {
   console.error('剥不出 defaultTopicStatuses —— 锚点漂了')
   process.exit(2)
 }
-const body = defaultsTs.slice(defaultsFrom, defaultsTo) + '\n' + topicTs.slice(topicFrom) + '\n' + repo.slice(from, to)
+const defaultsBody = defaultsTs.slice(defaultsFrom, defaultsTo)
+if (!defaultsBody.includes('export function defaultTaskStatuses')) {
+  console.error('剥不出 defaultTaskStatuses —— 锚点漂了')
+  process.exit(2)
+}
+const body = defaultsBody + '\n' + topicTs.slice(topicFrom) + '\n' + taskTs.slice(taskFrom) + '\n' + repo.slice(from, to)
 if (body.length < 3000) { console.error(`切出的函数体过短（${body.length} 字符）——锚点多半没对上`); process.exit(2) }
 
 /* 2) esbuild 转译成可执行 JS。刻意只切这一段：本仓库用的是 `@/` 别名，
@@ -63,7 +78,10 @@ try {
   console.error('esbuild 转译失败：' + e.message)
   process.exit(2)
 }
-if (!/normalizeLegacyCards/.test(js)) { console.error('转译结果里没有 normalizeLegacyCards'); process.exit(2) }
+if (!/normalizeLegacyCards/.test(js) || !/normalizeTaskStatusDomain/.test(js)) {
+  console.error('转译结果里没有 normalizeLegacyCards / normalizeTaskStatusDomain')
+  process.exit(2)
+}
 
 /* 3) 求值该函数 */
 let normalizeLegacyCards

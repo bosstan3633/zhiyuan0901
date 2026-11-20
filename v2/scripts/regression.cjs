@@ -99,6 +99,14 @@ const SHARDS = [
   '144-v470-ai-diagnose-guard',
   '148-v470-project-modal-tree',
   '149-v470-cardpool-plan-history',
+  '151-v471-task-status',
+  '152-v471-curio-single-host',
+  '153-v471-pool-collapse-entry',
+  '154-v471-task-toolbar-group',
+  '155-v471-resource-folders',
+  '156-v471-plan-history-hero',
+  '157-v471-workspace-split',
+  '158-v471-task-status-ui',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

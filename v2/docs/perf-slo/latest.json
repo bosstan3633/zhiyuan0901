@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-14T07:34:13.677Z",
+  "generatedAt": "2026-11-20T03:41:13.200Z",
   "source": "real-local-browser",
   "dist": "/Users/beantan/Downloads/zhiyuan0904/v2/dist",
-  "manifestVersion": "4.3.1",
-  "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1148/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+  "manifestVersion": "4.7.1",
+  "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
   "platform": "darwin-arm64",
   "node": "v26.0.0",
   "host": "Macmini",
@@ -26,15 +26,15 @@
       "label": "网页浮层唤起",
       "unit": "ms",
       "samples": [
-        120,
-        10,
-        7,
-        12,
-        8
+        85,
+        8,
+        18,
+        13,
+        10
       ],
       "sampleCount": 5,
-      "p50": 10,
-      "p95": 120,
+      "p50": 13,
+      "p95": 85,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -43,12 +43,10 @@
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 1,
-        "p95": 54,
-        "max": 54,
-        "samples": [
-          54
-        ]
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
       }
     },
     "cmdk_first_open": {
@@ -56,15 +54,15 @@
       "label": "⌘K / Ctrl+K 首屏",
       "unit": "ms",
       "samples": [
-        129,
-        42,
-        39,
-        47,
-        47
+        120,
+        71,
+        52,
+        50,
+        66
       ],
       "sampleCount": 5,
-      "p50": 47,
-      "p95": 129,
+      "p50": 66,
+      "p95": 120,
       "budgetP95": 1500,
       "pass": true,
       "notes": [
@@ -84,15 +82,15 @@
       "label": "搜索键入到结果更新",
       "unit": "ms",
       "samples": [
-        98,
-        96,
-        95,
         99,
+        97,
+        99,
+        101,
         97
       ],
       "sampleCount": 5,
-      "p50": 97,
-      "p95": 99,
+      "p50": 99,
+      "p95": 101,
       "budgetP95": 400,
       "pass": true,
       "notes": [
@@ -112,20 +110,20 @@
       "label": "调度台 / 方向台切换",
       "unit": "ms",
       "samples": [
+        82,
         83,
-        85,
-        48,
+        37,
+        69,
         46,
-        48,
-        47,
-        46,
-        51,
-        52,
-        47
+        71,
+        45,
+        128,
+        50,
+        75
       ],
       "sampleCount": 10,
-      "p50": 48,
-      "p95": 85,
+      "p50": 69,
+      "p95": 128,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -145,53 +143,37 @@
       "label": "任务 / 好奇心 / 资源卡池切换",
       "unit": "ms",
       "samples": [
-        184,
-        161,
-        173,
-        156,
-        174,
-        175,
-        164,
-        152,
-        175,
-        204,
-        158,
-        177,
-        193,
-        157,
-        173
+        55,
+        55,
+        74,
+        63,
+        39,
+        65,
+        61,
+        45,
+        65,
+        50,
+        43,
+        66,
+        68,
+        38,
+        68
       ],
       "sampleCount": 15,
-      "p50": 173,
-      "p95": 204,
+      "p50": 61,
+      "p95": 74,
       "budgetP95": 800,
       "pass": true,
       "notes": [
-        "每轮真实点击任务→好奇心→资源→任务三次 Tab；计到目标卡池列表首行出现，采样前已用真实「列表」按钮建立视图。"
+        "每轮真实点击任务→好奇心→资源→任务三次一级卡池页签；计到目标池工作区与首行卡出现。"
       ],
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 15,
-        "p95": 102,
-        "max": 102,
-        "samples": [
-          102,
-          73,
-          102,
-          93,
-          73,
-          96,
-          101,
-          73,
-          95,
-          90,
-          70,
-          86,
-          75,
-          72,
-          95
-        ]
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
       }
     },
     "pool_filter": {
@@ -199,29 +181,29 @@
       "label": "卡池状态 / 标签筛选",
       "unit": "ms",
       "samples": [
-        19,
-        37,
-        53,
-        17,
-        34,
-        54,
-        17,
-        36,
-        48,
-        11,
-        33,
-        50,
-        17,
-        44,
-        48
+        7,
+        4,
+        25,
+        7,
+        4,
+        31,
+        6,
+        4,
+        24,
+        7,
+        4,
+        27,
+        6,
+        3,
+        29
       ],
       "sampleCount": 15,
-      "p50": 36,
-      "p95": 54,
+      "p50": 7,
+      "p95": 31,
       "budgetP95": 500,
       "pass": true,
       "notes": [
-        "每轮真实操作任务「推进中」、好奇心「探索中」、资源池状态下拉「待打标」三次筛选；每次计到列表 DOM 实际变化。"
+        "每轮真实操作任务状态、好奇心状态、资源池状态三次下拉筛选；每次计到列表 DOM 实际变化。"
       ],
       "error": null,
       "longTasks": {
@@ -237,33 +219,27 @@
       "label": "资源常用夹抽屉打开",
       "unit": "ms",
       "samples": [
-        161,
-        228,
-        220,
-        233,
-        220
+        59,
+        58,
+        64,
+        62,
+        57
       ],
       "sampleCount": 5,
-      "p50": 220,
-      "p95": 233,
+      "p50": 59,
+      "p95": 64,
       "budgetP95": 800,
       "pass": true,
       "notes": [
-        "从资源池“常用夹”入口点击到抽屉内六组、每组 40 条镜像成员可消费。"
+        "从一级资源页「管理」入口点击到抽屉内六组、每组 40 条镜像成员可消费。"
       ],
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 5,
-        "p95": 79,
-        "max": 79,
-        "samples": [
-          66,
-          68,
-          74,
-          79,
-          74
-        ]
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
       }
     },
     "pool_detail": {
@@ -271,29 +247,29 @@
       "label": "三卡池详情打开",
       "unit": "ms",
       "samples": [
-        335,
-        344,
-        348,
-        342,
-        315,
-        339,
-        378,
-        323,
-        351,
-        359,
-        331,
-        361,
-        378,
-        344,
-        366
+        53,
+        89,
+        698,
+        42,
+        39,
+        672,
+        61,
+        39,
+        678,
+        40,
+        39,
+        691,
+        38,
+        39,
+        679
       ],
       "sampleCount": 15,
-      "p50": 344,
-      "p95": 378,
+      "p50": 53,
+      "p95": 698,
       "budgetP95": 1200,
       "pass": true,
       "notes": [
-        "每轮真实单击任务、好奇心、资源池列表行，计到对应详情标题可见；包含真实 260ms 双击去重等待。"
+        "每轮真实单击一级任务、好奇心、资源池列表行，计到对应详情标题可见；资源池含真实 260ms 单击去重等待。"
       ],
       "error": null,
       "longTasks": {
@@ -309,15 +285,15 @@
       "label": "同步内容明细抽屉",
       "unit": "ms",
       "samples": [
-        67,
-        44,
-        42,
-        46,
-        65
+        23,
+        30,
+        33,
+        37,
+        28
       ],
       "sampleCount": 5,
-      "p50": 46,
-      "p95": 67,
+      "p50": 30,
+      "p95": 37,
       "budgetP95": 1200,
       "pass": true,
       "notes": [
@@ -337,15 +313,15 @@
       "label": "分享抽屉打开",
       "unit": "ms",
       "samples": [
-        319,
-        190,
-        162,
-        173,
-        153
+        125,
+        117,
+        94,
+        100,
+        102
       ],
       "sampleCount": 5,
-      "p50": 173,
-      "p95": 319,
+      "p50": 102,
+      "p95": 125,
       "budgetP95": 1000,
       "pass": true,
       "notes": [
@@ -354,15 +330,13 @@
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 5,
-        "p95": 248,
-        "max": 248,
+        "sampleCount": 3,
+        "p95": 62,
+        "max": 62,
         "samples": [
-          248,
-          135,
-          96,
-          116,
-          107
+          62,
+          50,
+          52
         ]
       }
     },
@@ -371,13 +345,13 @@
       "label": "高清长图生成完成",
       "unit": "ms",
       "samples": [
-        213,
-        212,
-        221
+        145,
+        142,
+        123
       ],
       "sampleCount": 3,
-      "p50": 213,
-      "p95": 221,
+      "p50": 142,
+      "p95": 145,
       "budgetP95": 4000,
       "pass": true,
       "notes": [
@@ -386,19 +360,19 @@
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 3,
-        "p95": 122,
-        "max": 122,
+        "sampleCount": 1,
+        "p95": 50,
+        "max": 50,
         "samples": [
-          122,
-          119,
-          118
+          50
         ]
       }
     }
   },
   "alignment": {
     "tolerancePx": 1,
+    "topTolerancePx": 3,
+    "stackWidthPx": 900,
     "viewports": [
       {
         "width": 1440,
@@ -407,28 +381,53 @@
           "head": {
             "left": 36,
             "right": 1404,
-            "width": 1368
+            "top": 68,
+            "bottom": 258.8,
+            "width": 1368,
+            "height": 190.8
+          },
+          "console": {
+            "left": 36,
+            "right": 1404,
+            "top": 110,
+            "bottom": 258.8,
+            "width": 1368,
+            "height": 148.8
           },
           "thesis": {
-            "left": 36,
-            "right": 1404,
-            "width": 1368
+            "left": 46,
+            "right": 881.8,
+            "top": 120,
+            "bottom": 248.8,
+            "width": 835.8,
+            "height": 128.8
           },
-          "toolbar": {
-            "left": 36,
-            "right": 1404,
-            "width": 1368
+          "global": {
+            "left": 893.8,
+            "right": 1394,
+            "top": 120,
+            "bottom": 248.8,
+            "width": 500.3,
+            "height": 128.8
           },
           "canvas": {
             "left": 36,
             "right": 1404,
-            "width": 1368
+            "top": 271.8,
+            "bottom": 1024.2,
+            "width": 1368,
+            "height": 752.4
           }
         },
         "innerWidth": 1440,
         "scrollWidth": 1440,
+        "stacked": false,
         "maxEdgeDelta": 0,
+        "topDelta": 0,
         "overflowPx": 0,
+        "edgePass": true,
+        "topPass": true,
+        "stackPass": false,
         "pass": true
       },
       {
@@ -438,28 +437,53 @@
           "head": {
             "left": 36,
             "right": 1244,
-            "width": 1208
+            "top": 68,
+            "bottom": 258.8,
+            "width": 1208,
+            "height": 190.8
+          },
+          "console": {
+            "left": 36,
+            "right": 1244,
+            "top": 110,
+            "bottom": 258.8,
+            "width": 1208,
+            "height": 148.8
           },
           "thesis": {
-            "left": 36,
-            "right": 1244,
-            "width": 1208
+            "left": 46,
+            "right": 782.5,
+            "top": 120,
+            "bottom": 248.8,
+            "width": 736.5,
+            "height": 128.8
           },
-          "toolbar": {
-            "left": 36,
-            "right": 1244,
-            "width": 1208
+          "global": {
+            "left": 794.5,
+            "right": 1234,
+            "top": 120,
+            "bottom": 248.8,
+            "width": 439.5,
+            "height": 128.8
           },
           "canvas": {
             "left": 36,
             "right": 1244,
-            "width": 1208
+            "top": 271.8,
+            "bottom": 1052.6,
+            "width": 1208,
+            "height": 780.8
           }
         },
         "innerWidth": 1280,
         "scrollWidth": 1280,
+        "stacked": false,
         "maxEdgeDelta": 0,
+        "topDelta": 0,
         "overflowPx": 0,
+        "edgePass": true,
+        "topPass": true,
+        "stackPass": false,
         "pass": true
       },
       {
@@ -469,59 +493,109 @@
           "head": {
             "left": 36,
             "right": 988,
-            "width": 952
+            "top": 68,
+            "bottom": 293.8,
+            "width": 952,
+            "height": 225.8
+          },
+          "console": {
+            "left": 36,
+            "right": 988,
+            "top": 110,
+            "bottom": 293.8,
+            "width": 952,
+            "height": 183.8
           },
           "thesis": {
-            "left": 36,
-            "right": 988,
-            "width": 952
+            "left": 46,
+            "right": 623.8,
+            "top": 120,
+            "bottom": 283.8,
+            "width": 577.8,
+            "height": 163.8
           },
-          "toolbar": {
-            "left": 36,
-            "right": 988,
-            "width": 952
+          "global": {
+            "left": 635.8,
+            "right": 978,
+            "top": 120,
+            "bottom": 283.8,
+            "width": 342.2,
+            "height": 163.8
           },
           "canvas": {
             "left": 36,
             "right": 988,
-            "width": 952
+            "top": 306.8,
+            "bottom": 1092.6,
+            "width": 952,
+            "height": 785.8
           }
         },
         "innerWidth": 1024,
         "scrollWidth": 1024,
+        "stacked": false,
         "maxEdgeDelta": 0,
+        "topDelta": 0,
         "overflowPx": 0,
+        "edgePass": true,
+        "topPass": true,
+        "stackPass": false,
         "pass": true
       },
       {
-        "width": 768,
+        "width": 900,
         "height": 900,
         "bounds": {
           "head": {
             "left": 18,
-            "right": 750,
-            "width": 732
+            "right": 882,
+            "top": 64,
+            "bottom": 395.4,
+            "width": 864,
+            "height": 331.4
+          },
+          "console": {
+            "left": 18,
+            "right": 882,
+            "top": 108,
+            "bottom": 395.4,
+            "width": 864,
+            "height": 287.4
           },
           "thesis": {
-            "left": 18,
-            "right": 750,
-            "width": 732
+            "left": 26,
+            "right": 874,
+            "top": 116,
+            "bottom": 249.6,
+            "width": 848,
+            "height": 133.6
           },
-          "toolbar": {
-            "left": 18,
-            "right": 750,
-            "width": 732
+          "global": {
+            "left": 26,
+            "right": 874,
+            "top": 258.6,
+            "bottom": 387.4,
+            "width": 848,
+            "height": 128.8
           },
           "canvas": {
             "left": 18,
-            "right": 750,
-            "width": 732
+            "right": 882,
+            "top": 408.4,
+            "bottom": 1215.8,
+            "width": 864,
+            "height": 807.4
           }
         },
-        "innerWidth": 768,
-        "scrollWidth": 768,
+        "innerWidth": 900,
+        "scrollWidth": 900,
+        "stacked": true,
         "maxEdgeDelta": 0,
+        "topDelta": 142.6,
         "overflowPx": 0,
+        "edgePass": true,
+        "topPass": false,
+        "stackPass": true,
         "pass": true
       },
       {
@@ -531,28 +605,53 @@
           "head": {
             "left": 18,
             "right": 372,
-            "width": 354
+            "top": 64,
+            "bottom": 454.8,
+            "width": 354,
+            "height": 390.8
+          },
+          "console": {
+            "left": 18,
+            "right": 372,
+            "top": 108,
+            "bottom": 454.8,
+            "width": 354,
+            "height": 346.8
           },
           "thesis": {
-            "left": 18,
-            "right": 372,
-            "width": 354
+            "left": 26,
+            "right": 364,
+            "top": 116,
+            "bottom": 274,
+            "width": 338,
+            "height": 158
           },
-          "toolbar": {
-            "left": 18,
-            "right": 372,
-            "width": 354
+          "global": {
+            "left": 26,
+            "right": 364,
+            "top": 283,
+            "bottom": 446.8,
+            "width": 338,
+            "height": 163.8
           },
           "canvas": {
             "left": 18,
             "right": 372,
-            "width": 354
+            "top": 467.8,
+            "bottom": 1408.1,
+            "width": 354,
+            "height": 940.3
           }
         },
         "innerWidth": 390,
         "scrollWidth": 390,
+        "stacked": true,
         "maxEdgeDelta": 0,
+        "topDelta": 167,
         "overflowPx": 0,
+        "edgePass": true,
+        "topPass": false,
+        "stackPass": true,
         "pass": true
       }
     ]

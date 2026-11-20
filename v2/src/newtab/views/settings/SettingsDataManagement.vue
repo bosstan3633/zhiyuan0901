@@ -458,7 +458,7 @@ watch(tab, v => { if (v === 'assets') void refreshAssetRows() })
   <input ref="bookmarkInput" type="file" accept=".html,.htm" class="gs-file-hidden" @change="handleBookmarkFile" />
 
   <TaskDetailDrawer ref="taskDetailRef" @closed="refreshAssetRows" />
-  <CuriosityPanel ref="curiosityPanelRef" details-only @closed="refreshAssetRows" />
+  <CuriosityPanel ref="curiosityPanelRef" details-only details-host="settings" @closed="refreshAssetRows" />
   <ArgumentDetailDrawer :open="argumentDrawerOpen" :card="argumentDetail" :workspace-name="argumentWorkspaceName"
     @close="argumentDrawerOpen = false; refreshAssetRows()" @save="saveArgumentDetail" />
 </div>

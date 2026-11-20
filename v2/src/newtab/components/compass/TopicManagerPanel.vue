@@ -448,9 +448,6 @@ defineExpose({ resetForFresh, openDetail })
         <button class="topic-clear" type="button" @click="resetFilters">清空筛选</button>
       </div>
       <div class="topic-toolbar-actions">
-        <button v-if="listCollapsed" class="topic-expand" type="button" title="展开选题清单" @click="listCollapsed = false">
-          <Icon name="arrowright" :size="13" /> 展开清单
-        </button>
         <div class="topic-view-switch" role="group" aria-label="选题视图">
           <button type="button" :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">日历</button>
           <button type="button" :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
@@ -460,59 +457,74 @@ defineExpose({ resetForFresh, openDetail })
     </header>
 
     <div class="topic-workbench">
-      <aside v-if="!listCollapsed" class="topic-pool">
-        <header class="topic-pool-head">
-          <div>
-            <div class="topic-pool-heading">
-              <b>选题清单</b>
-              <button class="topic-collapse-inline" type="button" title="折叠选题清单" @click="listCollapsed = true">
-                <Icon name="arrowleft" :size="12" /> 折叠
+      <aside class="topic-pool" :class="{ collapsed: listCollapsed }">
+        <button
+          v-if="listCollapsed"
+          class="topic-rail-toggle"
+          type="button"
+          title="展开选题清单"
+          aria-label="展开选题清单"
+          :aria-expanded="false"
+          @click="listCollapsed = false"
+        >
+          <Icon name="arrowright" :size="13" />
+          <span>选题清单</span>
+          <em>{{ filteredTopics.length }}</em>
+        </button>
+        <template v-else>
+          <header class="topic-pool-head">
+            <div>
+              <div class="topic-pool-heading">
+                <b>选题清单</b>
+                <button class="topic-collapse-inline" type="button" title="折叠选题清单" aria-label="折叠选题清单" :aria-expanded="true" @click="listCollapsed = true">
+                  <Icon name="arrowleft" :size="12" /> 折叠
+                </button>
+              </div>
+            <span>{{ filteredTopics.length }} 项当前筛选 · {{ sortMode === 'recent' ? '最新入池在前' : sortMode === 'due' ? '按计划日期' : '未落图在前' }}</span>
+            </div>
+            <div class="topic-pool-badges">
+              <span>{{ pendingCount }} 未落图</span>
+              <span class="today">今日 +{{ todayCount }}</span>
+            </div>
+          </header>
+          <div class="topic-pool-list">
+            <template v-for="group in topicListGroups" :key="group.key">
+              <div v-if="group.name" class="topic-pool-group">
+                <span>{{ group.name }}</span><em>{{ group.topics.length }}</em>
+              </div>
+            <article
+              v-for="topic in group.topics"
+              :key="topic.id"
+              class="topic-pool-item"
+              :style="statusStyle(topic)"
+              tabindex="0"
+              draggable="true"
+              @dragstart.stop="onTopicListDragStart($event, topic)"
+              @click="scheduleTopicOpen(topic)"
+              @dblclick.stop.prevent="openTopicDirect(topic)"
+              @keydown.enter.prevent="openTopic(topic)"
+            >
+              <button class="topic-check" :class="{ done: isTopicDone(d, topic) }" type="button" :aria-label="isTopicDone(d, topic) ? '恢复选题' : '标记完成'" @click.stop="toggleStatus(topic.id)">
+                <Icon v-if="isTopicDone(d, topic)" name="check" :size="10" />
               </button>
-            </div>
-          <span>{{ filteredTopics.length }} 项当前筛选 · {{ sortMode === 'recent' ? '最新入池在前' : sortMode === 'due' ? '按计划日期' : '未落图在前' }}</span>
-          </div>
-          <div class="topic-pool-badges">
-            <span>{{ pendingCount }} 未落图</span>
-            <span class="today">今日 +{{ todayCount }}</span>
-          </div>
-        </header>
-        <div class="topic-pool-list">
-          <template v-for="group in topicListGroups" :key="group.key">
-            <div v-if="group.name" class="topic-pool-group">
-              <span>{{ group.name }}</span><em>{{ group.topics.length }}</em>
-            </div>
-          <article
-            v-for="topic in group.topics"
-            :key="topic.id"
-            class="topic-pool-item"
-            :style="statusStyle(topic)"
-            tabindex="0"
-            draggable="true"
-            @dragstart.stop="onTopicListDragStart($event, topic)"
-            @click="scheduleTopicOpen(topic)"
-            @dblclick.stop.prevent="openTopicDirect(topic)"
-            @keydown.enter.prevent="openTopic(topic)"
-          >
-            <button class="topic-check" :class="{ done: isTopicDone(d, topic) }" type="button" :aria-label="isTopicDone(d, topic) ? '恢复选题' : '标记完成'" @click.stop="toggleStatus(topic.id)">
-              <Icon v-if="isTopicDone(d, topic)" name="check" :size="10" />
-            </button>
-            <span class="topic-pool-copy">
-              <span class="topic-pool-title"><NewBadge :at="topic.createdAt" />{{ topic.title }}</span>
-              <span class="topic-pool-meta">
-                <span>{{ projectName(topic) }}</span>
-                <span v-if="metricName(topic)">› {{ metricName(topic) }}</span>
-                <span class="topic-pool-plan" :class="{ scheduled: !!topic.dueDate }"><Icon name="calendar" :size="10" />{{ friendlyDate(topic.dueDate) }}</span>
+              <span class="topic-pool-copy">
+                <span class="topic-pool-title"><NewBadge :at="topic.createdAt" />{{ topic.title }}</span>
+                <span class="topic-pool-meta">
+                  <span>{{ projectName(topic) }}</span>
+                  <span v-if="metricName(topic)">› {{ metricName(topic) }}</span>
+                  <span class="topic-pool-plan" :class="{ scheduled: !!topic.dueDate }"><Icon name="calendar" :size="10" />{{ friendlyDate(topic.dueDate) }}</span>
+                </span>
               </span>
-            </span>
-            <span class="topic-pool-status">{{ statusOf(topic)?.name || '构思中' }}</span>
-            <div class="topic-pool-actions">
-              <button v-if="topic.dueDate !== localTodayKey()" type="button" title="设为今日重点" @click.stop="addTopicToToday(topic)"><Icon name="target" :size="12" /></button>
-              <button type="button" title="删除选题" @click.stop="deleteTopic(topic)"><Icon name="trash" :size="12" /></button>
-            </div>
-          </article>
-          </template>
-          <EmptyState v-if="!orderedTopics.length" size="inline" icon="clipboard" title="没有匹配的选题" hint="调整筛选条件，或新建一个选题。" />
-        </div>
+              <span class="topic-pool-status">{{ statusOf(topic)?.name || '构思中' }}</span>
+              <div class="topic-pool-actions">
+                <button v-if="topic.dueDate !== localTodayKey()" type="button" title="设为今日重点" @click.stop="addTopicToToday(topic)"><Icon name="target" :size="12" /></button>
+                <button type="button" title="删除选题" @click.stop="deleteTopic(topic)"><Icon name="trash" :size="12" /></button>
+              </div>
+            </article>
+            </template>
+            <EmptyState v-if="!orderedTopics.length" size="inline" icon="clipboard" title="没有匹配的选题" hint="调整筛选条件，或新建一个选题。" />
+          </div>
+        </template>
       </aside>
 
       <section class="topic-view">
@@ -629,8 +641,6 @@ defineExpose({ resetForFresh, openDetail })
 .topic-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-xl); background: color-mix(in srgb, var(--surface) 92%, var(--accent-light)); }
 .topic-toolbar-main, .topic-toolbar-actions { display: flex; align-items: center; gap: 7px; min-width: 0; flex-wrap: wrap; }
 .topic-toolbar-main { flex: 1; }
-.topic-expand { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text-2); font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
-.topic-expand:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .topic-search { display: flex; flex: 1; min-width: 220px; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
 .topic-search input { flex: 1; min-width: 0; min-height: 34px; border: 0; outline: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); }
 .topic-search button { padding: 0; border: 0; background: none; color: var(--text-2); cursor: pointer; }
@@ -642,8 +652,13 @@ defineExpose({ resetForFresh, openDetail })
 .topic-view-switch button.on { background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm); }
 .topic-new { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
 .topic-workbench { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
-.list-hidden .topic-workbench { grid-template-columns: minmax(0, 1fr); }
+.list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }
 .topic-pool { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
+.topic-pool.collapsed { align-items: center; background: color-mix(in srgb, var(--surface-2) 76%, var(--surface)); }
+.topic-rail-toggle { display: flex; width: 100%; height: 100%; flex-direction: column; align-items: center; gap: 9px; padding: 12px 3px; border: 0; background: transparent; color: var(--text-2); font: inherit; cursor: pointer; }
+.topic-rail-toggle:hover, .topic-rail-toggle:focus-visible { background: var(--accent-light); color: var(--accent-ink); }
+.topic-rail-toggle span { writing-mode: vertical-rl; letter-spacing: .14em; font-size: var(--fs-caption); font-weight: 650; }
+.topic-rail-toggle em { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 4px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-size: var(--fs-micro); font-style: normal; font-variant-numeric: tabular-nums; }
 .topic-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 13px; border-bottom: 1px solid var(--border); }
 .topic-pool-head > div:first-child { flex: 1; min-width: 0; }
 .topic-pool-heading { display: flex; align-items: center; gap: 7px; }
@@ -711,6 +726,8 @@ defineExpose({ resetForFresh, openDetail })
 @media (max-width: 820px) {
   .topic-workbench { grid-template-columns: 1fr; }
   .topic-pool { max-height: 360px; }
+  .list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }
+  .list-hidden .topic-pool { max-height: none; }
   .topic-board { grid-auto-columns: minmax(240px, 86vw); }
 }
 </style>

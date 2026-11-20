@@ -65,15 +65,15 @@ check('V460-3 ★双击选题卡直接打开成果链接，单击仍延迟打开
     && read('/newtab/views/useCompassHome.ts').includes('if (!openTopicOutcome(topic)) openTopicPreview(topic)')
 })
 
-check('V460-4 ★任务清单与选题清单的折叠入口都在清单标题旁；折叠后正文视图占满整行，并从视图头部提供展开入口', () => {
+check('V460-4 ★任务清单与选题清单的折叠入口都在清单标题旁；折叠后清单收成左侧常驻窄轨，展开入口固定在左侧', () => {
   return TASK_CALENDAR.includes('<b>任务清单</b>')
     && TASK_CALENDAR.includes('class="cal-list-collapse"')
-    && TASK_CALENDAR.includes('class="cal-list-expand"')
+    && TASK_CALENDAR.includes('class="cal-rail-toggle"')
     && TASK_CSS.includes('.task-calendar.list-hidden')
     && TASK_CSS.includes('.task-calendar.list-hidden .cal-pool')
     && TOPIC_MANAGER.includes('<b>选题清单</b>')
     && TOPIC_MANAGER.includes('class="topic-collapse-inline"')
-    && TOPIC_MANAGER.includes('class="topic-expand"')
+    && TOPIC_MANAGER.includes('class="topic-rail-toggle"')
     && TOPIC_MANAGER.includes('.list-hidden .topic-workbench')
 })
 
@@ -99,10 +99,12 @@ check('V460-6 ★方向树单项目聚焦后不再贴左：目标层最大宽度
     && TREE.includes(':class="{ focused }"')
 })
 
-check('V460-7 ★策展台中心论点与页面工具栏合并为同一双列控制台；≤900px 自动单列，画布获得更多纵向空间且左右仍对齐', () => {
+check('V460-7 ★策展台中心论点与全局功能合并为同一双列控制台；V4.7.1 起两栏比例可拖拽，≤900px 自动单列且左右仍对齐', () => {
   return WORKSPACE.includes('class="ws-curation-console"')
     && WORKSPACE.indexOf('class="ws-curation-console"') < WORKSPACE.indexOf('class="thesis-banner"')
-    && WORKSPACE_CSS.includes('grid-template-columns: minmax(0, 1.55fr) minmax(380px, .9fr)')
+    && WORKSPACE.includes('class="ws-console-split"')
+    && WORKSPACE_CSS.includes('--ws-console-split: 62%')
+    && WORKSPACE_CSS.includes('minmax(320px, min(var(--ws-console-split), calc(100% - 352px)))')
     && WORKSPACE_CSS.includes('.ws-curation-console .cur-toolbar')
     && WORKSPACE_CSS.includes('@media (max-width: 900px)')
     && WORKSPACE_CSS.includes('.ws-curation-console { grid-template-columns: minmax(0, 1fr);')

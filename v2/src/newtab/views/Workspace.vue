@@ -35,7 +35,7 @@
           <span class="wsh-upd" v-pressable title="查看最近更新流水" @click.stop="openDrill('recent')"> · 更新于 <b>{{ lastUpdateText }}</b></span>
         </span>
       </div>
-      <div class="ws-curation-console">
+      <div ref="consoleRef" class="ws-curation-console" :style="consoleSplitStyle">
       <!-- 中心论点卡是信息主舞台：有论点时整卡可打开详情，内部控件各自阻止冒泡；
            空态仍由原生按钮承担创建动作。 -->
       <div class="thesis-banner" :class="{ empty: !thesisCard }"
@@ -66,6 +66,15 @@
           </button>
         </template>
       </div>
+
+      <!-- V4.7.1 F6：中心论点与全局功能之间的垂直分隔条；比例只进 UIPrefs，不碰业务数据。 -->
+      <div class="ws-console-split" role="separator" aria-orientation="vertical"
+        :aria-valuemin="WS_CONSOLE_SPLIT_MIN" :aria-valuemax="WS_CONSOLE_SPLIT_MAX" :aria-valuenow="wsConsoleSplit"
+        aria-label="调整中心论点与全局功能区域的宽度" tabindex="0"
+        title="拖拽调整宽度；双击恢复 62%；方向键每次 2%"
+        @pointerdown="startConsoleSplitDrag" @pointermove="moveConsoleSplitDrag"
+        @pointerup="endConsoleSplitDrag" @pointercancel="endConsoleSplitDrag"
+        @dblclick="resetConsoleSplit" @keydown="onConsoleSplitKeydown" />
 
       <!-- ③ 行动条 / 全局功能模块：分享成果是唯一主行动；论据/附件读数与低频动作收进右栏，
            中心论点只保留论点正文与详情入口。画布布局切换仍在画布工具条。 -->
@@ -466,7 +475,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import { useCompass } from '@/newtab/stores/compass'
 import { recordWorkspaceOpen } from '@/shared/storage/stats'
-import { saveUIPrefs } from '@/shared/storage/repository'
 import { showToast } from '@/shared/components/toast'
 import AssetPreview from '@/shared/components/AssetPreview.vue'; import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'; import DetailTitle from '@/newtab/components/DetailTitle.vue'; import ResourceAiStrip from '@/newtab/components/ResourceAiStrip.vue'
 import ContextMenu from '@/shared/components/ContextMenu.vue'; import ResourceEditForm from '@/newtab/components/ResourceEditForm.vue'; import ImportTemplateModal from '@/newtab/components/ImportTemplateModal.vue'
@@ -504,6 +512,7 @@ import { useCurationMindMap } from '@/newtab/composables/useCurationMindMap'
 import { useCurationCanvasHistory } from '@/newtab/composables/useCurationCanvasHistory'
 import { useWsMeta } from '@/newtab/composables/useWsMeta'
 import { useWsAssetHygiene } from '@/newtab/composables/useWsAssetHygiene'
+import { useWsConsoleSplit } from '@/newtab/composables/useWsConsoleSplit'
 // R113-N2：LifecyclePanel / useLifecycle 移除——入口收敛到 设置→总览（GlobalSettings）
 // R115：视图/侧栏/打开/抽屉/拖拽/金字塔六域拆入 composables（04-59 技术债第三批）；实现原位迁出、零行为变更。
 
@@ -1368,6 +1377,13 @@ function openImport() {
   wsInfoMenuOpen.value = false
   importModalOpen.value = true
 }
+
+// ===== V4.7.1 F6：策展台顶部双栏拖拽（UIPrefs.wsConsoleSplit，左栏百分比） =====
+// 实现迁至 composables/useWsConsoleSplit.ts；标识符经解构保留原绑定，模板零改动。
+const {
+  WS_CONSOLE_SPLIT_MIN, WS_CONSOLE_SPLIT_MAX, consoleRef, wsConsoleSplit, consoleSplitStyle,
+  startConsoleSplitDrag, moveConsoleSplitDrag, endConsoleSplitDrag, resetConsoleSplit, onConsoleSplitKeydown,
+} = useWsConsoleSplit({ store })
 
 onMounted(() => {
   document.addEventListener('click', closeHeaderMenus)

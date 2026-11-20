@@ -49,7 +49,9 @@ const { openResourceLink } = useResourceOpen({ store, d: resourceData })
 const props = withDefaults(defineProps<{
   /** 独立二级页：隐藏新建/本地导入入口，空态主行动改为清空筛选。 */
   secondaryMode?: boolean
-}>(), { secondaryMode: false })
+  /** 一级「全部资源卡」抽屉：顶部常用夹入口与宿主重复，隐藏；单卡“加入常用夹”保留。 */
+  hideFolderEntry?: boolean
+}>(), { secondaryMode: false, hideFolderEntry: false })
 
 const query = ref('')
 const freshMode = ref(false)
@@ -568,7 +570,7 @@ function deleteSelected() {
         {{ allGroupsCollapsed ? '▾ 全部展开' : '▸ 全部折叠' }}
       </button><span class="pcp-count"><b>{{ poolCards.length }}</b> / 全部 {{ poolTotal }} 张</span></template>
       <template #tail>
-        <button class="pcp-btn pcp-folder-entry" :title="`打开常用夹 · ${folderCount} 条资源镜像`" @click="foldersOpen = true">
+        <button v-if="!hideFolderEntry" class="pcp-btn pcp-folder-entry" :title="`打开常用夹 · ${folderCount} 条资源镜像`" @click="foldersOpen = true">
           <Icon name="folder" :size="13"/> 常用夹 <span class="pcp-folder-entry-n">{{ folders.length }}</span>
         </button>
       </template>

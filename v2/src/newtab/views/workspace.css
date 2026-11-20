@@ -12,10 +12,16 @@
 /* V3.9.30：三层共处一个连续页头；不再把行动条漂在页头之外。 */
 .ws-head { display: flex; flex-direction: column; gap: 6px; padding-left: 0; min-width: 0; }
 .ws-curation-console {
+  --ws-console-split: 62%;
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(380px, .9fr);
+  /* V4.7.1 F6：左栏百分比来自 UIPrefs；上限同时受右栏 340px 最小宽约束，窄容器下不溢出。 */
+  grid-template-columns:
+    minmax(320px, min(var(--ws-console-split), calc(100% - 352px)))
+    12px
+    minmax(340px, 1fr);
   align-items: stretch;
-  gap: 9px;
+  column-gap: 0;
+  row-gap: 9px;
   padding: 9px;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -66,6 +72,46 @@
   background: transparent;
   box-shadow: none;
 }
+
+/* ===== V4.7.1 F6：中心论点 / 全局功能双栏拖拽分隔条 =====
+   只用现有主题 token：线色 border-strong、强调 accent、焦点环 focus-ring。 */
+.ws-curation-console > .thesis-banner,
+.ws-curation-console > .cur-global-panel { min-width: 0; }
+.ws-curation-console > .thesis-banner { overflow: hidden; }
+.ws-curation-console .tb-kicker { flex-wrap: wrap; row-gap: 2px; }
+.ws-console-split {
+  position: relative;
+  width: 12px;
+  min-width: 12px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+.ws-console-split::before {
+  content: '';
+  width: 2px;
+  height: 60%;
+  max-height: 72px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: height var(--dur-fast), background var(--dur-fast);
+}
+.ws-console-split:hover::before,
+.ws-console-split:focus-visible::before { width: 3px; height: 100%; background: var(--accent); }
+.ws-console-split:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -3px;
+  background: var(--accent-light);
+}
+:global(body.ws-console-resizing) { cursor: col-resize; user-select: none; }
+/* ===== V4.7.1 F6 end ===== */
+
 .cur-global-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; min-height: 28px; }
 .cur-global-title { font-size: var(--fs-caption); font-weight: 600; color: var(--text-3); letter-spacing: .06em; }
 .cur-global-panel .share-action { flex: none; min-height: 30px; padding: 5px 12px; }
@@ -342,6 +388,7 @@
   .ws-content { padding: 16px 18px 72px; }
   .ws-head { gap: 8px; padding-left: 0; }
   .ws-curation-console { grid-template-columns: minmax(0, 1fr); padding: 7px; border-radius: 15px; }
+  .ws-console-split { display: none; }
   .ws-curation-console .cur-global-panel { grid-template-columns: minmax(0, 1fr); }
   .ws-id-head { max-width: none; min-height: 36px; max-height: none; }
   .wsh-name { font-size: 17px; }

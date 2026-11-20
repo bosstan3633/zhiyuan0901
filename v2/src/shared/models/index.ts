@@ -277,6 +277,19 @@ export interface ResourceFolderMirror {
   snapshot?: ResourceCard
 }
 
+/** V4.7.1：任务状态的语义桶。 */
+export type TaskStatusBucket = 'todo' | 'doing' | 'done'
+
+/** V4.7.1：任务状态定义。看板列、筛选、详情徽标与完成语义共用这一份业务数据。 */
+export interface TaskStatusDef {
+  id: ID
+  name: string
+  color: string
+  order: number
+  bucket: TaskStatusBucket
+  terminal?: boolean
+}
+
 /** 任务卡（行动闭环） */
 export interface TaskCard extends CardBase {
   kind: 'task'
@@ -285,6 +298,8 @@ export interface TaskCard extends CardBase {
   projectId?: ID
   /** 归属成功指标（第5层） */
   metricId?: ID
+  /** V4.7.1：任务状态真源；`status` 仅保留为对应语义桶的兼容层。 */
+  statusId?: ID
   status: 'todo' | 'doing' | 'done'
   /** V4.3.5：取消完成时优先恢复的状态；未记录则回到待开始。 */
   statusBeforeDone?: 'todo' | 'doing'
@@ -630,6 +645,8 @@ export interface AppData {
   topics: TopicCard[]
   /** V4.5.0：选题卡状态定义（业务数据，参与云同步）。 */
   topicStatuses: TopicStatusDef[]
+  /** V4.7.1：任务状态定义（业务数据，参与云同步）。 */
+  taskStatuses: TaskStatusDef[]
   /** V4.5.0：选题卡 → 资源卡的独立关联记录。 */
   topicResourceLinks?: TopicResourceLink[]
   dailyFocus: DailyFocus
@@ -774,6 +791,8 @@ export interface UIPrefs {
   projRailH?: number
   /** R113-N1：资源台/策展台左侧分类树宽度记忆（px，160–420，默认 200；双击分隔条复位） */
   wsSideW?: number
+  /** V4.7.1 F6：策展台顶部「中心论点 / 全局功能」双栏左栏宽度百分比（32–72，默认 62；双击分隔条复位） */
+  wsConsoleSplit?: number
   /** R125：工作台左栏收起为 36px 图标轨（记忆偏好） */
   wsSideRail?: boolean
   /** ★V3.8.20 退役带备案（用户拍板 2026-10-15）：原 N4 方向台页头文案自定义 compassCopy

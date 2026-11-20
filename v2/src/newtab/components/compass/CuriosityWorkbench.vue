@@ -183,45 +183,57 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
         <button type="button" :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">日历</button>
         <button type="button" :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
       </div>
-      <button v-if="listCollapsed" class="cw-expand" type="button" @click="listCollapsed = false">
-        <Icon name="arrowright" :size="12" /> 展开清单
-      </button>
     </header>
 
     <div class="cw-main">
-      <aside v-if="!listCollapsed" class="cw-pool">
-        <header class="cw-pool-head">
-          <div>
-            <b>好奇心清单</b>
-            <span>{{ filtered.length }} 张 · {{ pending.length }} 未落图</span>
+      <aside class="cw-pool" :class="{ collapsed: listCollapsed }">
+        <button
+          v-if="listCollapsed"
+          class="cw-rail-toggle"
+          type="button"
+          title="展开好奇心清单"
+          aria-label="展开好奇心清单"
+          :aria-expanded="false"
+          @click="listCollapsed = false"
+        >
+          <Icon name="arrowright" :size="13" />
+          <span>好奇心清单</span>
+          <em>{{ filtered.length }}</em>
+        </button>
+        <template v-else>
+          <header class="cw-pool-head">
+            <div>
+              <b>好奇心清单</b>
+              <span>{{ filtered.length }} 张 · {{ pending.length }} 未落图</span>
+            </div>
+            <button class="cw-collapse" type="button" title="折叠好奇心清单" aria-label="折叠好奇心清单" :aria-expanded="true" @click="listCollapsed = true"><Icon name="arrowleft" :size="11" /> 折叠</button>
+          </header>
+          <div class="cw-pool-list">
+            <article
+              v-for="card in filtered"
+              :key="card.id"
+              class="cw-pool-item"
+              draggable="true"
+              tabindex="0"
+              @dragstart="onDragStart($event, card)"
+              @dragend="dragId = ''; overKey = ''; overStatus = ''"
+              @click="openCard(card)"
+              @keydown.enter.prevent="openCard(card)"
+            >
+              <button class="cw-check" :class="{ done: card.status === 'done' }" type="button" :aria-label="card.status === 'done' ? '恢复待探索' : '标记已求证'" @click.stop="toggleStatus(card)">
+                <Icon v-if="card.status === 'done'" name="check" :size="9" />
+              </button>
+              <span class="cw-copy">
+                <b><Icon v-if="card.pinned" name="pin" :size="10" />{{ card.question }}</b>
+                <small>
+                  <span class="cw-status" :class="'is-' + card.status">{{ statusLabel(card.status) }}</span>
+                  <span class="cw-date" :class="{ scheduled: !!card.dueDate }"><Icon name="calendar" :size="10" />{{ shortDate(card.dueDate) }}</span>
+                </small>
+              </span>
+            </article>
+            <EmptyState v-if="!filtered.length" size="inline" icon="bulb" title="没有匹配的好奇心" hint="调整状态或搜索条件。" />
           </div>
-          <button class="cw-collapse" type="button" @click="listCollapsed = true"><Icon name="arrowleft" :size="11" /> 折叠</button>
-        </header>
-        <div class="cw-pool-list">
-          <article
-            v-for="card in filtered"
-            :key="card.id"
-            class="cw-pool-item"
-            draggable="true"
-            tabindex="0"
-            @dragstart="onDragStart($event, card)"
-            @dragend="dragId = ''; overKey = ''; overStatus = ''"
-            @click="openCard(card)"
-            @keydown.enter.prevent="openCard(card)"
-          >
-            <button class="cw-check" :class="{ done: card.status === 'done' }" type="button" :aria-label="card.status === 'done' ? '恢复待探索' : '标记已求证'" @click.stop="toggleStatus(card)">
-              <Icon v-if="card.status === 'done'" name="check" :size="9" />
-            </button>
-            <span class="cw-copy">
-              <b><Icon v-if="card.pinned" name="pin" :size="10" />{{ card.question }}</b>
-              <small>
-                <span class="cw-status" :class="'is-' + card.status">{{ statusLabel(card.status) }}</span>
-                <span class="cw-date" :class="{ scheduled: !!card.dueDate }"><Icon name="calendar" :size="10" />{{ shortDate(card.dueDate) }}</span>
-              </small>
-            </span>
-          </article>
-          <EmptyState v-if="!filtered.length" size="inline" icon="bulb" title="没有匹配的好奇心" hint="调整状态或搜索条件。" />
-        </div>
+        </template>
       </aside>
 
       <section v-if="viewMode === 'calendar'" class="cw-calendar" aria-label="好奇心日历">
@@ -326,10 +338,14 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 .cw-view-switch { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .cw-view-switch button { min-height: 25px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
 .cw-view-switch button.on { background: var(--accent-light); color: var(--accent-ink); }
-.cw-expand { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-micro); cursor: pointer; }
 .cw-main { display: grid; grid-template-columns: minmax(250px, 310px) minmax(0, 1fr); gap: 10px; min-height: 580px; }
-.list-hidden .cw-main { grid-template-columns: minmax(0, 1fr); }
+.list-hidden .cw-main { grid-template-columns: 46px minmax(0, 1fr); }
 .cw-pool { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
+.cw-pool.collapsed { align-items: center; background: color-mix(in srgb, var(--surface-2) 76%, var(--surface)); }
+.cw-rail-toggle { display: flex; width: 100%; height: 100%; flex-direction: column; align-items: center; gap: 9px; padding: 12px 3px; border: 0; background: transparent; color: var(--text-2); font: inherit; cursor: pointer; }
+.cw-rail-toggle:hover, .cw-rail-toggle:focus-visible { background: var(--accent-light); color: var(--accent-ink); }
+.cw-rail-toggle span { writing-mode: vertical-rl; letter-spacing: .14em; font-size: var(--fs-caption); font-weight: 650; }
+.cw-rail-toggle em { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 4px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-size: var(--fs-micro); font-style: normal; font-variant-numeric: tabular-nums; }
 .cw-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 12px; border-bottom: 1px solid var(--border); }
 .cw-pool-head b { display: block; color: var(--text); font-size: var(--fs-body); }
 .cw-pool-head span { display: block; margin-top: 2px; color: var(--text-3); font-size: var(--fs-micro); }
@@ -392,5 +408,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 @media (max-width: 900px) {
   .cw-main { grid-template-columns: minmax(0, 1fr); }
   .cw-pool { max-height: 320px; }
+  .list-hidden .cw-main { grid-template-columns: 46px minmax(0, 1fr); }
+  .list-hidden .cw-pool { max-height: none; }
 }
 </style>

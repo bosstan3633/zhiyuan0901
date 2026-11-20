@@ -37,17 +37,21 @@ check('XM-01 ★方向层级标签三处接线：战略目标 / 项目 / 指标�
     && !treeCode.includes('当前主攻');
 });
 
-check('XM-02（V4.4.0 重指）★任务详情首屏：完整标题、项目/指标轻量双栏、计划执行日期、资源镜像与「AI 找资源」主入口依次呈现；说明降为 3 行并只保留次级「AI 补全」；导出/优先级/成熟度/子任务/拆解全部退场；所有宿主复用同一抽屉', () => {
+check('XM-02（V4.4.0 重指 · ★V4.7.1 随迁备案）★任务详情首屏：完整标题 → 安排历程主模块（计划日期在内、今日重点降为次级）→ 项目/指标轻量双栏 → 资源镜像与「AI 找资源」主入口 → 3 行说明/次级「AI 补全」；导出/优先级/成熟度/子任务/拆解全部退场；所有宿主复用同一抽屉', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
   const tdCode = codeOnly(td);
   const titleAt = td.indexOf('<div class="ts-title-wrap">');
   const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
-  const planAt = td.indexOf('<div class="ts-section ts-plan-section">');
+  const planAt = td.indexOf('<section class="ts-section ts-plan-hero">');
   const resourceAt = td.indexOf('class="ts-section ts-resource-section"');
   const noteAt = td.indexOf('class="ts-section ts-note-section"');
-  return titleAt >= 0 && ownerAt > titleAt && planAt > ownerAt && resourceAt > planAt && noteAt > resourceAt
+  const planHero = td.slice(planAt, ownerAt);
+  return titleAt >= 0 && planAt > titleAt && ownerAt > planAt && resourceAt > ownerAt && noteAt > resourceAt
     && !tdCode.includes('<ExportMenu') && !tdCode.includes('ts-prio') && !tdCode.includes('AI 拆解')
     && !tdCode.includes('子任务') && !tdCode.includes('成熟度')
+    && planHero.includes('<PlanScheduleHistory') && planHero.includes('card-kind="task"')
+    && planHero.includes('class="ts-plan-field"') && planHero.includes('updatePlannedDate(')
+    && planHero.includes('class="ts-plan-clear"') && planHero.includes('class="ts-focus-link"')
     && td.includes('class="ts-ai-primary"') && td.includes('label="AI 找资源"')
     && td.includes('class="ts-ai-inline"') && td.includes('label="AI 补全"')
     && td.includes('class="ds-desc ts-note-compact" rows="3"')

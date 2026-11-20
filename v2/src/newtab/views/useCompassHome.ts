@@ -18,7 +18,7 @@ import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
-import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { isTaskDone, setTaskStatusById, sortedTaskStatuses, taskStatusOf, taskTerminalStatus, toggleTaskDone } from '@/shared/utils/taskStatus'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import { isTopicDone, setTopicStatus, toggleTopicDone, topicStatusOf, topicTerminalStatus, topicInProgressStatus } from '@/shared/utils/topicStatus'
@@ -724,7 +724,15 @@ function toggleTodayDone(slot: FocusSlot) {
   if (slot.sourceType === 'task' && slot.sourceId) {
     const t = d.value.tasks.find(x => x.id === slot.sourceId)
     if (t) {
-      setTaskStatus(t, slot.done ? 'done' : (slot.statusBeforeDone || 'todo'))
+      if (slot.done) {
+        const terminal = taskTerminalStatus(d.value)
+        if (terminal) setTaskStatusById(d.value, t, terminal.id)
+      } else {
+        const remembered = slot.statusBeforeDone || 'todo'
+        const fallback = sortedTaskStatuses(d.value).find(status => status.bucket === remembered)
+          || sortedTaskStatuses(d.value).find(status => !status.terminal)
+        if (fallback) setTaskStatusById(d.value, t, fallback.id)
+      }
       if (!slot.done) {
         slot.statusBeforeDone = undefined
       }
@@ -951,7 +959,7 @@ type TaskWorkSort = 'recent' | 'unplanned' | 'due'
 type TaskWorkGroup = 'none' | 'project'
 const taskWorkSearch = ref('')
 const taskWorkProject = ref('')
-const taskWorkStatus = ref<'all' | TaskCard['status']>('all')
+const taskWorkStatus = ref<'all' | string>('all')
 const taskWorkQuick = ref<TaskWorkQuick>('all')
 const taskWorkShowDone = ref(true)
 const taskWorkView = ref<TaskWorkView>('calendar')
@@ -978,6 +986,7 @@ const taskWorkProjectOptions = computed(() => {
     .filter(project => counts.has(project.id))
     .map(project => ({ id: project.id, name: project.name, count: counts.get(project.id) || 0 }))
 })
+const taskWorkStatusOptions = computed(() => sortedTaskStatuses(d.value))
 const taskWorkCounts = computed(() => {
   return {
     all: liveTasks.value.length,
@@ -993,7 +1002,7 @@ const taskWorkFiltered = computed(() => {
   const status = taskWorkStatus.value
   const quick = taskWorkQuick.value
   return liveTasks.value.filter(task => {
-    if (status !== 'all' && task.status !== status) return false
+    if (status !== 'all' && (task.statusId || taskStatusOf(d.value, task)?.id) !== status) return false
     if (projectId && task.projectId !== projectId) return false
     if (query) {
       const haystack = [
@@ -1247,18 +1256,19 @@ function clearTopicWorkDue(topicId: string): void {
 function toggleTaskWorkStatus(taskId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task) return
-  const nextDone = task.status !== 'done'
-  toggleTaskStatus(task)
+  const nextDone = !isTaskDone(d.value, task)
+  toggleTaskDone(d.value, task)
   store.persist()
   showToast(nextDone ? '任务已完成，今日三件事和月历已同步' : '任务已恢复为勾选前的状态')
 }
 
-function setTaskWorkStatus(taskId: string, status: TaskCard['status']): void {
+function setTaskWorkStatus(taskId: string, statusId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
-  if (!task || task.status === status) return
-  setTaskStatus(task, status)
+  if (!task || task.statusId === statusId) return
+  const status = sortedTaskStatuses(d.value).find(row => row.id === statusId)
+  if (!status || !setTaskStatusById(d.value, task, statusId)) return
   store.persist()
-  showToast(status === 'done' ? '任务已完成，今日三件事和月历已同步' : `任务已改为${taskStatusLabel(status)}`)
+  showToast(status.terminal ? '任务已完成，今日三件事和月历已同步' : `任务已改为${status.name}`)
 }
 
 const taskAssignOpen = ref(false)
@@ -1385,6 +1395,8 @@ function openResourcePreview(r: ResourceCard): void {
 function openRecentResource(r: ResourceCard): void {
   openResourcePreview(r)
 }
+/** V4.7.1：页头「进入卡片池」与资源页 goDeck 按钮均已退役；本函数仅保留为
+ *  /deck 旧入口的编程式兼容出口，模板不得再消费。 */
 function goDeck(kind: HandKind): void {
   handTab.value = kind
   void nextTick(() => handBoardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
@@ -1432,7 +1444,7 @@ function goDeck(kind: HandKind): void {
     focusSlotSourceLabel,
     taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
     taskWorkView, taskWorkSort, taskWorkGroup,
-    taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkCounts,
+    taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkStatusOptions, taskWorkCounts,
     taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
     setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
     taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,

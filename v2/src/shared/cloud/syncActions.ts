@@ -7,6 +7,7 @@ import type {
   SyncManifestRecordType,
 } from './sync'
 import { syncRecordDigest } from './digest'
+import { normalizeTaskStatusDomain } from '@/shared/utils/taskStatus'
 
 export type CloudSyncActionOperation = 'delete' | 'restore' | 'rollback' | 'readonly'
 export type CloudSyncActionStatus = 'available' | 'deleted' | 'restored' | 'rolled_back' | 'conflict' | 'expired' | 'readonly'
@@ -42,6 +43,7 @@ const SUPPORTED_TYPES = new Set<SyncManifestRecordType>([
   'curiosity',
   'topic',
   'topicStatus',
+  'taskStatus',
   'topicResourceLink',
   'argument',
   'direction',
@@ -86,6 +88,7 @@ function objectOf(data: AppData, type: SyncManifestRecordType, id: string): unkn
     case 'curiosity': return byId(data.curiosities)
     case 'topic': return byId(data.topics)
     case 'topicStatus': return byId(data.topicStatuses)
+    case 'taskStatus': return byId(data.taskStatuses)
     case 'topicResourceLink': return byId(data.topicResourceLinks)
     case 'argument': return byId(data.argCards)
     case 'supportLink': return byId(data.supportLinks)
@@ -163,6 +166,7 @@ function locationOf(data: AppData, type: SyncManifestRecordType, id: string): Mu
     case 'curiosity': return arrayLocation(data.curiosities as unknown as Array<Record<string, unknown>>, id)
     case 'topic': return arrayLocation(data.topics as unknown as Array<Record<string, unknown>>, id)
     case 'topicStatus': return arrayLocation(data.topicStatuses as unknown as Array<Record<string, unknown>>, id)
+    case 'taskStatus': return arrayLocation(data.taskStatuses as unknown as Array<Record<string, unknown>>, id)
     case 'topicResourceLink': return arrayLocation(data.topicResourceLinks as unknown as Array<Record<string, unknown>>, id)
     case 'argument': return arrayLocation(data.argCards as unknown as Array<Record<string, unknown>>, id)
     case 'supportLink': return arrayLocation(data.supportLinks as unknown as Array<Record<string, unknown>>, id)
@@ -272,11 +276,27 @@ function ensureSafeParent(data: AppData, type: SyncManifestRecordType, value: Re
       value.projectId = ''
     }
   }
+  if (type === 'task') {
+    const statusId = String(value.statusId || '')
+    let status = (data.taskStatuses || []).find(row => row.id === statusId)
+    if (!status) {
+      const bucket = value.status === 'doing' ? 'doing' : value.status === 'done' ? 'done' : 'todo'
+      status = (data.taskStatuses || []).find(row => row.id === `task-${bucket}`)
+        || (data.taskStatuses || []).find(row => row.bucket === bucket)
+        || data.taskStatuses?.[0]
+      if (status) value.statusId = status.id
+    }
+    if (status) value.status = status.bucket
+  }
   if (type === 'topic') {
     const statusId = String(value.statusId || '')
     if (!(data.topicStatuses || []).some(status => status.id === statusId)) {
       value.statusId = data.topicStatuses?.[0]?.id || 'topic-idea'
     }
+  }
+  if (type === 'taskStatus') {
+    if (value.bucket !== 'todo' && value.bucket !== 'doing' && value.bucket !== 'done') value.bucket = 'todo'
+    value.terminal = !!value.terminal
   }
   if (type === 'argument') {
     const workspaceId = String(value.workspaceId || '')
@@ -347,6 +367,7 @@ export function applyReceiptActionToData(
       }
     }
     location.remove()
+    if (action.type === 'taskStatus') normalizeTaskStatusDomain(data)
     return { ok: true, status: 'deleted', message: '已从本机删除，并进入待同步状态' }
   }
 
@@ -357,6 +378,7 @@ export function applyReceiptActionToData(
       return { ok: false, status: 'conflict', message: '这条记录在同步后已经再次变化，已停止恢复' }
     }
     if (!location.set(next)) return { ok: false, status: 'conflict', message: '当前数据位置不允许恢复这条记录' }
+    if (action.type === 'taskStatus' || action.type === 'task') normalizeTaskStatusDomain(data)
     return { ok: true, status: 'restored', message: '已恢复到本机，并以当前时间重新呈现' }
   }
 
@@ -371,6 +393,7 @@ export function applyReceiptActionToData(
   const next = prepareRestoredValue(data, action.type, action.before)
   if (next === null) return { ok: false, status: 'conflict', message: '缺少可比较的同步前载荷' }
   if (!location.set(next)) return { ok: false, status: 'conflict', message: '当前数据位置不允许回退这条记录' }
+  if (action.type === 'taskStatus' || action.type === 'task') normalizeTaskStatusDomain(data)
   return { ok: true, status: 'rolled_back', message: '已回退到本次同步前的版本，并进入待同步状态' }
 }
 
