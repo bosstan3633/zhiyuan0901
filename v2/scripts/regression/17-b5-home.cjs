@@ -76,8 +76,8 @@ check('M5-1（V4.7.0 重指）两张主工作板共用 lg 圆角；四卡页签�
     && HOME.includes('class="hand-grid hand-grid-aux')
     && HOME.includes('class="hand-col"')
     && HOME.includes('<TaskCalendarView')
-    && HOME.includes('<CuriosityWorkbench />')
-    && HOME.includes('<TopicManagerPanel />');
+    && HOME.includes('<CuriosityWorkbench')
+    && HOME.includes('<TopicManagerPanel');
 });
 
 check('M5-2 卡内单元同圆角：任务卡 / 好奇心卡 / 资源卡的卡片本体都取 md（原来好奇心卡是 sm，差一档就让"同一族的卡"看起来像两套东西）', () => {

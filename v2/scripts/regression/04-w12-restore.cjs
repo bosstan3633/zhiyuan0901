@@ -239,8 +239,10 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必�
     && !/\.dz-calib \.cb \.r/.test(audit)
     && !/pi-hero-sum \.pi-hchip/.test(audit) && !/hero-kpis-grid > \.hero-kpi/.test(audit)
     && !/\.dz-calib/.test(DASH_CSS) && !/\.dz-ov-say/.test(DASH_CSS) && !/\.dz-recentry/.test(DASH_CSS)
-  // ④ ★V3.9.22 重指：画像页与调度台共用 TodayBattleHost，弹层真实类名是 .dz-day-modal。
-  const dayOk = /打开战报/.test(audit)
+  // ④ ★V4.7.2 重指：画像页默认时间轴，热力图场景先切 Tab，再点真实热力格；
+  //    PiYear.onHeatmapSel → emit('open-battle') → TodayBattleHost 的 .dz-day-modal。
+  const dayOk = /data-profile-view="heatmap"/.test(audit)
+    && /\.dz-cell:not\(\.future\):not\(\.l0\)/.test(audit)
     && /\.dz-day-modal/.test(audit)
     && /onHeatmapSel/.test(read('/newtab/components/profile/PiYear.vue'))
     && /emit\('open-battle', day\)/.test(read('/newtab/components/profile/PiYear.vue'))
@@ -654,16 +656,14 @@ check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。�
 });
 
 console.log('【N 系列 · 画像洞察 N6 时间轨吸顶 / N7 Hero KPI 居中】');
-check('N6 ★时间轨吸顶判据（★W17-C09 · 2026-10-20 用户拍板重指带备案）：原判据守「左轨 sticky 三件套」——本批时间线整体退役，rail 不再存在，吸顶无从谈起。所守意图改为「导航不许丢」的新承载：① 周期区唯一导航是 PiRangeTabs（role="tablist" + 四枚 tab）；② 页签常驻在周期面板之上，切范围不需要滚动找段落；③ 负锚：宿主不再用 IntersectionObserver / scrollIntoView 在四个时间尺度之间做"滚到隐藏段"的导航。', () => {
+check('N6 ★时间轨吸顶判据（★V4.7.2 重指带备案）：观察范围导航现为「时间轴 / 热力图」双视图。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认时间轴；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
   const pi = read('/newtab/views/ProfileInsights.vue');
-  const range = read('/newtab/components/profile/PiRangeTabs.vue');
   if (pi.includes('<PiRail')) return false;
-  if (!pi.includes('<PiRangeTabs')) return false;
-  if (!range.includes('role="tablist"')) return false;
-  if (!pi.includes("activeRange === 'today'") && !pi.includes('activeRange')) return false;
+  if (!pi.includes('class="pi-view-tabs" role="tablist"')) return false;
+  if (!pi.includes('data-profile-view="timeline"') || !pi.includes('data-profile-view="heatmap"')) return false;
+  if (!pi.includes(": 'timeline',")) return false;
+  if (pi.includes('<PiRangeTabs')) return false;
   /* 注释里允许留「原 timelineAnchor 已删除」的备案，故剥离注释后判 */
-  if (/timelineAnchor/.test(codeOnly(pi))) return false;
-  /* 只禁「切周期时滚到隐藏段落」的旧接线；wakeCooling 滚 #lc-sec 是年度段内导航，与本条无关。 */
   if (/timelineAnchor/.test(codeOnly(pi))) return false;
   return /退役/.test(pi);
 });

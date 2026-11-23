@@ -398,9 +398,12 @@ function metricName(topic: TopicCard): string {
   return (topic.metricId && metricNames.value.get(topic.metricId)) || ''
 }
 
-async function resetForFresh(): Promise<void> {
+async function resetForFresh(nextView: 'calendar' | 'board' = 'board'): Promise<void> {
   resetFilters()
-  viewMode.value = 'calendar'
+  sortMode.value = 'recent'
+  groupMode.value = 'none'
+  showDone.value = true
+  viewMode.value = nextView
   listCollapsed.value = false
   await nextTick()
 }

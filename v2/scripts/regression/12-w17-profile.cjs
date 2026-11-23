@@ -50,18 +50,18 @@ check('W17-19 ★主攻完整呈现：项目名不截断 + 状态 + 进度条，
     && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"');
 });
 
-check('W17-20（V4.4.0 重指）★时间线退役：宿主零挂载 PiRail，样式零命中；周期区单列，activeRange 默认本年且由 useProfileInsights 单一持有，页签是唯一导航', () => {
+check('W17-20（V4.7.2 重指）★旧 PiRail 时间轨保持退役：宿主零挂载、样式零命中；观察范围改由时间轴 / 热力图双视图导航，默认时间轴', () => {
   /* read() 会聚合宿主与 composable；“谁持有状态、谁只负责挂载”必须读物理宿主。 */
   const HOST = fs.readFileSync(base + '/newtab/views/ProfileInsights.vue', 'utf8')
-  const LOGIC = read('/newtab/views/useProfileInsights.ts')
   return !HOST.includes('<PiRail') && !HOST.includes("from '@/newtab/components/profile/PiRail.vue'")
     && !CSS.includes('.pi-rail {') && !/\.pi-rnode[\s:{.]/.test(CSS)
     && !/\.pi-tl \{[^}]*grid-template-columns:\s*78px/.test(CSS)
-    && HOST.includes('<PiRangeTabs')
     && HOST.includes('class="pi-range-toolbar"')
-    /* ★W18（2026-10-20 用户拍板）重指：默认范围改为「本年」——先看长期状态，再按需下钻。 */
-    && LOGIC.includes("const activeRange = ref<PiRange>('year')")
-    && !codeOnly(HOST).includes("const activeRange = ref<PiRange>(")
+    && HOST.includes('class="pi-view-tabs" role="tablist"')
+    && HOST.includes('data-profile-view="timeline"')
+    && HOST.includes('data-profile-view="heatmap"')
+    && HOST.includes("type ProfileView = 'timeline' | 'heatmap'")
+    && !codeOnly(HOST).includes('<PiRangeTabs')
     && !codeOnly(HOST).includes('onRailJump') && !codeOnly(HOST).includes('railActive')
     /* V4.4.0：周期控件单列在 `.pi-range-toolbar`，旧 Hero #range 插槽与独立 PERIOD 提示带均已退役。 */
     && !HOST.includes('<template #range>')
@@ -99,9 +99,11 @@ check('V3.9.7 ★顶部两块面板自然等高、左右严格等宽：负锚钉
     && OV.includes('pi-dir-cols" :class="{ single: focusProjects.length === 1 }"');
 });
 
-check('W18-2 ★周期区默认「本年」：进入画像洞察先给全年状态，再按需下钻', () => {
-  return PI.includes("const activeRange = ref<PiRange>('year')")
-    && !PI.includes("const activeRange = ref<PiRange>('today')");
+check('W18-2 ★V4.7.2 重指：画像观察范围默认时间轴，热力图按需切换', () => {
+  return PI.includes("type ProfileView = 'timeline' | 'heatmap'")
+    && PI.includes(": 'timeline',")
+    && PI.includes('data-profile-view="timeline"')
+    && PI.includes('data-profile-view="heatmap"');
 });
 
 check('W18-3（V3.9.23 随迁）战报头部只保留查看全部记录与 Markdown / HTML 双导出：PNG 独立入口和菜单项退役，操作区位于标题左侧、关闭仍在最右', () => {
@@ -139,17 +141,16 @@ check('W18-4（V3.9.23 随迁）共享导出继续复用统一 HTML 文档壳：
 /* ============ V3.9.6 · 双口径「导 N」界面欠账收口 ============ */
 console.log('【V3.9.6 · 新增/导入双口径「导 N」界面徽标收口】');
 
-check('V3.9.6-1 ★「导 N」徽标必须真的在界面上：手册「新增/导入双口径（V2.21.3 起）」白纸黑字承诺「导入的卡单独显示『导 Y』并继承原创建时间——不会把导入错记成今天新建」，而 R48-5 判据只钉住了**数据层**（todayImportCount / weekImportCount），界面那一半长期挂着「登记待接」的欠账（本轮收口）。断言三段：① 宿主把计数传给今日段（todayImport）② 今日段渲染「导 N」徽标且挂在段头右缘（pi-mod-acts）③ 徽标类名与样式在 CSS 里在位。★为什么必须落在**段头**而不是 strip4：strip4 是「恰四枚读数格」的定版结构（W13-F8），塞第五枚进去会挤掉既有读数并打破多条历史断言；而「导 N」本就是「今日入台」这枚读数的**口径拆分**，不是第五个读数。', () => {
+check('V3.9.6-1（V4.7.2 重指）「导 N」双口径徽标随 PiOverview 承接：PiToday 不再挂载后，今日导入数仍在产品使用状态段头可见，导入继承原创建时间、不混入今天新建。断言三段：① 宿主把 todayImportCount 传给 PiOverview ② PiOverview 以与 PiToday 同族的 pi-imp-badge 渲染「导 N」③ 徽标类名与样式仍在 CSS 里', () => {
+  const OVERVIEW = read('/newtab/components/profile/PiOverview.vue')
   return PI.includes(':today-import="todayImportCount"')
-    && TODAY.includes('todayImport: number')
-    && TODAY.includes('class="pi-imp-badge"')
-    && TODAY.includes('导 {{ props.todayImport }}')
-    /* 徽标在段头右缘（pi-mod-acts），不在 strip4 里 —— 守住「恰四枚读数格」的定版 */
-    && TODAY.includes('class="pi-mod-acts"')
-    && (TODAY.match(/class="pi-imp-badge"/g) || []).length === 1
+    && OVERVIEW.includes('todayImport: number')
+    && OVERVIEW.includes('class="pi-imp-badge"')
+    && OVERVIEW.includes('导 {{ todayImport }}')
+    && !PI.includes('<PiToday')
+    && (OVERVIEW.match(/class="pi-imp-badge"/g) || []).length === 1
     && CSS.includes('.pi-imp-badge')
-    /* 0 时不渲染（没有导入就别占宽度） */
-    && TODAY.includes('v-if="props.todayImport > 0"');
+    && OVERVIEW.includes('v-if="todayImport > 0"');
 });
 
 check('V3.9.6-2 ★双口径不许被悄悄合并：「今日入台」计数仍按 createdAt（含导入卡的原创建时间），导入数单独由 importedAt 派生 —— 两者不得共用一个字段。负锚钉住：① todayImportCount 的过滤条件里必须有 importedAt ② 不得把 importedAt >= gStartOfToday 换成 createdAt（换了就等于把导入错记成今天新建，正是手册明文承诺不做的）', () => {

@@ -18,6 +18,13 @@ const expanded = ref(false)
 const events = computed(() => planEventsOf(d.value, props.cardId, props.cardKind))
 const visible = computed(() => expanded.value ? events.value : events.value.slice(0, 5))
 const latestAt = computed(() => events.value[0]?.at || 0)
+const createdAt = computed(() => {
+  const data = d.value
+  if (!data) return 0
+  if (props.cardKind === 'task') return (data.tasks || []).find(card => card.id === props.cardId)?.createdAt || 0
+  if (props.cardKind === 'topic') return (data.topics || []).find(card => card.id === props.cardId)?.createdAt || 0
+  return (data.curiosities || []).find(card => card.id === props.cardId)?.createdAt || 0
+})
 const currentLabel = computed(() => {
   if (!props.currentDate) return '未落图'
   const date = dateOfKey(props.currentDate)
@@ -36,6 +43,17 @@ const SOURCE_LABEL: Record<PlanScheduleEvent['source'], string> = {
 
 function fmtAt(ts: number): string {
   return new Date(ts).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+function fmtCreatedAt(ts: number): string {
+  return new Date(ts).toLocaleString('zh-CN', {
+    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -79,7 +97,12 @@ function remove(event: PlanScheduleEvent): void {
         <span class="psh-icon"><Icon name="calendar" :size="15" /></span>
         <div>
           <b class="psh-title">安排历程</b>
-          <span class="psh-sub">{{ events.length ? `${events.length} 次安排 · 最近 ${fmtAt(latestAt)}` : '尚未产生安排记录' }}</span>
+          <span class="psh-sub">
+            <template v-if="createdAt">创建于 {{ fmtCreatedAt(createdAt) }}</template>
+            <template v-if="createdAt && events.length"> · </template>
+            <template v-if="events.length">{{ events.length }} 次安排 · 最近 {{ fmtAt(latestAt) }}</template>
+            <template v-else>尚未产生安排记录</template>
+          </span>
         </div>
       </div>
       <span class="psh-current" :class="{ empty: !currentDate }">
@@ -87,7 +110,7 @@ function remove(event: PlanScheduleEvent): void {
         <b>{{ currentLabel }}</b>
       </span>
     </header>
-    <div v-if="visible.length" class="psh-timeline">
+    <div v-if="visible.length || createdAt" class="psh-timeline">
       <div v-for="(event, index) in visible" :key="event.id" class="psh-row" :class="{ latest: index === 0 }">
         <span class="psh-rail" aria-hidden="true"><i /></span>
         <div class="psh-main">
@@ -109,6 +132,16 @@ function remove(event: PlanScheduleEvent): void {
         <button class="psh-del" type="button" title="删除这条安排记录（不改当前计划）" :aria-label="`删除 ${fmtAt(event.at)} 的安排记录`" @click="remove(event)">
           <Icon name="x" :size="11" />
         </button>
+      </div>
+      <div v-if="createdAt" class="psh-row psh-created" aria-label="卡片创建时间">
+        <span class="psh-rail" aria-hidden="true"><i /></span>
+        <div class="psh-main">
+          <div class="psh-change">创建卡片</div>
+          <div class="psh-meta">
+            <span>{{ fmtCreatedAt(createdAt) }}</span>
+            <span class="psh-src">写入卡片池</span>
+          </div>
+        </div>
       </div>
     </div>
     <div v-else class="psh-empty">
@@ -226,6 +259,18 @@ function remove(event: PlanScheduleEvent): void {
 .psh-row:hover { background: var(--surface-2); }
 .psh-row.latest {
   background: color-mix(in srgb, var(--accent-light) 34%, var(--surface));
+}
+.psh-created {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+.psh-created .psh-change {
+  color: var(--text-2);
+  font-weight: 650;
+}
+.psh-created .psh-rail i {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  box-shadow: none;
 }
 .psh-rail {
   position: relative;

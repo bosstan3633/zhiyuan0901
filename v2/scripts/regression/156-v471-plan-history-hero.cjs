@@ -18,8 +18,8 @@ check('HIST156-1 ★安排历程含当前计划 chip、次数与最近时间', (
   return PSH.includes('class="psh-current"')
     && PSH.includes('<i>当前计划</i>')
     && PSH.includes('{{ currentLabel }}')
-    && PSH.includes('${events.length} 次安排')
-    && PSH.includes('最近 ${fmtAt(latestAt)}')
+    && PSH.includes('{{ events.length }} 次安排')
+    && PSH.includes('最近 {{ fmtAt(latestAt) }}')
 })
 
 check('HIST156-2 ★纵向时间轴：节点、改期链、操作时间、来源标签、最新强调', () => {

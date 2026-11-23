@@ -81,8 +81,12 @@ check('G102-5（V4.1.3 退役重指）好奇详情“资源支撑”入口整体
     && read('/newtab/manual-data.ts').includes('卡间挂载只保留任务→资源、选题→资源、策展节点→资源/选题四条');
 });
 
-check('G102-6（V4.3.1 重指）周期 AI 分析物理退役：四个周期组件不再挂 PiAiReview，宿主不再持有周期 AI 状态机或分析动作', () => {
-  return ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => PROFILE.includes(`<${name}`))
+check('G102-6（V4.7.2 重指）周期 AI 分析物理退役：画像页只保留时间轴与年度热力图，四个周期组件即使留档也不得再挂 PiAiReview，宿主不得持有周期 AI 状态机或分析动作', () => {
+  return PROFILE.includes('<PiTimeline')
+    && PROFILE.includes('<PiYear')
+    && !PROFILE.includes('<PiToday')
+    && !PROFILE.includes('<PiRhythm')
+    && !PROFILE.includes('<PiMonth')
     && ['PiToday', 'PiRhythm', 'PiMonth', 'PiYear'].every(name => !read(`/newtab/components/profile/${name}.vue`).includes('PiAiReview'))
     && !PROFILE.includes('usePeriodAiReview')
     && !PROFILE.includes('currentPeriodAi')

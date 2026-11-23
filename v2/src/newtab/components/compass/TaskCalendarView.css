@@ -245,6 +245,30 @@
   color: var(--text-2);
 }
 
+.cal-pool-group.is-plan-pending {
+  color: color-mix(in srgb, var(--warning) 72%, var(--text));
+}
+
+.cal-pool-group.is-plan-pending::before,
+.cal-pool-group.is-plan-planned::before {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 3px var(--warning-bg-soft);
+  content: '';
+}
+
+.cal-pool-group.is-plan-planned {
+  color: var(--accent-ink);
+}
+
+.cal-pool-group.is-plan-planned::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
 .cal-pool-item {
   position: relative;
 }
@@ -266,6 +290,26 @@
 .cal-pool-task:hover {
   border-color: var(--border);
   background: var(--surface-2);
+}
+
+.cal-pool-task.is-unplanned {
+  border-left-color: color-mix(in srgb, var(--warning) 64%, var(--border));
+  background: color-mix(in srgb, var(--warning-bg-soft) 36%, transparent);
+}
+
+.cal-pool-task.is-planned {
+  border-left-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  background: color-mix(in srgb, var(--accent-light) 18%, transparent);
+}
+
+.cal-pool-task.is-unplanned .cal-pool-plan {
+  color: color-mix(in srgb, var(--warning) 76%, var(--text));
+  background: var(--warning-bg-soft);
+}
+
+.cal-pool-task.is-planned .cal-pool-plan {
+  color: var(--accent-ink);
+  background: var(--accent-light);
 }
 
 .cal-pool-task.is-done {

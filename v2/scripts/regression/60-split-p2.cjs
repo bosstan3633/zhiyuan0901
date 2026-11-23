@@ -78,7 +78,7 @@ check('R105-1（V4.7.1 重指）卡片池四页签就地承载完整工作面：
     && h.includes('class="hand-grid hand-grid-aux')
     && h.includes('<HomeResourceFolderGrid')
     && h.includes('<CuriosityWorkbench />')
-    && h.includes('<TopicManagerPanel />')
+    && h.includes('<TopicManagerPanel')
     && h.includes('好奇心卡')
     && h.includes('资源卡')
     && !h.includes('class="hand-head-actions"')

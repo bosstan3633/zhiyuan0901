@@ -31,6 +31,8 @@ const props = defineProps<{
   topTags: string[]
   supportRate: number
   focusShare: number
+  /** 今日导入卡数：保留“新增 / 导入”双口径，避免 PiToday 退役后旧承诺从界面消失。 */
+  todayImport: number
   /** 方向状态：使命主线（空串由本组件出轻引导） */
   missionText: string
   /** 主攻项目完整列表（≤2，项目名不截断） */
@@ -65,6 +67,10 @@ const mix = () => {
           <h2 id="pi-usage-title">知源产品使用状态</h2>
           <p>全库资产与使用情况 · 只呈现状态，不作评价。</p>
         </div>
+        <span v-if="todayImport > 0" class="pi-imp-badge"
+          :title="`今日导入 ${todayImport} 张卡；导入继承原创建时间，不计入今天新建`">
+          <Icon name="upload" :size="13" /> 导 {{ todayImport }}
+        </span>
       </div>
       <div class="pi-ov-kpis">
         <button class="pi-ov-kpi"

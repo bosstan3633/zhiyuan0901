@@ -314,11 +314,11 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'goto-tasks': {
-      await openNewtabRoute(`/deck/task?fresh=1&freshAt=${Date.now()}`)
+      await openNewtabRoute(`/deck/task?fresh=1&view=board&freshAt=${Date.now()}`)
       break
     }
     case 'goto-topic': {
-      await openNewtabRoute(`/deck/topic?fresh=1&freshAt=${Date.now()}`)
+      await openNewtabRoute(`/deck/topic?fresh=1&view=board&freshAt=${Date.now()}`)
       break
     }
     case 'sync-cloud-now': {

@@ -113,23 +113,16 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-2 ★V3.9.3 单段时间轴：四个时间尺度必须四选一挂载，默认「本年」，',
-  '不再用三条 pi-sep 把四段纵向拉成长页；页签与左轨共用 activeRange，',
-  '切换时只换当前模块。负锚：四段同时存在与旧发丝线盒零回流。'), () => {
+  'A3-2 ★V4.7.2 重指：观察范围收敛为「时间轴 / 热力图」双视图，默认时间轴，',
+  '热力图保留 PiYear 原能力。负锚：旧四尺度 PiRangeTabs 不再作为页面唯一导航。'), () => {
   const mods = CSS.match(/\.pi-rmods-single[^{]*\{[^}]*\}/)?.[0] || '';
-  const mounts = [
-    /<PiToday v-if="activeRange === 'today'"/,
-    /<PiRhythm v-else-if="activeRange === 'week'"/,
-    /<PiMonth v-else-if="activeRange === 'month'"/,
-    /<PiYear v-else/
-  ];
-  /* ★W17-C09（2026-10-20 用户拍板）重指带备案：默认范围从「本年」改为「今天」（页面定位改为使用状态），
-     左轨 onRailJump 随时间线退役；所守意图不变——四个时间尺度四选一挂载、页签是唯一导航、旧发丝线零回流。 */
-  /* ★W18 重指：默认范围回到「本年」（用户拍板），所守意图（四选一挂载 + 页签唯一导航）不变。 */
-  return PI.includes("const activeRange = ref<PiRange>('year')")
-    && mounts.every(re => re.test(PI))
-    && PI.includes('<PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)"')
-    && PI.includes('function setRange(k: PiRange): void')
+  return PI.includes("type ProfileView = 'timeline' | 'heatmap'")
+    && PI.includes(": 'timeline',")
+    && PI.includes('data-profile-view="timeline"')
+    && PI.includes('data-profile-view="heatmap"')
+    && PI.includes('<PiTimeline')
+    && PI.includes('<PiYear v-else')
+    && !PI.includes('<PiRangeTabs')
     && !PI.includes('@jump="onRailJump"') && !PI.includes('<PiRail')
     && mods.includes('animation: pi-range-in')
     && (PI.match(/class="pi-sep"/g) || []).length === 0;

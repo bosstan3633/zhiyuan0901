@@ -336,17 +336,13 @@ const DASH_SCENES = [
        （它自己会挑「今天有记录就今天、否则最近有记录的一天」，正是原注释想用选格绕过的那个问题）。
        判据守的还是同一批行为：四格统计 ≥4 + 热力带 + 时间线三者齐全，一格都不放宽。 */
     act: async (page) => {
-      /* V3.9.3：默认落在「本年」，热力格本身就是当日战报入口；先切「今天」再走
-         PiToday 的「打开战报」，两种入口都要真开弹窗。 */
-      await page.locator('.pi-range-tab[data-range="today"]').first().click({ timeout: 8000 }).catch(() => {})
-      await page.waitForTimeout(350)
-      const btn = page.locator('button', { hasText: '打开战报' }).first()
-      await btn.click({ timeout: 8000 }).catch(() => {})
+      /* V4.7.2：热力格本身已是日战报入口（PiYear.onHeatmapSel → open-battle）。
+         优先点有记录的非未来日；没有记录时再点今天，仍由同一弹窗守四格与时间线。 */
+      const activeCell = page.locator('.dz-cell:not(.future):not(.l0)').first()
+      const todayCell = page.locator('.dz-cell[aria-current="date"]').first()
+      const cell = (await activeCell.count()) ? activeCell : todayCell
+      await cell.click({ timeout: 8000 }).catch(() => {})
       await page.waitForTimeout(1200)
-      if (!(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))) {
-        await page.locator('.pi-today-battle, .pi-mod-acts button').first().click().catch(() => {})
-        await page.waitForTimeout(1400)
-      }
     },
     judge: async (page) => page.evaluate(() => {
       const d = document.querySelector('.dz-day')
@@ -1846,6 +1842,15 @@ if (argv.scenes) {
          上面 views 循环早已用 settle() 替盲等，这一段当时漏了。放在盲等之后：稳定就立刻返回，
          不稳定才继续等，只会更稳不会更慢。 */
       await settle(page, sc.id)
+      /* V4.7.2：画像洞察默认落在时间轴。热力图相关场景必须先显式切回热力图，
+         否则 .pi-hmbox 与日详情弹窗都不会挂载；默认时间轴本身由 profile 台面场景守。 */
+      if (sc.id === 'dz-heatmap' || sc.id === 'dz-day') {
+        const heatTab = page.locator('.pi-view-tab[data-profile-view="heatmap"]').first()
+        if (await heatTab.isVisible().catch(() => false)) {
+          await heatTab.click({ timeout: 8000 }).catch(() => {})
+          await page.waitForTimeout(450)
+        }
+      }
       /* ★B7-e（2026-10-18）补「宿主到位」守卫 —— 这是 dz七场景长期全红的真根因，
          形态与 drawer 那次同类但更隐蔽：
          `goto(base + '#/profile')` 改的只是 **hash**，同文档内 Playwright 不重载，

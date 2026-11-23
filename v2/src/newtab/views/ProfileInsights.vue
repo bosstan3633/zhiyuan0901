@@ -1,16 +1,14 @@
 ﻿<script setup lang="ts">
 
 /**
- * V3.9.3：画像洞察页 —— 概览 + 单段时间轴（今天 / 本周 / 本月 / 本年）。
+ * V4.7.2：画像洞察页 —— 概览 + 时间轴 / 热力图双视图。
  *
  * 本版把已确认的高保真原型落为生产：
  *   §0 PiHero 页头（标题 / 使命与主攻 / 全库读数 / 刷新、导出、全部记录）
  *   §1 PiOverview 首屏双栏（左：本周方向；右：今天三件事）
- *   §2 PiRangeTabs（唯一导航）+ 单段时间面板（四选一）：
- *     ① PiToday  今天 · TODAY（今日六格 + 今日三件事 + 洞察条）
- *     ② PiRhythm 本周 · WEEK（strip + 节奏柱 + 目标 + 规则对照；★V3.8.20 固定周窗口）
- *     ③ PiMonth  本月 · MONTH（★V3.8.20 新增轻量月度段：strip + 月柱 + 6 KPI + 环比；目标/预警/操作流不重复）
- *     ④ PiYear   全年 · YEAR（F20 诊断条 + F21 strip4 + 默认展开年度热力图 + 生命周期）
+ *   §2 观察范围双视图：时间轴（默认）/ 热力图。
+ *     ① PiTimeline 按自然日倒序平铺写入与修改过的卡片，点卡看详情并可定位回卡片池；
+ *     ② PiYear     保留既有年度热力图与资源生命周期。
  *
  * 单段切换取代四段纵向堆叠：★W17-C09 起默认「今天」；页签与左轨
  * 共用 activeRange，只切换当前时间尺度，不滚动到隐藏的段落。点热力格直接打开该日战报。
@@ -43,7 +41,6 @@ import { showToast } from '@/shared/components/toast'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { downloadText, stampDay } from '@/shared/utils/download'
 import { uid } from '@/shared/utils'
-import type { TodayRow } from '@/newtab/components/profile/PiToday.vue'
 import {
   snoozeCard, reactivateCard, setCoolingDays,
   coolingDefaultDaysOf, setCoolingDefaultDays, lifecycleState, coolingMsOf
@@ -57,15 +54,13 @@ import {
 import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 import { aggregateRange } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
-import PiToday from '@/newtab/components/profile/PiToday.vue'
-import PiRhythm from '@/newtab/components/profile/PiRhythm.vue'
-import PiMonth, { type MonthTopic } from '@/newtab/components/profile/PiMonth.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
 import PiYear from '@/newtab/components/profile/PiYear.vue'
 import PiYearMetricDrawer from '@/newtab/components/profile/PiYearMetricDrawer.vue'
 import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
 import { useCompass } from '@/newtab/stores/compass'
-import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
+import PiTimeline, { type PiTimelineEntry } from '@/newtab/components/profile/PiTimeline.vue'
+import PiTimelineDrawer from '@/newtab/components/profile/PiTimelineDrawer.vue'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
 import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
@@ -91,7 +86,7 @@ const {
   focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
   matchResourcesOf, todayRows, todayFilled, todayAmmo,
   projDetailOpen, projDetailId, openProjectDetail,
-  activeRange, setRange, overviewWeekRange,
+  overviewWeekRange,
   logOpen, logPreset, openLog, openLogFocus, statDrawer,
   tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards,
   statList, todayCreatedEventIds, todayCalledIds, todayInCards, todayCalledCards,
@@ -112,6 +107,32 @@ const {
   fmtDay,
 } = useProfileInsights()
 
+type ProfileView = 'timeline' | 'heatmap'
+const profileView = ref<ProfileView>(
+  typeof location !== 'undefined' && (location.hash === '#lifecycle' || location.hash === '#lc-sec')
+    ? 'heatmap'
+    : 'timeline',
+)
+const timelineEntry = ref<PiTimelineEntry | null>(null)
+const timelineOpen = ref(false)
+
+function openTimelineEntry(entry: PiTimelineEntry): void {
+  timelineEntry.value = entry
+  timelineOpen.value = true
+}
+
+function locateTimelineEntry(entry: PiTimelineEntry): void {
+  const kind = asLocateKind(entry.kind)
+  const target = kind ? locateTargetOf(gd.value, kind, entry.id) : null
+  if (!target) {
+    showToast('该卡片已不在库中')
+    return
+  }
+  timelineOpen.value = false
+  void router.push(target)
+  showToast('已定位到卡片池')
+}
+
 /* V4.4.0：周期控制与模块级 AI 洞察放在同一个控制条里。
    洞察只读当前范围事实，手动触发、临时展示，不写回 AppData。 */
 const profileInsight = ref('')
@@ -119,38 +140,20 @@ const profileInsightState = ref<'idle' | 'run' | 'done' | 'off'>('idle')
 const profileInsightError = ref('')
 let profileInsightAbort: AbortController | null = null
 
-const profileRangeLabel = computed(() => ({
-  today: '今天', week: '本周', month: '本月', year: '本年',
-})[activeRange.value])
+const profileRangeLabel = computed(() => profileView.value === 'timeline' ? '时间轴' : '年度热力图')
 
 const profileInsightFacts = computed(() => {
-  if (activeRange.value === 'today') {
+  if (profileView.value === 'timeline') {
+    const tracked = timelineEvents.value.filter(event =>
+      event.kind !== 'system' && ['create', 'status', 'restore', 'delete'].includes(event.action))
+    const days = new Set(tracked.map(event => new Date(event.ts).toLocaleDateString('sv-SE')))
+    const cardIds = new Set(tracked.map(event => `${event.kind}:${event.cardId}`))
+    const recent = tracked.slice(0, 5).map(event => `${event.title}（${event.kind}）`)
     return [
-      `今日入台：${todayAdd.value} 张（导入 ${todayImportCount.value} 张）`,
-      `今日调出：${todayCalled.value} 次`,
-      `今日三件事已填：${todayFilled.value}/3`,
-      `已备可用资源：${todayAmmo.value} 张`,
-    ]
-  }
-  if (activeRange.value === 'week') {
-    const win = windowOf('week', {})
-    const agg = aggregateRange(dashStats.value, win.s, win.e)
-    return [
-      `本周窗口：${win.s} 至 ${win.e}`,
-      `有效动作：${agg.acts} 次；加权活跃分：${agg.W}`,
-      `新增卡片：${agg.c.res + agg.c.curio + agg.c.task} 张；调出：${agg.u} 次`,
-      `任务推进：${agg.s.task} 次；支撑关联：${agg.link} 条`,
-      `活跃天数：${agg.act}/${agg.days || 7}`,
-    ]
-  }
-  if (activeRange.value === 'month') {
-    return [
-      `本月入池：${mFunnel.value.pool} 张；新支撑 + 完成任务：${mFunnel.value.support} 条`,
-      `新论点沉淀：${mFunnel.value.curate} 张；入池到支撑转化：${mFunnel.value.convPct}%`,
-      `本月待打标资源：${mUntagged.value} 张`,
-      `知识熵：${mEntTrend.value.from} → ${mEntTrend.value.to} bit`,
-      `Top 主题：${mTopics.value.length ? mTopics.value.map(t => `${t.tag} ${t.n} 张${t.project ? `（${t.project}）` : ''}`).join('；') : '暂无带标签新卡'}`,
-      `当前策展投射：${mProjected.value} 张`,
+      `时间轴覆盖：${days.size} 个活跃日，${cardIds.size} 张卡片`,
+      `写入与修改事件：${tracked.length} 次`,
+      `最近动作：${recent.length ? recent.join('；') : '暂无'}`,
+      `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心 / ${heroKindCounts.value.topic} 选题`,
     ]
   }
   const from = `${dashYear.value}-01-01`
@@ -227,7 +230,7 @@ async function generateProfileInsight(): Promise<void> {
   }
 }
 
-watch(activeRange, resetProfileInsight)
+watch(profileView, resetProfileInsight)
 </script>
 <template>
   <div class="pi-page">
@@ -242,16 +245,42 @@ watch(activeRange, resetProfileInsight)
       :topic-stats="{ all: gTopicLive.length, published: topicPublished.length, supported: topicSupported.length, month: topicMonthAdded.length }"
       :top-tags="heroTopTags"
       :support-rate="heroSupportRate" :focus-share="heroFocusShare"
+      :today-import="todayImportCount"
       :mission-text="heroMission" :focus-projects="heroFocusProjects"
       @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill" @goto-compass="gotoCompass"
       @open-project="openProjectDetail" />
 
-    <!-- ===== §2 按周期观察：页签已是唯一导航，直接进入当前周期 ===== -->
+    <!-- ===== §2 观察范围：时间轴 / 热力图双视图，默认时间轴 ===== -->
     <div class="pi-rmods pi-rmods-single">
         <div class="pi-range-toolbar">
           <div class="pi-range-control">
             <span class="pi-range-kicker">观察范围</span>
-            <PiRangeTabs :model-value="activeRange" @update:model-value="setRange($event)" />
+            <div class="pi-view-tabs" role="tablist" aria-label="画像洞察观察视图">
+              <button
+                type="button"
+                class="pi-view-tab"
+                :class="{ on: profileView === 'timeline' }"
+                data-profile-view="timeline"
+                role="tab"
+                :aria-selected="profileView === 'timeline'"
+                :tabindex="profileView === 'timeline' ? 0 : -1"
+                @click="profileView = 'timeline'"
+              >
+                <Icon name="clock" :size="13" /><span>时间轴</span><small>TIMELINE</small>
+              </button>
+              <button
+                type="button"
+                class="pi-view-tab"
+                :class="{ on: profileView === 'heatmap' }"
+                data-profile-view="heatmap"
+                role="tab"
+                :aria-selected="profileView === 'heatmap'"
+                :tabindex="profileView === 'heatmap' ? 0 : -1"
+                @click="profileView = 'heatmap'"
+              >
+                <Icon name="battle" :size="13" /><span>热力图</span><small>HEATMAP</small>
+              </button>
+            </div>
           </div>
           <button class="pi-ai-trigger" :class="{ on: profileInsightState === 'done' || profileInsightState === 'run' }"
             type="button" :disabled="profileInsightState === 'run'" @click="generateProfileInsight">
@@ -271,23 +300,12 @@ watch(activeRange, resetProfileInsight)
           <small>临时分析，不写入任务或画像真源。</small>
         </section>
 
-        <PiToday v-if="activeRange === 'today'"
-          :today-add="todayAdd" :today-called="todayCalled"
-          :today-import="todayImportCount"
-          :focus-filled="todayFilled" :ammo="todayAmmo" :slot-count="3"
-          @drill="onTodayDrill" @open-battle="openTodayBattle" @open-focus="() => router.push('/')" />
-
-        <PiRhythm v-else-if="activeRange === 'week'"
-          :stats="dashStats" :directions="dashDirections"
-          :tasks="dashTasks" :error-count="errorLogCount"
-          @open-err="exportErrorLog"
-          @open-battle="openDayBattle" @drill="onRhythmDrill" @goal-drill="onGoalDrill" />
-
-        <PiMonth v-else-if="activeRange === 'month'"
-          :stats="dashStats" :ent="mEntTrend"
-          :topics="mTopics" :untagged="mUntagged" :funnel="mFunnel"
-          :projected="mProjected"
-          @drill="onMonthDrill" @topic="onMonthTopic" />
+        <PiTimeline
+          v-if="profileView === 'timeline'"
+          :events="timelineEvents"
+          :data="gd"
+          @open="openTimelineEntry"
+        />
 
         <PiYear v-else
           :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
@@ -301,6 +319,13 @@ watch(activeRange, resetProfileInsight)
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
           @lc-settings="lcSetOpen = true" />
     </div>
+
+    <PiTimelineDrawer
+      :open="timelineOpen"
+      :entry="timelineEntry"
+      @close="timelineOpen = false"
+      @locate="locateTimelineEntry"
+    />
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。
      「全部记录」已上提为页头全页唯一入口（PiHero），近期模块里那一枚重复入口一并收掉；

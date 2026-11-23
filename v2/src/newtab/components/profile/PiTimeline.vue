@@ -1,0 +1,453 @@
+<script setup lang="ts">
+/**
+ * V4.7.2 · 画像洞察时间轴。
+ *
+ * 按自然日倒序展示“写入 / 修改”过的卡片；同一张卡同一天只保留一行，
+ * 以最新一次动作排序。卡片状态色读业务状态定义，不另造一套颜色。
+ */
+import { computed } from 'vue'
+import Icon from '@/shared/components/Icon.vue'
+import type { AppData, CuriosityCard, TaskCard, TopicCard } from '@/shared/models'
+import type { CardEvent, CardKind, EventAction } from '@/shared/utils/eventLog'
+import { EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
+import { taskStatusOf } from '@/shared/utils/taskStatus'
+import { topicStatusOf } from '@/shared/utils/topicStatus'
+
+export interface PiTimelineEntry {
+  key: string
+  kind: CardKind
+  id: string
+  title: string
+  status: string
+  statusColor: string
+  project: string
+  metric: string
+  action: string
+  ts: number
+  day: string
+  count: number
+  deleted: boolean
+}
+
+const props = defineProps<{
+  events: CardEvent[]
+  data: AppData
+}>()
+
+const emit = defineEmits<{
+  (e: 'open', entry: PiTimelineEntry): void
+}>()
+
+const TRACKED_ACTIONS = new Set<EventAction>(['create', 'status', 'restore', 'delete'])
+const KIND_META: Record<CardKind, { label: string; icon: string; color: string }> = {
+  resource: { label: '资源', icon: 'filetext', color: 'var(--accent)' },
+  task: { label: '任务', icon: 'check', color: 'var(--success)' },
+  topic: { label: '选题', icon: 'layers', color: 'var(--warning)' },
+  curiosity: { label: '好奇', icon: 'bulb', color: 'var(--accent-2)' },
+}
+
+const projectNames = computed(() => {
+  const map = new Map<string, string>()
+  for (const direction of props.data.compass?.directions || []) {
+    for (const project of direction.projects || []) map.set(project.id, project.name)
+  }
+  return map
+})
+
+const metricNames = computed(() => {
+  const map = new Map<string, string>()
+  for (const direction of props.data.compass?.directions || []) {
+    for (const project of direction.projects || []) {
+      for (const metric of project.metrics || []) map.set(metric.id, metric.title)
+    }
+  }
+  return map
+})
+
+function cardOf(kind: CardKind, id: string): { title: string; projectId?: string; metricId?: string; deletedAt?: number } | null {
+  if (kind === 'resource') {
+    const card = (props.data.resources || []).find(row => row.id === id)
+    return card ? { title: card.title || '（无标题资源）', deletedAt: card.deletedAt } : null
+  }
+  if (kind === 'task') {
+    const card = (props.data.tasks || []).find(row => row.id === id)
+    return card ? { title: card.title, projectId: card.projectId, metricId: card.metricId, deletedAt: card.deletedAt } : null
+  }
+  if (kind === 'topic') {
+    const card = (props.data.topics || []).find(row => row.id === id)
+    return card ? { title: card.title, projectId: card.projectId, metricId: card.metricId, deletedAt: card.deletedAt } : null
+  }
+  const card = (props.data.curiosities || []).find(row => row.id === id)
+  return card ? { title: card.question || '（无标题好奇）', deletedAt: card.deletedAt } : null
+}
+
+function statusOf(kind: CardKind, id: string, deleted: boolean): { name: string; color: string } {
+  if (deleted) return { name: '已删除', color: 'var(--text-4)' }
+  if (kind === 'task') {
+    const card = (props.data.tasks || []).find(row => row.id === id) as TaskCard | undefined
+    const status = card ? taskStatusOf(props.data, card) : undefined
+    return { name: status?.name || '任务', color: status?.color || 'var(--success)' }
+  }
+  if (kind === 'topic') {
+    const card = (props.data.topics || []).find(row => row.id === id) as TopicCard | undefined
+    const status = card ? topicStatusOf(props.data, card.statusId) : undefined
+    return { name: status?.name || '选题', color: status?.color || 'var(--warning)' }
+  }
+  if (kind === 'curiosity') {
+    const card = (props.data.curiosities || []).find(row => row.id === id) as CuriosityCard | undefined
+    const name = card?.status === 'done' ? '已求证'
+      : card?.status === 'doing' ? '探索中'
+        : card?.status === 'shelf' ? '已搁置'
+          : '待探索'
+    const color = card?.status === 'done' ? 'var(--success)'
+      : card?.status === 'doing' ? 'var(--accent)'
+        : card?.status === 'shelf' ? 'var(--text-4)'
+          : 'var(--accent-2)'
+    return { name, color }
+  }
+  return { name: '资源卡', color: 'var(--accent)' }
+}
+
+function dayKey(ts: number): string {
+  const date = new Date(ts)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function actionText(event: CardEvent): string {
+  return EVENT_ACT_LABEL[event.action] || '更新'
+}
+
+const groupedEntries = computed(() => {
+  const byDayAndCard = new Map<string, PiTimelineEntry>()
+  for (const event of props.events) {
+    if (!TRACKED_ACTIONS.has(event.action) || event.kind === 'system') continue
+    const card = cardOf(event.kind, event.cardId)
+    if (!card) continue
+    const day = dayKey(event.ts)
+    const key = `${day}:${event.kind}:${event.cardId}`
+    const existing = byDayAndCard.get(key)
+    if (existing) {
+      existing.count += 1
+      if (event.ts > existing.ts) {
+        existing.ts = event.ts
+        existing.action = actionText(event)
+      }
+      continue
+    }
+    const status = statusOf(event.kind, event.cardId, !!card.deletedAt)
+    byDayAndCard.set(key, {
+      key,
+      kind: event.kind,
+      id: event.cardId,
+      title: card.title,
+      status: status.name,
+      statusColor: status.color,
+      project: card.projectId ? projectNames.value.get(card.projectId) || '' : '',
+      metric: card.metricId ? metricNames.value.get(card.metricId) || '' : '',
+      action: actionText(event),
+      ts: event.ts,
+      day,
+      count: 1,
+      deleted: !!card.deletedAt,
+    })
+  }
+
+  const days = new Map<string, PiTimelineEntry[]>()
+  for (const entry of [...byDayAndCard.values()].sort((a, b) => b.ts - a.ts || a.key.localeCompare(b.key))) {
+    const rows = days.get(entry.day) || []
+    rows.push(entry)
+    days.set(entry.day, rows)
+  }
+  return [...days.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([day, entries]) => ({ day, entries }))
+})
+
+const totalCards = computed(() => groupedEntries.value.reduce((sum, group) => sum + group.entries.length, 0))
+
+function dayLabel(day: string): string {
+  const [year, month, date] = day.split('-').map(Number)
+  const current = new Date()
+  const today = dayKey(current.getTime())
+  const yesterdayDate = new Date(current)
+  yesterdayDate.setDate(current.getDate() - 1)
+  const yesterday = dayKey(yesterdayDate.getTime())
+  if (day === today) return '今天'
+  if (day === yesterday) return '昨天'
+  const weekday = '日一二三四五六'[new Date(year, month - 1, date, 12).getDay()]
+  return `${month} 月 ${date} 日 · 周${weekday}`
+}
+
+function timeLabel(ts: number): string {
+  return new Date(ts).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+function kindMeta(kind: CardKind) {
+  return KIND_META[kind]
+}
+
+function metaOf(entry: PiTimelineEntry): string {
+  const path = [entry.project, entry.metric].filter(Boolean).join(' › ')
+  return path || '未关联项目'
+}
+</script>
+
+<template>
+  <section class="pi-mod pi-intel-timeline" aria-label="卡片写入与修改时间轴">
+    <header class="pi-mod-h pit-head">
+      <span class="pi-mod-ico i-year"><Icon name="clock" :size="13" /></span>
+      <div class="pi-mod-t">
+        <h2>时间轴<span class="en">TIMELINE</span></h2>
+        <p>按日倒序回看写入与修改过的卡片。点卡片查看详情，再从详情定位回卡片池。</p>
+      </div>
+      <div class="pit-summary">
+        <b>{{ totalCards }}</b>
+        <span>张卡片 · {{ groupedEntries.length }} 个活跃日</span>
+      </div>
+    </header>
+
+    <div class="pi-mod-b pit-body">
+      <div v-if="groupedEntries.length" class="pit-days">
+        <section v-for="group in groupedEntries" :key="group.day" class="pit-day">
+          <aside class="pit-day-axis">
+            <i aria-hidden="true" />
+            <b>{{ dayLabel(group.day) }}</b>
+            <span>{{ group.entries.length }} 张</span>
+          </aside>
+          <div class="pit-cards">
+            <button
+              v-for="entry in group.entries"
+              :key="entry.key"
+              class="pit-card"
+              :class="{ deleted: entry.deleted }"
+              type="button"
+              :style="{
+                '--kind-color': kindMeta(entry.kind).color,
+                '--status-color': entry.statusColor,
+              }"
+              @click="emit('open', entry)"
+            >
+              <span class="pit-kind">
+                <Icon :name="kindMeta(entry.kind).icon" :size="11" />
+                {{ kindMeta(entry.kind).label }}
+              </span>
+              <span class="pit-card-title">{{ entry.title }}</span>
+              <span class="pit-card-meta">{{ metaOf(entry) }}</span>
+              <span class="pit-card-foot">
+                <span class="pit-status"><i />{{ entry.status }}</span>
+                <span v-if="entry.count > 1" class="pit-count">{{ entry.count }} 次更新</span>
+                <span class="pit-time">{{ timeLabel(entry.ts) }}</span>
+              </span>
+              <span class="pit-action">{{ entry.action }}</span>
+            </button>
+          </div>
+        </section>
+      </div>
+      <div v-else class="pit-empty">
+        <Icon name="clock" :size="24" />
+        <b>还没有可回看的卡片动作</b>
+        <span>新增卡片或调整任务 / 选题状态后，会按日期出现在这里。</span>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.pit-head { padding-bottom: 18px; }
+.pit-summary {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+.pit-summary b {
+  color: var(--text);
+  font-size: var(--fs-headline);
+  font-variant-numeric: tabular-nums;
+}
+.pit-body { padding: 0 26px 26px; }
+.pit-days {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+.pit-day {
+  display: grid;
+  grid-template-columns: 126px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pit-day:last-child { border-bottom: 0; }
+.pit-day-axis {
+  position: relative;
+  display: flex;
+  min-height: 54px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding-left: 22px;
+}
+.pit-day-axis::before {
+  position: absolute;
+  top: -18px;
+  bottom: -18px;
+  left: 7px;
+  width: 1px;
+  background: var(--border);
+  content: '';
+}
+.pit-day:first-child .pit-day-axis::before { top: 50%; }
+.pit-day:last-child .pit-day-axis::before { bottom: 50%; }
+.pit-day-axis i {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: translateY(-50%);
+}
+.pit-day-axis b {
+  color: var(--text);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+.pit-day-axis span {
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+}
+.pit-cards {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pit-card {
+  position: relative;
+  display: grid;
+  width: min(250px, 100%);
+  min-height: 96px;
+  grid-template-rows: auto minmax(36px, auto) auto auto;
+  gap: 5px;
+  padding: 11px 12px 10px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--kind-color) 22%, var(--border));
+  border-left: 3px solid var(--kind-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--kind-color) 5%, var(--surface));
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur), background var(--dur), transform var(--dur), box-shadow var(--dur);
+}
+.pit-card:hover {
+  border-color: color-mix(in srgb, var(--kind-color) 45%, var(--border));
+  background: color-mix(in srgb, var(--kind-color) 9%, var(--surface));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--text) 7%, transparent);
+  transform: translateY(-1px);
+}
+.pit-card.deleted { opacity: .55; }
+.pit-kind {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--kind-color) 13%, var(--surface));
+  color: color-mix(in srgb, var(--kind-color) 78%, var(--text));
+  font-size: var(--fs-tiny);
+  font-weight: 700;
+}
+.pit-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.pit-card-meta {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pit-card-foot {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.pit-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--status-color) 72%, var(--text));
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pit-status i {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-color);
+}
+.pit-count { flex: none; }
+.pit-time {
+  margin-left: auto;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.pit-action {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  color: var(--text-2);
+  font-size: var(--fs-tiny);
+}
+.pit-empty {
+  display: grid;
+  min-height: 190px;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--text-3);
+  text-align: center;
+}
+.pit-empty b { color: var(--text-2); }
+.pit-empty span { font-size: var(--fs-caption); }
+@media (max-width: 760px) {
+  .pit-body { padding: 0 16px 18px; }
+  .pit-day { grid-template-columns: 1fr; gap: 9px; }
+  .pit-day-axis { min-height: 24px; padding-left: 18px; }
+  .pit-day-axis::before { display: none; }
+  .pit-day-axis i { left: 0; }
+  .pit-card { width: 100%; }
+}
+</style>

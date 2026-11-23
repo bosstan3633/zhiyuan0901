@@ -353,7 +353,9 @@ async function startRelationProbe(store: AppStore, force: boolean): Promise<Clou
         state.value = 'error'
         errorMessage.value = messageOf(error)
       }
-      throw error
+      // 自动探测是后台能力：失败已经落到 state / errorMessage，
+      // 不得继续冒泡成 unhandledrejection 打断页面。
+      return null
     }
   })()
   relationProbePromise = promise

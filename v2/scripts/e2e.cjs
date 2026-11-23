@@ -736,14 +736,13 @@ async function main() {
   }), [dsOldDay])
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  // 读合并断言（V3.9.3 重指）：热力图已迁画像洞察页 PiYear，且画像页默认本年、
-  // 年度热力图默认展开；无需再点「看全年 ›」。
+  // 读合并断言（V4.7.2 重指）：画像洞察默认时间轴；先切到同页「热力图」Tab，
+  // 再走 PiYear 既有年度网格与日战报链路。无需再点「看全年 ›」。
   // 所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格，且 fullSince 说明仍含老日子。
   await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2400)
-  const yearTab = page.locator('.pi-range button, .pi-ray button').filter({ hasText: '本年' }).first()
-  await yearTab.click().catch(() => {})
-  await page.waitForTimeout(700)
+  await page.locator('.pi-view-tab[data-profile-view="heatmap"]').first().click({ timeout: 8000 })
+  await waitForLocator(page, '.pi-hmbox', { visible: true, timeout: 8000 })
   const yearModuleOn = await page.locator('#mod-year').first().isVisible().catch(() => false)
   const heatTarget = page.locator('#mod-year .dz-cell:not(.future):not(.today)').last()
   const heatTargetDay = await heatTarget.getAttribute('title').then(t => (t || '').split(' · ')[0]).catch(() => '')

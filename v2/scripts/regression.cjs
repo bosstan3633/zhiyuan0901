@@ -107,6 +107,7 @@ const SHARDS = [
   '156-v471-plan-history-hero',
   '157-v471-workspace-split',
   '158-v471-task-status-ui',
+  '159-v472-action-timeline',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

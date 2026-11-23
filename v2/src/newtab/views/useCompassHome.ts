@@ -371,7 +371,7 @@ const pickerOpen = ref(false)
 const pickerSlot = ref(0)
 const pickerSearch = ref('')
 const pickerCardType = ref<'all' | 'task' | 'topic'>('all')
-const pickerStatus = ref<'all' | 'todo' | 'doing'>('all')
+const pickerStatus = ref<'all' | 'todo' | 'doing' | 'done'>('all')
 const pickerTopicStatus = ref('all')
 // R113-N6：按项目筛选（用户反馈：任务库只有关键词搜索，任务一多只能逐条翻）
 // 取值：'' = 全部项目；'__none__' = 未关联项目；其余 = project.id
@@ -530,21 +530,21 @@ const pickerProjectOptions = computed(() => {
 })
 const pickerTopicStatusOptions = computed(() =>
   [...(d.value.topicStatuses || [])].sort((a, b) => a.order - b.order))
-/** 已完成或已选入今日三件事的任务置灰不可选 */
+/** 仅已选入今日三件事的卡片置灰；已完成卡仍可再次入选，继续承接后续优化。 */
 const pickedIds = computed(() => new Set(todayFocusList.value.map(s => s.sourceId)))
 function pickerDisabled(t: TaskCard): boolean {
-  return t.status === 'done' || pickedIds.value.has(t.id)
+  return pickedIds.value.has(t.id)
 }
 function pickerTopicDisabled(topic: TopicCard): boolean {
-  return isTopicDone(d.value, topic) || pickedIds.value.has(topic.id)
+  return pickedIds.value.has(topic.id)
 }
 function selectTaskGuarded(t: TaskCard) {
-  if (pickerDisabled(t)) { showToast(t.status === 'done' ? '该任务已完成' : '该任务已选入今日三件事'); return }
+  if (pickerDisabled(t)) { showToast('该任务已选入今日三件事'); return }
   selectTaskForSlot(t)
 }
 function selectTopicGuarded(topic: TopicCard) {
   if (pickerTopicDisabled(topic)) {
-    showToast(isTopicDone(d.value, topic) ? '该选题已完成' : '该选题已选入今日三件事')
+    showToast('该选题已选入今日三件事')
     return
   }
   selectTopicForSlot(topic)

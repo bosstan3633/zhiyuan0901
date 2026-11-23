@@ -61,14 +61,13 @@ check('W13-4 ★今天与本月视觉块差异化（★W17-C09 · 2026-10-20 重
     && mo.includes('class="light-split"') && rh.includes('class="light-split"');
 });
 
-check('W13-5 ★五段式今日战报（DayDetail）完整在位、零简化：V3.9.22 起宿主挂载 TodayBattleHost，内部承载 DayDetail；今日段 / 周度 7 日柱 / 年度热力格三处出口都调到同一宿主', () => {
+check('W13-5 ★五段式今日战报（DayDetail）完整在位、零简化（V4.7.2 重指）：宿主 TodayBattleHost 与 DayDetail 保留；热力图日期格仍调同一宿主，时间轴详情不替代战报。', () => {
   return PI.includes('<TodayBattleHost ref="battleHost" />') && PI.includes('function openTodayBattle') && PI.includes('function openDayBattle')
     && PI.includes('battleHost.value?.openToday()') && PI.includes('battleHost.value?.openDay(day)')
     && read('/newtab/components/dashboard/TodayBattleHost.vue').includes('<DayDetail')
-    && (PI.match(/@open-battle=/g) || []).length >= 3
+    && PI.includes('@open-battle="openDayBattle"')
     && TODAY.includes("emit('open-battle')") && RHY.includes("'open-battle'") && YEAR.includes("'open-battle'")
-    && YEAR.includes("if (day) emit('open-battle', day)")
-    && PI.includes('@open-battle="openTodayBattle"') && PI.includes('@open-battle="openDayBattle"');
+    && YEAR.includes("if (day) emit('open-battle', day)");
 });
 
 check('W13-6 ★资源生命周期与高价值沉睡证据唤醒完整在位：年度段挂 #lc-sec 与 LifecyclePanel，冷却期能识别 callCount >= 3 的高价值核心卡（🔥 徽标 + .lc-row.hv + 「历史高频调用 N 次 · 已冷却 M 天」注），冷却态三动作齐全（唤醒复温 / 延后 / 归档）、归档态可唤醒复温、阈值设置弹窗宿主接线在位', () => {

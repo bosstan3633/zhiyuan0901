@@ -19,7 +19,7 @@ check('V432-1（V4.7.0 重指）左栏遵守上方筛选并展示全部结果：
     && calendar.includes('const poolTasks = computed(() =>')
     && calendar.includes("if (props.sortMode === 'recent')")
     && calendar.includes("if (props.sortMode === 'due') return rows.sort(poolOrder)")
-    && calendar.includes('const poolGroups = computed(() =>')
+    && calendar.includes('const poolGroups = computed<TaskPoolGroup[]>(() =>')
     && calendar.includes("props.groupMode !== 'project'")
     && calendar.includes('function poolOrder(a: TaskCard, b: TaskCard): number')
     && calendar.includes('if (!aDate && bDate) return -1')

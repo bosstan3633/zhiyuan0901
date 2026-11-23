@@ -97,6 +97,7 @@ const {
 
 /** V4.7.1：资源页「查看全部 / 全部」直接打开全部资源卡抽屉，不再把用户带进二级卡片池。 */
 const resourceFolderGridRef = ref<InstanceType<typeof HomeResourceFolderGrid> | null>(null)
+const topicManagerRef = ref<InstanceType<typeof TopicManagerPanel> | null>(null)
 function openAllResources(): void {
   resourceFolderGridRef.value?.openAll()
 }
@@ -113,10 +114,34 @@ const TAB_ALIAS: Record<string, HandKind> = {
 }
 let lastDeepLinkId = ''
 watch(
-  () => [route.query.tab, route.query.bottom, route.query.hl, route.query.hk, route.query.open] as const,
-  async ([tabRaw, bottomRaw, hlRaw, hkRaw]) => {
+  () => [
+    route.query.tab,
+    route.query.bottom,
+    route.query.hl,
+    route.query.hk,
+    route.query.open,
+    route.query.fresh,
+    route.query.view,
+    route.query.freshAt,
+  ] as const,
+  async ([tabRaw, bottomRaw, hlRaw, hkRaw, , freshRaw, viewRaw]) => {
     const tabKey = String(tabRaw || bottomRaw || '')
     if (TAB_ALIAS[tabKey]) handTab.value = TAB_ALIAS[tabKey]
+    if (String(freshRaw || '') === '1') {
+      if (handTab.value === 'task') {
+        taskWorkSearch.value = ''
+        taskWorkProject.value = ''
+        taskWorkStatus.value = 'all'
+        taskWorkQuick.value = 'all'
+        taskWorkShowDone.value = true
+        taskWorkSort.value = 'recent'
+        taskWorkGroup.value = 'none'
+        taskWorkView.value = String(viewRaw || '') === 'calendar' ? 'calendar' : 'board'
+      } else if (handTab.value === 'topic') {
+        await nextTick()
+        await topicManagerRef.value?.resetForFresh(String(viewRaw || '') === 'calendar' ? 'calendar' : 'board')
+      }
+    }
     const hl = typeof hlRaw === 'string' ? hlRaw : ''
     if (!hl || hl === lastDeepLinkId) return
     lastDeepLinkId = hl
@@ -485,7 +510,7 @@ watch(
           </div>
 
           <div v-else-if="handTab === 'topic'" class="topic-workbench-home">
-            <TopicManagerPanel />
+            <TopicManagerPanel ref="topicManagerRef" />
           </div>
 
           <div v-else-if="handTab === 'curiosity'" class="curiosity-workbench-home">
@@ -582,6 +607,7 @@ watch(
               <option value="all">全部状态</option>
               <option value="todo">待开始</option>
               <option value="doing">进行中</option>
+              <option value="done">已完成</option>
             </select>
             <select v-if="pickerCardType !== 'task'" v-model="pickerTopicStatus" class="pm-select pm-status" title="按选题状态筛选">
               <option value="all">全部选题状态</option>
@@ -589,7 +615,7 @@ watch(
             </select>
             <button class="pm-filter-clear" type="button" @click="clearFocusSelection">重置</button>
           </div>
-          <div class="pm-summary"><span>{{ pickerCandidates.length }} 个可选事项</span><span>已完成和已选入的卡片会置灰</span></div>
+          <div class="pm-summary"><span>{{ pickerCandidates.length }} 个可选事项</span><span>已完成卡可再次入选；仅已在今日三件事中的卡片置灰</span></div>
           <div class="picker-list">
             <button
               v-for="candidate in pickerCandidates"

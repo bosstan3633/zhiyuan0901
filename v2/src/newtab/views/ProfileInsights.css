@@ -14,6 +14,26 @@
   flex: none; color: var(--text-3); font-size: var(--fs-micro); font-weight: 700;
   letter-spacing: .12em; text-transform: uppercase;
 }
+.pi-view-tabs {
+  display: inline-flex; align-items: center; gap: 3px; padding: 3px;
+  border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: var(--surface-2);
+}
+.pi-view-tab {
+  min-height: 32px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 12px; border: 0; border-radius: var(--radius-full);
+  background: transparent; color: var(--text-3); font: inherit;
+  font-size: var(--fs-caption); cursor: pointer;
+  transition: background var(--dur), color var(--dur), box-shadow var(--dur);
+}
+.pi-view-tab small { color: var(--text-3); font-size: 8px; letter-spacing: .08em; }
+.pi-view-tab:hover { color: var(--text); }
+.pi-view-tab.on {
+  background: var(--surface); color: var(--text); font-weight: 700;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 8%, transparent);
+}
+.pi-view-tab.on small { color: var(--accent-ink); }
+.pi-view-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pi-ai-trigger {
   min-height: 34px; display: inline-flex; align-items: center; gap: 6px; flex: none;
   padding: 0 13px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
@@ -44,5 +64,7 @@
   .pi-page { padding: 18px 16px 52px; }
   .pi-range-toolbar { align-items: stretch; flex-direction: column; padding: 10px; }
   .pi-range-control { align-items: stretch; flex-direction: column; gap: 6px; }
+  .pi-view-tabs { width: 100%; }
+  .pi-view-tab { flex: 1; justify-content: center; }
   .pi-ai-trigger { justify-content: center; }
 }

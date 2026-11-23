@@ -53,6 +53,13 @@ type CalendarEntry =
   | { key: string; kind: 'task'; task: TaskCard; slot?: FocusSlot }
   | { key: string; kind: 'topic'; topic: TopicCard; slot?: FocusSlot }
 
+type TaskPoolGroup = {
+  key: string
+  name: string
+  tasks: TaskCard[]
+  planState?: 'pending' | 'planned'
+}
+
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 const monthCursor = ref(startOfMonth(new Date()))
 const weekCursor = ref(startOfWeek(new Date()))
@@ -279,11 +286,16 @@ const poolTasks = computed(() => {
   })
 })
 
-const poolGroups = computed(() => {
+const poolGroups = computed<TaskPoolGroup[]>(() => {
   if (props.groupMode !== 'project') {
-    return [{ key: '__all__', name: '', tasks: poolTasks.value }]
+    const pending = poolTasks.value.filter(task => !task.dueDate)
+    const planned = poolTasks.value.filter(task => !!task.dueDate)
+    return [
+      { key: '__pending__', name: '未落图', tasks: pending, planState: 'pending' as const },
+      { key: '__planned__', name: '已落图', tasks: planned, planState: 'planned' as const },
+    ].filter(group => group.tasks.length > 0)
   }
-  const groups: { key: string; name: string; tasks: TaskCard[] }[] = []
+  const groups: TaskPoolGroup[] = []
   for (const task of poolTasks.value) {
     const key = task.projectId && props.projectNames.has(task.projectId) ? task.projectId : '__none__'
     let group = groups.find(row => row.key === key)
@@ -616,6 +628,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
             <button
               v-if="group.name"
               class="cal-pool-group"
+              :class="{
+                'is-plan-pending': group.planState === 'pending',
+                'is-plan-planned': group.planState === 'planned',
+              }"
               type="button"
               :aria-expanded="!isGroupCollapsed(group.key)"
               @click="toggleGroupCollapsed(group.key)"
@@ -627,7 +643,10 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
           <div v-for="task in (isGroupCollapsed(group.key) ? [] : group.tasks)" :key="task.id" class="cal-pool-item">
           <article
             class="cal-pool-task"
-            :class="'is-' + task.status"
+            :class="[
+              'is-' + task.status,
+              task.dueDate ? 'is-planned' : 'is-unplanned',
+            ]"
             :style="{ '--task-status': taskStatusColor(task) }"
             draggable="true"
             tabindex="0"
