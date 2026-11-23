@@ -3691,9 +3691,8 @@ await paOpen()
   const futureTone = await visibleCalendar.locator(`.cal-day[data-day="${futureKey}"] .cal-task-chip`).filter({ hasText: futureTitle }).first()
     .evaluate(el => el.classList.contains('tone-future')).catch(() => false)
   const doneUnscheduledInLeft = leftText.includes(doneUnscheduledTitle)
-  const monthChipHeight = await visibleCalendar.locator(`.cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
-    .evaluate(el => el.getBoundingClientRect().height).catch(() => 0)
-  await visibleCalendar.locator('.cal-view-switch button').filter({ hasText: '周视图' }).click()
+  // V4.7.3 起任务日历默认周视图；先量默认周视图，再切月视图做高度对照。
+  const defaultWeekView = await visibleCalendar.locator('.cal-grid.is-week').count() === 1
   const weekCells = await visibleCalendar.locator('.cal-grid.is-week .cal-day').count()
   const weekTitle = ((await visibleCalendar.locator('.cal-week-title').innerText().catch(() => '')) || '').replace(/\s+/g, ' ')
   const weekChipHeight = await visibleCalendar.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
@@ -3701,6 +3700,8 @@ await paOpen()
   const weekMetaVisible = await visibleCalendar.locator(`.cal-grid.is-week .cal-day[data-day="${todayKey}"] .cal-chip-meta`).first()
     .isVisible().catch(() => false)
   await visibleCalendar.locator('.cal-view-switch button').filter({ hasText: '月视图' }).click()
+  const monthChipHeight = await visibleCalendar.locator(`.cal-grid:not(.is-week) .cal-day[data-day="${todayKey}"] .cal-task-chip`).first()
+    .evaluate(el => el.getBoundingClientRect().height).catch(() => 0)
   await visibleCalendar.locator('.cal-month-picker-trigger').click()
   const monthPicker = await visibleCalendar.locator('.cal-month-picker').isVisible().catch(() => false)
   const monthChoices = await visibleCalendar.locator('.cal-month-picker-grid button').count()
@@ -3828,7 +3829,7 @@ await paOpen()
     && todayTone && futureTone
     && dayModalRows.some(row => row.done)
     && doneUnscheduledInLeft
-    && weekCells === 7 && /\d{4} 年/.test(weekTitle)
+    && defaultWeekView && weekCells === 7 && /\d{4} 年/.test(weekTitle)
     && weekChipHeight > monthChipHeight + 12
     && weekMetaVisible
     && monthPicker && monthChoices === 12 && monthSwitched
@@ -3839,7 +3840,7 @@ await paOpen()
     && !!pendingReturned && leftAfterCancel.includes(pendingTitle)
   report('E2E-63 ★V4.3.4 任务清单遵守筛选且未落图优先、拖入今日进入三件事、周视图任务卡自适应、日详情与取消排期全链路',
     calendarOk,
-    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 顺序=${leftOrderOk} 日期=${scheduledDateVisible} 完成未落图=${doneUnscheduledInLeft} 周视图=${weekCells}/${weekTitle}/${monthChipHeight}->${weekChipHeight}/${weekMetaVisible} 色调=${todayTone}/${futureTone}/${dayModalRows.some(row => row.done)} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖拽=${JSON.stringify(dragDispatch)} 拖入=${pendingScheduled}/${pendingFocusPublished}/${chipVisibleAfterDrop}/${leftAfterDrop.includes(pendingTitle)}/${JSON.stringify(droppedRowText)} 日详情=${JSON.stringify(droppedModalDebug)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
+    `高度=${calendarBoxes.poolH}/${calendarBoxes.boardH} 滚动=${calendarBoxes.listOverflow}/${calendarBoxes.listScrollable} 顺序=${leftOrderOk} 日期=${scheduledDateVisible} 完成未落图=${doneUnscheduledInLeft} 周视图=${defaultWeekView}/${weekCells}/${weekTitle}/${weekChipHeight}->月${monthChipHeight}/${weekMetaVisible} 色调=${todayTone}/${futureTone}/${dayModalRows.some(row => row.done)} 月份=${monthPicker}/${monthChoices}/${monthSwitched} 弹层=${JSON.stringify(dayModal)} 行=${JSON.stringify(dayModalRows)} 拖拽=${JSON.stringify(dragDispatch)} 拖入=${pendingScheduled}/${pendingFocusPublished}/${chipVisibleAfterDrop}/${leftAfterDrop.includes(pendingTitle)}/${JSON.stringify(droppedRowText)} 日详情=${JSON.stringify(droppedModalDebug)} 取消=${pendingReturned}/${leftAfterCancel.includes(pendingTitle)}`)
 
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })

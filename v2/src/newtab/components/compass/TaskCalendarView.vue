@@ -63,7 +63,7 @@ type TaskPoolGroup = {
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 const monthCursor = ref(startOfMonth(new Date()))
 const weekCursor = ref(startOfWeek(new Date()))
-const calendarMode = ref<'month' | 'week'>('month')
+const calendarMode = ref<'month' | 'week'>('week')
 const monthPickerOpen = ref(false)
 const monthPickerYear = ref(monthCursor.value.getFullYear())
 const selectedDay = ref('')
@@ -71,6 +71,59 @@ const selectedDayMode = ref<'detail' | 'schedule'>('detail')
 const scheduleSearch = ref('')
 const mobileMode = ref<'list' | 'calendar'>('list')
 const listCollapsed = ref(false)
+const CAL_LIST_WIDTH_KEY = 'zy.taskCalendar.listWidth'
+const DEFAULT_LIST_WIDTH = 280
+const MIN_LIST_WIDTH = 210
+const MAX_LIST_WIDTH = 520
+const listWidth = ref(readListWidth())
+let splitDrag: { startX: number; startWidth: number } | null = null
+
+function readListWidth(): number {
+  if (typeof localStorage === 'undefined') return DEFAULT_LIST_WIDTH
+  const saved = Number(localStorage.getItem(CAL_LIST_WIDTH_KEY))
+  return Number.isFinite(saved) ? Math.min(MAX_LIST_WIDTH, Math.max(MIN_LIST_WIDTH, saved)) : DEFAULT_LIST_WIDTH
+}
+
+function saveListWidth(): void {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(CAL_LIST_WIDTH_KEY, String(listWidth.value))
+}
+
+function clampListWidth(value: number): number {
+  return Math.min(MAX_LIST_WIDTH, Math.max(MIN_LIST_WIDTH, Math.round(value)))
+}
+
+function onSplitMove(event: PointerEvent): void {
+  if (!splitDrag) return
+  listWidth.value = clampListWidth(splitDrag.startWidth + event.clientX - splitDrag.startX)
+}
+
+function endSplitDrag(): void {
+  if (!splitDrag) return
+  splitDrag = null
+  document.body.classList.remove('cal-splitting')
+  window.removeEventListener('pointermove', onSplitMove)
+  window.removeEventListener('pointerup', endSplitDrag)
+  saveListWidth()
+}
+
+function startSplitDrag(event: PointerEvent): void {
+  if (event.button !== 0 || listCollapsed.value) return
+  event.preventDefault()
+  splitDrag = { startX: event.clientX, startWidth: listWidth.value }
+  document.body.classList.add('cal-splitting')
+  window.addEventListener('pointermove', onSplitMove)
+  window.addEventListener('pointerup', endSplitDrag)
+}
+
+function nudgeSplit(delta: number): void {
+  listWidth.value = clampListWidth(listWidth.value + delta)
+  saveListWidth()
+}
+
+function resetSplit(): void {
+  listWidth.value = DEFAULT_LIST_WIDTH
+  saveListWidth()
+}
 const collapsedGroups = ref<Set<string>>(new Set())
 const dragOverDay = ref('')
 const menuTaskId = ref('')
@@ -571,11 +624,18 @@ function onDocClick(event: MouseEvent): void {
 }
 
 onMounted(() => document.addEventListener('click', onDocClick))
-onUnmounted(() => document.removeEventListener('click', onDocClick))
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick)
+  endSplitDrag()
+})
 </script>
 
 <template>
-  <div class="task-calendar" :class="['mobile-' + mobileMode, { 'list-hidden': listCollapsed }]">
+  <div
+    class="task-calendar"
+    :class="['mobile-' + mobileMode, { 'list-hidden': listCollapsed }]"
+    :style="{ '--cal-list-width': `${listWidth}px` }"
+  >
     <div class="cal-mobile-switch" role="tablist" aria-label="窄屏任务视图">
       <button type="button" role="tab" :aria-selected="mobileMode === 'list'" :class="{ on: mobileMode === 'list' }" @click="mobileMode = 'list'">任务列表</button>
       <button type="button" role="tab" :aria-selected="mobileMode === 'calendar'" :class="{ on: mobileMode === 'calendar' }" @click="mobileMode = 'calendar'">月历</button>
@@ -720,6 +780,23 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
         </div>
       </template>
     </section>
+
+    <button
+      v-if="!listCollapsed"
+      class="cal-split-handle"
+      type="button"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="拖拽调整任务清单宽度"
+      :aria-valuemin="MIN_LIST_WIDTH"
+      :aria-valuemax="MAX_LIST_WIDTH"
+      :aria-valuenow="listWidth"
+      title="拖拽调整左右宽度 · 双击复位"
+      @pointerdown="startSplitDrag"
+      @dblclick.prevent="resetSplit"
+      @keydown.left.prevent="nudgeSplit(-20)"
+      @keydown.right.prevent="nudgeSplit(20)"
+    ><span aria-hidden="true" /></button>
 
     <section class="cal-board" aria-label="任务月历">
       <header class="cal-board-head">

@@ -39,6 +39,11 @@ const viewMode = ref<'calendar' | 'board'>('calendar')
 const sortMode = ref<'recent' | 'unplanned' | 'due'>('recent')
 const groupMode = ref<'none' | 'project'>('none')
 const listCollapsed = ref(false)
+const TOPIC_LIST_WIDTH_KEY = 'zy.topicManager.listWidth'
+const DEFAULT_TOPIC_LIST_WIDTH = 300
+const MIN_TOPIC_LIST_WIDTH = 230
+const MAX_TOPIC_LIST_WIDTH = 540
+const listWidth = ref(readTopicListWidth())
 const createOpen = ref(false)
 const createTitle = ref('')
 const createProjectId = ref('')
@@ -47,6 +52,56 @@ const createStatusId = ref('')
 const boardOverStatus = ref('')
 let draggingBoardId = ''
 let topicOpenTimer: ReturnType<typeof setTimeout> | null = null
+let splitDrag: { startX: number; startWidth: number } | null = null
+
+function readTopicListWidth(): number {
+  if (typeof localStorage === 'undefined') return DEFAULT_TOPIC_LIST_WIDTH
+  const saved = Number(localStorage.getItem(TOPIC_LIST_WIDTH_KEY))
+  return Number.isFinite(saved)
+    ? Math.min(MAX_TOPIC_LIST_WIDTH, Math.max(MIN_TOPIC_LIST_WIDTH, saved))
+    : DEFAULT_TOPIC_LIST_WIDTH
+}
+
+function saveTopicListWidth(): void {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(TOPIC_LIST_WIDTH_KEY, String(listWidth.value))
+}
+
+function clampTopicListWidth(value: number): number {
+  return Math.min(MAX_TOPIC_LIST_WIDTH, Math.max(MIN_TOPIC_LIST_WIDTH, Math.round(value)))
+}
+
+function onTopicSplitMove(event: PointerEvent): void {
+  if (!splitDrag) return
+  listWidth.value = clampTopicListWidth(splitDrag.startWidth + event.clientX - splitDrag.startX)
+}
+
+function endTopicSplitDrag(): void {
+  if (!splitDrag) return
+  splitDrag = null
+  document.body.classList.remove('topic-splitting')
+  window.removeEventListener('pointermove', onTopicSplitMove)
+  window.removeEventListener('pointerup', endTopicSplitDrag)
+  saveTopicListWidth()
+}
+
+function startTopicSplitDrag(event: PointerEvent): void {
+  if (event.button !== 0 || listCollapsed.value) return
+  event.preventDefault()
+  splitDrag = { startX: event.clientX, startWidth: listWidth.value }
+  document.body.classList.add('topic-splitting')
+  window.addEventListener('pointermove', onTopicSplitMove)
+  window.addEventListener('pointerup', endTopicSplitDrag)
+}
+
+function nudgeTopicSplit(delta: number): void {
+  listWidth.value = clampTopicListWidth(listWidth.value + delta)
+  saveTopicListWidth()
+}
+
+function resetTopicSplit(): void {
+  listWidth.value = DEFAULT_TOPIC_LIST_WIDTH
+  saveTopicListWidth()
+}
 
 const projects = computed(() => allProjects())
 const createMetrics = computed(() => projects.value.find(project => project.id === createProjectId.value)?.metrics || [])
@@ -413,13 +468,20 @@ async function openDetail(id: string): Promise<void> {
   void router.replace({ path: route.path })
 }
 
-onBeforeUnmount(clearTopicOpenTimer)
+onBeforeUnmount(() => {
+  clearTopicOpenTimer()
+  endTopicSplitDrag()
+})
 
 defineExpose({ resetForFresh, openDetail })
 </script>
 
 <template>
-  <div class="topic-manager" :class="{ 'list-hidden': listCollapsed }">
+  <div
+    class="topic-manager"
+    :class="{ 'list-hidden': listCollapsed }"
+    :style="{ '--topic-list-width': `${listWidth}px` }"
+  >
     <header class="topic-toolbar">
       <div class="topic-toolbar-main">
         <label class="topic-search">
@@ -529,6 +591,23 @@ defineExpose({ resetForFresh, openDetail })
           </div>
         </template>
       </aside>
+
+      <button
+        v-if="!listCollapsed"
+        class="topic-split-handle"
+        type="button"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="拖拽调整选题清单宽度"
+        :aria-valuemin="MIN_TOPIC_LIST_WIDTH"
+        :aria-valuemax="MAX_TOPIC_LIST_WIDTH"
+        :aria-valuenow="listWidth"
+        title="拖拽调整左右宽度 · 双击复位"
+        @pointerdown="startTopicSplitDrag"
+        @dblclick.prevent="resetTopicSplit"
+        @keydown.left.prevent="nudgeTopicSplit(-20)"
+        @keydown.right.prevent="nudgeTopicSplit(20)"
+      ><span aria-hidden="true" /></button>
 
       <section class="topic-view">
         <TopicCalendarView
@@ -654,7 +733,7 @@ defineExpose({ resetForFresh, openDetail })
 .topic-view-switch button { min-height: 28px; padding: 3px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
 .topic-view-switch button.on { background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm); }
 .topic-new { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
-.topic-workbench { display: grid; grid-template-columns: minmax(260px, 330px) minmax(0, 1fr); gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
+.topic-workbench { display: grid; grid-template-columns: minmax(230px, var(--topic-list-width, 300px)) 12px minmax(0, 1fr); gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
 .list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }
 .topic-pool { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
 .topic-pool.collapsed { align-items: center; background: color-mix(in srgb, var(--surface-2) 76%, var(--surface)); }
@@ -662,6 +741,14 @@ defineExpose({ resetForFresh, openDetail })
 .topic-rail-toggle:hover, .topic-rail-toggle:focus-visible { background: var(--accent-light); color: var(--accent-ink); }
 .topic-rail-toggle span { writing-mode: vertical-rl; letter-spacing: .14em; font-size: var(--fs-caption); font-weight: 650; }
 .topic-rail-toggle em { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 4px; border-radius: 99px; background: var(--surface-3); color: var(--text-3); font-size: var(--fs-micro); font-style: normal; font-variant-numeric: tabular-nums; }
+.topic-split-handle { position: relative; display: grid; width: 12px; min-height: 0; place-items: center; margin: 0 -8px; padding: 0; border: 0; background: transparent; color: var(--text-4); cursor: col-resize; touch-action: none; }
+.topic-split-handle::before { width: 3px; height: 100%; border-radius: 99px; background: transparent; content: ''; transition: background var(--dur-fast); }
+.topic-split-handle:hover::before,
+.topic-split-handle:focus-visible::before,
+body.topic-splitting .topic-split-handle::before { background: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.topic-split-handle span { position: absolute; top: 50%; width: 8px; height: 28px; border-radius: 99px; background: var(--surface); box-shadow: 0 0 0 1px var(--border); transform: translateY(-50%); }
+.topic-split-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body.topic-splitting { cursor: col-resize; user-select: none; }
 .topic-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 13px; border-bottom: 1px solid var(--border); }
 .topic-pool-head > div:first-child { flex: 1; min-width: 0; }
 .topic-pool-heading { display: flex; align-items: center; gap: 7px; }
@@ -724,10 +811,11 @@ defineExpose({ resetForFresh, openDetail })
 .topic-create-foot button { min-height: 36px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-sub); font-weight: 650; cursor: pointer; }
 .topic-create-foot button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 @media (max-width: 1024px) {
-  .topic-workbench { grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); }
+  .topic-workbench { grid-template-columns: minmax(230px, var(--topic-list-width, 280px)) 12px minmax(0, 1fr); }
 }
 @media (max-width: 820px) {
   .topic-workbench { grid-template-columns: 1fr; }
+  .topic-split-handle { display: none; }
   .topic-pool { max-height: 360px; }
   .list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }
   .list-hidden .topic-pool { max-height: none; }

@@ -97,6 +97,7 @@ if (typeof chrome !== 'undefined' && chrome.commands?.getAll) {
         'inspire': '好奇心采集',
         'sync-cloud-now': '立即同步云端',
         'open-today-battle': '打开今日战报',
+        'open-profile-timeline': '直达画像洞察时间轴',
         'open-compass-curation': '打开方向树策展模式',
         'goto-topic': '直达选题卡池',
         'open-topic': '快速采集选题卡'

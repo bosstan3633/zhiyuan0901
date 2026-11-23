@@ -125,6 +125,7 @@ export const MANUAL_ASSIGN_COMMANDS: string[] = [
   '快速采集选题卡',
   '立即同步云端',
   '打开今日战报',
+  '打开画像时间轴',
   '打开方向树策展模式',
 ]
 

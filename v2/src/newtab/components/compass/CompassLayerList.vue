@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 /**
  * F7 · 层级专属列表视图（骨架条第 3/5/6 层，用户拍板 2026-10-16）。
@@ -46,6 +47,27 @@ const LAYER_META = {
   6: { n: 6, t: '任务', en: 'TASK', ic: '', tip: '全部任务平铺（未删除即算，与骨架条同口径）· 点行打开所在项目的全景泳道' }
 } as const
 const lm = LAYER_META[props.layer]
+
+type MetricRow = (typeof props.rows5)[number]
+type TaskRow = (typeof props.rows6)[number]
+type LayerGroup<T> = { key: string; name: string; rows: T[] }
+
+function groupByProject<T extends { projId?: string; projName?: string | null }>(rows: T[]): LayerGroup<T>[] {
+  const groups: LayerGroup<T>[] = []
+  for (const row of rows) {
+    const key = row.projId || '__orphan__'
+    let group = groups.find(item => item.key === key)
+    if (!group) {
+      group = { key, name: row.projName || '未归属项目', rows: [] }
+      groups.push(group)
+    }
+    group.rows.push(row)
+  }
+  return groups
+}
+
+const metricGroups = computed(() => groupByProject<MetricRow>(props.rows5))
+const taskGroups = computed(() => groupByProject<TaskRow>(props.rows6))
 
 /** 行状态徽标：任务状态三态（与塔内同语义） */
 function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing' ? '◐' : '○' }
@@ -99,40 +121,54 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
 
       <!-- ★第 5 层：指标行 -->
       <template v-else-if="layer === 5">
-        <button
-          v-for="r in rows5" :key="r.id" class="lvl-row r5"
-          :title="`${r.dirName} › ${r.projName}`"
-          @click="emit('locate', { projId: r.projId, metricId: r.id })"
-        >
-          <span class="lr-dot" :class="{ done: r.pct === 100 && r.total, doing: r.pct > 0 && r.pct < 100 }"><Icon v-if="r.total && r.pct === 100" name="check" :size="12"/><template v-else>{{ r.total ? '◐' : '○' }}</template></span>
-          <span class="lr-n">{{ r.title }}</span>
-          <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 缺任务</span>
-          <span class="lr-path">{{ r.dirName }} › {{ r.projName }}</span>
-          <span class="lr-pct">
-            <b>{{ r.pct }}%</b>
-            <span class="lr-bar"><i :style="{ width: r.pct + '%' }" /></span>
-            <em>{{ r.done }}/{{ r.total }}</em>
-          </span>
-          <span class="lr-go">▸ 全景定位</span>
-        </button>
+        <section v-for="group in metricGroups" :key="group.key" class="lvl-project-group">
+          <header class="lvl-project-head">
+            <Icon name="package" :size="12" />
+            <b>{{ group.name }}</b>
+            <span>{{ group.rows.length }} 条指标</span>
+          </header>
+          <button
+            v-for="r in group.rows" :key="r.id" class="lvl-row r5"
+            :title="`${r.dirName} › ${r.projName}`"
+            @click="emit('locate', { projId: r.projId, metricId: r.id })"
+          >
+            <span class="lr-dot" :class="{ done: r.pct === 100 && r.total, doing: r.pct > 0 && r.pct < 100 }"><Icon v-if="r.total && r.pct === 100" name="check" :size="12"/><template v-else>{{ r.total ? '◐' : '○' }}</template></span>
+            <span class="lr-n">{{ r.title }}</span>
+            <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 缺任务</span>
+            <span class="lr-path">{{ r.dirName }} › {{ r.projName }}</span>
+            <span class="lr-pct">
+              <b>{{ r.pct }}%</b>
+              <span class="lr-bar"><i :style="{ width: r.pct + '%' }" /></span>
+              <em>{{ r.done }}/{{ r.total }}</em>
+            </span>
+            <span class="lr-go">▸ 全景定位</span>
+          </button>
+        </section>
         <div v-if="!rows5.length" class="lvl-empty">还没有成功指标 · 进项目舱点「＋ 指标」开始</div>
       </template>
 
       <!-- ★第 6 层：任务行（含无归属孤儿任务——counts.tasks 口径未删除即算） -->
       <template v-else>
-        <button
-          v-for="r in rows6" :key="r.id" class="lvl-row r6"
-          :title="r.metricTitle ? `${r.dirName} › ${r.projName} › ${r.metricTitle}` : '无归属任务'"
-          @click="emit('locate', { projId: r.projId, metricId: r.metricId || undefined, taskId: r.id })"
-          :class="{ orphan: r.orphan }"
-        >
-          <span class="lr-dot" :class="{ done: r.status === 'done', doing: r.status === 'doing' }"><Icon v-if="r.status === 'done'" name="check" :size="11"/><template v-else>{{ statusDot(r.status) }}</template></span>
-          <span class="lr-n" :class="{ done: r.status === 'done' }">{{ r.title }}</span>
-          <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 未归属</span>
-          <span class="lr-path">{{ r.metricTitle ? `${r.projName} › ${r.metricTitle}` : (r.projName || '未挂项目') }}</span>
-          <span class="lr-go" v-if="r.projId || r.metricId">▸ 全景定位</span>
-          <span class="lr-go dim" v-else>不可定位</span>
-        </button>
+        <section v-for="group in taskGroups" :key="group.key" class="lvl-project-group">
+          <header class="lvl-project-head">
+            <Icon name="package" :size="12" />
+            <b>{{ group.name }}</b>
+            <span>{{ group.rows.length }} 条任务</span>
+          </header>
+          <button
+            v-for="r in group.rows" :key="r.id" class="lvl-row r6"
+            :title="r.metricTitle ? `${r.dirName} › ${r.projName} › ${r.metricTitle}` : '无归属任务'"
+            @click="emit('locate', { projId: r.projId, metricId: r.metricId || undefined, taskId: r.id })"
+            :class="{ orphan: r.orphan }"
+          >
+            <span class="lr-dot" :class="{ done: r.status === 'done', doing: r.status === 'doing' }"><Icon v-if="r.status === 'done'" name="check" :size="11"/><template v-else>{{ statusDot(r.status) }}</template></span>
+            <span class="lr-n" :class="{ done: r.status === 'done' }">{{ r.title }}</span>
+            <span v-if="r.orphan" class="lr-w"><Icon name="warn" :size="13"/> 未归属</span>
+            <span class="lr-path">{{ r.metricTitle ? `${r.projName} › ${r.metricTitle}` : (r.projName || '未挂项目') }}</span>
+            <span class="lr-go" v-if="r.projId || r.metricId">▸ 全景定位</span>
+            <span class="lr-go dim" v-else>不可定位</span>
+          </button>
+        </section>
         <div v-if="!rows6.length" class="lvl-empty">还没有任务 · 进项目舱给指标加任务</div>
       </template>
     </div>
@@ -170,7 +206,16 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
 }
 .lvl-x:hover { color: var(--text); background: var(--surface-3); }
 
-.lvl-rows { display: flex; flex-direction: column; max-height: 62vh; overflow: auto; }
+.lvl-rows { display: flex; flex-direction: column; }
+.lvl-project-group { display: flex; flex-direction: column; }
+.lvl-project-group + .lvl-project-group { border-top: 1px solid var(--border); }
+.lvl-project-head {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 16px; background: var(--surface-2);
+  color: var(--text-3); font-size: var(--fs-micro);
+}
+.lvl-project-head b { flex: 1; min-width: 0; overflow: hidden; color: var(--text-2); font-size: var(--fs-caption); text-overflow: ellipsis; white-space: nowrap; }
+.lvl-project-head span { flex: none; font-variant-numeric: tabular-nums; }
 .lvl-row {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   width: 100%; text-align: left; cursor: pointer;

@@ -1,0 +1,95 @@
+/**
+ * V4.7.3 · 时间轴密度、画像聚焦、卡片池自适应与方向台全景展开。
+ */
+const { check, read } = require('./helpers.cjs')
+
+console.log('【V4.7.3 · 时间轴密度与卡片池自适应】')
+
+const TIMELINE = read('/newtab/components/profile/PiTimeline.vue')
+const TIMELINE_DRAWER = read('/newtab/components/profile/PiTimelineDrawer.vue')
+const PROFILE = read('/newtab/views/ProfileInsights.vue')
+const PROFILE_CSS = read('/newtab/views/ProfileInsights.css')
+const HOME = read('/newtab/views/CompassHome.vue')
+const HOME_CSS = read('/newtab/views/CompassHome.css')
+const CAL = read('/newtab/components/compass/TaskCalendarView.vue')
+const TOPIC = read('/newtab/components/compass/TopicManagerPanel.vue')
+const LAYER = read('/newtab/components/compass/CompassLayerList.vue')
+const SETTINGS = read('/newtab/views/useGlobalSettings.ts')
+const MANIFEST = read('/manifest.ts')
+const BACKGROUND = read('/background/index.ts')
+
+check('V473-1 ★时间轴默认 4 卡一行，仅提供 4 / 5 / 6 卡三档，且在桌面各宽度都按所选列数渲染', () => {
+  return TIMELINE.includes('const DENSITY_OPTIONS = [4, 5, 6] as const')
+    && TIMELINE.includes("return DENSITY_OPTIONS.includes(saved as TimelineDensity) ? saved as TimelineDensity : 4")
+    && TIMELINE.includes("const DENSITY_STORAGE_KEY = 'zy.profile.timeline.density'")
+    && TIMELINE.includes('grid-template-columns: repeat(var(--pit-cols, 4), minmax(0, 1fr))')
+    && TIMELINE.includes(':style="{ \'--pit-cols\': density }"')
+    && !TIMELINE.includes('repeat(3, minmax(0, 1fr))')
+})
+
+check('V473-2 ★时间轴默认近 30 天，支持类型筛选、按类型分组折叠与四类角标', () => {
+  return TIMELINE.includes('const TIMELINE_WINDOW_DAYS = 30')
+    && TIMELINE.includes('event.ts < windowStart')
+    && TIMELINE.includes("type TimelineFilter = 'all' | CardKind")
+    && TIMELINE.includes("const KIND_FILTERS")
+    && TIMELINE.includes("groupByKind")
+    && TIMELINE.includes("toggleKindGroup")
+    && TIMELINE.includes("resource: { label: '资源'")
+    && TIMELINE.includes("task: { label: '任务'")
+    && TIMELINE.includes("topic: { label: '选题'")
+    && TIMELINE.includes("curiosity: { label: '好奇'")
+})
+
+check('V473-3 ★时间轴详情与卡片本体都提供链接直达，资源卡双击走统一资源打开', () => {
+  return TIMELINE.includes("@dblclick.stop.prevent=\"openLink(entry)\"")
+    && TIMELINE.includes('function openLink(entry: PiTimelineEntry): void')
+    && TIMELINE_DRAWER.includes('打开卡片链接')
+    && TIMELINE_DRAWER.includes('@click="emit(\'open-link\', entry)"')
+    && PROFILE.includes("if (entry.kind === 'resource')")
+    && PROFILE.includes('openResourceLink(resource)')
+    && PROFILE.includes("if (entry.kind === 'topic')")
+    && PROFILE.includes('openTopicOutcome(topic)')
+})
+
+check('V473-4 ★画像洞察压缩首屏，时间轴路由直达，AI 洞察注入时间轴事实与方向树上下文', () => {
+  return PROFILE.includes("type ProfileView = 'timeline' | 'heatmap'")
+    && PROFILE.includes("return 'timeline'")
+    && PROFILE.includes("route.query.view === 'heatmap'")
+    && PROFILE.includes("value === 'timeline'")
+    && PROFILE.includes('const directionContext = computed')
+    && PROFILE.includes('方向树上下文：')
+    && PROFILE.includes('...directionContext.value.map(line => `- ${line}`)')
+    && PROFILE.includes('const profileInsightFacts = computed')
+    && PROFILE.includes('近 30 天')
+    && PROFILE_CSS.includes('pi-rmods-single')
+})
+
+check('V473-5 ★浏览器快捷键新增直达时间轴；设置页左栏快捷键入口退役，任务 / 选题快捷键直达一级看板', () => {
+  return MANIFEST.includes("'open-profile-timeline'")
+    && BACKGROUND.includes("case 'open-profile-timeline'")
+    && BACKGROUND.includes("openNewtabRoute('/profile?view=timeline')")
+    && BACKGROUND.includes('/?tab=task&fresh=1&view=board&freshAt=')
+    && BACKGROUND.includes('/?tab=topic&fresh=1&view=board&freshAt=')
+    && !SETTINGS.includes("{ key: 'shortcuts'")
+})
+
+check('V473-6 ★卡片池页签回到标题区，任务日历默认周视图，任务 / 选题清单与视图均可拖拽分栏', () => {
+  return HOME.indexOf('class="hand-tabs"') < HOME.indexOf('v-if="handTab === \'task\'"')
+    && HOME.includes('class="hand-head-main"')
+    && CAL.includes("const calendarMode = ref<'month' | 'week'>('week')")
+    && CAL.includes('class="cal-split-handle"')
+    && CAL.includes('aria-label="拖拽调整任务清单宽度"')
+    && TOPIC.includes('class="topic-split-handle"')
+    && TOPIC.includes('aria-label="拖拽调整选题清单宽度"')
+    && HOME_CSS.includes('.hand-tabs')
+})
+
+check('V473-7 ★方向台成功指标 / 任务全景按项目分组，取消固定高度内滚动并在页面内完整展开', () => {
+  return LAYER.includes('function groupByProject')
+    && LAYER.includes('const metricGroups = computed')
+    && LAYER.includes('const taskGroups = computed')
+    && LAYER.includes('v-for="group in metricGroups"')
+    && LAYER.includes('v-for="group in taskGroups"')
+    && !LAYER.includes('max-height: 62vh')
+    && !LAYER.includes('max-height:62vh')
+})

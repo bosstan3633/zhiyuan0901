@@ -476,7 +476,8 @@
 
 /* ── 手边的卡：宽屏三列 ── */
 .hand-board { margin-top: 0; }
-.hand-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.hand-head { min-height: 54px; padding: 9px 16px; border-bottom: 1px solid var(--border); justify-content: flex-start; }
+.hand-head-main { display: flex; min-width: 0; align-items: center; gap: 16px; flex-wrap: wrap; }
 /* V3.9.18：hand-summary 随三列汇总退役（计数入页签与列头）；hand-tabs 为三池页签 */
 .hand-tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .hand-tab { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-sub); font-weight: 500; cursor: pointer; transition: background var(--dur), color var(--dur); }
@@ -1199,15 +1200,15 @@
 }
 
 .task-workbench {
-  padding: 12px;
+  padding: 9px;
 }
 
 .task-work-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 10px;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-2);
@@ -1216,7 +1217,7 @@
 .twt-row {
   display: flex;
   align-items: flex-end;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -1228,7 +1229,7 @@
 }
 
 .twt-secondary {
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
 }
 
@@ -1454,6 +1455,9 @@
   .pm-summary span:last-child { display: none; }
   .picker-modal { max-height: 84vh; }
   .task-work-toolbar { align-items: stretch; }
+  .hand-head-main { width: 100%; align-items: flex-start; flex-direction: column; gap: 8px; }
+  .hand-tabs { width: 100%; }
+  .hand-tab { flex: 1; justify-content: center; padding: 0 7px; }
   .twt-primary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .twt-primary .task-work-search { grid-column: 1 / -1; }
   .twt-row { align-items: stretch; }

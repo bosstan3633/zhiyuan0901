@@ -1,6 +1,6 @@
 .task-calendar {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(680px, 1fr);
+  grid-template-columns: minmax(210px, var(--cal-list-width, 280px)) 12px minmax(0, 1fr);
   align-items: stretch;
   gap: 14px;
   height: clamp(620px, 68vh, 730px);
@@ -11,6 +11,48 @@
 .task-calendar.list-hidden {
   grid-template-columns: 46px minmax(0, 1fr);
 }
+
+.task-calendar.list-hidden .cal-split-handle { display: none; }
+
+.cal-split-handle {
+  position: relative;
+  display: grid;
+  width: 12px;
+  min-height: 0;
+  place-items: center;
+  margin: 0 -8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-4);
+  cursor: col-resize;
+  touch-action: none;
+}
+.cal-split-handle::before {
+  width: 3px;
+  height: 100%;
+  border-radius: 99px;
+  background: transparent;
+  content: '';
+  transition: background var(--dur-fast);
+}
+.cal-split-handle:hover::before,
+.cal-split-handle:focus-visible::before,
+body.cal-splitting .cal-split-handle::before {
+  background: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+.cal-split-handle span {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 28px;
+  border-radius: 99px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  transform: translateY(-50%);
+}
+.cal-split-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body.cal-splitting { cursor: col-resize; user-select: none; }
 
 .task-calendar.list-hidden .cal-pool {
   display: flex;
@@ -1327,6 +1369,7 @@
     grid-template-columns: 1fr;
     height: auto;
   }
+  .cal-split-handle { display: none; }
 
   .cal-pool {
     max-height: 320px;

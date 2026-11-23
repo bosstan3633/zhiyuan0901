@@ -36,9 +36,9 @@ check('V472-2 ★安排历程明确写入卡片创建时间，并把创建点作
     && PSH.includes('写入卡片池')
 })
 
-check('V472-3 ★任务/选题快捷键直达均落到一级卡片池看板、全部项目、全部状态', () => {
-  return BG.includes('/deck/task?fresh=1&view=board&freshAt=')
-    && BG.includes('/deck/topic?fresh=1&view=board&freshAt=')
+check('V472-3（V4.7.3 重指）任务/选题快捷键直达均落到一级卡片池看板、全部项目、全部状态', () => {
+  return BG.includes('/?tab=task&fresh=1&view=board&freshAt=')
+    && BG.includes('/?tab=topic&fresh=1&view=board&freshAt=')
     && HOME.includes("route.query.fresh")
     && HOME.includes("taskWorkStatus.value = 'all'")
     && HOME.includes("taskWorkProject.value = ''")
@@ -60,9 +60,9 @@ check('V472-4 ★任务清单按“未落图 / 已落图”分组，卡面再用
     && CAL_CSS.includes('.cal-pool-group.is-plan-planned')
 })
 
-check('V472-5 ★画像洞察“观察范围”改为时间轴 / 热力图双视图，默认时间轴，热力图保留原 PiYear', () => {
+check('V472-5（V4.7.3 重指）画像洞察“观察范围”改为时间轴 / 热力图双视图，默认时间轴，热力图保留原 PiYear', () => {
   return PROFILE.includes("type ProfileView = 'timeline' | 'heatmap'")
-    && PROFILE.includes(": 'timeline',")
+    && PROFILE.includes("return 'timeline'")
     && PROFILE.includes('data-profile-view="timeline"')
     && PROFILE.includes('data-profile-view="heatmap"')
     && PROFILE.includes('<PiTimeline')

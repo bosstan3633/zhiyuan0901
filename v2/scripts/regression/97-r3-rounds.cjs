@@ -425,11 +425,11 @@ function noKeyCmds() {
   return out;
 }
 const CN_NUM = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
-check('R4-Df（V4.5.0 重指）★手册命令表必须跟 manifest 真值一致：当前恰有 10 条无默认键命令（含选题采集/直达），每条都要在手册里实名出现，已下架旧命令不许以“可分配清单”形式回流', () => {
+check('R4-Df（V4.7.3 重指）★手册命令表必须跟 manifest 真值一致：无默认键命令数与 manifest 动态一致（当前含选题采集/直达与画像时间轴），每条都要在手册里实名出现，已下架旧命令不许以“可分配清单”形式回流', () => {
   const m = read('/newtab/manual-data.ts');
   const assign = read('/shared/utils/shortcuts.ts');
   const noKey = noKeyCmds();
-  return noKey.length === 10 && noKey.every(k => m.includes(k) || assign.includes(k))
+  return noKey.length === 11 && noKey.every(k => m.includes(k) || assign.includes(k))
     && m.includes('assignCommandList()')
     && m.includes('chrome://extensions/shortcuts')
     && !m.includes('打开方向台 / 打开资源台 / 打开完整方向树 / 打开设置')

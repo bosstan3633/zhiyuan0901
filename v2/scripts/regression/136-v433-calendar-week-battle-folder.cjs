@@ -36,7 +36,7 @@ check('V433-1（V4.7.0 重指 · ★V4.7.1 随迁备案）任务清单吃完整�
 check('V433-2 日历支持月视图 / 周视图切换，周视图仍复用同一排期与日期详情链路', () => {
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
   const css = read('/newtab/components/compass/TaskCalendarView.css')
-  return calendar.includes("const calendarMode = ref<'month' | 'week'>('month')")
+  return calendar.includes("const calendarMode = ref<'month' | 'week'>('week')")
     && calendar.includes('function setCalendarMode(mode:')
     && calendar.includes("calendarMode.value === 'week' ? 7 : 42")
     && calendar.includes('月视图')

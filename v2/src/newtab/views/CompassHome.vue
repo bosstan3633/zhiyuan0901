@@ -389,27 +389,29 @@ watch(
 
         <section ref="handBoardRef" class="hand-board card-pool-board desk-row desk-row-secondary" aria-labelledby="handTitle">
           <header class="hand-head">
-            <div class="hand-heading">
-              <span class="board-ico"><Icon name="layers" :size="18" /></span>
-              <div>
-                <h2 id="handTitle">卡片池</h2>
-                <span class="hand-kicker">采集的起点，任务的调度场 · 新建走浏览器扩展快捷键</span>
+            <div class="hand-head-main">
+              <div class="hand-heading">
+                <span class="board-ico"><Icon name="layers" :size="18" /></span>
+                <div>
+                  <h2 id="handTitle">卡片池</h2>
+                  <span class="hand-kicker">采集的起点，任务的调度场 · 新建走浏览器扩展快捷键</span>
+                </div>
               </div>
-            </div>
-            <!-- V4.3.0：移动采集入口与采集中转层已退役，只保留浏览器内三卡池。 -->
-            <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
-              <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">
-                任务 <span v-if="handNewCounts.task" class="hand-new-badge" :aria-label="`${handNewCounts.task} 张今日新增任务卡`">{{ handNewCounts.task > 99 ? '99+' : handNewCounts.task }}</span>
-              </button>
-              <button class="hand-tab" :class="{ on: handTab === 'topic' }" role="tab" :aria-selected="handTab === 'topic'" type="button" @click="handTab = 'topic'">
-                选题 <span v-if="handNewCounts.topic" class="hand-new-badge" :aria-label="`${handNewCounts.topic} 张今日新增选题卡`">{{ handNewCounts.topic > 99 ? '99+' : handNewCounts.topic }}</span>
-              </button>
-              <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">
-                好奇心 <span v-if="handNewCounts.curiosity" class="hand-new-badge" :aria-label="`${handNewCounts.curiosity} 张今日新增好奇心卡`">{{ handNewCounts.curiosity > 99 ? '99+' : handNewCounts.curiosity }}</span>
-              </button>
-              <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">
-                资源 <span v-if="handNewCounts.resource" class="hand-new-badge" :aria-label="`${handNewCounts.resource} 张今日新增资源卡`">{{ handNewCounts.resource > 99 ? '99+' : handNewCounts.resource }}</span>
-              </button>
+              <!-- V4.3.0：移动采集入口与采集中转层已退役，只保留浏览器内三卡池。 -->
+              <div class="hand-tabs" role="tablist" aria-label="手边的卡类型">
+                <button class="hand-tab" :class="{ on: handTab === 'task' }" role="tab" :aria-selected="handTab === 'task'" type="button" @click="handTab = 'task'">
+                  任务 <span v-if="handNewCounts.task" class="hand-new-badge" :aria-label="`${handNewCounts.task} 张今日新增任务卡`">{{ handNewCounts.task > 99 ? '99+' : handNewCounts.task }}</span>
+                </button>
+                <button class="hand-tab" :class="{ on: handTab === 'topic' }" role="tab" :aria-selected="handTab === 'topic'" type="button" @click="handTab = 'topic'">
+                  选题 <span v-if="handNewCounts.topic" class="hand-new-badge" :aria-label="`${handNewCounts.topic} 张今日新增选题卡`">{{ handNewCounts.topic > 99 ? '99+' : handNewCounts.topic }}</span>
+                </button>
+                <button class="hand-tab" :class="{ on: handTab === 'curiosity' }" role="tab" :aria-selected="handTab === 'curiosity'" type="button" @click="handTab = 'curiosity'">
+                  好奇心 <span v-if="handNewCounts.curiosity" class="hand-new-badge" :aria-label="`${handNewCounts.curiosity} 张今日新增好奇心卡`">{{ handNewCounts.curiosity > 99 ? '99+' : handNewCounts.curiosity }}</span>
+                </button>
+                <button class="hand-tab" :class="{ on: handTab === 'resource' }" role="tab" :aria-selected="handTab === 'resource'" type="button" @click="handTab = 'resource'">
+                  资源 <span v-if="handNewCounts.resource" class="hand-new-badge" :aria-label="`${handNewCounts.resource} 张今日新增资源卡`">{{ handNewCounts.resource > 99 ? '99+' : handNewCounts.resource }}</span>
+                </button>
+              </div>
             </div>
           </header>
 

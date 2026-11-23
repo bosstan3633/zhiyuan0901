@@ -656,12 +656,12 @@ check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。�
 });
 
 console.log('【N 系列 · 画像洞察 N6 时间轨吸顶 / N7 Hero KPI 居中】');
-check('N6 ★时间轨吸顶判据（★V4.7.2 重指带备案）：观察范围导航现为「时间轴 / 热力图」双视图。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认时间轴；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
+check('N6 ★时间轨吸顶判据（★V4.7.3 重指带备案）：观察范围导航现为「时间轴 / 热力图」双视图。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认时间轴；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
   const pi = read('/newtab/views/ProfileInsights.vue');
   if (pi.includes('<PiRail')) return false;
   if (!pi.includes('class="pi-view-tabs" role="tablist"')) return false;
   if (!pi.includes('data-profile-view="timeline"') || !pi.includes('data-profile-view="heatmap"')) return false;
-  if (!pi.includes(": 'timeline',")) return false;
+  if (!pi.includes("return 'timeline'")) return false;
   if (pi.includes('<PiRangeTabs')) return false;
   /* 注释里允许留「原 timelineAnchor 已删除」的备案，故剥离注释后判 */
   if (/timelineAnchor/.test(codeOnly(pi))) return false;

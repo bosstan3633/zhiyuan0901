@@ -108,6 +108,7 @@ const SHARDS = [
   '157-v471-workspace-split',
   '158-v471-task-status-ui',
   '159-v472-action-timeline',
+  '160-v473-timeline-density-profile-cards',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

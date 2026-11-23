@@ -5,9 +5,9 @@
  * 按自然日倒序展示“写入 / 修改”过的卡片；同一张卡同一天只保留一行，
  * 以最新一次动作排序。卡片状态色读业务状态定义，不另造一套颜色。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
-import type { AppData, CuriosityCard, TaskCard, TopicCard } from '@/shared/models'
+import type { AppData, CuriosityCard, LinkType, ResourceCard, TaskCard, TopicCard } from '@/shared/models'
 import type { CardEvent, CardKind, EventAction } from '@/shared/utils/eventLog'
 import { EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
 import { taskStatusOf } from '@/shared/utils/taskStatus'
@@ -27,6 +27,8 @@ export interface PiTimelineEntry {
   day: string
   count: number
   deleted: boolean
+  link?: string
+  linkType?: LinkType
 }
 
 const props = defineProps<{
@@ -36,14 +38,60 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'open', entry: PiTimelineEntry): void
+  (e: 'open-link', entry: PiTimelineEntry): void
+  (e: 'open-shortcuts'): void
 }>()
 
 const TRACKED_ACTIONS = new Set<EventAction>(['create', 'status', 'restore', 'delete'])
+const TIMELINE_WINDOW_DAYS = 30
+const DENSITY_OPTIONS = [4, 5, 6] as const
+type TimelineDensity = typeof DENSITY_OPTIONS[number]
+type TimelineFilter = 'all' | CardKind
+type TimelineSegment = { key: string; kind: TimelineFilter; entries: PiTimelineEntry[] }
 const KIND_META: Record<CardKind, { label: string; icon: string; color: string }> = {
   resource: { label: '资源', icon: 'filetext', color: 'var(--accent)' },
   task: { label: '任务', icon: 'check', color: 'var(--success)' },
   topic: { label: '选题', icon: 'layers', color: 'var(--warning)' },
   curiosity: { label: '好奇', icon: 'bulb', color: 'var(--accent-2)' },
+}
+const KIND_FILTERS: { key: TimelineFilter; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'resource', label: '资源' },
+  { key: 'task', label: '任务' },
+  { key: 'topic', label: '选题' },
+  { key: 'curiosity', label: '好奇' },
+]
+const DENSITY_STORAGE_KEY = 'zy.profile.timeline.density'
+const windowStart = Date.now() - TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+const kindFilter = ref<TimelineFilter>('all')
+const groupByKind = ref(false)
+const collapsedKinds = ref<Set<CardKind>>(new Set())
+const density = ref<TimelineDensity>(readDensity())
+
+function readDensity(): TimelineDensity {
+  if (typeof localStorage === 'undefined') return 4
+  const saved = Number(localStorage.getItem(DENSITY_STORAGE_KEY))
+  return DENSITY_OPTIONS.includes(saved as TimelineDensity) ? saved as TimelineDensity : 4
+}
+
+function setDensity(next: TimelineDensity): void {
+  density.value = next
+  if (typeof localStorage !== 'undefined') localStorage.setItem(DENSITY_STORAGE_KEY, String(next))
+}
+
+function setKindFilter(next: TimelineFilter): void {
+  kindFilter.value = next
+}
+
+function toggleKindGroup(kind: CardKind): void {
+  const next = new Set(collapsedKinds.value)
+  if (next.has(kind)) next.delete(kind)
+  else next.add(kind)
+  collapsedKinds.value = next
+}
+
+function isKindCollapsed(kind: CardKind): boolean {
+  return collapsedKinds.value.has(kind)
 }
 
 const projectNames = computed(() => {
@@ -64,18 +112,18 @@ const metricNames = computed(() => {
   return map
 })
 
-function cardOf(kind: CardKind, id: string): { title: string; projectId?: string; metricId?: string; deletedAt?: number } | null {
+function cardOf(kind: CardKind, id: string): { title: string; projectId?: string; metricId?: string; deletedAt?: number; link?: string; linkType?: LinkType } | null {
   if (kind === 'resource') {
-    const card = (props.data.resources || []).find(row => row.id === id)
-    return card ? { title: card.title || '（无标题资源）', deletedAt: card.deletedAt } : null
+    const card = (props.data.resources || []).find(row => row.id === id) as ResourceCard | undefined
+    return card ? { title: card.title || '（无标题资源）', deletedAt: card.deletedAt, link: card.link, linkType: card.linkType } : null
   }
   if (kind === 'task') {
     const card = (props.data.tasks || []).find(row => row.id === id)
-    return card ? { title: card.title, projectId: card.projectId, metricId: card.metricId, deletedAt: card.deletedAt } : null
+    return card ? { title: card.title, projectId: card.projectId, metricId: card.metricId, deletedAt: card.deletedAt, link: card.link } : null
   }
   if (kind === 'topic') {
     const card = (props.data.topics || []).find(row => row.id === id)
-    return card ? { title: card.title, projectId: card.projectId, metricId: card.metricId, deletedAt: card.deletedAt } : null
+    return card ? { title: card.title, projectId: card.projectId, metricId: card.metricId, deletedAt: card.deletedAt, link: card.link, linkType: card.linkType } : null
   }
   const card = (props.data.curiosities || []).find(row => row.id === id)
   return card ? { title: card.question || '（无标题好奇）', deletedAt: card.deletedAt } : null
@@ -118,10 +166,10 @@ function actionText(event: CardEvent): string {
   return EVENT_ACT_LABEL[event.action] || '更新'
 }
 
-const groupedEntries = computed(() => {
+const allEntries = computed(() => {
   const byDayAndCard = new Map<string, PiTimelineEntry>()
   for (const event of props.events) {
-    if (!TRACKED_ACTIONS.has(event.action) || event.kind === 'system') continue
+    if (!TRACKED_ACTIONS.has(event.action) || event.kind === 'system' || event.ts < windowStart) continue
     const card = cardOf(event.kind, event.cardId)
     if (!card) continue
     const day = dayKey(event.ts)
@@ -150,11 +198,20 @@ const groupedEntries = computed(() => {
       day,
       count: 1,
       deleted: !!card.deletedAt,
+      link: card.link,
+      linkType: card.linkType,
     })
   }
 
+  return [...byDayAndCard.values()].sort((a, b) => b.ts - a.ts || a.key.localeCompare(b.key))
+})
+
+const filteredEntries = computed(() => allEntries.value.filter(entry =>
+  kindFilter.value === 'all' || entry.kind === kindFilter.value))
+
+const groupedEntries = computed(() => {
   const days = new Map<string, PiTimelineEntry[]>()
-  for (const entry of [...byDayAndCard.values()].sort((a, b) => b.ts - a.ts || a.key.localeCompare(b.key))) {
+  for (const entry of filteredEntries.value) {
     const rows = days.get(entry.day) || []
     rows.push(entry)
     days.set(entry.day, rows)
@@ -165,6 +222,28 @@ const groupedEntries = computed(() => {
 })
 
 const totalCards = computed(() => groupedEntries.value.reduce((sum, group) => sum + group.entries.length, 0))
+
+function segmentsOf(entries: PiTimelineEntry[]): TimelineSegment[] {
+  if (!groupByKind.value) return [{ key: 'all', kind: 'all', entries }]
+  return (['resource', 'task', 'topic', 'curiosity'] as CardKind[])
+    .map(kind => ({
+      key: kind,
+      kind,
+      entries: entries.filter(entry => entry.kind === kind),
+    }))
+    .filter(segment => segment.entries.length > 0)
+}
+
+function linkLabel(entry: PiTimelineEntry): string {
+  if (!entry.link) return ''
+  if (entry.kind === 'topic' || entry.linkType === 'obsidian') return '打开成果 / Obsidian 链接'
+  if (entry.linkType === 'file') return '打开本地文件'
+  return '打开卡片链接'
+}
+
+function openLink(entry: PiTimelineEntry): void {
+  if (entry.link) emit('open-link', entry)
+}
 
 function dayLabel(day: string): string {
   const [year, month, date] = day.split('-').map(Number)
@@ -207,11 +286,50 @@ function metaOf(entry: PiTimelineEntry): string {
       </div>
       <div class="pit-summary">
         <b>{{ totalCards }}</b>
-        <span>张卡片 · {{ groupedEntries.length }} 个活跃日</span>
+        <span>张卡片 · {{ groupedEntries.length }} 个活跃日 · 近 {{ TIMELINE_WINDOW_DAYS }} 天</span>
       </div>
     </header>
 
     <div class="pi-mod-b pit-body">
+      <div class="pit-tools">
+        <div class="pit-filter" role="group" aria-label="时间轴卡片类型筛选">
+          <button
+            v-for="filter in KIND_FILTERS"
+            :key="filter.key"
+            type="button"
+            :class="{ on: kindFilter === filter.key }"
+            :aria-pressed="kindFilter === filter.key"
+            @click="setKindFilter(filter.key)"
+          >{{ filter.label }}</button>
+        </div>
+        <div class="pit-tool-actions">
+          <button
+            class="pit-group-toggle"
+            :class="{ on: groupByKind }"
+            type="button"
+            :aria-pressed="groupByKind"
+            @click="groupByKind = !groupByKind"
+          >
+            <Icon name="layers" :size="12" />
+            {{ groupByKind ? '按类型分组' : '时间流水' }}
+          </button>
+          <div class="pit-density" role="group" aria-label="时间轴每行卡片密度">
+            <span>每行</span>
+            <button
+              v-for="option in DENSITY_OPTIONS"
+              :key="option"
+              type="button"
+              :class="{ on: density === option }"
+              :aria-pressed="density === option"
+              :title="`每行 ${option} 张卡片`"
+              @click="setDensity(option)"
+            >{{ option }} 卡</button>
+          </div>
+          <button class="pit-shortcut" type="button" title="在 Chrome 快捷键页配置直达时间轴命令" @click="emit('open-shortcuts')">
+            <Icon name="zap" :size="12" /> 浏览器快捷键
+          </button>
+        </div>
+      </div>
       <div v-if="groupedEntries.length" class="pit-days">
         <section v-for="group in groupedEntries" :key="group.day" class="pit-day">
           <aside class="pit-day-axis">
@@ -219,39 +337,60 @@ function metaOf(entry: PiTimelineEntry): string {
             <b>{{ dayLabel(group.day) }}</b>
             <span>{{ group.entries.length }} 张</span>
           </aside>
-          <div class="pit-cards">
-            <button
-              v-for="entry in group.entries"
-              :key="entry.key"
-              class="pit-card"
-              :class="{ deleted: entry.deleted }"
-              type="button"
-              :style="{
-                '--kind-color': kindMeta(entry.kind).color,
-                '--status-color': entry.statusColor,
-              }"
-              @click="emit('open', entry)"
-            >
-              <span class="pit-kind">
-                <Icon :name="kindMeta(entry.kind).icon" :size="11" />
-                {{ kindMeta(entry.kind).label }}
-              </span>
-              <span class="pit-card-title">{{ entry.title }}</span>
-              <span class="pit-card-meta">{{ metaOf(entry) }}</span>
-              <span class="pit-card-foot">
-                <span class="pit-status"><i />{{ entry.status }}</span>
-                <span v-if="entry.count > 1" class="pit-count">{{ entry.count }} 次更新</span>
-                <span class="pit-time">{{ timeLabel(entry.ts) }}</span>
-              </span>
-              <span class="pit-action">{{ entry.action }}</span>
-            </button>
+          <div class="pit-day-content">
+            <section v-for="segment in segmentsOf(group.entries)" :key="segment.key" class="pit-segment">
+              <button
+                v-if="groupByKind && segment.kind !== 'all'"
+                class="pit-segment-head"
+                type="button"
+                :aria-expanded="!isKindCollapsed(segment.kind as CardKind)"
+                @click="toggleKindGroup(segment.kind as CardKind)"
+              >
+                <Icon :name="kindMeta(segment.kind as CardKind).icon" :size="12" />
+                <span>{{ kindMeta(segment.kind as CardKind).label }}卡</span>
+                <em>{{ segment.entries.length }}</em>
+                <Icon :name="isKindCollapsed(segment.kind as CardKind) ? 'arrowright' : 'arrowdown'" :size="11" />
+              </button>
+              <div
+                v-if="!groupByKind || segment.kind === 'all' || !isKindCollapsed(segment.kind as CardKind)"
+                class="pit-cards"
+                :style="{ '--pit-cols': density }"
+              >
+                <button
+                  v-for="entry in segment.entries"
+                  :key="entry.key"
+                  class="pit-card"
+                  :class="{ deleted: entry.deleted }"
+                  type="button"
+                  :style="{
+                    '--kind-color': kindMeta(entry.kind).color,
+                    '--status-color': entry.statusColor,
+                  }"
+                  @click="emit('open', entry)"
+                  @dblclick.stop.prevent="openLink(entry)"
+                >
+                  <span class="pit-kind">
+                    <Icon :name="kindMeta(entry.kind).icon" :size="11" />
+                    {{ kindMeta(entry.kind).label }}
+                  </span>
+                  <span class="pit-card-title">{{ entry.title }}</span>
+                  <span class="pit-card-meta">{{ metaOf(entry) }}</span>
+                  <span class="pit-card-foot">
+                    <span class="pit-status"><i />{{ entry.status }}</span>
+                    <span v-if="entry.count > 1" class="pit-count">{{ entry.count }} 次更新</span>
+                    <span class="pit-time">{{ timeLabel(entry.ts) }}</span>
+                  </span>
+                  <span class="pit-action">{{ entry.action }}</span>
+                </button>
+              </div>
+            </section>
           </div>
         </section>
       </div>
       <div v-else class="pit-empty">
         <Icon name="clock" :size="24" />
-        <b>还没有可回看的卡片动作</b>
-        <span>新增卡片或调整任务 / 选题状态后，会按日期出现在这里。</span>
+        <b>近 30 天还没有可回看的卡片动作</b>
+        <span>新增卡片或调整任务 / 选题状态后，会按日期出现在这里；更早记录不在此视图展示。</span>
       </div>
     </div>
   </section>
@@ -273,6 +412,99 @@ function metaOf(entry: PiTimelineEntry): string {
   font-variant-numeric: tabular-nums;
 }
 .pit-body { padding: 0 26px 26px; }
+.pit-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--border);
+}
+.pit-filter,
+.pit-density {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+}
+.pit-filter button,
+.pit-density button,
+.pit-group-toggle,
+.pit-shortcut {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-micro);
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.pit-filter button:hover,
+.pit-density button:hover,
+.pit-group-toggle:hover,
+.pit-shortcut:hover { color: var(--text); }
+.pit-filter button.on,
+.pit-density button.on,
+.pit-group-toggle.on {
+  background: var(--surface);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-sm);
+}
+.pit-tool-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.pit-density { gap: 1px; }
+.pit-density > span {
+  padding: 0 5px 0 7px;
+  color: var(--text-4);
+  font-size: var(--fs-micro);
+}
+.pit-group-toggle,
+.pit-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.pit-shortcut { color: var(--accent-ink); }
+.pit-day-content { min-width: 0; }
+.pit-segment + .pit-segment { margin-top: 10px; }
+.pit-segment-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 30px;
+  margin-bottom: 7px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.pit-segment-head span { color: var(--text); }
+.pit-segment-head em {
+  min-width: 18px;
+  margin-left: auto;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--text-3);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
 .pit-days {
   display: flex;
   flex-direction: column;
@@ -329,15 +561,15 @@ function metaOf(entry: PiTimelineEntry): string {
   font-variant-numeric: tabular-nums;
 }
 .pit-cards {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(var(--pit-cols, 4), minmax(0, 1fr));
   min-width: 0;
-  flex-wrap: wrap;
   gap: 8px;
 }
 .pit-card {
   position: relative;
   display: grid;
-  width: min(250px, 100%);
+  width: 100%;
   min-height: 96px;
   grid-template-rows: auto minmax(36px, auto) auto auto;
   gap: 5px;
@@ -444,10 +676,15 @@ function metaOf(entry: PiTimelineEntry): string {
 .pit-empty span { font-size: var(--fs-caption); }
 @media (max-width: 760px) {
   .pit-body { padding: 0 16px 18px; }
+  .pit-tools { align-items: stretch; flex-direction: column; }
+  .pit-tool-actions { justify-content: space-between; }
+  .pit-filter { width: 100%; }
+  .pit-filter button { flex: 1; padding: 0 5px; }
   .pit-day { grid-template-columns: 1fr; gap: 9px; }
   .pit-day-axis { min-height: 24px; padding-left: 18px; }
   .pit-day-axis::before { display: none; }
   .pit-day-axis i { left: 0; }
+  .pit-cards { grid-template-columns: 1fr; }
   .pit-card { width: 100%; }
 }
 </style>

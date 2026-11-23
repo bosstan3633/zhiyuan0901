@@ -169,7 +169,6 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   ]},
   { title: '系统信息', items: [
     { key: 'extension', icon: 'settings', label: '扩展设置' },
-    { key: 'shortcuts', icon: 'zap', label: '快捷键设置' },
     { key: 'manual', icon: 'book', label: '使用手册' },
     { key: 'letter', icon: 'mail', label: '一封信' },
     // W5（V3.8.5）：产品更新日志——时间线看版本演变

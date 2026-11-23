@@ -314,11 +314,16 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'goto-tasks': {
-      await openNewtabRoute(`/deck/task?fresh=1&view=board&freshAt=${Date.now()}`)
+      // V4.7.3：直接落到一级调度台的四卡池，不再依赖旧 /deck/* 兼容深链。
+      await openNewtabRoute(`/?tab=task&fresh=1&view=board&freshAt=${Date.now()}`)
       break
     }
     case 'goto-topic': {
-      await openNewtabRoute(`/deck/topic?fresh=1&view=board&freshAt=${Date.now()}`)
+      await openNewtabRoute(`/?tab=topic&fresh=1&view=board&freshAt=${Date.now()}`)
+      break
+    }
+    case 'open-profile-timeline': {
+      await openNewtabRoute('/profile?view=timeline')
       break
     }
     case 'sync-cloud-now': {

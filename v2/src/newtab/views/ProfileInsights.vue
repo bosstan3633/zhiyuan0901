@@ -30,7 +30,7 @@ import Icon from '@/shared/components/Icon.vue'
 import '@/newtab/components/dashboard/dashboard.css'
 import '@/newtab/components/profile/pi-timeline.css'
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import type { AppData, TaskCard, ResourceCard } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
@@ -61,6 +61,8 @@ import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/P
 import { useCompass } from '@/newtab/stores/compass'
 import PiTimeline, { type PiTimelineEntry } from '@/newtab/components/profile/PiTimeline.vue'
 import PiTimelineDrawer from '@/newtab/components/profile/PiTimelineDrawer.vue'
+import { openTopicOutcome } from '@/shared/utils/topicOutcome'
+import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
 import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
@@ -107,12 +109,14 @@ const {
   fmtDay,
 } = useProfileInsights()
 
+const route = useRoute()
 type ProfileView = 'timeline' | 'heatmap'
-const profileView = ref<ProfileView>(
-  typeof location !== 'undefined' && (location.hash === '#lifecycle' || location.hash === '#lc-sec')
-    ? 'heatmap'
-    : 'timeline',
-)
+function initialProfileView(): ProfileView {
+  if (route.query.view === 'heatmap') return 'heatmap'
+  if (typeof location !== 'undefined' && (location.hash === '#lifecycle' || location.hash === '#lc-sec')) return 'heatmap'
+  return 'timeline'
+}
+const profileView = ref<ProfileView>(initialProfileView())
 const timelineEntry = ref<PiTimelineEntry | null>(null)
 const timelineOpen = ref(false)
 
@@ -133,6 +137,39 @@ function locateTimelineEntry(entry: PiTimelineEntry): void {
   showToast('已定位到卡片池')
 }
 
+function openTimelineEntryLink(entry: PiTimelineEntry): void {
+  if (entry.kind === 'resource') {
+    const resource = (gd.value.resources || []).find(row => row.id === entry.id)
+    if (resource) {
+      openResourceLink(resource)
+      return
+    }
+  }
+  if (entry.kind === 'topic') {
+    const topic = (gd.value.topics || []).find(row => row.id === entry.id)
+    if (topic && openTopicOutcome(topic)) return
+    showToast('这张选题卡还没有可打开的成果链接')
+    return
+  }
+  if (entry.kind === 'task') {
+    const task = (gd.value.tasks || []).find(row => row.id === entry.id)
+    const url = toOpenableRawLink(task?.link)
+    if (url && openExternalLink(url)) return
+    showToast('这张任务卡还没有可打开的链接')
+    return
+  }
+  showToast('这张卡片没有可打开的链接')
+}
+
+async function openBrowserShortcuts(): Promise<void> {
+  const url = 'chrome://extensions/shortcuts'
+  if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+    await chrome.tabs.create({ url })
+    return
+  }
+  window.open(url, '_blank')
+}
+
 /* V4.4.0：周期控制与模块级 AI 洞察放在同一个控制条里。
    洞察只读当前范围事实，手动触发、临时展示，不写回 AppData。 */
 const profileInsight = ref('')
@@ -141,17 +178,43 @@ const profileInsightError = ref('')
 let profileInsightAbort: AbortController | null = null
 
 const profileRangeLabel = computed(() => profileView.value === 'timeline' ? '时间轴' : '年度热力图')
+const timelineWindowStart = Date.now() - 30 * 24 * 60 * 60 * 1000
+
+const directionContext = computed(() => {
+  const compass = gd.value.compass
+  if (!compass) return ['方向树：暂未配置']
+  const rows = [`愿景：${compass.vision?.content || '未填写'}`, `使命：${compass.mission?.content || '未填写'}`]
+  for (const direction of (compass.directions || []).slice(0, 4)) {
+    const projects = (direction.projects || []).slice(0, 3).map(project => project.name).join('、')
+    rows.push(`战略目标：${direction.name}${projects ? `；项目：${projects}` : ''}`)
+  }
+  const metrics = (compass.directions || [])
+    .flatMap(direction => direction.projects || [])
+    .flatMap(project => project.metrics || [])
+    .slice(0, 6)
+    .map(metric => metric.title)
+  if (metrics.length) rows.push(`关键成功指标：${metrics.join('、')}`)
+  return rows
+})
 
 const profileInsightFacts = computed(() => {
   if (profileView.value === 'timeline') {
     const tracked = timelineEvents.value.filter(event =>
-      event.kind !== 'system' && ['create', 'status', 'restore', 'delete'].includes(event.action))
+      event.ts >= timelineWindowStart
+      && event.kind !== 'system'
+      && ['create', 'status', 'restore', 'delete'].includes(event.action))
     const days = new Set(tracked.map(event => new Date(event.ts).toLocaleDateString('sv-SE')))
     const cardIds = new Set(tracked.map(event => `${event.kind}:${event.cardId}`))
+    const kindCounts = tracked.reduce<Record<string, number>>((acc, event) => {
+      acc[event.kind] = (acc[event.kind] || 0) + 1
+      return acc
+    }, {})
+    const statusChanges = tracked.filter(event => event.action === 'status').length
     const recent = tracked.slice(0, 5).map(event => `${event.title}（${event.kind}）`)
     return [
-      `时间轴覆盖：${days.size} 个活跃日，${cardIds.size} 张卡片`,
+      `时间轴覆盖：近 30 天 ${days.size} 个活跃日，${cardIds.size} 张卡片`,
       `写入与修改事件：${tracked.length} 次`,
+      `状态变化：${statusChanges} 次；类型分布：${Object.entries(kindCounts).map(([kind, count]) => `${kind} ${count}`).join(' / ') || '暂无'}`,
       `最近动作：${recent.length ? recent.join('；') : '暂无'}`,
       `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心 / ${heroKindCounts.value.topic} 选题`,
     ]
@@ -203,7 +266,7 @@ async function generateProfileInsight(): Promise<void> {
       messages: [
         {
           role: 'system',
-          content: '你是一名严谨、克制的中文数据分析师。只根据给定画像事实分析，不编造数字、不做人格评判；数据不足时明确说明。输出 180—200 字的一段中文，依次包含：①当前周期最关键的行为洞察；②对洞察背后原因的深层剖析；③一条可立即执行、与主攻项目或成功指标相关的下一步建议。不要标题、不要 Markdown、不要客套话。',
+          content: '你是一名严谨、克制的中文数据分析师与行动教练。只根据给定画像事实和方向树上下文分析，不编造数字、不做人格评判；数据不足时明确说明。输出 200—260 字的一段中文，依次包含：①当前时间轴或热力图最值得注意的事实；②这些行为与方向树愿景、使命、主攻项目或成功指标的匹配/偏离；③一条可立即执行、能在下一张卡或下一小时落地的行动指示。不要标题、不要 Markdown、不要客套话。',
         },
         {
           role: 'user',
@@ -211,6 +274,8 @@ async function generateProfileInsight(): Promise<void> {
             `观察范围：${profileRangeLabel.value}`,
             `使命主线：${heroMission.value || '未填写'}`,
             `主攻项目：${focusText}`,
+            '方向树上下文：',
+            ...directionContext.value.map(line => `- ${line}`),
             `当前范围事实：`,
             ...profileInsightFacts.value.map(line => `- ${line}`),
           ].join('\n'),
@@ -231,6 +296,9 @@ async function generateProfileInsight(): Promise<void> {
 }
 
 watch(profileView, resetProfileInsight)
+watch(() => route.query.view, value => {
+  if (value === 'timeline' || value === 'heatmap') profileView.value = value
+})
 </script>
 <template>
   <div class="pi-page">
@@ -305,6 +373,8 @@ watch(profileView, resetProfileInsight)
           :events="timelineEvents"
           :data="gd"
           @open="openTimelineEntry"
+          @open-link="openTimelineEntryLink"
+          @open-shortcuts="openBrowserShortcuts"
         />
 
         <PiYear v-else
@@ -325,6 +395,7 @@ watch(profileView, resetProfileInsight)
       :entry="timelineEntry"
       @close="timelineOpen = false"
       @locate="locateTimelineEntry"
+      @open-link="openTimelineEntryLink"
     />
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。

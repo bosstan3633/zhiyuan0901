@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'locate', entry: PiTimelineEntry): void
+  (e: 'open-link', entry: PiTimelineEntry): void
 }>()
 
 const KIND_LABEL: Record<PiTimelineEntry['kind'], string> = {
@@ -31,6 +32,13 @@ const updatedLabel = computed(() => props.entry
     hour12: false,
   })
   : '')
+
+const linkLabel = computed(() => {
+  if (!props.entry?.link) return ''
+  if (props.entry.kind === 'topic' || props.entry.linkType === 'obsidian') return '打开成果 / Obsidian 链接'
+  if (props.entry.linkType === 'file') return '打开本地文件'
+  return '打开卡片链接'
+})
 </script>
 
 <template>
@@ -74,6 +82,9 @@ const updatedLabel = computed(() => props.entry
 
       <footer class="ptd-foot">
         <button class="ptd-secondary" type="button" @click="emit('close')">关闭</button>
+        <button v-if="entry.link" class="ptd-secondary ptd-link" type="button" @click="emit('open-link', entry)">
+          <Icon name="link" :size="13" /> {{ linkLabel }}
+        </button>
         <button class="ptd-primary" type="button" @click="emit('locate', entry)">
           <Icon name="arrowright" :size="13" /> 定位回卡片池
         </button>
@@ -117,5 +128,6 @@ const updatedLabel = computed(() => props.entry
 .ptd-foot { display: flex; justify-content: flex-end; gap: 9px; margin-top: auto; padding-top: 4px; }
 .ptd-secondary, .ptd-primary { min-height: 36px; padding: 0 14px; border-radius: var(--radius-full); font: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
 .ptd-secondary { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); }
+.ptd-secondary.ptd-link { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); }
 .ptd-primary { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent, #fff); }
 </style>

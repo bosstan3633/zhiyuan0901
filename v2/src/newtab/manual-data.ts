@@ -42,7 +42,7 @@ function assignCommandList(): string {
 
 export const MANUAL: ManualPart[] = [
   {
-    title: '流程篇 · 先看这里（V4.7.2）',
+    title: '流程篇 · 先看这里（V4.7.3）',
     sections: [
       { id: 'flow-1', title: '一张图看懂：从采集到行动', html: `
         <p>先用流程理解产品，再看后面的细节。每一步都只问一个问题：<b>这条信息下一步要去哪里？</b></p>
@@ -142,8 +142,8 @@ export const MANUAL: ManualPart[] = [
           <tr><td>5</td><td>方向管理</td><td>方向台（愿景 / 使命 / 战略目标 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
-        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定无默认键命令（全局设置 / 直达资源卡池 / 快速采集任务 / 直达好奇心卡池 / 直达任务卡池 / 立即同步云端 / 打开方向树策展模式）</div>
-        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。「全局设置」「直达资源卡池」「快速采集任务」「直达好奇心卡池」「直达任务卡池」「立即同步云端」「打开方向树策展模式」七条命令无默认键——按需分配；三个卡池命令会一键打开对应池的<strong>最新列表</strong>，“立即同步云端”会直接执行一次同步而不是打开设置页，方向树策展命令直达默认金字塔布局。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
+        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定无默认键命令（全局设置 / 直达资源卡池 / 快速采集任务 / 直达好奇心卡池 / 直达任务卡池 / 直达选题卡池 / 立即同步云端 / 打开今日战报 / 打开画像时间轴 / 打开方向树策展模式）</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。上列无默认键命令均可按需分配；任务 / 选题卡池命令会直达一级调度台看板并复位全部项目、全部状态；“立即同步云端”会直接执行一次同步而不是打开设置页；“打开画像时间轴”直达画像洞察时间轴。设置页不再保留快捷键设置入口，时间轴页提供浏览器快捷键直达按钮。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
         <h4>每天的节奏 · 4 步闭环</h4>
         <div class="mc-steps">
           <div class="mc-step"><b class="mc-n">1</b><span>刷新 → 调度台：先看今日三件事（恒 3 槽），30 秒确认今天从哪出发</span></div>
@@ -585,7 +585,7 @@ export const MANUAL: ManualPart[] = [
     sections: [
       { id: 'ref-1', title: '快捷键全表', html: `
         ${shortcutTable()}
-        <p class="mn-src">本表与「<kbd>?</kbd> 快捷键速查面板」、设置 → 快捷键设置<b>同源</b>（一份清单三处渲染）。切台键写的是<kbd>修饰键</kbd>——你在设置里选的是哪个，这里就按哪个生效（速查面板与设置页会直接显示你当前那一个）。</p>
+        <p class="mn-src">本表与「<kbd>?</kbd> 快捷键速查面板」<b>同源</b>（一份清单多处渲染）。切台键写的是<kbd>修饰键</kbd>——你在应用内设定的是哪个，这里就按哪个生效。设置页的快捷键入口已退役，浏览器命令请从画像洞察时间轴的“浏览器快捷键”按钮进入配置页。</p>
         <p><b>无默认键的浏览器命令</b>（需到 <code>chrome://extensions/shortcuts</code> 自行分配）：${assignCommandList()}。</p>
         <p>命令面板（<kbd>Ctrl+K</kbd>）里除了跳转还有一组「<b>快速开关</b>」：<b>暗色主题 / 紧凑密度 / 已完成项目 / 备份提醒</b>。四行都直接显示当前状态，回车即切换。</p>
         <p><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd>：<b>撤销最近一次可撤销的操作</b>（删除、报告落卡、批量改动等）——回执里带「撤销」字样的都在窗口内可撤。</p>

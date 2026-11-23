@@ -184,14 +184,14 @@ const mix = () => {
    列宽由 pi-timeline.css 统一改为 1fr / 1fr。 */
 .pi-overview { align-items: stretch; }
 .pi-ov-card { height: auto; min-height: 0; display: flex; flex-direction: column; }
-.pi-ov-card .pi-ov-kpis { margin-top: 12px; }
+.pi-ov-card .pi-ov-kpis { margin-top: 8px; }
 .pi-ov-card .pi-ov-mix { margin-top: auto; }
 
 /* ★W17-C09：右栏方向状态面板（使命完整 + 主攻项目完整呈现，项目名不截断） */
 .pi-ov-dir { min-width: 0; overflow: hidden; }
 .pi-dir-mission {
   display: flex; gap: 10px; align-items: flex-start; min-width: 0;
-  margin: 2px 0 12px; padding: 8px 0 8px 11px; box-shadow: inset 3px 0 0 var(--accent);
+  margin: 0 0 8px; padding: 6px 0 6px 10px; box-shadow: inset 3px 0 0 var(--accent);
 }
 .pi-dir-mission .k { flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--text-4); letter-spacing: .06em; padding-top: 2px; }
 .pi-dir-mission strong { font-size: var(--fs-body); font-weight: 600; color: var(--text); line-height: 1.6; overflow-wrap: anywhere; }
@@ -223,14 +223,14 @@ const mix = () => {
 /* M6：文字链接视觉不变，盒子撑到 28px 下限，避免空态入口只有 19px 高。 */
 .pi-dir-go { display: inline-flex; align-items: center; min-height: 28px; margin-top: 2px; border: 0; background: none; padding: 0 2px; font: inherit; font-size: var(--fs-caption); font-weight: 700; color: var(--accent-ink); cursor: pointer; }
 .pi-dir-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-micro); color: var(--text-4); display: flex; align-items: center; gap: 4px; }
-.pi-ov-topic-band { margin-top: 10px; padding: 10px 11px 9px; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)); border-radius: var(--radius-md); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface) 62%); }
+.pi-ov-topic-band { margin-top: 8px; padding: 8px 10px 8px; border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)); border-radius: var(--radius-md); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface) 62%); }
 .pi-ov-topic-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .pi-ov-topic-head > span { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
 .pi-ov-topic-head b { color: var(--text); font-size: var(--fs-caption); letter-spacing: .02em; }
 .pi-ov-topic-head small { color: var(--text-4); font-size: var(--fs-micro); }
 .pi-ov-topic-head button { flex: none; border: 0; background: none; color: var(--accent-ink); font: inherit; font-size: var(--fs-micro); font-weight: 700; cursor: pointer; }
 .pi-ov-topic-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.pi-ov-topic-grid button { display: flex; min-width: 0; flex-direction: column; gap: 2px; padding: 7px 9px; border: 1px solid color-mix(in srgb, var(--accent) 13%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--surface) 88%, transparent); color: inherit; font-family: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-fast), transform var(--dur-fast), background var(--dur-fast); }
+.pi-ov-topic-grid button { display: flex; min-width: 0; flex-direction: column; gap: 2px; padding: 6px 9px; border: 1px solid color-mix(in srgb, var(--accent) 13%, var(--border)); border-radius: 10px; background: color-mix(in srgb, var(--surface) 88%, transparent); color: inherit; font-family: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-fast), transform var(--dur-fast), background var(--dur-fast); }
 .pi-ov-topic-grid button:hover { border-color: color-mix(in srgb, var(--accent) 44%, var(--border)); background: var(--accent-light); transform: translateY(-1px); }
 .pi-ov-topic-grid strong { color: var(--text); font-size: var(--fs-title); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .pi-ov-topic-grid span { overflow: hidden; color: var(--text-3); font-size: var(--fs-micro); text-overflow: ellipsis; white-space: nowrap; }

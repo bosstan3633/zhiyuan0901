@@ -338,7 +338,9 @@ const DASH_SCENES = [
     act: async (page) => {
       /* V4.7.2：热力格本身已是日战报入口（PiYear.onHeatmapSel → open-battle）。
          优先点有记录的非未来日；没有记录时再点今天，仍由同一弹窗守四格与时间线。 */
-      const activeCell = page.locator('.dz-cell:not(.future):not(.l0)').first()
+      /* 日历按时间正序渲染，首枚活跃格可能是很久以前只剩快照、没有当日事件的一天。
+         日详情判据要量的是“有记录日的四格 + 热力带 + 时间线”，因此优先取最近的活跃格。 */
+      const activeCell = page.locator('.dz-cell:not(.future):not(.l0)').last()
       const todayCell = page.locator('.dz-cell[aria-current="date"]').first()
       const cell = (await activeCell.count()) ? activeCell : todayCell
       await cell.click({ timeout: 8000 }).catch(() => {})

@@ -99,9 +99,9 @@ check('V3.9.7 ★顶部两块面板自然等高、左右严格等宽：负锚钉
     && OV.includes('pi-dir-cols" :class="{ single: focusProjects.length === 1 }"');
 });
 
-check('W18-2 ★V4.7.2 重指：画像观察范围默认时间轴，热力图按需切换', () => {
+check('W18-2 ★V4.7.3 重指：画像观察范围默认时间轴，热力图按需切换', () => {
   return PI.includes("type ProfileView = 'timeline' | 'heatmap'")
-    && PI.includes(": 'timeline',")
+    && PI.includes("return 'timeline'")
     && PI.includes('data-profile-view="timeline"')
     && PI.includes('data-profile-view="heatmap"');
 });

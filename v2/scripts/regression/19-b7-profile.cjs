@@ -113,11 +113,11 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-2 ★V4.7.2 重指：观察范围收敛为「时间轴 / 热力图」双视图，默认时间轴，',
+  'A3-2 ★V4.7.3 重指：观察范围收敛为「时间轴 / 热力图」双视图，默认时间轴，',
   '热力图保留 PiYear 原能力。负锚：旧四尺度 PiRangeTabs 不再作为页面唯一导航。'), () => {
   const mods = CSS.match(/\.pi-rmods-single[^{]*\{[^}]*\}/)?.[0] || '';
   return PI.includes("type ProfileView = 'timeline' | 'heatmap'")
-    && PI.includes(": 'timeline',")
+    && PI.includes("return 'timeline'")
     && PI.includes('data-profile-view="timeline"')
     && PI.includes('data-profile-view="heatmap"')
     && PI.includes('<PiTimeline')
