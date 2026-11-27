@@ -47,11 +47,11 @@ function injectStyles() {
  *   apple 4.92 / notion 5.55，由 `scripts/theme-contrast.cjs` 常驻校验）。
  */
 const THEME_ACCENT: Record<string, { accent: string; on: string }> = {
-  /* V4.5：光速黑用暗红强调，浅色主题沿用知源蓝，OPPO 绿独立成主题。 */
-  raycast: { accent: '#B54747', on: '#FFFFFF' },
+  /* V4.7.6：四主题统一知源 Logo 蓝族，按背景明度分别校准。 */
+  raycast: { accent: '#1579AD', on: '#FFFFFF' },
   apple: { accent: '#0F6F9E', on: '#FFFFFF' },
   notion: { accent: '#0B668F', on: '#FFFFFF' },
-  oppo: { accent: '#168457', on: '#FFFFFF' }
+  oppo: { accent: '#0E7AA6', on: '#FFFFFF' }
 }
 /** 读取知源当前主题并注入强调色；宿主环境不可读 storage 时回落默认主题 linear */
 async function applyThemeAccent() {

@@ -5,12 +5,12 @@ import type { Direction, Project } from '@/shared/models'
 
 /**
  * R85（T0-A）：主攻项目上限。
- * 同一口径的三处出处——models/index.ts:65「最多2个」、manual-data.ts:229「🚀 主攻（最多 2 个）」、
+ * V4.7.6：主攻上限统一为 3 个；调度台、方向树与设置入口共用此常量。
  * 以及 ProjectCuration.vue 原先那句 toast。此前只有 ProjectCuration 一处校验，
  * 而本 store 的 toggleFocusProject（方向树在用）直接翻转、零校验 ⇒ 方向树能设出任意多个主攻。
  * 现把校验下沉到这里，三处出口共用。
  */
-export const FOCUS_PROJECT_LIMIT = 2
+export const FOCUS_PROJECT_LIMIT = 3
 
 // B40：recordResourceOpen 已下沉至 shared/storage/stats（应用端与网页端共用同一实现）
 export { recordResourceOpen } from '@/shared/storage/stats'
@@ -109,7 +109,7 @@ export function useCompass() {
 
   /**
    * R85（T0-A）：切换主攻——**上限校验下沉到此处**，三处出口（方向树 / 项目策展页 / 主航线）共用。
-   * 改前直接翻转、零校验 ⇒ 方向树能设出任意多个主攻，违反 models「最多2个」与手册口径。
+   * 改前直接翻转、零校验 ⇒ 方向树能设出任意多个主攻，违反产品上限。
    * ⚠ 存量已超上限的用户**不受阻断**：超限只拒绝新增，取消与查看一律正常（不强制裁剪）。
    * 返回结构化结果由**调用方** toast——store 是数据层，不碰 UI。
    */
@@ -282,6 +282,7 @@ export function useCompass() {
 
   return {
     refreshWce,
+    wceEvents,
     d, visionText, missionText, directions, allProjects, projectById,
     showDone, toggleShowDone,
     focusedProjects, toggleFocusProject, addProjectToDir, projectProgress,

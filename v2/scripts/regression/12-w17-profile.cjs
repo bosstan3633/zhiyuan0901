@@ -50,7 +50,7 @@ check('W17-19 ★主攻完整呈现：项目名不截断 + 状态 + 进度条，
     && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"');
 });
 
-check('W17-20（V4.7.2 重指）★旧 PiRail 时间轨保持退役：宿主零挂载、样式零命中；观察范围改由时间轴 / 热力图双视图导航，默认时间轴', () => {
+check('W17-20（V4.7.6 重指）★旧 PiRail 时间轨保持退役：宿主零挂载、样式零命中；观察范围改由时间轴 / 卡片分析导航，年度热力常驻，默认时间轴', () => {
   /* read() 会聚合宿主与 composable；“谁持有状态、谁只负责挂载”必须读物理宿主。 */
   const HOST = fs.readFileSync(base + '/newtab/views/ProfileInsights.vue', 'utf8')
   return !HOST.includes('<PiRail') && !HOST.includes("from '@/newtab/components/profile/PiRail.vue'")
@@ -59,8 +59,9 @@ check('W17-20（V4.7.2 重指）★旧 PiRail 时间轨保持退役：宿主零�
     && HOST.includes('class="pi-range-toolbar"')
     && HOST.includes('class="pi-view-tabs" role="tablist"')
     && HOST.includes('data-profile-view="timeline"')
-    && HOST.includes('data-profile-view="heatmap"')
-    && HOST.includes("type ProfileView = 'timeline' | 'heatmap'")
+    && HOST.includes('data-profile-view="analysis"')
+    && HOST.includes("type ProfileView = 'timeline' | 'analysis'")
+    && HOST.includes('<PiAnnualHeatmap')
     && !codeOnly(HOST).includes('<PiRangeTabs')
     && !codeOnly(HOST).includes('onRailJump') && !codeOnly(HOST).includes('railActive')
     /* V4.4.0：周期控件单列在 `.pi-range-toolbar`，旧 Hero #range 插槽与独立 PERIOD 提示带均已退役。 */
@@ -88,22 +89,24 @@ check('W17-21（V4.3.1 重指）今日对账段与「一键归入主攻 + 绑卡
 
 const DAY = read('/newtab/components/dashboard/DayDetail.vue');
 
-check('V3.9.7 ★顶部两块面板自然等高、左右严格等宽：负锚钉死固定 440px 与 1.35fr/1fr 的宽窄列', () => {
+check('V3.9.7（V4.7.5 重指）★顶部两块面板自然等高；使用状态辅助、个人方向主线占更宽阅读列，负锚钉死固定 440px 与 1.35fr/1fr', () => {
   return /\.pi-overview \{ align-items: stretch; \}/.test(OV)
     && /\.pi-ov-card \{ height: auto; min-height: 0;/.test(OV)
     && !OV.includes('--pi-panel-h')
-    && /\.pi-overview \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/.test(CSS)
+    && /\.pi-overview \{ display: grid; grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1.12fr\)/.test(CSS)
     && !CSS.includes('1.35fr')
     && OV.includes('class="pi-dir-cols"')
     && /\.pi-dir-cols \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/.test(OV)
     && OV.includes('pi-dir-cols" :class="{ single: focusProjects.length === 1 }"');
 });
 
-check('W18-2 ★V4.7.3 重指：画像观察范围默认时间轴，热力图按需切换', () => {
-  return PI.includes("type ProfileView = 'timeline' | 'heatmap'")
+check('W18-2 ★V4.7.6 重指：画像观察范围默认时间轴，卡片分析按需切换，年度热力始终在场', () => {
+  return PI.includes("type ProfileView = 'timeline' | 'analysis'")
     && PI.includes("return 'timeline'")
     && PI.includes('data-profile-view="timeline"')
-    && PI.includes('data-profile-view="heatmap"');
+    && PI.includes('data-profile-view="analysis"')
+    && PI.includes('<PiAnnualHeatmap')
+    && PI.includes('<PiCardAnalysis v-else');
 });
 
 check('W18-3（V3.9.23 随迁）战报头部只保留查看全部记录与 Markdown / HTML 双导出：PNG 独立入口和菜单项退役，操作区位于标题左侧、关闭仍在最右', () => {

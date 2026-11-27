@@ -736,15 +736,16 @@ async function main() {
   }), [dsOldDay])
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
-  // 读合并断言（V4.7.2 重指）：画像洞察默认时间轴；先切到同页「热力图」Tab，
-  // 再走 PiYear 既有年度网格与日战报链路。无需再点「看全年 ›」。
+  // V4.7.6：热力图已提为页首常驻，不依赖时间轴 / 卡片分析页签。
   // 所守行为未变：种下的老日快照必须在 8 月块里出现 l2 格，且 fullSince 说明仍含老日子。
-  await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2400)
-  await page.locator('.pi-view-tab[data-profile-view="heatmap"]').first().click({ timeout: 8000 })
+  /* ★V4.7.6 重指：原画像首屏四格 KPI 已迁入「卡片分析」页签；守的仍是四个 KPI 都有真实下钻出口。 */
+  await page.goto(base + '#/profile?view=analysis', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.pi-ov-kpis', { visible: true, timeout: 10000 })
+  await page.waitForTimeout(600)
+  await page.locator('.pi-view-tab[data-profile-view="analysis"]').first().click({ timeout: 8000 })
   await waitForLocator(page, '.pi-hmbox', { visible: true, timeout: 8000 })
-  const yearModuleOn = await page.locator('#mod-year').first().isVisible().catch(() => false)
-  const heatTarget = page.locator('#mod-year .dz-cell:not(.future):not(.today)').last()
+  const yearModuleOn = await page.locator('.pi-annual-heatmap').first().isVisible().catch(() => false)
+  const heatTarget = page.locator('.pi-annual-heatmap .dz-cell:not(.future):not(.today)').last()
   const heatTargetDay = await heatTarget.getAttribute('title').then(t => (t || '').split(' · ')[0]).catch(() => '')
   await heatTarget.click({ timeout: 6000 }).catch(() => {})
   await page.waitForTimeout(700)
@@ -759,7 +760,7 @@ async function main() {
   const dsAugL2 = await page.locator('.dz-year .dz-cell[data-day="2026-08-15"]')
     .evaluate(el => el.classList.contains('l2') ? 1 : 0).catch(() => 0)
   // V3.9.30：年度段收紧后，fullSince 从第二行说明并入网格下方的紧凑元数据行。
-  const dsBadge = await page.locator('#mod-year .pi-hm-meta').first().innerText().catch(() => '')
+  const dsBadge = await page.locator('.pi-annual-heatmap .pi-hm-meta').first().innerText().catch(() => '')
   // 写链路：进资源卡池 → 单击开 App 级详情 → 改标题 → 保存 → pagehide → 读回
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
@@ -1723,20 +1724,25 @@ async function main() {
     `塔内项目=${!!towerProjectSaved} 全景项目=${!!panoProjectSaved} 指标=${!!metricSaved}`)
 
 
-  // E2E-21（V3.9.14 重指 → ★V4.3.3 随迁）：调度台页头动作区现由「今日战报 / AI 推荐今日重点 /
-  //   为什么这样排」三枚组成。本条守“今日战报是主入口并与解释入口同排”。
+  // E2E-21（★V4.7.6 重指）：页头只保留紧凑主攻项目与今日战报；主攻点击打开右侧完整项目详情。
   //   行为不变：不再跳画像页，而是由 TodayBattleHost 就地打开弹窗。
   // 本用例守「入口真的连到组件」与「位置符合本轮拍板」两件事。
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   const battleBtn = page.locator('.desk-actions .battle-trigger').first()
-  const battleBesideWhy = await battleBtn.evaluate((el) => {
-    const why = [...(el.parentElement?.querySelectorAll('.why-trigger:not(.battle-trigger)') || [])]
-      .find(node => (node.textContent || '').includes('为什么这样排'))
-    if (!why) return false
-    const a = el.getBoundingClientRect(), b = why.getBoundingClientRect()
-    return Math.abs(a.top - b.top) <= 2 && a.left < b.left
-  }).catch(() => false)
+  const focusProjects = page.locator('.desk-focus-project')
+  const focusProjectCount = await focusProjects.count()
+  const removedHeaderActions = await page.locator('.desk-head').evaluate(el =>
+    !el.textContent?.includes('为什么这样排') && !el.textContent?.includes('AI 推荐今日重点'))
+  let focusDrawerOpen = false
+  if (focusProjectCount) {
+    const focusProjectTitle = (await focusProjects.first().innerText()).split('\n')[0]
+    await focusProjects.first().click()
+    const focusDrawer = page.locator('.drawer').filter({ hasText: focusProjectTitle }).first()
+    focusDrawerOpen = await focusDrawer.isVisible().catch(() => false)
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 }).catch(() => {})
+  }
   const battleBtnText = ((await battleBtn.innerText().catch(() => '')) || '').replace(/\s+/g, '')
   await battleBtn.click()
   await page.waitForTimeout(1400)
@@ -1748,9 +1754,10 @@ async function main() {
   await battleCloseBtn.click().catch(() => {})
   await page.waitForTimeout(700)
   const battleClosed = !(await page.locator('.dz-day-modal').first().isVisible().catch(() => false))
-  report('E2E-21 ★V4.3.3 调度台页头「今日战报」是主入口并与「为什么这样排」同排，就地开弹窗并可关闭',
-    battleBtnText.includes('今日战报') && battleBesideWhy && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
-    `btn="${battleBtnText}" 并排=${battleBesideWhy} modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
+  report('E2E-21 ★V4.7.6 调度台页头展示不超过三个主攻项目，点击右侧打开项目详情；今日战报就地开弹窗并可关闭',
+    battleBtnText.includes('今日战报') && focusProjectCount > 0 && focusProjectCount <= 3 && removedHeaderActions
+      && focusDrawerOpen && battleOpen && battleTitle.includes('今日战报') && battleCloseVisible && battleClosed,
+    `btn="${battleBtnText}" 主攻=${focusProjectCount} 旧入口移除=${removedHeaderActions} 项目抽屉=${focusDrawerOpen} modal=${battleOpen} title="${battleTitle}" closeBtn=${battleCloseVisible} closed=${battleClosed}`)
 
   // E2E-23（R154 · 04-62）：AI 对照式评审**双栏真渲染** + 一次性指令**独立键**。
   // 走「设置 › AI 助手 › 本周回顾」：它已接左栏（投料原文）与指令框，且不依赖真网关——
@@ -2714,10 +2721,15 @@ await paOpen()
   await page.waitForTimeout(1500)
   const starBack = await gpReadStar()
   await page.keyboard.press('Escape').catch(() => {})
-  await page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(cur => {
-    const d = cur['zy_data_v2']; d.resources = (d.resources || []).filter(x => !String(x.title || '').startsWith(t))
-    return chrome.storage.local.set({ zy_data_v2: d })
-  }), gpQ)
+  /* 清理探针卡是测试卫生，不是产品判据。storage 回调偶发不返回时不能把整轮 E2E 挂死：
+     发起写入后给 2s 收口，后续断言仍会暴露页面 / 存储真异常。 */
+  await Promise.race([
+    page.evaluate((t) => chrome.storage.local.get('zy_data_v2').then(cur => {
+      const d = cur['zy_data_v2']; d.resources = (d.resources || []).filter(x => !String(x.title || '').startsWith(t))
+      return chrome.storage.local.set({ zy_data_v2: d })
+    }), gpQ),
+    page.waitForTimeout(2000),
+  ])
   report('E2E-41 ★R4-Ew ⌘K 结果行 hover 动作区是真控件不是装饰：资源行三枚钮的 title 齐（星标/删除/打开链接）、hover 才从不透明变可见，点星标**真写库**再点回**真复原**',
     gpRow.found && gpRow.titles.length === 3 && gpRow.titles.some(x => x.includes('星标')) && gpRow.titles.some(x => x.includes('删除')) && gpRow.titles.some(x => x.includes('打开链接'))
     && gpRow.未选中 && Number(gpRow.actsOpacity) === 0 && gpHover > 0.9 && starAfter === true && starBack === false,
@@ -2727,8 +2739,11 @@ await paOpen()
   // V3.9.3：四类指标从 PiHero 归位画像洞察首屏概览，仍是同一组真实下钻出口。
   // 本用例保留 R4-Ew「不能只有数字、没有真出口」的原意，按新宿主的三种真实响应形态判：
    //   total/support → 卡片清单抽屉；entropy → 独立解释抽屉；focus → 全量记录抽屉（focusOnly 预设）。
-  await page.goto(base + '#/profile', { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(2400)
+  /* ★V4.7.6：四格 KPI 已迁入「卡片分析」页签；直接以旧 view 深链进入并等 KPI 真挂载，
+     否则默认时间轴下 locator 为空，click 会耗满默认超时，测试看起来像“挂死”。 */
+  await page.goto(base + '#/profile?view=analysis', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.pi-ov-kpis .pi-ov-kpi', { visible: true, timeout: 10000 })
+  await page.waitForTimeout(600)
   const heroKpiCount = await page.locator('.pi-ov-kpis .pi-ov-kpi').count()
   const heroDrillRes = []
   for (const dr of [
@@ -4111,13 +4126,488 @@ await paOpen()
   })
   await page.goto(base, { waitUntil: 'domcontentloaded' })
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await waitForLocator(page, '.desk-heading h1', { visible: true, timeout: 10000 })
+  /* ★V4.7.6 重指：调度台大标题已按拍板退役，页头改为主攻项目模块；守的仍是「调度台真渲染后可安全读旧快照」。 */
+  await waitForLocator(page, '.desk-head', { visible: true, timeout: 10000 })
   const legacySnapshotSafe = await page.locator('.re-title').count() === 0
   if (originalData) await page.evaluate(data => chrome.storage.local.set({ zy_data_v2: data }), originalData)
   report('E2E-68 ★V4.7 任务清单可在标题旁折叠后让日历铺满；方向树单项目聚焦水平居中；策展台论点与全局功能模块双列对齐；缺少 V4.5 数组的旧快照恢复后调度台仍可渲染',
     taskFoldState.hidden && taskFoldState.railVisible && taskFoldState.poolBodyGone && taskFoldRestored
       && focusCentered && consolePair && legacySnapshotSafe,
     `任务折叠=${JSON.stringify(taskFoldState)} 恢复=${taskFoldRestored} 聚焦居中=${focusCentered} 策展双列=${consolePair} 旧快照=${legacySnapshotSafe}`)
+
+  // ══════════ E2E-69（V4.7.4）画像时间轴双入口、首屏压缩与任务全景深链 ══════════
+  const v474LinkedId = 'e2e-v474-timeline-linked'
+  const v474NoLinkId = 'e2e-v474-timeline-nolink'
+  const v474OrphanId = 'e2e-v474-orphan-task'
+  const v474LinkedTitle = 'E2E V4.7.4 时间轴链接资源'
+  const v474NoLinkTitle = 'E2E V4.7.4 时间轴无链接资源'
+  const v474OrphanTitle = 'E2E V4.7.4 未归属任务'
+  const v474Link = 'https://example.com/e2e/v474/timeline-link'
+  await page.evaluate(async ({ linkedId, noLinkId, orphanId, linkedTitle, noLinkTitle, orphanTitle, link, at }) => {
+    const raw = await chrome.storage.local.get(['zy_data_v2', 'zy_event_log'])
+    const data = raw.zy_data_v2
+    if (!data) return
+    const resource = (id, title, href) => ({
+      id,
+      kind: 'resource',
+      title,
+      description: 'V4.7.4 E2E 时间轴探针',
+      linkType: 'url',
+      link: href,
+      workspaceId: 'zy-curation',
+      categoryId: '',
+      sourceType: 'official',
+      tags: ['E2E'],
+      pinned: false,
+      callCount: 0,
+      customFields: {},
+      assets: [],
+      createdAt: at,
+      updatedAt: at,
+    })
+    data.resources = (data.resources || []).filter(row => ![linkedId, noLinkId].includes(row.id))
+    data.resources.push(resource(linkedId, linkedTitle, link), resource(noLinkId, noLinkTitle, ''))
+    data.tasks = (data.tasks || []).filter(row => row.id !== orphanId)
+    data.tasks.push({
+      id: orphanId,
+      kind: 'task',
+      title: orphanTitle,
+      status: 'todo',
+      statusId: 'task-todo',
+      projectId: 'e2e-v474-missing-project',
+      metricId: null,
+      link: '',
+      tags: ['E2E'],
+      pinned: false,
+      callCount: 0,
+      customFields: {},
+      assets: [],
+      createdAt: at,
+      updatedAt: at,
+    })
+    const log = Array.isArray(raw.zy_event_log) ? raw.zy_event_log : []
+    const kept = log.filter(row => ![linkedId, noLinkId].includes(row.cardId))
+    kept.push({
+      id: 'e2e-v474-create-linked',
+      ts: at,
+      action: 'create',
+      kind: 'resource',
+      title: linkedTitle,
+      cardId: linkedId,
+    }, {
+      id: 'e2e-v474-create-nolink',
+      ts: at - 1,
+      action: 'create',
+      kind: 'resource',
+      title: noLinkTitle,
+      cardId: noLinkId,
+    })
+    await chrome.storage.local.set({ zy_data_v2: data, zy_event_log: kept })
+  }, { linkedId: v474LinkedId, noLinkId: v474NoLinkId, orphanId: v474OrphanId, linkedTitle: v474LinkedTitle, noLinkTitle: v474NoLinkTitle, orphanTitle: v474OrphanTitle, link: v474Link, at: Date.now() })
+
+  await page.goto(base + '#/profile?view=timeline', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.pi-annual-heatmap', { visible: true, timeout: 10000 })
+  const v474LinkedCard = page.locator('.pit-card').filter({ hasText: v474LinkedTitle }).first()
+  const v474NoLinkCard = page.locator('.pit-card').filter({ hasText: v474NoLinkTitle }).first()
+  await pollUntil(async () => (await v474LinkedCard.count()) > 0 && (await v474NoLinkCard.count()) > 0, { timeout: 10000 })
+  const v474ProfileBox = await page.locator('.pi-annual-heatmap').boundingBox()
+  const v474FirstCardBox = await v474LinkedCard.boundingBox().catch(() => null)
+  // V4.7.6：原双栏概览退役为年度热力图，仍守“时间轴首卡底部进入 900px 首屏”。
+  const v474Compact = !!v474ProfileBox
+    && !!v474FirstCardBox && v474FirstCardBox.y + v474FirstCardBox.height < 900
+  const v474MetaHidden = await v474LinkedCard.evaluate(el => !el.textContent.includes('未关联项目') && !el.querySelector('.pit-card-meta'))
+
+  await v474LinkedCard.click()
+  const v474DetailOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  /* ★V4.7.6 完整详情的主标题在 DetailTitle 的 textarea value 里，`hasText` 读不到；
+     改为直接读打开中的抽屉与 .ds-h1，并继续守「资源卡不出现所属项目 / 成功指标」。 */
+  const v474Detail = page.locator('.drawer').first()
+  const v474DetailTitle = v474DetailOpen
+    ? (await v474Detail.locator('.ds-h1').first().inputValue().catch(() => '')).includes(v474LinkedTitle)
+    : false
+  const v474ResourceAffiliationHidden = v474DetailOpen
+    ? await v474Detail.evaluate(el =>
+      !!el.querySelector('textarea, input')
+      && !el.textContent.includes('所属项目') && !el.textContent.includes('成功指标'))
+    : false
+  if (v474DetailOpen) {
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  }
+
+  const v474LinkedTab = ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null)
+  await v474LinkedCard.dblclick()
+  const opened = await v474LinkedTab
+  let v474OpenedUrl = opened ? opened.url() : ''
+  if (!v474OpenedUrl.includes('/e2e/v474/timeline-link')) {
+    v474OpenedUrl = await page.evaluate(async (target) => {
+      const tabs = await chrome.tabs.query({})
+      return (tabs.find(tab => tab.url === target) || {}).url || ''
+    }, v474Link)
+  }
+  const v474NoDetailAfterDbl = (await page.locator('.drawer').count()) === 0
+  if (opened) await opened.close().catch(() => {})
+  await v474NoLinkCard.dblclick()
+  const v474NoLinkToast = await pollUntil(async () => {
+    const text = await page.locator('.toast-msg').allTextContents().catch(() => [])
+    return text.some(row => row.includes('该卡还没填链接'))
+  }, { timeout: 4000 })
+  const v474NoLinkNoDetail = (await page.locator('.drawer').count()) === 0
+
+  await page.goto(base + `#/compass?layer=6&fresh=1&freshAt=${Date.now()}`, { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.lvlist', { visible: true, timeout: 10000 })
+  const v474Panorama = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('.lvlist .lvl-row.r6')]
+    const groups = [...document.querySelectorAll('.lvlist .lvl-project-head')].map(el => el.textContent || '')
+    return {
+      layer: document.querySelector('.lvl-n')?.textContent?.trim() || '',
+      rows: rows.map(el => el.textContent || ''),
+      groups,
+      spine: document.querySelector('.spine-h')?.getAttribute('aria-expanded') === 'true',
+    }
+  })
+  const v474LiveTaskCount = await page.evaluate(async () => {
+    const raw = await chrome.storage.local.get('zy_data_v2')
+    return (raw.zy_data_v2?.tasks || []).filter(task => !task.deletedAt).length
+  })
+  const v474PanoramaOk = v474Panorama.layer === '6'
+    && v474Panorama.spine
+    && v474Panorama.rows.length === v474LiveTaskCount
+    && v474Panorama.groups.filter(text => text.includes('未归属项目')).length === 1
+    && v474Panorama.rows.some(text => text.includes(v474OrphanTitle))
+  report('E2E-69 ★V4.7.4 画像首屏压缩后时间轴卡片仍在 1440×900 首屏内；资源卡单击开详情且详情隐藏项目/指标，双击取消详情并直达 URL；无链接只提示不回落详情；/compass?layer=6 展开战略骨架并列出全部任务与未归属组',
+    v474Compact && v474MetaHidden && v474DetailOpen && v474DetailTitle && v474ResourceAffiliationHidden
+      && v474OpenedUrl.includes('/e2e/v474/timeline-link') && v474NoDetailAfterDbl
+      && v474NoLinkToast && v474NoLinkNoDetail && v474PanoramaOk,
+    `首屏=${JSON.stringify(v474ProfileBox)} 卡片=${JSON.stringify(v474FirstCardBox)} 元信息隐藏=${v474MetaHidden} 单击详情=${v474DetailOpen}/${v474DetailTitle} 归属隐藏=${v474ResourceAffiliationHidden} 双击URL=${v474OpenedUrl} 双击无详情=${v474NoDetailAfterDbl} 空链提示=${v474NoLinkToast} 空链无详情=${v474NoLinkNoDetail} 全景=${JSON.stringify(v474Panorama)} 未归属组=${v474Panorama.groups.filter(text => text.includes('未归属项目')).length} 任务数=${v474Panorama.rows.length}/${v474LiveTaskCount}`)
+
+  // ══════════ E2E-70（V4.7.6）热力图常驻与卡片分析聚合 ══════════
+  await page.goto(base + '#/profile?view=timeline', { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.pi-annual-heatmap', { visible: true, timeout: 10000 })
+  const heatBefore = await page.locator('.pi-annual-heatmap').count()
+  await page.locator('.pi-view-tab[data-profile-view="analysis"]').click()
+  await waitForLocator(page, '.pi-card-analysis', { visible: true, timeout: 5000 })
+  const analysisText = await page.locator('.pi-card-analysis').innerText()
+  const heatAfter = await page.locator('.pi-annual-heatmap').count()
+  report('E2E-70 ★V4.7.6 年度热力图独立于视图页签常驻，卡片分析聚合产品状态、三件事与生命周期',
+    heatBefore === 1 && heatAfter === 1 && analysisText.includes('三件事') && analysisText.includes('生命周期'),
+    `热力=${heatBefore}/${heatAfter} 分析=${analysisText.slice(0, 220).replace(/\s+/g, ' ')}`)
+
+  // ══════════ E2E-71（V4.7.6）时间轴三件事与完整详情 ══════════
+  await page.locator('.pi-view-tab[data-profile-view="timeline"]').click()
+  await waitForLocator(page, '.pit-card', { visible: true, timeout: 8000 })
+  const pitButtons = await page.locator('.pit-filter button').allTextContents().catch(() => [])
+  await page.locator('.pit-filter button').filter({ hasText: '三件事' }).click()
+  await waitForLocator(page, '.pit-card', { visible: true, timeout: 5000 })
+  const focusTimelineText = await page.locator('.pit-days').innerText().catch(() => '')
+  const shortcutGone = (await page.locator('.pit-shortcut').count()) === 0
+  const timelineDetailTitle = v474LinkedTitle
+  await page.locator('.pit-filter button').filter({ hasText: '资源' }).click()
+  await page.locator('.pit-card').filter({ hasText: timelineDetailTitle }).first().click()
+  const fullTimelineDrawer = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const fullTimelineDetailEl = page.locator('.drawer').first()
+  const fullTimelineTitle = fullTimelineDrawer
+    ? (await fullTimelineDetailEl.locator('.ds-h1').first().inputValue().catch(() => '')).includes(timelineDetailTitle)
+    : false
+  const fullTimelineDetail = fullTimelineDrawer ? await fullTimelineDetailEl.innerText() : ''
+  if (fullTimelineDrawer) await page.keyboard.press('Escape')
+  report('E2E-71 ★V4.7.6 时间轴三件事专页保留，移除快捷键入口，单击进入完整卡片详情',
+    pitButtons.some(text => text.includes('三件事')) && focusTimelineText.includes('三件事') && shortcutGone
+      && fullTimelineTitle && !fullTimelineDetail.includes('从画像回到工作面'),
+    `筛选项=${JSON.stringify(pitButtons)} 三件事=${focusTimelineText.slice(0, 120).replace(/\s+/g, ' ')} 快捷键=${shortcutGone} 详情=${fullTimelineDetail.slice(0, 180).replace(/\s+/g, ' ')}`)
+
+  // ══════════ E2E-72（V4.7.6）紧凑主攻项目与右侧完整项目详情 ══════════
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.desk-focus-projects', { visible: true, timeout: 10000 })
+  const focusProjectNames = await page.locator('.desk-focus-project').allTextContents()
+  const deskHeroGone = (await page.locator('.desk-heading').count()) === 0
+  const firstProject = page.locator('.desk-focus-project').first()
+  const focusProjectTitle = (await firstProject.locator('span').first().innerText()).trim()
+  await firstProject.click()
+  const projectDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const projectDrawer = page.locator('.drawer').first()
+  const projectDrawerText = projectDrawerOpen ? await projectDrawer.innerText() : ''
+  const projectDrawerSide = projectDrawerOpen ? await pollUntil(async () => {
+    return projectDrawer.evaluate(el => {
+      const box = el.getBoundingClientRect()
+      return box.left > window.innerWidth / 2 && box.width < window.innerWidth * .8
+    }).catch(() => false)
+  }, { timeout: 3000 }) === true : false
+  if (projectDrawerOpen) await page.keyboard.press('Escape')
+  report('E2E-72 ★V4.7.6 调度台紧凑主攻最多三项，点击右侧滑出含成功指标的完整项目详情',
+    deskHeroGone && focusProjectNames.length > 0 && focusProjectNames.length <= 3
+      && projectDrawerText.includes(focusProjectTitle) && projectDrawerText.includes('成功指标') && projectDrawerSide,
+    `项目=${JSON.stringify(focusProjectNames)} 旧页头=${!deskHeroGone} 详情=${projectDrawerText.slice(0, 200).replace(/\s+/g, ' ')} 右侧=${projectDrawerSide}`)
+
+  // ══════════ E2E-73（V4.7.6）三类卡池时间线与任务项目分组 ══════════
+  await page.locator('.hand-tab').filter({ hasText: '任务' }).first().click()
+  const taskViews = page.locator('.task-work-view-switch')
+  await page.locator('select[aria-label="任务分组"]').selectOption('project')
+  const listGroupButton = taskViews.locator('button').filter({ hasText: '列表' })
+  await listGroupButton.click()
+  const listGrouped = (await page.locator('.twl-group').count()) > 0
+    && (await page.locator('.twl-group-head').filter({ hasText: '未关联项目' }).count()) > 0
+  await taskViews.locator('button').filter({ hasText: '看板' }).click()
+  const kanbanGrouped = (await page.locator('.tb-group .tb-group-head').count()) > 0
+    && (await page.locator('.tb-group-head').filter({ hasText: '未关联项目' }).count()) > 0
+  await taskViews.locator('button').filter({ hasText: '时间线' }).click()
+  const taskTimeline = await waitForLocator(page, '.cpt[aria-label="任务时间线"]', { visible: true, timeout: 5000 })
+  await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
+  await page.locator('.topic-view-switch button').filter({ hasText: '时间线' }).click()
+  const topicTimeline = await waitForLocator(page, '.cpt[aria-label="选题时间线"]', { visible: true, timeout: 5000 })
+  await page.locator('.hand-tab').filter({ hasText: '好奇心' }).first().click()
+  await page.locator('.cw-view-switch button').filter({ hasText: '时间线' }).click()
+  const curiosityTimeline = await waitForLocator(page, '.cpt[aria-label="好奇心时间线"]', { visible: true, timeout: 5000 })
+  report('E2E-73 ★V4.7.6 首页任务列表/看板支持按项目分组并保留未关联项目组，任务/选题/好奇心三池时间线可用',
+    listGrouped && kanbanGrouped && !!taskTimeline && !!topicTimeline && !!curiosityTimeline,
+    `分组=${listGrouped}/${kanbanGrouped} 时间线=${!!taskTimeline}/${!!topicTimeline}/${!!curiosityTimeline}`)
+
+  // ══════════ E2E-74 / 75（V4.7.6）历史镜像、隐藏与今日真实槽位 ══════════
+  const mirrorTaskId = 'e2e-v476-mirror-task'
+  const mirrorTopicId = 'e2e-v476-mirror-topic'
+  const mirrorTaskTitle = 'E2E V4.7.6 连续三件事任务'
+  const mirrorTopicTitle = 'E2E V4.7.6 连续三件事选题'
+  const yesterday = new Date(`${todayKey}T12:00:00`)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
+  await page.evaluate(async ({ taskId, topicId, taskTitle, topicTitle, yesterday, today }) => {
+    const raw = await chrome.storage.local.get('zy_data_v2')
+    const data = raw.zy_data_v2
+    if (!data) return
+    const at = Date.now()
+    data.tasks.push({ id: taskId, kind: 'task', title: taskTitle, status: 'doing', statusId: 'task-doing', projectId: 'e2e-proj-1', tags: [], pinned: false, callCount: 0, customFields: {}, assets: [], createdAt: at, updatedAt: at })
+    data.topics.push({ id: topicId, kind: 'topic', title: topicTitle, statusId: 'topic-idea', projectId: 'e2e-proj-1', tags: [], pinned: false, callCount: 0, customFields: {}, assets: [], createdAt: at, updatedAt: at })
+    data.dailyFocus = data.dailyFocus || {}
+    data.dailyFocus[yesterday] = [
+      { id: 'e2e-v476-yesterday-task', sourceType: 'task', sourceId: taskId, text: '旧任务快照', done: false },
+      { id: 'e2e-v476-yesterday-topic', sourceType: 'topic', sourceId: topicId, text: '旧选题快照', done: false },
+    ]
+    data.dailyFocus[today] = [
+      { id: 'e2e-v476-today-task', sourceType: 'task', sourceId: taskId, text: taskTitle, done: false },
+      { id: 'e2e-v476-today-topic', sourceType: 'topic', sourceId: topicId, text: topicTitle, done: false },
+    ]
+    delete data.focusHistoryHidden
+    await chrome.storage.local.set({ zy_data_v2: data })
+  }, { taskId: mirrorTaskId, topicId: mirrorTopicId, taskTitle: mirrorTaskTitle, topicTitle: mirrorTopicTitle, yesterday: yesterdayKey, today: todayKey })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.task-calendar', { visible: true, timeout: 10000 })
+  const mirrorCell = page.locator(`.task-calendar .cal-day[data-day="${yesterdayKey}"]`)
+  await mirrorCell.scrollIntoViewIfNeeded()
+  const mirror = mirrorCell.locator('.cal-task-chip.is-history-mirror').filter({ hasText: mirrorTaskTitle })
+  const mirrorCount = await mirror.count()
+  const mirrorLiveTitle = mirrorCount === 1 && (await mirror.innerText()).includes(mirrorTaskTitle)
+  const mirrorClickable = mirrorCount === 1 ? await mirror.evaluate(el => ({
+    role: el.getAttribute('role'),
+    tabindex: el.getAttribute('tabindex'),
+    draggable: el.getAttribute('draggable'),
+    border: getComputedStyle(el).borderTopStyle,
+  })).then(row => row.role === 'button' && row.tabindex === '0' && row.draggable !== 'true' && row.border === 'dashed') : false
+  const todayTaskCard = page.locator(`.task-calendar .cal-day.today .cal-task-chip`).filter({ hasText: mirrorTaskTitle }).first()
+  const todayTaskSolid = (await todayTaskCard.count()) === 1
+    && await todayTaskCard.evaluate(el => getComputedStyle(el).borderTopStyle === 'solid')
+  if (mirrorCount === 1) await mirror.click()
+  const mirrorDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const mirrorDetailTitle = mirrorDrawerOpen
+    ? (await page.locator('.drawer .ts-title').first().inputValue().catch(() => '')).includes(mirrorTaskTitle)
+    : false
+  if (mirrorDrawerOpen) {
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  }
+  if (mirrorCount === 1) await mirror.getByRole('button', { name: '取消该日历史三件事落图' }).click()
+  const taskHideStored = await waitForStorage(page, 'zy_data_v2', raw => {
+    const data = raw.zy_data_v2
+    return data?.focusHistoryHidden?.[yesterdayKey]?.some(row => row.slotId === 'e2e-v476-yesterday-task')
+      && (data?.dailyFocus?.[yesterdayKey] || []).some(slot => slot.id === 'e2e-v476-yesterday-task')
+  }, { timeout: 5000 })
+  report('E2E-74 ★V4.7.6 历史三件事为可点虚线卡、当下为实线卡；历史卡可开完整详情并取消该日落图，原槽位保留',
+    mirrorCount === 1 && mirrorLiveTitle && mirrorClickable && todayTaskSolid
+      && mirrorDrawerOpen && mirrorDetailTitle && !!taskHideStored,
+    `镜像=${mirrorCount} 实时=${mirrorLiveTitle} 可点/虚线=${mirrorClickable} 当下实线=${todayTaskSolid} 详情=${mirrorDrawerOpen}/${mirrorDetailTitle} 取消入库=${!!taskHideStored}`)
+
+  await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
+  const topicMirrorCell = page.locator(`.topic-calendar .cal-day[data-day="${yesterdayKey}"]`)
+  await topicMirrorCell.scrollIntoViewIfNeeded()
+  const topicMirror = topicMirrorCell.locator('.topic-cal-chip.is-history-mirror').filter({ hasText: mirrorTopicTitle })
+  const topicMirrorVisible = (await topicMirror.count()) === 1
+  const topicMirrorClickable = topicMirrorVisible ? await topicMirror.evaluate(el => ({
+    role: el.getAttribute('role'),
+    tabindex: el.getAttribute('tabindex'),
+    draggable: el.getAttribute('draggable'),
+    border: getComputedStyle(el).borderTopStyle,
+  })).then(row => row.role === 'button' && row.tabindex === '0' && row.draggable !== 'true' && row.border === 'dashed') : false
+  await topicMirror.click()
+  const topicMirrorDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const topicMirrorDetailTitle = topicMirrorDrawerOpen
+    ? (await page.locator('.drawer .topic-title').first().inputValue().catch(() => '')).includes(mirrorTopicTitle)
+    : false
+  if (topicMirrorDrawerOpen) {
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  }
+  await page.locator(`.topic-calendar .cal-day.today .topic-cal-chip`).filter({ hasText: mirrorTopicTitle }).getByRole('button', { name: '取消排期' }).click()
+  const todaySlotCleared = await waitForStorage(page, 'zy_data_v2', raw => {
+    const slots = raw.zy_data_v2?.dailyFocus?.[todayKey] || []
+    return !slots.some(slot => slot.id === 'e2e-v476-today-topic' && !slot.cleared)
+  }, { timeout: 5000 })
+  const topicMirrorAfter = await page.locator(`.topic-calendar .cal-day[data-day="${yesterdayKey}"] .is-history-mirror`).filter({ hasText: mirrorTopicTitle }).count()
+  const todayFocusSurvives = await page.evaluate(async ({ todayKey }) => {
+    const raw = await chrome.storage.local.get('zy_data_v2')
+    return (raw.zy_data_v2?.dailyFocus?.[todayKey] || []).some(slot => slot.id === 'e2e-v476-today-task' && !slot.cleared)
+  }, { todayKey })
+  report('E2E-75 ★V4.7.6 选题历史卡可开详情、虚线留存；今日可取消排期而历史与其他槽位不受影响',
+    topicMirrorVisible && topicMirrorClickable && topicMirrorDrawerOpen && topicMirrorDetailTitle
+      && !!todaySlotCleared && topicMirrorAfter === 1 && todayFocusSurvives,
+    `昨日=${topicMirrorVisible}/${topicMirrorAfter} 可点/虚线=${topicMirrorClickable} 详情=${topicMirrorDrawerOpen}/${topicMirrorDetailTitle} 今日取消=${!!todaySlotCleared} 其他槽=${todayFocusSurvives}`)
+
+  // ══════════ E2E-76（V4.7.6）任务 / 选题 / 好奇心时间线卡片流 ══════════
+  const poolTlTaskId = 'e2e-v476-pool-tl-task'
+  const poolTlTaskNoLinkId = 'e2e-v476-pool-tl-task-nolink'
+  const poolTlTopicId = 'e2e-v476-pool-tl-topic'
+  const poolTlCurioId = 'e2e-v476-pool-tl-curio'
+  const poolTlTaskTitle = 'E2E V4.7.6 时间线任务卡'
+  const poolTlNoLinkTitle = 'E2E V4.7.6 时间线无链任务'
+  const poolTlTopicTitle = 'E2E V4.7.6 时间线选题卡'
+  const poolTlCurioTitle = 'E2E V4.7.6 时间线好奇卡'
+  const poolTlTaskUrl = 'https://example.com/e2e/v476/pool-timeline-task'
+  const poolTlTopicUrl = 'https://example.com/e2e/v476/pool-timeline-topic'
+  const poolTlCurioUrl = 'https://example.com/e2e/v476/pool-timeline-curio'
+  await page.evaluate(async ({ taskId, noLinkId, topicId, curioId, taskTitle, noLinkTitle, topicTitle, curioTitle, taskUrl, topicUrl, curioUrl, at }) => {
+    const raw = await chrome.storage.local.get(['zy_data_v2', 'zy_event_log'])
+    const data = raw.zy_data_v2
+    if (!data) return
+    const ids = [taskId, noLinkId, topicId, curioId]
+    data.tasks = (data.tasks || []).filter(row => !ids.includes(row.id))
+    data.topics = (data.topics || []).filter(row => !ids.includes(row.id))
+    data.curiosities = (data.curiosities || []).filter(row => !ids.includes(row.id))
+    data.tasks.push({
+      id: taskId, kind: 'task', title: taskTitle, status: 'todo',
+      statusId: (data.taskStatuses || []).find(row => row.bucket === 'todo')?.id || 'task-todo',
+      projectId: '', metricId: null, priority: 'medium', link: taskUrl,
+      tags: ['E2E'], pinned: false, callCount: 0, customFields: {}, assets: [],
+      createdAt: at, updatedAt: at,
+    }, {
+      id: noLinkId, kind: 'task', title: noLinkTitle, status: 'todo',
+      statusId: (data.taskStatuses || []).find(row => row.bucket === 'todo')?.id || 'task-todo',
+      projectId: '', metricId: null, priority: 'medium', link: '',
+      tags: ['E2E'], pinned: false, callCount: 0, customFields: {}, assets: [],
+      createdAt: at - 1, updatedAt: at - 1,
+    })
+    data.topics.push({
+      id: topicId, kind: 'topic', title: topicTitle,
+      statusId: (data.topicStatuses || [])[0]?.id || 'topic-idea',
+      projectId: '', metricId: null, link: topicUrl,
+      tags: ['E2E'], pinned: false, callCount: 0, customFields: {}, assets: [],
+      createdAt: at - 2, updatedAt: at - 2,
+    })
+    data.curiosities.push({
+      id: curioId, kind: 'curiosity', question: curioTitle, sourceUrl: curioUrl,
+      status: 'todo', tags: ['E2E'], pinned: false, callCount: 0,
+      customFields: {}, assets: [], createdAt: at - 3, updatedAt: at - 3,
+    })
+    const log = (Array.isArray(raw.zy_event_log) ? raw.zy_event_log : []).filter(row => !ids.includes(row.cardId))
+    log.push(
+      { id: 'e2e-v476-pool-tl-task-create', ts: at - 10, action: 'create', kind: 'task', title: taskTitle, cardId: taskId },
+      { id: 'e2e-v476-pool-tl-task-edit', ts: at, action: 'edit', kind: 'task', title: taskTitle, cardId: taskId },
+      { id: 'e2e-v476-pool-tl-task-nolink-create', ts: at - 1, action: 'create', kind: 'task', title: noLinkTitle, cardId: noLinkId },
+      { id: 'e2e-v476-pool-tl-topic-create', ts: at - 2, action: 'create', kind: 'topic', title: topicTitle, cardId: topicId },
+      { id: 'e2e-v476-pool-tl-curio-create', ts: at - 3, action: 'create', kind: 'curiosity', title: curioTitle, cardId: curioId },
+    )
+    await chrome.storage.local.set({ zy_data_v2: data, zy_event_log: log })
+  }, {
+    taskId: poolTlTaskId, noLinkId: poolTlTaskNoLinkId, topicId: poolTlTopicId, curioId: poolTlCurioId,
+    taskTitle: poolTlTaskTitle, noLinkTitle: poolTlNoLinkTitle, topicTitle: poolTlTopicTitle, curioTitle: poolTlCurioTitle,
+    taskUrl: poolTlTaskUrl, topicUrl: poolTlTopicUrl, curioUrl: poolTlCurioUrl, at: Date.now(),
+  })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.hand-tab', { visible: true, timeout: 10000 })
+
+  async function openPoolTimelineLink(card, targetUrl) {
+    const pagePromise = ctx.waitForEvent('page', { timeout: 8000 }).catch(() => null)
+    await card.dblclick()
+    const opened = await pagePromise
+    let openedUrl = opened ? opened.url() : ''
+    if (!openedUrl.includes(targetUrl)) {
+      openedUrl = await pollUntil(async () => page.evaluate(async (target) => {
+        const tabs = await chrome.tabs.query({})
+        return (tabs.find(tab => tab.url === target) || {}).url || false
+      }, targetUrl), { timeout: 5000, label: 'pool timeline link' })
+    }
+    if (opened) await opened.close().catch(() => {})
+    return { hit: String(openedUrl || '').includes(targetUrl), url: openedUrl || '' }
+  }
+
+  await page.locator('.hand-tab').filter({ hasText: '任务' }).first().click()
+  await waitForLocator(page, '.task-work-view-switch', { visible: true, timeout: 8000 })
+  await page.locator('.task-work-view-switch button').filter({ hasText: '时间线' }).click()
+  const taskPoolTimeline = await waitForLocator(page, '.cpt[aria-label="任务时间线"]', { visible: true, timeout: 5000 })
+  const taskPoolCard = page.locator(`.cpt[aria-label="任务时间线"] .cpt-card[data-card-id="${poolTlTaskId}"]`)
+  await pollUntil(async () => (await taskPoolCard.count()) === 1, { timeout: 8000, label: 'task pool timeline card' })
+  const taskPoolCardShape = (await taskPoolCard.count()) === 1 && await taskPoolCard.evaluate(el =>
+    !!el.querySelector('.cpt-kind') && !!el.querySelector('.cpt-title') && !!el.querySelector('.cpt-status') && !!el.querySelector('time')
+      && (el.textContent || '').includes('修改') && (el.textContent || '').includes('2 次记录'))
+  await taskPoolCard.click()
+  const taskPoolDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const taskPoolDrawerTitle = taskPoolDrawerOpen
+    ? (await page.locator('.drawer .ts-title').first().inputValue().catch(() => '')).includes(poolTlTaskTitle)
+    : false
+  if (taskPoolDrawerOpen) {
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  }
+  const taskPoolLink = await openPoolTimelineLink(taskPoolCard, poolTlTaskUrl)
+  const taskPoolDoubleNoDrawer = (await page.locator('.drawer').count()) === 0
+  const noLinkCard = page.locator(`.cpt[aria-label="任务时间线"] .cpt-card[data-card-id="${poolTlTaskNoLinkId}"]`)
+  await noLinkCard.dblclick()
+  const noLinkToast = await pollUntil(async () => {
+    const text = await page.locator('.toast-msg').allTextContents().catch(() => [])
+    return text.some(row => row.includes('该卡还没填链接'))
+  }, { timeout: 4000 })
+  const noLinkNoDetail = (await page.locator('.drawer').count()) === 0
+
+  await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
+  await waitForLocator(page, '.topic-view-switch', { visible: true, timeout: 8000 })
+  await page.locator('.topic-view-switch button').filter({ hasText: '时间线' }).click()
+  const topicPoolTimeline = await waitForLocator(page, '.cpt[aria-label="选题时间线"]', { visible: true, timeout: 5000 })
+  const topicPoolCard = page.locator(`.cpt[aria-label="选题时间线"] .cpt-card[data-card-id="${poolTlTopicId}"]`)
+  await pollUntil(async () => (await topicPoolCard.count()) === 1, { timeout: 8000, label: 'topic pool timeline card' })
+  await topicPoolCard.click()
+  const topicPoolDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const topicPoolDrawerTitle = topicPoolDrawerOpen
+    ? (await page.locator('.drawer .topic-title').first().inputValue().catch(() => '')).includes(poolTlTopicTitle)
+    : false
+  if (topicPoolDrawerOpen) {
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  }
+  const topicPoolLink = await openPoolTimelineLink(topicPoolCard, poolTlTopicUrl)
+
+  await page.locator('.hand-tab').filter({ hasText: '好奇心' }).first().click()
+  await waitForLocator(page, '.cw-view-switch', { visible: true, timeout: 8000 })
+  await page.locator('.cw-view-switch button').filter({ hasText: '时间线' }).click()
+  const curioPoolTimeline = await waitForLocator(page, '.cpt[aria-label="好奇心时间线"]', { visible: true, timeout: 5000 })
+  const curioPoolCard = page.locator(`.cpt[aria-label="好奇心时间线"] .cpt-card[data-card-id="${poolTlCurioId}"]`)
+  await pollUntil(async () => (await curioPoolCard.count()) === 1, { timeout: 8000, label: 'curiosity pool timeline card' })
+  await curioPoolCard.click()
+  const curioPoolDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const curioPoolDrawerTitle = curioPoolDrawerOpen
+    ? (await page.locator('.drawer .cz-h1q').first().innerText().catch(() => '')).includes(poolTlCurioTitle.slice(0, 20))
+    : false
+  if (curioPoolDrawerOpen) {
+    await page.keyboard.press('Escape')
+    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  }
+  const curioPoolLink = await openPoolTimelineLink(curioPoolCard, poolTlCurioUrl)
+  report('E2E-76 ★V4.7.6 任务 / 选题 / 好奇心时间线均为卡片流；单击开完整详情，双击走各自链接字段且空链只提示',
+    !!taskPoolTimeline && !!topicPoolTimeline && !!curioPoolTimeline
+      && taskPoolCardShape && taskPoolDrawerOpen && taskPoolDrawerTitle
+      && taskPoolLink.hit && taskPoolDoubleNoDrawer && noLinkToast && noLinkNoDetail
+      && topicPoolDrawerOpen && topicPoolDrawerTitle && topicPoolLink.hit
+      && curioPoolDrawerOpen && curioPoolDrawerTitle && curioPoolLink.hit,
+    `三池卡=${!!taskPoolTimeline}/${!!topicPoolTimeline}/${!!curioPoolTimeline} 任务=${taskPoolCardShape}/${taskPoolDrawerOpen}/${taskPoolDrawerTitle} 链接=${taskPoolLink.url} 无详情=${taskPoolDoubleNoDrawer} 空链=${noLinkToast}/${noLinkNoDetail} 选题=${topicPoolDrawerOpen}/${topicPoolDrawerTitle}/${topicPoolLink.url} 好奇=${curioPoolDrawerOpen}/${curioPoolDrawerTitle}/${curioPoolLink.url}`)
 
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。

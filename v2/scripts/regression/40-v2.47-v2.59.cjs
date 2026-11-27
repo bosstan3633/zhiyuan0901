@@ -15,11 +15,11 @@ check('R77-2 浮层 --zy-* 变量体系：明色为默认 + prefers-color-scheme
   return o.includes('--zy-bg:') && o.includes('--zy-text:') && o.includes('--zy-accent:')
     && o.includes('@media (prefers-color-scheme: dark)') && o.includes('--zy-on-accent');
 });
-check('R77-3（V4.5.0 重指）四主题强调色与 tokens.css 一一对应：光速黑暗红、极简白/纸墨白 Logo 蓝、OPPO 绿；改任一侧回归必红', () => {
+check('R77-3（V4.7.6 重指）四主题强调色与 tokens.css 一一对应，统一为按表面校准的知源 Logo 蓝；改任一侧回归必红', () => {
   const o = read('/content/overlay-impl.ts');
   const t = read('/shared/styles/tokens.css');
   const keys = ['raycast', 'apple', 'notion', 'oppo'];
-  const vals = ['#B54747', '#0F6F9E', '#0B668F', '#168457'];
+  const vals = ['#1579AD', '#0F6F9E', '#0B668F', '#0E7AA6'];
   return keys.every(function (k, i) {
     return o.includes(k + ': { accent: ') && o.includes(vals[i])
       && t.includes('--accent: ' + vals[i] + ';') && t.includes("data-theme='" + k + "'");
@@ -522,7 +522,7 @@ check('R84-8 版本五处同步（manifest/package/ManualPage/regression/关于�
 console.log('【第八十五轮 · V2.54.0：主攻聚焦与就地可操作（M4 + M5）】');
 // ⚠ next 不能用裸 '</template>'——组件里有嵌套 <template #actions>，会在 437 字符处截断（R83 同款坑）
 check('R85-1 T0-A：主攻上限常量在 store 定义，且被 toggleFocusProject 引用（不是某个 UI 里的魔法数）', () => {
-  return ST85.includes('export const FOCUS_PROJECT_LIMIT = 2')
+  return ST85.includes('export const FOCUS_PROJECT_LIMIT = 3')
     && stripComments(FOCUS_FN).includes('others.length >= FOCUS_PROJECT_LIMIT');
 });
 check('R85-2 T0-A：超限时拒绝写入（返回 ok:false + msg，且不翻转 isFocused）；正常时返回 ok:true', () => {

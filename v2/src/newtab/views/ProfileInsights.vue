@@ -36,7 +36,6 @@ import type { AppData, TaskCard, ResourceCard } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
-import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
 import { showToast } from '@/shared/components/toast'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { downloadText, stampDay } from '@/shared/utils/download'
@@ -55,18 +54,19 @@ import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
 import { aggregateRange } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
-import PiYear from '@/newtab/components/profile/PiYear.vue'
+import PiAnnualHeatmap from '@/newtab/components/profile/PiAnnualHeatmap.vue'
+import PiCardAnalysis from '@/newtab/components/profile/PiCardAnalysis.vue'
 import PiYearMetricDrawer from '@/newtab/components/profile/PiYearMetricDrawer.vue'
-import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
+import { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
 import { useCompass } from '@/newtab/stores/compass'
 import PiTimeline, { type PiTimelineEntry } from '@/newtab/components/profile/PiTimeline.vue'
-import PiTimelineDrawer from '@/newtab/components/profile/PiTimelineDrawer.vue'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
 import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
 import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'
+import { recordCardOpen } from '@/shared/storage/stats'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
 import TodayBattleHost from '@/newtab/components/dashboard/TodayBattleHost.vue'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
@@ -110,31 +110,28 @@ const {
 } = useProfileInsights()
 
 const route = useRoute()
-type ProfileView = 'timeline' | 'heatmap'
+type ProfileView = 'timeline' | 'analysis'
 function initialProfileView(): ProfileView {
-  if (route.query.view === 'heatmap') return 'heatmap'
-  if (typeof location !== 'undefined' && (location.hash === '#lifecycle' || location.hash === '#lc-sec')) return 'heatmap'
+  if (route.query.view === 'analysis' || route.query.view === 'heatmap') return 'analysis'
+  if (typeof location !== 'undefined' && (location.hash === '#lifecycle' || location.hash === '#lc-sec')) return 'analysis'
   return 'timeline'
 }
 const profileView = ref<ProfileView>(initialProfileView())
-const timelineEntry = ref<PiTimelineEntry | null>(null)
-const timelineOpen = ref(false)
-
 function openTimelineEntry(entry: PiTimelineEntry): void {
-  timelineEntry.value = entry
-  timelineOpen.value = true
-}
-
-function locateTimelineEntry(entry: PiTimelineEntry): void {
-  const kind = asLocateKind(entry.kind)
-  const target = kind ? locateTargetOf(gd.value, kind, entry.id) : null
-  if (!target) {
-    showToast('该卡片已不在库中')
+  if (entry.kind === 'task') {
+    const task = gd.value.tasks.find(row => row.id === entry.id && !row.deletedAt)
+    if (task) {
+      recordCardOpen(gd.value, task)
+      taskDetailRef.value?.open(task)
+      return
+    }
+  }
+  const drawerKind = entry.kind === 'resource' ? 'res' : entry.kind === 'topic' ? 'topic' : entry.kind === 'curiosity' ? 'curio' : ''
+  if (drawerKind) {
+    emitOpenDrawer({ kind: drawerKind, id: entry.id })
     return
   }
-  timelineOpen.value = false
-  void router.push(target)
-  showToast('已定位到卡片池')
+  showToast('该卡片已不在库中')
 }
 
 function openTimelineEntryLink(entry: PiTimelineEntry): void {
@@ -161,15 +158,6 @@ function openTimelineEntryLink(entry: PiTimelineEntry): void {
   showToast('这张卡片没有可打开的链接')
 }
 
-async function openBrowserShortcuts(): Promise<void> {
-  const url = 'chrome://extensions/shortcuts'
-  if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-    await chrome.tabs.create({ url })
-    return
-  }
-  window.open(url, '_blank')
-}
-
 /* V4.4.0：周期控制与模块级 AI 洞察放在同一个控制条里。
    洞察只读当前范围事实，手动触发、临时展示，不写回 AppData。 */
 const profileInsight = ref('')
@@ -177,7 +165,7 @@ const profileInsightState = ref<'idle' | 'run' | 'done' | 'off'>('idle')
 const profileInsightError = ref('')
 let profileInsightAbort: AbortController | null = null
 
-const profileRangeLabel = computed(() => profileView.value === 'timeline' ? '时间轴' : '年度热力图')
+const profileRangeLabel = computed(() => profileView.value === 'timeline' ? '时间轴' : '卡片分析')
 const timelineWindowStart = Date.now() - 30 * 24 * 60 * 60 * 1000
 
 const directionContext = computed(() => {
@@ -199,10 +187,17 @@ const directionContext = computed(() => {
 
 const profileInsightFacts = computed(() => {
   if (profileView.value === 'timeline') {
+    const liveIds = new Set<string>([
+      ...(gd.value.resources || []).filter(card => !card.deletedAt).map(card => `resource:${card.id}`),
+      ...(gd.value.tasks || []).filter(card => !card.deletedAt).map(card => `task:${card.id}`),
+      ...(gd.value.topics || []).filter(card => !card.deletedAt).map(card => `topic:${card.id}`),
+      ...(gd.value.curiosities || []).filter(card => !card.deletedAt).map(card => `curiosity:${card.id}`),
+    ])
     const tracked = timelineEvents.value.filter(event =>
       event.ts >= timelineWindowStart
       && event.kind !== 'system'
-      && ['create', 'status', 'restore', 'delete'].includes(event.action))
+      && ['create', 'status'].includes(event.action)
+      && liveIds.has(`${event.kind}:${event.cardId}`))
     const days = new Set(tracked.map(event => new Date(event.ts).toLocaleDateString('sv-SE')))
     const cardIds = new Set(tracked.map(event => `${event.kind}:${event.cardId}`))
     const kindCounts = tracked.reduce<Record<string, number>>((acc, event) => {
@@ -297,7 +292,8 @@ async function generateProfileInsight(): Promise<void> {
 
 watch(profileView, resetProfileInsight)
 watch(() => route.query.view, value => {
-  if (value === 'timeline' || value === 'heatmap') profileView.value = value
+  if (value === 'timeline' || value === 'analysis') profileView.value = value
+  else if (value === 'heatmap') profileView.value = 'analysis'
 })
 </script>
 <template>
@@ -307,16 +303,10 @@ watch(() => route.query.view, value => {
       @refresh="onHeroRefresh" @export="onHeroExport"
       @export-error="exportErrorLog" @open-log="openLog('log')" />
 
-    <!-- ===== §1 首屏双面板：产品使用状态 + 个人方向状态 ===== -->
-    <PiOverview
-      :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
-      :topic-stats="{ all: gTopicLive.length, published: topicPublished.length, supported: topicSupported.length, month: topicMonthAdded.length }"
-      :top-tags="heroTopTags"
-      :support-rate="heroSupportRate" :focus-share="heroFocusShare"
-      :today-import="todayImportCount"
-      :mission-text="heroMission" :focus-projects="heroFocusProjects"
-      @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill" @goto-compass="gotoCompass"
-      @open-project="openProjectDetail" />
+    <PiAnnualHeatmap :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
+      :events="timelineEvents" :live-link="linkCardCount" :lc-cards="lcCards"
+      @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
+      @open-battle="openDayBattle" @drill="onYearDrill" />
 
     <!-- ===== §2 观察范围：时间轴 / 热力图双视图，默认时间轴 ===== -->
     <div class="pi-rmods pi-rmods-single">
@@ -339,14 +329,14 @@ watch(() => route.query.view, value => {
               <button
                 type="button"
                 class="pi-view-tab"
-                :class="{ on: profileView === 'heatmap' }"
-                data-profile-view="heatmap"
+                :class="{ on: profileView === 'analysis' }"
+                data-profile-view="analysis"
                 role="tab"
-                :aria-selected="profileView === 'heatmap'"
-                :tabindex="profileView === 'heatmap' ? 0 : -1"
-                @click="profileView = 'heatmap'"
+                :aria-selected="profileView === 'analysis'"
+                :tabindex="profileView === 'analysis' ? 0 : -1"
+                @click="profileView = 'analysis'"
               >
-                <Icon name="battle" :size="13" /><span>热力图</span><small>HEATMAP</small>
+                <Icon name="battle" :size="13" /><span>卡片分析</span><small>ANALYSIS</small>
               </button>
             </div>
           </div>
@@ -374,29 +364,19 @@ watch(() => route.query.view, value => {
           :data="gd"
           @open="openTimelineEntry"
           @open-link="openTimelineEntryLink"
-          @open-shortcuts="openBrowserShortcuts"
         />
 
-        <PiYear v-else
-          :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
-          :events="timelineEvents" :live-link="linkCardCount"
-          :lc-cards="lcCards" :all-events="timelineEvents"
-          :focus-filter="lcFocus"
-          @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
-          @open-battle="openDayBattle"
-          @drill="onYearDrill"
+        <PiCardAnalysis v-else :data="gd" :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
+          :topic-stats="{ all: gTopicLive.length, published: topicPublished.length, supported: topicSupported.length, month: topicMonthAdded.length }"
+          :top-tags="heroTopTags" :support-rate="heroSupportRate" :focus-share="heroFocusShare"
+          :today-import="todayImportCount" :mission-text="heroMission" :focus-projects="heroFocusProjects"
+          :lc-cards="lcCards" :focus-filter="lcFocus"
+          @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill" @goto-compass="gotoCompass"
+          @open-project="openProjectDetail"
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
           @lc-settings="lcSetOpen = true" />
     </div>
-
-    <PiTimelineDrawer
-      :open="timelineOpen"
-      :entry="timelineEntry"
-      @close="timelineOpen = false"
-      @locate="locateTimelineEntry"
-      @open-link="openTimelineEntryLink"
-    />
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。
      「全部记录」已上提为页头全页唯一入口（PiHero），近期模块里那一枚重复入口一并收掉；

@@ -6,7 +6,8 @@
  * 底层日期继续使用 TaskCard.dueDate，避免新增第二份计划日期字段。
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import type { FocusSlot, TaskCard, TaskStatusDef, TopicCard, TopicStatusDef } from '@/shared/models'
+import type { DailyFocus, FocusSlot, TaskCard, TaskStatusDef, TopicCard, TopicStatusDef, AppData } from '@/shared/models'
+import { focusCalendarEntries } from '@/shared/utils/focusCalendar'
 import Icon from '@/shared/components/Icon.vue'
 import Modal from '@/shared/components/Modal.vue'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
@@ -20,6 +21,8 @@ const props = withDefaults(defineProps<{
   topicStatuses?: TopicStatusDef[]
   taskStatuses?: TaskStatusDef[]
   focusSlots?: FocusSlot[]
+  focusByDay?: DailyFocus
+  focusHistoryHidden?: AppData['focusHistoryHidden']
   showDone?: boolean
   projectNames: Map<string, string>
   metricNames: Map<string, string>
@@ -30,6 +33,7 @@ const props = withDefaults(defineProps<{
   topicStatuses: () => [],
   taskStatuses: () => [],
   focusSlots: () => [],
+  focusByDay: () => ({}),
   showDone: true,
   sortMode: 'recent',
   groupMode: 'none',
@@ -47,11 +51,12 @@ const emit = defineEmits<{
   (e: 'clear-due', taskId: string): void
   (e: 'set-topic-due', topicId: string, date: string): void
   (e: 'clear-topic-due', topicId: string): void
+  (e: 'hide-history-focus', date: string, slotId: string): void
 }>()
 
 type CalendarEntry =
-  | { key: string; kind: 'task'; task: TaskCard; slot?: FocusSlot }
-  | { key: string; kind: 'topic'; topic: TopicCard; slot?: FocusSlot }
+  | { key: string; kind: 'task'; task: TaskCard; slot?: FocusSlot; mirror?: boolean }
+  | { key: string; kind: 'topic'; topic: TopicCard; slot?: FocusSlot; mirror?: boolean }
 
 type TaskPoolGroup = {
   key: string
@@ -260,30 +265,25 @@ const tasksByDay = computed(() => {
  * 今日格只认 dailyFocus：同一天即使任务/选题卡上的 dueDate 暂时未收敛，
  * 也不会在日历里多出第 4 项或漏掉三件事里的项。
  */
-const focusEntries = computed<CalendarEntry[]>(() => {
-  const tasks = new Map((props.focusTasks || props.tasks).map(task => [task.id, task]))
-  const topics = new Map(props.topics.map(topic => [topic.id, topic]))
-  const out: CalendarEntry[] = []
-  for (const slot of props.focusSlots) {
-    if (!slot || slot.cleared || !slot.sourceId) continue
-    if (slot.sourceType === 'task') {
-      const task = tasks.get(slot.sourceId)
-      if (task) out.push({ key: `task:${task.id}`, kind: 'task', task, slot })
-    } else if (slot.sourceType === 'topic') {
-      const topic = topics.get(slot.sourceId)
-      if (topic) out.push({ key: `topic:${topic.id}`, kind: 'topic', topic, slot })
-    }
-  }
-  return out
-})
+const focusEntriesByDay = computed(() => focusCalendarEntries({
+  dailyFocus: Object.keys(props.focusByDay).length ? props.focusByDay : { [todayKey.value]: props.focusSlots },
+  hidden: props.focusHistoryHidden,
+  tasks: props.focusTasks || props.tasks,
+  topics: props.topics,
+  today: todayKey.value,
+}))
 
 const entriesByDay = computed(() => {
   const map = new Map<string, CalendarEntry[]>()
   for (const [key, tasks] of tasksByDay.value) {
     map.set(key, tasks.map(task => ({ key: `task:${task.id}`, kind: 'task' as const, task })))
   }
-  if (focusEntries.value.length) map.set(todayKey.value, focusEntries.value)
-  else map.delete(todayKey.value)
+  for (const [date, entries] of focusEntriesByDay.value) {
+    const planned = map.get(date) || []
+    const focusKeys = new Set(entries.map(entry => entry.key))
+    map.set(date, [...entries, ...planned.filter(entry => !focusKeys.has(entry.key))])
+  }
+  if (!map.has(todayKey.value)) map.set(todayKey.value, [])
   return map
 })
 
@@ -314,8 +314,7 @@ const calendarDays = computed(() => {
 
 const selectedEntries = computed(() => {
   const rows = [...(entriesByDay.value.get(selectedDay.value) || [])]
-  // 今日格必须保持 dailyFocus 的槽位顺序；其他日期仍按任务状态排序。
-  return selectedDay.value === todayKey.value ? rows : rows.sort(entryOrder)
+  return rows.some(entry => entry.slot) ? rows : rows.sort(entryOrder)
 })
 const selectedTitle = computed(() => {
   if (!selectedDay.value) return ''
@@ -662,7 +661,7 @@ onUnmounted(() => {
             <div class="cal-pool-heading">
               <b>任务清单</b>
               <button class="cal-list-collapse" type="button" title="折叠任务清单" aria-label="折叠任务清单" :aria-expanded="true" @click="collapseList">
-                <Icon name="arrowleft" :size="12" /> 折叠
+                <Icon name="arrowleft" :size="12" />
               </button>
             </div>
             <span>{{ poolTasks.length }} 项当前筛选结果 · {{ poolOrderHint }}</span>
@@ -866,20 +865,24 @@ onUnmounted(() => {
             </button>
             <div class="cal-day-list">
               <template v-for="entry in visibleCalendarEntries(cell.entries)" :key="entry.key">
-                <div
+                <component
+                  :is="entry.mirror ? 'div' : 'button'"
                   v-if="entry.kind === 'task'"
                   class="cal-task-chip"
-                  :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task)]"
+                  :type="entry.mirror ? undefined : 'button'"
+                  :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task), { 'is-history-mirror': entry.mirror }]"
                   :style="{ '--task-status': taskStatusColor(entry.task) }"
-                  draggable="true"
-                  tabindex="0"
-                  :title="entry.task.title"
-                  @dragstart="onDragStart($event, entry.task)"
+                  :draggable="entry.mirror ? undefined : true"
+                  :tabindex="0"
+                  :role="entry.mirror ? 'button' : undefined"
+                  :title="entry.mirror ? `${entry.task.title} · 历史三件事，单击查看详情` : entry.task.title"
+                  @dragstart="!entry.mirror && onDragStart($event, entry.task)"
                   @dragend="draggingId = ''; dragOverDay = ''"
                   @click="emit('open-task', entry.task)"
                   @keydown.enter.prevent="emit('open-task', entry.task)"
                 >
                   <button
+                    v-if="!entry.mirror"
                     class="cal-chip-check"
                     :class="'is-' + entry.task.status"
                     type="button"
@@ -890,31 +893,39 @@ onUnmounted(() => {
                   </button>
                   <span class="cal-chip-copy">
                     <span class="cal-chip-title">{{ entry.task.title }}</span>
+                    <em v-if="entry.mirror" class="cal-history-label">历史三件事</em>
                     <span v-if="calendarMode === 'week'" class="cal-chip-meta">
                       <span>{{ projectLabel(entry.task) }}</span>
                       <span v-if="metricLabel(entry.task)">› {{ metricLabel(entry.task) }}</span>
                       <em :class="'is-' + entry.task.status" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
                     </span>
                   </span>
-                  <button type="button" title="取消计划执行日期并回到任务池" aria-label="取消排期" @click.stop="emit('clear-due', entry.task.id)">
+                  <button v-if="entry.mirror" type="button" title="取消该日落图，不改卡片当前计划" aria-label="取消该日历史三件事落图" @click.stop="entry.slot && emit('hide-history-focus', cell.key, entry.slot.id)">
                     <Icon name="x" :size="10" />
                   </button>
-                </div>
-                <div
+                  <button v-else type="button" title="取消计划执行日期并回到任务池" aria-label="取消排期" @click.stop="emit('clear-due', entry.task.id)">
+                    <Icon name="x" :size="10" />
+                  </button>
+                </component>
+                <component
+                  :is="entry.mirror ? 'div' : 'button'"
                   v-else
                   class="cal-task-chip cal-topic-chip"
-                  :class="['tone-' + topicTone(entry.topic), { 'is-done': isTopicDone({ topicStatuses: topicStatuses }, entry.topic) }]"
+                  :type="entry.mirror ? undefined : 'button'"
+                  :class="['tone-' + topicTone(entry.topic), { 'is-done': isTopicDone({ topicStatuses: topicStatuses }, entry.topic), 'is-history-mirror': entry.mirror }]"
                   :style="topicStatusStyle(entry.topic)"
-                  draggable="true"
-                  tabindex="0"
-                  :title="entry.topic.title"
-                  @dragstart="onTopicDragStart($event, entry.topic)"
+                  :draggable="entry.mirror ? undefined : true"
+                  :tabindex="0"
+                  :role="entry.mirror ? 'button' : undefined"
+                  :title="entry.mirror ? `${entry.topic.title} · 历史三件事，单击查看详情` : entry.topic.title"
+                  @dragstart="!entry.mirror && onTopicDragStart($event, entry.topic)"
                   @dragend="draggingId = ''; dragOverDay = ''"
                   @click="emit('open-topic', entry.topic)"
-                  @dblclick.stop.prevent="emit('open-topic-link', entry.topic)"
+                  @dblclick.stop.prevent="entry.mirror ? undefined : emit('open-topic-link', entry.topic)"
                   @keydown.enter.prevent="emit('open-topic', entry.topic)"
                 >
                   <button
+                    v-if="!entry.mirror"
                     class="cal-chip-check"
                     :class="{ 'is-done': isTopicDone({ topicStatuses: topicStatuses }, entry.topic) }"
                     type="button"
@@ -925,16 +936,20 @@ onUnmounted(() => {
                   </button>
                   <span class="cal-chip-copy">
                     <span class="cal-chip-title"><em class="cal-topic-kind">选题</em>{{ entry.topic.title }}</span>
+                    <em v-if="entry.mirror" class="cal-history-label">历史三件事</em>
                     <span v-if="calendarMode === 'week'" class="cal-chip-meta">
                       <span>{{ projectLabel(entry.topic) }}</span>
                       <span v-if="metricLabel(entry.topic)">› {{ metricLabel(entry.topic) }}</span>
                       <em class="is-topic">{{ topicStatusLabel(entry.topic) }}</em>
                     </span>
                   </span>
-                  <button type="button" title="取消计划执行日期并移出今日三件事" aria-label="取消排期" @click.stop="emit('clear-topic-due', entry.topic.id)">
+                  <button v-if="entry.mirror" type="button" title="取消该日落图，不改卡片当前计划" aria-label="取消该日历史三件事落图" @click.stop="entry.slot && emit('hide-history-focus', cell.key, entry.slot.id)">
                     <Icon name="x" :size="10" />
                   </button>
-                </div>
+                  <button v-else type="button" title="取消计划执行日期并移出今日三件事" aria-label="取消排期" @click.stop="emit('clear-topic-due', entry.topic.id)">
+                    <Icon name="x" :size="10" />
+                  </button>
+                </component>
               </template>
               <button v-if="hiddenCalendarEntryCount(cell.entries)" class="cal-more" type="button" @click="openDay(cell.key)">
                 +{{ hiddenCalendarEntryCount(cell.entries) }} 更多
@@ -955,7 +970,7 @@ onUnmounted(() => {
         {{ selectedDayMode === 'detail' ? selectedTitle : `安排到 ${selectedTitle}` }}
       </template>
       <template #sub>
-        <span v-if="selectedDayMode === 'detail'">{{ selectedEntries.length }} 项今日计划 · 与今日三件事严格同源</span>
+        <span v-if="selectedDayMode === 'detail'">{{ selectedEntries.length }} 项计划 · {{ selectedDay === todayKey ? '与今日三件事严格同源' : '历史三件事以虚线卡留存；可看详情或取消该日落图，不改原卡当前计划' }}</span>
         <span v-else>排到今日会同步进入今日三件事；其他日期只修改计划执行日期</span>
       </template>
 
@@ -964,10 +979,11 @@ onUnmounted(() => {
           <article
             v-if="entry.kind === 'task'"
             class="cal-modal-task"
-            :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task)]"
+            :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task), { 'is-history-mirror': entry.mirror }]"
             :style="{ '--task-status': taskStatusColor(entry.task) }"
           >
             <button
+              v-if="!entry.mirror"
               class="cal-check"
               :class="'is-' + entry.task.status"
               type="button"
@@ -976,23 +992,25 @@ onUnmounted(() => {
             >
               <Icon v-if="entry.task.status === 'done'" name="check" :size="11" />
             </button>
-            <button class="cal-modal-copy" type="button" @click="openTaskFromDay(entry.task)">
+            <button class="cal-modal-copy" type="button" @click="openTaskFromDay(entry.task)" @keydown.enter.prevent="openTaskFromDay(entry.task)">
               <b>{{ entry.task.title }}</b>
-              <small>{{ projectLabel(entry.task) }}<template v-if="metricLabel(entry.task)"> › {{ metricLabel(entry.task) }}</template></small>
+              <small>{{ entry.mirror ? '历史三件事 · ' : '' }}{{ projectLabel(entry.task) }}<template v-if="metricLabel(entry.task)"> › {{ metricLabel(entry.task) }}</template></small>
             </button>
             <span class="cal-modal-side">
               <button v-if="isMissing(entry.task)" class="cal-assign" type="button" @click="emit('assign-task', entry.task)">去归位</button>
               <em :class="'is-' + entry.task.status" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
             </span>
-            <button class="cal-modal-close" type="button" title="取消排期" @click.stop="emit('clear-due', entry.task.id)"><Icon name="x" :size="12" /></button>
+            <button v-if="entry.mirror" class="cal-modal-close" type="button" title="取消该日落图，不改卡片当前计划" aria-label="取消该日历史三件事落图" @click.stop="entry.slot && emit('hide-history-focus', selectedDay, entry.slot.id)"><Icon name="x" :size="12" /></button>
+            <button v-else class="cal-modal-close" type="button" title="取消排期" @click.stop="emit('clear-due', entry.task.id)"><Icon name="x" :size="12" /></button>
           </article>
           <article
             v-else
             class="cal-modal-task cal-topic-modal"
-            :class="['tone-' + topicTone(entry.topic), { 'tone-done': isTopicDone({ topicStatuses: topicStatuses }, entry.topic) }]"
+            :class="['tone-' + topicTone(entry.topic), { 'tone-done': isTopicDone({ topicStatuses: topicStatuses }, entry.topic), 'is-history-mirror': entry.mirror }]"
             :style="topicStatusStyle(entry.topic)"
           >
             <button
+              v-if="!entry.mirror"
               class="cal-check"
               :class="{ 'is-done': isTopicDone({ topicStatuses: topicStatuses }, entry.topic) }"
               type="button"
@@ -1001,14 +1019,15 @@ onUnmounted(() => {
             >
               <Icon v-if="isTopicDone({ topicStatuses: topicStatuses }, entry.topic)" name="check" :size="11" />
             </button>
-            <button class="cal-modal-copy" type="button" @click="openEntry(entry)">
+            <button class="cal-modal-copy" type="button" @click="openEntry(entry)" @keydown.enter.prevent="openEntry(entry)">
               <b><span class="cal-topic-kind">选题</span>{{ entry.topic.title }}</b>
               <small>{{ projectLabel(entry.topic) }}<template v-if="metricLabel(entry.topic)"> › {{ metricLabel(entry.topic) }}</template> · {{ topicStatusLabel(entry.topic) }}</small>
             </button>
             <span class="cal-modal-side">
               <em class="is-topic">{{ topicStatusLabel(entry.topic) }}</em>
             </span>
-            <button class="cal-modal-close" type="button" title="取消排期并移出今日三件事" @click.stop="emit('clear-topic-due', entry.topic.id)"><Icon name="x" :size="12" /></button>
+            <button v-if="entry.mirror" class="cal-modal-close" type="button" title="取消该日落图，不改卡片当前计划" aria-label="取消该日历史三件事落图" @click.stop="entry.slot && emit('hide-history-focus', selectedDay, entry.slot.id)"><Icon name="x" :size="12" /></button>
+            <button v-else class="cal-modal-close" type="button" title="取消排期并移出今日三件事" @click.stop="emit('clear-topic-due', entry.topic.id)"><Icon name="x" :size="12" /></button>
           </article>
         </template>
         <div v-if="!selectedEntries.length" class="cal-empty">

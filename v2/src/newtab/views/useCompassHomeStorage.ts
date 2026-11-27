@@ -131,7 +131,7 @@ function onCloudStatusClick(): void {
 /**
  * R83 性能红线：`projectProgress` / `isProjectStalled` / `projectTasksOf` 内部都要遍历 `d.tasks`，
  * 在模板里对每个主攻各调一次就是 O(主攻数 × 任务数) 每次重渲染。故**预计算成索引**
- * （与 R83 的 `projMeta`、R86 的 `projState` 同款）。主攻上限 2 个，成本可忽略。
+ * （与 R83 的 `projMeta`、R86 的 `projState` 同款）。主攻上限 3 个，成本可忽略。
  */
 
   return {

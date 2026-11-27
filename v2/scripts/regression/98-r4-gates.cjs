@@ -717,9 +717,10 @@ check('W6-2（V4.5.0 重指）卡片池四页签：任务页默认展示完整�
 });
 check('W6-3（V4.4.0 重指）★任务卡默认列表视图 + 卡片视图 AI 入口直达找资源：TaskManagerPanel viewMode 默认 list；卡片视图 3 处 TaskAiMenu 换 TaskAiCorner；TaskAiCorner 自包含（taic-btn + AI 零静态引用 dynamic import taskSupport + buildTaskSupportJob + AiDrawer 懒栈）；手册默认视图文案同步', () => {
   const tm = codeOnly(read('/newtab/components/compass/TaskManagerPanel.vue'));
+  const host = codeOnly(read('/newtab/components/compass/useTaskManagerPanel.ts'));
   const ca = codeOnly(read('/newtab/components/TaskAiCorner.vue'));
   const m = codeOnly(read('/newtab/manual-data.ts'));
-  return tm.includes("ref<'card' | 'list' | 'kanban' | 'calendar'>('list')")
+  return host.includes("ref<'card' | 'list' | 'kanban' | 'calendar' | 'timeline'>('list')")
     && (tm.match(/<TaskAiCorner :task=/g) || []).length === 3
     && (tm.match(/<TaskAiMenu :task=/g) || []).length === 7
     && tm.includes("import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'")

@@ -8,7 +8,8 @@ const props = withDefaults(defineProps<{
   projectNames: Map<string, string>
   metricNames: Map<string, string>
   statuses: TaskStatusDef[]
-}>(), {})
+  groupByProject?: boolean
+}>(), { groupByProject: false })
 
 const emit = defineEmits<{
   (e: 'open-task', task: TaskCard): void
@@ -40,6 +41,29 @@ const grouped = computed(() => {
   }
   return map
 })
+
+const projectGroups = computed(() => {
+  const seen = new Set<string>()
+  const groups: { key: string; name: string }[] = []
+  for (const task of props.tasks) {
+    if (!task.projectId || !props.projectNames.has(task.projectId) || seen.has(task.projectId)) continue
+    seen.add(task.projectId)
+    groups.push({ key: task.projectId, name: props.projectNames.get(task.projectId) || '未关联项目' })
+  }
+  groups.push({ key: '__none__', name: '未关联项目' })
+  return groups
+})
+
+function groupsInColumn(statusId: string): { key: string; name: string; tasks: TaskCard[] }[] {
+  const source = grouped.value[statusId] || []
+  const out = projectGroups.value.map(group => ({
+    ...group,
+    tasks: group.key === '__none__'
+      ? source.filter(task => !task.projectId || !props.projectNames.has(task.projectId))
+      : source.filter(task => task.projectId === group.key),
+  }))
+  return out.filter(group => group.key === '__none__' || group.tasks.length > 0)
+}
 
 function statusIdFor(task: TaskCard): string {
   return props.statuses.find(status => status.bucket === task.status)?.id || props.statuses[0]?.id || ''
@@ -99,37 +123,78 @@ function onDrop(statusId: string): void {
         <small>{{ column.hint }}</small>
       </header>
       <div class="tb-col-list">
-        <article
-          v-for="task in grouped[column.id] || []"
-          :key="task.id"
-          class="tb-card"
-          :class="{ 'is-done': isDone(task) }"
-          draggable="true"
-          tabindex="0"
-          @dragstart="onDragStart($event, task)"
-          @dragend="dragId = ''; overStatus = ''"
-          @click="emit('open-task', task)"
-          @keydown.enter.prevent="emit('open-task', task)"
-        >
-          <div class="tb-title">
-            <Icon v-if="task.pinned" name="pin" :size="11" />
-            {{ task.title }}
-          </div>
-          <div class="tb-meta">
-            <span :class="{ missing: !task.projectId || !projectNames.has(task.projectId) }">{{ projectLabel(task) }}</span>
-            <span v-if="metricLabel(task)">› {{ metricLabel(task) }}</span>
-          </div>
-          <footer>
-            <span :class="{ scheduled: !!task.dueDate }"><Icon name="calendar" :size="11" />{{ dateLabel(task) }}</span>
-            <button
-              v-if="!isDone(task)"
-              type="button"
-              title="标记完成"
-              @click.stop="emit('set-status', task.id, columns.find(column => column.terminal)?.id || '')"
-            ><Icon name="check" :size="11" /></button>
-          </footer>
-        </article>
-        <div v-if="!(grouped[column.id] || []).length" class="tb-empty">
+        <template v-if="groupByProject">
+          <section v-for="group in groupsInColumn(column.id)" :key="group.key" class="tb-group">
+            <header class="tb-group-head">
+              <span><Icon name="package" :size="11" />{{ group.name }}</span>
+              <em>{{ group.tasks.length }}</em>
+            </header>
+            <article
+              v-for="task in group.tasks"
+              :key="task.id"
+              class="tb-card"
+              :class="{ 'is-done': isDone(task) }"
+              draggable="true"
+              tabindex="0"
+              @dragstart="onDragStart($event, task)"
+              @dragend="dragId = ''; overStatus = ''"
+              @click="emit('open-task', task)"
+              @keydown.enter.prevent="emit('open-task', task)"
+            >
+              <div class="tb-title">
+                <Icon v-if="task.pinned" name="pin" :size="11" />
+                {{ task.title }}
+              </div>
+              <div class="tb-meta">
+                <span>{{ projectLabel(task) }}</span>
+                <span v-if="metricLabel(task)">› {{ metricLabel(task) }}</span>
+              </div>
+              <footer>
+                <span :class="{ scheduled: !!task.dueDate }"><Icon name="calendar" :size="11" />{{ dateLabel(task) }}</span>
+                <button
+                  v-if="!isDone(task)"
+                  type="button"
+                  title="标记完成"
+                  @click.stop="emit('set-status', task.id, columns.find(column => column.terminal)?.id || '')"
+                ><Icon name="check" :size="11" /></button>
+              </footer>
+            </article>
+            <div v-if="!group.tasks.length" class="tb-group-empty">拖入任务归到此项目</div>
+          </section>
+        </template>
+        <template v-else>
+          <article
+            v-for="task in grouped[column.id] || []"
+            :key="task.id"
+            class="tb-card"
+            :class="{ 'is-done': isDone(task) }"
+            draggable="true"
+            tabindex="0"
+            @dragstart="onDragStart($event, task)"
+            @dragend="dragId = ''; overStatus = ''"
+            @click="emit('open-task', task)"
+            @keydown.enter.prevent="emit('open-task', task)"
+          >
+            <div class="tb-title">
+              <Icon v-if="task.pinned" name="pin" :size="11" />
+              {{ task.title }}
+            </div>
+            <div class="tb-meta">
+              <span :class="{ missing: !task.projectId || !projectNames.has(task.projectId) }">{{ projectLabel(task) }}</span>
+              <span v-if="metricLabel(task)">› {{ metricLabel(task) }}</span>
+            </div>
+            <footer>
+              <span :class="{ scheduled: !!task.dueDate }"><Icon name="calendar" :size="11" />{{ dateLabel(task) }}</span>
+              <button
+                v-if="!isDone(task)"
+                type="button"
+                title="标记完成"
+                @click.stop="emit('set-status', task.id, columns.find(column => column.terminal)?.id || '')"
+              ><Icon name="check" :size="11" /></button>
+            </footer>
+          </article>
+        </template>
+        <div v-if="!groupByProject && !(grouped[column.id] || []).length" class="tb-empty">
           <Icon name="clipboard" :size="16" />
           <span>{{ column.hint }}</span>
         </div>
@@ -185,6 +250,29 @@ function onDrop(statusId: string): void {
   gap: 7px;
   overflow: auto;
   padding: 8px;
+}
+.tb-group { display: flex; flex-direction: column; gap: 6px; }
+.tb-group + .tb-group { margin-top: 2px; }
+.tb-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 2px;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+}
+.tb-group-head span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; font-weight: 650; }
+.tb-group-head span :deep(svg) { flex: none; color: var(--accent); }
+.tb-group-head em { color: var(--text-3); font-style: normal; font-variant-numeric: tabular-nums; }
+.tb-group-empty {
+  display: grid;
+  min-height: 42px;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-4);
+  font-size: var(--fs-tiny);
 }
 .tb-card {
   padding: 10px;

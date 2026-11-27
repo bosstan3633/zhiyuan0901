@@ -44,6 +44,7 @@ export const W = {
   call: 1.0,
   sCurioDoing: 1.5, sCurioDone: 2.5, sCurioShelf: 0.5,
   sTaskDoing: 1.5, sTaskDone: 3.0,
+  edit: 0.8, outcome: 3.0,
   subtask: 0, focus: 2.5, link: 1.0
 } as const
 
@@ -55,9 +56,10 @@ export const W_ROWS: readonly (readonly [string, number])[] = [
   ['状态 · 好奇 → 已搁置', W.sCurioShelf],
   ['状态 · 任务 → 进行中', W.sTaskDoing], ['状态 · 任务 → 已完成', W.sTaskDone],
   ['子任务勾选完成（R166 定案 3：不计分）', W.subtask], ['今日三件事完成', W.focus], ['任务↔资源关联采纳', W.link]
+  , ['卡片内容修改', W.edit], ['选题发布 / 策展成果导出', W.outcome]
 ] as const
 
-/** 防刷分（04-67 §5.2 脚注） */
+/** V4.7.6 起同卡同类当日只计首次；常量仅保留给历史口径判据对照。 */
 export const CALL_REPEAT_FACTOR = 0.5
 export const QUICK_DELETE_FACTOR = 0.3
 const QUICK_DELETE_MS = 24 * 3600 * 1000
@@ -95,6 +97,8 @@ export interface DayRec {
   sub: number
   focus: number
   link: number
+  edit: number
+  outcome: number
   /** ★ 存量净变化（时间绑定的数据基础）：add = 新增 + 恢复；del = 软删 */
   x: { add: number; del: number }
   /** 当日加权分（1 位小数） */
@@ -107,14 +111,14 @@ export interface DailyStats { v: 1; days: Record<string, DayRec>; fullSince: str
 export function emptyDay(): DayRec {
   return {
     c: { res: 0, curio: 0, task: 0, topic: 0 }, del: { res: 0, curio: 0, task: 0, topic: 0 },
-    s: { curio: 0, task: 0, topic: 0 }, u: 0, d: 0, sub: 0, focus: 0, link: 0,
+    s: { curio: 0, task: 0, topic: 0 }, u: 0, d: 0, sub: 0, focus: 0, link: 0, edit: 0, outcome: 0,
     x: { add: 0, del: 0 }, w: 0
   }
 }
 
 /** 有效动作件数（R3 主数字）= 采集 + 调出 + 状态变更 + 推进 的**条数**总和（不加权） */
 export function actsOf(r: DayRec): number {
-  return r.c.res + r.c.curio + r.c.task + r.c.topic + r.u + r.s.curio + r.s.task + r.s.topic + r.d
+  return r.c.res + r.c.curio + r.c.task + r.c.topic + r.u + r.s.curio + r.s.task + r.s.topic + r.d + r.edit + r.outcome
 }
 
 const round1 = (n: number): number => Math.round(n * 10) / 10
@@ -179,7 +183,7 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
   const rec = (k: string): DayRec => days[k] || (days[k] = emptyDay())
   /** 采集记分先入暂存，等"24h 内软删 ×0.3"判完再并入 `w` */
   const createScore = new Map<string, { day: string; pts: number; cardId: string; ts: number }>()
-  const firstCallOf = new Set<string>()
+  const scoredActions = new Set<string>()
 
   /* ---- pass 1：事件折叠 ---- */
   for (const e of events) {
@@ -195,11 +199,11 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
         break
       }
       case 'call': {
-        r.u++
         const key = `${dayOf(e.ts)}|${e.cardId}`
-        const isFirst = !firstCallOf.has(key)
-        firstCallOf.add(key)
-        r.w += isFirst ? W.call : W.call * CALL_REPEAT_FACTOR
+        if (scoredActions.has(`call|${key}`)) break
+        scoredActions.add(`call|${key}`)
+        r.u++
+        r.w += W.call
         break
       }
       case 'delete':
@@ -212,14 +216,25 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
         r.x.add++
         break
       case 'status':
+        if (scoredActions.has(`status|${dayOf(e.ts)}|${e.cardId}`)) break
+        scoredActions.add(`status|${dayOf(e.ts)}|${e.cardId}`)
         if (kind === 'curiosity') r.s.curio++
         else if (kind === 'task') r.s.task++
         else if (kind === 'topic') r.s.topic++
         r.w += statusWeight(kind, e.to)
         break
+      case 'edit':
+        if (scoredActions.has(`edit|${dayOf(e.ts)}|${e.cardId}`)) break
+        scoredActions.add(`edit|${dayOf(e.ts)}|${e.cardId}`)
+        r.edit++; r.w += W.edit
+        break
+      case 'outcome':
+        if (scoredActions.has(`outcome|${dayOf(e.ts)}|${e.cardId}`)) break
+        scoredActions.add(`outcome|${dayOf(e.ts)}|${e.cardId}`)
+        r.outcome++; r.w += W.outcome
+        break
     }
   }
-
   /* ---- pass 2：采集分（含"24h 内即软删 ×0.3"修正） ---- */
   const deleteTsByCard = new Map<string, number[]>()
   for (const e of events) {
@@ -236,11 +251,15 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
 
   /* ---- pass 3：推进三维（卡字段，按时间戳归日） ---- */
   // ① 今日三件事完成（FocusSlot.doneAt 已存在）
+  const scoredFields = new Set<string>()
   for (const [dayKeyStr, slots] of Object.entries(data.dailyFocus || {})) {
     for (const s of slots || []) {
       if (!s || !s.done) continue
       const day = s.doneAt ? dayOf(s.doneAt) : dayKeyStr
       const r = rec(day)
+      const key = `focus|${day}|${s.sourceType}:${s.sourceId || s.id}`
+      if (scoredFields.has(key)) continue
+      scoredFields.add(key)
       r.focus++; r.d++; r.w += W.focus
     }
   }
@@ -248,6 +267,11 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
   for (const l of data.supportLinks || []) {
     if (!l || !l.createdAt) continue
     const r = rec(dayOf(l.createdAt))
+    const taskId = (l as { taskId?: string }).taskId || ''
+    const resourceId = (l as { resourceId?: string }).resourceId || l.id
+    const key = `link|${dayOf(l.createdAt)}|${taskId}:${resourceId}`
+    if (scoredFields.has(key)) continue
+    scoredFields.add(key)
     r.link++; r.d++; r.w += W.link
   }
   // ③ 子任务完成（Subtask.doneAt；R172-T2 新增，历史项无时刻则跳过）
@@ -376,7 +400,7 @@ export function mergeDailyStats(snap: DailyStats | null | undefined, rebuild: Da
     }
     if (!mr) { days[k] = sr; continue }
     const evW = round1(sr.w - eventFieldW(sr))
-    days[k] = { ...mr, c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x, w: round1(evW + eventFieldW(mr)) }
+    days[k] = { ...mr, c: sr.c, del: sr.del, s: sr.s, u: sr.u, edit: sr.edit, outcome: sr.outcome, x: sr.x, w: round1(evW + eventFieldW(mr)) }
   }
   const keys = Object.keys(days).sort()
   return { v: 1, days, fullSince: keys[0] || rebuild.fullSince, base: rebuild.base }
@@ -388,6 +412,7 @@ export interface RangeAgg {
   days: number; act: number; W: number; acts: number
   c: KindCount; u: number; s: StatusCount
   sub: number; focus: number; link: number; d: number
+  edit: number; outcome: number
   add: number; del: number
   peak: [string, number] | null
   list: [string, number][]
@@ -398,7 +423,7 @@ export function aggregateRange(stats: DailyStats, from: string, to: string): Ran
   const out: RangeAgg = {
     days: 0, act: 0, W: 0, acts: 0,
     c: { res: 0, curio: 0, task: 0, topic: 0 }, u: 0, s: { curio: 0, task: 0, topic: 0 },
-    sub: 0, focus: 0, link: 0, d: 0, add: 0, del: 0,
+    sub: 0, focus: 0, link: 0, edit: 0, outcome: 0, d: 0, add: 0, del: 0,
     peak: null, list: [], activeRate: 0
   }
   for (const k of Object.keys(stats.days).sort()) {
@@ -410,6 +435,7 @@ export function aggregateRange(stats: DailyStats, from: string, to: string): Ran
     out.c.res += r.c.res; out.c.curio += r.c.curio; out.c.task += r.c.task; out.c.topic += r.c.topic
     out.u += r.u; out.s.curio += r.s.curio; out.s.task += r.s.task; out.s.topic += r.s.topic
     out.sub += r.sub; out.focus += r.focus; out.link += r.link; out.d += r.d
+    out.edit += r.edit; out.outcome += r.outcome
     out.add += r.x.add; out.del += r.x.del
     out.list.push([k, r.w])
     if (!out.peak || r.w > out.peak[1]) out.peak = [k, r.w]

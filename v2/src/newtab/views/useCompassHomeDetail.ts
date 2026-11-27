@@ -117,7 +117,7 @@ const statusDetailNote = computed(() => ({
   '': ''
 }[statusDetail.value]))
 const statusDetailEmpty = computed(() => ({
-  focus: '还没有设定主攻项目。去方向台把最重要的 1-2 个项目标为主攻。',
+  focus: '还没有设定主攻项目。去方向台把最重要的 1-3 个项目标为主攻。',
   unarchived: '没有待归档的任务——当前任务都有项目归属。',
   reuse: '本周还没有调出记录。打开一张资源卡后，会出现在这里。',
   in: '今天还没有新卡入台。用扩展快捷键采集一张，回执会告诉你它去了哪。',

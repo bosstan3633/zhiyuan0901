@@ -19,7 +19,7 @@
  * ★ 纪律：搬样式一律脚本切原文（`scripts/move-gs-baseline.cjs`），人只核对边界，不重打内容。
  *   另：注释里禁止出现 CSS 块注释的起止符号字面量（会提前闭合注释块，build 才拦得住）。
  */
-.gs-page-header { margin-bottom: 22px; position: relative; }
+.gs-page-header { margin-bottom: var(--sp-5); position: relative; }
 /* ★V3.8.41（P0-1 真 census 后首次浮出的真死 CSS）：R3-F38 的 `.gs-dash-hl` 三条
    （自身 / `:hover` / `.on`）随设置页仪表盘整段退役零挂载 —— 模板里全库 `class=` 零命中，判据亦零命中。
    此前一直被历史 census 快照救活而"看着绿"（真 census 换源后才第一次浮出来）。
@@ -29,16 +29,16 @@
 .gs-page-desc { font-size: var(--fs-sub); color: var(--text-3); margin-top: 4px; }
 /* 卡片 */
 /* R178（原型 settings-section-card）：radius-lg + 卡影 + 分隔节奏 */
-.gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.gs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: var(--sp-4); overflow: hidden; box-shadow: none; }
 /* ★V3.8.30（S2 补完）：分区名与左侧导航组标题同档（caption 11 / 700 / 正字距）。
    为什么敢压到 11：这一层不是「标题」，是卡片的**标签**——它下面紧跟的是 13px 正文，
    原来 13px/600 与正文同字号，只能靠字重区分，八区在长页里反而糊成一片。
    压小后层级由「字号差」变成「字号 + 字距 + 字重」三点差，且颜色仍是 --text（不下调，
    守 R153-4 的 AA 底线：11px 与 13px 的对比度门槛同为 4.5:1）。 */
-.gs-card-header { padding: 10px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.gs-card-header { padding: var(--sp-3) 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: var(--sp-2); }
 .gs-card-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text); letter-spacing: var(--tracking-sm); }
 .gs-card-desc { font-size: var(--fs-caption); color: var(--text-3); margin-left: auto; }
-.gs-card-body { padding: 16px 18px; }
+.gs-card-body { padding: var(--sp-4) 18px; }
 /* 设置行 */
 .gs-setting-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .gs-setting-row:last-child { border-bottom: none; }
@@ -74,13 +74,14 @@
 /* 隐藏的原生 file input（导入 JSON / 附件包 / 书签 HTML 三个触发器） */
 .gs-file-hidden { display: none; }
 /* 按钮 */
-.gs-btn { padding: 7px 16px; border-radius: 8px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: all var(--dur); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
-.gs-btn:hover { border-color: var(--accent); color: var(--accent); }
+.gs-btn { min-height: 32px; padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-xs); font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast); display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); font-family: inherit; }
+.gs-btn:hover { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-light); }
 .gs-btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .gs-btn-primary:hover { background: var(--accent-hover); }
 .gs-btn-danger { color: var(--danger); border-color: rgba(196,68,68,.3); }
 .gs-btn-danger:hover { background: var(--tag-danger-bg); border-color: var(--danger); }
 .gs-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.gs-btn:focus-visible, .gs-input:focus-visible, .gs-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------------------------------------------------------------
    ★V3.8.42（P0-3 第三批）随「扩展设置 / 快捷键」等子域共享而并入本表：

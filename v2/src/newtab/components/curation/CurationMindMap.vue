@@ -91,6 +91,7 @@ const dropHint = ref('')
 const canvasRef = ref<HTMLElement | null>(null)
 const shellRef = ref<HTMLElement | null>(null)
 const localFallback = ref(false)
+const helpOpen = ref(false)
 
 /* V3.9.14：树状连线改用真实节点坐标生成 SVG 正交折线。
    父子分支在 DOM 里是横向 flex，但父节点与子节点并非天然同高；用伪元素固定
@@ -471,8 +472,13 @@ onBeforeUnmount(() => {
         :title="fullscreen ? '退出全屏（Esc）' : '全屏编辑策展画布'" @click="toggleFullscreen">
         <Icon name="fullscreen" :size="12"/> {{ fullscreen ? '退出全屏' : '全屏' }}
       </button>
+      <button class="mindmap-action mindmap-help-trigger" type="button" :aria-expanded="helpOpen"
+        aria-controls="mindmap-shortcuts" :title="helpOpen ? '收起画布快捷键' : '查看画布快捷键'"
+        @click="helpOpen = !helpOpen">
+        <Icon name="question" :size="13"/> {{ helpOpen ? '收起帮助' : '快捷键' }}
+      </button>
     </div>
-    <div class="mindmap-help" aria-label="思维导图快捷操作">
+    <div v-show="helpOpen" id="mindmap-shortcuts" class="mindmap-help" aria-label="思维导图快捷操作">
       <span><kbd>Tab</kbd> 创建子分支</span>
       <span><kbd>Ctrl+Enter</kbd> 创建同级</span>
       <span><kbd>Enter</kbd> 编辑标题</span>

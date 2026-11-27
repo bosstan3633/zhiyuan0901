@@ -35,9 +35,11 @@ check('S1-1 当前态是形状信号不是深浅差：gs-nav-item.active 带 2px
     && bar.includes('position: absolute');
 });
 
-check('S1-2 竖条是基类定位的绝对子元素：.gs-nav-item 本体必须 position:relative，否则竖条会飞到设置页左上角', () => {
+check('S1-2 竖条是基类定位的绝对子元素：.gs-nav-item 本体必须 position:relative，否则竖条会飞到设置页左上角（V4.7.5 重指：7px 10px 旧像素锚改为语义间距与 32px 控件高度）', () => {
   const base = (GS.match(/^\.gs-nav-item \{[^}]*\}/m) || [''])[0];
-  return base.includes('position: relative') && base.includes('padding: 7px 10px');
+  return base.includes('position: relative')
+    && base.includes('padding: var(--sp-2) var(--sp-3)')
+    && base.includes('min-height: 32px');
 });
 
 check('S1-3 当前态底色与文字仍是 accent 系（不退回整块中性填充）：active 用 accent-light 底 + accent-ink 字', () => {
@@ -177,20 +179,20 @@ check('S3-5 云操作共用忙碌锁：登录、检查、上传、恢复在请�
 });
 
 /* ============ S4 · 主题选择器 ============ */
-check('S4-1（V4.5.0）四套正式主题都是样例卡：光速黑 / 极简白 / 纸墨白 / OPPO 绿各有三色 palette，auto 与 linear 不再出现在选择器', () => {
+check('S4-1（V4.7.6）四套正式主题都是样例卡：光速黑 / 极简白 / 纸墨白 / 知源蓝各有三色 palette，auto 与 linear 不再出现在选择器', () => {
   const n = (APP.match(/palette: \[/g) || []).length;
   const items = (APP.match(/\{ id: '(raycast|apple|notion|oppo)'/g) || []).length;
   if (n !== 4 || items !== 4) console.log('     palette ' + n + ' / 主题 ' + items);
   return n === 4 && items === 4 && !APP.includes("id: 'auto'") && !APP.includes("id: 'linear'");
 });
 
-check('S4-2（V4.5.0）四套色板都取自真实令牌：raycast / apple / notion / oppo 与 tokens.css 的 bg / surface / accent 逐值对上', () => {
+check('S4-2（V4.7.6）四套色板都取自真实令牌：raycast / apple / notion / oppo 与 tokens.css 的 bg / surface / accent 逐值对上', () => {
   const tokens = read('/shared/styles/tokens.css');
-  return tokens.includes('--bg: #080A0D;') && tokens.includes('--bg: #F3F7FA;') && tokens.includes('--bg: #F7F6F1;') && tokens.includes('--bg: #F2F7F4;')
-    && APP.includes("palette: ['#080A0D', '#11161C', '#b54747']")
+  return tokens.includes('--bg: #080A0D;') && tokens.includes('--bg: #F3F7FA;') && tokens.includes('--bg: #F7F6F1;') && tokens.includes('--bg: #F2F7FA;')
+    && APP.includes("palette: ['#080A0D', '#11161C', '#1579ad']")
     && APP.includes("palette: ['#F3F7FA', '#FFFFFF', '#0f6f9e']")
     && APP.includes("palette: ['#F7F6F1', '#FFFEFA', '#0b668f']")
-    && APP.includes("palette: ['#F2F7F4', '#FFFFFF', '#168457']");
+    && APP.includes("palette: ['#F2F7FA', '#FFFFFF', '#0e7aa6']");
 });
 
 check('S4-3 当前态双信号 + 原生可聚焦：选中行 accent 描边且带 ✓ 图标；选项是 button 不是 div（Tab 能到）', () => {

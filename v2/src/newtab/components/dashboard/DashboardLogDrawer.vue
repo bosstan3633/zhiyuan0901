@@ -101,7 +101,7 @@ const filtered = computed<CardEvent[]>(() => {
 })
 
 const ACT_BADGE: Record<EventAction, string> = {
-  create: '+ 新增', call: '↗ 调出', delete: '− 删除', restore: '↩ 恢复', status: '◐ 状态变更', purge: '永久删除'
+  create: '+ 新增', call: '↗ 调出', delete: '− 删除', restore: '↩ 恢复', status: '◐ 状态变更', purge: '永久删除', edit: '✎ 修改', outcome: '↗ 成果交付'
 }
 const KIND_LABEL: Record<CardEvent['kind'], string> = { resource: '资源', task: '任务', curiosity: '好奇', topic: '选题', system: '系统' }
 const pad2 = (n: number): string => String(n).padStart(2, '0')

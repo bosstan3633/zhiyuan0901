@@ -17,7 +17,7 @@
  *   - --toast-fg / --toast-bg ≥ 4.5 · --toast-action / --toast-bg ≥ 4.5（R146 曾踩 1.98:1）
  *   - --heat-ink / --surface ≥ 4.5 · --heat-ink / --surface-2 ≥ 4.5（R172-T3：热力段专用文字色；
  *     图例注释 / 概览带人话句高亮 / 代码片都压在 surface 家族上）+ 热力令牌 8/8 齐全
- *   - 四主题 --accent 互不相同，并按主题校验色相：光速黑暗红 / 浅色主题 Logo 蓝 / OPPO 绿
+ *   - 四主题 --accent 互不相同，并统一落在知源 Logo 蓝色相族
  *   - 四主题 --heat-5 互不相同（顶档色是四主题可辨性的最后一道）
  * 另打印**信息项**（不作判据）：accent/accent-light（同色系淡底深字固有上限 ~3.3:1）、
  *   三主题 accent 色相角矩阵（"两两可辨"的最终判据是 theme-audit 截图，此处只给数值参考）。
@@ -125,10 +125,10 @@ if (uniq.size !== THEMES.length) { fail++; console.log(`  ✗ accent 存在重�
 else console.log(`  ✓ 四主题 accent 互不相同：${THEMES.map((t) => `${t}=${accents[t]}`).join(' · ')}`)
 const accentHues = THEMES.map((t) => [t, hsl(P(accents[t]))[0]])
 const hueRange = {
-  raycast: [345, 15],
+  raycast: [185, 215],
   apple: [185, 215],
   notion: [185, 215],
-  oppo: [135, 170],
+  oppo: [185, 215],
 }
 const inRange = (h, range) => range[0] > range[1] ? (h >= range[0] || h <= range[1]) : (h >= range[0] && h <= range[1])
 const offContract = accentHues.filter(([t, h]) => !inRange(h, hueRange[t]))

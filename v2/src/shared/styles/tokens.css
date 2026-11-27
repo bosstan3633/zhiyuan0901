@@ -33,6 +33,14 @@
      各自抄一串 ui-monospace, Menlo, Consolas…（三处字面量、顺序还不一样），
      等宽是"要逐位比对字符"的场景（快捷键、版本号、路径），字体栈必须全站一致。 */
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --surface-panel: var(--surface);
+  --surface-canvas: var(--bg);
+  --line-divider: var(--border);
+  --shadow-panel: none;
+  --radius-panel: var(--radius-lg);
+  --radius-card: var(--radius-sm);
+  --radius-control: var(--radius-xs);
+  --page-gutter: var(--sp-6);
 
   /* 字号层级（R155-U4：**按全站真实分布重定阶**，不再是先验的 5 档）
      背景：R155 实测 src 内 `font-size` 字面量共 **28 种取值 / 约 1200 处**，而 `var(--fs-*)`
@@ -144,9 +152,10 @@
   --card-min-w: 260px;
 }
 
-/* ===== V4.4.1 OPPO 四主题 =====
-   设计口径：低饱和蓝黑/冷白/暖白/绿意冷白、柔和发丝线、较大的圆角与间距；
-   光速黑以暗红作为高识别强调，其余主题保留知源 Logo 蓝，OPPO 绿单独成主题。 */
+/* ===== V4.7.6 知源 Logo 蓝四主题 =====
+   设计口径：低饱和蓝黑/冷白/暖白/清透冷白、柔和发丝线、较大的圆角与间距；
+   四套主题的主行动与当前态统一使用知源 Logo 蓝族，按背景明度各自校准，
+   不再把 OPPO 绿或暗红作为主色。 */
 
 /* 光速黑 · raycast（默认） */
 :root,
@@ -161,17 +170,17 @@
   --text-2: rgba(225, 236, 248, 0.74);
   --text-3: rgba(216, 228, 241, 0.53);
   --text-4: rgba(216, 228, 241, 0.34);
-  --accent: #B54747;
-  --accent-2: #E28A86;
-  --accent-light: rgba(181, 71, 71, 0.18);
-  --accent-hover: #C55A5A;
-  --accent-ink: #F2B3B3;
-  --accent-glow: rgba(197, 90, 90, 0.28);
-  --heat-0: rgba(197, 90, 90, 0.05);
-  --heat-1: #3D1D20; --heat-2: #55272B; --heat-3: #703337;
-  --heat-4: #8B3E43; --heat-5: #AD4A50;
-  --heat-ink: #EBA7A7;
-  --heat-ring: rgba(197, 90, 90, 0.52);
+  --accent: #1579AD;
+  --accent-2: #79C8EF;
+  --accent-light: rgba(21, 121, 173, 0.22);
+  --accent-hover: #1C90C8;
+  --accent-ink: #A8DDF5;
+  --accent-glow: rgba(32, 145, 200, 0.32);
+  --heat-0: rgba(21, 121, 173, 0.08);
+  --heat-1: #1D3341; --heat-2: #24475D; --heat-3: #2C5C79;
+  --heat-4: #357497; --heat-5: #4593BB;
+  --heat-ink: #A8DDF5;
+  --heat-ring: rgba(69, 147, 187, 0.55);
   --success: #43B978;
   --warning: #D6A442;
   --danger: #E76666;
@@ -204,7 +213,7 @@
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.46);
   --shadow-modal: 0 2px 10px rgba(0, 0, 0, 0.32), 0 30px 90px rgba(0, 0, 0, 0.62);
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent);
-  --toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #F2B3B3;
+  --toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #A8DDF5;
 }
 
 /* 极简白 · apple（冷白 + 知源蓝） */
@@ -321,28 +330,28 @@
   --toast-bg: #FFFEFA; --toast-fg: #272219; --toast-action: #085678;
 }
 
-/* OPPO 绿（清透冷白 + 知源绿） */
+/* 知源蓝（清透冷白 + 知源 Logo 蓝；沿用 OPPO 式材质与结构） */
 [data-theme='oppo'] {
-  --bg: #F2F7F4;
+  --bg: #F2F7FA;
   --surface: #FFFFFF;
-  --surface-2: #EAF3EE;
-  --surface-3: #DFECE4;
-  --border: rgba(17, 65, 45, 0.09);
-  --border-strong: rgba(17, 65, 45, 0.17);
-  --text: rgba(13, 34, 24, 0.94);
-  --text-2: rgba(19, 51, 36, 0.68);
-  --text-3: rgba(22, 58, 40, 0.56);
-  --text-4: rgba(22, 58, 40, 0.31);
-  --accent: #168457;
-  --accent-2: #48B982;
-  --accent-light: #E1F2E9;
-  --accent-hover: #0F7048;
-  --accent-ink: #0B6B43;
-  --accent-glow: rgba(22, 132, 87, 0.17);
-  --heat-0: #EDF6F1; --heat-1: #CDE9DB; --heat-2: #AFDBC5; --heat-3: #8FCBAD;
-  --heat-4: #61B18A; --heat-5: #348B66;
-  --heat-ink: #286B50;
-  --heat-ring: rgba(52, 139, 102, 0.38);
+  --surface-2: #EAF3F8;
+  --surface-3: #DFECF3;
+  --border: rgba(17, 50, 65, 0.09);
+  --border-strong: rgba(17, 50, 65, 0.17);
+  --text: rgba(13, 28, 36, 0.94);
+  --text-2: rgba(19, 43, 55, 0.68);
+  --text-3: rgba(22, 48, 61, 0.56);
+  --text-4: rgba(22, 48, 61, 0.31);
+  --accent: #0E7AA6;
+  --accent-2: #45AEDA;
+  --accent-light: #E2F2F8;
+  --accent-hover: #0A678E;
+  --accent-ink: #085E82;
+  --accent-glow: rgba(14, 122, 166, 0.17);
+  --heat-0: #EDF5F8; --heat-1: #CEE6F0; --heat-2: #AED8E7; --heat-3: #8AC8DE;
+  --heat-4: #5BAECB; --heat-5: #328AAE;
+  --heat-ink: #286784;
+  --heat-ring: rgba(50, 138, 174, 0.38);
   --success: #16864B;
   --warning: #8C681B;
   --danger: #C34444;
@@ -358,8 +367,8 @@
   --tag-ok-text: #0E693F;
   --tag-danger-bg: #FAE8E6;
   --tag-danger-text: #A73535;
-  --tag-neutral-bg: #EAF3EE;
-  --tag-neutral-text: rgba(22, 58, 40, 0.52);
+  --tag-neutral-bg: #EAF3F8;
+  --tag-neutral-text: rgba(22, 48, 61, 0.52);
   --tag-info-bg: #E8F2F7;
   --tag-info-text: #26698F;
   --success-bg-soft: rgba(22, 134, 75, 0.09);
@@ -368,14 +377,14 @@
   --warning-border: rgba(140, 104, 27, 0.32);
   --danger-bg-soft: rgba(195, 68, 68, 0.08);
   --danger-border: rgba(195, 68, 68, 0.32);
-  --overlay-bg: rgba(11, 40, 27, 0.30);
-  --shadow-sm: 0 2px 8px rgba(15, 63, 42, 0.04);
-  --shadow: 0 10px 30px rgba(15, 63, 42, 0.07);
-  --shadow-hover: 0 16px 40px rgba(15, 63, 42, 0.10);
-  --shadow-lg: 0 24px 64px rgba(15, 63, 42, 0.13);
-  --shadow-modal: 0 8px 24px rgba(15, 63, 42, 0.08), 0 34px 90px rgba(15, 63, 42, 0.18);
+  --overlay-bg: rgba(11, 29, 38, 0.30);
+  --shadow-sm: 0 2px 8px rgba(15, 43, 58, 0.04);
+  --shadow: 0 10px 30px rgba(15, 43, 58, 0.07);
+  --shadow-hover: 0 16px 40px rgba(15, 43, 58, 0.10);
+  --shadow-lg: 0 24px 64px rgba(15, 43, 58, 0.13);
+  --shadow-modal: 0 8px 24px rgba(15, 43, 58, 0.08), 0 34px 90px rgba(15, 43, 58, 0.18);
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-  --toast-bg: #FFFFFF; --toast-fg: #0D2218; --toast-action: #0B6B43;
+  --toast-bg: #FFFFFF; --toast-fg: #0D1E28; --toast-action: #085E82;
 }
 
 /* ===== 全局重置 ===== */
@@ -383,10 +392,7 @@
 
 html, body {
   font-family: var(--font-sans);
-  background:
-    radial-gradient(circle at 8% -8%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 32rem),
-    radial-gradient(circle at 94% 8%, color-mix(in srgb, var(--accent-2) 5%, transparent), transparent 28rem),
-    var(--bg);
+  background: var(--surface-canvas);
   color: var(--text);
   line-height: 1.6;
   font-size: var(--fs-body);
@@ -395,6 +401,18 @@ html, body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+@media (max-width: 1100px) {
+  :root { --page-gutter: var(--sp-5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* R133-E3（批次 E）：选区色统一 —— 强调色 18% 软底取代浏览器默认实色蓝（四主题随 --accent 走） */

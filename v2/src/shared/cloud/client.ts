@@ -267,7 +267,7 @@ export const cloud = {
       id: string
       device_id: string | null
       event_ts: string
-      action: 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'
+      action: 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call' | 'edit' | 'outcome'
       card_kind: 'resource' | 'task' | 'curiosity' | 'topic' | 'system'
       card_id: string | null
       title_snapshot: string | null

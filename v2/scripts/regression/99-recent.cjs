@@ -118,11 +118,14 @@ check('R169-11（V4.4.0 重指）★模型只有“排序 + 判词”的权力�
     && a.includes("if (!w || it.confidence !== 'high') continue")
     && a.includes('c.facts.join')
 });
-check('R169-12 ★「为什么是这三件」是右上角一枚小图标，不是新增模块：入口在 card-head 内、浮层 v-if（不开就不在 DOM，与 R168-2 同一纪律）、荐标只给 auto 格、手工格明说"系统不评价"', () => {
+check('R169-12（V4.7.6 重指）页头「为什么是这三件」入口与整块浮层退役；自动推荐仍保留行内依据与手工锁定标识，换一批和 AI 复核收进工作板更多菜单', () => {
   const ch = read('/newtab/views/CompassHome.vue')
-  return ch.includes('data-testid="focus-why-ico"') && ch.includes('v-if="whyOpen" class="focus-why"')
-    && ch.includes('v-if="c.slot?.auto === true"') && ch.includes('这一格是你自己选的，系统不评价')
-    && ch.includes('不改任务卡、不改状态、不改归属')
+  return !ch.includes('data-testid="focus-why-ico"') && !ch.includes('v-if="whyOpen" class="focus-why"')
+    && ch.includes('v-if="c.slot?.auto === true"') && ch.includes('class="focus-lock">手动锁定')
+    && ch.includes('class="focus-reason-line"')
+    && ch.includes('class="focus-more-menu"')
+    && ch.includes('reshuffleFocus(); focusMoreOpen = false')
+    && ch.includes('openFocusReview(); focusMoreOpen = false')
 });
 check('R169-13 ★整行归属=进方向树的唯一入口', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-crumb') && !h.includes('gotoTree');  });
 check('R169-14（V4.4.0 重指）子任务卡内视口与写入口整体退役；今日三件事整行进任务详情，槽位完成仍由 toggleTodayDone 落库，FocusDetail 不再挂首页', () => {
@@ -257,7 +260,7 @@ check('R174-3 ★zy_daily_stats 落盘（04-69 T1）：热力图不褪色的数�
     && st.includes('pendingWriteData = data') && st.includes('pendingWriteData = null') && st.includes('scheduledData = data')
     && (rp.match(/scheduleDailyStatsWrite\(cache\)/g) || []).length === 2 && !rp.includes('DAILY_STATS_STORE_KEY')
     && ds.includes('export function mergeDailyStats(') && ds.includes('export function boundaryDayOf(') && ds.includes('export function eventFieldW(')
-    && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, x: sr.x') && ds.includes('if (k > boundary) continue')
+    && ds.includes('c: sr.c, del: sr.del, s: sr.s, u: sr.u, edit: sr.edit, outcome: sr.outcome, x: sr.x') && ds.includes('if (k > boundary) continue')
     && ds.includes('if (k === boundary)')   // ★R176 重指：边界日当天留重建
     && st.includes('export function loadDailySnapshotCache') && st.includes('const snap = await readLatestSnapshotForWrite()') && st.includes('mergeDailyStats(snap, rebuild, boundaryDayOf(events))')
     && !/writeDailyStatsNow[\s\S]{0,600}mergeDailyStats\(snapCache/.test(st)   // ★R176 负锚：写路径不吃陈旧缓存
@@ -757,7 +760,7 @@ check('R175-3 ★项目全景轨道规则可证明（V3.9.25 重指）：1 条�
     && lane.includes('<span class="lane-status">{{ m.done }}/{{ m.total }} 任务</span>')
     && !lane.includes('-webkit-line-clamp: 2');
 });
-check('R175-4（V4.3.5 重指）三件事恒三槽：共享 normalizedFocusSlots 始终返回三格，模板与“为什么这样排”消费同一数组，失效槽保留原始 idx', () => {
+check('R175-4（V4.7.6 重指）三件事恒三槽：共享 normalizedFocusSlots 始终返回三格，工作板消费同一数组，失效槽保留原始 idx', () => {
   const home = codeOnly(read('/newtab/views/CompassHome.vue'))
   const logic = codeOnly(read('/newtab/views/useCompassHome.ts'))
   const slots = codeOnly(read('/shared/utils/focusSlots.ts'))
@@ -765,7 +768,7 @@ check('R175-4（V4.3.5 重指）三件事恒三槽：共享 normalizedFocusSlots
     && logic.includes('const focusCells = computed<FocusCell[]>')
     && logic.includes('return raw.map((slot, idx) =>')
     && home.includes('v-for="c in focusCells" :key="c.idx"')
-    && (home.match(/v-for="c in focusCells"/g) || []).length >= 2
+    && logic.includes('focusCells,')
     && home.includes('计划位 {{ todayFocusList.length }}/3');
 });
 check('R175-5（V4.3.1 重指）主攻不再占用独立详情模块：全部主攻进入任务工作面快捷筛选；“去归位”就地打开项目/指标选择弹窗，不跳路由', () => {

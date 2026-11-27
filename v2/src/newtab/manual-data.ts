@@ -42,7 +42,7 @@ function assignCommandList(): string {
 
 export const MANUAL: ManualPart[] = [
   {
-    title: '流程篇 · 先看这里（V4.7.3）',
+    title: '流程篇 · 先看这里（V4.7.6）',
     sections: [
       { id: 'flow-1', title: '一张图看懂：从采集到行动', html: `
         <p>先用流程理解产品，再看后面的细节。每一步都只问一个问题：<b>这条信息下一步要去哪里？</b></p>
@@ -142,8 +142,8 @@ export const MANUAL: ManualPart[] = [
           <tr><td>5</td><td>方向管理</td><td>方向台（愿景 / 使命 / 战略目标 / 项目 / 指标 / 任务）</td><td>锚定主攻</td></tr>
           <tr><td>6</td><td>完整导出</td><td>设置 → 导出全部数据</td><td>一份 JSON</td></tr>
         </table>
-        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定无默认键命令（全局设置 / 直达资源卡池 / 快速采集任务 / 直达好奇心卡池 / 直达任务卡池 / 直达选题卡池 / 立即同步云端 / 打开今日战报 / 打开画像时间轴 / 打开方向树策展模式）</div>
-        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。上列无默认键命令均可按需分配；任务 / 选题卡池命令会直达一级调度台看板并复位全部项目、全部状态；“立即同步云端”会直接执行一次同步而不是打开设置页；“打开画像时间轴”直达画像洞察时间轴。设置页不再保留快捷键设置入口，时间轴页提供浏览器快捷键直达按钮。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
+        <div class="mc-flow">🔍 <kbd>Ctrl</kbd>+<kbd>K</kbd> ｜ 📥 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> ｜ 💡 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>I</kbd> ｜ ⚙ 在 <code>chrome://extensions/shortcuts</code> 绑定无默认键命令（全局设置 / 直达资源卡池 / 快速采集任务 / 直达好奇心卡池 / 直达任务全景 / 直达选题卡池 / 立即同步云端 / 打开今日战报 / 打开画像时间轴 / 打开方向树策展模式）</div>
+        <div class="mc-tip">💡 键盘党第一步：打开 <code>chrome://extensions/shortcuts</code> 把三键改成你的肌肉记忆。上列无默认键命令均可按需分配；任务命令直达方向台第 6 层任务全景，选题命令直达一级调度台选题看板并复位全部项目、全部状态；“立即同步云端”会直接执行一次同步而不是打开设置页；“打开画像时间轴”直达画像洞察时间轴。设置页不再保留快捷键设置入口，浏览器命令统一在 Chrome 快捷键页配置。检索结果行 hover 出 🗑 可<strong>直接删除</strong>（应用内与网页浮层皆可，无二次确认，回执点名是哪张卡并给撤销（窗口 6 秒），超时后回收站仍可恢复）——R55 / R146。</div>
         <h4>每天的节奏 · 4 步闭环</h4>
         <div class="mc-steps">
           <div class="mc-step"><b class="mc-n">1</b><span>刷新 → 调度台：先看今日三件事（恒 3 槽），30 秒确认今天从哪出发</span></div>
@@ -355,7 +355,7 @@ export const MANUAL: ManualPart[] = [
           <li>全部节点点击即编辑（Enter 保存 / Esc 取消）；完整方向树默认全局展开，可逐层折叠，也可「⊞ 展开 / ⊟ 收起」一键全开全收。</li>
           <li>愿景 / 使命 / 战略目标三层——完整方向树呈现每个战略目标下的<strong>全部项目</strong>；🚀 主攻标记你此刻认定的方向（主攻标记的是重心，不是遮罩）；方向台页头以「方向健康度 / 主攻 / 停滞」直白呈现状态，六层计数统一在战略骨架条里读。</li>
           <li>项目「已完成」口径：手动标记 done/归档，或<strong>项目下任务全部完成</strong>自动视为完成；「👁 已完成项目」显隐开关在主航线 / 项目总览 / 完整方向树三处同步。</li>
-          <li>🚀 主攻（最多 2 个）直通调度台速览；14 天无推进自动亮 ⚠ 停滞。</li>
+          <li>🚀 主攻（最多 3 个）展示在调度台顶部，点击右侧滑出项目详情；14 天无推进自动亮 ⚠ 停滞。</li>
           <li>愿景/使命只承担方向锚点，不挂资源卡或好奇心卡；卡间挂载只保留任务→资源、选题→资源、策展节点→资源/选题四条。</li>
         </ul>
         <div class="mc-tip">💡 不必一次写完六层。今天只有一个模糊愿景加一个项目，也完全合法——方向是长出来的，不是填出来的。</div>
@@ -377,7 +377,7 @@ export const MANUAL: ManualPart[] = [
         <table class="mc-table">
           <tr><th>现役读数</th><th>口径</th><th>照见什么</th></tr>
           <tr><td>方向健康度</td><td>未停滞战略目标数 ÷ 战略目标总数；某目标下最近一次任务更新超过 14 天记为停滞</td><td>方向是否成片沉默</td></tr>
-          <tr><td>主攻</td><td>可见项目中标记为主攻的数量，上限 2 个</td><td>重心是否明确且克制</td></tr>
+          <tr><td>主攻</td><td>可见项目中标记为主攻的数量，上限 3 个</td><td>重心是否明确且克制</td></tr>
           <tr><td>停滞项目</td><td>近 14 天无任务推进、且已有任务的可见项目数</td><td>哪些项目需要重新判断</td></tr>
           <tr><td>战略骨架六层计数</td><td>愿景 / 使命 / 战略目标 / 项目 / 成功指标 / 任务；六层账本只在骨架条读一处</td><td>方向树规模与下钻入口</td></tr>
         </table>

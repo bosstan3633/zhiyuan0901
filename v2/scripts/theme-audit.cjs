@@ -242,7 +242,7 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-overview', name: '概览 KPI 带',
+    id: 'dz-overview', name: '卡片分析 KPI 带',
     /* ★W12(V3.8.12)随迁备案：原判据守的是 DashboardOverview 的「概览带」——`.dz-ov` 容器 + 五枚
        `.dz-chip` + `.dz-calib` 口径表 + 说明默认藏/悬停才现。而 DashboardOverview.vue 已随 W10 三段式
        时间轴重构整体退役（本轮实测 `components/dashboard/` 下确无该文件），职责落到 PiHero：
@@ -254,6 +254,10 @@ const DASH_SCENES = [
        原 R173-5 的裁剪检测（防 .dz-sec overflow:hidden 裁掉浮层）在无自建浮层后无处施放。
        口径表 `.dz-calib` 在 dashboard.css 里仍有 7 条规则，但已无任何模板挂载点 ⇒ 随判据一并退役。 */
     judge: async (page) => {
+      /* V4.7.6 重指：年度热力已常驻页首，四格读数改由「卡片分析」页签承载。
+         先真实点击再量，量完回到默认时间轴，避免污染紧随其后的热力图场景。 */
+      await page.locator('.pi-view-tab[data-profile-view="analysis"]').click()
+      await page.waitForSelector('.pi-ov-kpis', { state: 'visible', timeout: 8000 })
       const base = await page.evaluate(() => {
         /* ★V3.9.3 第五次重指：四格核心读数从 PiHero 归位 PiOverview，
            承重锚改为 `.pi-ov-kpis > .pi-ov-kpi`。守的行为不变：
@@ -264,6 +268,7 @@ const DASH_SCENES = [
         const errPill = !!document.querySelector('.pi-btn-warn')
         return { sec: !!document.querySelector('.pi-ov-kpis'), n: chips.length, rows, titled, errPill }
       })
+      await page.locator('.pi-view-tab[data-profile-view="timeline"]').click()
       const N = 4
       return {
         ok: base.sec && base.n === N && base.rows === 1 && base.titled === N && !base.errPill,
@@ -2032,15 +2037,16 @@ if (argv.scenes) {
       shots.push(f)
       console.log(`  ${info.ok ? '✓' : '✗'} ${theme.padEnd(8)} ${sc.name.padEnd(9)} ${info.txt}   → ${path.basename(f)} (${Math.round(fs.statSync(f).size / 1024)}KB)`)
       if (!info.ok) overlayFail.push(`${theme}/${sc.id}：${info.txt}`)
-      await ovPage.keyboard.press('Escape').catch(() => {})
+      await within(ovPage.keyboard.press('Escape'), 2000, '浮层 Esc 收尾').catch(() => {})
       await ovPage.waitForTimeout(300)
     }
 
     console.log(`  主题 ${theme} 落盘（data-theme=${okTheme}）`)
   }
 
-  await page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }).catch(() => {})
-  await ctx.close()
+  await within(page.evaluate(async () => { await chrome.storage.local.remove(['zy_ai_v1']) }), 5000, '清理 AI 凭据').catch(() => {})
+  /* 先落盘再关浏览器：macOS 上最后一张 content 浮层偶发让 ctx.close() 卡住，
+     但截图与 DOM 普查此时已经完整。把证据写入提前，避免“图全拍完、普查丢光”。 */
   fs.writeFileSync(path.join(outDir, 'class-census.json'), JSON.stringify({
     生成: new Date().toISOString(), 场景数: shots.length, token数: classSeen.size,
     计数: Object.fromEntries([...classSeen.entries()].sort())
@@ -2079,6 +2085,7 @@ if (argv.scenes) {
   }
   fs.writeFileSync(path.join(outDir, 'scene-state.json'), JSON.stringify({ 生成: new Date().toISOString(), 场景数: Object.keys(sceneState).length, 取样点: STATE_PTS, 状态: sceneState }, null, 1))
   console.log(`场景几何记账：${Object.keys(sceneState).length} 张图的 ${STATE_PTS.length} 个取样点 → ${path.join(outDir, 'scene-state.json')}`)
+  await within(ctx.close(), 8000, '浏览器关闭').catch(() => {})
   console.log(`\ntheme-audit 完成：${shots.length} 图 → ${outDir}`)
   // ★B3（V3.8.28）修：原式一律用 VIEWS / MODAL_VIEWS / DRAWER_VIEWS / DASH_SCENES 的**全量长度**，
   //   于是 `--scenes=` 过滤时「拍到的图」永远少于「应有图数」，收尾必假红 exit 1 —— 明明全拍成功了。

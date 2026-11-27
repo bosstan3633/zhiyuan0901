@@ -64,12 +64,14 @@ const layerRows6 = computed(() => {
   }
   return d.value.tasks.filter(t => !t.deletedAt).map(t => {
     const p = t.metricId ? path.get(t.metricId) : undefined
+    /* 无指标任务只认真正存在的项目 id；历史数据里 projectId 可能指向方向节点或已删项目。 */
+    const directProj = !p && t.projectId ? findProject(t.projectId) : undefined
     return {
       id: t.id, title: t.title, status: t.status,
       metricId: p?.metricId || null,
       metricTitle: p?.metricTitle || null,
-      projName: p?.projName || null,
-      projId: p?.projId || t.projectId || '',
+      projName: p?.projName || directProj?.name || null,
+      projId: p?.projId || directProj?.id || '',
       dirName: p?.dirName || null,
       orphan: !p
     }

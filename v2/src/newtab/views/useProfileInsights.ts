@@ -169,7 +169,7 @@ const heroMission = computed(() => {
   const c = gd.value.compass
   return (c?.mission?.content || '').trim() || (c?.vision?.content || '').trim()
 })
-/** ★W17-C09 · 方向状态面板的主攻项目（≤2）：全名 + 状态 + 进度 + 未完成任务数，
+/** ★W17-C09 · 方向状态面板的主攻项目（≤3）：全名 + 状态 + 进度 + 未完成任务数，
  *  与方向台同一口径（isProjectDone / isProjectStalled 由 useCompass 提供）。 */
 const heroFocusProjects = computed<FocusProjectView[]>(() => {
   const out: FocusProjectView[] = []
@@ -182,7 +182,7 @@ const heroFocusProjects = computed<FocusProjectView[]>(() => {
       state: isProjectDone(p) ? 'done' : isProjectStalled(p) ? 'stalled' : 'active',
       open
     })
-    if (out.length >= 2) break
+    if (out.length >= 3) break
   }
   return out
 })

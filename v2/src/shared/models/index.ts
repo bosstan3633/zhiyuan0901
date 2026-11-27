@@ -88,12 +88,12 @@ export interface Project {
    */
   nextStep?: string
   /**
-   * 是否主攻项目（最多2个；R91 起**直通调度台速览**——调度台首页顶部常驻主攻速览条）
+   * 是否主攻项目（V4.7.6 起最多 3 个；调度台顶部展示紧凑主攻模块）
    *
    * 注：原注释写的「同步至任务中心顶部」是指向一个已不存在的页面——旧「任务中心」页
    * （路由 `/tasks`）随 R49 退役，此后「跳任务中心」一律落到调度台首页 `/`
    * （`Workspace.goToTask` / `ResourceDetailDrawer` 都是 `router.push('/')` + 提示"已跳转任务中心"），
-   * 二者在用户侧已等价。R91 补齐后，手册「🚀 主攻（最多 2 个）直通调度台速览」不再是空头承诺。
+   * 调度台点击主攻项目直接打开右侧项目详情，不再跳转页面。
    */
   isFocused: boolean
   startDate?: string
@@ -650,6 +650,8 @@ export interface AppData {
   /** V4.5.0：选题卡 → 资源卡的独立关联记录。 */
   topicResourceLinks?: TopicResourceLink[]
   dailyFocus: DailyFocus
+  /** V4.7.6：仅隐藏指定日期的历史三件事镜像；不修改 dailyFocus 原始槽位。 */
+  focusHistoryHidden?: Record<string, Array<{ slotId: string; hiddenAt: number }>>
   /**
    * R169-T3（可选，零迁移）：今日三件事**自动推荐已写过**的日期（'YYYY-MM-DD'）。
    * 每天只在第一次打开调度台时写一次；同一天再开不重算——否则用户上午手工调过，
@@ -753,7 +755,7 @@ export interface UIPrefs {
   theme: string
   viewMode: 'list' | 'kanban' | 'card'
   /** 好奇心卡二级页视图；未写入 = 尚未手动选择（首次默认列表）。 */
-  curioViewMode?: 'card' | 'list' | 'kanban'
+  curioViewMode?: 'card' | 'list' | 'kanban' | 'timeline'
   tcSplitRatio: number
   /* R2-⑥：curSplit / spotSplit 两键随「项目调度卡」退役（R2-②）失去全部消费方后删除。
      老库里残留的这两个键不影响读取（UIPrefs 是宽松对象，多余键随写盘原样带回，无人读它）。 */

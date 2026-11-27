@@ -46,13 +46,16 @@ check('M3-2 ★V3.9.1 随迁备案：三件事工作单只保留一个主行动�
 });
 
 /* ============ M4 · 战报折叠 ============ */
-check('M4-1 ★V3.9.14 重指：战报仍是 tool 级单入口。入口移到页头动作区、与「为什么这样排」并排，不带 accent 实底，点击仍走 battleHost.openToday', () => {
+check('M4-1（V4.7.6 重指）战报是页头唯一战报入口，与紧凑主攻模块同排，不带 accent 实底，点击仍走 battleHost.openToday', () => {
   if (!HOME.includes('class="why-trigger battle-trigger"') || !HOME.includes('@click="openReview"')) return false;
   const fn = (HOME.match(/function openReview\(\)[^\n]*/) || [''])[0];
   if (!fn.includes('battleHost.value?.openToday()')) { console.log('     openReview 未指向 openToday：' + fn); return false; }
   /* 负锚：accent 软底那一条规则与类名都不许回来（先剥注释，避免注释里提一嘴就假红） */
   const code = codeOnly(HOME);
-  return !code.includes('foot-link.cta') && !code.includes('foot-link cta');
+  return HOME.includes('class="desk-focus-projects"')
+    && !code.includes('为什么这样排')
+    && !code.includes('AI 推荐今日重点')
+    && !code.includes('foot-link.cta') && !code.includes('foot-link cta');
 });
 
 check('M4-2 宿主不渲染常驻卡：TodayBattleHost 的可见内容全部挂在「日详情弹窗 / 记录抽屉」的开关之下（v-if / open），根节点只有一只空壳锚', () => {
@@ -68,10 +71,10 @@ check('M4-2 宿主不渲染常驻卡：TodayBattleHost 的可见内容全部挂�
 });
 
 /* ============ M5 · 三卡同构 ============ */
-check('M5-1（V4.7.0 重指）两张主工作板共用 lg 圆角；四卡页签共用同一块卡片池：任务页完整工作面、选题页复用管理器、好奇心页独立日历/看板、资源页仍用 hand-grid / hand-col 承接常用夹', () => {
+check('M5-1（V4.7.5 重指）两张主工作板共用 panel 语义圆角；四卡页签共用同一块卡片池：任务页完整工作面、选题页复用管理器、好奇心页独立日历/看板、资源页仍用 hand-grid / hand-col 承接常用夹', () => {
   const rule = (HOME.match(/^\.work-board,\n\.hand-board \{[^}]*\}/m) || [''])[0];
   if (!rule) { console.log('     规则缺失'); return false; }
-  return rule.includes('border-radius: 18px')
+  return rule.includes('border-radius: var(--radius-panel)')
     && rule.includes('background: var(--surface)')
     && HOME.includes('class="hand-grid hand-grid-aux')
     && HOME.includes('class="hand-col"')

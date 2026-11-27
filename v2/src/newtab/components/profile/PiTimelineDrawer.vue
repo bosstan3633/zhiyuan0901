@@ -39,6 +39,8 @@ const linkLabel = computed(() => {
   if (props.entry.linkType === 'file') return '打开本地文件'
   return '打开卡片链接'
 })
+
+const showAffiliation = computed(() => props.entry?.kind === 'task' || props.entry?.kind === 'topic')
 </script>
 
 <template>
@@ -58,11 +60,11 @@ const linkLabel = computed(() => {
       </section>
 
       <section class="ptd-facts">
-        <div>
+        <div v-if="showAffiliation">
           <span>所属项目</span>
           <b>{{ entry.project || '未关联项目' }}</b>
         </div>
-        <div>
+        <div v-if="showAffiliation">
           <span>成功指标</span>
           <b>{{ entry.metric || '未关联指标' }}</b>
         </div>

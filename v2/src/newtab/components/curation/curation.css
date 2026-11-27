@@ -40,12 +40,15 @@
 .mindmap-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 48px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
 }
+.mindmap-layout,
+.mindmap-history,
+.mindmap-action { flex: none; }
 .mindmap-title { display: flex; align-items: center; gap: 9px; min-width: 190px; }
 .mindmap-title-icon {
   width: 31px;
@@ -127,6 +130,7 @@
   color: var(--text-3);
   font-size: var(--fs-micro);
 }
+.mindmap-help-trigger { color: var(--text-3); }
 .mindmap-help span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .mindmap-help kbd {
   min-width: 22px;
@@ -159,7 +163,6 @@
   overflow: auto;
   padding: 30px 34px 70px;
   background:
-    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 28rem),
     radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--border) 50%, transparent) 1px, transparent 0) 0 0 / 20px 20px,
     linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 22%, var(--surface)), var(--surface));
 }
@@ -177,10 +180,11 @@
   background: var(--surface);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent);
   cursor: default;
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
-.mind-node:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
-.mind-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow-sm); }
+.mind-node:hover { border-color: var(--border-strong); }
+.mind-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
+.mind-node:focus-visible { outline: var(--focus-ring); outline-offset: 3px; }
 .mind-node.revealed { animation: mind-reveal 2.2s ease-out; }
 @keyframes mind-reveal {
   0%, 45% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent), var(--shadow-sm); }

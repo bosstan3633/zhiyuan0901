@@ -27,22 +27,27 @@ check('V473-1 ★时间轴默认 4 卡一行，仅提供 4 / 5 / 6 卡三档，�
     && !TIMELINE.includes('repeat(3, minmax(0, 1fr))')
 })
 
-check('V473-2 ★时间轴默认近 30 天，支持类型筛选、按类型分组折叠与四类角标', () => {
+check('V473-2（V4.7.6 重指）时间轴默认近 30 天，支持全部 / 四类卡 / 三件事筛选并按日倒序呈现', () => {
   return TIMELINE.includes('const TIMELINE_WINDOW_DAYS = 30')
     && TIMELINE.includes('event.ts < windowStart')
-    && TIMELINE.includes("type TimelineFilter = 'all' | CardKind")
+    && TIMELINE.includes("type TimelineFilter = 'all' | 'focus' | CardKind")
     && TIMELINE.includes("const KIND_FILTERS")
-    && TIMELINE.includes("groupByKind")
-    && TIMELINE.includes("toggleKindGroup")
+    && TIMELINE.includes("{ key: 'focus', label: '三件事' }")
+    && TIMELINE.includes('const groupedEntries = computed')
     && TIMELINE.includes("resource: { label: '资源'")
     && TIMELINE.includes("task: { label: '任务'")
     && TIMELINE.includes("topic: { label: '选题'")
     && TIMELINE.includes("curiosity: { label: '好奇'")
 })
 
-check('V473-3 ★时间轴详情与卡片本体都提供链接直达，资源卡双击走统一资源打开', () => {
-  return TIMELINE.includes("@dblclick.stop.prevent=\"openLink(entry)\"")
-    && TIMELINE.includes('function openLink(entry: PiTimelineEntry): void')
+check('V473-3（V4.7.4 重指）时间轴详情与卡片本体都提供链接直达：单击延时开详情，资源卡双击取消详情并走统一资源打开', () => {
+  return TIMELINE.includes('@click="onCardClick(entry)"')
+    && TIMELINE.includes('@dblclick.stop.prevent="onCardDblClick(entry)"')
+    && TIMELINE.includes('function onCardClick(entry: PiTimelineEntry): void')
+    && TIMELINE.includes('function onCardDblClick(entry: PiTimelineEntry): void')
+    && TIMELINE.includes('}, 260)')
+    && TIMELINE.includes('clearClickTimer()')
+    && TIMELINE.includes("if (entry.kind === 'resource' || entry.link) emit('open-link', entry)")
     && TIMELINE_DRAWER.includes('打开卡片链接')
     && TIMELINE_DRAWER.includes('@click="emit(\'open-link\', entry)"')
     && PROFILE.includes("if (entry.kind === 'resource')")
@@ -51,16 +56,17 @@ check('V473-3 ★时间轴详情与卡片本体都提供链接直达，资源卡
     && PROFILE.includes('openTopicOutcome(topic)')
 })
 
-check('V473-4 ★画像洞察压缩首屏，时间轴路由直达，AI 洞察注入时间轴事实与方向树上下文', () => {
-  return PROFILE.includes("type ProfileView = 'timeline' | 'heatmap'")
+check('V473-4（V4.7.6 重指）画像年度热力前置，时间轴路由直达，AI 洞察注入时间轴事实与方向树上下文', () => {
+  return PROFILE.includes("type ProfileView = 'timeline' | 'analysis'")
     && PROFILE.includes("return 'timeline'")
-    && PROFILE.includes("route.query.view === 'heatmap'")
+    && PROFILE.includes("route.query.view === 'analysis'")
     && PROFILE.includes("value === 'timeline'")
     && PROFILE.includes('const directionContext = computed')
     && PROFILE.includes('方向树上下文：')
     && PROFILE.includes('...directionContext.value.map(line => `- ${line}`)')
     && PROFILE.includes('const profileInsightFacts = computed')
     && PROFILE.includes('近 30 天')
+    && PROFILE.includes('<PiAnnualHeatmap')
     && PROFILE_CSS.includes('pi-rmods-single')
 })
 
@@ -68,7 +74,7 @@ check('V473-5 ★浏览器快捷键新增直达时间轴；设置页左栏快捷
   return MANIFEST.includes("'open-profile-timeline'")
     && BACKGROUND.includes("case 'open-profile-timeline'")
     && BACKGROUND.includes("openNewtabRoute('/profile?view=timeline')")
-    && BACKGROUND.includes('/?tab=task&fresh=1&view=board&freshAt=')
+    && BACKGROUND.includes('/compass?layer=6&fresh=1&freshAt=')
     && BACKGROUND.includes('/?tab=topic&fresh=1&view=board&freshAt=')
     && !SETTINGS.includes("{ key: 'shortcuts'")
 })

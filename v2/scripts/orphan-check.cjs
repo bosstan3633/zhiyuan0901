@@ -140,6 +140,11 @@ const isEntry = (f) => {
        ② 删任何一个文件前先 grep regression/ 看有没有判据在读它的本体（读它的注释不算，读 includes 才算）；
        ③ "保留待复用"必须在**本表**里明文登记——只写在组件文件头的注释里，不算登记（它不会跟着 git diff 走评审）。 */
 const RETAINED = {
+  'newtab/components/profile/PiYear.vue':
+    'V4.7.6 年度热力与生命周期分别迁入 PiAnnualHeatmap / PiCardAnalysis；保留一个版本用于旧年度布局与旧分片对照，**V4.8.0 复核**。',
+  'newtab/components/profile/PiTimelineDrawer.vue':
+    'V4.7.6 时间轴改开四类完整详情；摘要抽屉退役，保留一个版本用于迁移判据对照，**V4.8.0 复核**。',
+
   'newtab/views/CompassDeckView.vue':
     'V4.7.0 卡片池二级界面退役：路由已改为 /?tab=kind 重定向，本文件不再挂载。' +
     '保留一个版本用于旧深链/旧分片对照，**V4.8.0 复核**：届时若旧深链与分片已全部改指一级页则删除。',

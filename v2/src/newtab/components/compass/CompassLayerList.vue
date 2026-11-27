@@ -55,7 +55,9 @@ type LayerGroup<T> = { key: string; name: string; rows: T[] }
 function groupByProject<T extends { projId?: string; projName?: string | null }>(rows: T[]): LayerGroup<T>[] {
   const groups: LayerGroup<T>[] = []
   for (const row of rows) {
-    const key = row.projId || '__orphan__'
+    /* 项目名解析不出来时，projectId 可能是历史方向 id / 已删项目 id；
+       一律并入同一个「未归属项目」收容组，不能按悬空 id 拆成多组同名标题。 */
+    const key = row.projName ? (row.projId || '__orphan__') : '__orphan__'
     let group = groups.find(item => item.key === key)
     if (!group) {
       group = { key, name: row.projName || '未归属项目', rows: [] }
@@ -179,7 +181,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
 /* ── 层级专属列表（F7）：占住项目塔/全景的位置，与它们互斥 ── */
 .lvlist {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+  border-radius: var(--radius-lg); box-shadow: none;
   margin-bottom: 22px; overflow: hidden;
 }
 .lvl-h {
@@ -202,7 +204,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
 .lvl-x {
   font-size: var(--fs-micro); font-weight: 600; color: var(--text-3);
   background: var(--surface-2); border: 1px solid transparent;
-  padding: 4px 10px; border-radius: 999px; cursor: pointer; transition: all var(--dur);
+  padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background var(--dur), color var(--dur);
 }
 .lvl-x:hover { color: var(--text); background: var(--surface-3); }
 
@@ -220,9 +222,11 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   width: 100%; text-align: left; cursor: pointer;
   padding: 9px 16px; background: none; border: none;
-  border-bottom: 1px solid var(--border); transition: background var(--dur);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent); transition: background var(--dur-fast);
   color: var(--text-2); font-size: var(--fs-caption);
 }
+.lvl-row:focus-visible { outline: var(--focus-ring); outline-offset: -2px; z-index: 1; }
+.lvl-row.on { box-shadow: inset 2px 0 var(--accent); }
 .lvl-row:hover { background: var(--surface-2); }
 .lvl-row.on { background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .lvl-row.orphan { background: color-mix(in srgb, var(--warning) 7%, transparent); }
@@ -238,7 +242,7 @@ function statusDot(s: string): string { return s === 'done' ? '' : s === 'doing'
 .lr-n.done { color: var(--text-4); text-decoration: line-through; }
 .lr-w {
   flex: none; font-size: var(--fs-micro); font-weight: 700; color: var(--warning);
-  background: var(--warning-bg-soft); padding: 1px 7px; border-radius: 999px;
+  background: var(--warning-bg-soft); padding: 1px 7px; border-radius: var(--radius-xs);
 }
 .lr-path { font-size: var(--fs-micro); color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34%; }
 .lr-pct { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; flex: none; }

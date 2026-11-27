@@ -71,13 +71,13 @@ onOpenDrawer((p) => {
   }
 })
 
-// V4.4.1：四套正式主题。光速黑用暗红强调，其余主题保留知源 Logo 蓝，OPPO 绿独立成主题。
+// V4.7.6：四套正式主题统一使用知源 Logo 蓝族；OPPO 式材质保留，旧绿色主题更名为“知源蓝”。
 // 色板值必须与 tokens.css 的真实令牌一致，避免选择器预览与落地主题色漂移。
 const themes = [
-  { id: 'raycast', name: '光速黑', dot: '#b54747', palette: ['#080A0D', '#11161C', '#b54747'] },
+  { id: 'raycast', name: '光速黑', dot: '#1579ad', palette: ['#080A0D', '#11161C', '#1579ad'] },
   { id: 'apple', name: '极简白', dot: '#0f6f9e', palette: ['#F3F7FA', '#FFFFFF', '#0f6f9e'] },
   { id: 'notion', name: '纸墨白', dot: '#0b668f', palette: ['#F7F6F1', '#FFFEFA', '#0b668f'] },
-  { id: 'oppo', name: 'OPPO 绿', dot: '#168457', palette: ['#F2F7F4', '#FFFFFF', '#168457'] }
+  { id: 'oppo', name: '知源蓝', dot: '#0e7aa6', palette: ['#F2F7FA', '#FFFFFF', '#0e7aa6'] }
 ]
 
 /** R106（F2）→ R108（F10）修订：资源台/策展台容器与调度台/方向台统一为 1440 居中后，
@@ -786,7 +786,7 @@ const backupReminderDot = computed(() => {
 .oppo-workspace .tab.active { color: var(--accent-ink); background: var(--accent-light); }
 .oppo-workspace .tab:hover:not(.active) { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 /* R123（原型）：顶栏 48px（原 56px），对齐原型 top-nav */
-.topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px; display: flex; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky); height: 48px; display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
 /* R106（F2）：顶栏内容容器按路由对齐各页正文容器（左缘一致） */
 .topbar-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
 /* R155-①：全局容器统一 1440（原注释写 1560，但 align-page 实际早已是 1440 ⇒ 属注释漂移，非事实）。
@@ -795,9 +795,15 @@ const backupReminderDot = computed(() => {
 .topbar-inner.align-page { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
 .topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }
+@media (max-width: 1100px) {
+  .topbar-inner.align-page,
+  .topbar-inner.align-settings,
+  .topbar-inner.align-manual { padding-inline: var(--page-gutter); }
+}
 .tabs { display: flex; align-items: center; gap: 2px; flex: 1; overflow-x: auto; }
 /* 品牌位（logo 16px + 知源 13px/700 + ownway 11px 次要字） */
-.brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; cursor: pointer; flex-shrink: 0; }
+.brand-chip { display: flex; align-items: center; gap: 6px; margin-right: 14px; padding: 3px 8px; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: background var(--dur-fast), box-shadow var(--dur-fast); }
+.brand-chip:hover { background: var(--surface-2); }
 /* M6（B7-e · V3.8.40）：热区下限 28px。顶栏三处点击目标实测只有 20.8 / 23px——
    规范 M6 写「热区保持 ≥28px」。用 min-height 撑**盒子**而不改内部字号与 padding：
    视觉密度一字未变（内容仍居中、字号仍 11~13px），只是可点区域够手指/触控板落点。
@@ -807,7 +813,7 @@ const backupReminderDot = computed(() => {
 /* V3.8.9（W9）：画像洞察页为当前页时品牌区高亮（accent-light 底 + accent 边）。
    ★修溢出：去掉 margin-left: -6px 负边距——topbar-inner.align-page 的左 padding 仅 36px，
    负边距 + pulsing 光晕会把高亮推到顶栏容器外，窄窗口下视觉上溢出屏幕左缘。 */
-.brand-chip.active { background: var(--accent-light); border-radius: var(--radius-sm); padding: 3px 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.brand-chip.active { background: var(--accent-light); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
 /* W5（V3.8.5）#6：点击战报的脉冲反馈（两轮光晕，约 1.1s 后复位） */
 .brand-chip.pulsing { animation: brandPulse 0.55s ease-in-out 2; }
 @keyframes brandPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 6px var(--accent-light); } }

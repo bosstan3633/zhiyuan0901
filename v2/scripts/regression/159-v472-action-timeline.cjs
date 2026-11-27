@@ -36,15 +36,12 @@ check('V472-2 ★安排历程明确写入卡片创建时间，并把创建点作
     && PSH.includes('写入卡片池')
 })
 
-check('V472-3（V4.7.3 重指）任务/选题快捷键直达均落到一级卡片池看板、全部项目、全部状态', () => {
-  return BG.includes('/?tab=task&fresh=1&view=board&freshAt=')
+check('V472-3（V4.7.4 重指）任务快捷键直达方向台第 6 层任务全景；选题快捷键仍落一级卡片池看板、全部项目、全部状态', () => {
+  return BG.includes('/compass?layer=6&fresh=1&freshAt=')
     && BG.includes('/?tab=topic&fresh=1&view=board&freshAt=')
     && HOME.includes("route.query.fresh")
-    && HOME.includes("taskWorkStatus.value = 'all'")
-    && HOME.includes("taskWorkProject.value = ''")
-    && HOME.includes("taskWorkView.value = String(viewRaw || '') === 'calendar' ? 'calendar' : 'board'")
     && HOME.includes('topicManagerRef.value?.resetForFresh')
-    && TOPIC.includes("async function resetForFresh(nextView: 'calendar' | 'board' = 'board')")
+    && TOPIC.includes("async function resetForFresh(nextView: 'calendar' | 'board' | 'timeline' = 'board')")
     && TOPIC.includes('viewMode.value = nextView')
 })
 
@@ -60,19 +57,22 @@ check('V472-4 ★任务清单按“未落图 / 已落图”分组，卡面再用
     && CAL_CSS.includes('.cal-pool-group.is-plan-planned')
 })
 
-check('V472-5（V4.7.3 重指）画像洞察“观察范围”改为时间轴 / 热力图双视图，默认时间轴，热力图保留原 PiYear', () => {
-  return PROFILE.includes("type ProfileView = 'timeline' | 'heatmap'")
+check('V472-5（V4.7.6 重指）画像洞察“观察范围”改为时间轴 / 卡片分析双视图，默认时间轴，年度热力常驻', () => {
+  return PROFILE.includes("type ProfileView = 'timeline' | 'analysis'")
     && PROFILE.includes("return 'timeline'")
     && PROFILE.includes('data-profile-view="timeline"')
-    && PROFILE.includes('data-profile-view="heatmap"')
+    && PROFILE.includes('data-profile-view="analysis"')
     && PROFILE.includes('<PiTimeline')
-    && PROFILE.includes('<PiYear v-else')
+    && PROFILE.includes('<PiAnnualHeatmap')
+    && PROFILE.includes('<PiCardAnalysis v-else')
     && !PROFILE.includes('<PiRangeTabs')
     && !PROFILE.includes("activeRange === 'today'")
 })
 
-check('V472-6 ★时间轴按自然日倒序聚合写入/修改卡，类型有角标、状态走业务色，点卡打开详情', () => {
-  return TIMELINE.includes("new Set<EventAction>(['create', 'status', 'restore', 'delete'])")
+check('V472-6（V4.7.4 重指）时间轴按自然日倒序聚合新增/改状态卡，已删卡与删除类历史不进时间轴；类型有角标、状态走业务色，点卡打开详情', () => {
+  return TIMELINE.includes("new Set<EventAction>(['create', 'status'])")
+    && TIMELINE.includes('if (!card || card.deletedAt) continue')
+    && !TIMELINE.includes("TRACKED_ACTIONS = new Set<EventAction>(['create', 'status', 'restore', 'delete'])")
     && TIMELINE.includes('const groupedEntries = computed')
     && TIMELINE.includes('.sort((a, b) => b.ts - a.ts')
     && TIMELINE.includes('.sort(([a], [b]) => b.localeCompare(a))')
@@ -83,12 +83,12 @@ check('V472-6 ★时间轴按自然日倒序聚合写入/修改卡，类型有�
     && TIMELINE.includes('时间轴')
 })
 
-check('V472-7 ★时间轴详情提供唯一回流按钮，点后经 locateTargetOf 定位到对应卡片池', () => {
-  return TIMELINE_DRAWER.includes('定位回卡片池')
-    && TIMELINE_DRAWER.includes("emit('locate', entry)")
-    && PROFILE.includes('function locateTimelineEntry(entry: PiTimelineEntry)')
-    && PROFILE.includes('locateTargetOf(gd.value, kind, entry.id)')
-    && PROFILE.includes('void router.push(target)')
+check('V472-7（V4.7.6 重指）时间轴单击一律进入完整卡片详情：任务走 TaskDetailDrawer，资源 / 选题 / 好奇心走真实详情宿主，不再使用摘要抽屉', () => {
+  return PROFILE.includes("taskDetailRef.value?.open(task)")
+    && PROFILE.includes("emitOpenDrawer({ kind: drawerKind, id: entry.id })")
+    && PROFILE.includes("entry.kind === 'resource' ? 'res'")
+    && !PROFILE.includes('<PiTimelineDrawer')
+    && !PROFILE.includes('locateTimelineEntry')
 })
 
 check('V472-8 ★后台云关系探测失败只落错误态，不再向上抛出 unhandledrejection', () => {

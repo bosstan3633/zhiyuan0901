@@ -104,6 +104,9 @@
 .compass-layout.is-pano :deep(.spine-lv) { min-height: 30px; padding: 5px 10px; }
 .compass-layout.is-pano :deep(.spine-risk.zero) { display: none; }
 .compass-layout.is-pano :deep(.spine-dirs) { gap: 5px; }
+.compass-layout.is-pano :deep(.spine-h) { border-bottom: 0; }
+.compass-layout.is-pano :deep(.spine-t) { font-size: var(--fs-body); }
+.compass-layout.is-pano :deep(.spine-badge.compact) { max-width: 52vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-layout { display: flex; gap: 36px; align-items: flex-start; }
 .topbar { height: 48px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
 /* ★C1（V3.8.28）：健康度徽章退成药丸形"读数"——中性浅底 + text-2 字，不再用强调色实底；
@@ -127,6 +130,8 @@
   border-radius: var(--radius-xl);
   padding: 18px 20px 20px;
 }
+.tree-layout.is-pano .canvas-inner { border-radius: var(--radius-lg); }
+.tree-layout.is-pano :deep(.metric-item) { box-shadow: none; }
 
 /* ══ W12 左侧项目导航（原型 .navside）：项目清单 + 滚动跟随高亮 ══
    ★V3.8.18（N15）吸顶常驻**本轮复核为已满足**：sticky + align-self:flex-start + top 偏移

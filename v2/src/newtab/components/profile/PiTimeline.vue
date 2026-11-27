@@ -5,7 +5,7 @@
  * 按自然日倒序展示“写入 / 修改”过的卡片；同一张卡同一天只保留一行，
  * 以最新一次动作排序。卡片状态色读业务状态定义，不另造一套颜色。
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import type { AppData, CuriosityCard, LinkType, ResourceCard, TaskCard, TopicCard } from '@/shared/models'
 import type { CardEvent, CardKind, EventAction } from '@/shared/utils/eventLog'
@@ -26,7 +26,6 @@ export interface PiTimelineEntry {
   ts: number
   day: string
   count: number
-  deleted: boolean
   link?: string
   linkType?: LinkType
 }
@@ -39,14 +38,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'open', entry: PiTimelineEntry): void
   (e: 'open-link', entry: PiTimelineEntry): void
-  (e: 'open-shortcuts'): void
 }>()
 
-const TRACKED_ACTIONS = new Set<EventAction>(['create', 'status', 'restore', 'delete'])
+const TRACKED_ACTIONS = new Set<EventAction>(['create', 'status'])
 const TIMELINE_WINDOW_DAYS = 30
 const DENSITY_OPTIONS = [4, 5, 6] as const
 type TimelineDensity = typeof DENSITY_OPTIONS[number]
-type TimelineFilter = 'all' | CardKind
+type TimelineFilter = 'all' | 'focus' | CardKind
 type TimelineSegment = { key: string; kind: TimelineFilter; entries: PiTimelineEntry[] }
 const KIND_META: Record<CardKind, { label: string; icon: string; color: string }> = {
   resource: { label: '资源', icon: 'filetext', color: 'var(--accent)' },
@@ -60,6 +58,7 @@ const KIND_FILTERS: { key: TimelineFilter; label: string }[] = [
   { key: 'task', label: '任务' },
   { key: 'topic', label: '选题' },
   { key: 'curiosity', label: '好奇' },
+  { key: 'focus', label: '三件事' },
 ]
 const DENSITY_STORAGE_KEY = 'zy.profile.timeline.density'
 const windowStart = Date.now() - TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000
@@ -129,8 +128,7 @@ function cardOf(kind: CardKind, id: string): { title: string; projectId?: string
   return card ? { title: card.question || '（无标题好奇）', deletedAt: card.deletedAt } : null
 }
 
-function statusOf(kind: CardKind, id: string, deleted: boolean): { name: string; color: string } {
-  if (deleted) return { name: '已删除', color: 'var(--text-4)' }
+function statusOf(kind: CardKind, id: string): { name: string; color: string } {
   if (kind === 'task') {
     const card = (props.data.tasks || []).find(row => row.id === id) as TaskCard | undefined
     const status = card ? taskStatusOf(props.data, card) : undefined
@@ -171,7 +169,7 @@ const allEntries = computed(() => {
   for (const event of props.events) {
     if (!TRACKED_ACTIONS.has(event.action) || event.kind === 'system' || event.ts < windowStart) continue
     const card = cardOf(event.kind, event.cardId)
-    if (!card) continue
+    if (!card || card.deletedAt) continue
     const day = dayKey(event.ts)
     const key = `${day}:${event.kind}:${event.cardId}`
     const existing = byDayAndCard.get(key)
@@ -183,7 +181,7 @@ const allEntries = computed(() => {
       }
       continue
     }
-    const status = statusOf(event.kind, event.cardId, !!card.deletedAt)
+    const status = statusOf(event.kind, event.cardId)
     byDayAndCard.set(key, {
       key,
       kind: event.kind,
@@ -197,7 +195,6 @@ const allEntries = computed(() => {
       ts: event.ts,
       day,
       count: 1,
-      deleted: !!card.deletedAt,
       link: card.link,
       linkType: card.linkType,
     })
@@ -206,12 +203,39 @@ const allEntries = computed(() => {
   return [...byDayAndCard.values()].sort((a, b) => b.ts - a.ts || a.key.localeCompare(b.key))
 })
 
+const focusEntries = computed(() => {
+  const rows: PiTimelineEntry[] = []
+  const start = dayKey(windowStart)
+  for (const [day, slots] of Object.entries(props.data.dailyFocus || {})) {
+    if (day < start) continue
+    for (const slot of slots || []) {
+      if (!slot || slot.cleared || !slot.sourceId || (slot.sourceType !== 'task' && slot.sourceType !== 'topic')) continue
+      const kind = slot.sourceType as CardKind
+      const card = cardOf(kind, slot.sourceId)
+      if (!card || card.deletedAt) continue
+      const status = statusOf(kind, slot.sourceId)
+      rows.push({
+        key: `focus:${day}:${kind}:${slot.sourceId}`,
+        kind, id: slot.sourceId, title: card.title,
+        status: status.name, statusColor: status.color,
+        project: card.projectId ? projectNames.value.get(card.projectId) || '' : '',
+        metric: card.metricId ? metricNames.value.get(card.metricId) || '' : '',
+        action: slot.done ? '三件事 · 已完成' : '三件事 · 已安排',
+        ts: slot.doneAt || new Date(`${day}T23:59:00`).getTime(), day, count: 1,
+        link: card.link, linkType: card.linkType,
+      })
+    }
+  }
+  return rows.sort((a, b) => b.ts - a.ts || a.key.localeCompare(b.key))
+})
+
 const filteredEntries = computed(() => allEntries.value.filter(entry =>
-  kindFilter.value === 'all' || entry.kind === kindFilter.value))
+  kindFilter.value !== 'focus' && (kindFilter.value === 'all' || entry.kind === kindFilter.value)))
+const visibleEntries = computed(() => kindFilter.value === 'focus' ? focusEntries.value : filteredEntries.value)
 
 const groupedEntries = computed(() => {
   const days = new Map<string, PiTimelineEntry[]>()
-  for (const entry of filteredEntries.value) {
+  for (const entry of visibleEntries.value) {
     const rows = days.get(entry.day) || []
     rows.push(entry)
     days.set(entry.day, rows)
@@ -241,9 +265,36 @@ function linkLabel(entry: PiTimelineEntry): string {
   return '打开卡片链接'
 }
 
-function openLink(entry: PiTimelineEntry): void {
-  if (entry.link) emit('open-link', entry)
+let clickTimer: ReturnType<typeof setTimeout> | null = null
+let clickEntryKey = ''
+
+function clearClickTimer(): void {
+  if (!clickTimer) return
+  clearTimeout(clickTimer)
+  clickTimer = null
+  clickEntryKey = ''
 }
+
+function onCardClick(entry: PiTimelineEntry): void {
+  if (clickTimer && clickEntryKey === entry.key) {
+    clearClickTimer()
+    return
+  }
+  clearClickTimer()
+  clickEntryKey = entry.key
+  clickTimer = setTimeout(() => {
+    clickTimer = null
+    clickEntryKey = ''
+    emit('open', entry)
+  }, 260)
+}
+
+function onCardDblClick(entry: PiTimelineEntry): void {
+  clearClickTimer()
+  if (entry.kind === 'resource' || entry.link) emit('open-link', entry)
+}
+
+onBeforeUnmount(clearClickTimer)
 
 function dayLabel(day: string): string {
   const [year, month, date] = day.split('-').map(Number)
@@ -271,6 +322,7 @@ function kindMeta(kind: CardKind) {
 }
 
 function metaOf(entry: PiTimelineEntry): string {
+  if (entry.kind === 'resource' || entry.kind === 'curiosity') return ''
   const path = [entry.project, entry.metric].filter(Boolean).join(' › ')
   return path || '未关联项目'
 }
@@ -282,7 +334,7 @@ function metaOf(entry: PiTimelineEntry): string {
       <span class="pi-mod-ico i-year"><Icon name="clock" :size="13" /></span>
       <div class="pi-mod-t">
         <h2>时间轴<span class="en">TIMELINE</span></h2>
-        <p>按日倒序回看写入与修改过的卡片。点卡片查看详情，再从详情定位回卡片池。</p>
+        <p>按日倒序回看新增、状态修改与每日三件事。单击打开完整卡片详情，资源卡双击直接打开链接。</p>
       </div>
       <div class="pit-summary">
         <b>{{ totalCards }}</b>
@@ -325,9 +377,6 @@ function metaOf(entry: PiTimelineEntry): string {
               @click="setDensity(option)"
             >{{ option }} 卡</button>
           </div>
-          <button class="pit-shortcut" type="button" title="在 Chrome 快捷键页配置直达时间轴命令" @click="emit('open-shortcuts')">
-            <Icon name="zap" :size="12" /> 浏览器快捷键
-          </button>
         </div>
       </div>
       <div v-if="groupedEntries.length" class="pit-days">
@@ -360,21 +409,21 @@ function metaOf(entry: PiTimelineEntry): string {
                   v-for="entry in segment.entries"
                   :key="entry.key"
                   class="pit-card"
-                  :class="{ deleted: entry.deleted }"
                   type="button"
+                  :title="entry.kind === 'resource' ? '单击查看详情 · 双击打开资源链接' : '单击查看详情'"
                   :style="{
                     '--kind-color': kindMeta(entry.kind).color,
                     '--status-color': entry.statusColor,
                   }"
-                  @click="emit('open', entry)"
-                  @dblclick.stop.prevent="openLink(entry)"
+                  @click="onCardClick(entry)"
+                  @dblclick.stop.prevent="onCardDblClick(entry)"
                 >
                   <span class="pit-kind">
                     <Icon :name="kindMeta(entry.kind).icon" :size="11" />
                     {{ kindMeta(entry.kind).label }}
                   </span>
                   <span class="pit-card-title">{{ entry.title }}</span>
-                  <span class="pit-card-meta">{{ metaOf(entry) }}</span>
+                  <span v-if="metaOf(entry)" class="pit-card-meta">{{ metaOf(entry) }}</span>
                   <span class="pit-card-foot">
                     <span class="pit-status"><i />{{ entry.status }}</span>
                     <span v-if="entry.count > 1" class="pit-count">{{ entry.count }} 次更新</span>
@@ -389,8 +438,8 @@ function metaOf(entry: PiTimelineEntry): string {
       </div>
       <div v-else class="pit-empty">
         <Icon name="clock" :size="24" />
-        <b>近 30 天还没有可回看的卡片动作</b>
-        <span>新增卡片或调整任务 / 选题状态后，会按日期出现在这里；更早记录不在此视图展示。</span>
+        <b>{{ kindFilter === 'focus' ? '近 30 天还没有任务或选题进入三件事' : '近 30 天还没有可回看的卡片动作' }}</b>
+        <span>{{ kindFilter === 'focus' ? '在调度台安排任务或选题后，会按日期出现在这里。' : '新增卡片或调整任务 / 选题状态后，会按日期出现在这里；更早记录不在此视图展示。' }}</span>
       </div>
     </div>
   </section>
@@ -433,8 +482,7 @@ function metaOf(entry: PiTimelineEntry): string {
 }
 .pit-filter button,
 .pit-density button,
-.pit-group-toggle,
-.pit-shortcut {
+.pit-group-toggle {
   min-height: 28px;
   padding: 0 9px;
   border: 0;
@@ -449,8 +497,7 @@ function metaOf(entry: PiTimelineEntry): string {
 }
 .pit-filter button:hover,
 .pit-density button:hover,
-.pit-group-toggle:hover,
-.pit-shortcut:hover { color: var(--text); }
+.pit-group-toggle:hover { color: var(--text); }
 .pit-filter button.on,
 .pit-density button.on,
 .pit-group-toggle.on {
@@ -465,15 +512,13 @@ function metaOf(entry: PiTimelineEntry): string {
   color: var(--text-4);
   font-size: var(--fs-micro);
 }
-.pit-group-toggle,
-.pit-shortcut {
+.pit-group-toggle {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   border: 1px solid var(--border);
   background: var(--surface);
 }
-.pit-shortcut { color: var(--accent-ink); }
 .pit-day-content { min-width: 0; }
 .pit-segment + .pit-segment { margin-top: 10px; }
 .pit-segment-head {
@@ -591,7 +636,6 @@ function metaOf(entry: PiTimelineEntry): string {
   box-shadow: 0 8px 20px color-mix(in srgb, var(--text) 7%, transparent);
   transform: translateY(-1px);
 }
-.pit-card.deleted { opacity: .55; }
 .pit-kind {
   display: inline-flex;
   width: fit-content;

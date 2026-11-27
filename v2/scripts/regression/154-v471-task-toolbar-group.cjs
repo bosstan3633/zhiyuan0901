@@ -17,10 +17,10 @@ const CAL = read('/newtab/components/compass/TaskCalendarView.vue')
 const CSS = read('/newtab/components/compass/TaskCalendarView.css')
 const HOME_CSS = read('/newtab/views/CompassHome.css')
 
-check('TASK154-1 ★快捷筛选五按钮退役，控制栏拆为 twt-primary / twt-secondary 两行', () => {
+check('TASK154-1（V4.7.4 重指）快捷筛选五按钮退役，控制栏收为单行 twt-primary；第二行 twt-secondary 不再存在', () => {
   const tpl = segOf(HOME, '<div v-if="handTab === \'task\'" class="task-workbench">', '<TaskCalendarView')
   return tpl.includes('class="twt-row twt-primary"')
-    && tpl.includes('class="twt-row twt-secondary"')
+    && !tpl.includes('class="twt-row twt-secondary"')
     && tpl.includes('class="twt-field twt-quick-field"')
     && tpl.includes('aria-label="任务快速筛选"')
     && !tpl.includes('class="task-work-quick"')
@@ -37,15 +37,16 @@ check('TASK154-2 ★快速筛选五个选项带计数，状态下拉由任务状
     && HOME.includes('v-for="status in taskWorkStatusOptions"')
 })
 
-check('TASK154-3 ★两行控制栏各有可访问标签，移动端降为两列且搜索跨行', () => {
+check('TASK154-3（V4.7.4 重指）单行控制栏的五个字段各有可访问标签，宽屏不换行、窄屏自然换行且搜索占满一行', () => {
   return HOME.includes('<span>项目</span>')
     && HOME.includes('<span>状态</span>')
     && HOME.includes('<span>快速筛选</span>')
     && HOME.includes('<span>排序</span>')
     && HOME.includes('<span>分组</span>')
     && HOME_CSS.includes('.twt-primary')
-    && HOME_CSS.includes('grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(128px, 160px))')
-    && HOME_CSS.includes('.twt-primary .task-work-search { grid-column: 1 / -1; }')
+    && HOME_CSS.includes('flex-wrap: nowrap')
+    && HOME_CSS.includes('@media (max-width: 1260px)')
+    && HOME_CSS.includes('.task-work-search { flex-basis: 100%; max-width: none; }')
 })
 
 check('TASK154-4 ★项目组头是按钮，逐组折叠/展开并维护 aria-expanded', () => {

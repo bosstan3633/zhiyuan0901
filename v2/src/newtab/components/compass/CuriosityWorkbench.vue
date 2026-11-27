@@ -8,13 +8,17 @@ import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import { showToast } from '@/shared/components/toast'
 import { useAppStore } from '../../stores/app'
 import { CURIOSITY_STATUS, useCuriosity, type CuriStatus } from '../../stores/curiosity'
+import { useCompass } from '../../stores/compass'
 import type { CuriosityCard } from '@/shared/models'
+import CardPoolTimeline from './CardPoolTimeline.vue'
 
 const store = useAppStore()
 const { curiosities, setStatus } = useCuriosity()
+const { wceEvents, refreshWce } = useCompass()
+const appData = computed(() => store.data!)
 const search = ref('')
 const statusFilter = ref<CuriStatus | 'all'>('all')
-const viewMode = ref<'calendar' | 'board'>('calendar')
+const viewMode = ref<'calendar' | 'board' | 'timeline'>('calendar')
 const listCollapsed = ref(false)
 const monthCursor = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12))
 const dragId = ref('')
@@ -33,6 +37,11 @@ const filtered = computed(() => {
     .filter(card => statusFilter.value === 'all' || card.status === statusFilter.value)
     .filter(card => !query || card.question.toLowerCase().includes(query))
 })
+
+function setViewMode(next: 'calendar' | 'board' | 'timeline'): void {
+  viewMode.value = next
+  if (next === 'timeline') void refreshWce()
+}
 
 const counts = computed(() => {
   const out: Record<string, number> = { all: live.value.length }
@@ -111,6 +120,11 @@ function openCard(card: CuriosityCard): void {
   emitOpenDrawer({ kind: 'curio', id: card.id })
 }
 
+function openCardById(id: string): void {
+  const card = live.value.find(row => row.id === id)
+  if (card) openCard(card)
+}
+
 function onDragStart(event: DragEvent, card: CuriosityCard): void {
   dragId.value = card.id
   if (event.dataTransfer) {
@@ -169,7 +183,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 </script>
 
 <template>
-  <div class="curio-workbench" :class="{ 'list-hidden': listCollapsed }">
+  <div class="curio-workbench" :class="{ 'list-hidden': listCollapsed, 'is-timeline': viewMode === 'timeline' }">
     <header class="cw-toolbar">
       <label class="cw-search">
         <Icon name="search" :size="13" />
@@ -180,8 +194,9 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
         <option v-for="(meta, key) in CURIOSITY_STATUS" :key="key" :value="key">{{ meta.label }}（{{ counts[key] || 0 }}）</option>
       </select>
       <div class="cw-view-switch" role="group" aria-label="好奇心视图">
-        <button type="button" :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">日历</button>
-        <button type="button" :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
+        <button type="button" :class="{ on: viewMode === 'calendar' }" @click="setViewMode('calendar')">日历</button>
+        <button type="button" :class="{ on: viewMode === 'board' }" @click="setViewMode('board')">看板</button>
+        <button type="button" :class="{ on: viewMode === 'timeline' }" @click="setViewMode('timeline')">时间线</button>
       </div>
     </header>
 
@@ -286,7 +301,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
         </div>
       </section>
 
-      <section v-else class="cw-board" aria-label="好奇心看板">
+      <section v-else-if="viewMode === 'board'" class="cw-board" aria-label="好奇心看板">
         <section
           v-for="column in boardColumns"
           :key="column.status"
@@ -325,6 +340,9 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
           </div>
         </section>
       </section>
+      <section v-else class="cw-timeline" aria-label="好奇心时间线">
+        <CardPoolTimeline kind="curiosity" :events="wceEvents" :data="appData" :cards="filtered" @select="openCardById" />
+      </section>
     </div>
   </div>
 </template>
@@ -339,6 +357,9 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 .cw-view-switch button { min-height: 25px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
 .cw-view-switch button.on { background: var(--accent-light); color: var(--accent-ink); }
 .cw-main { display: grid; grid-template-columns: minmax(250px, 310px) minmax(0, 1fr); gap: 10px; min-height: 580px; }
+.curio-workbench.is-timeline .cw-main,
+.curio-workbench.is-timeline .cw-pool,
+.curio-workbench.is-timeline .cw-timeline { min-height: 420px; }
 .list-hidden .cw-main { grid-template-columns: 46px minmax(0, 1fr); }
 .cw-pool { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
 .cw-pool.collapsed { align-items: center; background: color-mix(in srgb, var(--surface-2) 76%, var(--surface)); }
@@ -389,6 +410,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 .cw-chip button { flex: none; padding: 0; border: 0; background: none; color: var(--text-2); cursor: pointer; }
 .cw-more { padding-left: 4px; color: var(--text-3); font-size: var(--fs-tiny); }
 .cw-board { display: grid; grid-auto-columns: minmax(210px, 1fr); grid-auto-flow: column; gap: 9px; min-height: 580px; overflow-x: auto; }
+.cw-timeline { min-width: 0; min-height: 580px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); padding: 4px 14px; }
 .cw-board-col { display: flex; min-height: 580px; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
 .cw-board-col.over { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .cw-board-col > header { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); }

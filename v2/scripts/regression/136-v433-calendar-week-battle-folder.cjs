@@ -48,14 +48,14 @@ check('V433-2 日历支持月视图 / 周视图切换，周视图仍复用同一
     && css.includes('grid-template-rows: minmax(0, 1fr)')
 })
 
-check('V433-3（V4.5.0 重指）今日日详情采用稳定行布局：复选框、标题主列、状态侧栏、关闭动作各自占位；标题与元信息分行，修复文字叠压乱码', () => {
+check('V433-3（V4.7.6 重指）今日日详情采用稳定行布局：复选框、标题主列、状态侧栏、关闭动作各自占位；标题与元信息分行，历史镜像只读且只保留隐藏动作', () => {
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
   const css = read('/newtab/components/compass/TaskCalendarView.css')
   return calendar.includes('class="cal-modal-side"')
     && calendar.includes('class="cal-modal-close"')
     && calendar.includes('const selectedEntries = computed(() => {')
-    && calendar.includes('const rows = [...(entriesByDay.value.get(selectedDay.value) || [])]')
-    && calendar.includes('return selectedDay.value === todayKey.value ? rows : rows.sort(entryOrder)')
+    && calendar.includes('focusEntriesByDay')
+    && calendar.includes('entry.mirror')
     && css.includes('grid-template-columns: 16px 22px minmax(0, 1fr) auto 22px')
     && css.includes('grid-template-columns: 22px minmax(0, 1fr) auto 26px')
     && css.includes('.cal-modal-copy b {')
@@ -100,13 +100,15 @@ check('V433-6 今日战报先弹出、后刷新事件：本地读取不阻塞首
     && host.includes('void refreshCloudEvents()')
 })
 
-check('V433-7 今日战报成为页头主入口，AI 推荐降为普通入口', () => {
+check('V433-7（V4.7.6 重指）今日战报是页头唯一推荐动作，原 AI 推荐入口退役，主攻项目收为紧凑模块', () => {
   const home = read('/newtab/views/CompassHome.vue')
   const css = read('/newtab/views/CompassHome.css')
-  return home.indexOf('class="why-trigger battle-trigger"') < home.indexOf('class="why-trigger focus-ai-trigger"')
+  return home.includes('class="why-trigger battle-trigger"')
+    && home.includes('class="desk-focus-projects"')
+    && !home.includes('class="why-trigger focus-ai-trigger"')
     && css.includes('.desk-actions .battle-trigger {')
     && css.includes('background: var(--accent)')
-    && css.includes('.focus-ai-trigger { color: var(--text-2); }')
+    && !home.includes('AI 推荐今日重点')
 })
 
 check('V433-8 浏览器快捷键新增“打开今日战报”：无默认键、后台分发、页面路由到调度台后打开弹窗', () => {

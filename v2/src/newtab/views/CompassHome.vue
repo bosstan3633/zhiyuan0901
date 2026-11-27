@@ -37,6 +37,7 @@ import TaskDetailDrawer from '../components/compass/TaskDetailDrawer.vue'
 import CuriosityPanel from '../components/compass/CuriosityPanel.vue'
 import TaskCalendarView from '../components/compass/TaskCalendarView.vue'
 import TaskBoardView from '../components/compass/TaskBoardView.vue'
+import CardPoolTimeline from '../components/compass/CardPoolTimeline.vue'
 import CuriosityWorkbench from '../components/compass/CuriosityWorkbench.vue'
 import TopicManagerPanel from '../components/compass/TopicManagerPanel.vue'
 import HomeResourceFolderGrid from '../components/compass/HomeResourceFolderGrid.vue'
@@ -44,6 +45,7 @@ import CompassStatusModal, { type StatusDetailKey, type StatusDetailItem } from 
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
+import { hideFocusHistorySlot } from '@/shared/utils/focusCalendar'
 import { weekUsageOf } from '@/shared/storage/stats'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import AssetPreview from '@/shared/components/AssetPreview.vue'
@@ -52,7 +54,7 @@ import { useCompassHome, type FocusCell, type HandKind } from './useCompassHome'
 const {
   router, route, store, d, allProjects,
   projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone,
-  refreshWce, unarchivedTaskCount, taskArchiveIssue, previewOpen,
+  refreshWce, wceEvents, unarchivedTaskCount, taskArchiveIssue, previewOpen,
   previewUrl, previewName, closePreview, drawerRef, formatDate,
   formatFullDate, dateStr, midnightOf, todayStart, midnightTimer,
   scheduleMidnightRollover, todayDate, shiftDate, setFocusDate, focusDateValue, todayFocusList, FOCUS_LIMIT,
@@ -88,12 +90,17 @@ const {
   taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
   taskWorkView, taskWorkSort, taskWorkGroup,
   taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkStatusOptions, taskWorkCounts,
-  taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
+  taskWorkFiltered, taskWorkListGroups, taskWorkStatusMeta, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
   setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
   taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,
   focusTaskTarget, requestTaskFocus, replaceTaskFocus, closeTaskFocusReplace,
 } = useCompassHome()
+
+function hideHistoryFocus(date: string, slotId: string): void {
+  hideFocusHistorySlot(d.value, date, slotId)
+  store.persist()
+}
 
 /** V4.7.1：资源页「查看全部 / 全部」直接打开全部资源卡抽屉，不再把用户带进二级卡片池。 */
 const resourceFolderGridRef = ref<InstanceType<typeof HomeResourceFolderGrid> | null>(null)
@@ -175,51 +182,21 @@ watch(
 <template>
   <div class="page">
     <header class="desk-head">
-      <div class="desk-heading">
-        <div class="desk-kicker">调度台 · {{ formatFullDate(todayDate) }}</div>
-        <h1>调度台</h1>
+      <div class="desk-focus-projects" aria-label="当前主攻项目">
+        <span class="desk-focus-label">当前主攻</span>
+        <button v-for="project in focusedProjects.slice(0, 3)" :key="project.id" type="button"
+          class="desk-focus-project" @click="openFocusProject(project)">
+          <Icon name="main-focus" :size="12" />
+          <span>{{ project.name }}</span>
+          <small>{{ projectProgress(project).pct }}%</small>
+        </button>
+        <span v-if="!focusedProjects.length" class="desk-focus-empty">在方向台设置主攻项目</span>
       </div>
       <div class="desk-actions">
         <button class="why-trigger battle-trigger" type="button" @click="openReview">
           <Icon name="trendup" :size="13" />
           <span>今日战报</span>
         </button>
-        <button class="why-trigger focus-ai-trigger" type="button" title="按主攻项目、计划执行日期与任务状态推荐今日重点" @click="reshuffleFocus">
-          <AiEntryButton variant="inline" label="AI 推荐今日重点" />
-        </button>
-        <button class="why-trigger" :class="{ on: whyOpen }" data-testid="focus-why-ico" type="button" @click.stop="toggleWhy">
-          <Icon name="sparkles" :size="13" />
-          <span>为什么这样排</span>
-          <span v-if="whyBadge && focusHasRec" class="why-dot" />
-        </button>
-        <div v-if="whyOpen" class="focus-why" data-testid="focus-why" role="presentation" data-a11y-container @click.stop>
-          <div class="fw-h">为什么是这三件<span class="hint">{{ focusAiBusy ? ' · AI 复核中…' : '' }}</span></div>
-          <div v-for="c in focusCells" :key="'w' + c.idx" class="fw-row">
-            <span class="n">{{ String(c.idx + 1).padStart(2, '0') }}</span>
-            <div class="b">
-              <template v-if="c.task || c.topic">
-                <div class="t">{{ c.slot?.text }}</div>
-                <div class="w">
-                  <template v-if="c.slot?.auto === true">{{ whyOf(c.slot) || '本地依据：主攻项目下可直接推进的事项' }}<span v-if="whyIsAi(c.slot)" class="ai-tag"> · AI 判词</span></template>
-                  <template v-else>这一格是你自己选的，系统不评价、也不会覆盖。</template>
-                </div>
-              </template>
-              <template v-else>
-                <div class="t off">空着</div>
-                <div class="w">点这一格从任务卡 / 选题卡中选，或用“换一批”。</div>
-              </template>
-            </div>
-          </div>
-          <div class="fw-f">
-            过去 7 天完成 <b>{{ focusWeekTotals.done }}/{{ focusWeekTotals.planned }}</b>（按三件事格子计）<br>
-            推荐只写今天的计划位，<b>不改任务卡、不改状态、不改归属</b>。
-          </div>
-          <div class="fw-acts">
-            <button class="quiet-btn" data-testid="focus-reshuffle" type="button" @click="reshuffleFocus">换一批</button>
-            <button class="quiet-btn" data-testid="focus-review" type="button" :disabled="focusAiBusy" @click="openFocusReview">让 AI 复核顺序</button>
-            <button class="quiet-btn" data-testid="focus-mute" type="button" @click="muteFocusToday">今天别自动推荐</button>
-          </div>
-        </div>
       </div>
     </header>
 
@@ -246,7 +223,7 @@ watch(
                 <button class="icon-btn" type="button" title="更多" aria-label="更多" :aria-expanded="focusMoreOpen" @click.stop="focusMoreOpen = !focusMoreOpen"><Icon name="menu" :size="14" /></button>
                 <div v-if="focusMoreOpen" class="focus-more-menu" role="presentation" data-a11y-container @click.stop>
                   <button type="button" @click="reshuffleFocus(); focusMoreOpen = false"><Icon name="shuffle" :size="13" /> 换一批</button>
-                  <button type="button" @click="openFocusReview(); focusMoreOpen = false"><Icon name="sparkles" :size="13" /> AI 复核顺序</button>
+                  <button type="button" @click="openFocusReview(); focusMoreOpen = false"><AiEntryButton variant="inline" label="AI 复核顺序" /></button>
                   <button type="button" @click="openExportModal(); focusMoreOpen = false"><Icon name="download" :size="13" /> 导出 CSV</button>
                   <button type="button" @click="muteFocusToday(); focusMoreOpen = false"><Icon name="eyeoff" :size="13" /> 今天别自动推荐</button>
                 </div>
@@ -420,7 +397,7 @@ watch(
               <div class="twt-row twt-primary">
                 <label class="task-work-search">
                   <Icon name="search" :size="13" />
-                  <input v-model="taskWorkSearch" placeholder="搜索任务、项目或指标" aria-label="搜索任务">
+                  <input v-model="taskWorkSearch" placeholder="搜索任务、项目或指标" aria-label="搜索任务" title="搜索任务、项目或指标">
                 </label>
                 <label class="twt-field">
                   <span>项目</span>
@@ -446,8 +423,6 @@ watch(
                     <option value="focus">主攻项目（{{ taskWorkCounts.focus }}）</option>
                   </select>
                 </label>
-              </div>
-              <div class="twt-row twt-secondary">
                 <label class="twt-field twt-field-compact">
                   <span>排序</span>
                   <select v-model="taskWorkSort" aria-label="任务排序">
@@ -466,6 +441,8 @@ watch(
                 <div class="task-work-view-switch" role="group" aria-label="任务视图">
                   <button type="button" :class="{ on: taskWorkView === 'calendar' }" :aria-pressed="taskWorkView === 'calendar'" @click="taskWorkView = 'calendar'">月历</button>
                   <button type="button" :class="{ on: taskWorkView === 'board' }" :aria-pressed="taskWorkView === 'board'" @click="taskWorkView = 'board'">看板</button>
+                  <button type="button" :class="{ on: taskWorkView === 'list' }" :aria-pressed="taskWorkView === 'list'" @click="taskWorkView = 'list'">列表</button>
+                  <button type="button" :class="{ on: taskWorkView === 'timeline' }" :aria-pressed="taskWorkView === 'timeline'" @click="taskWorkView = 'timeline'">时间线</button>
                 </div>
                 <label class="task-work-done-toggle">
                   <input v-model="taskWorkShowDone" type="checkbox">
@@ -482,7 +459,8 @@ watch(
               :topics="liveTopics"
               :topic-statuses="d.topicStatuses"
               :task-statuses="taskWorkStatusOptions"
-              :focus-slots="todayFocusList"
+              :focus-by-day="d.dailyFocus"
+              :focus-history-hidden="d.focusHistoryHidden"
               :show-done="taskWorkShowDone"
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
@@ -499,15 +477,46 @@ watch(
               @clear-due="clearTaskWorkDue"
               @set-topic-due="setTopicWorkDue"
               @clear-topic-due="clearTopicWorkDue"
+              @hide-history-focus="hideHistoryFocus"
             />
             <TaskBoardView
-              v-else
+              v-else-if="taskWorkView === 'board'"
               :tasks="taskWorkFiltered"
               :project-names="taskWorkProjectNames"
               :metric-names="taskWorkMetricNames"
               :statuses="taskWorkStatusOptions"
+              :group-by-project="taskWorkGroup === 'project'"
               @open-task="openTaskWork"
               @set-status="setTaskWorkStatus"
+            />
+            <div v-else-if="taskWorkView === 'list'" class="task-work-list" aria-label="任务列表">
+              <section v-for="group in taskWorkListGroups" :key="group.key" class="twl-group">
+                <header class="twl-group-head">
+                  <span class="twl-group-name"><Icon name="package" :size="13" />{{ group.name }}</span>
+                  <span class="twl-group-count">{{ group.tasks.length }} 项</span>
+                </header>
+                <div class="twl-rows">
+                  <button v-for="task in group.tasks" :key="task.id" type="button" class="twl-row" @click="openTaskWork(task)">
+                    <span class="twl-title">{{ task.title }}</span>
+                    <span class="twl-meta">
+                      <span :class="{ missing: !task.projectId || !taskWorkProjectNames.has(task.projectId) }">{{ projectName(task.projectId) }}</span>
+                      <span v-if="task.metricId && taskWorkMetricNames.get(task.metricId)">› {{ taskWorkMetricNames.get(task.metricId) }}</span>
+                    </span>
+                    <span class="twl-status"><i :style="{ background: taskWorkStatusMeta(task).color }" />{{ taskWorkStatusMeta(task).name }}</span>
+                    <span class="twl-date" :class="{ scheduled: !!task.dueDate }"><Icon name="calendar" :size="11" />{{ task.dueDate || '未落图' }}</span>
+                    <Icon name="arrowright" :size="13" />
+                  </button>
+                  <div v-if="!group.tasks.length" class="twl-empty">暂无任务，可拖入此项目</div>
+                </div>
+              </section>
+            </div>
+            <CardPoolTimeline
+              v-else-if="taskWorkView === 'timeline'"
+              kind="task"
+              :events="wceEvents"
+              :data="d"
+              :cards="taskWorkFiltered"
+              @select="(id: string) => { const task = taskWorkFiltered.find(row => row.id === id); if (task) openTaskWork(task) }"
             />
           </div>
 
@@ -568,7 +577,7 @@ watch(
     </footer>
 
     <TodayBattleHost ref="battleHost" />
-    <ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="modal"
+    <ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="drawer"
       @close="readonlyProjectOpen = false" />
 
     <!-- ★W17-C01：三行状态明细（中央只读弹窗，不跳路由） -->

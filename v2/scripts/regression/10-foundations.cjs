@@ -274,11 +274,11 @@ check('O23 北极星未归档任务（第卌四轮升级：项目+指标双重�
 check('O24 好奇心采集带来源（两端+模型+详情）', () => read('/shared/models/index.ts').includes('sourceTitle') && read('/content/search-overlay.ts').includes('sourceTitle: srcTitleInput') && read('/newtab/components/GlobalPopupsQuickAdd.vue').includes('v-model="curioForm.sourceTitle"') && read('/newtab/components/compass/CuriosityPanel.vue').includes('class="cz-ext-src"') && read('/newtab/components/compass/CuriosityPanel.vue').includes("f.key === 'sourceUrl'")) /* ★R4-Dj 随迁备案（收紧不是放宽）：原判据只核 Curio 里出现 "detail-src" 字样——那是 R117 详情重设计后只剩在 CSS 里的死类名（模板零引用，删规则才暴露）。现改核现役两件事：来源行真的按 fieldConfig 的 sourceUrl 渲染 + 用的是 cz-ext-src 这个真类名 */;
 
 console.log('【第十四轮 · 视觉重构（V4.4.0 三主题收口）】');
-check('P1 四主题体系（光速黑 / 极简白 / 纸墨白 / OPPO 绿）', () => {
+check('P1 四主题体系（光速黑 / 极简白 / 纸墨白 / 知源蓝）', () => {
   const t = read('/shared/styles/tokens.css');
   return ["raycast", "apple", "notion", "oppo"].every(id => t.includes(`[data-theme='${id}']`))
     && !t.includes("[data-theme='linear']") && !t.includes("[data-theme='auto']")
-    && t.includes('--accent: #B54747;') && t.includes('--accent: #0F6F9E;') && t.includes('--accent: #0B668F;') && t.includes('--accent: #168457;');
+    && t.includes('--accent: #1579AD;') && t.includes('--accent: #0F6F9E;') && t.includes('--accent: #0B668F;') && t.includes('--accent: #0E7AA6;');
 });
 check('P1 旧主题偏好确定性迁移（auto / linear / green / night → 四主题）', () => {
   const r = read('/shared/storage/repository.ts');
@@ -351,7 +351,7 @@ check('R21-2（V3.9.8 随迁）拖拽位置感知不丢：好奇列表/看板与
     && m.includes('dropHint.value = check.message')
     && !read('/newtab/views/Workspace.vue').includes("markDrop($event, r.id, 'y')");
 });
-check('R21-3/R49 页面对齐（方向台/调度台统一页边距 max-width 1440）★R175/R3-B1 重指带备案：调度台 .page 18px/72px 不变，方向台 20px 顶距的宿主由 CompassShell 换成方向树 .compass-layout', () => CT_ALL.includes('padding: 20px 36px 64px') && read('/newtab/views/CompassHome.vue').includes('padding: 18px 36px 72px'));
+check('R21-3/R49（V4.7.5 重指）页面对齐（方向台/调度台统一 1440 容器与 page-gutter；调度台 24px 顶距、72px 收尾）', () => CT_ALL.includes('padding: 20px 36px 64px') && read('/newtab/views/CompassHome.vue').includes('padding: 24px var(--page-gutter) 72px'));
 check('R21-4 手册独立页（/manual 路由 + 目录锚点 + 富文本非 scoped）', () => read('/newtab/router.ts').includes("path: '/manual'") && read('/newtab/views/ManualPage.vue').includes('mn-content .mc-tip') && read('/newtab/views/GlobalSettings.vue').includes('openManualTab'));
 
 console.log('【第十九~二十轮 · 拼音搜索/拖拽修复/手册白皮书】');

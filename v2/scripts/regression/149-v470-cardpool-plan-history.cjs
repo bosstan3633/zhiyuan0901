@@ -106,11 +106,13 @@ check('PLAN470-2 ★任务/选题/好奇心三处详情都展示安排历程，�
     && !segOf(PLAN, 'export function removePlanEvent', 'export function restorePlanEvent').includes('dueDate =')
 })
 
-check('CURIO470-1 ★好奇心一级工作面：左侧清单 + 右侧日历/看板，三视图同源，可拖拽落图与改状态', () => {
+check('CURIO470-1 ★好奇心一级工作面：左侧清单 + 右侧日历/看板/时间线，同源可拖拽落图与改状态（V4.7.6 随迁备案：新增时间线视图，原日历/看板与落图改状态判据全部保留）', () => {
   return CURIO_WB.includes('class="cw-pool"')
-    && CURIO_WB.includes("viewMode = ref<'calendar' | 'board'>('calendar')")
+    && CURIO_WB.includes("viewMode = ref<'calendar' | 'board' | 'timeline'>('calendar')")
     && CURIO_WB.includes('class="cw-calendar"')
     && CURIO_WB.includes('class="cw-board"')
+    && CURIO_WB.includes('class="cw-timeline"')
+    && CURIO_WB.includes('kind="curiosity" :events="wceEvents" :data="appData" :cards="filtered" @select="openCardById"')
     && CURIO_WB.includes("scheduleCardDate(store.data!, card, day, { source: 'calendar' })")
     && CURIO_WB.includes("setStatus(card.id, status)")
     && HOME.includes('<CuriosityWorkbench />')

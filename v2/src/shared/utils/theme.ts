@@ -1,10 +1,10 @@
 /**
  * V4.4.1 主题契约：四套正式主题。
  *
- * - raycast = 光速黑（暗红强调）
+ * - raycast = 光速黑（高对比 Logo 蓝）
  * - notion  = 纸墨白
  * - apple   = 极简白
- * - oppo    = OPPO 绿
+ * - oppo    = 知源蓝（OPPO 式清透材质）
  *
  * 旧版 auto / linear 不再出现在选择器中；读取旧偏好时做确定性迁移：
  * auto → 系统深色 raycast / 浅色 apple；linear → raycast。

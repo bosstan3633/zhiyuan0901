@@ -52,7 +52,7 @@ export interface CloudMeta {
 export interface SnapshotState { data: AppData; ui: UIPrefs | null; eventLog: CardEvent[] }
 export type SyncManifestRecordType =
   | 'workspace' | 'category' | 'resource' | 'task' | 'curiosity' | 'topic' | 'argument'
-  | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'supportLink'
+  | 'direction' | 'project' | 'metric' | 'dailyFocus' | 'focusHistoryHidden' | 'supportLink'
   | 'topicResourceLink' | 'topicStatus' | 'taskStatus'
   | 'curationProjection' | 'resourceFolder' | 'resourceFolderMirror'
   | 'planScheduleEvent'
@@ -331,6 +331,7 @@ export function sanitizeSnapshot(data: AppData, ui: UIPrefs | null, eventLog: Ca
   // 今日三件事使用显式白名单边界：dailyFocus 的槽位字段整体保留，自动推荐/静音日期随主快照同行。
   Object.assign(d, {
     dailyFocus: preserveDailyFocus(d.dailyFocus),
+    focusHistoryHidden: d.focusHistoryHidden,
     focusAutoDate: d.focusAutoDate,
     focusMutedDate: d.focusMutedDate,
   })

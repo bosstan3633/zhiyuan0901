@@ -133,7 +133,10 @@ check('DOC460-7 ★四套正式主题名以 App.vue 的 themes 数组为真源�
   const repo = read('/shared/storage/repository.ts')
   return names.every(n => cur.includes(n.name) && GLOSSARY.includes(n.name) && GLOSSARY.includes(`\`${n.id}\``))
     && repo.includes("theme: 'raycast'")
-    && cur.includes('光速黑（默认，暗红强调）')
+    /* ★V4.7.6 重指备案：用户拍板主行动统一为知源 Logo 蓝，光速黑不再使用暗红强调；
+       主题 ID 仍保留 raycast / oppo，oppo 的界面名改为「知源蓝」。判据守的仍是
+       「默认主题与强调色口径必须与现行产品一致」，不删除任何断言。 */
+    && cur.includes('光速黑（默认，知源蓝强调）')
     && cur.includes('密度为紧凑 / 舒适两档开关')
     && !cur.includes('四套主题（深空薰衣草默认）')
     && !cur.includes('三档密度')

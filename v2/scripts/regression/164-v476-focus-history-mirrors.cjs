@@ -1,0 +1,62 @@
+const { check, read } = require('./helpers.cjs')
+
+console.log('【V4.7.6 · 三件事历史镜像】')
+const MODEL = read('/shared/models/index.ts')
+const STORE = read('/shared/storage/repository.ts')
+const SYNC = read('/shared/cloud/sync.ts')
+const PROJECT = read('/shared/utils/focusCalendar.ts')
+const TASK = read('/newtab/components/compass/TaskCalendarView.vue')
+const TOPIC = read('/newtab/components/compass/TopicCalendarView.vue')
+const CAL_CSS = read('/newtab/components/compass/TaskCalendarView.css')
+const HOME = read('/newtab/views/CompassHome.vue')
+const TASK_HOST = read('/newtab/components/compass/TaskManagerPanel.vue')
+const TOPIC_HOST = read('/newtab/components/compass/TopicManagerPanel.vue')
+
+check('V476-FC-1 历史隐藏独立按日期与原槽位持久化，老数据零迁移', () => {
+  return MODEL.includes('focusHistoryHidden?: Record<string, Array<{ slotId: string; hiddenAt: number }>>')
+    && PROJECT.includes('data.focusHistoryHidden = { ...(data.focusHistoryHidden || {}), [date]: rows }')
+    && STORE.includes('data.focusHistoryHidden = {}')
+    && SYNC.includes('focusHistoryHidden: d.focusHistoryHidden')
+})
+check('V476-FC-2 连续日期从历史槽位投影，旧数据自动呈现且不渲染未来', () => {
+  return PROJECT.includes('Object.entries(input.dailyFocus || {})')
+    && PROJECT.includes('date > input.today') && PROJECT.includes('mirror: date < input.today')
+})
+check('V476-FC-3 历史镜像读取实时卡片，同卡同日去重且软删卡不展示', () => {
+  return PROJECT.includes('filter(card => !card.deletedAt)')
+    && PROJECT.includes('const seen = new Set<string>()') && PROJECT.includes('seen.has(key)')
+    && PROJECT.includes('tasks.get(slot.sourceId)') && PROJECT.includes('topics.get(slot.sourceId)')
+})
+check('V476-FC-4 隐藏仅过滤投影，绝不清空或修改历史槽位', () => {
+  return PROJECT.includes('hidden.has(slot.id)') && PROJECT.includes('filter(row => row.slotId !== slotId)')
+    && !PROJECT.includes('delete data.dailyFocus') && !PROJECT.includes('input.dailyFocus[date]')
+})
+check('V476-FC-5 任务与选题日历合并三件事及普通计划，三件事优先去重', () => {
+  return [TASK, TOPIC].every(src => src.includes('focusEntriesByDay')
+    && src.includes('planned.filter(entry => !focusKeys.has(entry.key))'))
+})
+check('V476-FC-6 历史卡片可打开完整详情、不可拖拽或改状态，并保留“取消该日落图”出口', () => {
+  return [TASK, TOPIC].every(src => src.includes('entry.mirror ? undefined : true')
+    && src.includes(':tabindex="0"')
+    && src.includes(":role=\"entry.mirror ? 'button' : undefined\"")
+    && src.includes("@click=\"emit('open-task', entry.task)\"")
+    && src.includes("@click=\"emit('open-topic', entry.topic)\"")
+    && src.includes('aria-label="取消该日历史三件事落图"')
+    && src.includes('class="cal-modal-copy" type="button"')
+    && src.includes('is-history-mirror'))
+    && ![TASK, TOPIC].some(src => src.includes('@click="entry.mirror ? undefined'))
+})
+
+check('V476-FC-8 过往三件事以虚线卡片留存，当下卡片保持实线可操作形态', () => {
+  return CAL_CSS.includes('.cal-task-chip.is-history-mirror')
+    && CAL_CSS.includes('border: 1px dashed')
+    && CAL_CSS.includes('cursor: pointer')
+    && CAL_CSS.includes('border-left: 3px solid var(--task-status, var(--border-strong))')
+    && !CAL_CSS.includes('cursor: default')
+})
+check('V476-FC-7 三个日历宿主统一写库，今天真实槽位仍沿用既有取消替换链路', () => {
+  return [HOME, TASK_HOST, TOPIC_HOST].every(src => src.includes(':focus-by-day="d.dailyFocus"')
+    && src.includes(':focus-history-hidden="d.focusHistoryHidden"')
+    && src.includes('@hide-history-focus="hideHistoryFocus"')
+    && src.includes('hideFocusHistorySlot(d.value, date, slotId)') && src.includes('store.persist()'))
+})

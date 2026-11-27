@@ -21,12 +21,14 @@ import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import type { TaskCard, TopicCard } from '@/shared/models'
 import TopicCalendarView from './TopicCalendarView.vue'
+import CardPoolTimeline from './CardPoolTimeline.vue'
+import { hideFocusHistorySlot } from '@/shared/utils/focusCalendar'
 
 const props = withDefaults(defineProps<{ secondaryMode?: boolean }>(), { secondaryMode: false })
 const emit = defineEmits<{ (e: 'created', topic: TopicCard): void }>()
 
 const store = useAppStore()
-const { d, allProjects } = useCompass()
+const { d, allProjects, wceEvents, refreshWce } = useCompass()
 const route = useRoute()
 const router = useRouter()
 const taskDrawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
@@ -35,7 +37,7 @@ const search = ref('')
 const projectFilter = ref('')
 const statusFilter = ref('all')
 const showDone = ref(true)
-const viewMode = ref<'calendar' | 'board'>('calendar')
+const viewMode = ref<'calendar' | 'board' | 'timeline'>('calendar')
 const sortMode = ref<'recent' | 'unplanned' | 'due'>('recent')
 const groupMode = ref<'none' | 'project'>('none')
 const listCollapsed = ref(false)
@@ -109,6 +111,10 @@ const statuses = computed(() => sortedTopicStatuses(d.value))
 const liveTopics = computed(() => (d.value.topics || []).filter(topic => !topic.deletedAt && !topic.lifecycleArchived))
 const liveTasks = computed(() => (d.value.tasks || []).filter(task => !task.deletedAt && !task.lifecycleArchived))
 const todayFocusSlots = computed(() => activeFocusSlots(d.value.dailyFocus?.[localTodayKey()]))
+function hideHistoryFocus(date: string, slotId: string): void {
+  hideFocusHistorySlot(d.value, date, slotId)
+  store.persist()
+}
 const projectNames = computed(() => new Map(projects.value.map(project => [project.id, project.name])))
 const metricNames = computed(() => {
   const map = new Map<string, string>()
@@ -453,7 +459,7 @@ function metricName(topic: TopicCard): string {
   return (topic.metricId && metricNames.value.get(topic.metricId)) || ''
 }
 
-async function resetForFresh(nextView: 'calendar' | 'board' = 'board'): Promise<void> {
+async function resetForFresh(nextView: 'calendar' | 'board' | 'timeline' = 'board'): Promise<void> {
   resetFilters()
   sortMode.value = 'recent'
   groupMode.value = 'none'
@@ -516,6 +522,7 @@ defineExpose({ resetForFresh, openDetail })
         <div class="topic-view-switch" role="group" aria-label="选题视图">
           <button type="button" :class="{ on: viewMode === 'calendar' }" @click="viewMode = 'calendar'">日历</button>
           <button type="button" :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
+          <button type="button" :class="{ on: viewMode === 'timeline' }" @click="viewMode = 'timeline'; refreshWce()">时间线</button>
         </div>
         <button class="topic-new" type="button" @click="openCreate"><Icon name="plus" :size="13" /> 新建选题</button>
       </div>
@@ -616,7 +623,8 @@ defineExpose({ resetForFresh, openDetail })
           :focus-topics="liveTopics"
           :tasks="liveTasks"
           :focus-tasks="liveTasks"
-          :focus-slots="todayFocusSlots"
+          :focus-by-day="d.dailyFocus"
+          :focus-history-hidden="d.focusHistoryHidden"
           :statuses="statuses"
           :show-done="showDone"
           :project-names="projectNames"
@@ -631,7 +639,9 @@ defineExpose({ resetForFresh, openDetail })
           @clear-due="clearDueDate"
           @set-task-due="setTaskDueDate"
           @clear-task-due="clearTaskDueDate"
+          @hide-history-focus="hideHistoryFocus"
         />
+        <CardPoolTimeline v-else-if="viewMode === 'timeline'" kind="topic" :events="wceEvents" :data="d" :cards="filteredTopics" @select="openDetail" />
         <div v-else class="topic-board">
           <section
             v-for="column in boardColumns"
@@ -719,20 +729,20 @@ defineExpose({ resetForFresh, openDetail })
 </template>
 
 <style scoped>
-.topic-manager { position: relative; display: flex; min-width: 0; flex-direction: column; gap: 12px; }
-.topic-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-xl); background: color-mix(in srgb, var(--surface) 92%, var(--accent-light)); }
-.topic-toolbar-main, .topic-toolbar-actions { display: flex; align-items: center; gap: 7px; min-width: 0; flex-wrap: wrap; }
+.topic-manager { position: relative; display: flex; min-width: 0; flex-direction: column; gap: 9px; }
+.topic-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface) 92%, var(--accent-light)); }
+.topic-toolbar-main, .topic-toolbar-actions { display: flex; align-items: center; gap: 5px; min-width: 0; flex-wrap: wrap; }
 .topic-toolbar-main { flex: 1; }
-.topic-search { display: flex; flex: 1; min-width: 220px; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-.topic-search input { flex: 1; min-width: 0; min-height: 34px; border: 0; outline: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); }
+.topic-search { display: flex; flex: 0 1 240px; min-width: 180px; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.topic-search input { flex: 1; min-width: 0; min-height: 30px; border: 0; outline: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-micro); }
 .topic-search button { padding: 0; border: 0; background: none; color: var(--text-2); cursor: pointer; }
-.topic-toolbar select { min-height: 34px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text-2); font-family: inherit; font-size: var(--fs-caption); }
-.topic-done-toggle { display: flex; align-items: center; gap: 5px; color: var(--text-2); font-size: var(--fs-caption); white-space: nowrap; }
-.topic-clear { min-height: 32px; padding: 0 9px; border: 0; background: none; color: var(--text-3); font-family: inherit; font-size: var(--fs-caption); cursor: pointer; }
-.topic-view-switch { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
-.topic-view-switch button { min-height: 28px; padding: 3px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
+.topic-toolbar select { min-height: 30px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-2); font-family: inherit; font-size: var(--fs-micro); }
+.topic-done-toggle { display: flex; align-items: center; gap: 4px; color: var(--text-2); font-size: var(--fs-micro); white-space: nowrap; }
+.topic-clear { min-height: 28px; padding: 0 6px; border: 0; background: none; color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); cursor: pointer; }
+.topic-view-switch { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.topic-view-switch button { min-height: 28px; padding: 3px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
 .topic-view-switch button.on { background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm); }
-.topic-new { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-caption); font-weight: 650; cursor: pointer; }
+.topic-new { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
 .topic-workbench { display: grid; grid-template-columns: minmax(230px, var(--topic-list-width, 300px)) 12px minmax(0, 1fr); gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
 .list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }
 .topic-pool { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }

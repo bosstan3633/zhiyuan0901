@@ -1,5 +1,5 @@
 /* ===== 页面容器 ===== */
-.pi-page { max-width: 1440px; margin: 0 auto; padding: 16px 32px 56px; display: flex; flex-direction: column; gap: 16px; }
+.pi-page { max-width: 1440px; margin: 0 auto; padding: 20px var(--page-gutter) 56px; display: flex; flex-direction: column; gap: 16px; }
 
 /* ===== 周期控制 + 模块级 AI 洞察 ===== */
 /* V4.7.3: 画像洞察以时间轴为主舞台，控制条与内容只保留必要间距。 */
@@ -13,9 +13,9 @@
 .pi-range-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
   margin-bottom: 8px; padding: 8px 10px 8px 13px;
-  border: 1px solid var(--border); border-radius: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--surface) 86%, var(--surface-2));
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 5%, transparent);
+  box-shadow: var(--shadow-panel);
 }
 .pi-range-control { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .pi-range-kicker {

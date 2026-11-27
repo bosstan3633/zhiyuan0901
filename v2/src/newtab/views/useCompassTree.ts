@@ -481,6 +481,26 @@ watch(() => route.query, locatePanoFromQuery)
 /** 首次从检索结果深链进入时没有“旧 query → 新 query”的变化可比，挂载后主动补跑一次。 */
 onMounted(() => locatePanoFromQuery())
 
+/** V4.7.4：浏览器快捷键「直达任务全景」深链 —— /compass?layer=6。
+ *  只切到方向台第 6 层完整任务列表，不另造页面；直接赋值而非 onLayerList 切换，
+ *  保证重复触发时也是“打开”而不是“收起”。 */
+function openTaskPanoramaFromQuery() {
+  if (route.query.layer !== '6') return
+  viewMode.value = 'tower'
+  dirFilter.value = ''
+  riskOnly.value = false
+  layerOpen.value = null
+  layerView.value = 6
+  spineRef.value?.expandSpine()
+  nextTick(() => {
+    setTimeout(() => {
+      document.getElementById('lvlist-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
+  })
+}
+watch(() => route.query, openTaskPanoramaFromQuery)
+onMounted(() => openTaskPanoramaFromQuery())
+
 /** V3.9.31（F5）：项目导出 —— 全景页头与项目详情弹窗共用 projectExport 单一生成器（防两处漂移）。
  *  结构化输出项目头（战略链/主攻/状态/下一步/进度/断链警示）→ 指标（进度/缺任务）→
  *  任务（子任务/任务链接）→ 支撑资源（SupportLink）；链接一律可点击，附件不嵌本体。 */

@@ -13,20 +13,19 @@ const CSS = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
 
 console.log('【W16 · 指标区方案A（纯文本读数行）与下钻明细准确性（V3.8.24 批）】');
 
-check('W16-1 ★V3.9.3 四格读数归位概览后的指标形态：四格用竖线分隔、数字与说明分层；每格带分子分母口径 tooltip，点击可下钻；第四格保留中性进度条。★W17-C09（2026-10-20）重指带备案：原末句守「主攻胶囊名 24ch 截断」——本批用户反馈的正是"主攻项目内容不完整"，截断规则随 Hero 方向带退役；改为负锚：.hcb-pill 规则零命中，且方向面板项目名不设截断。Hero 本身不再渲染指标，避免首屏同组读数出现两次。', () => {
+check('W16-1（V4.7.4 重指）四格读数归位概览后的紧凑指标形态：四格用竖线分隔，数值 17px / 标签 10px 分层，说明行退役；每格带分子分母口径 tooltip，点击可下钻；第四格保留中性进度条。★W17-C09 负锚：.hcb-pill 规则零命中，且方向面板项目名不设截断。Hero 本身不再渲染指标，避免首屏同组读数出现两次。', () => {
   const grid = CSS.match(/\.pi-ov-kpis \{[^}]*\}/)?.[0] || '';
   const kpi = CSS.match(/\.pi-ov-kpi \{[^}]*\}/)?.[0] || '';
   const v = CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/)?.[0] || '';
   const l = CSS.match(/\.pi-ov-kpi \.l \{[^}]*\}/)?.[0] || '';
-  const d = CSS.match(/\.pi-ov-kpi \.d \{[^}]*\}/)?.[0] || '';
   const pill = CSS.match(/\.hcb-pill \{[^}]*\}/)?.[0] || '';
   return /background:\s*transparent/.test(kpi)
     && !/border-radius/.test(kpi) && !/box-shadow/.test(kpi)
     && kpi.includes('border-right: 1px solid var(--border)')
     && grid.includes('repeat(4, minmax(0, 1fr))')
-    && v.includes('font-size: var(--fs-title)')
-    && l.includes('font-size: var(--fs-caption)')
-    && d.includes('font-size: var(--fs-caption)')
+    && v.includes('font-size: var(--fs-headline)')
+    && l.includes('font-size: var(--fs-tiny)')
+    && !/\.pi-ov-kpi \.d \{/.test(CSS)
     && !/\.hcb-pill \{/.test(CSS)
     /* ★C09 新负锚：方向面板的项目名必须允许换行完整显示（不设 max-width 截断） */
     && /overflow-wrap: anywhere/.test(read('/newtab/components/profile/PiOverview.vue'))

@@ -34,6 +34,7 @@ const TYPE_LABEL: Record<SyncManifestRecordType, string> = {
   project: '项目',
   metric: '成功指标',
   dailyFocus: '今日三件事',
+  focusHistoryHidden: '历史镜像隐藏',
   supportLink: '任务 → 资源',
   curationProjection: '策展节点 → 资源',
   resourceFolder: '常用夹',
@@ -163,7 +164,7 @@ export function syncGroupOf(type: SyncManifestRecordType): Exclude<SyncRecordGro
   if (type === 'resource' || type === 'task' || type === 'curiosity' || type === 'topic' || type === 'topicStatus' || type === 'taskStatus') return 'cards'
   if (type === 'workspace' || type === 'category' || type === 'argument' || type === 'attachment') return 'curation'
   if (type === 'direction' || type === 'project' || type === 'metric') return 'direction'
-  if (type === 'dailyFocus') return 'dailyFocus'
+  if (type === 'dailyFocus' || type === 'focusHistoryHidden') return 'dailyFocus'
   if (type === 'supportLink' || type === 'topicResourceLink' || type === 'curationProjection' || type === 'resourceFolderMirror') return 'relations'
   if (type === 'resourceFolder') return 'cards'
   return 'system'

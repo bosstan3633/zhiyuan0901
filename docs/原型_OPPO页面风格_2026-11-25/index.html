@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>知源调度台·OPPO 风格原型（可交互预览）</title>
+<style>
+  :root {
+    --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #EAF3EE; --surface-3: #DFECE4;
+    --border: rgba(17,65,45,.09); --border-strong: rgba(17,65,45,.17);
+    --text: rgba(13,34,24,.94); --text-2: rgba(19,51,36,.68); --text-3: rgba(22,58,40,.56);
+    --accent: #168457; --accent-ink: #0B6B43; --accent-light: #E1F2E9;
+    --radius: 16px; --radius-md: 12px; --radius-sm: 8px; --radius-xs: 4px; --radius-full: 999px;
+    --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px; --sp7:48px;
+    --shadow: 0 10px 30px rgba(15,63,42,.07); --shadow-hover: 0 16px 40px rgba(15,63,42,.10);
+    --ease: cubic-bezier(0.16,1,0.3,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); }
+  a { color: inherit; text-decoration: none; }
+  /* 顶部导航 */
+  .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: var(--sp4); padding: var(--sp4) var(--sp7); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+  .topbar .logo { font-weight: 700; font-size: 16px; letter-spacing: -.01em; color: var(--accent-ink); }
+  .topbar nav { display: flex; gap: var(--sp3); }
+  .topbar a { padding: var(--sp2) var(--sp4); border-radius: var(--radius-full); font-size: 13px; color: var(--text-2); transition: all var(--ease) 150ms; }
+  .topbar a:hover { background: var(--accent-light); color: var(--accent-ink); }
+  .topbar a.active { background: var(--accent); color: #fff; }
+  /* 台面容器：四个台面按需切换 */
+  .viewport { padding: var(--sp7) var(--sp7) var(--sp6); }
+  .view { display: none; }
+  .view.active { display: block; }
+  /* 页头：大字 + kicker */
+  .head { margin-bottom: var(--sp5); }
+  .head h1 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; margin-bottom: var(--sp2); }
+  .head .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--text-3); text-transform: uppercase; margin-bottom: var(--sp2); }
+  .head .desc { color: var(--text-2); font-size: 13px; max-width: 640px; }
+  /* 卡片网格（卡片池 / 策展画布） */
+  .grid { display: grid; gap: var(--sp5); }
+  .grid.two { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 1024px) { .grid.two { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp6); box-shadow: var(--shadow); cursor: pointer; transition: all var(--ease) 150ms; }
+  .card:hover { transform: scale(1.015); box-shadow: var(--shadow-hover); }
+  .card-head { display: flex; align-items: center; gap: var(--sp2); margin-bottom: var(--sp3); }
+  .card-title { font-size: 17px; font-weight: 600; color: var(--text); }
+  .card-chip { font-size: 11px; padding: var(--sp1) var(--sp2); border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-ink); }
+  .card-body { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+  /* 视觉焦点提示（原型左上角展示焦点位置） */
+  .focus-tag { display: inline-flex; align-items: center; gap: var(--sp2); font-size: 12px; padding: var(--sp2) var(--sp3); border-radius: var(--radius-full); background: var(--surface-3); color: var(--accent-ink); font-weight: 600; margin-bottom: var(--sp5); }
+  /* 时间轴（知源品牌区焦点） */
+  .timeline { display: flex; flex-direction: column; gap: var(--sp4); max-width: 720px; }
+  .tl-item { display: flex; gap: var(--sp4); padding: var(--sp5); border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); }
+  .tl-item .tl-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .tl-item.done .tl-dot { background: var(--accent); }
+  .tl-item.modified .tl-dot { background: var(--warning, #8C681B); }
+  .tl-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .tl-time { font-size: 12px; color: var(--text-3); margin-bottom: 6px; }
+  .tl-desc { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+  /* 项目塔（方向台焦点） */
+  .tower { display: grid; grid-template-columns: 240px 1fr; gap: var(--sp5); }
+  .tower .side { position: relative; }
+  .tower .line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--border-strong); margin-left: -9px; }
+  .tower .projects { display: flex; flex-direction: column; gap: var(--sp3); }
+  .proj { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp4); box-shadow: var(--shadow); }
+  .proj .name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: var(--sp2); }
+  .proj .bar { height: 8px; border-radius: var(--radius-xs); background: var(--border-strong); overflow: hidden; }
+  .proj .bar i { display: block; height: 100%; width: 68%; background: var(--accent); }
+  .proj .meta { margin-top: var(--sp3); font-size: 12px; color: var(--text-3); }
+  /* 策展画布（策展台焦点） */
+  .canvas { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp6); position: relative; }
+  .canvas .thesis { font-size: 20px; font-weight: 600; }
+  .canvas .nodes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp5); margin-top: var(--sp5); }
+  .node { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp5); }
+  .node .n-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  .node .n-link { font-size: 12px; color: var(--accent-ink); margin-top: var(--sp2); }
+  @media (max-width: 1024px) { .canvas .nodes { grid-template-columns: 1fr; } }
+  /* 设置 pill 导航 */
+  .pillbar { display: inline-flex; gap: var(--sp2); padding: var(--sp2) var(--sp4); border-radius: var(--radius-full); background: var(--surface-3); margin-bottom: var(--sp7); }
+  .pillbar a { padding: var(--sp2) var(--sp4); border-radius: var(--radius-full); font-size: 13px; color: var(--text-2); }
+  .pillbar a.active { background: var(--surface); box-shadow: var(--shadow-hover); color: var(--text); }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="logo">知源 · 策展</div>
+  <a href="#v1" class="active">画像台</a>
+  <a href="#v2">调度台</a>
+  <a href="#v3">方向台</a>
+  <a href="#v4">策展台</a>
+</nav>
+
+<!-- ============================================= -->
+<!-- 1) 知源品牌区 · 视觉焦点：时间轴模块 -->
+<section class="view active" id="v1">
+  <div class="focus-tag">焦点：时间轴模块</div>
+  <div class="head"><h1>你的知源使用画像</h1><span class="eyebrow">PROFILE INSIGHTS</span></div>
+  <div class="timeline">
+    <div class="tl-item done"><span class="tl-dot"></span><div><span class="tl-title">今天 · 进行中任务</span><span class="tl-time">09:24 · 2026-11-25</span><span class="tl-desc">打开“项目全景”，目录树与指标泳道同时展开。</span></div></div>
+    <div class="tl-item modified"><span class="tl-dot"></span><div><span class="tl-title">今天 · 修改</span><span class="tl-time">08:41</span><span class="tl-desc">完善“全球资源”项目的自定义字段，新增 3 项。</span></div></div>
+    <div class="tl-item done"><span class="tl-dot"></span><div><span class="tl-title">昨日 · 新增卡片</span><span class="tl-time">2026-11-24</span><span class="tl-desc">收录 48 篇行业报告，头像规范四选一。</span></div></div>
+    <div class="tl-item done"><span class="tl-dot"></span><div><span class="tl-title">3 天前 · 修改</span><span class="tl-time">2026-11-22</span><span class="tl-desc">好奇心卡 C-341 更新状态为“已求证”。</span></div></div>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<!-- 2) 调度台 · 视觉焦点：卡片池 -->
+<section class="view" id="v2">
+  <div class="focus-tag">焦点：卡片池（任务 / 选题 / 好奇心 / 资源）</div>
+  <div class="head"><h1>今天的知源</h1><span class="eyebrow">DASHBOARD HOME</span></div>
+  <div class="pillbar">
+    <a class="active">任务</a><a>选题</a><a>好奇心</a><a>资源</a>
+  </div>
+  <div class="grid two">
+    <div class="card"><span class="card-chip">任务</span><div class="card-head"><span class="card-title">收集行业数据</span></div><div class="card-body">按本周目标输出 30 条行业洞察，每条标记来源。</div></div>
+    <div class="card"><span class="card-chip">任务</span><div class="card-head"><span class="card-title">分析竞品仪表盘</span></div><div class="card-body">选中“产品研发”项目，进入指标下钻，核对任务支撑率。</div></div>
+    <div class="card"><span class="card-chip">选题</span><div class="card-head"><span class="card-title">选题：AI 业务模型原型</span></div><div class="card-body">已挂项目“产品研发”与指标，预计写 1 手稿。</div></div>
+    <div class="card"><span class="card-chip">好奇心</span><div class="card-head"><span class="card-title">知源绿是否过饱和？</span></div><div class="card-body">来源：AI 对话 · 2026-11-25，标签待探索。</div></div>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<!-- 3) 方向台 · 视觉焦点：项目塔 -->
+<section class="view" id="v3">
+  <div class="focus-tag">焦点：项目塔（垂直）</div>
+  <div class="head"><h1>战略骨架</h1><span class="eyebrow">COMPASS TREE</span></div>
+  <div class="tower">
+    <div class="side"><div class="line"></div>
+      <div class="projects">
+        <div class="proj"><div class="name">策展台</div><div class="bar"><i></i></div><div class="meta">主攻 · 4 指标 / 12 任务</div></div>
+        <div class="proj"><div class="name">产品研发</div><div class="bar"><i style="width: 58%;"></i></div><div class="meta">进度 58%，未停滞</div></div>
+        <div class="proj"><div class="name">内容输出</div><div class="bar"><i style="width: 34%; background: var(--warning, #8C681B);"></i></div><div class="meta">逾期项目（2）</div></div>
+      </div>
+    </div>
+    <div class="side" style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:13px; color:var(--text-3);">方向健康度 91% · 主攻 2 · 停滞 0</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<!-- 4) 策展台 · 视觉焦点：策展画布 -->
+<section class="view" id="v4">
+  <div class="focus-tag">焦点：策展画布（金字塔 / 树状）</div>
+  <div class="head"><h1>我的策展台 · 思维导图</h1><span class="eyebrow">WORKSPACE</span></div>
+  <div class="canvas">
+    <div class="thesis">知源是我的个人认知控制塔</div>
+    <div class="nodes">
+      <div class="node"><div class="n-title">全球资源</div><div class="n-link">资源卡 1,240 张</div></div>
+      <div class="node"><div class="n-title">AI 洞察</div><div class="n-link">当前周期 · 时间轴 / 热力图</div></div>
+      <div class="node"><div class="n-title">知源项目</div><div class="n-link">愿景：自主调度</div></div>
+      <div class="node"><div class="n-title">今日三件事</div><div class="n-link">恒 3 槽 · 日历同源</div></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const views = [...document.querySelectorAll('.view')]
+  const tabs = [...document.querySelectorAll('.topbar a')]
+  const byHash = new Map([['#v1',1],['#v2',2],['#v3',3],['#v4',4]])
+  function setActive(i){ views[i].classList.add('active'); views.forEach((v,j)=>{ if(j!==i) v.classList.remove('active') }); tabs[i].classList.add('active'); tabs.forEach((t,j)=>{ if(j!==i) t.classList.remove('active') }) }
+  views[0].classList.add('active'); tabs[0].classList.add('active')
+  window.onhashchange = () => { const i = byHash.get(location.hash) ?? 0; setActive(i) }
+</script>
+</body>
+</html>

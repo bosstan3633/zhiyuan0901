@@ -109,27 +109,27 @@ const sortDirTitle = computed(() => {
 
 <style scoped>
 /* 与三张卡既有的按钮语言一致（同一套令牌，不新造视觉） */
-.dk-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.dk-search { display: flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.dk-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.dk-search { display: flex; min-width: 160px; max-width: 260px; flex: 0 1 210px; align-items: center; gap: 6px; min-height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .dk-search:focus-within { border-color: var(--accent); }
-.dk-search input { border: none; outline: none; font-size: var(--fs-sub); width: 190px; background: transparent; color: var(--text); font-family: inherit; }
+.dk-search input { min-width: 0; width: 100%; border: none; outline: none; font-size: var(--fs-micro); background: transparent; color: var(--text); font-family: inherit; }
 .dk-views { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .dk-filters { display: inline-flex; align-items: center; gap: 6px; }
 .dk-filters.select { gap: 0; }
 /* M6（B7-e · V3.8.40）：min-height 28px 热区下限。视图/筛选等段控实测 25px，规范 M6 要求 ≥28px。
    同 App.vue 口径：撑盒子不改字号与横向 padding，视觉密度不变。 */
-.dk-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); min-height: 28px; padding: 5px 11px; font-size: var(--fs-sub); font-weight: 600; font-family: inherit; cursor: pointer; user-select: none; transition: all var(--dur); white-space: nowrap; }
+.dk-btn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); min-height: 28px; padding: 4px 9px; font-size: var(--fs-caption); font-weight: 600; font-family: inherit; cursor: pointer; user-select: none; transition: all var(--dur); white-space: nowrap; }
 .dk-btn:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
 .dk-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .dk-btn.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .dk-views .dk-btn { border-color: transparent; background: transparent; padding: 4px 9px; font-size: var(--fs-caption); }
 .dk-views .dk-btn.on { border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
-.dk-pill { padding: 4px 9px; font-weight: 500; font-size: var(--fs-caption); }
+.dk-pill { padding: 4px 8px; font-weight: 500; font-size: var(--fs-micro); }
 .dk-pill-n { margin-left: 5px; font-variant-numeric: tabular-nums; color: var(--text-3); }
 .dk-pill.on .dk-pill-n { color: var(--accent-ink); }
-.dk-select { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 4px 8px; font-size: var(--fs-sub); font-family: inherit; outline: none; cursor: pointer; }
+.dk-select { min-height: 28px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: var(--radius-sm); padding: 3px 7px; font-size: var(--fs-caption); font-family: inherit; outline: none; cursor: pointer; }
 .dk-select:focus { border-color: var(--accent); }
-.dk-count { margin-left: auto; font-size: var(--fs-sub); color: var(--text-3); font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 4px; }
+.dk-count { margin-left: auto; font-size: var(--fs-caption); color: var(--text-3); font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 4px; }
 .dk-batch { display: inline-flex; align-items: center; gap: 5px; }
 .dk-new { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 </style>

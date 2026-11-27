@@ -53,7 +53,7 @@ function lineOf(src, idx) {
 /** 解析一个开标签的属性串，返回 { hasClick, tabindex, role, href, pressable, keydown } */
 function readAttrs(attrs) {
   const hasClick = /(^|\s)(@click|v-on:click)(\.|\s|=|$)/.test(attrs)
-  const ti = /\stabindex\s*=\s*("([^"]*)"|'([^']*)')/.exec(attrs)
+  const ti = /\s(?::tabindex|v-bind:tabindex|tabindex)\s*=\s*("([^"]*)"|'([^']*)')/.exec(attrs)
   const tabindex = ti ? (ti[2] !== undefined ? ti[2] : ti[3]) : null
   const role = /\srole\s*=/.test(attrs)
   // 动态 :href / v-bind:href 同样是真链接；旧口径只认静态 href，会把可打开的资源卡误报成缺口。

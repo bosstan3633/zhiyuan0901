@@ -129,11 +129,12 @@ check('R91-6（V4.7.0 重指）无主攻时任务工作面仍可用：全部项�
     && CH91.includes('全部项目')
     && !CH91.includes('class="stat-row stat-row-empty"');
 });
-check('R91-7 models 注释不再把主攻指向已退役的「任务中心顶部」（R49 已删 /tasks 路由）', () => {
+check('R91-7（V4.7.6 重指）models 注释明确主攻进入调度台顶部，最多三个且点击打开项目详情', () => {
   const mi = read('/shared/models/index.ts');
   const i = mi.indexOf('isFocused: boolean');
   const before = mi.slice(Math.max(0, i - 420), i);
-  return i > 0 && before.includes('直通调度台速览')
+  return i > 0 && before.includes('调度台顶部')
+    && before.includes('最多 3 个')
     && !before.includes('（最多2个，同步至任务中心顶部）');
 });
 check('R91-8 版本五处同步（manifest/package/ManualPage/regression/关于页动态）', () => {

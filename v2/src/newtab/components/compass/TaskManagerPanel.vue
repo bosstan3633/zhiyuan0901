@@ -41,12 +41,14 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import TaskAiCorner from '@/newtab/components/TaskAiCorner.vue'
 import TaskCalendarView from './TaskCalendarView.vue'
+import CardPoolTimeline from './CardPoolTimeline.vue'
 import { useTaskManagerPanel, type TaskManagerPanelProps, type TaskFilter, type TaskGroupMode } from './useTaskManagerPanel'
 import { activeFocusSlots, clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import { isTopicDone, toggleTopicDone } from '@/shared/utils/topicStatus'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
+import { hideFocusHistorySlot } from '@/shared/utils/focusCalendar'
 const {
   route,
   router,
@@ -57,6 +59,7 @@ const {
   taskArchiveIssue,
   drawerRef,
   viewMode,
+  wceEvents,
   taskCols,
   groupMode,
   groupByProject,
@@ -175,6 +178,10 @@ function localTodayKey(): string {
 const liveTaskCards = computed(() => (d.value.tasks || []).filter(task => !task.deletedAt))
 const liveTopicCards = computed(() => (d.value.topics || []).filter(topic => !topic.deletedAt))
 const todayFocusSlots = computed(() => activeFocusSlots(d.value.dailyFocus?.[localTodayKey()]))
+function hideHistoryFocus(date: string, slotId: string): void {
+  hideFocusHistorySlot(d.value, date, slotId)
+  store.persist()
+}
 let topicOpenTimer: ReturnType<typeof setTimeout> | null = null
 
 function clearTopicOpenTimer(): void {
@@ -292,11 +299,11 @@ defineExpose({ openDetail, resetForFresh })
       <!-- R3-Cc2：控制行收归 DeckControls——顺序与样式一份实现，任务的值域（三视图 / 五状态 / 三排序 / 三分组）以数据传入 -->
       <DeckControls panel="task" search :query="searchQuery" @search="searchQuery = $event"
         :filters="TASK_FILTERS" filter-kind="select" :filter="filterBy" @filter="filterBy = $event as TaskFilter" filter-title="状态筛选"
-        :views="TASK_VIEWS" :view="viewMode" @view="changeViewMode($event as 'card' | 'list' | 'kanban' | 'calendar')"
+        :views="TASK_VIEWS" :view="viewMode" @view="changeViewMode($event as 'card' | 'list' | 'kanban' | 'calendar' | 'timeline')"
         :sorts="TASK_SORTS" :sort="sortBy" @sort="changeSortBy"
         :sort-dir="sortBy === 'recent' ? sortDir : ''"
         :sort-dir-titles="['当前倒序，点击切换正序', '当前正序，点击切换倒序']" @sort-dir="toggleSortDir"
-        :groups="viewMode === 'list' ? TASK_GROUPS : []" :group="groupMode" @group="changeGroupMode($event as TaskGroupMode)"
+        :groups="viewMode === 'list' || viewMode === 'kanban' ? TASK_GROUPS : []" :group="groupMode" @group="changeGroupMode($event as TaskGroupMode)"
         :batch-on="batchMode" @batch="toggleBatchMode" :new-label="secondaryMode ? '' : '＋新建任务'" @create="createNewTask">
         <!-- R72：卡片视图横向列数（4/5/6/7，仅卡片视图出现） -->
         <ColsPicker v-if="viewMode === 'card'" v-model="taskCols" label="列数" />
@@ -567,6 +574,8 @@ defineExpose({ openDetail, resetForFresh })
         </div>
       </div>
 
+      <CardPoolTimeline v-else-if="viewMode === 'timeline'" kind="task" :events="wceEvents" :data="d" :cards="filteredTasks" @select="openDetail" />
+
       <TaskCalendarView
         v-else
         :tasks="filteredTasks"
@@ -574,7 +583,8 @@ defineExpose({ openDetail, resetForFresh })
         :topics="liveTopicCards"
         :topic-statuses="d.topicStatuses"
         :task-statuses="d.taskStatuses"
-        :focus-slots="todayFocusSlots"
+        :focus-by-day="d.dailyFocus"
+        :focus-history-hidden="d.focusHistoryHidden"
         :project-names="projNameById"
         :metric-names="metricTitleById"
         @open-task="openTaskFromAi"
@@ -588,6 +598,7 @@ defineExpose({ openDetail, resetForFresh })
         @clear-due="clearTaskDueDate"
         @set-topic-due="setTopicDueDate"
         @clear-topic-due="clearTopicDueDate"
+        @hide-history-focus="hideHistoryFocus"
       />
     </div>
 

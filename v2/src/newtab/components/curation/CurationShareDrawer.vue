@@ -13,6 +13,7 @@ import { buildZipFromBlobs } from '@/shared/utils/zip'
 import { getAssetBlob } from '@/shared/storage/assets'
 import { downloadCurationAsset } from '@/shared/cloud/sync'
 import type { AssetMeta, Category, ResourceCard } from '@/shared/models'
+import { recordOutcomeEvent } from '@/shared/utils/eventLog'
 
 const props = defineProps<{
   open: boolean
@@ -186,6 +187,7 @@ async function downloadImage(): Promise<void> {
       theme: options.theme,
     })
     downloadBlob(imageFilename.value, out.blob)
+    recordOutcomeEvent('resource', props.thesis?.title || `${props.workspaceName} · 策展成果`, props.thesis?.id || `curation:${props.workspaceName}`)
     showToast(`已下载高清长图（${out.width} × ${out.height}）`)
   } catch (error) {
     showToast('长图生成失败：' + ((error as Error).message || '未知错误'))
@@ -290,6 +292,7 @@ async function download(): Promise<void> {
     }
     if (exportMode.value === 'zip') await downloadAttachmentZip()
     else await downloadSingleHtml()
+    recordOutcomeEvent('resource', props.thesis?.title || `${props.workspaceName} · 策展成果`, props.thesis?.id || `curation:${props.workspaceName}`)
     showToast(exportMode.value === 'zip' ? '已下载 HTML + 附件 ZIP' : '已下载策展分享 HTML')
   } catch (error) {
     showToast('导出失败：' + ((error as Error).message || '未知错误'))

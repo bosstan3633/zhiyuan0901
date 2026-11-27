@@ -28,10 +28,10 @@ check('RES471-2 系统夹固定两枚：全部资源卡 / 今日采集在先，�
     && GRID.includes('＋ 新建常用夹')
 })
 
-check('RES471-3 系统夹约 64–70px 且更醒目：一行两枚、强调底色、左色条与更小图标；自建夹沿用普通 92px', () => {
+check('RES471-3（V4.7.4 重指）系统夹与常用夹同步瘦身：系统夹 48px、常用夹 54px，仍一行两枚系统夹、强调底色、左色条与更小图标', () => {
   return /\.hrf-system-grid \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/.test(GRID)
-    && /\.hrf-system-folder \{[^}]*min-height: 68px/.test(GRID)
-    && /\.hrf-folder \{[^}]*min-height: 92px/.test(GRID)
+    && /\.hrf-system-folder \{[^}]*min-height: 48px/.test(GRID)
+    && /\.hrf-folder \{[^}]*min-height: 54px/.test(GRID)
     && GRID.includes('.hrf-system-folder::before')
     && /\.hrf-system-folder::before \{[^}]*background: var\(--accent\)/.test(GRID)
     && GRID.includes('.hrf-system-folder .hrf-icon')

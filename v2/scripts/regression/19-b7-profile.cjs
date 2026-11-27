@@ -16,6 +16,7 @@ const MONTH = read('/newtab/components/profile/PiMonth.vue');
 const YEAR = read('/newtab/components/profile/PiYear.vue');
 const RANGE = read('/newtab/components/profile/PiRangeTabs.vue');
 const OVERVIEW = read('/newtab/components/profile/PiOverview.vue');
+const ANALYSIS = read('/newtab/components/profile/PiCardAnalysis.vue');
 /** 段头切片：四段各有自己的右缘操作（今日=按钮 / 本周=徽标+按钮 / 本月=徽标 / 本年=徽标），
  *  只看段头这一段，才不会把段身里的按钮误算成「右缘操作」。 */
 const segHead = (src) => {
@@ -47,11 +48,11 @@ check(NAME(
 });
 
 check(NAME(
-  'A1-2 ★V3.9.3 概览四格读数保持中性、清晰的层级：数值用 --text 与 600 字重，',
-  '不从颜色上做好坏裁决；说明行用较弱层级承担口径补充。'), () => {
+  'A1-2（V4.7.4 重指）概览四格读数保持中性、清晰的层级：紧凑态的数值用 --text、',
+  '--fs-headline 与 600 字重，不从颜色上做好坏裁决；口径补充收进 title，不再占一行。'), () => {
   const v = CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/)?.[0] || '';
   if (!v) { console.log('     锚点缺失'); return false; }
-  return /font-size:\s*var\(--fs-title\)/.test(v)
+  return /font-size:\s*var\(--fs-headline\)/.test(v)
     && /font-weight:\s*600/.test(v)
     && /color:\s*var\(--text\)/.test(v)
     && !/font-weight:\s*700/.test(v)
@@ -113,15 +114,16 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-2 ★V4.7.3 重指：观察范围收敛为「时间轴 / 热力图」双视图，默认时间轴，',
-  '热力图保留 PiYear 原能力。负锚：旧四尺度 PiRangeTabs 不再作为页面唯一导航。'), () => {
+  'A3-2 ★V4.7.6 重指：观察范围收敛为「时间轴 / 卡片分析」双视图，默认时间轴，',
+  '年度热力独立常驻。负锚：旧四尺度 PiRangeTabs 不再作为页面唯一导航。'), () => {
   const mods = CSS.match(/\.pi-rmods-single[^{]*\{[^}]*\}/)?.[0] || '';
-  return PI.includes("type ProfileView = 'timeline' | 'heatmap'")
+  return PI.includes("type ProfileView = 'timeline' | 'analysis'")
     && PI.includes("return 'timeline'")
     && PI.includes('data-profile-view="timeline"')
-    && PI.includes('data-profile-view="heatmap"')
+    && PI.includes('data-profile-view="analysis"')
     && PI.includes('<PiTimeline')
-    && PI.includes('<PiYear v-else')
+    && PI.includes('<PiAnnualHeatmap')
+    && PI.includes('<PiCardAnalysis v-else')
     && !PI.includes('<PiRangeTabs')
     && !PI.includes('@jump="onRailJump"') && !PI.includes('<PiRail')
     && mods.includes('animation: pi-range-in')
@@ -202,14 +204,15 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-9 ★首屏先方向再行动：PiOverview 独立承载「本周精力」与「今天三件事」双栏，',
-  '四格核心读数与既有下钻在概览左栏同源承载；宿主不直接堆这套模板，避免超过 W13-8 行数闸。'), () => {
+  'A3-9 ★V4.7.6 重指：卡片分析独立承载方向与产品使用状态，',
+  '四格核心读数与既有下钻同源承载；年度热力优先于分析页。'), () => {
   /* ★W17-C09（2026-10-20 用户拍板）重指带备案：首屏从「本周精力 + 今天三件事」双栏改为
      「知源产品使用状态 + 你的方向状态」双面板——今天三件事与调度台重复，用户要求移除。
      所守意图（首屏先给方向、四格读数与下钻在概览同源承载、宿主不堆模板）一条未减。 */
-  return PI.includes('<PiOverview') && PI.includes(':mission-text="heroMission"')
+  return PI.includes('<PiCardAnalysis') && PI.includes(':mission-text="heroMission"')
     && PI.includes(':focus-projects="heroFocusProjects"')
     && PI.includes('@kpi-drill="onHeroDrill"')
+    && ANALYSIS.includes('<PiOverview')
     && OVERVIEW.includes('class="pi-overview"')
     && OVERVIEW.includes('知源产品使用状态')
     && OVERVIEW.includes('你的方向状态')

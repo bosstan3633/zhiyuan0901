@@ -9,11 +9,12 @@ const {
 
 // ============== W7（V3.8.7）调度台视觉焦点契约 ==============
 console.log('【W7 · 调度台焦点契约】');
-check('W7-1 ★V3.9.25 随迁备案：今日三件事仍是首屏唯一主体 —— 页面标题承担 display 级视觉焦点，工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。左右列仍按模块边界、18px 间距与底轨对齐，不改变主次层级', () => {
+check('W7-1 ★V3.9.25 随迁备案：今日三件事仍是首屏唯一主体 —— 工作单用 border-strong + shadow-lg 抬起；手边卡留在次级平面，页头工具与侧栏不再抢焦点。左右列仍按模块边界、18px 间距与底轨对齐，不改变主次层级。★V4.7.6 重指：页头大标题已按用户拍板退役，改由紧凑主攻项目模块承担导航；守的「工作板唯一主体」不变', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'));
   const css = codeOnly(read('/newtab/components/dashboard/dashboard.css'));
-  /* 主角：唯一 display + 重框 */
-  return /\.desk-heading h1 \{[\s\S]*?font-size: clamp\(26px, 2\.4vw, 34px\)/.test(ch)
+  /* 主角：工作板重框；页头只保留紧凑主攻模块，旧 display 大标题不得回流 */
+  return ch.includes('class="desk-focus-projects"') && ch.includes('class="desk-focus-label"')
+    && !ch.includes('.desk-heading') && !ch.includes('.desk-kicker')
     && ch.includes('.work-board { border-color: var(--border-strong); box-shadow: var(--lv-card-shadow); }')
     /* 内容也参与焦点：计划行标题正文级、整行可点、勾选框独立 */
     && ch.includes('.title-text {') && ch.includes('font-size: var(--fs-body);')
@@ -51,9 +52,12 @@ check('W7-2 ★V3.9.1 随迁备案：焦点必须仍是**唯一标题级 display
     }
   }
   /* V3.9.1：调度台主标题改用 clamp 级排版，不再借用 22px 的 display token；
-     因此这里核「调度台有一处页头主标题，且没有任何旧标题类 display 回流」。 */
+     因此这里核「调度台不再有 display 主标题，且页头由紧凑主攻模块承担」。★V4.7.6 重指：
+     用户拍板移除调度台大标题后，homeFocus 由「clamp 标题存在」改为「旧标题零回流 + 主攻模块在位」，
+     守的「调度台不得借 display token 抢焦点」不变。 */
   const home = codeOnly(read('/newtab/views/CompassHome.vue'));
-  const homeFocus = /\.desk-heading h1 \{[\s\S]*?font-size: clamp\(26px, 2\.4vw, 34px\)/.test(home);
+  const homeFocus = !home.includes('.desk-heading') && !home.includes('.desk-kicker')
+    && home.includes('class="desk-focus-projects"');
   const homeDisplayTitles = hits.filter(h => h.startsWith('newtab/views/CompassHome.vue'));
   return homeFocus && homeDisplayTitles.length === 0;
 });

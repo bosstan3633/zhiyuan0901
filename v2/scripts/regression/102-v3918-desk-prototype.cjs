@@ -23,8 +23,9 @@ const TCAL = read('/newtab/components/compass/TaskCalendarView.css');
 
 console.log('【V3.9.18 · 调度台按原型迭代（主攻面板 / 三池页签 / 右栏读数 / 密度接通）】');
 
-check('D18-1（V4.3.1 重指）页头保持轻量：旧主攻锚行与“今天的状态”右栏均退役；今日重点、今日战报与任务工作面成为首页主体', () => {
-  return CH.includes('调度台 · {{ formatFullDate(todayDate) }}')
+check('D18-1（V4.7.6 重指）页头保持轻量：大标题与“今天的状态”右栏均退役；紧凑主攻、今日重点、今日战报与任务工作面成为首页主体', () => {
+  return CH.includes('class="desk-focus-projects"')
+    && !CH.includes('<h1>调度台</h1>')
     && !CH.includes('TODAY ·')
     && !CH.includes('THREE DECKS')
     && !CH.includes('class="desk-anchor"')

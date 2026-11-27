@@ -553,7 +553,7 @@ check('R155-① ★容器宽度统一 1440：顶栏三档 + 设置页容器 + �
     && app.includes('.topbar-inner.align-settings { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
     && app.includes('.topbar-inner.align-manual { max-width: 1440px; margin: 0 auto; padding: 0 36px; }')
     && !app.includes('max-width: 1200px') && !app.includes('max-width: 1120px')
-    && gs.includes('.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: 24px 36px 64px;')
+    && gs.includes('.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: var(--sp-5) var(--sp-6) 64px;')
     && gs.includes('.gs-content { flex: 1; min-width: 0; padding: 0; overflow: visible;') /* V3.9.13：设置页与其它台面共用 1440 + 36px */
     && mn.includes('max-width: 1440px');
 });
@@ -596,20 +596,21 @@ check('R155-12 ★同机 A/B 改为「零移动」+ 报告自证：perf.cjs 认 
     && /fs\.unlinkSync\(reportPath\)/.test(p);
 });
 
-// ============== R156 · V4.5.0：四主题差异化（光速黑暗红 + 其余三主题） ==============
-console.log('【R156 · V4.5.0：四主题差异化、暗红强调、旧偏好迁移】');
-check('R156-1（V4.5.0 重指）四主题不再是伪选择：raycast / apple / notion / oppo 的 bg、surface、accent 均独立落值，旧 linear 主题块退役', () => {
+// ============== R156 · V4.7.6：四主题差异化（同一 Logo 蓝族按表面校准） ==============
+console.log('【R156 · V4.7.6：四主题差异化、Logo 蓝统一、旧偏好迁移】');
+check('R156-1（V4.7.6 重指）四主题不再是伪选择：raycast / apple / notion / oppo 的 bg、surface、accent 均独立落值，旧 linear 主题块退役', () => {
   const t = read('/shared/styles/tokens.css')
-  return ['--bg: #080A0D;', '--bg: #F3F7FA;', '--bg: #F7F6F1;', '--bg: #F2F7F4;',
+  return ['--bg: #080A0D;', '--bg: #F3F7FA;', '--bg: #F7F6F1;', '--bg: #F2F7FA;',
     '--surface: #11161C;', '--surface: #FFFFFF;', '--surface: #FFFEFA;', '--surface: #FFFFFF;',
-    '--accent: #B54747;', '--accent: #0F6F9E;', '--accent: #0B668F;', '--accent: #168457;'].every(x => t.includes(x))
+    '--accent: #1579AD;', '--accent: #0F6F9E;', '--accent: #0B668F;', '--accent: #0E7AA6;'].every(x => t.includes(x))
     && !t.includes("[data-theme='linear']")
 })
-check('R156-2（V4.5.0 重指）accent 三件套按四主题独立产出：光速黑用暗红，极简白/纸墨白用 Logo 蓝，OPPO 绿独立成主题；hover 与 accent-ink 均各自定义，旧全局紫浅底退役', () => {
+check('R156-2（V4.7.6 重指）accent 三件套按四主题独立产出：全部落在知源 Logo 蓝族并按表面校准；hover 与 accent-ink 均各自定义，旧全局紫浅底退役', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--accent-light: rgba(181, 71, 71, 0.18);')
+  return t.includes('--accent-light: rgba(21, 121, 173, 0.22);')
     && t.includes('--accent-light: #E7F4FA;')
     && t.includes('--accent-light: #E7F2F7;')
+    && t.includes('--accent-light: #E2F2F8;')
     && (t.match(/--accent-ink:/g) || []).length === 4
     && (t.split('--accent-light: #EEF0FC;').length - 1) === 0
 })
@@ -638,9 +639,9 @@ check('R156-6（R155 复核）★AI 徽标随主题 accent 自动变色：AiMark
   const z = read('/shared/components/AiMark.vue')
   return z.includes('stroke="currentColor"') && z.includes('fill="none"') && !z.includes('fill="#') && !z.includes('stroke="#')
 })
-check('R156-7（V4.5.0 重指）raycast 独立配套仍成立：深遮罩 + 暗红动作回执条；不再依赖已退役 linear 主题', () => {
+check('R156-7（V4.7.6 重指）raycast 独立配套仍成立：深遮罩 + Logo 蓝动作回执条；不再依赖已退役 linear 主题', () => {
   const t = read('/shared/styles/tokens.css')
-  return t.includes('--toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #F2B3B3;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.68);')
+  return t.includes('--toast-bg: #11161C; --toast-fg: #F5FAFF; --toast-action: #A8DDF5;') && t.includes('--overlay-bg: rgba(0, 0, 0, 0.68);')
 })
 check('R156-8（V4.4.0 重指）浅色双主题彻底分开：apple 冷白 #F3F7FA + 冷青蓝底 ／ notion 暖纸白 #F7F6F1 + 暖褐底；border 与文本基色保持差异，旧冷黑基色已退役', () => {
   const t = read('/shared/styles/tokens.css')

@@ -221,10 +221,10 @@ const drillRows = computed<{ label: string; rows: DrillRow[]; total: number } | 
 
 /** 动词徽标：符号 + EVENT_ACT_LABEL（单一真源，判据锚 `EVENT_ACT_LABEL[e.action]` 在此消费）。
  *  类名走**字面量表**而非 `act-${a}` 拼接：dead-css-scan 的 token 匹配看不见运行时拼串。 */
-const ACT_SYM: Record<EventAction, string> = { create: '+', call: '↗', status: '◐', delete: '', restore: '⟲', purge: '' }
+const ACT_SYM: Record<EventAction, string> = { create: '+', call: '↗', status: '◐', delete: '', restore: '⟲', purge: '', edit: '✎', outcome: '↗' }
 const ACT_CLS: Record<EventAction, string> = {
   create: 'act-create', call: 'act-call', status: 'act-status',
-  delete: 'act-delete', restore: 'act-restore', purge: 'act-purge'
+  delete: 'act-delete', restore: 'act-restore', purge: 'act-purge', edit: 'act-status', outcome: 'act-call'
 }
 function actOf(a: EventAction): { txt: string; cls: string } {
   return { txt: `${ACT_SYM[a]} ${EVENT_ACT_LABEL[a]}`, cls: ACT_CLS[a] }

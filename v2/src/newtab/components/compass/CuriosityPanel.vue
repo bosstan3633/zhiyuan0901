@@ -28,6 +28,8 @@ import ColsPicker from '@/shared/components/ColsPicker.vue'
 import { saveUIPrefs } from '@/shared/storage/repository'
 import { useCardCols } from '@/shared/utils/cardCols'
 import { useTaHeight } from '@/shared/utils/taHeight'
+import { useCompass } from '../../stores/compass'
+import CardPoolTimeline from './CardPoolTimeline.vue'
 import { onOpenDrawer } from '@/shared/utils/bus'
 import { recordCardOpen } from '@/shared/storage/stats'
 import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
@@ -49,6 +51,7 @@ import {
 const { curiosities, STATUS_MAP, update, setStatus, remove } = useCuriosity()
 const store = useAppStore()
 const d = computed(() => store.data!)
+const { wceEvents, refreshWce } = useCompass()
 const route = useRoute()
 const router = useRouter()
 
@@ -90,19 +93,20 @@ const rootEl = ref<HTMLElement | null>(null)
 
 // 高亮定位（B4：搜索好奇卡结果跳转；R51：声明顺序修复——viewMode/statusFilter 须先于 immediate watcher）
 const highlightId = ref<string | null>(null)
-const viewMode = ref<'card' | 'list' | 'kanban'>(
+const viewMode = ref<'card' | 'list' | 'kanban' | 'timeline'>(
   store.ui?.curioViewMode || (props.secondaryMode ? 'list' : 'card')
 )
-function setViewMode(next: 'card' | 'list' | 'kanban'): void {
+function setViewMode(next: 'card' | 'list' | 'kanban' | 'timeline'): void {
   freshMode.value = false
   viewMode.value = next
   if (store.ui) store.ui.curioViewMode = next
   saveUIPrefs({ curioViewMode: next })
+  if (next === 'timeline') void refreshWce()
 }
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.curio；网格模板由 --grid-cols 驱动）
 const curioCols = useCardCols('curio', store.ui)
 /** R3-Cc2：控制行值域配置（视图三档 + 状态胶囊带计数由 statusCounts 现算） */
-const CURIO_VIEWS = [{ id: 'card', label: '▦ 卡片', title: '卡片视图' }, { id: 'list', label: '列表', title: '列表视图' }, { id: 'kanban', label: '▥ 看板', title: '看板视图' }]
+const CURIO_VIEWS = [{ id: 'card', label: '▦ 卡片', title: '卡片视图' }, { id: 'list', label: '列表', title: '列表视图' }, { id: 'kanban', label: '▥ 看板', title: '看板视图' }, { id: 'timeline', label: '时间线', title: '时间线视图' }]
 const curioFilters = computed(() => [
   { id: 'all', label: '全部', count: statusCounts.value.all || 0 },
   ...Object.entries(STATUS_MAP).map(([key, v]) => ({ id: key, label: `${v.icon} ${v.label}`, count: statusCounts.value[key] || 0 }))
@@ -464,7 +468,7 @@ function srcShort(url: string): string {
       <!-- R3-Cc2：控制行收归 DeckControls（好奇的值域=状态胶囊带计数 + 三视图；批量管理从标题行进来） -->
       <DeckControls panel="curio" search search-ph="搜索好奇心..." :query="searchQuery" @search="searchQuery = $event"
         :filters="curioFilters" :filter="statusFilter" @filter="statusFilter = $event as CuriStatus | 'all'"
-        :views="CURIO_VIEWS" :view="viewMode" @view="setViewMode($event as 'card' | 'list' | 'kanban')"
+        :views="CURIO_VIEWS" :view="viewMode" @view="setViewMode($event as 'card' | 'list' | 'kanban' | 'timeline')"
         :sort-dir="sortDir" :sort-dir-titles="['捕获时间倒序（新→旧），点击切换正序', '捕获时间正序（旧→新），点击切换倒序']" @sort-dir="toggleSortDir"
         :batch-on="batchMode" @batch="batchMode = setBatchMode(!batchMode)">
         <ColsPicker v-if="viewMode === 'card'" v-model="curioCols" label="列数" />
@@ -490,6 +494,8 @@ function srcShort(url: string): string {
         :title="searchQuery.trim() ? '没有匹配的好奇心' : '还没有好奇心'"
         :hint="secondaryMode ? '当前搜索或状态筛选没有结果。清空筛选后可继续浏览全部好奇心。' : '按 Ctrl+Shift+I 一键采集；选中网页文本再采集，会自动带上原文。'"
         :action-label="secondaryMode ? '清空筛选' : ''" @action="clearCurioFilter" />
+
+      <CardPoolTimeline v-else-if="viewMode === 'timeline'" kind="curiosity" :events="wceEvents" :data="d" :cards="filtered" @select="openDetail" />
 
       <!-- 卡片视图 -->
       <div v-else-if="viewMode === 'card'" class="cz-groups">

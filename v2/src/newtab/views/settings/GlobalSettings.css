@@ -1,16 +1,19 @@
-.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: 24px 36px 64px; gap: 24px; }
+.gs-page { display: flex; width: min(1440px, 100%); margin: 0 auto; padding: var(--sp-5) var(--sp-6) 64px; gap: var(--sp-5); }
 
 /* 返回按钮 */
-.gs-back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: all var(--dur); margin-bottom: 16px; text-decoration: none; width: fit-content; }
+.gs-back-btn { display: inline-flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); min-height: 32px; border-radius: var(--radius-xs); font-size: var(--fs-body); color: var(--text-2); cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); margin-bottom: var(--sp-4); text-decoration: none; width: fit-content; }
 .gs-back-btn:hover { background: var(--surface-3); color: var(--text); }
+.gs-back-btn:focus-visible, .gs-nav-item:focus-visible, .gs-preview-tab:focus-visible, .gs-tt-act:focus-visible, .tt-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gs-tt-actions { opacity: 1; }
+.gs-tt-row:focus-within .gs-tt-actions { opacity: 1; }
 
 /* 左侧导航 */
 /* R178（原型 settings-nav-sidebar）：浮动卡片轨（radius-lg + 卡影 + sticky 66px），边线分栏退役 */
-.gs-nav { width: 214px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 11px; background: var(--surface); box-shadow: var(--shadow-sm); position: sticky; top: 66px; max-height: calc(100vh - 90px); overflow-y: auto; align-self: flex-start; display: flex; flex-direction: column; gap: 3px; }
+.gs-nav { width: 214px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-3); background: var(--surface); box-shadow: none; position: sticky; top: 66px; max-height: calc(100vh - 90px); overflow-y: auto; align-self: flex-start; display: flex; flex-direction: column; gap: var(--sp-1); }
 /* R178（原型 sns-group-title）：组标题 11px/700 三级字
    ★V3.8.30：字距改走 --tracking-sm（同值 0.04em 的令牌，不再写字面量）——
    与卡片分区名共用同一套「小字号 + 正字距 + 700」标签排印，两处只差颜色（导航侧 text-3，分区名 text）。 */
-.gs-nav-group { margin-bottom: 10px; }
+.gs-nav-group { margin-bottom: var(--sp-3); }
 .gs-nav-group:last-child { margin-bottom: 0; }
 .gs-nav-group-title { font-size: var(--fs-caption); font-weight: 700; color: var(--text-3); padding: 8px 8px 4px; letter-spacing: var(--tracking-sm); }
 /* R178（原型 sns-nav-item）：12.5px 档 + hover 浅底 + active accent-light
@@ -19,7 +22,7 @@
    不依赖色相差异，因此四主题下都成立（含对底色不敏感的高对比场景）。
    注：规范写"accent-soft 底"，tokens 里的实际令牌名是 --accent-light（同义），沿用不新造。
    原 2429/2430 两行完全重复的 hover 规则一并删去一条。 */
-.gs-nav-item { position: relative; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); cursor: pointer; transition: all var(--dur-fast); margin-bottom: 0; }
+.gs-nav-item { position: relative; display: flex; align-items: center; gap: var(--sp-2); min-height: 32px; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-xs); font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast); margin-bottom: 0; }
 .gs-nav-item:hover { background: var(--surface-3); color: var(--text); }
 .gs-nav-item.active { background: var(--accent-light); color: var(--accent-ink); font-weight: 600; }
 .gs-nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 2px; height: 14px; border-radius: 0 2px 2px 0; background: var(--accent); }
@@ -153,8 +156,15 @@
 @media (max-width: 1100px) { .tt-wrap { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
   .gs-page { flex-direction: column; padding: 18px 18px 56px; gap: 16px; }
-  .gs-nav { position: static; width: 100%; max-height: none; }
+  .gs-nav { position: static; width: 100%; max-height: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); box-sizing: border-box; }
+  .gs-nav-group { margin-bottom: 0; }
   .gs-content { width: 100%; }
+}
+@media (max-width: 640px) {
+  .gs-page { padding: var(--sp-4) var(--sp-4) var(--sp-7); }
+  .gs-nav { grid-template-columns: 1fr; }
+  .gs-card-header { flex-wrap: wrap; }
+  .gs-card-desc { margin-left: 0; flex-basis: 100%; }
 }
 
 /* ===== R134-F · AI 助手页 ===== */

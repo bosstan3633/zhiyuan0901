@@ -140,6 +140,7 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
   display: block;
   color: var(--text);
   font-size: var(--fs-body);
+  white-space: nowrap;
 }
 
 .cal-pool-head > div:first-child {
@@ -157,9 +158,10 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  width: 28px;
   min-height: 28px;
-  padding: 0 8px;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -927,6 +929,7 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
   gap: 4px;
   min-height: 24px;
   padding: 3px 4px 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--task-status, var(--border-strong)) 18%, var(--border));
   border-left: 3px solid var(--task-status, var(--border-strong));
   border-radius: 5px;
   background: var(--surface-2);
@@ -1464,4 +1467,52 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
   .cal-day {
     min-height: 92px;
   }
+}
+.cal-task-chip.is-history-mirror,
+.topic-cal-chip.is-history-mirror,
+.cal-modal-task.is-history-mirror,
+.topic-cal-modal-row.is-history-mirror {
+  border: 1px dashed color-mix(in srgb, var(--task-status, var(--topic-status, var(--accent))) 48%, var(--border-strong));
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: none;
+  cursor: pointer;
+  opacity: .9;
+}
+.cal-task-chip.is-history-mirror,
+.cal-grid.is-week .cal-task-chip.is-history-mirror {
+  grid-template-columns: minmax(0, 1fr) 16px;
+  min-height: 34px;
+  padding: 6px;
+}
+.cal-task-chip.is-history-mirror:hover,
+.cal-modal-task.is-history-mirror:hover { transform: none; }
+.cal-task-chip.is-history-mirror:hover,
+.topic-cal-chip.is-history-mirror:hover {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong));
+}
+.cal-task-chip.is-history-mirror .cal-chip-title,
+.topic-cal-chip.is-history-mirror .topic-cal-title {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.cal-task-chip.is-history-mirror > button,
+.topic-cal-chip.is-history-mirror > button {
+  opacity: .62;
+}
+.cal-history-label {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 3px;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-style: normal;
+  font-weight: 650;
 }

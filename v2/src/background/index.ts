@@ -314,8 +314,8 @@ chrome.commands.onCommand.addListener(async (command) => {
       break
     }
     case 'goto-tasks': {
-      // V4.7.3：直接落到一级调度台的四卡池，不再依赖旧 /deck/* 兼容深链。
-      await openNewtabRoute(`/?tab=task&fresh=1&view=board&freshAt=${Date.now()}`)
+      // V4.7.4：直达方向台第 6 层完整任务列表（含未归属任务），不再落任务卡池看板。
+      await openNewtabRoute(`/compass?layer=6&fresh=1&freshAt=${Date.now()}`)
       break
     }
     case 'goto-topic': {

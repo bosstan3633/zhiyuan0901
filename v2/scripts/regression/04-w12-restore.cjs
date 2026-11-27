@@ -222,7 +222,8 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必�
   //    `.pi-ov-kpis > .pi-ov-kpi`。旧 `.hero-kpis-grid` 已清零，不许借判据回流。
   //    守的还是同一批行为——四枚都在 / 同排一行 / 每枚带title 口径 / 无错误徽章；
   //    数量由 5 改 4 不是放权：第五枚「活跃度」的维度已并进其余四格的 title 口径里。
-  const ovOk = /id: 'dz-overview', name: '概览 KPI 带'/.test(audit)
+  const ovOk = /id: 'dz-overview', name: '卡片分析 KPI 带'/.test(audit)
+    && /data-profile-view="analysis"/.test(audit)
     && /\.pi-ov-kpis > \.pi-ov-kpi/.test(audit)
     && /base\.rows === 1/.test(audit)
     && /base\.titled === N/.test(audit)
@@ -241,11 +242,11 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必�
     && !/\.dz-calib/.test(DASH_CSS) && !/\.dz-ov-say/.test(DASH_CSS) && !/\.dz-recentry/.test(DASH_CSS)
   // ④ ★V4.7.2 重指：画像页默认时间轴，热力图场景先切 Tab，再点真实热力格；
   //    PiYear.onHeatmapSel → emit('open-battle') → TodayBattleHost 的 .dz-day-modal。
-  const dayOk = /data-profile-view="heatmap"/.test(audit)
+  const dayOk = /\.pi-hmbox/.test(audit)
     && /\.dz-cell:not\(\.future\):not\(\.l0\)/.test(audit)
     && /\.dz-day-modal/.test(audit)
-    && /onHeatmapSel/.test(read('/newtab/components/profile/PiYear.vue'))
-    && /emit\('open-battle', day\)/.test(read('/newtab/components/profile/PiYear.vue'))
+    && /onHeatmapSel/.test(read('/newtab/components/profile/PiAnnualHeatmap.vue'))
+    && /emit\('open-battle', day\)/.test(read('/newtab/components/profile/PiAnnualHeatmap.vue'))
   // ⑤ ★B7-e 重指：⑧ 之后 `openReviewModal` 已随四条场景一起下线（原为恰好 3 处），
   //    改守「**退役的四条场景在代码里有活凭据**」——
   //    ★锚必须落在**代码**而不是注释上：判据跑在 `codeOnly()` 上，注释会被抹成等长空白，
@@ -656,11 +657,12 @@ check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。�
 });
 
 console.log('【N 系列 · 画像洞察 N6 时间轨吸顶 / N7 Hero KPI 居中】');
-check('N6 ★时间轨吸顶判据（★V4.7.3 重指带备案）：观察范围导航现为「时间轴 / 热力图」双视图。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认时间轴；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
+check('N6 ★时间轨吸顶判据（★V4.7.6 重指带备案）：观察范围导航现为「时间轴 / 卡片分析」双视图，年度热力常驻页首。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认时间轴；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
   const pi = read('/newtab/views/ProfileInsights.vue');
   if (pi.includes('<PiRail')) return false;
   if (!pi.includes('class="pi-view-tabs" role="tablist"')) return false;
-  if (!pi.includes('data-profile-view="timeline"') || !pi.includes('data-profile-view="heatmap"')) return false;
+  if (!pi.includes('data-profile-view="timeline"') || !pi.includes('data-profile-view="analysis"')) return false;
+  if (!pi.includes('<PiAnnualHeatmap')) return false;
   if (!pi.includes("return 'timeline'")) return false;
   if (pi.includes('<PiRangeTabs')) return false;
   /* 注释里允许留「原 timelineAnchor 已删除」的备案，故剥离注释后判 */

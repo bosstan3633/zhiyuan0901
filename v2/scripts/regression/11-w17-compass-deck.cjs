@@ -235,10 +235,10 @@ check('V3.9.7-1 ★手边的卡三类各 5 行；V3.9.31 右栏只保留今天�
     && !PI.includes('Math.max(5, Math.min(7, Math.floor((h - 48) / RECENT_ROW_H)))');
 });
 
-check('V3.9.13-2 ★V3.9.22 重指：主攻项目点击打开可编辑详情中央弹窗，不再跳方向树，也不使用右侧抽屉形态', () => {
+check('V3.9.13-2（V4.7.6 重指）主攻项目点击打开可编辑详情右侧抽屉，不再跳方向树或中央弹窗', () => {
   const fn = PI.slice(PI.indexOf('function openFocusProject'), PI.indexOf('// ================= 底部专区'));
   return PI.includes("import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue'")
-    && PI.includes('<ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="modal"')
+    && PI.includes('<ProjectDetailDrawer :open="readonlyProjectOpen" :project-id="readonlyProjectId" mode="drawer"')
     && fn.includes('readonlyProjectOpen.value = true')
     && fn.includes('readonlyProjectId.value = p.id')
     && !fn.includes('router.push');

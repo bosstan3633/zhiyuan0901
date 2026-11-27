@@ -2,7 +2,7 @@
  * V4.4.0 / V4.5.0 · 四主题、知源 Logo 蓝与策展节点操作分层。
  *
  * 这组断言锁的是本轮用户可见契约，而不是具体配色实现：
- *   ① 光速黑使用暗红强调，浅色知源主题保留 Logo 蓝，OPPO 绿独立成主题；
+ *   ① 四主题统一使用知源 Logo 蓝族，按表面明度分别校准；
  *   ② 策展节点把「关联卡片」做成正文主 CTA，统一承接资源卡与选题卡；
  *   ③ 附件只保留轻量、直接可操作的行，不再与资源关联争夺节点头部；
  *   ④ 中心论点卡与子节点使用同一套主次关系。
@@ -20,22 +20,22 @@ const MAP = read('/newtab/components/curation/CurationMindMap.vue')
 const STRIP = read('/newtab/components/curation/CurationAssetStrip.vue')
 const THEME_GATE = fs.readFileSync(path.join(__dirname, '..', 'theme-contrast.cjs'), 'utf8')
 
-check('V440-1（V4.5.0 重指）★四主题只保留正式主题：光速黑暗红、极简白/纸墨白 Logo 蓝、OPPO 绿独立成主题，色相门禁逐主题校验', () => {
+check('V440-1（V4.7.6 重指）★四主题只保留正式主题且统一知源 Logo 蓝：极简白、纸墨白、知源蓝与光速黑，色相门禁逐主题校验', () => {
   return APP.includes("name: '光速黑'")
     && APP.includes("name: '极简白'")
     && APP.includes("name: '纸墨白'")
-    && APP.includes("name: 'OPPO 绿'")
+    && APP.includes("name: '知源蓝'")
     && !APP.includes("name: '深空薰衣草'")
     && !APP.includes("name: '跟随系统'")
     && TOKENS.includes('[data-theme=\'raycast\']')
     && TOKENS.includes('[data-theme=\'apple\']')
     && TOKENS.includes('[data-theme=\'notion\']')
     && TOKENS.includes('[data-theme=\'oppo\']')
-    && THEME_GATE.includes('浅色主题 Logo 蓝')
-    && THEME_GATE.includes("raycast: [345, 15]")
+    && THEME_GATE.includes('统一落在知源 Logo 蓝色相族')
+    && THEME_GATE.includes("raycast: [185, 215]")
     && THEME_GATE.includes("apple: [185, 215]")
     && THEME_GATE.includes("notion: [185, 215]")
-    && THEME_GATE.includes("oppo: [135, 170]")
+    && THEME_GATE.includes("oppo: [185, 215]")
 })
 
 check('V440-2 ★无资源节点：关联资源卡是正文全宽主 CTA，节点头部不再重复小资源按钮', () => {

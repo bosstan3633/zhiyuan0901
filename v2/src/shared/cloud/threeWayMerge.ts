@@ -94,6 +94,7 @@ const RECORD_COLLECTION_LABEL: Partial<Record<SyncManifestRecordType, string>> =
   activity: '操作记录',
   tag: '标签',
   dailyFocus: '今日三件事',
+  focusHistoryHidden: '历史镜像隐藏',
 }
 
 const DELETION_FIELDS = new Set(['deletedAt', 'archivedAt'])
@@ -332,6 +333,9 @@ function mergeArray(
   const localArr = local as unknown[]
   const remoteArr = remote as unknown[]
   const baseArr = missingOf(base) ? [] : base as unknown[]
+  if (ctx.path.includes('.focusHistoryHidden.')) {
+    return mergeFocusHistoryHiddenArray(state, ctx, baseArr, localArr, remoteArr)
+  }
   const localRecords = localArr.filter(isIdRecord)
   const remoteRecords = remoteArr.filter(isIdRecord)
   const allRecords = localRecords.length === localArr.length
@@ -348,6 +352,46 @@ function mergeArray(
   const allPrimitive = [...localArr, ...remoteArr].every(value => !value || typeof value !== 'object')
   if (allPrimitive) return mergePrimitiveArray(state, ctx, baseArr, localArr, remoteArr)
   return chooseConflict(state, ctx, base, local, remote)
+}
+
+function mergeFocusHistoryHiddenArray(
+  state: MutableMergeState,
+  ctx: MergeContext,
+  base: unknown[],
+  local: unknown[],
+  remote: unknown[],
+): unknown[] {
+  const baseBySlot = new Map(base.map(row => isObject(row) && typeof row.slotId === 'string' ? [row.slotId, row] : ['', row]))
+  const localBySlot = new Map(local.map(row => isObject(row) && typeof row.slotId === 'string' ? [row.slotId, row] : ['', row]))
+  const remoteBySlot = new Map(remote.map(row => isObject(row) && typeof row.slotId === 'string' ? [row.slotId, row] : ['', row]))
+  const order = Array.from(new Set([...localBySlot.keys(), ...remoteBySlot.keys(), ...baseBySlot.keys()]))
+  const out: unknown[] = []
+  for (const slotId of order) {
+    const b = baseBySlot.get(slotId) ?? MISSING
+    const l = localBySlot.get(slotId) ?? MISSING
+    const r = remoteBySlot.get(slotId) ?? MISSING
+    const rowCtx: MergeContext = {
+      ...ctx,
+      type: 'dailyFocus',
+      recordId: `${ctx.path.split('.').pop()}:${slotId}`,
+      title: `历史镜像隐藏 · ${slotId}`,
+      field: slotId,
+    }
+    let next: MaybeMissing
+    if (same(l, r)) next = clone(l)
+    else if (state.baseKnown && !missingOf(b)) {
+      if (missingOf(l) && missingOf(r)) next = MISSING
+      else if (missingOf(l)) next = same(b, r) ? MISSING : chooseConflict(state, rowCtx, b, l, r, 'delete-modify')
+      else if (missingOf(r)) next = same(b, l) ? MISSING : chooseConflict(state, rowCtx, b, l, r, 'delete-modify')
+      else next = same(b, l) ? clone(r) : same(b, r) ? clone(l) : chooseConflict(state, rowCtx, b, l, r)
+    } else {
+      if (missingOf(l)) next = clone(r)
+      else if (missingOf(r)) next = clone(l)
+      else next = chooseConflict(state, rowCtx, b, l, r)
+    }
+    if (!missingOf(next)) out.push(next)
+  }
+  return out
 }
 
 function mergeRecordObject(

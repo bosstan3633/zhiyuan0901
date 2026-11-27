@@ -31,7 +31,7 @@ export type CardKind = 'resource' | 'task' | 'curiosity' | 'topic'
  * 于是热力图/复盘的"调出维度"永远只有今天这一格。`call` 是**纯增量事件**（时间戳字段 diff 比不出
  * "被打开"这件事），故不经 `flushCardEvents` 的快照 diff，由 `recordCallEvent` 在打开链上直记。
  */
-export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call'
+export type EventAction = 'create' | 'delete' | 'restore' | 'purge' | 'status' | 'call' | 'edit' | 'outcome'
 /** 会记 status 事件的卡种（资源卡无 status 语义，不在此列） */
 const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task', 'topic'])
 
@@ -40,7 +40,7 @@ const STATUS_TRACKED_KINDS: ReadonlySet<CardKind> = new Set(['curiosity', 'task'
  * action 说成人话，各写一份必然漂移（前者原先就没有 status 这一档，落到界面上直接吐出英文原词）。
  */
 export const EVENT_ACT_LABEL: Record<EventAction, string> = {
-  create: '新增', delete: '删除', restore: '恢复', purge: '清理', status: '改状态', call: '调出'
+  create: '新增', delete: '删除', restore: '恢复', purge: '清理', status: '改状态', call: '调出', edit: '修改', outcome: '成果交付'
 }
 
 export interface CardEvent {
@@ -248,6 +248,7 @@ export function flushCardEvents(d: AppData): void {
   const purges: CardEvent[] = []
   /** R117（04-61 C3）：探索状态变更（不入批量合并——状态变更本就是逐条的用户动作）· R169-T1 起同样覆盖任务卡 */
   const statusChanges: CardEvent[] = []
+  const edits: CardEvent[] = []
 
   // R71 性能治理：原实现先 collectCards 出整张中间数组（每张卡一个对象）再遍历——
   // 本函数在**每次保存**时都会执行，1450 张卡就是 1450 次额外对象分配。
@@ -273,6 +274,11 @@ export function flushCardEvents(d: AppData): void {
         // 仅在「未删未恢复」的稳定态比对状态，避免与 delete/restore 事件同帧刷双条
         // R172-T2：带上目标态 `to`（加权按目标态分档，见 §7.2）
         statusChanges.push(mk('status', kind, titleOf(kind, c), c.id, at, status))
+        if (kind === 'topic' && d.topicStatuses?.find(row => row.id === status)?.terminal) {
+          events.push(mk('outcome', kind, titleOf(kind, c), c.id, at))
+        }
+      } else if (prev.updatedAt && c.updatedAt && c.updatedAt > prev.updatedAt) {
+        edits.push(mk('edit', kind, titleOf(kind, c), c.id, at))
       }
     }
   }
@@ -293,6 +299,7 @@ export function flushCardEvents(d: AppData): void {
   } else events.push(...deletes)
   // R117（04-61 C3）：状态变更事件恒定逐条记录（它是"探索推进"的痕迹，不能被摘要吞掉）
   events.push(...statusChanges)
+  events.push(...edits)
   events.push(...restores)
   if (purges.length > BULK_THRESHOLD) {
     events.push(mk('purge', 'system', `批量清理 ${purges.length} 张卡片（回滚/清空回收站）`, ''))
@@ -323,6 +330,14 @@ export function recordCallEvent(kind: CardKind, title: string, cardId: string, t
     title: title || '（无标题）',
     cardId,
     deviceId: currentDeviceId(),
+  }])
+}
+
+let outcomeSeq = 0
+export function recordOutcomeEvent(kind: CardKind, title: string, cardId: string, ts = Date.now()): void {
+  enqueue([{
+    id: eventId(ts, ++outcomeSeq), ts, action: 'outcome', kind,
+    title: title || '（无标题）', cardId, deviceId: currentDeviceId(),
   }])
 }
 

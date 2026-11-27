@@ -258,7 +258,7 @@ function onLv(n: 1 | 2 | 3 | 4 | 5 | 6) {
 .spine-arrow { display: flex; align-items: center; padding: 0 4px; color: var(--text-4); font-size: var(--fs-micro); }
 .spine-lv {
   display: flex; align-items: center; gap: 7px;
-  padding: 7px 13px; border-radius: var(--radius-full);
+  padding: 7px 13px; border-radius: var(--radius-sm);
   /* ★视觉聚焦：六层按钮退回"文字 + 数字"的导航形态。
      原来每枚都是带底色的方块，六个色块并排时视觉重量接近内容卡，
      读者会先看导航再看项目。底色只在 hover / 当前层出现。 */

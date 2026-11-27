@@ -53,7 +53,7 @@ export function useTaskManagerPanel(props: TaskManagerPanelProps) {
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
-const { d, allProjects, projectProgress, taskArchiveIssue } = useCompass()
+const { d, allProjects, projectProgress, taskArchiveIssue, wceEvents, refreshWce } = useCompass()
 
 
 const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
@@ -61,7 +61,7 @@ const drawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 // ---- 视图与工具栏状态 ----
 // 第卌五轮：卡片视图默认（card | list | kanban）
 /** W6（V3.8.6）#3：默认列表视图（用户拍板；R176 曾改 card，本轮随卡片视图 AI 入口重构改回 list） */
-const viewMode = ref<'card' | 'list' | 'kanban' | 'calendar'>('list')
+const viewMode = ref<'card' | 'list' | 'kanban' | 'calendar' | 'timeline'>('list')
 // R72：卡片视图横向列数（4/5/6/7，记忆 UIPrefs.cardCols.task；网格模板由 --grid-cols 驱动）
 const taskCols = useCardCols('task', store.ui)
 const savedGroup = (store.ui?.sortPrefs?.task as { group?: TaskGroupMode } | undefined)?.group
@@ -88,13 +88,17 @@ watch([sortBy, sortDir, filterBy, groupMode], () => {
   saveUIPrefs({ sortPrefs: sp })
 })
 function exitFreshMode() { freshMode.value = false }
-function changeViewMode(next: 'card' | 'list' | 'kanban' | 'calendar') { exitFreshMode(); viewMode.value = next }
+function changeViewMode(next: 'card' | 'list' | 'kanban' | 'calendar' | 'timeline') {
+  exitFreshMode()
+  viewMode.value = next
+  if (next === 'timeline') void refreshWce()
+}
 function changeSortBy(next: string) { exitFreshMode(); sortBy.value = next }
 function changeGroupMode(next: TaskGroupMode) { exitFreshMode(); groupMode.value = next }
 function toggleSortDir() { exitFreshMode(); sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc' }
 const searchQuery = ref('')
 /** R3-Cc2：控制行值域配置（视图/筛选/排序/分组），模板里不再各写一份 option 列表 */
-const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }, { id: 'calendar', label: '月历' }]
+const TASK_VIEWS = [{ id: 'card', label: '卡片' }, { id: 'list', label: '列表' }, { id: 'kanban', label: '看板' }, { id: 'calendar', label: '月历' }, { id: 'timeline', label: '时间线' }]
 const TASK_FILTERS = [{ id: 'all', label: '全部状态' }, { id: 'todo', label: '待办' }, { id: 'doing', label: '推进中' }, { id: 'done', label: '已完成' }, { id: 'unarchived', label: '未归档' }]
 const TASK_SORTS = [{ id: 'manual', label: '手动排序' }, { id: 'recent', label: '最近添加' }]
 const TASK_GROUPS = [
@@ -480,7 +484,7 @@ const kanbanMap = computed(() => {
       if (ts.length) { groups.push({ key: p.id, name: p.name, tasks: ts }); ts.forEach(t => used.add(t.id)) }
     }
     const orphan = src.filter(t => !used.has(t.id))
-    if (orphan.length) groups.push({ key: '__none__', name: '未关联项目', tasks: orphan })
+    groups.push({ key: '__none__', name: '未关联项目', tasks: orphan })
     return groups
   }
   return { todo: build(todoTasks.value), doing: build(doingTasks.value), done: build(doneTasks.value) }
@@ -704,6 +708,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     taskArchiveIssue,
     drawerRef,
     viewMode,
+    wceEvents,
     freshMode,
     taskCols,
     groupMode,

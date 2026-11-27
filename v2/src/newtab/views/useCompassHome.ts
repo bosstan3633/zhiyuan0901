@@ -42,9 +42,9 @@ export function useCompassHome() {
 const router = useRouter()
 const route = useRoute()
 const store = useAppStore()
-// R91：解构出主攻相关口径——手册「🚀 主攻（最多 2 个）直通调度台速览」此前在调度台**零消费**。
+// V4.7.6：最多三个主攻项目在调度台顶部常驻，点击右侧打开项目详情。
 // R3-B1：方向台的主攻聚焦条随 CompassShell 退役，focusedProjects 的**唯一**消费方就是本页速览。
-const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce, unarchivedTaskCount, taskArchiveIssue } = useCompass()
+const { d, allProjects, projectProgress, projectTasksOf, focusedProjects, isProjectStalled, isProjectDone, refreshWce, wceEvents, unarchivedTaskCount, taskArchiveIssue } = useCompass()
 // R127：挂载即刷新 WCE 事件缓存（事件日志异步读取一次；computed 同步消费）
 onMounted(() => {
   refreshWce?.()
@@ -954,7 +954,7 @@ const liveTopics = computed<TopicCard[]>(() =>
 // 任务池不再只给 5 条预览：左列表与右侧月历共用一份筛选结果。
 // 当前状态仍只读写 TaskCard.status；计划执行日期仍只读写 TaskCard.dueDate。
 type TaskWorkQuick = 'all' | 'noProject' | 'unplanned' | 'unarchived' | 'focus'
-type TaskWorkView = 'calendar' | 'board'
+type TaskWorkView = 'calendar' | 'board' | 'list' | 'timeline'
 type TaskWorkSort = 'recent' | 'unplanned' | 'due'
 type TaskWorkGroup = 'none' | 'project'
 const taskWorkSearch = ref('')
@@ -965,6 +965,7 @@ const taskWorkShowDone = ref(true)
 const taskWorkView = ref<TaskWorkView>('calendar')
 const taskWorkSort = ref<TaskWorkSort>('recent')
 const taskWorkGroup = ref<TaskWorkGroup>('none')
+watch(taskWorkView, view => { if (view === 'timeline') refreshWce?.() })
 const taskWorkProjectNames = computed(() =>
   new Map(allProjects().map(project => [project.id, project.name])))
 const taskWorkMetricNames = computed(() => {
@@ -1019,6 +1020,37 @@ const taskWorkFiltered = computed(() => {
     return true
   })
 })
+
+const taskWorkSorted = computed(() => taskWorkFiltered.value.slice().sort((a, b) => {
+  if (taskWorkSort.value === 'unplanned') {
+    const delta = Number(!!a.dueDate) - Number(!!b.dueDate)
+    if (delta) return delta
+  } else if (taskWorkSort.value === 'due') {
+    const delta = String(a.dueDate || '9999-99-99').localeCompare(String(b.dueDate || '9999-99-99'))
+    if (delta) return delta
+  }
+  return (Number(b.pinned) - Number(a.pinned)) || ((b.createdAt || 0) - (a.createdAt || 0))
+}))
+
+const taskWorkListGroups = computed(() => {
+  if (taskWorkGroup.value !== 'project') {
+    return [{ key: '__all__', name: '全部任务', tasks: taskWorkSorted.value }]
+  }
+  const groups = new Map<string, { key: string; name: string; tasks: TaskCard[] }>()
+  for (const project of allProjects()) {
+    groups.set(project.id, { key: project.id, name: project.name, tasks: [] })
+  }
+  const unassigned = { key: '__none__', name: '未关联项目', tasks: [] as TaskCard[] }
+  for (const task of taskWorkSorted.value) {
+    const group = task.projectId ? groups.get(task.projectId) : undefined
+    ;(group || unassigned).tasks.push(task)
+  }
+  return [...groups.values()].filter(group => group.tasks.length > 0).concat(unassigned)
+})
+function taskWorkStatusMeta(task: TaskCard): { name: string; color: string } {
+  const status = taskStatusOf(d.value, task)
+  return { name: status?.name || '待开始', color: status?.color || 'var(--text-3)' }
+}
 
 function openTaskWork(task: TaskCard): void {
   openTaskPreview(task)
@@ -1443,9 +1475,9 @@ function goDeck(kind: HandKind): void {
     openStatusDetail, onStatusItemAction, curioStatusLabel, resourceKindLabel, taskDueLabel,
     focusSlotSourceLabel,
     taskWorkSearch, taskWorkProject, taskWorkStatus, taskWorkQuick, taskWorkShowDone,
-    taskWorkView, taskWorkSort, taskWorkGroup,
+    taskWorkView, taskWorkSort, taskWorkGroup, wceEvents,
     taskWorkProjectNames, taskWorkMetricNames, taskWorkProjectOptions, taskWorkStatusOptions, taskWorkCounts,
-    taskWorkFiltered, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
+    taskWorkFiltered, taskWorkSorted, taskWorkListGroups, taskWorkStatusMeta, openTaskWork, setTaskWorkDue, clearTaskWorkDue, toggleTaskWorkStatus, setTaskWorkStatus,
     setTopicWorkDue, clearTopicWorkDue, toggleTopicWorkStatus,
     taskAssignOpen, taskAssignId, taskAssignProject, taskAssignMetric, taskAssignTask,
   taskAssignProjects, taskAssignMetrics, openTaskAssign, changeTaskAssignProject, saveTaskAssign,

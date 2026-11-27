@@ -109,6 +109,13 @@ const SHARDS = [
   '158-v471-task-status-ui',
   '159-v472-action-timeline',
   '160-v473-timeline-density-profile-cards',
+  '161-v474-timeline-control-task-panorama-folders',
+  '162-v475-oppo-visual-system',
+  '163-v476-focus-projects-full-details',
+  '163-v476-pool-timeline-project-groups',
+  '164-v476-focus-history-mirrors',
+  '165-v476-profile-heatmap-analysis',
+  '166-v476-focus-history-merge',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

@@ -20,7 +20,7 @@ check('V431-1（V4.7.0 重指）月历只改计划日期：设置与取消都走
   const clear = fnBody(source, 'function clearTaskDueDate(', 'function toggleTaskCompletion(')
   const set = fnBody(source, 'function setTaskDueDate(', 'function clearTaskDueDate(')
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
-  return source.includes("const viewMode = ref<'card' | 'list' | 'kanban' | 'calendar'>('list')")
+  return source.includes("const viewMode = ref<'card' | 'list' | 'kanban' | 'calendar' | 'timeline'>('list')")
     && panel.includes('<TaskCalendarView')
     && panel.includes('@clear-due="clearTaskDueDate"')
     && source.includes('function clearTaskDueDate(')

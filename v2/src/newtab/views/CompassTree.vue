@@ -132,7 +132,7 @@ function reorderMetricWithinProject(dragId: string, targetId: string, mode: 't' 
           <span>方向健康度：{{ dhiStatus.label }}</span>
         </span>
         <i class="hs-sep" aria-hidden="true"></i>
-        <span title="主攻 = 标记为战略重心的可见项目数（上限 2 个）· 骨架条计数是全量账，此处是可见口径，两者各说各话不冒充同源"><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i class="hs-sep" aria-hidden="true"></i>
+        <span title="主攻 = 标记为战略重心的可见项目数（上限 3 个）· 骨架条计数是全量账，此处是可见口径，两者各说各话不冒充同源"><Icon name="main-focus" :size="13"/> 主攻 {{ treeStats.focused }}</span><i class="hs-sep" aria-hidden="true"></i>
         <span title="停滞 = 近 14 天无任务推进、且已有任务的可见项目数 · 中性读数，不催办"><Icon name="stall" :size="13"/> 停滞 {{ treeStats.stalled }}</span>
         <button class="hs-spine" type="button" title="六层结构计数（愿景→任务）只在战略骨架条读一处，页头不重复报数 · 点击展开骨架条并打开第 1 层（愿景原文）" @click="heroToSpine">六层计数 · 战略骨架 <span aria-hidden="true">▾</span></button>
         </div>

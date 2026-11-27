@@ -166,6 +166,20 @@ export function normalizeAppData(data: AppData): AppData {
   for (const [day, slots] of Object.entries(data.dailyFocus)) {
     if (!Array.isArray(slots)) data.dailyFocus[day] = []
   }
+  const hiddenFocus = data.focusHistoryHidden && typeof data.focusHistoryHidden === 'object' && !Array.isArray(data.focusHistoryHidden)
+    ? data.focusHistoryHidden
+    : {}
+  data.focusHistoryHidden = {}
+  for (const [day, rows] of Object.entries(hiddenFocus)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Array.isArray(rows)) continue
+    const seen = new Set<string>()
+    data.focusHistoryHidden[day] = rows.filter(row => {
+      if (!row || typeof row.slotId !== 'string' || !row.slotId || seen.has(row.slotId)) return false
+      seen.add(row.slotId)
+      row.hiddenAt = Number.isFinite(row.hiddenAt) && row.hiddenAt > 0 ? row.hiddenAt : Date.now()
+      return true
+    })
+  }
   data.tagTree = Array.isArray(data.tagTree) ? data.tagTree : []
 
   normalizeLegacyCards(data)
@@ -607,6 +621,32 @@ function mergeDailyFocus(curD: AppData['dailyFocus'], snapD: AppData['dailyFocus
   }
   return out
 }
+/** 历史隐藏是日期 + slotId 的独立记录；同日同槽的双边异值保留本页未落盘改动，不静默取外部。 */
+export function mergeFocusHistoryHidden(curH: AppData['focusHistoryHidden'], snapH: AppData['focusHistoryHidden'], extH: AppData['focusHistoryHidden']): AppData['focusHistoryHidden'] {
+  const out: AppData['focusHistoryHidden'] = { ...(extH || {}) }
+  const keys = new Set([...Object.keys(curH || {}), ...Object.keys(snapH || {})])
+  for (const date of keys) {
+    const curRows = (curH || {})[date] || []
+    const snapRows = (snapH || {})[date] || []
+    const extRows = (extH || {})[date] || []
+    if (jsonEq(curRows, snapRows)) { if (extRows.length) out[date] = extRows; else delete out[date]; continue }
+    if (jsonEq(extRows, snapRows)) { if (curRows.length) out[date] = curRows; else delete out[date]; continue }
+    const snapBySlot = new Map(snapRows.map(row => [row.slotId, row]))
+    const extBySlot = new Map(extRows.map(row => [row.slotId, row]))
+    const outRows: NonNullable<AppData['focusHistoryHidden']>[string] = []
+    const seen = new Set<string>()
+    for (const cur of curRows) {
+      seen.add(cur.slotId)
+      const snap = snapBySlot.get(cur.slotId)
+      const ext = extBySlot.get(cur.slotId)
+      if (!ext) { if (!snap || !jsonEq(cur, snap)) outRows.push(cur); continue }
+      outRows.push(!snap || jsonEq(cur, snap) ? ext : cur)
+    }
+    for (const ext of extRows) if (!seen.has(ext.slotId)) outRows.push(ext)
+    if (outRows.length) out[date] = outRows; else delete out[date]
+  }
+  return out
+}
 /** 外部写入合并入口：无未落盘修改时走原整树替换（零开销快路径）；有则按段合并；合并结果与外部全等时不再回写（切断「回声→合并→写→回声」环） */
 export function mergeExternalData(ext: AppData): AppData {
   const cur = cache
@@ -624,6 +664,7 @@ export function mergeExternalData(ext: AppData): AppData {
     topicStatuses: mergeByIdArr(cur.topicStatuses || [], snap.topicStatuses || [], ext.topicStatuses || []),
     topicResourceLinks: mergeByIdArr(cur.topicResourceLinks || [], snap.topicResourceLinks || [], ext.topicResourceLinks || []),
     dailyFocus: mergeDailyFocus(cur.dailyFocus, snap.dailyFocus, ext.dailyFocus),
+    focusHistoryHidden: mergeFocusHistoryHidden(cur.focusHistoryHidden, snap.focusHistoryHidden, ext.focusHistoryHidden),
     compass: jsonEq(cur.compass, snap.compass) ? ext.compass : cur.compass,
     // R70：数组型实体段改「按 id 并集」；compass（三层嵌套）/ fieldConfig / stats 仍是对象型，
     // 深度合并风险大于收益，保留原判据（单边改动时取改动侧）。
