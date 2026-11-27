@@ -13,7 +13,7 @@ const CSS = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
 
 console.log('【W16 · 指标区方案A（纯文本读数行）与下钻明细准确性（V3.8.24 批）】');
 
-check('W16-1（V4.7.4 重指）四格读数归位概览后的紧凑指标形态：四格用竖线分隔，数值 17px / 标签 10px 分层，说明行退役；每格带分子分母口径 tooltip，点击可下钻；第四格保留中性进度条。★W17-C09 负锚：.hcb-pill 规则零命中，且方向面板项目名不设截断。Hero 本身不再渲染指标，避免首屏同组读数出现两次。', () => {
+check('W16-1（V4.7.7 重指）四格读数归位概览后的紧凑指标形态：四格用竖线分隔，数值 17px / 标签 10px 分层，说明行退役；每格带分子分母口径 tooltip，点击可下钻；第四格保留中性进度条。★V4.7.7 备案：方向状态模块整体退役，原「方向面板项目名不设截断」负锚改钉方向面板 / 主攻项目 / .hcb-pill 全部零回流；Hero 本身仍不渲染指标。', () => {
   const grid = CSS.match(/\.pi-ov-kpis \{[^}]*\}/)?.[0] || '';
   const kpi = CSS.match(/\.pi-ov-kpi \{[^}]*\}/)?.[0] || '';
   const v = CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/)?.[0] || '';
@@ -27,8 +27,8 @@ check('W16-1（V4.7.4 重指）四格读数归位概览后的紧凑指标形态�
     && l.includes('font-size: var(--fs-tiny)')
     && !/\.pi-ov-kpi \.d \{/.test(CSS)
     && !/\.hcb-pill \{/.test(CSS)
-    /* ★C09 新负锚：方向面板的项目名必须允许换行完整显示（不设 max-width 截断） */
-    && /overflow-wrap: anywhere/.test(read('/newtab/components/profile/PiOverview.vue'))
+    && !read('/newtab/components/profile/PiOverview.vue').includes('你的方向状态')
+    && !read('/newtab/components/profile/PiOverview.vue').includes('focusProjects')
     && (OVERVIEW.match(/点击看明细/g) || []).length === 4
     && (OVERVIEW.match(/emit\('kpi-drill', '/g) || []).length === 4
     && !codeOnly(HERO).includes('hero-kpi')

@@ -33,16 +33,14 @@ function onHeatmapSel(day: string | null): void {
 </script>
 <template>
   <section class="pi-mod pi-annual-heatmap" aria-label="每日卡片行动热力图">
-    <div class="pi-mod-h">
-      <span class="pi-mod-ico i-year"><Icon name="calendar" :size="13"/></span>
-      <div class="pi-mod-t">
-        <h2>每一天，卡片如何向前<span class="en">CARD RHYTHM</span></h2>
-        <p>积累、调度、执行与成果交付共同形成热力；同一卡片同类行动当日只计一次。</p>
+    <div class="pi-mod-b pi-heat-body">
+      <div class="pi-hmbox">
+        <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
+          default-expanded :show-summary="false" :show-legend-note="false" :section-number="1"
+          @update:year="emit('update:year', $event)" @update:sel-day="onHeatmapSel" />
       </div>
-    </div>
-    <div class="pi-mod-b">
-      <div class="pi-strip">
-        <span class="pi-strip-lab">本年</span>
+      <div class="pi-strip pi-heat-stats">
+        <span class="pi-strip-lab">这一年，卡片如何向前</span>
         <div class="strip4">
           <button class="pi-chip" title="有加权卡片行动的天数" @click="emit('drill', 'yr-active')"><span class="v">{{ ya.act }}<small>天</small></span><span class="l">本年活跃</span><span class="ar">▸</span></button>
           <button class="pi-chip" title="连续有卡片行动的最长跨度" @click="emit('drill', 'yr-streak')"><span class="v">{{ ls }}<small>天</small></span><span class="l">最长连续</span><span class="ar">▸</span></button>
@@ -50,19 +48,29 @@ function onHeatmapSel(day: string | null): void {
           <button class="pi-chip warn" @click="emit('drill', 'yr-high')"><span class="v">{{ highCooling }}<small>张</small></span><span class="l">高价值冷却卡</span><span class="ar">▸</span></button>
         </div>
       </div>
-      <div class="pi-hair"></div>
-      <div class="pi-hmbox">
-        <Heatmap :stats="stats" :year="year" :sel-day="selDay" :events="events" :live-link="liveLink"
-          default-expanded :show-summary="false" :show-legend-note="false" :section-number="1"
-          @update:year="emit('update:year', $event)" @update:sel-day="onHeatmapSel" />
-        <div class="pi-hm-meta">
-          <span>有效行动 <b>{{ ya.acts }}</b> 件</span>
-          <template v-if="ya.peak"><span>单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</span></template>
-          <span>本年活跃日均 <b>{{ (ya.W / Math.max(1, ya.act)).toFixed(1) }}</b> 分</span>
-          <span>P90 <b>{{ ya.p90 }}</b> 分</span>
-          <span>调出完整自 <b>{{ stats.fullSince }}</b></span>
-        </div>
+      <div class="pi-hm-meta">
+        <span>有效行动 <b>{{ ya.acts }}</b> 件</span>
+        <template v-if="ya.peak"><span>单日峰值 <b>{{ ya.peak[1] }}</b> 分（{{ ya.peak[0].slice(5) }}）</span></template>
+        <span>本年活跃日均 <b>{{ (ya.W / Math.max(1, ya.act)).toFixed(1) }}</b> 分</span>
+        <span>P90 <b>{{ ya.p90 }}</b> 分</span>
+        <span>调出完整自 <b>{{ stats.fullSince }}</b></span>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.pi-annual-heatmap { overflow: hidden; }
+.pi-heat-body { gap: 8px; padding: 8px 18px 12px; }
+.pi-heat-stats { gap: 6px; padding-top: 2px; }
+.pi-heat-stats .pi-strip-lab {
+  color: var(--text-4);
+  font-size: var(--fs-micro);
+  letter-spacing: .08em;
+}
+.pi-heat-stats .strip4 { gap: 7px; }
+.pi-heat-stats .pi-chip { height: 30px; padding: 0 10px; }
+.pi-heat-stats .pi-chip .v { font-size: var(--fs-sub); }
+.pi-hmbox .dz-sec-h { padding: 2px 0 6px; }
+.pi-hmbox .dz-sec-b { padding: 0; }
+</style>

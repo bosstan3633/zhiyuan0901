@@ -18,13 +18,13 @@ const CSS = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
 
 console.log('【W17-C09 · 画像洞察双面板重构（V3.9.5 批）】');
 
-check('W17-18 ★首屏双面板：产品使用状态 + 方向状态并列；负锚：与调度台重复的三件事模块不再渲染', () => {
+check('W17-18（V4.7.7 重指）★卡片分析首层只保留「卡片构成与使用」单面板：产品使用四格与选题成果同源保留；用户拍板删除「你的方向状态」，方向与主攻项目不再在画像页重复。负锚：旧双面板、PERSONAL DIRECTION、与调度台重复的三件事交互区全部不回流。', () => {
   return OV.includes('class="pi-overview"')
-    && OV.includes('知源产品使用状态')
-    && OV.includes('你的方向状态')
-    && OV.includes('PRODUCT USAGE')
-    && OV.includes('PERSONAL DIRECTION')
-    /* 四格读数仍在左面板且可下钻 */
+    && OV.includes('卡片构成与使用')
+    && OV.includes('CARD COMPOSITION')
+    && !OV.includes('你的方向状态')
+    && !OV.includes('PERSONAL DIRECTION')
+    && !OV.includes('focusProjects')
     && ['total', 'entropy', 'support', 'focus'].every(k => OV.includes(`emit('kpi-drill', '${k}')`))
     /* 负锚：三件事行与它的交互出口零残留 */
     && !OV_C.includes('pi-ov-lines') && !OV_C.includes('pi-ov-line')
@@ -34,20 +34,17 @@ check('W17-18 ★首屏双面板：产品使用状态 + 方向状态并列；负
     && !PI_C.includes(':today-insight="concise.today"');
 });
 
-check('W17-19 ★主攻完整呈现：项目名不截断 + 状态 + 进度条，点击开项目详情抽屉', () => {
-  return OV.includes('focusProjects')
-    && OV.includes('class="pi-dir-name"')
-    && OV.includes('class="pi-dir-track"')
-    && OV.includes('class="pi-dir-state"')
-    && OV.includes('STATE_LABEL')
-    && OV.includes("emit('open-project', p.id)")
-    /* 负锚：24ch 截断规则与 Hero 胶囊一并退役 */
+check('W17-19（V4.7.7 重指）★画像页不再承载主攻项目导航：旧「主攻完整呈现」随方向状态模块整体退役；项目完整信息与跳转只在方向台和方向台项目抽屉呈现，画像页卡片分析不回挂项目列表、进度条或项目详情抽屉。', () => {
+  const HOST_C = codeOnly(fs.readFileSync(base + '/newtab/views/ProfileInsights.vue', 'utf8'));
+  return !OV.includes('focusProjects')
+    && !OV.includes('class="pi-dir-name"')
+    && !OV.includes('class="pi-dir-track"')
+    && !OV.includes('class="pi-dir-state"')
+    && !OV.includes("emit('open-project', p.id)")
     && !CSS.includes('.hcb-pill {') && !CSS.includes('max-width: 24ch')
     && !HERO_C.includes('focusPills') && !HERO_C.includes('hero-compass-bar')
-    /* 项目名容器允许换行完整显示 */
-    && /\.pi-dir-name \{[^}]*overflow-wrap: anywhere/.test(OV)
-    /* 宿主仍唯一挂项目抽屉 */
-    && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"');
+    && !HOST_C.includes('openProjectDetail')
+    && !HOST_C.includes('<ProjectDetailDrawer');
 });
 
 check('W17-20（V4.7.6 重指）★旧 PiRail 时间轨保持退役：宿主零挂载、样式零命中；观察范围改由时间轴 / 卡片分析导航，年度热力常驻，默认时间轴', () => {
@@ -89,15 +86,15 @@ check('W17-21（V4.3.1 重指）今日对账段与「一键归入主攻 + 绑卡
 
 const DAY = read('/newtab/components/dashboard/DayDetail.vue');
 
-check('V3.9.7（V4.7.5 重指）★顶部两块面板自然等高；使用状态辅助、个人方向主线占更宽阅读列，负锚钉死固定 440px 与 1.35fr/1fr', () => {
-  return /\.pi-overview \{ align-items: stretch; \}/.test(OV)
+check('V3.9.7（V4.7.7 重指）★卡片分析首层为单面板自然高度，不再出现双栏等高和固定面板高度。负锚钉死固定 440px、1.35fr/1fr 与已退役的 pi-dir-cols 双列全部不回流。', () => {
+  return /\.pi-overview \{ display: block; \}/.test(OV)
     && /\.pi-ov-card \{ height: auto; min-height: 0;/.test(OV)
     && !OV.includes('--pi-panel-h')
-    && /\.pi-overview \{ display: grid; grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1.12fr\)/.test(CSS)
     && !CSS.includes('1.35fr')
-    && OV.includes('class="pi-dir-cols"')
-    && /\.pi-dir-cols \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/.test(OV)
-    && OV.includes('pi-dir-cols" :class="{ single: focusProjects.length === 1 }"');
+    && !OV.includes('class="pi-dir-cols"')
+    && !OV.includes('focusProjects')
+    && OV.includes('class="pi-ov-topic-band"')
+    && OV.includes('class="pi-ov-mix"');
 });
 
 check('W18-2 ★V4.7.6 重指：画像观察范围默认时间轴，卡片分析按需切换，年度热力始终在场', () => {

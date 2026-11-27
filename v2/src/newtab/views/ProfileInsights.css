@@ -1,5 +1,5 @@
 /* ===== 页面容器 ===== */
-.pi-page { max-width: 1440px; margin: 0 auto; padding: 20px var(--page-gutter) 56px; display: flex; flex-direction: column; gap: 16px; }
+.pi-page { max-width: 1440px; margin: 0 auto; padding: 12px var(--page-gutter) 48px; display: flex; flex-direction: column; gap: 12px; }
 
 /* ===== 周期控制 + 模块级 AI 洞察 ===== */
 /* V4.7.3: 画像洞察以时间轴为主舞台，控制条与内容只保留必要间距。 */

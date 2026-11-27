@@ -10,8 +10,8 @@ import Icon from '@/shared/components/Icon.vue'
 import type { AppData, CuriosityCard, LinkType, ResourceCard, TaskCard, TopicCard } from '@/shared/models'
 import type { CardEvent, CardKind, EventAction } from '@/shared/utils/eventLog'
 import { EVENT_ACT_LABEL } from '@/shared/utils/eventLog'
-import { taskStatusOf } from '@/shared/utils/taskStatus'
-import { topicStatusOf } from '@/shared/utils/topicStatus'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
+import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
 
 export interface PiTimelineEntry {
   key: string
@@ -20,6 +20,7 @@ export interface PiTimelineEntry {
   title: string
   status: string
   statusColor: string
+  done: boolean
   project: string
   metric: string
   action: string
@@ -128,16 +129,16 @@ function cardOf(kind: CardKind, id: string): { title: string; projectId?: string
   return card ? { title: card.question || '（无标题好奇）', deletedAt: card.deletedAt } : null
 }
 
-function statusOf(kind: CardKind, id: string): { name: string; color: string } {
+function statusOf(kind: CardKind, id: string): { name: string; color: string; done: boolean } {
   if (kind === 'task') {
     const card = (props.data.tasks || []).find(row => row.id === id) as TaskCard | undefined
     const status = card ? taskStatusOf(props.data, card) : undefined
-    return { name: status?.name || '任务', color: status?.color || 'var(--success)' }
+    return { name: status?.name || '任务', color: status?.color || 'var(--success)', done: isTaskDone(props.data, card) }
   }
   if (kind === 'topic') {
     const card = (props.data.topics || []).find(row => row.id === id) as TopicCard | undefined
     const status = card ? topicStatusOf(props.data, card.statusId) : undefined
-    return { name: status?.name || '选题', color: status?.color || 'var(--warning)' }
+    return { name: status?.name || '选题', color: status?.color || 'var(--warning)', done: isTopicDone(props.data, card) }
   }
   if (kind === 'curiosity') {
     const card = (props.data.curiosities || []).find(row => row.id === id) as CuriosityCard | undefined
@@ -149,9 +150,9 @@ function statusOf(kind: CardKind, id: string): { name: string; color: string } {
       : card?.status === 'doing' ? 'var(--accent)'
         : card?.status === 'shelf' ? 'var(--text-4)'
           : 'var(--accent-2)'
-    return { name, color }
+    return { name, color, done: card?.status === 'done' }
   }
-  return { name: '资源卡', color: 'var(--accent)' }
+  return { name: '资源卡', color: 'var(--accent)', done: false }
 }
 
 function dayKey(ts: number): string {
@@ -189,6 +190,7 @@ const allEntries = computed(() => {
       title: card.title,
       status: status.name,
       statusColor: status.color,
+      done: status.done,
       project: card.projectId ? projectNames.value.get(card.projectId) || '' : '',
       metric: card.metricId ? metricNames.value.get(card.metricId) || '' : '',
       action: actionText(event),
@@ -218,6 +220,7 @@ const focusEntries = computed(() => {
         key: `focus:${day}:${kind}:${slot.sourceId}`,
         kind, id: slot.sourceId, title: card.title,
         status: status.name, statusColor: status.color,
+        done: status.done,
         project: card.projectId ? projectNames.value.get(card.projectId) || '' : '',
         metric: card.metricId ? metricNames.value.get(card.metricId) || '' : '',
         action: slot.done ? '三件事 · 已完成' : '三件事 · 已安排',
@@ -409,6 +412,7 @@ function metaOf(entry: PiTimelineEntry): string {
                   v-for="entry in segment.entries"
                   :key="entry.key"
                   class="pit-card"
+                  :class="{ 'is-done': entry.done }"
                   type="button"
                   :title="entry.kind === 'resource' ? '单击查看详情 · 双击打开资源链接' : '单击查看详情'"
                   :style="{
@@ -636,6 +640,25 @@ function metaOf(entry: PiTimelineEntry): string {
   box-shadow: 0 8px 20px color-mix(in srgb, var(--text) 7%, transparent);
   transform: translateY(-1px);
 }
+.pit-card.is-done {
+  border-color: var(--border);
+  border-left-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
+  color: var(--text-3);
+  box-shadow: none;
+}
+.pit-card.is-done:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  transform: none;
+}
+.pit-card.is-done .pit-card-title { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.pit-card.is-done .pit-kind {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+.pit-card.is-done .pit-status { color: var(--text-3); }
+.pit-card.is-done .pit-status i { background: var(--text-4); }
 .pit-kind {
   display: inline-flex;
   width: fit-content;

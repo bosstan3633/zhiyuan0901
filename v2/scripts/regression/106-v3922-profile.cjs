@@ -1,7 +1,7 @@
 /**
  * V3.9.22 · 画像洞察：热力图铺满 + 主攻项目编辑弹窗 + 统一战报宿主。
  */
-const { check, read, codeOnly, segOf } = require('./helpers.cjs');
+const { check, read, codeOnly, segOf, fs, base } = require('./helpers.cjs');
 
 console.log('【V3.9.22 · 画像洞察】');
 
@@ -26,10 +26,11 @@ check('R180-A1（V3.9.30 重指）★热力图随宽度铺满且保留月份分�
     && !hm.includes('function coordOf(') && !hm.includes('const weekCount = computed');
 });
 
-check('R180-A2 ★画像主攻点击打开可编辑项目详情弹窗：复用 ProjectDetailDrawer mode=modal，关闭右侧抽屉形态', () => {
-  const pi = codeOnly(read('/newtab/views/ProfileInsights.vue'))
+check('R180-A2（V4.7.7 重指）★画像方向状态退役后不再挂项目详情弹窗；ProjectDetailDrawer 的 mode=modal 能力保留给方向台 / 调度台，组件不得退化为只读或丢失关闭出口。', () => {
+  const pi = codeOnly(fs.readFileSync(base + '/newtab/views/ProfileInsights.vue', 'utf8'))
   const pdd = codeOnly(read('/newtab/components/ProjectDetailDrawer.vue'))
-  return pi.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"')
+  return !pi.includes('<ProjectDetailDrawer')
+    && !pi.includes('openProjectDetail')
     && pdd.includes("mode?: 'drawer' | 'modal'")
     && pdd.includes(`:mode="mode || 'drawer'"`)
     && pdd.includes('@close="emit(\'close\')"');

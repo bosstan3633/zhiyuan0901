@@ -25,6 +25,7 @@ import type { AiJob } from '@/shared/ai/job'
 import type { AssetMeta, ResourceCard, TopicCard } from '@/shared/models'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import PlanScheduleHistory from './PlanScheduleHistory.vue'
+import CardResourcePickerModal from './CardResourcePickerModal.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -36,7 +37,7 @@ const topic = ref<TopicCard | null>(null)
 const titleDraft = ref('')
 const projectId = ref('')
 const metricId = ref('')
-const resourceDraft = ref('')
+const resourcePickerOpen = ref(false)
 const aiJob = shallowRef<AiJob | null>(null)
 const aiBusy = ref(false)
 
@@ -50,7 +51,6 @@ function openFromId(id: string): void {
   titleDraft.value = live.title
   projectId.value = live.projectId || ''
   metricId.value = live.metricId || ''
-  resourceDraft.value = ''
   recordCardOpen(d.value, live)
   store.persistHot()
   open.value = true
@@ -86,16 +86,6 @@ const status = computed(() => topic.value ? topicStatusOf(d.value, topic.value.s
 const done = computed(() => isTopicDone(d.value, topic.value || undefined))
 const outcome = computed(() => topic.value ? topicOutcomeLink(topic.value) : null)
 const resourceRows = computed(() => topic.value ? topicResourcesOf(d.value, topic.value.id) : [])
-const resourceCandidates = computed(() => {
-  const query = resourceDraft.value.trim().toLowerCase()
-  if (!query) return []
-  const linked = new Set(resourceRows.value.map(row => row.resource.id))
-  return (d.value.resources || [])
-    .filter(resource => !resource.deletedAt && !linked.has(resource.id))
-    .filter(resource => [resource.title, resource.description || '', (resource.tags || []).join(' ')]
-      .some(text => text.toLowerCase().includes(query)))
-    .slice(0, 8)
-})
 
 function touch(): void {
   if (!topic.value) return
@@ -241,25 +231,20 @@ async function addToToday(): Promise<void> {
   showToast('已设为今日重点，并同步落图到今天')
 }
 
-function addResource(resource: ResourceCard): void {
+function mountResources(resources: ResourceCard[]): void {
   if (!topic.value) return
-  const result = addTopicResourceLink(d.value, { topic: topic.value, resource, from: 'manual' })
-  if (result.dup) {
-    showToast('这张资源已经关联过了')
+  let added = 0
+  for (const resource of resources) {
+    const result = addTopicResourceLink(d.value, { topic: topic.value, resource, from: 'manual' })
+    if (!result.dup) added += 1
+  }
+  resourcePickerOpen.value = false
+  if (!added) {
+    showToast('所选资源都已经关联过了')
     return
   }
-  resourceDraft.value = ''
   store.persist()
-  showToast(`已关联「${resource.title.slice(0, 16)}」`)
-}
-
-function addManualResource(): void {
-  const resource = resourceCandidates.value[0]
-  if (!resource) {
-    showToast('没有找到匹配的资源卡')
-    return
-  }
-  addResource(resource)
+  showToast(`已挂载 ${added} 张资源卡`)
 }
 
 function unlinkResource(linkId: string): void {
@@ -430,6 +415,9 @@ function fmt(ts?: number): string {
             <b><Icon name="compass" :size="14" /> 关联资源卡</b>
             <span>选题的素材、证据与可复用资产</span>
           </div>
+          <button class="topic-pick-resource" type="button" @click="resourcePickerOpen = true">
+            <Icon name="plus" :size="12" /> 从资源卡池挂载
+          </button>
         </header>
 
         <div v-if="resourceRows.length" class="topic-resource-list">
@@ -442,22 +430,10 @@ function fmt(ts?: number): string {
             <button class="topic-unlink" type="button" title="解除关联" aria-label="解除资源关联" @click="unlinkResource(row.link.id)"><Icon name="x" :size="12" /></button>
           </div>
         </div>
-        <div v-else class="topic-resource-empty">还没有关联资源。可以从资源卡池手动搜索，或让 AI 从已有资源中筛选。</div>
-
-        <div class="topic-resource-add">
-          <label>
-            <Icon name="search" :size="13" />
-            <input v-model="resourceDraft" placeholder="搜索资源卡标题、标签或说明…" @keydown.enter.prevent="addManualResource">
-          </label>
-          <button type="button" :disabled="!resourceCandidates.length" @click="addManualResource">关联</button>
+        <div v-else class="topic-resource-empty">还没有关联资源。从资源卡池多选挂载，或让 AI 先筛一轮候选。</div>
+        <div class="topic-resource-actions">
           <button class="topic-ai-inline" type="button" :disabled="aiBusy" @click="runAiSupport">
             <AiEntryButton variant="inline" label="AI 找资源" :spin="aiBusy" />
-          </button>
-        </div>
-        <div v-if="resourceCandidates.length" class="topic-resource-cands">
-          <button v-for="resource in resourceCandidates" :key="resource.id" type="button" @click="addResource(resource)">
-            <span>{{ resource.title }}</span>
-            <small>{{ (resource.tags || []).slice(0, 3).join(' · ') || '资源卡' }}</small>
           </button>
         </div>
       </section>
@@ -497,6 +473,14 @@ function fmt(ts?: number): string {
     </template>
   </Drawer>
 
+  <CardResourcePickerModal
+    :open="resourcePickerOpen"
+    :resources="d.resources || []"
+    :linked-ids="resourceRows.map(row => row.resource.id)"
+    title="为选题挂载资源卡"
+    @close="resourcePickerOpen = false"
+    @confirm="mountResources"
+  />
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
 
@@ -556,6 +540,12 @@ function fmt(ts?: number): string {
 .topic-section-head > div { display: flex; flex-direction: column; gap: 2px; }
 .topic-section-head b { display: inline-flex; align-items: center; gap: 5px; color: var(--text); font-size: var(--fs-body); }
 .topic-section-head span { color: var(--text-3); font-size: var(--fs-caption); }
+.topic-pick-resource {
+  display: inline-flex; min-height: 32px; align-items: center; gap: 5px;
+  padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-caption); cursor: pointer;
+}
+.topic-pick-resource:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 .topic-ai-inline { display: inline-flex; align-items: center; }
 .topic-resource-list { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .topic-resource-row { display: flex; width: 100%; align-items: center; gap: 8px; padding: 9px 10px; border-bottom: 1px solid var(--border); background: transparent; color: var(--text); }
@@ -568,16 +558,7 @@ function fmt(ts?: number): string {
 .topic-unlink { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); cursor: pointer; }
 .topic-unlink:hover { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); }
 .topic-resource-empty { padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
-.topic-resource-add { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
-.topic-resource-add label { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
-.topic-resource-add input { flex: 1; min-width: 0; min-height: 35px; border: 0; outline: 0; background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-sub); }
-.topic-resource-add > button { padding: 0 13px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--text-2); font-family: inherit; cursor: pointer; }
-.topic-resource-add > button:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
-.topic-resource-cands { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.topic-resource-cands button { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); text-align: left; font-family: inherit; cursor: pointer; }
-.topic-resource-cands button:hover { border-color: var(--accent); }
-.topic-resource-cands span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.topic-resource-cands small { color: var(--text-3); font-size: var(--fs-micro); }
+.topic-resource-actions { display: flex; justify-content: flex-end; margin-top: 9px; }
 .topic-note { padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
 .topic-note label { display: flex; flex-direction: column; gap: 5px; }
 .topic-note span { color: var(--text-3); font-size: var(--fs-caption); font-weight: 650; }

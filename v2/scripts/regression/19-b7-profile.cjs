@@ -32,17 +32,15 @@ console.log('【B7-a · 画像洞察：A1 Hero 主次归位 / A3 四段时间轴
 /* ══════════════════════ A1 · Hero 主次归位 ══════════════════════ */
 
 check(NAME(
-  'A1-1 ★使命主线是方向区的主角（★W17-C09 · 2026-10-20 重指带备案）：原判据守 Hero 内 .hero-compass-bar 的',
-  '「无药丸底 + 左缘 accent 竖条 + 使命文本 fs-body/600」。本批方向带整体迁入 PiOverview 方向状态面板，',
-  '所守意图不变，承重锚改到 .pi-dir-mission：无底色无边框、左缘竖条（inset 内画）、使命文本 600 字重。'), () => {
+  'A1-1（V4.7.7 重指）★画像页不再承载方向主线：用户拍板删除「你的方向状态」后，',
+  '使命主线 / 主攻项目 / 项目进度都不在画像卡片分析区重复；视觉主角让位给年度热力与卡片构成。',
+  '备案：能力回到方向台，画像不保留第二个方向真源。'), () => {
   const ov = read('/newtab/components/profile/PiOverview.vue');
-  const m = ov.match(/\.pi-dir-mission \{[^}]*\}/)?.[0] || '';
-  if (!m) { console.log('     锚点缺失'); return false; }
-  if (/background:/.test(m)) return false;
-  if (/border:/.test(m)) return false;
-  if (!/box-shadow:\s*inset 3px 0 0 var\(--accent\)/.test(m)) return false;
-  if (/border-left:/.test(m)) return false;
-  return /font-weight:\s*600/.test((ov.match(/\.pi-dir-mission strong \{[^}]*\}/) || [''])[0])
+  return !ov.includes('你的方向状态')
+    && !ov.includes('PERSONAL DIRECTION')
+    && !ov.includes('focusProjects')
+    && !ov.includes('class="pi-dir-mission"')
+    && !/\.pi-dir-mission \{[^}]*\}/.test(ov)
     && !codeOnly(HERO).includes('hero-compass-bar')
     && !codeOnly(HERO).includes('hero-kpis-grid');
 });
@@ -60,37 +58,36 @@ check(NAME(
 });
 
 check(NAME(
-  'A1-3 ★使命线的两处前缀同步降档：「使命主线」标签补 600 字重 + 字距改走 tracking-sm 令牌',
-  '（它只是路标的前缀，不是内容；字距不许留裸值），空态引导钮与正文同档',
-  '（用户已设定的样子与「还没设定」不该一个字号）'), () => {
-  /* ★W17-C09 重指：使命前缀随方向带迁入 PiOverview 方向状态面板（.pi-dir-mission .k）。 */
+  'A1-3（V4.7.7 重指）★方向前缀与空态引导随「你的方向状态」整体退役：画像页不再渲染',
+  '「使命主线」标签、空态引导钮或方向面板前缀；只保留产品自身的说明文案。'), () => {
   const ov = read('/newtab/components/profile/PiOverview.vue');
-  const b = ov.match(/\.pi-dir-mission \.k \{[^}]*\}/)?.[0] || '';
-  return /font-size:\s*var\(--fs-micro\)/.test(b)
-    && /font-weight:\s*700/.test(b)
-    && /letter-spacing/.test(b)
-    && /font-size:\s*var\(--fs-body\)/.test((ov.match(/\.pi-dir-mission strong \{[^}]*\}/) || [''])[0]);
+  return !ov.includes('使命主线')
+    && !ov.includes('尚未设定使命愿景')
+    && !ov.includes('class="pi-dir-mission"')
+    && !ov.includes('class="pi-dir-go"');
 });
 
 check(NAME(
-  'A1-4 ★能力零损失（降噪不许降能力）：四个下钻出口与四格口径 tooltip 全在概览、',
-  '主攻胶囊与空态引导出口在 Hero、E2E-21 的双类锚点不动 —— 本项只动承载位置，一个出口都不许少'), () => {
+  'A1-4（V4.7.7 重指）★能力零损失（降噪不许降能力）：四格下钻、四格口径 tooltip 与',
+  '四个选题成果下钻全在卡片构成面板；方向能力回归方向台，E2E-21 的双类锚点不动。'), () => {
   return ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
     && (OVERVIEW.match(/<button class="pi-ov-kpi[^"]*"[^>]*:title=/g) || []).length === 4
     && (OVERVIEW.match(/点击看明细/g) || []).length === 4
     && (OVERVIEW.match(/emit\('kpi-drill', '/g) || []).length === 4
-    /* ★W17-C09 重指：主攻项目与使命空态引导迁入方向状态面板，能力零损失（E2E-21 双类锚点仍在）。 */
-    && OVERVIEW.includes("(e: 'open-project', projectId: string): void")
-    && OVERVIEW.includes("(e: 'goto-compass'): void")
-    && OVERVIEW.includes('尚未设定使命愿景') && OVERVIEW.includes('focusProjects')
+    && ['topic-all', 'topic-published', 'topic-supported', 'topic-month'].every(k => OVERVIEW.includes(`emit('topic-drill', '${k}')`))
+    && !OVERVIEW.includes("(e: 'open-project', projectId: string): void")
+    && !OVERVIEW.includes("(e: 'goto-compass'): void")
+    && !OVERVIEW.includes('尚未设定使命愿景') && !OVERVIEW.includes('focusProjects')
     && HERO.includes('class="pi-hero hero-card"');
 });
 
 check(NAME(
-  'A1-5 ★窄屏回落仍然成立：概览双栏折成单栏、概览四格折成两列、页头动作组左对齐（900 / 640px 断点）'), () => {
+  'A1-5（V4.7.7 重指）★窄屏回落仍然成立：卡片分析单面板保持块级承载、概览四格折成两列、',
+  '页头动作组左对齐（900 / 640px 断点）。★备案：方向面板退役后双栏折单栏失去承载，',
+  '原 900px 双栏断言改钉单面板 `display:block`，不再保留已不存在的栅格列。'), () => {
   const mq = CSS.match(/@media \(max-width: 900px\) \{[\s\S]*?\n\}/)?.[0] || '';
   const mq2 = CSS.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/)?.[0] || '';
-  return /\.pi-overview \{ grid-template-columns: 1fr; \}/.test(mq)
+  return /\.pi-overview \{ display: block; \}/.test(CSS)
     && /\.pi-hero-acts \{ justify-content: flex-start; \}/.test(mq)
     && /\.pi-ov-kpis \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/.test(mq2);
 });
@@ -204,22 +201,22 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-9 ★V4.7.6 重指：卡片分析独立承载方向与产品使用状态，',
-  '四格核心读数与既有下钻同源承载；年度热力优先于分析页。'), () => {
-  /* ★W17-C09（2026-10-20 用户拍板）重指带备案：首屏从「本周精力 + 今天三件事」双栏改为
-     「知源产品使用状态 + 你的方向状态」双面板——今天三件事与调度台重复，用户要求移除。
-     所守意图（首屏先给方向、四格读数与下钻在概览同源承载、宿主不堆模板）一条未减。 */
-  return PI.includes('<PiCardAnalysis') && PI.includes(':mission-text="heroMission"')
-    && PI.includes(':focus-projects="heroFocusProjects"')
+  'A3-9 ★V4.7.7 重指：卡片分析由「卡片构成与使用 + 三件事数据分析 + 资源生命周期」三段承载，',
+  '四格与选题成果下钻同源；「你的方向状态」不再渲染，年度热力优先于分析页。'), () => {
+  return PI.includes('<PiCardAnalysis')
+    && !PI.includes(':mission-text="heroMission"')
+    && !PI.includes(':focus-projects="heroFocusProjects"')
     && PI.includes('@kpi-drill="onHeroDrill"')
     && ANALYSIS.includes('<PiOverview')
+    && ANALYSIS.includes('pi-focus-analysis')
+    && ANALYSIS.includes('id="lc-sec"')
     && OVERVIEW.includes('class="pi-overview"')
-    && OVERVIEW.includes('知源产品使用状态')
-    && OVERVIEW.includes('你的方向状态')
+    && OVERVIEW.includes('卡片构成与使用')
+    && !OVERVIEW.includes('你的方向状态')
     && !/class="pi-ov-lines"/.test(OVERVIEW)
     && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
-    && OVERVIEW.includes("emit('open-project', p.id)")
-    && OVERVIEW.includes("emit('goto-compass')");
+    && !OVERVIEW.includes("emit('open-project', p.id)")
+    && !OVERVIEW.includes("emit('goto-compass')");
 });
 
 /* ══════════════════════ A3-8 · 产物级：模板真编译（★堵「读源码发现不了」的盲区） ══════════════════════ */

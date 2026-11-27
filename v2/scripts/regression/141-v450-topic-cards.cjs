@@ -132,31 +132,36 @@ check('V450-6 ★今日选择器支持关键词、项目、任务状态、选题
     && HOME_DATA.includes('topicStatus === \'all\' || topic.statusId === topicStatus')
 })
 
-check('V450-7 ★选题详情以完整标题为第一视觉：标题可换行、项目/指标与状态克制呈现，关联资源卡是核心面板，AI 找资源贴身放置，说明框限高', () => {
+check('V450-7（V4.7.7 重指）★选题详情以完整标题为第一视觉：标题可换行、项目/指标与状态克制呈现，关联资源卡是核心面板，资源从卡池多选弹窗挂载，AI 找资源贴身放置，说明框限高', () => {
   return TOPIC_DRAWER.includes('class="topic-title"')
     && TOPIC_DRAWER.includes('rows="3"')
     && TOPIC_DRAWER.includes('class="topic-owner"')
     && TOPIC_DRAWER.includes('class="topic-resource-core"')
     && TOPIC_DRAWER.includes('关联资源卡')
     && TOPIC_DRAWER.includes('AI 找资源')
-    && TOPIC_DRAWER.includes('topic-resource-add')
+    && TOPIC_DRAWER.includes('topic-pick-resource')
+    && TOPIC_DRAWER.includes('CardResourcePickerModal')
     && TOPIC_DRAWER.includes('class="topic-note"')
     && TOPIC_DRAWER.includes('min-height: 66px; max-height: 110px')
     && !TOPIC_DRAWER.includes('class="topic-subtasks"')
 })
 
-check('V450-8 ★选题工作面与任务池同构：左侧可折叠清单，右侧月/周日历与按状态分组的看板；拖拽改状态、改 dueDate 与今天严格同源', () => {
+check('V450-8（V4.7.7 重指）★选题工作面与任务池同构：左侧可折叠清单，右侧月/周日历、按状态分组的看板与卡片时间线；拖拽改状态、改 dueDate 与今天严格同源。选题日历只读 topic.dueDate，不再混入任务或今日三件事。', () => {
   return TOPIC_MANAGER.includes('class="topic-workbench"')
     && TOPIC_MANAGER.includes('class="topic-collapse-inline"')
     && TOPIC_MANAGER.includes(':class="{ \'list-hidden\': listCollapsed }"')
     && TOPIC_MANAGER.includes('viewMode === \'calendar\'')
+    && TOPIC_MANAGER.includes("viewMode === 'timeline'")
+    && TOPIC_MANAGER.includes('<CardPoolTimeline v-else-if="viewMode === \'timeline\'" kind="topic"')
     && TOPIC_MANAGER.includes('class="topic-board"')
     && TOPIC_MANAGER.includes('@drop.prevent="onBoardDrop(column.status.id)"')
     && TOPIC_CALENDAR.includes("calendarMode = ref<'month' | 'week'>('month')")
-    && TOPIC_CALENDAR.includes('focusTopics')
-    && TOPIC_CALENDAR.includes('focusTasks')
-    && TOPIC_CALENDAR.includes('focusEntries')
-    && TOPIC_CALENDAR.includes("emit('set-task-due', id, day)")
+    && TOPIC_CALENDAR.includes('const scheduled = computed(() => props.topics.filter')
+    && TOPIC_CALENDAR.includes('/^\\d{4}-\\d{2}-\\d{2}$/.test(topic.dueDate || \'\')')
+    && !TOPIC_CALENDAR.includes('focusTopics')
+    && !TOPIC_CALENDAR.includes('focusTasks')
+    && !TOPIC_CALENDAR.includes('focusEntries')
+    && !TOPIC_CALENDAR.includes("emit('set-task-due', id, day)")
     && TOPIC_CALENDAR.includes("emit('set-due', id, day)")
 })
 

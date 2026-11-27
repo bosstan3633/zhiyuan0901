@@ -32,10 +32,11 @@ check('V475-2 页面与顶栏移除氛围渐变和大面积模糊，不新增持
     && !HOME.includes('.work-board::before')
 })
 
-check('V475-3 画像保留时间轴首屏，并突出个人方向主线', () => {
-  return PROFILE.includes('padding: 20px var(--page-gutter) 56px')
-    && PI.includes('grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr)')
+check('V475-3（V4.7.7 重指）画像页头压缩、年度热力前置，时间轴保持首屏可达；方向状态模块退役后视觉焦点落在热力图而非指标数字。', () => {
+  return PROFILE.includes('padding: 12px var(--page-gutter) 48px')
     && PI.includes('background: var(--surface-panel)')
+    && PI.includes('gap: 12px')
+    && !PI.includes('.pi-dir-')
 })
 
 check('V475-4 调度台使用统一页面留白与轻表面，今日工作板保持唯一主视觉', () => {

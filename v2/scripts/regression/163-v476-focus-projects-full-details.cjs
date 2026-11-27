@@ -11,17 +11,18 @@ check('V476-1 主攻项目上限统一为 3，存量超出项目不被强制裁�
     && STORE.includes('if (others.length >= FOCUS_PROJECT_LIMIT)')
 })
 
-check('V476-1b 画像、方向树与内置手册的主攻口径同为三个，界面文案不得回落到 1-2 个', () => {
+check('V476-1b（V4.7.7 重指）方向台与内置手册的主攻上限同为三个；画像方向状态退役后不再展示主攻口径，也不得把 1-2 个的旧文案带回界面。', () => {
   const HOOK = read('/newtab/views/useProfileInsights.ts')
   const OVERVIEW = read('/newtab/components/profile/PiOverview.vue')
   const TREE = read('/newtab/views/CompassTree.vue')
   const MANUAL = read('/newtab/manual-data.ts')
   const DETAIL = read('/newtab/views/useCompassHomeDetail.ts')
   return HOOK.includes('if (out.length >= 3) break')
-    && OVERVIEW.includes('1-3 个项目标为主攻')
     && DETAIL.includes('1-3 个项目标为主攻')
     && TREE.includes('（上限 3 个）')
     && MANUAL.includes('上限 3 个')
+    && !OVERVIEW.includes('你的方向状态')
+    && !OVERVIEW.includes('1-3 个项目标为主攻')
     && !OVERVIEW.includes('1-2 个项目')
     && !TREE.includes('上限 2 个')
     && !MANUAL.includes('上限 2 个')

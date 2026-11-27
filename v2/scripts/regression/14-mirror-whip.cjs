@@ -136,15 +136,16 @@ check('A2-3 四格 KPI 每格都有口径 tooltip，且数值用中性 text（�
     && v.includes('color: var(--text)') && !/success|danger/.test(v);
 });
 
-check('A2-4（V4.3.1 重指）归属状态不裁决：方向状态继续只用中性文本层级，已退役的洞察条与 pi-tag 不得回流', () => {
+check('A2-4（V4.7.7 重指）归属状态不裁决：卡片构成与使用四格只用中性文本层级，不用成功 / 警示色替用户裁决好坏；方向状态、旧洞察条与 pi-tag 均不得回流', () => {
   /* ★V4.3.1 重指带备案：周期 AI 分析整体退役，`.one-insight` 随宿主一起删除。
-     所守意图不变——方向状态只呈现事实，不用成功 / 警示色替用户裁决好坏。 */
+     ★V4.7.7 再重指：方向状态模块按用户拍板整体退役，改守卡片构成四格的中性读数。 */
   const ov = read('/newtab/components/profile/PiOverview.vue');
-  const state = (ov.match(/\.pi-dir-state[^{]*\{[^}]*\}/g) || []).join('\n');
+  const state = (PI_CSS.match(/\.pi-ov-kpi \.v \{[^}]*\}/g) || []).join('\n');
   const bad = [];
-  if (/var\(--(success|warning)\)|success-bg-soft/.test(state)) bad.push('pi-dir-state');
+  if (/var\(--(success|warning|danger)\)|success-bg-soft/.test(state)) bad.push('pi-ov-kpi');
   if (bad.length) console.log('     仍按好坏上色：' + bad.join(' / '));
-  return bad.length === 0 && state.includes('var(--text-3)')
+  return bad.length === 0 && state.includes('var(--text)')
+    && !ov.includes('你的方向状态') && !ov.includes('focusProjects')
     /* 负锚：两条已退役的裁决型样式都不许回流（dead-css 判死过）。 */
     && !/\.one-insight\b/.test(PI_CSS.replace(/\/\*[\s\S]*?\*\//g, ''))
     && !/\.pi-tag \.?\{?/.test(PI_CSS.replace(/\/\*[\s\S]*?\*\//g, ''));

@@ -6,8 +6,8 @@ import { showToast } from '@/shared/components/toast'
 import type { AppData, CuriosityCard, TaskCard, TopicCard } from '@/shared/models'
 import { EVENT_ACT_LABEL, type CardEvent, type EventAction } from '@/shared/utils/eventLog'
 import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
-import { taskStatusOf } from '@/shared/utils/taskStatus'
-import { topicStatusOf } from '@/shared/utils/topicStatus'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
+import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
 
 type PoolKind = 'task' | 'topic' | 'curiosity'
 interface TimelineEntry {
@@ -20,6 +20,7 @@ interface TimelineEntry {
   title: string
   status: string
   statusColor: string
+  done: boolean
   link: string
 }
 
@@ -55,19 +56,20 @@ function titleOf(card: TaskCard | TopicCard | CuriosityCard): string {
   return props.kind === 'curiosity' ? (card as CuriosityCard).question : (card as TaskCard | TopicCard).title
 }
 
-function statusOf(card: TaskCard | TopicCard | CuriosityCard): { name: string; color: string } {
+function statusOf(card: TaskCard | TopicCard | CuriosityCard): { name: string; color: string; done: boolean } {
   if (props.kind === 'task') {
     const status = taskStatusOf(props.data, card as TaskCard)
-    return { name: status?.name || '任务', color: status?.color || 'var(--success)' }
+    return { name: status?.name || '任务', color: status?.color || 'var(--success)', done: isTaskDone(props.data, card as TaskCard) }
   }
   if (props.kind === 'topic') {
     const status = topicStatusOf(props.data, (card as TopicCard).statusId)
-    return { name: status?.name || '选题', color: status?.color || 'var(--warning)' }
+    return { name: status?.name || '选题', color: status?.color || 'var(--warning)', done: isTopicDone(props.data, card as TopicCard) }
   }
   const status = (card as CuriosityCard).status
   return {
     name: status === 'done' ? '已求证' : status === 'doing' ? '探索中' : status === 'shelf' ? '已搁置' : '待探索',
     color: status === 'done' ? 'var(--success)' : status === 'doing' ? 'var(--accent)' : status === 'shelf' ? 'var(--text-4)' : 'var(--accent-2)',
+    done: status === 'done',
   }
 }
 
@@ -96,7 +98,7 @@ const groups = computed(() => {
     const status = statusOf(card)
     byDayAndCard.set(key, {
       key, id: card.id, day, ts: event.ts, action: EVENT_ACT_LABEL[event.action], count: 1,
-      title: titleOf(card) || '（无标题）', status: status.name, statusColor: status.color,
+      title: titleOf(card) || '（无标题）', status: status.name, statusColor: status.color, done: status.done,
       link: linkOf(card),
     })
   }
@@ -170,12 +172,14 @@ onBeforeUnmount(clearClickTimer)
       hint="新增卡片或推进状态后，会按自然日记录在这里。" />
     <div v-for="group in groups" :key="group.day" class="cpt-day">
       <header class="cpt-day-head"><b>{{ dayLabel(group.day) }}</b><span>{{ group.day }}</span><em>{{ group.entries.length }} 张</em></header>
+      <span class="cpt-axis" aria-hidden="true"><i /></span>
       <div class="cpt-cards">
         <button
           v-for="entry in group.entries"
           :key="entry.key"
           type="button"
           class="cpt-card"
+          :class="{ 'is-done': entry.done }"
           :data-card-id="entry.id"
           :title="entry.link ? '单击查看详情 · 双击打开卡片链接' : '单击查看详情 · 双击时若未填链接会提示'"
           :style="{
@@ -202,12 +206,41 @@ onBeforeUnmount(clearClickTimer)
 </template>
 
 <style scoped>
-.cpt { display: grid; align-content: start; gap: 0; padding: 8px 0 20px; }
-.cpt-day { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.cpt { display: grid; align-content: start; gap: 0; padding: 8px 0 20px 14px; }
+.cpt-day {
+  display: grid;
+  grid-template-columns: 112px 18px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
 .cpt-day:last-child { border-bottom: 0; }
 .cpt-day-head { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 4px; color: var(--text-3); font-size: var(--fs-tiny); }
 .cpt-day-head b { color: var(--text); font-size: var(--fs-body); }
 .cpt-day-head em { font-style: normal; }
+.cpt-axis { position: relative; display: block; min-height: 100%; }
+.cpt-axis::before {
+  position: absolute;
+  top: -16px;
+  bottom: -16px;
+  left: 8px;
+  width: 1px;
+  background: var(--border-strong);
+  content: '';
+}
+.cpt-day:first-child .cpt-axis::before { top: 18px; }
+.cpt-day:last-child .cpt-axis::before { bottom: calc(100% - 28px); }
+.cpt-axis i {
+  position: absolute;
+  top: 11px;
+  left: 4px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
 .cpt-cards { display: grid; align-content: start; align-items: start; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); min-width: 0; gap: 9px; }
 .cpt-card {
   position: relative;
@@ -237,6 +270,21 @@ onBeforeUnmount(clearClickTimer)
 }
 .cpt-card:active { transform: translateY(0); }
 .cpt-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cpt-card.is-done {
+  border-color: var(--border);
+  border-left-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
+  box-shadow: none;
+}
+.cpt-card.is-done:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  transform: none;
+}
+.cpt-card.is-done .cpt-title { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.cpt-card.is-done .cpt-kind { background: var(--surface-3); color: var(--text-3); }
+.cpt-card.is-done .cpt-status { color: var(--text-3); }
+.cpt-card.is-done .cpt-status i { background: var(--text-4); }
 .cpt-card-top { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .cpt-kind {
   display: inline-flex;
@@ -286,7 +334,9 @@ onBeforeUnmount(clearClickTimer)
 .cpt-count { flex: none; color: var(--text-4); }
 .cpt-foot time { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
 @media (max-width: 720px) {
+  .cpt { padding-left: 0; }
   .cpt-day { grid-template-columns: 1fr; gap: 8px; padding: 13px 0; }
+  .cpt-axis { display: none; }
   .cpt-day-head { flex-direction: row; align-items: baseline; padding-top: 0; }
   .cpt-cards { grid-template-columns: 1fr; }
 }

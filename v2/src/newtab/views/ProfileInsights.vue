@@ -57,14 +57,12 @@ import { useCuriosity } from '@/newtab/stores/curiosity'
 import PiAnnualHeatmap from '@/newtab/components/profile/PiAnnualHeatmap.vue'
 import PiCardAnalysis from '@/newtab/components/profile/PiCardAnalysis.vue'
 import PiYearMetricDrawer from '@/newtab/components/profile/PiYearMetricDrawer.vue'
-import { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
 import { useCompass } from '@/newtab/stores/compass'
 import PiTimeline, { type PiTimelineEntry } from '@/newtab/components/profile/PiTimeline.vue'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
 import { openExternalLink, toOpenableRawLink } from '@/shared/utils/link'
 import { AiDrawer } from '@/newtab/components/lazyAiDrawer'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'
-import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'
 import TaskDetailDrawer from '@/newtab/components/compass/TaskDetailDrawer.vue'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { useDashboardStats } from '@/newtab/components/dashboard/useDashboardStats'
@@ -87,7 +85,6 @@ const {
   heroSupportRate, heroFocusShare, heroMission, heroFocusProjects, supportedTaskIds,
   focusProjectIds, todayAdd, todayCalled, todayFocus, projNameById,
   matchResourcesOf, todayRows, todayFilled, todayAmmo,
-  projDetailOpen, projDetailId, openProjectDetail,
   overviewWeekRange,
   logOpen, logPreset, openLog, openLogFocus, statDrawer,
   tagInsightOpen, tagAiJob, goalDirId, topicTag, totalCards,
@@ -369,10 +366,9 @@ watch(() => route.query.view, value => {
         <PiCardAnalysis v-else :data="gd" :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
           :topic-stats="{ all: gTopicLive.length, published: topicPublished.length, supported: topicSupported.length, month: topicMonthAdded.length }"
           :top-tags="heroTopTags" :support-rate="heroSupportRate" :focus-share="heroFocusShare"
-          :today-import="todayImportCount" :mission-text="heroMission" :focus-projects="heroFocusProjects"
+          :today-import="todayImportCount"
           :lc-cards="lcCards" :focus-filter="lcFocus"
-          @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill" @goto-compass="gotoCompass"
-          @open-project="openProjectDetail"
+          @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill"
           @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
           @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
           @lc-settings="lcSetOpen = true" />
@@ -394,8 +390,6 @@ watch(() => route.query.view, value => {
     <!-- ===== 全量记录抽屉（页面自身下钻用；战报自己的「查看全部记录」由 TodayBattleHost 承接） ===== -->
     <DashboardLogDrawer :open="logOpen" :events="timelineEvents" :data="gd" :preset="logPreset" @close="logOpen = false" />
 
-    <!-- 主攻项目详情：中央弹窗，沿用可编辑 ProjectDetailDrawer。 -->
-    <ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal" @close="projDetailOpen = false" />
     <TaskDetailDrawer ref="taskDetailRef" />
 
     <PiTagDistributionDrawer

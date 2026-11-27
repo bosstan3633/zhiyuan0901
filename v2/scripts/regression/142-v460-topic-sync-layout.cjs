@@ -77,11 +77,12 @@ check('V460-4 ★任务清单与选题清单的折叠入口都在清单标题旁
     && TOPIC_MANAGER.includes('.list-hidden .topic-workbench')
 })
 
-check('V460-5 ★选题清单拖拽载荷为 topic:id，日历按 kind 分流到选题排期；拖入今日仍走三件事容量与严格同源校验', () => {
+check('V460-5（V4.7.7 重指）★选题清单拖拽载荷为 topic:id，选题日历只接受 topic 载荷并写 topic.dueDate；任务载荷不得进入选题日历。拖入今日仍走三件事容量与严格同源校验。', () => {
   return TOPIC_MANAGER.includes("setData('text/plain', `topic:${topic.id}`)")
     && TOPIC_CALENDAR.includes("payload.split(':', 2)")
-    && TOPIC_CALENDAR.includes("if (kind === 'task') emit('set-task-due', id, day)")
-    && TOPIC_CALENDAR.includes("else emit('set-due', id, day)")
+    && TOPIC_CALENDAR.includes("if (kind === 'topic') emit('set-due', id, day)")
+    && !TOPIC_CALENDAR.includes("emit('set-task-due'")
+    && !TOPIC_CALENDAR.includes("kind === 'task'")
     && TOPIC_MANAGER.includes('const result = addManualTopicFocus(d.value, date, topic.id)')
     && TOPIC_MANAGER.includes("if (result.status === 'full')")
 })

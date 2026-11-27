@@ -64,7 +64,7 @@ check('V474-3 ★资源卡 / 好奇心卡不展示项目与指标归属：时间
     && OVERVIEW.includes('pi-ov-titleline')
 })
 
-check('V474-4 ★画像首屏双面板压缩为紧凑状态条：标题同排、四格 17/10px 分层、选题成果单行、主攻项目双列；四格与四个选题下钻一个不少', () => {
+check('V474-4（V4.7.7 重指）★画像卡片构成压缩为单面板：标题同排、四格 17/10px 分层、选题成果单行；四格与四个选题下钻一个不少。方向状态模块按用户拍板退役，不再出现主攻双列。', () => {
   const card = PI_CSS.match(/\.pi-ov-card \{[\s\S]*?\}/)?.[0] || ''
   const kpi = PI_CSS.match(/\.pi-ov-kpi \{[^}]*\}/)?.[0] || ''
   const band = OVERVIEW.match(/\.pi-ov-topic-band \{[^}]*\}/)?.[0] || ''
@@ -80,8 +80,9 @@ check('V474-4 ★画像首屏双面板压缩为紧凑状态条：标题同排、
     && OVERVIEW.includes('class="pi-ov-topic-all"')
     && /\.pi-ov-topic-grid \{ display: grid; flex: 1; grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/.test(OVERVIEW)
     && !codeOnly(OVERVIEW).includes('pi-dir-foot')
-    && /\.pi-overview \{ align-items: stretch; \}/.test(OVERVIEW)
-    && /\.pi-dir-name \{[^}]*overflow-wrap: anywhere/.test(OVERVIEW)
+    && /\.pi-overview \{ display: block; \}/.test(OVERVIEW)
+    && !OVERVIEW.includes('你的方向状态')
+    && !OVERVIEW.includes('focusProjects')
     && (OVERVIEW.match(/emit\('kpi-drill', '/g) || []).length === 4
     && (OVERVIEW.match(/emit\('topic-drill', '/g) || []).length === 5
 })

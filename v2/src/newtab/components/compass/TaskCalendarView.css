@@ -950,14 +950,20 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
 }
 
 .cal-task-chip.is-done {
-  background: var(--surface-3);
+  border-color: var(--border);
+  border-left-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
   color: var(--text-3);
+  opacity: .72;
   text-decoration: line-through;
 }
 
 .cal-task-chip.tone-done {
-  background: var(--tag-ok-bg);
-  color: var(--tag-ok-text);
+  border-color: var(--border);
+  border-left-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
+  color: var(--text-3);
+  opacity: .72;
 }
 
 .cal-task-chip.tone-today {
@@ -1003,9 +1009,11 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
 }
 
 .cal-topic-chip.tone-done {
-  border-left-color: var(--topic-status, var(--success));
-  background: color-mix(in srgb, var(--topic-status, var(--success)) 11%, var(--surface));
+  border-color: var(--border);
+  border-left-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
   color: var(--text-3);
+  opacity: .72;
 }
 
 .cal-topic-chip.tone-today {
@@ -1477,7 +1485,17 @@ body.cal-splitting { cursor: col-resize; user-select: none; }
   background: var(--surface);
   box-shadow: none;
   cursor: pointer;
-  opacity: .9;
+  opacity: .72;
+}
+.cal-task-chip.is-history-mirror.is-done,
+.cal-task-chip.is-history-mirror.tone-done,
+.cal-topic-chip.is-history-mirror.tone-done,
+.topic-cal-chip.is-history-mirror.done {
+  border-color: var(--border);
+  border-left-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 66%, var(--surface));
+  color: var(--text-3);
+  opacity: .58;
 }
 .cal-task-chip.is-history-mirror,
 .cal-grid.is-week .cal-task-chip.is-history-mirror {

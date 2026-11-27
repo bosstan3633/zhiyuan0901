@@ -420,14 +420,14 @@ check(
 );
 
 check(NAME(
-  'M6-7 ★画像洞察首屏热区必须全部达到 28px：概览空态「前往方向台」与热力图「收起 / 导出」两类小按钮用 min-height 撑盒，字号与密度不变',
+  'M6-7（V4.7.7 重指）★画像洞察首屏热区必须全部达到 28px：压缩后的页头动作钮与热力图「收起 / 导出」两类小按钮用 min-height 撑盒，字号与密度不变',
   '★V3.9.8 四主题实拍后，M6 复跑在 1440/1024 各量到 5 处、800 量到 1 处 <28px；',
-  '其中 .pi-dir-go 只有 19.3px。修法与 M6-2 同源：不改字号、不扩大视觉方块，只撑可点击盒。'), () => {
-  const PIO = read('/newtab/components/profile/PiOverview.vue');
+  '其中 .pi-dir-go 只有 19.3px。V4.7.7 方向面板退役后，该项改守页头紧凑动作钮；修法仍与 M6-2 同源：只撑可点击盒。'), () => {
+  const HERO = read('/newtab/components/profile/PiHero.vue');
   const DZ = read('/newtab/components/dashboard/dashboard.css');
-  const go = /\.pi-dir-go \{[^}]*min-height: 28px;/.test(PIO);
+  const go = /\.pi-hero-acts :deep\(\.pi-btn\) \{ min-height: 30px;/.test(HERO);
   const sm = /\.dz-btn\.sm \{[^}]*min-height: 28px;/.test(DZ);
-  if (!go) console.log('画像概览「前往方向台」未达到 28px 热区');
+  if (!go) console.log('画像页头压缩动作钮未保持 ≥28px 热区');
   if (!sm) console.log('画像热力图小号按钮未达到 28px 热区');
   return go && sm;
 });

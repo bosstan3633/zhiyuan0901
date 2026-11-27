@@ -35,6 +35,7 @@
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --surface-panel: var(--surface);
   --surface-canvas: var(--bg);
+  --on-accent: #FFFFFF;
   --line-divider: var(--border);
   --shadow-panel: none;
   --radius-panel: var(--radius-lg);

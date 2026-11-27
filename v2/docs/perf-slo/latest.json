@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-26T16:45:01.801Z",
+  "generatedAt": "2026-11-27T03:12:11.860Z",
   "source": "real-local-browser",
   "dist": "/Users/beantan/Downloads/zhiyuan0904/v2/dist",
-  "manifestVersion": "4.7.6",
+  "manifestVersion": "4.7.7",
   "chrome": "/Users/beantan/Library/Caches/ms-playwright/chromium-1255/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
   "platform": "darwin-arm64",
   "node": "v26.0.0",
@@ -26,15 +26,15 @@
       "label": "网页浮层唤起",
       "unit": "ms",
       "samples": [
-        82,
-        14,
-        18,
-        20,
-        11
+        68,
+        11,
+        9,
+        11,
+        7
       ],
       "sampleCount": 5,
-      "p50": 18,
-      "p95": 82,
+      "p50": 11,
+      "p95": 68,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -54,15 +54,15 @@
       "label": "⌘K / Ctrl+K 首屏",
       "unit": "ms",
       "samples": [
-        131,
-        67,
-        39,
-        48,
-        50
+        108,
+        52,
+        37,
+        26,
+        27
       ],
       "sampleCount": 5,
-      "p50": 50,
-      "p95": 131,
+      "p50": 37,
+      "p95": 108,
       "budgetP95": 1500,
       "pass": true,
       "notes": [
@@ -82,15 +82,15 @@
       "label": "搜索键入到结果更新",
       "unit": "ms",
       "samples": [
-        103,
-        100,
-        102,
-        104,
+        95,
+        97,
+        94,
+        98,
         97
       ],
       "sampleCount": 5,
-      "p50": 102,
-      "p95": 104,
+      "p50": 97,
+      "p95": 98,
       "budgetP95": 400,
       "pass": true,
       "notes": [
@@ -110,20 +110,20 @@
       "label": "调度台 / 方向台切换",
       "unit": "ms",
       "samples": [
-        75,
+        77,
+        71,
+        34,
         53,
-        39,
-        67,
         47,
-        57,
-        41,
+        53,
+        45,
         58,
-        39,
-        58
+        40,
+        53
       ],
       "sampleCount": 10,
       "p50": 53,
-      "p95": 75,
+      "p95": 77,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -143,25 +143,25 @@
       "label": "任务 / 好奇心 / 资源卡池切换",
       "unit": "ms",
       "samples": [
-        70,
-        54,
-        77,
-        57,
+        60,
         44,
-        75,
-        52,
-        43,
-        66,
-        63,
-        40,
-        80,
-        64,
-        48,
-        64
+        87,
+        50,
+        44,
+        68,
+        61,
+        46,
+        84,
+        60,
+        46,
+        71,
+        60,
+        44,
+        68
       ],
       "sampleCount": 15,
-      "p50": 63,
-      "p95": 80,
+      "p50": 60,
+      "p95": 87,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -181,25 +181,25 @@
       "label": "卡池状态 / 标签筛选",
       "unit": "ms",
       "samples": [
+        9,
+        26,
+        34,
+        10,
         7,
-        4,
-        39,
-        7,
-        3,
-        35,
-        8,
-        8,
-        31,
-        7,
-        6,
         30,
+        7,
+        8,
+        32,
         6,
+        4,
+        34,
         6,
-        25
+        7,
+        33
       ],
       "sampleCount": 15,
-      "p50": 7,
-      "p95": 39,
+      "p50": 9,
+      "p95": 34,
       "budgetP95": 500,
       "pass": true,
       "notes": [
@@ -219,15 +219,15 @@
       "label": "资源常用夹抽屉打开",
       "unit": "ms",
       "samples": [
-        94,
-        88,
-        85,
-        76,
-        88
+        72,
+        65,
+        62,
+        77,
+        63
       ],
       "sampleCount": 5,
-      "p50": 88,
-      "p95": 94,
+      "p50": 65,
+      "p95": 77,
       "budgetP95": 800,
       "pass": true,
       "notes": [
@@ -247,25 +247,25 @@
       "label": "三卡池详情打开",
       "unit": "ms",
       "samples": [
-        56,
-        45,
-        693,
+        65,
+        41,
+        704,
+        43,
+        39,
+        672,
         40,
-        39,
-        708,
         38,
-        39,
-        706,
+        671,
         40,
         37,
-        713,
-        40,
+        649,
+        83,
         38,
-        680
+        678
       ],
       "sampleCount": 15,
-      "p50": 40,
-      "p95": 713,
+      "p50": 43,
+      "p95": 704,
       "budgetP95": 1200,
       "pass": true,
       "notes": [
@@ -285,15 +285,15 @@
       "label": "同步内容明细抽屉",
       "unit": "ms",
       "samples": [
-        22,
-        38,
-        23,
-        32,
-        35
+        30,
+        17,
+        28,
+        24,
+        14
       ],
       "sampleCount": 5,
-      "p50": 32,
-      "p95": 38,
+      "p50": 24,
+      "p95": 30,
       "budgetP95": 1200,
       "pass": true,
       "notes": [
@@ -313,15 +313,15 @@
       "label": "分享抽屉打开",
       "unit": "ms",
       "samples": [
-        102,
-        99,
-        82,
-        87,
-        78
+        113,
+        89,
+        67,
+        76,
+        70
       ],
       "sampleCount": 5,
-      "p50": 87,
-      "p95": 102,
+      "p50": 76,
+      "p95": 113,
       "budgetP95": 1000,
       "pass": true,
       "notes": [
@@ -330,15 +330,11 @@
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 5,
-        "p95": 72,
-        "max": 72,
+        "sampleCount": 1,
+        "p95": 82,
+        "max": 82,
         "samples": [
-          72,
-          55,
-          56,
-          58,
-          53
+          82
         ]
       }
     },
@@ -347,13 +343,13 @@
       "label": "高清长图生成完成",
       "unit": "ms",
       "samples": [
-        348,
-        352,
-        357
+        332,
+        119,
+        116
       ],
       "sampleCount": 3,
-      "p50": 352,
-      "p95": 357,
+      "p50": 119,
+      "p95": 332,
       "budgetP95": 4000,
       "pass": true,
       "notes": [
@@ -362,14 +358,10 @@
       "error": null,
       "longTasks": {
         "supported": true,
-        "sampleCount": 3,
-        "p95": 57,
-        "max": 57,
-        "samples": [
-          56,
-          57,
-          55
-        ]
+        "sampleCount": 0,
+        "p95": null,
+        "max": 0,
+        "samples": []
       }
     }
   },

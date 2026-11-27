@@ -336,7 +336,7 @@ check('R160-9 ★P5 写盘合并：整库 set 同批带热度键与待写事件�
 
 // ============== R162 · 挂载关系退役 / 附件链路修复 / AI 标签优先复用 ==============
 console.log('【R162 · 挂载退役 · 附件修复 · AI 标签复用】');
-check('R162-1 ★任务↔资源挂载关系整体退役：模型零字段 + 全仓零业务引用（仅 models 注释/迁移读型/存储清理器允许）+ 详情两处区块退役', () => {
+check('R162-1（V4.7.7 重指）★卡间零挂载红线不变：模型不得回写 mountedResourceIds，旧手动挂载字段与 toggleMountResource 业务引用清零；任务 ↔ 资源的关联只走 SupportLink 独立表，并由资源卡池多选弹窗写入。', () => {
   const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = [];
   /* ★R181 随迁带备案：repository.ts 的迁移读型（normalizeLegacyCards）整体拆到 legacy-normalize.ts，
      它同属「迁移读型/存储清理」豁免类，判据体与口径一字未动。 */
@@ -346,7 +346,10 @@ check('R162-1 ★任务↔资源挂载关系整体退役：模型零字段 + 全
   const m = read('/shared/models/index.ts');
   const ref = read('/newtab/components/ResourceEditForm.vue');
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
-  return hits.length === 0 && !m.includes('mountedResourceIds: ID[]') && !ref.includes('mountedTasks') && !td.includes('挂载资源卡') && !td.includes('toggleMountResource');
+  return hits.length === 0 && !m.includes('mountedResourceIds: ID[]') && !ref.includes('mountedTasks')
+    && !td.includes('toggleMountResource') && !td.includes('mountedResourceIds')
+    && td.includes('CardResourcePickerModal')
+    && td.includes('addSupportLink(d.value, { taskId: t.id, resourceId: resource.id, from: \'manual\' })');
 });
 check('R162-2 ★附件串卡修复：两处宿主单例清键（resetEditing）+ emptyResource 带 assets', () => {
   const a = read('/newtab/composables/useResourceDrawer.ts'); const b = read('/newtab/components/ResourceDetailDrawer.vue');

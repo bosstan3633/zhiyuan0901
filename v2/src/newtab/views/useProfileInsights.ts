@@ -33,7 +33,13 @@ import type {
   PiYearCardRow,
   PiYearDayRow
 } from '@/newtab/components/profile/PiYearMetricDrawer.vue'
-import PiOverview, { type FocusProjectView } from '@/newtab/components/profile/PiOverview.vue'
+interface FocusProjectView {
+  id: string
+  name: string
+  progress: number
+  state: 'active' | 'stalled' | 'done'
+  open: number
+}
 import { useCompass } from '@/newtab/stores/compass'
 import PiRangeTabs, { type PiRange } from '@/newtab/components/profile/PiRangeTabs.vue'
 import DashboardLogDrawer, { type LogPreset } from '@/newtab/components/dashboard/DashboardLogDrawer.vue'

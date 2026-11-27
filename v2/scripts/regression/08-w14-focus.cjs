@@ -14,30 +14,25 @@ const CSS = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
 
 console.log('【W14 · 主攻项目详情抽屉 + 顶部瘦身（V3.8.23 批）】');
 
-check('W14-1 ★主攻项目的点击必须落在"那个项目"上，不能两枚胶囊同落一处：Hero 的 ≤2 枚 🚀 主攻胶囊点开的是**右侧滑出的项目详情抽屉**（ProjectDetailDrawer，与方向台/策展台同一枚），今日三件事行的 🚀 主攻标签同出口。★病根：胶囊原 @click="emit(\'drill\',\'focus\')" 不带项目 id，两枚胶囊点开的是同一个「主攻动作记录」抽屉，按下那一下就丢了"点的是哪一个"。断言钉四段：① PiHero 有独立发射器 open-project（不与 drill 混用 —— drill 的 focus 键语义归"近30天精力落主攻"那张底盘卡）② 胶囊点击带上 p.id ③ 宿主挂 ProjectDetailDrawer + openProjectDetail ④ 负锚：胶囊不再 emit drill focus。另：PiToday 主攻标签由 span 改 button（"看着能点"不算能点），TodayRow 带 projectId', () => {
+check('W14-1（V4.7.7 重指）★画像卡片分析不再重复方向台：用户拍板删除「你的方向状态」模块，主攻项目点击能力整体退出画像页；保留四格读数与选题成果下钻，项目详情只能在方向台 / 方向台抽屉打开。★备案：原判据守「主攻胶囊必须落到那个项目」，本轮按明确拍板整体下线该模块，故改钉无方向面板、无 open-project 回流、无重复项目详情抽屉入口，能力去向写明在方向台。', () => {
   const HERO_C = codeOnly(HERO);
   const TODAY_C = codeOnly(TODAY);
-  /* ★W17-C09（2026-10-20）重指带备案：主攻胶囊从 Hero 迁入 PiOverview 方向状态面板
-     （项目名完整呈现），点开仍是"那个项目"的详情抽屉。承重锚改到 OVERVIEW：
-     方向面板有 open-project 发射器 + 带 p.id + 项目卡可点；宿主仍唯一挂 ProjectDetailDrawer。
-     计数从 3 → 2：Hero 不再发项目点击，今日三件事行随 C09 退役，只剩方向面板与今日焦点格。 */
-  return OVERVIEW.includes("(e: 'open-project', projectId: string): void")
-    && OVERVIEW.includes("emit('open-project', p.id)")
+  /* ★V4.7.7 重指：方向状态模块整体退役。这里不再守一个已不存在的入口，而是守
+     「不回流 + 四格能力仍在 + 详情抽屉不在画像页二次悬挂」三件事。 */
+  return !OVERVIEW.includes('你的方向状态')
+    && !OVERVIEW.includes('PERSONAL DIRECTION')
+    && !OVERVIEW.includes('focusProjects')
+    && !OVERVIEW.includes("emit('open-project'")
+    && !PI.includes(':focus-projects="heroFocusProjects"')
+    && !PI.includes('@open-project="openProjectDetail"')
+    && !PI.includes('<ProjectDetailDrawer')
     && OVERVIEW.includes("emit('kpi-drill', 'focus')")
-    && OVERVIEW.includes('点击项目可查看阶段目标与任务')
-    && PI.includes("import ProjectDetailDrawer from '@/newtab/components/ProjectDetailDrawer.vue'")
-    && PI.includes('function openProjectDetail(projectId: string)')
-    && PI.includes('<ProjectDetailDrawer :open="projDetailOpen" :project-id="projDetailId" mode="modal"')
-    /* 计数 3 → 1：Hero 不再发项目点击、今日三件事行退役；只剩方向状态面板这一个入口。 */
-    && (PI.match(/@open-project="openProjectDetail"/g) || []).length === 1
+    && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
     && TODAY.includes('slotCount')
     && TODAY_C.includes('class="strip4"')
-    /* 负锚：Hero 不再挂方向带，也不许把 24ch 截断的胶囊带回来 */
     && !HERO_C.includes('hcb-pill')
     && !HERO_C.includes('focusPills')
-    /* 抽屉本体仍是真的可编辑抽屉（有任务新建与删除确认），不是只读速览 */
-    && PDD.includes('TaskAddDrawer') && PDD.includes('删除') && PDD.includes('useConfirm')
-    && PDD.includes('width="480px"');
+    && PDD.includes('TaskAddDrawer') && PDD.includes('width="480px"');
 });
 
 check('W14-2 ★V3.9.3 Hero 必须"薄"：页头 + 使命带两层，容器内距与层间 gap 在预算内；四格读数不再在 Hero 渲染，统一落到概览。概览四格仍须完整：四等宽、四格口径 tooltip、精力落主攻的中性进度条、hover 不抬升。', () => {
@@ -82,13 +77,13 @@ check('W14-3 ★Hero 不是视觉焦点：主标题降为 fs-title，且画像�
     && !HERO.includes('hcb-');
 });
 
-check('W14-4 ★压体积不许压能力：页头三件套（刷新 · 导出 · 全部记录）零丢失、四格下钻出口在概览零丢失、使命轻引导出口保留、H2P 双类锚点保持（E2E-21 靠它）', () => {
+check('W14-4（V4.7.7 重指）★压体积不许压能力：页头三件套（刷新 · 导出 · 全部记录）零丢失、四格与四个选题成果下钻在概览零丢失、H2P 双类锚点保持（E2E-21 靠它）。原「使命轻引导出口」随方向状态模块整体退役，能力回到方向台，不在画像页重复。', () => {
   return HERO.includes("emit('refresh')") && HERO.includes('<ExportMenu')
     && HERO.includes("emit('open-log')") && HERO.includes('<Icon name="folder" :size="13"/> 全部记录')
     && ['total', 'entropy', 'support', 'focus'].every(k => OVERVIEW.includes(`emit('kpi-drill', '${k}')`))
+    && ['topic-all', 'topic-published', 'topic-supported', 'topic-month'].every(k => OVERVIEW.includes(`emit('topic-drill', '${k}')`))
     && HERO.includes('class="pi-hero hero-card"')                  /* E2E-21 双类锚点 */
-    /* ★W17-C09 重指：使命空态轻引导与主攻项目整体迁入方向状态面板，能力一件未减。 */
-    && OVERVIEW.includes("(e: 'goto-compass'): void")
-    && OVERVIEW.includes('尚未设定使命愿景')
-    && OVERVIEW.includes('focusProjects');
+    && !OVERVIEW.includes("(e: 'goto-compass'): void")
+    && !OVERVIEW.includes('尚未设定使命愿景')
+    && !OVERVIEW.includes('focusProjects');
 });

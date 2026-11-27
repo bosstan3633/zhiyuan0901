@@ -116,12 +116,14 @@ check('D18-7 ★状态明细两键扩展：StatusDetailKey 增 \'in\' / \'out\'�
     && CH_C.includes('extra: `累计 ${r.callCount || 0} 次`');
 });
 
-check('D18-8 ★三卡挂载口径与原型对齐的任务侧呈现：任务详情抽屉的关联仍走 SupportLink 独立表（卡间零挂载红线），调度台侧不新增任何「挂载」字样的动作入口（好奇心面板只有「转为任务」，资源侧无回显入口）', () => {
+check('D18-8（V4.7.7 重指）★任务详情的资源关联走 SupportLink 独立表与资源卡池多选弹窗：卡间零挂载红线不变，资源侧无反向任务入口，好奇心面板不出现资源挂载动作。原「调度台不出现挂载字样」按用户本轮明确要求改为「入口只能从详情打开资源卡池弹窗」。', () => {
   const TD = read('/newtab/components/compass/TaskDetailDrawer.vue');
   const CUR = codeOnly(read('/newtab/components/compass/CuriosityPanel.vue'));
   const RES = codeOnly(read('/newtab/components/ResourceAiStrip.vue'));
   return TD.includes('listByTask') && TD.includes('addSupportLink')
-    && TD.includes('资源镜像') && TD.includes('手动关联') && TD.includes('挂上')
+    && TD.includes('资源镜像') && TD.includes('CardResourcePickerModal')
+    && TD.includes('从资源卡池挂载') && TD.includes('resourcePickerOpen = true')
+    && !TD.includes('手动关联') && !TD.includes('toggleMountResource')
     && !CH_C.includes('挂为任务')
     && !CUR.includes('转为任务') && !CUR.includes('挂载')
     && !RES.includes('关联任务') && !RES.includes('挂载资源');

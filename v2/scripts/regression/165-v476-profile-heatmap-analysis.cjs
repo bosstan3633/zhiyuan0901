@@ -44,7 +44,10 @@ check('V476-PA-5 修改来自真实 updatedAt 差分；选题发布和策展导�
   && SHARE.includes("recordOutcomeEvent('resource'") && SHARE.includes('await downloadSingleHtml()')
   && !SHARE.includes('options.nodes'))
 
-check('V476-PA-6 年度热力保留四格、日战报与同源统计读数', () =>
+check('V476-PA-6（V4.7.7 重指）年度热力保留四格、日战报与同源统计读数；四格移到热力图下方，标题说明块退役，让热力图成为首屏主视觉', () =>
   ANNUAL.includes('<Heatmap') && ANNUAL.includes("emit('open-battle', day)")
   && ANNUAL.includes("emit('drill', 'yr-active')") && ANNUAL.includes('ya.acts')
-  && ANNUAL.includes('同一卡片同类行动当日只计一次'))
+  && ANNUAL.includes('pi-heat-stats')
+  && ANNUAL.indexOf('class="pi-hmbox"') < ANNUAL.indexOf('pi-heat-stats')
+  && !ANNUAL.includes('每一天，卡片如何向前')
+  && ANNUAL.includes(':show-summary="false"'))

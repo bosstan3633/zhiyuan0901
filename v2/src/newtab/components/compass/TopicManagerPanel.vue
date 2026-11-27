@@ -5,24 +5,20 @@ import Icon from '@/shared/components/Icon.vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import EmptyState from '@/shared/components/EmptyState.vue'
 import NewBadge from '@/shared/components/NewBadge.vue'
-import TaskDetailDrawer from './TaskDetailDrawer.vue'
 import { useAppStore } from '../../stores/app'
 import { useCompass } from '../../stores/compass'
 import { uid } from '@/shared/utils'
 import { showToast } from '@/shared/components/toast'
 import { emitOpenDrawer } from '@/shared/utils/bus'
-import { recordCardOpen } from '@/shared/storage/stats'
-import { activeFocusSlots, clearedFocusSlot, detachFocusTaskFromDate, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
-import { addManualFocus, addManualTopicFocus } from '@/shared/utils/focusSuggest'
+import { clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
+import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { attachTopicToMetric, softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { isTopicDone, setTopicStatus, sortedTopicStatuses, toggleTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
-import { toggleTaskStatus } from '@/shared/utils/taskStatus'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
-import type { TaskCard, TopicCard } from '@/shared/models'
+import type { TopicCard } from '@/shared/models'
 import TopicCalendarView from './TopicCalendarView.vue'
 import CardPoolTimeline from './CardPoolTimeline.vue'
-import { hideFocusHistorySlot } from '@/shared/utils/focusCalendar'
 
 const props = withDefaults(defineProps<{ secondaryMode?: boolean }>(), { secondaryMode: false })
 const emit = defineEmits<{ (e: 'created', topic: TopicCard): void }>()
@@ -31,7 +27,6 @@ const store = useAppStore()
 const { d, allProjects, wceEvents, refreshWce } = useCompass()
 const route = useRoute()
 const router = useRouter()
-const taskDrawerRef = ref<InstanceType<typeof TaskDetailDrawer> | null>(null)
 
 const search = ref('')
 const projectFilter = ref('')
@@ -109,12 +104,6 @@ const projects = computed(() => allProjects())
 const createMetrics = computed(() => projects.value.find(project => project.id === createProjectId.value)?.metrics || [])
 const statuses = computed(() => sortedTopicStatuses(d.value))
 const liveTopics = computed(() => (d.value.topics || []).filter(topic => !topic.deletedAt && !topic.lifecycleArchived))
-const liveTasks = computed(() => (d.value.tasks || []).filter(task => !task.deletedAt && !task.lifecycleArchived))
-const todayFocusSlots = computed(() => activeFocusSlots(d.value.dailyFocus?.[localTodayKey()]))
-function hideHistoryFocus(date: string, slotId: string): void {
-  hideFocusHistorySlot(d.value, date, slotId)
-  store.persist()
-}
 const projectNames = computed(() => new Map(projects.value.map(project => [project.id, project.name])))
 const metricNames = computed(() => {
   const map = new Map<string, string>()
@@ -236,84 +225,6 @@ function onTopicListDragStart(event: DragEvent, topic: TopicCard): void {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', `topic:${topic.id}`)
   }
-}
-
-function openTask(task: TaskCard): void {
-  recordCardOpen(d.value, task)
-  store.persistHot()
-  taskDrawerRef.value?.open(task)
-}
-
-function toggleTaskWorkStatus(taskId: string): void {
-  const task = liveTasks.value.find(row => row.id === taskId)
-  if (!task) return
-  const nextDone = task.status !== 'done'
-  toggleTaskStatus(task)
-  store.persist()
-  showToast(nextDone ? '任务已完成，今日三件事和月历已同步' : '任务已恢复为勾选前的状态')
-}
-
-function clearTaskFromToday(taskId: string): ReturnType<typeof clearedFocusSlot> | null {
-  const day = localTodayKey()
-  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
-  const index = cells.findIndex(slot => !!slot && !slot.cleared
-    && slot.sourceType === 'task' && slot.sourceId === taskId)
-  if (index < 0) return null
-  const previous = cells[index]
-  detachFocusTaskFromDate(d.value, day, taskId)
-  const tombstone = clearedFocusSlot(index, previous)
-  cells[index] = tombstone
-  d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
-  return previous ? JSON.parse(JSON.stringify(previous)) : null
-}
-
-function setTaskDueDate(taskId: string, date: string): void {
-  const task = liveTasks.value.find(row => row.id === taskId)
-  if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
-  const today = localTodayKey()
-  if (date === today) {
-    if (task.status === 'done' && !todayFocusSlots.value.some(slot => slot.sourceType === 'task' && slot.sourceId === taskId)) {
-      showToast('已完成任务不能新排入今日；今日日历与三件事严格保持同一集合')
-      return
-    }
-    const result = addManualFocus(d.value, today, taskId)
-    if (result.status === 'full') {
-      showToast('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
-      return
-    }
-    store.persist()
-    showToast(result.status === 'exists' ? '任务已在今日三件事与今日日历中' : '已安排到今日，并加入今日三件事')
-    return
-  }
-  clearTaskFromToday(taskId)
-  scheduleCardDate(d.value, task, date, { source: 'calendar' })
-  store.persist()
-  showToast(`已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日，并移出今日三件事`)
-}
-
-function clearTaskDueDate(taskId: string): void {
-  const task = liveTasks.value.find(row => row.id === taskId)
-  if (!task) return
-  const removedFocus = clearTaskFromToday(taskId)
-  scheduleCardDate(d.value, task, undefined, { source: 'calendar' })
-  store.persist()
-  showToast('已取消排期，任务回到卡片池', {
-    label: '撤销',
-    cb: () => {
-      const current = liveTasks.value.find(row => row.id === taskId)
-      if (!current) return
-      const day = localTodayKey()
-      if (removedFocus) {
-        const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
-        const index = removedFocus.slotIndex ?? cells.findIndex(cell => !cell || cell.cleared)
-        if (index >= 0 && index < 3) cells[index] = removedFocus
-        d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
-        scheduleCardDate(d.value, current, day, { source: 'calendar', record: false })
-      }
-      store.persist()
-      showToast('已恢复任务排期')
-    },
-  })
 }
 
 function resetFilters(): void {
@@ -620,26 +531,16 @@ defineExpose({ resetForFresh, openDetail })
         <TopicCalendarView
           v-if="viewMode === 'calendar'"
           :topics="filteredTopics"
-          :focus-topics="liveTopics"
-          :tasks="liveTasks"
-          :focus-tasks="liveTasks"
-          :focus-by-day="d.dailyFocus"
-          :focus-history-hidden="d.focusHistoryHidden"
           :statuses="statuses"
           :show-done="showDone"
           :project-names="projectNames"
           :metric-names="metricNames"
           @open-topic="scheduleTopicOpen"
           @open-topic-link="openTopicDirect"
-          @open-task="openTask"
           @toggle-status="toggleStatus"
-          @toggle-task-status="toggleTaskWorkStatus"
           @focus-topic="addTopicToToday"
           @set-due="setDueDate"
           @clear-due="clearDueDate"
-          @set-task-due="setTaskDueDate"
-          @clear-task-due="clearTaskDueDate"
-          @hide-history-focus="hideHistoryFocus"
         />
         <CardPoolTimeline v-else-if="viewMode === 'timeline'" kind="topic" :events="wceEvents" :data="d" :cards="filteredTopics" @select="openDetail" />
         <div v-else class="topic-board">
@@ -724,7 +625,6 @@ defineExpose({ resetForFresh, openDetail })
         </div>
       </div>
     </Drawer>
-    <TaskDetailDrawer ref="taskDrawerRef" />
   </div>
 </template>
 

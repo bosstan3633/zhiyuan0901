@@ -50,3 +50,16 @@ function onPick(fmt: ExportFmt) { emit('export', fmt) }
     </div>
   </section>
 </template>
+
+<style scoped>
+.pi-hero.hero-card { padding: 0; }
+.hero-row-top { min-height: 30px; }
+.pi-hero-t { font-size: var(--fs-sub); font-weight: 650; }
+.pi-hero-eyebrow { margin-right: 8px; }
+.pi-hero-acts :deep(.pi-btn) { min-height: 30px; padding: 0 11px; font-size: var(--fs-caption); }
+@media (max-width: 760px) {
+  .hero-row-top { align-items: flex-start; gap: 8px; }
+  .hero-head { min-width: 0; }
+  .pi-hero-t .en { display: none; }
+}
+</style>

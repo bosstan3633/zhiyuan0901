@@ -92,8 +92,9 @@ check('V413-3（V4.3.0 退役重指）Inbox 操作面整体退役：转化、排
     && router.includes("redirect: '/'")
 })
 
-check('V413-4 ★挂载白名单只有两条：任务卡 → 资源卡、策展节点 → 资源卡；资源侧无反向关联任务，好奇心 / 愿景 / 使命不挂卡', () => {
+check('V413-4（V4.7.7 重指）★资源挂载白名单仍由独立关系表承接：任务卡 → 资源卡、选题卡 → 资源卡、策展节点 → 资源卡；资源侧无反向关联任务，好奇心 / 愿景 / 使命不挂卡。任务与选题入口统一改为资源卡池多选弹窗。', () => {
   const task = read('/newtab/components/compass/TaskDetailDrawer.vue')
+  const topic = read('/newtab/components/compass/TopicDetailDrawer.vue')
   const workspace = read('/newtab/views/Workspace.vue')
   const resource = read('/newtab/components/ResourceDetailDrawer.vue')
   const resourceCode = codeOnly(resource)
@@ -104,7 +105,10 @@ check('V413-4 ★挂载白名单只有两条：任务卡 → 资源卡、策展�
   const supportPanelExists = fs.existsSync(sourcePath('shared/components/SupportTasksPanel.vue'))
   return !resourceLinkTaskExists
     && !supportPanelExists
-    && task.includes('addSupportLink(d.value, { taskId: t.id, resourceId: r.id, from: \'manual\' })')
+    && task.includes('CardResourcePickerModal')
+    && task.includes('addSupportLink(d.value, { taskId: t.id, resourceId: resource.id, from: \'manual\' })')
+    && topic.includes('CardResourcePickerModal')
+    && topic.includes('addTopicResourceLink(d.value, { topic: topic.value, resource, from: \'manual\' })')
     && task.includes('listByTask(')
     && workspace.includes(':linked-resource-count="mind.linkedResourceCount.value"')
     && workspace.includes('openLinkCards')

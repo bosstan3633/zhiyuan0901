@@ -4428,39 +4428,29 @@ await paOpen()
     `镜像=${mirrorCount} 实时=${mirrorLiveTitle} 可点/虚线=${mirrorClickable} 当下实线=${todayTaskSolid} 详情=${mirrorDrawerOpen}/${mirrorDetailTitle} 取消入库=${!!taskHideStored}`)
 
   await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
-  const topicMirrorCell = page.locator(`.topic-calendar .cal-day[data-day="${yesterdayKey}"]`)
-  await topicMirrorCell.scrollIntoViewIfNeeded()
-  const topicMirror = topicMirrorCell.locator('.topic-cal-chip.is-history-mirror').filter({ hasText: mirrorTopicTitle })
-  const topicMirrorVisible = (await topicMirror.count()) === 1
-  const topicMirrorClickable = topicMirrorVisible ? await topicMirror.evaluate(el => ({
-    role: el.getAttribute('role'),
-    tabindex: el.getAttribute('tabindex'),
-    draggable: el.getAttribute('draggable'),
-    border: getComputedStyle(el).borderTopStyle,
-  })).then(row => row.role === 'button' && row.tabindex === '0' && row.draggable !== 'true' && row.border === 'dashed') : false
-  await topicMirror.click()
-  const topicMirrorDrawerOpen = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
-  const topicMirrorDetailTitle = topicMirrorDrawerOpen
-    ? (await page.locator('.drawer .topic-title').first().inputValue().catch(() => '')).includes(mirrorTopicTitle)
-    : false
-  if (topicMirrorDrawerOpen) {
-    await page.keyboard.press('Escape')
-    await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
-  }
-  await page.locator(`.topic-calendar .cal-day.today .topic-cal-chip`).filter({ hasText: mirrorTopicTitle }).getByRole('button', { name: '取消排期' }).click()
-  const todaySlotCleared = await waitForStorage(page, 'zy_data_v2', raw => {
-    const slots = raw.zy_data_v2?.dailyFocus?.[todayKey] || []
-    return !slots.some(slot => slot.id === 'e2e-v476-today-topic' && !slot.cleared)
-  }, { timeout: 5000 })
-  const topicMirrorAfter = await page.locator(`.topic-calendar .cal-day[data-day="${yesterdayKey}"] .is-history-mirror`).filter({ hasText: mirrorTopicTitle }).count()
-  const todayFocusSurvives = await page.evaluate(async ({ todayKey }) => {
+  await waitForLocator(page, '.topic-view-switch', { visible: true, timeout: 8000 })
+  await page.locator('.topic-view-switch button').filter({ hasText: '日历' }).click()
+  await waitForLocator(page, '.topic-calendar', { visible: true, timeout: 5000 })
+  const topicCalendarText = await page.locator('.topic-calendar').innerText()
+  const topicCalendarTaskCards = await page.locator('.topic-calendar .cal-task-chip').count()
+  const topicHistoryMirrors = await page.locator('.topic-calendar .is-history-mirror').count()
+  const topicHistoryLabels = await page.locator('.topic-calendar .cal-history-label').count()
+  const topicCalendarIsolated = topicCalendarTaskCards === 0 && topicHistoryMirrors === 0
+    && topicHistoryLabels === 0
+    && !topicCalendarText.includes(mirrorTaskTitle)
+    && !topicCalendarText.includes('历史三件事')
+    && topicCalendarText.includes('只呈现选题卡自己的落图')
+  const focusSlotsSurvive = await page.evaluate(async ({ todayKey, yesterdayKey }) => {
     const raw = await chrome.storage.local.get('zy_data_v2')
-    return (raw.zy_data_v2?.dailyFocus?.[todayKey] || []).some(slot => slot.id === 'e2e-v476-today-task' && !slot.cleared)
-  }, { todayKey })
-  report('E2E-75 ★V4.7.6 选题历史卡可开详情、虚线留存；今日可取消排期而历史与其他槽位不受影响',
-    topicMirrorVisible && topicMirrorClickable && topicMirrorDrawerOpen && topicMirrorDetailTitle
-      && !!todaySlotCleared && topicMirrorAfter === 1 && todayFocusSurvives,
-    `昨日=${topicMirrorVisible}/${topicMirrorAfter} 可点/虚线=${topicMirrorClickable} 详情=${topicMirrorDrawerOpen}/${topicMirrorDetailTitle} 今日取消=${!!todaySlotCleared} 其他槽=${todayFocusSurvives}`)
+    const today = raw.zy_data_v2?.dailyFocus?.[todayKey] || []
+    const yesterday = raw.zy_data_v2?.dailyFocus?.[yesterdayKey] || []
+    return today.some(slot => slot.id === 'e2e-v476-today-topic' && !slot.cleared)
+      && today.some(slot => slot.id === 'e2e-v476-today-task' && !slot.cleared)
+      && yesterday.some(slot => slot.id === 'e2e-v476-yesterday-topic' && !slot.cleared)
+  }, { todayKey, yesterdayKey })
+  report('E2E-75（V4.7.7 重指）★选题日历只呈现选题自身落图：不渲染任务卡、历史三件事镜像或三件事槽位，原始槽位保持不动',
+    topicCalendarIsolated && focusSlotsSurvive,
+    `隔离=${topicCalendarIsolated} 任务卡=${topicCalendarTaskCards} 历史镜像=${topicHistoryMirrors}/${topicHistoryLabels} 槽位保留=${focusSlotsSurvive} 文案=${topicCalendarText.slice(0, 140).replace(/\s+/g, ' ')}`)
 
   // ══════════ E2E-76（V4.7.6）任务 / 选题 / 好奇心时间线卡片流 ══════════
   const poolTlTaskId = 'e2e-v476-pool-tl-task'
@@ -4608,6 +4598,245 @@ await paOpen()
       && topicPoolDrawerOpen && topicPoolDrawerTitle && topicPoolLink.hit
       && curioPoolDrawerOpen && curioPoolDrawerTitle && curioPoolLink.hit,
     `三池卡=${!!taskPoolTimeline}/${!!topicPoolTimeline}/${!!curioPoolTimeline} 任务=${taskPoolCardShape}/${taskPoolDrawerOpen}/${taskPoolDrawerTitle} 链接=${taskPoolLink.url} 无详情=${taskPoolDoubleNoDrawer} 空链=${noLinkToast}/${noLinkNoDetail} 选题=${topicPoolDrawerOpen}/${topicPoolDrawerTitle}/${topicPoolLink.url} 好奇=${curioPoolDrawerOpen}/${curioPoolDrawerTitle}/${curioPoolLink.url}`)
+
+  // ══════════ E2E-77~80（V4.7.7）资源卡池挂载、完成态降噪与选题日历隔离 ══════════
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const v477TodayKey = await page.evaluate(() => new Date().toLocaleDateString('sv-SE'))
+  const v477YesterdayKey = await page.evaluate(() => new Date(Date.now() - 86400000).toLocaleDateString('sv-SE'))
+  const v477TaskMountId = 'e2e-v477-resource-task'
+  const v477TaskDoneId = 'e2e-v477-done-task'
+  const v477TaskActiveId = 'e2e-v477-active-task'
+  const v477TaskMirrorId = 'e2e-v477-mirror-task'
+  const v477TopicDoneId = 'e2e-v477-done-topic'
+  const v477TaskMountTitle = 'E2E V4.7.7 资源卡池挂载任务'
+  const v477TaskDoneTitle = 'E2E V4.7.7 已完成降噪任务'
+  const v477TaskActiveTitle = 'E2E V4.7.7 正在推进任务'
+  const v477TaskMirrorTitle = 'E2E V4.7.7 历史已完成任务'
+  const v477TopicDoneTitle = 'E2E V4.7.7 已完成选题'
+  const v477ResAlpha = 'E2E V4.7.7 资源 Alpha'
+  const v477ResBeta = 'E2E V4.7.7 资源 Beta'
+  const v477ResGamma = 'E2E V4.7.7 资源 Gamma'
+  await page.evaluate(async (seed) => {
+    const raw = await chrome.storage.local.get(['zy_data_v2', 'zy_event_log'])
+    const data = raw.zy_data_v2
+    if (!data) return
+    const taskIds = [seed.mountTaskId, seed.doneTaskId, seed.activeTaskId, seed.mirrorTaskId]
+    const topicIds = [seed.doneTopicId]
+    const resourceIds = [seed.resAlphaId, seed.resBetaId, seed.resGammaId]
+    const at = seed.at
+    const doneTaskStatus = (data.taskStatuses || []).find(status => status.bucket === 'done' && status.terminal)
+      || (data.taskStatuses || []).find(status => status.bucket === 'done')
+    const todoTaskStatus = (data.taskStatuses || []).find(status => status.bucket === 'todo')
+      || (data.taskStatuses || [])[0]
+    const doingTaskStatus = (data.taskStatuses || []).find(status => status.bucket === 'doing')
+      || todoTaskStatus
+    const doneTopicStatus = (data.topicStatuses || []).find(status => status.terminal)
+    const todoTopicStatus = (data.topicStatuses || [])[0]
+    const taskBase = {
+      kind: 'task', projectId: 'e2e-proj-1', metricId: null, priority: 'medium',
+      tags: ['E2E', 'V4.7.7'], pinned: false, callCount: 0, customFields: {}, assets: [],
+    }
+    data.tasks = (data.tasks || []).filter(task => !taskIds.includes(task.id))
+    data.tasks.push(
+      { ...taskBase, id: seed.mountTaskId, title: seed.mountTaskTitle, status: todoTaskStatus.bucket, statusId: todoTaskStatus.id, dueDate: seed.today, link: 'https://example.com/e2e/v477/task', createdAt: at - 40, updatedAt: at - 40 },
+      { ...taskBase, id: seed.doneTaskId, title: seed.doneTaskTitle, status: 'done', statusId: doneTaskStatus?.id || todoTaskStatus.id, dueDate: seed.today, completedAt: at - 20, createdAt: at - 30, updatedAt: at - 20 },
+      { ...taskBase, id: seed.activeTaskId, title: seed.activeTaskTitle, status: 'doing', statusId: doingTaskStatus?.id || todoTaskStatus.id, dueDate: seed.today, createdAt: at - 25, updatedAt: at - 15 },
+      { ...taskBase, id: seed.mirrorTaskId, title: seed.mirrorTaskTitle, status: 'done', statusId: doneTaskStatus?.id || todoTaskStatus.id, dueDate: '', completedAt: at - 86400000, createdAt: at - 86400000, updatedAt: at - 86400000 },
+    )
+    data.topics = (data.topics || []).filter(topic => !topicIds.includes(topic.id))
+    data.topics.push({
+      id: seed.doneTopicId, kind: 'topic', title: seed.doneTopicTitle,
+      statusId: doneTopicStatus?.id || todoTopicStatus?.id, projectId: 'e2e-proj-1', metricId: null,
+      dueDate: seed.today, link: 'https://example.com/e2e/v477/topic', tags: ['E2E', 'V4.7.7'],
+      pinned: false, callCount: 0, customFields: {}, assets: [], createdAt: at - 50, updatedAt: at - 10,
+      completedAt: at - 10,
+    })
+    data.resources = (data.resources || []).filter(card => !resourceIds.includes(card.id))
+    data.resources.push(
+      { id: seed.resAlphaId, kind: 'resource', title: seed.resAlpha, description: '可复用的方向证据', link: 'https://example.com/e2e/v477/alpha', tags: ['Alpha', '证据'], workspaceId: 'zy-curation', categoryId: '', pinned: false, starred: false, callCount: 0, createdAt: at - 9, updatedAt: at - 9, notes: '', customFields: {}, assets: [] },
+      { id: seed.resBetaId, kind: 'resource', title: seed.resBeta, description: '可复用的执行素材', link: 'https://example.com/e2e/v477/beta', tags: ['Beta', '素材'], workspaceId: 'zy-curation', categoryId: '', pinned: false, starred: false, callCount: 0, createdAt: at - 8, updatedAt: at - 8, notes: '', customFields: {}, assets: [] },
+      { id: seed.resGammaId, kind: 'resource', title: seed.resGamma, description: '不应命中本轮关键词检索', link: 'https://example.com/e2e/v477/gamma', tags: ['Gamma'], workspaceId: 'zy-curation', categoryId: '', pinned: false, starred: false, callCount: 0, createdAt: at - 7, updatedAt: at - 7, notes: '', customFields: {}, assets: [] },
+    )
+    data.supportLinks = (data.supportLinks || []).filter(link => link.taskId !== seed.mountTaskId)
+    data.dailyFocus = data.dailyFocus || {}
+    data.dailyFocus[seed.today] = [
+      { id: 'e2e-v477-focus-active', sourceType: 'task', sourceId: seed.activeTaskId, text: seed.activeTaskTitle, done: false },
+      { id: 'e2e-v477-focus-done', sourceType: 'task', sourceId: seed.doneTaskId, text: seed.doneTaskTitle, done: true, doneAt: at - 10 },
+    ]
+    data.dailyFocus[seed.yesterday] = [
+      { id: 'e2e-v477-focus-mirror', sourceType: 'task', sourceId: seed.mirrorTaskId, text: seed.mirrorTaskTitle, done: true, doneAt: at - 86400000 },
+    ]
+    const eventIds = [seed.mountTaskId, seed.doneTaskId, seed.activeTaskId, seed.mirrorTaskId, seed.doneTopicId]
+    const logs = (Array.isArray(raw.zy_event_log) ? raw.zy_event_log : []).filter(row => !eventIds.includes(row.cardId))
+    logs.push(
+      { id: 'e2e-v477-log-mount-create', ts: at - 40, action: 'create', kind: 'task', title: seed.mountTaskTitle, cardId: seed.mountTaskId },
+      { id: 'e2e-v477-log-mount-edit', ts: at - 5, action: 'edit', kind: 'task', title: seed.mountTaskTitle, cardId: seed.mountTaskId },
+      { id: 'e2e-v477-log-done-create', ts: at - 30, action: 'create', kind: 'task', title: seed.doneTaskTitle, cardId: seed.doneTaskId },
+      { id: 'e2e-v477-log-active-create', ts: at - 25, action: 'create', kind: 'task', title: seed.activeTaskTitle, cardId: seed.activeTaskId },
+      { id: 'e2e-v477-log-mirror-create', ts: at - 86400000, action: 'create', kind: 'task', title: seed.mirrorTaskTitle, cardId: seed.mirrorTaskId },
+      { id: 'e2e-v477-log-topic-create', ts: at - 50, action: 'create', kind: 'topic', title: seed.doneTopicTitle, cardId: seed.doneTopicId },
+    )
+    await chrome.storage.local.set({ zy_data_v2: data, zy_event_log: logs })
+  }, {
+    today: v477TodayKey, yesterday: v477YesterdayKey, at: Date.now(),
+    mountTaskId: v477TaskMountId, doneTaskId: v477TaskDoneId, activeTaskId: v477TaskActiveId, mirrorTaskId: v477TaskMirrorId,
+    doneTopicId: v477TopicDoneId,
+    mountTaskTitle: v477TaskMountTitle, doneTaskTitle: v477TaskDoneTitle, activeTaskTitle: v477TaskActiveTitle,
+    mirrorTaskTitle: v477TaskMirrorTitle, doneTopicTitle: v477TopicDoneTitle,
+    resAlphaId: 'e2e-v477-res-alpha', resBetaId: 'e2e-v477-res-beta', resGammaId: 'e2e-v477-res-gamma',
+    resAlpha: v477ResAlpha, resBeta: v477ResBeta, resGamma: v477ResGamma,
+  })
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.hand-tab', { visible: true, timeout: 10000 })
+  await page.locator('.hand-tab').filter({ hasText: '任务' }).first().click()
+  await waitForLocator(page, '.task-work-view-switch', { visible: true, timeout: 8000 })
+  await page.locator('.task-work-clear').click()
+  await page.locator('.task-work-view-switch button').filter({ hasText: '列表' }).click()
+  const v477MountRow = page.locator('.task-work-list .twl-row').filter({ hasText: v477TaskMountTitle }).first()
+  await pollUntil(async () => (await v477MountRow.count()) === 1, { timeout: 8000, label: 'v477 mount task row' })
+  await v477MountRow.scrollIntoViewIfNeeded()
+  await v477MountRow.click()
+  const v477TaskDrawer = await waitForLocator(page, '.drawer', { visible: true, timeout: 5000 })
+  const v477TaskDrawerTitle = v477TaskDrawer
+    ? (await page.locator('.drawer .ts-title').first().inputValue().catch(() => '')).includes(v477TaskMountTitle)
+    : false
+  await page.locator('.drawer .ts-pick-resource').click()
+  const v477Picker = await waitForLocator(page, '.md-panel .crp', { visible: true, timeout: 5000 })
+  const v477PickerPanel = page.locator('.md-panel').filter({ hasText: '为任务挂载资源卡' })
+  const v477Search = v477PickerPanel.locator('.crp-search input')
+  await v477Search.fill('Alpha')
+  const v477FilteredSingle = await pollUntil(async () => {
+    const rows = await v477PickerPanel.locator('.crp-row').allTextContents()
+    return rows.length === 1 && rows[0].includes(v477ResAlpha)
+  }, { timeout: 3000 })
+  await v477Search.fill('')
+  await v477PickerPanel.locator('.crp-row').filter({ hasText: v477ResAlpha }).click()
+  await v477PickerPanel.locator('.crp-row').filter({ hasText: v477ResBeta }).click()
+  const v477SelectedTwo = (await v477PickerPanel.locator('.crp-row.selected').count()) === 2
+  await v477PickerPanel.getByRole('button', { name: '挂载 2 张' }).click()
+  const v477SupportSaved = await waitForStorage(page, 'zy_data_v2', raw => {
+    const links = (raw.zy_data_v2?.supportLinks || []).filter(link => link.taskId === v477TaskMountId)
+    return links.length === 2
+      && links.map(link => link.resourceId).sort().join(',') === 'e2e-v477-res-alpha,e2e-v477-res-beta'
+  }, { timeout: 5000 })
+  await page.locator('.drawer .ts-pick-resource').click()
+  await waitForLocator(page, '.md-panel .crp', { visible: true, timeout: 5000 })
+  const v477LinkedRows = await page.locator('.md-panel .crp-row.linked').count()
+  const v477LinkedDisabled = v477LinkedRows === 2
+    && await page.locator('.md-panel .crp-row.linked').first().isDisabled()
+  await page.locator('.md-panel .md-close').click()
+  await page.keyboard.press('Escape')
+  await pollUntil(async () => (await page.locator('.drawer').count()) === 0, { timeout: 4000 })
+  report('E2E-77 ★V4.7.7 任务详情的资源关联改为资源卡池多选弹窗：关键词可过滤、可多选、已关联禁选，确认后写独立 SupportLink',
+    v477TaskDrawer && v477TaskDrawerTitle && !!v477Picker && v477FilteredSingle && v477SelectedTwo
+      && !!v477SupportSaved && v477LinkedRows === 2 && v477LinkedDisabled,
+    `抽屉=${v477TaskDrawer}/${v477TaskDrawerTitle} 弹窗=${!!v477Picker} 检索=${v477FilteredSingle} 多选=${v477SelectedTwo} 入库=${!!v477SupportSaved} 已关联=${v477LinkedRows}/${v477LinkedDisabled}`)
+
+  await page.locator('.task-work-view-switch button').filter({ hasText: '月历' }).click()
+  await waitForLocator(page, '.task-calendar', { visible: true, timeout: 5000 })
+  const v477MirrorCell = page.locator(`.task-calendar .cal-day[data-day="${v477YesterdayKey}"]`)
+  await v477MirrorCell.scrollIntoViewIfNeeded()
+  const v477Mirror = v477MirrorCell.locator('.cal-task-chip.is-history-mirror').filter({ hasText: v477TaskMirrorTitle })
+  await pollUntil(async () => (await v477Mirror.count()) === 1, { timeout: 5000 })
+  const v477MirrorStyle = await v477Mirror.evaluate(el => ({
+    border: getComputedStyle(el).borderTopStyle,
+    opacity: Number(getComputedStyle(el).opacity),
+  }))
+  const v477TodayDone = page.locator(`.task-calendar .cal-day.today .cal-task-chip.tone-done`).filter({ hasText: v477TaskDoneTitle })
+  await pollUntil(async () => (await v477TodayDone.count()) === 1, { timeout: 5000 })
+  const v477TodayDoneStyle = await v477TodayDone.evaluate(el => ({
+    opacity: Number(getComputedStyle(el).opacity),
+    background: getComputedStyle(el).backgroundColor,
+  }))
+  const v477TodayActive = page.locator(`.task-calendar .cal-day.today .cal-task-chip.tone-today`).filter({ hasText: v477TaskActiveTitle })
+  await pollUntil(async () => (await v477TodayActive.count()) === 1, { timeout: 5000 })
+  const v477TodayActiveStyle = await v477TodayActive.evaluate(el => ({
+    opacity: Number(getComputedStyle(el).opacity),
+    background: getComputedStyle(el).backgroundColor,
+  }))
+
+  await page.locator('.task-work-view-switch button').filter({ hasText: '时间线' }).click()
+  await waitForLocator(page, '.cpt[aria-label="任务时间线"]', { visible: true, timeout: 5000 })
+  const v477Axis = page.locator('.cpt[aria-label="任务时间线"] .cpt-axis').first()
+  const v477AxisStyle = (await v477Axis.count()) === 1 ? await v477Axis.evaluate(el => ({
+    width: getComputedStyle(el).width,
+    lineWidth: getComputedStyle(el, '::before').width,
+    lineColor: getComputedStyle(el, '::before').backgroundColor,
+    containerPadding: getComputedStyle(el.closest('.cpt')).paddingLeft,
+  })) : null
+  const v477DoneTimeline = page.locator('.cpt[aria-label="任务时间线"] .cpt-card.is-done').filter({ hasText: v477TaskDoneTitle }).first()
+  await pollUntil(async () => (await v477DoneTimeline.count()) === 1, { timeout: 5000 })
+  const v477DoneTimelineStyle = await v477DoneTimeline.evaluate(el => ({
+    decoration: getComputedStyle(el.querySelector('.cpt-title')).textDecorationLine,
+    axis: !!el.closest('.cpt')?.querySelector('.cpt-axis'),
+  }))
+  report('E2E-78 ★V4.7.7 任务日历历史完成卡为虚线灰阶、今日推进卡保持亮色；卡池时间线有左侧轴线与留白，完成卡降噪',
+    v477MirrorStyle.border === 'dashed' && v477MirrorStyle.opacity <= .6
+      && v477TodayDoneStyle.opacity <= .75 && v477TodayDoneStyle.background !== v477TodayActiveStyle.background
+      && v477TodayActiveStyle.opacity === 1
+      && !!v477AxisStyle && parseFloat(v477AxisStyle.width) >= 16
+      && parseFloat(v477AxisStyle.lineWidth) >= 1 && v477AxisStyle.lineColor !== 'rgba(0, 0, 0, 0)'
+      && v477AxisStyle.containerPadding === '14px'
+      && v477DoneTimelineStyle.decoration.includes('line-through') && v477DoneTimelineStyle.axis,
+    `历史=${JSON.stringify(v477MirrorStyle)} 完成=${JSON.stringify(v477TodayDoneStyle)} 推进=${JSON.stringify(v477TodayActiveStyle)} 轴线=${JSON.stringify(v477AxisStyle)} 时间线完成=${JSON.stringify(v477DoneTimelineStyle)}`)
+
+  await page.goto(base + '#/profile?view=timeline', { waitUntil: 'domcontentloaded' })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.pit-card', { visible: true, timeout: 10000 })
+  await page.locator('.pit-filter button').filter({ hasText: /^任务$/ }).click()
+  const v477ProfileDoneTask = page.locator('.pit-card.is-done').filter({ hasText: v477TaskDoneTitle }).first()
+  await pollUntil(async () => (await v477ProfileDoneTask.count()) === 1, { timeout: 5000 })
+  const v477ProfileDoneTaskStyle = await v477ProfileDoneTask.evaluate(el => ({
+    decoration: getComputedStyle(el.querySelector('.pit-card-title')).textDecorationLine,
+    doneClass: el.classList.contains('is-done'),
+  }))
+  await page.locator('.pit-filter button').filter({ hasText: /^选题$/ }).click()
+  const v477ProfileDoneTopic = page.locator('.pit-card.is-done').filter({ hasText: v477TopicDoneTitle }).first()
+  await pollUntil(async () => (await v477ProfileDoneTopic.count()) === 1, { timeout: 5000 })
+  const v477ProfileDoneTopicStyle = await v477ProfileDoneTopic.evaluate(el => ({
+    decoration: getComputedStyle(el.querySelector('.pit-card-title')).textDecorationLine,
+    doneClass: el.classList.contains('is-done'),
+  }))
+  const v477HeroBox = await page.locator('.pi-hero').boundingBox()
+  const v477HeatBox = await page.locator('.pi-annual-heatmap').boundingBox()
+  await page.locator('.pi-view-tab[data-profile-view="analysis"]').click()
+  await waitForLocator(page, '.pi-card-analysis', { visible: true, timeout: 5000 })
+  const v477AnalysisText = await page.locator('.pi-card-analysis').innerText()
+  const v477AnalysisBox = await page.locator('.pi-card-analysis').boundingBox()
+  const v477HeatFirst = !!v477HeatBox && !!v477AnalysisBox && v477HeatBox.y < v477AnalysisBox.y
+  const v477HeroCompact = !!v477HeroBox && v477HeroBox.height <= 40
+    && !!v477HeatBox && v477HeatBox.height > v477HeroBox.height * 3
+  report('E2E-79 ★V4.7.7 画像时间轴已完成任务 / 选题灰阶删除线；页头压缩且热力先于卡片分析，方向状态彻底退役',
+    v477ProfileDoneTaskStyle.doneClass && v477ProfileDoneTaskStyle.decoration.includes('line-through')
+      && v477ProfileDoneTopicStyle.doneClass && v477ProfileDoneTopicStyle.decoration.includes('line-through')
+      && v477HeroCompact && v477HeatFirst
+      && !v477AnalysisText.includes('你的方向状态')
+      && !v477AnalysisText.includes('PERSONAL DIRECTION'),
+    `任务=${JSON.stringify(v477ProfileDoneTaskStyle)} 选题=${JSON.stringify(v477ProfileDoneTopicStyle)} 页头=${JSON.stringify(v477HeroBox)} 热力=${JSON.stringify(v477HeatBox)} 分析=${JSON.stringify(v477AnalysisBox)} 方向为零=${!v477AnalysisText.includes('你的方向状态')}`)
+
+  await page.goto(base, { waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '.hand-tab', { visible: true, timeout: 10000 })
+  await page.locator('.hand-tab').filter({ hasText: '选题' }).first().click()
+  await waitForLocator(page, '.topic-view-switch', { visible: true, timeout: 8000 })
+  await page.locator('.topic-view-switch button').filter({ hasText: '日历' }).click()
+  await waitForLocator(page, '.topic-calendar', { visible: true, timeout: 5000 })
+  const v477TopicCalendarText = await page.locator('.topic-calendar').innerText()
+  const v477TopicCalendarTopic = page.locator('.topic-calendar .topic-cal-chip').filter({ hasText: v477TopicDoneTitle })
+  await pollUntil(async () => (await v477TopicCalendarTopic.count()) === 1, { timeout: 5000 })
+  const v477TopicCalendarVisible = (await v477TopicCalendarTopic.count()) === 1
+  const v477NoTaskChip = (await page.locator('.topic-calendar .cal-task-chip').count()) === 0
+  const v477NoTaskTitle = !v477TopicCalendarText.includes(v477TaskActiveTitle)
+  const v477NoHistoryFocus = !v477TopicCalendarText.includes('历史三件事')
+  await page.locator('.topic-view-switch button').filter({ hasText: '时间线' }).click()
+  await waitForLocator(page, '.cpt[aria-label="选题时间线"]', { visible: true, timeout: 5000 })
+  const v477TopicTimelineText = await page.locator('.cpt[aria-label="选题时间线"]').innerText()
+  const v477TopicTimelineOnly = v477TopicTimelineText.includes(v477TopicDoneTitle)
+    && !v477TopicTimelineText.includes(v477TaskMountTitle)
+    && !v477TopicTimelineText.includes(v477TaskDoneTitle)
+  report('E2E-80 ★V4.7.7 选题日历与时间线只呈现选题自身：不混任务卡、今日三件事与历史镜像',
+    v477TopicCalendarVisible && v477NoTaskChip && v477NoTaskTitle && v477NoHistoryFocus && v477TopicTimelineOnly,
+    `选题=${v477TopicCalendarVisible} 任务卡=${v477NoTaskChip} 任务标题=${v477NoTaskTitle} 三件事=${v477NoHistoryFocus} 时间线隔离=${v477TopicTimelineOnly}`)
 
   // 可选：把本轮 E2E 生成的真实种子库导出为视觉普查夹具。
   // 只用于门禁排障和全量 theme-audit，不参与产品运行；需显式设置环境变量才会写文件。

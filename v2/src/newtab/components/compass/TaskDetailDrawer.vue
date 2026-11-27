@@ -15,6 +15,7 @@ import type { AiDepth } from '@/shared/ai/config'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { buildSupportIndex, listByTask, addSupportLink, removeSupportLink } from '@/shared/utils/supportLinks'
 import { resourceOfSupportLink } from '@/shared/storage/resourceMirrors'
+import CardResourcePickerModal from './CardResourcePickerModal.vue'
 // R152 口径：评审抽屉用模块作用域单例，不在 setup 里现造（此处原为 defineAsyncComponent 自建一份）
 import { AiDrawer } from '../lazyAiDrawer'
 import { showToast } from '@/shared/components/toast'
@@ -139,7 +140,7 @@ function copyTaskLink() {
 }
 /* R166 定案 5：资源支持住在独立关联表——反查索引一次建、O(1) 查，不在渲染路径里 filter 全表 */
 const supportIdx = computed(() => buildSupportIndex(d.value))
-const supportDraft = ref('')
+const resourcePickerOpen = ref(false)
 /** 本任务的关联行；资源查不到的一律不显（软删过滤已在索引里做过） */
 const supportRows = computed(() => {
   const t = selectedTask.value
@@ -147,12 +148,6 @@ const supportRows = computed(() => {
   return listByTask(supportIdx.value, t.id)
     .map(link => ({ link, resource: resourceOfSupportLink(d.value, link) }))
     .filter((x): x is { link: SupportLink; resource: ResourceCard } => !!x.resource)
-})
-/** 手动关联的候选：按标题子串取前 8 条（本地即得，不为一个输入框去叫模型） */
-const supportDraftCands = computed(() => {
-  const q = supportDraft.value.trim().toLowerCase()
-  if (!q) return [] as ResourceCard[]
-  return (d.value.resources || []).filter(r => !r.deletedAt && r.title.toLowerCase().includes(q)).slice(0, 8)
 })
 /** 点行=打开资源链接并计热度（与双击卡片同一条通道，不另立口径） */
 function openSupportResource(r: ResourceCard) {
@@ -169,17 +164,18 @@ function unlinkSupport(id: string) {
   store.persist()
   showToast('已解除关联（两张卡本体都没动）')
 }
-function addSupportManual() {
+function mountResources(resources: ResourceCard[]) {
   const t = selectedTask.value
-  const q = supportDraft.value.trim()
-  if (!t || !q) return
-  const r = (d.value.resources || []).find(x => !x.deletedAt && x.title === q) || supportDraftCands.value[0]
-  if (!r) { showToast('没找到同名资源'); return }
-  const out = addSupportLink(d.value, { taskId: t.id, resourceId: r.id, from: 'manual' })
-  if (out.dup) { showToast('这张卡已经挂在支持里了'); return }
-  supportDraft.value = ''
+  if (!t || !resources.length) return
+  let added = 0
+  for (const resource of resources) {
+    const out = addSupportLink(d.value, { taskId: t.id, resourceId: resource.id, from: 'manual' })
+    if (!out.dup) added += 1
+  }
+  resourcePickerOpen.value = false
+  if (!added) { showToast('所选资源都已经关联过了'); return }
   store.persist()
-  showToast(`已关联「${r.title.slice(0, 12)}」`)
+  showToast(`已挂载 ${added} 张资源卡`)
 }
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
@@ -419,9 +415,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         <div class="ts-section ts-resource-section">
           <div class="ds-hero-label ts-resource-head">
             <span class="ts-resource-title"><Icon name="compass" :size="14"/> 资源镜像 <span class="hint">— 为任务找到可复用的资源</span></span>
-            <button class="ts-ai-primary" :disabled="aiBusy" title="AI 从资源卡池中寻找能支持本任务的资源（勾选采纳后才建立关联）" @click="aiSupport()">
-              <AiEntryButton variant="inline" label="AI 找资源" :spin="aiBusy" />
-            </button>
+            <div class="ts-resource-actions">
+              <button class="ts-pick-resource" type="button" @click="resourcePickerOpen = true">
+                <Icon name="plus" :size="12" /> 从资源卡池挂载
+              </button>
+              <button class="ts-ai-primary" :disabled="aiBusy" title="AI 从资源卡池中寻找能支持本任务的资源（勾选采纳后才建立关联）" @click="aiSupport()">
+                <AiEntryButton variant="inline" label="AI 找资源" :spin="aiBusy" />
+              </button>
+            </div>
           </div>
           <div v-if="supportRows.length" class="ts-sup">
             <div v-for="row in supportRows" :key="row.link.id" class="ts-sup-row" :title="row.link.why || '点击打开资源链接'">
@@ -432,14 +433,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
               <span class="ts-sup-x" v-pressable title="解除关联（只删这条记录；资源卡与任务卡都不动）" @click.stop="unlinkSupport(row.link.id)">×</span>
             </div>
           </div>
-          <div v-else class="ts-sup-empty">还没有关联资源。先让 AI 从资源卡池里找，或手动关联已有资源。</div>
-          <div class="ts-sup-add">
-            <input v-model="supportDraft" list="ts-sup-cands" placeholder="手动关联：搜索资源标题…" @keydown.enter.prevent="addSupportManual">
-            <datalist id="ts-sup-cands">
-              <option v-for="r in supportDraftCands" :key="r.id" :value="r.title" />
-            </datalist>
-            <button class="ts-sup-btn" :disabled="!supportDraft.trim()" @click="addSupportManual">挂上</button>
-          </div>
+          <div v-else class="ts-sup-empty">还没有关联资源。从资源卡池多选挂载，或让 AI 先筛一轮候选。</div>
         </div>
         <!-- V4.4.0：说明降为次要上下文，放在资源镜像之后，限制为 3 行小框。 -->
         <div class="ts-section ts-note-section">
@@ -484,6 +478,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
         </div>
     </template>
   </Drawer>
+  <CardResourcePickerModal
+    :open="resourcePickerOpen"
+    :resources="d.resources || []"
+    :linked-ids="supportRows.map(row => row.resource.id)"
+    title="为任务挂载资源卡"
+    @close="resourcePickerOpen = false"
+    @confirm="mountResources"
+  />
   <!-- V4.4.0：任务 AI 评审抽屉只承载资源匹配与任务补全；拆解与子任务能力已退役。 -->
   <AiDrawer v-if="aiJob" :job="aiJob" @close="aiJob = null" />
 </template>
@@ -617,12 +619,6 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-sup-x { color: var(--text-3); cursor: pointer; padding: 0 2px; }
 .ts-sup-x:hover { color: var(--danger); }
 .ts-sup-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 8px 2px; }
-.ts-sup-add { display: flex; gap: 6px; margin-top: 8px; }
-.ts-sup-add input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--fs-sub); font-family: inherit; outline: none; }
-.ts-sup-add input:focus { border-color: var(--accent); }
-.ts-sup-btn { padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-sub); font-family: inherit; cursor: pointer; }
-.ts-sup-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.ts-sup-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
@@ -654,6 +650,13 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 }
 .ts-resource-head { align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .ts-resource-title { display: inline-flex; align-items: center; gap: 6px; color: var(--text); letter-spacing: 0; text-transform: none; }
+.ts-resource-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ts-pick-resource {
+  display: inline-flex; min-height: 32px; align-items: center; gap: 5px;
+  padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--text-2); font: inherit; font-size: var(--fs-caption); cursor: pointer;
+}
+.ts-pick-resource:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent-ink); }
 /* R165-A：链接整行 + 动作贴边 */
 .ts-link-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
 .ts-link-input { flex: 1; min-width: 0; padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: var(--fs-body); color: var(--text); font-family: inherit; outline: none; }
