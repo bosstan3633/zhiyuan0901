@@ -1,6 +1,7 @@
 import type { AppData, Direction, Metric, Project, TaskCard, TopicCard } from '@/shared/models'
 import { tasksOfMetric, tasksOfProject } from './compassTaskMeta'
 import { topicsOfMetric, topicsOfProject } from './compassTopicMeta'
+import { isTaskDone } from '@/shared/utils/taskStatus'
 
 export interface ProjectTreeMetric {
   id: string
@@ -45,7 +46,7 @@ export function buildProjectTree(d: AppData, project: Project): ProjectTree {
       tasks,
       topics,
       total: tasks.length,
-      done: tasks.filter(task => task.status === 'done').length,
+      done: tasks.filter(task => isTaskDone(d, task)).length,
     }
   })
 
@@ -53,7 +54,7 @@ export function buildProjectTree(d: AppData, project: Project): ProjectTree {
   const ownedTopicIds = new Set(metrics.flatMap(row => row.topics.map(topic => topic.id)))
   const orphanTasks = allTasks.filter(task => !ownedTaskIds.has(task.id))
   const orphanTopics = allTopics.filter(topic => !ownedTopicIds.has(topic.id))
-  const done = allTasks.filter(task => task.status === 'done').length
+  const done = allTasks.filter(task => isTaskDone(d, task)).length
 
   return {
     project,

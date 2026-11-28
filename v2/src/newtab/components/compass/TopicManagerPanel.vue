@@ -396,7 +396,7 @@ defineExpose({ resetForFresh, openDetail })
 <template>
   <div
     class="topic-manager"
-    :class="{ 'list-hidden': listCollapsed }"
+    :class="{ 'list-hidden': listCollapsed, 'is-calendar': viewMode === 'calendar' }"
     :style="{ '--topic-list-width': `${listWidth}px` }"
   >
     <header class="topic-toolbar">
@@ -629,7 +629,7 @@ defineExpose({ resetForFresh, openDetail })
 </template>
 
 <style scoped>
-.topic-manager { position: relative; display: flex; min-width: 0; flex-direction: column; gap: 9px; }
+.topic-manager { --topic-calendar-height: clamp(820px, 84vh, 840px); position: relative; display: flex; min-width: 0; flex-direction: column; gap: 9px; }
 .topic-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface) 92%, var(--accent-light)); }
 .topic-toolbar-main, .topic-toolbar-actions { display: flex; align-items: center; gap: 5px; min-width: 0; flex-wrap: wrap; }
 .topic-toolbar-main { flex: 1; }
@@ -643,7 +643,8 @@ defineExpose({ resetForFresh, openDetail })
 .topic-view-switch button { min-height: 28px; padding: 3px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); font-family: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
 .topic-view-switch button.on { background: var(--surface); color: var(--accent-ink); box-shadow: var(--shadow-sm); }
 .topic-new { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
-.topic-workbench { display: grid; grid-template-columns: minmax(230px, var(--topic-list-width, 300px)) 12px minmax(0, 1fr); gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
+.topic-workbench { display: grid; grid-template-columns: minmax(230px, var(--topic-list-width, 300px)) 12px minmax(0, 1fr); align-items: stretch; gap: 12px; min-height: 620px; transition: grid-template-columns var(--dur); }
+.is-calendar .topic-workbench { width: 100%; height: var(--topic-calendar-height); min-height: var(--topic-calendar-height); }
 .list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }
 .topic-pool { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
 .topic-pool.collapsed { align-items: center; background: color-mix(in srgb, var(--surface-2) 76%, var(--surface)); }
@@ -725,6 +726,7 @@ body.topic-splitting { cursor: col-resize; user-select: none; }
 }
 @media (max-width: 820px) {
   .topic-workbench { grid-template-columns: 1fr; }
+  .is-calendar .topic-workbench { height: auto; min-height: 0; }
   .topic-split-handle { display: none; }
   .topic-pool { max-height: 360px; }
   .list-hidden .topic-workbench { grid-template-columns: 46px minmax(0, 1fr); }

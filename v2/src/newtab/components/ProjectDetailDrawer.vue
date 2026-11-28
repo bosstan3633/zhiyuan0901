@@ -21,7 +21,7 @@ import MaturityBadge from '@/shared/components/MaturityBadge.vue'
 import { metricMaturity } from '@/shared/utils/maturity'
 import { resolveProjectNextStep, tasksOfMetric, tasksOfProject } from '../views/compassMeta'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
-import { taskStatusOf } from '@/shared/utils/taskStatus'
+import { isTaskDone, taskStatusOf, toggleTaskDone } from '@/shared/utils/taskStatus'
 import { buildProjectTree } from '../views/projectTree'
 // R146：删除指标的确认 / 报数 / 撤销由 removeMetricWithConfirm 统一走 useConfirm，本组件不另拼弹窗。
 import TaskAddDrawer from './TaskAddDrawer.vue'
@@ -84,7 +84,7 @@ const summary = computed(() => {
 /** 项目“下一步”读数：直接复用 compassMeta 的唯一解析函数，避免两处回退逻辑漂移。 */
 const nextStep = computed(() => {
   if (!project.value) return { nextStep: '', nextStepSource: 'empty' as const }
-  return resolveProjectNextStep(project.value, allProjectTasks())
+  return resolveProjectNextStep(project.value, allProjectTasks(), d.value)
 })
 
 /** 下一步：用户填写优先；清空后不写占位，继续回退到任务推导。 */
@@ -177,9 +177,7 @@ function renameMetric(metricId: string, e: Event) {
 function toggleTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
-  t.status = t.status === 'done' ? 'todo' : 'done'
-  t.completedAt = t.status === 'done' ? Date.now() : undefined
-  t.updatedAt = Date.now()
+  toggleTaskDone(d.value, t)
   store.persist()
 }
 
@@ -222,8 +220,7 @@ function openTask(task: TaskCard) { detailRef.value?.open(task) }
 function openTopic(topic: TopicCard) { emitOpenDrawer({ kind: 'topic', id: topic.id }) }
 
 function taskStatusLabel(task: TaskCard): string {
-  return taskStatusOf(store.data!, task)?.name
-    || (task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始')
+  return taskStatusOf(store.data!, task)?.name || '待开始'
 }
 function planDateLabel(date?: string): string {
   if (!date) return '未落图'
@@ -350,9 +347,9 @@ function topicDone(topic: TopicCard): boolean {
               <div class="pd-card-list">
                 <div v-if="!m.total && !m.topics.length" class="pd-task-empty">暂无任务与选题</div>
 
-                <div v-for="task in m.tasks" :key="'task-' + task.id" class="pd-task pd-row" :class="{ done: task.status === 'done' }">
-                  <div class="pd-check" v-pressable :class="{ done: task.status === 'done' }" @click="toggleTask(task.id)">
-                    <Icon v-if="task.status === 'done'" name="check" :size="14" />
+                <div v-for="task in m.tasks" :key="'task-' + task.id" class="pd-task pd-row" :class="{ done: isTaskDone(d, task) }">
+                  <div class="pd-check" v-pressable :class="{ done: isTaskDone(d, task) }" @click="toggleTask(task.id)">
+                    <Icon v-if="isTaskDone(d, task)" name="check" :size="14" />
                   </div>
                   <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
                   <span class="pd-state">{{ taskStatusLabel(task) }}</span>
@@ -383,9 +380,9 @@ function topicDone(topic: TopicCard): boolean {
               <span class="pd-orphan-note">项目内未挂指标</span>
             </div>
             <div class="pd-card-list">
-              <div v-for="task in projectTree.orphanTasks" :key="'orphan-task-' + task.id" class="pd-task pd-row" :class="{ done: task.status === 'done' }">
-                <div class="pd-check" v-pressable :class="{ done: task.status === 'done' }" @click="toggleTask(task.id)">
-                  <Icon v-if="task.status === 'done'" name="check" :size="14" />
+              <div v-for="task in projectTree.orphanTasks" :key="'orphan-task-' + task.id" class="pd-task pd-row" :class="{ done: isTaskDone(d, task) }">
+                <div class="pd-check" v-pressable :class="{ done: isTaskDone(d, task) }" @click="toggleTask(task.id)">
+                  <Icon v-if="isTaskDone(d, task)" name="check" :size="14" />
                 </div>
                 <button class="pd-task-name pd-task-open" @click="openTask(task)">{{ task.title }}</button>
                 <span class="pd-state">{{ taskStatusLabel(task) }}</span>

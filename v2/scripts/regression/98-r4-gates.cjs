@@ -403,8 +403,14 @@ check('R4-Et③ ★普查每次走查都要重出，且**图与普查必须同�
   const t = fs.readFileSync(path.resolve(SCRIPTS_DIR, 'theme-audit.cjs'), 'utf8');
   const atLineStart = (re) => re.test(t);
   const dir = path.resolve(SCRIPTS_DIR, '..', '..', 'docs', '视觉归档');
-  const day = fs.readdirSync(dir).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().pop();
-  const dd = day ? path.join(dir, day) : null;
+  /* ★V4.7.8 随迁备案：theme-audit 的 --tag 会把本轮实拍写入具名目录（如 R478-after），
+     不再只写日期目录。图的取数口径改为「除 _census 外最新落盘的实拍目录」，仍要求
+     图与本次全量普查同批，不读取 _census 里的历史副本。 */
+  const latestRun = fs.readdirSync(dir, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name !== '_census')
+    .map(d => ({ name: d.name, at: fs.statSync(path.join(dir, d.name)).mtimeMs }))
+    .sort((a, b) => b.at - a.at)[0];
+  const dd = latestRun ? path.join(dir, latestRun.name) : null;
   /* V4.0.3：日期目录里的 census 是历史快照，可能没有全量标记与源码新鲜度；
      唯一权威件固定住 _census。这里只拿最新日期目录核对“图数与普查同批”，
      不再为了让旧副本过关而回退读取日期目录。 */
@@ -497,7 +503,8 @@ check('R4-Ew① ★三条"改了没人报"的链各有了一条真点的 e2e：E
     && e.includes('capRow.ws === \'zy-curation\'') && e.includes('capRow.catEmpty')
     && e.includes('Number(gpRow.actsOpacity) === 0') && e.includes('gpHover > 0.9')
     && e.includes('starAfter === true && starBack === false')
-    && e.includes('heroKpiCount === 4')
+    /* ★V4.7.8 重指：四格读数从 PiOverview 迁入 PiLibraryPulse，E2E 计数变量随宿主更名。 */
+    && e.includes('pulseMetricCount === 4')
     && e.includes('r.题在 && r.抽屉在 && (')
     && e.includes("const insightHeads = [...document.querySelectorAll('.pi-tag-insight h4')]")
     && e.includes("const LABELS = ['这个指标怎么看', '当前分布', '下一步建议', '交给 AI 助手处理']")

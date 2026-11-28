@@ -56,10 +56,11 @@ check('V473-3（V4.7.4 重指）时间轴详情与卡片本体都提供链接直
     && PROFILE.includes('openTopicOutcome(topic)')
 })
 
-check('V473-4（V4.7.6 重指）画像年度热力前置，时间轴路由直达，AI 洞察注入时间轴事实与方向树上下文', () => {
+check('V473-4（V4.7.8 重指）画像年度热力前置，默认卡片分析，时间轴保留显式路由，AI 洞察按当前视图注入事实与方向树上下文', () => {
   return PROFILE.includes("type ProfileView = 'timeline' | 'analysis'")
-    && PROFILE.includes("return 'timeline'")
-    && PROFILE.includes("route.query.view === 'analysis'")
+    && PROFILE.includes("if (route.query.view === 'timeline') return 'timeline'")
+    && PROFILE.includes("return 'analysis'")
+    && PROFILE.includes("value === 'analysis'")
     && PROFILE.includes("value === 'timeline'")
     && PROFILE.includes('const directionContext = computed')
     && PROFILE.includes('方向树上下文：')

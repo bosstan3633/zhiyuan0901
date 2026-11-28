@@ -34,17 +34,19 @@ check('V432-1（V4.7.0 重指）左栏遵守上方筛选并展示全部结果：
     && calendar.includes('当前筛选没有任务');
 })
 
-check('V432-2 月历左右栏同高、左栏内部滚动；窄屏降级为单列且不挤压内容', () => {
+check('V432-2（V4.7.8 重指）月历左右栏同高、左栏内部滚动；桌面月视图 830–860px，窄屏降级为单列且日行不矮于 100px', () => {
   const css = read('/newtab/components/compass/TaskCalendarView.css')
   return css.includes('align-items: stretch')
-    && css.includes('height: clamp(620px, 68vh, 730px)')
+    && css.includes('--cal-month-height: clamp(830px, 86vh, 860px)')
+    && css.includes('height: var(--cal-month-height)')
     && css.includes('.cal-pool-list {')
     && css.includes('min-height: 0;')
     && css.includes('overflow: auto;')
     && css.includes('.cal-grid {')
-    && css.includes('grid-template-rows: repeat(6, minmax(0, 1fr))')
+    && css.includes('grid-template-rows: repeat(6, minmax(var(--cal-month-row-min), 1fr))')
     && css.includes('@media (max-width: 1180px)')
     && css.includes('height: auto;')
+    && css.includes('grid-template-rows: repeat(6, minmax(100px, auto))')
     && css.includes('min-width: 700px;');
 })
 
@@ -63,10 +65,10 @@ check('V432-3 月份选择器可切年 / 月并可回到今天；日详情走共
     && !calendar.includes('cal-day-overlay');
 })
 
-check('V432-4（V4.7.0 重指）月历任务按状态着色：已完成绿、今日橙、未来灰、过去中性，不再由计划日期推导逾期红，并给出可读图例', () => {
+check('V432-4（V4.7.8 重指）月历任务按状态着色：已完成绿（isTaskDone 真源）、今日橙、未来灰、过去中性，不再由计划日期推导逾期红，并给出可读图例', () => {
   const calendar = read('/newtab/components/compass/TaskCalendarView.vue')
   const css = read('/newtab/components/compass/TaskCalendarView.css')
-  return calendar.includes("if (task.status === 'done') return 'done'")
+  return calendar.includes('if (taskDone(task)) return \'done\'')
     && calendar.includes("if (task.dueDate === todayKey.value) return 'today'")
     && calendar.includes("if (task.dueDate && task.dueDate > todayKey.value) return 'future'")
     && calendar.includes("if (task.dueDate && task.dueDate < todayKey.value) return 'past'")

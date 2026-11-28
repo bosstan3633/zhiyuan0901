@@ -21,7 +21,7 @@ import { tasksOfMetric, topicsOfMetric } from '../../views/compassMeta'
 import { showToast } from '@/shared/components/toast'
 import TaskAddDrawer from '../TaskAddDrawer.vue'
 import TaskDetailDrawer from './TaskDetailDrawer.vue'
-import { toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { isTaskDone, taskStatusOf, toggleTaskDone } from '@/shared/utils/taskStatus'
 import { emitOpenDrawer } from '@/shared/utils/bus'
 import { isTopicDone, sortedTopicStatuses, topicStatusOf } from '@/shared/utils/topicStatus'
 
@@ -57,9 +57,9 @@ const topics = computed<TopicCard[]>(() => {
   if (!metric.value) return []
   return topicsOfMetric(metric.value, d.value.topics || [])
 })
-const done = computed(() => tasks.value.filter(t => t.status === 'done').length)
+const done = computed(() => tasks.value.filter(t => isTaskDone(d.value, t)).length)
 const pct = computed(() => tasks.value.length ? Math.round((done.value / tasks.value.length) * 100) : 0)
-const doing = computed(() => tasks.value.filter(t => t.status === 'doing').length)
+const doing = computed(() => tasks.value.filter(t => taskStatusOf(d.value, t)?.bucket === 'doing').length)
 const topicStatuses = computed(() => sortedTopicStatuses(d.value))
 
 const metricMeta = computed<MetricMeta | null>(() => {
@@ -112,8 +112,14 @@ function topicStyle(topic: TopicCard): Record<string, string> {
   return { '--topic-status': topicStatusOf(d.value, topic.statusId)?.color || 'var(--accent)' }
 }
 function toggleTask(t: TaskCard) {
-  toggleTaskStatus(t)
+  toggleTaskDone(d.value, t)
   store.persist()
+}
+function taskBucket(t: TaskCard): string {
+  return taskStatusOf(d.value, t)?.bucket || 'todo'
+}
+function taskStatusName(t: TaskCard): string {
+  return taskStatusOf(d.value, t)?.name || '待开始'
 }
 const taskAddOpen = ref(false)
 function openTaskAdd() { taskAddOpen.value = true }
@@ -184,11 +190,11 @@ watch(() => props.metricId, () => { edit.value = null; draft.value = '' })
           <button class="md-add" @click="openTaskAdd">＋ 添加任务</button>
         </div>
         <div v-if="tasks.length" class="md-task-list">
-          <div v-for="t in tasks" :key="t.id" class="md-task" :class="t.status">
-            <button class="md-check" :class="t.status" :aria-label="t.status === 'done' ? '标记未完成' : '标记完成'"
-              @click="toggleTask(t)"><Icon v-if="t.status === 'done'" name="check" :size="12"/></button>
+          <div v-for="t in tasks" :key="t.id" class="md-task" :class="taskBucket(t)">
+            <button class="md-check" :class="taskBucket(t)" :aria-label="isTaskDone(d, t) ? '标记未完成' : '标记完成'"
+              @click="toggleTask(t)"><Icon v-if="isTaskDone(d, t)" name="check" :size="12"/></button>
             <button class="md-task-title" title="打开任务详情" @click="openTask(t)">{{ t.title }}</button>
-            <span class="md-task-status">{{ t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始' }}</span>
+            <span class="md-task-status">{{ taskStatusName(t) }}</span>
             <span class="md-task-go" aria-hidden="true">›</span>
           </div>
         </div>

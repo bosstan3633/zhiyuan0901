@@ -48,7 +48,7 @@ export const W = {
   subtask: 0, focus: 2.5, link: 1.0
 } as const
 
-/** 分数口径表（概览带「⚖ 分数口径」12 行，F5 验收要求逐行可核对） */
+/** 分数口径表（概览带「⚖ 分数口径」14 行，F5 验收要求逐行可核对） */
 export const W_ROWS: readonly (readonly [string, number])[] = [
   ['采集 · 资源卡', W.cRes], ['采集 · 好奇卡', W.cCurio], ['采集 · 任务卡', W.cTask],
   ['调出 · 任一卡', W.call],
@@ -174,6 +174,25 @@ function statusWeight(kind: CardKind, to?: string): number {
 }
 
 /**
+ * 同卡同日只保留最终一次状态事件。
+ *
+ * 为什么不能“先遇到谁算谁”：画像页按新→旧传入事件，快照落盘按旧→新传入；
+ * 同一张任务卡今天 todo → doing → done，两个入口会分别取 doing / done。
+ * 这里统一按事件时间选最后状态，时间相同再按事件 id 做确定性排序，
+ * 保证正序、倒序输入结果一致。
+ */
+function finalStatusEvents(events: CardEvent[]): Map<string, CardEvent> {
+  const out = new Map<string, CardEvent>()
+  for (const e of events) {
+    if (e.action !== 'status' || e.kind === 'system') continue
+    const key = `${dayOf(e.ts)}|${e.kind}|${e.cardId}`
+    const prev = out.get(key)
+    if (!prev || e.ts > prev.ts || (e.ts === prev.ts && e.id > prev.id)) out.set(key, e)
+  }
+  return out
+}
+
+/**
  * 折叠事件 + 卡字段 → 按日聚合。
  * @param base   年份起始库容（§7.5）；调用方按真实库传，缺省 0
  * @param nowTs  用于 `fullSince` 兜底（无任何事件时）
@@ -184,6 +203,7 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
   /** 采集记分先入暂存，等"24h 内软删 ×0.3"判完再并入 `w` */
   const createScore = new Map<string, { day: string; pts: number; cardId: string; ts: number }>()
   const scoredActions = new Set<string>()
+  const finalStatus = finalStatusEvents(events)
 
   /* ---- pass 1：事件折叠 ---- */
   for (const e of events) {
@@ -216,8 +236,7 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
         r.x.add++
         break
       case 'status':
-        if (scoredActions.has(`status|${dayOf(e.ts)}|${e.cardId}`)) break
-        scoredActions.add(`status|${dayOf(e.ts)}|${e.cardId}`)
+        if (finalStatus.get(`${dayOf(e.ts)}|${e.kind}|${e.cardId}`) !== e) break
         if (kind === 'curiosity') r.s.curio++
         else if (kind === 'task') r.s.task++
         else if (kind === 'topic') r.s.topic++
@@ -291,6 +310,160 @@ export function buildDailyStats(data: AppData, events: CardEvent[], base?: Stock
     days,
     fullSince: keys[0] || dayOf(nowTs),
     base: base || { res: 0, task: 0, curio: 0, topic: 0, link: 0 }
+  }
+}
+
+/* ================= 今日分拆解（画像页解释层） ================= */
+
+export interface DayScoreItem {
+  key: string
+  label: string
+  count: number
+  points: number
+}
+
+export interface DayScoreBreakdown {
+  total: number
+  level: number
+  levelName: string
+  levelRange: string
+  items: DayScoreItem[]
+  /** “有动作但不计分”的件数：子任务勾选 + 0 分最终状态（任务/好奇心回待办、选题状态）。 */
+  zeroScoreCount: number
+  residual: number
+}
+
+const SCORE_KIND_LABEL: Record<CardKind, string> = {
+  resource: '资源',
+  curiosity: '好奇心',
+  task: '任务',
+  topic: '选题',
+}
+
+function createWeightOf(kind: CardKind): number {
+  return kind === 'resource' ? W.cRes : kind === 'curiosity' ? W.cCurio : W.cTask
+}
+
+/**
+ * 把某一天的 `DayRec.w` 拆成用户可读的行为明细。
+ *
+ * 约束：`items.points` 之和必须等于 `total`。状态推进的目标态可能混合
+ * doing/done/shelf，不能用一个固定权重冒充；因此状态分优先由最终状态事件计算，
+ * 事件已被日志淘汰或来自旧快照时，用“其他 / 历史快照”残差补齐。
+ */
+export function explainDayScore(rec: DayRec, events: CardEvent[], day: string): DayScoreBreakdown {
+  const r = normalizeDayRec(rec)
+  const total = round1(r.w)
+  const items: DayScoreItem[] = []
+  const finalStatus = finalStatusEvents(events)
+  const deletesByCard = new Map<string, number[]>()
+
+  for (const e of events) {
+    if (e.action !== 'delete') continue
+    const arr = deletesByCard.get(e.cardId) || []
+    arr.push(e.ts)
+    deletesByCard.set(e.cardId, arr)
+  }
+
+  const createGroups = new Map<CardKind, { count: number; points: number }>()
+  for (const e of events) {
+    if (e.action !== 'create' || e.kind === 'system' || dayOf(e.ts) !== day) continue
+    const kind = e.kind as CardKind
+    const quick = (deletesByCard.get(e.cardId) || []).some(t => t >= e.ts && t - e.ts <= QUICK_DELETE_MS)
+    const pts = createWeightOf(kind) * (quick ? QUICK_DELETE_FACTOR : 1)
+    const prev = createGroups.get(kind) || { count: 0, points: 0 }
+    prev.count++
+    prev.points = round1(prev.points + pts)
+    createGroups.set(kind, prev)
+  }
+  for (const kind of ['resource', 'curiosity', 'task', 'topic'] as const) {
+    const group = createGroups.get(kind)
+    if (!group) continue
+    items.push({
+      key: `create-${kind}`,
+      label: `采集 · ${SCORE_KIND_LABEL[kind]}`,
+      count: group.count,
+      points: round1(group.points),
+    })
+  }
+
+  const statusGroups = new Map<CardKind, { count: number; points: number }>()
+  const zeroStatusGroups = new Map<CardKind, number>()
+  for (const e of finalStatus.values()) {
+    if (dayOf(e.ts) !== day || e.kind === 'system') continue
+    const kind = e.kind as CardKind
+    const pts = statusWeight(kind, e.to)
+    if (pts <= 0) {
+      if (kind === 'task' || kind === 'curiosity') {
+        zeroStatusGroups.set(kind, (zeroStatusGroups.get(kind) || 0) + 1)
+      }
+      continue
+    }
+    const prev = statusGroups.get(kind) || { count: 0, points: 0 }
+    prev.count++
+    prev.points = round1(prev.points + pts)
+    statusGroups.set(kind, prev)
+  }
+  for (const kind of ['task', 'curiosity'] as const) {
+    const group = statusGroups.get(kind)
+    if (!group) continue
+    items.push({
+      key: `status-${kind}`,
+      label: `状态推进 · ${SCORE_KIND_LABEL[kind]}`,
+      count: group.count,
+      points: round1(group.points),
+    })
+  }
+
+  let zeroScoreCount = r.sub + r.s.topic
+  for (const kind of ['task', 'curiosity'] as const) {
+    const count = zeroStatusGroups.get(kind) || 0
+    if (!count) continue
+    zeroScoreCount += count
+    items.push({
+      key: `status-${kind}-zero`,
+      label: `状态变更 · ${SCORE_KIND_LABEL[kind]}（不计分）`,
+      count,
+      points: 0,
+    })
+  }
+  if (r.s.topic > 0) {
+    items.push({
+      key: 'status-topic-zero',
+      label: '状态变更 · 选题（不计分）',
+      count: r.s.topic,
+      points: 0,
+    })
+  }
+  if (r.sub > 0) {
+    items.push({
+      key: 'subtask-zero',
+      label: '子任务勾选（不计分）',
+      count: r.sub,
+      points: 0,
+    })
+  }
+
+  if (r.u > 0) items.push({ key: 'call', label: '调出卡片', count: r.u, points: round1(r.u * W.call) })
+  if (r.edit > 0) items.push({ key: 'edit', label: '卡片修改', count: r.edit, points: round1(r.edit * W.edit) })
+  if (r.outcome > 0) items.push({ key: 'outcome', label: '成果交付', count: r.outcome, points: round1(r.outcome * W.outcome) })
+  if (r.focus > 0) items.push({ key: 'focus', label: '今日三件事完成', count: r.focus, points: round1(r.focus * W.focus) })
+  if (r.link > 0) items.push({ key: 'link', label: '任务↔资源关联', count: r.link, points: round1(r.link * W.link) })
+
+  const known = round1(items.reduce((sum, item) => sum + item.points, 0))
+  const residual = round1(total - known)
+  if (Math.abs(residual) >= 0.05) {
+    items.push({ key: 'residual', label: '其他 / 历史快照', count: 0, points: residual })
+  }
+
+  return {
+    total,
+    level: levelOf(total),
+    levelName: levelName(total),
+    levelRange: levelRange(total),
+    items,
+    zeroScoreCount,
+    residual,
   }
 }
 

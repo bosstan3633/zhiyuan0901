@@ -129,13 +129,17 @@ check('R78-9（V4.7.0 重指）A7 定位分流：有 projectId 走项目全景�
     && body.includes("'task=' + encodeURIComponent(id)") && body.includes("'/?hl=' + id + '&hk=task'")
     && body.includes("type: 'zy-open-route'");
 });
-check('R78-10 A7 写入的槽位与 CompassHome.selectTaskForSlot 同构（sourceType/sourceId/text/done）', () => {
+check('R78-10（V4.7.8 重指）A7 写入的槽位与 CompassHome.selectTaskForSlot 同构（sourceType/sourceId/text/done）；完成态读 isTaskDone 真源', () => {
   const o = read('/content/overlay-impl.ts');
   const c = read('/newtab/views/CompassHome.vue');
+  const focus = read('/shared/utils/focusSuggest.ts');
   const body = fnBody(o, 'async function addTaskToDailyFocus(', 'function renderResults');
   return body.includes("sourceType: isTopic ? 'topic' : 'task'") && body.includes('sourceId: taskId')
-    && body.includes("done: isTopic ? !!topicStatus?.terminal : t?.status === 'done'") && body.includes('doneAt: t?.completedAt')
-    && c.includes("sourceType: 'task'") && c.includes('sourceId: task.id') && c.includes('doneAt: task.completedAt');
+    && body.includes('const done = task ? isTaskDone(d, task) : !!(topicStatus?.terminal)')
+    && body.includes('doneAt: done ? (task?.completedAt || topic?.completedAt) : undefined')
+    && body.includes('if (task) enterFocusTaskStatus(d, task)')
+    && focus.includes("sourceType: 'task'") && focus.includes('sourceId: task.id') && focus.includes('doneAt: done ? task.completedAt : undefined')
+    && c.includes('addManualFocus(d.value, key, task.id, pickerSlot.value)');
 });
 
 console.log('【第七十九轮 · V2.48.0：资源池两视图信息量对齐（R1 收尾）】');

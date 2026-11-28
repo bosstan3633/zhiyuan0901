@@ -14,10 +14,10 @@ check('R183-A1（V4.4.0 重指）★任务导出整体退役：TaskDetailDrawer 
     && td.includes('placeholder="写下一条完整、可执行的任务…"');
 });
 
-check('R183-A2（V4.4.0 重指）★任务归属更紧凑且 AI 入口贴对象：项目 / 指标为轻量双字段；资源镜像旁完整显示「AI 找资源」，说明旁保留次级「AI 补全」', () => {
+check('R183-A2（V4.4.0 重指 · ★V4.7.8 再重指备案）★任务归属更紧凑且 AI 入口贴对象：项目 / 指标为轻量双字段；资源镜像旁完整显示「AI 找资源」，说明旁保留次级「AI 补全」；汇总 v-show 不改变区块次序', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
   const tdCode = require('./helpers.cjs').codeOnly(td);
-  const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
+  const ownerAt = td.indexOf('class="ts-section ts-owner ds-props2"');
   const resourceAt = td.indexOf('class="ts-section ts-resource-section"');
   const noteAt = td.indexOf('class="ts-section ts-note-section"');
   const owner = td.slice(ownerAt, resourceAt);

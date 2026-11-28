@@ -14,7 +14,6 @@ import type { AppData, TaskCard, SupportLink, ResourceCard, AssetMeta } from '@/
 import type { AiDepth } from '@/shared/ai/config'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { buildSupportIndex, listByTask, addSupportLink, removeSupportLink } from '@/shared/utils/supportLinks'
-import { resourceOfSupportLink } from '@/shared/storage/resourceMirrors'
 import CardResourcePickerModal from './CardResourcePickerModal.vue'
 // R152 口径：评审抽屉用模块作用域单例，不在 setup 里现造（此处原为 defineAsyncComponent 自建一份）
 import { AiDrawer } from '../lazyAiDrawer'
@@ -26,8 +25,11 @@ import ArmDeleteButton from '@/shared/components/ArmDeleteButton.vue'
 import AiTouchedChip from '@/shared/components/AiTouchedChip.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import { isTaskDone, setTaskStatusById, sortedTaskStatuses, taskStatusOf, toggleTaskDone } from '@/shared/utils/taskStatus'
-import { scheduleCardDate } from '@/shared/storage/planSchedule'
+import { planEventsOf, scheduleCardDate } from '@/shared/storage/planSchedule'
+import { buildFocusUsage, focusUsageOfCard } from '@/shared/analytics/focusUsage'
+import { hasUsableResourceLink } from '@/shared/analytics/cardInventory'
 import PlanScheduleHistory from './PlanScheduleHistory.vue'
+import CardFocusHistory from './CardFocusHistory.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -40,6 +42,8 @@ const selectedTask = ref<TaskCard | null>(null)
 const taskTitleDraft = ref('')
 const selProjectId = ref('')
 const selMetricId = ref('')
+type DetailFocus = 'all' | 'plan' | 'focus' | 'owner' | 'resources'
+const detailFocus = ref<DetailFocus>('all')
 
 function open(task: TaskCard) {
   // R43-0 BUG-1 修复：selectedTask 必须指向 store 内的 reactive Proxy 元素
@@ -47,6 +51,7 @@ function open(task: TaskCard) {
   taskTitleDraft.value = selectedTask.value.title
   selProjectId.value = selectedTask.value.projectId || ''
   selMetricId.value = selectedTask.value.metricId || ''
+  detailFocus.value = 'all'
   sidebarOpen.value = true
 }
 function close() { sidebarOpen.value = false; selectedTask.value = null; emit('closed') }
@@ -141,14 +146,33 @@ function copyTaskLink() {
 /* R166 定案 5：资源支持住在独立关联表——反查索引一次建、O(1) 查，不在渲染路径里 filter 全表 */
 const supportIdx = computed(() => buildSupportIndex(d.value))
 const resourcePickerOpen = ref(false)
+const focusUsage = computed(() => {
+  if (!selectedTask.value) return { count: 0, doneCount: 0, lastDate: '' }
+  return focusUsageOfCard(buildFocusUsage(d.value), 'task', selectedTask.value.id)
+})
+const planChanges = computed(() =>
+  selectedTask.value ? planEventsOf(d.value, selectedTask.value.id, 'task').length : 0)
 /** 本任务的关联行；资源查不到的一律不显（软删过滤已在索引里做过） */
 const supportRows = computed(() => {
   const t = selectedTask.value
   if (!t) return [] as { link: SupportLink; resource: ResourceCard }[]
+  const resourceById = new Map(
+    (d.value.resources || [])
+      .filter(resource => !resource.deletedAt)
+      .map(resource => [resource.id, resource] as const),
+  )
   return listByTask(supportIdx.value, t.id)
-    .map(link => ({ link, resource: resourceOfSupportLink(d.value, link) }))
+    .map(link => ({ link, resource: resourceById.get(link.resourceId) || link.snapshot || null }))
     .filter((x): x is { link: SupportLink; resource: ResourceCard } => !!x.resource)
 })
+const effectiveResourceIds = computed(() =>
+  new Set((d.value.resources || [])
+    .filter(resource => !resource.deletedAt && hasUsableResourceLink(resource))
+    .map(resource => resource.id)))
+const effectiveSupportCount = computed(() =>
+  new Set(supportRows.value
+    .filter(row => effectiveResourceIds.value.has(row.link.resourceId))
+    .map(row => row.link.resourceId)).size)
 /** 点行=打开资源链接并计热度（与双击卡片同一条通道，不另立口径） */
 function openSupportResource(r: ResourceCard) {
   if (d.value.resources.some(card => card.id === r.id && !card.deletedAt)) {
@@ -368,9 +392,28 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
     </template>
     <template v-if="selectedTask">
       <div class="ts-body">
+        <div class="ts-drawer-summary" aria-label="任务详情汇总">
+          <button type="button" data-detail-filter="plan" :class="{ on: detailFocus === 'plan' }" @click="detailFocus = detailFocus === 'plan' ? 'all' : 'plan'">
+            <strong>{{ planChanges }}</strong><span>计划变更</span>
+          </button>
+          <button type="button" data-detail-filter="focus" :class="{ on: detailFocus === 'focus' }" @click="detailFocus = detailFocus === 'focus' ? 'all' : 'focus'">
+            <strong>{{ focusUsage.count }}</strong><span>进入三件事</span>
+          </button>
+          <button type="button" data-detail-filter="resources" :class="{ on: detailFocus === 'resources' }" @click="detailFocus = detailFocus === 'resources' ? 'all' : 'resources'">
+            <strong>{{ effectiveSupportCount }}</strong><span>有效资源</span>
+          </button>
+          <button type="button" data-detail-filter="owner" :class="{ on: detailFocus === 'owner' }" @click="detailFocus = detailFocus === 'owner' ? 'all' : 'owner'">
+            <strong>{{ selProjectId || selMetricId ? '已归属' : '未归属' }}</strong><span>项目 / 指标</span>
+          </button>
+        </div>
+        <div v-if="detailFocus !== 'all'" class="ts-detail-filter">
+          <span>当前只展开对应明细</span>
+          <button type="button" @click="detailFocus = 'all'">显示全部</button>
+        </div>
+
         <!-- V4.7.1：安排历程是任务的首屏主信息——先回答“这张卡被安排到哪天、改过几次”，
              再进入项目/指标与资源上下文；设为今日重点降为模块内次级动作。 -->
-        <section class="ts-section ts-plan-hero">
+        <section v-show="detailFocus === 'all' || detailFocus === 'plan'" class="ts-section ts-plan-hero">
           <PlanScheduleHistory :card-id="selectedTask.id" card-kind="task" :current-date="selectedTask.dueDate" />
           <div class="ts-plan-edit">
             <label class="ts-plan-field">
@@ -387,8 +430,12 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           <p class="ts-plan-note">没有“截止日期”字段；留空即未落图，拖入今日日历会同步进入今日三件事。</p>
         </section>
 
+        <section v-show="detailFocus === 'all' || detailFocus === 'focus'" class="ts-section ts-focus-section">
+          <CardFocusHistory :card-id="selectedTask.id" card-kind="task" />
+        </section>
+
         <!-- 归属是任务的首屏上下文：项目 / 指标紧跟标题与状态读数，压缩为两枚轻量字段。 -->
-        <div class="ts-section ts-owner ds-props2">
+        <div v-show="detailFocus === 'all' || detailFocus === 'owner'" class="ts-section ts-owner ds-props2">
           <div class="ds-prop-field">
             <label class="ds-prop-label"><Icon name="package" :size="13"/> 项目</label>
             <select v-model="selProjectId" class="ds-prop-select" @change="onSelProjectChange">
@@ -405,14 +452,14 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
           </div>
         </div>
         <!-- V3.9.31（F1）：归属字段的行尾出口 —— 挂了项目就能一键进全景看全部指标与任务 -->
-        <button class="ts-goto ds-goto-pano" type="button" :disabled="!selProjectId"
+        <button v-show="detailFocus === 'all' || detailFocus === 'owner'" class="ts-goto ds-goto-pano" type="button" :disabled="!selProjectId"
           :title="selProjectId ? '进入方向台项目全景：看该项目的全部指标与任务' : '先选择所属项目，再看它的全景'"
           @click="gotoProjectPano">
           <Icon name="compass" :size="13"/> 查看项目全景（全部指标与任务）›
         </button>
         <!-- R166 定案 5/F4：资源支持区——行=资源标题+AI 判词，点行打开链接并计热度，× 只删关联记录。
              两张卡本体互不持有 id（关联住在 AppData.supportLinks 独立表），「卡间零挂载」红线不破。 -->
-        <div class="ts-section ts-resource-section">
+        <div v-show="detailFocus === 'all' || detailFocus === 'resources'" class="ts-section ts-resource-section">
           <div class="ds-hero-label ts-resource-head">
             <span class="ts-resource-title"><Icon name="compass" :size="14"/> 资源镜像 <span class="hint">— 为任务找到可复用的资源</span></span>
             <div class="ts-resource-actions">
@@ -496,10 +543,100 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ds-details.ds-details-sep { margin-top: 14px; }
 .mini-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; font-size: var(--fs-sub); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-family: inherit; transition: all var(--dur); user-select: none; }
 .mini-btn:hover { border-color: var(--accent); color: var(--accent); }
-.mini-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mini-btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .mini-btn.primary:hover { background: var(--accent-hover); }
 .mini-btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.mini-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+.mini-btn.danger:hover { background: var(--danger); color: var(--on-accent); border-color: var(--danger); }
+
+.ts-drawer-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--border);
+}
+
+.ts-drawer-summary button {
+  min-width: 0;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 9px;
+  border: 0;
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ts-drawer-summary button:hover {
+  background: color-mix(in srgb, var(--accent-light) 32%, var(--surface));
+}
+
+.ts-drawer-summary button.on {
+  background: var(--accent-light);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.ts-drawer-summary button:focus-visible,
+.ts-detail-filter button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ts-drawer-summary strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-sub);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-drawer-summary span {
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+
+.ts-detail-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -2px 0 10px;
+  color: var(--text-4);
+  font-size: var(--fs-micro);
+}
+
+.ts-detail-filter button {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--fs-micro);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ts-detail-filter button:hover { text-decoration: underline; }
+
+.ts-focus-section {
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 68%, var(--surface));
+}
 
 .ts-plan-hero {
   display: flex;
@@ -615,11 +752,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-sup-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); cursor: pointer; }
 .ts-sup-nm:hover { color: var(--accent); text-decoration: underline; }
 .ts-sup-why { font-size: var(--fs-tiny); color: var(--text-4); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ts-sup-tag { font-size: var(--fs-micro); color: var(--accent); border: 1px solid var(--accent); border-radius: 99px; padding: 0 5px; }
+.ts-sup-tag { font-size: var(--fs-micro); color: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-full); padding: 0 5px; }
 .ts-sup-x { color: var(--text-3); cursor: pointer; padding: 0 2px; }
 .ts-sup-x:hover { color: var(--danger); }
 .ts-sup-empty { font-size: var(--fs-caption); color: var(--text-3); padding: 8px 2px; }
-.check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: #fff; background: var(--surface); }
+.check-lg { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: var(--fs-body); color: var(--on-accent); background: var(--surface); }
 .check-lg.done { background: var(--success); border-color: var(--success); }
 .ts-title { flex: 1; font-size: 16px; font-weight: 600; color: var(--text); border: none; outline: none; background: transparent; font-family: inherit; line-height: 1.5; resize: none; min-height: 44px; }
 .ts-body { min-width: 0; }
@@ -666,7 +803,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
 .ts-foot { display: flex; gap: 10px; align-items: center; width: 100%; }
 .ts-foot .mini-btn { justify-content: center; padding: 9px 16px; flex: 1; }
 .ts-foot .mini-btn.primary { flex: 2; }
-.ts-kbd { font-size: var(--fs-tiny); background: rgba(255,255,255,.22); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
+.ts-kbd { font-size: var(--fs-tiny); background: color-mix(in srgb, var(--on-accent) 22%, transparent); border-radius: 4px; padding: 1px 5px; font-weight: 400; margin-left: 2px; }
 
 /* ===== R48 详情重设计 · V4.7.1 自定义任务状态 ===== */
 .ds-status-chip2 {
@@ -680,7 +817,7 @@ onUnmounted(() => { document.removeEventListener('keydown', onSidebarDocKey, tru
   height: 7px;
   flex: none;
   margin-right: 4px;
-  border-radius: 99px;
+  border-radius: var(--radius-full);
   background: var(--task-status, var(--text-3));
   vertical-align: 1px;
 }

@@ -78,8 +78,8 @@ check('TASK154-6 ★任务池折叠后是左侧 46px 常驻窄轨，展开按钮
     && CAL.includes("statusLabel(task)")
 })
 
-check('TASK154-7 ★任务状态筛选按 statusId 匹配，旧 status 仅作为悬空引用回落', () => {
+check('TASK154-7（V4.7.8 重指）★任务状态筛选按 taskStatusOf 的实际状态 id 匹配，兼容 status 不再参与过滤', () => {
   return LOGIC.includes('const taskWorkStatusOptions = computed(() => sortedTaskStatuses(d.value))')
-    && LOGIC.includes("(task.statusId || taskStatusOf(d.value, task)?.id) !== status")
+    && LOGIC.includes('taskStatusOf(d.value, task)?.id !== status')
     && LOGIC.includes('taskWorkStatusOptions, taskWorkCounts')
 })

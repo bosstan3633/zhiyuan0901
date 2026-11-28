@@ -84,12 +84,12 @@ check('R169-7 ★空槽 ≠ 断链：当前槽空走 .ds-slot-empty 中性说明
     && f.includes('v-if="slotEmpty" class="ds-slot-empty"') && f.includes('v-if="linkIncomplete" class="ref-warn"')
     && f.includes("linkStateOf(props.model.linkType, props.model.link) === 'incomplete'")
 });
-check('R169-8（V4.2.3 重指）★linkSlots 字段只活在六个明确边界：数据模型、link.ts 单一真源、云快照透传、同步展示字段名、资源卡全字段 AI 投料与重复资源合并；详情表单仍经 slotFillOf/switchLinkSlot/setLinkSlot 间接使用，其余打开/筛选/导出/AI 抓正文只认 linkType+link', () => {
+check('R169-8（V4.2.3 重指 · ★V4.7.8 再重指备案）★linkSlots 字段只活在七个明确边界：数据模型、link.ts 单一真源、云快照透传、同步展示字段名、资源卡全字段 AI 投料、重复资源合并，以及画像「链接可用」纯聚合（link 或三槽任一非空）；详情表单仍经 slotFillOf/switchLinkSlot/setLinkSlot 间接使用，其余打开/筛选/导出/AI 抓正文只认 linkType+link', () => {
   const fs2 = require('fs'); const path2 = require('path'); const root = path2.resolve(SCRIPTS_DIR, '..', 'src'); const hits = []
   const walk = (d) => { for (const f of fs2.readdirSync(d)) { const p = path2.join(d, f); const st = fs2.statSync(p); if (st.isDirectory()) walk(p); else if (/\.(ts|vue)$/.test(f)) { if (codeOnly(fs2.readFileSync(p, 'utf8')).includes('linkSlots')) hits.push(p.replace(/\\/g, '/')) } } }
   walk(root)
   const ref = codeOnly(read('/newtab/components/ResourceEditForm.vue'))
-  return hits.length === 6 && ['shared/models/index.ts', 'shared/utils/link.ts', 'shared/cloud/sync.ts', 'shared/cloud/syncDisplay.ts', 'shared/ai/select.ts', 'shared/storage/captureDedupe.ts'].every(a => hits.some(h => h.endsWith(a)))
+  return hits.length === 7 && ['shared/models/index.ts', 'shared/utils/link.ts', 'shared/cloud/sync.ts', 'shared/cloud/syncDisplay.ts', 'shared/ai/select.ts', 'shared/storage/captureDedupe.ts', 'shared/analytics/cardInventory.ts'].every(a => hits.some(h => h.endsWith(a)))
     && ref.includes('switchLinkSlot(model,') && ref.includes('setLinkSlot(props.model,') && !ref.includes('linkSlots')
 });
 check('R169-9 ★自动写入的三条边界都在：一天只写一次（focusAutoDate）/ 可"今天别推荐"（focusMutedDate）/ 用户手工选过与已完成的格子永不覆盖。落笔口只有 utils 里的 applyFocusOrder 一处（本地与 AI 共用），判据 `s.auto !== true || s.done` 分两处写就会出现"本地守了、AI 那条忘了"：', () => {
@@ -191,7 +191,7 @@ check('R169-21 ★自动推荐的触发点注册顺序（本轮自查抓到的�
 check('R169-22 ★"今天已推荐过"的章只在真看过任务池之后才盖：候选为空且库里确实没有未完成事项 ⇒ 不写 focusAutoDate（否则 store.data 尚未载入的那一瞬间会被误当成"用户的一天"，这一整天再也不会有推荐）', () => {
   const ch = codeOnly(read('/newtab/views/CompassHome.vue'))
   const seg = ch.slice(ch.indexOf('async function ensureAutoFocus'), ch.indexOf('void refineWithAi(key)'))
-  return seg.includes("if (!cands.length) {") && seg.includes("some(t => !t.deletedAt && t.status !== 'done')")
+  return seg.includes("if (!cands.length) {") && seg.includes('some(t => !t.deletedAt && !isTaskDone(d.value, t))')
     && /if \(!cands\.length\) \{[\s\S]*?\n    return\n  \}/.test(seg) && !seg.includes('d.value.focusAutoDate = key\n  if (!cands.length)')
 });
 

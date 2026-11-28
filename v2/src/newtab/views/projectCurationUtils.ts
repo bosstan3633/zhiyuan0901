@@ -1,4 +1,5 @@
-import type { Direction, Metric, Project, TaskCard } from '@/shared/models'
+import type { AppData, Direction, Metric, Project, TaskCard } from '@/shared/models'
+import { isTaskDone } from '@/shared/utils/taskStatus'
 
 export function goalOfProject(directions: Direction[], projectId: string): Direction | null {
   for (const dir of directions) {
@@ -28,9 +29,15 @@ export function tasksForMetricId(tasks: TaskCard[], metricId: string): TaskCard[
     .sort((a, b) => (order.get(a.id) || 0) - (order.get(b.id) || 0))
 }
 
-export function metricProgress(tasks: TaskCard[], metricId: string): number {
+export function metricProgress(
+  tasks: TaskCard[],
+  metricId: string,
+  data: Pick<AppData, 'taskStatuses'>,
+): number {
   const rows = tasksForMetricId(tasks, metricId)
-  return rows.length ? Math.round(rows.filter(t => t.status === 'done').length / rows.length * 100) : 0
+  return rows.length
+    ? Math.round(rows.filter(t => isTaskDone(data, t)).length / rows.length * 100)
+    : 0
 }
 
 /** 指标列表与删除确认使用同一标题回退，避免空标题显示成空白。 */

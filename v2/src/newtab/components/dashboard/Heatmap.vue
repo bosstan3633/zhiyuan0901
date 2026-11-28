@@ -34,6 +34,9 @@ const props = defineProps<{
   sectionNumber?: number
   /** 画像年度段把底部补充读数合并为一行时，关闭热力图内部第二行说明。 */
   showLegendNote?: boolean
+  /** 画像年度段只保留年度节奏：允许宿主隐藏导出与全年折叠开关。 */
+  showExport?: boolean
+  showToggle?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'update:year', y: number): void
@@ -293,10 +296,12 @@ function onExport(fmt: ExportFmt): void {
            ★收起按钮：折叠必须是**双向**的——V3.8.7 首版只给了「看全年 ›」没给回来的路，
            展开后与旧版长得一模一样、且回不去（真缺陷，W7-3 随迁钉住双向）。 -->
       <template v-if="expanded">
-      <button class="dz-btn sm ghost" title="收起全年网格，回到近 26 周概览条" @click="expanded = false">收起</button>
+      <button v-if="showToggle !== false" class="dz-btn sm ghost" title="收起全年网格，回到近 26 周概览条" @click="expanded = false">收起</button>
       <span class="dz-badge">{{ agg.first }} › {{ agg.last }}</span>
       <span v-if="selDay" class="dz-badge">已选 {{ selDay }}</span>
-      <ExportMenu :formats="['png', 'html']" @pick="onExport" />
+      <template v-if="showExport !== false">
+        <ExportMenu :formats="['png', 'html']" @pick="onExport" />
+      </template>
       <button class="dz-btn sm ghost" title="上一年" @click="shiftYear(-1)">‹</button>
       <b class="hm-year">{{ year }}</b>
       <button class="dz-btn sm ghost" :disabled="year >= curYear" title="下一年" @click="shiftYear(1)">›</button>

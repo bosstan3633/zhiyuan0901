@@ -5,7 +5,8 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/newtab/stores/app'
 import type { AppData, TaskCard, ResourceCard } from '@/shared/models'
 import type { CardEvent } from '@/shared/utils/eventLog'
-import { readEventLog } from '@/shared/utils/eventLog'
+import { initEventLog, readEventLog } from '@/shared/utils/eventLog'
+import { K } from '@/shared/storage/keys'
 import { activeFocusSlots } from '@/shared/utils/focusSlots'
 import { readErrorLog, subscribeErrorLog } from '@/shared/utils/runtimeError'
 import { locateTargetOf, asLocateKind } from '@/shared/utils/locate'
@@ -20,10 +21,11 @@ import {
 import type { LifecycleCard } from '@/newtab/components/LifecyclePanel.vue'
 import {
   computeTagEntropy, todayKey,
-  computeTaskSupportRate, computeMainFocusShare, windowOf, tasksOfDirection,
+  computeMainFocusShare, windowOf, tasksOfDirection,
   objectivesOf
 } from '@/shared/utils/reviewReport'
 import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
+import { buildTaskEvidence } from '@/shared/analytics/taskEvidence'
 import { actsOf, aggregateRange, levelName, levelOf } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
 import PiToday from '@/newtab/components/profile/PiToday.vue'
@@ -55,7 +57,7 @@ import { useProfileInsightsTags } from './useProfileInsightsTags'
 import { useProfileInsightsMonth } from './useProfileInsightsMonth'
 
 export type GFlat = { kind: 'resource' | 'task' | 'curiosity' | 'topic'; id: string; title: string; createdAt: number; deletedAt?: number; importedAt?: number }
-export type StatDrawerType = '' | 'all' | 'support' | 'goal-week'
+export type StatDrawerType = '' | 'all' | 'support' | 'effective-support' | 'goal-week'
   | 'curated' | 'mo-support' | 'topic'
   | 'topic-all' | 'topic-published' | 'topic-supported' | 'topic-month'
   | 'ammo' | 'cooling' | 'today-in' | 'today-call'
@@ -86,15 +88,26 @@ const pageSub = computed(() => {
 const eventLog = shallowRef<CardEvent[]>([])
 const logEmpty = ref(true)
 const gStartOfToday = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); return dt.getTime() })()
-async function refreshEventLog() {
+async function refreshEventLog(reconcile = true) {
   const local = await readEventLog()
-  try {
-    const { reconcileAccountEvents } = await import('@/shared/cloud/sync')
-    await reconcileAccountEvents(local)
-  } catch { /* 离线或账号事件表尚未迁移时继续使用本机缓存 */ }
+  if (reconcile) {
+    try {
+      const { reconcileAccountEvents } = await import('@/shared/cloud/sync')
+      await reconcileAccountEvents(local)
+    } catch { /* 离线或账号事件表尚未迁移时继续使用本机缓存 */ }
+  }
   const log = await readEventLog()
   eventLog.value = log.slice().reverse()
   logEmpty.value = log.length === 0
+}
+let eventRefreshTimer = 0
+function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string): void {
+  if (area !== 'local') return
+  const eventChange = changes[K.EVENT_LOG]
+  if (eventChange) initEventLog(eventChange.newValue)
+  if (!eventChange) return
+  window.clearTimeout(eventRefreshTimer)
+  eventRefreshTimer = window.setTimeout(() => { void refreshEventLog(false) }, 120)
 }
 const gFlat = computed<GFlat[]>(() => [
   ...gd.value.resources.map(r => ({ kind: 'resource' as const, id: r.id, title: r.title || '（无标题）', createdAt: r.createdAt || 0, deletedAt: r.deletedAt, importedAt: r.importedAt })),
@@ -117,6 +130,8 @@ const gResLive = computed(() => gd.value.resources.filter(r => !r.deletedAt))
 const gTaskLive = computed(() => gd.value.tasks.filter(t => !t.deletedAt))
 const gCurioLive = computed(() => gd.value.curiosities.filter(c => !c.deletedAt))
 const gTopicLive = computed(() => (gd.value.topics || []).filter(t => !t.deletedAt))
+/** 与卡片分析 / 总览共用同一证据索引；软删或链接清空都即时回落。 */
+const taskEvidence = computed(() => buildTaskEvidence(gd.value))
 const linkCardCount = computed(() => gResLive.value.filter(r => (r.link || '').trim()).length)
 const dash = useDashboardStats(
   () => gd.value,
@@ -161,8 +176,8 @@ const heroKindCounts = computed(() => ({
   res: gResLive.value.length, task: gTaskLive.value.length, curio: gCurioLive.value.length, topic: gTopicLive.value.length
 }))
 const heroTopTags = computed(() => topTags.value.slice(0, 3).map(([n]) => n))
-/** F3 · 任务证据支撑率：有 SupportLink 的未删任务 ÷ 未删任务（T1 纯函数同源） */
-const heroSupportRate = computed(() => computeTaskSupportRate(gd.value.tasks || [], gd.value.supportLinks || []))
+/** F3 · 任务有效资源支撑率：活任务 × 活资源 × 可用链接（与总览同一证据索引） */
+const heroSupportRate = computed(() => taskEvidence.value.effectiveTaskSupportRate)
 /** F3 · 近 30 天精力落主攻：事件流有效动作中归属主攻项目的占比 */
 const heroFocusShare = computed(() => computeMainFocusShare(
   timelineEvents.value,
@@ -192,8 +207,8 @@ const heroFocusProjects = computed<FocusProjectView[]>(() => {
   }
   return out
 })
-/** F4 · 支撑口径复用集：已挂支撑关联的任务 id 集 + 主攻项目 id 集（下钻/清单同源） */
-const supportedTaskIds = computed(() => new Set((gd.value.supportLinks || []).map(l => l.taskId)))
+/** F4 · 支撑口径复用集：有效支撑任务 id 集 + 主攻项目 id 集（下钻/清单同源） */
+const supportedTaskIds = computed(() => taskEvidence.value.taskIdsWithEffectiveSupport)
 const focusProjectIds = computed(() => {
   const s = new Set<string>()
   for (const d of gd.value.compass?.directions || [])
@@ -340,10 +355,13 @@ const topicMonthAdded = computed(() => gTopicLive.value.filter(topic => (topic.c
 const totalCards = computed(() => gResLive.value.length + gTaskLive.value.length + gCurioLive.value.length + gTopicLive.value.length)
 const statList = computed<StatRow[]>(() => {
   switch (statDrawer.value) {
-    case 'support': return gTaskLive.value.map(t => ({
-      kind: 'task' as const, id: t.id, title: t.title, ts: t.createdAt,
-      owner: supportedTaskIds.value.has(t.id) ? '已支撑' : '未支撑'
-    }))
+    case 'support':
+    case 'effective-support': return gTaskLive.value
+      .filter(t => supportedTaskIds.value.has(t.id))
+      .map(t => ({
+        kind: 'task' as const, id: t.id, title: t.title, ts: t.createdAt,
+        owner: `有效资源 ${taskEvidence.value.taskResourceIds.get(t.id)?.size || 0} 张`,
+      }))
     /* ★W15-T1 四类卡片清单型分支：弹药 / 冷却旧卡 / 今日入台 / 今日调出 */
     case 'ammo': return ammoCards.value
     case 'cooling': return coolingCards.value
@@ -777,13 +795,22 @@ function fmtDay(ts?: number): string {
 onMounted(() => {
   void refreshEventLog()
   void refreshErrorCount()
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.addListener(onStorageChanged)
+  }
   // 支持 #lifecycle / #lc-sec 深链（归档提示条 → PiYear 生命周期段）
   if (location.hash === '#lifecycle' || location.hash === '#lc-sec') {
     activeRange.value = 'year'
     setTimeout(() => document.getElementById('lc-sec')?.scrollIntoView({ behavior: 'smooth' }), 160)
   }
 })
-onUnmounted(() => { offErrLog() })
+onUnmounted(() => {
+  offErrLog()
+  window.clearTimeout(eventRefreshTimer)
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.removeListener(onStorageChanged)
+  }
+})
 
 
   return {

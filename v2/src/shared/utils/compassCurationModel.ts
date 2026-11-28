@@ -9,6 +9,7 @@
  * 停滞口径镜像 `views/projectCurationUtils.isProjectStalled`：14 天无任务更新。
  */
 import type { AppData, Direction, Metric, Project, TaskCard } from '@/shared/models'
+import { isTaskDone, taskStatusOf } from './taskStatus'
 
 export type CurationTaskStatus = 'done' | 'doing' | 'todo' | 'stale'
 
@@ -55,15 +56,15 @@ export type CurationSel =
 
 const STALE_MS = 14 * 24 * 60 * 60 * 1000
 
-function statusOf(t: TaskCard, now: number): CurationTaskStatus {
-  if (t.status === 'done') return 'done'
+function statusOf(d: AppData, t: TaskCard, now: number): CurationTaskStatus {
+  if (isTaskDone(d, t)) return 'done'
   const act = Math.max(t.updatedAt || 0, t.createdAt || 0)
   if (now - act > STALE_MS) return 'stale'
-  return t.status === 'doing' ? 'doing' : 'todo'
+  return taskStatusOf(d, t)?.bucket === 'doing' ? 'doing' : 'todo'
 }
 
 /** 指标任务双路并集（口径同 compassMeta.tasksOfMetric）：taskIds 轨道序优先，createdAt 兜底 */
-function collectMetricTasks(metric: Metric, tasks: TaskCard[], now: number): CurationTaskNode[] {
+function collectMetricTasks(d: AppData, metric: Metric, tasks: TaskCard[], now: number): CurationTaskNode[] {
   const linked = new Set(metric.taskIds || [])
   const track = new Map((metric.taskIds || []).map((id, i) => [id, i] as const))
   const seen = new Set<string>()
@@ -73,7 +74,7 @@ function collectMetricTasks(metric: Metric, tasks: TaskCard[], now: number): Cur
     if (t.metricId !== metric.id && !linked.has(t.id)) continue
     if (seen.has(t.id)) continue
     seen.add(t.id)
-    out.push({ task: t, status: statusOf(t, now) })
+    out.push({ task: t, status: statusOf(d, t, now) })
   }
   return out.sort((a, b) => {
     const ra = track.get(a.task.id)
@@ -90,7 +91,7 @@ export function buildCurationTree(d: AppData, now = Date.now()): CurationTree {
     dir,
     projects: (dir.projects || []).map(project => {
       const metrics: CurationMetricNode[] = (project.metrics || []).map(metric => {
-        const tasks = collectMetricTasks(metric, d.tasks || [], now)
+        const tasks = collectMetricTasks(d, metric, d.tasks || [], now)
         const doneCount = tasks.filter(t => t.status === 'done').length
         return {
           metric,
@@ -120,7 +121,7 @@ export function buildCurationTree(d: AppData, now = Date.now()): CurationTree {
   const mounted = new Set(goals.flatMap(g => g.projects.flatMap(p => p.metrics.flatMap(m => m.tasks.map(t => t.task.id)))))
   const orphans = (d.tasks || [])
     .filter(t => !t.deletedAt && !mounted.has(t.id))
-    .map(t => ({ task: t, status: statusOf(t, now) }))
+    .map(t => ({ task: t, status: statusOf(d, t, now) }))
     .sort((a, b) => (b.task.updatedAt || 0) - (a.task.updatedAt || 0))
   return {
     vision: (d.compass.vision?.content || '').trim(),

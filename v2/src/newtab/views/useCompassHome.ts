@@ -18,8 +18,18 @@ import { recordCardOpen, weekUsageOf } from '@/shared/storage/stats'
 import { readEventLog } from '@/shared/utils/eventLog'
 import { useResourceOpen } from '@/newtab/composables/useResourceOpen'
 import { buildDailyFocusCopyText } from '@/shared/utils/focusCopy'
-import { isTaskDone, setTaskStatusById, sortedTaskStatuses, taskStatusOf, taskTerminalStatus, toggleTaskDone } from '@/shared/utils/taskStatus'
-import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
+import {
+  enterFocusTaskStatus,
+  isTaskDone,
+  restoreFocusTaskStatus,
+  setTaskStatusById,
+  sortedTaskStatuses,
+  taskStatusForBucket,
+  taskStatusOf,
+  taskTerminalStatus,
+  toggleTaskDone,
+} from '@/shared/utils/taskStatus'
+import { addManualFocus, addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
 import { isTopicDone, setTopicStatus, toggleTopicDone, topicStatusOf, topicTerminalStatus, topicInProgressStatus } from '@/shared/utils/topicStatus'
 import { openTopicOutcome } from '@/shared/utils/topicOutcome'
@@ -171,16 +181,22 @@ const focusWeekTotals = computed(() => focusWindowTotals(focusRecentDays(d.value
 async function ensureAutoFocus(): Promise<void> {
   if (!d.value) return /* 数据是异步载入的：onMounted 那一刻 store.data 可能还没到 */
   const key = todayKey.value
-  const { suggestFocus, applyFocusOrder, syncFocusTasksToSchedule } = await import('@/shared/utils/focusSuggest')
+  const {
+    suggestFocus,
+    applyFocusOrder,
+    advanceFocusTaskStatuses,
+    syncFocusTasksToSchedule,
+  } = await import('@/shared/utils/focusSuggest')
   const synced = syncFocusTasksToSchedule(d.value, key)
+  const focusStatusChanged = advanceFocusTaskStatuses(d.value, key)
   if (d.value.focusMutedDate === key || d.value.focusAutoDate === key) {
-    if (synced) store.persist()
+    if (synced || focusStatusChanged) store.persist()
     return
   }
   const list = activeFocusSlots(d.value.dailyFocus?.[key])
   if (list.length >= FOCUS_LIMIT) {
     d.value.focusAutoDate = key
-    if (synced) store.persist()
+    if (synced || focusStatusChanged) store.persist()
     return
   }
   const cands = suggestFocus(d.value, { anchorKey: key, excludeTaskIds: list.map(s => s.sourceId || ''), limit: FOCUS_LIMIT })
@@ -188,8 +204,8 @@ async function ensureAutoFocus(): Promise<void> {
      一盖就宣布"今天已经推荐过"，而此刻的"没有"多半只是 store.data 还没载入完 ——
      把读盘时序误当成用户的一天，结果这一整天都不会再有推荐。 */
   if (!cands.length) {
-    if ((d.value.tasks || []).some(t => !t.deletedAt && t.status !== 'done')) d.value.focusAutoDate = key
-    if (synced) store.persist()
+    if ((d.value.tasks || []).some(t => !t.deletedAt && !isTaskDone(d.value, t))) d.value.focusAutoDate = key
+    if (synced || focusStatusChanged) store.persist()
     return
   }
   applyFocusOrder(d.value, key, cands.map(c => c.taskId), FOCUS_LIMIT)
@@ -223,8 +239,9 @@ async function refineWithAi(key: string): Promise<void> {
     const list = activeFocusSlots(d.value.dailyFocus?.[key])
     if (list.some(s => s.auto !== true && !s.done)) return // 用户已定过格 → 只留判词，不动位置
     const { applyFocusOrder } = await import('@/shared/utils/focusSuggest')
-    if (applyFocusOrder(d.value, key, r.order, FOCUS_LIMIT).changed) {
-      showToast('顺序复核完成（你手工选过的格子未动）')
+    const result = applyFocusOrder(d.value, key, r.order, FOCUS_LIMIT)
+    if (result.changed || result.statusChanged) {
+      if (result.changed) showToast('顺序复核完成（你手工选过的格子未动）')
       store.persist()
     }
   } catch { /* 静默回落：网络/Key 问题不许把台面弄空，也不许弹一层错误 */ }
@@ -243,7 +260,7 @@ function onDocClickCloseWhy(e: MouseEvent): void {
   if (whyOpen.value && !t?.closest?.('.focus-why, .why-trigger')) closeWhy()
   if (focusMoreOpen.value && !t?.closest?.('.focus-more-wrap')) focusMoreOpen.value = false
 }
-/** 换一批：在本地候选池里换下一组三件（仍带荐标），不碰任务卡 */
+/** 换一批：在本地候选池里换下一组三件（仍带荐标），槽内任务同步推进为进行中 */
 async function reshuffleFocus(): Promise<void> {
   const key = dateStr(todayDate.value)
   const cur = new Set(activeFocusSlots(d.value.dailyFocus?.[key])
@@ -256,7 +273,7 @@ async function reshuffleFocus(): Promise<void> {
   for (const c of next) localWhy.value[c.taskId] = c.why
   applyFocusOrder(d.value, key, next.map(c => c.taskId), FOCUS_LIMIT)
   store.persist()
-  showToast('已换一批（只改今日计划位，不动任务卡）')
+  showToast('已换一批（今日计划位已更新，槽内任务进入进行中）')
 }
 function muteFocusToday(): void {
   d.value.focusMutedDate = todayKey.value
@@ -340,7 +357,7 @@ function todayTopicForSlot(slot: FocusSlot): TopicCard | null {
 function focusSlotStatus(slot: FocusSlot): TaskCard['status'] {
   if (dateStr(todayDate.value) === todayKey.value) {
     const task = todayTaskForSlot(slot)
-    if (task) return task.status
+    if (task) return taskStatusOf(d.value, task)?.bucket || 'todo'
     const topic = todayTopicForSlot(slot)
     if (topic) return isTopicDone(d.value, topic) ? 'done' : 'doing'
   }
@@ -350,6 +367,13 @@ function focusSlotDone(slot: FocusSlot): boolean {
   return focusSlotStatus(slot) === 'done'
 }
 function focusSlotStatusLabel(slot: FocusSlot): string {
+  if (slot.sourceType === 'task' && dateStr(todayDate.value) === todayKey.value) {
+    const task = todayTaskForSlot(slot)
+    if (task) {
+      const status = taskStatusOf(d.value, task)
+      if (status) return status.name
+    }
+  }
   const topic = todayTopicForSlot(slot)
   if (topic && dateStr(todayDate.value) === todayKey.value) {
     return topicStatusOf(d.value, topic.statusId)?.name || '构思中'
@@ -400,34 +424,15 @@ function selectTaskForSlot(task: TaskCard) {
     return
   }
   const key = dateStr(todayDate.value)
-  if (task.status === 'todo') {
-    task.status = 'doing'
-    task.completedAt = undefined
-    task.updatedAt = Date.now()
+  const result = addManualFocus(d.value, key, task.id, pickerSlot.value)
+  if (result.status === 'full') {
+    showToast('今日三件事已满；请先移除一件再选')
+    return
   }
-  if (task.dueDate !== key) {
-    scheduleCardDate(d.value, task, key, { source: 'focus' })
+  if (result.status === 'invalid') {
+    showToast('任务已不存在，无法加入今日三件事')
+    return
   }
-  const cells = normalizedFocusSlots(d.value.dailyFocus?.[key])
-  const previous = cells[pickerSlot.value]
-  if (previous && !previous.cleared) {
-    if (previous.sourceType === 'task') detachFocusTaskFromDate(d.value, key, previous.sourceId)
-    else if (previous.sourceType === 'topic') detachFocusTopicFromDate(d.value, key, previous.sourceId)
-  }
-  const slot: FocusSlot = {
-    id: uid('focus'),
-    slotIndex: pickerSlot.value as 0 | 1 | 2,
-    sourceType: 'task',
-    sourceId: task.id,
-    text: task.title,
-    done: task.status === 'done',
-    doneAt: task.completedAt,
-    updatedAt: Date.now(),
-  }
-  cells[pickerSlot.value] = slot
-  d.value.dailyFocus[key] = cells.map((cell, index) => cell
-    ? { ...cell, slotIndex: index as 0 | 1 | 2 }
-    : clearedFocusSlot(index))
   store.persist()
   pickerOpen.value = false
   showToast('已添加到今日三件事')
@@ -496,7 +501,7 @@ const pickerCandidates = computed<FocusPickerCandidate[]>(() => {
     .filter(t => !q || [t.title, projectName(t.projectId), metricName(t.metricId)]
       .some(text => text.toLowerCase().includes(q)))
     .filter(t => !pj || (pj === '__none__' ? !t.projectId : t.projectId === pj))
-    .filter(t => st === 'all' || t.status === st)
+    .filter(t => st === 'all' || taskStatusOf(d.value, t)?.bucket === st)
     .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
     .slice(0, 30)
     .map(card => ({ kind: 'task' as const, card }))
@@ -591,13 +596,16 @@ async function copyFocusToToday() {
   const copiedCells: Array<FocusSlot | undefined> = Array.from({ length: FOCUS_LIMIT })
   sourceCells.forEach((slot, index) => {
     if (!slot || slot.cleared) return
-    const status = focusSlotStatus(slot)
     const task = slot.sourceType === 'task' && slot.sourceId
       ? d.value.tasks.find(row => !row.deletedAt && row.id === slot.sourceId)
       : null
     const topic = slot.sourceType === 'topic' && slot.sourceId
       ? (d.value.topics || []).find(row => !row.deletedAt && row.id === slot.sourceId)
       : null
+    if (task) enterFocusTaskStatus(d.value, task)
+    const status = task
+      ? (taskStatusOf(d.value, task)?.bucket || 'todo')
+      : focusSlotStatus(slot)
     copiedCells[index] = {
       ...JSON.parse(JSON.stringify(slot)),
       id: uid('focus'),
@@ -608,6 +616,7 @@ async function copyFocusToToday() {
       statusSnapshot: status,
       statusBeforeDone: slot.statusBeforeDone,
       copiedFrom: sourceKey,
+      auto: undefined,
       slotIndex: index as 0 | 1 | 2,
       updatedAt: Date.now(),
     } as FocusSlot
@@ -648,7 +657,7 @@ function openExportModal() {
   exportOpen.value = true
 }
 function statusLabelOf(t?: TaskCard | null, done?: boolean): string {
-  if (t) return t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始'
+  if (t) return taskStatusOf(d.value, t)?.name || '待开始'
   return done ? '已完成' : '未完成'
 }
 const exportBusy = ref(false)
@@ -704,8 +713,8 @@ function toggleTodayDone(slot: FocusSlot) {
   if (nextDone) {
     if (slot.sourceType === 'task' && slot.sourceId) {
       const current = d.value.tasks.find(x => x.id === slot.sourceId)
-      if (current && current.status !== 'done') {
-        slot.statusBeforeDone = current.status === 'doing' ? 'doing' : 'todo'
+      if (current && !isTaskDone(d.value, current)) {
+        slot.statusBeforeDone = taskStatusOf(d.value, current)?.bucket === 'doing' ? 'doing' : 'todo'
       }
     }
     if (slot.sourceType === 'topic' && slot.sourceId) {
@@ -729,7 +738,7 @@ function toggleTodayDone(slot: FocusSlot) {
         if (terminal) setTaskStatusById(d.value, t, terminal.id)
       } else {
         const remembered = slot.statusBeforeDone || 'todo'
-        const fallback = sortedTaskStatuses(d.value).find(status => status.bucket === remembered)
+        const fallback = taskStatusForBucket(d.value, remembered)
           || sortedTaskStatuses(d.value).find(status => !status.terminal)
         if (fallback) setTaskStatusById(d.value, t, fallback.id)
       }
@@ -827,6 +836,18 @@ async function copyFocusText(cell: FocusCell): Promise<void> {
 function taskStatusLabel(status: TaskCard['status']): string {
   return status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'
 }
+function taskBucketOf(task: TaskCard): TaskCard['status'] {
+  return taskStatusOf(d.value, task)?.bucket || 'todo'
+}
+function taskStatusNameOf(task: TaskCard): string {
+  return taskStatusOf(d.value, task)?.name || taskStatusLabel(taskBucketOf(task))
+}
+function taskStatusIconOf(task: TaskCard): string {
+  return taskStatusIcon(taskBucketOf(task))
+}
+function taskStatusClassOf(task: TaskCard): string {
+  return taskStatusClass(taskBucketOf(task))
+}
 function taskStatusIcon(status: TaskCard['status']): string {
   return status === 'done' ? 'check' : status === 'doing' ? 'half' : 'circle'
 }
@@ -854,7 +875,7 @@ function fmtRecentTime(ts?: number): string {
 const focusMeta = computed(() => {
   const m = new Map<string, { pct: number; stall: boolean; finished: boolean; open: number }>()
   for (const p of focusedProjects.value) {
-    const open = projectTasksOf(p.id).filter(t => !t.deletedAt && t.status !== 'done').length
+    const open = projectTasksOf(p.id).filter(t => !t.deletedAt && !isTaskDone(d.value, t)).length
     m.set(p.id, { pct: projectProgress(p).pct, stall: isProjectStalled(p), finished: isProjectDone(p), open })
   }
   return m
@@ -952,7 +973,7 @@ const liveTopics = computed<TopicCard[]>(() =>
 )
 // ================= V4.3.1 · 调度台任务工作面 =================
 // 任务池不再只给 5 条预览：左列表与右侧月历共用一份筛选结果。
-// 当前状态仍只读写 TaskCard.status；计划执行日期仍只读写 TaskCard.dueDate。
+// 当前状态读写以 TaskCard.statusId 为真源（status 仅由统一写入器同步兼容镜像）；计划执行日期仍只读写 TaskCard.dueDate。
 type TaskWorkQuick = 'all' | 'noProject' | 'unplanned' | 'unarchived' | 'focus'
 type TaskWorkView = 'calendar' | 'board' | 'list' | 'timeline'
 type TaskWorkSort = 'recent' | 'unplanned' | 'due'
@@ -1003,7 +1024,7 @@ const taskWorkFiltered = computed(() => {
   const status = taskWorkStatus.value
   const quick = taskWorkQuick.value
   return liveTasks.value.filter(task => {
-    if (status !== 'all' && (task.statusId || taskStatusOf(d.value, task)?.id) !== status) return false
+    if (status !== 'all' && taskStatusOf(d.value, task)?.id !== status) return false
     if (projectId && task.projectId !== projectId) return false
     if (query) {
       const haystack = [
@@ -1126,25 +1147,22 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
   const priorFocusSlot = activeFocusSlots(d.value.dailyFocus?.[today])
     .find(slot => slot.sourceType === 'task' && slot.sourceId === taskId)
 
-  if (date === today && task.status === 'done' && !priorFocusSlot) {
-    showToast('已完成任务不能新排入今日；今日日历与三件事严格保持同一集合')
-    return
-  }
-
   let focusResult: 'added' | 'exists' | 'full' | 'invalid' = 'invalid'
-  if (date === today && task.status !== 'done') {
-    const { addManualFocus } = await import('@/shared/utils/focusSuggest')
+  let focusWrite: ReturnType<typeof enterFocusTaskStatus> | undefined
+  if (date === today) {
     const result = addManualFocus(d.value, today, task.id)
     if (result.status === 'added' || result.status === 'replaced') focusResult = 'added'
     else if (result.status === 'exists') focusResult = 'exists'
+    else if (result.status === 'invalid') return
     else if (result.status === 'full') {
       showToast('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
       return
     }
+    focusWrite = result.statusWrite
   }
 
   const dateChanged = previous !== date
-  if (dateChanged) {
+  if (date !== today && dateChanged) {
     scheduleCardDate(d.value, task, date, { source: 'calendar' })
   }
   let removedFocus: FocusSlot | null = null
@@ -1153,6 +1171,7 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
   }
 
   if (!dateChanged && focusResult !== 'added') {
+    store.persist()
     if (date === today && focusResult === 'exists') showToast('已安排在今日日历，且已在今日三件事中')
     return
   }
@@ -1166,7 +1185,7 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
         ? '，已移出今日三件事'
         : ''
   const message = `已安排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日${focusSuffix}`
-  if (!dateChanged) {
+  if (!dateChanged && focusResult !== 'added') {
     showToast(message)
     return
   }
@@ -1175,11 +1194,12 @@ async function setTaskWorkDue(taskId: string, date: string): Promise<void> {
     cb: () => {
       const current = d.value.tasks.find(row => row.id === taskId)
       if (!current) return
-      scheduleCardDate(d.value, current, previous, { source: 'calendar', record: false })
+      if (dateChanged) scheduleCardDate(d.value, current, previous, { source: 'calendar', record: false })
       if (focusResult === 'added') {
         clearTaskFromFocusDay(today, taskId, false)
       }
       if (removedFocus) restoreTaskToFocusDay(today, removedFocus)
+      if (focusWrite?.changed) restoreFocusTaskStatus(d.value, current, focusWrite)
       store.persist()
       showToast('已撤销排期修改')
     },
@@ -1457,7 +1477,8 @@ function goDeck(kind: HandKind): void {
     pickerProjectOptions, pickerTopicStatusOptions, pickedIds, pickerDisabled, pickerTopicDisabled, selectTaskGuarded, selectTopicGuarded, removeTodaySlot,
     copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
     openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
-    projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
+  projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
+  taskBucketOf, taskStatusNameOf, taskStatusIconOf, taskStatusClassOf,
     focusCopyText, focusCopyReason, copyFocusText,
     fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
     gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,

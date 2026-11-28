@@ -660,6 +660,11 @@ export interface AppData {
   focusAutoDate?: string
   /** R169-T3（可选，零迁移）：用户点了「今天别自动推荐」的日期——当天不再写，次日照常 */
   focusMutedDate?: string
+  /**
+   * V4.7.8（可选，零迁移）：今日重点任务的旧脏状态一次性修复版本。
+   * 有值即代表已执行过；用户之后手动改回的状态不会被再次覆盖。
+   */
+  focusTaskStatusRepairVersion?: number
   /** N4：标签管理体系（唯一入口：设置 → 标签管理） */
   tagTree: TagNode[]
   fieldConfig: FieldConfig

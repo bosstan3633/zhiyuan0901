@@ -44,11 +44,11 @@ check('HIST156-4 ★超过 5 条才显示“显示全部/收起”，空态说�
     && PSH.includes('从本版本开始记录安排动作')
 })
 
-check('HIST156-5 ★任务详情：安排历程主模块位于归属之前，日期收进模块，今日重点降为次级', () => {
+check('HIST156-5（V4.7.8 重指备案）★任务详情：安排历程主模块位于归属之前，日期收进模块，今日重点降为次级；v-show 只控制汇总筛选，不改变首屏次序', () => {
   const plan = TASK.indexOf('class="ts-section ts-plan-hero"')
   const owner = TASK.indexOf('class="ts-section ts-owner')
   const body = TASK.indexOf('<div class="ts-body">')
-  const planSeg = segOf(TASK, '<section class="ts-section ts-plan-hero">', '</section>')
+  const planSeg = segOf(TASK, 'class="ts-section ts-plan-hero"', '</section>')
   return body >= 0 && plan > body && owner > plan
     && planSeg.includes('<PlanScheduleHistory')
     && planSeg.includes('class="ts-plan-edit"')
@@ -58,10 +58,10 @@ check('HIST156-5 ★任务详情：安排历程主模块位于归属之前，日
     && !TASK.includes('class="ts-focus-btn"')
 })
 
-check('HIST156-6 ★选题详情同构：计划主模块在成果出口之前，今日重点降为次级链接', () => {
+check('HIST156-6（V4.7.8 重指备案）★选题详情同构：计划主模块在成果出口之前，今日重点降为次级链接；v-show 只控制汇总筛选，不改变首屏次序', () => {
   const plan = TOPIC.indexOf('class="topic-plan topic-plan-hero"')
   const outcome = TOPIC.indexOf('class="topic-outcome"')
-  const planSeg = segOf(TOPIC, '<section class="topic-plan topic-plan-hero">', '</section>')
+  const planSeg = segOf(TOPIC, 'class="topic-plan topic-plan-hero"', '</section>')
   return plan >= 0 && outcome > plan
     && planSeg.includes('<PlanScheduleHistory')
     && planSeg.includes('class="topic-plan-edit"')

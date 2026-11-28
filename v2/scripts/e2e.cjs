@@ -759,8 +759,9 @@ async function main() {
   const dsYearOn = await page.locator('.dz-months .dz-year').count()
   const dsAugL2 = await page.locator('.dz-year .dz-cell[data-day="2026-08-15"]')
     .evaluate(el => el.classList.contains('l2') ? 1 : 0).catch(() => 0)
-  // V3.9.30：年度段收紧后，fullSince 从第二行说明并入网格下方的紧凑元数据行。
-  const dsBadge = await page.locator('.pi-annual-heatmap .pi-hm-meta').first().innerText().catch(() => '')
+  /* ★V4.7.8 重指：年度热力下方改为今日得分说明，fullSince 迁入同页「全库卡片总览」页脚。
+     守的行为不变：种下的老日快照必须让「调出完整起始日」显示 2026-08-15。 */
+  const dsBadge = await page.locator('.pi-pulse-foot').first().innerText().catch(() => '')
   // 写链路：进资源卡池 → 单击开 App 级详情 → 改标题 → 保存 → pagehide → 读回
   await page.goto(base + '#/deck/resource', { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2200)
@@ -2735,30 +2736,33 @@ await paOpen()
     && gpRow.未选中 && Number(gpRow.actsOpacity) === 0 && gpHover > 0.9 && starAfter === true && starBack === false,
     `行=${gpRow.found} 钮=${JSON.stringify(gpRow.titles)} hover 前 opacity=${gpRow.actsOpacity} 面板行=${JSON.stringify(gpRow.全部行)} hover 后=${gpHover} starred: 点后=${JSON.stringify(starAfter)} 复原=${JSON.stringify(starBack)}`)
 
-  // ══════════ E2E-42（R4-Ew）★画像洞察页四格 KPI 的下钻出口都真响应 ══════════
+  // ══════════ E2E-42（R4-Ew）★画像洞察页四个全库读数的下钻出口都真响应 ══════════
   // V3.9.3：四类指标从 PiHero 归位画像洞察首屏概览，仍是同一组真实下钻出口。
   // 本用例保留 R4-Ew「不能只有数字、没有真出口」的原意，按新宿主的三种真实响应形态判：
    //   total/support → 卡片清单抽屉；entropy → 独立解释抽屉；focus → 全量记录抽屉（focusOnly 预设）。
-  /* ★V4.7.6：四格 KPI 已迁入「卡片分析」页签；直接以旧 view 深链进入并等 KPI 真挂载，
-     否则默认时间轴下 locator 为空，click 会耗满默认超时，测试看起来像“挂死”。 */
+  /* ★V4.7.8 重指（用户拍板「热力图下指标与卡片分析指标整合」）：四格 KPI 从 PiOverview
+     迁入「全库卡片总览」——总卡数为大号入口、标签分布为页脚按钮、支撑率与主攻占比为可点指标块。
+     守的判据不变：四个读数都有真实下钻出口。 */
   await page.goto(base + '#/profile?view=analysis', { waitUntil: 'domcontentloaded' })
-  await waitForLocator(page, '.pi-ov-kpis .pi-ov-kpi', { visible: true, timeout: 10000 })
+  await waitForLocator(page, '.pi-pulse', { visible: true, timeout: 10000 })
   await page.waitForTimeout(600)
-  const heroKpiCount = await page.locator('.pi-ov-kpis .pi-ov-kpi').count()
+  const pulseMetricCount = await page.locator('.pi-pulse-metric').count()
   const heroDrillRes = []
   for (const dr of [
-    { i: 0, 名: '在库卡片', 型: 'drawer', 题: '全部卡片明细' },
-    { i: 1, 名: '标签分布', 型: 'explain', 题: '标签分布 · 知识熵' },
-    { i: 2, 名: '任务有资源支撑', 型: 'drawer', 题: '任务证据支撑明细' },
-    { i: 3, 名: '近 30 天精力落主攻', 型: 'log', 题: '全部记录' },
+    { sel: '.pi-pulse-total button', 名: '在库卡片', 型: 'drawer', 题: '全部卡片明细' },
+    { sel: '.pi-pulse-tags', 名: '标签分布', 型: 'explain', 题: '标签分布 · 知识熵' },
+    { sel: '.pi-pulse-metric', hasText: '任务有有效资源支撑', 名: '任务有有效资源支撑', 型: 'drawer', 题: '任务有有效资源支撑明细' },
+    { sel: '.pi-pulse-metric', hasText: '近 30 天精力落主攻', 名: '近 30 天精力落主攻', 型: 'log', 题: '全部记录' },
   ]) {
-    await page.locator('.pi-ov-kpis .pi-ov-kpi').nth(dr.i).click().catch(() => {})
+    let target = page.locator(dr.sel).first()
+    if (dr.hasText) target = page.locator(dr.sel).filter({ hasText: dr.hasText }).first()
+    await target.click().catch(() => {})
     await page.waitForTimeout(900)
     const one = await page.evaluate((d) => {
       const drawerTitle = ((document.querySelector('.drawer-title') || {}).textContent || '').trim()
       const toast = [...document.querySelectorAll('.toast-msg')].map(x => (x.textContent || '').trim()).join(' ')
       const rows = document.querySelectorAll('.drawer .metric-drawer .row').length
-      const empty = !!document.querySelector('.drawer .metric-drawer .empty-state')
+      const empty = !!document.querySelector('.drawer .metric-drawer .es')
       const logRows = document.querySelectorAll('.drawer .dz-log-row').length
       const logEmpty = !!document.querySelector('.drawer .dz-log-empty')
       const logNote = ((document.querySelector('.drawer .dz-log-note') || {}).textContent || '').trim()
@@ -2786,14 +2790,14 @@ await paOpen()
     await page.waitForFunction(() => document.querySelectorAll('.drawer').length === 0, null, { timeout: 4000 }).catch(() => {})
     await page.waitForTimeout(250)
   }
-  const heroDrillOk = heroKpiCount === 4 && heroDrillRes.every(r => r.题在 && r.抽屉在 && (
+  const heroDrillOk = pulseMetricCount === 4 && heroDrillRes.every(r => r.题在 && r.抽屉在 && (
     r.型 === 'explain'
       ? r.explain
       : r.型 === 'log'
         ? r.logNote.includes('近30天主攻动作') && (r.logRows > 0 || r.logEmpty)
         : r.rows > 0 || r.empty
   ))
-  report('E2E-42 ★R4-Ew 画像洞察页四格 KPI 真响应：卡片清单抽屉 / 知识熵解释抽屉 / 主攻动作全量记录抽屉',
+  report('E2E-42 ★R4-Ew（V4.7.8 重指）画像全库总览四读数真响应：卡片清单抽屉 / 知识熵解释抽屉 / 主攻动作全量记录抽屉',
     heroDrillOk,
     heroDrillRes.map(r => `${r.名}:题=${r.题在} 抽屉=${r.抽屉在} 行=${r.rows} 日志行=${r.logRows} 空态=${r.logEmpty} note=${r.logNote} 解释=${r.explain}`).join(' ｜ '))
 
@@ -3019,9 +3023,10 @@ await paOpen()
     }),
   }))
   await page.evaluate(async () => {
-    const current = await chrome.storage.local.get('zy_cloud_env')
     await chrome.storage.local.set({
-      zy_cloud_env: current.zy_cloud_env,
+      /* V4.7.8：显式注入可运行的假云环境。此前依赖构建期 VITE_SUPABASE_*，
+         干净机器上为空 ⇒ 手动同步只走 needs_setup，回执与历史用例看似“空态通过”。 */
+      zy_cloud_env: { url: 'https://e2e.supabase.co', anonKey: 'sb_publishable_e2e' },
       zy_cloud_meta_v1: {
         userId: 'e2e-user',
         email: 'e2e@example.com',
@@ -3101,8 +3106,22 @@ await paOpen()
     },
     { timeout: 8000, label: '逐行操作后顶栏回到待同步' },
   )
-  await page.locator('.md-panel').filter({ has: page.locator('[data-testid="cloud-sync-receipt-modal"]') }).first().locator('.md-close').click()
+  /* 同步完成且无待处理行时回执可能自行收起；只有面板仍在时才点关闭，避免把清理动作变成硬等待。 */
+  const receiptPanel = page.locator('.md-panel').filter({ has: page.locator('[data-testid="cloud-sync-receipt-modal"]') }).first()
+  if (await receiptPanel.count()) {
+    await receiptPanel.locator('.md-close').click()
+  } else {
+    await page.keyboard.press('Escape').catch(() => {})
+  }
+  await page.waitForSelector('[data-testid="cloud-sync-receipt-modal"]', { state: 'detached', timeout: 5000 }).catch(() => {})
   await page.waitForSelector('.md-panel', { state: 'detached', timeout: 5000 }).catch(() => {})
+  /* V4.7.8：同步回执与历史都由 CloudMeta 持久化。先确认它真的落进 storage，再整页重载，
+     避免只读页面内存态导致“回执弹窗有、历史列表空”的假象。 */
+  const receiptPersisted = await waitForStorage(page, 'zy_cloud_meta_v1',
+    (raw) => Array.isArray(raw?.zy_cloud_meta_v1?.syncReceipts) && raw.zy_cloud_meta_v1.syncReceipts.length >= 1,
+    { timeout: 10000 })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForLocator(page, '[data-testid="cloud-relation-overview"]', { visible: true, timeout: 12000 })
 
   await page.locator('[data-testid="latest-sync-receipt-trigger"]').click()
   await waitForLocator(page, '.cscd .cct', { visible: true, timeout: 8000 })
@@ -3120,13 +3139,17 @@ await paOpen()
     count: document.querySelectorAll('.csh-item').length,
     note: (document.querySelector('.csh-note')?.textContent || '').replace(/\s+/g, ' ').trim(),
   }))
-  await page.locator('.csh-item').first().click()
-  await waitForLocator(page, '[data-testid="cloud-sync-receipt-modal"]', { visible: true, timeout: 6000 })
-  const historyReceiptRows = await page.locator('[data-testid="cloud-sync-receipt-modal"] .cct-row').count()
-  await page.locator('.md-panel').last().locator('.md-close').click()
-  await page.waitForSelector('[data-testid="cloud-sync-receipt-modal"]', { state: 'detached', timeout: 5000 })
-  await page.locator('.drawer .drawer-close').first().click()
-  await page.waitForSelector('.drawer', { state: 'detached', timeout: 5000 })
+  const historyItemReady = await waitForLocator(page, '.csh-item', { visible: true, timeout: 10000 })
+  let historyReceiptRows = -1
+  if (historyItemReady) {
+    await page.locator('.csh-item').first().click()
+    await waitForLocator(page, '[data-testid="cloud-sync-receipt-modal"]', { visible: true, timeout: 6000 })
+    historyReceiptRows = await page.locator('[data-testid="cloud-sync-receipt-modal"] .cct-row').count()
+    await page.locator('.md-panel').last().locator('.md-close').click()
+    await page.waitForSelector('[data-testid="cloud-sync-receipt-modal"]', { state: 'detached', timeout: 5000 })
+    await page.locator('.drawer .drawer-close').first().click()
+    await page.waitForSelector('.drawer', { state: 'detached', timeout: 5000 })
+  }
 
   await page.locator('[data-testid="topbar-cloud-sync-more"]').click()
   await waitForLocator(page, '.cloud-sync-panel', { visible: true, timeout: 4000 })
@@ -3152,7 +3175,7 @@ await paOpen()
       && settingsHistory.count >= 1 && settingsHistory.note.includes('最近 20 次')
       && settingsHistory.note.includes('最长 30 天') && historyReceiptRows === receipt.rows
       && topbarHistoryEntry === 1 && topbarHistoryCount >= 1,
-    `灯前=${JSON.stringify(cloudStatusBefore)} LED已退役=${cloudLedRetired} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后已同步=${cloudStatusAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后待同步=${cloudStatusAfterAction} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
+    `灯前=${JSON.stringify(cloudStatusBefore)} LED已退役=${cloudLedRetired} 待上传=${JSON.stringify(pendingDrawer)} 回执=${JSON.stringify(receipt)} 同步后已同步=${cloudStatusAfterSync} 行动=${JSON.stringify(receiptActionCheck)} 行动后待同步=${cloudStatusAfterAction} 回执持久化=${receiptPersisted} 最近=${JSON.stringify(latestReceiptDrawer)} 设置历史=${JSON.stringify(settingsHistory)}/${historyReceiptRows} 顶栏=${topbarHistoryEntry}/${topbarHistoryCount}`)
 
   // ══════════ E2E-57（V4.3.0）今日三件事复制 / AI 成功态 ══════════
   const copyTask = {
@@ -3635,7 +3658,9 @@ await paOpen()
   const nowDate = new Date()
   const todayKey = `${nowDate.getFullYear()}-${pad2(nowDate.getMonth() + 1)}-${pad2(nowDate.getDate())}`
   const monthPrefix = todayKey.slice(0, 7)
-  const futureDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), Math.min(nowDate.getDate() + 1, 28), 12)
+  /* 不能用“日和 28 取小”：28 号运行时会与 todayKey 重合，三个到期探针把今日三件事直接填满。
+     直接加一天，让 28→29、月末/年末都由 Date 自己进位。 */
+  const futureDate = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1, 12)
   const futureKey = `${futureDate.getFullYear()}-${pad2(futureDate.getMonth() + 1)}-${pad2(futureDate.getDate())}`
   await page.evaluate(async ({ todayKey, futureKey, monthPrefix }) => {
     const cur = await chrome.storage.local.get('zy_data_v2')
@@ -3747,25 +3772,51 @@ await paOpen()
   await page.locator('.md-close').click()
   await page.waitForSelector('.md-panel', { state: 'detached', timeout: 6000 })
   await page.waitForTimeout(250)
+  /* V4.7.8：拖拽改在周视图执行——月视图已按产品要求加高到 830–860px，
+     在 720px 视口里无法让清单行与今日格同时进入同一屏；周视图仍真实走同一条排期链路。 */
+  await visibleCalendar.locator('.cal-view-switch button').filter({ hasText: '周视图' }).click()
+  await visibleCalendar.locator('.cal-grid.is-week').waitFor({ state: 'visible', timeout: 5000 })
   const pendingRow = visibleCalendar.locator('.cal-pool-task').filter({ hasText: pendingTitle }).first()
   const todayCell = visibleCalendar.locator(`.cal-day[data-day="${todayKey}"]`)
   // 页面下方日期格可能仍在视口外，浏览器原生 dragTo 会被自动滚动中的相邻日期格截获；
   // 先滚到日期格，再用真实鼠标拖拽；两侧处于同一视口时 Chromium 才会派发完整 drag 链。
   await todayCell.scrollIntoViewIfNeeded()
   await pendingRow.scrollIntoViewIfNeeded()
-  const pendingRowBox = await pendingRow.boundingBox()
-  const todayCellBox = await todayCell.boundingBox()
+  let pendingRowBox = await pendingRow.boundingBox()
+  let todayCellBox = await todayCell.boundingBox()
   const viewport = page.viewportSize()
-  const dragVisible = !!pendingRowBox && !!todayCellBox && !!viewport
-    && pendingRowBox.y >= 0 && pendingRowBox.y + pendingRowBox.height <= viewport.height
-    && todayCellBox.y >= 0 && todayCellBox.y + todayCellBox.height <= viewport.height
-  if (!dragVisible) throw new Error('拖拽源或今日日期格不在同一视口内')
+  /* V4.7.8：任务日历月视图升到 830–860px 后，整块高度会大于 720px 视口；
+     真实鼠标拖拽只需要「起点与落点的中心」在视口内，不能再用整框可见作前置。 */
+  const centerVisible = (box) => !!box && !!viewport
+    && box.x + box.width / 2 >= 0 && box.x + box.width / 2 <= viewport.width
+    && box.y + box.height / 2 >= 0 && box.y + box.height / 2 <= viewport.height
+  if (viewport && pendingRowBox && todayCellBox && !(centerVisible(pendingRowBox) && centerVisible(todayCellBox))) {
+    const rowY = pendingRowBox.y + pendingRowBox.height / 2
+    const cellY = todayCellBox.y + todayCellBox.height / 2
+    const margin = 12
+    let delta = 0
+    if (rowY < margin) delta = margin - rowY
+    else if (rowY > viewport.height - margin) delta = viewport.height - margin - rowY
+    else if (cellY < margin) delta = margin - cellY
+    else if (cellY > viewport.height - margin) delta = viewport.height - margin - cellY
+    if (delta) {
+      await page.evaluate(d => window.scrollBy(0, d), delta)
+      await page.waitForTimeout(150)
+      pendingRowBox = await pendingRow.boundingBox()
+      todayCellBox = await todayCell.boundingBox()
+    }
+  }
+  const dragVisible = centerVisible(pendingRowBox) && centerVisible(todayCellBox)
+  if (!dragVisible) throw new Error('拖拽源或今日日期格的中心不在同一视口内')
   const dragHitTargets = await page.evaluate(({ rowBox, cellBox }) => ({
     row: document.elementFromPoint(rowBox.x + rowBox.width / 2, rowBox.y + rowBox.height / 2)
       ?.closest('.cal-pool-task')?.textContent?.replace(/\s+/g, ' ').trim() || '',
     cell: document.elementFromPoint(cellBox.x + cellBox.width / 2, cellBox.y + cellBox.height / 2)
       ?.closest('.cal-day')?.getAttribute('data-day') || '',
   }), { rowBox: pendingRowBox, cellBox: todayCellBox })
+  if (!dragHitTargets.row.includes(pendingTitle) || dragHitTargets.cell !== todayKey) {
+    throw new Error(`拖拽命中不正确：源=${JSON.stringify(dragHitTargets.row.slice(0, 40))} 格=${dragHitTargets.cell}`)
+  }
   await visibleCalendar.evaluate(root => {
     window.__e2eCalendarDrag = []
     for (const type of ['dragstart', 'dragenter', 'dragover', 'drop', 'dragend']) {
@@ -3973,6 +4024,13 @@ await paOpen()
     })
     data.topicResourceLinks = (data.topicResourceLinks || []).filter(link => link.topicId !== topicProbeId)
     data.dailyFocus = data.dailyFocus || {}
+    /* 本用例只验证“从空位选选题”。先移除今日到期卡，避免启动收敛把三个空位重新填满。 */
+    for (const task of data.tasks || []) {
+      if (task.dueDate === todayKey) {
+        task.dueDate = undefined
+        task.updatedAt = now
+      }
+    }
     data.dailyFocus[todayKey] = []
     data.focusMutedDate = todayKey
     data.focusAutoDate = todayKey
@@ -4212,10 +4270,15 @@ await paOpen()
   const v474NoLinkCard = page.locator('.pit-card').filter({ hasText: v474NoLinkTitle }).first()
   await pollUntil(async () => (await v474LinkedCard.count()) > 0 && (await v474NoLinkCard.count()) > 0, { timeout: 10000 })
   const v474ProfileBox = await page.locator('.pi-annual-heatmap').boundingBox()
+  const v474PulseBox = await page.locator('.pi-pulse').boundingBox().catch(() => null)
+  // V4.7.8：热力图下新增全库卡片总览，首屏契约改为「热力 + 总览先到位」；
+  // 时间轴移到总览之后，只要求真实存在于页面流并经滚动可见，不再要求首卡硬挤进 900px。
+  const v474Compact = !!v474ProfileBox && v474ProfileBox.y >= 0 && v474ProfileBox.y + v474ProfileBox.height < 900
+    && !!v474PulseBox && v474PulseBox.y < 900
+  await v474LinkedCard.scrollIntoViewIfNeeded()
   const v474FirstCardBox = await v474LinkedCard.boundingBox().catch(() => null)
-  // V4.7.6：原双栏概览退役为年度热力图，仍守“时间轴首卡底部进入 900px 首屏”。
-  const v474Compact = !!v474ProfileBox
-    && !!v474FirstCardBox && v474FirstCardBox.y + v474FirstCardBox.height < 900
+  const v474TimelineReachable = !!v474FirstCardBox
+    && v474FirstCardBox.y >= 0 && v474FirstCardBox.y + v474FirstCardBox.height <= 900
   const v474MetaHidden = await v474LinkedCard.evaluate(el => !el.textContent.includes('未关联项目') && !el.querySelector('.pit-card-meta'))
 
   await v474LinkedCard.click()
@@ -4276,11 +4339,11 @@ await paOpen()
     && v474Panorama.rows.length === v474LiveTaskCount
     && v474Panorama.groups.filter(text => text.includes('未归属项目')).length === 1
     && v474Panorama.rows.some(text => text.includes(v474OrphanTitle))
-  report('E2E-69 ★V4.7.4 画像首屏压缩后时间轴卡片仍在 1440×900 首屏内；资源卡单击开详情且详情隐藏项目/指标，双击取消详情并直达 URL；无链接只提示不回落详情；/compass?layer=6 展开战略骨架并列出全部任务与未归属组',
-    v474Compact && v474MetaHidden && v474DetailOpen && v474DetailTitle && v474ResourceAffiliationHidden
+  report('E2E-69 ★V4.7.8 重指：画像首屏由年度热力与全库卡片总览占据，时间轴卡片经滚动可达；资源卡单击开详情且详情隐藏项目/指标，双击取消详情并直达 URL；无链接只提示不回落详情；/compass?layer=6 展开战略骨架并列出全部任务与未归属组',
+    v474Compact && v474TimelineReachable && v474MetaHidden && v474DetailOpen && v474DetailTitle && v474ResourceAffiliationHidden
       && v474OpenedUrl.includes('/e2e/v474/timeline-link') && v474NoDetailAfterDbl
       && v474NoLinkToast && v474NoLinkNoDetail && v474PanoramaOk,
-    `首屏=${JSON.stringify(v474ProfileBox)} 卡片=${JSON.stringify(v474FirstCardBox)} 元信息隐藏=${v474MetaHidden} 单击详情=${v474DetailOpen}/${v474DetailTitle} 归属隐藏=${v474ResourceAffiliationHidden} 双击URL=${v474OpenedUrl} 双击无详情=${v474NoDetailAfterDbl} 空链提示=${v474NoLinkToast} 空链无详情=${v474NoLinkNoDetail} 全景=${JSON.stringify(v474Panorama)} 未归属组=${v474Panorama.groups.filter(text => text.includes('未归属项目')).length} 任务数=${v474Panorama.rows.length}/${v474LiveTaskCount}`)
+    `首屏=${JSON.stringify(v474ProfileBox)} 总览=${JSON.stringify(v474PulseBox)} 卡片=${JSON.stringify(v474FirstCardBox)} 时间轴可达=${v474TimelineReachable} 元信息隐藏=${v474MetaHidden} 单击详情=${v474DetailOpen}/${v474DetailTitle} 归属隐藏=${v474ResourceAffiliationHidden} 双击URL=${v474OpenedUrl} 双击无详情=${v474NoDetailAfterDbl} 空链提示=${v474NoLinkToast} 空链无详情=${v474NoLinkNoDetail} 全景=${JSON.stringify(v474Panorama)} 未归属组=${v474Panorama.groups.filter(text => text.includes('未归属项目')).length} 任务数=${v474Panorama.rows.length}/${v474LiveTaskCount}`)
 
   // ══════════ E2E-70（V4.7.6）热力图常驻与卡片分析聚合 ══════════
   await page.goto(base + '#/profile?view=timeline', { waitUntil: 'domcontentloaded' })
@@ -4299,8 +4362,15 @@ await paOpen()
   await waitForLocator(page, '.pit-card', { visible: true, timeout: 8000 })
   const pitButtons = await page.locator('.pit-filter button').allTextContents().catch(() => [])
   await page.locator('.pit-filter button').filter({ hasText: '三件事' }).click()
-  await waitForLocator(page, '.pit-card', { visible: true, timeout: 5000 })
-  const focusTimelineText = await page.locator('.pit-days').innerText().catch(() => '')
+  /* V4.7.8：切换筛选时旧 .pit-card 仍会在一帧内存在，直接等 .pit-card 会把“点击前”的
+     节点当成切换完成。先等 aria-pressed 真落到「三件事」，再读有记录或空态的真实内容。 */
+  const focusTimelineFilterActive = await pollUntil(async () => {
+    const label = await page.locator('.pit-filter button.on').innerText().catch(() => '')
+    return label.includes('三件事')
+  }, { timeout: 5000 })
+  const focusTimelineText = focusTimelineFilterActive
+    ? await page.locator('.pit-days, .pit-empty').first().innerText().catch(() => '')
+    : ''
   const shortcutGone = (await page.locator('.pit-shortcut').count()) === 0
   const timelineDetailTitle = v474LinkedTitle
   await page.locator('.pit-filter button').filter({ hasText: '资源' }).click()
@@ -4313,9 +4383,9 @@ await paOpen()
   const fullTimelineDetail = fullTimelineDrawer ? await fullTimelineDetailEl.innerText() : ''
   if (fullTimelineDrawer) await page.keyboard.press('Escape')
   report('E2E-71 ★V4.7.6 时间轴三件事专页保留，移除快捷键入口，单击进入完整卡片详情',
-    pitButtons.some(text => text.includes('三件事')) && focusTimelineText.includes('三件事') && shortcutGone
+    pitButtons.some(text => text.includes('三件事')) && focusTimelineFilterActive && focusTimelineText.includes('三件事') && shortcutGone
       && fullTimelineTitle && !fullTimelineDetail.includes('从画像回到工作面'),
-    `筛选项=${JSON.stringify(pitButtons)} 三件事=${focusTimelineText.slice(0, 120).replace(/\s+/g, ' ')} 快捷键=${shortcutGone} 详情=${fullTimelineDetail.slice(0, 180).replace(/\s+/g, ' ')}`)
+    `筛选项=${JSON.stringify(pitButtons)} 三件事筛选=${focusTimelineFilterActive} 内容=${focusTimelineText.slice(0, 120).replace(/\s+/g, ' ')} 快捷键=${shortcutGone} 详情=${fullTimelineDetail.slice(0, 180).replace(/\s+/g, ' ')}`)
 
   // ══════════ E2E-72（V4.7.6）紧凑主攻项目与右侧完整项目详情 ══════════
   await page.goto(base, { waitUntil: 'domcontentloaded' })

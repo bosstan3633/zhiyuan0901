@@ -24,7 +24,7 @@ import AiEntryButton from '@/shared/components/AiEntryButton.vue'
 import TaskAiMenu from '@/newtab/components/TaskAiMenu.vue'
 import { removeMetricWithConfirm } from '@/shared/utils/compassCrud'
 import { metricMaturity } from '@/shared/utils/maturity'
-import { toggleTaskStatus } from '@/shared/utils/taskStatus'
+import { isTaskDone, toggleTaskDone as toggleTaskDoneStatus } from '@/shared/utils/taskStatus'
 import {
   directionTermLabel,
   goalOfProject,
@@ -92,7 +92,7 @@ function tasksForMetric(metricId: string): TaskCard[] {
   return tasksForMetricId(d.value.tasks, metricId)
 }
 function metricPct(metricId: string): number {
-  return metricProgress(d.value.tasks, metricId)
+  return metricProgress(d.value.tasks, metricId, d.value)
 }
 
 /** R146：删指标并到真源（确认报数 + 3 秒撤销），与项目抽屉/调度台/方向树同一口径 */
@@ -392,7 +392,7 @@ function unbindTask(task: TaskCard) {
   showToast(`已从本指标移除：「${task.title.slice(0, 16)}」回到任务调度模块`)
 }
 function toggleTaskDone(task: TaskCard) {
-  toggleTaskStatus(task)
+  toggleTaskDoneStatus(d.value, task)
   store.persist()
 }
 
@@ -608,7 +608,7 @@ function addTaskFromHeader() {
                百分比 = 该指标下已完成任务数 ÷ 任务总数。分子分母同屏可见（"2/5"），
                但「完成」按什么判、软删任务算不算、跨指标任务算哪个——这三点必须说清，
                否则 60% 既不知道数的是谁，也不知道点了会看到什么。口径与 metricPct 同源，不另写一套。 -->
-          <span class="mh-meta" :title="`完成度 ${metricPct(m.id)}% = 已完成任务 ${tasksForMetric(m.id).filter(t=>t.status==='done').length} ÷ 本指标任务 ${tasksForMetric(m.id).length}（只数未删除且归属本指标的任务；已完成即状态为已完成，无权重差异）`">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>t.status==='done').length }}/{{ tasksForMetric(m.id).length }} 任务</span>
+          <span class="mh-meta" :title="`完成度 ${metricPct(m.id)}% = 已完成任务 ${tasksForMetric(m.id).filter(t=>isTaskDone(d, t)).length} ÷ 本指标任务 ${tasksForMetric(m.id).length}（只数未删除且归属本指标的任务；已完成即状态为已完成，无权重差异）`">{{ metricPct(m.id) }}% · {{ tasksForMetric(m.id).filter(t=>isTaskDone(d, t)).length }}/{{ tasksForMetric(m.id).length }} 任务</span>
           <MaturityBadge :m="metricMaturity(d, m)" />
           <span class="mh-acts">
             <button class="icon-btn-sm ai" title="AI 按本指标缺口建议近两周任务（勾选采纳才创建，可换执笔专家）" @click="aiChainAt('tasks', m.id)"><AiEntryButton /></button>
@@ -622,12 +622,12 @@ function addTaskFromHeader() {
           </span>
         </div>
         <div class="task-rows">
-          <div v-for="task in tasksForMetric(m.id)" :key="task.id" class="btask" :class="{done: task.status==='done', 'task-flash': taskFlashId === task.id}" draggable="true"
+          <div v-for="task in tasksForMetric(m.id)" :key="task.id" class="btask" :class="{done: isTaskDone(d, task), 'task-flash': taskFlashId === task.id}" draggable="true"
             :data-task-id="task.id"
             @dragstart="onTaskDragStart($event, task, m.id)" @dragend="onTaskDragEnd"
             @dragover.prevent.stop @drop.stop="onTaskDrop($event, task)">
             <span class="bdrag" title="拖拽排序 / 跨指标归属">⋮⋮</span>
-            <span class="bcheck" v-pressable :class="{done: task.status==='done'}" @click="toggleTaskDone(task)"><Icon v-if="task.status==='done'" name="check" :size="12"/></span>
+            <span class="bcheck" v-pressable :class="{done: isTaskDone(d, task)}" @click="toggleTaskDone(task)"><Icon v-if="isTaskDone(d, task)" name="check" :size="12"/></span>
             <span class="bt" v-pressable @click="openTaskDetail(task)" title="点击打开任务详情">{{ task.title }}</span>
             <AssetBadge v-if="task.assets?.length" :assets="task.assets" />
             <TaskAiMenu :task="task" @detail="openTaskDetail" />
@@ -657,11 +657,11 @@ function addTaskFromHeader() {
           <span class="mname">原指标已删除 · 可拖回任意指标或删除</span>
         </div>
         <div class="task-rows">
-          <div v-for="t in orphanTasks" :key="t.id" class="btask" :class="{done: t.status==='done', 'task-flash': taskFlashId === t.id}" draggable="true"
+          <div v-for="t in orphanTasks" :key="t.id" class="btask" :class="{done: isTaskDone(d, t), 'task-flash': taskFlashId === t.id}" draggable="true"
             :data-task-id="t.id"
             @dragstart="onTaskDragStart($event, t, '__orphan__')" @dragend="onTaskDragEnd" @dragover.prevent @drop="onTaskDrop($event, t)">
             <span class="bdrag" title="拖拽到指标归属">⋮⋮</span>
-            <span class="bcheck" v-pressable :class="{done: t.status==='done'}" @click="toggleTaskDone(t)"><Icon v-if="t.status==='done'" name="check" :size="13"/></span>
+            <span class="bcheck" v-pressable :class="{done: isTaskDone(d, t)}" @click="toggleTaskDone(t)"><Icon v-if="isTaskDone(d, t)" name="check" :size="13"/></span>
             <span class="bt" v-pressable @click="openTaskDetail(t)" title="点击打开任务详情">{{ t.title }}</span>
             <TaskAiMenu :task="t" @detail="openTaskDetail" />
             <button class="icon-btn-sm del" title="删除任务（进回收站）" @click="removeTask(t)"><Icon name="trash" :size="13"/></button>

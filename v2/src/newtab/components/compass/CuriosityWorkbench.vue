@@ -183,7 +183,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 </script>
 
 <template>
-  <div class="curio-workbench" :class="{ 'list-hidden': listCollapsed, 'is-timeline': viewMode === 'timeline' }">
+  <div class="curio-workbench" :class="{ 'list-hidden': listCollapsed, 'is-calendar': viewMode === 'calendar', 'is-timeline': viewMode === 'timeline' }">
     <header class="cw-toolbar">
       <label class="cw-search">
         <Icon name="search" :size="13" />
@@ -348,7 +348,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 </template>
 
 <style scoped>
-.curio-workbench { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.curio-workbench { --cw-calendar-height: 700px; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
 .cw-toolbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); }
 .cw-search { display: flex; flex: 1; min-width: 200px; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-3); }
 .cw-search input { flex: 1; min-width: 0; min-height: 31px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-caption); }
@@ -356,7 +356,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 .cw-view-switch { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .cw-view-switch button { min-height: 25px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text-3); font: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
 .cw-view-switch button.on { background: var(--accent-light); color: var(--accent-ink); }
-.cw-main { display: grid; grid-template-columns: minmax(250px, 310px) minmax(0, 1fr); gap: 10px; min-height: 580px; }
+.cw-main { display: grid; grid-template-columns: minmax(250px, 310px) minmax(0, 1fr); align-items: stretch; gap: 10px; min-height: 580px; }
 .curio-workbench.is-timeline .cw-main,
 .curio-workbench.is-timeline .cw-pool,
 .curio-workbench.is-timeline .cw-timeline { min-height: 420px; }
@@ -385,7 +385,7 @@ defineExpose({ resetForFresh, openDetail: (id: string) => {
 .cw-status.is-done { background: var(--tag-success-bg, #e8f5e9); color: var(--tag-success-text, #2e7d32); }
 .cw-date { display: inline-flex; align-items: center; gap: 3px; }
 .cw-date.scheduled { color: var(--accent-ink); }
-.cw-calendar { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
+.cw-calendar { display: flex; min-width: 0; min-height: var(--cw-calendar-height); flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface); }
 .cw-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; border-bottom: 1px solid var(--border); }
 .cw-cal-head b { display: block; color: var(--text); font-size: var(--fs-body); }
 .cw-cal-head span { display: block; margin-top: 2px; color: var(--text-3); font-size: var(--fs-micro); }

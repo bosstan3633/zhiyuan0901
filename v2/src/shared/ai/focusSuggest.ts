@@ -9,7 +9,8 @@
  * 否则它会在一长串任务标题里瞎点，还会顺手发明一个"进度 80%"。
  *
  * ★写入的边界（AI 不替决策，这条比排序本身重要）：
- *  - 只改 `dailyFocus[这一天]` 的**计划位**；任务卡状态与归属不动，计划执行日期随槽位同步到当天；
+ *  - 只改 `dailyFocus[这一天]` 的**计划位**；实际进入槽位的任务推进为进行中（已完成保持），
+ *    任务归属不动，计划执行日期随槽位同步到当天；
  *  - **用户手工选的那格永不覆盖**（`auto !== true` 即视为人定的），已勾完成的格也不动；
  *  - 同一天只在第一次打开时自动写一次（`focusAutoDate`），之后系统不再插手。
  *
@@ -20,7 +21,7 @@ import type { AiJob, AiRow } from './job'
 import type { AiDepth } from './config'
 import { chat, extractJson } from './llm'
 import { focusRankSystem, chainPersonaText } from './scenarios'
-import { suggestFocus, applyFocusOrder, type FocusCandidate } from '@/shared/utils/focusSuggest'
+import { suggestFocus, adoptFocusOrder, type FocusCandidate } from '@/shared/utils/focusSuggest'
 import { focusRecentDays, focusWindowTotals } from '@/shared/utils/focusHistory'
 
 export interface FocusSuggestCtx {
@@ -97,7 +98,7 @@ export function buildFocusSuggestJob(ctx: FocusSuggestCtx): AiJob | null {
     title: `今日三件事 · 排 ${ctx.anchorKey}`,
     subject: `📌 ${ctx.anchorKey} 的 ${limit} 格`,
     hint: '本地先按主攻项目 / 状态 / 顺延 / 到期筛出候选，模型只在这些候选里挑三件并各写一句"今天做它的理由"。' +
-      '采纳**只改这一天的计划位**：任务状态与归属不动，计划执行日期随槽位同步到当天；你自己选过的那格系统不覆盖。',
+      '实际进入今日三格的任务会推进到“进行中”，已完成不降级；计划执行日期随槽位同步到当天；你自己选过的那格系统不覆盖。',
     adoptLabel: '✓ 采纳为今日三件事',
     paneMode: 'context',
     promptScope: 'focus:rank', promptObject: ctx.anchorKey, promptObjectLabel: ctx.anchorKey,
@@ -134,10 +135,13 @@ export function buildFocusSuggestJob(ctx: FocusSuggestCtx): AiJob | null {
     apply: (rows) => {
       const ids = rows.map(r => (r.data as { __taskId?: string }).__taskId).filter((x): x is string => !!x)
       if (!ids.length) return '⚠ 没勾选任何候选，未改动'
-      const { changed } = applyFocusOrder(d, ctx.anchorKey, ids, limit)
+      const { changed, statusChanged } = adoptFocusOrder(d, ctx.anchorKey, ids, limit)
       d.focusAutoDate = ctx.anchorKey
       ctx.persist()
-      return changed ? `✓ 已按建议写入今日三件事（换动 ${changed} 格 · 你选的格子未动）` : 'ℹ 当前三格已与你勾选的一致（或都由你手工选定），未改动'
+      const statusTail = statusChanged ? ` · ${statusChanged} 项进入进行中` : ''
+      return changed
+        ? `✓ 已按建议写入今日三件事（换动 ${changed} 格${statusTail} · 你选的格子未动）`
+        : `ℹ 当前三格已与你勾选的一致（或都由你手工选定），未改动${statusTail}`
     },
   }
 }

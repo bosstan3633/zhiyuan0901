@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import Icon from '@/shared/components/Icon.vue'
 import type { TaskCard, TaskStatusDef } from '@/shared/models'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 
 const props = withDefaults(defineProps<{
   tasks: TaskCard[]
@@ -33,7 +34,7 @@ const grouped = computed(() => {
   const map: Record<string, TaskCard[]> = {}
   for (const column of columns.value) map[column.id] = []
   for (const task of props.tasks) {
-    const statusId = task.statusId || statusIdFor(task)
+    const statusId = taskStatusOf({ taskStatuses: props.statuses }, task)?.id
     if (statusId && map[statusId]) map[statusId].push(task)
   }
   for (const rows of Object.values(map)) {
@@ -65,12 +66,8 @@ function groupsInColumn(statusId: string): { key: string; name: string; tasks: T
   return out.filter(group => group.key === '__none__' || group.tasks.length > 0)
 }
 
-function statusIdFor(task: TaskCard): string {
-  return props.statuses.find(status => status.bucket === task.status)?.id || props.statuses[0]?.id || ''
-}
-
 function isDone(task: TaskCard): boolean {
-  return !!props.statuses.find(status => status.id === (task.statusId || statusIdFor(task)))?.terminal
+  return isTaskDone({ taskStatuses: props.statuses }, task)
 }
 
 function projectLabel(task: TaskCard): string {

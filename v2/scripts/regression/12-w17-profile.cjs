@@ -11,6 +11,7 @@ const PI_C = codeOnly(PI);
 const TAG_DRAWER = read('/newtab/components/profile/PiTagDistributionDrawer.vue');
 const OV = read('/newtab/components/profile/PiOverview.vue');
 const OV_C = codeOnly(OV);
+const PULSE = read('/newtab/components/profile/PiLibraryPulse.vue');
 const HERO = read('/newtab/components/profile/PiHero.vue');
 const HERO_C = codeOnly(HERO);
 const TODAY = read('/newtab/components/profile/PiToday.vue');
@@ -47,7 +48,7 @@ check('W17-19（V4.7.7 重指）★画像页不再承载主攻项目导航：旧
     && !HOST_C.includes('<ProjectDetailDrawer');
 });
 
-check('W17-20（V4.7.6 重指）★旧 PiRail 时间轨保持退役：宿主零挂载、样式零命中；观察范围改由时间轴 / 卡片分析导航，年度热力常驻，默认时间轴', () => {
+check('W17-20（V4.7.8 重指）★旧 PiRail 时间轨保持退役：宿主零挂载、样式零命中；观察范围改由时间轴 / 卡片分析导航，年度热力常驻，默认卡片分析', () => {
   /* read() 会聚合宿主与 composable；“谁持有状态、谁只负责挂载”必须读物理宿主。 */
   const HOST = fs.readFileSync(base + '/newtab/views/ProfileInsights.vue', 'utf8')
   return !HOST.includes('<PiRail') && !HOST.includes("from '@/newtab/components/profile/PiRail.vue'")
@@ -58,6 +59,8 @@ check('W17-20（V4.7.6 重指）★旧 PiRail 时间轨保持退役：宿主零�
     && HOST.includes('data-profile-view="timeline"')
     && HOST.includes('data-profile-view="analysis"')
     && HOST.includes("type ProfileView = 'timeline' | 'analysis'")
+    && HOST.includes("if (route.query.view === 'timeline') return 'timeline'")
+    && HOST.includes("return 'analysis'")
     && HOST.includes('<PiAnnualHeatmap')
     && !codeOnly(HOST).includes('<PiRangeTabs')
     && !codeOnly(HOST).includes('onRailJump') && !codeOnly(HOST).includes('railActive')
@@ -97,13 +100,16 @@ check('V3.9.7（V4.7.7 重指）★卡片分析首层为单面板自然高度，
     && OV.includes('class="pi-ov-mix"');
 });
 
-check('W18-2 ★V4.7.6 重指：画像观察范围默认时间轴，卡片分析按需切换，年度热力始终在场', () => {
+check('W18-2 ★V4.7.8 重指：画像观察范围默认卡片分析，时间轴按需切回，年度热力始终在场', () => {
   return PI.includes("type ProfileView = 'timeline' | 'analysis'")
-    && PI.includes("return 'timeline'")
+    && PI.includes("if (route.query.view === 'timeline') return 'timeline'")
+    && PI.includes("return 'analysis'")
     && PI.includes('data-profile-view="timeline"')
     && PI.includes('data-profile-view="analysis"')
     && PI.includes('<PiAnnualHeatmap')
-    && PI.includes('<PiCardAnalysis v-else');
+    // V4.7.8 重指备案：默认翻转为卡片分析；分析视图由 tabpanel 包裹，保留“按需切换 + 热力常驻”的原判据。
+    && PI.includes('id="pi-view-panel-analysis"')
+    && PI.includes('<PiCardAnalysis');
 });
 
 check('W18-3（V3.9.23 随迁）战报头部只保留查看全部记录与 Markdown / HTML 双导出：PNG 独立入口和菜单项退役，操作区位于标题左侧、关闭仍在最右', () => {
@@ -141,16 +147,16 @@ check('W18-4（V3.9.23 随迁）共享导出继续复用统一 HTML 文档壳：
 /* ============ V3.9.6 · 双口径「导 N」界面欠账收口 ============ */
 console.log('【V3.9.6 · 新增/导入双口径「导 N」界面徽标收口】');
 
-check('V3.9.6-1（V4.7.2 重指）「导 N」双口径徽标随 PiOverview 承接：PiToday 不再挂载后，今日导入数仍在产品使用状态段头可见，导入继承原创建时间、不混入今天新建。断言三段：① 宿主把 todayImportCount 传给 PiOverview ② PiOverview 以与 PiToday 同族的 pi-imp-badge 渲染「导 N」③ 徽标类名与样式仍在 CSS 里', () => {
-  const OVERVIEW = read('/newtab/components/profile/PiOverview.vue')
-  return PI.includes(':today-import="todayImportCount"')
-    && OVERVIEW.includes('todayImport: number')
-    && OVERVIEW.includes('class="pi-imp-badge"')
-    && OVERVIEW.includes('导 {{ todayImport }}')
+check('V3.9.6-1（V4.7.8 重指备案）「导 N」双口径徽标随全库卡片总览承接：PiOverview 不再挂载后，今日导入数仍在首屏可见，导入继承原创建时间、不混入今天新建。断言三段：① 宿主把 todayImportCount 传给 PiLibraryPulse ② 总览以与 PiToday 同族的 pi-imp-badge 渲染「导 N」③ 徽标类名与样式仍在 CSS 里', () => {
+  return PI.includes('<PiLibraryPulse') && PI.includes(':today-import="todayImportCount"')
+    && PULSE.includes('todayImport: number')
+    && PULSE.includes('class="pi-imp-badge')
+    && PULSE.includes('导 {{ todayImport }}')
     && !PI.includes('<PiToday')
-    && (OVERVIEW.match(/class="pi-imp-badge"/g) || []).length === 1
+    && !PI_C.includes('<PiOverview')
+    && (PULSE.match(/class="pi-imp-badge(?:\s|")/g) || []).length === 1
     && CSS.includes('.pi-imp-badge')
-    && OVERVIEW.includes('v-if="todayImport > 0"');
+    && PULSE.includes('v-if="todayImport > 0"');
 });
 
 check('V3.9.6-2 ★双口径不许被悄悄合并：「今日入台」计数仍按 createdAt（含导入卡的原创建时间），导入数单独由 importedAt 派生 —— 两者不得共用一个字段。负锚钉住：① todayImportCount 的过滤条件里必须有 importedAt ② 不得把 importedAt >= gStartOfToday 换成 createdAt（换了就等于把导入错记成今天新建，正是手册明文承诺不做的）', () => {
@@ -190,11 +196,12 @@ check('V3.9.7-2 ★指标明细点击不再去卡片池定位：任务开详情�
     && !fn.includes('router.push');
 });
 
-check('V3.9.7-3 ★标签分布开独立解释抽屉：指标定义 + 当前含义 + 下一步建议 + AI 治理入口，不弹 toast 了事', () => {
+check('V3.9.7-3（V4.7.8 重指备案）★标签分布开独立解释抽屉：指标定义 + 当前含义 + 下一步建议 + AI 治理入口，不弹 toast 了事；总览与抽屉的熵值统一覆盖资源 / 任务 / 好奇心 / 选题四类卡', () => {
   return PI_C.includes('const tagInsightOpen = ref(false)')
     && PI_C.includes("if (k === 'entropy') { void openTagDistribution(); return }")
     && PI.includes('<PiTagDistributionDrawer')
-    && PI.includes(':entropy="heroEntropy"')
+    && PI.includes(':entropy="libraryTagEntropy"')
+    && PI.includes(':curiosities="gCurioLive"') && PI.includes(':topics="gTopicLive"')
     && PI.includes('@optimize="runTagOptimizeAi"')
     && TAG_DRAWER.includes('title="标签分布 · 知识熵"')
     && TAG_DRAWER.includes('知识熵衡量标签在卡片上的分散程度')

@@ -142,6 +142,8 @@ const isEntry = (f) => {
 const RETAINED = {
   'newtab/components/profile/PiYear.vue':
     'V4.7.6 年度热力与生命周期分别迁入 PiAnnualHeatmap / PiCardAnalysis；保留一个版本用于旧年度布局与旧分片对照，**V4.8.0 复核**。',
+  'newtab/components/profile/PiOverview.vue':
+    'V4.7.8 卡片分析首层改为四卡页签，PiOverview 不再挂载；保留一个版本供旧分片读取其组件本体与口径对照，**V4.8.0 复核**（届时若旧分片已全部改指则删除）。',
   'newtab/components/profile/PiTimelineDrawer.vue':
     'V4.7.6 时间轴改开四类完整详情；摘要抽屉退役，保留一个版本用于迁移判据对照，**V4.8.0 复核**。',
 

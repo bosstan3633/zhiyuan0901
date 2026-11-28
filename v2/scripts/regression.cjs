@@ -117,6 +117,10 @@ const SHARDS = [
   '165-v476-profile-heatmap-analysis',
   '166-v476-focus-history-merge',
   '167-v477-profile-noise-resource-picker-topic-calendar',
+  '168-v478-profile-card-analysis',
+  '169-v478-focus-status-sync',
+  '170-v478-pool-calendar-timeline',
+  '171-v478-today-score',
 ];
 for (const s of SHARDS) require('./regression/' + s + '.cjs');
 

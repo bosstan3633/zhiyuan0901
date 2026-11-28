@@ -18,6 +18,7 @@ export { recordResourceOpen } from '@/shared/storage/stats'
 import { weekUsageOf } from '@/shared/storage/stats'
 import { getDataVersion, saveUIPrefs } from '@/shared/storage/repository'
 import { readEventLog, curioCumulativeSince, countCurioCumulative, type CardEvent } from '@/shared/utils/eventLog'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 
 /**
  * 方向台数据管理
@@ -149,7 +150,7 @@ export function useCompass() {
   function projectProgress(project: Project): { done: number; total: number; pct: number } {
     const metricIds = project.metrics.map(m => m.id)
     const tasks = projectTasksOf(project.id)
-    const done = tasks.filter(t => t.status === 'done').length
+    const done = tasks.filter(t => isTaskDone(d.value, t)).length
     const total = tasks.length
     const pct = total ? Math.round((done / total) * 100) : (project.progress || 0)
     return { done, total, pct }
@@ -160,7 +161,7 @@ export function useCompass() {
   function isProjectDone(project: Project): boolean {
     if (project.status === 'done' || project.status === 'archived') return true
     const tasks = projectTasksOf(project.id)
-    return tasks.length > 0 && tasks.every(t => t.status === 'done')
+    return tasks.length > 0 && tasks.every(t => isTaskDone(d.value, t))
   }
 
   /** R49-C2/C5：项目停滞判定（简版口径：有任务但近 14 天无推进/完成活动） */
@@ -168,7 +169,7 @@ export function useCompass() {
     const tasks = projectTasksOf(project.id)
     if (!tasks.length) return false
     const recent = tasks.some(t =>
-      t.status === 'doing' ||
+      taskStatusOf(d.value, t)?.bucket === 'doing' ||
       (t.updatedAt || 0) >= Date.now() - 14 * 86400_000 ||
       (t.completedAt || 0) >= Date.now() - 14 * 86400_000
     )
@@ -177,7 +178,7 @@ export function useCompass() {
 
   /** R49-C1：偏航行动 = 未关联项目（无 projectId）的活跃任务数（只读计算，不改写卡片） */
   function offCourseCount(): number {
-    return d.value.tasks.filter(t => !t.deletedAt && t.status !== 'done' && !t.projectId).length
+    return d.value.tasks.filter(t => !t.deletedAt && !isTaskDone(d.value, t) && !t.projectId).length
   }
 
   /** R50-F5：未归档任务口径（与 NorthStarPanel/O23 一致——项目存在 + 指标存在于该项目之下，缺一或失效即未归档） */
@@ -257,7 +258,7 @@ export function useCompass() {
     const categoryCount = d.value.categories.length
     const resourceCount = d.value.resources.filter(r => !r.deletedAt).length
     const tasks = d.value.tasks.filter(t => !t.deletedAt)
-    const doneTasks = tasks.filter(t => t.status === 'done').length
+    const doneTasks = tasks.filter(t => isTaskDone(d.value, t)).length
     const taskRate = tasks.length ? Math.round((doneTasks / tasks.length) * 100) : 0
 
     return {

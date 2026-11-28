@@ -31,10 +31,15 @@ function push(map: Map<string, TopicResourceLink[]>, key: string, link: TopicRes
 
 export function topicResourcesOf(data: AppData, topicId: string): Array<{ link: TopicResourceLink; resource: ResourceCard }> {
   const idx = buildTopicResourceIndex(data)
+  const resourceById = new Map(
+    (data.resources || [])
+      .filter(card => !card.deletedAt)
+      .map(card => [card.id, card] as const),
+  )
   return (idx.byTopic.get(topicId) || [])
     .map(link => ({
       link,
-      resource: (data.resources || []).find(card => !card.deletedAt && card.id === link.resourceId) || link.snapshot,
+      resource: resourceById.get(link.resourceId) || link.snapshot,
     }))
     .filter((row): row is { link: TopicResourceLink; resource: ResourceCard } => !!row.resource)
 }

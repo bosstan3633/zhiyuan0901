@@ -34,14 +34,14 @@ check('V431-1（V4.7.0 重指）月历只改计划日期：设置与取消都走
     && !calendar.includes('deletedAt');
 })
 
-check('V431-2 今日三件事按日期分开读状态：历史日期优先快照，今天优先任务卡当前状态，任务卡是唯一真源', () => {
+check('V431-2（V4.7.8 重指）今日三件事按日期分开读状态：历史日期优先快照，今天优先任务卡 statusId 真源桶（status 仅兼容镜像）', () => {
   const source = read('/newtab/views/useCompassHome.ts')
   const status = fnBody(source, 'function focusSlotStatus(', 'function focusSlotDone(')
   return status.includes("if (dateStr(todayDate.value) === todayKey.value)")
     && status.indexOf('const task = todayTaskForSlot(slot)') > status.indexOf('if (dateStr(todayDate.value)')
-    && status.includes('if (task) return task.status')
+    && status.includes("if (task) return taskStatusOf(d.value, task)?.bucket || 'todo'")
     && status.includes("return slot.statusSnapshot || (slot.done ? 'done' : 'todo')")
-    && status.indexOf('if (task) return task.status') < status.indexOf('return slot.statusSnapshot')
+    && status.indexOf("if (task) return taskStatusOf(d.value, task)?.bucket") < status.indexOf('return slot.statusSnapshot')
     && source.includes('const focusIsHistorical = computed(() => dateStr(todayDate.value) !== todayKey.value)');
 })
 
@@ -54,7 +54,9 @@ check('V431-3 历史日期只读；复制到今日保留完成状态与复选框
     && page.includes('v-if="focusIsHistorical"')
     && page.includes('复制到今日')
     && page.includes('历史快照')
-    && copy.includes('const status = focusSlotStatus(slot)')
+    && copy.includes('const status = task')
+    && copy.includes('taskStatusOf(d.value, task)?.bucket')
+    && copy.includes(': focusSlotStatus(slot)')
     && copy.includes('statusSnapshot: status')
     && copy.includes('copiedFrom: sourceKey')
     && copy.includes("done: status === 'done'")

@@ -23,9 +23,12 @@ import { addManualTopicFocus } from '@/shared/utils/focusSuggest'
 import { clearedFocusSlot, detachFocusTopicFromDate, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import type { AiJob } from '@/shared/ai/job'
 import type { AssetMeta, ResourceCard, TopicCard } from '@/shared/models'
-import { scheduleCardDate } from '@/shared/storage/planSchedule'
+import { planEventsOf, scheduleCardDate } from '@/shared/storage/planSchedule'
+import { buildFocusUsage, focusUsageOfCard } from '@/shared/analytics/focusUsage'
+import { hasUsableResourceLink } from '@/shared/analytics/cardInventory'
 import PlanScheduleHistory from './PlanScheduleHistory.vue'
 import CardResourcePickerModal from './CardResourcePickerModal.vue'
+import CardFocusHistory from './CardFocusHistory.vue'
 
 const router = useRouter()
 const store = useAppStore()
@@ -40,6 +43,8 @@ const metricId = ref('')
 const resourcePickerOpen = ref(false)
 const aiJob = shallowRef<AiJob | null>(null)
 const aiBusy = ref(false)
+type DetailFocus = 'all' | 'plan' | 'focus' | 'owner' | 'resources'
+const detailFocus = ref<DetailFocus>('all')
 
 function openFromId(id: string): void {
   const live = (d.value.topics || []).find(row => row.id === id && !row.deletedAt)
@@ -51,6 +56,7 @@ function openFromId(id: string): void {
   titleDraft.value = live.title
   projectId.value = live.projectId || ''
   metricId.value = live.metricId || ''
+  detailFocus.value = 'all'
   recordCardOpen(d.value, live)
   store.persistHot()
   open.value = true
@@ -86,6 +92,20 @@ const status = computed(() => topic.value ? topicStatusOf(d.value, topic.value.s
 const done = computed(() => isTopicDone(d.value, topic.value || undefined))
 const outcome = computed(() => topic.value ? topicOutcomeLink(topic.value) : null)
 const resourceRows = computed(() => topic.value ? topicResourcesOf(d.value, topic.value.id) : [])
+const effectiveResourceIds = computed(() =>
+  new Set((d.value.resources || [])
+    .filter(resource => !resource.deletedAt && hasUsableResourceLink(resource))
+    .map(resource => resource.id)))
+const effectiveSupportCount = computed(() =>
+  new Set(resourceRows.value
+    .filter(row => effectiveResourceIds.value.has(row.resource.id))
+    .map(row => row.resource.id)).size)
+const focusUsage = computed(() => {
+  if (!topic.value) return { count: 0, doneCount: 0, lastDate: '' }
+  return focusUsageOfCard(buildFocusUsage(d.value), 'topic', topic.value.id)
+})
+const planChanges = computed(() =>
+  topic.value ? planEventsOf(d.value, topic.value.id, 'topic').length : 0)
 
 function touch(): void {
   if (!topic.value) return
@@ -337,8 +357,27 @@ function fmt(ts?: number): string {
     </template>
 
     <div v-if="topic" class="topic-body">
+      <div class="topic-detail-summary" aria-label="选题详情汇总">
+        <button type="button" data-detail-filter="plan" :class="{ on: detailFocus === 'plan' }" @click="detailFocus = detailFocus === 'plan' ? 'all' : 'plan'">
+          <strong>{{ planChanges }}</strong><span>计划变更</span>
+        </button>
+        <button type="button" data-detail-filter="focus" :class="{ on: detailFocus === 'focus' }" @click="detailFocus = detailFocus === 'focus' ? 'all' : 'focus'">
+          <strong>{{ focusUsage.count }}</strong><span>进入三件事</span>
+        </button>
+        <button type="button" data-detail-filter="resources" :class="{ on: detailFocus === 'resources' }" @click="detailFocus = detailFocus === 'resources' ? 'all' : 'resources'">
+          <strong>{{ effectiveSupportCount }}</strong><span>有效资源</span>
+        </button>
+        <button type="button" data-detail-filter="owner" :class="{ on: detailFocus === 'owner' }" @click="detailFocus = detailFocus === 'owner' ? 'all' : 'owner'">
+          <strong>{{ projectId || metricId ? '已归属' : '未归属' }}</strong><span>项目 / 指标</span>
+        </button>
+      </div>
+      <div v-if="detailFocus !== 'all'" class="topic-detail-filter">
+        <span>当前只展开对应明细</span>
+        <button type="button" @click="detailFocus = 'all'">显示全部</button>
+      </div>
+
       <!-- V4.7.1：选题与任务同构——安排历程是首屏主模块，日期/状态与今日重点收进同一条编辑行。 -->
-      <section class="topic-plan topic-plan-hero">
+      <section v-show="detailFocus === 'all' || detailFocus === 'plan'" class="topic-plan topic-plan-hero">
         <PlanScheduleHistory :card-id="topic.id" card-kind="topic" :current-date="topic.dueDate" />
         <div class="topic-plan-edit">
           <label class="topic-field">
@@ -360,7 +399,11 @@ function fmt(ts?: number): string {
         </div>
       </section>
 
-      <section class="topic-outcome" :class="{ empty: !outcome }">
+      <section v-show="detailFocus === 'all' || detailFocus === 'focus'" class="topic-focus-section">
+        <CardFocusHistory :card-id="topic.id" card-kind="topic" />
+      </section>
+
+      <section v-show="detailFocus === 'all'" class="topic-outcome" :class="{ empty: !outcome }">
         <header>
           <div>
             <span class="topic-outcome-kicker"><Icon name="external" :size="13" /> 成果出口</span>
@@ -388,7 +431,7 @@ function fmt(ts?: number): string {
         <small>双击选题卡可直接打开这里；支持互联网链接与本地 Obsidian URI。</small>
       </section>
 
-      <section class="topic-owner">
+      <section v-show="detailFocus === 'all' || detailFocus === 'owner'" class="topic-owner">
         <label class="topic-field">
           <span><Icon name="package" :size="13" /> 项目</span>
           <select v-model="projectId" @change="changeProject">
@@ -405,11 +448,11 @@ function fmt(ts?: number): string {
         </label>
       </section>
 
-      <button class="topic-pano-link" type="button" :disabled="!projectId" @click="goProjectPano">
+      <button v-show="detailFocus === 'all' || detailFocus === 'owner'" class="topic-pano-link" type="button" :disabled="!projectId" @click="goProjectPano">
         <Icon name="compass" :size="13" /> 查看项目全景
       </button>
 
-      <section class="topic-resource-core">
+      <section v-show="detailFocus === 'all' || detailFocus === 'resources'" class="topic-resource-core">
         <header class="topic-section-head">
           <div>
             <b><Icon name="compass" :size="14" /> 关联资源卡</b>
@@ -487,25 +530,37 @@ function fmt(ts?: number): string {
 <style scoped>
 .topic-title-wrap { display: flex; width: 100%; min-width: 0; flex-direction: column; gap: 8px; }
 .topic-title-row { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-.topic-done { width: 24px; height: 24px; flex: none; margin-top: 3px; border: 2px solid var(--border-strong); border-radius: 7px; background: var(--surface); color: #fff; cursor: pointer; }
+.topic-done { width: 24px; height: 24px; flex: none; margin-top: 3px; border: 2px solid var(--border-strong); border-radius: 7px; background: var(--surface); color: var(--on-accent); cursor: pointer; }
 .topic-done.done { border-color: var(--success); background: var(--success); }
 .topic-title { flex: 1; min-width: 0; min-height: 62px; resize: none; border: 0; outline: 0; background: transparent; color: var(--text); font-family: inherit; font-size: 18px; font-weight: 700; line-height: 1.55; }
 .topic-kicker { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding-left: 34px; }
-.topic-kind { padding: 2px 7px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
-.topic-status-pill { padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--topic-color) 48%, var(--border)); border-radius: 99px; background: color-mix(in srgb, var(--topic-color) 12%, var(--surface)); color: var(--topic-color); font-size: var(--fs-micro); font-weight: 650; }
+.topic-kind { padding: 2px 7px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 700; }
+.topic-status-pill { padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--topic-color) 48%, var(--border)); border-radius: var(--radius-full); background: color-mix(in srgb, var(--topic-color) 12%, var(--surface)); color: var(--topic-color); font-size: var(--fs-micro); font-weight: 650; }
 .topic-body { display: flex; flex-direction: column; gap: 16px; }
+.topic-detail-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--border); }
+.topic-detail-summary button { min-width: 0; min-height: 54px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 1px; padding: 7px 9px; border: 0; background: var(--surface-2); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.topic-detail-summary button:hover { background: color-mix(in srgb, var(--accent-light) 32%, var(--surface)); }
+.topic-detail-summary button.on { background: var(--accent-light); box-shadow: inset 0 -2px 0 var(--accent); }
+.topic-detail-summary button:focus-visible,
+.topic-detail-filter button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.topic-detail-summary strong { max-width: 100%; overflow: hidden; color: var(--text); font-size: var(--fs-sub); line-height: 1.2; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.topic-detail-summary span { color: var(--text-3); font-size: var(--fs-micro); white-space: nowrap; }
+.topic-detail-filter { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: -10px; color: var(--text-4); font-size: var(--fs-micro); }
+.topic-detail-filter button { padding: 2px 0; border: 0; background: transparent; color: var(--accent-ink); font: inherit; font-size: var(--fs-micro); font-weight: 650; cursor: pointer; }
+.topic-detail-filter button:hover { text-decoration: underline; }
+.topic-focus-section { padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--surface-2) 68%, var(--surface)); }
 .topic-outcome { padding: 14px; border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border)); border-radius: var(--radius-xl); background: linear-gradient(135deg, color-mix(in srgb, var(--accent-light) 72%, var(--surface)), var(--surface)); box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 10%, transparent); }
 .topic-outcome.empty { border-color: var(--border); background: var(--surface-2); box-shadow: none; }
 .topic-outcome header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .topic-outcome header > div { display: flex; flex-direction: column; gap: 3px; }
 .topic-outcome-kicker { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-ink); font-size: var(--fs-micro); font-weight: 750; letter-spacing: .08em; }
 .topic-outcome header b { color: var(--text); font-size: var(--fs-title); }
-.topic-outcome-kind { flex: none; padding: 3px 8px; border-radius: 99px; background: var(--accent); color: #fff; font-size: var(--fs-micro); font-weight: 700; }
+.topic-outcome-kind { flex: none; padding: 3px 8px; border-radius: var(--radius-full); background: var(--accent); color: var(--on-accent); font-size: var(--fs-micro); font-weight: 700; }
 .topic-outcome-kind.empty { background: var(--surface-3); color: var(--text-3); }
 .topic-outcome-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 36px; gap: 7px; margin-top: 11px; }
 .topic-outcome-row input { min-width: 0; min-height: 40px; padding: 8px 11px; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); border-radius: 10px; outline: 0; background: var(--surface); color: var(--text); font-family: inherit; font-size: var(--fs-sub); }
 .topic-outcome-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.topic-outcome-open, .topic-outcome-copy { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
+.topic-outcome-open, .topic-outcome-copy { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 5px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: var(--on-accent); font-family: inherit; font-size: var(--fs-caption); font-weight: 700; cursor: pointer; }
 .topic-outcome-copy { width: 36px; padding: 0; border-color: var(--border); background: var(--surface); color: var(--text-2); }
 .topic-outcome-open:disabled, .topic-outcome-copy:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 .topic-outcome small { display: block; margin-top: 7px; color: var(--text-3); font-size: var(--fs-micro); }
@@ -554,7 +609,7 @@ function fmt(ts?: number): string {
 .topic-resource-main { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; font-family: inherit; cursor: pointer; }
 .topic-resource-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sub); }
 .topic-resource-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); font-size: var(--fs-micro); }
-.topic-ai-tag { padding: 1px 6px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); }
+.topic-ai-tag { padding: 1px 6px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-ink); font-size: var(--fs-micro); }
 .topic-unlink { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); cursor: pointer; }
 .topic-unlink:hover { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); }
 .topic-resource-empty { padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); color: var(--text-3); font-size: var(--fs-caption); line-height: 1.65; }
@@ -570,9 +625,9 @@ function fmt(ts?: number): string {
 .topic-assets { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
 .topic-assets summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--text-2); font-size: var(--fs-caption); }
 .topic-assets summary > span:first-child { display: inline-flex; align-items: center; gap: 5px; }
-.topic-assets summary em { padding: 0 5px; border-radius: 99px; background: var(--accent-light); color: var(--accent-ink); font-style: normal; }
+.topic-assets summary em { padding: 0 5px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-ink); font-style: normal; }
 .topic-foot { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; }
-.topic-save { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #fff; font-family: inherit; font-size: var(--fs-sub); font-weight: 650; cursor: pointer; }
+.topic-save { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: var(--on-accent); font-family: inherit; font-size: var(--fs-sub); font-weight: 650; cursor: pointer; }
 @media (max-width: 640px) {
   .topic-owner, .topic-plan { grid-template-columns: 1fr; }
   .topic-focus-link { margin-left: 0; }

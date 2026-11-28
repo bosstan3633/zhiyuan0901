@@ -22,6 +22,12 @@ import {
 } from './focusSlots'
 import { focusCarried, focusPlannedCounts } from '@/shared/utils/focusHistory'
 import { isTopicDone, markTopicInProgress } from './topicStatus'
+import {
+  enterFocusTaskStatus,
+  isTaskDone,
+  taskStatusOf,
+  type FocusTaskStatusWrite,
+} from './taskStatus'
 
 const DAY_MS = 86_400_000
 
@@ -50,7 +56,7 @@ function buildProjIndex(d: AppData): Map<string, ProjCtx> {
   for (const dir of d.compass.directions) {
     for (const p of dir.projects) {
       const own = d.tasks.filter(t => !t.deletedAt && t.projectId === p.id)
-      const todo = own.filter(t => t.status === 'todo').length
+      const todo = own.filter(t => taskStatusOf(d, t)?.bucket === 'todo').length
       // 指标缺口：该指标 taskIds 里仍在任务库且未完成的条数
       let metricTitle = ''
       let metricTodo = 0
@@ -81,7 +87,7 @@ export function suggestFocus(d: AppData, opts: FocusSuggestOpts): FocusCandidate
   const out: FocusCandidate[] = []
 
   for (const t of d.tasks) {
-    if (t.deletedAt || t.status === 'done' || exclude.has(t.id)) continue
+    if (t.deletedAt || isTaskDone(d, t) || exclude.has(t.id)) continue
     const pc = t.projectId ? projs.get(t.projectId) : undefined
     const facts: string[] = []
     let score = 0
@@ -96,7 +102,7 @@ export function suggestFocus(d: AppData, opts: FocusSuggestOpts): FocusCandidate
       facts.push(`项目「${pc.proj.name}」还有 ${pc.todo} 件未开始`)
     }
 
-    if (t.status === 'doing') { score += 22; facts.push('已在进行中，接着做成本最低') }
+    if (taskStatusOf(d, t)?.bucket === 'doing') { score += 22; facts.push('已在进行中，接着做成本最低') }
 
     const lastPlan = carried.get(t.id)
     if (lastPlan) {
@@ -168,18 +174,31 @@ export function syncFocusTasksToSchedule(
   return changed
 }
 
-/** 进入今日三件事即视为“正在推进”：待开始 → 进行中，已完成保持完成。 */
-function markFocusTaskDoing(task: TaskCard, stamp = Date.now()): boolean {
-  if (task.deletedAt || task.status === 'done' || task.status === 'doing') return false
-  task.status = 'doing'
-  task.completedAt = undefined
-  task.statusBeforeDone = undefined
-  task.updatedAt = stamp
-  return true
-}
-
 function markFocusTopicDoing(d: AppData, topic: TopicCard, stamp = Date.now()): boolean {
   return markTopicInProgress(d, topic, stamp)
+}
+
+/**
+ * 实际占据今日三格的任务统一进入进行中。
+ *
+ * 自动推荐、到期补槽和启动收敛都必须在落槽后走这里，不再区分“系统推荐”与
+ * “用户手动选择”；已完成保持完成，已在 doing 桶不重复写。
+ */
+export function advanceFocusTaskStatuses(
+  d: AppData,
+  anchorKey: string,
+  slots: Array<FocusSlot | undefined> | undefined = d.dailyFocus?.[anchorKey],
+  stamp = Date.now(),
+): number {
+  const byId = new Map(d.tasks.filter(task => !task.deletedAt).map(task => [task.id, task]))
+  let changed = 0
+  const liveSlots = (slots || []).filter((slot): slot is FocusSlot => !!slot)
+  for (const slot of activeFocusSlots(liveSlots)) {
+    if (slot.sourceType !== 'task' || !slot.sourceId) continue
+    const task = byId.get(slot.sourceId)
+    if (task && enterFocusTaskStatus(d, task, stamp).changed) changed++
+  }
+  return changed
 }
 
 function localDateKey(now = new Date()): string {
@@ -195,6 +214,8 @@ function localDateKey(now = new Date()): string {
  * - 已在今日槽位的卡，计划执行日期统一写回今天；
  * - 已排到今天的卡，有空槽就补入，没有空槽就撤掉今天的计划日期；
  * - 同一卡重复占多个槽时只保留第一格，其余槽位写墓碑。
+ * - 自动补入的格子显式标 `auto: true`；实际占据槽位的任务统一推进为进行中，
+ *   已完成保持完成，选题状态仍只由用户手动入口推进。
  */
 export function reconcileTodayFocusSchedule(
   d: AppData,
@@ -231,8 +252,7 @@ export function reconcileTodayFocusSchedule(
         task.updatedAt = stamp
         changed++
       }
-      if (markFocusTaskDoing(task, stamp)) changed++
-      const done = task.status === 'done'
+      const done = isTaskDone(d, task)
       if (slot.done !== done || slot.text !== task.title) {
         slot.done = done
         slot.doneAt = done ? (task.completedAt || slot.doneAt || stamp) : undefined
@@ -252,7 +272,6 @@ export function reconcileTodayFocusSchedule(
         topic.updatedAt = stamp
         changed++
       }
-      if (markFocusTopicDoing(d, topic, stamp)) changed++
       const done = isTopicDone(d, topic)
       if (slot.done !== done || slot.text !== topic.title) {
         slot.done = done
@@ -281,14 +300,8 @@ export function reconcileTodayFocusSchedule(
       continue
     }
     const done = entry.type === 'task'
-      ? (entry.card as TaskCard).status === 'done'
+      ? isTaskDone(d, entry.card as TaskCard)
       : isTopicDone(d, entry.card as TopicCard)
-    if (!done) {
-      const marked = entry.type === 'task'
-        ? markFocusTaskDoing(entry.card as TaskCard, stamp)
-        : markFocusTopicDoing(d, entry.card as TopicCard, stamp)
-      if (marked) changed++
-    }
     cells[free] = {
       id: uid('focus'),
       slotIndex: free as 0 | 1 | 2,
@@ -297,12 +310,14 @@ export function reconcileTodayFocusSchedule(
       text: entry.card.title,
       done,
       doneAt: done ? entry.card.completedAt : undefined,
+      auto: true,
       updatedAt: stamp,
     }
     seen.add(`${entry.type}:${entry.card.id}`)
     changed++
   }
 
+  changed += advanceFocusTaskStatuses(d, anchorKey, cells, stamp)
   if (changed) {
     d.dailyFocus[anchorKey] = cells.map((slot, index) => {
       if (!slot) return clearedFocusSlot(index)
@@ -319,9 +334,15 @@ export function reconcileTodayFocusSchedule(
  * 分成两处就会出现"本地会守的边界，AI 那条忘了守"。
  * 规则：`auto !== true` 的格子（用户自己选的）与已勾完成的格子**原位原样保留**；
  * 其余格子按传入顺序重填，顺序用完还剩的推荐位保留原任务（AI 只给两条时第三格不清空）。
- * @returns changed = 真正被换掉的格数（0 = 顺序本就一致，或三格都由用户定着）
+ * 落槽后，槽内所有未完成任务统一推进为进行中。
+ * @returns changed = 真正被换掉的格数；statusChanged = 本次由待开始推进到进行中的任务数
  */
-export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: string[], limit = FOCUS_LIMIT): { changed: number } {
+export function applyFocusOrder(
+  d: AppData,
+  anchorKey: string,
+  orderedIds: string[],
+  limit = FOCUS_LIMIT,
+): { changed: number; statusChanged: number } {
   if (!d.dailyFocus) d.dailyFocus = {}
   const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
   const used = new Set<string>()
@@ -339,13 +360,15 @@ export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: strin
     if (!id) continue
     if (s && !s.cleared) detachFocusSourceFromDate(d, anchorKey, s.sourceType, s.sourceId)
     const task = byId.get(id)!
+    const done = isTaskDone(d, task)
     next[index] = {
       id: s?.id || uid('focus'),
       slotIndex: index as 0 | 1 | 2,
       sourceType: 'task',
       sourceId: id,
       text: task.title,
-      done: false,
+      done,
+      doneAt: done ? task.completedAt : undefined,
       auto: true,
       updatedAt: Date.now(),
     }
@@ -355,23 +378,39 @@ export function applyFocusOrder(d: AppData, anchorKey: string, orderedIds: strin
     if (slot) return { ...slot, slotIndex: index as 0 | 1 | 2 }
     return clearedFocusSlot(index)
   })
+  const statusChanged = advanceFocusTaskStatuses(d, anchorKey, d.dailyFocus[anchorKey])
   syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
-  return { changed }
+  return { changed, statusChanged }
+}
+
+/**
+ * 用户明确采纳推荐时的唯一落笔口。
+ *
+ * 与自动推荐共用 `applyFocusOrder()` 的落槽与状态收敛：实际进入三格的任务
+ * 都会推进为进行中，已完成不降级；本函数只额外返回本次状态推进数。
+ */
+export function adoptFocusOrder(
+  d: AppData,
+  anchorKey: string,
+  orderedIds: string[],
+  limit = FOCUS_LIMIT,
+): { changed: number; statusChanged: number } {
+  return applyFocusOrder(d, anchorKey, orderedIds, limit)
 }
 
 export type ManualFocusResult =
-  | { status: 'added'; index: number }
-  | { status: 'replaced'; index: number }
-  | { status: 'exists'; index: number }
+  | { status: 'added'; index: number; statusWrite?: FocusTaskStatusWrite }
+  | { status: 'replaced'; index: number; statusWrite?: FocusTaskStatusWrite }
+  | { status: 'exists'; index: number; statusWrite?: FocusTaskStatusWrite }
   | { status: 'full' }
   | { status: 'invalid' }
 
 /**
  * 用户从任务菜单或详情主动选择“设为今日重点”。
  *
- * 与 AI 推荐严格分开：写入手动格（auto 不置 true），已有三格时由调用方让用户选择
- * 要替换哪一格，再带着 slotIndex 二次调用。任务状态与归属不改；计划执行日期与
- * 今日三件事保持同源，进入槽位即落图到当天。
+ * 与 AI 推荐保留来源区分（写入手动格，`auto` 不置 true），已有三格时由调用方让用户选择
+ * 要替换哪一格，再带着 slotIndex 二次调用。进入槽位即推进任务状态（已完成保持完成，
+ * 已在 doing 桶不重复写）；状态写入痕迹供手动入口显式撤销，计划执行日期与三件事同源。
  */
 export function addManualFocus(
   d: AppData,
@@ -381,33 +420,68 @@ export function addManualFocus(
   limit = FOCUS_LIMIT,
 ): ManualFocusResult {
   const task = d.tasks.find(row => !row.deletedAt && row.id === taskId)
-  if (!task || task.status === 'done') return { status: 'invalid' }
+  if (!task) return { status: 'invalid' }
   if (!d.dailyFocus) d.dailyFocus = {}
   const cells = normalizedFocusSlots(d.dailyFocus[anchorKey]).slice(0, limit)
   const existing = cells.findIndex(slot => !!slot && !slot.cleared && slot.sourceType === 'task' && slot.sourceId === taskId)
   if (existing >= 0) {
-    if (task.dueDate !== anchorKey) scheduleCardDate(d, task, anchorKey, { source: 'focus' })
-    if (markFocusTaskDoing(task)) d.dailyFocus[anchorKey] = normalizedFocusSlots(d.dailyFocus[anchorKey]).map((cell, index) => cell
+    const stamp = Date.now()
+    const statusWrite = enterFocusTaskStatus(d, task, stamp)
+    const done = isTaskDone(d, task)
+    if (task.dueDate !== anchorKey) scheduleCardDate(d, task, anchorKey, { source: 'focus', at: stamp })
+    const slot = cells[existing]!
+    cells[existing] = {
+      ...slot,
+      text: task.title,
+      done,
+      doneAt: done ? (task.completedAt || slot.doneAt) : undefined,
+      auto: undefined,
+      updatedAt: stamp,
+    }
+    d.dailyFocus[anchorKey] = cells.map((cell, index) => cell
       ? { ...cell, slotIndex: index as 0 | 1 | 2 }
       : clearedFocusSlot(index))
     syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
-    return { status: 'exists', index: existing }
+    return { status: 'exists', index: existing, statusWrite }
   }
 
+  const requested = Number.isInteger(slotIndex) && (slotIndex as number) >= 0 && (slotIndex as number) < limit
+    ? (slotIndex as number)
+    : -1
+  const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
+  if (requested < 0 && freeIndex < 0) return { status: 'full' }
+
+  const stamp = Date.now()
+  const statusWrite = enterFocusTaskStatus(d, task, stamp)
+  const done = isTaskDone(d, task)
   const slot: FocusSlot = {
     id: uid('focus'),
     slotIndex: 0,
     sourceType: 'task',
     sourceId: task.id,
     text: task.title,
-    done: false,
-    updatedAt: Date.now(),
+    done,
+    doneAt: done ? task.completedAt : undefined,
+    updatedAt: stamp,
   }
 
-  const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
+  if (requested >= 0) {
+    const previous = cells[requested]
+    if (previous && !previous.cleared) {
+      detachFocusSourceFromDate(d, anchorKey, previous.sourceType, previous.sourceId)
+    }
+    scheduleCardDate(d, task, anchorKey, { source: 'focus', at: stamp })
+    slot.slotIndex = requested as 0 | 1 | 2
+    cells[requested] = slot
+    d.dailyFocus[anchorKey] = cells.map((cell, i) => cell
+      ? { ...cell, slotIndex: i as 0 | 1 | 2 }
+      : clearedFocusSlot(i))
+    syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
+    return { status: previous && !previous.cleared ? 'replaced' : 'added', index: requested, statusWrite }
+  }
+
   if (freeIndex >= 0) {
-    markFocusTaskDoing(task)
-    scheduleCardDate(d, task, anchorKey, { source: 'focus' })
+    scheduleCardDate(d, task, anchorKey, { source: 'focus', at: stamp })
     const index = Math.min(freeIndex, limit - 1)
     slot.slotIndex = index as 0 | 1 | 2
     cells[index] = slot
@@ -415,23 +489,10 @@ export function addManualFocus(
       ? { ...cell, slotIndex: i as 0 | 1 | 2 }
       : clearedFocusSlot(i))
     syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
-    return { status: 'added', index }
+    return { status: 'added', index, statusWrite }
   }
 
-  if (slotIndex === undefined || slotIndex < 0 || slotIndex >= limit) return { status: 'full' }
-  const previous = cells[slotIndex]
-  if (previous && !previous.cleared) {
-    detachFocusSourceFromDate(d, anchorKey, previous.sourceType, previous.sourceId)
-  }
-  markFocusTaskDoing(task)
-  scheduleCardDate(d, task, anchorKey, { source: 'focus' })
-  slot.slotIndex = slotIndex as 0 | 1 | 2
-  cells[slotIndex] = slot
-  d.dailyFocus[anchorKey] = cells.map((cell, i) => cell
-    ? { ...cell, slotIndex: i as 0 | 1 | 2 }
-    : clearedFocusSlot(i))
-  syncFocusTasksToSchedule(d, anchorKey, d.dailyFocus[anchorKey])
-  return { status: 'replaced', index: slotIndex }
+  return { status: 'full' }
 }
 
 /** 选题卡进入今日重点：与任务卡共用三槽、排期同源，但状态走用户自定义的终止态。 */

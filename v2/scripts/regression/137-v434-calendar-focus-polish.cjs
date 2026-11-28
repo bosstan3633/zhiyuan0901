@@ -20,11 +20,16 @@ check('V434-1（V4.7.0 重指）左侧任务清单吃上方筛选结果：默认
     && calendar.includes("{{ task.dueDate ? `落图 ${friendlyDate(task.dueDate)}` : '未落图' }}")
 })
 
-check('V434-2（V4.7.0 重指）今日三件事与今日日历严格同源：进入槽位与日历排期统一走 scheduleCardDate；满额拒绝第 4 项，不落图也不覆盖', () => {
+check('V434-2（V4.7.8 重指）今日三件事与今日日历严格同源：槽位/日历统一走 addManualFocus 与 scheduleCardDate；满额拒绝第 4 项、不落图也不覆盖；完成态由真源桶判定不降级', () => {
   const util = codeOnly(read('/shared/utils/focusSuggest.ts'))
+  const taskStatus = codeOnly(read('/shared/utils/taskStatus.ts'))
   const home = codeOnly(read('/newtab/views/useCompassHome.ts'))
   const drawer = codeOnly(read('/newtab/components/compass/TaskDetailDrawer.vue'))
   const manager = codeOnly(read('/newtab/components/compass/useTaskManagerPanel.ts'))
+  const addManual = util.slice(
+    util.indexOf('export function addManualFocus('),
+    util.indexOf('/** 选题卡进入今日重点'),
+  )
   const slotPicker = home.slice(
     home.indexOf('function selectTaskForSlot('),
     home.indexOf('type FocusPickerCandidate'),
@@ -33,27 +38,29 @@ check('V434-2（V4.7.0 重指）今日三件事与今日日历严格同源：进
     home.indexOf('async function setTaskWorkDue('),
     home.indexOf('function clearTaskWorkDue('),
   )
-  const fullGuard = home.slice(
-    home.indexOf("if (result.status === 'full')"),
-    home.indexOf('if (dateChanged)', home.indexOf("if (result.status === 'full')")),
+  const fullGuard = dueSetter.slice(
+    dueSetter.indexOf("if (result.status === 'full')"),
+    dueSetter.indexOf('const dateChanged'),
   )
   return util.includes('export function syncFocusTasksToSchedule(')
     && util.includes('task.dueDate = anchorKey')
     && (util.match(/syncFocusTasksToSchedule\(d, anchorKey/g) || []).length >= 3
     && home.includes('const synced = syncFocusTasksToSchedule(d.value, key)')
-    && home.includes('if (task.dueDate !== key) {')
     && !!slotPicker
-    && slotPicker.includes("scheduleCardDate(d.value, task, key, { source: 'focus' })")
+    && slotPicker.includes('const result = addManualFocus(d.value, key, task.id, pickerSlot.value)')
     && !slotPicker.includes('task.dueDate = key')
     && !!dueSetter
+    && dueSetter.includes('const result = addManualFocus(d.value, today, task.id)')
     && dueSetter.includes("scheduleCardDate(d.value, task, date, { source: 'calendar' })")
     && !dueSetter.includes('task.dueDate = date')
     && home.includes('const today = todayKey.value')
-    && home.includes("if (date === today && task.status === 'done' && !priorFocusSlot)")
-    && home.includes("if (date === today && task.status !== 'done')")
-    && home.includes('const result = addManualFocus(d.value, today, task.id)')
+    && !dueSetter.includes('task.status =')
     && home.includes('今日三件事已满（3/3）；今日日历与三件事严格同源，未安排第 4 项')
     && !!fullGuard && !fullGuard.includes('scheduleCardDate(')
+    && !!addManual
+    && addManual.includes("if (requested < 0 && freeIndex < 0) return { status: 'full' }")
+    && addManual.includes("if (task.dueDate !== anchorKey) scheduleCardDate(d, task, anchorKey, { source: 'focus', at: stamp })")
+    && taskStatus.includes("if (!current || current.bucket === 'done' || current.bucket === 'doing')")
     && home.includes("if (date === today && focusResult === 'exists')")
     && home.includes('removedFocus = clearTaskFromFocusDay(today, taskId, false)')
     && (home.match(/result\.status === 'exists'[\s\S]{0,160}store\.persist\(\)/g) || []).length >= 1

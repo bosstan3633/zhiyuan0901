@@ -5,6 +5,7 @@
  */
 import type { AppData, CuriosityCard, Direction, Metric, Project, ResourceCard, TaskCard } from '@/shared/models'
 import { getMutationSeq } from '@/shared/storage/repository'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 
 /**
  * R148-P1b：派生结果记忆层。
@@ -38,15 +39,15 @@ const wrap = (score: number, reasons: string[]): Maturity => {
 const DAY = 86400000
 
 /** 任务成熟度：可执行 45 / 可归属 15 / 附件 5 / 新鲜度 15（R165：挂载计分全量退役，D1 直接删不补分） */
-export function taskMaturity(t: TaskCard, now = Date.now()): Maturity {
-  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
+export function taskMaturity(t: TaskCard, now = Date.now(), data: Pick<AppData, 'taskStatuses'>): Maturity {
+  const k = `${dayBucket(now)}:${getMutationSeq()}:${t.updatedAt}:${t.statusId || ''}:${t.status}:${t.dueDate || ''}:${t.estimatedMinutes || 0}:${(t.assets || []).length}:${(t.description || '').length}:${t.projectId || ''}:${t.metricId || ''}`
   const hit = taskMemo.get(t)
   if (hit && hit.k === k) return hit.r
-  const r = taskMaturityRaw(t, now)
+  const r = taskMaturityRaw(t, now, data)
   taskMemo.set(t, { k, r })
   return r
 }
-function taskMaturityRaw(t: TaskCard, now: number): Maturity {
+function taskMaturityRaw(t: TaskCard, now: number, data: Pick<AppData, 'taskStatuses'>): Maturity {
   let s = 0
   const r: string[] = []
   if ((t.description || '').trim().length >= 10) s += 15; else r.push('缺说明（做什么没说清）')
@@ -57,8 +58,9 @@ function taskMaturityRaw(t: TaskCard, now: number): Maturity {
   if (t.projectId) s += 8; else r.push('未挂项目')
   if (t.metricId) s += 7; else r.push('未挂指标')
   if ((t.assets || []).length) s += 5
-  const days = (now - (t.status === 'done' ? t.completedAt || t.updatedAt : t.updatedAt)) / DAY
-  if (t.status === 'done') s += 15
+  const done = isTaskDone(data, t)
+  const days = (now - (done ? t.completedAt || t.updatedAt : t.updatedAt)) / DAY
+  if (done) s += 15
   else if (days <= 7) s += 15
   else if (days <= 14) s += 8
   else r.push(`已停滞 ${Math.floor(days)} 天`)
@@ -96,12 +98,12 @@ function metricMaturityRaw(d: AppData, m: Metric, now: number): Maturity {
   let s = 0
   const r: string[] = []
   if (!ts.length) r.push('一条支撑任务都没有（线索断在这）')
-  else s += avg(ts.map(t => taskMaturity(t, now).score)) * 0.5
+  else s += avg(ts.map(t => taskMaturity(t, now, d).score)) * 0.5
   if (!ts.length) r.push('缺任务覆盖')
   if (ts.length >= 3) s += 15; else if (ts.length) s += 10
   if ((m.target || '').trim().length >= 4) s += 10; else r.push('目标值太虚（没写数字/期限）')
   if ((m.acceptance || '').trim().length >= 4) s += 5; else r.push('缺验收口径')
-  const done = ts.filter(t => t.status === 'done').length
+  const done = ts.filter(t => isTaskDone(d, t)).length
   if (ts.length) s += 15 * (done / ts.length)
   if (done === ts.length && ts.length) s += 5
   const freshest = Math.max(...ts.map(t => t.updatedAt), 0)
@@ -127,9 +129,9 @@ function projectMaturityRaw(d: AppData, p: Project, now: number): Maturity {
   else r.push('还没有成功指标（无法验收）')
   if (ms.length) s += 15
   if (ts.length) s += 10; else r.push('项目下一条任务都没有')
-  const done = ts.filter(t => t.status === 'done').length
+  const done = ts.filter(t => isTaskDone(d, t)).length
   if (ts.length) s += 15 * (done / ts.length)
-  const stalled = ts.filter(t => t.status === 'doing' && now - t.updatedAt > 14 * DAY).length
+  const stalled = ts.filter(t => taskStatusOf(d, t)?.bucket === 'doing' && now - t.updatedAt > 14 * DAY).length
   if (stalled) r.push(`${stalled} 条任务停滞超两周`)
   else if (ts.length) s += 10
   if (p.isFocused && !stalled && ts.length) s += 10

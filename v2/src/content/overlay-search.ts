@@ -15,6 +15,7 @@ import { detachTaskFromMetrics } from '@/shared/utils/taskLinks'
 import { softDeleteTopicToTrash } from '@/shared/utils/topicLinks'
 import { activeFocusSlots, clearedFocusSlot, normalizedFocusSlots } from '@/shared/utils/focusSlots'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
+import { enterFocusTaskStatus, isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 import {
   safeSend, uid, ensureRoot, focusWhenReady, openOverlay, closeOverlay, showToast, ROOT_ID
 } from './overlay-impl'
@@ -49,7 +50,7 @@ async function loadShowDonePref() {
 function isProjDone(p: any, d: any): boolean {
   if (p.status === 'done' || p.status === 'archived') return true
   const ts = (d.tasks || []).filter((t: any) => !t.deletedAt && t.projectId === p.id)
-  return ts.length > 0 && ts.every((t: any) => t.status === 'done')
+  return ts.length > 0 && ts.every((t: any) => isTaskDone(d, t))
 }
 /**
  * R128-A1：读取入口签名不变，数据源换成仓库缓存——
@@ -335,15 +336,18 @@ function collectResults(d: any, query: string, results: any[], maps: SearchMaps)
   if (searchType === 'all' || searchType === 'task') {
     d.tasks?.filter((t: any) => !t.deletedAt).forEach((t: any) => {
       const projName = maps.projName.get(t.projectId) || '未归属'
+      const status = taskStatusOf(d, t)
+      const bucket = status?.bucket || 'todo'
+      const statusName = status?.name || (bucket === 'done' ? '已完成' : bucket === 'doing' ? '进行中' : '待开始')
       const badges: any[] = []
-      badges.push({ type: `status-${t.status}`, text: t.status === 'done' ? '已完成' : t.status === 'doing' ? '进行中' : '待开始' })
+      badges.push({ type: `status-${bucket}`, text: statusName })
       // R58-B4：命中字段两端同构——任务补标签 + 项目名（与应用内一致）
       const tTags = Array.isArray(t.tags) ? t.tags.join(' ') : ''
       const blob = t.title + ' ' + (t.description || '') + ' ' + tTags + ' ' + projName
       if (hasAllTags(t.tags) && projHit(projName) && (match(blob) || matchPinyin(t.title || '', kw))) {
-        const statusIcon = t.status === 'done' ? '✓' : t.status === 'doing' ? '◐' : '○'
+        const statusIcon = bucket === 'done' ? '✓' : bucket === 'doing' ? '◐' : '○'
         results.push({
-          type: 'task', iconClass: `task-${t.status}`, iconText: statusIcon, id: t.id,
+          type: 'task', iconClass: `task-${bucket}`, iconText: statusIcon, id: t.id,
           title: t.title, ws: '任务中心', cat: projName, badges, summary: t.description, raw: t
         })
       }
@@ -559,16 +563,16 @@ async function addTaskToDailyFocus(item: any) {
   d.dailyFocus = d.dailyFocus || {}
   const cells: any[] = normalizedFocusSlots(d.dailyFocus[key])
   const active = activeFocusSlots(d.dailyFocus[key])
-  // 与 CompassHome.selectTaskForSlot 完全同构，保证调度台三件事卡片能直接识别
-  const topicStatus = isTopic ? (d.topicStatuses || []).find((row: any) => row.id === t?.statusId) : null
-  const slot = {
-    id: uid('focus'), sourceType: isTopic ? 'topic' : 'task', sourceId: taskId,
-    text: String(t?.title || (isTopic ? '快速选题' : '快速任务')),
-    done: isTopic ? !!topicStatus?.terminal : t?.status === 'done',
-    doneAt: t?.completedAt,
-    slotIndex: 0, updatedAt: Date.now(),
+  const task = isTopic ? null : (d.tasks || []).find((row: any) => !row.deletedAt && row.id === taskId)
+  const topic = isTopic ? (d.topics || []).find((row: any) => !row.deletedAt && row.id === taskId) : null
+  if ((!isTopic && !task) || (isTopic && !topic)) {
+    showToast(isTopic ? '该选题已不存在' : '该任务已不存在')
+    return
   }
+  // 与 CompassHome.selectTaskForSlot 完全同构，保证调度台三件事卡片能直接识别
+  const topicStatus = isTopic ? (d.topicStatuses || []).find((row: any) => row.id === topic?.statusId) : null
   let replaced = -1
+  let index = -1
   const freeIndex = cells.findIndex(cell => !cell || cell.cleared)
   if (active.length >= FOCUS_LIMIT && freeIndex < 0) {
     if (pendingReplaceSlot === null) {
@@ -590,19 +594,26 @@ async function addTaskToDailyFocus(item: any) {
     if (previousTopic?.dueDate === key) {
       scheduleCardDate(d, previousTopic, undefined, { source: 'focus' })
     }
-    slot.slotIndex = replaced
-    cells[replaced] = slot
     pendingReplaceSlot = null
   } else {
-    const index = freeIndex >= 0 ? freeIndex : Math.min(active.length, FOCUS_LIMIT - 1)
-    slot.slotIndex = index
-    cells[index] = slot
+    index = freeIndex >= 0 ? freeIndex : Math.min(active.length, FOCUS_LIMIT - 1)
   }
-  const task = (d.tasks || []).find((row: any) => !row.deletedAt && row.id === taskId)
+  // 只在槽位确实可写之后推进；已完成保持完成态，已在 doing 桶不重复写。
+  if (task) enterFocusTaskStatus(d, task)
+  const done = task ? isTaskDone(d, task) : !!(topicStatus?.terminal)
+  const slot = {
+    id: uid('focus'), sourceType: isTopic ? 'topic' : 'task', sourceId: taskId,
+    text: String(t?.title || (isTopic ? '快速选题' : '快速任务')),
+    done,
+    doneAt: done ? (task?.completedAt || topic?.completedAt) : undefined,
+    slotIndex: replaced >= 0 ? replaced : index,
+    updatedAt: Date.now(),
+  }
+  if (replaced >= 0) cells[replaced] = slot
+  else cells[index] = slot
   if (task && task.dueDate !== key) {
     scheduleCardDate(d, task, key, { source: 'focus' })
   }
-  const topic = isTopic ? (d.topics || []).find((row: any) => !row.deletedAt && row.id === taskId) : null
   if (topic && topic.dueDate !== key) {
     scheduleCardDate(d, topic, key, { source: 'focus' })
   }

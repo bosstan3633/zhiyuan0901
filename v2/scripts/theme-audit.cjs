@@ -242,37 +242,29 @@ const DASH_SCENES = [
     })
   },
   {
-    id: 'dz-overview', name: '卡片分析 KPI 带',
-    /* ★W12(V3.8.12)随迁备案：原判据守的是 DashboardOverview 的「概览带」——`.dz-ov` 容器 + 五枚
-       `.dz-chip` + `.dz-calib` 口径表 + 说明默认藏/悬停才现。而 DashboardOverview.vue 已随 W10 三段式
-       时间轴重构整体退役（本轮实测 `components/dashboard/` 下确无该文件），职责落到 PiHero：
-       五枚 `.pi-hchip` 就是那五枚 chip，每枚的 `title` 就是那格口径。
-       —— 换的是承重锚（宿主文件换了），守的仍是同一批行为：① 五枚 ② 同排一行（R173-5 原意：
-       删掉人话块后 meta 行抢整行会把 chip 挤成竖排）③ 每枚必须带口径说明（原 .dz-calib 口径表的
-       承载物，如今是 title）④ 出错时不得冒错误徽章（原 .dz-ov-err）。
-       「说明默认藏/悬停才现」一条随组件退役删去：PiHero 用原生 title，不自建浮层，
-       原 R173-5 的裁剪检测（防 .dz-sec overflow:hidden 裁掉浮层）在无自建浮层后无处施放。
-       口径表 `.dz-calib` 在 dashboard.css 里仍有 7 条规则，但已无任何模板挂载点 ⇒ 随判据一并退役。 */
+    id: 'dz-overview', name: '全库总览四读数',
+    /* ★V4.7.8 重指（用户拍板「热力图下指标与卡片分析指标整合」）：旧的 PiOverview KPI 带已退役，
+       四格读数迁入热力图下方的 PiLibraryPulse。换的是承重锚，守的仍是：
+       ① 四枚核心读数都在 ② 同排一行 ③ 每枚带口径说明 ④ 卡片分析页签真实挂载 ⑤ 不冒错误徽章。 */
     judge: async (page) => {
-      /* V4.7.6 重指：年度热力已常驻页首，四格读数改由「卡片分析」页签承载。
-         先真实点击再量，量完回到默认时间轴，避免污染紧随其后的热力图场景。 */
       await page.locator('.pi-view-tab[data-profile-view="analysis"]').click()
-      await page.waitForSelector('.pi-ov-kpis', { state: 'visible', timeout: 8000 })
+      await page.waitForSelector('.pi-pulse .pi-pulse-metric', { state: 'visible', timeout: 8000 })
+      await page.waitForSelector('#pi-view-panel-analysis .pi-card-analysis', { state: 'visible', timeout: 8000 })
       const base = await page.evaluate(() => {
-        /* ★V3.9.3 第五次重指：四格核心读数从 PiHero 归位 PiOverview，
-           承重锚改为 `.pi-ov-kpis > .pi-ov-kpi`。守的行为不变：
-           ① 四枚都在 ② 同排一行 ③ 每枚必须带 title 口径 ④ 出错时不得冒错误徽章。 */
-        const chips = [...document.querySelectorAll('.pi-ov-kpis > .pi-ov-kpi')]
+        const chips = [...document.querySelectorAll('.pi-pulse .pi-pulse-metric')]
         const rows = new Set(chips.map(c => Math.round(c.getBoundingClientRect().top))).size
         const titled = chips.filter(c => (c.getAttribute('title') || '').trim().length > 0).length
         const errPill = !!document.querySelector('.pi-btn-warn')
-        return { sec: !!document.querySelector('.pi-ov-kpis'), n: chips.length, rows, titled, errPill }
+        return {
+          sec: !!document.querySelector('.pi-pulse'),
+          analysis: !!document.querySelector('#pi-view-panel-analysis .pi-card-analysis'),
+          n: chips.length, rows, titled, errPill,
+        }
       })
-      await page.locator('.pi-view-tab[data-profile-view="timeline"]').click()
       const N = 4
       return {
-        ok: base.sec && base.n === N && base.rows === 1 && base.titled === N && !base.errPill,
-        txt: `chip=${base.n}/${N} 同排=${base.rows === 1 ? '是' : base.rows + '行'} 带口径=${base.titled}/${N} 错误徽章0不现=${!base.errPill}`
+        ok: base.sec && base.analysis && base.n === N && base.rows === 1 && base.titled === N && !base.errPill,
+        txt: `总览=${base.sec} 分析=${base.analysis} 读数=${base.n}/${N} 同排=${base.rows === 1 ? '是' : base.rows + '行'} 带口径=${base.titled}/${N} 错误徽章0不现=${!base.errPill}`
       }
     }
   },

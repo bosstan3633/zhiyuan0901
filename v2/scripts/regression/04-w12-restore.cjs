@@ -218,13 +218,13 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必�
   // ① closeOverlays 必须认画像页两个新弹窗壳，否则前一场的弹窗会残留到下一场
   const shellsOk = /\.dz-day-modal-overlay, \.pi-rev-overlay/.test(audit)
     && /\.pi-rev-close/.test(audit)
-  // ② ★V3.9.3 第五次重指：四格读数从 PiHero 迁入 PiOverview，承重锚改为
-  //    `.pi-ov-kpis > .pi-ov-kpi`。旧 `.hero-kpis-grid` 已清零，不许借判据回流。
-  //    守的还是同一批行为——四枚都在 / 同排一行 / 每枚带title 口径 / 无错误徽章；
-  //    数量由 5 改 4 不是放权：第五枚「活跃度」的维度已并进其余四格的 title 口径里。
-  const ovOk = /id: 'dz-overview', name: '卡片分析 KPI 带'/.test(audit)
+  // ② ★V4.7.8 第六次重指：四格读数从 PiOverview 迁入热力图下方的「全库卡片总览」，
+  //    承重锚改为 `.pi-pulse .pi-pulse-metric`。换的是宿主，守的仍是同一批行为：
+  //    四枚都在 / 同排一行 / 每枚带 title 口径 / 卡片分析页签真实挂载 / 无错误徽章。
+  //    旧 `.pi-ov-kpis > .pi-ov-kpi` 已退役，不许借判据回流。
+  const ovOk = /id: 'dz-overview', name: '全库总览四读数'/.test(audit)
     && /data-profile-view="analysis"/.test(audit)
-    && /\.pi-ov-kpis > \.pi-ov-kpi/.test(audit)
+    && /\.pi-pulse \.pi-pulse-metric/.test(audit)
     && /base\.rows === 1/.test(audit)
     && /base\.titled === N/.test(audit)
     && /base\.n === N/.test(audit)
@@ -240,7 +240,7 @@ check('W12-13 ★theme-audit 的场景宿主每迁一次，判据与 act 就必�
     && !/\.dz-calib \.cb \.r/.test(audit)
     && !/pi-hero-sum \.pi-hchip/.test(audit) && !/hero-kpis-grid > \.hero-kpi/.test(audit)
     && !/\.dz-calib/.test(DASH_CSS) && !/\.dz-ov-say/.test(DASH_CSS) && !/\.dz-recentry/.test(DASH_CSS)
-  // ④ ★V4.7.2 重指：画像页默认时间轴，热力图场景先切 Tab，再点真实热力格；
+  // ④ ★V4.7.8 重指：画像页默认卡片分析，热力图常驻页首；点真实热力格直接开战报；
   //    PiYear.onHeatmapSel → emit('open-battle') → TodayBattleHost 的 .dz-day-modal。
   const dayOk = /\.pi-hmbox/.test(audit)
     && /\.dz-cell:not\(\.future\):not\(\.l0\)/.test(audit)
@@ -657,13 +657,14 @@ check('N9 ★PiToday 战报入口收敛（同一弹窗只留一个入口）。�
 });
 
 console.log('【N 系列 · 画像洞察 N6 时间轨吸顶 / N7 Hero KPI 居中】');
-check('N6 ★时间轨吸顶判据（★V4.7.6 重指带备案）：观察范围导航现为「时间轴 / 卡片分析」双视图，年度热力常驻页首。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认时间轴；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
+check('N6 ★时间轨吸顶判据（★V4.7.8 重指带备案）：观察范围导航现为「时间轴 / 卡片分析」双视图，年度热力常驻页首。所守意图不变——① 唯一观察导航仍在周期面板之上；② 两个视图共用同一 tablist，默认卡片分析（时间轴保留显式深链）；③ 负锚：不再用旧四尺度 PiRangeTabs 或滚到隐藏段落的导航。', () => {
   const pi = read('/newtab/views/ProfileInsights.vue');
   if (pi.includes('<PiRail')) return false;
   if (!pi.includes('class="pi-view-tabs" role="tablist"')) return false;
   if (!pi.includes('data-profile-view="timeline"') || !pi.includes('data-profile-view="analysis"')) return false;
   if (!pi.includes('<PiAnnualHeatmap')) return false;
-  if (!pi.includes("return 'timeline'")) return false;
+  if (!pi.includes("if (route.query.view === 'timeline') return 'timeline'")) return false;
+  if (!pi.includes("return 'analysis'")) return false;
   if (pi.includes('<PiRangeTabs')) return false;
   /* 注释里允许留「原 timelineAnchor 已删除」的备案，故剥离注释后判 */
   if (/timelineAnchor/.test(codeOnly(pi))) return false;

@@ -22,7 +22,7 @@
 2. **卡间零挂载。** `ResourceCard` / `TaskCard` / `CuriosityCard` / `TopicCard` 本体互不持有对方 id。明文豁免只包括独立记录表：`SupportLink`、`CurationProjection`、资源常用夹成员镜像、`topicResourceLinks`。六层归属（`projectId` / `metricId`）不受限。
 3. **删除一律软删。** 任何删除只写 `deletedAt`，回收站依赖它；`stats.lastVisits` 只经 `recordResourceOpen` 更新，不要直接 `++`。
 4. **支持拖拽排序的列表，渲染 computed 禁止原地 `.sort()`。** 排序必须回写源数组的排序字段，标记排序统一走 `v2/src/shared/utils/marksort.ts`。
-5. **样式只用 `tokens.css` 语义令牌，禁止硬编码色值。** 新增 UI 必须在四套正式主题（光速黑 / 极简白 / 纸墨白 / OPPO 绿）下逐一走查。父组件 scoped 样式作用不到子组件内部；`v-html` 内容的样式必须非 scoped。
+5. **样式只用 `tokens.css` 语义令牌，禁止硬编码色值。** 新增 UI 必须在四套正式主题（光速黑 / 极简白 / 纸墨白 / 知源蓝，内部 id 仍为 `oppo`——V4.7.6 由「OPPO 绿」更名）下逐一走查。父组件 scoped 样式作用不到子组件内部；`v-html` 内容的样式必须非 scoped。
 6. **定位不走 `chrome.tabs.query` 的 hash。** 该 API 返回不含 hash；页面内定位走 `zy-where` 询问链路。
 7. **新增功能同步追加回归，只增不减。** 在 `v2/scripts/regression/` 新建对应分片，并在 `v2/scripts/regression.cjs` 的 `SHARDS` 注册；被新拍板覆盖的旧断言重指而非删除，重指要备案。
 8. **构建前清空 `v2/dist`。** `vite.config.ts` 使用 `emptyOutDir:false`，不清理会累积历史残留，包体积读数也会失真。
@@ -98,7 +98,7 @@ npm run pack
 ```
 
 - 默认输出到桌面；只在用户明确要求发版时执行。
-- 预算：生产包 ≤ 2.25MB、ZIP ≤ 900KB、单文件 ≤ 400KB；禁止把 `*.map` 打进发布包。
+- 预算：生产包 ≤ 5MB、ZIP ≤ 5MB（2026-11-28 用户拍板，由 2.25MB / 900KB 放宽）、单文件 ≤ 400KB；禁止把 `*.map` 打进发布包。
 
 ## 五、架构与数据边界
 

@@ -28,15 +28,16 @@ const STORAGE = read('/shared/storage/repository.ts')
 
 console.log('【V4.7.7 · 画像提纯 / 完成态降噪 / 资源卡池挂载 / 选题日历隔离】')
 
-check('V477-1 ★画像页头压缩，年度热力先于指标成为首屏主视觉', () => {
+check('V477-1（V4.7.8 重指备案）★画像页头压缩，年度热力先于全库总览成为首屏主视觉；年度四格已迁出热力图，不再在热力底部重复', () => {
   const pageRule = PROFILE_CSS.match(/\.pi-page \{[^}]*\}/)?.[0] || ''
   const heatAt = HEATMAP.indexOf('class="pi-hmbox"')
-  const statsAt = HEATMAP.indexOf('class="pi-strip pi-heat-stats"')
+  const pulseAt = PROFILE.indexOf('<PiLibraryPulse')
   return /padding:\s*12px var\(--page-gutter\) 48px/.test(pageRule)
     && /gap:\s*12px/.test(pageRule)
     && /\.hero-row-top \{ min-height: 30px; \}/.test(HERO)
     && /\.pi-hero-acts :deep\(\.pi-btn\) \{ min-height: 30px;/.test(HERO)
-    && heatAt > 0 && statsAt > heatAt
+    && heatAt > 0 && !HEATMAP.includes('pi-heat-stats')
+    && pulseAt > PROFILE.indexOf('<PiAnnualHeatmap')
     && PROFILE.indexOf('<PiAnnualHeatmap') < PROFILE.indexOf('<div class="pi-rmods')
 })
 
@@ -69,17 +70,18 @@ check('V477-3 ★资源卡池多选弹窗：关键词检索、已关联禁选、
     && TOPIC_DRAWER.includes('@confirm="mountResources"')
 })
 
-check('V477-4 ★卡片分析删除方向状态，按卡片构成 → 三件事 → 生命周期重排', () => {
-  const ovAt = ANALYSIS.indexOf('<PiOverview')
+check('V477-4（V4.7.8 重指备案）★卡片分析删除方向状态与 PiOverview 首层，按四卡页签 → 三件事 → 生命周期重排', () => {
+  const tabsAt = ANALYSIS.indexOf('pi-kind-tabs')
   const focusAt = ANALYSIS.indexOf('class="pi-mod pi-focus-analysis"')
   const lifecycleAt = ANALYSIS.indexOf('id="lc-sec"')
-  return ovAt > 0 && focusAt > ovAt && lifecycleAt > focusAt
+  return tabsAt > 0 && focusAt > tabsAt && lifecycleAt > focusAt
+    && !ANALYSIS.includes('<PiOverview')
     && !OVERVIEW.includes('你的方向状态')
     && !OVERVIEW.includes('PERSONAL DIRECTION')
     && !OVERVIEW.includes('focusProjects')
     && !ANALYSIS.includes('你的方向状态')
     && !ANALYSIS.includes('PERSONAL DIRECTION')
-    && ANALYSIS.includes('近 30 天槽次完成率')
+    && ANALYSIS.includes('近 30 天完成率')
     && ANALYSIS.includes('近 7 日节奏')
     && ANALYSIS.includes('资源生命周期与高价值沉睡证据唤醒')
 })
@@ -102,7 +104,7 @@ check('V477-6 ★卡池时间线：左侧轴线与留白在位，完成卡降噪
     && /grid-template-columns:\s*112px 18px minmax\(0, 1fr\)/.test(POOL_TIMELINE)
     && /\.cpt \{[^}]*padding:\s*8px 0 20px 14px/.test(POOL_TIMELINE)
     && /\.cpt-axis::before \{[\s\S]*?width:\s*1px;[\s\S]*?background:\s*var\(--border-strong\)/.test(POOL_TIMELINE)
-    && POOL_TIMELINE.includes(':class="{ \'is-done\': entry.done }"')
+    && POOL_TIMELINE.includes(':class="{ \'is-done\': entry.done, \'is-history\': entry.isHistory }"')
     && /\.cpt-card\.is-done \.cpt-title \{[^}]*text-decoration:\s*line-through/.test(POOL_TIMELINE)
     && /--status-color/.test(POOL_TIMELINE)
 })

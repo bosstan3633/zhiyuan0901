@@ -16,6 +16,7 @@ import type { AppData, Direction, Metric, Project, TaskCard, TopicCard } from '@
 import { resolveProjectNextStep } from './compassNextStep'
 import { dedupeSorted, tasksOfProject, tasksOfMetric } from './compassTaskMeta'
 import { dedupeTopics, topicsOfProject, topicsOfMetric } from './compassTopicMeta'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 /** 单条成功指标的聚合结果（第 5 层） */
 export interface MetricMeta {
   id: string
@@ -82,12 +83,17 @@ export interface CompassMeta {
 }
 
 /** 单指标聚合：双路关联会重复入桶，按 id 去重。 */
-function aggMetric(m: Metric, tasks: TaskCard[], topics: TopicCard[]): MetricMeta {
+function aggMetric(
+  d: AppData,
+  m: Metric,
+  tasks: TaskCard[],
+  topics: TopicCard[],
+): MetricMeta {
   const uniqueTasks = dedupeSorted(tasks, m)
   const uniqueTopics = dedupeTopics(topics, m)
   const total = uniqueTasks.length
-  const done = uniqueTasks.filter(t => t.status === 'done').length
-  const anyDoing = uniqueTasks.some(t => t.status === 'doing')
+  const done = uniqueTasks.filter(t => isTaskDone(d, t)).length
+  const anyDoing = uniqueTasks.some(t => taskStatusOf(d, t)?.bucket === 'doing')
   return {
     id: m.id,
     title: m.title,
@@ -160,10 +166,10 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
       /* 项目内任务走唯一取数口径：projectId 命中 + 指标归属命中，按 id 去重。 */
       const projTasks = tasksOfProject(p, live)
       const projTopics = topicsOfProject(p, liveTopics)
-      const metrics = p.metrics.map(m => aggMetric(m, bucket.get(m.id) || [], topicBucket.get(m.id) || []))
+      const metrics = p.metrics.map(m => aggMetric(d, m, bucket.get(m.id) || [], topicBucket.get(m.id) || []))
       for (const mm of metrics) byMetric.set(mm.id, mm)
       const total = projTasks.length
-      const done = projTasks.filter(t => t.status === 'done').length
+      const done = projTasks.filter(t => isTaskDone(d, t)).length
       /* 无归属＝在本项目内、却没有任何一个指标通过任一条关联路径认领它。
          不能只看 t.metricId：历史 metric.taskIds 单侧关联也是有效归属。 */
       const ownedTaskIds = new Set(metrics.flatMap(mm => mm.tasks.map(t => t.id)))
@@ -171,7 +177,7 @@ export function buildCompassMeta(d: AppData, isStalled: (p: Project) => boolean)
       const risk = metrics.filter(mm => mm.orphanMetric).length + orphanTasks.length
       const pm: ProjectMeta = {
         id: p.id,
-        ...resolveProjectNextStep(p, projTasks),
+        ...resolveProjectNextStep(p, projTasks, d),
         metrics,
         total,
         done,

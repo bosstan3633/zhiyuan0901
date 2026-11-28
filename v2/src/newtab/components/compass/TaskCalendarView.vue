@@ -11,6 +11,7 @@ import { focusCalendarEntries } from '@/shared/utils/focusCalendar'
 import Icon from '@/shared/components/Icon.vue'
 import Modal from '@/shared/components/Modal.vue'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 
 const props = withDefaults(defineProps<{
   tasks: TaskCard[]
@@ -241,7 +242,7 @@ const scheduledTasks = computed(() =>
   props.tasks.filter(task =>
     /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')
     && task.dueDate !== todayKey.value
-    && (props.showDone !== false || task.status !== 'done')))
+    && (props.showDone !== false || !taskDone(task))))
 const pendingPoolTasks = computed(() =>
   props.tasks.filter(task => !/^\d{4}-\d{2}-\d{2}$/.test(task.dueDate || '')))
 const monthScheduledTasks = computed(() => {
@@ -370,7 +371,7 @@ const poolOrderHint = computed(() =>
 
 function taskOrder(a: TaskCard, b: TaskCard): number {
   const rank: Record<TaskCard['status'], number> = { doing: 0, todo: 1, done: 2 }
-  return rank[a.status] - rank[b.status]
+  return rank[taskBucket(a)] - rank[taskBucket(b)]
     || (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
     || (b.updatedAt || 0) - (a.updatedAt || 0)
 }
@@ -392,7 +393,10 @@ function entryOrder(a: CalendarEntry, b: CalendarEntry): number {
 }
 
 function visibleCalendarEntries(entries: CalendarEntry[]): CalendarEntry[] {
-  return entries.slice(0, calendarMode.value === 'week' ? 12 : 3)
+  const limit = calendarMode.value === 'week' ? 12 : 3
+  const focusEntries = entries.filter(entry => !!entry.slot)
+  const plannedEntries = entries.filter(entry => !entry.slot)
+  return [...focusEntries, ...plannedEntries].slice(0, limit)
 }
 
 function hiddenCalendarEntryCount(entries: CalendarEntry[]): number {
@@ -400,8 +404,15 @@ function hiddenCalendarEntryCount(entries: CalendarEntry[]): number {
 }
 
 function taskStatusDef(task: TaskCard): TaskStatusDef | undefined {
-  return props.taskStatuses.find(status => status.id === task.statusId)
-    || props.taskStatuses.find(status => status.bucket === task.status)
+  return taskStatusOf({ taskStatuses: props.taskStatuses }, task)
+}
+
+function taskBucket(task: TaskCard): TaskCard['status'] {
+  return taskStatusDef(task)?.bucket || 'todo'
+}
+
+function taskDone(task: TaskCard): boolean {
+  return isTaskDone({ taskStatuses: props.taskStatuses }, task)
 }
 
 function taskStatusColor(task: TaskCard): string {
@@ -409,8 +420,7 @@ function taskStatusColor(task: TaskCard): string {
 }
 
 function statusLabel(task: TaskCard): string {
-  return taskStatusDef(task)?.name
-    || (task.status === 'done' ? '已完成' : task.status === 'doing' ? '进行中' : '待开始')
+  return taskStatusDef(task)?.name || '待开始'
 }
 
 function projectLabel(card: TaskCard | TopicCard): string {
@@ -428,7 +438,7 @@ function isMissing(task: TaskCard): boolean {
 type CalendarTone = 'done' | 'today' | 'future' | 'past'
 
 function taskTone(task: TaskCard): CalendarTone {
-  if (task.status === 'done') return 'done'
+  if (taskDone(task)) return 'done'
   if (task.dueDate === todayKey.value) return 'today'
   if (task.dueDate && task.dueDate > todayKey.value) return 'future'
   if (task.dueDate && task.dueDate < todayKey.value) return 'past'
@@ -546,7 +556,7 @@ function closeDay(): void {
 const scheduleCandidates = computed(() => {
   const q = scheduleSearch.value.trim().toLowerCase()
   return props.tasks
-    .filter(task => task.status !== 'done')
+    .filter(task => !taskDone(task))
     .filter(task => !selectedDay.value || task.dueDate !== selectedDay.value)
     .filter(task => !q || `${task.title} ${projectLabel(task)} ${metricLabel(task)}`.toLowerCase().includes(q))
     .sort((a, b) => {
@@ -632,7 +642,7 @@ onUnmounted(() => {
 <template>
   <div
     class="task-calendar"
-    :class="['mobile-' + mobileMode, { 'list-hidden': listCollapsed }]"
+    :class="['mobile-' + mobileMode, { 'list-hidden': listCollapsed, 'is-week': calendarMode === 'week' }]"
     :style="{ '--cal-list-width': `${listWidth}px` }"
   >
     <div class="cal-mobile-switch" role="tablist" aria-label="窄屏任务视图">
@@ -703,7 +713,7 @@ onUnmounted(() => {
           <article
             class="cal-pool-task"
             :class="[
-              'is-' + task.status,
+              'is-' + taskBucket(task),
               task.dueDate ? 'is-planned' : 'is-unplanned',
             ]"
             :style="{ '--task-status': taskStatusColor(task) }"
@@ -717,12 +727,12 @@ onUnmounted(() => {
             <span class="cal-drag"><Icon name="menu" :size="12" /></span>
             <button
               class="cal-check"
-              :class="'is-' + task.status"
+              :class="'is-' + taskBucket(task)"
               type="button"
-              :aria-label="task.status === 'done' ? '恢复为待开始' : '标记完成'"
+              :aria-label="taskDone(task) ? '恢复为待开始' : '标记完成'"
               @click.stop="emit('toggle-status', task.id)"
             >
-              <Icon v-if="task.status === 'done'" name="check" :size="10" />
+              <Icon v-if="taskDone(task)" name="check" :size="10" />
             </button>
             <span class="cal-task-copy">
               <b>{{ task.title }}</b>
@@ -736,7 +746,7 @@ onUnmounted(() => {
                 <button v-if="isMissing(task)" class="cal-assign" type="button" @click.stop="emit('assign-task', task)">去归位</button>
               </small>
             </span>
-            <span class="cal-status" :class="'is-' + task.status" :style="{ '--task-status': taskStatusColor(task) }">{{ statusLabel(task) }}</span>
+            <span class="cal-status" :class="'is-' + taskBucket(task)" :style="{ '--task-status': taskStatusColor(task) }">{{ statusLabel(task) }}</span>
             <button
               class="cal-task-menu-trigger"
               type="button"
@@ -859,9 +869,17 @@ onUnmounted(() => {
             @dragleave.self="dragOverDay = ''"
             @drop="dropOnDay($event, cell.key)"
           >
-            <button class="cal-day-head" type="button" @click="openDay(cell.key)">
+            <button
+              class="cal-day-head"
+              type="button"
+              :aria-label="`${cell.day} 日，共 ${cell.entries.length} 项${hiddenCalendarEntryCount(cell.entries) ? '，还有更多' : ''}，点击查看详情`"
+              @click="openDay(cell.key)"
+            >
               <span>{{ cell.day }}</span>
-              <small v-if="cell.entries.length">{{ cell.entries.length }}</small>
+              <small
+                v-if="cell.entries.length"
+                :class="{ 'cal-more-count': calendarMode === 'month' && hiddenCalendarEntryCount(cell.entries) }"
+              >{{ calendarMode === 'month' && hiddenCalendarEntryCount(cell.entries) ? `+${hiddenCalendarEntryCount(cell.entries)}` : cell.entries.length }}</small>
             </button>
             <div class="cal-day-list">
               <template v-for="entry in visibleCalendarEntries(cell.entries)" :key="entry.key">
@@ -870,7 +888,7 @@ onUnmounted(() => {
                   v-if="entry.kind === 'task'"
                   class="cal-task-chip"
                   :type="entry.mirror ? undefined : 'button'"
-                  :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task), { 'is-history-mirror': entry.mirror }]"
+                  :class="['is-' + taskBucket(entry.task), 'tone-' + taskTone(entry.task), { 'is-history-mirror': entry.mirror }]"
                   :style="{ '--task-status': taskStatusColor(entry.task) }"
                   :draggable="entry.mirror ? undefined : true"
                   :tabindex="0"
@@ -884,12 +902,12 @@ onUnmounted(() => {
                   <button
                     v-if="!entry.mirror"
                     class="cal-chip-check"
-                    :class="'is-' + entry.task.status"
+                    :class="'is-' + taskBucket(entry.task)"
                     type="button"
-                    :aria-label="entry.task.status === 'done' ? '恢复为待开始' : '标记完成'"
+                    :aria-label="taskDone(entry.task) ? '恢复为待开始' : '标记完成'"
                     @click.stop="emit('toggle-status', entry.task.id)"
                   >
-                    <Icon v-if="entry.task.status === 'done'" name="check" :size="8" />
+                    <Icon v-if="taskDone(entry.task)" name="check" :size="8" />
                   </button>
                   <span class="cal-chip-copy">
                     <span class="cal-chip-title">{{ entry.task.title }}</span>
@@ -897,7 +915,7 @@ onUnmounted(() => {
                     <span v-if="calendarMode === 'week'" class="cal-chip-meta">
                       <span>{{ projectLabel(entry.task) }}</span>
                       <span v-if="metricLabel(entry.task)">› {{ metricLabel(entry.task) }}</span>
-                      <em :class="'is-' + entry.task.status" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
+                      <em :class="'is-' + taskBucket(entry.task)" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
                     </span>
                   </span>
                   <button v-if="entry.mirror" type="button" title="取消该日落图，不改卡片当前计划" aria-label="取消该日历史三件事落图" @click.stop="entry.slot && emit('hide-history-focus', cell.key, entry.slot.id)">
@@ -951,7 +969,7 @@ onUnmounted(() => {
                   </button>
                 </component>
               </template>
-              <button v-if="hiddenCalendarEntryCount(cell.entries)" class="cal-more" type="button" @click="openDay(cell.key)">
+              <button v-if="calendarMode === 'week' && hiddenCalendarEntryCount(cell.entries)" class="cal-more" type="button" @click="openDay(cell.key)">
                 +{{ hiddenCalendarEntryCount(cell.entries) }} 更多
               </button>
             </div>
@@ -979,18 +997,18 @@ onUnmounted(() => {
           <article
             v-if="entry.kind === 'task'"
             class="cal-modal-task"
-            :class="['is-' + entry.task.status, 'tone-' + taskTone(entry.task), { 'is-history-mirror': entry.mirror }]"
+            :class="['is-' + taskBucket(entry.task), 'tone-' + taskTone(entry.task), { 'is-history-mirror': entry.mirror }]"
             :style="{ '--task-status': taskStatusColor(entry.task) }"
           >
             <button
               v-if="!entry.mirror"
               class="cal-check"
-              :class="'is-' + entry.task.status"
+              :class="'is-' + taskBucket(entry.task)"
               type="button"
-              :aria-label="entry.task.status === 'done' ? '恢复为待开始' : '标记完成'"
+              :aria-label="taskDone(entry.task) ? '恢复为待开始' : '标记完成'"
               @click="emit('toggle-status', entry.task.id)"
             >
-              <Icon v-if="entry.task.status === 'done'" name="check" :size="11" />
+              <Icon v-if="taskDone(entry.task)" name="check" :size="11" />
             </button>
             <button class="cal-modal-copy" type="button" @click="openTaskFromDay(entry.task)" @keydown.enter.prevent="openTaskFromDay(entry.task)">
               <b>{{ entry.task.title }}</b>
@@ -998,7 +1016,7 @@ onUnmounted(() => {
             </button>
             <span class="cal-modal-side">
               <button v-if="isMissing(entry.task)" class="cal-assign" type="button" @click="emit('assign-task', entry.task)">去归位</button>
-              <em :class="'is-' + entry.task.status" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
+              <em :class="'is-' + taskBucket(entry.task)" :style="{ '--task-status': taskStatusColor(entry.task) }">{{ statusLabel(entry.task) }}</em>
             </span>
             <button v-if="entry.mirror" class="cal-modal-close" type="button" title="取消该日落图，不改卡片当前计划" aria-label="取消该日历史三件事落图" @click.stop="entry.slot && emit('hide-history-focus', selectedDay, entry.slot.id)"><Icon name="x" :size="12" /></button>
             <button v-else class="cal-modal-close" type="button" title="取消排期" @click.stop="emit('clear-due', entry.task.id)"><Icon name="x" :size="12" /></button>

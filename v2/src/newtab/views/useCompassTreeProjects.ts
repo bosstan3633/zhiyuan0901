@@ -7,6 +7,7 @@ import CompassSpine from '../components/compass/CompassSpine.vue'
 import type { ProjectMeta } from './compassMeta'
 import CompassRiskModal, { type RiskProjectGroup } from '../components/compass/CompassRiskModal.vue'
 import type { useCompassTree } from './useCompassTree'
+import { taskStatusOf } from '@/shared/utils/taskStatus'
 
 export function useCompassTreeProjects(deps: Pick<ReturnType<typeof useCompassTree>, 'compassMeta' | 'findProject' | 'd' | 'layerOpen' | 'layerView' | 'activeLayer' | 'ensureTower' | 'projFoldOverride' | 'writeProjFold' | 'expandedMetrics' | 'viewMode' | 'dirFilter' | 'riskOnly' | 'router' | 'panoId' | 'openPano' | 'visionText' | 'missionText' | 'allProjects' | 'store'>): {
   layerRows5: ComputedRef<{ id: string; title: string; dirName: string; projName: string; projId: string; total: number; done: number; pct: number; orphan: boolean }[]>
@@ -67,7 +68,7 @@ const layerRows6 = computed(() => {
     /* 无指标任务只认真正存在的项目 id；历史数据里 projectId 可能指向方向节点或已删项目。 */
     const directProj = !p && t.projectId ? findProject(t.projectId) : undefined
     return {
-      id: t.id, title: t.title, status: t.status,
+      id: t.id, title: t.title, status: taskStatusOf(d.value, t)?.bucket || 'todo',
       metricId: p?.metricId || null,
       metricTitle: p?.metricTitle || null,
       projName: p?.projName || directProj?.name || null,

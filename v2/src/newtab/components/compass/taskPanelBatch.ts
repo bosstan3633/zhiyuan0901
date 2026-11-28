@@ -10,7 +10,7 @@ import type { AppData, TaskCard } from '@/shared/models'
 import { showToast } from '@/shared/components/toast'
 import { addTagToCards } from '../../composables/useBatchSelect'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
-import { setTaskStatus } from '@/shared/utils/taskStatus'
+import { setTaskStatusById, taskStatusForBucket } from '@/shared/utils/taskStatus'
 
 interface BatchStore {
   persist: () => void
@@ -53,12 +53,14 @@ export function useTaskPanelBatch(opts: {
     selectedTaskIds.value.clear()
   }
   function batchSetStatus(status: 'todo'|'doing'|'done') {
+    const target = taskStatusForBucket(d.value, status)
+    if (!target) return
     selectedTaskIds.value.forEach(id => {
       const t = d.value.tasks.find(x => x.id === id)
-      if (t) setTaskStatus(t, status)
+      if (t) setTaskStatusById(d.value, t, target.id)
     })
     store.persist()
-    showToast(`已将 ${selectedTaskIds.value.size} 个任务设为${status==='done'?'已完成':status==='doing'?'进行中':'待开始'}`)
+    showToast(`已将 ${selectedTaskIds.value.size} 个任务设为「${target.name}」`)
     selectedTaskIds.value.clear()
   }
   // ---- 批量挂载（O3）：挂到项目→指标 ----

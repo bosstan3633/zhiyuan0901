@@ -6,20 +6,22 @@
 import { computed } from 'vue'
 import Drawer from '@/shared/components/Drawer.vue'
 import AiEntryButton from '@/shared/components/AiEntryButton.vue'
-import type { ResourceCard, TaskCard } from '@/shared/models'
+import type { CuriosityCard, ResourceCard, TaskCard, TopicCard } from '@/shared/models'
 
 const props = defineProps<{
   open: boolean
   entropy: number
   resources: ResourceCard[]
   tasks: TaskCard[]
+  curiosities?: CuriosityCard[]
+  topics?: TopicCard[]
 }>()
 const emit = defineEmits<{ close: []; optimize: [] }>()
 
 const stats = computed(() => {
   const counts = new Map<string, number>()
   let taggedCards = 0
-  const holders = [...props.resources, ...props.tasks]
+  const holders = [...props.resources, ...props.tasks, ...(props.curiosities || []), ...(props.topics || [])]
   for (const card of holders) {
     const tags = [...new Set((card.tags || []).map(t => t.trim()).filter(Boolean))]
     if (tags.length) taggedCards++
@@ -42,7 +44,7 @@ const meaning = computed(() => {
   const spread = props.entropy >= 4 ? '铺得较散，同类信息可能分散在多个叫法里'
     : props.entropy >= 2.5 ? '分布适中，主标签可辨认，但仍有一些长尾'
       : '分布集中，主标签清晰'
-  return `当前知识熵 ${props.entropy.toFixed(1)} bit，${spread}。前 3 个标签覆盖 ${s.concentration}% 的标签引用；${s.untaggedCards} / ${s.holders} 张资源或任务尚未打标签。`
+  return `当前知识熵 ${props.entropy.toFixed(1)} bit，${spread}。前 3 个标签覆盖 ${s.concentration}% 的标签引用；${s.untaggedCards} / ${s.holders} 张卡片尚未打标签。`
 })
 
 const actions = computed(() => {
@@ -50,7 +52,7 @@ const actions = computed(() => {
   const out = [
     s.untaggedCards > 0
       ? `先给 ${s.untaggedCards} 张未打标签的卡补上主标签，让它们能被检索与关联。`
-      : '当前资源与任务都已至少有一个标签，可继续清理同义叫法。',
+      : '当前四类卡都已至少有一个标签，可继续清理同义叫法。',
   ]
   if (props.entropy >= 4) out.push('检查「前 3 标签」之外的长尾：同一主题若出现近义写法，合并为一个规范标签。')
   else out.push('保留现有主标签，后续只在确有新主题时增加一级标签，避免为了分类而分类。')

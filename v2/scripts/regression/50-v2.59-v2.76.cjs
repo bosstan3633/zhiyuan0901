@@ -203,10 +203,11 @@ check('R93-1 ★ A6：图标/徽标的硬编码浅底色清零，统一走 --zy-
     && OV93_C.includes('font-size:15px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}')
     && OV93_C.includes('font-size:18px;flex-shrink:0;background:var(--zy-bg-3);border:1px solid var(--zy-border);}');
 });
-check('R93-2 A6 信息零损失：类型/状态仍靠 iconText 形状区分（📄 / ✓◐○ / 💡 一个未删）', () => {
+check('R93-2（V4.7.8 重指）A6 信息零损失：类型/状态仍靠 iconText 形状区分（📄 / ✓◐○ / 💡 一个未删），状态桶改读 taskStatusOf', () => {
   return OV93.includes("iconClass: 'res', iconText: '📄'")
-    && OV93.includes("iconClass: `task-${t.status}`, iconText: statusIcon")
-    && OV93.includes("const statusIcon = t.status === 'done' ? '✓' : t.status === 'doing' ? '◐' : '○'")
+    && OV93.includes('const status = taskStatusOf(d, t)')
+    && OV93.includes('iconClass: `task-${bucket}`, iconText: statusIcon')
+    && OV93.includes("const statusIcon = bucket === 'done' ? '✓' : bucket === 'doing' ? '◐' : '○'")
     && OV93.includes("iconClass: 'curio', iconText: '💡'");
 });
 check('R93-3 A6 三档令牌：--zy-warn / --zy-ok 明【暗】两套齐备（暗色值须在 media 块内）', () => {
@@ -252,10 +253,10 @@ check('R94-1 B2：curTreeOpen 存在', () => { const h = read('/newtab/views/Com
 check('R94-2 B2：折叠时 .cur-cols 单列', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('curColsStyle') && !h.includes('cur-cols');  });
 check('R94-3 ★ B2：任务树用 v-if 门控', () => { const h = read('/newtab/views/CompassHome.vue'); const pc = read('/newtab/views/ProjectCuration.vue'); return !h.includes('curTreeOpen') && pc.includes('class="task-rows"');  });
 check('R94-4 B2 能力保留：.cur-split 与 startCurSplitDrag 仍在', () => { const h = read('/newtab/views/CompassHome.vue'); return !h.includes('cur-split') && !h.includes('startCurSplitDrag');  });
-check('R94-5（V4.3.1 重指）B3：focusAllDone = 非空 && every(按日期口径读取完成态)（空列表不算完成；今天仍以任务卡为唯一真源）', () => {
+check('R94-5（V4.7.8 重指）B3：focusAllDone = 非空 && every(按日期口径读取完成态)（空列表不算完成；今天仍以 taskStatusOf 为唯一真源）', () => {
   return CH94_C.includes('todayFocusList.value.length > 0 && todayFocusList.value.every(s => focusSlotDone(s))')
     && CH94_C.includes("if (dateStr(todayDate.value) === todayKey.value)")
-    && CH94_C.includes('if (task) return task.status')
+    && CH94_C.includes("if (task) return taskStatusOf(d.value, task)?.bucket || 'todo'")
     && CH94_C.includes("return slot.statusSnapshot || (slot.done ? 'done' : 'todo')");
 });
 check('R94-6（V3.9.1 重指）B3：完成态挂在 .work-board.all-done 上，整张工作单轻降饱和，仍低饱和 + 安静收束', () => {

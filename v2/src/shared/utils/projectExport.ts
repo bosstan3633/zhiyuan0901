@@ -15,6 +15,7 @@
 import type { AppData, Project, ResourceCard, SupportLink, TaskCard, TopicCard } from '@/shared/models'
 import { toOpenableRawLink, toOpenableUrl } from './link'
 import { topicStatusOf } from './topicStatus'
+import { isTaskDone, taskStatusOf } from './taskStatus'
 import {
   escapeHtml,
   escapeMarkdown,
@@ -136,7 +137,7 @@ function taskToExport(d: AppData, task: TaskCard): ProjectExportTask {
   })
   return {
     title: task.title.trim() || '未命名任务',
-    status: STATUS_LABEL[task.status] || task.status,
+    status: taskStatusOf(d, task)?.name || STATUS_LABEL[task.status] || task.status,
     dueDate: task.dueDate || '未落图',
     taskLink: {
       text: (task.link || '').trim() || '未填写任务链接',
@@ -168,7 +169,7 @@ export function buildProjectExportDocument(d: AppData, project: Project, now = n
   const name = project.name.trim() || '未命名项目'
   const tasks = projectTasks(d, project)
   const topics = projectTopics(d, project)
-  const doneCount = tasks.filter(t => t.status === 'done').length
+  const doneCount = tasks.filter(t => isTaskDone(d, t)).length
   const pct = tasks.length ? Math.round(doneCount / tasks.length * 100) : 0
   const dir = (d.compass.directions || []).find(item => (item.projects || []).some(p => p.id === project.id))
   const chainParts = [
@@ -188,7 +189,7 @@ export function buildProjectExportDocument(d: AppData, project: Project, now = n
     const linkedTopicIds = new Set(metric.topicIds || [])
     const topicList = topics.filter(topic => topic.metricId === metric.id || linkedTopicIds.has(topic.id))
     for (const topic of topicList) ownedTopicIds.add(topic.id)
-    const mDone = list.filter(t => t.status === 'done').length
+    const mDone = list.filter(t => isTaskDone(d, t)).length
     if (!hasBrokenLink) {
       hasBrokenLink = list.some(t => !(t.link || '').trim())
     }

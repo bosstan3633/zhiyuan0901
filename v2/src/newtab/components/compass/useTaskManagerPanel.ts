@@ -18,12 +18,27 @@ import { onOpenDrawer } from '@/shared/utils/bus'
 import ContextMenu from '@/shared/components/ContextMenu.vue'
 import { useBatchSelect, addTagToCards } from '../../composables/useBatchSelect'
 import { useTaskPanelBatch } from './taskPanelBatch'
-import { setTaskStatus, toggleTaskStatus } from '@/shared/utils/taskStatus'
+import {
+  isTaskDone,
+  restoreFocusTaskStatus,
+  setTaskStatusById,
+  taskStatusForBucket,
+  taskStatusOf,
+  toggleTaskDone,
+  type FocusTaskStatusWrite,
+} from '@/shared/utils/taskStatus'
 import { scheduleCardDate } from '@/shared/storage/planSchedule'
+import {
+  activeFocusSlots,
+  clearedFocusSlot,
+  detachFocusTaskFromDate,
+  normalizedFocusSlots,
+} from '@/shared/utils/focusSlots'
+import { addManualFocus } from '@/shared/utils/focusSuggest'
 import DeckBatchBar from './DeckBatchBar.vue'
 import DeckControls from './DeckControls.vue'
 import { visibleFields, fieldValue } from '@/shared/utils/fields'
-import type { TaskCard, FieldDef } from '@/shared/models'
+import type { FocusSlot, TaskCard, FieldDef } from '@/shared/models'
 import { recordCardOpen } from '@/shared/storage/stats'
 import { toOpenableRawLink, openExternalLink } from '@/shared/utils/link'
 import { softDeleteTaskToTrash } from '@/shared/utils/taskLinks'
@@ -116,7 +131,7 @@ function applyTaskFilters(list: TaskCard[]): TaskCard[] {
   let out = list.filter(t => !t.deletedAt)
   // R58-O2：未归档口径与北极星 O23 一致（taskArchiveIssue：未挂项目/指标或引用失效）
   if (filterBy.value === 'unarchived') out = out.filter(t => !!taskArchiveIssue(t))
-  else if (filterBy.value !== 'all') out = out.filter(t => t.status === filterBy.value)
+  else if (filterBy.value !== 'all') out = out.filter(t => taskStatusOf(d.value, t)?.bucket === filterBy.value)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     out = out.filter(t => t.title.toLowerCase().includes(q))
@@ -144,8 +159,8 @@ const filteredTasks = computed(() => {
       : (b.createdAt || 0) - (a.createdAt || 0))
   }
   // R127：已完成任务自动沉底（任何排序/分组下均最后，保持组内相对顺序）
-  const nonDone = tasks.filter(t => t.status !== 'done')
-  const done = tasks.filter(t => t.status === 'done')
+  const nonDone = tasks.filter(t => !isTaskDone(d.value, t))
+  const done = tasks.filter(t => isTaskDone(d.value, t))
   return [...nonDone, ...done]
 })
 // R43-2 任务总数双值展示：当前筛选 N 条 / 全部 M
@@ -171,9 +186,9 @@ const groupedTasks = computed(() => {
   if (orphan.length) groups.push({ key: '__none__', name: '未关联项目', pct: -1, tasks: orphan })
   return groups
 })
-const todoTasks = computed(() => filteredTasks.value.filter(t => t.status === 'todo'))
-const doingTasks = computed(() => filteredTasks.value.filter(t => t.status === 'doing'))
-const doneTasks = computed(() => filteredTasks.value.filter(t => t.status === 'done'))
+const todoTasks = computed(() => filteredTasks.value.filter(t => taskStatusOf(d.value, t)?.bucket === 'todo'))
+const doingTasks = computed(() => filteredTasks.value.filter(t => taskStatusOf(d.value, t)?.bucket === 'doing'))
+const doneTasks = computed(() => filteredTasks.value.filter(t => isTaskDone(d.value, t)))
 // 第卅三轮 BUG-D 修复 + REQ-020：置顶独立分区（源数组顺序权威不变，仅渲染分流）
 const pinnedTasks = computed(() => filteredTasks.value.filter(t => t.pinned))
 const normalTasks = computed(() => filteredTasks.value.filter(t => !t.pinned))
@@ -204,13 +219,15 @@ const listGroups = computed<{ key: string; name: string; icon: string; pct: numb
     return groupedTasks.value.map(g => ({ key: g.key, name: g.name, icon: '', pct: g.pct, tasks: g.tasks }))
   }
   if (groupMode.value === 'status') {
-    const defs: Array<{ k: TaskCard['status']; name: string; icon: string }> = [
-      { k: 'todo', name: '待开始', icon: '○' },
-      { k: 'doing', name: '进行中', icon: '◐' },
-      { k: 'done', name: '已完成', icon: '' }
-    ]
-    return defs
-      .map(d => ({ key: d.k, name: d.name, icon: d.icon, pct: -1, tasks: tasks.filter(t => t.status === d.k) }))
+    return [...d.value.taskStatuses]
+      .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, 'zh-CN'))
+      .map(status => ({
+        key: status.id,
+        name: status.name,
+        icon: status.terminal ? '' : status.bucket === 'doing' ? '◐' : '○',
+        pct: -1,
+        tasks: tasks.filter(t => taskStatusOf(d.value, t)?.id === status.id),
+      }))
       .filter(g => g.tasks.length)
   }
   const pin = tasks.filter(t => t.pinned)
@@ -244,18 +261,99 @@ const { batchAddTag, batchDelete, batchSetStatus, mountModalOpen, mountProjId, m
   useTaskPanelBatch({ d, store, allProjects, selectedTaskIds })
 
 // ---- 任务操作 ----
-/** B22：状态统一出口（completedAt 卫生清理） */
-function setTaskStatusOf(t: TaskCard, status: 'todo' | 'doing' | 'done') {
-  setTaskStatus(t, status)
-  store.persist()
+function taskStatusMeta(t: TaskCard) {
+  const status = taskStatusOf(d.value, t)
+  return {
+    id: status?.id || '',
+    name: status?.name || '待开始',
+    color: status?.color || 'var(--text-3)',
+    bucket: status?.bucket || 'todo' as TaskCard['status'],
+    terminal: !!status?.terminal,
+  }
 }
-/** 月历排期与取消排期共用唯一字段 dueDate；这里只改计划执行日期，不碰任务归属和状态。 */
+function taskBucketOf(t: TaskCard): TaskCard['status'] {
+  return taskStatusMeta(t).bucket
+}
+function taskStatusNameOf(t: TaskCard): string {
+  return taskStatusMeta(t).name
+}
+function taskStatusIconOf(t: TaskCard): string {
+  const bucket = taskBucketOf(t)
+  return bucket === 'done' ? 'check' : bucket === 'doing' ? 'half' : 'circle'
+}
+function taskStatusClassOf(t: TaskCard): string {
+  return taskBucketOf(t)
+}
+/** B22：状态统一出口（按实际状态 id 写 statusId，兼容 status 由底层同步） */
+function setTaskStatusOf(t: TaskCard, bucket: 'todo' | 'doing' | 'done') {
+  const status = taskStatusForBucket(d.value, bucket)
+  if (!status) return false
+  if (!setTaskStatusById(d.value, t, status.id)) return false
+  store.persist()
+  return true
+}
+function localTodayKey(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+function clearTodayFocus(taskId: string, clearDueDate = false): FocusSlot | null {
+  const day = localTodayKey()
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+  const index = cells.findIndex(slot => !!slot && !slot.cleared
+    && slot.sourceType === 'task' && slot.sourceId === taskId)
+  if (index < 0) return null
+  const previous = cells[index]
+  if (clearDueDate) detachFocusTaskFromDate(d.value, day, taskId)
+  cells[index] = clearedFocusSlot(index, previous)
+  d.value.dailyFocus[day] = cells.map((slot, slotIndex) => slot || clearedFocusSlot(slotIndex))
+  return previous ? JSON.parse(JSON.stringify(previous)) as FocusSlot : null
+}
+function restoreTodayFocus(slot: FocusSlot | null): void {
+  if (!slot) return
+  const day = localTodayKey()
+  const cells = normalizedFocusSlots(d.value.dailyFocus?.[day])
+  const preferred = Number.isInteger(slot.slotIndex) ? Number(slot.slotIndex) : -1
+  let index = preferred >= 0 && preferred < 3 && (!cells[preferred] || cells[preferred]?.cleared)
+    ? preferred
+    : cells.findIndex(cell => !cell || cell.cleared)
+  if (index < 0) index = preferred >= 0 && preferred < 3 ? preferred : 0
+  cells[index] = { ...slot, slotIndex: index as 0 | 1 | 2, updatedAt: Date.now() }
+  d.value.dailyFocus[day] = cells.map((cell, slotIndex) => cell || clearedFocusSlot(slotIndex))
+}
+/** 月历排期：拖入今天 = 进入今日重点；其他日期只改计划日期。 */
 function setTaskDueDate(taskId: string, date: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return
-  const changed = scheduleCardDate(d.value, task, date, { source: 'calendar' })
+  const today = localTodayKey()
+  const previous = task.dueDate
+  let focusWrite: FocusTaskStatusWrite | undefined
+  if (date === today) {
+    const result = addManualFocus(d.value, today, task.id)
+    if (result.status === 'full') {
+      showToast('今日三件事已满（3/3）；日历拖入不会安排第 4 项')
+      return
+    }
+    if (result.status === 'invalid') return
+    focusWrite = result.statusWrite
+  } else {
+    clearTodayFocus(taskId)
+    scheduleCardDate(d.value, task, date, { source: 'calendar' })
+  }
   store.persist()
-  if (changed) showToast(`已排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日`)
+  if (previous === date && !focusWrite?.changed) return
+  showToast(`已排到 ${date.slice(5, 7)} 月 ${date.slice(8, 10)} 日${date === today ? '，并加入今日三件事' : ''}`, {
+    label: '撤销',
+    cb: () => {
+      const current = d.value.tasks.find(row => row.id === taskId)
+      if (!current) return
+      if (date === today) clearTodayFocus(taskId)
+      scheduleCardDate(d.value, current, previous, { source: 'calendar', record: false })
+      if (focusWrite?.changed) restoreFocusTaskStatus(d.value, current, focusWrite)
+      store.persist()
+      showToast('已撤销排期修改')
+    },
+  })
 }
 function clearTaskDueDate(taskId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
@@ -264,14 +362,26 @@ function clearTaskDueDate(taskId: string): void {
     showToast('该任务本来就在任务池，未安排计划执行日期')
     return
   }
+  const previous = task.dueDate
+  const removedFocus = clearTodayFocus(taskId)
   scheduleCardDate(d.value, task, undefined, { source: 'calendar' })
   store.persist()
-  showToast('已取消排期，任务回到任务池')
+  showToast('已取消排期，任务回到任务池', {
+    label: '撤销',
+    cb: () => {
+      const current = d.value.tasks.find(row => row.id === taskId)
+      if (!current) return
+      scheduleCardDate(d.value, current, previous, { source: 'calendar', record: false })
+      restoreTodayFocus(removedFocus)
+      store.persist()
+      showToast('已恢复计划执行日期')
+    },
+  })
 }
 function toggleTaskCompletion(taskId: string): void {
   const task = d.value.tasks.find(row => !row.deletedAt && row.id === taskId)
   if (!task) return
-  toggleTaskStatus(task)
+  toggleTaskDone(d.value, task)
   store.persist()
 }
 async function addTaskToTodayFocus(task: TaskCard): Promise<void> {
@@ -290,7 +400,7 @@ async function addTaskToTodayFocus(task: TaskCard): Promise<void> {
     showToast('今日三件事已满；请到调度台三件事卡片中替换一格')
     return
   }
-  if (result.status === 'added') {
+  if (result.status === 'added' || result.status === 'replaced') {
     store.persist()
     showToast('已设为今日重点，并锁定为手动选择')
   }
@@ -299,7 +409,7 @@ function cycleTaskStatus(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
   if (!t) return
   const order: Array<'todo'|'doing'|'done'> = ['todo', 'doing', 'done']
-  setTaskStatusOf(t, order[(order.indexOf(t.status as any) + 1) % 3])
+  setTaskStatusOf(t, order[(order.indexOf(taskBucketOf(t)) + 1) % 3])
 }
 async function deleteTask(taskId: string) {
   const t = d.value.tasks.find(x => x.id === taskId)
@@ -404,10 +514,10 @@ function onTaskCardDrop(e: DragEvent, target: TaskCard, grouped: boolean) {
   if (fromIdx < 0 || toIdx < 0) return
   const notes: string[] = []
   // 状态随列（completedAt 卫生走统一出口）
-  const status = target.status
-  if (moved.status !== status) {
+  const status = taskBucketOf(target)
+  if (taskBucketOf(moved) !== status) {
     setTaskStatusOf(moved, status)
-    notes.push(`已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
+    notes.push(`已移至「${taskStatusNameOf(target)}」`)
   }
   // 分组模式：跨项目组落卡 = 改项目归属（指标从属项目，跨组必然清空原指标）
   if (grouped) {
@@ -430,9 +540,9 @@ function onTaskCardDrop(e: DragEvent, target: TaskCard, grouped: boolean) {
 function onKanbanDrop(status: 'todo' | 'doing' | 'done') {
   if (!draggedTask) return
   const t = d.value.tasks.find(x => x.id === draggedTask!.id)
-  if (t && t.status !== status) {
+  if (t && taskBucketOf(t) !== status) {
     setTaskStatusOf(t, status)
-    showToast(`已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
+    showToast(`已移至「${taskStatusForBucket(d.value, status)?.name || status}」`)
   }
   draggedTask = null
 }
@@ -506,9 +616,9 @@ function onKanbanGroupDrop(e: DragEvent, status: 'todo' | 'doing' | 'done', proj
     syncMetricTaskIds(t.id, oldMetric, undefined)
     notes.push('已归属「' + projectName(projectKey) + '」（原指标已清空）')
   }
-  if (t.status !== status) {
+  if (taskBucketOf(t) !== status) {
     setTaskStatusOf(t, status)
-    notes.push(`已移至「${status === 'done' ? '已完成' : status === 'doing' ? '进行中' : '待开始'}」`)
+    notes.push(`已移至「${taskStatusForBucket(d.value, status)?.name || status}」`)
   } else {
     t.updatedAt = Date.now()
     store.persist()
@@ -531,6 +641,7 @@ const tListFields = computed(() => tFields.value.filter(f => !T_SKELETON_KEYS.in
 // R40 REQ-051：assets 字段是否可见（驱动任务卡正面徽章显隐）
 const taskAssetsOn = computed(() => tFields.value.some(f => f.key === 'assets'))
 function tVal(t: TaskCard, key: string): string {
+  if (key === 'status') return taskStatusNameOf(t)
   return fieldValue(t, key, { projectName, metricName })
 }
 function tShort(t: TaskCard, f: FieldDef): string {
@@ -764,6 +875,11 @@ onUnmounted(() => { document.removeEventListener('keydown', onTaskNavKey, true) 
     openBatchMount,
     confirmBatchMount,
     setTaskStatusOf,
+    taskStatusMeta,
+    taskBucketOf,
+    taskStatusNameOf,
+    taskStatusIconOf,
+    taskStatusClassOf,
     setTaskDueDate,
     clearTaskDueDate,
     toggleTaskCompletion,

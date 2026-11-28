@@ -70,7 +70,7 @@ const {
   pickedIds, pickerDisabled, pickerTopicDisabled, selectTaskGuarded, selectTopicGuarded, removeTodaySlot,
   copyFocusToToday, copyYesterday, clearFocusSelection, exportOpen, exportFrom, exportTo,
   openExportModal, statusLabelOf, exportBusy, doExport, toggleTodayDone,
-  projectName, metricName, taskStatusLabel, taskStatusIcon, taskStatusClass,
+  projectName, metricName, taskStatusNameOf, taskStatusIconOf, taskStatusClassOf,
   focusCopyText, focusCopyReason, copyFocusText,
   fmtShortDate, fmtRecentTime, tFields, taskAssetsOn, onDateKey,
   gotoAnchor, onAnchorEvt, saveErr, lastOkTick, saveErrSub,
@@ -255,7 +255,7 @@ watch(
                   </div>
                 </div>
                 <footer class="focus-card-foot">
-                  <span class="status" :class="c.slot && focusSlotStatusClass(c.slot)"><Icon :name="c.slot ? focusSlotStatusIcon(c.slot) : taskStatusIcon(c.task.status)" :size="11" /> {{ c.slot ? focusSlotStatusLabel(c.slot) : taskStatusLabel(c.task.status) }}</span>
+                  <span class="status" :class="c.slot && focusSlotStatusClass(c.slot)"><Icon :name="c.slot ? focusSlotStatusIcon(c.slot) : taskStatusIconOf(c.task)" :size="11" /> {{ c.slot ? focusSlotStatusLabel(c.slot) : taskStatusNameOf(c.task) }}</span>
                   <span class="focus-due"><Icon name="calendar" :size="11" /> {{ taskDueLabel(c.task) }}</span>
                   <span v-if="c.slot?.auto === true" class="rec" data-testid="focus-rec"><Icon name="sparkle" :size="10" /> AI 荐</span>
                   <span v-else class="focus-lock">手动锁定</span>
@@ -651,8 +651,8 @@ watch(
                 <span class="pi-meta">
                   <span v-if="candidate.kind === 'topic'" class="tag topic-tag">选题</span>
                   <span class="tag accent">{{ projectName(candidate.card.projectId) }}</span>
-                  <span v-if="candidate.kind === 'task'" class="tag" :class="taskStatusClass(candidate.card.status)">
-                    <Icon :name="taskStatusIcon(candidate.card.status)" :size="11" /> {{ taskStatusLabel(candidate.card.status) }}
+                  <span v-if="candidate.kind === 'task'" class="tag" :class="taskStatusClassOf(candidate.card)">
+                    <Icon :name="taskStatusIconOf(candidate.card)" :size="11" /> {{ taskStatusNameOf(candidate.card) }}
                   </span>
                   <span v-else class="tag topic-tag">
                     {{ pickerTopicStatusOptions.find(status => status.id === candidate.card.statusId)?.name || '构思中' }}

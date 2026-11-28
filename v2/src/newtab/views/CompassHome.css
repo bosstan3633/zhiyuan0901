@@ -916,10 +916,6 @@
   padding: 12px 14px 14px;
 }
 
-.topic-workbench-home :deep(.topic-workbench) {
-  min-height: 560px;
-}
-
 .focus-row.focus-card:hover {
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--accent-light) 20%, var(--surface));

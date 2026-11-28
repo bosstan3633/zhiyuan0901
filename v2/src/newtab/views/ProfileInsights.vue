@@ -6,7 +6,7 @@
  * 本版把已确认的高保真原型落为生产：
  *   §0 PiHero 页头（标题 / 使命与主攻 / 全库读数 / 刷新、导出、全部记录）
  *   §1 PiOverview 首屏双栏（左：本周方向；右：今天三件事）
- *   §2 观察范围双视图：时间轴（默认）/ 热力图。
+ *   §2 观察范围双视图：卡片分析（默认）/ 时间轴。
  *     ① PiTimeline 按自然日倒序平铺写入与修改过的卡片，点卡看详情并可定位回卡片池；
  *     ② PiYear     保留既有年度热力图与资源生命周期。
  *
@@ -51,11 +51,11 @@ import {
   objectivesOf
 } from '@/shared/utils/reviewReport'
 import type { DirLike, TaskLike } from '@/shared/utils/reviewReport'
-import { aggregateRange } from '@/shared/utils/dailyStats'
 import PiHero from '@/newtab/components/profile/PiHero.vue'
 import { useCuriosity } from '@/newtab/stores/curiosity'
 import PiAnnualHeatmap from '@/newtab/components/profile/PiAnnualHeatmap.vue'
 import PiCardAnalysis from '@/newtab/components/profile/PiCardAnalysis.vue'
+import PiLibraryPulse from '@/newtab/components/profile/PiLibraryPulse.vue'
 import PiYearMetricDrawer from '@/newtab/components/profile/PiYearMetricDrawer.vue'
 import { useCompass } from '@/newtab/stores/compass'
 import PiTimeline, { type PiTimelineEntry } from '@/newtab/components/profile/PiTimeline.vue'
@@ -72,7 +72,10 @@ import { emitOpenDrawer } from '@/shared/utils/bus'
 import PiTagDistributionDrawer from '@/newtab/components/profile/PiTagDistributionDrawer.vue'
 import PiMetricDetailDrawer, { type PiStatRow, type PiReconCell } from '@/newtab/components/profile/PiMetricDetailDrawer.vue'
 import PiLifecycleSettingsModal from '@/newtab/components/profile/PiLifecycleSettingsModal.vue'
+import { monthStartAt, type AnyLiveCard } from '@/shared/analytics/cardInventory'
 import { useProfileInsights, type GFlat, type StatDrawerType, type StatRow, type TagOptimizeJob } from './useProfileInsights'
+import { useCardAnalysis } from './useCardAnalysis'
+import type { CardAnalysisKind } from './useCardAnalysis'
 const {
   router, store, gd, taskDetailRef, battleHost,
   openResourceLink, focusedProjects, projectProgress, projectTasksOf, isProjectStalled,
@@ -107,13 +110,43 @@ const {
 } = useProfileInsights()
 
 const route = useRoute()
+const { model: cardAnalysis } = useCardAnalysis(gd, timelineEvents)
+const activeCardKind = ref<CardAnalysisKind>('task')
+const CARD_KIND_LABEL: Record<CardAnalysisKind, string> = {
+  task: '任务卡',
+  resource: '资源卡',
+  curiosity: '好奇心卡',
+  topic: '选题卡',
+}
+
 type ProfileView = 'timeline' | 'analysis'
 function initialProfileView(): ProfileView {
-  if (route.query.view === 'analysis' || route.query.view === 'heatmap') return 'analysis'
-  if (typeof location !== 'undefined' && (location.hash === '#lifecycle' || location.hash === '#lc-sec')) return 'analysis'
-  return 'timeline'
+  if (route.query.view === 'timeline') return 'timeline'
+  return 'analysis'
 }
 const profileView = ref<ProfileView>(initialProfileView())
+const PROFILE_VIEWS: ProfileView[] = ['timeline', 'analysis']
+function activateProfileView(view: ProfileView, moveFocus = false): void {
+  profileView.value = view
+  if (!moveFocus) return
+  requestAnimationFrame(() => document.getElementById(`pi-view-tab-${view}`)?.focus())
+}
+function onProfileViewKeydown(event: KeyboardEvent, current: ProfileView): void {
+  const index = PROFILE_VIEWS.indexOf(current)
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    activateProfileView(PROFILE_VIEWS[(index + 1) % PROFILE_VIEWS.length], true)
+  } else if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    activateProfileView(PROFILE_VIEWS[(index - 1 + PROFILE_VIEWS.length) % PROFILE_VIEWS.length], true)
+  } else if (event.key === 'Home') {
+    event.preventDefault()
+    activateProfileView(PROFILE_VIEWS[0], true)
+  } else if (event.key === 'End') {
+    event.preventDefault()
+    activateProfileView(PROFILE_VIEWS[PROFILE_VIEWS.length - 1], true)
+  }
+}
 function openTimelineEntry(entry: PiTimelineEntry): void {
   if (entry.kind === 'task') {
     const task = gd.value.tasks.find(row => row.id === entry.id && !row.deletedAt)
@@ -155,6 +188,110 @@ function openTimelineEntryLink(entry: PiTimelineEntry): void {
   showToast('这张卡片没有可打开的链接')
 }
 
+function openAnalysisCard(payload: { kind: CardAnalysisKind; id: string }): void {
+  if (payload.kind === 'task') {
+    const task = (gd.value.tasks || []).find(row => row.id === payload.id && !row.deletedAt)
+    if (!task) { showToast('该任务已不在库中'); return }
+    recordCardOpen(gd.value, task)
+    taskDetailRef.value?.open(task)
+    return
+  }
+  const drawerKind = payload.kind === 'resource' ? 'res' : payload.kind === 'topic' ? 'topic' : 'curio'
+  emitOpenDrawer({ kind: drawerKind, id: payload.id })
+}
+
+type LibraryAddedScope = 'month' | 'import'
+const libraryAddedOpen = ref(false)
+const libraryAddedScope = ref<LibraryAddedScope>('month')
+const libraryAddedSearch = ref('')
+const libraryAddedPage = ref(1)
+const LIBRARY_ADDED_PAGE_SIZE = 20 as const
+
+function libraryCardTitle(card: AnyLiveCard): string {
+  return card.kind === 'curiosity' ? (card.question || '（无标题好奇心）') : (card.title || '（无标题卡片）')
+}
+
+const libraryAddedCards = computed<AnyLiveCard[]>(() => {
+  const all: AnyLiveCard[] = [
+    ...cardAnalysis.value.inventory.live.resources,
+    ...cardAnalysis.value.inventory.live.tasks,
+    ...cardAnalysis.value.inventory.live.curiosities,
+    ...cardAnalysis.value.inventory.live.topics,
+  ]
+  const cutoff = libraryAddedScope.value === 'import' ? gStartOfToday : monthStartAt()
+  const stampOf = (card: AnyLiveCard) => libraryAddedScope.value === 'import'
+    ? Number(card.importedAt) || 0
+    : Number(card.createdAt) || 0
+  return all
+    .filter(card => stampOf(card) >= cutoff)
+    .sort((a, b) => stampOf(b) - stampOf(a) || libraryCardTitle(a).localeCompare(libraryCardTitle(b), 'zh-CN'))
+})
+const libraryAddedFiltered = computed(() => {
+  const query = libraryAddedSearch.value.trim().toLowerCase()
+  if (!query) return libraryAddedCards.value
+  return libraryAddedCards.value.filter(card =>
+    libraryCardTitle(card).toLowerCase().includes(query)
+    || String(card.kind).includes(query))
+})
+const libraryAddedPageCount = computed(() =>
+  Math.max(1, Math.ceil(libraryAddedFiltered.value.length / LIBRARY_ADDED_PAGE_SIZE)))
+const libraryAddedRows = computed<PiStatRow[]>(() => {
+  const start = (libraryAddedPage.value - 1) * LIBRARY_ADDED_PAGE_SIZE
+  return libraryAddedFiltered.value.slice(start, start + LIBRARY_ADDED_PAGE_SIZE).map(card => ({
+    kind: card.kind,
+    id: card.id,
+    title: libraryCardTitle(card),
+    ts: Number(libraryAddedScope.value === 'import' ? card.importedAt : card.createdAt) || 0,
+    owner: card.kind === 'curiosity' ? '好奇心' : card.kind === 'resource' ? '资源' : card.kind === 'task' ? '任务' : '选题',
+  }))
+})
+const libraryAddedTitle = computed(() =>
+  libraryAddedScope.value === 'import'
+    ? `今日导入卡片（${libraryAddedCards.value.length}）`
+    : `本月新增卡片（${libraryAddedCards.value.length}）`)
+const libraryAddedNote = computed(() =>
+  libraryAddedScope.value === 'import'
+    ? '按 importedAt 统计：导入继承原 createdAt，不混入今天新建；与全库总览的“导 N”同源。'
+    : `按 createdAt ≥ ${new Date(monthStartAt()).toLocaleDateString('zh-CN')} 统计；与全库总览的“本月 +N”同源，不读事件流水。`)
+const libraryAddedReconcile = computed<PiReconCell[]>(() => [
+  { k: '当前口径', n: libraryAddedScope.value === 'import' ? '今日导入' : '本月新增' },
+  { k: '卡片总数', n: String(libraryAddedCards.value.length), u: '张' },
+])
+
+const libraryTagLists = computed(() => [
+  ...cardAnalysis.value.inventory.live.resources.map(card => card.tags || []),
+  ...cardAnalysis.value.inventory.live.tasks.map(card => card.tags || []),
+  ...cardAnalysis.value.inventory.live.curiosities.map(card => card.tags || []),
+  ...cardAnalysis.value.inventory.live.topics.map(card => card.tags || []),
+])
+const libraryTagEntropy = computed(() => computeTagEntropy(libraryTagLists.value))
+
+function openLibraryAdded(scope: LibraryAddedScope): void {
+  libraryAddedScope.value = scope
+  libraryAddedSearch.value = ''
+  libraryAddedPage.value = 1
+  libraryAddedOpen.value = true
+}
+
+function pageLibraryAdded(delta: number): void {
+  libraryAddedPage.value = Math.max(1, Math.min(libraryAddedPageCount.value, libraryAddedPage.value + delta))
+}
+
+function openLibraryAddedCard(row: PiStatRow): void {
+  const card = libraryAddedCards.value.find(item => item.id === row.id && item.kind === row.kind)
+  if (!card) return
+  libraryAddedOpen.value = false
+  if (row.kind === 'resource' && openResourceLink(card as AnyLiveCard & { kind: 'resource' })) return
+  openAnalysisCard({ kind: row.kind, id: row.id })
+}
+
+function onLibraryPulseDrill(key: 'all' | 'effective-support' | 'focus' | 'yr-active' | 'yr-streak' | 'yr-high'): void {
+  if (key === 'all') { openStatDrawer('all'); return }
+  if (key === 'effective-support') { openStatDrawer('effective-support'); return }
+  if (key === 'focus') { openLogFocus(); return }
+  onYearDrill(key)
+}
+
 /* V4.4.0：周期控制与模块级 AI 洞察放在同一个控制条里。
    洞察只读当前范围事实，手动触发、临时展示，不写回 AppData。 */
 const profileInsight = ref('')
@@ -162,7 +299,8 @@ const profileInsightState = ref<'idle' | 'run' | 'done' | 'off'>('idle')
 const profileInsightError = ref('')
 let profileInsightAbort: AbortController | null = null
 
-const profileRangeLabel = computed(() => profileView.value === 'timeline' ? '时间轴' : '卡片分析')
+const profileRangeLabel = computed(() =>
+  profileView.value === 'timeline' ? '时间轴' : `${CARD_KIND_LABEL[activeCardKind.value]}分析`)
 const timelineWindowStart = Date.now() - 30 * 24 * 60 * 60 * 1000
 
 const directionContext = computed(() => {
@@ -211,18 +349,54 @@ const profileInsightFacts = computed(() => {
       `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心 / ${heroKindCounts.value.topic} 选题`,
     ]
   }
-  const from = `${dashYear.value}-01-01`
-  const to = `${dashYear.value}-12-31`
-  const agg = aggregateRange(dashStats.value, from, to)
+  const a = cardAnalysis.value
+  const common = [
+    `当前全库：${a.inventory.counts.resource} 资源 / ${a.inventory.counts.task} 任务 / ${a.inventory.counts.curiosity} 好奇心 / ${a.inventory.counts.topic} 选题；本月新增 ${a.inventory.monthAdded} 张`,
+    `近 12 个月活跃资产：${a.inventory.active12m} 张；高价值冷却：${a.inventory.highValueCooling} 张；任务有效资源支撑率：${a.evidence.effectiveTaskSupportRate}%；近 30 天精力落主攻：${a.focusShare}%`,
+  ]
+  if (activeCardKind.value === 'task') {
+    const block = a.task
+    const projectTop = block.projectDistribution.slice(0, 4)
+      .map(row => `${row.label} ${row.count}`).join(' / ')
+    return [
+      `任务卡在库 ${block.liveCount} 张；完成 ${block.doneCount} 张（${block.doneRate}%）；挂项目或指标 ${block.attachedCount} 张（项目 ${block.projectAttachedCount} / 指标 ${block.metricAttachedCount}）`,
+      `已落图 ${block.scheduledCount} 张，未落图 ${block.unscheduledCount} 张`,
+      `曾进入三件事 ${block.focusEnteredCount} 张，从未进入 ${block.focusNeverCount} 张；平均 ${block.focusAverageEntered} 次（仅曾进入分母），全库摊平 ${block.focusAverageAll} 次，单任务最高 ${block.focusMax} 次`,
+      `无有效资源支撑 ${block.noSupportCount} 张；归属冲突 ${block.conflictCount} 张（其中歧义 ${block.ambiguousCount} 张）`,
+      `项目归属分布：${projectTop || '暂无'}`,
+      ...common,
+    ]
+  }
+  if (activeCardKind.value === 'resource') {
+    const block = a.resource
+    const links = block.linkDistribution.map(row => `${row.label} ${row.count}`).join(' / ')
+    return [
+      `资源卡在库 ${block.liveCount} 张；链接可用 ${block.linkedCount} 张，无链接 ${block.noLinkCount} 张`,
+      `被活任务引用 ${block.taskReferencedCount} 张；零引用 ${block.zeroReferenceCount} 张；近 30 天真实调出 ${block.recentCalledCount} 张`,
+      `从未调用 ${block.neverCalledCount} 张；高价值冷却 ${block.highValueCoolingCount} 张（冷却且历史调用 ≥ 3）`,
+      `链接构成：${links || '暂无'}`,
+      `资源引用按当前关系表统计，解绑会立即回落，不把关系表当历史墓碑`,
+      ...common,
+    ]
+  }
+  if (activeCardKind.value === 'curiosity') {
+    const block = a.curiosity
+    return [
+      `好奇心卡在库 ${block.liveCount} 张；待探索 ${block.todoCount} / 探索中 ${block.doingCount} / 已求证 ${block.doneCount} / 已搁置 ${block.shelfCount}`,
+      `有计划 ${block.plannedCount} 张；有来源 ${block.sourcedCount} 张；有附件 ${block.assetCount} 张；有资源支撑 ${block.supportedCount} 张`,
+      `超过 30 天未动 ${block.staleCount} 张；已转化 ${block.convertedCount} 张（独立事实标记，不混入状态桶）`,
+      '好奇心卡没有项目 / 指标字段，不做伪分组；三件事历史频次只统计任务与选题',
+      ...common,
+    ]
+  }
+  const block = a.topic
+  const statuses = block.statusDistribution.map(row => `${row.label} ${row.count}`).join(' / ')
   return [
-    `年度窗口：${dashYear.value} 年`,
-    `全年有效动作：${agg.acts} 次；活跃天数：${agg.act}/${agg.days || 365}`,
-    `全年新增卡片：${agg.c.res + agg.c.curio + agg.c.task} 张；调出：${agg.u} 次`,
-    `任务状态推进：${agg.s.task} 次；今日三件事完成：${agg.focus} 次；支撑关联：${agg.link} 条`,
-    `当前全库：${heroKindCounts.value.res} 资源 / ${heroKindCounts.value.task} 任务 / ${heroKindCounts.value.curio} 好奇心 / ${heroKindCounts.value.topic} 选题`,
-    `选题成果：在库 ${gTopicLive.value.length}，已发布 ${topicPublished.value.length}，有资源支撑 ${topicSupported.value.length}，本月新增 ${topicMonthAdded.value.length}`,
-    `证据支撑率：${Math.round(heroSupportRate.value * 100)}%；近 30 天精力落主攻：${Math.round(heroFocusShare.value * 100)}%`,
-    `高价值冷却卡：${lcCards.value.length} 张`,
+    `选题卡在库 ${block.liveCount} 张；完成 / 发布态 ${block.completedCount} 张（只读 topicStatuses.terminal，不推算真实发布时间）`,
+    `有计划 ${block.plannedCount} 张；进入三件事 ${block.focusEnteredCount} 张，从未进入 ${block.focusNeverCount} 张，平均 ${block.focusAverageEntered} 次`,
+    `挂项目或指标 ${block.attachedCount} 张；有资源支撑 ${block.supportedCount} 张；本月新增 ${block.monthAddedCount} 张；近 30 天新增 ${block.recent30AddedCount} 张；有成果链接 ${block.outcomeCount} 张（不等同已发布）`,
+    `选题状态分布：${statuses || '暂无'}`,
+    ...common,
   ]
 })
 
@@ -258,7 +432,7 @@ async function generateProfileInsight(): Promise<void> {
       messages: [
         {
           role: 'system',
-          content: '你是一名严谨、克制的中文数据分析师与行动教练。只根据给定画像事实和方向树上下文分析，不编造数字、不做人格评判；数据不足时明确说明。输出 200—260 字的一段中文，依次包含：①当前时间轴或热力图最值得注意的事实；②这些行为与方向树愿景、使命、主攻项目或成功指标的匹配/偏离；③一条可立即执行、能在下一张卡或下一小时落地的行动指示。不要标题、不要 Markdown、不要客套话。',
+          content: '你是一名严谨、克制的中文数据分析师与行动教练。只根据给定画像事实和方向树上下文分析，不编造数字、不做人格评判；数据不足时明确说明。输出 200—260 字的一段中文，依次包含：①当前观察视图最值得注意的事实；②这些事实与方向树愿景、使命、主攻项目或成功指标的匹配/偏离；③一条可立即执行、能在下一张卡或下一小时落地的行动指示。不要标题、不要 Markdown、不要客套话。',
         },
         {
           role: 'user',
@@ -287,7 +461,7 @@ async function generateProfileInsight(): Promise<void> {
   }
 }
 
-watch(profileView, resetProfileInsight)
+watch([profileView, activeCardKind], resetProfileInsight)
 watch(() => route.query.view, value => {
   if (value === 'timeline' || value === 'analysis') profileView.value = value
   else if (value === 'heatmap') profileView.value = 'analysis'
@@ -301,50 +475,63 @@ watch(() => route.query.view, value => {
       @export-error="exportErrorLog" @open-log="openLog('log')" />
 
     <PiAnnualHeatmap :stats="dashStats" :year="dashYear" :sel-day="dashSelDay"
-      :events="timelineEvents" :live-link="linkCardCount" :lc-cards="lcCards"
+      :events="timelineEvents" :live-link="linkCardCount"
       @update:year="dashYear = $event" @update:sel-day="dashSelDay = $event"
-      @open-battle="openDayBattle" @drill="onYearDrill" />
+      @open-battle="openDayBattle" />
 
-    <!-- ===== §2 观察范围：时间轴 / 热力图双视图，默认时间轴 ===== -->
+    <PiLibraryPulse :analysis="cardAnalysis" :stats="dashStats" :year="dashYear" :entropy="libraryTagEntropy"
+      :today-import="todayImportCount"
+      @drill="onLibraryPulseDrill" @tag="openTagDistribution" @month-added="openLibraryAdded" />
+
+    <!-- ===== §2 观察范围：时间轴 / 卡片分析双视图，默认卡片分析 ===== -->
     <div class="pi-rmods pi-rmods-single">
         <div class="pi-range-toolbar">
           <div class="pi-range-control">
             <span class="pi-range-kicker">观察范围</span>
             <div class="pi-view-tabs" role="tablist" aria-label="画像洞察观察视图">
               <button
+                id="pi-view-tab-timeline"
                 type="button"
                 class="pi-view-tab"
                 :class="{ on: profileView === 'timeline' }"
                 data-profile-view="timeline"
                 role="tab"
                 :aria-selected="profileView === 'timeline'"
+                aria-controls="pi-view-panel-timeline"
                 :tabindex="profileView === 'timeline' ? 0 : -1"
-                @click="profileView = 'timeline'"
+                @click="activateProfileView('timeline')"
+                @keydown="onProfileViewKeydown($event, 'timeline')"
               >
                 <Icon name="clock" :size="13" /><span>时间轴</span><small>TIMELINE</small>
               </button>
               <button
+                id="pi-view-tab-analysis"
                 type="button"
                 class="pi-view-tab"
                 :class="{ on: profileView === 'analysis' }"
                 data-profile-view="analysis"
                 role="tab"
                 :aria-selected="profileView === 'analysis'"
+                aria-controls="pi-view-panel-analysis"
                 :tabindex="profileView === 'analysis' ? 0 : -1"
-                @click="profileView = 'analysis'"
+                @click="activateProfileView('analysis')"
+                @keydown="onProfileViewKeydown($event, 'analysis')"
               >
                 <Icon name="battle" :size="13" /><span>卡片分析</span><small>ANALYSIS</small>
               </button>
             </div>
           </div>
           <button class="pi-ai-trigger" :class="{ on: profileInsightState === 'done' || profileInsightState === 'run' }"
-            type="button" :disabled="profileInsightState === 'run'" @click="generateProfileInsight">
+            type="button" :disabled="profileInsightState === 'run'"
+            aria-controls="pi-ai-insight" :aria-expanded="profileInsightState !== 'idle' || !!profileInsight || !!profileInsightError"
+            @click="generateProfileInsight">
             <Icon name="sparkle" :size="14" />
             {{ profileInsightState === 'run' ? '分析中…' : profileInsightState === 'done' ? '重新洞察' : 'AI 洞察' }}
           </button>
         </div>
         <section v-if="profileInsightState !== 'idle' || profileInsight || profileInsightError"
-          class="pi-ai-insight" :data-state="profileInsightState" aria-label="模块 AI 洞察">
+          id="pi-ai-insight" class="pi-ai-insight" :data-state="profileInsightState"
+          role="status" aria-live="polite" aria-label="模块 AI 洞察">
           <div class="pi-ai-head">
             <span><Icon name="sparkle" :size="14" /> {{ profileRangeLabel }} · AI 洞察</span>
             <button type="button" title="收起本次洞察" @click="resetProfileInsight">×</button>
@@ -355,23 +542,25 @@ watch(() => route.query.view, value => {
           <small>临时分析，不写入任务或画像真源。</small>
         </section>
 
-        <PiTimeline
-          v-if="profileView === 'timeline'"
-          :events="timelineEvents"
-          :data="gd"
-          @open="openTimelineEntry"
-          @open-link="openTimelineEntryLink"
-        />
+        <section v-if="profileView === 'timeline'" id="pi-view-panel-timeline" class="pi-view-panel"
+          role="tabpanel" aria-labelledby="pi-view-tab-timeline">
+          <PiTimeline
+            :events="timelineEvents"
+            :data="gd"
+            @open="openTimelineEntry"
+            @open-link="openTimelineEntryLink"
+          />
+        </section>
 
-        <PiCardAnalysis v-else :data="gd" :total="heroTotal" :kind-counts="heroKindCounts" :entropy="heroEntropy"
-          :topic-stats="{ all: gTopicLive.length, published: topicPublished.length, supported: topicSupported.length, month: topicMonthAdded.length }"
-          :top-tags="heroTopTags" :support-rate="heroSupportRate" :focus-share="heroFocusShare"
-          :today-import="todayImportCount"
-          :lc-cards="lcCards" :focus-filter="lcFocus"
-          @kpi-drill="onHeroDrill" @topic-drill="onHeroDrill"
-          @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
-          @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
-          @lc-settings="lcSetOpen = true" />
+        <section v-else id="pi-view-panel-analysis" class="pi-view-panel"
+          role="tabpanel" aria-labelledby="pi-view-tab-analysis">
+          <PiCardAnalysis v-model:kind="activeCardKind" :analysis="cardAnalysis"
+            :lc-cards="lcCards" :focus-filter="lcFocus"
+            @open-card="openAnalysisCard"
+            @lc-locate="onLcLocate" @lc-archive="onLcArchive" @lc-snooze="onLcSnooze"
+            @lc-reactivate="onLcReactivate" @lc-set-days="onLcSetDays"
+            @lc-settings="lcSetOpen = true" />
+        </section>
     </div>
 
     <!-- ★W12-B 底栏整条删除：原先这里挂着「只读纪律」免责文字 + 一枚「全部记录」。
@@ -393,8 +582,9 @@ watch(() => route.query.view, value => {
     <TaskDetailDrawer ref="taskDetailRef" />
 
     <PiTagDistributionDrawer
-      :open="tagInsightOpen" :entropy="heroEntropy"
+      :open="tagInsightOpen" :entropy="libraryTagEntropy"
       :resources="gResLive" :tasks="gTaskLive"
+      :curiosities="gCurioLive" :topics="gTopicLive"
       @close="tagInsightOpen = false" @optimize="runTagOptimizeAi" />
 
     <AiDrawer v-if="tagAiJob" :job="tagAiJob" :job-key="tagAiJob.key" @close="tagAiJob = null" />
@@ -406,6 +596,15 @@ watch(() => route.query.view, value => {
       :page-size="STAT_PAGE" :reconcile="statReconcile" :reconcile-note="statReconcileNote"
       @close="statDrawer = ''" @update:search="statSearch = $event"
       @page="statGo" @open-card="openStatCard" />
+
+    <PiMetricDetailDrawer
+      :open="libraryAddedOpen" :title="libraryAddedTitle" :rows="libraryAddedRows"
+      :filtered-count="libraryAddedFiltered.length" :total-count="libraryAddedCards.length"
+      :search="libraryAddedSearch" :page="libraryAddedPage" :page-count="libraryAddedPageCount"
+      :page-size="LIBRARY_ADDED_PAGE_SIZE" :reconcile="libraryAddedReconcile" :reconcile-note="libraryAddedNote"
+      @close="libraryAddedOpen = false"
+      @update:search="libraryAddedSearch = $event; libraryAddedPage = 1"
+      @page="pageLibraryAdded" @open-card="openLibraryAddedCard" />
 
     <PiYearMetricDrawer
       :open="!!yearMetricDrawer" :mode="yearMetricMode" :title="yearMetricTitle" :note="yearMetricNote"

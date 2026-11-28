@@ -12,7 +12,7 @@
  *   node scripts/pack.cjs --no-zip        # 只出解压目录
  *
  * 体积预算（见 文档中心/06_测试与发布/06-2 发布验收清单 §G）：
- *   生产包 ≤ 2.25M（V3.9.19 由 2M 上调，理由见下）· ZIP ≤ 900KB · 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
+ *   生产包 ≤ 5M · ZIP ≤ 5MB（V4.7.7 后 2026-11-28 用户拍板，由 2.25M / 900KB 放宽，理由见下）· 单文件 ≤ 400KB · **禁止把 *.map 打进发布包**
  *
  * ★V3.8.33（用户拍板 2026-10-18）：ZIP 预算 700KB → **900KB**。理由链同样要写清，否则下一轮又会被问「凭什么是 900」：
  *   ① **700KB 是被用完的，不是被优化的**。V3.8.25 上调时实测 687,229 B（余 29KB）；V3.8.32 是 694,942 B，
@@ -42,6 +42,13 @@
  * ★V3.8.25 的旧账（已被上面 900KB 取代，留作沿革证据，勿再引用为现行预算）：
  *   600KB 当时已不可达：V3.8.0 实测 608,791 B（余 6KB）；且"手册与更新日志外置懒加载"对 ZIP 是空操作
  *   （两者本就在懒 chunk，ZIP 装全部产物，代码分割只影响首屏）；连整个删掉也只省 45–50K，仍超 600K。
+ *
+ * ★V4.7.7 后（用户拍板 2026-11-28）：生产包 2.25M → **5M**、ZIP 900KB → **5MB**。账算完再调（同 V3.8.33 仪式）：
+ *   ① V4.7.7 实测解压包 2,873,937 B（超 2.25MiB 514,641 B，登记告警）、ZIP 913,977 B（余 7,623 B，已贴线）——
+ *      旧线下每个版本都会重复「超预算告警 + 拍板接受」一次，预算已退化成流程摩擦。
+ *   ② 本产品本地优先、无商店分发瓶颈，ZIP 只是自载分发包；用户拍板「余量不用限制这么严格，可以到 5MB」，
+ *      两条线一次放宽到位（解压包 ≈ +2.1M、ZIP 约 4.4 倍余量）。
+ *   ③ **单文件 ≤400KB 与 *.map 禁令不动**：单文件口径守的是解析与审查成本，不随总预算放宽。
  */
 const fs = require('fs')
 const path = require('path')
@@ -205,13 +212,13 @@ if (!noZip) {
 }
 console.log(`  已剥离 map  ${dropped} 个（约 ${fmt(all.reduce((s, f) => s + (f.endsWith('.map') ? fs.statSync(f).size : 0), 0))}）`)
 console.log('')
-console.log('  体积预算（06-2 §G）：生产包 ≤2.25M（V3.9.19 由 2M 上调，理由见文件头注释）· ZIP ≤900KB（V3.8.33 由 700 上调）· 单文件 ≤400KB')
+console.log('  体积预算（06-2 §G）：生产包 ≤5M · ZIP ≤5MB（V4.7.7 后 2026-11-28 用户拍板放宽，理由见文件头注释）· 单文件 ≤400KB')
 
 // ---------- 预算校验（超限只告警不中断，避免挡住发版） ----------
 const biggest = kept.reduce((m, f) => Math.max(m, fs.statSync(f).size), 0)
 const warn = []
-if (pkgBytes > 2.25 * 1024 * 1024) warn.push(`生产包 ${fmt(pkgBytes)} 超 2.25M（≥2.2M 触发资产盘点复核点）`)
-if (!noZip && zipBytes > 900 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 900KB`)
+if (pkgBytes > 5 * 1024 * 1024) warn.push(`生产包 ${fmt(pkgBytes)} 超 5M`)
+if (!noZip && zipBytes > 5 * 1024 * 1024) warn.push(`ZIP ${fmt(zipBytes)} 超 5MB`)
 if (biggest > 400 * 1024) warn.push(`单文件最大 ${fmt(biggest)} 超 400KB`)
 if (kept.some(f => f.endsWith('.map'))) warn.push('包内仍含 *.map')
 if (warn.length) console.log('  ⚠ 预算告警：' + warn.join('；'))

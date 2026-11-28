@@ -22,6 +22,7 @@ import type { MetricMeta } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
 import { useCompass } from '../../stores/compass'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 
 const props = defineProps<{
   m: MetricMeta
@@ -39,6 +40,12 @@ const props = defineProps<{
 
 const taskDnd = inject(TASK_DND_KEY, null)
 const { d } = useCompass()
+function taskBucket(t: import('@/shared/models').TaskCard): string {
+  return taskStatusOf(d.value, t)?.bucket || 'todo'
+}
+function taskDone(t: import('@/shared/models').TaskCard): boolean {
+  return isTaskDone(d.value, t)
+}
 
 const emit = defineEmits<{
   (e: 'toggle', metricId: string): void
@@ -194,15 +201,15 @@ function topicDone(topicId: string): boolean {
     <div v-if="open && (m.tasks.length || m.topics.length)" class="metric-list">
       <ul v-if="m.tasks.length" class="tk-list">
         <li v-for="t in m.tasks" :key="t.id" class="tk-row" :data-task="t.id" :title="`归属：${crumb}`" :draggable="taskDnd ? true : undefined"
-          :class="[t.status, { 'tk-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
+          :class="[taskBucket(t), { 'tk-drag': taskDnd && taskDnd.dragTaskId === t.id, 'dnd-tip-t': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 't', 'dnd-tip-b': taskDnd && taskDnd.dropTip?.id === t.id && taskDnd.dropTip.mode === 'b' }]"
           @dragstart="taskDnd?.onTaskDragStart($event, t)" @dragover.stop.prevent="taskDnd?.onRowDragOver($event, t)"
           @drop.stop.prevent="taskDnd?.onRowDrop($event, t, m.id)" @dragend="taskDnd?.onDragEnd()">
           <button
             class="tk-box"
-            :class="t.status"
-            :aria-label="t.status === 'done' ? '标记未完成' : '标记完成'"
+            :class="taskBucket(t)"
+            :aria-label="taskDone(t) ? '标记未完成' : '标记完成'"
             @click="emit('task', t.id)"
-          ><span v-if="t.status === 'done'"><Icon name="check" :size="13"/></span></button>
+          ><span v-if="taskDone(t)"><Icon name="check" :size="13"/></span></button>
           <button class="tk-title" title="打开任务详情抽屉" @click="emit('openDetail', t.id)">{{ t.title }}</button>
           <!-- 归属路径：hover 浮现 -->
           <span class="tk-crumb" aria-hidden="true">{{ crumb }}</span>

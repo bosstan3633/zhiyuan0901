@@ -146,10 +146,10 @@ check('V450-7（V4.7.7 重指）★选题详情以完整标题为第一视觉：
     && !TOPIC_DRAWER.includes('class="topic-subtasks"')
 })
 
-check('V450-8（V4.7.7 重指）★选题工作面与任务池同构：左侧可折叠清单，右侧月/周日历、按状态分组的看板与卡片时间线；拖拽改状态、改 dueDate 与今天严格同源。选题日历只读 topic.dueDate，不再混入任务或今日三件事。', () => {
+check('V450-8（V4.7.8 重指）★选题工作面与任务池同构：左侧可折叠清单，右侧月/周日历、按状态分组的看板与卡片时间线；拖拽改状态、改 dueDate 与今天严格同源。选题日历只读 topic.dueDate，不再混入任务或今日三件事。', () => {
   return TOPIC_MANAGER.includes('class="topic-workbench"')
     && TOPIC_MANAGER.includes('class="topic-collapse-inline"')
-    && TOPIC_MANAGER.includes(':class="{ \'list-hidden\': listCollapsed }"')
+    && TOPIC_MANAGER.includes(':class="{ \'list-hidden\': listCollapsed, \'is-calendar\': viewMode === \'calendar\' }"')
     && TOPIC_MANAGER.includes('viewMode === \'calendar\'')
     && TOPIC_MANAGER.includes("viewMode === 'timeline'")
     && TOPIC_MANAGER.includes('<CardPoolTimeline v-else-if="viewMode === \'timeline\'" kind="topic"')

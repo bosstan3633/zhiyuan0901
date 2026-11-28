@@ -37,19 +37,26 @@ check('XM-01 ★方向层级标签三处接线：战略目标 / 项目 / 指标�
     && !treeCode.includes('当前主攻');
 });
 
-check('XM-02（V4.4.0 重指 · ★V4.7.1 随迁备案）★任务详情首屏：完整标题 → 安排历程主模块（计划日期在内、今日重点降为次级）→ 项目/指标轻量双栏 → 资源镜像与「AI 找资源」主入口 → 3 行说明/次级「AI 补全」；导出/优先级/成熟度/子任务/拆解全部退场；所有宿主复用同一抽屉', () => {
+check('XM-02（V4.4.0 重指 · ★V4.7.1 随迁备案 · ★V4.7.8 再重指备案）★任务详情首屏：完整标题 → 四枚汇总（计划 / 三件事 / 有效资源 / 项目指标）→ 安排历程主模块 → 今日三件事时间轴 → 项目/指标轻量双栏 → 资源镜像与「AI 找资源」主入口 → 3 行说明/次级「AI 补全」；导出/优先级/成熟度/子任务/拆解全部退场；所有宿主复用同一抽屉', () => {
   const td = read('/newtab/components/compass/TaskDetailDrawer.vue');
   const tdCode = codeOnly(td);
   const titleAt = td.indexOf('<div class="ts-title-wrap">');
-  const ownerAt = td.indexOf('<div class="ts-section ts-owner ds-props2">');
-  const planAt = td.indexOf('<section class="ts-section ts-plan-hero">');
+  const summaryAt = td.indexOf('class="ts-drawer-summary"');
+  const planAt = td.indexOf('class="ts-section ts-plan-hero"');
+  const focusHistoryAt = td.indexOf('<CardFocusHistory');
+  const ownerAt = td.indexOf('class="ts-section ts-owner ds-props2"');
   const resourceAt = td.indexOf('class="ts-section ts-resource-section"');
   const noteAt = td.indexOf('class="ts-section ts-note-section"');
   const planHero = td.slice(planAt, ownerAt);
-  return titleAt >= 0 && planAt > titleAt && ownerAt > planAt && resourceAt > ownerAt && noteAt > resourceAt
+  return titleAt >= 0 && summaryAt > titleAt && planAt > summaryAt
+    && focusHistoryAt > planAt && ownerAt > focusHistoryAt
+    && resourceAt > ownerAt && noteAt > resourceAt
     && !tdCode.includes('<ExportMenu') && !tdCode.includes('ts-prio') && !tdCode.includes('AI 拆解')
     && !tdCode.includes('子任务') && !tdCode.includes('成熟度')
+    && td.includes('class="ts-drawer-summary"') && td.includes('data-detail-filter')
+    && td.includes('@click="detailFocus =')
     && planHero.includes('<PlanScheduleHistory') && planHero.includes('card-kind="task"')
+    && planHero.includes('<CardFocusHistory') && planHero.includes('card-kind="task"')
     && planHero.includes('class="ts-plan-field"') && planHero.includes('updatePlannedDate(')
     && planHero.includes('class="ts-plan-clear"') && planHero.includes('class="ts-focus-link"')
     && td.includes('class="ts-ai-primary"') && td.includes('label="AI 找资源"')

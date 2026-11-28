@@ -14,6 +14,7 @@
  */
 import type { AppData, TaskCard } from '@/shared/models'
 import { activeFocusSlots } from './focusSlots'
+import { isTaskDone } from './taskStatus'
 
 const DAY_MS = 86_400_000
 
@@ -60,7 +61,7 @@ export function focusCarried(d: AppData, anchorKey: string, n = 7): Map<string, 
     for (const slot of activeFocusSlots(d.dailyFocus[key])) {
       if (slot.done || slot.sourceType !== 'task' || !slot.sourceId) continue
       const t = byId.get(slot.sourceId)
-      if (!t || t.status === 'done') continue
+      if (!t || isTaskDone(d, t)) continue
       const prev = out.get(slot.sourceId)
       if (!prev || key > prev) out.set(slot.sourceId, key)
     }

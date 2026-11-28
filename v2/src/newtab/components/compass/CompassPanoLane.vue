@@ -22,6 +22,7 @@ import type { MetricMeta } from '../../views/compassMeta'
 import { TASK_DND_KEY } from '../../views/useTaskRelocationDnd'
 import { useCompass } from '../../stores/compass'
 import { isTopicDone, topicStatusOf } from '@/shared/utils/topicStatus'
+import { isTaskDone, taskStatusOf } from '@/shared/utils/taskStatus'
 
 const props = defineProps<{
   m: MetricMeta
@@ -83,7 +84,11 @@ function clueOf(t: TaskCard): string {
   return (t as TaskCard & { w?: string }).w || ''
 }
 function statusOf(t: TaskCard): string {
-  return t.status === 'done' ? 'done' : t.status === 'doing' ? 'doing' : ''
+  const bucket = taskStatusOf(d.value, t)?.bucket
+  return bucket === 'done' ? 'done' : bucket === 'doing' ? 'doing' : ''
+}
+function taskDone(t: TaskCard): boolean {
+  return isTaskDone(d.value, t)
 }
 function topicStatusName(topicId: string): string {
   const topic = props.m.topics.find(row => row.id === topicId)
@@ -141,8 +146,8 @@ function topicDone(topicId: string): boolean {
           @dragend="taskDnd?.onDragEnd()">
           <button
             class="ltask-box" :class="statusOf(t)"
-            :aria-pressed="t.status === 'done'"
-            :title="t.status === 'done' ? '点一下取消完成' : '点一下勾选完成'"
+            :aria-pressed="taskDone(t)"
+            :title="taskDone(t) ? '点一下取消完成' : '点一下勾选完成'"
             @click="emit('toggleTask', t.id)"
           />
           <div class="ltask-main">

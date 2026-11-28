@@ -54,6 +54,20 @@ export function taskInProgressStatus(data: Pick<AppData, 'taskStatuses'>): TaskS
     || ordered[0]
 }
 
+/** 三桶语义对应的实际状态定义；用于批量/看板拖拽，禁止再硬编码默认状态 id。 */
+export function taskStatusForBucket(
+  data: Pick<AppData, 'taskStatuses'>,
+  bucket: TaskStatusBucket,
+): TaskStatusDef | undefined {
+  if (bucket === 'done') return taskTerminalStatus(data)
+  if (bucket === 'doing') return taskInProgressStatus(data)
+  const ordered = sortedTaskStatuses(data)
+  return ordered.find(status => status.bucket === 'todo' && !status.terminal)
+    || ordered.find(status => status.bucket === 'todo')
+    || ordered.find(status => !status.terminal)
+    || ordered[0]
+}
+
 export function isTaskDone(
   data: Pick<AppData, 'taskStatuses'>,
   task?: Pick<TaskCard, 'statusId'> & Partial<Pick<TaskCard, 'status'>>,
@@ -84,6 +98,52 @@ export function setTaskStatusById(
   return true
 }
 
+/** “进入今日重点”的写入痕迹：只给显式撤销用，不代表槽位移出要回滚状态。 */
+export interface FocusTaskStatusWrite {
+  changed: boolean
+  beforeId?: ID
+  writtenId?: ID
+}
+
+/**
+ * 唯一“进入重点”状态写入器。
+ *
+ * 规则：
+ * - 已完成、已在进行中桶：保持当前状态，不降级也不重复改 updatedAt；
+ * - 待开始：落到 `taskInProgressStatus()` 的真实 doing 状态，不硬编码 `task-doing`；
+ * - 状态真源与兼容 `status` 桶由 `setTaskStatusById()` 同步。
+ */
+export function enterFocusTaskStatus(
+  data: AppData,
+  task: TaskCard,
+  stamp = Date.now(),
+): FocusTaskStatusWrite {
+  if (!task || task.deletedAt) return { changed: false }
+  const current = taskStatusOf(data, task)
+  if (!current || current.bucket === 'done' || current.bucket === 'doing') {
+    return { changed: false }
+  }
+  const next = taskInProgressStatus(data)
+  if (!next || next.id === current.id) return { changed: false }
+  if (!setTaskStatusById(data, task, next.id, stamp)) return { changed: false }
+  return { changed: true, beforeId: current.id, writtenId: next.id }
+}
+
+/** 仅当任务仍停在“本次写入”的 doing 状态时恢复；用户后来改过状态一律尊重现状。 */
+export function restoreFocusTaskStatus(
+  data: AppData,
+  task: TaskCard,
+  write?: FocusTaskStatusWrite,
+  stamp = Date.now(),
+): boolean {
+  if (!write?.changed || !write.beforeId || !write.writtenId) return false
+  if (!task || task.deletedAt) return false
+  if (taskStatusOf(data, task)?.id !== write.writtenId) return false
+  const before = taskStatusById(data, write.beforeId)
+  if (!before || before.bucket === 'done') return false
+  return setTaskStatusById(data, task, before.id, stamp)
+}
+
 export function toggleTaskDone(data: AppData, task: TaskCard, restoreStatusId?: ID): boolean {
   if (isTaskDone(data, task)) {
     const remembered = task.statusBeforeDone || 'todo'
@@ -97,6 +157,43 @@ export function toggleTaskDone(data: AppData, task: TaskCard, restoreStatusId?: 
   const terminal = taskTerminalStatus(data)
   if (!terminal?.terminal) return false
   return setTaskStatusById(data, task, terminal.id)
+}
+
+/** V4.7.8：旧面板只写 `task.status='doing'` 留下的精确脏签名，只修一次。 */
+export const FOCUS_TASK_STATUS_REPAIR_VERSION = 1
+
+function localDateKey(now = new Date()): string {
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** 不引入 focusSlots：legacy 夹具会单独剥离本文件求值，保持此处零模块依赖。 */
+function todayFocusTaskIds(data: AppData, day: string): Set<string> {
+  const slots = data.dailyFocus && Array.isArray(data.dailyFocus[day]) ? data.dailyFocus[day] : []
+  const ids = new Set<string>()
+  for (const slot of slots) {
+    if (!slot || slot.cleared || slot.sourceType !== 'task' || !slot.sourceId) continue
+    ids.add(slot.sourceId)
+  }
+  return ids
+}
+
+function repairLegacyFocusTaskStatus(data: AppData): void {
+  const repairedVersion = Number(data.focusTaskStatusRepairVersion)
+  if (Number.isFinite(repairedVersion) && repairedVersion >= FOCUS_TASK_STATUS_REPAIR_VERSION) return
+  const focusTaskIds = todayFocusTaskIds(data, localDateKey())
+  const doing = taskInProgressStatus(data)
+  if (focusTaskIds.size && doing?.bucket === 'doing') {
+    for (const task of data.tasks) {
+      if (task.deletedAt || !focusTaskIds.has(task.id)) continue
+      const currentById = taskStatusById(data, task.statusId)
+      if (task.status !== 'doing' || currentById?.bucket !== 'todo') continue
+      setTaskStatusById(data, task, doing.id)
+    }
+  }
+  data.focusTaskStatusRepairVersion = FOCUS_TASK_STATUS_REPAIR_VERSION
 }
 
 /**
@@ -141,6 +238,8 @@ export function normalizeTaskStatusDomain(data: AppData): void {
   for (const status of data.taskStatuses) status.terminal = status.id === terminal.id
   terminal.bucket = 'done'
   terminal.terminal = true
+
+  repairLegacyFocusTaskStatus(data)
 
   const ordered = sortedTaskStatuses(data)
   const statusById = new Map(data.taskStatuses.map(status => [status.id, status] as const))

@@ -57,14 +57,16 @@ check('V472-4 ★任务清单按“未落图 / 已落图”分组，卡面再用
     && CAL_CSS.includes('.cal-pool-group.is-plan-planned')
 })
 
-check('V472-5（V4.7.6 重指）画像洞察“观察范围”改为时间轴 / 卡片分析双视图，默认时间轴，年度热力常驻', () => {
+check('V472-5（V4.7.8 重指）画像洞察“观察范围”改为时间轴 / 卡片分析双视图，默认卡片分析，年度热力常驻', () => {
   return PROFILE.includes("type ProfileView = 'timeline' | 'analysis'")
-    && PROFILE.includes("return 'timeline'")
+    && PROFILE.includes("if (route.query.view === 'timeline') return 'timeline'")
+    && PROFILE.includes("return 'analysis'")
     && PROFILE.includes('data-profile-view="timeline"')
     && PROFILE.includes('data-profile-view="analysis"')
     && PROFILE.includes('<PiTimeline')
     && PROFILE.includes('<PiAnnualHeatmap')
-    && PROFILE.includes('<PiCardAnalysis v-else')
+    && PROFILE.includes('<PiCardAnalysis')
+    && PROFILE.includes('id="pi-view-panel-analysis"')
     && !PROFILE.includes('<PiRangeTabs')
     && !PROFILE.includes("activeRange === 'today'")
 })

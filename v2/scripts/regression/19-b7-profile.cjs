@@ -10,6 +10,8 @@ const { check, codeOnly, read } = require('./helpers.cjs');
 const HERO = read('/newtab/components/profile/PiHero.vue');
 const PI = read('/newtab/views/ProfileInsights.vue');
 const CSS = codeOnly(read('/newtab/components/profile/pi-timeline.css'));
+// V4.7.8：观察范围容器样式已移入页面自有 CSS，双视图断点从 pi-timeline.css 重指到这里。
+const PROFILE_CSS = codeOnly(read('/newtab/views/ProfileInsights.css'));
 const TODAY = read('/newtab/components/profile/PiToday.vue');
 const RHY = read('/newtab/components/profile/PiRhythm.vue');
 const MONTH = read('/newtab/components/profile/PiMonth.vue');
@@ -111,19 +113,22 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-2 ★V4.7.6 重指：观察范围收敛为「时间轴 / 卡片分析」双视图，默认时间轴，',
+  'A3-2 ★V4.7.8 重指：观察范围收敛为「时间轴 / 卡片分析」双视图，默认卡片分析（时间轴保留 view=timeline 深链），',
   '年度热力独立常驻。负锚：旧四尺度 PiRangeTabs 不再作为页面唯一导航。'), () => {
-  const mods = CSS.match(/\.pi-rmods-single[^{]*\{[^}]*\}/)?.[0] || '';
+  const mods = PROFILE_CSS.match(/\.pi-rmods-single[^{]*\{[^}]*\}/)?.[0] || '';
   return PI.includes("type ProfileView = 'timeline' | 'analysis'")
-    && PI.includes("return 'timeline'")
+    && PI.includes("if (route.query.view === 'timeline') return 'timeline'")
+    && PI.includes("return 'analysis'")
     && PI.includes('data-profile-view="timeline"')
     && PI.includes('data-profile-view="analysis"')
     && PI.includes('<PiTimeline')
     && PI.includes('<PiAnnualHeatmap')
-    && PI.includes('<PiCardAnalysis v-else')
+    // V4.7.8 重指备案：默认视图翻转为卡片分析；双视图由 role=tabpanel 包裹，时间轴改走显式深链。
+    && PI.includes('id="pi-view-panel-analysis"')
+    && PI.includes('<PiCardAnalysis')
     && !PI.includes('<PiRangeTabs')
     && !PI.includes('@jump="onRailJump"') && !PI.includes('<PiRail')
-    && mods.includes('animation: pi-range-in')
+    && mods.includes('display: flex')
     && (PI.match(/class="pi-sep"/g) || []).length === 0;
 });
 
@@ -201,13 +206,15 @@ check(NAME(
 });
 
 check(NAME(
-  'A3-9 ★V4.7.7 重指：卡片分析由「卡片构成与使用 + 三件事数据分析 + 资源生命周期」三段承载，',
-  '四格与选题成果下钻同源；「你的方向状态」不再渲染，年度热力优先于分析页。'), () => {
+  'A3-9 ★V4.7.8 重指备案：卡片分析改由「四卡页签 + 三件事数据分析 + 资源生命周期」三段承载，',
+  '首层不再挂载 PiOverview；「你的方向状态」不再渲染，年度热力与全库总览优先于分析页。'), () => {
   return PI.includes('<PiCardAnalysis')
     && !PI.includes(':mission-text="heroMission"')
     && !PI.includes(':focus-projects="heroFocusProjects"')
-    && PI.includes('@kpi-drill="onHeroDrill"')
-    && ANALYSIS.includes('<PiOverview')
+    && !PI.includes('@kpi-drill="onHeroDrill"')
+    && !codeOnly(PI).includes('<PiOverview')
+    && ANALYSIS.includes('role="tablist"')
+    && !ANALYSIS.includes('<PiOverview')
     && ANALYSIS.includes('pi-focus-analysis')
     && ANALYSIS.includes('id="lc-sec"')
     && OVERVIEW.includes('class="pi-overview"')

@@ -21,6 +21,7 @@ interface TimelineEntry {
   status: string
   statusColor: string
   done: boolean
+  isHistory: boolean
   link: string
 }
 
@@ -99,16 +100,28 @@ const groups = computed(() => {
     byDayAndCard.set(key, {
       key, id: card.id, day, ts: event.ts, action: EVENT_ACT_LABEL[event.action], count: 1,
       title: titleOf(card) || '（无标题）', status: status.name, statusColor: status.color, done: status.done,
-      link: linkOf(card),
+      isHistory: false, link: linkOf(card),
     })
   }
   const days = new Map<string, TimelineEntry[]>()
-  for (const entry of [...byDayAndCard.values()].sort((a, b) => b.ts - a.ts)) {
+  for (const entry of [...byDayAndCard.values()].sort((a, b) => b.ts - a.ts || b.key.localeCompare(a.key))) {
     const entries = days.get(entry.day) || []
     entries.push(entry)
     days.set(entry.day, entries)
   }
-  return [...days.entries()].map(([day, entries]) => ({ day, entries }))
+  const latestByCard = new Map<string, TimelineEntry>()
+  for (const entries of days.values()) {
+    for (const entry of entries) {
+      const current = latestByCard.get(entry.id)
+      if (!current || entry.ts > current.ts || (entry.ts === current.ts && entry.key > current.key)) {
+        latestByCard.set(entry.id, entry)
+      }
+    }
+  }
+  return [...days.entries()].map(([day, entries]) => {
+    for (const entry of entries) entry.isHistory = latestByCard.get(entry.id)?.key !== entry.key
+    return { day, entries }
+  })
 })
 
 function dayLabel(day: string): string {
@@ -121,6 +134,13 @@ function dayLabel(day: string): string {
 
 function timeLabel(ts: number): string {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function entryAriaLabel(entry: TimelineEntry, day: string): string {
+  const recordState = entry.isHistory ? '历史记录' : '最新记录'
+  const openHint = entry.link ? '双击打开卡片链接' : '双击时若未填链接会提示'
+  const countHint = entry.count > 1 ? `，同日折叠 ${entry.count} 次记录` : ''
+  return `${kindMeta().label}卡，${entry.title}，状态 ${entry.status}，${recordState}，${dayLabel(day)} ${timeLabel(entry.ts)}，${entry.action}${countHint}，单击查看详情，${openHint}`
 }
 
 function clearClickTimer(): void {
@@ -179,8 +199,9 @@ onBeforeUnmount(clearClickTimer)
           :key="entry.key"
           type="button"
           class="cpt-card"
-          :class="{ 'is-done': entry.done }"
+          :class="{ 'is-done': entry.done, 'is-history': entry.isHistory }"
           :data-card-id="entry.id"
+          :aria-label="entryAriaLabel(entry, group.day)"
           :title="entry.link ? '单击查看详情 · 双击打开卡片链接' : '单击查看详情 · 双击时若未填链接会提示'"
           :style="{
             '--kind-color': kindMeta().color,
@@ -191,6 +212,7 @@ onBeforeUnmount(clearClickTimer)
         >
           <span class="cpt-card-top">
             <span class="cpt-kind"><Icon :name="kindMeta().icon" :size="11" />{{ kindMeta().label }}</span>
+            <span v-if="entry.isHistory" class="cpt-history-label">历史</span>
             <span class="cpt-action">{{ entry.action }}</span>
           </span>
           <span class="cpt-title">{{ entry.title }}</span>
@@ -285,6 +307,39 @@ onBeforeUnmount(clearClickTimer)
 .cpt-card.is-done .cpt-kind { background: var(--surface-3); color: var(--text-3); }
 .cpt-card.is-done .cpt-status { color: var(--text-3); }
 .cpt-card.is-done .cpt-status i { background: var(--text-4); }
+.cpt-card.is-history {
+  border: 1px dashed var(--border-strong);
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+  color: var(--text-3);
+  box-shadow: none;
+}
+.cpt-card.is-history:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  box-shadow: none;
+  transform: none;
+}
+.cpt-card.is-history .cpt-kind {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+.cpt-card.is-history .cpt-action,
+.cpt-card.is-history .cpt-title,
+.cpt-card.is-history .cpt-foot,
+.cpt-card.is-history .cpt-status {
+  color: var(--text-3);
+}
+.cpt-card.is-history .cpt-status i { background: var(--text-4); }
+.cpt-history-label {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: var(--fs-tiny);
+  font-weight: 650;
+}
 .cpt-card-top { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .cpt-kind {
   display: inline-flex;

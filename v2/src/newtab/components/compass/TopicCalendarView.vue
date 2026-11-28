@@ -296,9 +296,17 @@ function openDay(key: string): void {
           @dragleave.self="dragOverDay = ''"
           @drop="dropOnDay($event, cell.key)"
         >
-          <button class="cal-day-head" type="button" @click="openDay(cell.key)">
+          <button
+            class="cal-day-head"
+            type="button"
+            :aria-label="`${cell.day} 日，共 ${cell.entries.length} 项${hiddenCount(cell.entries) ? '，还有更多' : ''}，点击查看详情`"
+            @click="openDay(cell.key)"
+          >
             <span>{{ cell.day }}</span>
-            <small v-if="cell.entries.length">{{ cell.entries.length }}</small>
+            <small
+              v-if="cell.entries.length"
+              :class="{ 'cal-more-count': calendarMode === 'month' && hiddenCount(cell.entries) }"
+            >{{ calendarMode === 'month' && hiddenCount(cell.entries) ? `+${hiddenCount(cell.entries)}` : cell.entries.length }}</small>
           </button>
           <div class="cal-day-list">
             <template v-for="entry in visibleEntries(cell.entries)" :key="entry.key">
@@ -329,7 +337,7 @@ function openDay(key: string): void {
                 <button type="button" title="取消排期" @click.stop="emit('clear-due', entry.topic.id)"><Icon name="x" :size="10" /></button>
               </button>
             </template>
-            <button v-if="hiddenCount(cell.entries)" class="cal-more" type="button" @click="openDay(cell.key)">+{{ hiddenCount(cell.entries) }} 更多</button>
+            <button v-if="calendarMode === 'week' && hiddenCount(cell.entries)" class="cal-more" type="button" @click="openDay(cell.key)">+{{ hiddenCount(cell.entries) }} 更多</button>
           </div>
         </div>
       </div>
@@ -386,7 +394,8 @@ function openDay(key: string): void {
   align-items: start;
   gap: 5px;
   min-width: 0;
-  padding: 5px 6px;
+  min-height: var(--cal-day-chip-height);
+  padding: 3px 6px;
   border: 1px solid color-mix(in srgb, var(--topic-status) 36%, var(--border));
   border-left: 3px solid var(--topic-status);
   border-radius: 8px;
@@ -427,6 +436,9 @@ function openDay(key: string): void {
 .topic-cal-modal-row.done .cal-modal-copy b { color: var(--text-3); text-decoration: line-through; }
 .topic-cal-modal-status { flex: none; padding: 2px 7px; border-radius: 99px; background: color-mix(in srgb, var(--topic-status) 12%, var(--surface-2)); color: var(--topic-status); font-size: var(--fs-micro); font-weight: 650; }
 .topic-cal-focus { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--accent); cursor: pointer; }
+@media (max-width: 1180px) {
+  .topic-cal-board { width: 100%; min-width: 0; min-height: 0; }
+}
 @media (max-width: 760px) {
   .topic-calendar { min-height: 560px; }
 }

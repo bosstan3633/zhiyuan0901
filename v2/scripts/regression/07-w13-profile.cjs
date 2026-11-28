@@ -13,6 +13,8 @@ const RHY = read('/newtab/components/profile/PiRhythm.vue');
 const MONTH = read('/newtab/components/profile/PiMonth.vue');
 const YEAR = read('/newtab/components/profile/PiYear.vue');
 const PI = read('/newtab/views/ProfileInsights.vue');
+const PROFILE_INSIGHTS = read('/newtab/views/useProfileInsights.ts');
+const PROFILE_INSIGHTS_MONTH = read('/newtab/views/useProfileInsightsMonth.ts');
 const DRAWER = read('/newtab/components/dashboard/DashboardLogDrawer.vue');
 const LC = read('/newtab/components/LifecyclePanel.vue');
 const PI_C = codeOnly(PI);
@@ -106,21 +108,30 @@ check('W13-8 ★本批改动的反漂纪律：索引生成物由 R163-1 守、�
 
 console.log('【W13-T7 · 抽屉收口与诊断统一（T7a~T7d）】');
 
-check('W13-F28（V4.2.0 重指）★事件类下钻必须收进全页唯一的三维筛选抽屉（DashboardLogDrawer），卡片语义下钻才留 statDrawer 单抽屉：动态条明细抽屉 dynDrawer 已整删（T7b）—— 迁移后的三处入口对账：① 本月入池 → openLog 的 month-in 键（action=create · from=月初 · 含导入）② 近30天主攻动作 → openLogFocus（LogPreset.focusOnly，主攻集口径 = isFocused 且未归档，只留 create/call/status 三类动作）③ 四类记录入口四键齐全；好奇心转化退役后 curio-conv 入口同步下线。抽屉侧 focusOnly 的过滤与主攻集在抽屉内自算（props.data.compass，组件零 store）', () => {
+check('W13-F28（V4.7.8 重指）★事件类下钻必须收进全页唯一的三维筛选抽屉（DashboardLogDrawer），卡片语义下钻才留 statDrawer 单抽屉：动态条明细抽屉 dynDrawer 已整删（T7b）—— 迁移后的三处入口对账：① 本月入池 → openLog 的 month-in 键（action=create · from=月初 · 含导入）② 近30天主攻动作 → openLogFocus（LogPreset.focusOnly，主攻集口径 = isFocused 且未归档，只留 create/call/status 三类动作）③ 四类记录入口四键齐全；好奇心转化退役后 curio-conv 入口同步下线。抽屉侧 focusOnly 的过滤与主攻集在抽屉内自算（props.data.compass，组件零 store）。★V4.7.8 随迁备案：画像域逻辑已从宿主抽入 useProfileInsights / useProfileInsightsMonth，承重锚换到逻辑真源；类型域同时合法扩入资源支撑、选题与今日记录等新下钻，旧 resource/task/curiosity/link 四类卡语义仍被负锚钉死', () => {
+  const typeDecl = PROFILE_INSIGHTS.slice(
+    PROFILE_INSIGHTS.indexOf('export type StatDrawerType ='),
+    PROFILE_INSIGHTS.indexOf('export type StatRow')
+  )
   return !PI_C.includes('openDynDrawer') && !PI_C.includes('dynDrawer')
-    && PI.includes('function openLogFocus()') && PI.includes("openLog('month-in')")
-    && PI.includes("k === 'month-in'") && PI.includes('fmtDayKey(gStartOfMonth)')
-    && PI.includes('function openLog(') && PI.includes("'month-in'")
+    && PROFILE_INSIGHTS.includes('function openLogFocus()') && PROFILE_INSIGHTS_MONTH.includes("openLog('month-in')")
+    && PROFILE_INSIGHTS.includes("k === 'month-in'") && PROFILE_INSIGHTS.includes('fmtDayKey(gStartOfMonth)')
+    && PROFILE_INSIGHTS.includes('function openLog(') && PROFILE_INSIGHTS.includes("'month-in'")
     && DRAWER.includes('focusOnly?: boolean') && DRAWER.includes('focusOnly.value') && DRAWER.includes('focusIds')
     && DRAWER.includes("e.action !== 'create' && e.action !== 'call' && e.action !== 'status'")
     && DRAWER.includes('p.status !== \'archived\'')
     && !codeOnly(DRAWER).includes('useAppStore')
-    /* statDrawer 只剩八类活键（卡片语义：F15 目标对账 / F17 转化 / F18 主题 / F19 策展·支撑） */
-    && PI.includes("type StatDrawerType = '' | 'all' | 'support' | 'goal-week'")
+    /* statDrawer 保留卡片语义与 V4.7.8 新增下钻；旧四类卡语义不得回流 */
+    && !!typeDecl && !/'resource'|'task'|'curiosity'|'link'/.test(typeDecl)
     && !PI_C.includes("case 'resource':") && !PI_C.includes("case 'task':") && !PI_C.includes("case 'curiosity':") && !PI_C.includes("case 'link':")
     && !PI_C.includes("openStatDrawer('curio-conv')")
-    && ["openStatDrawer('all')", "openStatDrawer('support')", "openStatDrawer('goal-week')", "openStatDrawer('mo-support')", "openStatDrawer('topic')"]
-      .every(k => PI.includes(k));
+    && [
+      PROFILE_INSIGHTS.includes("openStatDrawer('all')"),
+      PROFILE_INSIGHTS.includes("openStatDrawer('support')"),
+      PROFILE_INSIGHTS.includes("openStatDrawer('goal-week')"),
+      PROFILE_INSIGHTS_MONTH.includes("openStatDrawer('mo-support')"),
+      PROFILE_INSIGHTS.includes("openStatDrawer('topic')"),
+    ].every(Boolean);
 });
 
 check('W13-T7a ★复盘弹窗退役但组件保留：D5 用户拍板「复盘能力四段常驻」⇒ 宿主零挂载零 import（组件文件保留待复用，同 CatPicker 先例）；能力去向逐条点名防"删了不解释"：周/月复盘落四段模块常驻、目标对账明细落 PiRhythm 战略目标点行（goal-week 抽屉）、复盘引擎 buildReview/reviewReport 与 CSS 一字未动', () => {

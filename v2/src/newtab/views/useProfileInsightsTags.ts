@@ -28,7 +28,8 @@ async function runTagOptimizeAi() {
 }
 const statDrawerTitle = computed(() => ({
   all: `全部卡片明细（${totalCards.value}）`,
-  support: `任务证据支撑明细（${statList.value.length}）`,
+  support: `任务证据支撑明细（${statList.value.length} / ${gTaskLive.value.length} 张活任务）`,
+  'effective-support': `任务有有效资源支撑明细（${statList.value.length} / ${gTaskLive.value.length} 张活任务）`,
   ammo: `已备弹药 · 三件事的支撑卡清单（${statList.value.length} 张）`,
   cooling: `可调出的旧卡 · 冷却期清单（${statList.value.length} 张）`,
   'today-in': `今日入台的卡（${statList.value.length} 张）`,
@@ -66,10 +67,13 @@ const statReconcile = computed<PiReconCell[] | null>(() => {
       return [cell('冷却期卡', statList.value.length, '张'), cell('其中高价值（调用≥3）', coolingCards.value.filter(c => (gResLive.value.find(r => r.id === c.id)?.callCount || 0) >= 3).length, '张'),
         cell('默认冷却阈值', Math.round((coolingDefaultDaysOf() || 30)), '天'), cell('默认归档阈值', Math.round((coolingDefaultDaysOf() || 30) * 3), '天')]
     case 'support':
-      const supported = (gd.value.supportLinks || []).filter(l => l.taskId).map(l => l.taskId)
-      const supportedTasks = gTaskLive.value.filter(t => supported.includes(t.id)).length
-      return [cell('支撑率', heroSupportRate.value, '%'), cell('已支撑', supportedTasks, '个'),
-        cell('未支撑', Math.max(0, gTaskLive.value.length - supportedTasks), '个', supportedTasks < gTaskLive.value.length)]
+    case 'effective-support': {
+      const totalTasks = gTaskLive.value.length
+      const supportedTasks = statList.value.length
+      return [cell('有效支撑率', heroSupportRate.value, '%'), cell('有有效资源', supportedTasks, '个'),
+        cell('无有效资源', Math.max(0, totalTasks - supportedTasks), '个', supportedTasks < totalTasks),
+        cell('活任务', totalTasks, '个')]
+    }
     case 'all':
       return [cell('存活卡片', totalCards.value, '张'), cell('资源', gResLive.value.length, '张'),
         cell('任务', gTaskLive.value.length, '张'), cell('好奇', gCurioLive.value.length, '张'),
@@ -85,7 +89,9 @@ const statReconcileNote = computed(() => {
   if (S === 'today-in') return '今日入台按卡字段 createdAt 计（与上方四格读数同源）；事件只用来标注来源。'
   if (S === 'ammo') return '弹药只算**存活**资源卡，与上方「已备弹药 N 张」同源；已软删的那几张单列，不混进清单。'
   if (S === 'cooling') return '冷却判定逐卡走 lifecycleState（与生命周期面板的「冷却」Tab 同一真源），默认 30 天不用即冷却、90 天归档。'
-  if (S === 'support') return '支撑 = 任务到资源卡的一条显式关联，不是"标签相同就算支撑"。'
+  if (S === 'support' || S === 'effective-support') {
+    return '有效支撑 = 活任务 × 活资源 × 资源当前有可用链接；同一任务多资源去重，资源软删或链接清空即回落。清单只列达到该口径的任务。'
+  }
   if (S.startsWith('topic-')) return '选题明细只统计存活选题卡；已发布按当前完成态状态判定，关联资源按独立关系表去重核对。'
   if (S === 'all') return '本清单是卡片维度；想看"谁在什么时候做了什么"，去页头「全部记录」。'
   return ''
